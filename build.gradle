@@ -23,9 +23,6 @@ buildscript {
         mavenCentral()
     }
 }
-plugins {
-    id "org.nosphere.apache.rat" version "0.2.0"
-}
 allprojects {
     apply plugin: 'eclipse'
     apply plugin: 'idea'
@@ -43,35 +40,9 @@ tasks.withType(Tar) {
 version = 0.4 //only applies to the wave server & client, should be changed once split
 
 //=============================================================================
-// Apache Rat Configuration
-//=============================================================================
-rat {
-    inputDir = '.'
-    reportDir = project.file('reports/rat')
-    excludes = [
-            '**/build/**',
-            'reports/**',
-            '.gradle/',
-            '.idea/',
-            '.vagrant/',
-            '**/*.gradle',
-            '**/*.iml',
-            '**/generated/**'
-    ]
-    failOnError = false
-}
-rat.doFirst {
-    println ''
-    println '----------------------------------------------'
-    println '             Checking Licenses                '
-    println ' This task can take between 10 to 20 minutes. '
-    println '----------------------------------------------'
-    println ''
-}
-
-//=============================================================================
 // Source Distribution
 //=============================================================================
+
 
 def srcName = this.group + "-src-" + this.version
 def srcExcludes = [
@@ -97,8 +68,8 @@ def srcExcludes = [
 ]
 
 task createDistSourceZip(type: Zip) {
-    baseName = srcName
-    destinationDir = file('distributions')
+    archiveBaseName = srcName
+    destinationDirectory = file('distributions')
     from('./') {
         into 'apache-wave-src'
     }
@@ -106,8 +77,8 @@ task createDistSourceZip(type: Zip) {
 }
 
 task createDistSourceTar(type: Tar) {
-    baseName = srcName
-    destinationDir = file('distributions')
+    archiveBaseName = srcName
+    destinationDirectory = file('distributions')
     from('./') {
         into 'apache-wave-src'
     }
@@ -144,3 +115,4 @@ task createDist(type: Copy) {
 }
 
 createDist.dependsOn createDistSource, ":wave:assembleDist", ":pst:createDist"
+

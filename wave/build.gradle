@@ -21,10 +21,18 @@
 plugins {
     id 'java'
     id 'application'
-    id "com.google.protobuf" version "0.8.0"
+    id "com.google.protobuf" version "0.9.4"
 }
 apply plugin: 'com.google.protobuf'
 apply plugin: 'checkstyle'
+
+// Avoid build failures on duplicate resources (e.g., images appearing in multiple locations)
+// by excluding duplicates during resource processing.
+import org.gradle.language.jvm.tasks.ProcessResources
+
+tasks.withType(ProcessResources) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
 
 //=============================================================================
 // Project Level Settings
@@ -33,15 +41,19 @@ apply plugin: 'checkstyle'
 def title = 'Apache Wave Server'
 def vendor = 'The Apache Software Foundation'
 version = "0.4.2"
-mainClassName = "org.waveprotocol.box.server.ServerMain"
+application {
+    mainClass = "org.waveprotocol.box.server.ServerMain"
+}
 applicationDefaultJvmArgs = [
         "-Xmx1024M",
         "-Dorg.eclipse.jetty.LEVEL=DEBUG",
         "-Djava.util.logging.config.file=config/wiab-logging.conf",
         "-Djava.security.auth.login.config=config/jaas.config"
 ]
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 compileJava {
     options.incremental = true
 }
@@ -52,6 +64,7 @@ compileJava {
 configurations {
     generateMessages
     generateGXP
+    protoCompile
 }
 
 //=============================================================================
@@ -101,96 +114,98 @@ repositories {
         url 'https://maven.atlassian.com/3rdparty/'
     }
 }
-configurations.compile {
-    resolutionStrategy {
-        //failOnVersionConflict()
-    }
-}
+
 dependencies {
-    compile (
-            [group: "com.google.code.gson", name: "gson", version: "2.8.0"],                                    // [11/2016, 1/2018]
-            [group: "com.google.guava", name: "guava", version: "20.0"],                                        // [11/2016, 1/2018]
-            [group: "com.google.guava", name: "guava-gwt", version: "20.0"],                                    // [11/2016, 1/2018]
-            [group: "com.google.gwt", name: "gwt-dev", version: "2.8.0"],                                       // [11/2016, 1/2018]
-            [group: "com.google.gwt", name: "gwt-user", version: "2.8.0"],                                      // [11/2016, 1/2018]
-            [group: "com.google.gwt", name: "gwt-codeserver", version: "2.8.0"],                                // [11/2016, 1/2018]
-            [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"],                               // [?, ?]
-            [group: "com.google.protobuf", name: "protobuf-java", version: "2.6.1"],                            // [?, ?]
-            [group: "com.google.protobuf", name: "protobuf-java", version: "2.6.1", classifier: 'sources'],     // [?, ?]
-            [group: "com.googlecode.protobuf-java-format", name: "protobuf-java-format", version: "1.2"],       // [?, ?]
-            [group: "com.typesafe", name: "config", version: "1.2.1"],                                          // [?, ?]
-            [group: "commons-codec", name: "commons-codec", version: "1.10"],                                   // [?, ?]
-            [group: "commons-io", name: "commons-io", version: "2.4"],                                          // [?, ?]
-            [group: "commons-collections", name: "commons-collections", version: "3.2.2"],                      // [?, ?]
-            [group: "commons-configuration", name: "commons-configuration", version: "1.6"],                    // [?, ?]
-            [group: "commons-httpclient", name: "commons-httpclient", version: "3.1"],                          // [?, ?]
-            [group: "commons-lang", name: "commons-lang", version: "2.5"],                                      // [?, ?]
-            [group: "commons-fileupload", name: "commons-fileupload", version: "1.3.2"],                        // [11/2016, 6/2017]
-            [group: "commons-logging", name: "commons-logging-api", version: "1.1"],                            // [?, ?]
-            [group: "commons-logging", name: "commons-logging", version: "1.1.1"],                              // [?, ?]
-            [group: "com.google.code.findbugs", name: "jsr305", version: "2.0.1"],                              // [?, ?]
-            [group: "com.google.code.gson", name: "gson", version: "2.2.4"],                                    // [?, ?]
-            [group: "com.google.guava", name: "guava", version: "20.0"],                                        // [?, ?]
-            [group: "com.google.guava", name: "guava-gwt", version: "20.0"],                                    // [?, ?]
-            [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"],                               // [?, ?]
-            [group: "com.google.inject.extensions", name: "guice-assistedinject", version: "3.0"],              // [?, ?]
-            [group: "com.google.inject.extensions", name: "guice-servlet", version: "3.0"],                     // [?, ?]
-            [group: "com.google.inject", name: "guice", version: "3.0"],                                        // [?, ?]
-            [group: "com.google.protobuf", name: "protobuf-java", version: "2.6.1"],                            // [?, ?]
-            [group: "com.google.inject", name: "guice", version:"4.1.0"],					// [?, ?]
-            [group: "com.google.inject.extensions", name: "guice-servlet", version:"4.1.0"],			// [?, ?]
-            [group: "com.googlecode.protobuf-java-format", name: "protobuf-java-format", version: "1.2"],       // [?, ?]
-            [group: "com.typesafe", name: "config", version: "1.2.1"],                                          // [?, ?]
-            [group: "dom4j", name: "dom4j", version: "1.6.1"],                                                  // [?, ?]
-            [group: "eu.infomas", name: "annotation-detector", version: "3.0.0"],                               // [?, ?]
-            [group: "org.antlr", name: "antlr", version: "3.2"],                                                // [?, ?]
-            [group: "org.apache.velocity", name: "velocity", version: "1.6.3"],                                 // [?, ?]
-            [group: "org.apache.lucene", name: "lucene-core", version: "3.5.0"],                                // [?, ?]
-            [group: "org.bouncycastle", name: "bcprov-jdk16", version: "1.45"],                                 // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-annotations", version: "9.2.14.v20151106"],               // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-client", version: "9.2.14.v20151106"],                    // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-continuation", version: "9.2.14.v20151106"],              // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-http", version: "9.2.14.v20151106"],                      // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-io", version: "9.2.14.v20151106"],                        // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-proxy", version: "9.2.14.v20151106"],                     // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-security", version: "9.2.14.v20151106"],                  // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-server", version: "9.2.14.v20151106"],                    // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-servlet", version: "9.2.14.v20151106"],                   // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-servlets", version: "9.2.14.v20151106"],                  // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-util", version: "9.2.14.v20151106"],                      // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-webapp", version: "9.2.14.v20151106"],                    // [?, ?]
-            [group: "org.eclipse.jetty", name: "jetty-xml", version: "9.2.14.v20151106"],                       // [?, ?]
-            [group: "org.eclipse.jetty.websocket", name: "websocket-api", version: "9.2.14.v20151106"],         // [?, ?]
-            [group: "org.eclipse.jetty.websocket", name: "websocket-client", version: "9.2.14.v20151106"],      // [?, ?]
-            [group: "org.eclipse.jetty.websocket", name: "websocket-common", version: "9.2.14.v20151106"],      // [?, ?]
-            [group: "org.eclipse.jetty.websocket", name: "websocket-server", version: "9.2.14.v20151106"],      // [?, ?]
-            [group: "org.eclipse.jetty.websocket", name: "websocket-servlet", version: "9.2.14.v20151106"],     // [?, ?]
-            [group: "org.jdom", name: "jdom", version: "1.1.3"],                                                // [?, ?]
-            [group: "org.mongodb", name: "mongo-java-driver", version: "2.11.2"],                               // [?, ?]
-            [group: "org.slf4j", name: "slf4j-api", version: "1.6.1"],                                          // [?, ?]
-            [group: "org.slf4j", name: "slf4j-simple", version: "1.6.1"],                                       // [?, ?]
-            [group: "javax.inject", name: "javax.inject", version: "1"],                                        // [?, ?]
-            [group: "javax.servlet", name: "javax.servlet-api", version: "3.1.0"],                              // [?, ?]
-            [group: "javax.jdo", name: "jdo2-api", version: "2.1"],                                             // [?, ?]
-            [group: "net.oauth.core", name: "oauth-provider", version: "20100601-atlassian-2"],                 // [11/2016, depreciate]
-            [group: "net.oauth.core", name: "oauth", version: "20100601-atlassian-2"],                          // [11/2016, depreciate]
-            [group: "net.oauth.core", name: "oauth-consumer", version: "20100601-atlassian-2"],                 // [11/2016, depreciate]
+    implementation (
+            [group: "com.google.code.gson", name: "gson", version: "2.8.0"],
+            [group: "com.google.guava", name: "guava", version: "20.0"],
+            [group: "com.google.guava", name: "guava-gwt", version: "20.0"],
+            [group: "com.google.gwt", name: "gwt-dev", version: "2.8.0"],
+            [group: "com.google.gwt", name: "gwt-user", version: "2.8.0"],
+            [group: "com.google.gwt", name: "gwt-codeserver", version: "2.8.0"],
+            [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"],
+[group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"],
+[group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12", classifier: 'sources'],
+            [group: "com.googlecode.protobuf-java-format", name: "protobuf-java-format", version: "1.2"],
+            [group: "com.typesafe", name: "config", version: "1.2.1"],
+            [group: "commons-codec", name: "commons-codec", version: "1.10"],
+            [group: "commons-io", name: "commons-io", version: "2.4"],
+            [group: "commons-collections", name: "commons-collections", version: "3.2.2"],
+            [group: "commons-configuration", name: "commons-configuration", version: "1.6"],
+            [group: "commons-httpclient", name: "commons-httpclient", version: "3.1"],
+            [group: "commons-lang", name: "commons-lang", version: "2.5"],
+            [group: "commons-fileupload", name: "commons-fileupload", version: "1.3.2"],
+            [group: "commons-logging", name: "commons-logging-api", version: "1.1"],
+            [group: "commons-logging", name: "commons-logging", version: "1.1.1"],
+            [group: "com.google.code.findbugs", name: "jsr305", version: "2.0.1"],
+            [group: "com.google.code.gson", name: "gson", version: "2.2.4"],
+            [group: "com.google.guava", name: "guava", version: "20.0"],
+            [group: "com.google.guava", name: "guava-gwt", version: "20.0"],
+            [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"],
+            [group: "com.google.inject.extensions", name: "guice-assistedinject", version: "3.0"],
+            [group: "com.google.inject.extensions", name: "guice-servlet", version: "3.0"],
+            [group: "com.google.inject", name: "guice", version: "3.0"],
+[group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"],                            // upgraded for JDK17 compatibility
+            [group: "com.google.inject", name: "guice", version:"4.1.0"],
+            [group: "com.google.inject.extensions", name: "guice-servlet", version:"4.1.0"],
+            [group: "com.googlecode.protobuf-java-format", name: "protobuf-java-format", version: "1.2"],
+            [group: "com.typesafe", name: "config", version: "1.2.1"],
+            [group: "dom4j", name: "dom4j", version: "1.6.1"],
+            [group: "eu.infomas", name: "annotation-detector", version: "3.0.0"],
+            [group: "org.antlr", name: "antlr", version: "3.2"],
+            [group: "org.apache.velocity", name: "velocity", version: "1.6.3"],
+            [group: "org.apache.lucene", name: "lucene-core", version: "3.5.0"],
+            [group: "org.bouncycastle", name: "bcprov-jdk16", version: "1.45"],
+            [group: "org.eclipse.jetty", name: "jetty-annotations", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-client", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-continuation", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-http", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-io", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-proxy", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-security", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-server", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-servlet", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-servlets", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-util", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-webapp", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty", name: "jetty-xml", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty.websocket", name: "websocket-api", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty.websocket", name: "websocket-client", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty.websocket", name: "websocket-common", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty.websocket", name: "websocket-server", version: "9.2.14.v20151106"],
+            [group: "org.eclipse.jetty.websocket", name: "websocket-servlet", version: "9.2.14.v20151106"],
+            [group: "org.jdom", name: "jdom", version: "1.1.3"],
+            [group: "org.mongodb", name: "mongo-java-driver", version: "2.11.2"],
+            [group: "org.slf4j", name: "slf4j-api", version: "1.6.1"],
+            [group: "org.slf4j", name: "slf4j-simple", version: "1.6.1"],
+            [group: "javax.inject", name: "javax.inject", version: "1"],
+            [group: "javax.servlet", name: "javax.servlet-api", version: "3.1.0"],
+            [group: "javax.jdo", name: "jdo2-api", version: "2.1"],
+            [group: "net.oauth.core", name: "oauth-provider", version: "20100601-atlassian-2"],
+            [group: "net.oauth.core", name: "oauth", version: "20100601-atlassian-2"],
+            [group: "net.oauth.core", name: "oauth-consumer", version: "20100601-atlassian-2"],
     )
-    compile fileTree(dir: '../pst/build/libs', include: '**/*.jar')                                             // [?, ?]
+    implementation fileTree(dir: '../pst/build/libs', include: '**/*.jar')
     generateGXP (
-        [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"]                                    // [11/2016, depreciate]
+        [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"]
     )
-    protoCompile (
-        [group: "com.google.protobuf", name: "protobuf-java", version: "2.6.1"],                                // [?, ?]
-        fileTree(dir: '../pst/build/libs', include: '**/*.jar')                                                 // [?, ?]
+    // Protobuf include dependencies for the 'proto' source set
+    protoProtobuf (
+        [group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"],
+        fileTree(dir: '../pst/build/libs', include: '**/wave-pst-*.jar')
+    )
+    // Protobuf runtime for compiling generated 'proto' Java sources
+    protoImplementation (
+        [group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"]
     )
     generateMessages (
-         fileTree(dir: '../pst/build/libs', include: '**/*.jar')                                                // [?, ?]
+         fileTree(dir: '../pst/build/libs', include: '**/wave-pst-*.jar'),
+         [group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"]
     )
-    testCompile(
-            [group: 'junit', name: 'junit', version: '4.12'],                                                   // [11/2016, 1/2018]
-            [group: "org.hamcrest", name: "hamcrest-junit", version: "2.0.0.0"],                                // [11/2016, 1/2018]
-            [group: "org.mockito", name: "mockito-core", version: "2.2.21"],                                    // [11/2016, 1/2018]
+    testImplementation(
+            [group: 'junit', name: 'junit', version: '4.12'],
+            [group: "org.hamcrest", name: "hamcrest-junit", version: "2.0.0.0"],
+[group: "org.mockito", name: "mockito-core", version: "2.2.21"],
     )
 }
 //=============================================================================
@@ -208,7 +223,7 @@ checkstyleMain.source = "src/main/java" // only checks the manually written java
 //=============================================================================
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:2.6.1'
+        artifact = 'com.google.protobuf:protoc:3.21.12'
     }
     generatedFilesBaseDir = "$projectDir/generated"
 }
@@ -220,19 +235,19 @@ protobuf {
 task generateMessages {
     description = 'Generates source files from Antlr String types and protobuf'
     FileTree inputFiles = fileTree(dir: 'generated/src/main/java', include: '**/*.java')
-    inputs.property "files", inputFiles
+    inputs.files inputFiles
     File outputDir = file("generated/main/java")
     outputs.dir outputDir
     doLast {
         List<String> proto_classes = [
-                "build/classes/proto/org/waveprotocol/box/common/comms/WaveClientRpc.class",
-                "build/classes/proto/org/waveprotocol/box/search/SearchProto.class",
-                "build/classes/proto/org/waveprotocol/box/profile/ProfilesProto.class",
-                "build/classes/proto/org/waveprotocol/box/server/rpc/Rpc.class",
-                "build/classes/proto/org/waveprotocol/box/attachment/AttachmentProto.class",
-                "build/classes/proto/org/waveprotocol/wave/federation/Proto.class",
-                "build/classes/proto/org/waveprotocol/wave/concurrencycontrol/ClientServer.class",
-                "build/classes/proto/org/waveprotocol/wave/diff/Diff.class"
+                "build/classes/java/proto/org/waveprotocol/box/common/comms/WaveClientRpc.class",
+                "build/classes/java/proto/org/waveprotocol/box/search/SearchProto.class",
+                "build/classes/java/proto/org/waveprotocol/box/profile/ProfilesProto.class",
+                "build/classes/java/proto/org/waveprotocol/box/server/rpc/Rpc.class",
+                "build/classes/java/proto/org/waveprotocol/box/attachment/AttachmentProto.class",
+                "build/classes/java/proto/org/waveprotocol/wave/federation/Proto.class",
+                "build/classes/java/proto/org/waveprotocol/wave/concurrencycontrol/ClientServer.class",
+                "build/classes/java/proto/org/waveprotocol/wave/diff/Diff.class"
         ]
         List<String> templates = [
                 "src/main/java/org/waveprotocol/pst/templates/api/api.st",
@@ -244,9 +259,9 @@ task generateMessages {
                 "src/main/java/org/waveprotocol/pst/templates/proto/proto.st"
         ]
         proto_classes.each { proto ->
-            javaexec {
-                main = "org.apache.wave.pst.PstMain"
-                classpath += configurations.generateMessages
+javaexec {
+                mainClass = "org.apache.wave.pst.PstMain"
+                classpath = configurations.generateMessages
                 args = [
                         '-s',
                         'pst',
@@ -262,16 +277,36 @@ task generateMessages {
 }
 
 generateMessages.dependsOn ":pst:shadowJar", "compileProtoJava"
+// Ensure PST shadow jar is available before generating 'proto' sources for the 'proto' sourceSet
+tasks.named('generateProtoProto') {
+    dependsOn(":pst:shadowJar")
+}
+// Make implicit dependencies explicit to avoid Gradle 8 warnings
+["extractProtoProto", "extractIncludeProto", "extractIncludeTestProto"].each { t ->
+    tasks.matching { it.name == t }.configureEach {
+        dependsOn(":pst:shadowJar")
+        dependsOn(":pst:jar")
+    }
+}
+["compileJava", "startScripts", "distZip", "distTar"].each { t ->
+    tasks.matching { it.name == t }.configureEach {
+        dependsOn(":pst:jar")
+    }
+}
+// Aggregate GWT tasks for manual invocation
+tasks.register("gwtBuild") {
+    dependsOn("compileGwt", "compileGwtDemo", "compileGwtDev", "testGwt")
+}
 
 task generateGXP {
     description = 'Generate source files from GXP prototypes'
     FileTree inputFiles = fileTree(dir: 'src/main/gxp', include: '**/*.gxp')
-    inputs.property "files", inputFiles
+    inputs.files inputFiles
     File outputDir = file("generated/main/java")
     outputs.dir outputDir
     doLast {
-        javaexec {
-            main = "com.google.gxp.compiler.cli.Gxpc"
+javaexec {
+            mainClass = "com.google.gxp.compiler.cli.Gxpc"
             classpath += configurations.generateGXP
             args = [
                     "--dir",
@@ -293,8 +328,8 @@ task compileGwt {
     description = 'Compiles the GWT sources for production'
     FileTree inputFiles = fileTree(dir: 'generated/src/main/java', include: '**/*.java')
     doLast {
-        javaexec {
-            main = "com.google.gwt.dev.Compiler"
+javaexec {
+            mainClass = "com.google.gwt.dev.Compiler"
             classpath {
                 [
                         sourceSets.main.java.srcDirs,
@@ -321,8 +356,8 @@ compileGwt.mustRunAfter compileJava
 task compileGwtDemo {
     description = 'Compiles the GWT sources for Demo'
     doLast {
-        javaexec {
-            main = "com.google.gwt.dev.Compiler"
+javaexec {
+            mainClass = "com.google.gwt.dev.Compiler"
             classpath {
                 [
                         sourceSets.main.java.srcDirs,
@@ -342,8 +377,8 @@ task compileGwtDemo {
 task compileGwtDev {
     description = 'Compiles the GWT sources for Development'
     doLast {
-        javaexec {
-            main = "com.google.gwt.dev.Compiler"
+javaexec {
+            mainClass = "com.google.gwt.dev.Compiler"
             classpath {
                 [
                         sourceSets.main.java.srcDirs,
@@ -380,8 +415,8 @@ task gwtDev {
         println ''
     }
     doLast {
-        javaexec {
-            main = "com.google.gwt.dev.DevMode"
+javaexec {
+            mainClass = "com.google.gwt.dev.DevMode"
             classpath {
                 [
                         sourceSets.main.java.srcDirs,
@@ -412,6 +447,13 @@ test {
 
     minHeapSize = "512m"
     maxHeapSize = "1024m"
+
+    // Open modules for Mockito on JDK 17
+    jvmArgs += [
+        '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.lang.reflect=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+    ]
 
     doFirst {
         println ''
@@ -496,8 +538,8 @@ testLarge.mustRunAfter test
 //=============================================================================
 
 jar {
-    baseName = 'wave'
-    classifier = ''
+    archiveBaseName = 'wave'
+    archiveClassifier = ''
     manifest {
         attributes "Specification-Vendor": vendor,
                 "Specification-Title": title,
@@ -506,7 +548,7 @@ jar {
                 "Implementation-Title": title,
                 "Implementation-Version": version,
                 "Built-By": "No one in particular",
-                "Main-Class": mainClassName
+"Main-Class": "org.waveprotocol.box.server.ServerMain"
     }
     exclude "org/waveprotocol/box/webclient/**/*"
     exclude "org/waveprotocol/box/consoleclient/**/*"
@@ -533,7 +575,7 @@ jar {
     exclude "org/waveprotocol/wave/client/widget/**/*"
     exclude "com/google/api/client/**/*"
 }
-jar.dependsOn compileJava, compileGwt
+jar.dependsOn compileJava
 
 //=============================================================================
 // Binary Distribution

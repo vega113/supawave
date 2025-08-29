@@ -131,6 +131,8 @@ shadowJar {
     exclude 'META-INF/**/*'
     // Use project-provided protobuf runtime from the consumer; avoid embedding it here to prevent conflicts
     exclude 'com/google/protobuf/**'
+    // Avoid bundling Guava; rely on consumer's version to prevent conflicts
+    exclude 'com/google/common/**'
 }
 
 //=============================================================================

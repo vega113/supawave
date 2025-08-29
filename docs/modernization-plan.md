@@ -155,7 +155,13 @@ Task P2-T1: Resolve Java 9+ module name collisions
   - wave:compileJava succeeds; no ambiguity errors.
 
 Task P2-T2: Upgrade Guice to 5.1.x for Java 17
-- Status: Planned
+- Status: In Progress
+- Work Log:
+  - 2025-08-29: Attempted upgrade to Guice 5.1.0. Tests failed with NoSuchMethodError on Guava Preconditions due to classpath conflicts and Guava API changes. Actions taken:
+    - Moved guava-gwt to compileOnly to keep it off runtime/test classpaths.
+    - Excluded com/google/common/** from PST shadowJar to avoid bundling Guava 19 in wave runtime.
+    - Tried aligning Guava to 30.1.1-jre; error persisted. Root cause: Guice/Guava method compatibility and classpath mixing with GWT/legacy libs.
+  - Decision: Defer Guice 5.x until server-side Guava is upgraded and classpaths are isolated from GWT (see P6-T4). Keep Guice at 4.1.0 for now to maintain a green build.
 - Goal: Move from Guice 3.x/4.x artifacts to 5.1.x to align with modern JDKs.
 - Steps:
   1) In wave/build.gradle, update dependencies:
@@ -163,16 +169,20 @@ Task P2-T2: Upgrade Guice to 5.1.x for Java 17
      - com.google.inject.extensions:guice-servlet:5.1.0
      - com.google.inject.extensions:guice-assistedinject:5.1.0
   2) Keep javax.inject:javax.inject:1 unless migration to jakarta.inject is planned (not required by Guice 5).
+  3) Ensure server classpath uses a modern Guava (>=30.1.x) and exclude guava-gwt/older shaded Guava from runtime.
 - Tests:
   - ./gradlew :wave:compileJava
   - Run server smoke (see P2-T5).
 - AI Agent Guidance:
   - Be careful of duplicate/old Guice lines in wave/build.gradle; deduplicate.
+  - Inspect dependency tree for multiple Guava versions and remove shaded copies.
 - DoD:
-  - Compiles on JDK 17 with Guice 5.1.x; no runtime classloading issues for Guice modules.
+  - Compiles and tests pass on JDK 17 with Guice 5.1.x; no runtime classloading issues for Guice modules.
 
 Task P2-T3: Upgrade com.typesafe:config to 1.4.3
-- Status: Planned
+- Status: Completed
+- Work Log:
+  - 2025-08-29: Upgraded to 1.4.3; :wave:test passed. No runtime issues observed.
 - Goal: Current version (1.2.1) is dated. 1.4.3 supports modern JDKs and fixes issues.
 - Steps:
   1) In wave/build.gradle, change dependency to com.typesafe:config:1.4.3.
@@ -235,6 +245,7 @@ Task P3-T2: Replace deprecated DSL usages
 - Status: Completed
 - Work Log:
   - 2025-08-29: Replaced baseName -> archiveBaseName, destinationDir -> destinationDirectory, and JavaExec main -> mainClass across build scripts (root, pst, wave).
+  - 2025-08-29: Moved applicationDefaultJvmArgs into application {} and set explicit testGwt classpath/testClassesDirs to remove Gradle 9 deprecation warnings.
 - Goal: Remove warnings: baseName -> archiveBaseName, destinationDir -> destinationDirectory, version -> archiveVersion, JavaExec main -> mainClass.
 - Steps:
   1) Update root, pst, and wave build.gradle files accordingly.

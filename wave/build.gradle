@@ -202,7 +202,8 @@ dependencies {
     )
     generateMessages (
          fileTree(dir: '../pst/build/libs', include: '**/wave-pst-*.jar'),
-         [group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"]
+         [group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"],
+         [group: "com.google.guava", name: "guava", version: "19.0"]
     )
     testImplementation(
             [group: 'junit', name: 'junit', version: '4.12'],
@@ -252,6 +253,11 @@ task verifyPstCodegen {
 
 // Ensure verification runs with the standard checks
 tasks.named('check') {
+    dependsOn(verifyPstCodegen)
+}
+
+tasks.named('test') {
+    // Ensure PST codegen verification runs before unit tests that may assert generated sources
     dependsOn(verifyPstCodegen)
 }
 

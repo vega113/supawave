@@ -122,15 +122,16 @@ Task P1-T1: Finalize protoc and plugin configuration
   - Protobuf generation passes on local machine; no classpath conflicts during generateMessages.
 
 Task P1-T2: Add a targeted test for PST codegen contract
-- Status: In Progress
+- Status: Completed
 - Work Log:
   - 2025-08-30: Added verifyPstCodegen Gradle verification task and wired it into :wave:check; it asserts presence of generated Java sources.
+  - 2025-08-30: Added PstCodegenContractTest (JUnit) under wave/src/test/java/org/waveprotocol/pst; wired :wave:test to depend on verifyPstCodegen. Ensured generateMessages classpath includes Guava for PST runtime.
 - Goal: Ensure PstMain generates expected stubs from a representative proto class.
 - Steps:
   1) Create a small test that invokes generateMessages for a known class and verifies outputs exist.
   2) Optionally create a Gradle verification task that asserts the files are generated.
 - Tests:
-  - ./gradlew :wave:generateMessages and then a small JUnit test that checks presence of known generated files.
+  - ./gradlew :wave:test (now depends on verifyPstCodegen) passes and confirms generated sources exist.
 - AI Agent Guidance:
   - If adding a test, write it under wave/src/test/java/... and use Java file IO checks.
 - DoD:
@@ -551,5 +552,5 @@ Changelog (for this plan)
 -------------------------------------------------------------------------------
 - 1.0 (Planned): Initial modernization plan created.
 - 1.1 (2025-08-29): Updated statuses for P0-T1..T3, P2-T1, P3-T1..T4; added work logs.
-- 1.2 (2025-08-30): Marked P2-T4 Completed (Java 17 toolchain enabled in wave); added P3-T2 work log (pst DSL modernization, Shadow 8.1.1); set P1-T2 to In Progress with verifyPstCodegen verification task.
+- 1.2 (2025-08-30): Marked P2-T4 Completed (Java 17 toolchain enabled in wave); added P3-T2 work log (pst DSL modernization, Shadow 8.1.1); set P1-T2 to Completed with JUnit test and test wiring; added generateMessages Guava runtime to classpath.
 

@@ -27,7 +27,6 @@ import static junit.framework.Assert.fail;
 
 import com.google.gwt.resources.client.CssResource;
 
-import org.apache.xerces.jaxp.DocumentBuilderFactoryImpl;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -60,7 +59,7 @@ import javax.xml.parsers.ParserConfigurationException;
 public class UiBuilderTestHelper {
 
   // Re-use DocumentBuilderFactory across tests, because it's expensive?
-  private static final DocumentBuilderFactory factory = new DocumentBuilderFactoryImpl();
+  private static final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 
   /** Error handler that treats errors and fatals as failure. */
   private static final class ErrorHandler extends DefaultHandler {

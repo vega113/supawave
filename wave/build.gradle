@@ -199,7 +199,8 @@ dependencies {
     )
     gwt (
         [group: "com.google.gwt", name: "gwt-dev", version: gwtVersion],
-        [group: "com.google.gwt", name: "gwt-codeserver", version: gwtVersion]
+        [group: "com.google.gwt", name: "gwt-codeserver", version: gwtVersion],
+        [group: "com.google.guava", name: "guava-gwt", version: "20.0"]
     )
     // Protobuf include dependencies for the 'proto' source set
     protoProtobuf (
@@ -516,6 +517,36 @@ task testGwt(type: Test) {
 }
 
 testGwt.dependsOn compileGwt
+
+// Dedicated task to run GWT JUnit tests with GWT tooling on the JVM classpath
+// This avoids polluting the default test task's classpath with gwt-dev/jetty.
+ task testGwtHosted(type: Test) {
+     include "**/*GwtTest*"
+
+     // Use explicit test outputs and runtime classpath and augment with GWT tooling
+     testClassesDirs = sourceSets.test.output.classesDirs
+     classpath = sourceSets.test.runtimeClasspath + configurations.gwt
+
+     // Run GWT JUnitShell under Java 11 for better compatibility (Jetty/ASM)
+     def j11 = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(11) }
+     javaLauncher = j11
+
+     minHeapSize = "512m"
+     maxHeapSize = "1024m"
+     forkEvery = 1
+
+     // Pass through GWT arguments; append -runStyle HtmlUnit for headless
+     jvmArgs '-Dgwt.args=-logLevel DEBUG -runStyle HtmlUnit'
+
+     doFirst {
+         println ''
+         println '-----------------------------'
+         println ' Running Gwt tests (hosted). '
+         println '   (using Java ' + j11.get().metadata.languageVersion.asInt() + ' toolchain)'
+         println '-----------------------------'
+         println ''
+     }
+ }
 
 task testMongo(type: Test) {
     include "**/server/persistence/mongodb/**/*Test*"

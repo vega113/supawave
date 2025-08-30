@@ -65,3 +65,5 @@ wave/config/wave.conf
 
 # Local development journals (not committed)
 journal/
+/wave_server.out
+/wave_server.pid

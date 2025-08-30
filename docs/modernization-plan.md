@@ -363,6 +363,42 @@ Task P4-T4: Client smoke test
 - DoD:
   - UI loads and basic flows respond without client-side errors in browser console (or document/triage remaining issues).
 
+Task P4-T5: Correct folder removal listener invocation in WaveletBasedSupplement
+- Status: Planned
+- Goal: Fix a logic bug where triggerOnFolderRemoved mistakenly forwards onFolderAdded, causing duplicate "added" events and missing "removed" events.
+- Context: Noticed during GWT 2.10 compiler fixes; this is a pure correctness issue unrelated to the GWT upgrade.
+- Steps:
+  1) Update wave/src/main/java/org/waveprotocol/wave/model/supplement/WaveletBasedSupplement.java so triggerOnFolderRemoved calls listener.onFolderRemoved(oldFolder).
+  2) Add a unit test (mock Listener or simple test harness) that adds and removes a folder and asserts the correct listener method invocations.
+- Tests:
+  - Run :wave:test and ensure the new test passes; no regression in other listener triggers.
+- AI Agent Guidance:
+  - Search for "triggerOnFolderRemoved(" and ensure it only forwards to onFolderRemoved.
+  - Do not change any other listener forwarding methods as part of this task.
+- DoD:
+  - Removing a folder emits onFolderRemoved for registered listeners; no unintended onFolderAdded is fired.
+
+Task P4-T6: Temporarily skip hosted GWT tests in CI; rely on compile + manual smoke
+- Status: Completed
+- Work Log:
+  - 2025-08-30: Created a non-default Gradle task testGwtHosted to run GWT JUnitShell with gwt-dev on classpath; confirmed harness failures under JDK 11/17 due to ASM/Jetty constraints. Left task out of CI. CI remains on :pst:build :wave:build, and client-gwt job stays disabled; compileGwt succeeds locally.
+- Goal: Keep the pipeline green while GWT client can be compiled and manually smoke-tested in browser; defer fixing hosted test harness.
+- Steps:
+  1) Ensure server CI job only runs :pst:build :wave:build (already true).
+  2) Keep client-gwt CI job disabled for now (already set if: false).
+  3) For local testing, use :wave:compileGwt and browser/manual smoke; avoid hosted tests.
+- Tests:
+  - ./gradlew :wave:compileGwt succeeds.
+- AI Agent Guidance:
+  - Do not wire testGwtHosted into any default or CI task graph.
+- DoD:
+  - CI does not execute hosted GWT tests; GWT compilation remains green.
+
+Follow-up options (planning):
+- Option A: Upgrade GWT to 2.12.x when repository resolution permits to get newer test harness; re-evaluate hosted tests.
+- Option B: Migrate tests away from hosted Dev/JUnitShell to gwtmockito or pure-JRE tests where possible.
+- Option C: Plan J2CL/J2KT path (see Phase 8) and gradually retire legacy hosted GWT tests.
+
 -------------------------------------------------------------------------------
 Phase 5 — Jetty upgrade and (optionally) Jakarta migration
 -------------------------------------------------------------------------------

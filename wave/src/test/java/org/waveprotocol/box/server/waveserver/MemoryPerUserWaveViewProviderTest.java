@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.gwt.thirdparty.guava.common.collect.Maps;
 
 import org.mockito.Mock;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -54,7 +53,7 @@ public class MemoryPerUserWaveViewProviderTest extends PerUserWaveViewProviderTe
     Wave wave =
         new Wave(WAVELET_NAME.waveId, lookedupWavelets, notifiee, localFactory, null,
             WAVELET_NAME.waveId.getDomain());
-    Map<WaveId, Wave> waves = Maps.newHashMap();
+    Map<WaveId, Wave> waves = new java.util.HashMap<WaveId, Wave>();
     waves.put(WAVELET_NAME.waveId, wave);
     when(waveMap.getWaves()).thenReturn(waves);
     ImmutableSet<WaveletId> wavelets = ImmutableSet.of(WAVELET_NAME.waveletId);

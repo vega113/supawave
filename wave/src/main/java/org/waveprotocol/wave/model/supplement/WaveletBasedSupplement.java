@@ -910,58 +910,58 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
   // Funge methods for unfurling generics, required only for Sun JDK compiler.
   //
 
-  private static <N> ObservableBasicSet<Integer> fungeCreateFolders(
-      ObservableMutableDocument<N, ?, ?> doc) {
+  private static <N, E extends N, T extends N> ObservableBasicSet<Integer> fungeCreateFolders(
+      ObservableMutableDocument<N, E, T> doc) {
     return createFolders(DefaultDocumentEventRouter.create(doc));
   }
 
-  private static <N> ObservableBasicValue<Boolean> fungeCreateMuted(
-      ObservableMutableDocument<N, ?, ?> doc) {
+  private static <N, E extends N, T extends N> ObservableBasicValue<Boolean> fungeCreateMuted(
+      ObservableMutableDocument<N, E, T> doc) {
     return createMuted(DefaultDocumentEventRouter.create(doc));
   }
 
-  private static <N> ObservableBasicValue<Boolean> fungeCreateCleared(
-      ObservableMutableDocument<N, ?, ?> doc) {
+  private static <N, E extends N, T extends N> ObservableBasicValue<Boolean> fungeCreateCleared(
+      ObservableMutableDocument<N, E, T> doc) {
     return createCleared(DefaultDocumentEventRouter.create(doc));
   }
 
-  private static <N> ObservableMonotonicMap<WaveletId, Integer> fungeCreateWaveletArchiveState(
-      ObservableMutableDocument<N, ?, ?> doc) {
+  private static <N, E extends N, T extends N> ObservableMonotonicMap<WaveletId, Integer> fungeCreateWaveletArchiveState(
+      ObservableMutableDocument<N, E, T> doc) {
     return createWaveletArchiveState(DefaultDocumentEventRouter.create(doc));
   }
 
-  private static <N> ObservableBasicValue<Boolean> fungeCreatePendingNotification(
-      ObservableMutableDocument<N, ?, ?> doc) {
+  private static <N, E extends N, T extends N> ObservableBasicValue<Boolean> fungeCreatePendingNotification(
+      ObservableMutableDocument<N, E, T> doc) {
     return createPendingNotification(DefaultDocumentEventRouter.create(doc));
   }
 
-  private static <N> WaveletReadStateCollection<?> fungeCreateReadState(
-      ObservableMutableDocument<N, ?, ?> doc, Listener listener) {
+  private static <N, E extends N, T extends N> WaveletReadStateCollection<?> fungeCreateReadState(
+      ObservableMutableDocument<N, E, T> doc, Listener listener) {
     return createWaveletReadState(DefaultDocumentEventRouter.create(doc), listener);
   }
 
-  private static <N> WaveletThreadStateCollection<?> fungeCreateCollapsedState(
-      ObservableMutableDocument<N, ?, ?> doc, Listener listener) {
+  private static <N, E extends N, T extends N> WaveletThreadStateCollection<?> fungeCreateCollapsedState(
+      ObservableMutableDocument<N, E, T> doc, Listener listener) {
     return createWaveletCollapsedState(DefaultDocumentEventRouter.create(doc), listener);
   }
 
-  private static <N> ObservableBasicMap<WaveletId, HashedVersion> fungeCreateSeenVersion(
-      ObservableMutableDocument<N, ?, ?> doc) {
+  private static <N, E extends N, T extends N> ObservableBasicMap<WaveletId, HashedVersion> fungeCreateSeenVersion(
+      ObservableMutableDocument<N, E, T> doc) {
     return createWaveletSeenVersion(DefaultDocumentEventRouter.create(doc));
   }
 
-  private static <N> ObservableBasicMap<WaveletId, Integer> fungeCreateNotifiedVersion(
-      ObservableMutableDocument<N, ?, ?> doc) {
+  private static <N, E extends N, T extends N> ObservableBasicMap<WaveletId, Integer> fungeCreateNotifiedVersion(
+      ObservableMutableDocument<N, E, T> doc) {
     return createWaveletNotifiedVersion(DefaultDocumentEventRouter.create(doc));
   }
 
-  private static <N> ObservableAbuseStore fungeCreateAbuseStore(
-      ObservableMutableDocument<N, ?, ?> doc) {
+  private static <N, E extends N, T extends N> ObservableAbuseStore fungeCreateAbuseStore(
+      ObservableMutableDocument<N, E, T> doc) {
     return createAbuseStore(DefaultDocumentEventRouter.create(doc));
   }
 
-  private static <N> GadgetStateCollection<?> fungeCreateGadgetStates(
-      ObservableMutableDocument<N, ?, ?> doc, Listener listener) {
+  private static <N, E extends N, T extends N> GadgetStateCollection<?> fungeCreateGadgetStates(
+      ObservableMutableDocument<N, E, T> doc, Listener listener) {
     return createGadgetStatesDoc(DefaultDocumentEventRouter.create(doc), listener);
   }
 

@@ -42,9 +42,12 @@ import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.SslConnectionFactory;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.GzipFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.webapp.WebAppContext;
@@ -351,8 +354,15 @@ public class ServerRpcProvider {
 
       context.addEventListener(contextListener);
       context.addFilter(GuiceFilter.class, "/*", EnumSet.allOf(DispatcherType.class));
-      context.addFilter(GzipFilter.class, "/webclient/*", EnumSet.allOf(DispatcherType.class));
-      httpServer.setHandler(context);
+
+      // Prefer server-side gzip handler over legacy filter
+      GzipHandler gzip = new GzipHandler();
+      gzip.setMinGzipSize(1024);
+      gzip.setIncludedMethods("GET", "POST");
+      gzip.setInflateBufferSize(8 * 1024);
+      gzip.setHandler(context);
+
+      httpServer.setHandler(gzip);
 
       httpServer.start();
 
@@ -438,11 +448,18 @@ public class ServerRpcProvider {
   private List<Connector> getSelectChannelConnectors(
       InetSocketAddress[] httpAddresses) {
     List<Connector> list = Lists.newArrayList();
+
+    // Base HTTP configuration
+    HttpConfiguration httpConfig = new HttpConfiguration();
+    httpConfig.setSendServerVersion(false);
+
     String[] excludeCiphers = {"SSL_RSA_EXPORT_WITH_RC4_40_MD5", "SSL_RSA_EXPORT_WITH_DES40_CBC_SHA",
                                "SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA", "SSL_RSA_WITH_DES_CBC_SHA",
                                "SSL_DHE_RSA_WITH_DES_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
                                "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA"};
-    SslContextFactory sslContextFactory = null;
+
+    SslContextFactory.Server sslContextFactory = null;
+    HttpConfiguration httpsConfig = null;
 
     if (sslEnabled) {
       Preconditions.checkState(sslKeystorePath != null && !sslKeystorePath.isEmpty(),
@@ -450,23 +467,31 @@ public class ServerRpcProvider {
       Preconditions.checkState(sslKeystorePassword != null && !sslKeystorePassword.isEmpty(),
           "SSL Keystore password left blank");
 
-      sslContextFactory = new SslContextFactory(sslKeystorePath);
+      sslContextFactory = new SslContextFactory.Server();
+      sslContextFactory.setKeyStorePath(sslKeystorePath);
       sslContextFactory.setKeyStorePassword(sslKeystorePassword);
       sslContextFactory.setRenegotiationAllowed(false);
       sslContextFactory.setExcludeCipherSuites(excludeCiphers);
+      // Prefer modern protocols only
+      sslContextFactory.setIncludeProtocols("TLSv1.2", "TLSv1.3");
 
       // Note: we only actually needed client auth for AuthenticationServlet.
-      // Using Need instead of Want prevents web-sockets from working on
-      // Chrome.
+      // Using Need instead of Want prevents web-sockets from working on Chrome.
       sslContextFactory.setWantClientAuth(true);
+
+      httpsConfig = new HttpConfiguration(httpConfig);
+      httpsConfig.addCustomizer(new org.eclipse.jetty.server.SecureRequestCustomizer());
     }
 
     for (InetSocketAddress address : httpAddresses) {
       ServerConnector connector;
       if (sslEnabled) {
-        connector = new ServerConnector(httpServer, sslContextFactory);
+        connector = new ServerConnector(
+            httpServer,
+            new SslConnectionFactory(sslContextFactory, "http/1.1"),
+            new HttpConnectionFactory(httpsConfig));
       } else {
-        connector = new ServerConnector(httpServer);
+        connector = new ServerConnector(httpServer, new HttpConnectionFactory(httpConfig));
       }
       connector.setHost(address.getAddress().getHostAddress());
       connector.setPort(address.getPort());

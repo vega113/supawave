@@ -131,9 +131,16 @@ public class ServerModule extends AbstractModule {
   @Singleton
   public SessionHandler provideSessionHandler(Config config) {
     SessionHandler sessionHandler = new SessionHandler();
-    // Configure cookie max age if available
+    // Configure cookie attributes
     try {
       sessionHandler.getSessionCookieConfig().setMaxAge(config.getInt("network.session_cookie_max_age"));
+    } catch (Exception ignore) {}
+    try {
+      sessionHandler.getSessionCookieConfig().setHttpOnly(true);
+      boolean enableSsl = config.getBoolean("security.enable_ssl");
+      if (enableSsl) {
+        sessionHandler.getSessionCookieConfig().setSecure(true);
+      }
     } catch (Exception ignore) {}
 
     // File-backed session data store for persistence

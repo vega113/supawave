@@ -198,6 +198,9 @@ public class ServerMain {
 
     server.addServlet("/", WaveClientServlet.class);
 
+    // Security headers
+    server.addFilter("/*", org.waveprotocol.box.server.security.SecurityHeadersFilter.class);
+
     // Profiling
     server.addFilter("/*", RequestScopeFilter.class);
     boolean enableProfiling = config.getBoolean("core.enable_profiling");

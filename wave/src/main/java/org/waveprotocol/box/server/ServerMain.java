@@ -201,6 +201,10 @@ public class ServerMain {
     // Security headers
     server.addFilter("/*", org.waveprotocol.box.server.security.SecurityHeadersFilter.class);
 
+    // Static asset caching for /static/* and no-cache for GWT webclient
+    server.addFilter("/static/*", org.waveprotocol.box.server.security.StaticCacheFilter.class);
+    server.addFilter("/webclient/*", org.waveprotocol.box.server.security.NoCacheFilter.class);
+
     // Profiling
     server.addFilter("/*", RequestScopeFilter.class);
     boolean enableProfiling = config.getBoolean("core.enable_profiling");

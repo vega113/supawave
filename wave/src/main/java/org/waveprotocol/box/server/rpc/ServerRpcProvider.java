@@ -24,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,6 +48,8 @@ import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.ForwardedRequestCustomizer;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
+import org.eclipse.jetty.server.CustomRequestLog;
+import org.eclipse.jetty.server.RequestLogWriter;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.ResourceCollection;
@@ -325,6 +328,21 @@ public class ServerRpcProvider {
   public void startWebSocketServer(final Injector injector) {
     httpServer = new Server();
 
+    // Configure access logging (NCSA) to logs/access.yyyy_mm_dd.log
+    try {
+      java.io.File logDir = new java.io.File("logs");
+      if (!logDir.exists()) {
+        logDir.mkdirs();
+      }
+      RequestLogWriter logWriter = new RequestLogWriter(new java.io.File(logDir, "access.yyyy_mm_dd.log").getPath());
+      logWriter.setAppend(true);
+      logWriter.setRetainDays(7);
+      CustomRequestLog requestLog = new CustomRequestLog(logWriter, CustomRequestLog.NCSA_FORMAT);
+      httpServer.setRequestLog(requestLog);
+    } catch (Throwable t) {
+      LOG.warning("Failed to initialize access logging", t);
+    }
+
     List<Connector> connectors = getSelectChannelConnectors(httpAddresses);
     if (connectors.isEmpty()) {
       LOG.severe("No valid http end point address provided!");
@@ -387,8 +405,15 @@ public class ServerRpcProvider {
 
     // Serve the static content and GWT web client with the default servlet
     // (acts like a standard file-based web server).
-    addServlet("/static/*", DefaultServlet.class);
-    addServlet("/webclient/*", DefaultServlet.class);
+    Map<String, String> staticParams = new HashMap<>();
+    staticParams.put("etags", "true");
+    staticParams.put("cacheControl", "public, max-age=31536000, immutable");
+    addServlet("/static/*", DefaultServlet.class, staticParams);
+
+    Map<String, String> webclientParams = new HashMap<>();
+    webclientParams.put("etags", "true");
+    webclientParams.put("cacheControl", "no-cache, no-store, must-revalidate");
+    addServlet("/webclient/*", DefaultServlet.class, webclientParams);
   }
 
   public ServletModule getServletModule() {

@@ -39,15 +39,28 @@ software:
   Wave requires the BouncyCastle Java cryptography APIs:
     http://www.bouncycastle.org/java.html
 
-## Run Binary
+## Quick Start (Dev)
 
-The nightly binaries can be downloaded from https://builds.apache.org/view/S-Z/view/Wave/job/wave-artifacts/lastSuccessfulBuild/artifact/.
-The latest "dev" releases can be downloaded from: https://dist.apache.org/repos/dist/dev/incubator/wave/.
-The latest officially released binaries can be downloaded from: https://dist.apache.org/repos/dist/release/incubator/wave/.
+Requirements: Java 17+, Gradle Wrapper (included)
 
-Extract the archive and execute ./bin/wave for Linux/Mac or bin\wave.bat for Windows.
+1) One‑time bootstrap (creates config and optional dev keystore):
 
-The web client will be accessible by default at http://localhost:9898/.
+   - Dev HTTP only:
+     `scripts/wave-bootstrap.sh`
+
+   - Dev HTTPS (self‑signed):
+     `scripts/wave-bootstrap.sh --with-ssl`
+
+2) Run the server:
+
+   `./gradlew :wave:run`
+
+   - Default dev URL: http://localhost:9898/
+   - If you enabled SSL: https://localhost:9898/
+
+Notes:
+- WebSocket auth: In dev, `network.session_cookie_http_only = false` so the legacy web client can read `JSESSIONID` for a WebSocket fallback authenticate.
+- The server renders the WebSocket address from the request Host header to avoid localhost/127.0.0.1 cookie mismatches.
 
 ## Setup with Vagrant
 
@@ -104,7 +117,7 @@ run `./gradlew cleanEclipse` or `./gradlew cleanIdea` depending on your IDE.
 
 ## Gradle Tasks
 
-Apache Wave requires Java 7 & Gradle 2.8+ to build.
+Apache Wave now targets Java 17+. Use the included Gradle Wrapper.
 
 Gradle tasks can be run by `./gradlew [task name]`
 
@@ -164,14 +177,13 @@ Note:
 
 Take a look at the reference.conf to learn about configuration and possible/default values.
 
-The server can be started (on Linux/MacOS) by running
-    ./run-server.sh
-Or on Windows by running
-    run-server.bat
-    Note: must be cd'ed into the root directory
-Or, you can run the server from the compiled classes with Gradle:
-    gradle run
-The web client will be accessible by default at http://localhost:9898/.
+To run from sources:
+    ./gradlew :wave:run
+The web client is accessible by default at http://localhost:9898/.
+
+To build an installable distribution:
+    ./gradlew :wave:installDist
+Use `scripts/wave-smoke.sh start|status|stop` against the installed dist.
 
 
 ## To learn more about Wave in a Box and Wave Federation Protocol:
@@ -182,16 +194,51 @@ The web client will be accessible by default at http://localhost:9898/.
 4. Watch the Wave Summit videos on YouTube, find the links at: https://cwiki.apache.org/confluence/display/WAVE/Wave+Summit+Talks
 
 
-## To enable SSL:
+## Dev vs. Prod configuration
 
-Create a Java keystore for your server (e.g. using http://portecle.sourceforge.net/).
-You will need a key (e.g. called "server") whose subject Common Name (CN) is
-the hostname of your server.
+Configuration files live under `wave/config/`.
 
-Set enable_ssl = true and set the ssl_keystore_path and ssl_keystore_password options.
+- `reference.conf` — all defaults and documented options.
+- `application.conf` — your overrides (created by `scripts/wave-bootstrap.sh`).
+
+Key settings:
+
+- `core.http_frontend_addresses`: list of `host:port` listeners. Dev default is `127.0.0.1:9898`.
+- `network.session_cookie_http_only`:
+  - Dev default: `false` (legacy web client reads `JSESSIONID` to send a WebSocket ProtocolAuthenticate).
+  - Prod recommended: `true`.
+- `security.enable_ssl`:
+  - Dev default: `false` (HTTP only).
+  - Prod recommended: `true` with a real certificate.
+
+### Enabling SSL
+
+Option A (dev self‑signed):
+
+    scripts/wave-bootstrap.sh --with-ssl
+
+This generates `wave/config/dev-keystore.jks` (password `changeme`) and flips `enable_ssl = true`.
+
+Option B (prod):
+
+1. Obtain a real certificate and create/import a Java keystore (JKS or PKCS12).
+2. In `application.conf`:
+
+```
+security {
+  enable_ssl = true
+  ssl_keystore_path = "config/your-prod.jks"
+  ssl_keystore_password = ${?WAVE_SSL_KEYSTORE_PASSWORD}
+}
+```
+
+Run with the password provided by environment variable:
+
+    export WAVE_SSL_KEYSTORE_PASSWORD='...'
+    ./gradlew :wave:run
 
 
-To enable X.509 client authentication:
+### X.509 client authentication (optional)
 
 If your users have X.509 certificates which include their email address, you can have
 them logged in automatically (with their wave ID being the same as their email address):
@@ -203,8 +250,8 @@ You can get your CA's certficate from their website, though note they might prov
 3. Set clientauth_cert_domain (to the part after the "@" in your email addresses).
 4. (optional) Set disable_loginpage = true to prevent password-based logins.
 
-Users will be automatically logged in when they access the site, with the
-username taken from the email address in their certificate.
+Users will be automatically logged in when they access the site, with the username
+taken from the email address in their certificate.
 
 Setting up third party optional dependencies:
 

@@ -62,6 +62,7 @@ wave/config/wave.conf
 
 ### Server running
 **/*.log.*
+wave/logs/
 
 # Local development journals (not committed)
 journal/

@@ -68,3 +68,7 @@ wave/logs/
 journal/
 /wave_server.out
 /wave_server.pid
+/wave/config/dev-keystore.jks
+/wave/config/dev-keystore.jks.bak
+/gradle.pid
+/run.out

@@ -1,8 +1,8 @@
 # Jetty Migration Plan
 
-Status: Draft
+Status: In Progress (staged migration)
 Owner: Project Maintainers
-Date: 2025-08-30
+Date: 2025-08-31
 
 Objective
 - Upgrade Wave’s embedded/used Jetty from 9.2.x to a supported release to improve security, compatibility with modern JDKs, and long-term maintainability.
@@ -21,8 +21,8 @@ Target Options
   - Cons: Requires javax -> jakarta import migration; guice-servlet compatibility gap (guice-servlet is javax); web.xml schema update; larger refactor and testing.
 
 Recommendation (staged)
-1) Stage 1: Target Jetty 9.4.x (javax) first to reduce CVEs while refactoring to the modern session API (SessionHandler + SessionCache/DataStore). Jetty 10 requires similar refactoring; 9.4 keeps javax and is a smaller step from 9.2.
-2) Stage 2: Plan and execute Jakarta migration (Jetty 12 preferred) when guice-servlet or alternative strategy is settled.
+1) Stage 1 (Completed): Adopt Jetty 9.4.x (javax) and modernize: SessionHandler + DefaultSessionCache + FileSessionDataStore, SslConnectionFactory + HttpConfiguration + SecureRequestCustomizer, GzipHandler, security headers (CSP/Referrer-Policy/X-Content-Type-Options) with optional HSTS, forwarded headers support, access logs, static caching, and health endpoints.
+2) Stage 2 (Planned): Plan and execute Jakarta migration (Jetty 12 preferred) when guice-servlet or alternative strategy is settled.
 
 Scope and Impact Areas
 - Build dependencies (wave/build.gradle):
@@ -43,7 +43,21 @@ Scope and Impact Areas
 Detailed Plan
 
 Stage 1: Jetty 9.4 (javax)
-- Tasks
+- Completed
+  - Dependencies updated to 9.4.54
+  - Sessions migrated to SessionHandler + DefaultSessionCache + FileSessionDataStore
+  - SSL connector updated (SecureRequestCustomizer, TLS 1.2/1.3)
+  - Compression via GzipHandler
+  - Security headers filter + HSTS toggle
+  - ForwardedRequestCustomizer toggle
+  - WebSocket token handling fix
+  - Access logs (NCSA) and static caching/no-cache separation
+  - Health endpoints added (/healthz, /readyz)
+- Acceptance (met)
+  - Server starts on JDK 17 and serves endpoints without regressions
+  - Health endpoints return 200 OK
+  - Access logs created under logs/
+  - Caching headers present on static; no-cache on dynamic webclient
   1) Inventory current Jetty dependencies and usages.
   2) Upgrade dependencies in wave/build.gradle to Jetty 9.4.54.v20240208 (or latest 9.4.x).
   3) Replace HashSessionManager and org.eclipse.jetty.server.SessionManager usages with SessionHandler + DefaultSessionCache + FileSessionDataStore (or NullSessionCache if acceptable).
@@ -55,6 +69,12 @@ Stage 1: Jetty 9.4 (javax)
   - No critical CVEs reported against the new Jetty version.
 
 Stage 2: Jakarta migration (Jetty 11/12)
+Decision & path
+- Decision: Target Jetty 12 (Jakarta) for long-term support. Guice-servlet is javax-based; we will evaluate options:
+  1) Replace guice-servlet with native programmatic registration and keep Guice DI without guice-servlet.
+  2) Investigate Jakarta-compatible forks of guice-servlet (if any, maturity unknown).
+  3) Consider an alternative DI for servlet integration if needed.
+- Preconditions remain as below.
 - Pre-requisites
   - Decide strategy for guice-servlet replacement or jakarta-compatible alternative.
     - Options: community Jakarta port of guice-servlet, or refactor to native servlet/filter registration without guice-servlet, or DI alternative.
@@ -84,9 +104,9 @@ Work Breakdown (initial)
 - P5-T3 (Jakarta planning): Spike on guice-servlet replacement path; document findings and choose approach.
 
 Validation Checklist
-- Server starts on JDK 17 with Jetty 10.
-- No critical regressions in endpoints and filters.
-- Follow-up epic created for Jakarta migration with concrete subtasks.
+- Server starts on JDK 17 with Jetty 12 (Jakarta) after migration
+- No critical regressions in endpoints and filters
+- Follow-up epic created for Jakarta migration with concrete subtasks and code owners
 
 Notes
 - 2025-08-30 Spike outcome: Attempting Jetty 10 directly revealed session API changes (no org.eclipse.jetty.server.SessionManager/HashSessionManager). We temporarily reverted dependencies to 9.2.14 to keep the build green. Plan updated to target 9.4 first with a focused refactor in ServerModule/ServerRpcProvider.

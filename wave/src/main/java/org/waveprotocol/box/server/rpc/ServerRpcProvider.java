@@ -50,6 +50,8 @@ import org.eclipse.jetty.server.ForwardedRequestCustomizer;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.RequestLogWriter;
+import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
+import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.ResourceCollection;
@@ -523,9 +525,15 @@ public class ServerRpcProvider {
     for (InetSocketAddress address : httpAddresses) {
       ServerConnector connector;
       if (sslEnabled) {
+        // Enable HTTP/2 over TLS via ALPN, with HTTP/1.1 fallback
+        ALPNServerConnectionFactory alpn = new ALPNServerConnectionFactory();
+        alpn.setDefaultProtocol("http/1.1");
+        HTTP2ServerConnectionFactory h2 = new HTTP2ServerConnectionFactory(httpsConfig);
         connector = new ServerConnector(
             httpServer,
-            new SslConnectionFactory(sslContextFactory, "http/1.1"),
+            new SslConnectionFactory(sslContextFactory, alpn.getProtocol()),
+            alpn,
+            h2,
             new HttpConnectionFactory(httpsConfig));
       } else {
         connector = new ServerConnector(httpServer, new HttpConnectionFactory(httpConfig));

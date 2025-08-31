@@ -68,6 +68,7 @@ import org.waveprotocol.wave.federation.noop.NoOpFederationModule;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 import org.waveprotocol.wave.util.logging.Log;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
 
@@ -79,6 +80,14 @@ public class ServerMain {
   private static final Log LOG = Log.get(ServerMain.class);
 
   public static void main(String... args) {
+    // Route java.util.logging through SLF4J (logback) early
+    try {
+      java.util.logging.LogManager.getLogManager().reset();
+      SLF4JBridgeHandler.removeHandlersForRootLogger();
+      SLF4JBridgeHandler.install();
+    } catch (Throwable ignore) {
+      // If bridge not on classpath, continue without failing startup
+    }
     try {
       Module coreSettings = new AbstractModule() {
 

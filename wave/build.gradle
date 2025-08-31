@@ -29,6 +29,7 @@ apply plugin: 'checkstyle'
 // Avoid build failures on duplicate resources (e.g., images appearing in multiple locations)
 // by excluding duplicates during resource processing.
 import org.gradle.language.jvm.tasks.ProcessResources
+import org.gradle.api.plugins.quality.Checkstyle
 
 tasks.withType(ProcessResources) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -52,7 +53,7 @@ application {
     applicationDefaultJvmArgs = [
             "-Xmx1024M",
             "-Dorg.eclipse.jetty.LEVEL=DEBUG",
-            "-Djava.util.logging.config.file=config/wiab-logging.conf",
+            "-Dlogback.configurationFile=config/logback.xml",
             "-Djava.security.auth.login.config=config/jaas.config",
             "--add-opens=java.base/java.lang=ALL-UNNAMED",
             "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
@@ -189,8 +190,10 @@ dependencies {
             [group: "org.jdom", name: "jdom", version: "1.1.3"],
             [group: "org.mongodb", name: "mongo-java-driver", version: "2.11.2"],
             [group: "org.apache.httpcomponents", name: "httpcore", version: "4.4.16"],
-            [group: "org.slf4j", name: "slf4j-api", version: "1.6.1"],
-            [group: "org.slf4j", name: "slf4j-simple", version: "1.6.1"],
+            [group: "org.slf4j", name: "slf4j-api", version: "1.7.36"],
+            [group: "ch.qos.logback", name: "logback-classic", version: "1.2.13"],
+            [group: "org.slf4j", name: "jul-to-slf4j", version: "1.7.36"],
+            [group: "org.slf4j", name: "log4j-over-slf4j", version: "1.7.36"],
             [group: "javax.inject", name: "javax.inject", version: "1"],
             [group: "javax.servlet", name: "javax.servlet-api", version: "3.1.0"],
             [group: "javax.jdo", name: "jdo2-api", version: "2.1"],
@@ -236,7 +239,28 @@ checkstyle {
     configFile = file("/google_checks.xml")
 }
 
-checkstyleMain.source = "src/main/java" // only checks the manually written java
+// Route reports to files and allow disabling via -PdisableCheckstyle to avoid noisy console output
+tasks.withType(Checkstyle).configureEach {
+    // Disable entirely when -PdisableCheckstyle is provided
+    enabled = !project.hasProperty('disableCheckstyle')
+    // Only fail the build if explicitly requested; otherwise just produce reports
+    ignoreFailures = project.hasProperty('ignoreCheckstyleFailures')
+    reports {
+        // Disable XML to reduce size; keep HTML report per-task
+        xml.required.set(false)
+        html.required.set(true)
+        html.outputLocation.set(file("$buildDir/reports/checkstyle/${name}.html"))
+    }
+}
+
+// Ensure only hand-written sources are checked; exclude any generated code
+tasks.named('checkstyleMain') {
+    source = fileTree('src/main/java')
+}
+
+tasks.named('checkstyleTest') {
+    source = fileTree('src/test/java')
+}
 
 //=============================================================================
 // Protobuf Config

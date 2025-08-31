@@ -35,6 +35,7 @@ import javax.annotation.Nullable;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
 import javax.servlet.ServletContextListener;
+import javax.servlet.Servlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpSession;
 
@@ -54,6 +55,7 @@ import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.webapp.WebAppContext;
@@ -124,6 +126,7 @@ public class ServerRpcProvider {
 
   private final String sessionStoreDir;
   private final boolean enableForwardedHeaders;
+  private final boolean nativeServletRegistration;
 
   /**
    * Internal, static container class for any specific registered service
@@ -283,7 +286,7 @@ public class ServerRpcProvider {
       String[] resourceBases, Executor threadPool, SessionManager sessionManager,
       SessionHandler sessionHandler, String sessionStoreDir,
       boolean sslEnabled, String sslKeystorePath, String sslKeystorePassword,
-      boolean enableForwardedHeaders) {
+      boolean enableForwardedHeaders, boolean nativeServletRegistration) {
     this.httpAddresses = httpAddresses;
     this.resourceBases = resourceBases;
     this.threadPool = threadPool;
@@ -294,6 +297,7 @@ public class ServerRpcProvider {
     this.sslKeystorePath = sslKeystorePath;
     this.sslKeystorePassword = sslKeystorePassword;
     this.enableForwardedHeaders = enableForwardedHeaders;
+    this.nativeServletRegistration = nativeServletRegistration;
   }
 
   /**
@@ -306,7 +310,7 @@ public class ServerRpcProvider {
       Executor executor) {
     this(httpAddresses, resourceBases, executor,
         sessionManager, sessionHandler, sessionStoreDir, sslEnabled, sslKeystorePath,
-        sslKeystorePassword, false);
+        sslKeystorePassword, false, false);
   }
 
   @Inject
@@ -324,7 +328,9 @@ public class ServerRpcProvider {
             config.getString("security.ssl_keystore_path"),
             config.getString("security.ssl_keystore_password"),
             config.hasPath("network.enable_forwarded_headers") &&
-                config.getBoolean("network.enable_forwarded_headers"));
+                config.getBoolean("network.enable_forwarded_headers"),
+            config.hasPath("experimental.native_servlet_registration") &&
+                config.getBoolean("experimental.native_servlet_registration"));
   }
 
   public void startWebSocketServer(final Injector injector) {
@@ -368,18 +374,34 @@ public class ServerRpcProvider {
 
       final ServletModule servletModule = getServletModule();
 
-      ServletContextListener contextListener = new GuiceServletContextListener() {
-
-        private final Injector childInjector = injector.createChildInjector(servletModule);
-
-        @Override
-        protected Injector getInjector() {
-          return childInjector;
+      if (!nativeServletRegistration) {
+        ServletContextListener contextListener = new GuiceServletContextListener() {
+          private final Injector childInjector = injector.createChildInjector(servletModule);
+          @Override
+          protected Injector getInjector() {
+            return childInjector;
+          }
+        };
+        context.addEventListener(contextListener);
+        context.addFilter(GuiceFilter.class, "/*", EnumSet.allOf(DispatcherType.class));
+      } else {
+        // Experimental: native servlet/filter registration using Guice child injector for instances
+        Injector childInjector = injector.createChildInjector(servletModule);
+        for (Pair<String, ServletHolder> entry : servletRegistry) {
+          String url = entry.getFirst();
+          Class<? extends Servlet> clazz = entry.getSecond().getHeldClass();
+          Map<String,String> params = entry.getSecond().getInitParameters();
+          ServletHolder holder = new ServletHolder(childInjector.getInstance(clazz));
+          if (params != null) holder.setInitParameters(params);
+          context.addServlet(holder, url);
         }
-      };
-
-      context.addEventListener(contextListener);
-      context.addFilter(GuiceFilter.class, "/*", EnumSet.allOf(DispatcherType.class));
+        for (Pair<String, Class<? extends Filter>> entry : filterRegistry) {
+          String url = entry.getFirst();
+          Class<? extends Filter> clazz = entry.getSecond();
+          FilterHolder fh = new FilterHolder(childInjector.getInstance(clazz));
+          context.addFilter(fh, url, EnumSet.allOf(DispatcherType.class));
+        }
+      }
 
       // Prefer server-side gzip handler over legacy filter
       GzipHandler gzip = new GzipHandler();

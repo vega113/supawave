@@ -18,6 +18,7 @@
  */
 package org.waveprotocol.box.server.security;
 
+import javax.inject.Singleton;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -31,6 +32,7 @@ import java.io.IOException;
 /**
  * Adds long-lived caching headers to static assets.
  */
+@Singleton
 public final class StaticCacheFilter implements Filter {
   private static final String CACHE_VALUE = "public, max-age=31536000, immutable";
 

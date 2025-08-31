@@ -18,6 +18,7 @@
  */
 package org.waveprotocol.box.server.security;
 
+import javax.inject.Singleton;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -30,6 +31,7 @@ import java.io.IOException;
 /**
  * Disables caching for dynamic client resources (e.g., GWT nocache).
  */
+@Singleton
 public final class NoCacheFilter implements Filter {
   @Override
   public void init(FilterConfig filterConfig) throws ServletException {}

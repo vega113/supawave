@@ -426,6 +426,28 @@ Task P4-T7: Move to GWT 2.12.x when artifacts resolve
 Phase 5 — Jetty upgrade and (optionally) Jakarta migration
 -------------------------------------------------------------------------------
 
+Task P5-T0: Jetty 9.4 baseline modernization (javax)
+- Status: Completed
+- Work Log:
+  - 2025-08-31: Upgraded server to Jetty 9.4.54.v20240208 and modernized programmatic configuration.
+- Goal: Move off 9.2.x to a supported 9.4.x while retaining javax.servlet, and adopt modern APIs.
+- Steps:
+  1) Dependencies: Set org.eclipse.jetty:* to 9.4.54; removed obsolete jetty-continuation.
+  2) Sessions: Replaced deprecated SessionManager/HashSessionManager with SessionHandler + DefaultSessionCache + FileSessionDataStore.
+  3) SSL: Switched to SslConnectionFactory with HttpConfiguration + SecureRequestCustomizer; TLS 1.2/1.3 only; excluded weak ciphers.
+  4) Compression: Replaced GzipFilter with server-side GzipHandler.
+  5) Security headers: Added filter setting CSP, Referrer-Policy, X-Content-Type-Options. Defaults compatible with GWT; optional HSTS.
+  6) Forwarded headers: Added ForwardedRequestCustomizer (config toggle: network.enable_forwarded_headers).
+  7) WebSocket auth: Fixed token handling to strip nodeId (clusterId) when resolving sessions under SessionHandler.
+  8) Access logs: Enabled NCSA access logging to logs/access.yyyy_mm_dd.log with 7-day retention.
+  9) Caching: Strong Cache-Control for /static/* (ETags + max-age=31536000, immutable); no-cache for /webclient/*.
+  10) Health endpoints: Added /healthz and /readyz (200 OK).
+- Tests:
+  - Built with JDK 17; smoke tests: root 302->signin, /auth/signin 200, /socket handshake 101; headers present; caching behavior as configured; access log file created.
+- DoD:
+  - Server starts and serves endpoints under Jetty 9.4; modernization items above in effect.
+-------------------------------------------------------------------------------
+
 Task P5-T1: Decide and document path: Jetty 10 (javax) vs Jetty 11/12 (jakarta)
 - Status: Planned
 - Goal: Choose Jetty 11 or 12 (Jakarta) for long-term support or use Jetty 10 if we must retain javax short-term.
@@ -441,7 +463,7 @@ Task P5-T1: Decide and document path: Jetty 10 (javax) vs Jetty 11/12 (jakarta)
 
 Task P5-T2: Upgrade Jetty dependencies
 - Status: Planned
-- Goal: Replace 9.2.x with chosen target (e.g., Jetty 11.0.x or 12.x).
+- Goal: Replace 9.4.x (current) with chosen target (Jetty 11/12 for Jakarta) or 10.x if staying on javax short-term.
 - Steps:
   1) Update org.eclipse.jetty:* dependencies in wave/build.gradle.
   2) If Jakarta path: replace javax.servlet-api with jakarta.servlet-api and update imports.
@@ -619,4 +641,5 @@ Changelog (for this plan)
 - 1.1 (2025-08-29): Updated statuses for P0-T1..T3, P2-T1, P3-T1..T4; added work logs.
 - 1.2 (2025-08-30): Marked P2-T4 Completed (Java 17 toolchain enabled in wave); added P3-T2 work log (pst DSL modernization, Shadow 8.1.1); set P1-T2 to Completed with JUnit test and test wiring; added generateMessages Guava runtime to classpath.
 - 1.3 (2025-08-30): Marked P2-T5 Completed; documented Java 17 add-opens in applicationDefaultJvmArgs and smoke validation results.
+- 1.4 (2025-08-31): Completed Jetty 9.4 baseline modernization (P5-T0): session API, SSL, gzip, security headers/HSTS toggle, forwarded headers, WebSocket token fix, access logs, static caching, and health endpoints. Enforced Java 17 across modules; added request/ops hardening.
 

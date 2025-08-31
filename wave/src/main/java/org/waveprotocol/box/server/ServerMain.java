@@ -88,6 +88,18 @@ public class ServerMain {
     } catch (Throwable ignore) {
       // If bridge not on classpath, continue without failing startup
     }
+    // Ensure any uncaught exceptions are logged with a full stack trace
+    try {
+      Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+        try {
+          LOG.severe("Uncaught exception on thread " + thread.getName(), throwable);
+        } catch (Throwable ignored) {
+          // Avoid throwing from the handler itself
+        }
+      });
+    } catch (Throwable ignore) {
+      // Best-effort; do not fail startup if handler cannot be set
+    }
     try {
       Module coreSettings = new AbstractModule() {
 
@@ -109,6 +121,8 @@ public class ServerMain {
       LOG.severe("ConfigurationException when running server:", e);
     } catch (WaveServerException e) {
       LOG.severe("WaveServerException when running server:", e);
+    } catch (Throwable t) {
+      LOG.severe("Unexpected fatal error when running server:", t);
     }
   }
 

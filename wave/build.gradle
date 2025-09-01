@@ -60,6 +60,13 @@ application {
             "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
             "--add-opens=java.base/java.util=ALL-UNNAMED"
     ]
+
+    // Allow enabling client flags at runtime: ./gradlew run -PclientFlags="enableDynamicRendering=true,enableQuasiDeletionUi=true"
+    if (project.hasProperty('clientFlags')) {
+        def cf = project.property('clientFlags')
+        applicationDefaultJvmArgs += ["-Dwave.clientFlags=${cf}"]
+        println "[run] Enabling client flags: ${cf}"
+    }
 }
 java {
     // Compile and target JDK 17 bytecode

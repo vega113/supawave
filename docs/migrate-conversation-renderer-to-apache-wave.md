@@ -382,6 +382,13 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 - Status
   - In Progress — 2025-09-01. Implemented dynamic renderer with page-in/out: pages in visible blips (+upper/lower buffer) and pages out those far outside a slack window. Tunables via flags: `dynamicPrerenderUpperPx`, `dynamicPrerenderLowerPx`, `dynamicPageOutSlackPx`, `dynamicScrollThrottleMs`. Throttled scroll handling and basic metrics (logs gated by `enableViewportStats`). Wired in `StageTwo`. GWT compile passes.
 
+- How to run with flags via Gradle
+  - `./gradlew :wave:run -PclientFlags="enableDynamicRendering=true,enableQuasiDeletionUi=true,enableViewportStats=true,dynamicPrerenderUpperPx=600,dynamicPrerenderLowerPx=800,dynamicPageOutSlackPx=1200,dynamicScrollThrottleMs=50"`
+  - Flags can also be toggled at request time by adding query parameters to the webclient URL; the Gradle property sets server-wide defaults for convenience.
+
+- Resource integration
+  - Integrated `Render.css` (animations/placeholders) via `RenderCssLoader` and inject when dynamic rendering is enabled.
+
 ---
 
 ### Task F — Optional Server Fragments

@@ -768,6 +768,11 @@ public interface StageTwo {
         initQuasiAdapter();
       }
 
+      // Load supplemental render CSS when dynamic rendering is enabled.
+      if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+        org.waveprotocol.wave.client.wavepanel.render.RenderCssLoader.ensureInjected();
+      }
+
       // Dynamic rendering: only page in visible blips initially.
       if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
         org.waveprotocol.wave.client.render.undercurrent.ScreenController screen =

@@ -183,6 +183,41 @@ public class WaveClientServlet extends HttpServlet {
         }
       }
 
+      // Merge default flags from system property (dev convenience):
+      // -Dwave.clientFlags="enableDynamicRendering=true,enableQuasiDeletionUi=true"
+      try {
+        String sys = System.getProperty("wave.clientFlags");
+        if (sys != null && !sys.trim().isEmpty()) {
+          String[] pairs = sys.split(",");
+          for (String pair : pairs) {
+            String p = pair.trim();
+            if (p.isEmpty()) continue;
+            int eq = p.indexOf('=');
+            String name = (eq > 0) ? p.substring(0, eq).trim() : p;
+            String value = (eq > 0) ? p.substring(eq + 1).trim() : "true";
+            if (!FLAG_MAP.containsKey(name)) continue;
+
+            try {
+              Method getter = ClientFlagsBase.class.getMethod(name);
+              Class<?> retType = getter.getReturnType();
+              if (retType.equals(String.class)) {
+                ret.put(FLAG_MAP.get(name), value);
+              } else if (retType.equals(Integer.class)) {
+                ret.put(FLAG_MAP.get(name), Integer.parseInt(value));
+              } else if (retType.equals(Boolean.class)) {
+                ret.put(FLAG_MAP.get(name), Boolean.parseBoolean(value));
+              } else if (retType.equals(Float.class)) {
+                ret.put(FLAG_MAP.get(name), Float.parseFloat(value));
+              } else if (retType.equals(Double.class)) {
+                ret.put(FLAG_MAP.get(name), Double.parseDouble(value));
+              }
+            } catch (Exception ignored) {
+            }
+          }
+        }
+      } catch (Exception ignored) {
+      }
+
       return ret;
     } catch (JSONException ex) {
       LOG.severe("Failed to create flags JSON");

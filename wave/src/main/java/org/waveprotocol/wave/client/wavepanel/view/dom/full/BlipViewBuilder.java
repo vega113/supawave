@@ -78,6 +78,9 @@ public class BlipViewBuilder implements UiBuilder, IntrinsicBlipView {
     String replies();
 
     String privateReplies();
+
+    // Quasi-deleted state class
+    String deleted();
   }
 
   /** An enum for all the components of a blip view. */

@@ -25,6 +25,7 @@ import com.google.gwt.dom.client.Element;
 
 import org.waveprotocol.wave.client.wavepanel.view.IntrinsicBlipView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipViewBuilder.Components;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.WavePanelResourceLoader;
 
 /**
  * BlipViewDomImpl of the blip view.
@@ -94,11 +95,12 @@ public final class BlipViewDomImpl implements DomView, IntrinsicBlipView {
    * Adds a CSS class and a data attribute that can be used by styles.
    */
   public void setQuasiDeleted(boolean deleted) {
+    String deletedCls = WavePanelResourceLoader.getBlip().css().deleted();
     if (deleted) {
-      self.addClassName("deleted");
+      self.addClassName(deletedCls);
       self.setAttribute("data-deleted", "true");
     } else {
-      self.removeClassName("deleted");
+      self.removeClassName(deletedCls);
       self.removeAttribute("data-deleted");
     }
   }

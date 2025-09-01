@@ -380,7 +380,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
   - Feature usable behind flag; stable in basic navigation/editing flows
 
 - Status
-  - In Progress — 2025-09-01. Added compile-only placeholders `DynamicRenderer`, `DynamicRendererImpl`, and `DynamicDomRenderer`. Not yet wired; upcoming steps will implement visible-window computation and paging, then gate via `enableDynamicRendering`.
+  - In Progress — 2025-09-01. Implemented MVP dynamic renderer: only pages in visible blips (+buffer) using `ScreenController` and `ModelAsViewProvider`; no page-out yet. Wired `enableDynamicRendering` path in `StageTwo` to (a) skip auto-queuing during render and (b) initialize the dynamic renderer after skeleton render. GWT compile passes.
 
 ---
 

@@ -669,13 +669,16 @@ public interface StageTwo {
 
     protected DomRenderer createRenderer() {
       final BlipQueueRenderer pager = getBlipQueue();
+      final boolean dynamic = Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering());
       DocRefRenderer docRenderer = new DocRefRenderer() {
         @Override
         public UiBuilder render(
             ConversationBlip blip, IdentityMap<ConversationThread, UiBuilder> replies) {
-          // Documents are rendered blank, and filled in later when
-          // they get paged in.
-          pager.add(blip);
+          if (!dynamic) {
+            // Baseline behavior: enqueue for paging.
+            pager.add(blip);
+          }
+          // Documents are rendered blank, and filled in later when they get paged in.
           return DocRefRenderer.EMPTY.render(blip, replies);
         }
       };
@@ -763,6 +766,16 @@ public interface StageTwo {
       // Initialize quasi-deletion adapter (no-op unless flag enabled).
       if (Boolean.TRUE.equals(ClientFlags.get().enableQuasiDeletionUi())) {
         initQuasiAdapter();
+      }
+
+      // Dynamic rendering: only page in visible blips initially.
+      if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+        org.waveprotocol.wave.client.render.undercurrent.ScreenController screen =
+            org.waveprotocol.wave.client.render.undercurrent.ScreenControllerImpl.createDefault();
+        org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl dyn =
+            org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl.create(
+                getConversations(), getModelAsViewProvider(), getBlipQueue(), screen);
+        dyn.init();
       }
 
       // Install eager UI features

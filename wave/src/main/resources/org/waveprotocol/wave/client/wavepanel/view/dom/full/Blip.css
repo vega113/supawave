@@ -199,3 +199,6 @@
   background-color: #f1d6d6; /* light red */
   color: #6b0000;            /* dark red text */
 }
+
+/* Marker class to ensure CssResource maps 'deleted' */
+.deleted {}

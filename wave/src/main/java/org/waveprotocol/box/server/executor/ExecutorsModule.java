@@ -147,7 +147,7 @@ public class ExecutorsModule extends AbstractModule {
   private Executor provideThreadPoolExecutor(Provider<RequestScopeExecutor> executorProvider,
       int threadCount, String name) {
     if (threadCount == 0) {
-      return MoreExecutors.sameThreadExecutor();
+      return MoreExecutors.directExecutor();
     }
     ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat(name).build();
     ExecutorService executor;

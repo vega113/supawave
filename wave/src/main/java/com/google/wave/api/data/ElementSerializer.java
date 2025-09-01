@@ -631,7 +631,8 @@ public abstract class ElementSerializer {
   }
 
   private static boolean isEmptyOrWhitespace(String value) {
-    return value == null || CharMatcher.WHITESPACE.matchesAllOf(value);
+    // Guava 20+: use instance method instead of removed WHITESPACE constant
+    return value == null || CharMatcher.whitespace().matchesAllOf(value);
   }
 
   private static String getAttachmentUrl(String dataDocument) {

@@ -660,6 +660,12 @@ public interface StageTwo {
           // Registers and deregisters profile listeners for name changes.
           live);
 
+      // When dynamic rendering is enabled, attach a resource cleaner to page-out
+      if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+        pager.setResourceCleaner(new org.waveprotocol.wave.client.wavepanel.render.BlipResourceCleaner(
+            stageOne.getWavePanel().getGwtPanel()));
+      }
+
       return BlipQueueRenderer.create(pagingHandlerProxy);
     }
 

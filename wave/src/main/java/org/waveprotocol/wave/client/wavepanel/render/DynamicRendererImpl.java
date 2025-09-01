@@ -138,15 +138,20 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
         @SuppressWarnings("unchecked")
         BlipViewImpl<BlipViewDomImpl> impl = (BlipViewImpl<BlipViewDomImpl>) bv;
         Element e = null;
-        try { e = impl.getIntrinsic() != null ? impl.getIntrinsic().getElement() : null; } catch (Throwable t) { e = null; }
+        try { e = impl.getIntrinsic() != null ? impl.getIntrinsic().getElement() : null; } catch (ClassCastException | NullPointerException expected) { e = null; }
         if (e == null) return true;
         int absTop;
         int h;
         try {
           absTop = getAbsoluteTop(e);
           h = e.getOffsetHeight();
-        } catch (Throwable t) {
+        } catch (ClassCastException | NullPointerException expected) {
           return true; // Skip invalid DOM nodes safely
+        } catch (Exception ex) {
+          if (logStats) {
+            GWT.log("DynamicRenderer: DOM read failed", ex);
+          }
+          return true;
         }
         if (h <= 0) return true;
         boolean isVisible = intersects(absTop, absTop + h, top, bottom);
@@ -171,13 +176,13 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
         fragmentRequester.fetchRange(top, bottom, new FragmentRequester.Callback() {
           @Override public void onSuccess() {}
           @Override public void onError(Throwable error) {
-            if (logStats) {
-              GWT.log("Fragment fetch failed", error);
-            }
+            GWT.log("Fragment fetch failed", error);
           }
         });
       }
-    } catch (Throwable ignored) {}
+    } catch (Exception ex) {
+      GWT.log("DynamicRenderer: fragment fetch threw", ex);
+    }
 
     if (logStats && (counts[0] > 0 || counts[1] > 0)) {
       GWT.log("DynamicRenderer: in=" + counts[0] + " out=" + counts[1] +

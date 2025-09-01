@@ -45,12 +45,31 @@ public final class RenderUtil {
   }
 
   public static void setClass(Element e, String cls, boolean add) {
-    if (e == null || cls == null || cls.isEmpty()) return;
+    if (e == null || cls == null || cls.isEmpty()) {
+      com.google.gwt.core.client.GWT.log("RenderUtil.setClass: invalid args e=" + (e == null) + ", cls=" + cls);
+      return;
+    }
     // Rely on GWT Element.addClassName/removeClassName idempotence to avoid
     // string scanning per call. This minimizes string work and reflow triggers.
     if (add) {
       e.addClassName(cls);
     } else {
+      e.removeClassName(cls);
+    }
+  }
+
+  public static void addClassIfAbsent(Element e, String cls) {
+    if (e == null || cls == null || cls.isEmpty()) return;
+    String current = e.getClassName();
+    if (current == null || current.indexOf(cls) < 0) {
+      e.addClassName(cls);
+    }
+  }
+
+  public static void removeClassIfPresent(Element e, String cls) {
+    if (e == null || cls == null || cls.isEmpty()) return;
+    String current = e.getClassName();
+    if (current != null && current.indexOf(cls) >= 0) {
       e.removeClassName(cls);
     }
   }

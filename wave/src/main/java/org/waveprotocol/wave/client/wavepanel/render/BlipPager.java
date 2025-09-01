@@ -143,7 +143,7 @@ public final class BlipPager implements PagingHandler {
       if (blipDom != null && blipDom.getElement() != null) {
         // Clear placeholder before rendering if dynamic rendering is enabled
         if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
-          RenderUtil.setClass(blipDom.getElement(), "placeholder", false);
+          RenderUtil.removeClassIfPresent(blipDom.getElement(), "placeholder");
         }
       }
       BlipMetaDomImpl metaDom =
@@ -175,7 +175,7 @@ public final class BlipPager implements PagingHandler {
       if (blipDom != null && blipDom.getElement() != null) {
         // Add placeholder visual when paging out, to keep layout stable
         if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
-          RenderUtil.setClass(blipDom.getElement(), "placeholder", true);
+          RenderUtil.addClassIfAbsent(blipDom.getElement(), "placeholder");
         }
       }
       BlipMetaDomImpl metaDom =

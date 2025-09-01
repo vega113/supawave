@@ -22,6 +22,7 @@ package org.waveprotocol.wave.client;
 
 import com.google.common.base.Preconditions;
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
 
 import org.waveprotocol.wave.client.account.ProfileManager;
@@ -793,8 +794,8 @@ public interface StageTwo {
                     screen);
             dyn.init();
           }
-        } catch (Throwable ignored) {
-          // Fall back silently if dynamic rendering cannot be initialized.
+        } catch (Exception ex) {
+          GWT.log("StageTwo: dynamic rendering init failed", ex);
         }
       }
 

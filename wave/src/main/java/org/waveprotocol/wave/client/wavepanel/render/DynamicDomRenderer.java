@@ -29,15 +29,21 @@ public final class DynamicDomRenderer {
 
   @SuppressWarnings("unchecked")
   public static void setPlaceholder(BlipView bv, boolean on) {
+    if (bv == null) return;
     try {
-      if (bv == null) return;
       BlipViewImpl<BlipViewDomImpl> impl = (BlipViewImpl<BlipViewDomImpl>) bv;
       if (impl == null) return;
       BlipViewDomImpl dom = impl.getIntrinsic();
       if (dom == null || dom.getElement() == null) return;
-      RenderUtil.setClass(dom.getElement(), "placeholder", on);
-    } catch (Throwable ignored) {
-      // Defensive: never let placeholder toggling break rendering
+      if (on) {
+        RenderUtil.addClassIfAbsent(dom.getElement(), "placeholder");
+      } else {
+        RenderUtil.removeClassIfPresent(dom.getElement(), "placeholder");
+      }
+    } catch (ClassCastException | NullPointerException expected) {
+      // ignore: invalid or incomplete structures
+    } catch (Exception e) {
+      com.google.gwt.core.client.GWT.log("DynamicDomRenderer.setPlaceholder unexpected error", e);
     }
   }
 }

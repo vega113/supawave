@@ -27,6 +27,8 @@ import com.google.gwt.user.client.Window;
 /** Minimal scroller using the document body with safe clamping. */
 public final class DomScrollerImpl {
   private final Element body = Document.get().getBody();
+  private boolean scheduled = false;
+  private int pendingY = 0;
 
   public int getScrollTop() {
     return body.getScrollTop();
@@ -37,8 +39,15 @@ public final class DomScrollerImpl {
     int content = body.getScrollHeight();
     int max = Math.max(0, content - Math.max(0, viewport));
     final int y = RenderUtil.clamp(yRaw, 0, max);
-    Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
-      @Override public void execute() { body.setScrollTop(y); }
-    });
+    pendingY = y;
+    if (!scheduled) {
+      scheduled = true;
+      Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+        @Override public void execute() {
+          scheduled = false;
+          body.setScrollTop(pendingY);
+        }
+      });
+    }
   }
 }

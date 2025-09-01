@@ -29,9 +29,11 @@ import com.google.gson.JsonParser;
 import com.google.inject.Inject;
 import com.google.wave.api.SearchResult;
 import com.typesafe.config.Config;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.URI;
-import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.apache.http.HttpStatus;
 import org.waveprotocol.box.stat.Timed;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -215,21 +217,19 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
   private JsonArray sendSearchRequest(String solrQuery,
       Function<InputStreamReader, JsonArray> function) throws IOException {
-    JsonArray docsJson;
-    GetMethod getMethod = new GetMethod();
-    HttpClient httpClient = new HttpClient();
-    try {
-      getMethod.setURI(new URI(solrQuery, false));
-      int statusCode = httpClient.executeMethod(getMethod);
-      docsJson = function.apply(new InputStreamReader(getMethod.getResponseBodyAsStream()));
-      if (statusCode != HttpStatus.SC_OK) {
-        LOG.warning("Failed to execute query: " + solrQuery);
-        throw new IOException("Search request status is not OK: " + statusCode);
+    try (CloseableHttpClient client = HttpClients.createDefault()) {
+      HttpGet get = new HttpGet(solrQuery);
+      try (CloseableHttpResponse resp = client.execute(get)) {
+        int status = resp.getStatusLine().getStatusCode();
+        JsonArray docsJson = function.apply(new InputStreamReader(resp.getEntity().getContent()));
+        if (status != HttpStatus.SC_OK) {
+          LOG.warning("Failed to execute query: " + solrQuery);
+          throw new IOException("Search request status is not OK: " + status);
+        }
+        EntityUtils.consumeQuietly(resp.getEntity());
+        return docsJson;
       }
-    } finally {
-      getMethod.releaseConnection();
     }
-    return docsJson;
   }
 
   private static boolean isAllQuery(String query) {

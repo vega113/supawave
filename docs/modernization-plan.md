@@ -525,17 +525,19 @@ Task P6-T1: Upgrade protobuf-java to 3.25.x (optional)
   - Codegen and runtime both work with updated protobuf.
 
 Task P6-T2: Upgrade Typesafe Config, Commons, and other utilities
-- Status: Planned
+- Status: In Progress
 - Goal: Bring common libs to supported versions to reduce CVEs.
 - Steps:
-  1) commons-io to 2.15+, commons-codec 1.16+, commons-fileupload 1.5+, etc.
-  2) Keep changes small; verify compile and smoke.
+  1) Upgraded: commons-io to 2.16.1, commons-codec to 1.16.1, velocity to 1.7.
+  2) Replaced commons-logging with jcl-over-slf4j to route JCL calls to SLF4J.
+  3) Left in place (for now, API-compat concerns): commons-lang 2.x, commons-configuration 1.x, commons-httpclient 3.1 (used by legacy robot/solr code). Plan incremental replacement or isolation.
+  4) Keep changes small; verify compile and smoke.
 - Tests:
   - ./gradlew build and server smoke.
 - AI Agent Guidance:
   - One lib at a time; keep commit scope small.
 - DoD:
-  - Build green; server smoke passes.
+  - Build green; server smoke passes. Follow-up items filed for remaining commons upgrades.
 
 Task P6-T3: MongoDB driver modernization (scoped)
 - Status: Planned

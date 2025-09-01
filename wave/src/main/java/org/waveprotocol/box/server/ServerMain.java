@@ -28,7 +28,6 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import org.apache.commons.configuration.ConfigurationException;
 import org.apache.wave.box.server.rpc.InitialsAvatarsServlet;
 import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc;
 import org.waveprotocol.box.server.authentication.AccountStoreHolder;
@@ -143,8 +142,6 @@ public class ServerMain {
       run(coreSettings);
     } catch (PersistenceException e) {
       LOG.severe("PersistenceException when running server:", e);
-    } catch (ConfigurationException e) {
-      LOG.severe("ConfigurationException when running server:", e);
     } catch (WaveServerException e) {
       LOG.severe("WaveServerException when running server:", e);
     } catch (Throwable t) {
@@ -159,7 +156,7 @@ public class ServerMain {
   }
 
   public static void run(Module coreSettings) throws PersistenceException,
-      ConfigurationException, WaveServerException {
+      WaveServerException {
     Injector injector = Guice.createInjector(coreSettings);
     Module profilingModule = injector.getInstance(StatModule.class);
     ExecutorsModule executorsModule = injector.getInstance(ExecutorsModule.class);
@@ -197,8 +194,7 @@ public class ServerMain {
     server.startWebSocketServer(injector);
   }
 
-  private static Module buildFederationModule(Injector settingsInjector)
-      throws ConfigurationException {
+  private static Module buildFederationModule(Injector settingsInjector) {
     return settingsInjector.getInstance(NoOpFederationModule.class);
   }
 

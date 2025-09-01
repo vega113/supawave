@@ -24,11 +24,13 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.JdkFutureAdapters;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpMethod;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -42,7 +44,7 @@ import java.util.concurrent.ExecutorService;
 public class HttpRobotConnection implements RobotConnection {
 
   /** A user agent client that can execute HTTP methods. */
-  private final HttpClient httpClient;
+  private final CloseableHttpClient httpClient;
 
   /** An executor to submit tasks asynchronously. */
   private final ExecutorService executor;
@@ -53,15 +55,15 @@ public class HttpRobotConnection implements RobotConnection {
    * @param client the client for executing HTTP methods.
    * @param executor the executor for submitting tasks asynchronously.
    */
-  public HttpRobotConnection(HttpClient client, ExecutorService executor) {
+  public HttpRobotConnection(CloseableHttpClient client, ExecutorService executor) {
     this.httpClient = client;
     this.executor = executor;
   }
 
   @Override
   public String get(String url) throws RobotConnectionException {
-    GetMethod method = new GetMethod(url);
-    return fetch(url, method);
+    HttpGet req = new HttpGet(url);
+    return fetch(url, req);
   }
 
   @Override
@@ -76,12 +78,12 @@ public class HttpRobotConnection implements RobotConnection {
 
   @Override
   public String postJson(String url, String body) throws RobotConnectionException {
-    PostMethod method = new PostMethod(url);
+    HttpPost req = new HttpPost(url);
     try {
-      method.setRequestEntity(new StringRequestEntity(body, RobotConnection.JSON_CONTENT_TYPE,
-          Charsets.UTF_8.name()));
-      return fetch(url, method);
-    } catch (IOException e) {
+      req.setEntity(new StringEntity(body, Charsets.UTF_8));
+      req.setHeader("Content-Type", RobotConnection.JSON_CONTENT_TYPE);
+      return fetch(url, req);
+    } catch (Exception e) {
       String msg = "Robot fetch http failure: " + url + ": " + e;
       throw new RobotConnectionException(msg, e);
     }
@@ -108,16 +110,19 @@ public class HttpRobotConnection implements RobotConnection {
    * @throws RobotConnectionException if there is a problem fetching the URL,
    *     for example, if the response code is not HTTP OK (200).
    */
-  private String fetch(String url, HttpMethod method) throws RobotConnectionException {
-    try {
-      int statusCode = httpClient.executeMethod(method);
-      return RobotConnectionUtil.validateAndReadResponse(url, statusCode,
-          method.getResponseBodyAsStream());
+  private String fetch(String url, org.apache.http.client.methods.HttpUriRequest req)
+      throws RobotConnectionException {
+    try (CloseableHttpResponse resp = httpClient.execute(req)) {
+      int status = resp.getStatusLine().getStatusCode();
+      HttpEntity entity = resp.getEntity();
+      String result = entity != null
+          ? RobotConnectionUtil.validateAndReadResponse(url, status, entity.getContent())
+          : RobotConnectionUtil.validateAndReadResponse(url, status, new byte[0]);
+      EntityUtils.consumeQuietly(entity);
+      return result;
     } catch (IOException e) {
       String msg = "Robot fetch http failure: " + url + ".";
       throw new RobotConnectionException(msg, e);
-    } finally {
-      method.releaseConnection();
     }
   }
 }

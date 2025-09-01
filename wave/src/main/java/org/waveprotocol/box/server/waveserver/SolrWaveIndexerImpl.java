@@ -30,12 +30,13 @@ import com.google.gson.JsonPrimitive;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.URI;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.methods.RequestEntity;
-import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.apache.http.HttpStatus;
 import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.common.Snippets;
@@ -149,22 +150,18 @@ public class SolrWaveIndexerImpl extends AbstractWaveIndexer implements WaveBus.
   }
 
   private void postUpdateToSolr(ReadableWaveletData wavelet, JsonArray docsJson) {
-    PostMethod postMethod =
-        new PostMethod(solrBaseUrl + "/update/json?commit=true");
-    try {
-      RequestEntity requestEntity =
-          new StringRequestEntity(docsJson.toString(), "application/json", "UTF-8");
-      postMethod.setRequestEntity(requestEntity);
-
-      HttpClient httpClient = new HttpClient();
-      int statusCode = httpClient.executeMethod(postMethod);
-      if (statusCode != HttpStatus.SC_OK) {
-        throw new IndexException(wavelet.getWaveId().serialise());
+    HttpPost post = new HttpPost(solrBaseUrl + "/update/json?commit=true");
+    try (CloseableHttpClient client = HttpClients.createDefault()) {
+      post.setEntity(new StringEntity(docsJson.toString(), ContentType.APPLICATION_JSON));
+      try (CloseableHttpResponse resp = client.execute(post)) {
+        int status = resp.getStatusLine().getStatusCode();
+        EntityUtils.consumeQuietly(resp.getEntity());
+        if (status != HttpStatus.SC_OK) {
+          throw new IndexException(wavelet.getWaveId().serialise());
+        }
       }
     } catch (IOException e) {
       throw new IndexException(String.valueOf(wavelet.getWaveletId()), e);
-    } finally {
-      postMethod.releaseConnection();
     }
   }
 
@@ -274,31 +271,33 @@ public class SolrWaveIndexerImpl extends AbstractWaveIndexer implements WaveBus.
   }
 
   private void sendRequestToDeleteSolrIndex() {
-    GetMethod getMethod = new GetMethod();
-    try {
-      getMethod
-      .setURI(new URI(solrBaseUrl + "/update?wt=json"
-          + "&stream.body=<delete><query>" + SolrSearchProviderImpl.Q + "</query></delete>",
-          false));
-
-      HttpClient httpClient = new HttpClient();
-      int statusCode = httpClient.executeMethod(getMethod);
-      if (statusCode == HttpStatus.SC_OK) {
-        getMethod.setURI(new URI(solrBaseUrl + "/update?wt=json"
-            + "&stream.body=<commit/>", false));
-
-        httpClient = new HttpClient();
-        statusCode = httpClient.executeMethod(getMethod);
-        if (statusCode != HttpStatus.SC_OK) {
-          LOG.warning("failed to clean solr index");
+    String updateUrl = solrBaseUrl + "/update?wt=json";
+    String deleteXml = "<delete><query>" + SolrSearchProviderImpl.Q + "</query></delete>";
+    String commitXml = "<commit/>";
+    try (CloseableHttpClient client = HttpClients.createDefault()) {
+      // Delete
+      HttpPost deleteReq = new HttpPost(updateUrl);
+      deleteReq.setEntity(new StringEntity(deleteXml, ContentType.APPLICATION_XML));
+      try (CloseableHttpResponse resp = client.execute(deleteReq)) {
+        int status = resp.getStatusLine().getStatusCode();
+        EntityUtils.consumeQuietly(resp.getEntity());
+        if (status != HttpStatus.SC_OK) {
+          LOG.warning("failed to clean solr index (delete)");
+          return;
         }
-      } else {
-        LOG.warning("failed to clean solr index");
       }
-    } catch (Exception e) {
+      // Commit
+      HttpPost commitReq = new HttpPost(updateUrl);
+      commitReq.setEntity(new StringEntity(commitXml, ContentType.APPLICATION_XML));
+      try (CloseableHttpResponse resp = client.execute(commitReq)) {
+        int status = resp.getStatusLine().getStatusCode();
+        EntityUtils.consumeQuietly(resp.getEntity());
+        if (status != HttpStatus.SC_OK) {
+          LOG.warning("failed to clean solr index (commit)");
+        }
+      }
+    } catch (IOException e) {
       LOG.warning("failed to clean solr index", e);
-    } finally {
-      getMethod.releaseConnection();
     }
   }
 }

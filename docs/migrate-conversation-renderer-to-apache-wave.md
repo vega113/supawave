@@ -380,7 +380,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
   - Feature usable behind flag; stable in basic navigation/editing flows
 
 - Status
-  - In Progress — 2025-09-01. Implemented MVP dynamic renderer: only pages in visible blips (+buffer) using `ScreenController` and `ModelAsViewProvider`; no page-out yet. Wired `enableDynamicRendering` path in `StageTwo` to (a) skip auto-queuing during render and (b) initialize the dynamic renderer after skeleton render. GWT compile passes.
+  - In Progress — 2025-09-01. Implemented dynamic renderer with page-in/out: pages in visible blips (+upper/lower buffer) and pages out those far outside a slack window. Tunables via flags: `dynamicPrerenderUpperPx`, `dynamicPrerenderLowerPx`, `dynamicPageOutSlackPx`, `dynamicScrollThrottleMs`. Throttled scroll handling and basic metrics (logs gated by `enableViewportStats`). Wired in `StageTwo`. GWT compile passes.
 
 ---
 

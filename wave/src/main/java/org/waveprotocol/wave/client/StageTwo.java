@@ -654,13 +654,13 @@ public interface StageTwo {
           stageOne.getWavePanel().getGwtPanel());
 
       // Collect various components required for paging blips in/out.
-      PagingHandlerProxy pagingHandler = PagingHandlerProxy.create( // \u2620
+      pagingHandlerProxy = PagingHandlerProxy.create( // \u2620
           // Enables and disables the document rendering, as well blip metadata.
           pager,
           // Registers and deregisters profile listeners for name changes.
           live);
 
-      return BlipQueueRenderer.create(pagingHandler);
+      return BlipQueueRenderer.create(pagingHandlerProxy);
     }
 
     protected ViewFactory createViewFactories() {
@@ -774,7 +774,7 @@ public interface StageTwo {
             org.waveprotocol.wave.client.render.undercurrent.ScreenControllerImpl.createDefault();
         org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl dyn =
             org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl.create(
-                getConversations(), getModelAsViewProvider(), getBlipQueue(), screen);
+                getConversations(), getModelAsViewProvider(), getBlipQueue(), getPagingHandler(), screen);
         dyn.init();
       }
 
@@ -787,6 +787,7 @@ public interface StageTwo {
 
     // Quasi-deletion adapter for renderers interested in pre-delete callbacks.
     private QuasiConversationViewAdapter quasiAdapter;
+    private PagingHandlerProxy pagingHandlerProxy;
 
     protected QuasiConversationViewAdapter getQuasiAdapter() {
       return quasiAdapter;
@@ -796,6 +797,10 @@ public interface StageTwo {
       if (quasiAdapter == null) {
         quasiAdapter = new QuasiConversationViewAdapter(getConversations());
       }
+    }
+
+    protected PagingHandlerProxy getPagingHandler() {
+      return pagingHandlerProxy;
     }
 
     /**

@@ -26,6 +26,10 @@ import org.waveprotocol.wave.client.render.undercurrent.ScreenController;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer.PagingHandler;
+import org.waveprotocol.wave.client.util.ClientFlags;
+import com.google.gwt.core.client.Duration;
+import com.google.gwt.core.client.GWT;
 import org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl;
 import org.waveprotocol.wave.model.conversation.BlipMappers;
@@ -41,26 +45,44 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
   private final ScreenController screen;
   private final ModelAsViewProvider modelAsView;
   private final BlipQueueRenderer queue;
+  private final PagingHandler pager;
 
   private final Set<ConversationBlip> pagedIn = new HashSet<ConversationBlip>();
   private int prerenderPxTop = 600;
   private int prerenderPxBottom = 800;
+  private int pageOutSlackPx = 1200;
+  private int throttleMs = 50;
+  private boolean logStats = false;
+
+  private boolean updateQueued = false;
+  private double lastUpdateMs = 0;
 
   public static DynamicRendererImpl create(ObservableConversationView view,
-      ModelAsViewProvider modelAsView, BlipQueueRenderer queue, ScreenController screen) {
-    return new DynamicRendererImpl(view, modelAsView, queue, screen);
+      ModelAsViewProvider modelAsView, BlipQueueRenderer queue, PagingHandler pager, ScreenController screen) {
+    return new DynamicRendererImpl(view, modelAsView, queue, pager, screen);
   }
 
   private DynamicRendererImpl(ObservableConversationView view,
-      ModelAsViewProvider modelAsView, BlipQueueRenderer queue, ScreenController screen) {
+      ModelAsViewProvider modelAsView, BlipQueueRenderer queue, PagingHandler pager, ScreenController screen) {
     this.view = view;
     this.modelAsView = modelAsView;
     this.queue = queue;
+    this.pager = pager;
     this.screen = screen;
   }
 
   @Override
   public void init() {
+    // Pull tunables from flags when available
+    try {
+      if (ClientFlags.get().dynamicPrerenderUpperPx() != null) prerenderPxTop = ClientFlags.get().dynamicPrerenderUpperPx();
+      if (ClientFlags.get().dynamicPrerenderLowerPx() != null) prerenderPxBottom = ClientFlags.get().dynamicPrerenderLowerPx();
+      if (ClientFlags.get().dynamicPageOutSlackPx() != null) pageOutSlackPx = ClientFlags.get().dynamicPageOutSlackPx();
+      if (ClientFlags.get().dynamicScrollThrottleMs() != null) throttleMs = ClientFlags.get().dynamicScrollThrottleMs();
+      logStats = Boolean.TRUE.equals(ClientFlags.get().enableViewportStats());
+    } catch (Throwable t) {
+      // ignore in non-client contexts
+    }
     screen.addListener(this);
     updateWindow();
   }
@@ -73,12 +95,36 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
 
   @Override
   public void onScreenChanged(int scrollTop, int viewportHeight) {
-    updateWindow();
+    throttleUpdate();
+  }
+
+  private void throttleUpdate() {
+    double now = Duration.currentTimeMillis();
+    if ((now - lastUpdateMs) >= throttleMs) {
+      lastUpdateMs = now;
+      updateWindow();
+    } else if (!updateQueued) {
+      updateQueued = true;
+      com.google.gwt.user.client.Timer t = new com.google.gwt.user.client.Timer() {
+        @Override public void run() {
+          updateQueued = false;
+          lastUpdateMs = Duration.currentTimeMillis();
+          updateWindow();
+        }
+      };
+      int delay = Math.max(1, throttleMs - (int)(now - lastUpdateMs));
+      t.schedule(delay);
+    }
   }
 
   private void updateWindow() {
     final int top = screen.getScrollTop() - prerenderPxTop;
     final int bottom = screen.getScrollTop() + screen.getViewportHeight() + prerenderPxBottom;
+
+    final int outTop = top - pageOutSlackPx;
+    final int outBottom = bottom + pageOutSlackPx;
+
+    final int[] counts = new int[] {0, 0}; // [in, out]
 
     BlipMappers.depthFirst(new org.waveprotocol.wave.model.util.Predicate<ConversationBlip>() {
       @Override
@@ -91,15 +137,27 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
         if (e == null) return true;
         int absTop = getAbsoluteTop(e);
         int h = e.getOffsetHeight();
-        if (intersects(absTop, absTop + h, top, bottom)) {
+        boolean isVisible = intersects(absTop, absTop + h, top, bottom);
+        if (isVisible) {
           if (!pagedIn.contains(blip)) {
             queue.add(blip);
             pagedIn.add(blip);
+            counts[0]++;
           }
+        } else if (pagedIn.contains(blip) && !intersects(absTop, absTop + h, outTop, outBottom)) {
+          // Far enough offscreen; page out
+          pager.pageOut(blip);
+          pagedIn.remove(blip);
+          counts[1]++;
         }
         return true;
       }
     }, view);
+
+    if (logStats && (counts[0] > 0 || counts[1] > 0)) {
+      GWT.log("DynamicRenderer: in=" + counts[0] + " out=" + counts[1] +
+          " top=" + top + " bottom=" + bottom + " pagedIn=" + pagedIn.size());
+    }
   }
 
   private static boolean intersects(int aTop, int aBottom, int bTop, int bBottom) {

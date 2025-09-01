@@ -489,6 +489,10 @@ public class ClientFlagsBase {
   private final Boolean enableQuasiDeletionUi;
   private final Boolean enableDynamicRendering;
   private final Boolean enableFragmentFetch;
+  private final Integer dynamicPrerenderUpperPx;
+  private final Integer dynamicPrerenderLowerPx;
+  private final Integer dynamicPageOutSlackPx;
+  private final Integer dynamicScrollThrottleMs;
 
 
   /**
@@ -735,6 +739,10 @@ public class ClientFlagsBase {
         "enableQuasiDeletionUi", enableQuasiDeletionUi,
         "enableDynamicRendering", enableDynamicRendering,
         "enableFragmentFetch", enableFragmentFetch,
+        "dynamicPrerenderUpperPx", dynamicPrerenderUpperPx,
+        "dynamicPrerenderLowerPx", dynamicPrerenderLowerPx,
+        "dynamicPageOutSlackPx", dynamicPageOutSlackPx,
+        "dynamicScrollThrottleMs", dynamicScrollThrottleMs,
 
     };
   }
@@ -976,6 +984,10 @@ public class ClientFlagsBase {
     enableQuasiDeletionUi = helper.getBoolean(FlagConstants.ENABLE_QUASI_DELETION_UI, false);
     enableDynamicRendering = helper.getBoolean(FlagConstants.ENABLE_DYNAMIC_RENDERING, false);
     enableFragmentFetch = helper.getBoolean(FlagConstants.ENABLE_FRAGMENT_FETCH, false);
+    dynamicPrerenderUpperPx = helper.getInteger(FlagConstants.DYNAMIC_PRERENDER_UPPER_PX, 600);
+    dynamicPrerenderLowerPx = helper.getInteger(FlagConstants.DYNAMIC_PRERENDER_LOWER_PX, 800);
+    dynamicPageOutSlackPx = helper.getInteger(FlagConstants.DYNAMIC_PAGE_OUT_SLACK_PX, 1200);
+    dynamicScrollThrottleMs = helper.getInteger(FlagConstants.DYNAMIC_SCROLL_THROTTLE_MS, 50);
 
   }
 
@@ -983,6 +995,10 @@ public class ClientFlagsBase {
   public Boolean enableQuasiDeletionUi() { return enableQuasiDeletionUi; }
   public Boolean enableDynamicRendering() { return enableDynamicRendering; }
   public Boolean enableFragmentFetch() { return enableFragmentFetch; }
+  public Integer dynamicPrerenderUpperPx() { return dynamicPrerenderUpperPx; }
+  public Integer dynamicPrerenderLowerPx() { return dynamicPrerenderLowerPx; }
+  public Integer dynamicPageOutSlackPx() { return dynamicPageOutSlackPx; }
+  public Integer dynamicScrollThrottleMs() { return dynamicScrollThrottleMs; }
 
 
   /**

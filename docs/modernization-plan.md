@@ -525,7 +525,11 @@ Task P6-T1: Upgrade protobuf-java to 3.25.x (optional)
   - Codegen and runtime both work with updated protobuf.
 
 Task P6-T2: Upgrade Typesafe Config, Commons, and other utilities
-- Status: In Progress
+ - Status: In Progress
+ - Work Log:
+   - 2025-09-01: Upgraded commons-io to 2.16.1, commons-codec to 1.16.1, and velocity to 1.7; replaced commons-logging with jcl-over-slf4j. Verified server compile and runtime smoke. Deferred commons-lang 2.x → 3.x until import sweep completed.
+   - 2025-09-01 (later): Completed commons-lang migration to commons-lang3 (StringUtils imports updated). Removed unused commons-collections. Left commons-configuration removed (we use Typesafe Config 1.4.3).
+   - Notes: commons-httpclient 3.1 replaced with Apache HttpClient 4.5.x across Robot and Solr paths (compile/runtime verified). Further work tracked for MongoDB driver upgrade under P6‑T3.
 - Goal: Bring common libs to supported versions to reduce CVEs.
 - Steps:
   1) Upgraded: commons-io to 2.16.1, commons-codec to 1.16.1, velocity to 1.7.
@@ -540,17 +544,18 @@ Task P6-T2: Upgrade Typesafe Config, Commons, and other utilities
   - Build green; server smoke passes. Follow-up items filed for remaining commons upgrades.
 
 Task P6-T3: MongoDB driver modernization (scoped)
-- Status: Planned
+- Status: In Progress
 - Goal: 2.11.2 is obsolete; modern drivers are 4.x+. This may require code changes; scope carefully.
 - Steps:
-  1) Create a spike branch to test 4.x driver.
-  2) Document required code changes; split into follow-up tasks.
+  1) Added spike classes under persistence/mongodb4 (Mongo4DbProvider) using mongodb-driver-sync 4.11.x (not wired by default).
+  2) Document required code changes; split into follow-up tasks (GridFS -> GridFSBucket, DB/DBCollection -> MongoDatabase/MongoCollection, exceptions -> MongoException subclasses).
+  3) Next: add compile-time adapters for CertPathStore/AttachmentStore/AccountStore/DeltaStore backed by the new driver and behind a config flag (e.g., core.mongodb_driver = v4).
 - Tests:
-  - Unit tests for persistence layer; integration test if available.
+  - Compile-only spike validated; next step will include adapter tests with an embedded Mongo.
 - AI Agent Guidance:
   - Identify usage via grep for com.mongodb.* APIs.
 - DoD:
-  - Spike findings documented with actionable tasks.
+  - Spike compiles; adapters implemented; config flag can switch between old/new providers; basic integration test passes with MongoDB 4.x.
 
 Task P6-T4: Guava upgrade strategy (scoped)
 - Status: Planned

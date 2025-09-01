@@ -58,12 +58,14 @@ public class PersistenceModule extends AbstractModule {
   private final String deltaStoreType;
 
   private MongoDbProvider mongoDbProvider;
+  private org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider mongo4Provider;
 
   private final String mongoDBHost;
 
   private final String mongoDBPort;
 
   private final String mongoDBdatabase;
+  private final String mongoDriver;
 
 
   @Inject
@@ -75,6 +77,7 @@ public class PersistenceModule extends AbstractModule {
     this.mongoDBHost = config.getString("core.mongodb_host");
     this.mongoDBPort = config.getString("core.mongodb_port");
     this.mongoDBdatabase = config.getString("core.mongodb_database");
+    this.mongoDriver = config.hasPath("core.mongodb_driver") ? config.getString("core.mongodb_driver") : "v2";
   }
 
   /**
@@ -85,6 +88,13 @@ public class PersistenceModule extends AbstractModule {
       mongoDbProvider = new MongoDbProvider(mongoDBHost, mongoDBPort, mongoDBdatabase);
     }
     return mongoDbProvider;
+  }
+
+  public org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider getMongo4Provider() {
+    if (mongo4Provider == null) {
+      mongo4Provider = new org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider(mongoDBHost, mongoDBPort, mongoDBdatabase);
+    }
+    return mongo4Provider;
   }
 
   @Override
@@ -105,8 +115,11 @@ public class PersistenceModule extends AbstractModule {
     } else if (signerInfoStoreType.equalsIgnoreCase("file")) {
       bind(CertPathStore.class).to(FileSignerInfoStore.class).in(Singleton.class);
     } else if (signerInfoStoreType.equalsIgnoreCase("mongodb")) {
-      MongoDbProvider mongoDbProvider = getMongoDbProvider();
-      bind(CertPathStore.class).toInstance(mongoDbProvider.provideMongoDbStore());
+      if ("v4".equalsIgnoreCase(mongoDriver)) {
+        bind(CertPathStore.class).toInstance(getMongo4Provider().provideMongoDbStore());
+      } else {
+        bind(CertPathStore.class).toInstance(getMongoDbProvider().provideMongoDbStore());
+      }
     } else {
       throw new RuntimeException(
           "Invalid certificate path store type: '" + signerInfoStoreType + "'");
@@ -117,8 +130,11 @@ public class PersistenceModule extends AbstractModule {
     if (attachmentStoreType.equalsIgnoreCase("disk")) {
       bind(AttachmentStore.class).to(FileAttachmentStore.class).in(Singleton.class);
     } else if (attachmentStoreType.equalsIgnoreCase("mongodb")) {
-      MongoDbProvider mongoDbProvider = getMongoDbProvider();
-      bind(AttachmentStore.class).toInstance(mongoDbProvider.provideMongoDbStore());
+      if ("v4".equalsIgnoreCase(mongoDriver)) {
+        bind(AttachmentStore.class).toInstance(getMongo4Provider().provideMongoDbAttachmentStore());
+      } else {
+        bind(AttachmentStore.class).toInstance(getMongoDbProvider().provideMongoDbStore());
+      }
     } else {
       throw new RuntimeException("Invalid attachment store type: '" + attachmentStoreType + "'");
     }
@@ -132,8 +148,12 @@ public class PersistenceModule extends AbstractModule {
     } else if (accountStoreType.equalsIgnoreCase("fake")) {
       bind(AccountStore.class).to(FakePermissiveAccountStore.class).in(Singleton.class);
     } else if (accountStoreType.equalsIgnoreCase("mongodb")) {
-      MongoDbProvider mongoDbProvider = getMongoDbProvider();
-      bind(AccountStore.class).toInstance(mongoDbProvider.provideMongoDbStore());
+      if ("v4".equalsIgnoreCase(mongoDriver)) {
+        // TODO: implement AccountStore adapter for v4
+        bind(AccountStore.class).to(MemoryStore.class).in(Singleton.class);
+      } else {
+        bind(AccountStore.class).toInstance(getMongoDbProvider().provideMongoDbStore());
+      }
     } else {
       throw new RuntimeException("Invalid account store type: '" + accountStoreType + "'");
     }
@@ -145,8 +165,11 @@ public class PersistenceModule extends AbstractModule {
     } else if (deltaStoreType.equalsIgnoreCase("file")) {
       bind(DeltaStore.class).to(FileDeltaStore.class).in(Singleton.class);
     } else if (deltaStoreType.equalsIgnoreCase("mongodb")) {
-      MongoDbProvider mongoDbProvider = getMongoDbProvider();
-      bind(DeltaStore.class).toInstance(mongoDbProvider.provideMongoDbDeltaStore());
+      if ("v4".equalsIgnoreCase(mongoDriver)) {
+        throw new RuntimeException("MongoDB v4 DeltaStore not yet implemented");
+      } else {
+        bind(DeltaStore.class).toInstance(getMongoDbProvider().provideMongoDbDeltaStore());
+      }
     } else {
       throw new RuntimeException("Invalid delta store type: '" + deltaStoreType + "'");
     }

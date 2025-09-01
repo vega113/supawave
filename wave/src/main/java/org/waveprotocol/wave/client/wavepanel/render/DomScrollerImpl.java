@@ -96,20 +96,17 @@ public final class DomScrollerImpl {
       Integer knob = ClientFlags.get().dynamicScrollThrottleMs();
       if (knob != null) delay = knob;
     } catch (Exception ex) {
-      if (shouldLog()) GWT.log("DomScrollerImpl: failed to read throttle knob", ex);
+      if (shouldLog()) GWT.log("DomScrollerImpl: failed to read throttle knob; using default");
     }
     if (delay < 0) {
-      if (shouldLog()) GWT.log("DomScrollerImpl: negative throttle ms=" + delay + ", clamping to 0");
+      if (shouldLog()) GWT.log("DomScrollerImpl: negative throttle; clamping to 0");
       delay = 0;
-    } else if (delay > 5000) {
-      if (shouldLog()) GWT.log("DomScrollerImpl: excessive throttle ms=" + delay + ", clamping to 5000");
-      delay = 5000;
     }
     return delay;
   }
 
   private static boolean shouldLog() {
-    try { return Boolean.TRUE.equals(ClientFlags.get().enableViewportStats()); }
+    try { return Boolean.TRUE.equals(ClientFlags.get().enableViewportStats()) || !GWT.isProdMode(); }
     catch (Exception ignored) { return false; }
   }
 }

@@ -23,7 +23,7 @@ rm -f "$RUN_OUT" "$PID_FILE" || true
 
 # Wait up to 90s for server to start
 for i in {1..90}; do
-  if rg -q "Started ServerConnector|jetty-9" "$RUN_OUT"; then break; fi
+  if grep -Eq "Started ServerConnector|jetty-9" "$RUN_OUT"; then break; fi
   sleep 1
 done
 
@@ -53,4 +53,3 @@ if [[ "$webclient_status" -ne 200 && "$webclient_status" -ne 302 && "$webclient_
 fi
 
 echo "UI smoke OK"
-

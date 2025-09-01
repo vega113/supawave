@@ -708,3 +708,14 @@ clean {
     delete "generated/"
     delete "gwt-unitCache"
 }
+
+//=============================================================================
+// Smoke UI (external script)
+//=============================================================================
+
+tasks.register('smokeUi', Exec) {
+    group = 'verification'
+    description = 'Runs a short-lived server and probes UI endpoints via scripts/wave-smoke-ui.sh.'
+    workingDir = rootProject.projectDir
+    commandLine 'bash', 'scripts/wave-smoke-ui.sh'
+}

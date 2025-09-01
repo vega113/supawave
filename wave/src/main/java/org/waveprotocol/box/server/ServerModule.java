@@ -152,8 +152,18 @@ public class ServerModule extends AbstractModule {
       // Attempt to set SameSite=LAX if supported by this Jetty
       try {
         Class<?> sameSiteClass = Class.forName("org.eclipse.jetty.http.HttpCookie$SameSite");
-        Object lax = Enum.valueOf((Class<Enum>) sameSiteClass, "LAX");
-        SessionHandler.class.getMethod("setSameSite", sameSiteClass).invoke(sessionHandler, lax);
+        if (sameSiteClass.isEnum()) {
+          Object lax = null;
+          Object[] consts = sameSiteClass.getEnumConstants();
+          if (consts != null) {
+            for (Object c : consts) {
+              if ("LAX".equals(String.valueOf(c))) { lax = c; break; }
+            }
+          }
+          if (lax != null) {
+            SessionHandler.class.getMethod("setSameSite", sameSiteClass).invoke(sessionHandler, lax);
+          }
+        }
       } catch (Throwable ignored) {}
     } catch (Exception ignore) {}
 

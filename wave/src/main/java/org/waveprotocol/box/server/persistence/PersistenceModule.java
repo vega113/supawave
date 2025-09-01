@@ -149,8 +149,7 @@ public class PersistenceModule extends AbstractModule {
       bind(AccountStore.class).to(FakePermissiveAccountStore.class).in(Singleton.class);
     } else if (accountStoreType.equalsIgnoreCase("mongodb")) {
       if ("v4".equalsIgnoreCase(mongoDriver)) {
-        // TODO: implement AccountStore adapter for v4
-        bind(AccountStore.class).to(MemoryStore.class).in(Singleton.class);
+        bind(AccountStore.class).toInstance(getMongo4Provider().provideMongoDbAccountStore());
       } else {
         bind(AccountStore.class).toInstance(getMongoDbProvider().provideMongoDbStore());
       }

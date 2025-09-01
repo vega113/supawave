@@ -50,10 +50,7 @@ public class Mongo4DbProvider implements AutoCloseable {
 
   public AttachmentStore provideMongoDbAttachmentStore() { ensure(); return new Mongo4AttachmentStore(db); }
 
-  public AccountStore provideMongoDbAccountStore() {
-    ensure();
-    throw new UnsupportedOperationException("Mongo4DbProvider: AccountStore mapping pending");
-  }
+  public AccountStore provideMongoDbAccountStore() { ensure(); return new Mongo4AccountStore(db); }
 
   // Delta store not yet implemented for v4
 }

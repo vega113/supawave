@@ -87,6 +87,7 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.full.DomRenderer;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.ViewFactories;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.ViewFactory;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.WavePanelResourceLoader;
+import org.waveprotocol.wave.model.conversation.quasi.QuasiConversationViewAdapter;
 import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.concurrencycontrol.channel.OperationChannelMultiplexer;
 import org.waveprotocol.wave.concurrencycontrol.channel.OperationChannelMultiplexerImpl;
@@ -619,6 +620,35 @@ public interface StageTwo {
               getThreadReadStateMonitor(), getProfileManager(), getSupplement());
       live.init();
 
+      // Hook quasi-deletion UI: mark blip DOM prior to removal.
+      if (Boolean.TRUE.equals(ClientFlags.get().enableQuasiDeletionUi())) {
+        final QuasiConversationViewAdapter qa = getQuasiAdapter();
+        if (qa != null) {
+          qa.addListener(new QuasiConversationViewAdapter.Listener() {
+            @Override
+            public void onBeforeBlipQuasiRemoved(org.waveprotocol.wave.model.conversation.ObservableConversationBlip blip,
+                org.waveprotocol.wave.model.operation.wave.WaveletOperationContext ctx) {
+              org.waveprotocol.wave.client.wavepanel.view.BlipView v = getModelAsViewProvider().getBlipView(blip);
+              if (v instanceof org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl) {
+                Object intrinsic = ((org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl<?>) v).getIntrinsic();
+                if (intrinsic instanceof org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl) {
+                  ((org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl) intrinsic).setQuasiDeleted(true);
+                }
+              }
+            }
+            @Override
+            public void onBlipQuasiRemoved(org.waveprotocol.wave.model.conversation.ObservableConversationBlip blip,
+                org.waveprotocol.wave.model.operation.wave.WaveletOperationContext ctx) { /* no-op */ }
+            @Override
+            public void onBeforeThreadQuasiRemoved(org.waveprotocol.wave.model.conversation.ObservableConversationThread thread,
+                org.waveprotocol.wave.model.operation.wave.WaveletOperationContext ctx) { /* no-op */ }
+            @Override
+            public void onThreadQuasiRemoved(org.waveprotocol.wave.model.conversation.ObservableConversationThread thread,
+                org.waveprotocol.wave.model.operation.wave.WaveletOperationContext ctx) { /* no-op */ }
+          });
+        }
+      }
+
       BlipPager pager = BlipPager.create(
           getDocumentRegistry(), doodads, domAsView, getModelAsViewProvider(), getBlipDetailer(),
           stageOne.getWavePanel().getGwtPanel());
@@ -730,11 +760,29 @@ public interface StageTwo {
       stageOne.getDomAsViewProvider().setRenderer(getRenderer());
       ensureRendered();
 
+      // Initialize quasi-deletion adapter (no-op unless flag enabled).
+      if (Boolean.TRUE.equals(ClientFlags.get().enableQuasiDeletionUi())) {
+        initQuasiAdapter();
+      }
+
       // Install eager UI features
       installFeatures();
 
       // Activate liveness.
       getConnector().connect(null);
+    }
+
+    // Quasi-deletion adapter for renderers interested in pre-delete callbacks.
+    private QuasiConversationViewAdapter quasiAdapter;
+
+    protected QuasiConversationViewAdapter getQuasiAdapter() {
+      return quasiAdapter;
+    }
+
+    private void initQuasiAdapter() {
+      if (quasiAdapter == null) {
+        quasiAdapter = new QuasiConversationViewAdapter(getConversations());
+      }
     }
 
     /**

@@ -254,6 +254,11 @@ public class FlagConstants {
   public static final String WELCOME_PANEL_TUTORIAL_WAVES = "226";
   public static final String WELCOME_WAVE_ID = "227";
 
+  // Conversation Renderer migration flags
+  public static final String ENABLE_QUASI_DELETION_UI = "228";
+  public static final String ENABLE_DYNAMIC_RENDERING = "229";
+  public static final String ENABLE_FRAGMENT_FETCH = "230";
+
 
   public static final String[] __NAME_MAPPING__ = new String[] {
     "addContactHelpUrl", "0",
@@ -484,6 +489,11 @@ public class FlagConstants {
     "welcomePanelTutorialIcons", "225",
     "welcomePanelTutorialWaves", "226",
     "welcomeWaveId", "227",
+
+    // Conversation Renderer migration flags
+    "enableQuasiDeletionUi", "228",
+    "enableDynamicRendering", "229",
+    "enableFragmentFetch", "230",
 
   };
 }

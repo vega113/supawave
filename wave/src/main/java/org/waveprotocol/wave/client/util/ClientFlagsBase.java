@@ -485,6 +485,11 @@ public class ClientFlagsBase {
 
   private final String welcomeWaveId;
 
+  // Conversation Renderer migration flags
+  private final Boolean enableQuasiDeletionUi;
+  private final Boolean enableDynamicRendering;
+  private final Boolean enableFragmentFetch;
+
 
   /**
    * Returns debug information for flag values.
@@ -726,7 +731,12 @@ public class ClientFlagsBase {
         "welcomePanelTutorialWaves", welcomePanelTutorialWaves,
         "welcomeWaveId", welcomeWaveId,
 
-      };
+        // Conversation Renderer migration flags
+        "enableQuasiDeletionUi", enableQuasiDeletionUi,
+        "enableDynamicRendering", enableDynamicRendering,
+        "enableFragmentFetch", enableFragmentFetch,
+
+    };
   }
 
   /**
@@ -962,7 +972,17 @@ public class ClientFlagsBase {
     welcomePanelTutorialWaves = helper.getString(FlagConstants.WELCOME_PANEL_TUTORIAL_WAVES, "");
     welcomeWaveId = helper.getString(FlagConstants.WELCOME_WAVE_ID, "");
 
+    // Conversation Renderer migration flags (default: off)
+    enableQuasiDeletionUi = helper.getBoolean(FlagConstants.ENABLE_QUASI_DELETION_UI, false);
+    enableDynamicRendering = helper.getBoolean(FlagConstants.ENABLE_DYNAMIC_RENDERING, false);
+    enableFragmentFetch = helper.getBoolean(FlagConstants.ENABLE_FRAGMENT_FETCH, false);
+
   }
+
+  /** Conversation Renderer migration flags */
+  public Boolean enableQuasiDeletionUi() { return enableQuasiDeletionUi; }
+  public Boolean enableDynamicRendering() { return enableDynamicRendering; }
+  public Boolean enableFragmentFetch() { return enableFragmentFetch; }
 
 
   /**

@@ -89,6 +89,20 @@ public final class BlipViewDomImpl implements DomView, IntrinsicBlipView {
     getElement().removeFromParent();
   }
 
+  /**
+   * Marks or unmarks this blip as quasi-deleted in the DOM.
+   * Adds a CSS class and a data attribute that can be used by styles.
+   */
+  public void setQuasiDeleted(boolean deleted) {
+    if (deleted) {
+      self.addClassName("deleted");
+      self.setAttribute("data-deleted", "true");
+    } else {
+      self.removeClassName("deleted");
+      self.removeAttribute("data-deleted");
+    }
+  }
+
   //
   // DomView nature.
   //

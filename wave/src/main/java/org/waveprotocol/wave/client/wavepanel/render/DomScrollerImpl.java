@@ -22,13 +22,15 @@ package org.waveprotocol.wave.client.wavepanel.render;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
+import org.waveprotocol.wave.client.util.ClientFlags;
 
 /** Minimal scroller using the document body with safe clamping. */
 public final class DomScrollerImpl {
   private final Element body = Document.get().getBody();
-  private boolean scheduled = false;
   private int pendingY = 0;
+  private Timer throttleTimer = null;
 
   public int getScrollTop() {
     return body.getScrollTop();
@@ -40,14 +42,20 @@ public final class DomScrollerImpl {
     int max = Math.max(0, content - Math.max(0, viewport));
     final int y = RenderUtil.clamp(yRaw, 0, max);
     pendingY = y;
-    if (!scheduled) {
-      scheduled = true;
-      Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
-        @Override public void execute() {
-          scheduled = false;
+    if (throttleTimer == null) {
+      int delay = 50;
+      try {
+        Integer knob = ClientFlags.get().dynamicScrollThrottleMs();
+        if (knob != null) delay = Math.max(1, knob);
+      } catch (Exception ignored) {}
+      throttleTimer = new Timer() {
+        @Override public void run() {
           body.setScrollTop(pendingY);
+          throttleTimer = null;
         }
-      });
+      };
+      // Use same throttle knob as dynamic renderer for unified control
+      throttleTimer.schedule(delay);
     }
   }
 }

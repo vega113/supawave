@@ -389,7 +389,8 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 
 - Resource integration
   - Integrated `Render.css` (animations/placeholders) via `RenderCssLoader` and inject when dynamic rendering is enabled.
-  - Placeholder behavior: when dynamic rendering is on, `BlipPager` toggles `.placeholder` on page-in/out to show visual flaps; `DynamicDomRenderer.setPlaceholder(...)` is available for future explicit calls.
+- Placeholder behavior: when dynamic rendering is on, `BlipPager` toggles `.placeholder` on page-in/out to show visual flaps; `DynamicDomRenderer.setPlaceholder(...)` is available for future explicit calls.
+  - Cleanup hook: `BlipPager` now exposes `setResourceCleaner(...)` invoked during page-out for deeper resource detachment (widgets, listeners). Future phase will implement a concrete cleaner.
 
 ---
 

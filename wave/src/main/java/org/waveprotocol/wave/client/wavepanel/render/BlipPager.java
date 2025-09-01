@@ -62,6 +62,12 @@ public final class BlipPager implements PagingHandler {
   /** Logical panel for widgets in paged-in blips to attach themselves to */
   private final LogicalPanel logicalPanel;
 
+  /** Optional hook to perform additional resource cleanup on page-out. */
+  public interface ResourceCleaner {
+    void cleanup(ConversationBlip blip, BlipViewDomImpl blipDom);
+  }
+  private ResourceCleaner resourceCleaner;
+
   /**
    * Maps models to implementations.
    */
@@ -94,6 +100,13 @@ public final class BlipPager implements PagingHandler {
     };
 
     return new BlipPager(registries, blipPopulator, docProvider, views, viewProvider, logicalPanel);
+  }
+
+  /**
+   * Sets an optional resource cleaner invoked during pageOut.
+   */
+  public void setResourceCleaner(ResourceCleaner cleaner) {
+    this.resourceCleaner = cleaner;
   }
 
   /**
@@ -165,7 +178,11 @@ public final class BlipPager implements PagingHandler {
           ((BlipMetaViewImpl<BlipMetaDomImpl>) blipUi.getMeta()).getIntrinsic();
       InteractiveDocument doc = docProvider.docOf(blip);
 
-      // TODO: remove meta instead
+      // Optional hook: allow future phases to detach widgets, listeners, etc.
+      if (resourceCleaner != null) {
+        resourceCleaner.cleanup(blip, blipDom);
+      }
+      // Stop rendering and clear the meta content.
       doc.stopRendering();
       metaDom.setContent(null);
     }

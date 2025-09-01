@@ -140,9 +140,11 @@ public final class BlipPager implements PagingHandler {
         (BlipViewImpl<BlipViewDomImpl>) viewProvider.getBlipView(blip);
     if (blipUi != null) {
       BlipViewDomImpl blipDom = blipUi.getIntrinsic();
-      // Clear placeholder before rendering if dynamic rendering is enabled
-      if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
-        RenderUtil.setClass(blipDom.getElement(), "placeholder", false);
+      if (blipDom != null && blipDom.getElement() != null) {
+        // Clear placeholder before rendering if dynamic rendering is enabled
+        if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+          RenderUtil.setClass(blipDom.getElement(), "placeholder", false);
+        }
       }
       BlipMetaDomImpl metaDom =
           ((BlipMetaViewImpl<BlipMetaDomImpl>) blipUi.getMeta()).getIntrinsic();
@@ -170,9 +172,11 @@ public final class BlipPager implements PagingHandler {
         (BlipViewImpl<BlipViewDomImpl>) viewProvider.getBlipView(blip);
     if (blipUi != null) {
       BlipViewDomImpl blipDom = blipUi.getIntrinsic();
-      // Add placeholder visual when paging out, to keep layout stable
-      if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
-        RenderUtil.setClass(blipDom.getElement(), "placeholder", true);
+      if (blipDom != null && blipDom.getElement() != null) {
+        // Add placeholder visual when paging out, to keep layout stable
+        if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+          RenderUtil.setClass(blipDom.getElement(), "placeholder", true);
+        }
       }
       BlipMetaDomImpl metaDom =
           ((BlipMetaViewImpl<BlipMetaDomImpl>) blipUi.getMeta()).getIntrinsic();

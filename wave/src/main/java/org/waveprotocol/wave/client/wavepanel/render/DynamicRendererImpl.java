@@ -137,10 +137,18 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
         if (bv == null) return true; // continue
         @SuppressWarnings("unchecked")
         BlipViewImpl<BlipViewDomImpl> impl = (BlipViewImpl<BlipViewDomImpl>) bv;
-        Element e = impl.getIntrinsic().getElement();
+        Element e = null;
+        try { e = impl.getIntrinsic() != null ? impl.getIntrinsic().getElement() : null; } catch (Throwable t) { e = null; }
         if (e == null) return true;
-        int absTop = getAbsoluteTop(e);
-        int h = e.getOffsetHeight();
+        int absTop;
+        int h;
+        try {
+          absTop = getAbsoluteTop(e);
+          h = e.getOffsetHeight();
+        } catch (Throwable t) {
+          return true; // Skip invalid DOM nodes safely
+        }
+        if (h <= 0) return true;
         boolean isVisible = intersects(absTop, absTop + h, top, bottom);
         if (isVisible) {
           if (!pagedIn.contains(blip)) {
@@ -160,7 +168,14 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
 
     try {
       if (Boolean.TRUE.equals(ClientFlags.get().enableFragmentFetch())) {
-        fragmentRequester.fetchRange(top, bottom);
+        fragmentRequester.fetchRange(top, bottom, new FragmentRequester.Callback() {
+          @Override public void onSuccess() {}
+          @Override public void onError(Throwable error) {
+            if (logStats) {
+              GWT.log("Fragment fetch failed", error);
+            }
+          }
+        });
       }
     } catch (Throwable ignored) {}
 

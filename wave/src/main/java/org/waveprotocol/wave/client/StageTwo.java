@@ -781,14 +781,21 @@ public interface StageTwo {
 
       // Dynamic rendering: only page in visible blips initially.
       if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
-        org.waveprotocol.wave.client.render.undercurrent.ScreenController screen =
-            org.waveprotocol.wave.client.render.undercurrent.ScreenControllerImpl.createDefault();
-        org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl dyn =
-            org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl.create(
-                getConversations(), getModelAsViewProvider(), getBlipQueue(), getPagingHandler(),
-                org.waveprotocol.wave.client.wavepanel.render.FragmentRequester.NO_OP,
-                screen);
-        dyn.init();
+        try {
+          org.waveprotocol.wave.client.render.undercurrent.ScreenController screen =
+              org.waveprotocol.wave.client.render.undercurrent.ScreenControllerImpl.createDefault();
+          if (screen != null && getConversations() != null && getModelAsViewProvider() != null
+              && getBlipQueue() != null && getPagingHandler() != null) {
+            org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl dyn =
+                org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl.create(
+                    getConversations(), getModelAsViewProvider(), getBlipQueue(), getPagingHandler(),
+                    org.waveprotocol.wave.client.wavepanel.render.FragmentRequester.NO_OP,
+                    screen);
+            dyn.init();
+          }
+        } catch (Throwable ignored) {
+          // Fall back silently if dynamic rendering cannot be initialized.
+        }
       }
 
       // Install eager UI features

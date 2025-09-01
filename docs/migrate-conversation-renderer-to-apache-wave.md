@@ -392,6 +392,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 - Placeholder behavior: when dynamic rendering is on, `BlipPager` toggles `.placeholder` on page-in/out to show visual flaps; `DynamicDomRenderer.setPlaceholder(...)` is available for future explicit calls.
 - Cleanup hook: `BlipPager` now exposes `setResourceCleaner(...)` invoked during page-out for deeper resource detachment (widgets, listeners). Future phase will implement a concrete cleaner.
   - ResourceCleaner implemented — 2025-09-01: `BlipResourceCleaner` orphans any widgets under the blip DOM in `LogicalPanel` and cancels timers registered via `BlipAsyncRegistry`. Hook attached when `enableDynamicRendering=true`.
+  - Robustness: extra null-safety in placeholder toggling and defensive DOM reads; `DomScrollerImpl` clamps scroll values. `FragmentRequester` now uses a callback for error handling.
 
 ---
 
@@ -412,6 +413,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 
 - Status
   - Scaffolded (client) — 2025-09-01. Added `FragmentRequester` (no-op) and integrated call from `DynamicRendererImpl` under `enableFragmentFetch`. Server path not implemented yet.
+  - Addendum — 2025-09-01. `FragmentRequester` now includes `Callback` with `onSuccess/onError` for failures.
 
 -------------------------------------------------------------------------------
 

@@ -21,10 +21,16 @@ package org.waveprotocol.wave.client.wavepanel.render;
 
 /** Optional client stub for server fragment fetching (Phase 6). */
 public interface FragmentRequester {
-  void fetchRange(int viewportTop, int viewportBottom);
+  interface Callback {
+    void onSuccess();
+    void onError(Throwable error);
+  }
+
+  void fetchRange(int viewportTop, int viewportBottom, Callback cb);
 
   FragmentRequester NO_OP = new FragmentRequester() {
-    @Override public void fetchRange(int viewportTop, int viewportBottom) {/* no-op */}
+    @Override public void fetchRange(int viewportTop, int viewportBottom, Callback cb) {
+      if (cb != null) cb.onSuccess();
+    }
   };
 }
-

@@ -46,11 +46,12 @@ public final class RenderUtil {
 
   public static void setClass(Element e, String cls, boolean add) {
     if (e == null || cls == null || cls.isEmpty()) return;
+    // Rely on GWT Element.addClassName/removeClassName idempotence to avoid
+    // string scanning per call. This minimizes string work and reflow triggers.
     if (add) {
-      if (!e.getClassName().contains(cls)) e.addClassName(cls);
+      e.addClassName(cls);
     } else {
       e.removeClassName(cls);
     }
   }
 }
-

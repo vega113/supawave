@@ -22,8 +22,9 @@ package org.waveprotocol.wave.client.wavepanel.render;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.user.client.Window;
 
-/** Minimal scroller using the document body. */
+/** Minimal scroller using the document body with safe clamping. */
 public final class DomScrollerImpl {
   private final Element body = Document.get().getBody();
 
@@ -31,10 +32,13 @@ public final class DomScrollerImpl {
     return body.getScrollTop();
   }
 
-  public void setScrollTop(final int y, boolean animate) {
+  public void setScrollTop(final int yRaw, boolean animate) {
+    int viewport = Window.getClientHeight();
+    int content = body.getScrollHeight();
+    int max = Math.max(0, content - Math.max(0, viewport));
+    final int y = RenderUtil.clamp(yRaw, 0, max);
     Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
       @Override public void execute() { body.setScrollTop(y); }
     });
   }
 }
-

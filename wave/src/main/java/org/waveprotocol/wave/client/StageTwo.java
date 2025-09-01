@@ -779,7 +779,9 @@ public interface StageTwo {
             org.waveprotocol.wave.client.render.undercurrent.ScreenControllerImpl.createDefault();
         org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl dyn =
             org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl.create(
-                getConversations(), getModelAsViewProvider(), getBlipQueue(), getPagingHandler(), screen);
+                getConversations(), getModelAsViewProvider(), getBlipQueue(), getPagingHandler(),
+                org.waveprotocol.wave.client.wavepanel.render.FragmentRequester.NO_OP,
+                screen);
         dyn.init();
       }
 

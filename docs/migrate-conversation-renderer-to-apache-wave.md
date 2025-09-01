@@ -354,6 +354,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 
 - Status
   - Completed (minimal) — 2025-09-01. Added `render/undercurrent/ScreenController` and `ScreenControllerImpl` with window scroll/resize notifications and simple getters. Not yet exposed via stages; dynamic renderer will request/create as needed.
+  - Addendum — 2025-09-01. Added minimal `DomScrollerImpl` and `RenderUtil` helpers for absolute measurements and class toggling.
 
 ---
 
@@ -388,6 +389,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 
 - Resource integration
   - Integrated `Render.css` (animations/placeholders) via `RenderCssLoader` and inject when dynamic rendering is enabled.
+  - Placeholder behavior: when dynamic rendering is on, `BlipPager` toggles `.placeholder` on page-in/out to show visual flaps; `DynamicDomRenderer.setPlaceholder(...)` is available for future explicit calls.
 
 ---
 
@@ -405,6 +407,9 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 
 - DoD
   - When enabled, reduces initial load and keeps dynamic rendering responsive on very large waves
+
+- Status
+  - Scaffolded (client) — 2025-09-01. Added `FragmentRequester` (no-op) and integrated call from `DynamicRendererImpl` under `enableFragmentFetch`. Server path not implemented yet.
 
 -------------------------------------------------------------------------------
 

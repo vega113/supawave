@@ -46,6 +46,7 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
   private final ModelAsViewProvider modelAsView;
   private final BlipQueueRenderer queue;
   private final PagingHandler pager;
+  private final FragmentRequester fragmentRequester;
 
   private final Set<ConversationBlip> pagedIn = new HashSet<ConversationBlip>();
   private int prerenderPxTop = 600;
@@ -58,16 +59,19 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
   private double lastUpdateMs = 0;
 
   public static DynamicRendererImpl create(ObservableConversationView view,
-      ModelAsViewProvider modelAsView, BlipQueueRenderer queue, PagingHandler pager, ScreenController screen) {
-    return new DynamicRendererImpl(view, modelAsView, queue, pager, screen);
+      ModelAsViewProvider modelAsView, BlipQueueRenderer queue, PagingHandler pager,
+      FragmentRequester fragmentRequester, ScreenController screen) {
+    return new DynamicRendererImpl(view, modelAsView, queue, pager, fragmentRequester, screen);
   }
 
   private DynamicRendererImpl(ObservableConversationView view,
-      ModelAsViewProvider modelAsView, BlipQueueRenderer queue, PagingHandler pager, ScreenController screen) {
+      ModelAsViewProvider modelAsView, BlipQueueRenderer queue, PagingHandler pager,
+      FragmentRequester fragmentRequester, ScreenController screen) {
     this.view = view;
     this.modelAsView = modelAsView;
     this.queue = queue;
     this.pager = pager;
+    this.fragmentRequester = fragmentRequester == null ? FragmentRequester.NO_OP : fragmentRequester;
     this.screen = screen;
   }
 
@@ -153,6 +157,12 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
         return true;
       }
     }, view);
+
+    try {
+      if (Boolean.TRUE.equals(ClientFlags.get().enableFragmentFetch())) {
+        fragmentRequester.fetchRange(top, bottom);
+      }
+    } catch (Throwable ignored) {}
 
     if (logStats && (counts[0] > 0 || counts[1] > 0)) {
       GWT.log("DynamicRenderer: in=" + counts[0] + " out=" + counts[1] +

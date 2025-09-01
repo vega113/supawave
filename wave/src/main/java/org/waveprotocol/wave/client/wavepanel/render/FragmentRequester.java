@@ -19,19 +19,12 @@
 
 package org.waveprotocol.wave.client.wavepanel.render;
 
-import org.waveprotocol.wave.client.wavepanel.view.BlipView;
-import org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl;
-import org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl;
+/** Optional client stub for server fragment fetching (Phase 6). */
+public interface FragmentRequester {
+  void fetchRange(int viewportTop, int viewportBottom);
 
-/** Minimal DOM helpers for placeholder visuals while loading blips. */
-public final class DynamicDomRenderer {
-  private DynamicDomRenderer() {}
-
-  @SuppressWarnings("unchecked")
-  public static void setPlaceholder(BlipView bv, boolean on) {
-    if (bv == null) return;
-    BlipViewImpl<BlipViewDomImpl> impl = (BlipViewImpl<BlipViewDomImpl>) bv;
-    BlipViewDomImpl dom = impl.getIntrinsic();
-    RenderUtil.setClass(dom.getElement(), "placeholder", on);
-  }
+  FragmentRequester NO_OP = new FragmentRequester() {
+    @Override public void fetchRange(int viewportTop, int viewportBottom) {/* no-op */}
+  };
 }
+

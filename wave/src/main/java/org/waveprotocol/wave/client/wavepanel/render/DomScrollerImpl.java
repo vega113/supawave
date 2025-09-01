@@ -19,19 +19,22 @@
 
 package org.waveprotocol.wave.client.wavepanel.render;
 
-import org.waveprotocol.wave.client.wavepanel.view.BlipView;
-import org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl;
-import org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl;
+import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.Document;
+import com.google.gwt.dom.client.Element;
 
-/** Minimal DOM helpers for placeholder visuals while loading blips. */
-public final class DynamicDomRenderer {
-  private DynamicDomRenderer() {}
+/** Minimal scroller using the document body. */
+public final class DomScrollerImpl {
+  private final Element body = Document.get().getBody();
 
-  @SuppressWarnings("unchecked")
-  public static void setPlaceholder(BlipView bv, boolean on) {
-    if (bv == null) return;
-    BlipViewImpl<BlipViewDomImpl> impl = (BlipViewImpl<BlipViewDomImpl>) bv;
-    BlipViewDomImpl dom = impl.getIntrinsic();
-    RenderUtil.setClass(dom.getElement(), "placeholder", on);
+  public int getScrollTop() {
+    return body.getScrollTop();
+  }
+
+  public void setScrollTop(final int y, boolean animate) {
+    Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+      @Override public void execute() { body.setScrollTop(y); }
+    });
   }
 }
+

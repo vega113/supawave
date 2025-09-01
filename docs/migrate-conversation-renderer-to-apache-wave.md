@@ -452,6 +452,10 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 
 Each task is independently mergeable and off-by-default.
 
+Dev defaults and flags
+- To run server with dynamic rendering on by default: `./gradlew :wave:run -PclientFlags="enableDynamicRendering=true,enableQuasiDeletionUi=true"`
+- For GWT dev or dev compile: append the same `-PclientFlags=...` to `gwtDev`, `compileGwtDev`, or `compileGwt`.
+
 -------------------------------------------------------------------------------
 
 ## 10) Appendix — Concrete Diffs to Study in wiab.pro

@@ -414,6 +414,11 @@ task compileGwt {
             jvmArgs = [
                     "-Xmx1024M"
             ]
+            if (project.hasProperty('clientFlags')) {
+                def cf = project.property('clientFlags')
+                jvmArgs += ["-Dwave.clientFlags=${cf}"]
+                println "[compileGwt] Using client flags: ${cf}"
+            }
             args = [
                     "-style", "OBFUSCATED",
                     "-XdisableClassMetadata",
@@ -458,6 +463,11 @@ task compileGwtDev {
                         sourceSets.main.resources.srcDirs
                 ]
             }
+            if (project.hasProperty('clientFlags')) {
+                def cf = project.property('clientFlags')
+                jvmArgs += ["-Dwave.clientFlags=${cf}"]
+                println "[compileGwtDev] Using client flags: ${cf}"
+            }
             args = [
                     "-style", "PRETTY",
                     "-draftCompile",
@@ -492,6 +502,11 @@ task gwtDev {
             executable = launcher.get().executablePath.asFile.absolutePath
             mainClass = "com.google.gwt.dev.DevMode"
             classpath = files(sourceSets.main.java.srcDirs) + configurations.gwt + sourceSets.main.compileClasspath + files(sourceSets.main.resources.srcDirs)
+            if (project.hasProperty('clientFlags')) {
+                def cf = project.property('clientFlags')
+                jvmArgs += ["-Dwave.clientFlags=${cf}"]
+                println "[gwtDev] Using client flags: ${cf}"
+            }
             args = [
                     "-noserver",
                     "-bindAddress", "127.0.0.1",

@@ -186,9 +186,9 @@ public class SimpleSearchProviderImplTest extends TestCase {
     WaveDigester digester = new WaveDigester(conversationUtil);
 
     final DeltaStore deltaStore = new MemoryDeltaStore();
-    final Executor persistExecutor = MoreExecutors.sameThreadExecutor();
-    final Executor storageContinuationExecutor = MoreExecutors.sameThreadExecutor();
-    final Executor lookupExecutor = MoreExecutors.sameThreadExecutor();
+    final Executor persistExecutor = MoreExecutors.directExecutor();
+    final Executor storageContinuationExecutor = MoreExecutors.directExecutor();
+    final Executor lookupExecutor = MoreExecutors.directExecutor();
     LocalWaveletContainer.Factory localWaveletContainerFactory =
         new LocalWaveletContainer.Factory() {
           @Override

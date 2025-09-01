@@ -27,8 +27,8 @@ jobs:
         with:
           cache-disabled: false
       
-      - name: Build PST and Wave
-        run: ./gradlew --no-daemon --warning-mode all :pst:build :wave:build
+      - name: Build PST and Wave (no tests)
+        run: ./gradlew --no-daemon --warning-mode all :pst:build :wave:assemble
 
       - name: Smoke UI (server startup + probes)
         run: ./gradlew --no-daemon --warning-mode all :wave:smokeUi

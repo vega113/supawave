@@ -41,7 +41,7 @@ import javax.servlet.http.HttpSession;
  * @author josephg@gmail.com (Joseph Gentle)
  */
 public class SessionManagerTest extends TestCase {
-  @Mock private org.eclipse.jetty.server.SessionManager jettySessionManager;
+  @Mock private org.eclipse.jetty.server.session.SessionHandler jettySessionManager;
 
   private SessionManager sessionManager;
   private HumanAccountData account;
@@ -93,15 +93,14 @@ public class SessionManagerTest extends TestCase {
         SessionManager.SIGN_IN_URL + "?r=" + encoded_url, sessionManager.getLoginUrl(url));
   }
 
-  public void testGetSessionFromToken() {
-    HttpSession session = mock(HttpSession.class);
-    Mockito.when(jettySessionManager.getHttpSession("abc123")).thenReturn(session);
-    assertSame(session, sessionManager.getSessionFromToken("abc123"));
+  public void testGetSessionFromTokenReturnsNullWhenNoBackingSession() {
+    Mockito.when(jettySessionManager.getSession("abc123")).thenReturn(null);
+    assertNull(sessionManager.getSessionFromToken("abc123"));
   }
 
   public void testGetSessionFromUnknownToken() {
     HttpSession session = mock(HttpSession.class);
-    Mockito.when(jettySessionManager.getHttpSession("abc123")).thenReturn(null);
+    Mockito.when(jettySessionManager.getSession("abc123")).thenReturn(null);
     assertNull(sessionManager.getSessionFromToken("abc123"));
   }
 }

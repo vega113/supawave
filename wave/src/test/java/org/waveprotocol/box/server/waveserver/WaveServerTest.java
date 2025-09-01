@@ -105,9 +105,9 @@ public class WaveServerTest extends TestCase {
     when(config.getBoolean("federation.waveserver_disable_verification")).thenReturn(true);
     certificateManager = new CertificateManagerImpl(config, localSigner, null, null);
     final DeltaStore deltaStore = new MemoryDeltaStore();
-    final Executor waveletLoadExecutor = MoreExecutors.sameThreadExecutor();
-    final Executor persistExecutor = MoreExecutors.sameThreadExecutor();
-    final Executor storageContinuationExecutor = MoreExecutors.sameThreadExecutor();
+    final Executor waveletLoadExecutor = MoreExecutors.directExecutor();
+    final Executor persistExecutor = MoreExecutors.directExecutor();
+    final Executor storageContinuationExecutor = MoreExecutors.directExecutor();
     Factory localWaveletContainerFactory = new LocalWaveletContainer.Factory() {
       @Override
       public LocalWaveletContainer create(WaveletNotificationSubscriber notifiee,
@@ -119,7 +119,7 @@ public class WaveServerTest extends TestCase {
     };
 
     waveletStore = new DeltaStoreBasedSnapshotStore(deltaStore);
-    Executor lookupExecutor = MoreExecutors.sameThreadExecutor();
+    Executor lookupExecutor = MoreExecutors.directExecutor();
     Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "core.wave_cache_size", 1000,
       "core.wave_cache_expire", "60m")
@@ -128,7 +128,7 @@ public class WaveServerTest extends TestCase {
         new WaveMap(waveletStore, notifiee, localWaveletContainerFactory,
             remoteWaveletContainerFactory, "example.com", config, lookupExecutor);
     waveServer =
-        new WaveServerImpl(MoreExecutors.sameThreadExecutor(), certificateManager,
+        new WaveServerImpl(MoreExecutors.directExecutor(), certificateManager,
             federationRemote, waveMap);
     waveServer.initialize();
   }

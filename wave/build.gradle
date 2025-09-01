@@ -160,7 +160,7 @@ dependencies {
             [group: "com.google.inject.extensions", name: "guice-assistedinject", version: (findProperty('guiceVersion') ?: '5.1.0')],
             [group: "com.google.inject.extensions", name: "guice-servlet", version: (findProperty('guiceVersion') ?: '5.1.0')],
             [group: "com.google.inject", name: "guice", version: (findProperty('guiceVersion') ?: '5.1.0')],
-[group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"],                            // upgraded for JDK17 compatibility
+            [group: "com.google.protobuf", name: "protobuf-java", version: "3.25.3"],                            // upgraded for JDK17 compatibility
 // (Removed legacy duplicates of Guice deps)
             [group: "com.googlecode.protobuf-java-format", name: "protobuf-java-format", version: "1.2"],
 [group: "com.typesafe", name: "config", version: "1.4.3"],
@@ -216,16 +216,16 @@ dependencies {
     )
     // Protobuf include dependencies for the 'proto' source set
     protoProtobuf (
-        [group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"],
+        [group: "com.google.protobuf", name: "protobuf-java", version: "3.25.3"],
         fileTree(dir: '../pst/build/libs', include: '**/wave-pst-*.jar')
     )
     // Protobuf runtime for compiling generated 'proto' Java sources
     protoImplementation (
-        [group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"]
+        [group: "com.google.protobuf", name: "protobuf-java", version: "3.25.3"]
     )
     generateMessages (
          fileTree(dir: '../pst/build/libs', include: '**/wave-pst-*.jar'),
-         [group: "com.google.protobuf", name: "protobuf-java", version: "3.21.12"],
+         [group: "com.google.protobuf", name: "protobuf-java", version: "3.25.3"],
          [group: "com.google.guava", name: "guava", version: waveGuavaVersion]
     )
     testImplementation(
@@ -286,7 +286,7 @@ tasks.named('checkstyleTest') {
 //=============================================================================
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.21.12'
+        artifact = 'com.google.protobuf:protoc:3.25.3'
     }
     generatedFilesBaseDir = "$projectDir/generated"
 }

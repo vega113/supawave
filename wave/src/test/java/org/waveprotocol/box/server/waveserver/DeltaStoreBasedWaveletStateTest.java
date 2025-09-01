@@ -33,7 +33,7 @@ import java.util.concurrent.Executor;
  */
 public class DeltaStoreBasedWaveletStateTest extends WaveletStateTestBase {
 
-  private final Executor PERSIST_EXECUTOR = MoreExecutors.sameThreadExecutor();
+  private final Executor PERSIST_EXECUTOR = MoreExecutors.directExecutor();
   private DeltaStore store;
 
   @Override

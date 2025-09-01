@@ -66,8 +66,8 @@ public class WaveMapTest extends TestCase {
     MockitoAnnotations.initMocks(this);
 
     final DeltaStore deltaStore = new MemoryDeltaStore();
-    final Executor persistExecutor = MoreExecutors.sameThreadExecutor();
-    final Executor storageContinuationExecutor = MoreExecutors.sameThreadExecutor();
+    final Executor persistExecutor = MoreExecutors.directExecutor();
+    final Executor storageContinuationExecutor = MoreExecutors.directExecutor();
     LocalWaveletContainer.Factory localWaveletContainerFactory =
         new LocalWaveletContainer.Factory() {
           @Override

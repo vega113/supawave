@@ -73,8 +73,8 @@ public class FetchServletTest extends TestCase {
     waveletProvider = new WaveletProviderStub();
     AccountStore accountStore = new MemoryStore();
     accountStore.putAccount(new HumanAccountDataImpl(ParticipantId.ofUnsafe("fred@example.com")));
-    org.eclipse.jetty.server.SessionManager jettySessionManager =
-        mock(org.eclipse.jetty.server.SessionManager.class);
+    org.eclipse.jetty.server.session.SessionHandler jettySessionManager =
+        mock(org.eclipse.jetty.server.session.SessionHandler.class);
     SessionManager sessionManager = new SessionManagerImpl(accountStore, jettySessionManager);
     servlet = new FetchServlet(waveletProvider, protoSerializer, sessionManager);
   }

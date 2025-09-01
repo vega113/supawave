@@ -56,8 +56,8 @@ public class LocalWaveletContainerImplTest extends TestCase {
   private static final IdURIEncoderDecoder URI_CODEC =
       new IdURIEncoderDecoder(new JavaUrlCodec());
   private static final HashedVersionFactory HASH_FACTORY = new HashedVersionFactoryImpl(URI_CODEC);
-  private static final Executor PERSIST_EXECUTOR = MoreExecutors.sameThreadExecutor();
-  private static final Executor STORAGE_CONTINUATION_EXECUTOR = MoreExecutors.sameThreadExecutor();
+  private static final Executor PERSIST_EXECUTOR = MoreExecutors.directExecutor();
+  private static final Executor STORAGE_CONTINUATION_EXECUTOR = MoreExecutors.directExecutor();
 
   private static final WaveletName WAVELET_NAME = WaveletName.of("a", "a", "b", "b");
   private static final ProtocolSignature SIGNATURE = ProtocolSignature.newBuilder()

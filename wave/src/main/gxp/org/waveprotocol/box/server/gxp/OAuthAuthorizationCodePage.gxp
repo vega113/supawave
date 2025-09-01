@@ -17,7 +17,7 @@
   under the License.
 
   GXP template for the OAuth authorization page.
-  Generate "ant gen_gxp".
+  Generated via Gradle task: ./gradlew :wave:generateGXP
   Author: akaplanov@google.com (A. Kaplanov)
 -->
 

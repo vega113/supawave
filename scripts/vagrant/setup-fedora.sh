@@ -18,7 +18,8 @@
 # under the License.
 
 # install the dependencies
-dnf install -y ant java-1.8.0-openjdk mongodb
+# Dependencies (Java 17; MongoDB optional)
+dnf install -y java-17-openjdk mongodb || dnf install -y java-17-openjdk || true
 # create install location
 cd /opt
 sudo mkdir apache
@@ -26,12 +27,10 @@ cd apache
 sudo mkdir wave
 # create the binary
 cd /vagrant
-./gradlew clean createDist
+./gradlew clean :wave:installDist
 
 # Get Apache Wave version
-WAVE_VERSION=`sed "s/[\\t ]*=[\\t ]*/=/g" wave/config/wave.conf | grep ^version= | cut -f2 -d=`
-
-cd distributions
-sudo tar -C /opt/apache/wave -zxvf apache-wave-bin-$WAVE_VERSION.tar
+WAVE_INSTALL="wave/build/install/wave"
+sudo cp -R "$WAVE_INSTALL" /opt/apache/wave/
 cd ..
-cp scripts/vagrant/application.conf /opt/apache/wave/apache-wave/config/application.conf
+cp scripts/vagrant/application.conf /opt/apache/wave/wave/config/application.conf

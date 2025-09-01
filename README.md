@@ -261,14 +261,10 @@ In order to specify MongoDB in server.config as the storage option for storing d
 Or on Ubuntu Linux you can use the following command:
     sudo apt-get install mongodb-org
 
-## To enable Solr (Currently Disabled):
+## Solr (status)
 
-In order to specify Solr in server.config as the search type - you need to install Solr according to instructions at: http://www.apache.org/dyn/closer.cgi/lucene/solr/4.9.1.
-Or, you can use built in Ant script, i.e. run:
-    ant get-third-party-solr-dep
-This will download and unzip the Solr distribution into third_party/solr folder.
-You can then run the Solr server with:
-    run-solr.sh
-for Linux/Mac or:
-    run-solr.bat
-for Windows.
+Solr integration is currently disabled. The code paths remain for historical reference,
+but the build no longer relies on Ant and we do not ship Solr helpers. If you want to
+experiment, point `core.search_type = solr` and set `core.solr_base_url`, then run a
+separate Solr instance yourself. Contributions to re-enable and modernize Solr support
+via Gradle are welcome.

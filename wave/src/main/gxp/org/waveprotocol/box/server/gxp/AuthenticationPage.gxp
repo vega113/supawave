@@ -17,7 +17,7 @@
   under the License.
 
   GXP template for the user authentication (login) page.
-  Generate "ant gen_gxp".
+  Generated via Gradle task: ./gradlew :wave:generateGXP
   Author: gentle@google.com (Joseph Gentle)
 -->
 

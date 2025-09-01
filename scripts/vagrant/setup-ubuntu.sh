@@ -17,15 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# install the dependencies
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
-echo "deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.0.list
-sudo add-apt-repository ppa:openjdk-r/ppa
+# install the dependencies (Java 17; MongoDB optional)
 apt-get update
-apt-get install -y ant openjdk-8-jdk mongodb-org
-# set jdk version
-JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
-export JAVA_HOME
+apt-get install -y openjdk-17-jdk || apt-get install -y openjdk-17-jre
+# Optional DB
+apt-get install -y mongodb || true
 # create install location
 cd /opt
 sudo mkdir apache
@@ -33,12 +29,10 @@ cd apache
 sudo mkdir wave
 # create the binary
 cd /vagrant
-./gradlew clean createDist
+./gradlew clean :wave:installDist
 
 # Get Apache Wave version
-WAVE_VERSION=`sed "s/[\\t ]*=[\\t ]*/=/g" wave/config/wave.conf | grep ^version= | cut -f2 -d=`
-
-cd distributions
-sudo tar -C /opt/apache/wave -zxvf apache-wave-bin-$WAVE_VERSION.tar.gz
+WAVE_INSTALL="wave/build/install/wave"
+sudo cp -R "$WAVE_INSTALL" /opt/apache/wave/
 cd ..
-cp scripts/vagrant/application.conf /opt/apache/wave/apache-wave/config/application.conf
+cp scripts/vagrant/application.conf /opt/apache/wave/wave/config/application.conf

@@ -17,7 +17,7 @@
   under the License.
 
   GXP template for the Robot registration page.
-  Generate with "ant gen_gxp".
+  Generated via Gradle task: ./gradlew :wave:generateGXP
   Author: ljvderijk@google.com (Lennard de Rijk)
 -->
 

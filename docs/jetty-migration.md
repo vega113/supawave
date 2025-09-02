@@ -2,7 +2,13 @@
 
 Status: In Progress (staged migration)
 Owner: Project Maintainers
-Date: 2025-08-31
+Date: 2025-09-02
+
+Status Summary
+- Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
+- Decision: Target Jetty 12 (Jakarta) recorded on 2025-09-02; DI approach will replace guice-servlet with programmatic registration while keeping Guice core.
+- Not Started: Stage 2 — Jakarta migration (Jetty 12 path) pending DI wiring prototype.
+- Next Up: Decide DI strategy for Jakarta, then plan import/web.xml changes and dependency switch.
 
 Objective
 - Upgrade Wave’s embedded/used Jetty from 9.2.x to a supported release to improve security, compatibility with modern JDKs, and long-term maintainability.
@@ -111,4 +117,3 @@ Validation Checklist
 Notes
 - 2025-08-30 Spike outcome: Attempting Jetty 10 directly revealed session API changes (no org.eclipse.jetty.server.SessionManager/HashSessionManager). We temporarily reverted dependencies to 9.2.14 to keep the build green. Plan updated to target 9.4 first with a focused refactor in ServerModule/ServerRpcProvider.
 - Upgrading server Jetty will not affect GWT hosted tests (gwt-dev brings its own Jetty). Hosted tests failing under JDK >= 11 must be addressed separately (e.g., run tests with JDK 8 or migrate test strategy).
-

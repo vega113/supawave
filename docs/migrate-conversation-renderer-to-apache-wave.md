@@ -1,7 +1,7 @@
 # Migration Plan: Conversation Renderer (wiab.pro ➜ Apache Wave)
 
 Owner: Migration Engineering
-Last updated: 2025-08-31
+Last updated: 2025-09-02
 
 This document outlines how to port wiab.pro’s Conversation Renderer improvements into Apache Wave (incubator-wave), with a focus on:
 
@@ -149,6 +149,9 @@ Goal: Introduce a wrapper view with quasi-deletion semantics, without server pro
 - DoD
   - With `enableQuasiDeletionUi=true`, quasi callbacks fire in renderer; with flag off, behavior unchanged
 
+- Status
+  - Completed — 2025-09-01. Implemented `QuasiConversationViewAdapter` and `QuasiDeletable`; wired behind `enableQuasiDeletionUi` in StageTwo. UI consumers receive pre/post quasi-delete events with no baseline behavior change when the flag is off.
+
 -------------------------------------------------------------------------------
 
 ## Phase 3 — Deleted Blip Highlighting (UI)
@@ -200,6 +203,9 @@ Goal: Add a stable abstraction for observing viewport changes, used by dynamic r
 - DoD
   - `ScreenController` instantiated behind flag, does not change behavior when disabled
 
+- Status
+  - Completed (minimal) — 2025-09-01. Added `ScreenController` and `ScreenControllerImpl` to observe scroll/resize and notify listeners. Introduced `DomScrollerImpl` with clamped, throttled `setScrollTop` using the unified `dynamicScrollThrottleMs` knob.
+
 -------------------------------------------------------------------------------
 
 ## Phase 5 — Dynamic Renderer Core (Client-only)
@@ -228,6 +234,9 @@ Goal: Port the core dynamic renderer (no server fragment fetch), render only vis
 - DoD
   - With `enableDynamicRendering=true`, large threads render quickly and only within viewport bounds (plus buffer). No functional regressions observed in navigation/editing in basic flows
 
+- Status
+  - Completed (MVP) — 2025-09-01. Implemented `DynamicRenderer` with viewport windowing, page-in/out, and placeholder visuals; wired behind `enableDynamicRendering` in StageTwo. Added robustness (null-safe DOM reads), resource cleanup for paged-out blips, and unified scroll throttling.
+
 -------------------------------------------------------------------------------
 
 ## Phase 6 — Optional Server Fragment Fetch Integration
@@ -249,6 +258,9 @@ Goal: If desired, integrate wiab.pro’s fragment-fetch flow to reduce payload/C
 
 - DoD
   - With `enableFragmentFetch=true`, bandwidth/latency improves on large waves; with flag off, dynamic renderer still functions client-only
+
+- Status
+  - Implemented (minimal stub) — 2025-09-01. Client requester and `/fragments` endpoint added as placeholders; calls are gated by `enableFragmentFetch`. Production integration requires real server-side fragment computation and merging logic.
 
 -------------------------------------------------------------------------------
 

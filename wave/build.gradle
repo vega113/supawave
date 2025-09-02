@@ -132,6 +132,7 @@ sourceSets {
             srcDir 'src/test/resources'
         }
     }
+    
     // Jakarta (Jetty 12) POC source set. Standalone, does not depend on main sources.
     jakarta {
         java {
@@ -141,14 +142,15 @@ sourceSets {
             srcDir 'src/jakarta/resources'
         }
     }
-    // Jakarta (Jetty 12) POC source set. Standalone, does not depend on main sources.
-    jakarta {
-        java {
-            srcDir 'src/jakarta/java'
-        }
-        resources {
-            srcDir 'src/jakarta/resources'
-        }
+    // Compile only the session stubs used by the Jakarta test
+    jakartaSessionStubs {
+        java { srcDir 'src/jakarta-overrides/java/org/eclipse/jetty/server/session' }
+    }
+    jakartaTest {
+        java { srcDir 'src/jakarta-test/java' }
+        resources { srcDir 'src/jakarta-test/resources' }
+        compileClasspath += sourceSets.main.output + sourceSets.jakartaSessionStubs.output + configurations.testCompileClasspath
+        runtimeClasspath += output + sourceSets.jakartaSessionStubs.output + compileClasspath + configurations.testRuntimeClasspath
     }
 }
 
@@ -263,6 +265,15 @@ dependencies {
 [group: "org.mockito", name: "mockito-core", version: "2.2.21"],
             [group: "org.testcontainers", name: "testcontainers", version: "1.19.7"],
             [group: "org.testcontainers", name: "mongodb", version: "1.19.7"]
+    )
+    // Jakarta-only test compilation (reuses junit and mockito from testImplementation)
+    jakartaTestImplementation (
+            [group: 'junit', name: 'junit', version: '4.12'],
+            [group: 'org.mockito', name: 'mockito-core', version: '2.2.21']
+    )
+    // Compile deps for session stubs
+    jakartaSessionStubsImplementation (
+            [group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0']
     )
 }
 
@@ -626,6 +637,22 @@ test {
         println '---------------------'
         println ''
     }
+}
+
+// Dedicated test task for Jakarta overrides
+tasks.register('testJakarta', Test) {
+    description = 'Runs tests for Jakarta migration stubs.'
+    group = 'verification'
+    testClassesDirs = sourceSets.jakartaTest.output.classesDirs
+    // Ensure session stubs are first on the classpath so their classes shadow javax ones
+    classpath = files(sourceSets.jakartaSessionStubs.output) + sourceSets.jakartaTest.runtimeClasspath
+    useJUnit()
+    // Open modules for Mockito on JDK 17
+    jvmArgs += [
+        '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.lang.reflect=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+    ]
 }
 
 // Compile-only check for the Jakarta POC code

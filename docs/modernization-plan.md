@@ -40,6 +40,7 @@ At‑a‑Glance Checklist
 - [ ] P5‑T2: Jetty deps upgrade to Jakarta (Jetty 12)
 - [ ] P5‑T3: Servlet/Jakarta code migration
 - [ ] Phase 6: Library upgrades (protobuf/commons/mongo/guava)
+- [ ] P5‑T4: Remove temporary Jakarta migration scaffolding (flags + POC classes)
 - [ ] Phase 7: Packaging & DX (dist/Docker)
 - [ ] Phase 8: J2CL/GWT 3 roadmap
 
@@ -529,6 +530,19 @@ Task P5-T3: Migrate servlet code and configuration (if Jakarta)
   - Use IDE refactoring or scripted replacement; confirm all imports updated.
 - DoD:
   - No javax.servlet references remain; server works.
+
+Task P5-T4: Remove temporary Jakarta migration scaffolding (flags + POC)
+- Status: Planned
+- Goal: Remove experimental flags and temporary classes used only to validate native registration.
+- Scope:
+  - Remove experimental.enable_programmatic_poc and experimental.native_servlet_registration from reference.conf and code paths.
+  - Delete POC classes under org.waveprotocol.box.server.poc.
+  - Update docs/CONFIG_FLAGS.md to mark removal and present final set.
+- Preconditions: P5‑T2 (Jetty 12) and P5‑T3 (import migration) completed and stable.
+- Tests:
+  - :wave:build and server smoke pass; `/poc/hello` no longer exists.
+- DoD:
+  - No experimental flags/classes remain; Jakarta path is the only code path.
 
 -------------------------------------------------------------------------------
 Phase 6 — Library upgrades for security and maintainability

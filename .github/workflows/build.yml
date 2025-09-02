@@ -36,6 +36,11 @@ jobs:
       - name: Smoke Installed Dist
         run: ./gradlew --no-daemon --warning-mode all :wave:smokeInstalled
 
+      - name: Guard experimental flags for release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          ./scripts/ci-guard-experimental-flags.sh
+
       - name: Publish test results (if any)
         if: always()
         uses: actions/upload-artifact@v4

@@ -8,6 +8,9 @@ Status Summary
 - Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
 - Decision: Target Jetty 12 (Jakarta) recorded on 2025-09-02; DI approach will replace guice-servlet with programmatic registration while keeping Guice core.
 - Not Started: Stage 2 — Jakarta migration (Jetty 12 path) pending DI wiring prototype.
+
+See also
+- Configuration flags and temporary migration toggles: docs/CONFIG_FLAGS.md
 - Next Up: Decide DI strategy for Jakarta, then plan import/web.xml changes and dependency switch.
 
 Objective

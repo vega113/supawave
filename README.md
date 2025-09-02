@@ -198,6 +198,8 @@ Use `scripts/wave-smoke.sh start|status|stop` against the installed dist.
 
 Configuration files live under `wave/config/`.
 
+For an overview of important server flags and test environment variables (including temporary experimental flags slated for removal), see docs/CONFIG_FLAGS.md.
+
 - `reference.conf` — all defaults and documented options.
 - `application.conf` — your overrides (created by `scripts/wave-bootstrap.sh`).
 

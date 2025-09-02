@@ -28,64 +28,14 @@ import static org.junit.Assert.*;
 public class Mongo4AccountStoreIT {
   private static final org.slf4j.Logger LOG =
       org.slf4j.LoggerFactory.getLogger(Mongo4AccountStoreIT.class);
-  private static void preferColimaIfDockerHostInvalid() {
-    try {
-      String envHost = System.getenv("DOCKER_HOST");
-      String userHome = System.getProperty("user.home");
-      java.io.File colimaSock = new java.io.File(userHome + "/.colima/default/docker.sock");
-      String effective = null;
-      if (envHost == null || envHost.trim().isEmpty()) {
-        if (colimaSock.exists()) {
-          effective = "unix://" + colimaSock.getAbsolutePath();
-          System.setProperty("DOCKER_HOST", effective);
-          System.setProperty("docker.host", effective);
-          System.out.println("[IT] Using Colima Docker socket at " + effective);
-        }
-      } else if (envHost.startsWith("unix://")) {
-        String path = envHost.replaceFirst("^unix://", "");
-        if (!(new java.io.File(path).exists())) {
-          System.out.println("[IT] DOCKER_HOST points to missing UNIX socket (" + envHost + "). Trying Colima...");
-          if (colimaSock.exists()) {
-            effective = "unix://" + colimaSock.getAbsolutePath();
-            System.setProperty("DOCKER_HOST", effective);
-            System.setProperty("docker.host", effective);
-            System.out.println("[IT] Using Colima Docker socket at " + effective);
-          }
-        }
-      } else if ("unix://localhost:2375".equals(envHost)) {
-        System.out.println("[IT] DOCKER_HOST=" + envHost + " is invalid. Trying Colima...");
-        if (colimaSock.exists()) {
-          effective = "unix://" + colimaSock.getAbsolutePath();
-          System.setProperty("DOCKER_HOST", effective);
-          System.setProperty("docker.host", effective);
-          System.out.println("[IT] Using Colima Docker socket at " + effective);
-        }
-      }
-      System.out.println("[IT] Effective DOCKER_HOST=" + (effective != null ? effective : (envHost != null ? envHost : "default")));
-    } catch (Throwable t) {
-      // Non-fatal: best-effort hinting only
-    }
-  }
   @Test
   public void humanAndRobotRoundTripIfDockerAvailable() throws Exception {
     // Normalize DOCKER_HOST for Colima before Testcontainers initializes.
-    preferColimaIfDockerHostInvalid();
+    MongoItTestUtil.preferColimaIfDockerHostInvalid(LOG);
 
     DockerImageName image = DockerImageName.parse("mongo:6.0").asCompatibleSubstituteFor("mongo");
     try (MongoDBContainer mongo = new MongoDBContainer(image)) {
-      try {
-        mongo.start();
-      } catch (org.testcontainers.containers.ContainerLaunchException e) {
-        LOG.warn("MongoDBContainer failed to launch; skipping IT. DOCKER_HOST='{}', TESTCONTAINERS_RYUK_DISABLED='{}'",
-            System.getenv("DOCKER_HOST"), System.getenv("TESTCONTAINERS_RYUK_DISABLED"), e);
-        Assume.assumeNoException("Skipping Mongo IT due to container launch failure", e);
-        return;
-      } catch (Throwable t) {
-        LOG.warn("Docker/Testcontainers error encountered; skipping IT. DOCKER_HOST='{}'",
-            System.getenv("DOCKER_HOST"), t);
-        Assume.assumeNoException("Skipping Mongo IT due to Docker/Testcontainers error", t);
-        return;
-      }
+      MongoItTestUtil.startOrSkip(mongo, LOG);
       try (var client = MongoClients.create(mongo.getConnectionString())) {
         MongoDatabase db = client.getDatabase("wiab_it");
         AccountStore store = new Mongo4AccountStore(db);
@@ -124,7 +74,7 @@ public class Mongo4AccountStoreIT {
         store.removeAccount(rid);
         assertNull(store.getAccount(rid));
       } finally {
-        mongo.stop();
+        MongoItTestUtil.stopQuietly(mongo, LOG);
       }
     }
   }

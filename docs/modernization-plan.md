@@ -525,11 +525,18 @@ Task P5-T2: Upgrade Jetty dependencies
   - Server starts cleanly under the new Jetty.
 
 Task P5-T3: Migrate servlet code and configuration (if Jakarta)
-- Status: Planned
+- Status: In Progress
+- Work Log:
+  - 2025-09-02: Began WebSocket migration. Added Jakarta overrides for:
+    - WebSocketChannelImpl (placeholder extends WebSocketChannel; send not implemented yet).
+    - WebSocketClientRpcChannel (placeholder; constructor/methods throw UnsupportedOperationException).
+  - Rationale: Keep Jakarta build compiling while we migrate to Jetty 12 websocket APIs incrementally.
+  - Also swapped ServerModule (Jakarta override) to use real Jetty 12 session classes and removed temporary session stubs.
 - Goal: Refactor imports and any programmatic registrations to jakarta.*
 - Steps:
   1) Update imports across server code.
   2) Update web.xml or equivalent to Jakarta schema if used.
+  3) Replace Jetty 9 websocket APIs with Jetty 12 equivalents; then remove Jakarta websocket placeholders.
 - Tests:
   - Integration smoke (P2-T5) must pass.
 - AI Agent Guidance:

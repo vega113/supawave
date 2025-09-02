@@ -7,7 +7,7 @@ Date: 2025-09-02
 Status Summary
 - Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
 - Decision: Target Jetty 12 (Jakarta) recorded on 2025-09-02; DI approach will replace guice-servlet with programmatic registration while keeping Guice core.
-- Not Started: Stage 2 — Jakarta migration (Jetty 12 path) pending DI wiring prototype.
+- In Progress: Stage 2 — Jakarta migration (Jetty 12 path). Sessions now use Jetty 12 classes; WebSocket migration started with Jakarta placeholders to keep the build compiling.
 
 See also
 - Configuration flags and temporary migration toggles: docs/CONFIG_FLAGS.md
@@ -32,6 +32,7 @@ Target Options
 Recommendation (staged)
 1) Stage 1 (Completed): Adopt Jetty 9.4.x (javax) and modernize: SessionHandler + DefaultSessionCache + FileSessionDataStore, SslConnectionFactory + HttpConfiguration + SecureRequestCustomizer, GzipHandler, security headers (CSP/Referrer-Policy/X-Content-Type-Options) with optional HSTS, forwarded headers support, access logs, static caching, and health endpoints.
 2) Stage 2 (Planned): Plan and execute Jakarta migration (Jetty 12 preferred) when guice-servlet or alternative strategy is settled.
+   - Status: Sessions migrated to Jetty 12 APIs; WebSocket classes added as placeholders and will be replaced with Jetty 12 websocket modules next.
 
 Scope and Impact Areas
 - Build dependencies (wave/build.gradle):

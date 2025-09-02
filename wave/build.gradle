@@ -141,16 +141,14 @@ sourceSets {
         resources {
             srcDir 'src/jakarta/resources'
         }
-    }
-    // Compile only the session stubs used by the Jakarta test
-    jakartaSessionStubs {
-        java { srcDir 'src/jakarta-overrides/java/org/eclipse/jetty/server/session' }
+        // NOTE: POC-only sources live under src/jakarta/*. Remove this block once
+        // the main server fully migrates to Jakarta and Jetty 12. (See P5‑T3/P5‑T4.)
     }
     jakartaTest {
         java { srcDir 'src/jakarta-test/java' }
         resources { srcDir 'src/jakarta-test/resources' }
-        compileClasspath += sourceSets.main.output + sourceSets.jakartaSessionStubs.output + configurations.testCompileClasspath
-        runtimeClasspath += output + sourceSets.jakartaSessionStubs.output + compileClasspath + configurations.testRuntimeClasspath
+        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
+        runtimeClasspath += output + compileClasspath + configurations.testRuntimeClasspath
     }
 }
 
@@ -168,6 +166,7 @@ if (jettyFamily == 'jakarta') {
         exclude 'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java'
         exclude 'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java'
         exclude 'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java'
+        exclude 'org/waveprotocol/box/server/authentication/SessionManagerImpl.java'
     }
 }
 
@@ -271,10 +270,6 @@ dependencies {
             [group: 'junit', name: 'junit', version: '4.12'],
             [group: 'org.mockito', name: 'mockito-core', version: '2.2.21']
     )
-    // Compile deps for session stubs
-    jakartaSessionStubsImplementation (
-            [group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0']
-    )
 }
 
 // Select Jetty modules based on jettyFamily
@@ -305,6 +300,11 @@ if (jettyFamily == 'javax') {
         implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyEe10Version
         implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: jettyEe10Version
         implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-webapp', version: jettyEe10Version
+        implementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+        // Jakarta WebSocket API (Jetty 12 provides implementation at runtime)
+        implementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
+        // Jakarta Servlet API already included above via ee10 servlet; ensure compile visibility
+        implementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
     }
 }
 
@@ -639,13 +639,12 @@ test {
     }
 }
 
-// Dedicated test task for Jakarta overrides
+// Dedicated test task for Jakarta checks (reflection-based; skips if classes absent)
 tasks.register('testJakarta', Test) {
     description = 'Runs tests for Jakarta migration stubs.'
     group = 'verification'
     testClassesDirs = sourceSets.jakartaTest.output.classesDirs
-    // Ensure session stubs are first on the classpath so their classes shadow javax ones
-    classpath = files(sourceSets.jakartaSessionStubs.output) + sourceSets.jakartaTest.runtimeClasspath
+    classpath = sourceSets.jakartaTest.runtimeClasspath
     useJUnit()
     // Open modules for Mockito on JDK 17
     jvmArgs += [

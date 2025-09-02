@@ -29,6 +29,11 @@ This page documents configuration flags and environment variables recently added
   - Status: Strictly temporary dev aid.
   - Cleanup: Remove alongside experimental.native_servlet_registration per P5‑T4.
 
+- experimental.jetty12_session_lookup: boolean (default: false)
+  - Purpose: Enable a best-effort, reflective Jetty 12 session lookup from a token in the Jakarta build.
+  - Behavior: Attempts to call SessionHandler.getSession(String) and unwrap an HttpSession when available; returns null otherwise.
+  - Status: Transitional feature; may be removed or replaced once the full Jakarta session flow is finalized.
+
 ## Test/Env Variables (non-Typesafe Config)
 
 - DOCKER_HOST (env)
@@ -54,6 +59,7 @@ This page documents configuration flags and environment variables recently added
 - application.conf (server):
   - experimental.native_servlet_registration = true
   - experimental.enable_programmatic_poc = true
+  - experimental.jetty12_session_lookup = true
   - network.enable_forwarded_headers = true
   - core.mongodb_driver = v4
 
@@ -64,4 +70,3 @@ This page documents configuration flags and environment variables recently added
 ## Change Log
 
 - 2025-09-02: Added experimental.native_servlet_registration and experimental.enable_programmatic_poc docs; documented Mongo driver flag and test env behavior.
-

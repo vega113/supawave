@@ -115,8 +115,8 @@ Goal: Provide a basic implementation that can return intervals reconstructed fro
 - DoD:
   - Basic non-empty results for common cases; safe behavior when data is missing.
 
-- Status: completed (compat) — commits 87383ee1
-  - Summary: Added compat implementation returning pseudo intervals for INDEX/MANIFEST and blip segments based on snapshot author/mtime.
+- Status: completed (compat) — commits 87383ee1, b25148d1
+  - Summary: Added compat implementation returning pseudo intervals for INDEX/MANIFEST and blip segments based on snapshot author/mtime. Added unit test (SegmentWaveletStateCompatTest) to verify INDEX/MANIFEST presence and blip intervals.
 
 - AI notes:
   - Emphasis on safety and logging; do not alter runtime unless called by Phase 3 explicitly.

@@ -50,6 +50,20 @@ public final class SegmentWaveletStateCompat implements SegmentWaveletState {
     @Override public Object getSnapshot(long version) { return snapshot; }
   }
 
+  /**
+   * Returns a pseudo-interval map for the requested version.
+   *
+   * <p>Compat behavior (no real blocks):
+   * <ul>
+   *   <li>INDEX and MANIFEST are always present as opaque markers tagged with the
+   *       current snapshot version.</li>
+   *   <li>Each blip document (b+...) is represented as a segment with an opaque
+   *       snapshot of its ReadableBlipData (author/mtime are retrievable from it).</li>
+   * </ul>
+   *
+   * @param version target version (ignored in compat; snapshot version is used)
+   * @return map from SegmentId to an Interval carrying an opaque snapshot
+   */
   @Override
   public Map<SegmentId, Interval> getIntervals(long version) {
     Map<SegmentId, Interval> m = new HashMap<>();
@@ -65,6 +79,17 @@ public final class SegmentWaveletStateCompat implements SegmentWaveletState {
     return m;
   }
 
+  /**
+   * Returns pseudo-intervals only for requested segments and ranges.
+   *
+   * <p>Compat behavior: the range is accepted but not strictly enforced; this
+   * method returns opaque intervals for INDEX/MANIFEST and any requested blip
+   * segments that exist in the snapshot.</p>
+   *
+   * @param ranges       map of SegmentId to VersionRange to request
+   * @param onlyFromCache true to indicate cache-only lookup (ignored in compat)
+   * @return map from SegmentId to an Interval carrying an opaque snapshot
+   */
   @Override
   public Map<SegmentId, Interval> getIntervals(Map<SegmentId, VersionRange> ranges, boolean onlyFromCache) {
     Map<SegmentId, Interval> m = new HashMap<>();

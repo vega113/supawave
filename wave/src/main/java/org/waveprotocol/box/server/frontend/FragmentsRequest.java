@@ -38,7 +38,29 @@ public final class FragmentsRequest {
     public Builder addRanges(Map<SegmentId, VersionRange> m) { ranges.putAll(m); return this; }
     public Builder setStartVersion(long v) { startVersion = v; return this; }
     public Builder setEndVersion(long v) { endVersion = v; return this; }
-    public FragmentsRequest build() { return new FragmentsRequest(ranges.build(), startVersion, endVersion); }
+    public FragmentsRequest build() {
+      ImmutableMap<SegmentId, VersionRange> built = ranges.build();
+      boolean hasRanges = !built.isEmpty();
+      boolean hasCommon = (startVersion != NO_VERSION || endVersion != NO_VERSION);
+      if (hasRanges && hasCommon) {
+        throw new IllegalArgumentException("Cannot specify both explicit ranges and common start/end versions");
+      }
+      if (!hasRanges) {
+        if (startVersion == NO_VERSION || endVersion == NO_VERSION) {
+          throw new IllegalArgumentException("Common start/end versions must both be specified when no ranges are provided");
+        }
+        if (startVersion > endVersion) {
+          throw new IllegalArgumentException("startVersion > endVersion");
+        }
+      } else {
+        for (Map.Entry<SegmentId, VersionRange> e : built.entrySet()) {
+          if (e.getValue().from() > e.getValue().to()) {
+            throw new IllegalArgumentException("Invalid VersionRange for " + e.getKey());
+          }
+        }
+      }
+      return new FragmentsRequest(built, startVersion, endVersion);
+    }
   }
 
   public final ImmutableMap<SegmentId, VersionRange> ranges;

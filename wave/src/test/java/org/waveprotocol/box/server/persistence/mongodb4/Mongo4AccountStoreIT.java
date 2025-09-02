@@ -4,20 +4,30 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import org.junit.Assume;
 import org.junit.Test;
-import org.waveprotocol.box.attachment.AttachmentMetadata;
-import org.waveprotocol.box.attachment.AttachmentProto;
-import org.waveprotocol.box.attachment.proto.AttachmentMetadataProtoImpl;
-import org.waveprotocol.box.server.persistence.AttachmentStore;
-import org.waveprotocol.wave.media.model.AttachmentId;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.utility.DockerImageName;
+import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountDataImpl;
+import org.waveprotocol.box.server.account.RobotAccountDataImpl;
+import org.waveprotocol.box.server.authentication.PasswordDigest;
+import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.robots.RobotCapabilities;
+import com.google.wave.api.ProtocolVersion;
+import com.google.wave.api.event.EventType;
+import com.google.wave.api.robot.Capability;
+import com.google.wave.api.Context;
+import org.waveprotocol.wave.model.util.CollectionUtils;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
-public class Mongo4AttachmentStoreIT {
+public class Mongo4AccountStoreIT {
   private static final org.slf4j.Logger LOG =
-      org.slf4j.LoggerFactory.getLogger(Mongo4AttachmentStoreIT.class);
+      org.slf4j.LoggerFactory.getLogger(Mongo4AccountStoreIT.class);
   private static void preferColimaIfDockerHostInvalid() {
     try {
       String envHost = System.getenv("DOCKER_HOST");
@@ -57,20 +67,19 @@ public class Mongo4AttachmentStoreIT {
     }
   }
   @Test
-  public void roundtripAttachmentIfMongoAvailable() throws Exception {
+  public void humanAndRobotRoundTripIfDockerAvailable() throws Exception {
     // Normalize DOCKER_HOST for Colima before Testcontainers initializes.
     preferColimaIfDockerHostInvalid();
 
-    org.testcontainers.containers.MongoDBContainer mongo = new org.testcontainers.containers.MongoDBContainer(org.testcontainers.utility.DockerImageName.parse("mongo:6.0").asCompatibleSubstituteFor("mongo"));
-    try {
+    DockerImageName image = DockerImageName.parse("mongo:6.0").asCompatibleSubstituteFor("mongo");
+    try (MongoDBContainer mongo = new MongoDBContainer(image)) {
       try {
         mongo.start();
       } catch (org.testcontainers.containers.ContainerLaunchException e) {
-        // Ryuk or Docker daemon issues: log details, then skip to avoid failing the build
         LOG.warn("MongoDBContainer failed to launch; skipping IT. DOCKER_HOST='{}', TESTCONTAINERS_RYUK_DISABLED='{}'",
             System.getenv("DOCKER_HOST"), System.getenv("TESTCONTAINERS_RYUK_DISABLED"), e);
         Assume.assumeNoException("Skipping Mongo IT due to container launch failure", e);
-        return; // for completeness, though assumeNoException throws
+        return;
       } catch (Throwable t) {
         LOG.warn("Docker/Testcontainers error encountered; skipping IT. DOCKER_HOST='{}'",
             System.getenv("DOCKER_HOST"), t);
@@ -79,39 +88,43 @@ public class Mongo4AttachmentStoreIT {
       }
       try (var client = MongoClients.create(mongo.getConnectionString())) {
         MongoDatabase db = client.getDatabase("wiab_it");
-        Mongo4AttachmentStore store = new Mongo4AttachmentStore(db);
-        AttachmentId id = AttachmentId.deserialise("a+test123");
-        byte[] data = "hello".getBytes();
-        InputStream in = new ByteArrayInputStream(data);
-        store.storeAttachment(id, in);
+        AccountStore store = new Mongo4AccountStore(db);
+        store.initializeAccountStore();
 
-        AttachmentProto.AttachmentMetadata meta = AttachmentProto.AttachmentMetadata.newBuilder()
-            .setAttachmentId(id.getId())
-            .setWaveRef("wave://example.com/w+test/conv+root/b+1")
-            .setFileName("file.txt")
-            .setMimeType("text/plain")
-            .setSize(data.length)
-            .setCreator("test@example.com")
-            .setAttachmentUrl("http://example.com/attachment/" + id.getId())
-            .setThumbnailUrl("http://example.com/attachment/" + id.getId() + "/thumb")
-            .build();
-        store.storeMetadata(id, new AttachmentMetadataProtoImpl(meta));
+        // Human round-trip
+        ParticipantId hid = ParticipantId.ofUnsafe("human@example.com");
+        byte[] salt = new byte[] {1,2,3};
+        byte[] dig = new byte[] {4,5,6};
+        PasswordDigest pd = PasswordDigest.from(salt, dig);
+        AccountData human = new HumanAccountDataImpl(hid, pd);
+        store.putAccount(human);
+        AccountData loadedHuman = store.getAccount(hid);
+        assertNotNull(loadedHuman);
+        assertTrue(loadedHuman.isHuman());
+        assertArrayEquals(salt, loadedHuman.asHuman().getPasswordDigest().getSalt());
+        assertArrayEquals(dig, loadedHuman.asHuman().getPasswordDigest().getDigest());
+        store.removeAccount(hid);
+        assertNull(store.getAccount(hid));
 
-        AttachmentStore.AttachmentData got = store.getAttachment(id);
-        assertNotNull(got);
-        assertEquals(data.length, got.getSize());
-
-        AttachmentMetadata gotMeta = store.getMetadata(id);
-        assertNotNull(gotMeta);
-        org.waveprotocol.box.attachment.proto.AttachmentMetadataProtoImpl wrap =
-            (org.waveprotocol.box.attachment.proto.AttachmentMetadataProtoImpl) gotMeta;
-        assertEquals("file.txt", wrap.getPB().getFileName());
-      }
-    } finally {
-      try {
+        // Robot round-trip
+        ParticipantId rid = ParticipantId.ofUnsafe("robot@example.com");
+        Map<EventType, Capability> cmap = CollectionUtils.newHashMap();
+        List<Context> ctx = Arrays.asList(Context.SELF, Context.ALL);
+        cmap.put(EventType.DOCUMENT_CHANGED, new Capability(EventType.DOCUMENT_CHANGED, ctx, ""));
+        RobotCapabilities caps = new RobotCapabilities(cmap, "hash123", ProtocolVersion.DEFAULT);
+        AccountData robot = new RobotAccountDataImpl(rid, "http://bot.example.com/callback", "secret", caps, true);
+        store.putAccount(robot);
+        AccountData loadedRobot = store.getAccount(rid);
+        assertNotNull(loadedRobot);
+        assertTrue(loadedRobot.isRobot());
+        assertEquals("http://bot.example.com/callback", loadedRobot.asRobot().getUrl());
+        assertEquals("secret", loadedRobot.asRobot().getConsumerSecret());
+        assertTrue(loadedRobot.asRobot().isVerified());
+        assertTrue(loadedRobot.asRobot().getCapabilities().getCapabilitiesMap().containsKey(EventType.DOCUMENT_CHANGED));
+        store.removeAccount(rid);
+        assertNull(store.getAccount(rid));
+      } finally {
         mongo.stop();
-      } catch (Exception e) {
-        LOG.warn("Ignored exception while stopping MongoDBContainer (potential resource leak).", e);
       }
     }
   }

@@ -85,6 +85,19 @@ configurations {
     gwt
 }
 
+// Dedicated runtime classpath for integration tests that need MongoDB 4.x driver
+configurations {
+    itRuntimeClasspath {
+        extendsFrom testRuntimeClasspath
+        exclude group: 'org.mongodb', module: 'mongo-java-driver'
+        resolutionStrategy {
+            force 'org.mongodb:bson:4.11.1',
+                  'org.mongodb:mongodb-driver-core:4.11.1',
+                  'org.mongodb:mongodb-driver-sync:4.11.1'
+        }
+    }
+}
+
 //=============================================================================
 // Source's
 //=============================================================================
@@ -227,6 +240,8 @@ dependencies {
             [group: 'junit', name: 'junit', version: '4.12'],
             [group: "org.hamcrest", name: "hamcrest-junit", version: "2.0.0.0"],
 [group: "org.mockito", name: "mockito-core", version: "2.2.21"],
+            [group: "org.testcontainers", name: "testcontainers", version: "1.19.7"],
+            [group: "org.testcontainers", name: "mongodb", version: "1.19.7"]
     )
 }
 
@@ -747,4 +762,58 @@ tasks.register('smokeInstalled', Exec) {
     dependsOn tasks.named('installDist')
     workingDir = rootProject.projectDir
     commandLine 'bash', '-lc', 'scripts/wave-smoke.sh start && scripts/wave-smoke.sh check && scripts/wave-smoke.sh stop'
+}
+
+//=============================================================================
+// Integration tests (Testcontainers)
+//=============================================================================
+
+tasks.register('itTest', Test) {
+    group = 'verification'
+    description = 'Runs Testcontainers-based integration tests (e.g., Mongo v4 adapters).'
+
+    // Reuse test outputs/classpath
+    testClassesDirs = sourceSets.test.output.classesDirs
+    // Use a dedicated classpath that prioritizes MongoDB 4.x driver and excludes legacy 2.x
+    classpath = sourceSets.main.output + sourceSets.test.output + configurations.itRuntimeClasspath
+
+    // Include only *IT tests by convention
+    include '**/*IT.class'
+
+    // Enable integration tests requiring Mongo by default for this task
+    environment 'RUN_MONGO_IT', 'true'
+
+    // Help Testcontainers find Colima if DOCKER_HOST is unset or invalid
+    doFirst {
+        def envHost = System.getenv('DOCKER_HOST')
+        def colimaSock = new File(System.properties['user.home'] + '/.colima/default/docker.sock')
+
+        def useColimaIfAvailable = {
+            if (colimaSock.exists()) {
+                def colimaHost = 'unix://' + colimaSock.absolutePath
+                environment 'DOCKER_HOST', colimaHost
+                println "itTest: Using Colima Docker socket at ${colimaHost}"
+                return colimaHost
+            }
+            return null
+        }
+
+        String overrideHost = null
+        if (envHost == null || envHost.trim().isEmpty()) {
+            overrideHost = useColimaIfAvailable()
+        } else if (envHost.startsWith('unix://')) {
+            def path = envHost.replaceFirst('unix://','')
+            if (!new File(path).exists()) {
+                println "itTest: DOCKER_HOST points to missing UNIX socket (${envHost}). Trying Colima..."
+                overrideHost = useColimaIfAvailable()
+            }
+        } else if (envHost == 'unix://localhost:2375') {
+            // Clearly invalid: not a path and wrong scheme for TCP. Prefer Colima if possible.
+            println "itTest: DOCKER_HOST=${envHost} looks invalid. Trying Colima..."
+            overrideHost = useColimaIfAvailable()
+        }
+
+        def effective = overrideHost ?: (envHost ?: 'default')
+        println "itTest: Effective DOCKER_HOST=${effective}"
+    }
 }

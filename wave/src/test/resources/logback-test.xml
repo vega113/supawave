@@ -1,0 +1,20 @@
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Quiet noisy libraries during tests -->
+  <logger name="org.testcontainers" level="WARN"/>
+  <logger name="org.testcontainers.shaded" level="WARN"/>
+  <logger name="com.github.dockerjava" level="WARN"/>
+  <logger name="com.github.dockerjava.zerodep.shaded" level="WARN"/>
+  <logger name="org.apache.hc" level="WARN"/>
+  <logger name="org.mongodb.driver" level="WARN"/>
+
+  <!-- Default test logging level -->
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+  </root>
+</configuration>

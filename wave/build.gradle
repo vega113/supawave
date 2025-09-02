@@ -157,6 +157,15 @@ if (jettyFamily == 'jakarta') {
     sourceSets.main.java {
         exclude 'org/waveprotocol/box/server/rpc/ServerRpcProvider.java'
         srcDir 'src/jakarta-overrides/java'
+        // Exclude javax/Jetty9-specific classes pending Jakarta rewrites
+        exclude 'org/waveprotocol/box/server/ServerModule.java'
+        exclude 'org/waveprotocol/box/server/ServerMain.java'
+        exclude 'org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java'
+        exclude 'org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java'
+        exclude 'org/waveprotocol/box/server/rpc/AuthenticationServlet.java'
+        exclude 'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java'
+        exclude 'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java'
+        exclude 'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java'
     }
 }
 

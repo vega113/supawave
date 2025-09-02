@@ -16,21 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.waveprotocol.box.server.poc;
+package org.eclipse.jetty.server.session;
 
-import java.io.IOException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 /**
- * Minimal servlet registered programmatically as a POC for Jakarta migration.
+ * Minimal wrapper used by the stub {@link SessionHandler} to return a
+ * Jetty-like Session object that exposes the underlying {@link HttpSession}.
+ * This is for compile-time wiring only in the Jakarta migration path.
  */
-public class ProgrammaticHelloServlet extends HttpServlet {
-  @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    resp.setStatus(HttpServletResponse.SC_OK);
-    resp.setContentType("text/plain; charset=UTF-8");
-    resp.getWriter().write("hello from programmatic servlet\n");
-  }
+public class Session {
+  private final HttpSession delegate;
+  public Session(HttpSession delegate) { this.delegate = delegate; }
+  public HttpSession getSession() { return delegate; }
 }

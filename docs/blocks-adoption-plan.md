@@ -115,6 +115,9 @@ Goal: Provide a basic implementation that can return intervals reconstructed fro
 - DoD:
   - Basic non-empty results for common cases; safe behavior when data is missing.
 
+- Status: completed (compat) — commits 87383ee1
+  - Summary: Added compat implementation returning pseudo intervals for INDEX/MANIFEST and blip segments based on snapshot author/mtime.
+
 - AI notes:
   - Emphasis on safety and logging; do not alter runtime unless called by Phase 3 explicitly.
 
@@ -139,6 +142,8 @@ Goal: Port a compatible `FragmentsRequest` and `FragmentsFetcher` that compute V
 
 - DoD:
   - Request object ready for fetcher; used only in Phase 3.2.
+
+- Status: completed — added compat builder (commit included in current cycle)
 
 ### Task 3.2 — FragmentsFetcher (compat)
 

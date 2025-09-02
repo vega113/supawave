@@ -262,6 +262,8 @@ public class FlagConstants {
   public static final String DYNAMIC_PRERENDER_LOWER_PX = "232";
   public static final String DYNAMIC_PAGE_OUT_SLACK_PX = "233";
   public static final String DYNAMIC_SCROLL_THROTTLE_MS = "234";
+  public static final String DYNAMIC_SPEED_BOOST_THRESHOLD_PX = "235";
+  public static final String DYNAMIC_SPEED_BOOST_FACTOR = "236";
 
 
   public static final String[] __NAME_MAPPING__ = new String[] {
@@ -502,6 +504,8 @@ public class FlagConstants {
     "dynamicPrerenderLowerPx", "232",
     "dynamicPageOutSlackPx", "233",
     "dynamicScrollThrottleMs", "234",
+    "dynamicSpeedBoostThresholdPx", "235",
+    "dynamicSpeedBoostFactor", "236",
 
   };
 }

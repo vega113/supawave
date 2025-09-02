@@ -636,24 +636,32 @@ public interface StageTwo {
                   org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl dom =
                       (org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl) intrinsic;
                   dom.setQuasiDeleted(true);
-                  // Build a tooltip of the form: "Deleted by <author> at <time>"
+                  // Build tooltip from ctx if available, else fallback to blip meta
                   String author = "unknown";
-                  org.waveprotocol.wave.model.wave.ParticipantId pid = blip.getAuthorId();
-                  if (pid != null) {
-                    String addr = pid.getAddress();
-                    if (addr != null && addr.length() > 0) author = addr;
-                    try {
-                      org.waveprotocol.wave.client.account.Profile p = getProfileManager().getProfile(pid);
-                      if (p != null) {
-                        String name = p.getFullName();
-                        if (name != null && name.trim().length() > 0) author = name;
+                  long timestamp = blip.getLastModifiedTime();
+                  if (ctx != null) {
+                    if (ctx.getCreator() != null && ctx.getCreator().getAddress() != null) {
+                      author = ctx.getCreator().getAddress();
+                    }
+                    if (ctx.getTimestamp() > 0) timestamp = ctx.getTimestamp();
+                  } else {
+                    org.waveprotocol.wave.model.wave.ParticipantId pid = blip.getAuthorId();
+                    if (pid != null) {
+                      String addr = pid.getAddress();
+                      if (addr != null && !addr.isEmpty()) author = addr;
+                      try {
+                        org.waveprotocol.wave.client.account.Profile p = getProfileManager().getProfile(pid);
+                        if (p != null) {
+                          String name = p.getFullName();
+                          if (name != null && !name.trim().isEmpty()) author = name;
+                        }
+                      } catch (Exception ex) {
+                        GWT.log("Quasi tooltip: profile lookup failed for " + pid, ex);
                       }
-                    } catch (Exception ex) {
-                      GWT.log("Quasi tooltip: profile lookup failed for " + pid, ex);
                     }
                   }
                   String time = org.waveprotocol.wave.client.common.util.DateUtils.getInstance()
-                      .formatDateTime(new java.util.Date(blip.getLastModifiedTime()));
+                      .formatDateTime(new java.util.Date(timestamp));
                   String tooltip = "Deleted by " + author + " at " + time;
                   dom.getElement().setTitle(tooltip);
                 }

@@ -75,6 +75,7 @@ public class WaveClientServlet extends HttpServlet {
   private final String analyticsAccount;
   private final SessionManager sessionManager;
   private final String websocketPresentedAddress;
+  private final Config config;
 
   /**
    * Creates a servlet for the wave client.
@@ -93,6 +94,7 @@ public class WaveClientServlet extends HttpServlet {
                                              websocketAddress1 : websocketPresentedAddress;
     this.analyticsAccount = config.getString("administration.analytics_account");
     this.sessionManager = sessionManager;
+    this.config = config;
   }
 
   @Override
@@ -213,6 +215,40 @@ public class WaveClientServlet extends HttpServlet {
               }
             } catch (Exception ignored) {
             }
+          }
+        }
+      } catch (Exception ignored) {
+      }
+
+      // Merge defaults from reference.conf/application.conf under client.flags.defaults
+      // Format: comma-separated name=value pairs
+      try {
+        String defaults = (config != null && config.hasPath("client.flags.defaults"))
+            ? config.getString("client.flags.defaults") : null;
+        if (defaults != null && !defaults.trim().isEmpty()) {
+          String[] pairs = defaults.split(",");
+          for (String pair : pairs) {
+            String p = pair.trim();
+            if (p.isEmpty()) continue;
+            int eq = p.indexOf('=');
+            String name = (eq > 0) ? p.substring(0, eq).trim() : p;
+            String value = (eq > 0) ? p.substring(eq + 1).trim() : "true";
+            if (!FLAG_MAP.containsKey(name)) continue;
+            try {
+              Method getter = ClientFlagsBase.class.getMethod(name);
+              Class<?> retType = getter.getReturnType();
+              if (retType.equals(String.class)) {
+                ret.put(FLAG_MAP.get(name), value);
+              } else if (retType.equals(Integer.class)) {
+                ret.put(FLAG_MAP.get(name), Integer.parseInt(value));
+              } else if (retType.equals(Boolean.class)) {
+                ret.put(FLAG_MAP.get(name), Boolean.parseBoolean(value));
+              } else if (retType.equals(Float.class)) {
+                ret.put(FLAG_MAP.get(name), Float.parseFloat(value));
+              } else if (retType.equals(Double.class)) {
+                ret.put(FLAG_MAP.get(name), Double.parseDouble(value));
+              }
+            } catch (Exception ignored) {}
           }
         }
       } catch (Exception ignored) {

@@ -63,14 +63,15 @@ public final class QuasiConversationViewAdapter {
   private final ObservableConversation.Listener conversationListener = new ObservableConversation.Listener() {
     @Override
     public void onBlipDeleted(ObservableConversationBlip blip) {
-      WaveletOperationContext ctx = null; // Optional context (not always available here)
+      // Synthesize a minimal context using blip author and last-modified time
+      WaveletOperationContext ctx = synthesizeContext(blip);
       fireBeforeBlip(blip, ctx);
       fireBlip(blip, ctx);
     }
 
     @Override
     public void onThreadDeleted(ObservableConversationThread thread) {
-      WaveletOperationContext ctx = null;
+      WaveletOperationContext ctx = null; // no single blip to infer from
       fireBeforeThread(thread, ctx);
       fireThread(thread, ctx);
     }
@@ -95,6 +96,16 @@ public final class QuasiConversationViewAdapter {
     }
     // And track additions/removals
     delegate.addListener(viewListener);
+  }
+
+  private static WaveletOperationContext synthesizeContext(ObservableConversationBlip blip) {
+    try {
+      org.waveprotocol.wave.model.wave.ParticipantId author = blip.getAuthorId();
+      long ts = blip.getLastModifiedTime();
+      return new WaveletOperationContext(author, ts, 1);
+    } catch (Throwable ignored) {
+      return null;
+    }
   }
 
   public ObservableConversationView getDelegate() {
@@ -135,4 +146,3 @@ public final class QuasiConversationViewAdapter {
     }
   }
 }
-

@@ -57,6 +57,10 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
 
   private boolean updateQueued = false;
   private double lastUpdateMs = 0;
+  private int lastTopSeen = 0;
+  private double lastTopSeenTs = 0;
+  private int speedBoostThresholdPx = 800;
+  private double speedBoostFactor = 1.8;
 
   public static DynamicRendererImpl create(ObservableConversationView view,
       ModelAsViewProvider modelAsView, BlipQueueRenderer queue, PagingHandler pager,
@@ -83,6 +87,8 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
       if (ClientFlags.get().dynamicPrerenderLowerPx() != null) prerenderPxBottom = ClientFlags.get().dynamicPrerenderLowerPx();
       if (ClientFlags.get().dynamicPageOutSlackPx() != null) pageOutSlackPx = ClientFlags.get().dynamicPageOutSlackPx();
       if (ClientFlags.get().dynamicScrollThrottleMs() != null) throttleMs = ClientFlags.get().dynamicScrollThrottleMs();
+      if (ClientFlags.get().dynamicSpeedBoostThresholdPx() != null) speedBoostThresholdPx = ClientFlags.get().dynamicSpeedBoostThresholdPx();
+      if (ClientFlags.get().dynamicSpeedBoostFactor() != null) speedBoostFactor = ClientFlags.get().dynamicSpeedBoostFactor();
       logStats = Boolean.TRUE.equals(ClientFlags.get().enableViewportStats());
     } catch (Throwable t) {
       // ignore in non-client contexts
@@ -122,8 +128,22 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
   }
 
   private void updateWindow() {
-    final int top = screen.getScrollTop() - prerenderPxTop;
-    final int bottom = screen.getScrollTop() + screen.getViewportHeight() + prerenderPxBottom;
+    int currentTop = screen.getScrollTop();
+    double now = com.google.gwt.core.client.Duration.currentTimeMillis();
+    int delta = Math.abs(currentTop - lastTopSeen);
+    boolean boost = delta > speedBoostThresholdPx;
+    lastTopSeen = currentTop;
+    lastTopSeenTs = now;
+
+    int upper = prerenderPxTop;
+    int lower = prerenderPxBottom;
+    if (boost) {
+      upper = (int) Math.round(upper * speedBoostFactor);
+      lower = (int) Math.round(lower * speedBoostFactor);
+    }
+
+    final int top = currentTop - upper;
+    final int bottom = currentTop + screen.getViewportHeight() + lower;
 
     final int outTop = top - pageOutSlackPx;
     final int outBottom = bottom + pageOutSlackPx;
@@ -186,7 +206,7 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
 
     if (logStats && (counts[0] > 0 || counts[1] > 0)) {
       GWT.log("DynamicRenderer: in=" + counts[0] + " out=" + counts[1] +
-          " top=" + top + " bottom=" + bottom + " pagedIn=" + pagedIn.size());
+          " top=" + top + " bottom=" + bottom + " pagedIn=" + pagedIn.size() + (boost?" (boost)":""));
     }
   }
 

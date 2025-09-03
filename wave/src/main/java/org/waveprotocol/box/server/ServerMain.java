@@ -294,6 +294,16 @@ public class ServerMain {
 
     ProtocolWaveClientRpc.Interface rpcImpl = WaveClientRpcImpl.create(frontend, false);
     server.registerService(ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
+
+    // Optional: wire fragments fetch bridge for ViewChannelImpl
+    try {
+      org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setFragmentsFetchBridge(
+          new org.waveprotocol.box.server.frontend.FragmentsFetchBridgeImpl(provider,
+              injector.getInstance(com.typesafe.config.Config.class))
+      );
+    } catch (Throwable ignored) {
+      // Non-fatal if bridge wiring fails
+    }
   }
 
   private static void initializeFederation(Injector injector) {

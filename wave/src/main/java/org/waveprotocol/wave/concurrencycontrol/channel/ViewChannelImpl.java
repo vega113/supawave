@@ -28,6 +28,7 @@ import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.wave.WaveletDelta;
 import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.version.HashedVersion;
@@ -68,6 +69,12 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
   private static final int DEFAULT_MAX_VIEW_CHANNELS_PER_WAVE = 4;
 
   private static int maxViewChannelsPerWave = DEFAULT_MAX_VIEW_CHANNELS_PER_WAVE;
+
+  /** Optional bridge to server-side fragments handler; set on server startup. */
+  private static volatile FragmentsFetchBridge fragmentsBridge = null;
+  public static void setFragmentsFetchBridge(FragmentsFetchBridge bridge) {
+    fragmentsBridge = bridge;
+  }
 
 
   /**
@@ -182,6 +189,25 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
         "Cannot submit to disconnected view channel: %s, delta version %s", this,
         delta.getTargetVersion());
     doSubmitDelta(waveletId, delta, callback);
+  }
+
+  @Override
+  public void fetchFragments(WaveletId waveletId, java.util.List<org.waveprotocol.wave.model.id.SegmentId> segments,
+                             long startVersion, long endVersion) {
+    FragmentsFetchBridge bridge = fragmentsBridge;
+    if (bridge == null) {
+      return; // feature not enabled
+    }
+    try {
+      WaveletName wn = WaveletName.of(this.waveId, waveletId);
+      java.util.Map<org.waveprotocol.wave.model.id.SegmentId, org.waveprotocol.box.server.persistence.blocks.VersionRange> ranges =
+          bridge.fetch(wn, segments, startVersion, endVersion);
+      if (logger.trace().shouldLog()) {
+        logger.trace().log("fetchFragments: wn=" + wn + " ranges=" + ranges);
+      }
+    } catch (Throwable t) {
+      // Do not propagate; this is experimental and optional
+    }
   }
 
   /**

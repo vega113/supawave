@@ -92,7 +92,8 @@ public final class FragmentsServlet extends HttpServlet {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN); return;
       }
       Map<String, FragmentsFetcherCompat.BlipMeta> metas = FragmentsFetcherCompat.listBlips(waveletProvider, wn);
-      List<String> slice = FragmentsFetcherCompat.slice(metas, start, dir, limit);
+      List<String> order = FragmentsFetcherCompat.manifestOrder(waveletProvider, wn);
+      List<String> slice = FragmentsFetcherCompat.sliceUsingOrder(metas, order, start, dir, limit);
       long snapshotVersion = FragmentsFetcherCompat.getCommittedVersion(waveletProvider, wn);
 
       // Build FragmentsRequest (optional start/end); explicit ranges param not supported yet.

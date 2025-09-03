@@ -32,7 +32,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.util.logging.Log;
 import org.waveprotocol.wave.model.conversation.ObservableConversation;
-import org.waveprotocol.wave.model.conversation.ObservableConversationBlip;
+import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.WaveBasedConversationView;
 import org.waveprotocol.wave.model.conversation.BlipIterators;
@@ -148,7 +148,7 @@ public final class FragmentsFetcherCompat {
     ObservableConversation root = view.getRoot();
     if (root == null || root.getRootThread() == null) return Collections.emptyList();
     List<String> ordered = new ArrayList<>();
-    for (ObservableConversationBlip blip : BlipIterators.breadthFirst(root)) {
+    for (ConversationBlip blip : BlipIterators.breadthFirst(root)) {
       ordered.add(blip.getId());
     }
     return ordered;

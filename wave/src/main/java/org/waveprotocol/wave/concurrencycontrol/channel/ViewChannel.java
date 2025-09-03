@@ -29,6 +29,7 @@ import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 
 import java.util.List;
 import java.util.Map;
+import org.waveprotocol.wave.model.id.SegmentId;
 
 /**
  * Encapsulates the WaveView rpcs as a channel.
@@ -138,4 +139,13 @@ public interface ViewChannel {
    * @return Debug string that details profile information regarding data being sent.
    */
   String debugGetProfilingInfo(WaveletId waveletId);
+
+  /**
+   * Experimental: request fragments (server-side segments) for a window.
+   * Default no-op; enabled only when server feature flag is on and implementation supports it.
+   */
+  default void fetchFragments(WaveletId waveletId, List<SegmentId> segments,
+                              long startVersion, long endVersion) {
+    // Stub: implementations may override when feature flag is enabled.
+  }
 }

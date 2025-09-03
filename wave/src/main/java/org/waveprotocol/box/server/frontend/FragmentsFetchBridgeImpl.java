@@ -57,7 +57,7 @@ public final class FragmentsFetchBridgeImpl implements FragmentsFetchBridge {
       }
       return FragmentsPayload.of(snapshotVersion, startVersion, endVersion, list);
     } catch (WaveServerException e) {
-      LOG.fine("FetchFragments bridge error: " + e.getMessage());
+      LOG.warning("FetchFragments bridge error: " + e.getMessage(), e);
       return FragmentsPayload.of(0, startVersion, endVersion, java.util.Collections.emptyList());
     }
   }

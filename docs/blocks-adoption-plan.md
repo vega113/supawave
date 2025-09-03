@@ -7,6 +7,26 @@ Statuses: planned | in_progress | completed
 
 -------------------------------------------------------------------------------
 
+## Delta Since Last Edit (2025-09-03)
+
+- Phase 3 (FragmentsFetcher & Request): marked completed (compat).
+  - Implemented snapshot-based blip listing, manifest-order slicing, FragmentsRequest builder, and ranges computation.
+  - Added ViewChannel handler/bridge to expose ranges.
+  - Tests added: FragmentsRequestTest, FragmentsOrderingTest, FragmentsFetchBridgeImplTest, WaveClientRpcFragmentsTest.
+- Phase 4 (Transport Prep): marked completed (compat).
+  - Added ProtocolFragments/ProtocolFragmentRange to waveclient-rpc.proto.
+  - WaveClientRpcImpl emits fragments (INDEX, MANIFEST, + up to 5 visible blips) on snapshot and delta-only updates.
+  - Hardened logging on failures (WaveServerException vs unexpected).
+- WebSocket config: added jittered, capped backoff with config defaults (connectTimeoutMs, connectWaitMs, maxBackoffMs, jitterFraction).
+
+Code references
+- Fragments & ranges: wave/src/main/java/org/waveprotocol/box/server/frontend/FragmentsFetcherCompat.java, FragmentsViewChannelHandler.java, FragmentsFetchBridgeImpl.java
+- RPC emission: wave/src/main/java/org/waveprotocol/box/server/frontend/WaveClientRpcImpl.java
+- Proto: wave/src/proto/proto/org/waveprotocol/box/common/comms/waveclient-rpc.proto
+- Tests: wave/src/test/java/org/waveprotocol/box/server/frontend/*Fragments*.java; wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/channel/RawFragmentsApplierTest.java
+
+-------------------------------------------------------------------------------
+
 ## Why Blocks (Segments) Now
 
 wiab.pro’s fragment fetch relies on a segment-oriented persistence API (blocks) to fetch only the portions of a wavelet needed for the current viewport. To achieve parity and long-term performance in Apache Wave, we will adopt a compatible server-side blocks interface first, then evolve transport and client application.
@@ -26,7 +46,7 @@ wiab.pro’s fragment fetch relies on a segment-oriented persistence API (blocks
 
 ## Phase 1 — Foundations & API Scaffolding (server-first)
 
-Status: in_progress
+Status: completed (compat)
 
 Goal: Introduce core types and interfaces needed by a segment-based fetch path, behind flags and without changing runtime behavior.
 
@@ -165,12 +185,13 @@ Goal: Port a compatible `FragmentsRequest` and `FragmentsFetcher` that compute V
 
 - DoD:
   - Compat fetcher returns reasonable ranges for INDEX/MANIFEST and visible blips based on snapshot; safe under missing data. Emission over RPC is gated and logs failures.
+  - Unit and integration-lite tests green.
 
 -------------------------------------------------------------------------------
 
 ## Phase 4 — Server Endpoint & Transport Prep
 
-Status: in_progress
+Status: completed (compat)
 
 Goal: Replace `/fragments` stub with real fetcher-backed JSON; spec the future WebSocket proto.
 
@@ -197,10 +218,28 @@ Goal: Replace `/fragments` stub with real fetcher-backed JSON; spec the future W
 
 - Implementation:
   - Added ProtocolFragments/ProtocolFragmentRange in waveclient-rpc.proto; ProtocolWaveletUpdate now carries optional `fragments`.
-  - WaveClientRpcImpl attaches a fragments window (INDEX/MANIFEST) during open updates when the handler is enabled. Failures log a warning and do not impact the stream.
+  - WaveClientRpcImpl attaches a fragments window for both snapshot and delta-only updates when the handler is enabled. The window includes INDEX, MANIFEST, and a small set of visible blips (heuristic: up to 5 blips by snapshot docs or manifest order). Failures log a warning and do not impact the stream.
 
 - DoD:
-  - Clients receive `fragments` payload in both snapshot and delta-only updates under the feature flag.
+  - Clients receive `fragments` payload in both snapshot and delta-only updates under the feature flag. Tests validate presence and shape (no duplicates, valid ranges, contains blip segment).
+
+-------------------------------------------------------------------------------
+
+## Phase 5 — Client Applier & Transport Evolution (Next)
+
+Status: planned → next up
+
+### Next Task: 5.1 — Client RawFragment Applier (model)
+
+- Scope (iteration 1):
+  - Introduce a minimal `RawFragment` DTO (segment id + [from,to] + optional metadata) and a `RawFragmentsApplier` interface behind a client flag.
+  - Provide a no-op default implementation and a skeleton implementation that just records the latest window per segment for observability.
+  - Wire ViewChannel.Listener.onFragments(...) to the applier (gated by a client flag) with logging/metrics.
+- Tests:
+  - Unit tests for the applier: accepts well-formed ranges, rejects invalid (from>to), and maintains per-segment window state.
+  - Basic integration test in the client layer to ensure onFragments triggers applier calls when the flag is enabled.
+- DoD (iteration 1):
+  - Compiles under a flag, does not mutate live wavelet data yet. Observability hooks (counters/logs) in place to validate flow end-to-end.
 
 -------------------------------------------------------------------------------
 

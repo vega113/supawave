@@ -76,6 +76,12 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
     fragmentsBridge = bridge;
   }
 
+  /** Optional: client-side fragments applier. */
+  private static volatile org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier fragmentsApplier = null;
+  public static void setFragmentsApplier(org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier applier) {
+    fragmentsApplier = applier;
+  }
+
 
   /**
    * This holds map of WaveletId to its last submit request id.
@@ -361,6 +367,16 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
             }
             if (update.hasFragments()) {
               openListener.onFragments(waveletId, update.getFragments());
+              // Optional: also forward to a global applier when enabled via property
+              org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier applier = fragmentsApplier;
+              boolean enableApplier = Boolean.parseBoolean(System.getProperty("wave.fragments.applier.enabled", "false"));
+              if (applier != null && enableApplier) {
+                try {
+                  applier.applyPayload(waveletId, update.getFragments());
+                } catch (Throwable t) {
+                  logger.error().log("Fragments applier failed for wavelet " + waveletId + ": " + t);
+                }
+              }
             }
             if (update.hasMarker()) {
               openListener.onOpenFinished();

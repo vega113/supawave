@@ -156,4 +156,9 @@ public interface ViewChannel {
                               long startVersion, long endVersion) {
     // Stub: implementations may override when feature flag is enabled.
   }
+
+  /**
+   * Configure a global fragments applier (optional). Implementations may ignore.
+   */
+  static void setFragmentsApplier(RawFragmentsApplier applier) {}
 }

@@ -22,8 +22,8 @@ package org.waveprotocol.box.server.rpc;
 import org.waveprotocol.wave.util.logging.Log;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Message;
 import com.google.protobuf.RpcCallback;
@@ -49,7 +49,7 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
   private final WebSocketClient socketClient;
   private final WebSocketChannel clientChannel;
   private final AtomicInteger lastSequenceNumber = new AtomicInteger();
-  private final BiMap<Integer, ClientRpcController> activeMethodMap = HashBiMap.create();
+  private final Map<Integer, ClientRpcController> activeMethodMap = new ConcurrentHashMap<>();
 
   /**
    * Set up a new WebSocketClientRpcChannel pointing at the given server
@@ -65,10 +65,7 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       @Override
       public void message(int sequenceNo, Message message) {
         final ClientRpcController controller;
-        synchronized (activeMethodMap) {
-          controller = activeMethodMap.get(sequenceNo);
-          // TODO: remove controller from activeMethodMap
-        }
+        controller = activeMethodMap.remove(sequenceNo);
         if (message instanceof Rpc.RpcFinished) {
           Rpc.RpcFinished finished = (Rpc.RpcFinished) message;
           if (finished.getFailed()) {
@@ -116,9 +113,7 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
           }
         });
     controller.configure(rpcStatus);
-    synchronized (activeMethodMap) {
-      activeMethodMap.put(sequenceNo, controller);
-    }
+    activeMethodMap.put(sequenceNo, controller);
     LOG.fine("Calling a new RPC (seq " + sequenceNo + "), method " + method.getFullName() + " for "
         + clientChannel);
 
@@ -137,17 +132,28 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       throw new IllegalStateException(e);
     }
     WebSocketClient client = new WebSocketClient();
+    int attempts = 0;
+    Exception last = null;
     try {
       client.start();
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
-    ClientUpgradeRequest request = new ClientUpgradeRequest();
-    try {
-      client.connect(clientChannel, uri, request).get();
-    } catch (Exception ex) {
-      throw new IOException(ex);
+    while (attempts < 3) {
+      attempts++;
+      ClientUpgradeRequest request = new ClientUpgradeRequest();
+      try {
+        client.connect(clientChannel, uri, request).get();
+        return client;
+      } catch (Exception ex) {
+        last = ex;
+        LOG.warning("WebSocket connect attempt " + attempts + " failed to " + uri + ": " + ex.getMessage(), ex);
+        try { Thread.sleep(300L * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+      }
     }
-    return client;
+    try { client.stop(); } catch (Exception ignore) {}
+    IOException ioe = new IOException("Failed to open WebSocket to " + inetAddress + " after " + attempts + " attempts");
+    if (last != null) ioe.initCause(last);
+    throw ioe;
   }
 }

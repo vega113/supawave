@@ -23,42 +23,25 @@ import jakarta.websocket.OnMessage;
 import jakarta.websocket.OnOpen;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
-import org.waveprotocol.box.server.rpc.ServerRpcProvider;
-import org.waveprotocol.box.server.rpc.WebSocketChannelImpl;
-import org.waveprotocol.box.server.rpc.WebSocketChannel;
-import com.typesafe.config.Config;
 
 /**
- * Jakarta WebSocket endpoint bound at "/socket". Bridges events to a
- * WebSocketChannelImpl that speaks Wave's RPC framing.
+ * Minimal Jakarta WebSocket endpoint bound at "/socket" that echoes text.
+ * Helps smoke-test that the ServerContainer and basic WebSocket flow work.
  */
 @ServerEndpoint("/socket")
 public class WaveWebSocketEndpoint {
-  static volatile ServerRpcProvider provider;
-  static volatile Config config;
-
-  private WebSocketChannel channel;
-
   @OnOpen
   public void onOpen(Session session) {
-    channel = new WebSocketChannelImpl(new WebSocketChannel.ProtoCallback() {
-      @Override
-      public void message(int sequenceNo, com.google.protobuf.Message message) {
-        // Forward to provider's machinery via existing code paths
-        provider.receiveWebSocketMessage(sequenceNo, message);
-      }
-    });
-    ((WebSocketChannelImpl) channel).attach(session);
+    // no-op
   }
 
   @OnMessage
-  public void onMessage(String data) {
-    channel.handleMessageString(data);
+  public void onMessage(Session session, String data) {
+    session.getAsyncRemote().sendText(data);
   }
 
   @OnClose
   public void onClose() {
-    // no-op; channel will drop its session reference
+    // no-op
   }
 }
-

@@ -62,6 +62,7 @@ import java.util.concurrent.Executor;
 @Singleton
 public class ServerRpcProvider {
   private static final Log LOG = Log.get(ServerRpcProvider.class);
+  private final Config config;
 
   public ServerRpcProvider(InetSocketAddress[] httpAddresses,
                            String[] resourceBases, Executor threadPool,
@@ -71,6 +72,7 @@ public class ServerRpcProvider {
                            boolean enableForwardedHeaders, boolean nativeServletRegistration,
                            boolean enableProgrammaticPoc) {
     // No-op: stub constructor
+    this.config = null;
   }
 
   public ServerRpcProvider(InetSocketAddress[] httpAddresses,
@@ -85,11 +87,36 @@ public class ServerRpcProvider {
   public ServerRpcProvider(Config config,
                            SessionManager sessionManager, SessionHandler sessionHandler,
                            @org.waveprotocol.box.server.executor.ExecutorAnnotations.ClientServerExecutor Executor executorService) {
-    // No-op: stub constructor
+    this.config = config;
   }
 
   public void startWebSocketServer(final Injector injector) {
     LOG.info("[Jakarta stub] startWebSocketServer: not implemented yet");
+  }
+
+  /**
+   * Register the Jakarta WebSocket endpoint on the given ServletContext.
+   * This uses the standard ServerContainer attribute to add the endpoint at
+   * path "/socket".
+   */
+  public void registerWebSocketEndpoint(Object servletContext) {
+    try {
+      if (!(servletContext instanceof jakarta.servlet.ServletContext)) {
+        LOG.info("registerWebSocketEndpoint called without a Jakarta ServletContext; skipping.");
+        return;
+      }
+      jakarta.servlet.ServletContext ctx = (jakarta.servlet.ServletContext) servletContext;
+      Object attr = ctx.getAttribute("jakarta.websocket.server.ServerContainer");
+      if (attr == null) {
+        LOG.info("No ServerContainer found on ServletContext; WebSocket endpoint not registered.");
+        return;
+      }
+      jakarta.websocket.server.ServerContainer sc = (jakarta.websocket.server.ServerContainer) attr;
+      sc.addEndpoint(org.waveprotocol.box.server.rpc.jakarta.WaveWebSocketEndpoint.class);
+      LOG.info("Registered Jakarta WebSocket endpoint at /socket");
+    } catch (Throwable t) {
+      LOG.warning("Failed to register Jakarta WebSocket endpoint", t);
+    }
   }
 
   public ServletHolder addServlet(String urlPattern, Class<? extends HttpServlet> servlet,
@@ -120,5 +147,11 @@ public class ServerRpcProvider {
 
   public void registerService(Service service) {
     // no-op
+  }
+
+  // Called by the Jakarta WebSocket endpoint to forward messages into the
+  // provider's dispatch machinery (stubbed here; implement as part of full migration).
+  public void receiveWebSocketMessage(int sequenceNo, com.google.protobuf.Message message) {
+    // TODO: wire to actual dispatcher once Jakarta path is complete
   }
 }

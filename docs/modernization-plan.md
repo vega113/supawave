@@ -607,6 +607,18 @@ Task P6-T3: MongoDB driver modernization (scoped)
 - DoD:
   - Spike compiles; adapters implemented; config flag can switch between old/new providers; basic integration test passes with MongoDB 4.x.
 
+Task P6-T6: Evaluate and replace legacy OAuth libraries
+- Status: Planned
+- Goal: Audit usage of net.oauth.core (oauth-provider/oauth/oauth-consumer @ 20100601-atlassian-2) and replace with modern libraries or remove if unused.
+- Steps:
+  1) Grep usages across server/client for net.oauth.* APIs; confirm runtime call paths.
+  2) If needed, prefer maintained alternatives (e.g., OAuth 1.0/2.0 via ScribeJava or Spring Security OAuth) and scope minimal replacements.
+  3) Add -PexcludeLegacyOAuth Gradle switch (done) to omit legacy deps during evaluation.
+- Tests:
+  - Build without legacy deps using -PexcludeLegacyOAuth and run smoke; add targeted tests if functionality remains required.
+- DoD:
+  - Either removed with no functional loss or replaced with a modern, maintained library; dependencies documented.
+
 Task P6-T4: Guava upgrade strategy (scoped)
 - Status: Planned
 - Goal: Server-side can move to modern Guava; client-side guava-gwt is complicated.

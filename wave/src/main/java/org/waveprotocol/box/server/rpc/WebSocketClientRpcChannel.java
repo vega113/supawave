@@ -137,24 +137,42 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       LOG.severe("Unable to create ws:// uri from given address (" + inetAddress + ")", e);
       throw new IllegalStateException(e);
     }
-    WebSocketClient client = new WebSocketClient();
-    client.setConnectTimeout(10_000);
-    boolean started = false;
-    try {
-      client.start();
-      started = true;
-      ClientUpgradeRequest request = new ClientUpgradeRequest();
-      // Bound the connect wait; if it times out, ensure cleanup below
-      client.connect(clientChannel, uri, request).get(15, TimeUnit.SECONDS);
-      return client;
-    } catch (Exception ex) {
-      // Best-effort cleanup on failure to avoid leaked selectors/threads
-      if (started) {
-        try { client.stop(); } catch (Exception stopEx) {
-          LOG.warning("WebSocket client stop() failed during cleanup", stopEx);
+    int attempts = 3;
+    final int connectTimeoutMs = Integer.getInteger("wave.websocket.connectTimeoutMs", 10_000);
+    final int connectWaitMs = Integer.getInteger("wave.websocket.connectWaitMs", 15_000);
+    final int maxBackoffMs = Integer.getInteger("wave.websocket.maxBackoffMs", 8_000);
+    final double jitterFraction = Double.parseDouble(System.getProperty("wave.websocket.jitterFraction", "0.2"));
+    long backoffMs = 1000;
+    Exception last = null;
+    for (int i = 1; i <= attempts; i++) {
+      WebSocketClient client = new WebSocketClient();
+      client.setConnectTimeout(connectTimeoutMs);
+      boolean started = false;
+      try {
+        client.start();
+        started = true;
+        ClientUpgradeRequest request = new ClientUpgradeRequest();
+        client.connect(clientChannel, uri, request).get(connectWaitMs, TimeUnit.MILLISECONDS);
+        return client; // success
+      } catch (Exception ex) {
+        last = ex;
+        LOG.warning("WebSocket connect attempt " + i + " failed", ex);
+        if (started) {
+          try { client.stop(); } catch (Exception stopEx) {
+            LOG.warning("WebSocket client stop() failed during cleanup", stopEx);
+          }
+        }
+        if (i < attempts) {
+          long sleepMs = backoffMs;
+          if (jitterFraction > 0) {
+            double r = (Math.random() * 2 * jitterFraction) - jitterFraction; // [-jitter,+jitter]
+            sleepMs = Math.max(0, (long) (backoffMs * (1.0 + r)));
+          }
+          try { Thread.sleep(sleepMs); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+          backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
         }
       }
-      throw new IOException(ex);
     }
+    throw new IOException(last);
   }
 }

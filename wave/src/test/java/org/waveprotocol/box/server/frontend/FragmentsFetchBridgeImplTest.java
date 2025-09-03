@@ -24,13 +24,13 @@ import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
@@ -49,7 +49,8 @@ public final class FragmentsFetchBridgeImplTest {
 
     // Mock committed snapshot version
     HashedVersion hv = HashedVersion.unsigned(123L);
-    ReadableWaveletDataStub data = new ReadableWaveletDataStub(waveId, waveletId, hv);
+    ReadableWaveletDataStub data = new ReadableWaveletDataStub(waveId, waveletId, hv)
+        .addDoc("b+1", new ReadableBlipDataStub(ParticipantId.ofUnsafe("a@example.com"), 111L));
     CommittedWaveletSnapshot snap = new CommittedWaveletSnapshot(data, hv);
     when(provider.getSnapshot(org.mockito.ArgumentMatchers.any())).thenReturn(snap);
 

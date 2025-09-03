@@ -138,6 +138,19 @@ public class ServerMain {
           bind(Config.class).toInstance(config);
           bind(Key.get(String.class, Names.named(CoreSettingsNames.WAVE_SERVER_DOMAIN)))
               .toInstance(config.getString("core.wave_server_domain"));
+          // Apply WebSocket tunables to system props for internal client usage
+          try {
+            if (config.hasPath("wave.websocket.connectTimeoutMs"))
+              System.setProperty("wave.websocket.connectTimeoutMs", Integer.toString(config.getInt("wave.websocket.connectTimeoutMs")));
+            if (config.hasPath("wave.websocket.connectWaitMs"))
+              System.setProperty("wave.websocket.connectWaitMs", Integer.toString(config.getInt("wave.websocket.connectWaitMs")));
+            if (config.hasPath("wave.websocket.maxBackoffMs"))
+              System.setProperty("wave.websocket.maxBackoffMs", Integer.toString(config.getInt("wave.websocket.maxBackoffMs")));
+            if (config.hasPath("wave.websocket.jitterFraction"))
+              System.setProperty("wave.websocket.jitterFraction", Double.toString(config.getDouble("wave.websocket.jitterFraction")));
+          } catch (Throwable t) {
+            LOG.warning("Failed to apply wave.websocket config to system properties", t);
+          }
         }
       };
       run(coreSettings);

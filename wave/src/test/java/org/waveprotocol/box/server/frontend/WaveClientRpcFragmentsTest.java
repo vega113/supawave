@@ -50,7 +50,8 @@ public final class WaveClientRpcFragmentsTest {
             @Override
             public CommittedWaveletSnapshot getSnapshot(WaveletName wn) {
                 // Provide a minimal committed snapshot for the handler's committed version lookup
-                ReadableWaveletData data = new ReadableWaveletDataStub(wn.waveId, wn.waveletId, HashedVersion.unsigned(7));
+                ReadableWaveletData data = new ReadableWaveletDataStub(wn.waveId, wn.waveletId, HashedVersion.unsigned(7))
+                    .addDoc("b+1", new ReadableBlipDataStub(ParticipantId.ofUnsafe("a@example.com"), 100L));
                 return new CommittedWaveletSnapshot(data, HashedVersion.unsigned(7));
             }
 
@@ -138,13 +139,53 @@ public final class WaveClientRpcFragmentsTest {
     assertTrue("Expected fragments in ProtocolWaveletUpdate", seen[0]);
   }
 
+  @Test
+  public void openEmitsFragmentsForDeltaOnlyUpdate() {
+    // Frontend stub calls listener.onUpdate with no snapshot but with committedVersion
+    ClientFrontend frontend = new ClientFrontend() {
+      @Override public void submitRequest(ParticipantId u, WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, String c, WaveletProvider.SubmitRequestListener l) {}
+      @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, OpenListener listener) {
+        WaveletId wid = WaveletId.of(waveId.getDomain(), "conv+root");
+        WaveletName wn = WaveletName.of(waveId, wid);
+        listener.onUpdate(wn, null, java.util.Collections.emptyList(), HashedVersion.unsigned(5), null, "ch-2");
+      }
+    };
+    WaveClientRpcImpl rpc = WaveClientRpcImpl.create(frontend, false);
+    ProtocolOpenRequest request = ProtocolOpenRequest.newBuilder()
+        .setParticipantId("user@example.com")
+        .setWaveId(ModernIdSerialiser.INSTANCE.serialiseWaveId(WaveId.of("example.com", "w+test2")))
+        .build();
+
+    ServerRpcController controller = new ServerRpcController() {
+      @Override public ParticipantId getLoggedInUser() { return ParticipantId.ofUnsafe("user@example.com"); }
+      @Override public void cancel() {}
+      @Override public String errorText() { return null; }
+      @Override public boolean failed() { return false; }
+      @Override public boolean isCanceled() { return false; }
+      @Override public void notifyOnCancel(com.google.protobuf.RpcCallback<Object> callback) {}
+      @Override public void reset() {}
+      @Override public void setFailed(String reason) {}
+      @Override public void startCancel() {}
+      @Override public void run() {}
+    };
+
+    final boolean[] seen = { false };
+    RpcCallback<ProtocolWaveletUpdate> cb = update -> {
+      if (update.hasFragments()) seen[0] = true;
+    };
+
+    rpc.open(controller, request, cb);
+    assertTrue("Expected fragments in ProtocolWaveletUpdate for delta-only update", seen[0]);
+  }
+
     private static WaveClientRpcImpl makeWaveClientRpc() {
         ClientFrontend frontend = new ClientFrontend() {
           @Override public void submitRequest(ParticipantId u, WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, String c, WaveletProvider.SubmitRequestListener l) {}
           @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, OpenListener listener) {
             WaveletId wid = WaveletId.of(waveId.getDomain(), "conv+root");
             WaveletName wn = WaveletName.of(waveId, wid);
-            ReadableWaveletData data = new ReadableWaveletDataStub(waveId, wid, HashedVersion.unsigned(9));
+            ReadableWaveletData data = new ReadableWaveletDataStub(waveId, wid, HashedVersion.unsigned(9))
+                .addDoc("b+1", new ReadableBlipDataStub(ParticipantId.ofUnsafe("a@example.com"), 100L));
             CommittedWaveletSnapshot snap = new CommittedWaveletSnapshot(data, HashedVersion.unsigned(9));
             listener.onUpdate(wn, snap, java.util.Collections.emptyList(), HashedVersion.unsigned(9), null, "ch-1");
           }

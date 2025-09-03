@@ -19,6 +19,8 @@
 package org.waveprotocol.box.server.frontend;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
@@ -30,13 +32,15 @@ import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 /** Minimal stub implementing ReadableWaveletData for tests. */
 final class ReadableWaveletDataStub implements ReadableWaveletData {
   private final WaveId waveId; private final WaveletId waveletId; private final HashedVersion hv;
+  private final Map<String, ReadableBlipData> docs = new LinkedHashMap<>();
   ReadableWaveletDataStub(WaveId w, WaveletId wid, HashedVersion hv) { this.waveId=w; this.waveletId=wid; this.hv=hv; }
+  ReadableWaveletDataStub addDoc(String id, ReadableBlipData blip) { docs.put(id, blip); return this; }
   @Override public WaveId getWaveId() { return waveId; }
   @Override public WaveletId getWaveletId() { return waveletId; }
   @Override public HashedVersion getHashedVersion() { return hv; }
   // Unused methods return defaults
-  @Override public Set<String> getDocumentIds() { return Collections.emptySet(); }
-  @Override public ReadableBlipData getDocument(String docId) { return null; }
+  @Override public Set<String> getDocumentIds() { return docs.keySet(); }
+  @Override public ReadableBlipData getDocument(String docId) { return docs.get(docId); }
   @Override public long getLastModifiedTime() { return 0; }
   @Override public long getCreationTime() { return 0; }
   @Override public ParticipantId getCreator() { return ParticipantId.ofUnsafe("stub@example.com"); }

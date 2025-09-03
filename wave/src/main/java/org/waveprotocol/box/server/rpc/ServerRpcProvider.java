@@ -286,8 +286,7 @@ public class ServerRpcProvider {
       String[] resourceBases, Executor threadPool, SessionManager sessionManager,
       SessionHandler sessionHandler, String sessionStoreDir,
       boolean sslEnabled, String sslKeystorePath, String sslKeystorePassword,
-      boolean enableForwardedHeaders, boolean nativeServletRegistration,
-      boolean enableProgrammaticPoc) {
+      boolean enableForwardedHeaders) {
     this.httpAddresses = httpAddresses;
     this.resourceBases = resourceBases;
     this.threadPool = threadPool;
@@ -298,7 +297,6 @@ public class ServerRpcProvider {
     this.sslKeystorePath = sslKeystorePath;
     this.sslKeystorePassword = sslKeystorePassword;
     this.enableForwardedHeaders = enableForwardedHeaders;
-    // experimental flags removed; keep parameters for binary compatibility but ignore
   }
 
   /**
@@ -311,7 +309,7 @@ public class ServerRpcProvider {
       Executor executor) {
     this(httpAddresses, resourceBases, executor,
         sessionManager, sessionHandler, sessionStoreDir, sslEnabled, sslKeystorePath,
-        sslKeystorePassword, false, false, false);
+        sslKeystorePassword, false);
   }
 
   @Inject
@@ -329,9 +327,7 @@ public class ServerRpcProvider {
             config.getString("security.ssl_keystore_path"),
             config.getString("security.ssl_keystore_password"),
             config.hasPath("network.enable_forwarded_headers") &&
-                config.getBoolean("network.enable_forwarded_headers"),
-            false,
-            false);
+                config.getBoolean("network.enable_forwarded_headers"));
   }
 
   public void startWebSocketServer(final Injector injector) {

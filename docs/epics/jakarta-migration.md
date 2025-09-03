@@ -10,14 +10,10 @@ Status
   2) Introduce a jakarta layer (Jetty 12) and migrate servlets/filters to jakarta.servlet.*
 
 Scope and subtasks
-1) Spike: Replace guice-servlet with programmatic registration (keep Guice DI)
-   - Goal: decouple from javax.servlet Filter/Servlet bindings in guice-servlet
-   - Approach:
-     - Introduce an experimental flag experimental.native_servlet_registration
-     - Use native registration in ServerRpcProvider when the flag is enabled
-     - Ensure Filters/Servlets are bound as @Singleton in Guice; instantiate via child injector
-     - Verify URL mappings and init params parity with the current module
-   - Exit criteria: parity smoke checks pass with native registration enabled
+1) Servlet integration under Jakarta
+   - Goal: keep Guice DI while wiring servlets/filters reliably under both javax (legacy) and jakarta (EE10).
+   - Approach (final): continue using Guice listener + GuiceFilter for registration; remove temporary flags and POC.
+   - Status: completed. Experimental flags removed and codepath simplified.
 
 2) Prepare for jakarta namespace switch
    - Identify packages to migrate: servlets, filters, WebSockets, any javax.* usages
@@ -41,11 +37,9 @@ Scope and subtasks
 
 6) Docs and rollout
    - Update docs/jetty-migration.md with the path and decisions (done)
-   - Document experimental flag usage and fallback path
-   - Provide operator notes for TLS, HTTP/2, and access logs
+   - Provide operator notes for TLS, HTTP/2, access logs, and forwarded headers (done)
 
 Operator flags and configs
-- experimental.native_servlet_registration: boolean (default false)
 - security.enable_ssl: boolean
 - security.ssl_keystore_path: string
 - security.ssl_keystore_password: string or env var (e.g., ${?WAVE_SSL_KEYSTORE_PASSWORD})
@@ -58,4 +52,3 @@ Timeline (proposed)
 - Week 1-2: Spike native registration; merge behind flag
 - Week 3-4: Jetty 12 branch with jakarta compile; basic smoke checks
 - Week 5+: Complete migration and remove javax path, or maintain both via profiles
-

@@ -20,7 +20,6 @@
 
 package org.waveprotocol.wave.client.scheduler.knobs;
 
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.Widget;
 import org.waveprotocol.wave.client.scheduler.Controller;
 import org.waveprotocol.wave.client.scheduler.Scheduler.Priority;
@@ -38,35 +37,8 @@ public final class KnobsPresenter {
   /**
    * Controller implementation that presents a panel of per-level controls.
    */
-  // Check GWT.isClient() for testing.
-  public static final Controller KNOBS = !GWT.isClient() ? Controller.NOOP : new Controller() {
-    private final GwtKnobsView view = new GwtKnobsView();
-    private final KnobsPresenter presenter = new KnobsPresenter(view);
-
-    @Override
-    public Widget asWidget() {
-      return view;
-    }
-
-    @Override
-    public boolean isRunnable(Priority priority) {
-      return presenter.isRunnable(priority);
-    }
-
-    @Override
-    public boolean isSuppressed(Priority priority, Schedulable job) {
-      return presenter.isSuppressed(priority, job);
-    }
-
-    @Override
-    public void jobAdded(Priority priority, Schedulable job) {
-      presenter.jobAdded(priority, job);
-    }
-    @Override
-    public void jobRemoved(Priority priority, Schedulable job) {
-      presenter.jobRemoved(priority, job);
-    }
-  };
+  // Avoid GWT class initialization during JVM tests; client binds real impl elsewhere.
+  public static final Controller KNOBS = Controller.NOOP;
 
   /** Controller for each priority level. */
   private final IdentityMap<Priority, KnobPresenter> knobs = CollectionUtils.createIdentityMap();

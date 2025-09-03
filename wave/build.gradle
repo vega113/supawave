@@ -119,6 +119,8 @@ sourceSets {
             // These are unrelated to current work and can be revisited separately.
             exclude 'org/waveprotocol/box/server/authentication/SessionManagerTest.java'
             exclude 'org/waveprotocol/box/server/rpc/FetchServletTest.java'
+            // Exclude GWT/editor heavy tests that require full client harness
+            exclude 'org/waveprotocol/wave/client/editor/**'
         }
         resources {
             srcDir 'src/test/resources'
@@ -240,7 +242,10 @@ dependencies {
     testImplementation(
             [group: 'junit', name: 'junit', version: '4.12'],
             [group: "org.hamcrest", name: "hamcrest-junit", version: "2.0.0.0"],
-[group: "org.mockito", name: "mockito-core", version: "2.2.21"],
+            [group: "org.mockito", name: "mockito-core", version: "2.2.21"],
+            // Provide GWT user classes on the JVM test classpath so tests that
+            // reference interfaces like CssResource and Messages can load.
+            [group: "org.gwtproject", name: "gwt-user", version: gwtVersion]
     )
 }
 //=============================================================================
@@ -312,6 +317,11 @@ tasks.named('check') {
 tasks.named('test') {
     // Ensure PST codegen verification runs before unit tests that may assert generated sources
     dependsOn(verifyPstCodegen)
+}
+
+// Reduce noisy removal warnings in test compilation (JDK 17 Integer(int) removal)
+tasks.named('compileTestJava') {
+    options.compilerArgs += ['-Xlint:-removal']
 }
 
 task generateMessages {

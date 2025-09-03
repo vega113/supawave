@@ -91,7 +91,7 @@ public interface ConversationBlip {
 
     @Override
     public final int hashCode() {
-      return 37 * getThread().hashCode() + new Integer(location).hashCode();
+      return 37 * getThread().hashCode() + Integer.hashCode(location);
     }
   }
 

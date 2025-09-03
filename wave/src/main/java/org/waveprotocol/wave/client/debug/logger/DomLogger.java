@@ -20,7 +20,6 @@
 package org.waveprotocol.wave.client.debug.logger;
 
 import com.google.gwt.core.client.Duration;
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.DivElement;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
@@ -95,9 +94,8 @@ public class DomLogger extends AbstractLogger implements NonNotifyingLogger {
    private static String latestFatalError = "";
 
    static {
-     // TODO(user): prevent exposing this hook if not in ll=debug mode.
-     // Surprisingly doing a LogLevel.showDebug() at this location always returns false.
-     if (GWT.isClient()) {
+     // Avoid hard dependency on GWT during JVM tests.
+     if (gwtIsClientSafe()) {
        DomLogger.nativeSetupWebDriverTestPins(WEBDRIVER_GET_FATAL_ERROR_HOOK_NAME);
      }
    }
@@ -150,19 +148,21 @@ public class DomLogger extends AbstractLogger implements NonNotifyingLogger {
   private static final String COOKIE_DEBUGLOG_MODULES = "wdm";
 
   static {
-    if (GWT.isClient()) {
-      RESOURCES = GWT.create(Resources.class);
-      // Inject the CSS once.
-      StyleInjector.inject(RESOURCES.css().getText());
-      // NOTE(user): GWT.create fails if called outside GWTTestCase or the actual client.
-
-      // Get enabled log modules from cookie
-      String cookie = Cookies.getCookie(COOKIE_DEBUGLOG_MODULES);
-      if (cookie != null) {
-        String[] cookies = cookie.split("\\|");
-        for (int i = 1; i < cookies.length; i++) {
-          enabledModules.add(cookies[i]);
+    if (gwtIsClientSafe()) {
+      try {
+        // Use reflection to avoid static GWT initialization failures in JVM tests
+        Class<?> gwt = Class.forName("com.google.gwt.core.client.GWT");
+        RESOURCES = (Resources) gwt.getMethod("create", Class.class).invoke(null, Resources.class);
+        StyleInjector.inject(RESOURCES.css().getText());
+        String cookie = Cookies.getCookie(COOKIE_DEBUGLOG_MODULES);
+        if (cookie != null) {
+          String[] cookies = cookie.split("\\|");
+          for (int i = 1; i < cookies.length; i++) {
+            enabledModules.add(cookies[i]);
+          }
         }
+      } catch (Throwable ignored) {
+        // Fall through with no DOM/CSS setup in non-GWT runtime
       }
     }
   }
@@ -290,8 +290,18 @@ public class DomLogger extends AbstractLogger implements NonNotifyingLogger {
       triggerOnNewLogger(module);
     }
     this.module = module;
-    if (GWT.isClient()) {
+    if (gwtIsClientSafe()) {
       setupNativeLogging(module);
+    }
+  }
+
+  private static boolean gwtIsClientSafe() {
+    try {
+      Class<?> gwt = Class.forName("com.google.gwt.core.client.GWT");
+      Object isClient = gwt.getMethod("isClient").invoke(null);
+      return Boolean.TRUE.equals(isClient);
+    } catch (Throwable t) {
+      return false;
     }
   }
 
@@ -556,7 +566,7 @@ public class DomLogger extends AbstractLogger implements NonNotifyingLogger {
     // For production and unit-tests, don't log full stack traces:
     // NOTE(user): LogLevel.showErrors() indirectly causes a GWT.create, so
     //     guard by GWT.isClient().
-    boolean shouldShowErrorDetail = GWT.isClient() && LogLevel.showErrors();
+    boolean shouldShowErrorDetail = gwtIsClientSafe() && LogLevel.showErrors();
 
     // Only log in client/GWTTestCases when logging is not disabled.
     return shouldShowErrorDetail
@@ -723,7 +733,7 @@ public class DomLogger extends AbstractLogger implements NonNotifyingLogger {
     }
   }
 
-  static final NumberFormat TIMESTAMP_FORMAT = (GWT.isClient() ?
+  static final NumberFormat TIMESTAMP_FORMAT = (gwtIsClientSafe() ?
       NumberFormat.getFormat("0000000000.000") : null);
 
   /**

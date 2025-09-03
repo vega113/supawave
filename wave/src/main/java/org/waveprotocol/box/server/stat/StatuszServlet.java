@@ -40,6 +40,7 @@ public class StatuszServlet extends HttpServlet {
   private final String SHOW_SESSION_MEASUREMENTS = "session-measurements";
   private final String SHOW_GLOBAL_MEASUREMENTS = "global-measurements";
   private final String SHOW_STATS = "stats";
+  private final String SHOW_FRAGMENTS = "fragments";
 
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -62,6 +63,9 @@ public class StatuszServlet extends HttpServlet {
       case SHOW_STATS:
         writeStats(writer);
         break;
+      case SHOW_FRAGMENTS:
+        writeFragments(writer);
+        break;
     }
   }
 
@@ -69,6 +73,7 @@ public class StatuszServlet extends HttpServlet {
     writer.write("<a href=\"?show=" + SHOW_SESSION_MEASUREMENTS + "\">Session measurements</a>");
     writer.write(" | <a href=\"?show=" + SHOW_GLOBAL_MEASUREMENTS + "\">Global measurements</a>");
     writer.write(" | <a href=\"?show=" + SHOW_STATS + "\">Stats</a>");
+    writer.write(" | <a href=\"?show=" + SHOW_FRAGMENTS + "\">Fragments</a>");
   }
 
   protected void writeSessionMeasurements(PrintWriter writer) {
@@ -84,5 +89,29 @@ public class StatuszServlet extends HttpServlet {
   protected void writeStats(PrintWriter writer) {
     writer.write(Timing.renderTitle("Stats", 2));
     writer.write(Timing.renderStats());
+  }
+
+  protected void writeFragments(PrintWriter writer) {
+    writer.write(Timing.renderTitle("Fragments Metrics", 2));
+    try {
+      Class<?> cls = Class.forName("org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics");
+      boolean enabled = (Boolean) cls.getMethod("isEnabled").invoke(null);
+      java.util.concurrent.atomic.AtomicLong emissionCount =
+          (java.util.concurrent.atomic.AtomicLong) cls.getField("emissionCount").get(null);
+      java.util.concurrent.atomic.AtomicLong emissionErrors =
+          (java.util.concurrent.atomic.AtomicLong) cls.getField("emissionErrors").get(null);
+      java.util.concurrent.atomic.AtomicLong applierEvents =
+          (java.util.concurrent.atomic.AtomicLong) cls.getField("applierEvents").get(null);
+      java.util.concurrent.atomic.AtomicLong applierDurationsMs =
+          (java.util.concurrent.atomic.AtomicLong) cls.getField("applierDurationsMs").get(null);
+      writer.write("<pre>enabled=" + enabled + "\n" +
+          "emissionCount=" + emissionCount.get() + "\n" +
+          "emissionErrors=" + emissionErrors.get() + "\n" +
+          "applierEvents=" + applierEvents.get() + "\n" +
+          "applierDurationsMs=" + applierDurationsMs.get() +
+          "</pre>");
+    } catch (Throwable t) {
+      writer.write("<pre>Fragments metrics unavailable: " + t + "</pre>");
+    }
   }
 }

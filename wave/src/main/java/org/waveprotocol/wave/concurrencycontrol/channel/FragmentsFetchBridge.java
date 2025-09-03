@@ -19,14 +19,12 @@
 package org.waveprotocol.wave.concurrencycontrol.channel;
 
 import java.util.List;
-import java.util.Map;
-import org.waveprotocol.box.server.persistence.blocks.VersionRange;
+import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
 import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.model.id.WaveletName;
 
 /** Bridge used by ViewChannelImpl to fetch server-side fragment ranges. */
 public interface FragmentsFetchBridge {
-  Map<SegmentId, VersionRange> fetch(WaveletName waveletName, List<SegmentId> segments,
-                                     long startVersion, long endVersion);
+  FragmentsPayload fetch(WaveletName waveletName, List<SegmentId> segments,
+                         long startVersion, long endVersion);
 }
-

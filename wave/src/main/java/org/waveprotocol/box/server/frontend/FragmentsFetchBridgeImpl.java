@@ -19,12 +19,14 @@
 package org.waveprotocol.box.server.frontend;
 
 import com.typesafe.config.Config;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.waveprotocol.box.server.persistence.blocks.VersionRange;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsFetchBridge;
+import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
 import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.util.logging.Log;
@@ -33,23 +35,30 @@ import org.waveprotocol.wave.util.logging.Log;
 public final class FragmentsFetchBridgeImpl implements FragmentsFetchBridge {
   private static final Log LOG = Log.get(FragmentsFetchBridgeImpl.class);
   private final FragmentsViewChannelHandler handler;
+  private final WaveletProvider provider;
   private final boolean enabled;
 
   public FragmentsFetchBridgeImpl(WaveletProvider provider, Config config) {
+    this.provider = provider;
     this.handler = FragmentsViewChannelHandler.create(provider);
     this.enabled = handler.isEnabled();
   }
 
   @Override
-  public Map<SegmentId, VersionRange> fetch(WaveletName waveletName, List<SegmentId> segments,
+  public FragmentsPayload fetch(WaveletName waveletName, List<SegmentId> segments,
       long startVersion, long endVersion) {
-    if (!enabled) return java.util.Collections.emptyMap();
+    if (!enabled) return FragmentsPayload.of(0, startVersion, endVersion, java.util.Collections.emptyList());
     try {
-      return handler.fetchFragments(waveletName, segments, startVersion, endVersion);
+      Map<SegmentId, VersionRange> ranges = handler.fetchFragments(waveletName, segments, startVersion, endVersion);
+      long snapshotVersion = FragmentsFetcherCompat.getCommittedVersion(provider, waveletName);
+      List<FragmentsPayload.Range> list = new ArrayList<>(ranges.size());
+      for (Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
+        list.add(new FragmentsPayload.Range(e.getKey(), e.getValue().from(), e.getValue().to()));
+      }
+      return FragmentsPayload.of(snapshotVersion, startVersion, endVersion, list);
     } catch (WaveServerException e) {
       LOG.fine("FetchFragments bridge error: " + e.getMessage());
-      return java.util.Collections.emptyMap();
+      return FragmentsPayload.of(0, startVersion, endVersion, java.util.Collections.emptyList());
     }
   }
 }
-

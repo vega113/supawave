@@ -103,6 +103,14 @@ public interface ViewChannel {
     void onUpdate(WaveletId waveletId, List<TransformedWaveletDelta> waveletDeltas,
         HashedVersion lastCommittedVersion, HashedVersion currentSignedVersion)
         throws ChannelException;
+
+    /**
+     * Experimental: server-side fragments window arrived.
+     * Default no-op; implementations may override when feature flag is enabled.
+     */
+    default void onFragments(WaveletId waveletId,
+                             org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload payload)
+        throws ChannelException { }
   }
 
   /**

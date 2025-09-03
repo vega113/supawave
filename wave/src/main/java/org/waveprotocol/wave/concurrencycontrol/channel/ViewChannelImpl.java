@@ -200,10 +200,13 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
     }
     try {
       WaveletName wn = WaveletName.of(this.waveId, waveletId);
-      java.util.Map<org.waveprotocol.wave.model.id.SegmentId, org.waveprotocol.box.server.persistence.blocks.VersionRange> ranges =
+      org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload payload =
           bridge.fetch(wn, segments, startVersion, endVersion);
       if (logger.trace().shouldLog()) {
-        logger.trace().log("fetchFragments: wn=" + wn + " ranges=" + ranges);
+        logger.trace().log("fetchFragments: wn=" + wn + " payload ranges=" + payload.ranges.size());
+      }
+      if (openListener != null) {
+        openListener.onFragments(waveletId, payload);
       }
     } catch (Throwable t) {
       // Do not propagate; this is experimental and optional

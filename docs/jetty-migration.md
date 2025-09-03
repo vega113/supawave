@@ -6,8 +6,13 @@ Date: 2025-09-02
 
 Status Summary
 - Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
-- Decision: Target Jetty 12 (Jakarta) recorded on 2025-09-02; DI approach will replace guice-servlet with programmatic registration while keeping Guice core.
-- In Progress: Stage 2 — Jakarta migration (Jetty 12 path). Sessions now use Jetty 12 classes; WebSocket migration started with Jakarta placeholders to keep the build compiling.
+- Decision: Target Jetty 12 (Jakarta) recorded on 2025-09-02; DI approach replaces guice-servlet on the Jakarta path with programmatic registration while keeping Guice core.
+- In Progress: Stage 2 — Jakarta migration (Jetty 12 path).
+  - EE10 server bootstrap in place: ServletContextHandler, DefaultServlet, GzipHandler.
+  - Static resources: ResourceCollection with cache/no-cache splits for /static and /webclient.
+  - WebSockets: Programmatic @ServerEndpoint("/socket") with per-connection dispatch; no echo fallback; DI via ServerEndpointConfig.Configurator with validation.
+  - SessionManager (Jakarta override): reflective, flag-gated lookup for compatibility.
+  - Tests: jakartaTest smoke for echo; more end-to-end tests planned.
 
 See also
 - Configuration flags and temporary migration toggles: docs/CONFIG_FLAGS.md
@@ -31,8 +36,15 @@ Target Options
 
 Recommendation (staged)
 1) Stage 1 (Completed): Adopt Jetty 9.4.x (javax) and modernize: SessionHandler + DefaultSessionCache + FileSessionDataStore, SslConnectionFactory + HttpConfiguration + SecureRequestCustomizer, GzipHandler, security headers (CSP/Referrer-Policy/X-Content-Type-Options) with optional HSTS, forwarded headers support, access logs, static caching, and health endpoints.
-2) Stage 2 (Planned): Plan and execute Jakarta migration (Jetty 12 preferred) when guice-servlet or alternative strategy is settled.
-   - Status: Sessions migrated to Jetty 12 APIs; WebSocket classes added as placeholders and will be replaced with Jetty 12 websocket modules next.
+2) Stage 2 (In Progress): Execute Jakarta migration (Jetty 12).
+   - Status: EE10 bootstrap, endpoint dispatch, and DI are implemented. Forwarded headers + access logs parity and session lookup compatibility are next.
+
+Timeline (as of 2025-09-03)
+- T1 (done): EE10 servlet handler, static resources, gzip, basic /socket.
+- T2 (done): Programmatic endpoint + per-connection dispatch; removed echo fallback; DI validation.
+- T3 (by 2025-09-15): Forwarded headers/access logs parity; finalize DI wiring; add jakartaTest coverage.
+- T4 (by 2025-09-22): Session lookup compatibility layer, flag docs + IT.
+- T5 (by 2025-09-29): Stabilize and retire Jakarta stubs; promote Jakarta path for -PjettyFamily=jakarta.
 
 Scope and Impact Areas
 - Build dependencies (wave/build.gradle):

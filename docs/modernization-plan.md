@@ -38,7 +38,7 @@ At‑a‑Glance Checklist
 - [x] P2‑T6: Testcontainers reliability for Mongo ITs
 - [x] P5‑T1: Jakarta migration decision
 - [ ] P5‑T2: Jetty deps upgrade to Jakarta (Jetty 12)
-- [ ] P5‑T3: Servlet/Jakarta code migration
+- [ ] P5‑T3: Servlet/Jakarta code migration (in progress)
 - [ ] Phase 6: Library upgrades (protobuf/commons/mongo/guava)
 - [ ] P5‑T4: Remove temporary Jakarta migration scaffolding (flags + POC classes)
 - [ ] Phase 7: Packaging & DX (dist/Docker)
@@ -511,7 +511,7 @@ Task P5-T2: Upgrade Jetty dependencies
     - New source set: `src/jakarta/java` containing `org.waveprotocol.box.server.poc.JakartaJettySmoke` (minimal embedded server).
     - New deps (isolated): `org.eclipse.jetty:jetty-server:${jettyEe10Version}`, `org.eclipse.jetty.ee10:jetty-ee10-servlet:${jettyEe10Version}`, `org.eclipse.jetty.ee10:jetty-ee10-webapp:${jettyEe10Version}`, and `jakarta.servlet:jakarta.servlet-api:6.0.0`.
     - New tasks: `:wave:compileJakarta` (compiles POC) and `:wave:runJakartaPoc` (runs on port 9899). CI compiles POC non‑blocking.
-  - Next: swap main server deps to Jetty 12 behind a build flag, then proceed with code migration (P5‑T3).
+  - 2025-09-03: Jakarta (-PjettyFamily=jakarta) server bootstrap and endpoint dispatch are working; continue under P5‑T3 for servlet import migration and parity features.
 - Goal: Replace 9.4.x (current) with chosen target (Jetty 12 / Jakarta) in a controlled, non-breaking way.
 - Steps:
   1) Update org.eclipse.jetty:* dependencies in wave/build.gradle.
@@ -527,16 +527,13 @@ Task P5-T2: Upgrade Jetty dependencies
 Task P5-T3: Migrate servlet code and configuration (if Jakarta)
 - Status: In Progress
 - Work Log:
-  - 2025-09-02: Began WebSocket migration. Added Jakarta overrides for:
-    - WebSocketChannelImpl (placeholder extends WebSocketChannel; send not implemented yet).
-    - WebSocketClientRpcChannel (placeholder; constructor/methods throw UnsupportedOperationException).
-  - Rationale: Keep Jakarta build compiling while we migrate to Jetty 12 websocket APIs incrementally.
-  - Also swapped ServerModule (Jakarta override) to use real Jetty 12 session classes and removed temporary session stubs.
+  - 2025-09-03: EE10 bootstrap in ServerRpcProvider (Jakarta path) with multi-address binding, ResourceCollection static handling, GzipHandler, and a programmatic @ServerEndpoint("/socket"). Endpoint uses per-connection dispatch (no static globals), DI via ServerEndpointConfig.Configurator with validation, and secure error handling (no echo fallback). Added soft-fail framing: first parse error logged, second closes the session.
 - Goal: Refactor imports and any programmatic registrations to jakarta.*
 - Steps:
   1) Update imports across server code.
   2) Update web.xml or equivalent to Jakarta schema if used.
-  3) Replace Jetty 9 websocket APIs with Jetty 12 equivalents; then remove Jakarta websocket placeholders.
+  3) Replace remaining javax.* imports on Jakarta path and validate runtime behavior; parity tasks below.
+  4) Parity tasks (target 2025-09-15): Forwarded headers and access logs on Jakarta path; DI validation tests.
 - Tests:
   - Integration smoke (P2-T5) must pass.
 - AI Agent Guidance:

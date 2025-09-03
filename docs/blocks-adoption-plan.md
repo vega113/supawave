@@ -125,7 +125,7 @@ Goal: Provide a basic implementation that can return intervals reconstructed fro
 
 ## Phase 3 — FragmentsFetcher & Request (server logic)
 
-Status: planned
+Status: in_progress
 
 Goal: Port a compatible `FragmentsRequest` and `FragmentsFetcher` that compute VersionRanges using `SegmentWaveletState`.
 
@@ -152,15 +152,19 @@ Goal: Port a compatible `FragmentsRequest` and `FragmentsFetcher` that compute V
   - Using `SegmentWaveletState`, compute ranges for INDEX, MANIFEST, and a small set of blip segments around the viewport.
 
 - Implementation:
-  - Implement `FragmentsFetcher.fetchWavelet(...)` and `fetchFragmentsRequest(...)` with compatibility behavior:
-    - Stage 1: INDEX+MANIFEST at latest version; Stage 2: derive blip ranges using simple heuristics (e.g., N closest blips to visible start) until compatibility StartVersionHelper arrives.
-    - Respect a reply-size budget (bytes) if possible; otherwise “best-effort” in compat mode.
+  - Implemented `FragmentsFetcherCompat` helpers to:
+    - List blips + metadata from a snapshot.
+    - Compute manifest/document order and perform ordered slicing around a viewport.
+    - Build `FragmentsRequest` and compute `VersionRange`s (INDEX/MANIFEST + visible blips) with `computeRangesForSegments`.
+  - Added `FragmentsViewChannelHandler` (behind flag) and a `FragmentsFetchBridgeImpl` to expose ranges over ViewChannel for bring-up.
 
 - Tests:
-  - Integration (mock provider + compat state): verify ranges contain INDEX/MANIFEST and at least one blip segment when present, in both forward and backward directions.
+  - Unit: FragmentsRequestTest (builder validation), FragmentsOrderingTest (ordered slicing semantics).
+  - Integration-lite: FragmentsFetchBridgeImplTest validates snapshotVersion propagation and range mapping.
+  - RPC integration: WaveClientRpcFragmentsTest asserts fragments attach for both snapshot and delta-only updates when the handler is enabled.
 
 - DoD:
-  - Fetcher returns a FragmentsBuffer-like structure (or simple DTO) with segment intervals; safe under missing data.
+  - Compat fetcher returns reasonable ranges for INDEX/MANIFEST and visible blips based on snapshot; safe under missing data. Emission over RPC is gated and logs failures.
 
 -------------------------------------------------------------------------------
 
@@ -189,14 +193,14 @@ Goal: Replace `/fragments` stub with real fetcher-backed JSON; spec the future W
   - Follow-up: commit 51e7c932 (ordering/logging)
     - Added ASF header, robust ordering by (mtime,id), direction validation, and logging in compat fetcher.
 
-### Task 4.2 — Proto & RPC handler (spec only in this phase)
+### Task 4.2 — Proto & RPC handler (compat emission)
 
 - Implementation:
-  - Draft clientserver.proto additions (FetchFragmentsRequest/Response) compatible with wiab.pro.
-  - Add a no-op handler stub (behind flag) that returns an error until Phase 5.
+  - Added ProtocolFragments/ProtocolFragmentRange in waveclient-rpc.proto; ProtocolWaveletUpdate now carries optional `fragments`.
+  - WaveClientRpcImpl attaches a fragments window (INDEX/MANIFEST) during open updates when the handler is enabled. Failures log a warning and do not impact the stream.
 
 - DoD:
-  - Spec and stubs in place; not used by default.
+  - Clients receive `fragments` payload in both snapshot and delta-only updates under the feature flag.
 
 -------------------------------------------------------------------------------
 

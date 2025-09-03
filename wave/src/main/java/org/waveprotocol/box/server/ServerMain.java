@@ -294,6 +294,15 @@ public class ServerMain {
 
     ProtocolWaveClientRpc.Interface rpcImpl = WaveClientRpcImpl.create(frontend, false);
     server.registerService(ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
+    try {
+      org.waveprotocol.box.server.frontend.WaveClientRpcImpl.setFragmentsHandler(
+          new org.waveprotocol.box.server.frontend.FragmentsViewChannelHandler(
+              injector.getInstance(org.waveprotocol.box.server.waveserver.WaveletProvider.class),
+              injector.getInstance(com.typesafe.config.Config.class))
+      );
+    } catch (Throwable t) {
+      LOG.warning("Failed to wire FragmentsViewChannelHandler; fragments RPC disabled", t);
+    }
 
     // Optional: wire fragments fetch bridge for ViewChannelImpl
     try {
@@ -301,8 +310,8 @@ public class ServerMain {
           new org.waveprotocol.box.server.frontend.FragmentsFetchBridgeImpl(provider,
               injector.getInstance(com.typesafe.config.Config.class))
       );
-    } catch (Throwable ignored) {
-      // Non-fatal if bridge wiring fails
+    } catch (Throwable t) {
+      LOG.warning("Failed to wire FragmentsFetchBridge; ViewChannel.fetchFragments disabled", t);
     }
   }
 

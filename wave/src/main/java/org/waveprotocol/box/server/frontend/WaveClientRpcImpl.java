@@ -34,6 +34,7 @@ import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.rpc.ServerRpcController;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
+import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
@@ -44,8 +45,11 @@ import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
+import org.waveprotocol.box.server.persistence.blocks.VersionRange;
 
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -62,6 +66,12 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
 
   private final ClientFrontend frontend;
   private final boolean handleAuthentication;
+
+  // Optional: fragments handler to emit ProtocolFragments in updates
+  private static volatile FragmentsViewChannelHandler fragmentsHandler;
+  public static void setFragmentsHandler(FragmentsViewChannelHandler handler) {
+    fragmentsHandler = handler;
+  }
 
   /**
    * Creates a new RPC interface to the front-end.
@@ -139,6 +149,43 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                 builder.setCommitNotice(
                     CoreWaveletOperationSerializer.serialize(committedVersion));
               }
+            }
+            // Experimental: attach fragments window if enabled
+            try {
+              FragmentsViewChannelHandler fh = fragmentsHandler;
+              if (fh != null && fh.isEnabled()) {
+                long startV;
+                if (snapshot != null) {
+                  startV = snapshot.snapshot.getHashedVersion().getVersion();
+                } else if (committedVersion != null) {
+                  startV = committedVersion.getVersion();
+                } else {
+                  startV = 0L;
+                }
+                long endV = startV;
+                List<SegmentId> segs = new ArrayList<>();
+                segs.add(SegmentId.INDEX_ID);
+                segs.add(SegmentId.MANIFEST_ID);
+                java.util.Map<SegmentId, VersionRange> ranges =
+                    fh.fetchFragments(waveletName, segs, startV, endV);
+                org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragments.Builder fb =
+                    org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragments.newBuilder()
+                        .setSnapshotVersion(startV)
+                        .setStartVersion(startV)
+                        .setEndVersion(endV);
+                for (java.util.Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
+                  org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentRange r =
+                      org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentRange.newBuilder()
+                          .setSegment(e.getKey().asString())
+                          .setFrom(e.getValue().from())
+                          .setTo(e.getValue().to())
+                          .build();
+                  fb.addRange(r);
+                }
+                builder.setFragments(fb.build());
+              }
+            } catch (Throwable err) {
+              LOG.warning("Fragments emission failed; continuing without fragments", err);
             }
             done.run(builder.build());
           }

@@ -37,6 +37,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -137,17 +138,23 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       throw new IllegalStateException(e);
     }
     WebSocketClient client = new WebSocketClient();
+    client.setConnectTimeout(10_000);
+    boolean started = false;
     try {
       client.start();
+      started = true;
+      ClientUpgradeRequest request = new ClientUpgradeRequest();
+      // Bound the connect wait; if it times out, ensure cleanup below
+      client.connect(clientChannel, uri, request).get(15, TimeUnit.SECONDS);
+      return client;
     } catch (Exception ex) {
-      throw new RuntimeException(ex);
-    }
-    ClientUpgradeRequest request = new ClientUpgradeRequest();
-    try {
-      client.connect(clientChannel, uri, request).get();
-    } catch (Exception ex) {
+      // Best-effort cleanup on failure to avoid leaked selectors/threads
+      if (started) {
+        try { client.stop(); } catch (Exception stopEx) {
+          LOG.warning("WebSocket client stop() failed during cleanup", stopEx);
+        }
+      }
       throw new IOException(ex);
     }
-    return client;
   }
 }

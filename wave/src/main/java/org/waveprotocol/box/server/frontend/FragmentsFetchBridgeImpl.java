@@ -40,7 +40,7 @@ public final class FragmentsFetchBridgeImpl implements FragmentsFetchBridge {
 
   public FragmentsFetchBridgeImpl(WaveletProvider provider, Config config) {
     this.provider = provider;
-    this.handler = FragmentsViewChannelHandler.create(provider);
+    this.handler = new FragmentsViewChannelHandler(provider, config);
     this.enabled = handler.isEnabled();
   }
 

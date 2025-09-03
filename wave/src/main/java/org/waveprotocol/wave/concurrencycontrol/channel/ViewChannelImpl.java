@@ -81,6 +81,12 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
   public static void setFragmentsApplier(org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier applier) {
     fragmentsApplier = applier;
   }
+  /**
+   * Flag to control whether fragments applier is invoked. Best-effort: if the applier throws,
+   * we log and continue delivering the update (never fail the update path).
+   */
+  private static volatile boolean enableFragmentsApplierFlag = false;
+  public static void setFragmentsApplierEnabled(boolean enabled) { enableFragmentsApplierFlag = enabled; }
 
 
   /**
@@ -368,11 +374,17 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
             if (update.hasFragments()) {
               openListener.onFragments(waveletId, update.getFragments());
               // Optional: also forward to a global applier when enabled via property
+              // Best-effort applier hook (flag-gated). Errors are logged and update continues.
               org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier applier = fragmentsApplier;
-              boolean enableApplier = Boolean.parseBoolean(System.getProperty("wave.fragments.applier.enabled", "false"));
-              if (applier != null && enableApplier) {
+              if (applier != null && enableFragmentsApplierFlag) {
                 try {
+                  long t0 = System.nanoTime();
                   applier.applyPayload(waveletId, update.getFragments());
+                  long dtMs = (System.nanoTime() - t0) / 1_000_000L;
+                  int warnMs = Integer.getInteger("wave.fragments.applier.warnMs", 50);
+                  if (dtMs > warnMs && logger.trace().shouldLog()) {
+                    logger.trace().log("Fragments applier took " + dtMs + "ms for wavelet " + waveletId);
+                  }
                 } catch (Throwable t) {
                   logger.error().log("Fragments applier failed for wavelet " + waveletId + ": " + t);
                 }

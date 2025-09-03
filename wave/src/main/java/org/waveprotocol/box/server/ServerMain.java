@@ -151,6 +151,21 @@ public class ServerMain {
           } catch (Throwable t) {
             LOG.warning("Failed to apply wave.websocket config to system properties", t);
           }
+          // Wire fragments applier flag into ViewChannelImpl and optional warn threshold
+          try {
+            boolean applierEnabled = false;
+            try {
+              if (config.hasPath("client.flags.defaults.enableFragmentsApplier")) {
+                applierEnabled = config.getBoolean("client.flags.defaults.enableFragmentsApplier");
+              }
+            } catch (Exception ignore) {}
+            org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setFragmentsApplierEnabled(applierEnabled);
+            if (config.hasPath("wave.fragments.applier.warnMs")) {
+              System.setProperty("wave.fragments.applier.warnMs", Integer.toString(config.getInt("wave.fragments.applier.warnMs")));
+            }
+          } catch (Throwable t) {
+            LOG.warning("Failed to apply fragments applier config", t);
+          }
         }
       };
       run(coreSettings);

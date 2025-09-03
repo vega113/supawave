@@ -38,15 +38,37 @@ public final class SkeletonRawFragmentsApplier implements RawFragmentsApplier {
   private final AtomicLong rejected = new AtomicLong();
   // wavelet -> (segment -> range)
   private final Map<WaveletId, Map<String, VersionRange>> state = new ConcurrentHashMap<>();
+  // wavelet -> bounded time-ordered history of entries (most recent at tail)
+  // Use ConcurrentLinkedDeque per wavelet for thread-safe appends.
+  private final Map<WaveletId, java.util.concurrent.ConcurrentLinkedDeque<HistoryEntry>> history = new ConcurrentHashMap<>();
+  private final int maxHistoryEntries;
+
+  /** A single applied fragment record for debugging. */
+  public static final class HistoryEntry {
+    public final long tsMs; public final String segment; public final long from; public final long to;
+    public HistoryEntry(long tsMs, String segment, long from, long to) {
+      this.tsMs = tsMs; this.segment = segment; this.from = from; this.to = to;
+    }
+  }
+
+  public SkeletonRawFragmentsApplier() { this(100); }
+  public SkeletonRawFragmentsApplier(int maxHistoryEntries) {
+    this.maxHistoryEntries = Math.max(1, maxHistoryEntries);
+  }
 
   @Override
   public void apply(WaveletId waveletId, List<RawFragment> fragments) {
     if (fragments == null || fragments.isEmpty()) return;
     Map<String, VersionRange> m = state.computeIfAbsent(waveletId, k -> new ConcurrentHashMap<>());
+    long now = System.currentTimeMillis();
     for (RawFragment f : fragments) {
-      if (f.from > f.to) { rejected.incrementAndGet(); continue; }
+      if (f.from > f.to || f.from < 0 || f.to < 0) { rejected.incrementAndGet(); continue; }
       m.put(f.segment, VersionRange.of(f.from, f.to));
       applied.incrementAndGet();
+      // record history
+      java.util.concurrent.ConcurrentLinkedDeque<HistoryEntry> dq = history.computeIfAbsent(waveletId, k -> new java.util.concurrent.ConcurrentLinkedDeque<>());
+      dq.addLast(new HistoryEntry(now, f.segment, f.from, f.to));
+      while (dq.size() > maxHistoryEntries) dq.pollFirst();
     }
     // Trace-level logging omitted to reduce overhead
   }
@@ -54,4 +76,9 @@ public final class SkeletonRawFragmentsApplier implements RawFragmentsApplier {
   public long getAppliedCount() { return applied.get(); }
   public long getRejectedCount() { return rejected.get(); }
   public Map<String, VersionRange> getStateFor(WaveletId waveletId) { return state.get(waveletId); }
+  /** Returns a snapshot copy of the recent history (most-recent last). */
+  public java.util.List<HistoryEntry> getHistoryFor(WaveletId wid) {
+    java.util.concurrent.ConcurrentLinkedDeque<HistoryEntry> dq = history.get(wid);
+    return (dq == null) ? java.util.Collections.emptyList() : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(dq));
+  }
 }

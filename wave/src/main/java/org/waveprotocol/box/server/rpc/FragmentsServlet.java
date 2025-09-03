@@ -24,14 +24,8 @@ import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.frontend.FragmentsFetcherCompat;
 import org.waveprotocol.box.server.frontend.FragmentsRequest;
-import org.waveprotocol.box.common.Receiver;
 import org.waveprotocol.wave.model.id.WaveletName;
-import org.waveprotocol.wave.model.id.WaveId;
-import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.SegmentId;
-import org.waveprotocol.box.server.util.UrlParameters;
-import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.wave.model.waveref.WaveRef;
@@ -39,6 +33,8 @@ import org.waveprotocol.wave.util.escapers.jvm.JavaWaverefEncoder;
 import org.waveprotocol.wave.util.logging.Log;
 import org.waveprotocol.box.server.persistence.blocks.VersionRange;
 
+import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -68,85 +64,110 @@ public final class FragmentsServlet extends HttpServlet {
     if (user == null) { resp.setStatus(HttpServletResponse.SC_FORBIDDEN); return; }
 
     String ref = req.getParameter("ref");
-    String start = req.getParameter("startBlipId");
-    String dir = req.getParameter("direction");
-    String lim = req.getParameter("limit");
-    String sv = req.getParameter("startVersion");
-    String ev = req.getParameter("endVersion");
-    int limit = 50;
-    if (lim != null) { try { limit = Math.max(1, Math.min(200, Integer.parseInt(lim))); } catch (Exception ignored) {} }
-    if (dir == null || dir.isEmpty()) dir = "forward";
-
     if (ref == null || ref.isEmpty()) { resp.setStatus(HttpServletResponse.SC_BAD_REQUEST); return; }
-    WaveletName wn;
-    try {
-      WaveRef waveref = JavaWaverefEncoder.decodeWaveRefFromPath(ref);
-      wn = WaveletName.of(waveref.getWaveId(), waveref.getWaveletId());
-    } catch (Exception e) {
-      resp.setStatus(HttpServletResponse.SC_BAD_REQUEST); return;
-    }
+    WaveletName wn = decodeWaveletName(ref);
+    if (wn == null) { resp.setStatus(HttpServletResponse.SC_BAD_REQUEST); return; }
+
+    String start = req.getParameter("startBlipId");
+    String dir = normalizeDirection(req.getParameter("direction"));
+    int limit = clampLimit(req.getParameter("limit"));
+    Long startVersion = parseLong(req.getParameter("startVersion"));
+    Long endVersion = parseLong(req.getParameter("endVersion"));
 
     try {
-      // Best-effort permission check
-      if (!waveletProvider.checkAccessPermission(wn, user)) {
-        resp.setStatus(HttpServletResponse.SC_FORBIDDEN); return;
-      }
+      if (!waveletProvider.checkAccessPermission(wn, user)) { resp.setStatus(HttpServletResponse.SC_FORBIDDEN); return; }
       Map<String, FragmentsFetcherCompat.BlipMeta> metas = FragmentsFetcherCompat.listBlips(waveletProvider, wn);
       List<String> order = FragmentsFetcherCompat.manifestOrder(waveletProvider, wn);
       List<String> slice = FragmentsFetcherCompat.sliceUsingOrder(metas, order, start, dir, limit);
       long snapshotVersion = FragmentsFetcherCompat.getCommittedVersion(waveletProvider, wn);
-
-      // Build FragmentsRequest (optional start/end); explicit ranges param not supported yet.
-      FragmentsRequest.Builder fb = new FragmentsRequest.Builder();
-      boolean hasCommon = false;
-      if (sv != null && ev != null) {
-        try {
-          long sver = Long.parseLong(sv);
-          long ever = Long.parseLong(ev);
-          fb.setStartVersion(sver).setEndVersion(ever);
-          hasCommon = true;
-        } catch (Exception ignored) {}
-      }
-      FragmentsRequest fReq = hasCommon ? fb.build() : new FragmentsRequest.Builder()
-          .setStartVersion(snapshotVersion)
-          .setEndVersion(snapshotVersion)
-          .build();
-
-      // Compose segment list: INDEX, MANIFEST, plus slice blips
-      java.util.ArrayList<SegmentId> segs = new java.util.ArrayList<>();
-      segs.add(SegmentId.INDEX_ID);
-      segs.add(SegmentId.MANIFEST_ID);
-      for (String id : slice) segs.add(SegmentId.ofBlipId(id));
+      FragmentsRequest fReq = buildFragmentsRequest(snapshotVersion, startVersion, endVersion);
       com.google.common.collect.ImmutableMap<SegmentId, VersionRange> ranges =
-          FragmentsFetcherCompat.computeRangesForSegments(snapshotVersion, fReq, segs);
-      StringBuilder sb = new StringBuilder();
-      sb.append("{\"status\":\"ok\",\"waveRef\":\"").append(ref)
-        .append("\",\"version\":{\"snapshot\":").append(snapshotVersion)
-        .append(",\"start\":").append(fReq.startVersion)
-        .append(",\"end\":").append(fReq.endVersion)
-        .append("},\"blips\":[");
-      boolean first = true;
-      for (String id : slice) {
-        if (!first) sb.append(','); first = false;
-        FragmentsFetcherCompat.BlipMeta m = metas.get(id);
-        sb.append("{\"id\":\"").append(id).append("\",\"author\":\"")
-          .append(m.author == null?"":m.author.getAddress())
-          .append("\",\"lastModifiedTime\":").append(m.lastModifiedTime).append('}');
-      }
-      sb.append("],\"ranges\":[");
-      boolean firstR = true;
-      for (java.util.Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
-        if (!firstR) sb.append(','); firstR = false;
-        sb.append("{\"segment\":\"").append(e.getKey().asString())
-          .append("\",\"from\":").append(e.getValue().from())
-          .append(",\"to\":").append(e.getValue().to())
-          .append("}");
-      }
-      sb.append("]}");
-      resp.getWriter().write(sb.toString());
+          FragmentsFetcherCompat.computeRangesForSegments(snapshotVersion, fReq, buildSegments(slice));
+      // Build safe JSON with proper escaping and canonical waveref encoding
+      String json = buildJson(wn, metas, slice, snapshotVersion, fReq, ranges);
+      // Help browsers avoid content-type sniffing
+      resp.setHeader("X-Content-Type-Options", "nosniff");
+      resp.getWriter().write(json);
       resp.setStatus(HttpServletResponse.SC_OK);
     } catch (WaveServerException e) {
       resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
+  }
+
+  private WaveletName decodeWaveletName(String ref) {
+    try {
+      WaveRef waveref = JavaWaverefEncoder.decodeWaveRefFromPath(ref);
+      return WaveletName.of(waveref.getWaveId(), waveref.getWaveletId());
+    } catch (Exception e) { return null; }
+  }
+
+  private String normalizeDirection(String dir) {
+    return (dir == null || dir.isEmpty()) ? "forward" : dir;
+  }
+
+  private int clampLimit(String lim) {
+    int limit = 50;
+    if (lim == null) return limit;
+    try { limit = Math.max(1, Math.min(200, Integer.parseInt(lim))); } catch (Exception ignore) {}
+    return limit;
+  }
+
+  private Long parseLong(String v) { if (v == null) return null; try { return Long.parseLong(v); } catch (Exception e) { return null; } }
+
+  private FragmentsRequest buildFragmentsRequest(long snapshot, Long s, Long e) {
+    if (s != null && e != null) {
+      return new FragmentsRequest.Builder().setStartVersion(s).setEndVersion(e).build();
+    }
+    return new FragmentsRequest.Builder().setStartVersion(snapshot).setEndVersion(snapshot).build();
+  }
+
+  private java.util.ArrayList<SegmentId> buildSegments(List<String> slice) {
+    java.util.ArrayList<SegmentId> segs = new java.util.ArrayList<>();
+    segs.add(SegmentId.INDEX_ID);
+    segs.add(SegmentId.MANIFEST_ID);
+    for (String id : slice) segs.add(SegmentId.ofBlipId(id));
+    return segs;
+  }
+
+  private String buildJson(WaveletName wn,
+      Map<String, FragmentsFetcherCompat.BlipMeta> metas,
+      List<String> slice,
+      long snapshotVersion,
+      FragmentsRequest fReq,
+      java.util.Map<SegmentId, VersionRange> ranges) {
+    class VersionInfo {
+      long snapshot; long start; long end;
+      VersionInfo(long s, long st, long en) { snapshot=s; start=st; end=en; }
+    }
+    class BlipInfo {
+      String id; String author; long lastModifiedTime;
+      BlipInfo(String i, String a, long t) { id=i; author=a; lastModifiedTime=t; }
+    }
+    class RangeInfo {
+      String segment; long from; long to;
+      RangeInfo(String s, long f, long t) { segment=s; from=f; to=t; }
+    }
+    class Response {
+      String status = "ok";
+      @SerializedName("waveRef") String waveRefPath;
+      VersionInfo version;
+      List<BlipInfo> blips;
+      List<RangeInfo> ranges;
+    }
+    Response out = new Response();
+    // Canonical, server-encoded waveref path segment
+    out.waveRefPath = JavaWaverefEncoder.encodeToUriPathSegment(
+        org.waveprotocol.wave.model.waveref.WaveRef.of(wn.waveId, wn.waveletId));
+    out.version = new VersionInfo(snapshotVersion, fReq.startVersion, fReq.endVersion);
+    out.blips = new java.util.ArrayList<>(slice.size());
+    for (String id : slice) {
+      FragmentsFetcherCompat.BlipMeta m = metas.get(id);
+      out.blips.add(new BlipInfo(id, (m.author==null? "" : m.author.getAddress()), m.lastModifiedTime));
+    }
+    out.ranges = new java.util.ArrayList<>(ranges.size());
+    for (java.util.Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
+      out.ranges.add(new RangeInfo(e.getKey().asString(), e.getValue().from(), e.getValue().to()));
+    }
+    return new Gson().toJson(out);
   }
 }

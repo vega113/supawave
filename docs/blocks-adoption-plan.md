@@ -1,7 +1,7 @@
 # Server-First Blocks Adoption Plan
 
 Owner: Migration Engineering
-Last updated: 2025-09-02
+Last updated: 2025-09-04
 
 Statuses: planned | in_progress | completed
 
@@ -18,6 +18,18 @@ Statuses: planned | in_progress | completed
   - WaveClientRpcImpl emits fragments (INDEX, MANIFEST, + up to 5 visible blips) on snapshot and delta-only updates.
   - Hardened logging on failures (WaveServerException vs unexpected).
 - WebSocket config: added jittered, capped backoff with config defaults (connectTimeoutMs, connectWaitMs, maxBackoffMs, jitterFraction).
+
+New configuration and client API (viewport hints)
+- Config (Typesafe):
+  - `wave.fragments.defaultViewportLimit` (int, default 5): default number of blip segments to include when client hint limit is missing/invalid.
+  - `wave.fragments.maxViewportLimit` (int, default 50): upper clamp for client-requested viewport limit.
+  - Wired in ServerMain; values logged at startup and applied via `WaveClientRpcImpl.setViewportLimits`.
+- Client API overload (backward-compatible):
+  - `RemoteViewServiceMultiplexer.open(WaveId id, IdFilter filter, WaveWebSocketCallback stream, String viewportStartBlipId, String viewportDirection, int viewportLimit)`
+    - `viewportStartBlipId`: blip id (e.g., "b+123") around which the server selects visible blips; null falls back to heuristics.
+    - `viewportDirection`: "forward" or "backward"; invalid/blank treated as "forward".
+    - `viewportLimit`: desired number of blip segments (excludes index/manifest); server clamps to configured range.
+  - Older clients/servers ignore unknown fields; setters are called via reflection to remain compatible with older generated JSOs.
 
 Code references
 - Fragments & ranges: wave/src/main/java/org/waveprotocol/box/server/frontend/FragmentsFetcherCompat.java, FragmentsViewChannelHandler.java, FragmentsFetchBridgeImpl.java
@@ -218,16 +230,26 @@ Goal: Replace `/fragments` stub with real fetcher-backed JSON; spec the future W
 
 - Implementation:
   - Added ProtocolFragments/ProtocolFragmentRange in waveclient-rpc.proto; ProtocolWaveletUpdate now carries optional `fragments`.
-  - WaveClientRpcImpl attaches a fragments window for both snapshot and delta-only updates when the handler is enabled. The window includes INDEX, MANIFEST, and a small set of visible blips (heuristic: up to 5 blips by snapshot docs or manifest order). Failures log a warning and do not impact the stream.
+  - Added viewport hints to ProtocolOpenRequest: `viewport_start_blip_id`, `viewport_direction`, `viewport_limit`.
+  - WaveClientRpcImpl reads viewport hints, clamps `viewport_limit` against Typesafe config (see below), selects visible segments (manifest-order with time-based fallback), and emits ProtocolFragments for both snapshot and delta-only updates. Failures log and do not impact the stream.
 
 - DoD:
-  - Clients receive `fragments` payload in both snapshot and delta-only updates under the feature flag. Tests validate presence and shape (no duplicates, valid ranges, contains blip segment).
+  - Clients receive `fragments` payload in both snapshot and delta-only updates under the feature flag. Tests validate presence and shape (no duplicates, valid ranges, contains blip segment). Additional test verifies viewport limit clamping and robust handling of invalid directions.
+
+#### Configuration (Typesafe) added in this phase
+- `wave.fragments.defaultViewportLimit` (int, default 5): default number of blip segments when client hint is missing/invalid.
+- `wave.fragments.maxViewportLimit` (int, default 50): upper clamp for client-requested viewport limit.
+- Wired in `ServerMain` → `WaveClientRpcImpl.setViewportLimits(...)` at startup.
+
+#### Client API overload (backward‑compatible)
+- `RemoteViewServiceMultiplexer.open(WaveId id, IdFilter filter, WaveWebSocketCallback stream, String viewportStartBlipId, String viewportDirection, int viewportLimit)`
+  - Parameters are optional hints; older clients/servers safely ignore these fields.
 
 -------------------------------------------------------------------------------
 
 ## Phase 5 — Client Applier & Transport Evolution (Next)
 
-Status: planned → next up
+Status: in_progress
 
 ### Next Task: 5.1 — Client RawFragment Applier (model)
 
@@ -235,6 +257,7 @@ Status: planned → next up
   - Introduce a minimal `RawFragment` DTO (segment id + [from,to] + optional metadata) and a `RawFragmentsApplier` interface behind a client flag.
   - Provide a no-op default implementation and a skeleton implementation that just records the latest window per segment for observability.
   - Wire ViewChannel.Listener.onFragments(...) to the applier (gated by a client flag) with logging/metrics.
+  - Surface fragments metrics in `/statusz?show=fragments`.
 - Tests:
   - Unit tests for the applier: accepts well-formed ranges, rejects invalid (from>to), and maintains per-segment window state.
   - Basic integration test in the client layer to ensure onFragments triggers applier calls when the flag is enabled.
@@ -277,6 +300,13 @@ Status: planned
 - Implementation:
   - Add debug counters/timers: fragment requests count, average reply size, cache hit rate.
   - Gate logs under `enableViewportStats`.
+
+### What’s Done vs. Left (quick list)
+- Done:
+  - Phase 1, Phase 3, Phase 4 completed (compat); viewport hints over RPC; config‑driven viewport limits; Statusz fragments metrics; HTTP `/fragments` hardened; unit tests for clamping and robustness.
+  - Phase 5 (part): client skeleton applier + metrics + hint‑aware client open overload.
+- Left:
+  - Phase 2 (real SegmentWaveletState), Phase 5 (integrated applier + requester), Phase 6 (JSON metrics endpoint, integration tests, broader test hygiene, tuning).
 
 ### Task 6.2 — Cleanup deprecated flags/paths
 

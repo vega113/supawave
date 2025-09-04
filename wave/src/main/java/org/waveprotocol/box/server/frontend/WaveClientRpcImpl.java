@@ -63,6 +63,14 @@ import javax.annotation.Nullable;
 public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
 
   private static final Log LOG = Log.get(WaveClientRpcImpl.class);
+  /** Default and maximum number of blip segments to include when the client
+   * supplies viewport hints but omits or provides an out-of-range limit.
+   *
+   * Implementation note: These are intentionally conservative; if we need to
+   * tune them at runtime, we can source them from Typesafe Config via
+   * ServerMain and plumb here. */
+  private static final int DEFAULT_VIEWPORT_LIMIT = 5;
+  private static final int MAX_VIEWPORT_LIMIT = 50;
 
   private final ClientFrontend frontend;
   private final boolean handleAuthentication;
@@ -164,19 +172,54 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
               List<SegmentId> segs = new ArrayList<>();
               segs.add(SegmentId.INDEX_ID);
               segs.add(SegmentId.MANIFEST_ID);
-              // Prefer blips from current snapshot when available
-              if (snapshot != null) {
+
+              // Viewport hints from request
+              String vpStart = null;
+              String vpDir = null;
+              int vpLimit = DEFAULT_VIEWPORT_LIMIT;
+              if (request.hasViewportStartBlipId()) vpStart = request.getViewportStartBlipId();
+              if (request.hasViewportDirection()) vpDir = request.getViewportDirection();
+              if (request.hasViewportLimit()) {
+                int requested = request.getViewportLimit();
+                if (requested <= 0) {
+                  LOG.fine("viewport_limit<=0; using default=" + DEFAULT_VIEWPORT_LIMIT);
+                  vpLimit = DEFAULT_VIEWPORT_LIMIT;
+                } else if (requested > MAX_VIEWPORT_LIMIT) {
+                  LOG.fine("viewport_limit=" + requested + 
+                      ">max; clamping to " + MAX_VIEWPORT_LIMIT);
+                  vpLimit = MAX_VIEWPORT_LIMIT;
+                } else {
+                  vpLimit = requested;
+                }
+              }
+
+              // Prefer viewport-aware segments if any hint is present
+              if (vpStart != null || vpDir != null || request.hasViewportLimit()) {
+                try {
+                  segs = fh.computeVisibleSegments(waveletName, vpStart, vpDir, vpLimit);
+                } catch (Exception e) {
+                  LOG.warning("viewport-aware computeVisibleSegments failed; will try snapshot/heuristic for " + waveletName, e);
+                  segs = new ArrayList<>();
+                  segs.add(SegmentId.INDEX_ID);
+                  segs.add(SegmentId.MANIFEST_ID);
+                }
+              }
+
+              // Next, prefer blips from current snapshot when available
+              if (segs.size() <= 2 && snapshot != null) {
                 int added = 0;
                 for (String docId : snapshot.snapshot.getDocumentIds()) {
                   if (docId != null && docId.startsWith("b+")) {
                     segs.add(SegmentId.ofBlipId(docId));
-                    if (++added >= 5) break;
+                    if (++added >= vpLimit) break;
                   }
                 }
               }
+
+              // Finally, heuristic manifest/time-based selection
               if (segs.size() <= 2) {
                 try {
-                  segs = fh.computeVisibleSegments(waveletName, 5);
+                  segs = fh.computeVisibleSegments(waveletName, vpLimit);
                 } catch (Exception e) {
                   LOG.warning("computeVisibleSegments failed during fragments emission; using INDEX/MANIFEST only for " + waveletName, e);
                   segs = new ArrayList<>();

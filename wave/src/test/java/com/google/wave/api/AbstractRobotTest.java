@@ -19,7 +19,7 @@
 
 package com.google.wave.api;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -47,7 +47,7 @@ import junit.framework.TestCase;
 
 import net.oauth.http.HttpMessage;
 
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 
@@ -136,7 +136,7 @@ public class AbstractRobotTest extends TestCase {
   }
 
   private static <K, V> Map<K, V> anyMapOf(Class<K> keyClass, Class<V> valueClass) {
-    return Matchers.<Map<K, V>>any();
+    return ArgumentMatchers.<Map<K, V>>any();
   }
 
   private final List<EventType> calledEvents = new ArrayList<EventType>();

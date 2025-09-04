@@ -19,12 +19,12 @@
 
 package org.waveprotocol.box.server.frontend;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,7 +38,7 @@ import junit.framework.TestCase;
 
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.common.ExceptionalIterator;
@@ -173,7 +173,7 @@ public class ClientFrontendImplTest extends TestCase {
     ReadableWaveletData wavelet = provideWavelet(WN1).snapshot;
     clientFrontend.waveletUpdate(wavelet, DELTAS);
     verify(listener, Mockito.never()).onUpdate(eq(WN1),
-        any(CommittedWaveletSnapshot.class), Matchers.anyList(),
+        any(CommittedWaveletSnapshot.class), org.mockito.ArgumentMatchers.anyList(),
         any(HashedVersion.class), isNullMarker(), anyString());
   }
 

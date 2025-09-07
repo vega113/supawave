@@ -82,7 +82,7 @@ public final class FragmentsServlet extends HttpServlet {
       Map<String, FragmentsFetcherCompat.BlipMeta> metas = FragmentsFetcherCompat.listBlips(waveletProvider, wn);
       List<String> order;
       try {
-        order = FragmentsFetcherCompat.manifestOrder(waveletProvider, wn);
+        order = org.waveprotocol.box.server.frontend.ManifestOrderCache.getOrCompute(waveletProvider, wn);
       } catch (Exception ex) {
         // Manifest order may fail in compat paths; log and fall back to time-based ordering.
         LOG.warning("FragmentsServlet: manifestOrder failed for " + wn + ", falling back to time-based ordering", ex);

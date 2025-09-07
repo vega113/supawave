@@ -46,10 +46,10 @@ public final class FragmentsViewChannelHandler {
     boolean en = false;
     boolean prefer = false;
     try { if (config.hasPath(FLAG)) en = config.getBoolean(FLAG); } catch (Exception ex) {
-      LOG.fine("Failed reading " + FLAG + "; defaulting to false", ex);
+      LOG.info("Failed reading " + FLAG + "; defaulting to false", ex);
     }
     try { if (config.hasPath("server.preferSegmentState")) prefer = config.getBoolean("server.preferSegmentState"); } catch (Exception ex) {
-      LOG.fine("Failed reading server.preferSegmentState; defaulting to false", ex);
+      LOG.info("Failed reading server.preferSegmentState; defaulting to false", ex);
     }
     this.enabled = en;
     this.preferSegmentState = prefer;
@@ -130,7 +130,7 @@ public final class FragmentsViewChannelHandler {
     try {
     // Build ordered blip list, then select first N
     Map<String, FragmentsFetcherCompat.BlipMeta> metas = FragmentsFetcherCompat.listBlips(provider, wn);
-    List<String> order = FragmentsFetcherCompat.manifestOrder(provider, wn);
+    List<String> order = ManifestOrderCache.getOrCompute(provider, wn);
     int added = 0;
     if (!order.isEmpty()) {
       for (String id : order) {
@@ -170,7 +170,7 @@ public final class FragmentsViewChannelHandler {
     out.add(SegmentId.MANIFEST_ID);
     try {
       Map<String, FragmentsFetcherCompat.BlipMeta> metas = FragmentsFetcherCompat.listBlips(provider, wn);
-      List<String> order = FragmentsFetcherCompat.manifestOrder(provider, wn);
+      List<String> order = ManifestOrderCache.getOrCompute(provider, wn);
       List<String> slice = FragmentsFetcherCompat.sliceUsingOrder(metas, order, startBlipId, direction, Math.max(1, limit));
       for (String id : slice) out.add(SegmentId.ofBlipId(id));
       if (slice.isEmpty() && !metas.isEmpty()) {

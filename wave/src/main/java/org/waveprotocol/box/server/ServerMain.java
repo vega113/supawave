@@ -159,7 +159,7 @@ public class ServerMain {
                 applierEnabled = config.getBoolean("client.flags.defaults.enableFragmentsApplier");
               }
             } catch (Exception ex) {
-              LOG.fine("Failed reading client.flags.defaults.enableFragmentsApplier; defaulting to false", ex);
+              LOG.info("Failed reading client.flags.defaults.enableFragmentsApplier; defaulting to false", ex);
             }
             // Wire a default applier instance based on the flag
             try {
@@ -177,7 +177,7 @@ public class ServerMain {
               try {
                 if (config.hasPath("wave.fragments.applier.warnMs")) warnMs = config.getInt("wave.fragments.applier.warnMs");
               } catch (Exception ex) {
-                LOG.fine("Failed reading wave.fragments.applier.warnMs; using default " + warnMs, ex);
+                LOG.info("Failed reading wave.fragments.applier.warnMs; using default " + warnMs, ex);
               }
               LOG.info("Fragments applier: enabled=" + applierEnabled + 
                   ", impl=" + applierCls + ", warnMs=" + warnMs);
@@ -390,6 +390,19 @@ public class ServerMain {
       if (cfg.hasPath("server.segmentStateRegistry.ttlMs")) {
         org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setTtlMs(
             Math.max(0L, cfg.getLong("server.segmentStateRegistry.ttlMs")));
+      }
+      // Configure manifest-order cache sizing/ttl
+      try {
+        if (cfg.hasPath("wave.fragments.manifestOrderCache.maxEntries")) {
+          org.waveprotocol.box.server.frontend.ManifestOrderCache.setMaxEntries(
+              Math.max(1, cfg.getInt("wave.fragments.manifestOrderCache.maxEntries")));
+        }
+        if (cfg.hasPath("wave.fragments.manifestOrderCache.ttlMs")) {
+          org.waveprotocol.box.server.frontend.ManifestOrderCache.setTtlMs(
+              Math.max(0L, cfg.getLong("wave.fragments.manifestOrderCache.ttlMs")));
+        }
+      } catch (Throwable t2) {
+        LOG.warning("Failed to configure ManifestOrderCache; using defaults", t2);
       }
     } catch (Throwable t) {
       LOG.warning("Failed to configure SegmentWaveletStateRegistry; using defaults", t);

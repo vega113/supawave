@@ -30,8 +30,10 @@ import org.waveprotocol.wave.model.id.WaveletName;
  * Size- and TTL-bounded cache for manifest-order lists per wavelet.
  */
 final class ManifestOrderCache {
-  private static volatile int MAX_ENTRIES = 1024;
-  private static volatile long TTL_MS = 120_000L; // 2 minutes default
+  private static final int DEFAULT_MAX_ENTRIES = 1024;
+  private static final long DEFAULT_TTL_MS = 120_000L; // 2 minutes
+  private static volatile int MAX_ENTRIES = DEFAULT_MAX_ENTRIES;
+  private static volatile long TTL_MS = DEFAULT_TTL_MS;
 
   private static final class Entry {
     final List<String> order; final long tsMs;
@@ -85,4 +87,3 @@ final class ManifestOrderCache {
     return order;
   }
 }
-

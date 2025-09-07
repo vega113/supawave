@@ -9,19 +9,10 @@ Statuses: planned | in_progress | completed
 
 ## Delta Since Last Edit (2025-09-07)
 
-Verification and clarifications:
-- Phase 3 (FragmentsFetcher & Request): completed (compat) and present in source tree.
-  - Implemented snapshot-based blip listing, manifest-order slicing, FragmentsRequest builder, and ranges computation.
-  - ViewChannel handler/bridge present to expose ranges.
-  - Tests present: FragmentsRequestTest, FragmentsOrderingTest, FragmentsFetchBridgeImplTest, WaveClientRpcFragmentsTest.
-- Phase 4 (Server Endpoint & Transport Prep): completed (compat).
-  - ProtocolFragments/ProtocolFragmentRange added to waveclient-rpc.proto.
-  - WaveClientRpcImpl can emit fragments on snapshot and delta-only updates when the handler flag is enabled.
-  - Logging hardened for failures (WaveServerException vs unexpected).
-- WebSocket config: jittered, capped backoff options are present with config defaults (connectTimeoutMs, connectWaitMs, maxBackoffMs, jitterFraction).
-- Gating clarification:
-  - The HTTP endpoint `/fragments` is currently registered unconditionally in ServerMain (auth required). It is not gated by a dedicated config flag.
-  - RPC fragments emission is gated by `server.enableFetchFragmentsRpc` via FragmentsViewChannelHandler.
+Reference-centric summary (see docs/fragments-viewport-behavior.md and docs/fragments-config.md):
+- Phase 3 (FragmentsFetcher & Request) and Phase 4 (Server Endpoint & Transport Prep) are completed (compat); associated code and tests are in place.
+- Server emits fragments under a feature flag; HTTP endpoint and RPC wiring are gated. Defaults and operational guidance live in the fragments config reference.
+- Failure modes fall back safely and are observable via metrics; details and diagrams live in the viewport behavior note.
 
 New configuration and client API (viewport hints)
 - Config (Typesafe):

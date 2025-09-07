@@ -384,28 +384,38 @@ public class ServerMain {
     try {
       com.typesafe.config.Config cfg = injector.getInstance(com.typesafe.config.Config.class);
       if (cfg.hasPath("server.segmentStateRegistry.maxEntries")) {
-        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setMaxEntries(
-            Math.max(1, cfg.getInt("server.segmentStateRegistry.maxEntries")));
+        int max = cfg.getInt("server.segmentStateRegistry.maxEntries");
+        if (max <= 0) throw new org.waveprotocol.box.server.config.ConfigurationInitializationException(
+            "server.segmentStateRegistry.maxEntries must be > 0 (got " + max + ")");
+        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setMaxEntries(max);
       }
       if (cfg.hasPath("server.segmentStateRegistry.ttlMs")) {
-        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setTtlMs(
-            Math.max(0L, cfg.getLong("server.segmentStateRegistry.ttlMs")));
+        long ttl = cfg.getLong("server.segmentStateRegistry.ttlMs");
+        if (ttl < 0L) throw new org.waveprotocol.box.server.config.ConfigurationInitializationException(
+            "server.segmentStateRegistry.ttlMs must be >= 0 (got " + ttl + ")");
+        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setTtlMs(ttl);
       }
       // Configure manifest-order cache sizing/ttl
       try {
         if (cfg.hasPath("wave.fragments.manifestOrderCache.maxEntries")) {
-          org.waveprotocol.box.server.frontend.ManifestOrderCache.setMaxEntries(
-              Math.max(1, cfg.getInt("wave.fragments.manifestOrderCache.maxEntries")));
+          int max = cfg.getInt("wave.fragments.manifestOrderCache.maxEntries");
+          if (max <= 0) throw new org.waveprotocol.box.server.config.ConfigurationInitializationException(
+              "wave.fragments.manifestOrderCache.maxEntries must be > 0 (got " + max + ")");
+          org.waveprotocol.box.server.frontend.ManifestOrderCache.setMaxEntries(max);
         }
         if (cfg.hasPath("wave.fragments.manifestOrderCache.ttlMs")) {
-          org.waveprotocol.box.server.frontend.ManifestOrderCache.setTtlMs(
-              Math.max(0L, cfg.getLong("wave.fragments.manifestOrderCache.ttlMs")));
+          long ttl = cfg.getLong("wave.fragments.manifestOrderCache.ttlMs");
+          if (ttl < 0L) throw new org.waveprotocol.box.server.config.ConfigurationInitializationException(
+              "wave.fragments.manifestOrderCache.ttlMs must be >= 0 (got " + ttl + ")");
+          org.waveprotocol.box.server.frontend.ManifestOrderCache.setTtlMs(ttl);
         }
       } catch (Throwable t2) {
-        LOG.warning("Failed to configure ManifestOrderCache; using defaults", t2);
+        LOG.severe("Invalid ManifestOrderCache configuration; aborting startup", t2);
+        throw t2;
       }
     } catch (Throwable t) {
-      LOG.warning("Failed to configure SegmentWaveletStateRegistry; using defaults", t);
+      LOG.severe("Invalid SegmentWaveletStateRegistry configuration; aborting startup", t);
+      throw new RuntimeException(t);
     }
     try {
       org.waveprotocol.box.server.frontend.WaveClientRpcImpl.setFragmentsHandler(

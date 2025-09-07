@@ -31,14 +31,21 @@ import org.waveprotocol.wave.model.id.WaveletName;
  */
 public final class SegmentWaveletStateRegistry {
   private static volatile int MAX_ENTRIES = 1024;
+  private static volatile long TTL_MS = 300_000L; // 5 minutes default
 
   // Access-order LRU with simple synchronization for registry operations.
-  private static final Map<WaveletName, SegmentWaveletState> LRU = new LinkedHashMap<WaveletName, SegmentWaveletState>(16, 0.75f, true) {
+  private static final Map<WaveletName, Entry> LRU = new LinkedHashMap<WaveletName, Entry>(16, 0.75f, true) {
     @Override
-    protected boolean removeEldestEntry(Map.Entry<WaveletName, SegmentWaveletState> eldest) {
+    protected boolean removeEldestEntry(Map.Entry<WaveletName, Entry> eldest) {
       return size() > MAX_ENTRIES;
     }
   };
+
+  private static final class Entry {
+    final SegmentWaveletState state; final long tsMs;
+    Entry(SegmentWaveletState s, long ts) { this.state = s; this.tsMs = ts; }
+    boolean expired(long nowMs) { return TTL_MS > 0 && (nowMs - tsMs) > TTL_MS; }
+  }
 
   private SegmentWaveletStateRegistry() {}
 
@@ -47,11 +54,24 @@ public final class SegmentWaveletStateRegistry {
     if (maxEntries > 0) MAX_ENTRIES = maxEntries;
   }
 
+  /** Optionally adjust TTL (milliseconds); 0 disables TTL expiration. */
+  public static void setTtlMs(long ttlMs) {
+    if (ttlMs >= 0) TTL_MS = ttlMs;
+  }
+
   public static synchronized void put(WaveletName name, SegmentWaveletState state) {
-    if (name != null && state != null) LRU.put(name, state);
+    if (name != null && state != null) LRU.put(name, new Entry(state, System.currentTimeMillis()));
   }
 
   public static synchronized SegmentWaveletState get(WaveletName name) {
-    return (name == null) ? null : LRU.get(name);
+    if (name == null) return null;
+    Entry e = LRU.get(name);
+    if (e == null) return null;
+    long now = System.currentTimeMillis();
+    if (e.expired(now)) {
+      LRU.remove(name);
+      return null;
+    }
+    return e.state;
   }
 }

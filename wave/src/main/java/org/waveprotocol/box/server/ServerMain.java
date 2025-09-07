@@ -380,6 +380,20 @@ public class ServerMain {
 
     ProtocolWaveClientRpc.Interface rpcImpl = WaveClientRpcImpl.create(frontend, false);
     server.registerService(ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
+    // Configure segment state registry sizing/ttl from config if present
+    try {
+      com.typesafe.config.Config cfg = injector.getInstance(com.typesafe.config.Config.class);
+      if (cfg.hasPath("server.segmentStateRegistry.maxEntries")) {
+        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setMaxEntries(
+            Math.max(1, cfg.getInt("server.segmentStateRegistry.maxEntries")));
+      }
+      if (cfg.hasPath("server.segmentStateRegistry.ttlMs")) {
+        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setTtlMs(
+            Math.max(0L, cfg.getLong("server.segmentStateRegistry.ttlMs")));
+      }
+    } catch (Throwable t) {
+      LOG.warning("Failed to configure SegmentWaveletStateRegistry; using defaults", t);
+    }
     try {
       org.waveprotocol.box.server.frontend.WaveClientRpcImpl.setFragmentsHandler(
           new org.waveprotocol.box.server.frontend.FragmentsViewChannelHandler(

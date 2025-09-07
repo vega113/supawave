@@ -273,6 +273,16 @@ Verification (2025-09-07):
 - DTOs (`FragmentsPayload`, `RawFragment`) and a skeleton applier exist with unit tests.
 - ViewChannelImpl has hooks to call an applier when enabled via `client.flags.defaults.enableFragmentsApplier`, but an actual applier instance is not yet set at startup.
 
+### Viewport Semantics and Edge Cases (server-side)
+- Inputs: `viewport_start_blip_id` (string), `viewport_direction` ("forward"|"backward"), `viewport_limit` (int > 0).
+- Validation/Clamping:
+  - `viewport_limit` clamped to `[wave.fragments.defaultViewportLimit, wave.fragments.maxViewportLimit]`.
+  - Ambiguity: if only `viewport_direction` is provided without `start_blip_id` or `viewport_limit`, server records a `viewportAmbiguity` metric and applies defaults (safe fallback).
+  - Failures in viewport computation fall back to `[INDEX, MANIFEST]` only; server records `emissionFallbacks` and logs a warning.
+- Observability:
+  - Metrics (see Statusz → Fragments Metrics): `emissionCount`, `emissionRanges`, `emissionErrors`, `emissionFallbacks`, `computeFallbacks`, `viewportAmbiguity`, HTTP counters.
+  - Logs: invalid/ambiguous inputs at fine level; computation failures at warning level.
+
 -------------------------------------------------------------------------------
 
 ## Phase 5 — Client Applier & Transport Evolution (Future)
@@ -316,6 +326,21 @@ Status: planned
   - Phase 5 (part): DTOs + skeleton applier + metrics + hint‑aware client open overload; wiring hooks present.
 - Left:
   - Phase 2 (real SegmentWaveletState), Phase 5 (wire applier at startup + requester), Phase 6 (metrics, integration tests, tuning, cleanup).
+
+-------------------------------------------------------------------------------
+
+## Configuration Notes (Fragments)
+
+- `server.enableFragmentsHttp` (bool, default false):
+  - When true, enables `/fragments/*` (auth required). Intended for dev/proto; data derived from snapshots.
+- `server.enableFetchFragmentsRpc` (bool, default false):
+  - When true, wires the RPC handler; `WaveClientRpcImpl` may emit `ProtocolFragments`.
+- `server.preferSegmentState` (bool, default false):
+  - When true, if a `SegmentWaveletState` exists, emitted ranges are filtered to known segments; falls back to compat otherwise.
+- `server.segmentStateRegistry.maxEntries` (int, default 1024):
+  - Max entries for in-memory `SegmentWaveletStateRegistry` (LRU eviction).
+- `server.segmentStateRegistry.ttlMs` (long, default 300000):
+  - TTL for registry entries; `0` disables TTL expiration.
 
 -------------------------------------------------------------------------------
 

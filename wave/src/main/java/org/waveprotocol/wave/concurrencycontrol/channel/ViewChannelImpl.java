@@ -382,6 +382,10 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
                   applier.applyPayload(waveletId, update.getFragments());
                   long dtMs = (System.nanoTime() - t0) / 1_000_000L;
                   int warnMs = Integer.getInteger("wave.fragments.applier.warnMs", 50);
+                  if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+                    org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.applierEvents.incrementAndGet();
+                    org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.applierDurationsMs.addAndGet(dtMs);
+                  }
                   if (dtMs > warnMs && logger.trace().shouldLog()) {
                     logger.trace().log("Fragments applier took " + dtMs + "ms for wavelet " + waveletId);
                   }

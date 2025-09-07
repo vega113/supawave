@@ -60,6 +60,9 @@ public final class FragmentsServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     resp.setContentType("application/json;charset=UTF-8");
+    if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+      org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.httpRequests.incrementAndGet();
+    }
     ParticipantId user = sessionManager.getLoggedInUser(req.getSession(false));
     if (user == null) { resp.setStatus(HttpServletResponse.SC_FORBIDDEN); return; }
 
@@ -99,11 +102,17 @@ public final class FragmentsServlet extends HttpServlet {
       resp.setHeader("X-Content-Type-Options", "nosniff");
       resp.getWriter().write(json);
       resp.setStatus(HttpServletResponse.SC_OK);
+      if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+        org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.httpOk.incrementAndGet();
+      }
     } catch (WaveServerException e) {
         LOG.warning("Error fetching fragments", e);
       resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
       try { resp.getWriter().write("{\"status\":\"error\"}"); } catch (Exception ignore) {
           LOG.warning("Error writing error response", e);
+      }
+      if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+        org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.httpErrors.incrementAndGet();
       }
     }
   }

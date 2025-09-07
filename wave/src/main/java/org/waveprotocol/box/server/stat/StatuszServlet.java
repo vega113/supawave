@@ -104,11 +104,23 @@ public class StatuszServlet extends HttpServlet {
           (java.util.concurrent.atomic.AtomicLong) cls.getField("applierEvents").get(null);
       java.util.concurrent.atomic.AtomicLong applierDurationsMs =
           (java.util.concurrent.atomic.AtomicLong) cls.getField("applierDurationsMs").get(null);
+      java.util.concurrent.atomic.AtomicLong emissionRanges =
+          (java.util.concurrent.atomic.AtomicLong) cls.getField("emissionRanges").get(null);
+      java.util.concurrent.atomic.AtomicLong httpRequests =
+          (java.util.concurrent.atomic.AtomicLong) cls.getField("httpRequests").get(null);
+      java.util.concurrent.atomic.AtomicLong httpOk =
+          (java.util.concurrent.atomic.AtomicLong) cls.getField("httpOk").get(null);
+      java.util.concurrent.atomic.AtomicLong httpErrors =
+          (java.util.concurrent.atomic.AtomicLong) cls.getField("httpErrors").get(null);
       writer.write("<pre>enabled=" + enabled + "\n" +
           "emissionCount=" + emissionCount.get() + "\n" +
           "emissionErrors=" + emissionErrors.get() + "\n" +
+          "emissionRanges=" + emissionRanges.get() + "\n" +
           "applierEvents=" + applierEvents.get() + "\n" +
-          "applierDurationsMs=" + applierDurationsMs.get() +
+          "applierDurationsMs=" + applierDurationsMs.get() + "\n" +
+          "httpRequests=" + httpRequests.get() + "\n" +
+          "httpOk=" + httpOk.get() + "\n" +
+          "httpErrors=" + httpErrors.get() +
           "</pre>");
     } catch (Throwable t) {
       writer.write("<pre>Fragments metrics unavailable: " + t + "</pre>");

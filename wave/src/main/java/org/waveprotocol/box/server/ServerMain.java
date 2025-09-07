@@ -169,6 +169,14 @@ public class ServerMain {
                     new org.waveprotocol.wave.concurrencycontrol.channel.impl.NoOpRawFragmentsApplier());
               }
               org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setFragmentsApplierEnabled(applierEnabled);
+              String applierCls = applierEnabled
+                  ? "SkeletonRawFragmentsApplier" : "NoOpRawFragmentsApplier";
+              int warnMs = 50;
+              try {
+                if (config.hasPath("wave.fragments.applier.warnMs")) warnMs = config.getInt("wave.fragments.applier.warnMs");
+              } catch (Exception ignore) {}
+              LOG.info("Fragments applier: enabled=" + applierEnabled + 
+                  ", impl=" + applierCls + ", warnMs=" + warnMs);
             } catch (Throwable t) {
               LOG.warning("Failed to wire fragments applier instance; proceeding without applier", t);
             }

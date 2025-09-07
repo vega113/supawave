@@ -28,9 +28,12 @@ public final class FragmentsMetrics {
 
   public static final AtomicLong emissionCount = new AtomicLong();
   public static final AtomicLong emissionErrors = new AtomicLong();
+  public static final AtomicLong emissionRanges = new AtomicLong();
   public static final AtomicLong applierEvents = new AtomicLong();
   public static final AtomicLong applierDurationsMs = new AtomicLong();
+  public static final AtomicLong httpRequests = new AtomicLong();
+  public static final AtomicLong httpOk = new AtomicLong();
+  public static final AtomicLong httpErrors = new AtomicLong();
 
   private FragmentsMetrics() {}
 }
-

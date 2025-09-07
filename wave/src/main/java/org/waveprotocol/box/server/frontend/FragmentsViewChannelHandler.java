@@ -39,12 +39,16 @@ public final class FragmentsViewChannelHandler {
 
   private final WaveletProvider provider;
   private final boolean enabled;
+  private final boolean preferSegmentState;
 
   public FragmentsViewChannelHandler(WaveletProvider provider, Config config) {
     this.provider = provider;
     boolean en = false;
+    boolean prefer = false;
     try { if (config.hasPath(FLAG)) en = config.getBoolean(FLAG); } catch (Exception ignore) {}
+    try { if (config.hasPath("server.preferSegmentState")) prefer = config.getBoolean("server.preferSegmentState"); } catch (Exception ignore) {}
     this.enabled = en;
+    this.preferSegmentState = prefer;
   }
 
   public static FragmentsViewChannelHandler create(WaveletProvider provider) {
@@ -70,6 +74,33 @@ public final class FragmentsViewChannelHandler {
     long snapshotVersion = FragmentsFetcherCompat.getCommittedVersion(provider, wn);
     Map<SegmentId, VersionRange> ranges = FragmentsFetcherCompat.computeRangesForSegments(
         snapshotVersion, req, segments);
+    if (preferSegmentState) {
+      try {
+        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletState state =
+            org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.get(wn);
+        if (state == null) {
+          // Best-effort: build a compat instance from current snapshot and cache
+          org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot snap = provider.getSnapshot(wn);
+          if (snap != null && snap.snapshot != null) {
+            state = new org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateCompat(snap.snapshot);
+            org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.put(wn, state);
+          }
+        }
+        if (state != null) {
+          java.util.Map<SegmentId, org.waveprotocol.box.server.persistence.blocks.Interval> m =
+              state.getIntervals(ranges, /*onlyFromCache=*/false);
+          if (m != null && !m.isEmpty()) {
+            java.util.Map<SegmentId, VersionRange> filtered = new java.util.LinkedHashMap<>();
+            for (java.util.Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
+              if (m.containsKey(e.getKey())) filtered.put(e.getKey(), e.getValue());
+            }
+            ranges = com.google.common.collect.ImmutableMap.copyOf(filtered);
+          }
+        }
+      } catch (Throwable t) {
+        LOG.warning("preferSegmentState path failed; falling back to computed ranges", t);
+      }
+    }
     LOG.info("FetchFragments stub: wn=" + wn + " start=" + startVersion + " end=" + endVersion
         + " segments=" + segments + " ranges=" + ranges);
     return ranges;

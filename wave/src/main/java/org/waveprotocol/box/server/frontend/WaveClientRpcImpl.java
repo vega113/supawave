@@ -245,6 +245,7 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                         .setSnapshotVersion(startV)
                         .setStartVersion(startV)
                         .setEndVersion(endV);
+                int emitted = 0;
                 for (java.util.Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
                   long from = e.getValue().from(); long to = e.getValue().to();
                   if (from > to) {
@@ -258,10 +259,12 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                           .setTo(to)
                           .build();
                   fb.addRange(r);
+                  emitted++;
                 }
                 builder.setFragments(fb.build());
                 if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
                   org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.emissionCount.incrementAndGet();
+                  org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.emissionRanges.addAndGet(emitted);
                 }
               } catch (org.waveprotocol.box.server.waveserver.WaveServerException wse) {
                 LOG.warning("WaveServerException fetching fragments for " + waveletName + ": " + wse.getMessage(), wse);

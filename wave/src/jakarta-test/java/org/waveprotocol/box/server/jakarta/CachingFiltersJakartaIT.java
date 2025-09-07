@@ -74,7 +74,7 @@ public class CachingFiltersJakartaIT {
   @After
   public void stop() throws Exception {
     if (server != null) server.stop();
-    // no temp files
+    // No temporary filesystem resources used by this test
   }
 
   @Test
@@ -82,8 +82,16 @@ public class CachingFiltersJakartaIT {
     URL url = new URL("http://localhost:" + port + "/static/test.js");
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
     assertEquals(200, c.getResponseCode());
-    String cc = c.getHeaderField("Cache-Control");
+    int ccCount = 0;
+    String cc = null;
+    for (var e : c.getHeaderFields().entrySet()) {
+      if (e.getKey() != null && e.getKey().equalsIgnoreCase("Cache-Control")) {
+        ccCount += (e.getValue() == null) ? 0 : e.getValue().size();
+        if (cc == null && e.getValue() != null && !e.getValue().isEmpty()) cc = e.getValue().get(0);
+      }
+    }
     assertNotNull(cc);
+    assertEquals("Expected exactly one Cache-Control header", 1, ccCount);
     assertTrue(cc.contains("immutable"));
   }
 
@@ -92,8 +100,16 @@ public class CachingFiltersJakartaIT {
     URL url = new URL("http://localhost:" + port + "/webclient/app.nocache.js");
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
     assertEquals(200, c.getResponseCode());
-    String cc = c.getHeaderField("Cache-Control");
+    int ccCount = 0;
+    String cc = null;
+    for (var e : c.getHeaderFields().entrySet()) {
+      if (e.getKey() != null && e.getKey().equalsIgnoreCase("Cache-Control")) {
+        ccCount += (e.getValue() == null) ? 0 : e.getValue().size();
+        if (cc == null && e.getValue() != null && !e.getValue().isEmpty()) cc = e.getValue().get(0);
+      }
+    }
     assertNotNull(cc);
+    assertEquals("Expected exactly one Cache-Control header", 1, ccCount);
     assertTrue(cc.contains("no-cache"));
   }
 }

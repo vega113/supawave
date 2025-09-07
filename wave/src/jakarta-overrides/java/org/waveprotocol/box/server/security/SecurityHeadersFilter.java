@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.security.jakarta;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
+import org.waveprotocol.wave.util.logging.Log;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -37,6 +38,7 @@ import java.io.IOException;
  */
 @Singleton
 public final class SecurityHeadersFilter implements Filter {
+  private static final Log LOG = Log.get(SecurityHeadersFilter.class);
   private final Config config;
 
   private static final String DEFAULT_CSP =
@@ -82,7 +84,9 @@ public final class SecurityHeadersFilter implements Filter {
             String value = "max-age=" + hstsMaxAge + (hstsIncludeSub ? "; includeSubDomains" : "");
             http.setHeader("Strict-Transport-Security", value);
           }
-        } catch (Throwable ignored) {}
+        } catch (Exception t) {
+          LOG.warning("Failed to configure HSTS header", t);
+        }
       }
     }
 

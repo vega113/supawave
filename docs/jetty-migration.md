@@ -50,10 +50,14 @@ Timeline (as of 2025-09-07)
 - T5 (done): Retired POC flags and code; simplified provider wiring; constructors collapsed.
 
 Remaining items
-- Replace guice-servlet usages with programmatic registration and/or Jakarta-compatible integration; remove GuiceFilter from the Jakarta path.
+- Replace guice-servlet usages with programmatic registration; remove GuiceFilter from the Jakarta path.
+  - Approach: Use native Jetty EE10 APIs (`ServletContextHandler`, `ServletHolder`, `FilterHolder`) and `jakarta.servlet.*` to register servlets/filters programmatically.
+  - WebSockets: Use `JakartaWebSocketServletContainerInitializer` + `ServerEndpointConfig` with DI configurator.
+  - No third-party Jakarta servlet glue is required; keep Guice core for DI but not `guice-servlet`.
 - Sweep server sources and change javax.servlet.* imports to jakarta.servlet.*; update filters/servlets and any web.xml descriptors.
 - Remove compileOnly javax.servlet-api from Jakarta builds; ensure jakarta.servlet-api is the only servlet API on classpath.
 - Flip `jettyFamily` default to `jakarta` once CI burn-in is green; keep a fallback profile for javax while deprecating it.
+- Add a non-blocking CI job that compiles and runs `:wave:testJakarta`; gate the default flip on 1–2 weeks of green runs.
 - Update Dockerfile and README to document running under Jetty 12 by default, including any changed ports/flags.
 - Continue deprecation cleanup where low risk; track GWT and JUnit legacy warnings separately.
 

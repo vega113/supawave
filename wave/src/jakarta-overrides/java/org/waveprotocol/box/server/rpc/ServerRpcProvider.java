@@ -143,7 +143,9 @@ public class ServerRpcProvider {
       try {
         enableFwd = (config != null && config.hasPath("network.enable_forwarded_headers")
             && config.getBoolean("network.enable_forwarded_headers"));
-      } catch (Throwable ignore) {}
+      } catch (Throwable t) {
+        LOG.fine("network.enable_forwarded_headers read failed; using default false", t);
+      }
       final HttpConfiguration httpConfig = new HttpConfiguration();
       if (enableFwd) {
         httpConfig.addCustomizer(new ForwardedRequestCustomizer());
@@ -171,7 +173,8 @@ public class ServerRpcProvider {
         }
       }
       if (!invalidAddrs.isEmpty()) {
-        LOG.warning("Ignoring invalid core.http_frontend_addresses entries: " + invalidAddrs);
+        LOG.warning("Ignoring invalid core.http_frontend_addresses entries: " + invalidAddrs +
+            "; expected format 'host:port' (e.g., 127.0.0.1:9898)");
       }
       if (added == 0) {
         String def = (config != null && config.hasPath("core.default_http_frontend_address"))
@@ -215,7 +218,9 @@ public class ServerRpcProvider {
             }
           }
         }
-      } catch (Exception ignore) {}
+      } catch (Exception ex) {
+        LOG.fine("Failed to configure base static resources; continuing without base resource", ex);
+      }
 
       // DefaultServlet mappings with caching semantics
       java.util.Map<String,String> staticParams = new java.util.HashMap<>();

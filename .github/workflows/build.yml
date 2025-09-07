@@ -40,8 +40,44 @@ jobs:
         continue-on-error: true
         run: ./gradlew --no-daemon --warning-mode all :wave:compileJakarta
 
+  server-jakarta:
+    name: Jakarta Profile (Jetty 12, non-blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-disabled: false
+
+      - name: Compile Jakarta sources
+        continue-on-error: true
+        run: ./gradlew --no-daemon --warning-mode all -PjettyFamily=jakarta :wave:classes :wave:jakartaTestClasses
+
+      - name: Run jakartaTest (non-blocking)
+        continue-on-error: true
+        run: ./gradlew --no-daemon --warning-mode all -PjettyFamily=jakarta :wave:testJakarta
+
+      - name: Publish jakartaTest reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-jakarta
+          path: |
+            wave/build/test-results/testJakarta/**
+            wave/build/reports/tests/testJakarta/**
+
       - name: Guard experimental flags for release (tags only)
-        if: startsWith(github.ref, 'refs/tags/')
+        if: ${{ github.ref_type == 'tag' }}
         run: |
           ./scripts/ci-guard-experimental-flags.sh
 

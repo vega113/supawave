@@ -28,16 +28,20 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.waveprotocol.wave.util.logging.Log;
 
 /**
  * Jakarta variant: Adds long-lived caching headers to static assets.
  */
 @Singleton
 public final class StaticCacheFilter implements Filter {
+  private static final Log LOG = Log.get(StaticCacheFilter.class);
   private static final String CACHE_VALUE = "public, max-age=31536000, immutable";
 
   @Override
-  public void init(FilterConfig filterConfig) throws ServletException {}
+  public void init(FilterConfig filterConfig) throws ServletException {
+    // No initialization necessary
+  }
 
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -45,10 +49,11 @@ public final class StaticCacheFilter implements Filter {
     if (response instanceof HttpServletResponse && request instanceof HttpServletRequest) {
       HttpServletRequest req = (HttpServletRequest) request;
       HttpServletResponse resp = (HttpServletResponse) response;
-      if (!resp.isCommitted()) {
+      if (!resp.isCommitted()) { // keep for safety to avoid setting after commit
         String m = req.getMethod();
         if ("GET".equalsIgnoreCase(m) || "HEAD".equalsIgnoreCase(m)) {
           resp.setHeader("Cache-Control", CACHE_VALUE);
+          LOG.fine("StaticCacheFilter (jakarta) set Cache-Control on path=" + req.getRequestURI());
         }
       }
     }
@@ -56,5 +61,7 @@ public final class StaticCacheFilter implements Filter {
   }
 
   @Override
-  public void destroy() {}
+  public void destroy() {
+    // No resources to clean up
+  }
 }

@@ -159,19 +159,20 @@ sourceSets {
 // When building against Jetty 12 (jakarta), use jakarta overrides for selected classes
 if (jettyFamily == 'jakarta') {
     sourceSets.main.java {
-        exclude 'org/waveprotocol/box/server/rpc/ServerRpcProvider.java'
+        // Use concise, maintainable excludes for classes that have Jakarta overrides
+        exclude(
+            'org/waveprotocol/box/server/rpc/ServerRpcProvider.java',
+            'org/waveprotocol/box/server/ServerModule.java',
+            'org/waveprotocol/box/server/ServerMain.java',
+            'org/waveprotocol/box/server/rpc/WebSocket*.java',
+            'org/waveprotocol/box/server/rpc/AuthenticationServlet.java',
+            'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java',
+            'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java',
+            'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java',
+            'org/waveprotocol/box/server/authentication/SessionManagerImpl.java'
+        )
+        // Add Jakarta override sources
         srcDir 'src/jakarta-overrides/java'
-        // Exclude javax/Jetty9-specific classes pending Jakarta rewrites
-        exclude 'org/waveprotocol/box/server/ServerModule.java'
-        exclude 'org/waveprotocol/box/server/ServerMain.java'
-        exclude 'org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java'
-        exclude 'org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java'
-        exclude 'org/waveprotocol/box/server/rpc/AuthenticationServlet.java'
-        exclude 'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java'
-        exclude 'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java'
-        exclude 'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java'
-        exclude 'org/waveprotocol/box/server/authentication/SessionManagerImpl.java'
-        // Jakarta filter classes live under org/waveprotocol/box/server/security/jakarta; keep javax filters intact in main
     }
 }
 
@@ -210,11 +211,9 @@ dependencies {
             [group: "com.google.guava", name: "guava"],
             
             [group: "com.google.inject.extensions", name: "guice-assistedinject", version: (findProperty('guiceVersion') ?: '5.1.0')],
-            [group: "com.google.inject.extensions", name: "guice-servlet", version: (findProperty('guiceVersion') ?: '5.1.0')],
             [group: "com.google.inject", name: "guice", version: (findProperty('guiceVersion') ?: '5.1.0')],
             [group: "com.google.protobuf", name: "protobuf-java", version: "3.25.3"],                            // upgraded for JDK17 compatibility
-// (Removed legacy duplicates of Guice deps)
-[group: "com.typesafe", name: "config", version: "1.4.3"],
+            // (Removed legacy duplicates of Guice deps)
             [group: "dom4j", name: "dom4j", version: "1.6.1"],
             [group: "eu.infomas", name: "annotation-detector", version: "3.0.0"],
             [group: "org.antlr", name: "antlr", version: "3.2"],
@@ -289,6 +288,7 @@ dependencies {
 // Select Jetty modules based on jettyFamily
 if (jettyFamily == 'javax') {
     dependencies {
+        implementation group: "com.google.inject.extensions", name: "guice-servlet", version: (findProperty('guiceVersion') ?: '5.1.0')
         implementation group: "org.eclipse.jetty", name: "jetty-annotations", version: jettyVersion
         implementation group: "org.eclipse.jetty", name: "jetty-client", version: jettyVersion
         implementation group: "org.eclipse.jetty", name: "jetty-http", version: jettyVersion

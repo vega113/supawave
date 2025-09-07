@@ -27,30 +27,37 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.waveprotocol.wave.util.logging.Log;
 
 /**
  * Disables caching for dynamic client resources (e.g., GWT nocache).
  */
 @Singleton
 public final class NoCacheFilter implements Filter {
+  private static final Log LOG = Log.get(NoCacheFilter.class);
   @Override
-  public void init(FilterConfig filterConfig) throws ServletException {}
+  public void init(FilterConfig filterConfig) throws ServletException {
+    // No initialization necessary
+  }
 
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
       throws IOException, ServletException {
     if (response instanceof HttpServletResponse) {
       HttpServletResponse resp = (HttpServletResponse) response;
+      // Typically not necessary, but kept to avoid header mutation after commit in unusual chains
       if (!resp.isCommitted()) {
         resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         resp.setHeader("Pragma", "no-cache");
         resp.setHeader("Expires", "0");
+        LOG.fine("NoCacheFilter set no-cache headers");
       }
     }
     chain.doFilter(request, response);
   }
 
   @Override
-  public void destroy() {}
+  public void destroy() {
+    // No resources to clean up
+  }
 }
-

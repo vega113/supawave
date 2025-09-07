@@ -76,9 +76,66 @@ public class SecurityHeadersJakartaIT {
     URL url = new URL("http://localhost:" + port + "/");
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
     assertEquals(200, c.getResponseCode());
-    assertNotNull(c.getHeaderField("Content-Security-Policy"));
-    assertNotNull(c.getHeaderField("Referrer-Policy"));
-    assertEquals("nosniff", c.getHeaderField("X-Content-Type-Options"));
+    // Lookup headers case-insensitively for reliability across JDKs/containers
+    java.util.Map<String, java.util.List<String>> headers = c.getHeaderFields();
+    java.util.function.Function<String,String> get = (name) -> {
+      for (java.util.Map.Entry<String, java.util.List<String>> e : headers.entrySet()) {
+        if (e.getKey() != null && e.getKey().equalsIgnoreCase(name)) {
+          return (e.getValue() != null && !e.getValue().isEmpty()) ? e.getValue().get(0) : null;
+        }
+      }
+      return null;
+    };
+    assertNotNull(get.apply("Content-Security-Policy"));
+    assertNotNull(get.apply("Referrer-Policy"));
+    String xcto = get.apply("X-Content-Type-Options");
+    assertNotNull(xcto);
+    assertTrue("X-Content-Type-Options should be nosniff, was: " + xcto, "nosniff".equalsIgnoreCase(xcto));
+  }
+
+  @Test
+  public void usesCustomConfiguration() throws Exception {
+    Server srv = null;
+    int p;
+    try {
+      srv = new Server();
+      ServerConnector c = new ServerConnector(srv);
+      c.setPort(0);
+      srv.addConnector(c);
+      ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
+      ctx.setContextPath("/");
+      ctx.addServlet(HelloServlet.class, "/");
+      var cfg = ConfigFactory.parseString(
+          "security.csp=\"default-src 'none'\"\n" +
+          "security.referrer_policy=\"no-referrer\"\n" +
+          "security.x_content_type_options=\"nosniff\"\n");
+      var filter = new SecurityHeadersFilter(cfg);
+      ctx.addFilter(new org.eclipse.jetty.ee10.servlet.FilterHolder(filter), "/*",
+          java.util.EnumSet.allOf(jakarta.servlet.DispatcherType.class));
+      srv.setHandler(ctx);
+      srv.start();
+      p = c.getLocalPort();
+    } catch (Throwable t) {
+      Assume.assumeNoException("Jetty 12 not available", t);
+      return;
+    }
+
+    try {
+      URL url = new URL("http://localhost:" + p + "/");
+      HttpURLConnection c2 = (HttpURLConnection) url.openConnection();
+      assertEquals(200, c2.getResponseCode());
+      java.util.Map<String, java.util.List<String>> headers = c2.getHeaderFields();
+      String csp = null, ref = null;
+      for (var e : headers.entrySet()) {
+        if (e.getKey() == null) continue;
+        if (e.getKey().equalsIgnoreCase("Content-Security-Policy")) csp = e.getValue().get(0);
+        if (e.getKey().equalsIgnoreCase("Referrer-Policy")) ref = e.getValue().get(0);
+      }
+      assertEquals("default-src 'none'", csp);
+      assertEquals("no-referrer", ref);
+    } finally {
+      try { srv.stop(); } catch (Exception ignore) {}
+    }
   }
 }
 

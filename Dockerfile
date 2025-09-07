@@ -10,11 +10,12 @@ COPY gradle /workspace/gradle
 COPY pst /workspace/pst
 COPY wave /workspace/wave
 COPY scripts /workspace/scripts
-COPY docs /workspace/docs
-COPY README.md LICENSE NOTICE DISCLAIMER KEYS /workspace/
+# Minimal copy for build to reduce layers; docs/keys are not needed for build
 
 # Build only the server distribution (installDist)
-RUN ./gradlew --no-daemon :wave:installDist
+# Allow switching Jetty family at build time: --build-arg JETTY_FAMILY=jakarta
+ARG JETTY_FAMILY=javax
+RUN ./gradlew --no-daemon -PjettyFamily=${JETTY_FAMILY} :wave:installDist
 
 # Runtime stage: slim JRE image
 FROM eclipse-temurin:17-jre
@@ -27,4 +28,3 @@ EXPOSE 9898
 # Default to production-ish config location; users can mount or bake their own.
 # To use SSL, mount a keystore & set env WAVE_SSL_KEYSTORE_PASSWORD, and edit config/application.conf.
 ENTRYPOINT ["/opt/wave/bin/wave"]
-

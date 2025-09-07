@@ -185,6 +185,32 @@ To build an installable distribution:
     ./gradlew :wave:installDist
 Use `scripts/wave-smoke.sh start|status|stop` against the installed dist.
 
+### Jetty 12 (Jakarta) profile
+
+- Build and run with Jetty 12 / Jakarta EE10 APIs without affecting the default build:
+  - Compile Jakarta sources and tests:
+    `./gradlew -PjettyFamily=jakarta :wave:classes :wave:jakartaTestClasses`
+  - Run the Jakarta test suite:
+    `./gradlew -PjettyFamily=jakarta :wave:testJakarta`
+  - Build an installable distribution (Jakarta path):
+    `./gradlew -PjettyFamily=jakarta :wave:installDist`
+
+- Docker image with Jakarta profile:
+  - `docker build --build-arg JETTY_FAMILY=jakarta -t wave:jakarta .`
+  - `docker run --rm -p 9898:9898 wave:jakarta`
+
+Note: Until the Jakarta path becomes the default, you can continue to use the existing (javax/Jetty 9.4) build and switch to Jakarta explicitly via `-PjettyFamily=jakarta`.
+
+### Enabling SSL and handling sensitive data
+
+- To enable SSL locally or in Docker, you need a Java keystore that contains a certificate/private key.
+  - Example (self-signed for development only):
+    `keytool -genkeypair -alias wave -keyalg RSA -keysize 2048 -validity 365 \\
+      -keystore wave/config/keystore.jks -storepass changeit -dname "CN=localhost"`
+  - Set `WAVE_SSL_KEYSTORE_PASSWORD` and point the server config to the keystore path.
+- Never commit keystores or passwords to source control. Avoid printing secrets in logs; review your logging configuration to ensure sensitive values are not logged.
+- Scrub CI/CD logs and artifacts as needed and prefer environment variables or secret stores for sensitive configuration.
+
 
 ## To learn more about Wave in a Box and Wave Federation Protocol:
 

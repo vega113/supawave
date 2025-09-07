@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.security;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
+import org.waveprotocol.wave.util.logging.Log;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -47,6 +48,7 @@ import java.io.IOException;
  */
 @Singleton
 public final class SecurityHeadersFilter implements Filter {
+  private static final Log LOG = Log.get(SecurityHeadersFilter.class);
   private final Config config;
 
   private static final String DEFAULT_CSP =
@@ -85,14 +87,16 @@ public final class SecurityHeadersFilter implements Filter {
         http.setHeader("X-Content-Type-Options", xcto);
 
         // Conditionally add HSTS when connection is secure
-        try {
-          int hstsMaxAge = config.hasPath("security.hsts_max_age") ? config.getInt("security.hsts_max_age") : 0;
-          boolean hstsIncludeSub = config.hasPath("security.hsts_include_subdomains") && config.getBoolean("security.hsts_include_subdomains");
-          if (hstsMaxAge > 0 && req != null && req.isSecure()) {
-            String value = "max-age=" + hstsMaxAge + (hstsIncludeSub ? "; includeSubDomains" : "");
-            http.setHeader("Strict-Transport-Security", value);
-          }
-        } catch (Throwable ignored) {}
+    try {
+      int hstsMaxAge = config.hasPath("security.hsts_max_age") ? config.getInt("security.hsts_max_age") : 0;
+      boolean hstsIncludeSub = config.hasPath("security.hsts_include_subdomains") && config.getBoolean("security.hsts_include_subdomains");
+      if (hstsMaxAge > 0 && req != null && req.isSecure()) {
+        String value = "max-age=" + hstsMaxAge + (hstsIncludeSub ? "; includeSubDomains" : "");
+        http.setHeader("Strict-Transport-Security", value);
+      }
+    } catch (Exception t) {
+      LOG.warning("Failed to configure HSTS header", t);
+    }
       }
     }
 
@@ -110,4 +114,3 @@ public final class SecurityHeadersFilter implements Filter {
   @Override
   public void destroy() {}
 }
-

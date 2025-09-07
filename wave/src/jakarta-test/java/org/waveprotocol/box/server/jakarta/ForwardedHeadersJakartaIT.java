@@ -93,8 +93,10 @@ public class ForwardedHeadersJakartaIT {
     c.setRequestProperty("X-Forwarded-For", "203.0.113.9");
     assertEquals(200, c.getResponseCode());
     String body = new String(c.getInputStream().readAllBytes());
-    assertTrue("scheme should be https, got: " + body, body.contains("scheme=https"));
-    assertTrue("remote should be 203.0.113.9, got: " + body, body.contains("remote=203.0.113.9"));
+    assertTrue("scheme should be https (sent X-Forwarded-Proto=https). Body=" + body,
+        body.contains("scheme=https"));
+    assertTrue("remote should be 203.0.113.9 (sent X-Forwarded-For=203.0.113.9). Body=" + body,
+        body.contains("remote=203.0.113.9"));
   }
 
   @Test
@@ -115,9 +117,13 @@ public class ForwardedHeadersJakartaIT {
     c.setRequestProperty("X-Forwarded-For", "not_an_ip");
     assertEquals(200, c.getResponseCode());
     String body = new String(c.getInputStream().readAllBytes());
-    // Jetty should not adopt invalid proto value; scheme should remain http
-    assertTrue("scheme should remain http on malformed proto: " + body, body.contains("scheme=http"));
-    // And remote address should not be the invalid header literal
-    assertFalse("remote should not equal the malformed header", body.contains("remote=not_an_ip"));
+    // Jetty should fall back to the original connection properties.
+    assertTrue("scheme should be http when malformed X-Forwarded-Proto. Body=" + body,
+        body.contains("scheme=http"));
+    assertFalse("remote should not equal the malformed header literal. Body=" + body,
+        body.contains("remote=not_an_ip"));
+    // Remote should match a loopback address (IPv4 or IPv6)
+    boolean loopback = body.contains("remote=127.0.0.1") || body.contains("remote=::1");
+    assertTrue("remote should be loopback on direct connection. Body=" + body, loopback);
   }
 }

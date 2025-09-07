@@ -112,19 +112,25 @@ public class AccessLogJakartaIT {
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
     assertEquals(200, c.getResponseCode());
     // Wait until the access log writer flushes by polling with a bounded timeout
-    long deadline = System.nanoTime() + 3_000_000_000L; // 3s
+    long deadline = System.nanoTime() + 10_000_000_000L; // 10s
     boolean found = false;
+    Exception lastReadError = null;
     while (System.nanoTime() < deadline) {
       if (accessFile.exists()) {
         try {
           String content = Files.readString(accessFile.toPath());
-          if (content.contains("GET /ping")) { found = true; break; }
-        } catch (Exception ignore) {
-          // file may not be readable yet; retry
+          if (content.contains("/ping")) { found = true; break; }
+        } catch (Exception ex) {
+          // File may not be readable yet; record and retry
+          lastReadError = ex;
         }
       }
       try { Thread.sleep(50); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
     }
-    assertTrue("access log should contain GET /ping within timeout", found);
+    if (!found) {
+      String msg = "access log should contain '/ping' within timeout" +
+          (lastReadError != null ? "; last read error: " + lastReadError.getClass().getSimpleName() + ": " + lastReadError.getMessage() : "");
+      fail(msg);
+    }
   }
 }

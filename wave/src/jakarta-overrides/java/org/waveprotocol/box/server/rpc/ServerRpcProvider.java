@@ -44,8 +44,9 @@ import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.wave.util.logging.Log;
 
 import javax.annotation.Nullable;
-import javax.servlet.Filter;
-import javax.servlet.http.HttpServlet;
+import jakarta.servlet.Filter;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServlet;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -84,6 +85,7 @@ public class ServerRpcProvider {
   final Executor threadPool;
   final Map<Descriptors.Descriptor, RegisteredServiceMethod> registeredServices = new ConcurrentHashMap<>();
   private Server httpServer;
+  private ServletContextHandler servletContextHandler;
 
   public ServerRpcProvider(InetSocketAddress[] httpAddresses,
                            String[] resourceBases, Executor threadPool,
@@ -197,6 +199,7 @@ public class ServerRpcProvider {
       if (sessionHandler != null) {
         context.setSessionHandler(sessionHandler);
       }
+      this.servletContextHandler = context;
 
       // Static resources (multiple bases) similar to legacy ResourceCollection
       try {
@@ -352,8 +355,22 @@ public class ServerRpcProvider {
 
   public ServletHolder addServlet(String urlPattern, Class<? extends HttpServlet> servlet,
                                   @Nullable Map<String, String> initParams) {
-    LOG.info("[Jakarta stub] addServlet {} -> {}", urlPattern, servlet.getName());
-    return new ServletHolder();
+    try {
+      if (servletContextHandler == null) {
+        LOG.info("[Jakarta] addServlet deferred (context not initialized): {} -> {}", urlPattern, servlet.getName());
+        return new ServletHolder(servlet);
+      }
+      ServletHolder holder = new ServletHolder(servlet);
+      if (initParams != null && !initParams.isEmpty()) {
+        holder.setInitParameters(initParams);
+      }
+      servletContextHandler.addServlet(holder, urlPattern);
+      LOG.info("[Jakarta] addServlet {} -> {}", urlPattern, servlet.getName());
+      return holder;
+    } catch (Throwable t) {
+      LOG.warning("Failed to add servlet '" + servlet + "' at '" + urlPattern + "'", t);
+      return new ServletHolder(servlet);
+    }
   }
 
   public ServletHolder addServlet(String urlPattern, Class<? extends HttpServlet> servlet) {
@@ -361,7 +378,17 @@ public class ServerRpcProvider {
   }
 
   public void addFilter(String urlPattern, Class<? extends Filter> filter) {
-    LOG.info("[Jakarta stub] addFilter {} -> {}", urlPattern, filter.getName());
+    try {
+      if (servletContextHandler == null) {
+        LOG.info("[Jakarta] addFilter deferred (context not initialized): {} -> {}", urlPattern, filter.getName());
+        return;
+      }
+      org.eclipse.jetty.ee10.servlet.FilterHolder holder = new org.eclipse.jetty.ee10.servlet.FilterHolder(filter);
+      servletContextHandler.addFilter(holder, urlPattern, java.util.EnumSet.allOf(DispatcherType.class));
+      LOG.info("[Jakarta] addFilter {} -> {}", urlPattern, filter.getName());
+    } catch (Throwable t) {
+      LOG.warning("Failed to add filter '" + filter + "' at '" + urlPattern + "'", t);
+    }
   }
 
   public void addTransparentProxy(String urlPattern, String proxyTo, String prefix) {

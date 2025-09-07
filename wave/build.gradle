@@ -171,6 +171,7 @@ if (jettyFamily == 'jakarta') {
         exclude 'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java'
         exclude 'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java'
         exclude 'org/waveprotocol/box/server/authentication/SessionManagerImpl.java'
+        // Jakarta filter classes live under org/waveprotocol/box/server/security/jakarta; keep javax filters intact in main
     }
 }
 

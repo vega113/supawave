@@ -1,7 +1,7 @@
 # Apache Wave Modernization Plan: JDK 17 and Latest GWT
 
 Status: In Progress
-Version: 1.2
+Version: 1.6
 Owner: Project Maintainers
 
 Purpose
@@ -39,8 +39,8 @@ At‑a‑Glance Checklist
 - [x] P5‑T1: Jakarta migration decision
 - [ ] P5‑T2: Jetty deps upgrade to Jakarta (Jetty 12)
 - [ ] P5‑T3: Servlet/Jakarta code migration (in progress)
+- [x] P5‑T4: Remove temporary Jakarta migration scaffolding (flags + POC classes)
 - [ ] Phase 6: Library upgrades (protobuf/commons/mongo/guava)
-- [ ] P5‑T4: Remove temporary Jakarta migration scaffolding (flags + POC classes)
 - [ ] Phase 7: Packaging & DX (dist/Docker)
 - [ ] Phase 8: J2CL/GWT 3 roadmap
 
@@ -509,34 +509,38 @@ Task P5-T2: Upgrade Jetty dependencies
 - Work Log:
   - 2025-09-02: Added a Jakarta (Jetty 12) source set and initial smoke. (Note: POC tasks removed in T5; validation now covered by jakartaTest.)
   - 2025-09-03: Jakarta (-PjettyFamily=jakarta) server bootstrap and endpoint dispatch are working; continue under P5‑T3 for servlet import migration and parity features.
+  - 2025-09-07: Kept default `jettyFamily=javax` (Jetty 9.4) while Jakarta work stabilizes. `javax.servlet-api` remains compileOnly on Jakarta builds for transitional stubs; to be removed before default flip.
 - Goal: Replace 9.4.x (current) with chosen target (Jetty 12 / Jakarta) in a controlled, non-breaking way.
 - Steps:
-  1) Update org.eclipse.jetty:* dependencies in wave/build.gradle.
-  2) If Jakarta path: replace javax.servlet-api with jakarta.servlet-api and update imports.
+  1) Update org.eclipse.jetty:* dependencies in wave/build.gradle and wire EE10 modules.
+  2) On Jakarta path: use jakarta.servlet-api; avoid javax.servlet-api except temporarily as compileOnly for stubs.
+  3) Flip default to Jakarta once P5‑T3 is complete and CI burn-in passes.
 - Tests:
-  - ./gradlew :wave:compileJakarta
-  - (Removed) runJakartaPoc POC task; Jakarta validation covered by jakartaTest.
+  - ./gradlew :wave:testJakarta
 - AI Agent Guidance:
   - Watch for servlet filter/servlet registration changes.
 - DoD:
-  - Server starts cleanly under the new Jetty.
+  - Server starts cleanly under Jetty 12; Jakarta becomes the default in Gradle without regressions.
 
-Task P5-T3: Migrate servlet code and configuration (if Jakarta)
+Task P5-T3: Migrate servlet code and configuration (Jakarta)
 - Status: In Progress
 - Work Log:
-  - 2025-09-03: EE10 bootstrap in ServerRpcProvider (Jakarta path) with multi-address binding, ResourceCollection static handling, GzipHandler, and a programmatic @ServerEndpoint("/socket"). Endpoint uses per-connection dispatch (no static globals), DI via ServerEndpointConfig.Configurator with validation, and secure error handling (no echo fallback). Added soft-fail framing: first parse error logged, second closes the session.
-- Goal: Refactor imports and any programmatic registrations to jakarta.*
-- Steps:
-  1) Update imports across server code.
-  2) Update web.xml or equivalent to Jakarta schema if used.
-  3) Replace remaining javax.* imports on Jakarta path and validate runtime behavior; parity tasks below.
-  4) Parity tasks (target 2025-09-15): Forwarded headers and access logs on Jakarta path; DI validation tests.
+  - 2025-09-03: EE10 bootstrap in Jakarta ServerRpcProvider: multi-address binding, ResourceCollection static handling, GzipHandler, and programmatic @ServerEndpoint("/socket"). Endpoint uses per-connection dispatch (no static globals), DI via ServerEndpointConfig.Configurator with validation, and secure error handling (no echo fallback). Added soft-fail framing: first parse error logged, second closes the session.
+  - 2025-09-03: Parity for forwarded headers (ForwardedRequestCustomizer) and access logs (NCSA) implemented and covered by jakartaTest.
+  - 2025-09-03: Session lookup compatibility (flag-gated) validated via SessionLookupEmbeddedIT; expanded flag docs.
+  - 2025-09-07: javax.servlet types still appear on the Jakarta path (compileOnly) for transitional stubs; remaining import sweep and DI replacement tracked below.
+- Goal: Refactor imports and programmatic registrations to jakarta.* and remove javax.* from the Jakarta path.
+- Steps (remaining):
+  1) Replace javax.servlet.* with jakarta.servlet.* across server sources (filters, servlets, listeners).
+  2) Replace Guice servlet integration (ServletModule/GuiceFilter) with programmatic registration on Jakarta path.
+  3) Update any web.xml to Jakarta schema (if present) and validate descriptors.
+  4) Remove compileOnly javax.servlet-api from Jakarta builds and ensure jakarta.servlet-api is the only servlet API.
 - Tests:
-  - Integration smoke (P2-T5) must pass.
+  - `:wave:testJakarta` and server smoke must pass.
 - AI Agent Guidance:
-  - Use IDE refactoring or scripted replacement; confirm all imports updated.
+  - Use IDE refactoring or scripted replacement; confirm all imports updated; search for javax.servlet across wave/.
 - DoD:
-  - No javax.servlet references remain; server works.
+  - No javax.servlet references remain on Jakarta path; server works under Jetty 12; compileOnly javax removed.
 
 Task P5-T4: Remove temporary Jakarta migration scaffolding (flags + POC)
 - Status: Completed
@@ -724,3 +728,5 @@ Changelog (for this plan)
 - 1.2 (2025-08-30): Marked P2-T4 Completed (Java 17 toolchain enabled in wave); added P3-T2 work log (pst DSL modernization, Shadow 8.1.1); set P1-T2 to Completed with JUnit test and test wiring; added generateMessages Guava runtime to classpath.
 - 1.3 (2025-08-30): Marked P2-T5 Completed; documented Java 17 add-opens in applicationDefaultJvmArgs and smoke validation results.
 - 1.4 (2025-08-31): Completed Jetty 9.4 baseline modernization (P5-T0): session API, SSL, gzip, security headers/HSTS toggle, forwarded headers, WebSocket token fix, access logs, static caching, and health endpoints. Enforced Java 17 across modules; added request/ops hardening.
+ - 1.5 (2025-09-03): Added Jakarta EE10 bootstrap, WebSocket endpoint with DI guard, forwarded headers + access log parity, and session lookup compatibility; created `jakartaTest` suite.
+ - 1.6 (2025-09-07): Updated statuses: P5‑T3 marked In Progress (remaining import sweep and DI replacement); noted transitional compileOnly javax on Jakarta path; aligned Jetty Migration doc with reality and listed remaining flip-to-default tasks.

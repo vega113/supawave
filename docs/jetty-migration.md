@@ -2,21 +2,24 @@
 
 Status: In Progress (staged migration)
 Owner: Project Maintainers
-Date: 2025-09-02
+Date: 2025-09-07
 
 Status Summary
 - Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
-- Decision: Target Jetty 12 (Jakarta) recorded on 2025-09-02; DI approach replaces guice-servlet on the Jakarta path with programmatic registration while keeping Guice core.
-- In Progress: Stage 2 — Jakarta migration (Jetty 12 path).
-  - EE10 server bootstrap in place: ServletContextHandler, DefaultServlet, GzipHandler.
+- Decision (2025-09-02): Target Jetty 12 (EE10). For Jakarta, use programmatic servlet/filter registration and a programmatic WebSocket endpoint. Retire guice-servlet on the Jakarta path (it is javax-only).
+- Stage 2 — Jakarta (Jetty 12): Core HTTP/static/WebSocket parity implemented; servlet/filter import sweep and DI integration are in progress.
+  - EE10 server bootstrap: ServletContextHandler, DefaultServlet, GzipHandler.
   - Static resources: ResourceCollection with cache/no-cache splits for /static and /webclient.
   - WebSockets: Programmatic @ServerEndpoint("/socket") with per-connection dispatch; no echo fallback; DI via ServerEndpointConfig.Configurator with validation.
-  - SessionManager (Jakarta override): reflective, flag-gated lookup for compatibility.
-  - Tests: jakartaTest smoke for echo; more end-to-end tests planned.
+  - Forwarded headers: ForwardedRequestCustomizer behind network.enable_forwarded_headers.
+  - Access logs: NCSA request log with append + 7-day retention.
+  - Sessions: flag-gated reflective lookup; embedded test coverage.
+  - Tests: jakartaTest suite for forwarded headers, access logs, DI guard, and session lookup.
+- Compatibility note: For Jakarta builds, javax.servlet-api is still present as compileOnly for transitional stubs. This must be removed before we flip Jakarta as the default.
 
 See also
 - Configuration flags and temporary migration toggles: docs/CONFIG_FLAGS.md
-- Next Up: Decide DI strategy for Jakarta, then plan import/web.xml changes and dependency switch.
+- Next up: Complete servlet/filter import sweep to jakarta.*, replace guice-servlet usages with programmatic registration, then flip the default build to Jetty 12.
 
 Objective
 - Upgrade Wave’s embedded/used Jetty from 9.2.x to a supported release to improve security, compatibility with modern JDKs, and long-term maintainability.
@@ -24,42 +27,48 @@ Objective
 
 Context
 - Current hosted GWT test harness (gwt-dev) internally launches Jetty 9.2.14.v20151106 and exhibits Java 9+ incompatibilities (e.g., jreLeakPrevention using sun.misc.GC) when run on JDK >= 11.
-- Server runtime Jetty usage in Wave (if any) needs inventory. We expect 9.x APIs and javax.servlet.* imports across the codebase.
+- Server runtime initially relied on Jetty 9.x APIs and javax.servlet.*; Jakarta work introduces EE10 packages and jakarta.servlet.*.
 
 Target Options
 - Option A: Jetty 10 (javax)
   - Pros: Minimal source changes; stays on javax.servlet.*; reduces CVEs vs 9.2.x; supported.
   - Cons: Still javax namespace; does not progress Jakarta migration; shorter runway than Jetty 11/12.
-- Option B: Jetty 11/12 (jakarta)
+- Option B: Jetty 11/12 (jakarta) — CHOSEN
   - Pros: Aligns with jakarta.servlet.* and long-term ecosystem; modern features, security.
   - Cons: Requires javax -> jakarta import migration; guice-servlet compatibility gap (guice-servlet is javax); web.xml schema update; larger refactor and testing.
 
 Recommendation (staged)
 1) Stage 1 (Completed): Adopt Jetty 9.4.x (javax) and modernize: SessionHandler + DefaultSessionCache + FileSessionDataStore, SslConnectionFactory + HttpConfiguration + SecureRequestCustomizer, GzipHandler, security headers (CSP/Referrer-Policy/X-Content-Type-Options) with optional HSTS, forwarded headers support, access logs, static caching, and health endpoints.
-2) Stage 2 (In Progress): Execute Jakarta migration (Jetty 12).
-   - Status: EE10 bootstrap, endpoint dispatch, and DI are implemented. Forwarded headers + access logs parity and session lookup compatibility are next.
+2) Stage 2 (In progress): Execute Jakarta migration (Jetty 12) and reach parity.
+   - Status: EE10 bootstrap, endpoint dispatch, forwarded headers, access logs, and session lookup compatibility implemented with tests; servlet/filter import sweep and DI replacement pending.
 
-Timeline (as of 2025-09-03)
+Timeline (as of 2025-09-07)
 - T1 (done): EE10 servlet handler, static resources, gzip, basic /socket.
 - T2 (done): Programmatic endpoint + per-connection dispatch; removed echo fallback; DI validation.
-- T3 (by 2025-09-15): Forwarded headers/access logs parity; finalize DI wiring; add jakartaTest coverage.
-- T4 (by 2025-09-22): Session lookup compatibility layer, flag docs + IT.
-- T5 (by 2025-09-29): Stabilize and retire Jakarta stubs; promote Jakarta path for -PjettyFamily=jakarta.
+- T3 (done): Forwarded headers/access logs parity; jakartaTest added.
+- T4 (done): Session lookup compatibility layer; flag docs + end-to-end test.
+- T5 (done): Retired POC flags and code; simplified provider wiring; constructors collapsed.
+
+Remaining items
+- Replace guice-servlet usages with programmatic registration and/or Jakarta-compatible integration; remove GuiceFilter from the Jakarta path.
+- Sweep server sources and change javax.servlet.* imports to jakarta.servlet.*; update filters/servlets and any web.xml descriptors.
+- Remove compileOnly javax.servlet-api from Jakarta builds; ensure jakarta.servlet-api is the only servlet API on classpath.
+- Flip `jettyFamily` default to `jakarta` once CI burn-in is green; keep a fallback profile for javax while deprecating it.
+- Update Dockerfile and README to document running under Jetty 12 by default, including any changed ports/flags.
+- Continue deprecation cleanup where low risk; track GWT and JUnit legacy warnings separately.
 
 Scope and Impact Areas
 - Build dependencies (wave/build.gradle):
-  - Replace org.eclipse.jetty:jetty-*:9.2.x with 10.0.x equivalents.
+  - For Jetty 12/EE10, depend on `org.eclipse.jetty:jetty-server` and `org.eclipse.jetty.ee10:*` modules, plus `jakarta.servlet-api`.
   - Ensure slf4j/logback/log4j bridges are consistent and not duplicated.
-  - Confirm javax.servlet-api (4.0.1) remains for Jetty 10.
 - Server code:
-  - javax.servlet.* remains unchanged for Jetty 10.
-  - Any Jetty-specific APIs/classes used may need minor adjustments.
+  - Replace javax.servlet.* with jakarta.servlet.*.
+  - Replace Guice servlet integration (javax) with programmatic registration on Jakarta path.
 - Configuration:
-  - Programmatic Jetty setup (connectors, thread pools, handlers) validated under Jetty 10.
-  - If web.xml present, validate descriptor versions.
+  - Programmatic Jetty setup (connectors, thread pools, handlers) validated under Jetty 12.
+  - If web.xml present, upgrade descriptors to Jakarta variant.
 - Testing:
-  - Build & unit tests on JDK 17.
-  - Server smoke tests (health endpoints, filters, servlets, static content).
+  - Build & unit tests on JDK 17; run `:wave:testJakarta` and smoke tests.
   - GWT hosted tests are independent (driven by gwt-dev Jetty) and won’t be fixed by server Jetty upgrade; track separately.
 
 Detailed Plan
@@ -90,27 +99,20 @@ Stage 1: Jetty 9.4 (javax)
   - Server starts and serves key endpoints without regressions.
   - No critical CVEs reported against the new Jetty version.
 
-Stage 2: Jakarta migration (Jetty 11/12)
+Stage 2: Jakarta migration (Jetty 12)
 Decision & path
-- Decision: Target Jetty 12 (Jakarta) for long-term support. Guice-servlet is javax-based; we will evaluate options:
-  1) Replace guice-servlet with native programmatic registration and keep Guice DI without guice-servlet.
-  2) Investigate Jakarta-compatible forks of guice-servlet (if any, maturity unknown).
-  3) Consider an alternative DI for servlet integration if needed.
-- Preconditions remain as below.
+- Decision: Target Jetty 12 (Jakarta) for long-term support. Guice-servlet is javax-based; we will replace servlet/filter registration with a programmatic approach while keeping Guice core for DI.
 - Pre-requisites
-  - Decide strategy for guice-servlet replacement or jakarta-compatible alternative.
-    - Options: community Jakarta port of guice-servlet, or refactor to native servlet/filter registration without guice-servlet, or DI alternative.
   - Inventory all javax.servlet.* usages and any javax.* dependencies (filters, listeners, web.xml).
 - Tasks
-  1) Swap javax.servlet-api -> jakarta.servlet:jakarta.servlet-api (5.x or 6.x, aligned with Jetty target).
+  1) Keep `jakarta.servlet-api` (6.x) as the only servlet API on the Jakarta path; remove `javax.servlet-api` from compileOnly.
   2) Update imports javax.* -> jakarta.* across server sources.
   3) Update web.xml schema to Jakarta variant if present; validate descriptors.
-  4) Replace or adapt guice-servlet integration (ServletModule, GuiceFilter); rework bootstrap/init.
-  5) Upgrade Jetty to 12.x (preferred) or 11.x; update programmatic Jetty configuration if APIs changed.
-  6) Re-run full build, unit tests, and server smoke tests on JDK 17.
+  4) Replace guice-servlet integration (ServletModule, GuiceFilter) with programmatic registration; wire filters/servlets.
+  5) Re-run full build, `:wave:testJakarta`, and server smoke tests on JDK 17.
 - Acceptance
   - Server builds and runs fully under Jakarta.
-  - No javax.* dependencies remain; CI is green.
+  - No javax.* dependencies remain on the Jakarta path; CI is green.
 
 Risks and Mitigations
 - Risk: guice-servlet Jakarta compatibility
@@ -126,9 +128,9 @@ Work Breakdown (initial)
 - P5-T3 (Jakarta planning): Spike on guice-servlet replacement path; document findings and choose approach.
 
 Validation Checklist
-- Server starts on JDK 17 with Jetty 12 (Jakarta) after migration
-- No critical regressions in endpoints and filters
-- Follow-up epic created for Jakarta migration with concrete subtasks and code owners
+- Server starts on JDK 17 with Jetty 12 (Jakarta) after migration.
+- WebSockets, static resources, forwarded headers, access logs verified via tests.
+- No javax.* dependencies remain on Jakarta path; follow-up epic created for any residuals.
 
 Notes
 - 2025-08-30 Spike outcome: Attempting Jetty 10 directly revealed session API changes (no org.eclipse.jetty.server.SessionManager/HashSessionManager). We temporarily reverted dependencies to 9.2.14 to keep the build green. Plan updated to target 9.4 first with a focused refactor in ServerModule/ServerRpcProvider.

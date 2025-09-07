@@ -14,6 +14,45 @@ Reference-centric summary (see docs/fragments-viewport-behavior.md and docs/frag
 - Server emits fragments under a feature flag; HTTP endpoint and RPC wiring are gated. Defaults and operational guidance live in the fragments config reference.
 - Failure modes fall back safely and are observable via metrics; details and diagrams live in the viewport behavior note.
 
+### Verification Details (2025-09-07)
+
+- Implemented features (server):
+  - Fragments fetcher and helpers: `wave/src/main/java/org/waveprotocol/box/server/frontend/FragmentsFetcherCompat.java`
+  - ViewChannel fragments handler (flag-gated): `wave/src/main/java/org/waveprotocol/box/server/frontend/FragmentsViewChannelHandler.java`
+  - ViewChannel bridge (server wiring): `wave/src/main/java/org/waveprotocol/box/server/frontend/FragmentsFetchBridgeImpl.java`
+  - RPC emission (ProtocolFragments): `wave/src/main/java/org/waveprotocol/box/server/frontend/WaveClientRpcImpl.java`
+  - HTTP endpoint (gated): `wave/src/main/java/org/waveprotocol/box/server/rpc/FragmentsServlet.java`
+  - Manifest-order cache (LRU+TTL): `wave/src/main/java/org/waveprotocol/box/server/frontend/ManifestOrderCache.java`
+  - Segment state registry (LRU+TTL): `wave/src/main/java/org/waveprotocol/box/server/waveletstate/segment/SegmentWaveletStateRegistry.java`
+
+- Unit/integration tests present (selected):
+  - Request + ordering: `FragmentsRequestTest`, `FragmentsOrderingTest`
+  - RPC emission path (fragments presence + viewport limits): `WaveClientRpcFragmentsTest`, `WaveClientRpcViewportHintsTest`
+  - ViewChannel bridge: `FragmentsFetchBridgeImplTest`
+  - Compat segment state: `SegmentWaveletStateCompatTest`
+  - HTTP gating: `wave/src/test/java/org/waveprotocol/box/server/FragmentsHttpGatingTest.java`
+  - Manifest-order cache: `wave/src/test/java/org/waveprotocol/box/server/frontend/ManifestOrderCacheTest.java`
+  - Segment state registry: `wave/src/test/java/org/waveprotocol/box/server/waveletstate/segment/SegmentWaveletStateRegistryTest.java`, `.../SegmentWaveletStateRegistryConcurrencyTest.java`
+  - Fragment requester shaping: `wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/channel/FragmentRequesterTest.java`
+
+- Logging (key points and levels):
+  - Config read failures (flags, cache sizes/TTLs): INFO with defaults applied.
+  - Viewport clamping/invalid inputs: FINE in `WaveClientRpcImpl`.
+  - Fallbacks (selection/emit failures): WARN with wavelet context in `FragmentsViewChannelHandler` and `WaveClientRpcImpl`.
+  - Boot log for applier wiring: INFO in `ServerMain` (enabled, impl, warnMs).
+
+- Metrics (FragmentsMetrics counters):
+  - Emission: `emissionCount`, `emissionRanges`, `emissionErrors`, `emissionFallbacks`.
+  - Compute/fallbacks: `computeFallbacks`, `viewportAmbiguity`.
+  - HTTP (when `/fragments` enabled): `httpRequests`, `httpOk`, `httpErrors`.
+  - Applier: `applierEvents`, `applierDurationsMs`.
+  - Definitions: `wave/src/main/java/org/waveprotocol/wave/concurrencycontrol/channel/FragmentsMetrics.java`.
+  - Visibility: `/statusz?show=fragments` (implementation in `wave/src/main/java/org/waveprotocol/box/server/stat/StatuszServlet.java`).
+
+- Gating and configuration locations:
+  - Server gates and caches: `wave/config/reference.conf` under `server.*` and `wave.fragments.*` (see also docs/fragments-config.md).
+  - Startup validation and wiring: `ServerMain.initializeFrontend` and `ServerMain.initializeServlets` (flags applied, invalid values fail fast).
+
 New configuration and client API (viewport hints)
 - Config (Typesafe):
   - `wave.fragments.defaultViewportLimit` (int, default 5): default number of blip segments to include when client hint limit is missing/invalid.

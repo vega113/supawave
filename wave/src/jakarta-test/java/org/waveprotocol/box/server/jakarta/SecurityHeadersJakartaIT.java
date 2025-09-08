@@ -23,7 +23,6 @@ import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.junit.After;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import org.waveprotocol.box.server.security.jakarta.SecurityHeadersFilter;
@@ -42,6 +41,7 @@ public class SecurityHeadersJakartaIT {
 
   @Before
   public void start() throws Exception {
+    TestSupport.assumeJettyEe10PresentOrSkip();
     try {
       server = new Server();
       ServerConnector c = new ServerConnector(server);
@@ -50,8 +50,8 @@ public class SecurityHeadersJakartaIT {
 
       ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
       ctx.setContextPath("/");
-      // Map simple servlet at root
-      ctx.addServlet(HelloServlet.class, "/");
+      // Map simple servlet under an explicit path to avoid container root quirks
+      ctx.addServlet(HelloServlet.class, "/hello");
 
       // Install filter instance with config
       var filter = new SecurityHeadersFilter(ConfigFactory.parseString(""));
@@ -61,8 +61,10 @@ public class SecurityHeadersJakartaIT {
       server.setHandler(ctx);
       server.start();
       port = c.getLocalPort();
-    } catch (Throwable t) {
-      Assume.assumeNoException("Jetty 12 not available", t);
+    } catch (LinkageError e) {
+      TestSupport.assumeJettyEe10PresentOrSkip();
+    } catch (Exception e) {
+      throw new AssertionError("Failed to start embedded Jetty EE10 server", e);
     }
   }
 
@@ -73,28 +75,21 @@ public class SecurityHeadersJakartaIT {
 
   @Test
   public void addsSecurityHeaders() throws Exception {
-    URL url = new URL("http://localhost:" + port + "/");
+    URL url = new URL("http://localhost:" + port + "/hello");
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
-    assertEquals(200, c.getResponseCode());
+    assertOk(c, "/hello");
     // Lookup headers case-insensitively for reliability across JDKs/containers
     java.util.Map<String, java.util.List<String>> headers = c.getHeaderFields();
-    java.util.function.Function<String,String> get = (name) -> {
-      for (java.util.Map.Entry<String, java.util.List<String>> e : headers.entrySet()) {
-        if (e.getKey() != null && e.getKey().equalsIgnoreCase(name)) {
-          return (e.getValue() != null && !e.getValue().isEmpty()) ? e.getValue().get(0) : null;
-        }
-      }
-      return null;
-    };
-    assertNotNull(get.apply("Content-Security-Policy"));
-    assertNotNull(get.apply("Referrer-Policy"));
-    String xcto = get.apply("X-Content-Type-Options");
+    assertNotNull(getHeader(headers, "Content-Security-Policy"));
+    assertNotNull(getHeader(headers, "Referrer-Policy"));
+    String xcto = getHeader(headers, "X-Content-Type-Options");
     assertNotNull(xcto);
     assertTrue("X-Content-Type-Options should be nosniff, was: " + xcto, "nosniff".equalsIgnoreCase(xcto));
   }
 
   @Test
   public void usesCustomConfiguration() throws Exception {
+    TestSupport.assumeJettyEe10PresentOrSkip();
     Server srv = null;
     int p;
     try {
@@ -104,7 +99,7 @@ public class SecurityHeadersJakartaIT {
       srv.addConnector(c);
       ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
       ctx.setContextPath("/");
-      ctx.addServlet(HelloServlet.class, "/");
+      ctx.addServlet(HelloServlet.class, "/hello");
       var cfg = ConfigFactory.parseString(
           "security.csp=\"default-src 'none'\"\n" +
           "security.referrer_policy=\"no-referrer\"\n" +
@@ -115,36 +110,87 @@ public class SecurityHeadersJakartaIT {
       srv.setHandler(ctx);
       srv.start();
       p = c.getLocalPort();
-    } catch (Throwable t) {
-      Assume.assumeNoException("Jetty 12 not available", t);
+    } catch (LinkageError e) {
+      TestSupport.assumeJettyEe10PresentOrSkip();
       return;
+    } catch (Exception e) {
+      throw new AssertionError("Failed to start embedded Jetty EE10 server (custom config)", e);
     }
 
     try {
-      URL url = new URL("http://localhost:" + p + "/");
+      URL url = new URL("http://localhost:" + p + "/hello");
       HttpURLConnection c2 = (HttpURLConnection) url.openConnection();
-      assertEquals(200, c2.getResponseCode());
+      assertOk(c2, "/hello");
       java.util.Map<String, java.util.List<String>> headers = c2.getHeaderFields();
-      String csp = null, ref = null;
-      for (var e : headers.entrySet()) {
-        if (e.getKey() == null) continue;
-        if (e.getKey().equalsIgnoreCase("Content-Security-Policy")) csp = e.getValue().get(0);
-        if (e.getKey().equalsIgnoreCase("Referrer-Policy")) ref = e.getValue().get(0);
-      }
+      String csp = getHeader(headers, "Content-Security-Policy");
+      String ref = getHeader(headers, "Referrer-Policy");
+      String xcto = getHeader(headers, "X-Content-Type-Options");
       assertEquals("default-src 'none'", csp);
       assertEquals("no-referrer", ref);
+      assertNotNull("X-Content-Type-Options header expected", xcto);
+      assertTrue("X-Content-Type-Options should be nosniff, was: " + xcto, "nosniff".equalsIgnoreCase(xcto));
     } finally {
       try { srv.stop(); } catch (Exception ignore) {}
     }
   }
-}
 
-class HelloServlet extends jakarta.servlet.http.HttpServlet {
-  @Override protected void doGet(jakarta.servlet.http.HttpServletRequest req,
-                                 jakarta.servlet.http.HttpServletResponse resp)
-      throws java.io.IOException {
-    resp.setStatus(200);
-    resp.setContentType("text/plain");
-    resp.getWriter().write("ok");
+  // Helper: case-insensitive header lookup (first value)
+  private static String getHeader(java.util.Map<String, java.util.List<String>> headers, String name) {
+    if (headers == null) {
+      throw new AssertionError("Response headers map is null while looking up '" + name + "'.");
+    }
+    for (java.util.Map.Entry<String, java.util.List<String>> e : headers.entrySet()) {
+      if (e.getKey() == null) continue; // status line
+      if (e.getKey().equalsIgnoreCase(name)) {
+        java.util.List<String> vals = e.getValue();
+        if (vals == null || vals.isEmpty()) {
+          // Unexpected: header key present but value list missing
+          System.err.println("Header '" + name + "' present with no values. All headers:\n" + dumpHeaders(headers));
+          return null;
+        }
+        return vals.get(0);
+      }
+    }
+    // Not found: log available headers for diagnostics and return null so callers can assert
+    System.err.println("Header '" + name + "' not found. All headers:\n" + dumpHeaders(headers));
+    return null;
+  }
+
+  private static String dumpHeaders(java.util.Map<String, java.util.List<String>> headers) {
+    StringBuilder sb = new StringBuilder();
+    if (headers == null) return "<null>";
+    for (var e : headers.entrySet()) {
+      sb.append(e.getKey()).append(": ").append(e.getValue()).append('\n');
+    }
+    return sb.toString();
+  }
+
+  private static void assertOk(HttpURLConnection c, String path) throws java.io.IOException {
+    int code = c.getResponseCode();
+    if (code != 200) {
+      StringBuilder hdrDump = new StringBuilder();
+      for (var e : c.getHeaderFields().entrySet()) {
+        hdrDump.append(e.getKey()).append(": ").append(e.getValue()).append("\n");
+      }
+      String body;
+      try {
+        var s = (c.getErrorStream() != null) ? c.getErrorStream() : c.getInputStream();
+        body = new String(s.readAllBytes());
+      } catch (Exception ex) {
+        body = "<unavailable>";
+      }
+      fail("Expected HTTP 200 from " + path + ", got " + code + "\nHeaders:\n" + hdrDump + "Body:\n" + body);
+    }
+  }
+  // Public nested servlet for reliable reflective instantiation
+  public static class HelloServlet extends jakarta.servlet.http.HttpServlet {
+    public HelloServlet() {}
+    @Override protected void doGet(jakarta.servlet.http.HttpServletRequest req,
+                                   jakarta.servlet.http.HttpServletResponse resp)
+        throws java.io.IOException {
+      resp.setStatus(200);
+      resp.setContentType("text/plain");
+      resp.getWriter().write("ok");
+    }
   }
 }

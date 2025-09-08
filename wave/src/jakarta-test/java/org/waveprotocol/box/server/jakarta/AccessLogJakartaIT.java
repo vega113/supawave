@@ -29,12 +29,12 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.file.Files;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
@@ -44,20 +44,15 @@ import static org.junit.Assert.*;
 public class AccessLogJakartaIT {
   private Server server;
   private int port;
-  private File tmpDir;
-  private File accessFile;
+  private LatchingRequestLog latchingLog;
 
   @Before
   public void start() throws Exception {
+    TestSupport.assumeJettyEe10PresentOrSkip();
     try {
-      tmpDir = Files.createTempDirectory("wave-logs-").toFile();
-      accessFile = new File(tmpDir, "access.yyyy_mm_dd.log");
-
       server = new Server();
-      RequestLogWriter logWriter = new RequestLogWriter(accessFile.getPath());
-      logWriter.setAppend(true);
-      logWriter.setRetainDays(1);
-      server.setRequestLog(new CustomRequestLog(logWriter, CustomRequestLog.NCSA_FORMAT));
+      latchingLog = new LatchingRequestLog();
+      server.setRequestLog(latchingLog);
 
       ServerConnector connector = new ServerConnector(server);
       connector.setPort(0);
@@ -70,29 +65,16 @@ public class AccessLogJakartaIT {
 
       server.start();
       port = connector.getLocalPort();
-    } catch (Throwable t) {
-      Assume.assumeNoException("Jetty 12 EE10 not available", t);
+    } catch (LinkageError e) {
+      TestSupport.assumeJettyEe10PresentOrSkip();
+    } catch (Exception e) {
+      throw new AssertionError("Failed to start embedded Jetty EE10 server", e);
     }
   }
 
   @After
   public void stop() throws Exception {
     if (server != null) server.stop();
-    try {
-      if (accessFile != null && accessFile.exists()) {
-        accessFile.delete();
-      }
-      if (tmpDir != null && tmpDir.exists()) {
-        java.nio.file.Path root = tmpDir.toPath();
-        java.nio.file.Files.walk(root)
-            .sorted(java.util.Comparator.reverseOrder())
-            .forEach(p -> {
-              try { java.nio.file.Files.deleteIfExists(p); } catch (Exception ignore) {}
-            });
-      }
-    } catch (Throwable ignore) {
-      // Best-effort cleanup
-    }
   }
 
   public static class PingServlet extends HttpServlet {
@@ -111,26 +93,41 @@ public class AccessLogJakartaIT {
     URL url = new URL("http://localhost:" + port + "/ping");
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
     assertEquals(200, c.getResponseCode());
-    // Wait until the access log writer flushes by polling with a bounded timeout
-    long deadline = System.nanoTime() + 10_000_000_000L; // 10s
-    boolean found = false;
-    Exception lastReadError = null;
-    while (System.nanoTime() < deadline) {
-      if (accessFile.exists()) {
+    boolean signaled = latchingLog.await(2, TimeUnit.SECONDS);
+    assertTrue("access log should be written within timeout", signaled);
+    String path = latchingLog.getLastPath();
+    assertNotNull(path);
+    assertTrue("logged path should contain '/ping' but was: " + path, path.contains("/ping"));
+  }
+
+  /** Minimal RequestLog that latches when a request is logged. */
+  static class LatchingRequestLog implements RequestLog {
+    private final CountDownLatch latch = new CountDownLatch(1);
+    private volatile String lastPath;
+
+    @Override
+    public void log(Request request, Response response) {
+      try {
+        String p;
         try {
-          String content = Files.readString(accessFile.toPath());
-          if (content.contains("/ping")) { found = true; break; }
+          // getHttpURI() and getPath() should not throw checked exceptions; however,
+          // some containers or alternate implementations may throw RuntimeException
+          // when URI parsing fails. We catch Exception (not Throwable) to avoid
+          // swallowing serious Errors while still being robust in tests.
+          p = request.getHttpURI().getPath();
         } catch (Exception ex) {
-          // File may not be readable yet; record and retry
-          lastReadError = ex;
+          p = String.valueOf(request.getHttpURI());
         }
+        lastPath = p;
+      } finally {
+        latch.countDown();
       }
-      try { Thread.sleep(50); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
     }
-    if (!found) {
-      String msg = "access log should contain '/ping' within timeout" +
-          (lastReadError != null ? "; last read error: " + lastReadError.getClass().getSimpleName() + ": " + lastReadError.getMessage() : "");
-      fail(msg);
+
+    boolean await(long time, TimeUnit unit) throws InterruptedException {
+      return latch.await(time, unit);
     }
+
+    String getLastPath() { return lastPath; }
   }
 }

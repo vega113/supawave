@@ -20,14 +20,40 @@ package org.waveprotocol.box.server.waveletstate.segment;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.waveprotocol.wave.model.id.WaveletName;
 
 /**
  * Size/TTL-bounded registry for per-wavelet SegmentWaveletState instances.
  *
- * Uses a simple access-order LRU map guarded by a RW lock to reduce
- * contention under concurrent gets while preserving eviction correctness.
+ * Concurrency model
+ * -----------------
+ * - We use an access-order {@link LinkedHashMap} to implement an LRU with
+ *   lightweight eviction (removeEldestEntry) and a timestamp per entry to
+ *   enforce TTL expiration.
+ * - The map is guarded by a {@link ReentrantReadWriteLock} (RW lock) rather
+ *   than coarse-grained {@code synchronized} for two reasons:
+ *   1) The hot path is read-dominant (get-then-check-expiry). A RW lock allows
+ *      multiple readers to proceed concurrently under load, reducing
+ *      contention compared to a single monitor.
+ *   2) Eviction/expiry mutations are infrequent and short-lived; writes are
+ *      held under the write lock only while touching the map, which keeps
+ *      writer critical sections small.
+ *
+ * Trade-offs vs synchronized
+ * --------------------------
+ * - RW locks have a slightly higher overhead in uncontended scenarios; if the
+ *   access pattern changes to write-dominant, a simple monitor could be
+ *   cheaper. Given our expected read-heavy usage (fetch on every selection and
+ *   cache updates only on cache miss/TTL expiry), the parallelism from shared
+ *   reads wins in practice.
+ * - We avoid lock upgrade pitfalls by releasing the read lock before acquiring
+ *   the write lock when removing expired entries (see get()). This sidesteps
+ *   potential deadlocks while keeping the code straightforward.
+ * - We do not hold locks across external calls. All locks protect only local
+ *   mutations/reads of the LRU map, minimizing the risk of lock-ordering
+ *   issues and long critical sections.
  */
 public final class SegmentWaveletStateRegistry {
   private static final int DEFAULT_MAX_ENTRIES = 1024;
@@ -36,56 +62,138 @@ public final class SegmentWaveletStateRegistry {
   private static volatile int maxEntries = DEFAULT_MAX_ENTRIES;
   private static volatile long ttlMs = DEFAULT_TTL_MS;
 
+  // Observability counters
+  public static final AtomicLong hits = new AtomicLong();
+  public static final AtomicLong misses = new AtomicLong();
+  public static final AtomicLong evictions = new AtomicLong();
+  public static final AtomicLong expirations = new AtomicLong();
+
+  // RW lock: allows concurrent gets and short write critical sections for
+  // put/eviction. See class-level notes for rationale.
   private static final ReentrantReadWriteLock RW = new ReentrantReadWriteLock();
-  private static final Map<WaveletName, Entry> LRU = new LinkedHashMap<WaveletName, Entry>(16, 0.75f, true) {
-    @Override protected boolean removeEldestEntry(Map.Entry<WaveletName, Entry> eldest) {
-      return size() > maxEntries;
-    }
-  };
+  private static final Map<WaveletName, Entry> LRU =
+      new LinkedHashMap<WaveletName, Entry>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<WaveletName, Entry> eldest) {
+          if (size() > maxEntries) {
+            evictions.incrementAndGet();
+            return true;
+          }
+          return false;
+        }
+      };
 
   private static final class Entry {
-    final SegmentWaveletState state; final long tsMs;
-    Entry(SegmentWaveletState s, long ts) { this.state = s; this.tsMs = ts; }
-    boolean expired(long nowMs) { return ttlMs > 0 && (nowMs - tsMs) > ttlMs; }
+    final SegmentWaveletState state;
+    final long tsMs;
+
+    Entry(SegmentWaveletState s, long ts) {
+      this.state = s;
+      this.tsMs = ts;
+    }
+
+    boolean expired(long nowMs) {
+      return (ttlMs == 0) || (ttlMs > 0 && (nowMs - tsMs) > ttlMs);
+    }
   }
 
   private SegmentWaveletStateRegistry() {}
 
+  // Configuration setters acquire write lock to serialize updates with map ops
   public static void setMaxEntries(int max) {
-    if (max <= 0) return;
+    if (max <= 0) {
+      return;
+    }
     RW.writeLock().lock();
-    try { maxEntries = max; } finally { RW.writeLock().unlock(); }
+    try {
+      maxEntries = max;
+    } finally {
+      RW.writeLock().unlock();
+    }
   }
 
   public static void setTtlMs(long ttl) {
-    if (ttl < 0) return;
+    if (ttl < 0) {
+      return;
+    }
     RW.writeLock().lock();
-    try { ttlMs = ttl; } finally { RW.writeLock().unlock(); }
+    try {
+      ttlMs = ttl;
+    } finally {
+      RW.writeLock().unlock();
+    }
   }
 
+  // Write path: short critical section that only updates the LRU map.
   public static void put(WaveletName name, SegmentWaveletState state) {
-    if (name == null || state == null) return;
+    if (name == null || state == null) {
+      return;
+    }
     RW.writeLock().lock();
-    try { LRU.put(name, new Entry(state, System.currentTimeMillis())); }
-    finally { RW.writeLock().unlock(); }
+    try {
+      LRU.put(name, new Entry(state, System.currentTimeMillis()));
+    } finally {
+      RW.writeLock().unlock();
+    }
   }
 
+  // Read path: try fast-path under read lock; if expired, fall back to a
+  // write-locked removal. We intentionally do not hold both locks to avoid
+  // upgrade deadlocks.
   public static SegmentWaveletState get(WaveletName name) {
     if (name == null) return null;
     long now = System.currentTimeMillis();
     RW.readLock().lock();
     try {
       Entry e = LRU.get(name);
-      if (e == null) return null;
-      if (!e.expired(now)) return e.state;
-    } finally { RW.readLock().unlock(); }
+      if (e == null) {
+        misses.incrementAndGet();
+        return null;
+      }
+      if (!e.expired(now)) {
+        hits.incrementAndGet();
+        return e.state;
+      }
+    } finally {
+      RW.readLock().unlock();
+    }
 
     // If expired, upgrade to write to remove and return null
     RW.writeLock().lock();
     try {
       Entry e2 = LRU.get(name);
-      if (e2 != null && e2.expired(System.currentTimeMillis())) LRU.remove(name);
-    } finally { RW.writeLock().unlock(); }
+      if (e2 != null && e2.expired(System.currentTimeMillis())) {
+        LRU.remove(name);
+        expirations.incrementAndGet();
+        misses.incrementAndGet();
+      }
+    } finally {
+      RW.writeLock().unlock();
+    }
     return null;
+  }
+
+  /** Test-only helper to clear all entries. */
+  public static void clearForTests() {
+    RW.writeLock().lock();
+    try {
+      LRU.clear();
+      hits.set(0);
+      misses.set(0);
+      evictions.set(0);
+      expirations.set(0);
+    } finally {
+      RW.writeLock().unlock();
+    }
+  }
+
+  /** Test-only helper to read current LRU size under read lock. */
+  public static int sizeForTests() {
+    RW.readLock().lock();
+    try {
+      return LRU.size();
+    } finally {
+      RW.readLock().unlock();
+    }
   }
 }

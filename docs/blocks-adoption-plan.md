@@ -22,7 +22,7 @@ Reference-centric summary (see docs/fragments-viewport-behavior.md and docs/frag
   - ViewChannel bridge (server wiring): `wave/src/main/java/org/waveprotocol/box/server/frontend/FragmentsFetchBridgeImpl.java`
   - RPC emission (ProtocolFragments): `wave/src/main/java/org/waveprotocol/box/server/frontend/WaveClientRpcImpl.java`
   - HTTP endpoint (gated): `wave/src/main/java/org/waveprotocol/box/server/rpc/FragmentsServlet.java`
-  - Manifest-order cache (LRU+TTL): `wave/src/main/java/org/waveprotocol/box/server/frontend/ManifestOrderCache.java`
+  - Manifest-order cache (Caffeine: LRU + TTL): `wave/src/main/java/org/waveprotocol/box/server/frontend/ManifestOrderCache.java`
   - Segment state registry (LRU+TTL): `wave/src/main/java/org/waveprotocol/box/server/waveletstate/segment/SegmentWaveletStateRegistry.java`
 
 - Unit/integration tests present (selected):
@@ -34,6 +34,7 @@ Reference-centric summary (see docs/fragments-viewport-behavior.md and docs/frag
   - Manifest-order cache: `wave/src/test/java/org/waveprotocol/box/server/frontend/ManifestOrderCacheTest.java`
   - Segment state registry: `wave/src/test/java/org/waveprotocol/box/server/waveletstate/segment/SegmentWaveletStateRegistryTest.java`, `.../SegmentWaveletStateRegistryConcurrencyTest.java`
   - Fragment requester shaping: `wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/channel/FragmentRequesterTest.java`
+  - Stress-style cache/registry tests (excluded from default test task; run via `:wave:testStress`): `wave/src/test/java/org/waveprotocol/box/server/frontend/FragmentsCachesStressTest.java` (see docs/fragments-stress-tests.md for expected outcomes).
 
 - Logging (key points and levels):
   - Config read failures (flags, cache sizes/TTLs): INFO with defaults applied.

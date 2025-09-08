@@ -18,52 +18,107 @@
  */
 package org.waveprotocol.box.server.frontend;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableSet;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.Test;
+import org.waveprotocol.box.common.ExceptionalIterator;
+import org.waveprotocol.box.common.Receiver;
 import org.waveprotocol.box.server.persistence.blocks.Interval;
 import org.waveprotocol.box.server.persistence.blocks.VersionRange;
 import org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletState;
 import org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
+import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 public final class PreferSegmentStateTest {
 
   private static final class DummyProvider implements WaveletProvider {
-    @Override public void initialize() throws WaveServerException {}
-    @Override public void submitRequest(WaveletName waveletName, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta delta, SubmitRequestListener listener) {}
-    @Override public void getHistory(WaveletName waveletName, HashedVersion versionStart, HashedVersion versionEnd, org.waveprotocol.box.common.Receiver<org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta> receiver) throws WaveServerException {}
-    @Override public boolean checkAccessPermission(WaveletName waveletName, ParticipantId participantId) throws WaveServerException { return true; }
-    @Override public org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> getWaveIds() throws WaveServerException { return null; }
-    @Override public com.google.common.collect.ImmutableSet<WaveletId> getWaveletIds(WaveId waveId) throws WaveServerException { return null; }
-    @Override public CommittedWaveletSnapshot getSnapshot(WaveletName waveletName) throws WaveServerException { return null; }
+    @Override
+    public void initialize() throws WaveServerException {
+    }
+
+    @Override
+    public void submitRequest(
+        WaveletName waveletName,
+        ProtocolWaveletDelta delta,
+        SubmitRequestListener listener) {
+    }
+
+    @Override
+    public void getHistory(
+        WaveletName waveletName,
+        HashedVersion versionStart,
+        HashedVersion versionEnd,
+        Receiver<TransformedWaveletDelta> receiver) throws WaveServerException {
+    }
+
+    @Override
+    public boolean checkAccessPermission(
+        WaveletName waveletName,
+        ParticipantId participantId) throws WaveServerException {
+      return true;
+    }
+
+    @Override
+    public ExceptionalIterator<WaveId, WaveServerException> getWaveIds()
+        throws WaveServerException {
+      return null;
+    }
+
+    @Override
+    public ImmutableSet<WaveletId> getWaveletIds(WaveId waveId) throws WaveServerException {
+      return null;
+    }
+
+    @Override
+    public CommittedWaveletSnapshot getSnapshot(WaveletName waveletName)
+        throws WaveServerException {
+      return null;
+    }
   }
 
   private static final class StateWithIndexManifestOnly implements SegmentWaveletState {
-    @Override public Map<SegmentId, Interval> getIntervals(long version) {
+    @Override
+    public Map<SegmentId, Interval> getIntervals(long version) {
       Map<SegmentId, Interval> m = new HashMap<>();
       m.put(SegmentId.INDEX_ID, v -> "index");
       m.put(SegmentId.MANIFEST_ID, v -> "manifest");
       return m;
     }
-    @Override public Map<SegmentId, Interval> getIntervals(Map<SegmentId, VersionRange> ranges, boolean onlyFromCache) {
+
+    @Override
+    public Map<SegmentId, Interval> getIntervals(
+        Map<SegmentId, VersionRange> ranges,
+        boolean onlyFromCache) {
       return getIntervals(0);
     }
-    @Override public void getIntervals(Map<SegmentId, VersionRange> ranges, boolean onlyFromCache, org.waveprotocol.box.common.Receiver<org.waveprotocol.wave.model.util.Pair<SegmentId, Interval>> receiver) {
-      for (Map.Entry<SegmentId, Interval> e : getIntervals(0).entrySet()) receiver.put(org.waveprotocol.wave.model.util.Pair.of(e.getKey(), e.getValue()));
+
+    @Override
+    public void getIntervals(
+        Map<SegmentId, VersionRange> ranges,
+        boolean onlyFromCache,
+        Receiver<Pair<SegmentId, Interval>> receiver) {
+      for (Map.Entry<SegmentId, Interval> e : getIntervals(0).entrySet()) {
+        receiver.put(Pair.of(e.getKey(), e.getValue()));
+      }
     }
   }
 
@@ -71,7 +126,7 @@ public final class PreferSegmentStateTest {
   public void filtersRangesToKnownSegmentsWhenPreferEnabled() throws Exception {
     Config cfg = ConfigFactory.parseString("server.enableFetchFragmentsRpc=true, server.preferSegmentState=true");
     // Also exercise registry size bound config
-    org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setMaxEntries(2);
+    SegmentWaveletStateRegistry.setMaxEntries(2);
     WaveletProvider provider = new DummyProvider();
     FragmentsViewChannelHandler h = new FragmentsViewChannelHandler(provider, cfg);
 
@@ -80,10 +135,18 @@ public final class PreferSegmentStateTest {
     WaveletName wn = WaveletName.of(waveId, waveletId);
     SegmentWaveletStateRegistry.put(wn, new StateWithIndexManifestOnly());
 
-    java.util.List<SegmentId> segs = Arrays.asList(SegmentId.INDEX_ID, SegmentId.MANIFEST_ID, SegmentId.ofBlipId("b+1"));
+    List<SegmentId> segs = Arrays.asList(
+        SegmentId.INDEX_ID,
+        SegmentId.MANIFEST_ID,
+        SegmentId.ofBlipId("b+1"));
     Map<SegmentId, VersionRange> ranges = h.fetchFragments(wn, segs, 1L, 1L);
+    // Expected behavior with preferSegmentState=true and a state that only
+    // exposes INDEX/MANIFEST: filter out any blip segments not present in the
+    // state, while retaining INDEX and MANIFEST.
     assertTrue(ranges.containsKey(SegmentId.INDEX_ID));
     assertTrue(ranges.containsKey(SegmentId.MANIFEST_ID));
-    assertFalse(ranges.containsKey(SegmentId.ofBlipId("b+1")));
+    assertFalse("Blip segments not present in state must be filtered out",
+        ranges.containsKey(SegmentId.ofBlipId("b+1")));
+    assertEquals("Only INDEX and MANIFEST should remain after filtering", 2, ranges.size());
   }
 }

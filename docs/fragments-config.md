@@ -34,3 +34,15 @@ Defaults are shown; see reference.conf for inline comments.
 - HTTP: `httpRequests`, `httpOk`, `httpErrors`
 - Applier: `applierEvents`, `applierDurationsMs`
 
+## Startup Validation
+- On startup, the server validates key cache/registry settings and aborts with a clear error if invalid values are provided:
+  - `server.segmentStateRegistry.maxEntries` must be > 0
+  - `server.segmentStateRegistry.ttlMs` must be >= 0 (0 disables TTL)
+  - `wave.fragments.manifestOrderCache.maxEntries` must be > 0
+  - `wave.fragments.manifestOrderCache.ttlMs` must be >= 0 (0 disables TTL)
+- Invalid values throw `ConfigurationInitializationException` during initialization; see `ServerMain.applyFragmentsConfig`.
+
+## Cache Metrics (Statusz → Fragments Caches)
+- Manifest order cache: `hits`, `misses`, `evictions`, `expirations`.
+- Segment state registry: `hits`, `misses`, `evictions`, `expirations`.
+- View at `/statusz?show=fragments` under “Fragments Caches”.

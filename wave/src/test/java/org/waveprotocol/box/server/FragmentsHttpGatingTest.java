@@ -18,7 +18,8 @@
  */
 package org.waveprotocol.box.server;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -26,15 +27,16 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executors;
-import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpSession;
 import org.eclipse.jetty.server.session.SessionHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.junit.Test;
+import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.rpc.ServerRpcProvider;
-import org.waveprotocol.box.server.rpc.ServerRpcProvider.WaveWebSocketServlet;
 import org.waveprotocol.wave.model.util.Pair;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 
 /** Tests gating behavior for the HTTP /fragments endpoint. */
 public final class FragmentsHttpGatingTest {
@@ -43,26 +45,51 @@ public final class FragmentsHttpGatingTest {
     InetSocketAddress[] addrs = new InetSocketAddress[] { new InetSocketAddress("127.0.0.1", 0) };
     String[] bases = new String[] { "./war" };
     SessionManager sm = new SessionManager() {
-      @Override public org.waveprotocol.wave.model.wave.ParticipantId getLoggedInUser(javax.servlet.http.HttpSession session) { return null; }
-      @Override public org.waveprotocol.box.server.account.AccountData getLoggedInAccount(javax.servlet.http.HttpSession session) { return null; }
-      @Override public void setLoggedInUser(javax.servlet.http.HttpSession session, org.waveprotocol.wave.model.wave.ParticipantId id) {}
-      @Override public void logout(javax.servlet.http.HttpSession session) {}
-      @Override public String getLoginUrl(String redirect) { return "/auth/signin"; }
-      @Override public javax.servlet.http.HttpSession getSessionFromToken(String token) { return null; }
+      @Override
+      public ParticipantId getLoggedInUser(HttpSession session) {
+        return null;
+      }
+
+      @Override
+      public AccountData getLoggedInAccount(HttpSession session) {
+        return null;
+      }
+
+      @Override
+      public void setLoggedInUser(HttpSession session, ParticipantId id) {
+      }
+
+      @Override
+      public void logout(HttpSession session) {
+      }
+
+      @Override
+      public String getLoginUrl(String redirect) {
+        return "/auth/signin";
+      }
+
+      @Override
+      public HttpSession getSessionFromToken(String token) {
+        return null;
+      }
     };
     return new ServerRpcProvider(addrs, bases, sm, new SessionHandler(), "_sessions",
         /*sslEnabled=*/false, "", "", Executors.newSingleThreadExecutor());
   }
 
   @SuppressWarnings("unchecked")
-  private static List<Pair<String, org.eclipse.jetty.servlet.ServletHolder>> getRegistry(ServerRpcProvider p) throws Exception {
+  private static List<Pair<String, ServletHolder>> getRegistry(ServerRpcProvider p)
+      throws Exception {
     Field f = ServerRpcProvider.class.getDeclaredField("servletRegistry");
     f.setAccessible(true);
-    return (List<Pair<String, org.eclipse.jetty.servlet.ServletHolder>>) f.get(p);
+    @SuppressWarnings("unchecked")
+    List<Pair<String, ServletHolder>> r = (List<Pair<String, ServletHolder>>) f.get(p);
+    return r;
   }
 
   private static void callInitializeServlets(ServerRpcProvider p, Config cfg) throws Exception {
-    Method m = ServerMain.class.getDeclaredMethod("initializeServlets", ServerRpcProvider.class, com.typesafe.config.Config.class);
+    Method m = ServerMain.class.getDeclaredMethod(
+        "initializeServlets", ServerRpcProvider.class, Config.class);
     m.setAccessible(true);
     m.invoke(null, p, cfg);
   }
@@ -70,11 +97,15 @@ public final class FragmentsHttpGatingTest {
   @Test
   public void fragmentsServletDisabledByDefault() throws Exception {
     ServerRpcProvider p = newProvider();
-    Config cfg = ConfigFactory.parseString("");
+    Config cfg = ConfigFactory.parseString(
+        "core.gadget_server_hostname=\"localhost\", core.gadget_server_port=80, core.enable_profiling=false");
     callInitializeServlets(p, cfg);
     boolean found = false;
-    for (Pair<String, org.eclipse.jetty.servlet.ServletHolder> e : getRegistry(p)) {
-      if ("/fragments/*".equals(e.first)) { found = true; break; }
+    for (Pair<String, ServletHolder> e : getRegistry(p)) {
+      if ("/fragments/*".equals(e.first)) {
+        found = true;
+        break;
+      }
     }
     assertFalse("/fragments/* should not be registered by default", found);
   }
@@ -82,13 +113,32 @@ public final class FragmentsHttpGatingTest {
   @Test
   public void fragmentsServletEnabledWhenFlagTrue() throws Exception {
     ServerRpcProvider p = newProvider();
-    Config cfg = ConfigFactory.parseString("server.enableFragmentsHttp=true");
+    Config cfg = ConfigFactory.parseString(
+        "server.enableFragmentsHttp=true, core.gadget_server_hostname=\"localhost\", core.gadget_server_port=80, core.enable_profiling=false");
     callInitializeServlets(p, cfg);
     boolean found = false;
-    for (Pair<String, org.eclipse.jetty.servlet.ServletHolder> e : getRegistry(p)) {
-      if ("/fragments/*".equals(e.first)) { found = true; break; }
+    for (Pair<String, ServletHolder> e : getRegistry(p)) {
+      if ("/fragments/*".equals(e.first)) {
+        found = true;
+        break;
+      }
     }
     assertTrue("/fragments/* should be registered when server.enableFragmentsHttp=true", found);
   }
-}
 
+  @Test
+  public void fragmentsServletDisabledWhenFlagFalse() throws Exception {
+    ServerRpcProvider p = newProvider();
+    Config cfg = ConfigFactory.parseString(
+        "server.enableFragmentsHttp=false, core.gadget_server_hostname=\"localhost\", core.gadget_server_port=80, core.enable_profiling=false");
+    callInitializeServlets(p, cfg);
+    boolean found = false;
+    for (Pair<String, ServletHolder> e : getRegistry(p)) {
+      if ("/fragments/*".equals(e.first)) {
+        found = true;
+        break;
+      }
+    }
+    assertFalse("/fragments/* should not be registered when server.enableFragmentsHttp=false", found);
+  }
+}

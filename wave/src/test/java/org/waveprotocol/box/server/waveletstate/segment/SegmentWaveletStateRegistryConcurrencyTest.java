@@ -21,10 +21,13 @@ package org.waveprotocol.box.server.waveletstate.segment;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import org.waveprotocol.box.server.persistence.blocks.Interval;
@@ -39,35 +42,73 @@ import org.waveprotocol.wave.model.util.Pair;
 public final class SegmentWaveletStateRegistryConcurrencyTest {
 
   private static final class DummyState implements SegmentWaveletState {
-    @Override public java.util.Map<SegmentId, Interval> getIntervals(long version) { return java.util.Collections.emptyMap(); }
-    @Override public java.util.Map<SegmentId, Interval> getIntervals(java.util.Map<SegmentId, VersionRange> ranges, boolean onlyFromCache) { return java.util.Collections.emptyMap(); }
-    @Override public void getIntervals(java.util.Map<SegmentId, VersionRange> ranges, boolean onlyFromCache, Receiver<Pair<SegmentId, Interval>> receiver) {}
+    @Override
+    public Map<SegmentId, Interval> getIntervals(long version) {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<SegmentId, Interval> getIntervals(
+        Map<SegmentId, VersionRange> ranges,
+        boolean onlyFromCache) {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public void getIntervals(
+        Map<SegmentId, VersionRange> ranges,
+        boolean onlyFromCache,
+        Receiver<Pair<SegmentId, Interval>> receiver) {
+      // no-op
+    }
   }
 
   @Test
   public void concurrentGetsAndPutsDoNotThrow() throws InterruptedException {
-    SegmentWaveletStateRegistry.setMaxEntries(64);
+    SegmentWaveletStateRegistry.clearForTests();
+    SegmentWaveletStateRegistry.setMaxEntries(16);
     SegmentWaveletStateRegistry.setTtlMs(300_000L);
-    ExecutorService pool = Executors.newFixedThreadPool(8);
+    int threads = 8;
+    ExecutorService pool = Executors.newFixedThreadPool(threads);
     List<WaveletName> keys = new ArrayList<>();
     for (int i = 0; i < 128; i++) {
       keys.add(WaveletName.of(WaveId.of("example.com", "w+"+i), WaveletId.of("example.com", "conv+root")));
     }
     CountDownLatch start = new CountDownLatch(1);
-    for (int t = 0; t < 8; t++) {
+    CountDownLatch done = new CountDownLatch(threads);
+    ConcurrentLinkedQueue<Throwable> errors = new ConcurrentLinkedQueue<>();
+    for (int t = 0; t < threads; t++) {
       final int tid = t;
       pool.submit(() -> {
-        try { start.await(); } catch (InterruptedException ignored) {}
-        DummyState s = new DummyState();
-        for (int i = tid; i < keys.size(); i += 8) {
-          SegmentWaveletStateRegistry.put(keys.get(i), s);
-          SegmentWaveletStateRegistry.get(keys.get(i));
+        try {
+          start.await();
+          DummyState s = new DummyState();
+          for (int i = tid; i < keys.size(); i += threads) {
+            SegmentWaveletStateRegistry.put(keys.get(i), s);
+            SegmentWaveletStateRegistry.get(keys.get(i));
+          }
+        } catch (Throwable t1) {
+          errors.add(t1);
+        } finally {
+          done.countDown();
         }
       });
     }
     start.countDown();
     pool.shutdown();
-    assertTrue("Workers finished", pool.awaitTermination(5, TimeUnit.SECONDS));
+    assertTrue("Workers finished", done.await(5, TimeUnit.SECONDS));
+    assertTrue("No worker should throw exceptions (first: " + (errors.peek()==null?"none":errors.peek()) + ")", errors.isEmpty());
+
+    // Assert LRU capacity honored (size never exceeds configured max)
+    assertTrue("LRU size should be <= maxEntries",
+        SegmentWaveletStateRegistry.sizeForTests() <= 16);
+
+    // Now flip TTL to 0 (expire all) and access keys to force eviction-on-get
+    SegmentWaveletStateRegistry.setTtlMs(0L);
+    for (WaveletName wn : keys) {
+      SegmentWaveletStateRegistry.get(wn); // forces removal if present
+    }
+    assertEquals("All entries should be expired with TTL=0",
+        0, SegmentWaveletStateRegistry.sizeForTests());
   }
 }
-

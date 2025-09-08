@@ -216,6 +216,8 @@ dependencies {
             [group: "net.oauth.core", name: "oauth-consumer", version: "20100601-atlassian-2"],
     )
     implementation fileTree(dir: '../pst/build/libs', include: '**/*.jar')
+    // High-performance in-memory cache for manifest ordering
+    implementation ([group: "com.github.ben-manes.caffeine", name: "caffeine", version: "3.1.8"])
     compileOnly ([group: "com.google.guava", name: "guava-gwt", version: "20.0"]) 
     generateGXP (
         [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"]
@@ -317,6 +319,10 @@ tasks.named('check') {
 tasks.named('test') {
     // Ensure PST codegen verification runs before unit tests that may assert generated sources
     dependsOn(verifyPstCodegen)
+    // Exclude stress-style tests from the default unit test run to keep
+    // CI fast and deterministic. Run them via :wave:testStress.
+    // Match compiled test class names, not sources
+    exclude "**/*StressTest*"
 }
 
 // Reduce noisy removal warnings in test compilation (JDK 17 Integer(int) removal)
@@ -561,7 +567,7 @@ test {
     }
 }
 
-task testGwt(type: Test) {
+tasks.register('testGwt', Test) {
     include "**/*GwtTest*"
 
     // Use explicit test outputs and runtime classpath (avoids Gradle 9 deprecation)
@@ -583,11 +589,11 @@ task testGwt(type: Test) {
     }
 }
 
-testGwt.dependsOn compileGwt
+tasks.named('testGwt') { dependsOn('compileGwt') }
 
 // Dedicated task to run GWT JUnit tests with GWT tooling on the JVM classpath
 // This avoids polluting the default test task's classpath with gwt-dev/jetty.
- task testGwtHosted(type: Test) {
+tasks.register('testGwtHosted', Test) {
      include "**/*GwtTest*"
 
      // Use explicit test outputs and runtime classpath and augment with GWT tooling
@@ -613,9 +619,9 @@ testGwt.dependsOn compileGwt
          println '-----------------------------'
          println ''
      }
- }
+}
 
-task testMongo(type: Test) {
+tasks.register('testMongo', Test) {
     include "**/server/persistence/mongodb/**/*Test*"
 
     doFirst {
@@ -627,9 +633,9 @@ task testMongo(type: Test) {
     }
 }
 
-testMongo.dependsOn compileJava
+tasks.named('testMongo') { dependsOn('compileJava') }
 
-task testLarge(type: Test) {
+tasks.register('testLarge', Test) {
     include "**/*LargeTest*"
 
     doFirst {
@@ -642,9 +648,9 @@ task testLarge(type: Test) {
     }
 }
 
-testLarge.dependsOn compileJava
+tasks.named('testLarge') { dependsOn('compileJava') }
 
-task testAll() {
+tasks.register('testAll') {
     doFirst {
         println ''
         println '--------------------------'
@@ -654,12 +660,37 @@ task testAll() {
     }
 }
 
-testAll.dependsOn compileJava, compileGwt
-testAll.dependsOn test, testMongo, testLarge, testGwt
+tasks.named('testAll') {
+    dependsOn('compileJava')
+    dependsOn('test', 'testMongo', 'testLarge', 'testStress')
+    // Include GWT compile/tests only when explicitly requested
+    if (project.hasProperty('withGwt')) {
+        dependsOn('compileGwt', 'testGwt')
+    }
+}
 
-testGwt.mustRunAfter compileGwt, testLarge
-testMongo.mustRunAfter compileJava, test
-testLarge.mustRunAfter test
+tasks.named('testGwt') { mustRunAfter('compileGwt', 'testLarge') }
+tasks.named('testMongo') { mustRunAfter('compileJava', 'test') }
+tasks.named('testLarge') { mustRunAfter('test') }
+
+// Dedicated task to run stress-style tests (e.g., cache/registry under pressure)
+tasks.register('testStress', Test) {
+    group = 'verification'
+    description = 'Runs stress-style tests that simulate production-like cache pressure and TTL expiry.'
+    include "**/*StressTest*"
+
+    doFirst {
+        println ''
+        println '---------------------------------------------'
+        println '        Running Stress-Style Tests           '
+        println ' These tests simulate cache/TTL behaviors and '
+        println ' may take longer or be slightly nondeterministic.'
+        println '---------------------------------------------'
+        println ''
+    }
+}
+
+tasks.named('testStress') { dependsOn('compileJava') }
 
 //=============================================================================
 // Dist's

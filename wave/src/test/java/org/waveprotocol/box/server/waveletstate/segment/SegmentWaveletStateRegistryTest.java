@@ -30,18 +30,36 @@ import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.box.common.Receiver;
 
+import java.util.Collections;
 import java.util.Map;
 
 public final class SegmentWaveletStateRegistryTest {
 
   private static final class DummyState implements SegmentWaveletState {
-    @Override public Map<SegmentId, Interval> getIntervals(long version) { return java.util.Collections.emptyMap(); }
-    @Override public Map<SegmentId, Interval> getIntervals(Map<SegmentId, VersionRange> ranges, boolean onlyFromCache) { return java.util.Collections.emptyMap(); }
-    @Override public void getIntervals(Map<SegmentId, VersionRange> ranges, boolean onlyFromCache, Receiver<Pair<SegmentId, Interval>> receiver) {}
+    @Override
+    public Map<SegmentId, Interval> getIntervals(long version) {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<SegmentId, Interval> getIntervals(
+        Map<SegmentId, VersionRange> ranges,
+        boolean onlyFromCache) {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public void getIntervals(
+        Map<SegmentId, VersionRange> ranges,
+        boolean onlyFromCache,
+        Receiver<Pair<SegmentId, Interval>> receiver) {
+      // no-op
+    }
   }
 
   @Test
   public void ttlZeroExpiresImmediately() {
+    SegmentWaveletStateRegistry.clearForTests();
     WaveletName wn = WaveletName.of(WaveId.of("example.com", "w+1"), WaveletId.of("example.com", "conv+root"));
     SegmentWaveletStateRegistry.setTtlMs(0L);
     SegmentWaveletStateRegistry.setMaxEntries(4);
@@ -51,6 +69,7 @@ public final class SegmentWaveletStateRegistryTest {
 
   @Test
   public void lruEvictsWhenOverCapacity() {
+    SegmentWaveletStateRegistry.clearForTests();
     SegmentWaveletStateRegistry.setTtlMs(10_000L);
     SegmentWaveletStateRegistry.setMaxEntries(2);
     WaveletName a = WaveletName.of(WaveId.of("example.com", "w+a"), WaveletId.of("example.com", "conv+root"));
@@ -59,11 +78,12 @@ public final class SegmentWaveletStateRegistryTest {
     SegmentWaveletState s = new DummyState();
     SegmentWaveletStateRegistry.put(a, s);
     SegmentWaveletStateRegistry.put(b, s);
+    // Touch 'a' to make it most-recently-used.
     assertNotNull(SegmentWaveletStateRegistry.get(a));
     SegmentWaveletStateRegistry.put(c, s);
-    // One of {a,b} should be evicted; accessing a before may keep a, so assert at least one missing.
-    boolean missing = (SegmentWaveletStateRegistry.get(a) == null) || (SegmentWaveletStateRegistry.get(b) == null);
-    assertTrue("LRU should evict one entry when capacity exceeded", missing);
+    // Expect LRU policy: 'b' should be evicted (least recently used), 'a' retained.
+    assertNotNull("Most-recently-used 'a' should remain", SegmentWaveletStateRegistry.get(a));
+    assertNull("Least-recently-used 'b' should be evicted", SegmentWaveletStateRegistry.get(b));
+    assertNotNull("Newly inserted 'c' should be present", SegmentWaveletStateRegistry.get(c));
   }
 }
-

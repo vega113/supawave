@@ -71,6 +71,21 @@ import org.waveprotocol.wave.util.logging.Log;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
+import java.io.PrintStream;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.LogManager;
+
+import org.waveprotocol.box.server.config.ConfigurationInitializationException;
+import org.waveprotocol.box.server.frontend.ManifestOrderCache;
+import org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry;
+import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics;
+import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl;
+import org.waveprotocol.wave.concurrencycontrol.channel.impl.NoOpRawFragmentsApplier;
+import org.waveprotocol.wave.concurrencycontrol.channel.impl.SkeletonRawFragmentsApplier;
+import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
+
+// (moved imports to block above)
 
 /**
  * Wave Server entrypoint.
@@ -78,13 +93,13 @@ import java.io.File;
 public class ServerMain {
 
   private static void printStackTraceLite(Throwable t) {
-    java.io.PrintStream err = System.err;
+    PrintStream err = System.err;
     err.println(t.getClass().getName());
     for (StackTraceElement ste : t.getStackTrace()) {
       err.println("\tat " + ste.toString());
     }
     Throwable cause = t.getCause();
-    java.util.Set<Throwable> seen = new java.util.HashSet<>();
+    Set<Throwable> seen = new HashSet<>();
     while (cause != null && !seen.contains(cause)) {
       seen.add(cause);
       err.println("Caused by: " + cause.getClass().getName());
@@ -100,7 +115,7 @@ public class ServerMain {
   public static void main(String... args) {
     // Route java.util.logging through SLF4J (logback) early
     try {
-      java.util.logging.LogManager.getLogManager().reset();
+      LogManager.getLogManager().reset();
       SLF4JBridgeHandler.removeHandlersForRootLogger();
       SLF4JBridgeHandler.install();
     } catch (Throwable ignore) {
@@ -164,13 +179,11 @@ public class ServerMain {
             // Wire a default applier instance based on the flag
             try {
               if (applierEnabled) {
-                org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setFragmentsApplier(
-                    new org.waveprotocol.wave.concurrencycontrol.channel.impl.SkeletonRawFragmentsApplier());
+                ViewChannelImpl.setFragmentsApplier(new SkeletonRawFragmentsApplier());
               } else {
-                org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setFragmentsApplier(
-                    new org.waveprotocol.wave.concurrencycontrol.channel.impl.NoOpRawFragmentsApplier());
+                ViewChannelImpl.setFragmentsApplier(new NoOpRawFragmentsApplier());
               }
-              org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setFragmentsApplierEnabled(applierEnabled);
+              ViewChannelImpl.setFragmentsApplierEnabled(applierEnabled);
               String applierCls = applierEnabled
                   ? "SkeletonRawFragmentsApplier" : "NoOpRawFragmentsApplier";
               int warnMs = 50;
@@ -193,19 +206,19 @@ public class ServerMain {
               if (config.hasPath("wave.fragments.metrics.enabled")) metrics = config.getBoolean("wave.fragments.metrics.enabled");
               else if (config.hasPath("core.enable_profiling")) metrics = config.getBoolean("core.enable_profiling");
             } catch (Exception ignore) {}
-            org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.setEnabled(metrics);
+            FragmentsMetrics.setEnabled(metrics);
 
             // Configure viewport limits (Typesafe Config)
             try {
-              int defLimit = org.waveprotocol.box.server.frontend.WaveClientRpcImpl.getDefaultViewportLimit();
-              int maxLimit = org.waveprotocol.box.server.frontend.WaveClientRpcImpl.getMaxViewportLimit();
+              int defLimit = WaveClientRpcImpl.getDefaultViewportLimit();
+              int maxLimit = WaveClientRpcImpl.getMaxViewportLimit();
               if (config.hasPath("wave.fragments.defaultViewportLimit")) {
                 defLimit = config.getInt("wave.fragments.defaultViewportLimit");
               }
               if (config.hasPath("wave.fragments.maxViewportLimit")) {
                 maxLimit = config.getInt("wave.fragments.maxViewportLimit");
               }
-              org.waveprotocol.box.server.frontend.WaveClientRpcImpl.setViewportLimits(defLimit, maxLimit);
+              WaveClientRpcImpl.setViewportLimits(defLimit, maxLimit);
             } catch (Exception e) {
               LOG.warning("Failed to configure fragments viewport limits; using defaults", e);
             }
@@ -380,48 +393,13 @@ public class ServerMain {
 
     ProtocolWaveClientRpc.Interface rpcImpl = WaveClientRpcImpl.create(frontend, false);
     server.registerService(ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
-    // Configure segment state registry sizing/ttl from config if present
-    try {
-      com.typesafe.config.Config cfg = injector.getInstance(com.typesafe.config.Config.class);
-      if (cfg.hasPath("server.segmentStateRegistry.maxEntries")) {
-        int max = cfg.getInt("server.segmentStateRegistry.maxEntries");
-        if (max <= 0) throw new org.waveprotocol.box.server.config.ConfigurationInitializationException(
-            "server.segmentStateRegistry.maxEntries must be > 0 (got " + max + ")");
-        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setMaxEntries(max);
-      }
-      if (cfg.hasPath("server.segmentStateRegistry.ttlMs")) {
-        long ttl = cfg.getLong("server.segmentStateRegistry.ttlMs");
-        if (ttl < 0L) throw new org.waveprotocol.box.server.config.ConfigurationInitializationException(
-            "server.segmentStateRegistry.ttlMs must be >= 0 (got " + ttl + ")");
-        org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry.setTtlMs(ttl);
-      }
-      // Configure manifest-order cache sizing/ttl
-      try {
-        if (cfg.hasPath("wave.fragments.manifestOrderCache.maxEntries")) {
-          int max = cfg.getInt("wave.fragments.manifestOrderCache.maxEntries");
-          if (max <= 0) throw new org.waveprotocol.box.server.config.ConfigurationInitializationException(
-              "wave.fragments.manifestOrderCache.maxEntries must be > 0 (got " + max + ")");
-          org.waveprotocol.box.server.frontend.ManifestOrderCache.setMaxEntries(max);
-        }
-        if (cfg.hasPath("wave.fragments.manifestOrderCache.ttlMs")) {
-          long ttl = cfg.getLong("wave.fragments.manifestOrderCache.ttlMs");
-          if (ttl < 0L) throw new org.waveprotocol.box.server.config.ConfigurationInitializationException(
-              "wave.fragments.manifestOrderCache.ttlMs must be >= 0 (got " + ttl + ")");
-          org.waveprotocol.box.server.frontend.ManifestOrderCache.setTtlMs(ttl);
-        }
-      } catch (Throwable t2) {
-        LOG.severe("Invalid ManifestOrderCache configuration; aborting startup", t2);
-        throw t2;
-      }
-    } catch (Throwable t) {
-      LOG.severe("Invalid SegmentWaveletStateRegistry configuration; aborting startup", t);
-      throw new RuntimeException(t);
-    }
+    // Configure caches/registry with validation
+    applyFragmentsConfig(injector.getInstance(com.typesafe.config.Config.class));
     try {
       org.waveprotocol.box.server.frontend.WaveClientRpcImpl.setFragmentsHandler(
           new org.waveprotocol.box.server.frontend.FragmentsViewChannelHandler(
               injector.getInstance(org.waveprotocol.box.server.waveserver.WaveletProvider.class),
-              injector.getInstance(com.typesafe.config.Config.class))
+              injector.getInstance(Config.class))
       );
     } catch (Throwable t) {
       LOG.warning("Failed to wire FragmentsViewChannelHandler; fragments RPC disabled", t);
@@ -435,6 +413,82 @@ public class ServerMain {
       );
     } catch (Throwable t) {
       LOG.warning("Failed to wire FragmentsFetchBridge; ViewChannel.fetchFragments disabled", t);
+    }
+  }
+
+  /**
+   * Applies and validates fragments-related cache configuration.
+   * Throws {@link org.waveprotocol.box.server.config.ConfigurationInitializationException}
+   * when values are invalid so startup can fail fast with actionable logs.
+   */
+  public static void applyFragmentsConfig(Config cfg) {
+    // server.segmentStateRegistry.maxEntries
+    if (cfg.hasPath("server.segmentStateRegistry.maxEntries")) {
+      final String key = "server.segmentStateRegistry.maxEntries";
+      try {
+        int max = cfg.getInt(key);
+        if (max <= 0) {
+          LOG.severe("Invalid config: " + key + "=" + max + " (must be > 0)");
+          throw new ConfigurationInitializationException(
+              key + " must be > 0 (got " + max + ")");
+        }
+        SegmentWaveletStateRegistry.setMaxEntries(max);
+      } catch (com.typesafe.config.ConfigException e) {
+        LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+        throw new ConfigurationInitializationException(
+            "Invalid type for " + key, e);
+      }
+    }
+    // server.segmentStateRegistry.ttlMs
+    if (cfg.hasPath("server.segmentStateRegistry.ttlMs")) {
+      final String key = "server.segmentStateRegistry.ttlMs";
+      try {
+        long ttl = cfg.getLong(key);
+        if (ttl < 0L) {
+          LOG.severe("Invalid config: " + key + "=" + ttl + " (must be >= 0; 0 disables TTL)");
+          throw new ConfigurationInitializationException(
+              key + " must be >= 0 (got " + ttl + ")");
+        }
+        SegmentWaveletStateRegistry.setTtlMs(ttl);
+      } catch (com.typesafe.config.ConfigException e) {
+        LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+        throw new ConfigurationInitializationException(
+            "Invalid type for " + key, e);
+      }
+    }
+    // wave.fragments.manifestOrderCache.maxEntries
+    if (cfg.hasPath("wave.fragments.manifestOrderCache.maxEntries")) {
+      final String key = "wave.fragments.manifestOrderCache.maxEntries";
+      try {
+        int max = cfg.getInt(key);
+        if (max <= 0) {
+          LOG.severe("Invalid config: " + key + "=" + max + " (must be > 0)");
+          throw new ConfigurationInitializationException(
+              key + " must be > 0 (got " + max + ")");
+        }
+        ManifestOrderCache.setMaxEntries(max);
+      } catch (com.typesafe.config.ConfigException e) {
+        LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+        throw new ConfigurationInitializationException(
+            "Invalid type for " + key, e);
+      }
+    }
+    // wave.fragments.manifestOrderCache.ttlMs
+    if (cfg.hasPath("wave.fragments.manifestOrderCache.ttlMs")) {
+      final String key = "wave.fragments.manifestOrderCache.ttlMs";
+      try {
+        long ttl = cfg.getLong(key);
+        if (ttl < 0L) {
+          LOG.severe("Invalid config: " + key + "=" + ttl + " (must be >= 0; 0 disables TTL)");
+          throw new ConfigurationInitializationException(
+              key + " must be >= 0 (got " + ttl + ")");
+        }
+        ManifestOrderCache.setTtlMs(ttl);
+      } catch (com.typesafe.config.ConfigException e) {
+        LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+        throw new ConfigurationInitializationException(
+            "Invalid type for " + key, e);
+      }
     }
   }
 

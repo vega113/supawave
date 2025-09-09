@@ -50,7 +50,7 @@ public class ForwardedHeadersJakartaIT {
       server = new Server();
 
       HttpConfiguration httpConfig = new HttpConfiguration();
-      // Enable forwarded-headers processing with strict handling for malformed values
+      // Enable forwarded-headers processing (defaults to Jetty behavior)
       httpConfig.addCustomizer(new ForwardedRequestCustomizer());
 
       ServerConnector connector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));

@@ -39,8 +39,7 @@ import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.resource.Resource;
-import org.eclipse.jetty.util.resource.ResourceCollection;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.wave.util.logging.Log;
 
@@ -152,7 +151,7 @@ public class ServerRpcProvider {
             boolean enableFwd = false;
             boolean strictFwd = false;
             if (config == null) {
-                LOG.info("No Config provided to ServerRpcProvider (Jakarta stub path); forwarded headers disabled by default.");
+                LOG.fine("No Config provided; enable_forwarded_headers=false (forwarded headers disabled).");
             } else {
                 try {
                     if (config.hasPath("network.enable_forwarded_headers")) {
@@ -242,17 +241,13 @@ public class ServerRpcProvider {
             }
             this.servletContextHandler = context;
 
-            // Static resources (multiple bases) similar to legacy ResourceCollection
+            // Static resources base
             try {
                 if (config != null && config.hasPath("core.resource_bases")) {
                     java.util.List<String> bases = config.getStringList("core.resource_bases");
                     if (bases != null && !bases.isEmpty()) {
-                        java.util.List<Resource> resources = new java.util.ArrayList<>();
                         for (String b : bases) {
-                            if (b != null && !b.isBlank()) resources.add(Resource.newResource(b));
-                        }
-                        if (!resources.isEmpty()) {
-                            context.setBaseResource(new ResourceCollection(resources.toArray(new Resource[0])));
+                            if (b != null && !b.isBlank()) { context.setBaseResource(Resource.newResource(b)); break; }
                         }
                     }
                 }

@@ -162,6 +162,7 @@ sourceSets {
             srcDir 'src/jakarta-overrides/java'
             include 'org/waveprotocol/box/server/security/*.java'
             include 'org/waveprotocol/box/server/authentication/SessionManagerImpl.java'
+            // Do NOT include ServerRpcProvider here; provider overrides are compiled in main for Jakarta
         }
         // resources not needed
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
@@ -186,7 +187,9 @@ if (jettyFamily == 'jakarta') {
                 'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java',
                 'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java',
                 'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java',
-                'org/waveprotocol/box/server/authentication/SessionManagerImpl.java'
+                'org/waveprotocol/box/server/authentication/SessionManagerImpl.java',
+                // Keep RPC servlets compiled for now; Jakarta overrides will replace wiring at runtime
+                'org/apache/wave/box/server/rpc/*.java'
             ]),
             'generated/main/java',
             'generated/proto/java'
@@ -347,6 +350,8 @@ if (jettyFamily == 'javax') {
 if (jettyFamily == 'jakarta') {
     dependencies {
         implementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
+        // Temporary: keep javax.servlet available during import sweep; remove after full migration
+        compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
     }
 }
 

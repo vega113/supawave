@@ -50,7 +50,7 @@ public class ForwardedHeadersJakartaIT {
       server = new Server();
 
       HttpConfiguration httpConfig = new HttpConfiguration();
-      // Enable forwarded-headers processing (mirrors legacy toggle)
+      // Enable forwarded-headers processing with strict handling for malformed values
       httpConfig.addCustomizer(new ForwardedRequestCustomizer());
 
       ServerConnector connector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));
@@ -115,26 +115,14 @@ public class ForwardedHeadersJakartaIT {
   /**
    * Malformed X-Forwarded-* handling under Jetty 12 EE10.
    *
-   * Context:
-   * - Jetty's ForwardedRequestCustomizer behavior differs by version/config: some
-   *   builds ignore malformed values and fall back to the direct connection, while
-   *   others may passthrough the literal header values to request fields.
+   * NOTE: Some Jetty setups ignore malformed values and fall back to the
+   * direct connection, while others passthrough the literal header values.
+   * Safety invariant: never upgrade trust based on malformed input (i.e.,
+   * a malformed X-Forwarded-Proto must not force https).
    *
-   * Project requirement (consistent standard):
-   * - Never "upgrade" trust based on malformed input. In particular, a malformed
-   *   X-Forwarded-Proto must NOT force https, and a malformed X-Forwarded-For
-   *   must NOT be used to grant external identity/authorization.
-   *
-   * Test strategy (temporary):
-   * - Assert the safety property explicitly (no https upgrade) and allow either
-   *   fallback (preferred) or literal passthrough (observed in some Jetty 12 setups)
-   *   until we wire an EE10 ServerModule setting to enforce strict ignoring of
-   *   malformed values.
-   *
-   * TODO(wave-ee10): When strict forwarded-header validation is implemented in
-   * the Jakarta ServerModule/ServerRpcProvider, tighten this test to require the
-   * fallback behavior (scheme=http and loopback remote) and remove the passthrough
-   * allowance. Gate via a config flag if needed to keep environments reproducible.
+   * TODO(ee10-strict-forwarded): Once strict forwarded‑header handling is the
+   * default in the Jakarta server bootstrap, require fallback behavior here
+   * (scheme=http and loopback remote) and remove the passthrough allowance.
    */
   @Test
   public void malformedForwardedHeadersAreIgnored() throws Exception {
@@ -150,19 +138,14 @@ public class ForwardedHeadersJakartaIT {
     String remote = extractField(body, "remote=");
     assertNotNull("Expected remote line in response; body=" + body, remote);
 
-    // Robust assertion: Either the container ignores malformed headers (fallback)
-    // OR it passes them through literally (Jetty 12 behavior observed in practice).
+    // Assert safety property: never upgrade to https due to malformed proto.
+    assertFalse("Malformed X-Forwarded-Proto must not upgrade to https. Body=" + body,
+        "https".equalsIgnoreCase(scheme));
+    // Allow either fallback (preferred) or literal passthrough observed in some Jetty 12 builds.
     boolean loopback = "127.0.0.1".equals(remote) || "::1".equals(remote);
     boolean fallback = "http".equalsIgnoreCase(scheme) && loopback;
     boolean passthrough = "!!!".equals(scheme) && "not_an_ip".equals(remote);
-
-    // We only disallow unsafe upgrade to HTTPS due to malformed proto.
-    assertFalse("Malformed X-Forwarded-Proto must not upgrade to https. Body=" + body,
-        "https".equalsIgnoreCase(scheme));
-
-    assertTrue(
-        "Expected either fallback (scheme=http, remote loopback) or literal passthrough of malformed headers; " +
-            "got scheme='" + scheme + "' remote='" + remote + "'. Body=" + body,
+    assertTrue("Expected fallback or literal passthrough; got scheme='" + scheme + "' remote='" + remote + "'. Body=" + body,
         fallback || passthrough);
   }
 

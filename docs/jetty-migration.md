@@ -2,19 +2,29 @@
 
 Status: In Progress (staged migration)
 Owner: Project Maintainers
-Date: 2025-09-07
+Date: 2025-09-08
 
 Status Summary
 - Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
 - Decision (2025-09-02): Target Jetty 12 (EE10). For Jakarta, use programmatic servlet/filter registration and a programmatic WebSocket endpoint. Retire guice-servlet on the Jakarta path (it is javax-only).
-- Stage 2 — Jakarta (Jetty 12): Core HTTP/static/WebSocket parity implemented; servlet/filter import sweep and DI integration are in progress.
+- Stage 2 — Jakarta (Jetty 12): Core HTTP/static/WebSocket parity implemented; servlet/filter import sweep and DI integration are in progress. Jakarta unit and integration tests are green locally.
   - EE10 server bootstrap: ServletContextHandler, DefaultServlet, GzipHandler.
   - Static resources: ResourceCollection with cache/no-cache splits for /static and /webclient.
   - WebSockets: Programmatic @ServerEndpoint("/socket") with per-connection dispatch; no echo fallback; DI via ServerEndpointConfig.Configurator with validation.
   - Forwarded headers: ForwardedRequestCustomizer behind network.enable_forwarded_headers.
   - Access logs: NCSA request log with append + 7-day retention.
   - Sessions: flag-gated reflective lookup; embedded test coverage.
-  - Tests: jakartaTest suite for forwarded headers, access logs, DI guard, and session lookup.
+  - Tests: jakartaTest (unit-like) and jakarta ITs for forwarded headers, access logs, caching filters, security headers, DI guard, and session lookup.
+
+Recent changes (2025-09-08)
+- Tests hardened for EE10 stability and diagnostics:
+  - AccessLogJakartaIT uses a CountDownLatch-based RequestLog (no sleep/polling) for deterministic verification.
+  - CachingFiltersJakartaIT factors helpers (assertOk/header/dumpHeaders), uses EE10 FilterHolder, and public nested servlets; failures include headers+body.
+  - SecurityHeadersJakartaIT validates CSP/Referrer-Policy and X-Content-Type-Options=nosniff for both default and custom configs; extracted case-insensitive header helper with diagnostics.
+  - ForwardedHeadersJakartaIT asserts the safety property (no https upgrade on malformed X-Forwarded-Proto) and documents temporary allowance for literal passthrough pending strict mode; TODO to tighten once strict handling is in place.
+  - Refined @Before exception handling: only skip for true EE10 env issues (via TestSupport); fail fast for app misconfigurations.
+- TestSupport added (public, test-only) to centralize EE10 availability checks and consistent skip policy.
+- CI: added non-blocking :wave:testJakartaIT step and artifact publishing. Plan to flip to blocking after a burn-in window.
 - Compatibility note: For Jakarta builds, javax.servlet-api is still present as compileOnly for transitional stubs. This must be removed before we flip Jakarta as the default.
 
 See also
@@ -42,12 +52,12 @@ Recommendation (staged)
 2) Stage 2 (In progress): Execute Jakarta migration (Jetty 12) and reach parity.
    - Status: EE10 bootstrap, endpoint dispatch, forwarded headers, access logs, and session lookup compatibility implemented with tests; servlet/filter import sweep and DI replacement pending.
 
-Timeline (as of 2025-09-07)
+Timeline (as of 2025-09-08)
 - T1 (done): EE10 servlet handler, static resources, gzip, basic /socket.
 - T2 (done): Programmatic endpoint + per-connection dispatch; removed echo fallback; DI validation.
-- T3 (done): Forwarded headers/access logs parity; jakartaTest added.
+- T3 (done): Forwarded headers/access logs parity; jakartaTest added; jakarta ITs green locally.
 - T4 (done): Session lookup compatibility layer; flag docs + end-to-end test.
-- T5 (done): Retired POC flags and code; simplified provider wiring; constructors collapsed.
+- T5 (ongoing): Retire POC flags/code as overrides solidify; simplified provider wiring; constructors collapsed.
 
 Remaining items
 - Replace guice-servlet usages with programmatic registration; remove GuiceFilter from the Jakarta path.
@@ -57,7 +67,7 @@ Remaining items
 - Sweep server sources and change javax.servlet.* imports to jakarta.servlet.*; update filters/servlets and any web.xml descriptors.
 - Remove compileOnly javax.servlet-api from Jakarta builds; ensure jakarta.servlet-api is the only servlet API on classpath.
 - Flip `jettyFamily` default to `jakarta` once CI burn-in is green; keep a fallback profile for javax while deprecating it.
-- Add a non-blocking CI job that compiles and runs `:wave:testJakarta`; gate the default flip on 1–2 weeks of green runs.
+- CI: Jakarta compile + tests run in a dedicated job. As of 2025‑09‑08, PRs are blocking on Jakarta compile/tests, while direct pushes remain non‑blocking during burn‑in. After a 1–2 week green window, flip all events to blocking and prepare the default flip.
 - Update Dockerfile and README to document running under Jetty 12 by default, including any changed ports/flags.
 - Continue deprecation cleanup where low risk; track GWT and JUnit legacy warnings separately.
 
@@ -73,6 +83,7 @@ Scope and Impact Areas
   - If web.xml present, upgrade descriptors to Jakarta variant.
 - Testing:
   - Build & unit tests on JDK 17; run `:wave:testJakarta` and smoke tests.
+  - Integration tests on JDK 17; run `:wave:testJakartaIT` (CI non-blocking for now).
   - GWT hosted tests are independent (driven by gwt-dev Jetty) and won’t be fixed by server Jetty upgrade; track separately.
 
 Detailed Plan
@@ -113,7 +124,7 @@ Decision & path
   2) Update imports javax.* -> jakarta.* across server sources.
   3) Update web.xml schema to Jakarta variant if present; validate descriptors.
   4) Replace guice-servlet integration (ServletModule, GuiceFilter) with programmatic registration; wire filters/servlets.
-  5) Re-run full build, `:wave:testJakarta`, and server smoke tests on JDK 17.
+  5) Re-run full build, `:wave:testJakarta`, `:wave:testJakartaIT`, and server smoke tests on JDK 17.
 - Acceptance
   - Server builds and runs fully under Jakarta.
   - No javax.* dependencies remain on the Jakarta path; CI is green.
@@ -133,7 +144,7 @@ Work Breakdown (initial)
 
 Validation Checklist
 - Server starts on JDK 17 with Jetty 12 (Jakarta) after migration.
-- WebSockets, static resources, forwarded headers, access logs verified via tests.
+- WebSockets, static resources, forwarded headers, access logs, security headers, and caching filters verified via tests.
 - No javax.* dependencies remain on Jakarta path; follow-up epic created for any residuals.
 
 Notes

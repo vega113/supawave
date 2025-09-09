@@ -2,9 +2,12 @@ name: Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, 'release/**', 'hotfix/**' ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
+  release:
+    types: [ published ]
   workflow_dispatch:
 
 jobs:
@@ -59,13 +62,17 @@ jobs:
         with:
           cache-disabled: false
 
-      - name: Compile Jakarta sources
-        continue-on-error: true
+      - name: Compile Jakarta sources (PR-blocking)
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
         run: ./gradlew --no-daemon --warning-mode all -PjettyFamily=jakarta :wave:classes :wave:jakartaTestClasses
 
-      - name: Run jakartaTest (non-blocking)
-        continue-on-error: true
+      - name: Run jakartaTest (PR-blocking)
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
         run: ./gradlew --no-daemon --warning-mode all -PjettyFamily=jakarta :wave:testJakarta
+
+      - name: Run jakarta ITs (PR-blocking)
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        run: ./gradlew --no-daemon --warning-mode all -PjettyFamily=jakarta :wave:testJakartaIT
 
       - name: Publish jakartaTest reports
         if: always()
@@ -76,8 +83,17 @@ jobs:
             wave/build/test-results/testJakarta/**
             wave/build/reports/tests/testJakarta/**
 
-      - name: Guard experimental flags for release (tags only)
-        if: ${{ github.ref_type == 'tag' }}
+      - name: Publish jakarta IT reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-jakarta-it
+          path: |
+            wave/build/test-results/testJakartaIT/**
+            wave/build/reports/tests/testJakartaIT/**
+
+      - name: Guard experimental flags for release (tags/releases/release branches)
+        if: ${{ github.ref_type == 'tag' || (github.event_name == 'release' && github.event.action == 'published') || (github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))) }}
         run: |
           ./scripts/ci-guard-experimental-flags.sh
 

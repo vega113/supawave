@@ -1,11 +1,11 @@
 # Migration Plan: Conversation Renderer (wiab.pro ➜ Apache Wave)
 
 Owner: Migration Engineering
-Last updated: 2025-09-02
+Last updated: 2025-09-08
 
 -------------------------------------------------------------------------------
 
-## Delta Since Last Edit (2025-09-02)
+## Delta Since Last Edit (2025-09-08)
 
 - Flags (Task A): Added `enableDynamicRendering`, `enableQuasiDeletionUi`, `enableFragmentFetch`; server/gradle plumbing to pass flags via `-PclientFlags` and merge defaults.
 - Quasi (Phase 2 / Task B): Implemented `QuasiConversationViewAdapter` and `QuasiDeletable`; StageTwo wiring behind `enableQuasiDeletionUi`.
@@ -13,7 +13,9 @@ Last updated: 2025-09-02
 - Viewport plumbing (Phase 4 / Task D): Implemented `ScreenController` + `ScreenControllerImpl`; added `DomScrollerImpl` with clamped, throttled scroll writes sharing `dynamicScrollThrottleMs` with renderer.
 - Dynamic renderer (Phase 5 / Task E): Implemented MVP windowing with page-in/out, placeholders, robust DOM reads, and resource cleanup on page-out via `BlipResourceCleaner` + `BlipAsyncRegistry`.
 - Resources: Added `Render.css` and loader; optimized placeholder toggling to avoid redundant DOM churn.
-- Fragment fetch (Phase 6 / Task F): Added `ClientFragmentRequester` and minimal `/fragments` servlet; gated by `enableFragmentFetch` and callback with error logging.
+- Fragment fetch (Phase 6 / Task F): Added `ClientFragmentRequester` and minimal `/fragments` servlet; gated by `enableFragmentFetch` and callback with error logging. Server emits `ProtocolFragments` under `server.enableFetchFragmentsRpc`; client may opt-in to a fragments applier.
+- Client fragments applier: Introduced `RawFragmentsApplier` with `SkeletonRawFragmentsApplier` and `RealRawFragmentsApplier` (coverage merge). Select via `wave.fragments.applier.impl` when `client.flags.defaults.enableFragmentsApplier=true`.
+- Observability: `/statusz?show=fragments` shows emission and applier counters (including `applierRejected` for invalid fragment inputs).
 - Hardening & logging: Narrowed exception scopes, gated debug logs behind `enableViewportStats` or non-prod, added safe fallbacks.
 
 

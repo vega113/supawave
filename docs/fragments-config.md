@@ -17,6 +17,93 @@ Defaults are shown; see reference.conf for inline comments.
 - `server.segmentStateRegistry.maxEntries` (int, default `1024`)
 - `server.segmentStateRegistry.ttlMs` (long, default `300000`)
   - Size/TTL for in-memory SegmentWaveletState registry (LRU + TTL).
+- `server.enableStorageSegmentState` (bool, default `false`)
+  - When true, build a `StorageSegmentWaveletState` from snapshots as a scaffold and cache
+    it in the registry (to be evolved to a true storage-backed implementation).
+
+### Storage‑Backed SegmentWaveletState (flag details)
+
+Purpose
+- Enable a server path that prefers a storage‑backed SegmentWaveletState when
+  available, reducing recomputation and preparing for blocks‑style state.
+- While the storage implementation is developed, the flag wires a scaffolded
+  `StorageSegmentWaveletState` (derived from snapshots) into the same code path
+  so plumbing and observability can be validated end‑to‑end.
+
+Behavior and compatibility
+- Off (default):
+  - Compat mode only (snapshot‑derived intervals via `SegmentWaveletStateCompat`).
+  - No change in emitted ranges; existing clients/protocol remain unchanged.
+- On:
+  - The handler constructs a `StorageSegmentWaveletState` and caches it in the
+    registry. As the real storage is implemented, this class will return true
+    persisted intervals rather than snapshot reconstructions.
+  - If storage lookup fails or is partially available, the system merges storage
+    results with compat results for missing segments, without duplicates.
+  - Errors or timeouts fall back to compat; the update/RPC stream continues.
+
+Practical rollout (migration from snapshots)
+- Phase 0 — Dry run (flag off):
+  - Validate metrics/caches and keep using compat only.
+- Phase 1 — Shadow/Canary (flag on for a small cohort):
+  - Build `StorageSegmentWaveletState` from snapshots, store in registry,
+    and compare storage vs compat outputs in metrics (e.g., `statePartial`).
+  - Watch `computeFallbacks`, `stateErrors`, GC pressure, and registry hit rates.
+- Phase 2 — Real storage reads (flag still on, storage wired):
+  - Add bounded timeouts (e.g., 100 ms) and fail over to compat on error.
+  - Expose counters: `stateHits`, `stateMisses`, `stateErrors`, `statePartial`.
+- Phase 3 — Ramp up:
+  - Increase flag coverage; keep compat as fallback for resiliency.
+- Phase 4 — Stabilize:
+  - When storage quality is sufficient, keep the flag on by default and
+    optionally deprecate the compat path later.
+
+Monitoring and validation
+- Counters to track (Statusz → Fragments):
+  - Storage: `stateHits`, `stateMisses`, `statePartial`, `stateErrors`.
+  - Fallbacks: `computeFallbacks` increments when compat is used.
+  - Caches: registry `hits/misses/evictions/expirations` and manifest cache stats.
+- Healthy signals:
+  - `stateErrors ≈ 0`, `statePartial` declining as backfill/migration completes.
+  - Compat fallbacks become rare except during deploys or targeted outages.
+
+Resource and tuning considerations
+- Registry sizing (see guidance above) should cover peak concurrently active
+  wavelets per node; storage reads should be bounded and cached.
+- Keep `server.segmentStateRegistry.ttlMs` aligned with typical revisits; too
+  short TTLs increase read load; too long TTLs increase memory.
+
+Sample HOCON configs
+```
+# Shadow canary on a single node or small percentage
+server.enableStorageSegmentState = true
+server.segmentStateRegistry.maxEntries = 2048
+server.segmentStateRegistry.ttlMs = 600000  # 10m
+
+# Rollback (immediate)
+server.enableStorageSegmentState = false
+```
+
+Limitations (while scaffolded)
+- Until true storage is wired, `StorageSegmentWaveletState` mirrors compat
+  behavior but exercises the same registry and wiring. This allows validating
+  flag behavior and counters without protocol changes.
+
+Code example (integration)
+```java
+// Resolve a snapshot and populate a storage state (scaffold) into the registry
+CommittedWaveletSnapshot snap = provider.getSnapshot(waveletName);
+if (snap != null && snap.snapshot != null) {
+  SegmentWaveletState state = new StorageSegmentWaveletState(snap.snapshot);
+  SegmentWaveletStateRegistry.put(waveletName, state);
+}
+// Later: fetch intervals for INDEX/MANIFEST + some blips
+Map<SegmentId, VersionRange> req = new HashMap<>();
+req.put(SegmentId.INDEX_ID, VersionRange.of(0, 0));
+req.put(SegmentId.MANIFEST_ID, VersionRange.of(0, 0));
+req.put(SegmentId.ofBlipId("b+1"), VersionRange.of(1, 10));
+Map<SegmentId, Interval> intervals = state.getIntervals(req, false);
+```
 
 ### Sizing Guidance and Examples (segment state registry)
 

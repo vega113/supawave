@@ -1,18 +1,20 @@
 # Server-First Blocks Adoption Plan
 
 Owner: Migration Engineering
-Last updated: 2025-09-07
+Last updated: 2025-09-08
 
 Statuses: planned | in_progress | completed
 
 -------------------------------------------------------------------------------
 
-## Delta Since Last Edit (2025-09-07)
+## Delta Since Last Edit (2025-09-08)
 
 Reference-centric summary (see docs/fragments-viewport-behavior.md and docs/fragments-config.md):
-- Phase 3 (FragmentsFetcher & Request) and Phase 4 (Server Endpoint & Transport Prep) are completed (compat); associated code and tests are in place.
-- Server emits fragments under a feature flag; HTTP endpoint and RPC wiring are gated. Defaults and operational guidance live in the fragments config reference.
-- Failure modes fall back safely and are observable via metrics; details and diagrams live in the viewport behavior note.
+- Phase 3 (FragmentsFetcher & Request) and Phase 4 (Server Endpoint & Transport Prep) completed (compat); associated code and tests in place.
+- Client applier path advanced: added RealRawFragmentsApplier (coverage merge), integration‑lite test wiring through ViewChannelImpl, and applier implementation selector via `wave.fragments.applier.impl` (noop|skeleton|real). Startup validates values and warn threshold with fail‑fast on invalid config.
+- Manifest order cache migrated to Caffeine (LRU + TTL) with counters and tests; stress tests gated under :wave:testStress.
+- Statusz now exposes fragments metrics and cache counters; added applierRejected.
+- Viewport behavior docs expanded with worked examples and ambiguity rules.
 
 ### Verification Details (2025-09-07)
 
@@ -295,7 +297,7 @@ Goal: Replace `/fragments` stub with real fetcher-backed JSON; spec the future W
 
 Status: in_progress
 
-### Next Task: 5.1 — Client RawFragment Applier (model)
+### Task 5.1 — Client RawFragment Applier (model)
 
 - Scope (iteration 1):
   - Introduce a minimal `RawFragment` DTO (segment id + [from,to] + optional metadata) and a `RawFragmentsApplier` interface behind a client flag.
@@ -308,9 +310,10 @@ Status: in_progress
 - DoD (iteration 1):
   - Compiles under a flag, does not mutate live wavelet data yet. Observability hooks (counters/logs) in place to validate flow end-to-end.
 
-Verification (2025-09-07):
-- DTOs (`FragmentsPayload`, `RawFragment`) and a skeleton applier exist with unit tests.
-- ViewChannelImpl has hooks to call an applier when enabled via `client.flags.defaults.enableFragmentsApplier`, but an actual applier instance is not yet set at startup.
+Status (2025-09-08): completed (iteration 1)
+- DTOs (`FragmentsPayload`, `RawFragment`) in place; real applier (`RealRawFragmentsApplier`) merges coverage, with unit + concurrency tests and an integration‑lite test driving `ViewChannelImpl.onUpdate`.
+- Startup wiring selects applier by `wave.fragments.applier.impl` when `client.flags.defaults.enableFragmentsApplier=true`; defaults to skeleton; `noop` disables.
+- Metrics: `applierEvents`, `applierDurationsMs`, `applierRejected` (invalid input).
 
 ### Viewport Semantics and Edge Cases (server-side)
 - Inputs: `viewport_start_blip_id` (string), `viewport_direction` ("forward"|"backward"), `viewport_limit` (int > 0).
@@ -385,31 +388,64 @@ Status: planned
 
 ## Remaining Work (Ordered Checklist)
 
-1) Wire client applier at startup (minimal)
-- Set a default `SkeletonRawFragmentsApplier` in `ViewChannelImpl` at server startup when `client.flags.defaults.enableFragmentsApplier=true`.
-- Add an opt-out `NoOpRawFragmentsApplier` when disabled.
-- Tests: integration-lite to assert `onFragments` triggers `applier.apply(...)` when flag is on.
-
-2) Gate HTTP fragments endpoint (optional hardening)
-- Introduce `server.enableFragmentsHttp=false|true`.
-- Register `/fragments/*` only when enabled; default off in `reference.conf`.
-- Tests: verify 404/disabled behavior; existing JSON contract continues when enabled.
-
-3) Real SegmentWaveletState (storage-backed)
+1) Real SegmentWaveletState (storage‑backed)
 - Design: interval schema and indices; migration strategy from snapshots/deltas.
 - Implement read path with caching; write/migration task to prefill common intervals.
-- Switch `FragmentsFetcher` to prefer real state when available (flag‑gated); keep compat as fallback.
-- Tests: unit + integration for INDEX/MANIFEST/participants/tags and a handful of blips.
+- Prefer real state in `FragmentsFetcher` when available (flag‑gated); compat remains the
+  fallback.
 
-4) Client FragmentRequester over ViewChannel
-- Implement requester (queueing, concurrency caps, backoff) and wire to `ViewChannel.fetchFragments`.
-- Tests: request shaping near viewport; error handling.
+Success criteria
+- Functional
+  - When real state exists for a wavelet, ranges come from storage; otherwise compat is used
+    with no user‑visible errors (200s, no crashes).
+  - Partial availability: if only some segments exist in storage, merge storage results with
+    compat results for missing segments without duplicates.
+  - Version alignment: emitted ranges do not exceed the wavelet’s committed version; on skew,
+    clamp to the minimum of store/snapshot versions.
+- Resiliency
+  - Store read timeout (e.g., 100 ms default, tunable) fails over to compat.
+  - Store error increments a counter and does not break the RPC/update stream.
+- Observability
+  - Add counters: `stateHits`, `stateMisses`, `stateErrors`, `statePartial`.
+  - `computeFallbacks` increments when any fallback path is taken.
+- Tests
+  - Unit: INDEX/MANIFEST + several blip segments; partial‑state merge; version skew clamp.
+  - Integration‑lite: provider snapshot available but storage missing → mixed results, no
+    duplicates; error → compat path.
 
-5) Observability and metrics
-- Add `wave.fragments.metrics.enabled` to `reference.conf`; expand counters/timers (requests, payload sizes, applier durations).
-- Expose `/statusz?show=fragments` details; ensure values update under load.
+2) Client FragmentRequester over ViewChannel
+- Implement requester (queueing, concurrency caps, backoff) and wire to
+  `ViewChannel.fetchFragments`.
 
-6) Cleanup and deprecation
+Success criteria
+- Functional
+  - Coalesces rapid viewport movements into bounded fetch waves.
+  - Enforces max in‑flight requests per wavelet; cancels obsolete ones.
+  - Works when RPC is disabled (no‑op) or server flag is off.
+- Resiliency
+  - Network errors are retried with bounded backoff; caller is not blocked.
+- Observability
+  - Counters: queued, sent, coalesced, canceled, failures, retries.
+- Tests
+  - Shaping around viewport thrash; cancellation; backoff; “RPC disabled” no‑op.
+
+3) Observability and metrics
+- Add `wave.fragments.metrics.enabled` to `reference.conf`.
+- Expand counters/timers: requester queueing, payload sizes, applier durations, storage‑state
+  hits/misses/partial/errors.
+- `/statusz?show=fragments` shows requester, applier, caches, and storage‑state counters.
+
+Success criteria
+- Dashboards with basic SLOs:
+  - Requester: coalescing ratio > 50% under scroll‑thrash canary.
+  - Applier: `applierRejected ≈ 0` in steady state (spikes acceptable in canary).
+  - Storage: `stateErrors` ~ 0; `statePartial` expected during migrations only.
+
+4) Storage state plumbing scaffold and gating
+- Add `server.enableStorageSegmentState` (default false) to instantiate a storage‑backed state (currently scaffolded via `StorageSegmentWaveletState`) and cache in the registry; evolve to a true persistent state later.
+- Tests: basic presence when flag is on; compatibility when off.
+
+5) Cleanup and deprecation
 - Remove obsolete client flag paths; consolidate Typesafe defaults.
 - Deprecate or remove compat code paths once the storage-backed state is stable.
 

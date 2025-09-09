@@ -86,8 +86,12 @@ public final class SegmentWaveletStateCompat implements SegmentWaveletState {
    * method returns opaque intervals for INDEX/MANIFEST and any requested blip
    * segments that exist in the snapshot.</p>
    *
+   * <p>onlyFromCache note: compat has no external cache lookup; intervals are
+   * always derived from the provided snapshot. The flag is accepted for API
+   * compatibility but has no effect in this implementation.</p>
+   *
    * @param ranges       map of SegmentId to VersionRange to request
-   * @param onlyFromCache true to indicate cache-only lookup (ignored in compat)
+   * @param onlyFromCache true to indicate cache-only lookup (no-op in compat)
    * @return map from SegmentId to an Interval carrying an opaque snapshot
    */
   @Override

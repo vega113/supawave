@@ -55,6 +55,9 @@ public final class FragmentsMetrics {
   public static final AtomicLong httpRequests = new AtomicLong();
   public static final AtomicLong httpOk = new AtomicLong();
   public static final AtomicLong httpErrors = new AtomicLong();
+  // Client-side requester counters
+  public static final AtomicLong requesterSends = new AtomicLong();
+  public static final AtomicLong requesterCoalesced = new AtomicLong();
 
   private FragmentsMetrics() {}
 }

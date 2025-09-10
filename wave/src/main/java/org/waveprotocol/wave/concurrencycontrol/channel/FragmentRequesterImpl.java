@@ -71,11 +71,17 @@ public final class FragmentRequesterImpl implements FragmentRequester {
       send(channel);
     } else {
       pending = true; // coalesce while in-flight
+      if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+        org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.requesterCoalesced.incrementAndGet();
+      }
     }
   }
 
   private void send(ViewChannel channel) {
     try {
+      if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+        org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.requesterSends.incrementAndGet();
+      }
       channel.fetchFragments(waveletId, segments, startVersion, endVersion);
     } finally {
       // shape the next attempt based on backoff; coalesce pending requests into one
@@ -94,4 +100,3 @@ public final class FragmentRequesterImpl implements FragmentRequester {
     }
   }
 }
-

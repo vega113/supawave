@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.util.HttpSanitizers;
 
 import java.io.IOException;
 
@@ -57,7 +58,7 @@ public class SignOutServlet extends HttpServlet {
     sessionManager.logout(session);
 
     String redirectUrl = req.getParameter("r");
-    if (redirectUrl != null && redirectUrl.startsWith("/")) {
+    if (HttpSanitizers.isSafeRelativeRedirect(redirectUrl)) {
       resp.sendRedirect(redirectUrl);
     } else {
       resp.setStatus(HttpServletResponse.SC_OK);

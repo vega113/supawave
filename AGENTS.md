@@ -32,45 +32,16 @@ Below are practical, action-focused rules for each MCP server defined in `~/.cod
 - Output handling: Summarize key APIs, cite the version explicitly, and link doc URLs when provided.
 - Safety: Prefer official sources; avoid relying on outdated snippets. Double-check versions before applying changes.
 
-### Private Journal (Learning & Memory Management)
-- YOU MUST use the journal tool frequently to capture technical insights, failed approaches, and user preferences.
-- Before starting complex tasks, search the journal for relevant past experiences and lessons learned.
+### Memento
+- You have access to the Memento MCP knowledge graph memory system, which provides you with persistent memory capabilities.
+- Your memory tools are provided by Memento MCP, a sophisticated knowledge graph implementation.
+- When asked about past conversations or user information, always check the Memento MCP knowledge graph first.
+- You should use semantic_search to find relevant information in your memory when answering questions.
+- YOU MUST use the memento tool frequently to capture technical insights, failed approaches, and user preferences.
+- Before starting complex tasks, search the memento tool for relevant past experiences and lessons learned.
 - Document architectural decisions and their outcomes for future reference.
 - Track patterns in user feedback to improve collaboration over time.
 - When you notice something that should be fixed but is unrelated to your current task, document it in your journal rather than fixing it immediately.
-- Useful actions: `search_journal` (find precedents), `list_recent_entries` (quick review), `read_journal_entry` (deep-dive), `process_thoughts` (write new notes).
-
-### Memento
-- You have access to the Memento MCP knowledge graph memory system, which provides you with persistent memory capabilities.
-  Your memory tools are provided by Memento MCP, a sophisticated knowledge graph implementation.
-  When asked about past conversations or user information, always check the Memento MCP knowledge graph first.
-  You should use semantic_search to find relevant information in your memory when answering questions.
-
-
-
-
-## Planning and documentation
-- Planning (required): Use structured thinking before large actions.
-    - Outline the steps, dependencies, and validation points.
-    - Keep plans short and update as you proceed.
-- Documentation (required): Log decisions and outcomes.
-    - Summarize why a tool was chosen and the result.
-    - Capture gotchas and follow-ups.
-
-Suggested phrasing to the tools in this environment:
-- Sequential thinking: “I will plan steps, verify assumptions, then proceed.”
-- Private journal: “Record: tool chosen, inputs, key result, and next step.”
-
-## Quick examples
-- Web lookup then summarize:
-    - Plan: identify sources → fetch one authoritative page → extract key facts → summarize.
-    - Call fetch with constraints (domain, timeout, format=markdown or json if supported).
-    - Journal the source URL and 2–3 bullet insights.
-
-- Local file augmentation:
-    - Plan: read file → compute change → write patch → verify formatting.
-    - Use filesystem tool only within allowed root; avoid touching VCS metadata.
-    - Journal diff summary and verification step.
 
 
 ## Agent Guidelines
@@ -78,12 +49,11 @@ Suggested phrasing to the tools in this environment:
 - Only terminate your turn when you are sure that the problem is solved.
 - Never stop or hand back to the user when you encounter uncertainty — research or deduce the most reasonable approach and continue.
 - Do not ask the human to confirm or clarify assumptions, as you can always adjust later — decide what the most reasonable assumption is, proceed with it, and document it for the user's reference after you finish acting
-- Use the journal tool frequently to capture technical insights, failed approaches, and user preferences.
-- Before starting complex tasks, search the journal for relevant past experiences and lessons learned.
+- Use the memento tool frequently to capture technical insights, failed approaches, and user preferences.
+- Before starting complex tasks, search the memento tool for relevant past experiences and lessons learned.
 - Document architectural decisions and their outcomes for future reference.
 - Track patterns in user feedback to improve collaboration over time.
 - When you notice something that should be fixed but is unrelated to your current task, document it.
-- When working on complex tasks, use the Sequential Thinking tool, always start with a short step-by-step plan and an estimate of thoughts; mark `nextThoughtNeeded` until the solution is verified.
 
 ## Working with Git
 - Before you finish your turn, if you have made any changes to files in a git repository, you MUST run `git status` and `git diff` to review your changes.
@@ -95,9 +65,11 @@ Suggested phrasing to the tools in this environment:
 - Do not use FQN in your code, instead import from the appropriate module.
 - Do not write one line code blocks inside brackets.
 - Make sure to follow the [Codex Code Guidelines](CODE_GUIDELINES.md)
+- Write self-documenting code.
+- Do not write comments in the code. Instead if you need to explain something, extract the code into a function and write a comment for the function.
 
 ### Java code style (WaveStyle)
-These rules summarize the Eclipse formatter profile in `eclipse-formatter-style.xml` (profile name: "WaveStyle"). Apply them when writing or editing Java code:
+Apply the rules when writing or editing Java code:
 
 - Indentation
   - Use spaces only; no tabs. Tab width = 2, indent size = 2.
@@ -131,16 +103,9 @@ These rules summarize the Eclipse formatter profile in `eclipse-formatter-style.
   - `case` labels align with `switch`. Statements under a `case` are indented. `break` aligns with those statements.
 - Comments and Javadoc
   - Format Javadoc, insert new lines at boundaries, and indent parameter descriptions. Use `@param`/`@return` each on its own line.
-- Misc
-  - Prefer wrapping long expressions before operators. Avoid manual alignment; let the formatter handle wrapping.
-
-How to apply
-- Eclipse: Import `eclipse-formatter-style.xml` and select profile "WaveStyle".
-- IntelliJ IDEA: Use the Eclipse Code Formatter plugin with the provided XML, or mirror the settings above manually.
 
 
 ## When you need to call tools from the shell, use this rubric:
-
 - Find Files: `fd`
 - Find Text: `rg` (ripgrep)
 - Find Code Structure (TS/TSX): `ast-grep`
@@ -151,5 +116,4 @@ How to apply
 - Select among matches: pipe to `fzf`
 - JSON: `jq`
 - YAML/XML: `yq`
-
 If ast-grep is available avoid tools `rg` or `grep` unless a plain‑text search is explicitly requested.

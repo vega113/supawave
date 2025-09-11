@@ -13,7 +13,9 @@ Status Summary
   - WebSockets: Programmatic @ServerEndpoint("/socket") with per-connection dispatch; no echo fallback; DI via ServerEndpointConfig.Configurator with validation.
   - Forwarded headers: ForwardedRequestCustomizer behind network.enable_forwarded_headers.
   - Access logs: NCSA request log with append + 7-day retention.
-  - Sessions: flag-gated reflective lookup; embedded test coverage.
+  - Sessions: flag-gated reflective lookup; embedded test coverage. As of 2025‑09‑11, `HttpSession` adaptation includes:
+    - `JavaxSessionWrapper#getServletContext()` now returns a lightweight adapter (non‑null) that forwards safe methods to the underlying Jakarta context; unsupported javax‑specific methods throw `UnsupportedOperationException`.
+    - `JavaxSessionWrapper#getSessionContext()` logs once and returns null by default; opt‑in fail‑fast with `-Dwave.session.getSessionContext.failFast=true` throws `UnsupportedOperationException`.
   - Tests: jakartaTest (unit-like) and jakarta ITs for forwarded headers, access logs, caching filters, security headers, DI guard, and session lookup.
 
 Recent changes (2025-09-10)
@@ -29,7 +31,7 @@ Recent changes (2025-09-10)
   - SearchServletJakartaIT: invalid parameter 400s, out-of-range clamping, injection-safe serialization, and serializer failure → 500.
 - TestSupport added (public, test-only) to centralize EE10 availability checks and consistent skip policy.
 - CI: added non-blocking :wave:testJakartaIT step and artifact publishing. Plan to flip to blocking after a burn-in window.
-- Compatibility note: As of 2025‑09‑10, the Jakarta build no longer includes javax.servlet‑api on the classpath. Any remaining javax imports are isolated behind the legacy (javax) profile and are not compiled for Jakarta.
+- Compatibility note (updated 2025‑09‑11): The Jakarta build’s runtime classpath contains only Jakarta APIs. For compilation, we temporarily expose `javax.servlet-api` as `compileOnly` to build adapter types used solely by migration wrappers/tests. No javax types are present at runtime on the Jakarta path. This `compileOnly` will be removed when all adapters/tests stop referencing javax.
 
 Security & correctness hardening
 - AttachmentServlet (both javax and Jakarta):
@@ -50,6 +52,13 @@ Jakarta ITs executed by default
 See also
 - Configuration flags and temporary migration toggles: docs/CONFIG_FLAGS.md
 - Next up: Complete servlet/filter import sweep to jakarta.*, replace guice-servlet usages with programmatic registration, then flip the default build to Jetty 12.
+
+Open Work Items (Jakarta)
+- Servlet/filter import sweep to `jakarta.*` for remaining RPC servlets (Authentication, SignOut, GadgetProvider, InitialsAvatars) with focused ITs.
+- Remove `compileOnly javax.servlet-api` once adapters/tests no longer reference javax interfaces.
+- Replace `guice-servlet` on Jakarta path with programmatic registration; keep Guice core for DI.
+- Promote `:wave:testJakartaIT` to blocking in CI after a 1–2 week burn‑in.
+- Flip default profile to `-PjettyFamily=jakarta` and mark the javax profile as deprecated.
 
 Objective
 - Upgrade Wave’s embedded/used Jetty from 9.2.x to a supported release to improve security, compatibility with modern JDKs, and long-term maintainability.

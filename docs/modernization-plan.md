@@ -66,6 +66,7 @@ Task P5-T2: Jetty deps upgrade to Jakarta (Jetty 12)
   3) Ensure Jakarta ITs run via `testJakartaIT` (Forwarded headers, Access logs, Security headers, Caching filters, Attachment/Search servlets).
 - DoD:
   - `./gradlew -PjettyFamily=jakarta :wave:compileJava testJakartaIT` passes locally and in CI.
+  - Jakarta runtime classpath contains only `jakarta.*` APIs; any javax usage is limited to `compileOnly` for migration adapters/tests and scheduled for removal.
 
 Task P5-T3: Servlet/Jakarta code migration
 - Status: In Progress
@@ -77,6 +78,11 @@ Task P5-T3: Servlet/Jakarta code migration
   1) Migrate remaining RPC servlets to jakarta (AuthenticationServlet, SignOutServlet, GadgetProviderServlet, InitialsAvatarsServlet), each with focused ITs.
   2) Finalize provider override classpath and wire all jakarta overrides in the EE10 provider.
   3) After two weeks of green CI on Jakarta, flip PR gating to block on Jakarta suite and deprecate the javax profile.
+ - Work Log (2025-09-11):
+   - Session adapters: improved javax<->jakarta bridging.
+     - `JavaxSessionWrapper#getServletContext()` now returns a non‑null dynamic proxy that forwards safe methods to the underlying Jakarta `ServletContext`; unsupported javax‑specific methods throw `UnsupportedOperationException`.
+     - `JavaxSessionWrapper#getSessionContext()` logs once and returns null by default; enable `-Dwave.session.getSessionContext.failFast=true` to throw instead.
+   - Verified Gradle tasks `testJakarta` and `testJakartaIT` exist and are wired to `sourceSets.jakartaTest`.
 - DoD:
   - All Jakarta overrides compile without javax imports; Jakarta ITs green and PR-blocking.
 - Phase 6: Library upgrades for security and maintainability

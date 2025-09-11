@@ -38,6 +38,14 @@ This page documents configuration flags and environment variables recently added
   - Tests: Covered by `SessionLookupFlagTest` (flag wiring) and `SessionLookupEmbeddedIT` (embedded EE10 server path).
   - Status: Transitional; will be revisited/removed once Jakarta session integration is finalized.
 
+Session adapter behavior
+- wave.session.getSessionContext.failFast: boolean (default: false)
+  - Purpose: Control behavior of deprecated `HttpSession#getSessionContext()` in migration adapters.
+  - Behavior:
+    - false (default): log a one-time warning and return null for compatibility.
+    - true: throw `UnsupportedOperationException` to surface accidental usages early.
+  - Scope: Applies to `JavaxSessionWrapper` (Jakarta migration path only). No effect on legacy javax profile.
+
 ## Test/Env Variables (non-Typesafe Config)
 
 - DOCKER_HOST (env)

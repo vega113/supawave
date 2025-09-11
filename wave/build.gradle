@@ -186,8 +186,9 @@ if (jettyFamily == 'jakarta') {
                 'org/waveprotocol/box/server/ServerModule.java',
                 'org/waveprotocol/box/server/ServerMain.java',
                 'org/waveprotocol/box/server/rpc/AuthenticationServlet.java',
+                'org/waveprotocol/box/server/rpc/SignOutServlet.java',
                 'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java',
-                'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java',
+                // Keep HttpRequestBasedCallbackHandler available for Jakarta auth servlet
                 'org/waveprotocol/box/server/authentication/SessionManagerImpl.java',
                 'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java',
                 // Prevent javax variants where Jakarta overrides exist
@@ -776,6 +777,8 @@ tasks.register('testJakartaIT', Test) {
         includeTestsMatching 'org.waveprotocol.box.server.jakarta.CachingFiltersJakartaIT'
         includeTestsMatching 'org.waveprotocol.box.server.jakarta.AttachmentServletJakartaIT'
         includeTestsMatching 'org.waveprotocol.box.server.jakarta.SearchServletJakartaIT'
+        includeTestsMatching 'org.waveprotocol.box.server.jakarta.AuthenticationServletJakartaIT'
+        includeTestsMatching 'org.waveprotocol.box.server.jakarta.SignOutServletJakartaIT'
     }
     // Open modules for Mockito on JDK 17
     jvmArgs += [

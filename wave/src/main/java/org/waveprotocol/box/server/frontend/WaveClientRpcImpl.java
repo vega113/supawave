@@ -168,81 +168,12 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                     CoreWaveletOperationSerializer.serialize(committedVersion));
               }
             }
-            // Experimental: attach fragments window if enabled
             FragmentsViewChannelHandler fh = fragmentsHandler;
-            if (fh != null && fh.isEnabled()) {
-              long startV = 0L;
-              if (snapshot != null) {
-                startV = snapshot.snapshot.getHashedVersion().getVersion();
-              } else if (committedVersion != null) {
-                startV = committedVersion.getVersion();
-              }
+            if (fh != null && fh.isEnabled() && !isDummyWavelet(waveletName)) {
+              long startV = computeStartVersion(snapshot, committedVersion);
               long endV = startV;
 
-              List<SegmentId> segs = new ArrayList<>();
-              segs.add(SegmentId.INDEX_ID);
-              segs.add(SegmentId.MANIFEST_ID);
-
-              // Viewport hints from request
-              String vpStart = null;
-              String vpDir = null;
-              int vpLimit = DEFAULT_VIEWPORT_LIMIT;
-              if (request.hasViewportStartBlipId()) vpStart = request.getViewportStartBlipId();
-              if (request.hasViewportDirection()) vpDir = request.getViewportDirection();
-              if (request.hasViewportLimit()) {
-                int requested = request.getViewportLimit();
-                if (requested <= 0) {
-                  LOG.fine("viewport_limit<=0; using default=" + DEFAULT_VIEWPORT_LIMIT);
-                  vpLimit = DEFAULT_VIEWPORT_LIMIT;
-                } else if (requested > MAX_VIEWPORT_LIMIT) {
-                  LOG.fine("viewport_limit=" + requested + 
-                      ">max; clamping to " + MAX_VIEWPORT_LIMIT);
-                  vpLimit = MAX_VIEWPORT_LIMIT;
-                } else {
-                  vpLimit = requested;
-                }
-              }
-
-              // Prefer viewport-aware segments if any hint is present
-              if (vpStart != null || vpDir != null || request.hasViewportLimit()) {
-                if ((vpStart == null || vpStart.isEmpty()) && (vpDir != null && !vpDir.isEmpty()) && !request.hasViewportLimit()) {
-                  // Direction without start/limit is ambiguous; record and proceed with default limit
-                  if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
-                    org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.viewportAmbiguity.incrementAndGet();
-                  }
-                }
-                try {
-                  segs = fh.computeVisibleSegments(waveletName, vpStart, vpDir, vpLimit);
-                } catch (Exception e) {
-                  LOG.warning("viewport-aware computeVisibleSegments failed; will try snapshot/heuristic for " + waveletName, e);
-                  segs = new ArrayList<>();
-                  segs.add(SegmentId.INDEX_ID);
-                  segs.add(SegmentId.MANIFEST_ID);
-                }
-              }
-
-              // Next, prefer blips from current snapshot when available
-              if (segs.size() <= 2 && snapshot != null) {
-                int added = 0;
-                for (String docId : snapshot.snapshot.getDocumentIds()) {
-                  if (docId != null && docId.startsWith("b+")) {
-                    segs.add(SegmentId.ofBlipId(docId));
-                    if (++added >= vpLimit) break;
-                  }
-                }
-              }
-
-              // Finally, heuristic manifest/time-based selection
-              if (segs.size() <= 2) {
-                try {
-                  segs = fh.computeVisibleSegments(waveletName, vpLimit);
-                } catch (Exception e) {
-                  LOG.warning("computeVisibleSegments failed during fragments emission; using INDEX/MANIFEST only for " + waveletName, e);
-                  segs = new ArrayList<>();
-                  segs.add(SegmentId.INDEX_ID);
-                  segs.add(SegmentId.MANIFEST_ID);
-                }
-              }
+              List<SegmentId> segs = selectVisibleSegments(fh, waveletName, snapshot, request);
 
               try {
                 java.util.Map<SegmentId, VersionRange> ranges = fh.fetchFragments(waveletName, segs, startV, endV);
@@ -290,6 +221,102 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
             done.run(builder.build());
           }
         });
+  }
+
+  /** Returns true if the wavelet id represents a synthetic open/marker wavelet. */
+  private static boolean isDummyWavelet(WaveletName name) {
+    try { return name != null && name.waveletId != null && name.waveletId.getId().startsWith("dummy+"); }
+    catch (Throwable ignore) { return false; }
+  }
+
+  /** Computes the starting version for the fragments ranges attachment. */
+  private static long computeStartVersion(@Nullable CommittedWaveletSnapshot snapshot,
+                                          @Nullable HashedVersion committedVersion) {
+    if (snapshot != null) {
+      return snapshot.snapshot.getHashedVersion().getVersion();
+    }
+    return committedVersion != null ? committedVersion.getVersion() : 0L;
+  }
+
+  /** Returns true if any viewport hint is present on the request. */
+  private static boolean hasViewportHints(ProtocolOpenRequest request) {
+    return request.hasViewportStartBlipId() || request.hasViewportDirection() || request.hasViewportLimit();
+  }
+
+  /** Resolves viewport limit with validation and clamping. */
+  private static int resolveViewportLimit(ProtocolOpenRequest request) {
+    int limit = DEFAULT_VIEWPORT_LIMIT;
+    if (!request.hasViewportLimit()) return limit;
+    int requested = request.getViewportLimit();
+    if (requested <= 0) return DEFAULT_VIEWPORT_LIMIT;
+    if (requested > MAX_VIEWPORT_LIMIT) return MAX_VIEWPORT_LIMIT;
+    return requested;
+  }
+
+  /**
+   * Selects the set of segments to attach as a fragments window.
+   *
+   * Rules:
+   * - Use viewport-aware selection only when a snapshot is available.
+   * - Otherwise, prefer blips from the snapshot; if none, fall back to INDEX/MANIFEST.
+   * - If still empty and snapshot exists, use heuristic manifest/time-based selection.
+   */
+  private List<SegmentId> selectVisibleSegments(FragmentsViewChannelHandler fh,
+                                                WaveletName waveletName,
+                                                @Nullable CommittedWaveletSnapshot snapshot,
+                                                ProtocolOpenRequest request) {
+    List<SegmentId> segs = new ArrayList<>();
+    segs.add(SegmentId.INDEX_ID);
+    segs.add(SegmentId.MANIFEST_ID);
+
+    final String vpStart = request.hasViewportStartBlipId() ? request.getViewportStartBlipId() : null;
+    final String vpDir = request.hasViewportDirection() ? request.getViewportDirection() : null;
+    final int vpLimit = resolveViewportLimit(request);
+
+    if (hasViewportHints(request)) {
+      if ((vpStart == null || vpStart.isEmpty()) && (vpDir != null && !vpDir.isEmpty()) && !request.hasViewportLimit()) {
+        if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+          org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.viewportAmbiguity.incrementAndGet();
+        }
+      }
+      if (snapshot != null) {
+        try {
+          segs = fh.computeVisibleSegments(waveletName, vpStart, vpDir, vpLimit);
+        } catch (Exception e) {
+          LOG.warning("viewport-aware computeVisibleSegments failed; will try snapshot/heuristic for " + waveletName, e);
+          segs = baseSegments();
+        }
+      } else {
+        LOG.fine("Skipping viewport compute without snapshot on commit-only update for " + waveletName);
+      }
+    }
+
+    if (segs.size() <= 2 && snapshot != null) {
+      int added = 0;
+      for (String docId : snapshot.snapshot.getDocumentIds()) {
+        if (docId != null && docId.startsWith("b+")) {
+          segs.add(SegmentId.ofBlipId(docId));
+          if (++added >= vpLimit) break;
+        }
+      }
+    }
+
+    if (segs.size() <= 2 && snapshot != null) {
+      try {
+        segs = fh.computeVisibleSegments(waveletName, vpLimit);
+      } catch (Exception e) {
+        LOG.warning("computeVisibleSegments failed during fragments emission; using INDEX/MANIFEST only for " + waveletName, e);
+        segs = baseSegments();
+      }
+    }
+    return segs;
+  }
+
+  private static List<SegmentId> baseSegments() {
+    List<SegmentId> base = new ArrayList<>();
+    base.add(SegmentId.INDEX_ID);
+    base.add(SegmentId.MANIFEST_ID);
+    return base;
   }
 
   @Override

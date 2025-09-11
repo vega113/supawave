@@ -110,14 +110,20 @@ public final class FragmentsViewChannelHandler {
             LOG.fine("FetchFragments RPC stub disabled");
             return java.util.Collections.emptyMap();
         }
+        if (isDummyWavelet(wn)) {
+            java.util.LinkedHashMap<SegmentId, VersionRange> m = new java.util.LinkedHashMap<>();
+            for (SegmentId id : segments) m.put(id, VersionRange.of(0, 0));
+            LOG.fine("FetchFragments: bypass for dummy wavelet " + wn);
+            return m;
+        }
         FragmentsRequest req = new FragmentsRequest.Builder()
                 .setStartVersion(startVersion)
                 .setEndVersion(endVersion)
                 .build();
-        long snapshotVersion = FragmentsFetcherCompat.getCommittedVersion(provider, wn);
+        long snapshotVersion = effectiveSnapshotVersion(startVersion, wn, provider);
         Map<SegmentId, VersionRange> ranges =
                 FragmentsFetcherCompat.computeRangesForSegments(snapshotVersion, req, segments);
-        LOG.info("preferSegmentState=" + preferSegmentState + ", enableStorageSegmentState=" + enableStorageSegmentState);
+        LOG.fine("preferSegmentState=" + preferSegmentState + ", enableStorageSegmentState=" + enableStorageSegmentState);
         if (preferSegmentState) {
             LOG.info("preferSegmentState=true; attempting state-based filtering");
             try {
@@ -137,7 +143,7 @@ public final class FragmentsViewChannelHandler {
                     }
                 }
                 if (state != null) {
-                    LOG.info("Using state implementation: " + state.getClass().getSimpleName());
+                    LOG.fine("Using state implementation: " + state.getClass().getSimpleName());
                     java.util.Map<SegmentId, org.waveprotocol.box.server.persistence.blocks.Interval> m =
                             state.getIntervals(ranges, /*onlyFromCache=*/false);
                     // Storage-state observability
@@ -157,7 +163,7 @@ public final class FragmentsViewChannelHandler {
                         } catch (Throwable ignore) { /* counters are best-effort */ }
                     }
                     if (m != null) {
-                        LOG.info("State returned intervals for keys: " + m.keySet());
+                        LOG.fine("State returned intervals for keys: " + m.keySet());
                         java.util.Map<SegmentId, VersionRange> filtered = new java.util.LinkedHashMap<>();
                         for (Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
                             if (m.containsKey(e.getKey())) {
@@ -165,7 +171,7 @@ public final class FragmentsViewChannelHandler {
                             }
                         }
                         ranges = ImmutableMap.copyOf(filtered);
-                        LOG.info("After filtering, keys: " + ranges.keySet());
+                        LOG.fine("After filtering, keys: " + ranges.keySet());
                     }
                 }
             }
@@ -176,8 +182,25 @@ public final class FragmentsViewChannelHandler {
                 }
             }
         }
-        LOG.info("FetchFragments stub: wn=" + wn + " start=" + startVersion + " end=" + endVersion + " segments=" + segments + " ranges=" + ranges);
+        LOG.fine("FetchFragments stub: wn=" + wn + " start=" + startVersion + " end=" + endVersion + " segments=" + segments + " ranges=" + ranges);
         return ranges;
+    }
+
+    /** Returns true if the wavelet id represents a synthetic open/marker wavelet. */
+    private static boolean isDummyWavelet(WaveletName wn) {
+        try {
+            return wn != null && wn.waveletId != null && wn.waveletId.getId().startsWith("dummy+");
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    /** Determines a safe snapshot version without performing storage reads for dummy wavelets. */
+    private static long effectiveSnapshotVersion(long startVersion, WaveletName wn, WaveletProvider provider)
+        throws WaveServerException {
+        if (startVersion > 0) return startVersion;
+        if (isDummyWavelet(wn)) return 0L;
+        return FragmentsFetcherCompat.getCommittedVersion(provider, wn);
     }
 
     /**

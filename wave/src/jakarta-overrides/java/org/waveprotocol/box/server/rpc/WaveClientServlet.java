@@ -40,13 +40,14 @@ import org.waveprotocol.box.server.util.UrlParameters;
 import org.waveprotocol.wave.client.util.ClientFlagsBase;
 import org.waveprotocol.wave.common.bootstrap.FlagConstants;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
 import org.waveprotocol.wave.util.logging.Log;
 
 import javax.inject.Singleton;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+// Note: SessionManager uses javax.servlet.http.HttpSession; adapt session before passing
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Enumeration;
@@ -82,10 +83,10 @@ public class WaveClientServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    ParticipantId id = sessionManager.getLoggedInUser(request.getSession(false));
+    ParticipantId id = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(request, false));
     if (id == null) { response.sendRedirect(sessionManager.getLoginUrl("/")); return; }
 
-    AccountData account = sessionManager.getLoggedInAccount(request.getSession(false));
+    AccountData account = sessionManager.getLoggedInAccount(JakartaSessionAdapters.fromRequest(request, false));
     if (account != null) {
       String locale = account.asHuman().getLocale();
       if (locale != null) {
@@ -103,10 +104,11 @@ public class WaveClientServlet extends HttpServlet {
       String hostHeader = request.getHeader("Host");
       String wsAddressForPage = (hostHeader != null && !hostHeader.isEmpty()) ? hostHeader : websocketPresentedAddress;
       WaveClientPage.write(response.getWriter(), new GxpContext(request.getLocale()),
-          getSessionJson(request.getSession(false)), getClientFlags(request), wsAddressForPage,
+          getSessionJson(JakartaSessionAdapters.fromRequest(request, false)),
+          getClientFlags(request), wsAddressForPage,
           TopBar.getGxpClosure(username, userDomain), analyticsAccount);
     } catch (IOException e) {
-      LOG.warning("Failed to write GXP for request " + request, e);
+      LOG.warning("Failed to render WaveClient page", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
       return;
     }
@@ -145,7 +147,7 @@ public class WaveClientServlet extends HttpServlet {
     }
   }
 
-  private JSONObject getSessionJson(HttpSession session) {
+  private JSONObject getSessionJson(javax.servlet.http.HttpSession session) {
     try {
       ParticipantId user = sessionManager.getLoggedInUser(session);
       String address = (user != null) ? user.getAddress() : null;

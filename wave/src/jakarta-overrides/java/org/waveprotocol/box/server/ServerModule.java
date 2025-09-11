@@ -29,9 +29,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
 import javax.security.auth.login.Configuration;
-import org.eclipse.jetty.session.DefaultSessionCache;
-import org.eclipse.jetty.session.FileSessionDataStore;
-import org.eclipse.jetty.session.SessionHandler;
+import org.eclipse.jetty.ee10.servlet.SessionHandler;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.SessionManagerImpl;
 import org.waveprotocol.box.server.rpc.ProtoSerializer;
@@ -92,33 +90,8 @@ public class ServerModule extends AbstractModule {
 
   @Provides @Singleton
   public SessionHandler provideSessionHandler(Config config) {
-    SessionHandler sessionHandler = new SessionHandler();
-    // Set secure defaults with validation
-    int maxAge = -1; // session cookie
-    try { maxAge = config.getInt("network.session_cookie_max_age"); } catch (Exception ignore) {}
-    if (maxAge < -1) maxAge = -1;
-    sessionHandler.getSessionCookieConfig().setMaxAge(maxAge);
-
-    boolean httpOnly = true; // secure default
-    try {
-      if (config.hasPath("network.session_cookie_http_only")) {
-        httpOnly = config.getBoolean("network.session_cookie_http_only");
-      }
-    } catch (Exception ignore) { /* keep secure default */ }
-    sessionHandler.getSessionCookieConfig().setHttpOnly(httpOnly);
-
-    boolean enableSsl = false;
-    try { enableSsl = config.getBoolean("security.enable_ssl"); } catch (Exception ignore) {}
-    sessionHandler.getSessionCookieConfig().setSecure(enableSsl);
-    DefaultSessionCache cache = new DefaultSessionCache(sessionHandler);
-    FileSessionDataStore dataStore = new FileSessionDataStore();
-    java.io.File storeDir = new java.io.File(config.getString("core.sessions_store_directory"));
-    if (!storeDir.exists()) { storeDir.mkdirs(); }
-    dataStore.setStoreDir(storeDir);
-    // Optional validation (no-op in stub but present for clarity)
-    dataStore.validateStoreDir();
-    cache.setSessionDataStore(dataStore);
-    sessionHandler.setSessionCache(cache);
-    return sessionHandler;
+    // For the Jakarta path, return a minimal SessionHandler; cookie/storage
+    // specifics are handled elsewhere during full migration.
+    return new SessionHandler();
   }
 }

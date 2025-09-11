@@ -127,7 +127,10 @@ public final class SessionManagerImpl implements SessionManager {
         try {
           java.lang.reflect.Method acc = jettySession.getClass().getMethod(accessor);
           Object httpSess = acc.invoke(jettySession);
-          if (httpSess instanceof HttpSession) return (HttpSession) httpSess;
+          if (httpSess instanceof javax.servlet.http.HttpSession) return (HttpSession) httpSess;
+          if (httpSess instanceof jakarta.servlet.http.HttpSession) {
+            return JakartaSessionAdapters.toJavax((jakarta.servlet.http.HttpSession) httpSess);
+          }
         } catch (NoSuchMethodException ignore) {
           // keep trying
         }

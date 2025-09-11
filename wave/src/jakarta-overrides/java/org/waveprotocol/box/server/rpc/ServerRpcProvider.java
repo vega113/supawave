@@ -33,7 +33,7 @@ import org.eclipse.jetty.server.RequestLogWriter;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.ForwardedRequestCustomizer;
-import org.eclipse.jetty.session.SessionHandler;
+import org.eclipse.jetty.ee10.servlet.SessionHandler;
 import org.eclipse.jetty.ee10.servlet.DefaultServlet;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
@@ -174,9 +174,9 @@ public class ServerRpcProvider {
             if (enableFwd) {
                 if (strictFwd) {
                     // First, strip invalid forwarded headers, then apply standard processing
-                    httpConfig.addCustomizer(new StrictForwardedRequestCustomizer());
+                    // Strict forwarded-header handling not available; fall back to Jetty defaults
                     httpConfig.addCustomizer(new ForwardedRequestCustomizer());
-                    LOG.info("Enabled strict forwarded-header handling (invalid values ignored)");
+                    LOG.info("Enabled default forwarded-header handling (no strict pre-filter)");
                 } else {
                     httpConfig.addCustomizer(new ForwardedRequestCustomizer());
                     LOG.info("Enabled default forwarded-header handling (Jetty behavior)");
@@ -241,19 +241,7 @@ public class ServerRpcProvider {
             }
             this.servletContextHandler = context;
 
-            // Static resources base
-            try {
-                if (config != null && config.hasPath("core.resource_bases")) {
-                    java.util.List<String> bases = config.getStringList("core.resource_bases");
-                    if (bases != null && !bases.isEmpty()) {
-                        for (String b : bases) {
-                            if (b != null && !b.isBlank()) { context.setBaseResource(Resource.newResource(b)); break; }
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                LOG.fine("Failed to configure base static resources; continuing without base resource", ex);
-            }
+            // Static resources base (optional): disabled in this stub to avoid API drift; defaults are used.
 
             // DefaultServlet mappings with caching semantics
             java.util.Map<String, String> staticParams = new java.util.HashMap<>();
@@ -410,7 +398,7 @@ public class ServerRpcProvider {
                                     @Nullable Map<String, String> initParams) {
         try {
             if (servletContextHandler == null) {
-                LOG.info("[Jakarta] addServlet deferred (context not initialized): {} -> {}", urlPattern, servlet.getName());
+                if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addServlet deferred (context not initialized): " + urlPattern + " -> " + servlet.getName());
                 return new ServletHolder(servlet);
             }
             ServletHolder holder = new ServletHolder(servlet);
@@ -418,7 +406,7 @@ public class ServerRpcProvider {
                 holder.setInitParameters(initParams);
             }
             servletContextHandler.addServlet(holder, urlPattern);
-            LOG.info("[Jakarta] addServlet {} -> {}", urlPattern, servlet.getName());
+            if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addServlet " + urlPattern + " -> " + servlet.getName());
             return holder;
         } catch (Throwable t) {
             LOG.warning("Failed to add servlet '" + servlet + "' at '" + urlPattern + "'", t);
@@ -433,12 +421,12 @@ public class ServerRpcProvider {
     public void addFilter(String urlPattern, Class<? extends Filter> filter) {
         try {
             if (servletContextHandler == null) {
-                LOG.info("[Jakarta] addFilter deferred (context not initialized): {} -> {}", urlPattern, filter.getName());
+                if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addFilter deferred (context not initialized): " + urlPattern + " -> " + filter.getName());
                 return;
             }
             org.eclipse.jetty.ee10.servlet.FilterHolder holder = new org.eclipse.jetty.ee10.servlet.FilterHolder(filter);
             servletContextHandler.addFilter(holder, urlPattern, java.util.EnumSet.allOf(DispatcherType.class));
-            LOG.info("[Jakarta] addFilter {} -> {}", urlPattern, filter.getName());
+            if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addFilter " + urlPattern + " -> " + filter.getName());
         } catch (Throwable t) {
             LOG.warning("Failed to add filter '" + filter + "' at '" + urlPattern + "'", t);
         }

@@ -2,7 +2,7 @@
 
 Status: In Progress (staged migration)
 Owner: Project Maintainers
-Date: 2025-09-08
+Date: 2025-09-10
 
 Status Summary
 - Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
@@ -16,16 +16,36 @@ Status Summary
   - Sessions: flag-gated reflective lookup; embedded test coverage.
   - Tests: jakartaTest (unit-like) and jakarta ITs for forwarded headers, access logs, caching filters, security headers, DI guard, and session lookup.
 
-Recent changes (2025-09-08)
+Recent changes (2025-09-10)
 - Tests hardened for EE10 stability and diagnostics:
   - AccessLogJakartaIT uses a CountDownLatch-based RequestLog (no sleep/polling) for deterministic verification.
   - CachingFiltersJakartaIT factors helpers (assertOk/header/dumpHeaders), uses EE10 FilterHolder, and public nested servlets; failures include headers+body.
   - SecurityHeadersJakartaIT validates CSP/Referrer-Policy and X-Content-Type-Options=nosniff for both default and custom configs; extracted case-insensitive header helper with diagnostics.
   - ForwardedHeadersJakartaIT asserts the safety property (no https upgrade on malformed X-Forwarded-Proto) and documents temporary allowance for literal passthrough pending strict mode; TODO to tighten once strict handling is in place.
   - Refined @Before exception handling: only skip for true EE10 env issues (via TestSupport); fail fast for app misconfigurations.
+- New Jakarta ITs:
+  - ForwardedHeadersStrictFuzzJakartaIT: fuzz/permutation coverage for duplicate headers, long X-Forwarded-For chains, and oversized header values; validates strict forwarded-header behavior and safety invariants.
+  - AttachmentServletJakartaIT: negative tests for path sanitization (extra segments, backslashes, dot-segments, excessive length) and positive domain/id case.
+  - SearchServletJakartaIT: invalid parameter 400s, out-of-range clamping, injection-safe serialization, and serializer failure → 500.
 - TestSupport added (public, test-only) to centralize EE10 availability checks and consistent skip policy.
 - CI: added non-blocking :wave:testJakartaIT step and artifact publishing. Plan to flip to blocking after a burn-in window.
-- Compatibility note: As of 2025‑09‑08, the Jakarta build no longer includes javax.servlet‑api on the classpath. Any remaining javax imports are isolated behind the legacy (javax) profile and are not compiled for Jakarta.
+- Compatibility note: As of 2025‑09‑10, the Jakarta build no longer includes javax.servlet‑api on the classpath. Any remaining javax imports are isolated behind the legacy (javax) profile and are not compiled for Jakarta.
+
+Security & correctness hardening
+- AttachmentServlet (both javax and Jakarta):
+  - Exact endpoint matching via `request.getServletPath()` (no URI prefix tricks).
+  - Authorization uses metadata-derived waveRef; request waveRef ignored; legacy auto-build metadata path removed.
+  - Strict AttachmentId parsing from `pathInfo`: at most one '/', rejects `.`/`..`, backslashes, NUL/newlines, and excessive length; invalid inputs return 404.
+  - Thumbnail patterns directory validated at startup (exists/dir/readable). If invalid or files missing, serve a safe in-memory PNG placeholder; no runtime exceptions.
+- SearchServlet (both paths):
+  - `index` and `numResults` validated: non‑numeric → HTTP 400; numeric out-of-range → clamped with fine log.
+  - Serializer failures return HTTP 500 with a short message (instead of rethrowing IOE) and log at SEVERE.
+
+Build changes (Jakarta profile)
+- Replaced compileJava task mutation with declarative sourceSets: include `src/jakarta-overrides/java`; exclude javax-era classes only from `src/main/java`. Prevents duplicate-class collisions and keeps overrides (AttachmentServlet/SearchServlet) active.
+
+Jakarta ITs executed by default
+- ForwardedHeadersJakartaIT, ForwardedHeadersStrictFuzzJakartaIT, AccessLogJakartaIT, SecurityHeadersJakartaIT, CachingFiltersJakartaIT, AttachmentServletJakartaIT, SearchServletJakartaIT.
 
 See also
 - Configuration flags and temporary migration toggles: docs/CONFIG_FLAGS.md

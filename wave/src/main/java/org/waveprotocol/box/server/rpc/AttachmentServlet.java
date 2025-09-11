@@ -268,21 +268,29 @@ public class AttachmentServlet extends HttpServlet {
 
   private static String getAttachmentIdStringFromRequest(HttpServletRequest request) {
     String pathInfo = request.getPathInfo();
-    if (pathInfo == null || pathInfo.isEmpty()) return null;
-    if (pathInfo.charAt(0) != '/') return null;
+    if (pathInfo == null || pathInfo.isEmpty()) { LOG.fine("Rejecting attachment path: reason=emptyPath"); return null; }
+    if (pathInfo.charAt(0) != '/') { LOG.fine("Rejecting attachment path: reason=noLeadingSlash path=" + mask(pathInfo)); return null; }
     String raw = pathInfo.substring(1);
-    if (raw.length() == 0 || raw.length() > 512) return null;
-    if (raw.indexOf('\\') >= 0 || raw.indexOf('\0') >= 0 || raw.indexOf('\n') >= 0 || raw.indexOf('\r') >= 0) return null;
+    if (raw.length() == 0) { LOG.fine("Rejecting attachment path: reason=emptyId"); return null; }
+    if (raw.length() > 512) { LOG.fine("Rejecting attachment path: reason=tooLong len=" + raw.length()); return null; }
+    if (raw.indexOf('\\') >= 0 || raw.indexOf('\0') >= 0 || raw.indexOf('\n') >= 0 || raw.indexOf('\r') >= 0) { LOG.fine("Rejecting attachment path: reason=illegalChars path=" + mask(raw)); return null; }
     int firstSlash = raw.indexOf('/');
     if (firstSlash >= 0) {
-      if (raw.indexOf('/', firstSlash + 1) >= 0) return null;
+      if (raw.indexOf('/', firstSlash + 1) >= 0) { LOG.fine("Rejecting attachment path: reason=extraSegments path=" + mask(raw)); return null; }
       String domain = raw.substring(0, firstSlash);
       String rid = raw.substring(firstSlash + 1);
-      if (".".equals(domain) || "..".equals(domain) || ".".equals(rid) || "..".equals(rid)) return null;
+      if (".".equals(domain) || "..".equals(domain) || ".".equals(rid) || "..".equals(rid)) { LOG.fine("Rejecting attachment path: reason=dotSegment path=" + mask(raw)); return null; }
     } else {
-      if (".".equals(raw) || "..".equals(raw)) return null;
+      if (".".equals(raw) || "..".equals(raw)) { LOG.fine("Rejecting attachment path: reason=dotOnly path=" + mask(raw)); return null; }
     }
     return raw;
+  }
+
+  private static String mask(String s) {
+    if (s == null) return "null";
+    int len = s.length();
+    if (len <= 6) return "***";
+    return s.substring(0, 3) + "***" + s.substring(len - 2);
   }
 
   private AttachmentData getThumbnailByContentType(String contentType) throws IOException {

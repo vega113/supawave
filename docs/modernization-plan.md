@@ -51,6 +51,34 @@ Milestones / Phases
 - Phase 3: Gradle modernization (to Gradle 8.x) and deprecation cleanup
 - Phase 4: GWT upgrade to latest 2.x and JDK 17 toolchain integration
 - Phase 5: Jetty upgrade and (optionally) Jakarta migration
+ - P5-T2: Jetty deps upgrade to Jakarta (Jetty 12) — In Progress
+ - P5-T3: Servlet/Jakarta code migration — In Progress
+
+Task P5-T2: Jetty deps upgrade to Jakarta (Jetty 12)
+- Status: In Progress
+- Task Description:
+  - Add Jetty 12 (EE10) dependencies under a `-PjettyFamily=jakarta` profile and ensure Jakarta sources compile.
+  - Replace runtime wiring with EE10 ServerRpcProvider (programmatic Servlet/Filter registration, WebSockets).
+  - Keep javax profile intact for fallback during the burn-in phase.
+- Steps:
+  1) Add Jetty 12 dependencies (ee10-servlet, jetty-server, ee10-websocket) in `jakartaTestImplementation` and provider path.
+  2) Source selection: add `src/jakarta-overrides/java` to main sources and exclude javax-era classes from `src/main/java` only (no duplicate-class errors).
+  3) Ensure Jakarta ITs run via `testJakartaIT` (Forwarded headers, Access logs, Security headers, Caching filters, Attachment/Search servlets).
+- DoD:
+  - `./gradlew -PjettyFamily=jakarta :wave:compileJava testJakartaIT` passes locally and in CI.
+
+Task P5-T3: Servlet/Jakarta code migration
+- Status: In Progress
+- Work Log (2025-09-10):
+  - AttachmentServlet (Jakarta + javax): endpoint matching hardened, authorization tied to metadata, strict `pathInfo` parsing, thumbnail patterns directory validated with safe PNG fallback.
+  - SearchServlet (Jakarta + javax): input validation (400 on non-numeric), clamping for numeric ranges, defensive null checks, 500 on serialization failures.
+  - Forwarded headers: strict customizer + fuzz IT (duplicates, long chains, large values) to enforce safety invariants.
+- Next Steps:
+  1) Migrate remaining RPC servlets to jakarta (AuthenticationServlet, SignOutServlet, GadgetProviderServlet, InitialsAvatarsServlet), each with focused ITs.
+  2) Finalize provider override classpath and wire all jakarta overrides in the EE10 provider.
+  3) After two weeks of green CI on Jakarta, flip PR gating to block on Jakarta suite and deprecate the javax profile.
+- DoD:
+  - All Jakarta overrides compile without javax imports; Jakarta ITs green and PR-blocking.
 - Phase 6: Library upgrades for security and maintainability
 - Phase 7: Packaging, distribution, and developer experience
 - Phase 8 (optional): J2CL/GWT 3 migration path outline

@@ -31,6 +31,7 @@ import org.waveprotocol.wave.media.model.AttachmentId;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
 import org.waveprotocol.wave.util.logging.Log;
 
 import jakarta.servlet.http.HttpServlet;
@@ -109,7 +110,7 @@ public class AttachmentServlet extends HttpServlet {
     }
     WaveletName waveletName = AttachmentUtil.waveRef2WaveletName(metadata.getWaveRef());
 
-    ParticipantId user = sessionManager.getLoggedInUser(request.getSession(false));
+    ParticipantId user = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(request, false));
     boolean isAuthorized = false;
     try {
       isAuthorized = waveletProvider.checkAccessPermission(waveletName, user);
@@ -125,13 +126,13 @@ public class AttachmentServlet extends HttpServlet {
 
     String contentType;
     AttachmentData data;
-    // Enforce strict endpoint match based on the servlet mapping, not URI prefix.
-    String servletPath = request.getServletPath();
-    if (ATTACHMENT_URL.equals(servletPath)) {
+    // Use request URI prefix to determine endpoint (compatible with EE10 mapping)
+    String uri = request.getRequestURI();
+    if (uri.startsWith(ATTACHMENT_URL)) {
       contentType = metadata.getMimeType();
       data = service.getAttachment(attachmentId);
       if (data == null) { response.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
-    } else if (THUMBNAIL_URL.equals(servletPath)) {
+    } else if (uri.startsWith(THUMBNAIL_URL)) {
       if (metadata.hasImageMetadata()) {
         contentType = AttachmentService.THUMBNAIL_MIME_TYPE;
         data = service.getThumbnail(attachmentId);
@@ -159,32 +160,64 @@ public class AttachmentServlet extends HttpServlet {
     try {
       return AttachmentId.deserialise(id);
     } catch (InvalidIdException ex) {
-      LOG.log(Level.FINE, "Invalid attachment id format", ex);
+      if (LOG.isFineLoggable()) LOG.log(Level.FINE, "Invalid attachment id format", ex);
       return null;
     }
   }
 
   private static String getAttachmentIdStringFromRequest(HttpServletRequest request) {
     String pathInfo = request.getPathInfo();
-    if (pathInfo == null || pathInfo.isEmpty()) return null;
+    if (pathInfo == null || pathInfo.isEmpty()) {
+      if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=emptyPath");
+      return null;
+    }
     // Expect '/<id>' where <id> is either 'id' or 'domain/id'. Reject anything else.
-    if (pathInfo.charAt(0) != '/') return null;
+    if (pathInfo.charAt(0) != '/') {
+      if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=noLeadingSlash path=" + mask(pathInfo));
+      return null;
+    }
     String raw = pathInfo.substring(1);
     // Hard upper bound to avoid pathological inputs
-    if (raw.length() == 0 || raw.length() > 512) return null;
+    if (raw.length() == 0) {
+      if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=emptyId");
+      return null;
+    }
+    if (raw.length() > 512) {
+      if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=tooLong len=" + raw.length());
+      return null;
+    }
     // Disallow dangerous characters
-    if (raw.indexOf('\\') >= 0 || raw.indexOf('\0') >= 0 || raw.indexOf('\n') >= 0 || raw.indexOf('\r') >= 0) return null;
+    if (raw.indexOf('\\') >= 0 || raw.indexOf('\0') >= 0 || raw.indexOf('\n') >= 0 || raw.indexOf('\r') >= 0) {
+      if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=illegalChars path=" + mask(raw));
+      return null;
+    }
     // Allow at most one '/': supports domain/id; reject more segments
     int firstSlash = raw.indexOf('/');
     if (firstSlash >= 0) {
-      if (raw.indexOf('/', firstSlash + 1) >= 0) return null; // more than one segment separator
+      if (raw.indexOf('/', firstSlash + 1) >= 0) { // more than one segment separator
+        if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=extraSegments path=" + mask(raw));
+        return null;
+      }
       String domain = raw.substring(0, firstSlash);
       String rid = raw.substring(firstSlash + 1);
-      if (".".equals(domain) || "..".equals(domain) || ".".equals(rid) || "..".equals(rid)) return null;
+      if (".".equals(domain) || "..".equals(domain) || ".".equals(rid) || "..".equals(rid)) {
+        if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=dotSegment path=" + mask(raw));
+        return null;
+      }
     } else {
-      if (".".equals(raw) || "..".equals(raw)) return null;
+      if (".".equals(raw) || "..".equals(raw)) {
+        if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=dotOnly path=" + mask(raw));
+        return null;
+      }
     }
     return raw;
+  }
+
+  private static String mask(String s) {
+    if (s == null) return "null";
+    int len = s.length();
+    if (len <= 6) return "***";
+    return s.substring(0, 3) + "***" + s.substring(len - 2);
   }
 
   private AttachmentData getThumbnailByContentType(String contentType) throws IOException {

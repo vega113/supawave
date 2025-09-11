@@ -161,7 +161,6 @@ sourceSets {
         java {
             srcDir 'src/jakarta-overrides/java'
             include 'org/waveprotocol/box/server/security/*.java'
-            include 'org/waveprotocol/box/server/authentication/SessionManagerImpl.java'
             // Do NOT include ServerRpcProvider here; provider overrides are compiled in main for Jakarta
         }
         // resources not needed
@@ -177,30 +176,37 @@ if (jettyFamily == 'jakarta') {
     sourceSets.main.java {
         // Bring in Jakarta override sources
         srcDir 'src/jakarta-overrides/java'
-
-        // Exclude Jetty 9-only server wiring and javax servlet implementations
-        exclude 'org/waveprotocol/box/server/rpc/ServerRpcProvider.java'
-        exclude 'org/waveprotocol/box/server/ServerModule.java'
-        exclude 'org/waveprotocol/box/server/ServerMain.java'
-        exclude 'org/waveprotocol/box/server/rpc/WebSocket*.java'
-        exclude 'org/waveprotocol/box/server/rpc/AuthenticationServlet.java'
-        exclude 'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java'
-        exclude 'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java'
-        exclude 'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java'
-        // Prevent javax variant when a Jakarta override exists
-        exclude 'org/waveprotocol/box/server/rpc/AttachmentServlet.java'
-        exclude 'org/waveprotocol/box/server/rpc/SearchServlet.java'
-        exclude 'org/waveprotocol/box/server/rpc/AttachmentInfoServlet.java'
-        exclude 'org/waveprotocol/box/server/rpc/FetchServlet.java'
-        exclude 'org/waveprotocol/box/server/rpc/FetchProfilesServlet.java'
-        exclude 'org/waveprotocol/box/server/rpc/NotificationServlet.java'
-        exclude 'org/waveprotocol/box/server/rpc/WaveClientServlet.java'
-        // Keep other RPC servlets compiled for now; Jakarta overrides will replace wiring at runtime
-        exclude 'org/apache/wave/box/server/rpc/*.java'
-
-        // Do not compile Jakarta-only helpers here; they are provided to tests via sourceSets.jakartaSupport
-        exclude 'org/waveprotocol/box/server/security/**'
-        exclude 'org/waveprotocol/box/server/authentication/SessionManagerImpl.java'
+        // Exclude specific javax-era sources only from src/main/java, not from overrides
+        exclude { details ->
+            def p = details.file.toPath().normalize().toString()
+            if (!p.contains("${projectDir}/src/main/java/")) return false
+            def rel = p.substring(p.indexOf('/src/main/java/') + '/src/main/java/'.length())
+            def patterns = [
+                'org/waveprotocol/box/server/rpc/ServerRpcProvider.java',
+                'org/waveprotocol/box/server/ServerModule.java',
+                'org/waveprotocol/box/server/ServerMain.java',
+                'org/waveprotocol/box/server/rpc/AuthenticationServlet.java',
+                'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java',
+                'org/waveprotocol/box/server/authentication/HttpRequestBasedCallbackHandler.java',
+                'org/waveprotocol/box/server/authentication/SessionManagerImpl.java',
+                'org/waveprotocol/box/server/robots/agent/passwd/PasswordRobot.java',
+                // Prevent javax variants where Jakarta overrides exist
+                'org/waveprotocol/box/server/rpc/AttachmentServlet.java',
+                'org/waveprotocol/box/server/rpc/SearchServlet.java',
+                'org/waveprotocol/box/server/rpc/AttachmentInfoServlet.java',
+                'org/waveprotocol/box/server/rpc/FetchServlet.java',
+                'org/waveprotocol/box/server/rpc/FetchProfilesServlet.java',
+                'org/waveprotocol/box/server/rpc/NotificationServlet.java',
+                'org/waveprotocol/box/server/rpc/WaveClientServlet.java',
+                // WebSocket wiring under javax
+                'org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java',
+                'org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java'
+            ]
+            if (patterns.any { rel == it }) return true
+            // Exclude any org/apache/wave/box/server/rpc/* under src/main/java only
+            if (rel.startsWith('org/apache/wave/box/server/rpc/')) return true
+            return false
+        }
     }
 }
 
@@ -350,6 +356,16 @@ if (jettyFamily == 'javax') {
 
         // Jakarta support sourceSet dependencies (needed to compile jakarta-overrides)
         jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+    }
+}
+
+// Jetty 12 (Jakarta) modules for main compile when building with -PjettyFamily=jakarta
+if (jettyFamily == 'jakarta') {
+    dependencies {
+        implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyEe10Version
+        implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: jettyEe10Version
+        implementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+        implementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: jettyEe10Version
     }
 }
 

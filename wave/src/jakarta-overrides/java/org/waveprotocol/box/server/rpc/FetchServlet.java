@@ -33,6 +33,7 @@ import org.waveprotocol.wave.model.id.ModernIdSerialiser;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.waveref.InvalidWaveRefException;
 import org.waveprotocol.wave.model.waveref.WaveRef;
@@ -62,7 +63,7 @@ public final class FetchServlet extends HttpServlet {
   @Override
   @VisibleForTesting
   protected void doGet(HttpServletRequest req, HttpServletResponse response) throws IOException {
-    ParticipantId user = sessionManager.getLoggedInUser(req.getSession(false));
+    ParticipantId user = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(req, false));
     String urlPath = req.getPathInfo().substring(1);
     WaveRef waveref;
     try {
@@ -89,25 +90,45 @@ public final class FetchServlet extends HttpServlet {
     }
   }
 
-  private void renderSnapshot(WaveRef waveref, ParticipantId user, HttpServletResponse response) throws IOException {
+  private void renderSnapshot(WaveRef waveref, ParticipantId requester, HttpServletResponse dest)
+      throws IOException {
+    WaveletId waveletId = waveref.hasWaveletId() ? waveref.getWaveletId()
+        : WaveletId.of(waveref.getWaveId().getDomain(), "conv+root");
+    WaveletName waveletName = WaveletName.of(waveref.getWaveId(), waveletId);
+    CommittedWaveletSnapshot committedSnapshot;
     try {
-      ReadableWaveletData snapshot = getSnapshot(waveref, user);
-      if (snapshot == null) { serializeObjectToServlet(null, response); return; }
-      DocumentSnapshot doc = SnapshotSerializer.serializeDocument(snapshot);
-      serializeObjectToServlet(doc, response);
+      if (!waveletProvider.checkAccessPermission(waveletName, requester)) {
+        dest.sendError(HttpServletResponse.SC_FORBIDDEN);
+        return;
+      }
+      committedSnapshot = waveletProvider.getSnapshot(waveletName);
     } catch (WaveServerException e) {
       LOG.warning("Problem fetching snapshot for: " + waveref, e);
-      response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      dest.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      return;
     }
-  }
-
-  private ReadableWaveletData getSnapshot(WaveRef waveref, ParticipantId user) throws WaveServerException, IOException {
-    WaveletName waveletName = WaveletName.of(waveref.getWaveId(), waveref.getWaveletId());
-    CommittedWaveletSnapshot snapshot = waveletProvider.getSnapshot(waveletName);
-    if (snapshot == null) return null;
-    WaveletId id = snapshot.getWaveletData().getWaveletId();
-    if (!ModernIdSerialiser.INSTANCE.isConversationalId(id)) return null;
-    if (!waveletProvider.checkAccessPermission(waveletName, user)) return null;
-    return snapshot.getWaveletData();
+    if (committedSnapshot != null) {
+      ReadableWaveletData snapshot = committedSnapshot.snapshot;
+      if (waveref.hasDocumentId()) {
+        DocumentSnapshot docSnapshot = null;
+        for (String docId : snapshot.getDocumentIds()) {
+          if (docId.equals(waveref.getDocumentId())) {
+            docSnapshot = SnapshotSerializer.serializeDocument(snapshot.getDocument(docId));
+            break;
+          }
+        }
+        serializeObjectToServlet(docSnapshot, dest);
+      } else if (waveref.hasWaveletId()) {
+        serializeObjectToServlet(SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()), dest);
+      } else {
+        WaveViewSnapshot waveSnapshot = WaveViewSnapshot.newBuilder()
+            .setWaveId(ModernIdSerialiser.INSTANCE.serialiseWaveId(waveref.getWaveId()))
+            .addWavelet(SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()))
+            .build();
+        serializeObjectToServlet(waveSnapshot, dest);
+      }
+    } else {
+      dest.sendError(HttpServletResponse.SC_FORBIDDEN);
+    }
   }
 }

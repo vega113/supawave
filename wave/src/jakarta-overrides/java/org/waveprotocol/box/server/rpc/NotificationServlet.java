@@ -24,6 +24,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ public final class NotificationServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId user = sessionManager.getLoggedInUser(req.getSession(false));
+    ParticipantId user = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(req, false));
     if (user == null) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
     resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
   }

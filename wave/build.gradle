@@ -225,6 +225,7 @@ dependencies {
     gwt (
         [group: "org.gwtproject", name: "gwt-dev", version: gwtVersion],
         [group: "org.gwtproject", name: "gwt-codeserver", version: gwtVersion],
+        [group: "org.gwtproject", name: "gwt-user", version: gwtVersion],
         [group: "com.google.guava", name: "guava-gwt", version: "20.0"]
     )
     // Protobuf include dependencies for the 'proto' source set
@@ -443,9 +444,18 @@ task compileGwt {
                     "-style", "OBFUSCATED",
                     "-XdisableClassMetadata",
                     "-XdisableCastChecking",
-                    "-localWorkers", "4",
-                    "org.waveprotocol.box.webclient.WebClientProd"
+                    "-localWorkers", "4"
             ]
+            if (project.hasProperty('gwtLogLevel')) {
+                args += ["-logLevel", project.property('gwtLogLevel')]
+            }
+            if (project.hasProperty('gwtStrict')) {
+                args += ["-strict"]
+            }
+            if (project.hasProperty('gwtReport')) {
+                args += ["-compileReport", "-extra", "$buildDir/gwt-extra", "-workDir", "$buildDir/gwt-work"]
+            }
+            args += ["org.waveprotocol.box.webclient.WebClientProd"]
         }
     }
 }
@@ -476,13 +486,9 @@ task compileGwtDev {
         javaexec {
             executable = launcher.get().executablePath.asFile.absolutePath
             mainClass = "com.google.gwt.dev.Compiler"
-            classpath {
-                [
-                        sourceSets.main.java.srcDirs,
-                        sourceSets.main.compileClasspath,
-                        sourceSets.main.resources.srcDirs
-                ]
-            }
+            // Include GWT tooling (gwt-dev, gwt-user, codeserver) on the classpath
+            // to ensure the Compiler main class is available.
+            classpath = files(sourceSets.main.java.srcDirs) + configurations.gwt + sourceSets.main.compileClasspath + files(sourceSets.main.resources.srcDirs)
             if (project.hasProperty('clientFlags')) {
                 def cf = project.property('clientFlags')
                 jvmArgs += ["-Dwave.clientFlags=${cf}"]
@@ -500,15 +506,11 @@ task compileGwtDev {
 }
 
 
-// Do not force GWT compilation for a normal `run`.
-// The legacy webclient currently uses reflection that fails under modern GWT.
-// If you need the compiled client assets, run `runWithGwt` or pass -PwithGwt.
-if (project.hasProperty('withGwt')) {
-    run.dependsOn compileGwt
-}
+// Ensure the GWT client is compiled before running the server so the app works end-to-end.
+run.dependsOn compileGwt
 compileJava.dependsOn = [generateMessages, generateGXP]
 
-// Convenience task: compile the GWT client and then run the server
+// Convenience task retained for explicit invocation (same as default run behavior)
 tasks.register('runWithGwt') {
     group = 'application'
     description = 'Compiles the GWT webclient and then runs the server.'
@@ -517,36 +519,47 @@ tasks.register('runWithGwt') {
 
 /* Gwt Dev Tasks */
 
+// Dev: compile the GWT client (Dev module) with debug logging and pretty output
 task gwtDev {
-    description = 'Runs the hosted mode server, for debugging the Gwt client ' +
-            'in a JVM.'
-    doFirst {
-        println ''
-        println '----------------------------------------------'
-        println '           Running Gwt Dev mode.              '
-        println 'Note: This currently has a classpath conflict.'
-        println '----------------------------------------------'
-        println ''
+    group = 'gwt'
+    description = 'Compiles the GWT Dev module (debug log level, Debug panel).'
+    dependsOn 'compileGwtDev'
+    doLast {
+        println '\nGWT Dev compile complete.'
+        println 'Open the app normally: http://127.0.0.1:9898 (compiled Dev bundle).\n'
     }
+}
+
+// SuperDev: run CodeServer (harness) as a separate process
+tasks.register('gwtCodeServer') {
+    group = 'gwt'
+    description = 'Runs the GWT CodeServer (Super Dev Mode harness) for WebClientDev.'
+    // Ensure sources are generated (JSOs/GXP) so CodeServer can see them
+    dependsOn 'generateMessages', 'generateGXP'
     doLast {
         def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
         javaexec {
             executable = launcher.get().executablePath.asFile.absolutePath
-            mainClass = "com.google.gwt.dev.DevMode"
-            classpath = files(sourceSets.main.java.srcDirs) + configurations.gwt + sourceSets.main.compileClasspath + files(sourceSets.main.resources.srcDirs)
-            if (project.hasProperty('clientFlags')) {
-                def cf = project.property('clientFlags')
-                jvmArgs += ["-Dwave.clientFlags=${cf}"]
-                println "[gwtDev] Using client flags: ${cf}"
-            }
+            mainClass = 'com.google.gwt.dev.codeserver.CodeServer'
+            classpath = configurations.gwt + files(
+                sourceSets.main.java.srcDirs,
+                sourceSets.main.resources.srcDirs,
+                file('generated/main/java'),
+                file('generated/proto/java')
+            )
+            def bind = (project.findProperty('gwtBindAddress') ?: '127.0.0.1')
+            def port = (project.findProperty('gwtPort') ?: '9876')
+            println "[gwtCodeServer] binding at ${bind}:${port}"
             args = [
-                    "-noserver",
-                    "-bindAddress", "127.0.0.1",
-                    "-startupUrl", "http://localhost:9898",
-                    "-logLevel", "DEBUG",
-                    "org.waveprotocol.box.webclient.WebClientDev",
+                '-bindAddress', bind,
+                '-port', port,
+                // single module in Dev mode
+                'org.waveprotocol.box.webclient.WebClientDev'
             ]
         }
+        println '\nCodeServer ready → http://' + (project.findProperty('gwtBindAddress') ?: '127.0.0.1') + ':' + (project.findProperty('gwtPort') ?: '9876') + '/'
+        println 'Start the Wave server separately: ./gradlew :wave:run -x :wave:compileGwt'
+        println 'Open: http://127.0.0.1:9898/?gwt.codesvr=' + (project.findProperty('gwtBindAddress') ?: '127.0.0.1') + ':' + (project.findProperty('gwtPort') ?: '9876') + '&locale=en\n'
     }
 }
 

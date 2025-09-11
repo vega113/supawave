@@ -588,6 +588,19 @@ tasks.register('runDev') {
     group = 'application'
     description = 'Compiles the GWT Dev bundle and runs the server.'
     dependsOn 'compileGwtDev', 'runServerOnly'
+    doFirst {
+        // Ensure the server enables the client debug panel by forcing ll=debug redirect
+        // and turn on useful client flags by default in Dev.
+        def flags = project.findProperty('clientFlags') ?: 'enableDebugMenu=true,enableEditorDebugging=true'
+        // Append JVM args onto runServerOnly just before execution
+        tasks.named('runServerOnly').configure {
+            jvmArgs += [
+                "-Dwave.clientFlags=${flags}",
+                "-Dwave.forceDebugPanel=true"
+            ]
+        }
+        println "[runDev] Using clientFlags='${flags}' and forcing debug panel"
+    }
 }
 // Tests
 //=============================================================================

@@ -122,6 +122,19 @@ public class WaveClientServlet extends HttpServlet {
       }
     }
 
+    // In Dev mode, ensure the GWT logger/debug panel is enabled by forcing
+    // the deferred-binding property via URL param `ll=debug` when not present.
+    // This keeps prod behavior unchanged while making :wave:runDev predictable.
+    try {
+      boolean forceDebug = Boolean.parseBoolean(System.getProperty("wave.forceDebugPanel", "false"));
+      if (forceDebug && request.getParameter("ll") == null) {
+        String redirect = UrlParameters.addParameter(request.getRequestURL().toString(), "ll", "debug");
+        response.sendRedirect(redirect);
+        return;
+      }
+    } catch (Exception ignored) {
+    }
+
     String[] parts = id.getAddress().split("@");
     String username = parts[0];
     String userDomain = id.getDomain();

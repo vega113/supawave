@@ -135,33 +135,30 @@ public class AuthenticationServlet extends HttpServlet {
   }
 
   private LoginContext login(BufferedReader reader) throws LoginException, IOException {
-    // Read the HTTP request body into a string. The login module decodes this data and then
-    // throws it away, which is slow and wastes memory; but lets not fix the
-    // glucose by coagulating the farm.
-    try {
-      Subject subject = new Subject();
-      String parametersLine = reader.readLine();
-      if (parametersLine == null) {
-        throw new LoginException("No POST body in authentication request");
+    // Strict, size‑bounded read of the x-www-form-urlencoded POST body.
+    final int MAX_LEN = 8192;
+    StringBuilder sb = new StringBuilder(256);
+    char[] buf = new char[512];
+    int n, total = 0;
+    while ((n = reader.read(buf)) != -1) {
+      total += n;
+      if (total > MAX_LEN) {
+        throw new LoginException("Authentication request too large");
       }
-
-      byte[] utf8Bytes = parametersLine.getBytes("UTF-8");
-      CharsetDecoder utf8Decoder = Charset.forName("UTF-8").newDecoder();
-      utf8Decoder.onMalformedInput(CodingErrorAction.IGNORE);
-      utf8Decoder.onUnmappableCharacter(CodingErrorAction.IGNORE);
-      CharBuffer parsed = utf8Decoder.decode(ByteBuffer.wrap(utf8Bytes));
-      parametersLine = parsed.toString();
-      MultiMap<String> parameters = new MultiMap<>();
-      UrlEncoded.decodeTo(parametersLine, parameters, java.nio.charset.StandardCharsets.UTF_8);
-      CallbackHandler callbackHandler = new HttpRequestBasedCallbackHandler(parameters);
-      LoginContext context = new LoginContext("Wave", subject, callbackHandler, configuration);
-      context.login();
-      return context;
-    } catch (CharacterCodingException cce) {
-      throw new LoginException("Character coding exception (not utf-8): " + cce.getLocalizedMessage());
-    } catch (UnsupportedEncodingException uee) {
-      throw new LoginException("Bad character encoding specification: " + uee.getLocalizedMessage());
+      sb.append(buf, 0, n);
     }
+    if (sb.length() == 0) {
+      throw new LoginException("Empty authentication request body");
+    }
+
+    Subject subject = new Subject();
+    MultiMap<String> parameters = new MultiMap<>();
+    // Jetty 12: prefer Charset overload
+    UrlEncoded.decodeTo(sb.toString(), parameters, java.nio.charset.StandardCharsets.UTF_8);
+    CallbackHandler callbackHandler = new HttpRequestBasedCallbackHandler(parameters);
+    LoginContext context = new LoginContext("Wave", subject, callbackHandler, configuration);
+    context.login();
+    return context;
   }
 
   @Override
@@ -327,22 +324,51 @@ public class AuthenticationServlet extends HttpServlet {
     Preconditions.checkState(sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(req, false)) != null,
         "The user is not logged in");
     String query = req.getQueryString();
-    if (query == null || !query.startsWith("r=")) {
+    String encoded = extractQueryParam(query, "r");
+    if (encoded == null || encoded.isEmpty()) {
       resp.sendRedirect(DEFAULT_REDIRECT_URL);
       return;
     }
-
-    String encoded_url = query.substring("r=".length());
-    String path = URLDecoder.decode(encoded_url, "UTF-8");
-    try {
-      URI uri = new URI(path);
-      if (!Strings.isNullOrEmpty(uri.getHost())) {
-        resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-      } else {
-        resp.sendRedirect(path);
-      }
-    } catch (URISyntaxException e) {
-      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    String candidate;
+    try { candidate = URLDecoder.decode(encoded, "UTF-8"); }
+    catch (IllegalArgumentException iae) { resp.sendRedirect(DEFAULT_REDIRECT_URL); return; }
+    if (candidate.length() > 2048 || candidate.indexOf('\r') >= 0 || candidate.indexOf('\n') >= 0) {
+      resp.sendRedirect(DEFAULT_REDIRECT_URL); return;
     }
+    try {
+      URI u = new URI(candidate).normalize();
+      boolean hasAuthority = (u.getRawAuthority() != null) || (u.getHost() != null);
+      boolean hasScheme = u.getScheme() != null;
+      String raw = u.toString();
+      boolean looksSchemeRelative = raw.startsWith("//");
+      boolean startsWithSlash = u.getPath() != null && u.getPath().startsWith("/");
+      boolean containsTraversal = u.getPath() != null && (u.getPath().contains("/../") || u.getPath().contains("/./"));
+      if (hasScheme || hasAuthority || looksSchemeRelative || !startsWithSlash || containsTraversal) {
+        resp.sendRedirect(DEFAULT_REDIRECT_URL);
+        return;
+      }
+      resp.sendRedirect(raw);
+    } catch (URISyntaxException use) {
+      resp.sendRedirect(DEFAULT_REDIRECT_URL);
+    }
+  }
+
+  private static String extractQueryParam(String query, String name) {
+    if (query == null || name == null) return null;
+    int i = 0;
+    while (i <= query.length()) {
+      int amp = query.indexOf('&', i);
+      String pair = (amp == -1) ? query.substring(i) : query.substring(i, amp);
+      if (!pair.isEmpty()) {
+        int eq = pair.indexOf('=');
+        String k = (eq == -1) ? pair : pair.substring(0, eq);
+        if (k.equals(name)) {
+          return (eq == -1) ? "" : pair.substring(eq + 1);
+        }
+      }
+      if (amp == -1) break;
+      i = amp + 1;
+    }
+    return null;
   }
 }

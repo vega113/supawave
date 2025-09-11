@@ -59,5 +59,28 @@ public class SignOutServletJakartaIT {
     assertTrue(c.getHeaderField("Content-Type").contains("text/html"));
     Mockito.verify(sessionManager).logout(Mockito.any());
   }
-}
 
+  @Test
+  public void rejectsAbsoluteUrlOrSchemeRelativeOrTraversal() throws Exception {
+    // Absolute URL -> no redirect, simple 200 HTML
+    URL u1 = new URL("http://localhost:" + port + "/auth/signout?r=http%3A%2F%2Fevil.example%2Fout");
+    HttpURLConnection c1 = (HttpURLConnection) u1.openConnection();
+    c1.setInstanceFollowRedirects(false);
+    assertEquals(200, c1.getResponseCode());
+    assertNull(c1.getHeaderField("Location"));
+
+    // Scheme-relative //evil.example
+    URL u2 = new URL("http://localhost:" + port + "/auth/signout?r=%2F%2Fevil.example");
+    HttpURLConnection c2 = (HttpURLConnection) u2.openConnection();
+    c2.setInstanceFollowRedirects(false);
+    assertEquals(200, c2.getResponseCode());
+    assertNull(c2.getHeaderField("Location"));
+
+    // Traversal /../secret
+    URL u3 = new URL("http://localhost:" + port + "/auth/signout?r=%2F..%2Fsecret");
+    HttpURLConnection c3 = (HttpURLConnection) u3.openConnection();
+    c3.setInstanceFollowRedirects(false);
+    assertEquals(200, c3.getResponseCode());
+    assertNull(c3.getHeaderField("Location"));
+  }
+}

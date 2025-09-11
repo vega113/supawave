@@ -267,8 +267,6 @@ dependencies {
             [group: "org.slf4j", name: "jul-to-slf4j", version: "1.7.36"],
             [group: "org.slf4j", name: "log4j-over-slf4j", version: "1.7.36"],
             [group: "javax.inject", name: "javax.inject", version: "1"],
-            // Jakarta WebSocket API available to both builds; implementation provided by runtime
-            [group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'],
             [group: "javax.jdo", name: "jdo2-api", version: "2.1"],
             // Legacy OAuth libraries (evaluate and replace under P6-T6). Use -PexcludeLegacyOAuth=true to omit.
             *([:]).with { project.hasProperty('excludeLegacyOAuth') ? [] : [
@@ -350,34 +348,18 @@ if (jettyFamily == 'javax') {
         implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-webapp', version: jettyEe10Version
         implementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
         implementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: jettyEe10Version
-        // Jakarta WebSocket API (Jetty 12 provides implementation at runtime)
-        implementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
-        // Jakarta Servlet API already included above via ee10 servlet; ensure compile visibility
+        // APIs for compile only; Jetty provides runtime
         implementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
+        implementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
+        // Temporary: keep javax.servlet available during migration to satisfy legacy signatures
+        compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
 
         // Jakarta support sourceSet dependencies (needed to compile jakarta-overrides)
         jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
     }
 }
 
-// Jetty 12 (Jakarta) modules for main compile when building with -PjettyFamily=jakarta
-if (jettyFamily == 'jakarta') {
-    dependencies {
-        implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyEe10Version
-        implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: jettyEe10Version
-        implementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
-        implementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: jettyEe10Version
-    }
-}
-
-// Add servlet APIs conditionally for Jakarta flip
-if (jettyFamily == 'jakarta') {
-    dependencies {
-        implementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
-        // Temporary: keep javax.servlet available during import sweep; remove after full migration
-        compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
-    }
-}
+// (Removed duplicate Jakarta dependency blocks to avoid version drift)
 
 // Jakarta POC (Jetty 12 + Jakarta Servlet). Keep isolated from main build.
 dependencies {

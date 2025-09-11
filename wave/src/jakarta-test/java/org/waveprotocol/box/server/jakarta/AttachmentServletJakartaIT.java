@@ -48,7 +48,10 @@ public class AttachmentServletJakartaIT {
       ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
       ctx.setContextPath("/");
       AttachmentServlet servlet = new AttachmentServlet(svc, wprov, sm, ConfigFactory.parseString("core.thumbnail_patterns_directory=\".\""));
-      ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(servlet), AttachmentServlet.ATTACHMENT_URL + "/*");
+      var holder = new org.eclipse.jetty.ee10.servlet.ServletHolder(servlet);
+      ctx.addServlet(holder, AttachmentServlet.ATTACHMENT_URL + "/*");
+      // Map thumbnail as well for tests that hit /thumbnail/* on the base server
+      ctx.addServlet(holder, AttachmentServlet.THUMBNAIL_URL + "/*");
       server.setHandler(ctx);
       server.start();
       port = c.getLocalPort();

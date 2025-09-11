@@ -90,5 +90,46 @@ public class AuthenticationServletJakartaIT {
     assertEquals(302, c.getResponseCode());
     assertEquals("/home", c.getHeaderField("Location"));
   }
-}
 
+  @Test
+  public void rejectsAbsoluteUrlInR() throws Exception {
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+        .thenReturn(new ParticipantId("user@example.com"));
+    // r=http://evil.example
+    URL url = new URL("http://localhost:" + port + "/auth/signin?r=http%3A%2F%2Fevil.example");
+    HttpURLConnection c = (HttpURLConnection) url.openConnection();
+    c.setInstanceFollowRedirects(false);
+    assertEquals(302, c.getResponseCode());
+    assertEquals("/", c.getHeaderField("Location"));
+  }
+
+  @Test
+  public void rejectsSchemeRelativeAndTraversal() throws Exception {
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+        .thenReturn(new ParticipantId("user@example.com"));
+    // r=//evil.example -> fallback
+    URL u1 = new URL("http://localhost:" + port + "/auth/signin?r=%2F%2Fevil.example");
+    HttpURLConnection c1 = (HttpURLConnection) u1.openConnection();
+    c1.setInstanceFollowRedirects(false);
+    assertEquals(302, c1.getResponseCode());
+    assertEquals("/", c1.getHeaderField("Location"));
+
+    // r=/../secret -> fallback
+    URL u2 = new URL("http://localhost:" + port + "/auth/signin?r=%2F..%2Fsecret");
+    HttpURLConnection c2 = (HttpURLConnection) u2.openConnection();
+    c2.setInstanceFollowRedirects(false);
+    assertEquals(302, c2.getResponseCode());
+    assertEquals("/", c2.getHeaderField("Location"));
+  }
+
+  @Test
+  public void rejectsCRLFInR() throws Exception {
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+        .thenReturn(new ParticipantId("user@example.com"));
+    URL u = new URL("http://localhost:" + port + "/auth/signin?r=%2Fok%0D%0AX-Evil%3Ayes");
+    HttpURLConnection c = (HttpURLConnection) u.openConnection();
+    c.setInstanceFollowRedirects(false);
+    assertEquals(302, c.getResponseCode());
+    assertEquals("/", c.getHeaderField("Location"));
+  }
+}

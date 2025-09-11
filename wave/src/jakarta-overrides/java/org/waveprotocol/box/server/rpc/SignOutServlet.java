@@ -27,6 +27,8 @@ import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.io.IOException;
 
 /**
@@ -50,13 +52,38 @@ public class SignOutServlet extends HttpServlet {
     sessionManager.logout(session);
 
     String redirectUrl = req.getParameter("r");
-    if (redirectUrl != null && redirectUrl.startsWith("/")) {
-      resp.sendRedirect(redirectUrl);
-    } else {
+    if (isSafeLocalRedirect(redirectUrl)) {
+      try {
+        URI u = new URI(redirectUrl).normalize();
+        resp.sendRedirect(u.toString());
+        return;
+      } catch (URISyntaxException ignore) {
+        // fall through
+      }
+    }
+
+    {
       resp.setStatus(HttpServletResponse.SC_OK);
       resp.setContentType("text/html");
       resp.getWriter().print("<html><body>Logged out.</body></html>");
     }
   }
-}
 
+  private static boolean isSafeLocalRedirect(String r) {
+    if (r == null || r.isEmpty()) return false;
+    if (r.length() > 2048) return false;
+    if (r.indexOf('\r') >= 0 || r.indexOf('\n') >= 0) return false;
+    if (r.startsWith("//")) return false;
+    try {
+      URI u = new URI(r).normalize();
+      boolean hasScheme = u.getScheme() != null;
+      boolean hasAuthority = u.getRawAuthority() != null || u.getHost() != null;
+      String path = u.getPath();
+      boolean startsWithSlash = path != null && path.startsWith("/");
+      boolean containsTraversal = path != null && (path.contains("/../") || path.contains("/./"));
+      return !hasScheme && !hasAuthority && startsWithSlash && !containsTraversal;
+    } catch (URISyntaxException e) {
+      return false;
+    }
+  }
+}

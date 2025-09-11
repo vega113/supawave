@@ -379,14 +379,16 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
                   lastCommittedVersion, currentVersion);
             }
             if (update.hasFragments()) {
-              openListener.onFragments(waveletId, update.getFragments());
+              org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload payload = update.getFragments();
+              if (payload != null) {
+                openListener.onFragments(waveletId, payload);
+              }
               // Optional: also forward to a global applier when enabled via property
               // Best-effort applier hook (flag-gated). Errors are logged and update continues.
               org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier applier = fragmentsApplier;
-              if (applier != null && enableFragmentsApplierFlag) {
+              if (applier != null && enableFragmentsApplierFlag && payload != null) {
                 try {
                   long t0 = System.nanoTime();
-                  org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload payload = update.getFragments();
                   if (applierMaxRangesPerApply > 0 && payload.ranges.size() > applierMaxRangesPerApply) {
                     java.util.List<org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Range> subset =
                         payload.ranges.subList(0, applierMaxRangesPerApply);

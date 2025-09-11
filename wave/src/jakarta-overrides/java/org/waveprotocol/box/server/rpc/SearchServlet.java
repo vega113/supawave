@@ -144,8 +144,8 @@ public class SearchServlet extends HttpServlet {
   }
 
   private static int computeTotalResultsNumberGuess(SearchRequest req, SearchResult res) {
-    return (res.getNumResults() >= req.getNumResults()) ? org.waveprotocol.box.webclient.search.SearchService.UNKNOWN_SIZE
-        : req.getIndex() + res.getNumResults();
+    // Use -1 to denote unknown size (avoids depending on client constants)
+    return (res.getNumResults() >= req.getNumResults()) ? -1 : req.getIndex() + res.getNumResults();
   }
 
   public static SearchResponse serializeSearchResult(SearchResult searchResult, int total) {

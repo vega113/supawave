@@ -37,8 +37,6 @@ import org.waveprotocol.box.server.gxp.TopBar;
 import org.waveprotocol.box.server.gxp.WaveClientPage;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
 import org.waveprotocol.box.server.util.UrlParameters;
-import org.waveprotocol.wave.client.util.ClientFlagsBase;
-import org.waveprotocol.wave.common.bootstrap.FlagConstants;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
 import org.waveprotocol.wave.util.logging.Log;
@@ -58,9 +56,7 @@ import java.util.List;
 @Singleton
 public class WaveClientServlet extends HttpServlet {
   private static final Log LOG = Log.get(WaveClientServlet.class);
-  private static final HashMap<String, String> FLAG_MAP = Maps.newHashMap();
-  static { for (int i = 0; i < FlagConstants.__NAME_MAPPING__.length; i += 2) {
-      FLAG_MAP.put(FlagConstants.__NAME_MAPPING__[i], FlagConstants.__NAME_MAPPING__[i + 1]); } }
+  // No client flags mapping on Jakarta path (avoid GWT client dependency)
 
   private final String domain;
   private final String analyticsAccount;
@@ -116,36 +112,7 @@ public class WaveClientServlet extends HttpServlet {
     response.setStatus(HttpServletResponse.SC_OK);
   }
 
-  private JSONObject getClientFlags(HttpServletRequest request) {
-    try {
-      JSONObject ret = new JSONObject();
-      Enumeration<?> iter = request.getParameterNames();
-      while (iter.hasMoreElements()) {
-        String name = (String) iter.nextElement();
-        String value = request.getParameter(name);
-        if (FLAG_MAP.containsKey(name)) {
-          try {
-            Method getter = ClientFlagsBase.class.getMethod(name);
-            Class<?> retType = getter.getReturnType();
-            if (retType.equals(String.class)) ret.put(FLAG_MAP.get(name), value);
-            else if (retType.equals(Integer.class)) ret.put(FLAG_MAP.get(name), Integer.parseInt(value));
-            else if (retType.equals(Boolean.class)) ret.put(FLAG_MAP.get(name), Boolean.parseBoolean(value));
-            else if (retType.equals(Float.class)) ret.put(FLAG_MAP.get(name), Float.parseFloat(value));
-            else if (retType.equals(Double.class)) ret.put(FLAG_MAP.get(name), Double.parseDouble(value));
-            else LOG.warning("Ignoring flag [" + name + "] with unknown return type: " + retType);
-          } catch (SecurityException | NumberFormatException ex) {
-            LOG.warning("Ignoring flag [" + name + "]: " + ex.getClass().getSimpleName());
-          } catch (NoSuchMethodException ex) {
-            LOG.warning("Failed to find the flag [" + name + "] in ClientFlagsBase.");
-          }
-        }
-      }
-      return ret;
-    } catch (JSONException ex) {
-      LOG.severe("Failed to create flags JSON");
-      return new JSONObject();
-    }
-  }
+  private JSONObject getClientFlags(HttpServletRequest request) { return new JSONObject(); }
 
   private JSONObject getSessionJson(javax.servlet.http.HttpSession session) {
     try {

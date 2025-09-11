@@ -394,14 +394,20 @@ public class ServerRpcProvider {
         }
     }
 
-    public ServletHolder addServlet(String urlPattern, Class<? extends HttpServlet> servlet,
+    public ServletHolder addServlet(String urlPattern, Class<?> servlet,
                                     @Nullable Map<String, String> initParams) {
         try {
             if (servletContextHandler == null) {
                 if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addServlet deferred (context not initialized): " + urlPattern + " -> " + servlet.getName());
-                return new ServletHolder(servlet);
+                return new ServletHolder(DefaultServlet.class);
             }
-            ServletHolder holder = new ServletHolder(servlet);
+            if (!jakarta.servlet.http.HttpServlet.class.isAssignableFrom(servlet)) {
+                LOG.warning("[Jakarta] Skipping registration of non‑Jakarta servlet: " + servlet.getName() + " at " + urlPattern);
+                return new ServletHolder(DefaultServlet.class);
+            }
+            @SuppressWarnings("unchecked")
+            Class<? extends HttpServlet> httpCls = (Class<? extends HttpServlet>) servlet;
+            ServletHolder holder = new ServletHolder(httpCls);
             if (initParams != null && !initParams.isEmpty()) {
                 holder.setInitParameters(initParams);
             }
@@ -410,21 +416,27 @@ public class ServerRpcProvider {
             return holder;
         } catch (Throwable t) {
             LOG.warning("Failed to add servlet '" + servlet + "' at '" + urlPattern + "'", t);
-            return new ServletHolder(servlet);
+            return new ServletHolder(DefaultServlet.class);
         }
     }
 
-    public ServletHolder addServlet(String urlPattern, Class<? extends HttpServlet> servlet) {
+    public ServletHolder addServlet(String urlPattern, Class<?> servlet) {
         return addServlet(urlPattern, servlet, null);
     }
 
-    public void addFilter(String urlPattern, Class<? extends Filter> filter) {
+    public void addFilter(String urlPattern, Class<?> filter) {
         try {
             if (servletContextHandler == null) {
                 if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addFilter deferred (context not initialized): " + urlPattern + " -> " + filter.getName());
                 return;
             }
-            org.eclipse.jetty.ee10.servlet.FilterHolder holder = new org.eclipse.jetty.ee10.servlet.FilterHolder(filter);
+            if (!jakarta.servlet.Filter.class.isAssignableFrom(filter)) {
+                LOG.warning("[Jakarta] Skipping registration of non‑Jakarta filter: " + filter.getName() + " at " + urlPattern);
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            Class<? extends Filter> filt = (Class<? extends Filter>) filter;
+            org.eclipse.jetty.ee10.servlet.FilterHolder holder = new org.eclipse.jetty.ee10.servlet.FilterHolder(filt);
             servletContextHandler.addFilter(holder, urlPattern, java.util.EnumSet.allOf(DispatcherType.class));
             if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addFilter " + urlPattern + " -> " + filter.getName());
         } catch (Throwable t) {

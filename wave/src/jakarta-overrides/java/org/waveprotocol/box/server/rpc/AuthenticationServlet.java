@@ -335,6 +335,12 @@ public class AuthenticationServlet extends HttpServlet {
     if (candidate.length() > 2048 || candidate.indexOf('\r') >= 0 || candidate.indexOf('\n') >= 0) {
       resp.sendRedirect(DEFAULT_REDIRECT_URL); return;
     }
+    // Extra guardrails against encoded traversal/backslashes and mixed-encoding tricks
+    String encLc = encoded.toLowerCase(java.util.Locale.ROOT);
+    if (encLc.contains("%0d") || encLc.contains("%0a")) { resp.sendRedirect(DEFAULT_REDIRECT_URL); return; }
+    if (candidate.indexOf('\\') >= 0 || encLc.contains("%5c") || containsEncodedPathTraversal(encLc)) {
+      resp.sendRedirect(DEFAULT_REDIRECT_URL); return;
+    }
     try {
       URI u = new URI(candidate).normalize();
       boolean hasAuthority = (u.getRawAuthority() != null) || (u.getHost() != null);
@@ -370,5 +376,19 @@ public class AuthenticationServlet extends HttpServlet {
       i = amp + 1;
     }
     return null;
+  }
+
+  private static boolean containsEncodedPathTraversal(String encLc) {
+    // Detect common encodings of dot segments and separators in any mix
+    // %2e = '.', %2f = '/', %5c = '\\'
+    return encLc.contains("%2e%2e") || // ..
+           encLc.contains("%2f%2e") || // /.
+           encLc.contains("%2e%2f") || // ./
+           encLc.contains("%5c%2e") || // \
+           encLc.contains("%2e%5c") || // .\
+           encLc.contains("%2f%2e%2e") ||
+           encLc.contains("%5c%2e%2e") ||
+           encLc.contains("%2e%2e%2f") ||
+           encLc.contains("%2e%2e%5c");
   }
 }

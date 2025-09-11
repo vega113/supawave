@@ -395,6 +395,17 @@ private final WelcomeRobot welcomeBot;
       return;
     }
 
+    // Additional guards: reject backslashes and encoded traversal attempts
+    String encLc = encoded.toLowerCase(java.util.Locale.ROOT);
+    if (encLc.contains("%0d") || encLc.contains("%0a")) {
+      resp.sendRedirect(DEFAULT_REDIRECT_URL);
+      return;
+    }
+    if (candidate.indexOf('\\') >= 0 || encLc.contains("%5c") || containsEncodedPathTraversal(encLc)) {
+      resp.sendRedirect(DEFAULT_REDIRECT_URL);
+      return;
+    }
+
     // Validate as an intra-site absolute path only. Disallow scheme, authority, and //-prefixed paths.
     try {
       URI u = new URI(candidate).normalize();
@@ -437,5 +448,17 @@ private final WelcomeRobot welcomeBot;
       i = amp + 1;
     }
     return null;
+  }
+
+  private static boolean containsEncodedPathTraversal(String encLc) {
+    return encLc.contains("%2e%2e") ||
+           encLc.contains("%2f%2e") ||
+           encLc.contains("%2e%2f") ||
+           encLc.contains("%5c%2e") ||
+           encLc.contains("%2e%5c") ||
+           encLc.contains("%2f%2e%2e") ||
+           encLc.contains("%5c%2e%2e") ||
+           encLc.contains("%2e%2e%2f") ||
+           encLc.contains("%2e%2e%5c");
   }
 }

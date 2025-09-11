@@ -92,6 +92,30 @@ public class AuthenticationServletJakartaIT {
   }
 
   @Test
+  public void redirectsToSafePathWithQuery() throws Exception {
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+        .thenReturn(new ParticipantId("user@example.com"));
+    // r=/home?x=1&y=2 -> urlencoded as %2Fhome%3Fx%3D1%26y%3D2
+    URL url = new URL("http://localhost:" + port + "/auth/signin?r=%2Fhome%3Fx%3D1%26y%3D2");
+    HttpURLConnection c = (HttpURLConnection) url.openConnection();
+    c.setInstanceFollowRedirects(false);
+    assertEquals(302, c.getResponseCode());
+    assertEquals("/home?x=1&y=2", c.getHeaderField("Location"));
+  }
+
+  @Test
+  public void redirectsToSafePathWithFragment() throws Exception {
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+        .thenReturn(new ParticipantId("user@example.com"));
+    // r=/app#section -> urlencoded as %2Fapp%23section
+    URL url = new URL("http://localhost:" + port + "/auth/signin?r=%2Fapp%23section");
+    HttpURLConnection c = (HttpURLConnection) url.openConnection();
+    c.setInstanceFollowRedirects(false);
+    assertEquals(302, c.getResponseCode());
+    assertEquals("/app#section", c.getHeaderField("Location"));
+  }
+
+  @Test
   public void rejectsAbsoluteUrlInR() throws Exception {
     Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
         .thenReturn(new ParticipantId("user@example.com"));
@@ -127,6 +151,44 @@ public class AuthenticationServletJakartaIT {
     Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
         .thenReturn(new ParticipantId("user@example.com"));
     URL u = new URL("http://localhost:" + port + "/auth/signin?r=%2Fok%0D%0AX-Evil%3Ayes");
+    HttpURLConnection c = (HttpURLConnection) u.openConnection();
+    c.setInstanceFollowRedirects(false);
+    assertEquals(302, c.getResponseCode());
+    assertEquals("/", c.getHeaderField("Location"));
+  }
+
+  @Test
+  public void rejectsEncodedTraversalAndBackslashes() throws Exception {
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+        .thenReturn(new ParticipantId("user@example.com"));
+
+    // Encoded traversal in path
+    URL u1 = new URL("http://localhost:" + port + "/auth/signin?r=%2Fa%2F%252e%252e%2Fb");
+    HttpURLConnection c1 = (HttpURLConnection) u1.openConnection();
+    c1.setInstanceFollowRedirects(false);
+    assertEquals(302, c1.getResponseCode());
+    assertEquals("/", c1.getHeaderField("Location"));
+
+    // Encoded backslash
+    URL u2 = new URL("http://localhost:" + port + "/auth/signin?r=%5Ca%5Cb");
+    HttpURLConnection c2 = (HttpURLConnection) u2.openConnection();
+    c2.setInstanceFollowRedirects(false);
+    assertEquals(302, c2.getResponseCode());
+    assertEquals("/", c2.getHeaderField("Location"));
+
+    // Literal backslash after decode
+    URL u3 = new URL("http://localhost:" + port + "/auth/signin?r=%2Fa\\..\\b");
+    HttpURLConnection c3 = (HttpURLConnection) u3.openConnection();
+    c3.setInstanceFollowRedirects(false);
+    assertEquals(302, c3.getResponseCode());
+    assertEquals("/", c3.getHeaderField("Location"));
+  }
+
+  @Test
+  public void rejectsLeadingWhitespace() throws Exception {
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+        .thenReturn(new ParticipantId("user@example.com"));
+    URL u = new URL("http://localhost:" + port + "/auth/signin?r=%20/home");
     HttpURLConnection c = (HttpURLConnection) u.openConnection();
     c.setInstanceFollowRedirects(false);
     assertEquals(302, c.getResponseCode());

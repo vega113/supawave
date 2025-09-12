@@ -105,7 +105,9 @@ public class StatuszServlet extends HttpServlet {
         boolean stream = cfg.hasPath("server.enableFetchFragmentsRpc") && cfg.getBoolean("server.enableFetchFragmentsRpc");
         transport = stream && http ? "both" : (stream ? "stream" : (http ? "http" : "off"));
       }
-      writer.write("<pre>transport=" + transport + "</pre>");
+      boolean prefer = cfg.hasPath("server.preferSegmentState") && cfg.getBoolean("server.preferSegmentState");
+      boolean enableStorage = cfg.hasPath("server.enableStorageSegmentState") && cfg.getBoolean("server.enableStorageSegmentState");
+      writer.write("<pre>transport=" + transport + "; preferSegmentState=" + prefer + "; enableStorageSegmentState=" + enableStorage + "</pre>");
     } catch (Throwable t) {
       writer.write("<pre>transport=unknown (" + t.getClass().getSimpleName() + ")</pre>");
     }

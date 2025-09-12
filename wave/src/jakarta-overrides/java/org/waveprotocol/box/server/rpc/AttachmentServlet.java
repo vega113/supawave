@@ -151,7 +151,10 @@ public class AttachmentServlet extends HttpServlet {
     response.setHeader("Content-Disposition", "attachment; filename=\"" + metadata.getFileName() + "\"");
     response.setStatus(HttpServletResponse.SC_OK);
     response.setDateHeader("Last-Modified", Calendar.getInstance().getTimeInMillis());
-    AttachmentUtil.writeTo(data.getInputStream(), response.getOutputStream());
+    try (InputStream in = data.getInputStream(); var os = response.getOutputStream()) {
+      AttachmentUtil.writeTo(in, os);
+      os.flush();
+    }
   }
 
   private static AttachmentId getAttachmentIdFromRequest(HttpServletRequest request) {

@@ -96,10 +96,10 @@ public class WaveClientServlet extends HttpServlet {
 
     String username = id.getAddress().split("@")[0];
     String userDomain = id.getDomain();
-    try {
+    try (var w = response.getWriter()) {
       String hostHeader = request.getHeader("Host");
       String wsAddressForPage = (hostHeader != null && !hostHeader.isEmpty()) ? hostHeader : websocketPresentedAddress;
-      WaveClientPage.write(response.getWriter(), new GxpContext(request.getLocale()),
+      WaveClientPage.write(w, new GxpContext(request.getLocale()),
           getSessionJson(JakartaSessionAdapters.fromRequest(request, false)),
           getClientFlags(request), wsAddressForPage,
           TopBar.getGxpClosure(username, userDomain), analyticsAccount);

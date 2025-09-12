@@ -82,8 +82,10 @@ public final class FetchServlet extends HttpServlet {
       dest.setStatus(HttpServletResponse.SC_OK);
       dest.setContentType("application/json");
       dest.setHeader("Cache-Control", "no-store");
-      try { dest.getWriter().append(serializer.toJson(message).toString()); }
-      catch (SerializationException ex) {
+      try (var w = dest.getWriter()) {
+        w.append(serializer.toJson(message).toString());
+        w.flush();
+      } catch (SerializationException ex) {
         LOG.warning("Failed to serialize fetch response", ex);
         dest.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
       }

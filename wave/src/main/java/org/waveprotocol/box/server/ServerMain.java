@@ -158,20 +158,29 @@ public class ServerMain {
   public static void run(Module coreSettings) throws PersistenceException,
       WaveServerException {
     Injector injector = Guice.createInjector(coreSettings);
-    Module profilingModule = injector.getInstance(StatModule.class);
+    // Read config early to decide Jakarta vs javax behavior
+    Config config = injector.getInstance(Config.class);
+    boolean isJakarta = isJakarta(config);
+
+    Module profilingModule = isJakarta ? new AbstractModule() { @Override protected void configure() { /* no-op on Jakarta */ } }
+                                       : injector.getInstance(StatModule.class);
     ExecutorsModule executorsModule = injector.getInstance(ExecutorsModule.class);
     injector = injector.createChildInjector(profilingModule, executorsModule);
 
-    Config config = injector.getInstance(Config.class);
-
     Module serverModule = injector.getInstance(ServerModule.class);
     Module federationModule = buildFederationModule(injector);
-    Module robotApiModule = new RobotApiModule();
     PersistenceModule persistenceModule = injector.getInstance(PersistenceModule.class);
     Module searchModule = injector.getInstance(SearchModule.class);
-    Module profileFetcherModule = injector.getInstance(ProfileFetcherModule.class);
-    injector = injector.createChildInjector(serverModule, persistenceModule, robotApiModule,
-        federationModule, searchModule, profileFetcherModule);
+    // Build child injector conditionally including robots/profile fetchers on javax only
+    if (!isJakarta) {
+      Module robotApiModule = new RobotApiModule();
+      Module profileFetcherModule = injector.getInstance(ProfileFetcherModule.class);
+      injector = injector.createChildInjector(serverModule, persistenceModule, robotApiModule,
+          federationModule, searchModule, profileFetcherModule);
+    } else {
+      // Start minimally on Jakarta; add back modules as they are ported
+      injector = injector.createChildInjector(serverModule, persistenceModule);
+    }
 
     ServerRpcProvider server = injector.getInstance(ServerRpcProvider.class);
     WaveBus waveBus = injector.getInstance(WaveBus.class);
@@ -183,15 +192,29 @@ public class ServerMain {
 
     initializeServer(injector, domain);
     initializeServlets(server, config);
-    initializeRobotAgents(server);
-    initializeRobots(injector, waveBus);
+    if (!isJakarta) {
+      initializeRobotAgents(server);
+      initializeRobots(injector, waveBus);
+    }
     initializeFrontend(injector, server, waveBus);
-    initializeFederation(injector);
-    initializeSearch(injector, waveBus);
+    if (!isJakarta) {
+      initializeFederation(injector);
+      initializeSearch(injector, waveBus);
+    }
     initializeShutdownHandler(server);
 
     LOG.info("Starting server");
     server.startWebSocketServer(injector);
+  }
+
+  private static boolean isJakarta(Config config) {
+    try {
+      if (config != null && config.hasPath("core.jetty_family")) {
+        return "jakarta".equalsIgnoreCase(config.getString("core.jetty_family"));
+      }
+    } catch (Throwable ignore) {}
+    String prop = System.getProperty("jettyFamily", System.getProperty("wave.jetty.family", "javax"));
+    return "jakarta".equalsIgnoreCase(prop);
   }
 
   private static Module buildFederationModule(Injector settingsInjector) {
@@ -241,11 +264,13 @@ public class ServerMain {
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
 
-    String gadgetServerHostname = config.getString("core.gadget_server_hostname");
-    int gadgetServerPort = config.getInt("core.gadget_server_port");
-    LOG.info("Starting GadgetProxyServlet for " + gadgetServerHostname + ":" + gadgetServerPort);
-    server.addTransparentProxy("/gadgets/*",
-        "http://" + gadgetServerHostname + ":" + gadgetServerPort + "/gadgets", "/gadgets");
+    if (!isJakarta(config)) {
+      String gadgetServerHostname = config.getString("core.gadget_server_hostname");
+      int gadgetServerPort = config.getInt("core.gadget_server_port");
+      LOG.info("Starting GadgetProxyServlet for " + gadgetServerHostname + ":" + gadgetServerPort);
+      server.addTransparentProxy("/gadgets/*",
+          "http://" + gadgetServerHostname + ":" + gadgetServerPort + "/gadgets", "/gadgets");
+    }
 
     server.addServlet("/", WaveClientServlet.class);
 

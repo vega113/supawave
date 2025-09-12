@@ -44,8 +44,42 @@ public class RemoteLoggingJakartaServlet extends HttpServlet {
     if (ct == null) ct = "";
 
     if (ct.startsWith("text/x-gwt-rpc")) {
-      // Don’t try to parse; log and ack.
-      LOG.info("[remote_log][gwt] " + summarize(payload));
+      // Heuristic parser for GWT RPC RemoteLogging payloads
+      String level = null, message = null, logger = null;
+      try {
+        // Typical format: tokens separated by '|', includes interface and method names
+        String[] tok = payload.split("\\|");
+        for (int i = 0; i < tok.length; i++) {
+          if ("logOnServer".equals(tok[i])) {
+            // Walk forward to find a plausible message/level/logger triplet
+            for (int j = i + 1; j < tok.length; j++) {
+              String t = tok[j];
+              if (t == null) continue;
+              t = t.trim();
+              if (t.equals("SEVERE") || t.equals("WARNING") || t.equals("INFO") || t.equals("CONFIG") ||
+                  t.equals("FINE") || t.equals("FINER") || t.equals("FINEST")) {
+                level = t;
+                // Usually next non-empty after level is message, then logger
+                message = (j + 1 < tok.length) ? tok[j + 1] : null;
+                logger = (j + 2 < tok.length) ? tok[j + 2] : null;
+                break;
+              }
+            }
+            break;
+          }
+        }
+      } catch (Throwable ignore) { /* fall through to summary */ }
+
+      if (level == null) level = "INFO";
+      String line = "[remote_log][gwt] level=" + level +
+          (logger != null ? (" logger=" + sanitize(logger)) : "") +
+          (message != null ? (" msg=" + sanitize(message)) : (" msg=" + summarize(payload)));
+      switch (level) {
+        case "SEVERE": LOG.severe(line); break;
+        case "WARNING": LOG.warning(line); break;
+        case "INFO": LOG.info(line); break;
+        default: LOG.fine(line); break;
+      }
       resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
       return;
     }
@@ -60,5 +94,11 @@ public class RemoteLoggingJakartaServlet extends HttpServlet {
     if (s == null) return "<null>";
     s = s.replace('\r', ' ').replace('\n', ' ');
     return (s.length() > 500) ? (s.substring(0, 500) + "…") : s;
+  }
+  private static String sanitize(String s) {
+    if (s == null) return "";
+    s = s.replace('\r', ' ').replace('\n', ' ');
+    if (s.length() > 2000) s = s.substring(0, 2000) + "…";
+    return s;
   }
 }

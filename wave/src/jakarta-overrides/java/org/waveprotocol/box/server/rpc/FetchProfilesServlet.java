@@ -47,6 +47,6 @@ public final class FetchProfilesServlet extends HttpServlet {
     // For now, return 200 with empty JSON to keep parity minimal under Jakarta path.
     response.setStatus(HttpServletResponse.SC_OK);
     response.setContentType("application/json");
-    response.getWriter().write("{}\n");
+    try (var w = response.getWriter()) { w.write("{}\n"); w.flush(); }
   }
 }

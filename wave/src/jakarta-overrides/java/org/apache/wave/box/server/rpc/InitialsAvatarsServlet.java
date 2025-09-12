@@ -94,7 +94,7 @@ public final class InitialsAvatarsServlet extends HttpServlet {
       byte[] bytes = baos.toByteArray();
       response.setStatus(HttpServletResponse.SC_OK);
       response.setContentLength(bytes.length);
-      response.getOutputStream().write(bytes);
+      try (var os = response.getOutputStream()) { os.write(bytes); os.flush(); }
     } catch (IOException e) {
       LOG.log(Level.WARNING, "Failed to write avatar image", e);
       response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -103,4 +103,3 @@ public final class InitialsAvatarsServlet extends HttpServlet {
     }
   }
 }
-

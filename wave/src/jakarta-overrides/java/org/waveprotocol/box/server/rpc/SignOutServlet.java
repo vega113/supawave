@@ -62,11 +62,9 @@ public class SignOutServlet extends HttpServlet {
       }
     }
 
-    {
-      resp.setStatus(HttpServletResponse.SC_OK);
-      resp.setContentType("text/html");
-      resp.getWriter().print("<html><body>Logged out.</body></html>");
-    }
+    resp.setStatus(HttpServletResponse.SC_OK);
+    resp.setContentType("text/html");
+    try (var w = resp.getWriter()) { w.print("<html><body>Logged out.</body></html>"); w.flush(); }
   }
 
   private static boolean isSafeLocalRedirect(String r) {

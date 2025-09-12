@@ -68,13 +68,13 @@ public class GadgetProviderServlet extends HttpServlet {
       } else {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType("application/json");
-        PrintWriter out = response.getWriter();
-        out.print(jsonString);
-        out.flush();
+        try (PrintWriter out = response.getWriter()) {
+          out.print(jsonString);
+          out.flush();
+        }
       }
     } catch (ExecutionException ex) {
       throw new IOException(ex);
     }
   }
 }
-

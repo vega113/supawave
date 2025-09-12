@@ -262,12 +262,17 @@ public class ServerRpcProvider {
             try {
                 context.addServlet(new ServletHolder(new org.waveprotocol.box.server.rpc.RemoteLoggingJakartaServlet()), "/webclient/remote_logging");
                 context.addServlet(new ServletHolder(new org.waveprotocol.box.server.stat.StatuszJakartaServlet()), org.waveprotocol.box.stat.StatService.STAT_URL);
+                context.addServlet(new ServletHolder(new org.waveprotocol.box.server.stat.MetricsPrometheusServlet()), "/metrics");
             } catch (Throwable t) {
                 LOG.warning("Failed to register Jakarta replacements for remote logging / statusz", t);
             }
 
-            // Register security and caching filters programmatically (Jakarta variants)
+            // Register metrics, security and caching filters programmatically (Jakarta variants)
             try {
+                // Micrometer timing filter first so it wraps the rest
+                org.eclipse.jetty.ee10.servlet.FilterHolder metrics = new org.eclipse.jetty.ee10.servlet.FilterHolder(new org.waveprotocol.box.server.stat.MetricsHttpFilter());
+                context.addFilter(metrics, "/*", java.util.EnumSet.allOf(DispatcherType.class));
+
                 Config effectiveCfg = (this.config != null) ? this.config : ConfigFactory.empty();
                 org.eclipse.jetty.ee10.servlet.FilterHolder sec = new org.eclipse.jetty.ee10.servlet.FilterHolder(new SecurityHeadersFilter(effectiveCfg));
                 context.addFilter(sec, "/*", java.util.EnumSet.allOf(DispatcherType.class));

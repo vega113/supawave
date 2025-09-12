@@ -181,7 +181,7 @@ public class SearchServlet extends HttpServlet {
       resp.setStatus(HttpServletResponse.SC_OK);
       resp.setContentType("application/json; charset=utf8");
       resp.setHeader("Cache-Control", "no-store");
-      resp.getWriter().append(json);
+      try (var w = resp.getWriter()) { w.append(json); w.flush(); }
     } catch (ProtoSerializer.SerializationException e) {
       LOG.severe("Failed to serialize SearchResponse", e);
       if (!resp.isCommitted()) {

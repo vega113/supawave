@@ -95,7 +95,7 @@ public class AttachmentInfoServlet extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType("application/json; charset=utf8");
         response.setHeader("Cache-Control", "no-store");
-        response.getWriter().append(info);
+      try (var w = response.getWriter()) { w.append(info); w.flush(); }
         LOG.info("Fetched info for " + attachmentIds.size() + " attachments");
     }
 

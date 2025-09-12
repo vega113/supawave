@@ -359,6 +359,10 @@ if (jettyFamily == 'javax') {
         // Provide GWT user API at compile time only to satisfy client/server cross references; keep off runtime
         compileOnly group: 'org.gwtproject', name: 'gwt-user', version: gwtVersion
 
+        // Micrometer (Jakarta path): core + Prometheus registry
+        implementation group: 'io.micrometer', name: 'micrometer-core', version: '1.12.5'
+        implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.12.5'
+
         // Jakarta support sourceSet dependencies (needed to compile jakarta-overrides)
         jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
     }

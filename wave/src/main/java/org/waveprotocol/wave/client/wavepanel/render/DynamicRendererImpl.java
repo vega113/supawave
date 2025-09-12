@@ -173,33 +173,9 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
 
     final int[] counts = new int[] {0, 0}; // [in, out]
 
-    // Bootstrap: if nothing is paged in yet, enqueue a small initial window to avoid
-    // zero-height elements starving initial rendering.
+    // Bootstrap: if nothing is paged in yet, enqueue and flush a small window.
     if (pagedIn.isEmpty()) {
-      final int[] boot = new int[] {0};
-      BlipMappers.depthFirst(new Predicate<ConversationBlip>() {
-        @Override
-        public boolean apply(ConversationBlip blip) {
-          if (boot[0] >= bootstrapMax) {
-            return false; // stop
-          }
-          queue.add(blip);
-          pagedIn.add(blip);
-          boot[0]++;
-          return true;
-        }
-      }, view);
-      // Defer flush so we don't block the current UI turn.
-      Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
-        @Override public void execute() {
-          try {
-            queue.flush();
-          } catch (Throwable t) {
-            // Log to aid debugging; do not rethrow to keep UI responsive.
-            GWT.log("DynamicRenderer: bootstrap flush failed", t);
-          }
-        }
-      });
+      enqueueBootstrapWindow();
     }
 
     BlipMappers.depthFirst(new org.waveprotocol.wave.model.util.Predicate<ConversationBlip>() {
@@ -272,6 +248,36 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
       cur = cur.getOffsetParent();
     }
     return top;
+  }
+
+  /**
+   * Enqueues a small initial window of blips and defers a flush so the user sees
+   * content immediately. Extracted for readability and maintainability.
+   */
+  private void enqueueBootstrapWindow() {
+    final int[] boot = new int[] {0};
+    BlipMappers.depthFirst(new Predicate<ConversationBlip>() {
+      @Override
+      public boolean apply(ConversationBlip blip) {
+        if (boot[0] >= bootstrapMax) {
+          return false; // stop
+        }
+        queue.add(blip);
+        pagedIn.add(blip);
+        boot[0]++;
+        return true;
+      }
+    }, view);
+    // Defer flush so we don't block the current UI turn.
+    Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+      @Override public void execute() {
+        try {
+          queue.flush();
+        } catch (Throwable t) {
+          GWT.log("DynamicRenderer: bootstrap flush failed", t);
+        }
+      }
+    });
   }
 
   private void doFragmentFetch(int top, int bottom) {

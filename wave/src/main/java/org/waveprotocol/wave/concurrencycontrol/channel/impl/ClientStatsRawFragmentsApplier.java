@@ -26,15 +26,14 @@ import com.google.gwt.http.client.URL;
 import com.google.gwt.core.client.Duration;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.RawFragment;
 import org.waveprotocol.wave.model.id.WaveletId;
 
 /** GWT-safe client applier that records counts and occasionally POSTs them to the server. */
 public final class ClientStatsRawFragmentsApplier implements RawFragmentsApplier {
-  private static final AtomicInteger APPLIED = new AtomicInteger();
-  private static final AtomicInteger REJECTED = new AtomicInteger();
+  private static int applied = 0;
+  private static int rejected = 0;
   private static double lastPostMs = 0;
 
   @Override
@@ -43,9 +42,9 @@ public final class ClientStatsRawFragmentsApplier implements RawFragmentsApplier
     for (int i = 0; i < fragments.size(); i++) {
       RawFragment f = fragments.get(i);
       if (f == null || f.from > f.to || f.from < 0 || f.to < 0) {
-        REJECTED.incrementAndGet();
+        rejected++;
       } else {
-        APPLIED.incrementAndGet();
+        applied++;
       }
     }
     maybePost();
@@ -56,7 +55,7 @@ public final class ClientStatsRawFragmentsApplier implements RawFragmentsApplier
     if (now - lastPostMs < 3000) return; // throttle
     lastPostMs = now;
     String url = "/dev/client-applier-stats";
-    String payload = "applied=" + APPLIED.get() + "&rejected=" + REJECTED.get();
+    String payload = "applied=" + applied + "&rejected=" + rejected;
     RequestBuilder rb = new RequestBuilder(RequestBuilder.POST, URL.encode(url));
     rb.setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
     try { rb.sendRequest(payload, new RequestCallback() {
@@ -66,7 +65,6 @@ public final class ClientStatsRawFragmentsApplier implements RawFragmentsApplier
   }
 
   // Accessors used by debug panel or tests on the client.
-  public static int getApplied() { return APPLIED.get(); }
-  public static int getRejected() { return REJECTED.get(); }
+  public static int getApplied() { return applied; }
+  public static int getRejected() { return rejected; }
 }
-

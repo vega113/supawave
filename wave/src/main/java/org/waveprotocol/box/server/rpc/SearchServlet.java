@@ -140,7 +140,10 @@ public class SearchServlet extends AbstractSearchServlet {
     int totalGuess = computeTotalResultsNumberGuess(searchRequest, searchResult);
     LOG.fine("Results: " + searchResult.getNumResults() + ", total: " + totalGuess);
     SearchResponse searchResponse = serializeSearchResult(searchResult, totalGuess);
-    serializeObjectToServlet(searchResponse, response);
+    String ctx = "user=" + user.getAddress() + ", query=\"" + searchRequest.getQuery() +
+        "\", index=" + searchRequest.getIndex() + ", numResults=" + searchRequest.getNumResults() +
+        ", remote=" + String.valueOf(req.getRemoteAddr());
+    serializeObjectToServlet(searchResponse, ctx, response);
   }
 
   private int computeTotalResultsNumberGuess(SearchRequest searchRequest, SearchResult searchResult) {
@@ -162,7 +165,7 @@ public class SearchServlet extends AbstractSearchServlet {
   /**
    * Writes the json with search results to Response.
    */
-  private <P extends Message> void serializeObjectToServlet(P message, HttpServletResponse resp)
+  private <P extends Message> void serializeObjectToServlet(P message, String logContext, HttpServletResponse resp)
       throws IOException {
     if (message == null) {
       resp.sendError(HttpServletResponse.SC_FORBIDDEN);
@@ -177,9 +180,9 @@ public class SearchServlet extends AbstractSearchServlet {
       resp.setHeader("Cache-Control", "no-store");
       resp.getWriter().append(json);
     } catch (SerializationException e) {
-      LOG.severe("Failed to serialize SearchResponse", e);
+      LOG.severe("Failed to serialize SearchResponse (" + logContext + ")", e);
       if (!resp.isCommitted()) {
-        resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to serialize response");
+        resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unable to serialize search results. Please retry later.");
       }
     }
   }

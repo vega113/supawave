@@ -32,6 +32,7 @@ import javax.security.auth.login.Configuration;
 import org.eclipse.jetty.ee10.servlet.SessionHandler;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.SessionManagerImpl;
+import org.waveprotocol.box.server.jakarta.ServerRpcProviderJakartaProvider;
 import org.waveprotocol.box.server.rpc.ProtoSerializer;
 import org.waveprotocol.box.server.rpc.ServerRpcProvider;
 import org.waveprotocol.box.server.waveserver.WaveServerImpl;
@@ -69,7 +70,9 @@ public class ServerModule extends AbstractModule {
     bind(ProtoSerializer.class).in(Singleton.class);
     bind(Configuration.class).toInstance(Configuration.getConfiguration());
     bind(SessionManager.class).to(SessionManagerImpl.class).in(Singleton.class);
-    bind(ServerRpcProvider.class).in(Singleton.class);
+    // Bind via Provider to avoid Guice eagerly reflecting over ServerRpcProvider's methods
+    // (which reference EE10 types) during injector creation.
+    bind(ServerRpcProvider.class).toProvider(ServerRpcProviderJakartaProvider.class).in(Singleton.class);
   }
 
   @Provides @Singleton

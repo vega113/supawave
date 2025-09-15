@@ -31,7 +31,8 @@ import org.waveprotocol.wave.media.model.AttachmentId;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
+import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.wave.util.logging.Log;
 
 import jakarta.servlet.http.HttpServlet;
@@ -110,7 +111,8 @@ public class AttachmentServlet extends HttpServlet {
     }
     WaveletName waveletName = AttachmentUtil.waveRef2WaveletName(metadata.getWaveRef());
 
-    ParticipantId user = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(request, false));
+    WebSession ws = WebSessions.from(request, false);
+    ParticipantId user = sessionManager.getLoggedInUser(ws);
     boolean isAuthorized = false;
     try {
       isAuthorized = waveletProvider.checkAccessPermission(waveletName, user);
@@ -180,6 +182,16 @@ public class AttachmentServlet extends HttpServlet {
       return null;
     }
     String raw = pathInfo.substring(1);
+    // Reject if the original request URI contains encoded separators/traversal
+    // We check the raw URI to defeat double-encoding tricks that a container might normalize later.
+    try {
+      String uri = String.valueOf(request.getRequestURI());
+      String u = uri.toLowerCase();
+      if (u.contains("%2f") || u.contains("%5c") || u.contains("%2e%2e") || u.contains("%2e/")) {
+        if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=encodedTraversal uri=" + mask(uri));
+        return null;
+      }
+    } catch (Throwable ignore) {}
     // Hard upper bound to avoid pathological inputs
     if (raw.length() == 0) {
       if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=emptyId");
@@ -189,9 +201,15 @@ public class AttachmentServlet extends HttpServlet {
       if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=tooLong len=" + raw.length());
       return null;
     }
-    // Disallow dangerous characters
-    if (raw.indexOf('\\') >= 0 || raw.indexOf('\0') >= 0 || raw.indexOf('\n') >= 0 || raw.indexOf('\r') >= 0) {
+    // Disallow dangerous characters and reserved delimiters that should never appear in an id
+    if (raw.indexOf('\\') >= 0 || raw.indexOf('\0') >= 0 || raw.indexOf('\n') >= 0 || raw.indexOf('\r') >= 0
+        || raw.indexOf(':') >= 0 || raw.indexOf('?') >= 0 || raw.indexOf('#') >= 0 || raw.indexOf('%') >= 0) {
       if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=illegalChars path=" + mask(raw));
+      return null;
+    }
+    // Reject leading/trailing whitespace to avoid ambiguous ids
+    if (!raw.equals(raw.trim())) {
+      if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=surroundingWhitespace path=" + mask(raw));
       return null;
     }
     // Allow at most one '/': supports domain/id; reject more segments
@@ -207,6 +225,15 @@ public class AttachmentServlet extends HttpServlet {
         if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=dotSegment path=" + mask(raw));
         return null;
       }
+      // Basic domain sanity: labels of [a-z0-9-], no leading/trailing '-', at least one alnum
+      if (!isLikelyDomain(domain)) {
+        if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=invalidDomain domain=" + mask(domain));
+        return null;
+      }
+      if (rid.isEmpty()) {
+        if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=emptyResourceId path=" + mask(raw));
+        return null;
+      }
     } else {
       if (".".equals(raw) || "..".equals(raw)) {
         if (LOG.isFineLoggable()) LOG.fine("Rejecting attachment path: reason=dotOnly path=" + mask(raw));
@@ -214,6 +241,24 @@ public class AttachmentServlet extends HttpServlet {
       }
     }
     return raw;
+  }
+
+  private static boolean isLikelyDomain(String domain) {
+    if (domain == null || domain.isEmpty() || domain.length() > 253) return false;
+    // Disallow consecutive dots or starting/ending with '.'
+    if (domain.startsWith(".") || domain.endsWith(".") || domain.contains("..")) return false;
+    String[] labels = domain.split("\\.");
+    for (String label : labels) {
+      if (label.isEmpty() || label.length() > 63) return false;
+      // label must be alnum or hyphen, not starting/ending with '-'
+      for (int i = 0; i < label.length(); i++) {
+        char c = label.charAt(i);
+        boolean ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-';
+        if (!ok) return false;
+      }
+      if (label.charAt(0) == '-' || label.charAt(label.length()-1) == '-') return false;
+    }
+    return true;
   }
 
   private static String mask(String s) {
@@ -224,24 +269,44 @@ public class AttachmentServlet extends HttpServlet {
   }
 
   private AttachmentData getThumbnailByContentType(String contentType) throws IOException {
-    if (thumbnailPatternsDir != null) {
-      File file = new File(thumbnailPatternsDir, contentType.replaceAll("/", "_"));
-      if (!file.exists() || !file.isFile() || !file.canRead()) {
-        file = new File(thumbnailPatternsDir, THUMBNAIL_PATTERN_DEFAULT);
-      }
-      if (file.exists() && file.isFile() && file.canRead()) {
-        final File thumbFile = file;
-        return new AttachmentData() {
-          @Override public InputStream getInputStream() throws IOException { return new FileInputStream(thumbFile); }
-          @Override public long getSize() { return thumbFile.length(); }
-        };
+    try {
+      String safe = safeFileNameForContentType(contentType);
+      if (thumbnailPatternsDir != null) {
+        File file = new File(thumbnailPatternsDir, safe);
+        if (!file.exists() || !file.isFile() || !file.canRead()) {
+          file = new File(thumbnailPatternsDir, THUMBNAIL_PATTERN_DEFAULT);
+        }
+        if (file.exists() && file.isFile() && file.canRead()) {
+          final File thumbFile = file;
+          return new AttachmentData() {
+            @Override public InputStream getInputStream() throws IOException { return new FileInputStream(thumbFile); }
+            @Override public long getSize() { return thumbFile.length(); }
+          };
+        } else {
+          LOG.fine("Thumbnail pattern file not found; generating fallback image");
+        }
       } else {
-        LOG.fine("Thumbnail pattern file not found; generating fallback image");
+        LOG.fine("Thumbnail patterns directory not configured/usable; generating fallback image");
       }
-    } else {
-      LOG.fine("Thumbnail patterns directory not configured/usable; generating fallback image");
+    } catch (Throwable t) {
+      LOG.fine("Thumbnail selection encountered an error; generating fallback image", t);
     }
     return generatedPatternPng();
+  }
+
+  private static String safeFileNameForContentType(String contentType) {
+    if (contentType == null) return THUMBNAIL_PATTERN_DEFAULT;
+    String s = contentType.trim().toLowerCase();
+    if (s.isEmpty()) return THUMBNAIL_PATTERN_DEFAULT;
+    // Replace path separators and any non safe char with '_'
+    StringBuilder sb = new StringBuilder(Math.min(s.length(), 100));
+    for (int i = 0; i < s.length() && sb.length() < 100; i++) {
+      char c = s.charAt(i);
+      boolean safe = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+' || c == '_';
+      sb.append(safe ? c : '_');
+    }
+    String out = sb.toString();
+    return out.isEmpty() ? THUMBNAIL_PATTERN_DEFAULT : out;
   }
 
   private static AttachmentData generatedPatternPng() throws IOException {

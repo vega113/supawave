@@ -38,7 +38,8 @@ import org.waveprotocol.box.server.gxp.WaveClientPage;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
 import org.waveprotocol.box.server.util.UrlParameters;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
+import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.wave.util.logging.Log;
 
 import javax.inject.Singleton;
@@ -79,10 +80,10 @@ public class WaveClientServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    ParticipantId id = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(request, false));
+    ParticipantId id = sessionManager.getLoggedInUser(WebSessions.from(request, false));
     if (id == null) { response.sendRedirect(sessionManager.getLoginUrl("/")); return; }
 
-    AccountData account = sessionManager.getLoggedInAccount(JakartaSessionAdapters.fromRequest(request, false));
+    AccountData account = sessionManager.getLoggedInAccount(WebSessions.from(request, false));
     if (account != null) {
       String locale = account.asHuman().getLocale();
       if (locale != null) {
@@ -100,7 +101,7 @@ public class WaveClientServlet extends HttpServlet {
       String hostHeader = request.getHeader("Host");
       String wsAddressForPage = (hostHeader != null && !hostHeader.isEmpty()) ? hostHeader : websocketPresentedAddress;
       WaveClientPage.write(w, new GxpContext(request.getLocale()),
-          getSessionJson(JakartaSessionAdapters.fromRequest(request, false)),
+          getSessionJson(WebSessions.from(request, false)),
           getClientFlags(request), wsAddressForPage,
           TopBar.getGxpClosure(username, userDomain), analyticsAccount);
     } catch (IOException e) {
@@ -114,7 +115,7 @@ public class WaveClientServlet extends HttpServlet {
 
   private JSONObject getClientFlags(HttpServletRequest request) { return new JSONObject(); }
 
-  private JSONObject getSessionJson(javax.servlet.http.HttpSession session) {
+  private JSONObject getSessionJson(WebSession session) {
     try {
       ParticipantId user = sessionManager.getLoggedInUser(session);
       String address = (user != null) ? user.getAddress() : null;

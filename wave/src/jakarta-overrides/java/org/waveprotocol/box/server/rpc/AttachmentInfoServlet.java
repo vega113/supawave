@@ -35,7 +35,7 @@ import org.waveprotocol.wave.media.model.AttachmentId;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
+import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
@@ -72,7 +72,7 @@ public class AttachmentInfoServlet extends HttpServlet {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
-        ParticipantId user = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(request, false));
+        ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(request, false));
         if (user == null) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;

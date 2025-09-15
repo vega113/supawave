@@ -24,7 +24,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.waveprotocol.box.server.persistence.AccountStore;
 
-import javax.servlet.http.HttpSession;
+import org.waveprotocol.box.server.authentication.WebSession;
 
 import static org.junit.Assert.*;
 

@@ -67,6 +67,10 @@ application {
             "--add-opens=java.base/java.util=ALL-UNNAMED"
     ]
 }
+// Ensure the runtime sees the selected Jetty family via a system property
+if (jettyFamily == 'jakarta') {
+    application.applicationDefaultJvmArgs += ["-DjettyFamily=jakarta"]
+}
 java {
     // Compile and target JDK 17 bytecode
     sourceCompatibility = JavaVersion.VERSION_17
@@ -161,11 +165,25 @@ sourceSets {
         java {
             srcDir 'src/jakarta-overrides/java'
             include 'org/waveprotocol/box/server/security/*.java'
+            include 'org/waveprotocol/box/server/authentication/*.java'
             // Do NOT include ServerRpcProvider here; provider overrides are compiled in main for Jakarta
         }
         // resources not needed
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += output + compileClasspath
+    }
+    // Minimal unit-test source set for small, isolated tests
+    stacktraceTest {
+        java { srcDir 'src/stacktrace-test/java' }
+        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
+        runtimeClasspath += output + compileClasspath + configurations.testRuntimeClasspath
+    }
+    // Minimal unit-test source set for Attachment thumbnail fallback checks
+    thumbTest {
+        java { srcDir 'src/thumb-test/java' }
+        // Ensure main classes and their dependencies are on the classpath
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath + configurations.testCompileClasspath
+        runtimeClasspath += output + compileClasspath + configurations.testRuntimeClasspath
     }
 }
 
@@ -181,10 +199,40 @@ if (jettyFamily == 'jakarta') {
             def p = details.file.toPath().normalize().toString()
             if (!p.contains("${projectDir}/src/main/java/")) return false
             def rel = p.substring(p.indexOf('/src/main/java/') + '/src/main/java/'.length())
+            // Explicit guard: never exclude robots sources on Jakarta builds; other code depends on types
+            if (rel.startsWith('org/waveprotocol/box/server/robots/')) {
+                // Selectively exclude servlet/agent stacks that depend on javax-era signatures.
+                def excludePrefixes = [
+                    'org/waveprotocol/box/server/robots/dataapi/',
+                    'org/waveprotocol/box/server/robots/active/',
+                    'org/waveprotocol/box/server/robots/passive/',
+                    'org/waveprotocol/box/server/robots/agent/',
+                    'org/waveprotocol/box/server/robots/register/'
+                ]
+                if (excludePrefixes.any { rel.startsWith(it) }) return true
+                // Exclude specific top-level servlet/module files under robots
+                def excludeFiles = [
+                    'org/waveprotocol/box/server/robots/RobotApiModule.java',
+                    'org/waveprotocol/box/server/robots/RobotRegistrationServlet.java',
+                    'org/waveprotocol/box/server/robots/operations/NotifyOperationService.java',
+                    'org/waveprotocol/box/server/robots/ProfileFetcherModule.java'
+                ]
+                if (excludeFiles.any { rel == it }) return true
+                // Keep value types and utils (e.g., robots/util, RobotCapabilities)
+                return false
+            }
+            // Exclude legacy utility tying to robot agents on Jakarta
+            if (rel == 'org/waveprotocol/box/server/util/RegistrationUtil.java') return true
             def patterns = [
                 'org/waveprotocol/box/server/rpc/ServerRpcProvider.java',
                 'org/waveprotocol/box/server/ServerModule.java',
                 'org/waveprotocol/box/server/StatModule.java',
+                'org/waveprotocol/box/server/ServerMain.java',
+                'org/waveprotocol/box/server/authentication/SessionManager.java',
+                'org/waveprotocol/box/server/robots/RobotApiModule.java',
+                'org/waveprotocol/box/server/robots/RobotRegistrationServlet.java',
+                'org/waveprotocol/box/server/robots/operations/NotifyOperationService.java',
+                'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java',
                 // Keep ServerMain.java from main on Jakarta path; Jakarta provider skips incompatible registrations at runtime
                 'org/waveprotocol/box/server/rpc/AuthenticationServlet.java',
                 'org/waveprotocol/box/server/rpc/SignOutServlet.java',
@@ -229,6 +277,17 @@ repositories {
     }
 }
 
+// Ensure a single SLF4J binding (Logback) and evict legacy binders
+configurations.all { cfg ->
+    cfg.exclude group: 'org.slf4j', module: 'slf4j-simple'
+    cfg.exclude group: 'org.slf4j', module: 'slf4j-nop'
+    cfg.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    cfg.exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
+    cfg.exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'
+    // Prefer jcl-over-slf4j over the real commons-logging
+    cfg.exclude group: 'commons-logging', module: 'commons-logging'
+}
+
 dependencies {
     implementation (
             [group: "com.google.code.gson", name: "gson", version: "2.10.1"],
@@ -241,7 +300,8 @@ dependencies {
             [group: "org.apache.commons", name: "commons-lang3", version: "3.14.0"],
             [group: "commons-fileupload", name: "commons-fileupload", version: "1.5"],
             // Route any Commons Logging calls through SLF4J instead of pulling commons-logging
-            [group: "org.slf4j", name: "jcl-over-slf4j", version: "1.7.36"],
+            // Bridge legacy commons-logging to SLF4J 2.x
+            [group: "org.slf4j", name: "jcl-over-slf4j", version: "2.0.13"],
             [group: "com.google.code.findbugs", name: "jsr305", version: "2.0.1"],
             // Use constraints below to control Guava version; keep guava-gwt out of runtime
             [group: "com.google.guava", name: "guava"],
@@ -263,10 +323,11 @@ dependencies {
             // MongoDB 4.x driver for spike (not wired by default)
             [group: "org.mongodb", name: "mongodb-driver-sync", version: "4.11.1"],
             [group: "org.apache.httpcomponents", name: "httpcore", version: "4.4.16"],
-            [group: "org.slf4j", name: "slf4j-api", version: "1.7.36"],
-            [group: "ch.qos.logback", name: "logback-classic", version: "1.2.13"],
-            [group: "org.slf4j", name: "jul-to-slf4j", version: "1.7.36"],
-            [group: "org.slf4j", name: "log4j-over-slf4j", version: "1.7.36"],
+            // SLF4J 2.x API + Logback provider and bridges
+            [group: "org.slf4j", name: "slf4j-api", version: "2.0.13"],
+            [group: "ch.qos.logback", name: "logback-classic", version: "1.5.6"],
+            [group: "org.slf4j", name: "jul-to-slf4j", version: "2.0.13"],
+            [group: "org.slf4j", name: "log4j-over-slf4j", version: "2.0.13"],
             [group: "javax.inject", name: "javax.inject", version: "1"],
             [group: "javax.jdo", name: "jdo2-api", version: "2.1"],
             // Legacy OAuth libraries (evaluate and replace under P6-T6). Use -PexcludeLegacyOAuth=true to omit.
@@ -316,6 +377,15 @@ dependencies {
             [group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: jettyEe10Version],
             [group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: jettyEe10Version]
     )
+    // Dependencies for the minimal stacktraceTest source set (reuse testImplementation)
+    stacktraceTestImplementation (
+        [group: 'junit', name: 'junit', version: '4.12']
+    )
+    // Dependencies for the minimal thumbTest source set
+    thumbTestImplementation (
+        [group: 'junit', name: 'junit', version: '4.12'],
+        [group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0']
+    )
 }
 
 // Select Jetty modules based on jettyFamily
@@ -343,16 +413,16 @@ if (jettyFamily == 'javax') {
         implementation group: "org.eclipse.jetty.websocket", name: "websocket-server", version: jettyVersion
         implementation group: "org.eclipse.jetty.websocket", name: "websocket-servlet", version: jettyVersion
     }
-} else if (jettyFamily == 'jakarta') {
-    dependencies {
-        implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyEe10Version
-        implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: jettyEe10Version
-        implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-webapp', version: jettyEe10Version
-        implementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
-        implementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: jettyEe10Version
-        // APIs for compile only; Jetty provides runtime
-        implementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
-        implementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
+    } else if (jettyFamily == 'jakarta') {
+        dependencies {
+            implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyEe10Version
+            implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: jettyEe10Version
+            implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-webapp', version: jettyEe10Version
+            implementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+            implementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: jettyEe10Version
+            // APIs for compile only; Jetty provides runtime
+            implementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
+            implementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
         // Keep javax.servlet on compileOnly to satisfy legacy signatures during migration.
         // Runtime guard below prevents it from leaking into runtime classpath.
         compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
@@ -363,10 +433,12 @@ if (jettyFamily == 'javax') {
         implementation group: 'io.micrometer', name: 'micrometer-core', version: '1.12.5'
         implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.12.5'
 
-        // Jakarta support sourceSet dependencies (needed to compile jakarta-overrides)
-        jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+            // Jakarta support sourceSet dependencies (needed to compile jakarta-overrides)
+            jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+            jakartaSupportImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
+            jakartaSupportImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
+        }
     }
-}
 
 // (Removed duplicate Jakarta dependency blocks to avoid version drift)
 
@@ -378,11 +450,21 @@ dependencies {
         [group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-webapp', version: jettyEe10Version],
         [group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0']
     )
+    // Ensure jakartaSupport compiles even when jettyFamily != 'jakarta'
+    jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+    jakartaSupportImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
+    jakartaSupportImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
 }
 
 // Align server-side Guava; keep guava-gwt strictly compileOnly for client code
 dependencies {
     constraints {
+        // Align SLF4J + bridges across transitive deps
+        implementation("org.slf4j:slf4j-api:2.0.13")
+        implementation("org.slf4j:jcl-over-slf4j:2.0.13")
+        implementation("org.slf4j:jul-to-slf4j:2.0.13")
+        implementation("org.slf4j:log4j-over-slf4j:2.0.13")
+        implementation("ch.qos.logback:logback-classic:1.5.6")
         implementation("com.google.guava:guava:${waveGuavaVersion}") {
             because "Align server Guava for future Guice 5 upgrade and reduce classpath drift"
         }
@@ -398,17 +480,26 @@ configurations.testRuntimeClasspath { exclude group: 'com.google.guava', module:
 
 // On Jakarta builds, ensure javax.servlet-api never leaks into main runtime classpaths.
 if (jettyFamily == 'jakarta') {
-    ['implementation', 'runtimeClasspath'].each { cfgName ->
-        configurations.matching { it.name == cfgName }.configureEach {
-            resolutionStrategy.eachDependency { dep ->
-                if (dep.requested.group == 'javax.servlet') {
-                    throw new GradleException("Detected javax.servlet artifact ('${dep.requested.name}') on ${cfgName} for Jakarta build. Remove or scope to compileOnly/test.")
+    // Allow temporarily including javax.servlet-api at runtime while migrating,
+    // controlled by -PallowLegacyJavax (default: true for POC).
+    def allowLegacyJavax = (findProperty('allowLegacyJavax') ?: 'true').toString().toBoolean()
+    if (allowLegacyJavax) {
+        dependencies {
+            runtimeOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
+        }
+    } else {
+        ['implementation', 'runtimeClasspath'].each { cfgName ->
+            configurations.matching { it.name == cfgName }.configureEach {
+                resolutionStrategy.eachDependency { dep ->
+                    if (dep.requested.group == 'javax.servlet') {
+                        throw new GradleException("Detected javax.servlet artifact ('${dep.requested.name}') on ${cfgName} for Jakarta build with -PallowLegacyJavax=false")
+                    }
                 }
             }
         }
     }
     tasks.register('remindRemoveJavaxOnJakarta') { doLast {
-        println "[Jakarta] Once migration is complete, set -PallowLegacyJavax=false and remove compileOnly javax.servlet-api."
+        println "[Jakarta] Set -PallowLegacyJavax=false once javax API usages are fully removed."
     } }
 }
 //=============================================================================
@@ -766,6 +857,23 @@ tasks.register('testJakarta', Test) {
 
     // Ensure Jakarta support classes (overrides) are compiled first
     dependsOn tasks.named('compileJakartaSupportJava')
+}
+
+// Dedicated small test task for the StackTraces utility
+tasks.register('testStackTraces', Test) {
+    description = 'Runs isolated unit tests in src/stacktrace-test/java.'
+    group = 'verification'
+    testClassesDirs = sourceSets.stacktraceTest.output.classesDirs
+    classpath = sourceSets.stacktraceTest.runtimeClasspath
+    useJUnit()
+}
+
+tasks.register('testAttachmentThumb', Test) {
+    description = 'Runs isolated tests in src/thumb-test/java for AttachmentServlet thumbnail behavior.'
+    group = 'verification'
+    testClassesDirs = sourceSets.thumbTest.output.classesDirs
+    classpath = sourceSets.thumbTest.runtimeClasspath
+    useJUnit()
 }
 
 // Dedicated task for Jakarta integration tests (classes ending with *IT)

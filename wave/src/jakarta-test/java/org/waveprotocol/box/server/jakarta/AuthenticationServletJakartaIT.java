@@ -10,6 +10,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.robots.agent.welcome.WelcomeRobot;
 import org.waveprotocol.box.server.rpc.AuthenticationServlet;
@@ -55,11 +56,10 @@ public class AuthenticationServletJakartaIT {
         Configuration.getConfiguration(),
         sessionManager,
         "example.com",
-        cfg,
-        welcomeRobot
+        cfg
     );
 
-    ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(servlet), "/auth/signin");
+    ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(org.waveprotocol.box.server.rpc.AuthenticationServlet.class), "/auth/signin");
     server.setHandler(ctx);
     server.start();
     port = c.getLocalPort();
@@ -72,7 +72,7 @@ public class AuthenticationServletJakartaIT {
 
   @Test
   public void get_withoutLogin_showsLoginPage200() throws Exception {
-    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class))).thenReturn(null);
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(WebSession.class))).thenReturn(null);
     URL url = new URL("http://localhost:" + port + "/auth/signin");
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
     assertEquals(200, c.getResponseCode());
@@ -81,7 +81,7 @@ public class AuthenticationServletJakartaIT {
 
   @Test
   public void get_whenLoggedIn_redirectsToR() throws Exception {
-    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(WebSession.class)))
         .thenReturn(new ParticipantId("user@example.com"));
     URL url = new URL("http://localhost:" + port + "/auth/signin?r=%2Fhome");
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
@@ -93,7 +93,7 @@ public class AuthenticationServletJakartaIT {
 
   @Test
   public void redirectsToSafePathWithQuery() throws Exception {
-    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(WebSession.class)))
         .thenReturn(new ParticipantId("user@example.com"));
     // r=/home?x=1&y=2 -> urlencoded as %2Fhome%3Fx%3D1%26y%3D2
     URL url = new URL("http://localhost:" + port + "/auth/signin?r=%2Fhome%3Fx%3D1%26y%3D2");
@@ -105,7 +105,7 @@ public class AuthenticationServletJakartaIT {
 
   @Test
   public void redirectsToSafePathWithFragment() throws Exception {
-    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(WebSession.class)))
         .thenReturn(new ParticipantId("user@example.com"));
     // r=/app#section -> urlencoded as %2Fapp%23section
     URL url = new URL("http://localhost:" + port + "/auth/signin?r=%2Fapp%23section");
@@ -117,7 +117,7 @@ public class AuthenticationServletJakartaIT {
 
   @Test
   public void rejectsAbsoluteUrlInR() throws Exception {
-    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class)))
+    Mockito.when(sessionManager.getLoggedInUser(Mockito.isNull(WebSession.class)))
         .thenReturn(new ParticipantId("user@example.com"));
     // r=http://evil.example
     URL url = new URL("http://localhost:" + port + "/auth/signin?r=http%3A%2F%2Fevil.example");

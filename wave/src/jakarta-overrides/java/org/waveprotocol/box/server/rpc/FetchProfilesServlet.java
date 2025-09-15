@@ -24,7 +24,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
+import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
@@ -41,7 +42,7 @@ public final class FetchProfilesServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse response) throws IOException {
-    ParticipantId user = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(req, false));
+    ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
     if (user == null) { response.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
     // Delegate to existing logic in main servlet via RPC provider utilities if needed.
     // For now, return 200 with empty JSON to keep parity minimal under Jakarta path.

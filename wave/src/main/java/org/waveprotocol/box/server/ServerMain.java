@@ -77,21 +77,7 @@ import java.io.File;
 public class ServerMain {
 
   private static void printStackTraceLite(Throwable t) {
-    java.io.PrintStream err = System.err;
-    err.println(t.getClass().getName());
-    for (StackTraceElement ste : t.getStackTrace()) {
-      err.println("\tat " + ste.toString());
-    }
-    Throwable cause = t.getCause();
-    java.util.Set<Throwable> seen = new java.util.HashSet<>();
-    while (cause != null && !seen.contains(cause)) {
-      seen.add(cause);
-      err.println("Caused by: " + cause.getClass().getName());
-      for (StackTraceElement ste : cause.getStackTrace()) {
-        err.println("\tat " + ste.toString());
-      }
-      cause = cause.getCause();
-    }
+    org.waveprotocol.box.server.util.StackTraces.printStackTraceLite(t, System.err);
   }
 
   private static final Log LOG = Log.get(ServerMain.class);
@@ -178,8 +164,8 @@ public class ServerMain {
       injector = injector.createChildInjector(serverModule, persistenceModule, robotApiModule,
           federationModule, searchModule, profileFetcherModule);
     } else {
-      // Start minimally on Jakarta; add back modules as they are ported
-      injector = injector.createChildInjector(serverModule, persistenceModule);
+      // Start minimally on Jakarta but keep federation no-op module for required bindings
+      injector = injector.createChildInjector(serverModule, persistenceModule, federationModule);
     }
 
     ServerRpcProvider server = injector.getInstance(ServerRpcProvider.class);
@@ -254,12 +240,15 @@ public class ServerMain {
     server.addServlet("/search/*", SearchServlet.class);
     server.addServlet("/notification/*", NotificationServlet.class);
 
-    server.addServlet("/robot/dataapi", DataApiServlet.class);
-    server.addServlet(DataApiOAuthServlet.DATA_API_OAUTH_PATH + "/*", DataApiOAuthServlet.class);
-    server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
-    server.addServlet("/robot/register/*", RobotRegistrationServlet.class);
-    server.addServlet("/robot/rpc", ActiveApiServlet.class);
-    server.addServlet("/webclient/remote_logging", RemoteLoggingServiceImpl.class);
+    // Skip robots and GWT remote logging on Jakarta; these are javax/GWT-bound.
+    if (!isJakarta(config)) {
+      server.addServlet("/robot/dataapi", DataApiServlet.class);
+      server.addServlet(DataApiOAuthServlet.DATA_API_OAUTH_PATH + "/*", DataApiOAuthServlet.class);
+      server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
+      server.addServlet("/robot/register/*", RobotRegistrationServlet.class);
+      server.addServlet("/robot/rpc", ActiveApiServlet.class);
+      server.addServlet("/webclient/remote_logging", RemoteLoggingServiceImpl.class);
+    }
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
@@ -274,19 +263,23 @@ public class ServerMain {
 
     server.addServlet("/", WaveClientServlet.class);
 
-    // Security headers
-    server.addFilter("/*", org.waveprotocol.box.server.security.SecurityHeadersFilter.class);
+    // Filters are wired programmatically in Jakarta ServerRpcProvider; skip here on Jakarta.
+    if (!isJakarta(config)) {
+      // Security headers
+      server.addFilter("/*", org.waveprotocol.box.server.security.SecurityHeadersFilter.class);
+      // Static asset caching for /static/* and no-cache for GWT webclient
+      server.addFilter("/static/*", org.waveprotocol.box.server.security.StaticCacheFilter.class);
+      server.addFilter("/webclient/*", org.waveprotocol.box.server.security.NoCacheFilter.class);
+    }
 
-    // Static asset caching for /static/* and no-cache for GWT webclient
-    server.addFilter("/static/*", org.waveprotocol.box.server.security.StaticCacheFilter.class);
-    server.addFilter("/webclient/*", org.waveprotocol.box.server.security.NoCacheFilter.class);
-
-    // Profiling
-    server.addFilter("/*", RequestScopeFilter.class);
-    boolean enableProfiling = config.getBoolean("core.enable_profiling");
-    if (enableProfiling) {
-      server.addFilter("/*", TimingFilter.class);
-      server.addServlet(StatService.STAT_URL, StatuszServlet.class);
+    // Profiling (TimingFilter/Statusz) uses javax APIs; skip on Jakarta.
+    if (!isJakarta(config)) {
+      server.addFilter("/*", RequestScopeFilter.class);
+      boolean enableProfiling = config.getBoolean("core.enable_profiling");
+      if (enableProfiling) {
+        server.addFilter("/*", TimingFilter.class);
+        server.addServlet(StatService.STAT_URL, StatuszServlet.class);
+      }
     }
   }
 

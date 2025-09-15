@@ -29,7 +29,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.escapers.PercentEscaper;
 import org.waveprotocol.wave.util.logging.Log;
 
-import javax.servlet.http.HttpSession;
+import org.waveprotocol.box.server.authentication.WebSession;
 
 /**
  * Jakarta override of SessionManagerImpl wiring against Jetty 12 session APIs.
@@ -55,7 +55,7 @@ public final class SessionManagerImpl implements SessionManager {
   }
 
   @Override
-  public ParticipantId getLoggedInUser(HttpSession session) {
+  public ParticipantId getLoggedInUser(WebSession session) {
     if (session != null) {
       return (ParticipantId) session.getAttribute(USER_FIELD);
     } else {
@@ -64,7 +64,7 @@ public final class SessionManagerImpl implements SessionManager {
   }
 
   @Override
-  public AccountData getLoggedInAccount(HttpSession session) {
+  public AccountData getLoggedInAccount(WebSession session) {
     ParticipantId user = getLoggedInUser(session);
     if (user != null) {
       try {
@@ -79,14 +79,14 @@ public final class SessionManagerImpl implements SessionManager {
   }
 
   @Override
-  public void setLoggedInUser(HttpSession session, ParticipantId id) {
+  public void setLoggedInUser(WebSession session, ParticipantId id) {
     Preconditions.checkNotNull(session, "Session is null");
     Preconditions.checkNotNull(id, "Participant id is null");
     session.setAttribute(USER_FIELD, id);
   }
 
   @Override
-  public void logout(HttpSession session) {
+  public void logout(WebSession session) {
     if (session != null) {
       session.removeAttribute(USER_FIELD);
     }
@@ -105,7 +105,7 @@ public final class SessionManagerImpl implements SessionManager {
   }
 
   @Override
-  public HttpSession getSessionFromToken(String token) {
+  public WebSession getSessionFromToken(String token) {
     boolean enabled = false;
     try {
       enabled = config.hasPath("experimental.jetty12_session_lookup") &&
@@ -122,14 +122,13 @@ public final class SessionManagerImpl implements SessionManager {
       java.lang.reflect.Method m = sessionHandler.getClass().getMethod("getSession", String.class);
       Object jettySession = m.invoke(sessionHandler, sessionId);
       if (jettySession == null) return null;
-      // Try common accessors to retrieve an HttpSession wrapper without linking APIs
+      // Retrieve the Jakarta HttpSession if possible and wrap as WebSession
       for (String accessor : new String[] {"getSession", "getHttpSession"}) {
         try {
           java.lang.reflect.Method acc = jettySession.getClass().getMethod(accessor);
           Object httpSess = acc.invoke(jettySession);
-          if (httpSess instanceof javax.servlet.http.HttpSession) return (HttpSession) httpSess;
           if (httpSess instanceof jakarta.servlet.http.HttpSession) {
-            return JakartaSessionAdapters.toJavax((jakarta.servlet.http.HttpSession) httpSess);
+            return WebSessions.wrap((jakarta.servlet.http.HttpSession) httpSess);
           }
         } catch (NoSuchMethodException ignore) {
           // keep trying

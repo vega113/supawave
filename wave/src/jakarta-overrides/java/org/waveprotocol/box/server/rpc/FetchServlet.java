@@ -33,7 +33,8 @@ import org.waveprotocol.wave.model.id.ModernIdSerialiser;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
+import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.waveref.InvalidWaveRefException;
 import org.waveprotocol.wave.model.waveref.WaveRef;
@@ -63,7 +64,7 @@ public final class FetchServlet extends HttpServlet {
   @Override
   @VisibleForTesting
   protected void doGet(HttpServletRequest req, HttpServletResponse response) throws IOException {
-    ParticipantId user = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(req, false));
+    ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
     String urlPath = req.getPathInfo().substring(1);
     WaveRef waveref;
     try {

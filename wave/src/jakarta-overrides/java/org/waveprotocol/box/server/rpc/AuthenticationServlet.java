@@ -31,11 +31,11 @@ import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.authentication.HttpRequestBasedCallbackHandler;
 import org.waveprotocol.box.server.authentication.ParticipantPrincipal;
 import org.waveprotocol.box.server.authentication.SessionManager;
-import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
+import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.box.server.gxp.AuthenticationPage;
 import org.waveprotocol.box.server.persistence.AccountStore;
-import org.waveprotocol.box.server.robots.agent.welcome.WelcomeRobot;
-import org.waveprotocol.box.server.util.RegistrationUtil;
+// WelcomeRobot/RegistrationUtil are legacy; omit on Jakarta override to remove robot coupling
 import org.waveprotocol.wave.model.id.WaveIdentifiers;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -98,7 +98,7 @@ public class AuthenticationServlet extends HttpServlet {
   private final boolean isRegistrationDisabled;
   private final boolean isLoginPageDisabled;
   private boolean failedClientAuth = false;
-  private final WelcomeRobot welcomeBot;
+  private final Object welcomeBot; // unused placeholder on Jakarta path
   private final String analyticsAccount;
 
   @Inject
@@ -106,8 +106,7 @@ public class AuthenticationServlet extends HttpServlet {
                                Configuration configuration,
                                SessionManager sessionManager,
                                @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
-                               Config config,
-                               WelcomeRobot welcomeBot) {
+                               Config config) {
     Preconditions.checkNotNull(accountStore, "AccountStore is null");
     Preconditions.checkNotNull(configuration, "Configuration is null");
     Preconditions.checkNotNull(sessionManager, "Session manager is null");
@@ -120,7 +119,7 @@ public class AuthenticationServlet extends HttpServlet {
     this.clientAuthCertDomain = config.getString("security.clientauth_cert_domain").toLowerCase();
     this.isRegistrationDisabled = config.getBoolean("administration.disable_registration");
     this.isLoginPageDisabled = config.getBoolean("administration.disable_loginpage");
-    this.welcomeBot = welcomeBot;
+    this.welcomeBot = null;
     this.analyticsAccount = config.hasPath("core.analytics_account") ?
         config.getString("core.analytics_account") : "";
   }
@@ -231,7 +230,7 @@ public class AuthenticationServlet extends HttpServlet {
       }
     }
 
-    javax.servlet.http.HttpSession session = JakartaSessionAdapters.fromRequest(req, true);
+    WebSession session = WebSessions.from(req, true);
     sessionManager.setLoggedInUser(session, loggedInAddress);
     LOG.info("Authenticated user " + loggedInAddress);
     redirectLoggedInUser(req, resp);
@@ -294,7 +293,7 @@ public class AuthenticationServlet extends HttpServlet {
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     resp.setCharacterEncoding("UTF-8");
     req.setCharacterEncoding("UTF-8");
-    javax.servlet.http.HttpSession session = JakartaSessionAdapters.fromRequest(req, false);
+    WebSession session = WebSessions.from(req, false);
     ParticipantId user = sessionManager.getLoggedInUser(session);
 
     if (user != null) {
@@ -321,7 +320,7 @@ public class AuthenticationServlet extends HttpServlet {
 
   private void redirectLoggedInUser(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
-    Preconditions.checkState(sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(req, false)) != null,
+    Preconditions.checkState(sessionManager.getLoggedInUser(WebSessions.from(req, false)) != null,
         "The user is not logged in");
     String query = req.getQueryString();
     String encoded = extractQueryParam(query, "r");

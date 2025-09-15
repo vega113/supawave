@@ -22,7 +22,8 @@ import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.waveprotocol.box.server.authentication.SessionManager;
-import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
+import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.WebSessions;
 
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,7 +49,7 @@ public class SignOutServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    javax.servlet.http.HttpSession session = JakartaSessionAdapters.fromRequest(req, false);
+    WebSession session = WebSessions.from(req, false);
     sessionManager.logout(session);
 
     String redirectUrl = req.getParameter("r");

@@ -271,19 +271,47 @@ public class AttachmentServlet extends HttpServlet {
     if (pathInfo == null || pathInfo.isEmpty()) { LOG.fine("Rejecting attachment path: reason=emptyPath"); return null; }
     if (pathInfo.charAt(0) != '/') { LOG.fine("Rejecting attachment path: reason=noLeadingSlash path=" + mask(pathInfo)); return null; }
     String raw = pathInfo.substring(1);
+    // Reject encoded traversal in the original URI (defense in depth against double-encoding)
+    try {
+      String uri = String.valueOf(request.getRequestURI()).toLowerCase();
+      if (uri.contains("%2f") || uri.contains("%5c") || uri.contains("%2e%2e") || uri.contains("%2e/")) {
+        LOG.fine("Rejecting attachment path: reason=encodedTraversal uri=" + mask(uri));
+        return null;
+      }
+    } catch (Throwable ignore) {}
     if (raw.length() == 0) { LOG.fine("Rejecting attachment path: reason=emptyId"); return null; }
     if (raw.length() > 512) { LOG.fine("Rejecting attachment path: reason=tooLong len=" + raw.length()); return null; }
-    if (raw.indexOf('\\') >= 0 || raw.indexOf('\0') >= 0 || raw.indexOf('\n') >= 0 || raw.indexOf('\r') >= 0) { LOG.fine("Rejecting attachment path: reason=illegalChars path=" + mask(raw)); return null; }
+    if (raw.indexOf('\\') >= 0 || raw.indexOf('\0') >= 0 || raw.indexOf('\n') >= 0 || raw.indexOf('\r') >= 0
+        || raw.indexOf(':') >= 0 || raw.indexOf('?') >= 0 || raw.indexOf('#') >= 0 || raw.indexOf('%') >= 0) { LOG.fine("Rejecting attachment path: reason=illegalChars path=" + mask(raw)); return null; }
+    if (!raw.equals(raw.trim())) { LOG.fine("Rejecting attachment path: reason=surroundingWhitespace path=" + mask(raw)); return null; }
     int firstSlash = raw.indexOf('/');
     if (firstSlash >= 0) {
       if (raw.indexOf('/', firstSlash + 1) >= 0) { LOG.fine("Rejecting attachment path: reason=extraSegments path=" + mask(raw)); return null; }
       String domain = raw.substring(0, firstSlash);
       String rid = raw.substring(firstSlash + 1);
       if (".".equals(domain) || "..".equals(domain) || ".".equals(rid) || "..".equals(rid)) { LOG.fine("Rejecting attachment path: reason=dotSegment path=" + mask(raw)); return null; }
+      if (!isLikelyDomain(domain)) { LOG.fine("Rejecting attachment path: reason=invalidDomain domain=" + mask(domain)); return null; }
+      if (rid.isEmpty()) { LOG.fine("Rejecting attachment path: reason=emptyResourceId path=" + mask(raw)); return null; }
     } else {
       if (".".equals(raw) || "..".equals(raw)) { LOG.fine("Rejecting attachment path: reason=dotOnly path=" + mask(raw)); return null; }
     }
     return raw;
+  }
+
+  private static boolean isLikelyDomain(String domain) {
+    if (domain == null || domain.isEmpty() || domain.length() > 253) return false;
+    if (domain.startsWith(".") || domain.endsWith(".") || domain.contains("..")) return false;
+    String[] labels = domain.split("\\.");
+    for (String label : labels) {
+      if (label.isEmpty() || label.length() > 63) return false;
+      for (int i = 0; i < label.length(); i++) {
+        char c = label.charAt(i);
+        boolean ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-';
+        if (!ok) return false;
+      }
+      if (label.charAt(0) == '-' || label.charAt(label.length()-1) == '-') return false;
+    }
+    return true;
   }
 
   private static String mask(String s) {
@@ -294,24 +322,43 @@ public class AttachmentServlet extends HttpServlet {
   }
 
   private AttachmentData getThumbnailByContentType(String contentType) throws IOException {
-    if (thumbnailPatternsDir != null) {
-      File file = new File(thumbnailPatternsDir, contentType.replaceAll("/", "_"));
-      if (!file.exists() || !file.isFile() || !file.canRead()) {
-        file = new File(thumbnailPatternsDir, THUMBNAIL_PATTERN_DEFAULT);
-      }
-      if (file.exists() && file.isFile() && file.canRead()) {
-        final File thumbFile = file;
-        return new AttachmentData() {
-          @Override public InputStream getInputStream() throws IOException { return new FileInputStream(thumbFile); }
-          @Override public long getSize() { return thumbFile.length(); }
-        };
+    try {
+      String safe = safeFileNameForContentType(contentType);
+      if (thumbnailPatternsDir != null) {
+        File file = new File(thumbnailPatternsDir, safe);
+        if (!file.exists() || !file.isFile() || !file.canRead()) {
+          file = new File(thumbnailPatternsDir, THUMBNAIL_PATTERN_DEFAULT);
+        }
+        if (file.exists() && file.isFile() && file.canRead()) {
+          final File thumbFile = file;
+          return new AttachmentData() {
+            @Override public InputStream getInputStream() throws IOException { return new FileInputStream(thumbFile); }
+            @Override public long getSize() { return thumbFile.length(); }
+          };
+        } else {
+          LOG.fine("Thumbnail pattern file not found; generating fallback image");
+        }
       } else {
-        LOG.fine("Thumbnail pattern file not found; generating fallback image");
+        LOG.fine("Thumbnail patterns directory not configured/usable; generating fallback image");
       }
-    } else {
-      LOG.fine("Thumbnail patterns directory not configured/usable; generating fallback image");
+    } catch (Throwable t) {
+      LOG.fine("Thumbnail selection encountered an error; generating fallback image", t);
     }
     return generatedPatternPng();
+  }
+
+  private static String safeFileNameForContentType(String contentType) {
+    if (contentType == null) return THUMBNAIL_PATTERN_DEFAULT;
+    String s = contentType.trim().toLowerCase();
+    if (s.isEmpty()) return THUMBNAIL_PATTERN_DEFAULT;
+    StringBuilder sb = new StringBuilder(Math.min(s.length(), 100));
+    for (int i = 0; i < s.length() && sb.length() < 100; i++) {
+      char c = s.charAt(i);
+      boolean safe = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+' || c == '_';
+      sb.append(safe ? c : '_');
+    }
+    String out = sb.toString();
+    return out.isEmpty() ? THUMBNAIL_PATTERN_DEFAULT : out;
   }
 
   private static AttachmentData generatedPatternPng() throws IOException {

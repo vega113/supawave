@@ -11,6 +11,7 @@ import org.mockito.Mockito;
 import org.waveprotocol.box.attachment.AttachmentMetadata;
 import org.waveprotocol.box.server.attachment.AttachmentService;
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.rpc.AttachmentServlet;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.persistence.AttachmentUtil;
@@ -48,7 +49,7 @@ public class AttachmentServletJakartaIT {
       ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
       ctx.setContextPath("/");
       AttachmentServlet servlet = new AttachmentServlet(svc, wprov, sm, ConfigFactory.parseString("core.thumbnail_patterns_directory=\".\""));
-      var holder = new org.eclipse.jetty.ee10.servlet.ServletHolder(servlet);
+      var holder = new org.eclipse.jetty.ee10.servlet.ServletHolder(org.waveprotocol.box.server.rpc.AttachmentServlet.class);
       ctx.addServlet(holder, AttachmentServlet.ATTACHMENT_URL + "/*");
       // Map thumbnail as well for tests that hit /thumbnail/* on the base server
       ctx.addServlet(holder, AttachmentServlet.THUMBNAIL_URL + "/*");
@@ -68,7 +69,7 @@ public class AttachmentServletJakartaIT {
   @Test
   public void forbiddenWhenUnauthenticated() throws Exception {
     // No user
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(null);
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(null);
     // Ensure metadata exists so servlet reaches authorization
     AttachmentId aid = AttachmentId.deserialise("att+123");
     AttachmentMetadata meta = Mockito.mock(AttachmentMetadata.class);
@@ -93,10 +94,10 @@ public class AttachmentServletJakartaIT {
     AttachmentService svc2 = Mockito.mock(AttachmentService.class);
     WaveletProvider wprov2 = Mockito.mock(WaveletProvider.class);
     SessionManager sm2 = Mockito.mock(SessionManager.class);
-    Mockito.when(sm2.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(new ParticipantId("user@example.com"));
+    Mockito.when(sm2.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(new ParticipantId("user@example.com"));
     Mockito.when(wprov2.checkAccessPermission(Mockito.any(WaveletName.class), Mockito.any())).thenReturn(true);
     AttachmentServlet servlet = new AttachmentServlet(svc2, wprov2, sm2, com.typesafe.config.ConfigFactory.parseString("core.thumbnail_patterns_directory=\"/path/does/not/exist\""));
-    ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(servlet), AttachmentServlet.THUMBNAIL_URL + "/*");
+    ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(org.waveprotocol.box.server.rpc.AttachmentServlet.class), AttachmentServlet.THUMBNAIL_URL + "/*");
     srv.setHandler(ctx);
     srv.start();
     int p = c.getLocalPort();
@@ -134,8 +135,8 @@ public class AttachmentServletJakartaIT {
   @Test
   public void servesAttachmentWhenAuthorized() throws Exception {
     ParticipantId user = new ParticipantId("user@example.com");
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(user);
-    Mockito.when(sm.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.isNull(WebSession.class))).thenReturn(user);
     Mockito.when(wprov.checkAccessPermission(Mockito.any(WaveletName.class), Mockito.eq(user))).thenReturn(true);
     AttachmentId aid = AttachmentId.deserialise("att+123");
     AttachmentMetadata meta = Mockito.mock(AttachmentMetadata.class);
@@ -160,7 +161,7 @@ public class AttachmentServletJakartaIT {
 
   @Test
   public void rejectsExtraPathSegments() throws Exception {
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(new ParticipantId("user@example.com"));
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(new ParticipantId("user@example.com"));
     // Even if metadata exists for the base id, extra segments must 404
     AttachmentId aid = AttachmentId.deserialise("att+123");
     AttachmentMetadata meta = Mockito.mock(AttachmentMetadata.class);
@@ -177,7 +178,7 @@ public class AttachmentServletJakartaIT {
 
   @Test
   public void rejectsBackslashInId() throws Exception {
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(new ParticipantId("user@example.com"));
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(new ParticipantId("user@example.com"));
     URL url = new URL("http://localhost:" + port + AttachmentServlet.ATTACHMENT_URL + "/att\\123?waveRef=local:wave/local/wavelet");
     HttpURLConnection c = (HttpURLConnection) url.openConnection();
     // Jetty 12 normalizes/flags invalid path chars; accept any client error
@@ -186,7 +187,7 @@ public class AttachmentServletJakartaIT {
 
   @Test
   public void rejectsDotOrDotDot() throws Exception {
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(new ParticipantId("user@example.com"));
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(new ParticipantId("user@example.com"));
     URL u1 = new URL("http://localhost:" + port + AttachmentServlet.ATTACHMENT_URL + "/.." );
     assertEquals(404, ((HttpURLConnection) u1.openConnection()).getResponseCode());
     URL u2 = new URL("http://localhost:" + port + AttachmentServlet.ATTACHMENT_URL + "/." );
@@ -206,8 +207,8 @@ public class AttachmentServletJakartaIT {
   @Test
   public void acceptsDomainSlashIdSingleSegment() throws Exception {
     ParticipantId user = new ParticipantId("user@example.com");
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(user);
-    Mockito.when(sm.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.isNull(WebSession.class))).thenReturn(user);
     Mockito.when(wprov.checkAccessPermission(Mockito.any(WaveletName.class), Mockito.eq(user))).thenReturn(true);
     AttachmentId aid = AttachmentId.deserialise("example.com/att123");
     AttachmentMetadata meta = Mockito.mock(AttachmentMetadata.class);
@@ -229,8 +230,8 @@ public class AttachmentServletJakartaIT {
   @Test
   public void forbiddenWhenAuthorizedButNoPermission() throws Exception {
     ParticipantId user = new ParticipantId("user@example.com");
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(user);
-    Mockito.when(sm.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.isNull(WebSession.class))).thenReturn(user);
     Mockito.when(wprov.checkAccessPermission(Mockito.any(WaveletName.class), Mockito.eq(user))).thenReturn(false);
 
     AttachmentId aid = AttachmentId.deserialise("att+nope");
@@ -275,7 +276,7 @@ public class AttachmentServletJakartaIT {
   @Test
   public void missingWaveRefParamStillUsesMetadataForAuth() throws Exception {
     ParticipantId user = new ParticipantId("user@example.com");
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
     Mockito.when(sm.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class))).thenReturn(user);
     // Provider denies based on metadata; request has no waveRef param
     Mockito.when(wprov.checkAccessPermission(Mockito.any(WaveletName.class), Mockito.eq(user))).thenReturn(false);
@@ -303,7 +304,7 @@ public class AttachmentServletJakartaIT {
   @Test
   public void ignoresWaveRefOnThumbnailAuth() throws Exception {
     ParticipantId user = new ParticipantId("user@example.com");
-    Mockito.when(sm.getLoggedInUser(Mockito.any(javax.servlet.http.HttpSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
     Mockito.when(sm.getLoggedInUser(Mockito.isNull(javax.servlet.http.HttpSession.class))).thenReturn(user);
     Mockito.when(wprov.checkAccessPermission(Mockito.any(WaveletName.class), Mockito.eq(user))).thenReturn(true);
 

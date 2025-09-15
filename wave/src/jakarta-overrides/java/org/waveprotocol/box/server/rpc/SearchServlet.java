@@ -36,7 +36,8 @@ import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.robots.util.OperationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.box.server.authentication.JakartaSessionAdapters;
+import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.wave.util.logging.Log;
 
 import jakarta.servlet.http.HttpServlet;
@@ -73,7 +74,7 @@ public class SearchServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse response) throws IOException {
-    ParticipantId user = sessionManager.getLoggedInUser(JakartaSessionAdapters.fromRequest(req, false));
+    ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
     if (user == null) { response.setStatus(HttpServletResponse.SC_FORBIDDEN); return; }
     SearchRequest searchRequest;
     try {
@@ -93,7 +94,10 @@ public class SearchServlet extends HttpServlet {
     SearchResult searchResult = performSearch(searchRequest, user);
     int totalGuess = computeTotalResultsNumberGuess(searchRequest, searchResult);
     SearchResponse searchResponse = serializeSearchResult(searchResult, totalGuess);
-    serializeObjectToServlet(searchResponse, response);
+    String ctx = "user=" + user.getAddress() + ", query=\"" + searchRequest.getQuery() +
+        "\", index=" + searchRequest.getIndex() + ", numResults=" + searchRequest.getNumResults() +
+        ", remote=" + String.valueOf(req.getRemoteAddr());
+    serializeObjectToServlet(searchResponse, ctx, response);
   }
 
   private static SearchRequest parseSearchRequest(HttpServletRequest req) {
@@ -171,7 +175,7 @@ public class SearchServlet extends HttpServlet {
     return searchBuilder.build();
   }
 
-  private <P extends Message> void serializeObjectToServlet(P message, HttpServletResponse resp) throws IOException {
+  private <P extends Message> void serializeObjectToServlet(P message, String logContext, HttpServletResponse resp) throws IOException {
     if (message == null) {
       resp.sendError(HttpServletResponse.SC_FORBIDDEN);
       return;
@@ -183,9 +187,9 @@ public class SearchServlet extends HttpServlet {
       resp.setHeader("Cache-Control", "no-store");
       try (var w = resp.getWriter()) { w.append(json); w.flush(); }
     } catch (ProtoSerializer.SerializationException e) {
-      LOG.severe("Failed to serialize SearchResponse", e);
+      LOG.severe("Failed to serialize SearchResponse (" + logContext + ")", e);
       if (!resp.isCommitted()) {
-        resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to serialize response");
+        resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unable to serialize search results. Please retry later.");
       }
     }
   }

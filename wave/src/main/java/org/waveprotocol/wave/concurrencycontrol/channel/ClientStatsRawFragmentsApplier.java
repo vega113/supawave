@@ -53,9 +53,18 @@ public final class ClientStatsRawFragmentsApplier implements RawFragmentsApplier
         maybePost();
     }
 
+    /** Dev helper: force an immediate POST of current counters. */
+    public static void ping() {
+        try {
+            lastPostMs = 0;
+            maybePost();
+        } catch (Throwable ignore) {}
+    }
+
     private static void maybePost() {
         double now = Duration.currentTimeMillis();
-        if (now - lastPostMs < 3000) {
+        // Post immediately on first update, then throttle to once every 3s.
+        if (!(lastPostMs == 0 || (now - lastPostMs) >= 3000)) {
             return; // throttle
         }
         lastPostMs = now;
@@ -67,14 +76,21 @@ public final class ClientStatsRawFragmentsApplier implements RawFragmentsApplier
             rb.sendRequest(payload, new RequestCallback() {
                 @Override
                 public void onResponseReceived(Request request, Response response) {
+                    try {
+                        com.google.gwt.core.client.GWT.log("client-applier-stats: POST ok " + response.getStatusCode());
+                        // Dev toast once on the first success
+                        org.waveprotocol.wave.client.debug.DevToast.showOnce("client-applier-stats", "Dev stats POST sent");
+                    } catch (Throwable ignore) {}
                 }
 
                 @Override
                 public void onError(Request request, Throwable exception) {
+                    try { com.google.gwt.core.client.GWT.log("client-applier-stats: POST failed " + exception); } catch (Throwable ignore) {}
                 }
             });
         }
         catch (Exception ignore) {
+            try { com.google.gwt.core.client.GWT.log("client-applier-stats: POST threw exception"); } catch (Throwable ignored) {}
         }
     }
 

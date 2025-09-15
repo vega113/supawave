@@ -21,13 +21,16 @@ package org.waveprotocol.wave.concurrencycontrol.channel;
 
 import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.concurrencycontrol.channel.WaveViewService.WaveViewServiceUpdate;
+import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier;
+import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics;
+import org.waveprotocol.wave.client.debug.FragmentsDebugIndicator;
 import org.waveprotocol.wave.concurrencycontrol.common.ChannelException;
 import org.waveprotocol.wave.concurrencycontrol.common.Recoverable;
 import org.waveprotocol.wave.concurrencycontrol.common.ResponseCode;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.wave.WaveletDelta;
 import org.waveprotocol.wave.model.util.Preconditions;
@@ -36,6 +39,7 @@ import org.waveprotocol.wave.model.version.HashedVersion;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.waveprotocol.wave.model.id.SegmentId;
 
 /**
  * Implementation of a view channel. This is a one off object. Once you've connected to the server
@@ -77,8 +81,8 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
   }
 
   /** Optional: client-side fragments applier. */
-  private static volatile org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier fragmentsApplier = null;
-  public static void setFragmentsApplier(org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier applier) {
+  private static volatile RawFragmentsApplier fragmentsApplier = null;
+  public static void setFragmentsApplier(RawFragmentsApplier applier) {
     fragmentsApplier = applier;
   }
   /**
@@ -211,7 +215,7 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
   }
 
   @Override
-  public void fetchFragments(WaveletId waveletId, java.util.List<org.waveprotocol.wave.model.id.SegmentId> segments,
+  public void fetchFragments(WaveletId waveletId, List<SegmentId> segments,
                              long startVersion, long endVersion) {
     FragmentsFetchBridge bridge = fragmentsBridge;
     if (bridge == null) {
@@ -219,8 +223,7 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
     }
     try {
       WaveletName wn = WaveletName.of(this.waveId, waveletId);
-      org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload payload =
-          bridge.fetch(wn, segments, startVersion, endVersion);
+      FragmentsPayload payload = bridge.fetch(wn, segments, startVersion, endVersion);
       if (logger.trace().shouldLog()) {
         logger.trace().log("fetchFragments: wn=" + wn + " payload ranges=" + payload.ranges.size());
       }
@@ -228,7 +231,15 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
         openListener.onFragments(waveletId, payload);
       }
     } catch (Throwable t) {
-      // Do not propagate; this is experimental and optional
+      // Best-effort only: log at trace and continue.
+      if (logger.trace().shouldLog()) {
+        try {
+          WaveletName wn = WaveletName.of(this.waveId, waveletId);
+          logger.trace().log("fetchFragments failed: wn=" + wn + " start=" + startVersion + " end=" + endVersion + " error=" + t);
+        } catch (Throwable ignore) {
+          // ignore logging errors
+        }
+      }
     }
   }
 
@@ -379,29 +390,28 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
                   lastCommittedVersion, currentVersion);
             }
             if (update.hasFragments()) {
-              org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload payload = update.getFragments();
+              FragmentsPayload payload = update.getFragments();
               if (payload != null) {
                 openListener.onFragments(waveletId, payload);
               }
               // Optional: also forward to a global applier when enabled via property
               // Best-effort applier hook (flag-gated). Errors are logged and update continues.
-              org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier applier = fragmentsApplier;
+              RawFragmentsApplier applier = fragmentsApplier;
               if (applier != null && enableFragmentsApplierFlag && payload != null) {
                 try {
                   long t0 = System.nanoTime();
                   if (applierMaxRangesPerApply > 0 && payload.ranges.size() > applierMaxRangesPerApply) {
-                    java.util.List<org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Range> subset =
-                        payload.ranges.subList(0, applierMaxRangesPerApply);
-                    payload = org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.of(
+                    java.util.List<FragmentsPayload.Range> subset = payload.ranges.subList(0, applierMaxRangesPerApply);
+                    payload = FragmentsPayload.of(
                         payload.snapshotVersion, payload.startVersion, payload.endVersion,
                         new java.util.ArrayList<>(subset));
                   }
                   applier.applyPayload(waveletId, payload);
                   long dtMs = (System.nanoTime() - t0) / 1_000_000L;
                   int warnMs = applierWarnMs;
-                  if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
-                    org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.applierEvents.incrementAndGet();
-                    org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.applierDurationsMs.addAndGet(dtMs);
+                  if (FragmentsMetrics.isEnabled()) {
+                    FragmentsMetrics.applierEvents.incrementAndGet();
+                    FragmentsMetrics.applierDurationsMs.addAndGet(dtMs);
                   }
                   if (dtMs > warnMs && logger.trace().shouldLog()) {
                     logger.trace().log("Fragments applier took " + dtMs + "ms for wavelet " + waveletId);
@@ -410,6 +420,12 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
                   logger.error().log("Fragments applier failed for wavelet " + waveletId + ": " + t);
                 }
               }
+              // Dev-only debug badge: increase on-screen counter when a fragments batch arrives
+              try {
+                if (payload != null && payload.ranges != null) {
+                  FragmentsDebugIndicator.onRanges(payload.ranges.size());
+                }
+              } catch (Throwable ignore) { }
             }
             if (update.hasMarker()) {
               openListener.onOpenFinished();

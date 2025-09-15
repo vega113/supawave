@@ -234,38 +234,70 @@ public class WaveClientServlet extends HttpServlet {
       }
 
       // Merge defaults from reference.conf/application.conf under client.flags.defaults
-      // Format: comma-separated name=value pairs
+      // Support two forms for simplicity and clarity:
+      // 1) Object form (preferred): client.flags.defaults.<flagName>=<typedValue>
+      // 2) Legacy CSV string: client.flags.defaults = "flagA=true,flagB=123"
+      // Precedence: request params > -Dwave.clientFlags > object defaults > CSV defaults
       try {
-        String defaults = (config != null && config.hasPath("client.flags.defaults"))
-            ? config.getString("client.flags.defaults") : null;
-        if (defaults != null && !defaults.trim().isEmpty()) {
-          String[] pairs = defaults.split(",");
-          for (String pair : pairs) {
-            String p = pair.trim();
-            if (p.isEmpty()) continue;
-            int eq = p.indexOf('=');
-            String name = (eq > 0) ? p.substring(0, eq).trim() : p;
-            String value = (eq > 0) ? p.substring(eq + 1).trim() : "true";
-            if (!FLAG_MAP.containsKey(name)) continue;
+        if (config != null) {
+          // Object-form defaults
+          for (String name : FLAG_MAP.keySet()) {
+            String path = "client.flags.defaults." + name;
+            if (!config.hasPath(path)) continue;
             try {
               Method getter = ClientFlagsBase.class.getMethod(name);
               Class<?> retType = getter.getReturnType();
+              if (ret.has(FLAG_MAP.get(name))) {
+                continue; // don't override higher-precedence sources
+              }
               if (retType.equals(String.class)) {
-                ret.put(FLAG_MAP.get(name), value);
+                ret.put(FLAG_MAP.get(name), config.getString(path));
               } else if (retType.equals(Integer.class)) {
-                ret.put(FLAG_MAP.get(name), Integer.parseInt(value));
+                ret.put(FLAG_MAP.get(name), config.getInt(path));
               } else if (retType.equals(Boolean.class)) {
-                ret.put(FLAG_MAP.get(name), Boolean.parseBoolean(value));
+                ret.put(FLAG_MAP.get(name), config.getBoolean(path));
               } else if (retType.equals(Float.class)) {
-                ret.put(FLAG_MAP.get(name), Float.parseFloat(value));
+                ret.put(FLAG_MAP.get(name), (float) config.getDouble(path));
               } else if (retType.equals(Double.class)) {
-                ret.put(FLAG_MAP.get(name), Double.parseDouble(value));
+                ret.put(FLAG_MAP.get(name), config.getDouble(path));
               }
             } catch (Exception ignored) {}
           }
+          // Legacy CSV-form defaults
+          if (config.hasPath("client.flags.defaults") && config.getValue("client.flags.defaults").valueType().name().equals("STRING")) {
+            String defaults = config.getString("client.flags.defaults");
+            if (defaults != null && !defaults.trim().isEmpty()) {
+              String[] pairs = defaults.split(",");
+              for (String pair : pairs) {
+                String p = pair.trim();
+                if (p.isEmpty()) continue;
+                int eq = p.indexOf('=');
+                String name = (eq > 0) ? p.substring(0, eq).trim() : p;
+                String value = (eq > 0) ? p.substring(eq + 1).trim() : "true";
+                if (!FLAG_MAP.containsKey(name)) continue;
+                try {
+                  Method getter = ClientFlagsBase.class.getMethod(name);
+                  Class<?> retType = getter.getReturnType();
+                  if (ret.has(FLAG_MAP.get(name))) {
+                    continue; // don't override object/defaults or sysprop/params
+                  }
+                  if (retType.equals(String.class)) {
+                    ret.put(FLAG_MAP.get(name), value);
+                  } else if (retType.equals(Integer.class)) {
+                    ret.put(FLAG_MAP.get(name), Integer.parseInt(value));
+                  } else if (retType.equals(Boolean.class)) {
+                    ret.put(FLAG_MAP.get(name), Boolean.parseBoolean(value));
+                  } else if (retType.equals(Float.class)) {
+                    ret.put(FLAG_MAP.get(name), Float.parseFloat(value));
+                  } else if (retType.equals(Double.class)) {
+                    ret.put(FLAG_MAP.get(name), Double.parseDouble(value));
+                  }
+                } catch (Exception ignored) {}
+              }
+            }
+          }
         }
-      } catch (Exception ignored) {
-      }
+      } catch (Exception ignored) {}
 
       return ret;
     } catch (JSONException ex) {

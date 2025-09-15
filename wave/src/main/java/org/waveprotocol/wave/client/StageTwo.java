@@ -24,13 +24,16 @@ import com.google.common.base.Preconditions;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
+import org.waveprotocol.wave.client.debug.FragmentsDebugIndicator;
 
 import org.waveprotocol.wave.client.account.ProfileManager;
+import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.impl.ProfileManagerImpl;
 import org.waveprotocol.wave.client.common.util.AsyncHolder;
 import org.waveprotocol.wave.client.common.util.ClientPercentEncoderDecoder;
 import org.waveprotocol.wave.client.common.util.CountdownLatch;
 import org.waveprotocol.wave.client.common.util.DateUtils;
+import java.util.Date;
 import org.waveprotocol.wave.client.concurrencycontrol.LiveChannelBinder;
 import org.waveprotocol.wave.client.concurrencycontrol.MuxConnector;
 import org.waveprotocol.wave.client.concurrencycontrol.WaveletOperationalizer;
@@ -67,6 +70,7 @@ import org.waveprotocol.wave.client.wave.WaveDocuments;
 import org.waveprotocol.wave.client.wavepanel.impl.diff.DiffController;
 import org.waveprotocol.wave.client.wavepanel.impl.reader.Reader;
 import org.waveprotocol.wave.client.wavepanel.render.BlipPager;
+import org.waveprotocol.wave.client.wavepanel.render.BlipResourceCleaner;
 import org.waveprotocol.wave.client.wavepanel.render.DocumentRegistries;
 import org.waveprotocol.wave.client.wavepanel.render.FullDomRenderer;
 import org.waveprotocol.wave.client.wavepanel.render.FullDomRenderer.DocRefRenderer;
@@ -83,11 +87,22 @@ import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
 import org.waveprotocol.wave.client.wavepanel.view.dom.DomAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProviderImpl;
+import org.waveprotocol.wave.client.wavepanel.view.BlipView;
+import org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl;
+import org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.DomRenderer;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.ViewFactories;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.ViewFactory;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.WavePanelResourceLoader;
+import org.waveprotocol.wave.client.render.undercurrent.ScreenController;
+import org.waveprotocol.wave.client.render.undercurrent.ScreenControllerImpl;
+import org.waveprotocol.wave.client.wavepanel.render.RenderCssLoader;
+import org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl;
+import org.waveprotocol.wave.client.wavepanel.render.FragmentRequester;
+import org.waveprotocol.wave.client.wavepanel.render.ViewChannelFragmentRequester;
+import org.waveprotocol.wave.client.wavepanel.render.ClientFragmentRequester;
+import org.waveprotocol.wave.client.wavepanel.render.ViewportProbe;
 import org.waveprotocol.wave.model.conversation.quasi.QuasiConversationViewAdapter;
 import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.concurrencycontrol.channel.OperationChannelMultiplexer;
@@ -95,6 +110,7 @@ import org.waveprotocol.wave.concurrencycontrol.channel.OperationChannelMultiple
 import org.waveprotocol.wave.concurrencycontrol.channel.OperationChannelMultiplexerImpl.LoggerContext;
 import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelFactory;
 import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl;
+import org.waveprotocol.wave.concurrencycontrol.channel.ClientStatsRawFragmentsApplier;
 import org.waveprotocol.wave.concurrencycontrol.channel.WaveViewService;
 import org.waveprotocol.wave.concurrencycontrol.common.UnsavedDataListener;
 import org.waveprotocol.wave.concurrencycontrol.common.UnsavedDataListenerFactory;
@@ -102,6 +118,8 @@ import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.WaveBasedConversationView;
+import org.waveprotocol.wave.model.conversation.ObservableConversationBlip;
+import org.waveprotocol.wave.model.conversation.ObservableConversationThread;
 import org.waveprotocol.wave.model.document.indexed.IndexedDocumentImpl;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.id.IdConstants;
@@ -112,6 +130,7 @@ import org.waveprotocol.wave.model.id.IdGeneratorImpl.Seed;
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
 import org.waveprotocol.wave.model.schema.SchemaProvider;
 import org.waveprotocol.wave.model.supplement.LiveSupplementedWaveImpl;
 import org.waveprotocol.wave.model.supplement.ObservablePrimitiveSupplement;
@@ -627,14 +646,13 @@ public interface StageTwo {
         if (qa != null) {
           qa.addListener(new QuasiConversationViewAdapter.Listener() {
             @Override
-            public void onBeforeBlipQuasiRemoved(org.waveprotocol.wave.model.conversation.ObservableConversationBlip blip,
-                org.waveprotocol.wave.model.operation.wave.WaveletOperationContext ctx) {
-              org.waveprotocol.wave.client.wavepanel.view.BlipView v = getModelAsViewProvider().getBlipView(blip);
-              if (v instanceof org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl) {
-                Object intrinsic = ((org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl<?>) v).getIntrinsic();
-                if (intrinsic instanceof org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl) {
-                  org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl dom =
-                      (org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl) intrinsic;
+            public void onBeforeBlipQuasiRemoved(ObservableConversationBlip blip,
+                WaveletOperationContext ctx) {
+              BlipView v = getModelAsViewProvider().getBlipView(blip);
+              if (v instanceof BlipViewImpl) {
+                Object intrinsic = ((BlipViewImpl<?>) v).getIntrinsic();
+                if (intrinsic instanceof BlipViewDomImpl) {
+                  BlipViewDomImpl dom = (BlipViewDomImpl) intrinsic;
                   dom.setQuasiDeleted(true);
                   // Build tooltip from ctx if available, else fallback to blip meta
                   String author = "unknown";
@@ -645,12 +663,12 @@ public interface StageTwo {
                     }
                     if (ctx.getTimestamp() > 0) timestamp = ctx.getTimestamp();
                   } else {
-                    org.waveprotocol.wave.model.wave.ParticipantId pid = blip.getAuthorId();
+                    ParticipantId pid = blip.getAuthorId();
                     if (pid != null) {
                       String addr = pid.getAddress();
                       if (addr != null && !addr.isEmpty()) author = addr;
                       try {
-                        org.waveprotocol.wave.client.account.Profile p = getProfileManager().getProfile(pid);
+                        Profile p = getProfileManager().getProfile(pid);
                         if (p != null) {
                           String name = p.getFullName();
                           if (name != null && !name.trim().isEmpty()) author = name;
@@ -660,22 +678,21 @@ public interface StageTwo {
                       }
                     }
                   }
-                  String time = org.waveprotocol.wave.client.common.util.DateUtils.getInstance()
-                      .formatDateTime(new java.util.Date(timestamp));
+                  String time = DateUtils.getInstance().formatDateTime(new Date(timestamp));
                   String tooltip = "Deleted by " + author + " at " + time;
                   dom.getElement().setTitle(tooltip);
                 }
               }
             }
             @Override
-            public void onBlipQuasiRemoved(org.waveprotocol.wave.model.conversation.ObservableConversationBlip blip,
-                org.waveprotocol.wave.model.operation.wave.WaveletOperationContext ctx) { /* no-op */ }
+            public void onBlipQuasiRemoved(ObservableConversationBlip blip,
+                WaveletOperationContext ctx) { /* no-op */ }
             @Override
-            public void onBeforeThreadQuasiRemoved(org.waveprotocol.wave.model.conversation.ObservableConversationThread thread,
-                org.waveprotocol.wave.model.operation.wave.WaveletOperationContext ctx) { /* no-op */ }
+            public void onBeforeThreadQuasiRemoved(ObservableConversationThread thread,
+                WaveletOperationContext ctx) { /* no-op */ }
             @Override
-            public void onThreadQuasiRemoved(org.waveprotocol.wave.model.conversation.ObservableConversationThread thread,
-                org.waveprotocol.wave.model.operation.wave.WaveletOperationContext ctx) { /* no-op */ }
+            public void onThreadQuasiRemoved(ObservableConversationThread thread,
+                WaveletOperationContext ctx) { /* no-op */ }
           });
         }
       }
@@ -693,8 +710,7 @@ public interface StageTwo {
 
       // When dynamic rendering is enabled, attach a resource cleaner to page-out
       if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
-        pager.setResourceCleaner(new org.waveprotocol.wave.client.wavepanel.render.BlipResourceCleaner(
-            stageOne.getWavePanel().getGwtPanel()));
+        pager.setResourceCleaner(new BlipResourceCleaner(stageOne.getWavePanel().getGwtPanel()));
       }
 
       return BlipQueueRenderer.create(pagingHandlerProxy);
@@ -802,12 +818,21 @@ public interface StageTwo {
       // Client-side fragments applier wiring (dev/observability): if the flag is enabled,
       // install a lightweight, GWT-safe applier that records and occasionally posts stats.
       try {
-        Boolean ena = org.waveprotocol.wave.client.util.ClientFlags.get().enableFragmentsApplier();
+        Boolean ena = ClientFlags.get().enableFragmentsApplier();
         boolean enableApplier = ena != null && ena.booleanValue();
+        try {
+          GWT.log("enableFragmentsApplier=" + enableApplier + ", fragmentFetchMode=" + ClientFlags.get().fragmentFetchMode());
+        } catch (Throwable ignore) { }
         if (enableApplier) {
-          org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setFragmentsApplier(
-              new org.waveprotocol.wave.concurrencycontrol.channel.ClientStatsRawFragmentsApplier());
-          org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setFragmentsApplierEnabled(true);
+          ViewChannelImpl.setFragmentsApplier(new ClientStatsRawFragmentsApplier());
+          ViewChannelImpl.setFragmentsApplierEnabled(true);
+          // Dev: send a test POST so Network panel shows the endpoint/noise immediately
+          try { ClientStatsRawFragmentsApplier.ping(); } catch (Throwable ignore) {}
+          try { GWT.log("Client fragments applier wired (dev)"); } catch (Throwable ignore) { }
+          try { FragmentsDebugIndicator.setApplierEnabled(true); } catch (Throwable ignore) {}
+        }
+        else {
+          try { FragmentsDebugIndicator.setApplierEnabled(false); } catch (Throwable ignore) {}
         }
       } catch (Throwable ignore) { }
 
@@ -818,44 +843,42 @@ public interface StageTwo {
 
       // Load supplemental render CSS when dynamic rendering is enabled.
       if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
-        org.waveprotocol.wave.client.wavepanel.render.RenderCssLoader.ensureInjected();
+        RenderCssLoader.ensureInjected();
       }
 
       // Dynamic rendering: only page in visible blips initially.
       if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
         try {
-          org.waveprotocol.wave.client.render.undercurrent.ScreenController screen =
-              org.waveprotocol.wave.client.render.undercurrent.ScreenControllerImpl.createDefault();
+          ScreenController screen = ScreenControllerImpl.createDefault();
           if (screen != null && getConversations() != null && getModelAsViewProvider() != null
               && getBlipQueue() != null && getPagingHandler() != null) {
-            org.waveprotocol.wave.client.wavepanel.render.FragmentRequester requester;
+            FragmentRequester requester;
             String ffm = null;
             try { ffm = ClientFlags.get().fragmentFetchMode(); } catch (Throwable ignored) {}
             if (ffm != null) {
               switch (ffm) {
                 case "stream":
-                  requester = new org.waveprotocol.wave.client.wavepanel.render.ViewChannelFragmentRequester();
+                  requester = new ViewChannelFragmentRequester();
                   break;
                 case "http":
-                  requester = new org.waveprotocol.wave.client.wavepanel.render.ClientFragmentRequester();
+                  requester = new ClientFragmentRequester();
                   break;
                 case "off":
                 default:
-                  requester = org.waveprotocol.wave.client.wavepanel.render.FragmentRequester.NO_OP;
+                  requester = FragmentRequester.NO_OP;
               }
             } else {
               // No mode set → treat as off for clarity.
-              requester = org.waveprotocol.wave.client.wavepanel.render.FragmentRequester.NO_OP;
+              requester = FragmentRequester.NO_OP;
             }
-            org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl dyn =
-                org.waveprotocol.wave.client.wavepanel.render.DynamicRendererImpl.create(
+            DynamicRendererImpl dyn = DynamicRendererImpl.create(
                     getConversations(), getModelAsViewProvider(), getBlipQueue(), getPagingHandler(),
                     requester,
                     screen);
             dyn.init();
             // Developer probe: single-shot DOM stats when enabled.
             if (Boolean.TRUE.equals(ClientFlags.get().enableViewportStats())) {
-              org.waveprotocol.wave.client.wavepanel.render.ViewportProbe.runOnce("init");
+              ViewportProbe.runOnce("init");
             }
           }
         } catch (Exception ex) {

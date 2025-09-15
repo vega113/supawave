@@ -22,8 +22,10 @@ package org.waveprotocol.wave.client.wavepanel.render;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Document;
+import com.google.gwt.user.client.Timer;
 
 import org.waveprotocol.wave.client.render.undercurrent.ScreenController;
+import org.waveprotocol.wave.client.debug.FragmentsDebugIndicator;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
@@ -57,6 +59,8 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
   private int throttleMs = 50;
   private boolean logStats = false;
   private int bootstrapMax = 12;
+  private int totalBlips = 0;
+  private int startMs = 0;
 
   private boolean updateQueued = false;
   private double lastUpdateMs = 0;
@@ -113,6 +117,16 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
       // ignore in non-client contexts
     }
     screen.addListener(this);
+
+    // Initialize dev stats once: total blips and start timestamp for elapsed time.
+    try {
+      final int[] cnt = new int[] {0};
+      BlipMappers.depthFirst(new Predicate<ConversationBlip>() {
+        @Override public boolean apply(ConversationBlip blip) { cnt[0]++; return true; }
+      }, view);
+      totalBlips = cnt[0];
+    } catch (Throwable ignore) { totalBlips = 0; }
+    try { startMs = (int) com.google.gwt.core.client.Duration.currentTimeMillis(); } catch (Throwable ignore) { startMs = 0; }
     // Defer initial update to allow DOM to settle.
     Scheduler.get().scheduleDeferred(
         new com.google.gwt.core.client.Scheduler.ScheduledCommand() {
@@ -138,7 +152,7 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
       updateWindow();
     } else if (!updateQueued) {
       updateQueued = true;
-      com.google.gwt.user.client.Timer t = new com.google.gwt.user.client.Timer() {
+      Timer t = new Timer() {
         @Override public void run() {
           updateQueued = false;
           lastUpdateMs = Duration.currentTimeMillis();
@@ -178,7 +192,7 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
       enqueueBootstrapWindow();
     }
 
-    BlipMappers.depthFirst(new org.waveprotocol.wave.model.util.Predicate<ConversationBlip>() {
+    BlipMappers.depthFirst(new Predicate<ConversationBlip>() {
       @Override
       public boolean apply(ConversationBlip blip) {
         BlipView bv = modelAsView.getBlipView(blip);
@@ -229,6 +243,12 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
     } catch (Exception ex) {
       GWT.log("DynamicRenderer: fragment fetch threw", ex);
     }
+
+    // Dev badge: report blip load stats (paged-in vs total) and elapsed time since init
+    try {
+      FragmentsDebugIndicator.setBlipStats(
+          pagedIn.size(), totalBlips, startMs > 0 ? (int)(now - startMs) : 0);
+    } catch (Throwable ignore) {}
 
     if (logStats && (counts[0] > 0 || counts[1] > 0)) {
       GWT.log("DynamicRenderer: in=" + counts[0] + " out=" + counts[1] +
@@ -308,7 +328,8 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
       final int delay = retryBackoffMs;
       // Exponential backoff with a cap
       retryBackoffMs = Math.min(MAX_RETRY_BACKOFF_MS, Math.max(retryBackoffMs, 250) * 2);
-      com.google.gwt.user.client.Timer t = new com.google.gwt.user.client.Timer() {
+      try { if (logStats) com.google.gwt.core.client.GWT.log("DynamicRenderer: scheduling fragment fetch retry in " + delay + "ms (failures=" + consecutiveFetchFailures + ")"); } catch (Throwable ignore) {}
+      Timer t = new Timer() {
         @Override public void run() {
           fetchRetryScheduled = false;
           doFragmentFetch(lastFetchTop, lastFetchBottom);

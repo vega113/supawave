@@ -65,7 +65,7 @@ public class StatuszServlet extends HttpServlet {
         writeStats(writer);
         break;
       case SHOW_FRAGMENTS:
-        writeFragments(writer);
+        writeFragments(req, writer);
         break;
     }
   }
@@ -92,21 +92,58 @@ public class StatuszServlet extends HttpServlet {
     writer.write(Timing.renderStats());
   }
 
-  protected void writeFragments(PrintWriter writer) {
+  protected void writeFragments(HttpServletRequest req, PrintWriter writer) {
     writer.write(Timing.renderTitle("Fragments Metrics", 2));
     // Effective transport line
     try {
+      // Merge module-local config/application.conf unconditionally so we display the same
+      // effective values the server actually uses.
       com.typesafe.config.Config cfg = com.typesafe.config.ConfigFactory.load();
+      try {
+        java.io.File f = new java.io.File("config/application.conf");
+        if (f.exists()) {
+          com.typesafe.config.Config fcfg = com.typesafe.config.ConfigFactory.parseFile(f).resolve();
+          cfg = fcfg.withFallback(cfg);
+        }
+      } catch (Throwable ignore) {}
       String transport = null;
-      if (cfg.hasPath("server.fragments.transport")) {
-        transport = cfg.getString("server.fragments.transport").trim().toLowerCase();
-      } else {
-        boolean http = cfg.hasPath("server.enableFragmentsHttp") && cfg.getBoolean("server.enableFragmentsHttp");
-        boolean stream = cfg.hasPath("server.enableFetchFragmentsRpc") && cfg.getBoolean("server.enableFetchFragmentsRpc");
-        transport = stream && http ? "both" : (stream ? "stream" : (http ? "http" : "off"));
+      try {
+        if (cfg.hasPath("server.fragments.transport")) {
+          transport = cfg.getString("server.fragments.transport");
+        }
+      } catch (Throwable ignore) {}
+      if (transport == null || transport.trim().isEmpty()) {
+        String sp = System.getProperty("server.fragments.transport");
+        if (sp != null && !sp.trim().isEmpty()) {
+          transport = sp;
+        }
       }
-      boolean prefer = cfg.hasPath("server.preferSegmentState") && cfg.getBoolean("server.preferSegmentState");
-      boolean enableStorage = cfg.hasPath("server.enableStorageSegmentState") && cfg.getBoolean("server.enableStorageSegmentState");
+      if (transport == null || transport.trim().isEmpty()) {
+        try {
+          java.io.File f = new java.io.File("config/application.conf");
+          if (f.exists()) {
+            com.typesafe.config.Config fcfg = com.typesafe.config.ConfigFactory.parseFile(f).resolve();
+            if (fcfg.hasPath("server.fragments.transport")) {
+              transport = fcfg.getString("server.fragments.transport");
+            }
+            cfg = fcfg.withFallback(cfg);
+          }
+        } catch (Throwable ignore) {}
+      }
+      transport = (transport == null) ? "off" : transport.trim().toLowerCase();
+      // preferSegmentState / enableStorageSegmentState: try config, then system props, then files
+      boolean prefer = false;
+      boolean enableStorage = false;
+      try { if (cfg.hasPath("server.preferSegmentState")) prefer = cfg.getBoolean("server.preferSegmentState"); } catch (Throwable ignore) {}
+      try { if (cfg.hasPath("server.enableStorageSegmentState")) enableStorage = cfg.getBoolean("server.enableStorageSegmentState"); } catch (Throwable ignore) {}
+      if (!prefer) {
+        String sp = System.getProperty("server.preferSegmentState");
+        if (sp != null) prefer = Boolean.parseBoolean(sp);
+      }
+      if (!enableStorage) {
+        String sp = System.getProperty("server.enableStorageSegmentState");
+        if (sp != null) enableStorage = Boolean.parseBoolean(sp);
+      }
       writer.write("<pre>transport=" + transport + "; preferSegmentState=" + prefer + "; enableStorageSegmentState=" + enableStorage + "</pre>");
     } catch (Throwable t) {
       writer.write("<pre>transport=unknown (" + t.getClass().getSimpleName() + ")</pre>");
@@ -197,6 +234,31 @@ public class StatuszServlet extends HttpServlet {
       }
     } catch (Throwable t) {
       writer.write("<pre>Applier metrics unavailable: " + t + "</pre>");
+    }
+
+    // Also show client-side applier stats for the current session (dev aid).
+    try {
+      javax.servlet.http.HttpSession s = req.getSession(false);
+      int ca = 0, cr = 0;
+      if (s != null) {
+        Object obj = s.getAttribute("clientApplierStats");
+        if (obj != null) {
+          try {
+            java.lang.reflect.Field fa = obj.getClass().getDeclaredField("applied");
+            java.lang.reflect.Field fr = obj.getClass().getDeclaredField("rejected");
+            fa.setAccessible(true); fr.setAccessible(true);
+            Object va = fa.get(obj); Object vr = fr.get(obj);
+            if (va instanceof Number) ca = ((Number) va).intValue();
+            if (vr instanceof Number) cr = ((Number) vr).intValue();
+          } catch (Throwable ignore) {
+            // ignore
+          }
+        }
+      }
+      writer.write(Timing.renderTitle("Client Applier (Session)", 2));
+      writer.write("<pre>applied=" + ca + ", rejected=" + cr + "</pre>");
+    } catch (Throwable ignore) {
+      // best-effort only
     }
   }
 

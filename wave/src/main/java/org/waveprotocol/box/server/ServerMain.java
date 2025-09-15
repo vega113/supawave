@@ -66,6 +66,10 @@ import org.waveprotocol.box.server.stat.TimingFilter;
 import org.waveprotocol.box.server.waveserver.*;
 import org.waveprotocol.box.stat.StatService;
 import org.waveprotocol.wave.crypto.CertPathStore;
+import org.waveprotocol.box.server.dev.ClientApplierStatsServlet;
+import org.waveprotocol.box.server.security.SecurityHeadersFilter;
+import org.waveprotocol.box.server.security.StaticCacheFilter;
+import org.waveprotocol.box.server.security.NoCacheFilter;
 import org.waveprotocol.wave.federation.FederationTransport;
 import org.waveprotocol.wave.federation.noop.NoOpFederationModule;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
@@ -124,6 +128,10 @@ public class ServerMain {
 
         @Override
         protected void configure() {
+          // Load configuration with precedence (single canonical location under module's config/):
+          // 1) System properties / -D overrides
+          // 2) config/application.conf (project-local overrides)
+          // 3) config/reference.conf (project-local defaults)
           Config config = ConfigFactory.defaultOverrides()
               .withFallback(ConfigFactory.parseFile(new File("config/application.conf")))
               .withFallback(ConfigFactory.parseFile(new File("config/reference.conf")))
@@ -250,6 +258,22 @@ public class ServerMain {
       try {
         if (config.hasPath("client.flags.defaults.enableFragmentsApplier")) {
           applierEnabled = config.getBoolean("client.flags.defaults.enableFragmentsApplier");
+        } else if (config.hasPath("client.flags.defaults")) {
+          // Fallback: CSV-style defaults string (e.g., "a=true,b=false").
+          String s = config.getString("client.flags.defaults");
+          if (s != null) {
+            for (String p : s.split(",")) {
+              String t = p.trim();
+              if (t.isEmpty()) continue;
+              int eq = t.indexOf('=');
+              String name = (eq > 0) ? t.substring(0, eq).trim() : t;
+              String val = (eq > 0) ? t.substring(eq + 1).trim() : "true";
+              if ("enableFragmentsApplier".equals(name)) {
+                applierEnabled = Boolean.parseBoolean(val);
+                break;
+              }
+            }
+          }
         }
       } catch (ConfigException e) {
         LOG.info("Failed reading client.flags.defaults.enableFragmentsApplier; defaulting to false", e);
@@ -280,9 +304,22 @@ public class ServerMain {
         } catch (ConfigException e) {
           LOG.info("Failed reading wave.fragments.applier.warnMs; using default " + warnMs, e);
         }
-        try { org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl.setApplierWarnMs(warnMs); }
+        try { ViewChannelImpl.setApplierWarnMs(warnMs); }
         catch (Throwable ignore) { }
         LOG.info("Fragments applier: enabled=" + applierEnabled + ", impl=" + applierCls + ", warnMs=" + warnMs);
+        // If enabled on the server, mirror the flag to the client's wave.clientFlags so the
+        // GWT client also wires its client-side applier (ClientStatsRawFragmentsApplier) and we
+        // can observe activity via /dev/client-applier-stats.
+        if (applierEnabled) {
+          try {
+            String cf = System.getProperty("wave.clientFlags");
+            if (cf == null || !cf.contains("enableFragmentsApplier")) {
+              System.setProperty("wave.clientFlags",
+                  (cf == null || cf.isEmpty()) ? "enableFragmentsApplier=true"
+                      : (cf + ",enableFragmentsApplier=true"));
+            }
+          } catch (Throwable ignore) { }
+        }
       } catch (Throwable t) {
         LOG.warning("Failed to wire fragments applier instance; proceeding without applier", t);
       }
@@ -373,24 +410,27 @@ public class ServerMain {
     server.addServlet("/webclient/remote_logging", RemoteLoggingServiceImpl.class);
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     // Dev endpoint: client-side fragments applier stats (session-based)
-    server.addServlet("/dev/client-applier-stats", org.waveprotocol.box.server.dev.ClientApplierStatsServlet.class);
+    server.addServlet("/dev/client-applier-stats", ClientApplierStatsServlet.class);
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
     try {
+      // Unified transport: single source of truth.
       String transport = readFragmentsTransport(config);
-      if (transport != null && !transport.isEmpty()) {
-        setEffectiveTransportSystemProperties(transport);
+      if (transport == null || transport.isEmpty()) {
+        transport = "off";
       }
 
-      boolean enableFragmentsHttp = config.hasPath("server.enableFragmentsHttp")
-          && config.getBoolean("server.enableFragmentsHttp");
-      if (enableFragmentsHttp) {
+      // Mirror effective transport + booleans into system properties so ConfigFactory.load()
+      // (used by StatuszServlet) sees consistent values regardless of source.
+      setEffectiveTransportSystemProperties(transport);
+
+      if ("http".equals(transport) || "both".equals(transport)) {
         server.addServlet("/fragments/*", FragmentsServlet.class);
       } else {
-        LOG.info("Fragments HTTP endpoint is disabled (server.enableFragmentsHttp=false)");
+        LOG.info("Fragments HTTP endpoint is disabled (effective transport='" + transport + "')");
       }
     } catch (Exception e) {
-      LOG.warning("Failed to evaluate server.enableFragmentsHttp; leaving /fragments disabled", e);
+      LOG.warning("Failed to configure fragments transport/endpoints; leaving /fragments disabled", e);
     }
 
     String gadgetServerHostname = config.getString("core.gadget_server_hostname");
@@ -407,9 +447,9 @@ public class ServerMain {
 
   /** Installs security headers and caching/no-cache filters. */
   private static void addSecurityAndCachingFilters(ServerRpcProvider server) {
-    server.addFilter("/*", org.waveprotocol.box.server.security.SecurityHeadersFilter.class);
-    server.addFilter("/static/*", org.waveprotocol.box.server.security.StaticCacheFilter.class);
-    server.addFilter("/webclient/*", org.waveprotocol.box.server.security.NoCacheFilter.class);
+    server.addFilter("/*", SecurityHeadersFilter.class);
+    server.addFilter("/static/*", StaticCacheFilter.class);
+    server.addFilter("/webclient/*", NoCacheFilter.class);
   }
 
   /** Adds request-scoped metrics and status endpoints when profiling is enabled. */

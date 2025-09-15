@@ -36,6 +36,10 @@ public final class FragmentsDebugIndicator {
   private static int blipsLoaded = 0;
   private static int blipsTotal = 0;
   private static int elapsedMs = 0;
+  private static String fragmentMode = "";
+  private static boolean fragmentFetchEnabled = false;
+  private static boolean dynamicEnabled = false;
+  private static boolean hasClientMeta = false;
 
   private FragmentsDebugIndicator() {}
 
@@ -65,9 +69,7 @@ public final class FragmentsDebugIndicator {
       enabled = "debug".equals(ll) || (applierFlag && isLocalDevHost());
       if (!enabled) return;
       badge = Document.get().createDivElement();
-      applierOn = applierFlag; // initial guess; StageTwo will override when wiring
-      badge.setInnerText("Fragments: 0 | Applier: " + (applierOn ? "on" : "off") +
-          " | Blips: 0/0 | T=0ms");
+      applierOn = applierFlag;
       badge.getStyle().setProperty("position", "fixed");
       badge.getStyle().setProperty("right", "8px");
       badge.getStyle().setProperty("bottom", "8px");
@@ -78,6 +80,7 @@ public final class FragmentsDebugIndicator {
       badge.getStyle().setProperty("font", "12px/16px sans-serif");
       badge.getStyle().setProperty("borderRadius", "4px");
       Document.get().getBody().appendChild(badge);
+      updateBadge();
     } catch (Throwable ignore) {
       // Best-effort only
     }
@@ -93,12 +96,7 @@ public final class FragmentsDebugIndicator {
     if (!enabled || ranges <= 0) return;
     try {
       totalRanges += ranges;
-      if (badge != null) {
-        badge.setInnerText("Fragments: " + totalRanges +
-            " | Applier: " + (applierOn ? "on" : "off") +
-            " | Blips: " + blipsLoaded + "/" + blipsTotal +
-            " | T=" + elapsedMs + "ms");
-      }
+      updateBadge();
     } catch (Throwable ignore) {
     }
   }
@@ -106,14 +104,10 @@ public final class FragmentsDebugIndicator {
   /** Update displayed applier status (dev-only). */
   public static void setApplierEnabled(boolean on) {
     applierOn = on;
+    ensureInit();
     if (!enabled) return;
     try {
-      if (badge != null) {
-        badge.setInnerText("Fragments: " + totalRanges +
-            " | Applier: " + (applierOn ? "on" : "off") +
-            " | Blips: " + blipsLoaded + "/" + blipsTotal +
-            " | T=" + elapsedMs + "ms");
-      }
+      updateBadge();
     } catch (Throwable ignore) { }
   }
 
@@ -122,14 +116,39 @@ public final class FragmentsDebugIndicator {
     blipsLoaded = Math.max(0, loaded);
     blipsTotal = Math.max(0, total);
     elapsedMs = Math.max(0, elapsed);
+    ensureInit();
     if (!enabled) return;
     try {
-      if (badge != null) {
-        badge.setInnerText("Fragments: " + totalRanges +
-            " | Applier: " + (applierOn ? "on" : "off") +
-            " | Blips: " + blipsLoaded + "/" + blipsTotal +
-            " | T=" + elapsedMs + "ms");
-      }
+      updateBadge();
     } catch (Throwable ignore) { }
+  }
+ 
+  public static void setClientFlags(String mode, boolean fetch, boolean dynamic) {
+    fragmentMode = (mode == null) ? "" : mode;
+    fragmentFetchEnabled = fetch;
+    dynamicEnabled = dynamic;
+    hasClientMeta = true;
+    ensureInit();
+    try {
+      updateBadge();
+    } catch (Throwable ignore) { }
+  }
+
+  private static void updateBadge() {
+    if (!enabled || badge == null) {
+      return;
+    }
+    StringBuilder text = new StringBuilder();
+    text.append("Fragments: ").append(totalRanges)
+        .append(" | Applier: ").append(applierOn ? "on" : "off")
+        .append(" | Blips: ").append(blipsLoaded).append('/').append(blipsTotal)
+        .append(" | T=").append(elapsedMs).append("ms");
+    if (hasClientMeta) {
+      String mode = fragmentMode == null || fragmentMode.isEmpty() ? "-" : fragmentMode;
+      text.append(" | Mode: ").append(mode)
+          .append(" | Fetch: ").append(fragmentFetchEnabled ? "on" : "off")
+          .append(" | Dyn: ").append(dynamicEnabled ? "on" : "off");
+    }
+    badge.setInnerText(text.toString());
   }
 }

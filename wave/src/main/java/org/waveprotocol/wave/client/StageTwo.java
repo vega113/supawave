@@ -815,6 +815,13 @@ public interface StageTwo {
       stageOne.getDomAsViewProvider().setRenderer(getRenderer());
       ensureRendered();
 
+      boolean dynamicEnabled = Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering());
+      boolean fragmentFetchEnabled = Boolean.TRUE.equals(ClientFlags.get().enableFragmentFetch());
+      String fragmentMode = null;
+      try { fragmentMode = ClientFlags.get().fragmentFetchMode(); } catch (Throwable ignore) {}
+      try { FragmentsDebugIndicator.setClientFlags(fragmentMode, fragmentFetchEnabled, dynamicEnabled); }
+      catch (Throwable ignore) { }
+
       // Client-side fragments applier wiring (dev/observability): if the flag is enabled,
       // install a lightweight, GWT-safe applier that records and occasionally posts stats.
       try {
@@ -842,21 +849,19 @@ public interface StageTwo {
       }
 
       // Load supplemental render CSS when dynamic rendering is enabled.
-      if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+      if (dynamicEnabled) {
         RenderCssLoader.ensureInjected();
       }
 
       // Dynamic rendering: only page in visible blips initially.
-      if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+      if (dynamicEnabled) {
         try {
           ScreenController screen = ScreenControllerImpl.createDefault();
           if (screen != null && getConversations() != null && getModelAsViewProvider() != null
               && getBlipQueue() != null && getPagingHandler() != null) {
             FragmentRequester requester;
-            String ffm = null;
-            try { ffm = ClientFlags.get().fragmentFetchMode(); } catch (Throwable ignored) {}
-            if (ffm != null) {
-              switch (ffm) {
+            if (fragmentMode != null) {
+              switch (fragmentMode) {
                 case "stream":
                   requester = new ViewChannelFragmentRequester();
                   break;

@@ -20,31 +20,42 @@
 package org.waveprotocol.wave.client.wavepanel.render;
 
 import com.google.gwt.core.client.Scheduler;
-import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Document;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.user.client.Timer;
 
-import org.waveprotocol.wave.client.render.undercurrent.ScreenController;
 import org.waveprotocol.wave.client.debug.FragmentsDebugIndicator;
+import org.waveprotocol.wave.client.render.undercurrent.ScreenController;
+import org.waveprotocol.wave.client.util.ClientFlags;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
+import org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer.PagingHandler;
-import org.waveprotocol.wave.client.util.ClientFlags;
-import com.google.gwt.core.client.Duration;
-import com.google.gwt.core.client.GWT;
 import org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl;
-import org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl;
 import org.waveprotocol.wave.model.conversation.BlipMappers;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
+import org.waveprotocol.wave.model.conversation.ConversationListenerImpl;
+import org.waveprotocol.wave.model.conversation.ObservableConversation;
+import org.waveprotocol.wave.model.conversation.ObservableConversationBlip;
+import org.waveprotocol.wave.model.conversation.ObservableConversationThread;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
+import org.waveprotocol.wave.model.conversation.ObservableConversationView.Listener;
 import org.waveprotocol.wave.model.util.Predicate;
 
+import com.google.gwt.core.client.Duration;
+import com.google.gwt.core.client.GWT;
+
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 /** Minimal dynamic renderer: pages in only visible blips; no page-out yet. */
-public final class DynamicRendererImpl implements DynamicRenderer, ScreenController.Listener {
+public final class DynamicRendererImpl implements DynamicRenderer, ScreenController.Listener,
+    Listener {
   private final ObservableConversationView view;
   private final ScreenController screen;
   private final ModelAsViewProvider modelAsView;
@@ -53,6 +64,8 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
   private final FragmentRequester fragmentRequester;
 
   private final Set<ConversationBlip> pagedIn = new HashSet<ConversationBlip>();
+  private final Map<ObservableConversation, ObservableConversation.Listener> conversationListeners =
+      new HashMap<ObservableConversation, ObservableConversation.Listener>();
   private int prerenderPxTop = 600;
   private int prerenderPxBottom = 800;
   private int pageOutSlackPx = 1200;
@@ -60,6 +73,7 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
   private boolean logStats = false;
   private int bootstrapMax = 12;
   private int totalBlips = 0;
+  private boolean totalBlipsDirty = true;
   private int startMs = 0;
 
   private boolean updateQueued = false;
@@ -117,15 +131,8 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
       // ignore in non-client contexts
     }
     screen.addListener(this);
-
-    // Initialize dev stats once: total blips and start timestamp for elapsed time.
-    try {
-      final int[] cnt = new int[] {0};
-      BlipMappers.depthFirst(new Predicate<ConversationBlip>() {
-        @Override public boolean apply(ConversationBlip blip) { cnt[0]++; return true; }
-      }, view);
-      totalBlips = cnt[0];
-    } catch (Throwable ignore) { totalBlips = 0; }
+    attachConversationListeners();
+    totalBlipsDirty = true;
     try { startMs = (int) com.google.gwt.core.client.Duration.currentTimeMillis(); } catch (Throwable ignore) { startMs = 0; }
     // Defer initial update to allow DOM to settle.
     Scheduler.get().scheduleDeferred(
@@ -137,7 +144,10 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
   @Override
   public void destroy() {
     screen.removeListener(this);
+    detachConversationListeners();
     pagedIn.clear();
+    totalBlips = 0;
+    totalBlipsDirty = true;
   }
 
   @Override
@@ -246,6 +256,7 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
 
     // Dev badge: report blip load stats (paged-in vs total) and elapsed time since init
     try {
+      recomputeTotalBlipsIfDirty();
       FragmentsDebugIndicator.setBlipStats(
           pagedIn.size(), totalBlips, startMs > 0 ? (int)(now - startMs) : 0);
     } catch (Throwable ignore) {}
@@ -253,6 +264,132 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
     if (logStats && (counts[0] > 0 || counts[1] > 0)) {
       GWT.log("DynamicRenderer: in=" + counts[0] + " out=" + counts[1] +
           " top=" + top + " bottom=" + bottom + " pagedIn=" + pagedIn.size() + (boost?" (boost)":""));
+    }
+  }
+
+  private void attachConversationListeners() {
+    try {
+      for (ObservableConversation conversation : view.getConversations()) {
+        observeConversation(conversation);
+      }
+      view.addListener(this);
+    } catch (Throwable ignore) {
+    }
+  }
+
+  private void detachConversationListeners() {
+    try {
+      view.removeListener(this);
+    } catch (Throwable ignore) {
+    }
+    for (Entry<ObservableConversation, ObservableConversation.Listener> entry :
+        conversationListeners.entrySet()) {
+      try {
+        entry.getKey().removeListener(entry.getValue());
+      } catch (Throwable ignore) {
+      }
+    }
+    conversationListeners.clear();
+  }
+
+  private void observeConversation(ObservableConversation conversation) {
+    if (conversation == null || conversationListeners.containsKey(conversation)) {
+      return;
+    }
+    ObservableConversation.Listener listener = new BlipCountListener();
+    try {
+      conversation.addListener(listener);
+      conversationListeners.put(conversation, listener);
+      totalBlipsDirty = true;
+    } catch (Throwable ignore) {
+    }
+  }
+
+  private void removeConversation(ObservableConversation conversation) {
+    if (conversation == null) {
+      return;
+    }
+    ObservableConversation.Listener listener = conversationListeners.remove(conversation);
+    if (listener != null) {
+      try {
+        conversation.removeListener(listener);
+      } catch (Throwable ignore) {
+      }
+    }
+    Iterator<ConversationBlip> it = pagedIn.iterator();
+    while (it.hasNext()) {
+      ConversationBlip blip = it.next();
+      if (blip != null && blip.getConversation() == conversation) {
+        it.remove();
+      }
+    }
+    totalBlipsDirty = true;
+  }
+
+  private void recomputeTotalBlipsIfDirty() {
+    if (!totalBlipsDirty) {
+      return;
+    }
+    final int[] cnt = new int[] {0};
+    try {
+      BlipMappers.depthFirst(new Predicate<ConversationBlip>() {
+        @Override
+        public boolean apply(ConversationBlip blip) {
+          cnt[0]++;
+          return true;
+        }
+      }, view);
+      totalBlips = cnt[0];
+    } catch (Throwable ignore) {
+      totalBlips = 0;
+    }
+    totalBlipsDirty = false;
+  }
+
+  @Override
+  public void onConversationAdded(ObservableConversation conversation) {
+    observeConversation(conversation);
+    throttleUpdate();
+  }
+
+  @Override
+  public void onConversationRemoved(ObservableConversation conversation) {
+    removeConversation(conversation);
+    throttleUpdate();
+  }
+
+  private final class BlipCountListener extends ConversationListenerImpl {
+    @Override
+    public void onBlipAdded(ObservableConversationBlip blip) {
+      totalBlipsDirty = true;
+      throttleUpdate();
+    }
+
+    @Override
+    public void onBlipDeleted(ObservableConversationBlip blip) {
+      if (blip != null) {
+        pagedIn.remove(blip);
+      }
+      totalBlipsDirty = true;
+      throttleUpdate();
+    }
+
+    @Override
+    public void onThreadAdded(ObservableConversationThread thread) {
+      totalBlipsDirty = true;
+      throttleUpdate();
+    }
+
+    @Override
+    public void onThreadDeleted(ObservableConversationThread thread) {
+      totalBlipsDirty = true;
+      throttleUpdate();
+    }
+
+    @Override
+    public void onInlineThreadAdded(ObservableConversationThread thread, int location) {
+      totalBlipsDirty = true;
+      throttleUpdate();
     }
   }
 

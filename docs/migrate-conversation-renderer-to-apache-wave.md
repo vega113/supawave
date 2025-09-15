@@ -1,12 +1,17 @@
 # Migration Plan: Conversation Renderer (wiab.pro ➜ Apache Wave)
 
 Owner: Migration Engineering
-Last updated: 2025-09-10
+Last updated: 2025-09-15
 
 -------------------------------------------------------------------------------
 
-## Delta Since Last Edit (2025-09-10)
+## Delta Since Last Edit (2025-09-15)
 
+- Dev defaults now use typed object-form overrides in `application.conf`. Local runs
+  ship with `fragmentFetchMode="stream"`, `enableDynamicRendering=true`,
+  `enableFragmentsApplier=true`, `enableViewportStats=true`, and
+  `enableQuasiDeletionUi=true`; `server.fragments.transport="stream"` mirrors to
+  client defaults at startup.
 - Flags (Task A): Added `enableDynamicRendering`, `enableQuasiDeletionUi`, and transport enum `fragmentFetchMode` (off|http|stream); server/gradle plumbing to pass flags via `-PclientFlags` and merge defaults.
 - Quasi (Phase 2 / Task B): Implemented `QuasiConversationViewAdapter` and `QuasiDeletable`; StageTwo wiring behind `enableQuasiDeletionUi`.
 - Deleted UI (Phase 3 / Task C): Added `BlipViewDomImpl#setQuasiDeleted(boolean)` and `.blip.deleted` styles; renderer marks quasi state before final removal.
@@ -517,7 +522,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
   - [ ] No runaway timers or retained widgets after page-out
 
 - Flags
-  - [x] All features are off-by-default
+  - [x] Reference defaults remain off; dev `application.conf` overrides enable dynamic/quasi/applier by default
   - [ ] Each flag works independently (quasi only; dynamic only; fragments only)
 
 -------------------------------------------------------------------------------
@@ -543,9 +548,11 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 ## 12) Flag Reference and Cleanup Plan
 
 - Client flags (new)
-  - `enableDynamicRendering` (bool, default false): enable viewport windowing renderer
-  - `enableQuasiDeletionUi` (bool, default false): enable quasi-deletion visual state
-  - `fragmentFetchMode` (enum: off|http|stream; default off): pick transport for fragments
+  - `enableFragmentsApplier` (bool, default false; dev override true): enable lightweight fragment-window stats and optional client applier wiring.
+  - `enableDynamicRendering` (bool, default false; dev override true): enable viewport windowing renderer.
+  - `enableQuasiDeletionUi` (bool, default false; dev override true): enable quasi-deletion visual state.
+  - `enableFragmentFetch` (bool, default false; dev override true): allow the renderer to invoke fragment fetchers when configured.
+  - `fragmentFetchMode` (enum: off|http|stream; default off; dev override stream): pick transport for fragments.
   - `dynamicPrerenderUpperPx` (int, default 600): prerender margin above viewport
   - `dynamicPrerenderLowerPx` (int, default 800): prerender margin below viewport
   - `dynamicPageOutSlackPx` (int, default 1200): offscreen slack before page-out
@@ -559,14 +566,29 @@ Each task below is self-contained for an AI agent, includes context, concrete st
   - JVM property (dev only): `-Dwave.clientFlags="k=v,..."` (merged by WaveClientServlet)
   - Server config (preferred long-term): reference.conf with overrides in application.conf (merged by Typesafe Config) under `client.flags.defaults`
 
-- Example reference.conf
+- Example reference.conf (defaults remain off; legacy CSV is discouraged)
   ```
-  client.flags.defaults = "enableDynamicRendering=false,enableQuasiDeletionUi=false,fragmentFetchMode=off"
+  client.flags.defaults {
+    enableFragmentsApplier = false
+    fragmentFetchMode = "off"
+    enableDynamicRendering = false
+    enableQuasiDeletionUi = false
+    enableFragmentFetch = false
+    quasiDeletionDwellMs = 400
+  }
   ```
 
-- Example application.conf (dev)
+- Example application.conf (dev overrides merged automatically)
   ```
-  client.flags.defaults = "enableDynamicRendering=true,enableQuasiDeletionUi=true,dynamicScrollThrottleMs=30"
+  client.flags.defaults {
+    fragmentFetchMode = "stream"
+    enableDynamicRendering = true
+    enableFragmentsApplier = true
+    enableFragmentFetch = true
+    enableViewportStats = true
+    enableQuasiDeletionUi = true
+    quasiDeletionDwellMs = 1000
+  }
   ```
 
 - Cleanup plan
@@ -607,8 +629,8 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 Each task is independently mergeable and off-by-default.
 
 Dev defaults and flags
-- To run server with dynamic rendering on by default: `./gradlew :wave:run -PclientFlags="enableDynamicRendering=true,enableQuasiDeletionUi=true"`
-- For GWT dev or dev compile: append the same `-PclientFlags=...` to `gwtDev`, `compileGwtDev`, or `compileGwt`.
+- Local dev inherits overrides from `wave/config/application.conf`; review `client.flags.defaults` for the current set (dynamic renderer, fragments applier/fetch, viewport stats on).
+- CLI overrides remain available: append `-PclientFlags="k=v,..."` for experiments. Values merge on top of config/system defaults.
 
 -------------------------------------------------------------------------------
 

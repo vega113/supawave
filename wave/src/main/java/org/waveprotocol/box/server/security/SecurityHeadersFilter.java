@@ -31,6 +31,11 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Filter that adds basic security headers to HTTP responses.
@@ -57,6 +62,7 @@ public final class SecurityHeadersFilter implements Filter {
 
   private static final String DEFAULT_REFERRER = "strict-origin-when-cross-origin";
   private static final String DEFAULT_XCTO = "nosniff";
+  private static final Pattern CODE_SERVER_VALUE = Pattern.compile("[A-Za-z0-9.\\-\\[\\]:]+");
 
   @Inject
   public SecurityHeadersFilter(Config config) {
@@ -79,6 +85,13 @@ public final class SecurityHeadersFilter implements Filter {
       String xcto = config.hasPath("security.x_content_type_options")
           ? config.getString("security.x_content_type_options") : DEFAULT_XCTO;
 
+      if (req != null) {
+        String cspWithDev = addCodeServerHosts(req, csp);
+        if (cspWithDev != null) {
+          csp = cspWithDev;
+        }
+      }
+
       if (!isCommitted(http)) {
         http.setHeader("Content-Security-Policy", csp);
         http.setHeader("Referrer-Policy", referrer);
@@ -97,6 +110,122 @@ public final class SecurityHeadersFilter implements Filter {
     }
 
     chain.doFilter(request, response);
+  }
+
+  private String addCodeServerHosts(HttpServletRequest req, String originalCsp) {
+    String query = req.getQueryString();
+    if (query == null || query.isEmpty()) {
+      return null;
+    }
+    Set<String> hosts = new LinkedHashSet<>();
+    for (String part : query.split("&")) {
+      if (part == null || part.isEmpty()) {
+        continue;
+      }
+      String key;
+      String value;
+      int idx = part.indexOf('=');
+      if (idx >= 0) {
+        key = part.substring(0, idx);
+        value = part.substring(idx + 1);
+      } else {
+        key = part;
+        value = "";
+      }
+      if (!key.startsWith("gwt.codesvr")) {
+        continue;
+      }
+      String decoded;
+      try {
+        decoded = URLDecoder.decode(value, StandardCharsets.UTF_8);
+      } catch (IllegalArgumentException ex) {
+        decoded = value;
+      }
+      String host = normaliseCodeServer(decoded);
+      if (host != null) {
+        hosts.add(host);
+      }
+    }
+    if (hosts.isEmpty()) {
+      return null;
+    }
+    String updated = originalCsp;
+    for (String host : hosts) {
+      updated = appendToDirective(updated, "script-src", host);
+      updated = appendToDirective(updated, "connect-src", host);
+    }
+    return updated;
+  }
+
+  private String normaliseCodeServer(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    String value = raw.trim();
+    if (value.isEmpty()) {
+      return null;
+    }
+    int delimiter = Math.max(value.lastIndexOf('@'), value.lastIndexOf('='));
+    if (delimiter >= 0 && delimiter + 1 < value.length()) {
+      value = value.substring(delimiter + 1);
+    }
+    if (value.startsWith("//")) {
+      value = value.substring(2);
+    }
+    value = value.trim();
+    if (value.isEmpty()) {
+      return null;
+    }
+    String candidate = value;
+    if (candidate.startsWith("http://")) {
+      candidate = candidate.substring(7);
+    } else if (candidate.startsWith("https://")) {
+      candidate = candidate.substring(8);
+    }
+    if (candidate.isEmpty() || !CODE_SERVER_VALUE.matcher(candidate).matches()) {
+      return null;
+    }
+    if (!value.startsWith("http://") && !value.startsWith("https://")) {
+      value = "http://" + value;
+    }
+    return value;
+  }
+
+  private String appendToDirective(String csp, String directive, String addition) {
+    String[] segments = csp.split(";");
+    boolean modified = false;
+    for (int i = 0; i < segments.length; i++) {
+      String part = segments[i].trim();
+      if (part.isEmpty()) {
+        continue;
+      }
+      if (part.startsWith(directive)) {
+        if (!part.contains(addition)) {
+          part = part + " " + addition;
+        }
+        segments[i] = part;
+        modified = true;
+      } else {
+        segments[i] = part;
+      }
+    }
+    StringBuilder rebuilt = new StringBuilder();
+    for (String part : segments) {
+      if (part == null || part.isEmpty()) {
+        continue;
+      }
+      if (rebuilt.length() > 0) {
+        rebuilt.append("; ");
+      }
+      rebuilt.append(part);
+    }
+    if (!modified) {
+      if (rebuilt.length() > 0) {
+        rebuilt.append("; ");
+      }
+      rebuilt.append(directive).append(' ').append(addition);
+    }
+    return rebuilt.toString();
   }
 
   private boolean isCommitted(HttpServletResponse http) {

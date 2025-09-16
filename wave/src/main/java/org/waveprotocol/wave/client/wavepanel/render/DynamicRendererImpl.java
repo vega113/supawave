@@ -256,9 +256,14 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
 
     // Dev badge: report blip load stats (paged-in vs total) and elapsed time since init
     try {
-      FragmentsDebugIndicator.setBlipStats(
-          pagedIn.size(), Math.max(totalBlips, pagedIn.size()),
-          startMs > 0 ? (int)(now - startMs) : 0);
+      int visible = pagedIn.size();
+      int total = Math.max(totalBlips, visible);
+      int elapsed = startMs > 0 ? (int) (now - startMs) : 0;
+      FragmentsDebugIndicator.setBlipStats(visible, total, elapsed);
+      if (logStats) {
+        GWT.log("DynamicRenderer: badgeUpdate visible=" + visible +
+            " total=" + total + " elapsedMs=" + elapsed);
+      }
     } catch (Throwable ignore) {}
 
     if (logStats && (counts[0] > 0 || counts[1] > 0)) {
@@ -304,6 +309,10 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
       int existing = countBlips(conversation);
       conversationBlipCounts.put(conversation, existing);
       totalBlips += existing;
+      if (logStats) {
+        GWT.log("DynamicRenderer: observed conversation=" + safeConversationId(conversation)
+            + " blips=" + existing + " total=" + totalBlips);
+      }
     } catch (Throwable ignore) {
     }
   }
@@ -322,6 +331,10 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
     Integer count = conversationBlipCounts.remove(conversation);
     if (count != null) {
       totalBlips = Math.max(0, totalBlips - count.intValue());
+      if (logStats) {
+        GWT.log("DynamicRenderer: removed conversation=" + safeConversationId(conversation)
+            + " removedCount=" + count + " total=" + totalBlips);
+      }
     }
     Iterator<ConversationBlip> it = pagedIn.iterator();
     while (it.hasNext()) {
@@ -360,6 +373,14 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
     return cnt[0];
   }
 
+  private static String safeConversationId(ObservableConversation conversation) {
+    try {
+      return conversation != null ? conversation.getId() : "<null>";
+    } catch (Throwable ignore) {
+      return "<err>";
+    }
+  }
+
   private final class BlipCountListener extends ConversationListenerImpl {
     private final ObservableConversation conversation;
 
@@ -374,6 +395,10 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
         int updated = count + 1;
         conversationBlipCounts.put(conversation, updated);
         totalBlips++;
+        if (logStats) {
+          GWT.log("DynamicRenderer: blipAdded convo=" + safeConversationId(conversation)
+              + " count=" + updated + " total=" + totalBlips);
+        }
       }
       throttleUpdate();
     }
@@ -388,6 +413,10 @@ public final class DynamicRendererImpl implements DynamicRenderer, ScreenControl
         int updated = count - 1;
         conversationBlipCounts.put(conversation, updated);
         if (totalBlips > 0) totalBlips--;
+        if (logStats) {
+          GWT.log("DynamicRenderer: blipDeleted convo=" + safeConversationId(conversation)
+              + " count=" + updated + " total=" + totalBlips);
+        }
       }
       throttleUpdate();
     }

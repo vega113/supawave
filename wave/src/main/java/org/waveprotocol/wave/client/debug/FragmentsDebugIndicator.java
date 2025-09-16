@@ -120,6 +120,8 @@ public final class FragmentsDebugIndicator {
     if (!enabled) return;
     try {
       updateBadge();
+      com.google.gwt.core.client.GWT.log("Fragments badge: blips=" + blipsLoaded +
+          "/" + blipsTotal + " elapsedMs=" + elapsedMs);
     } catch (Throwable ignore) { }
   }
  
@@ -131,6 +133,8 @@ public final class FragmentsDebugIndicator {
     ensureInit();
     try {
       updateBadge();
+      com.google.gwt.core.client.GWT.log("Fragments badge: flags mode=" + fragmentMode +
+          " fetch=" + fragmentFetchEnabled + " dynamic=" + dynamicEnabled);
     } catch (Throwable ignore) { }
   }
 

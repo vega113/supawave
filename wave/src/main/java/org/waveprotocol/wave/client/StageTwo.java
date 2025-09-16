@@ -821,6 +821,10 @@ public interface StageTwo {
       try { fragmentMode = ClientFlags.get().fragmentFetchMode(); } catch (Throwable ignore) {}
       try { FragmentsDebugIndicator.setClientFlags(fragmentMode, fragmentFetchEnabled, dynamicEnabled); }
       catch (Throwable ignore) { }
+      try {
+        GWT.log("StageTwo: dynamic=" + dynamicEnabled + ", fragmentMode=" + fragmentMode +
+            ", fetch=" + fragmentFetchEnabled);
+      } catch (Throwable ignore) { }
 
       // Client-side fragments applier wiring (dev/observability): if the flag is enabled,
       // install a lightweight, GWT-safe applier that records and occasionally posts stats.

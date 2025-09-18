@@ -266,6 +266,8 @@ public class FlagConstants {
   public static final String DYNAMIC_SPEED_BOOST_FACTOR = "236";
   public static final String QUASI_DELETION_DWELL_MS = "242";
   public static final String ENABLE_FRAGMENTS_APPLIER = "243";
+  public static final String FORCE_CLIENT_FRAGMENTS = "244";
+  public static final String FRAGMENTS_APPLIER_MAX_RANGES = "245";
   public static final String ENABLE_FRAGMENT_FETCH_VIEW_CHANNEL = "237"; // deprecated (use FRAGMENT_FETCH_MODE)
   public static final String FRAGMENT_FETCH_MODE = "241"; // values: off|http|stream
   public static final String INITIAL_VIEWPORT_START_BLIP_ID = "238";
@@ -517,6 +519,9 @@ public class FlagConstants {
     "quasiDeletionDwellMs", "242",
     // Enable client-side fragments applier (dev observability)
     "enableFragmentsApplier", "243",
+    // Force omit of initial snapshots so client applies fragments immediately
+    "forceClientFragments", "244",
+    "fragmentsApplierMaxRanges", "245",
     // Prefer ViewChannel-based fragment flow instead of HTTP requester
     "enableFragmentFetchViewChannel", "237",
     // Fragment fetch mode (enum): off|http|stream

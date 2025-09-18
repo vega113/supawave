@@ -424,7 +424,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
   - Feature usable behind flag; stable in basic navigation/editing flows
 
 - Status
-  - In Progress — 2025-09-01. Implemented dynamic renderer with page-in/out: pages in visible blips (+upper/lower buffer) and pages out those far outside a slack window. Tunables via flags: `dynamicPrerenderUpperPx`, `dynamicPrerenderLowerPx`, `dynamicPageOutSlackPx`, `dynamicScrollThrottleMs`. Throttled scroll handling and basic metrics (logs gated by `enableViewportStats`). Wired in `StageTwo`. GWT compile passes.
+  - Completed — 2025-09-18. Dynamic renderer pages visible blips, applies prerender slack with flag tunables, emits badge stats, and integrates cleanup/placeholder hooks. GWT compile passes and the feature is guarded behind `enableDynamicRendering`.
 
 - How to run with flags via Gradle
   - `./gradlew :wave:run -PclientFlags="enableDynamicRendering=true,enableQuasiDeletionUi=true,enableViewportStats=true,dynamicPrerenderUpperPx=600,dynamicPrerenderLowerPx=800,dynamicPageOutSlackPx=1200,dynamicScrollThrottleMs=50"`
@@ -459,7 +459,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 - Status
   - Implemented (legacy path) — 2025-09-01. Client: added `ClientFragmentRequester` (GWT RequestBuilder) used when `fragmentFetchMode=http`. Server: added `/fragments` servlet that echoes requested range. This is a placeholder for real fragment logic; feature remains optional and off by default.
   - Addendum — 2025-09-01. `FragmentRequester` now includes `Callback` with `onSuccess/onError` for failures.
-  - Follow-up — 2025-09-18. Stream mode currently delivers full `WaveletSnapshot`s alongside fragments when `forceClientFragments` is true; no incremental load observed. Next steps: skip the snapshot in this mode and wire `ViewChannelFragmentRequester` to non-noop fetches.
+  - Follow-up — 2025-09-18. Stream mode still emits full `WaveletSnapshot`s alongside fragments when `forceClientFragments` is true; incremental loading is deferred. Snapshot gating and a non-noop `ViewChannelFragmentRequester` remain tracked in docs/blocks-adoption-plan.md.
 
 -------------------------------------------------------------------------------
 

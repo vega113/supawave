@@ -480,7 +480,7 @@ Success criteria
 - Remove obsolete client flag paths; consolidate Typesafe defaults.
 - Deprecate or remove compat code paths once the storage-backed state is stable.
 
-6) Snapshot gating for fragment-first opens
+6) Snapshot gating for fragment-first opens (deferred)
 - Skip initial `WaveletSnapshot` when `forceClientFragments` or equivalent fragment-only mode is active so the client can rely on ranges.
 - Ensure `ViewChannelImpl` and renderer tolerate snapshot-absent opens; guard downstream callers.
 - Measurement plan: capture WebSocket frame sizes, client scripting time, and `/statusz?show=fragments` metrics before/after the change (see docs/migrate-conversation-renderer-to-apache-wave.md for dynamic renderer context).

@@ -67,42 +67,8 @@ Below are practical, action-focused rules for each MCP server defined in `~/.cod
 - Make sure to follow the [Codex Code Guidelines](CODE_GUIDELINES.md)
 - Write self-documenting code.
 - Do not write comments in the code. Instead if you need to explain something, extract the code into a function and write a comment for the function.
-
-### Java code style (WaveStyle)
-Apply the rules when writing or editing Java code:
-
-- Indentation
-  - Use spaces only; no tabs. Tab width = 2, indent size = 2.
-  - Continuation indent = +2 indents (i.e., +4 spaces on wrapped lines).
-- Line length
-  - Code lines: 100 chars max. Prefer wrapping before binary operators.
-  - Javadoc/comments: wrap at 80 chars.
-- Braces and layout
-  - K&R style: opening brace on the same line for types, methods, blocks, constructors, enums, switch, etc.
-  - Always put one space before an opening brace: `if (x) {`.
-  - Do not keep then/else on the same line; prefer `} else if (...) {}` for chained conditions.
-- Keyword and parentheses spacing
-  - Control flow keywords followed by a space before `(`: `if (..)`, `for (..)`, `while (..)`, `switch (..)`, `try (..)`, `catch (..)`, `synchronized (..)`. 
-  - Methods: no space before `(` in declarations or invocations: `void foo(int x)` and `foo(x)`.
-  - No extra spaces just inside parentheses: `method(a, b)`, not `method( a, b )`.
-- Operators and punctuation
-  - Put spaces around binary and assignment operators: `a + b`, `x = y`.
-  - No spaces for unary prefix/postfix operators: `i++`, `--i`, `!flag`.
-  - Commas: space after, none before: `f(a, b)`.
-  - Ternary: spaces around `?` and `:`: `cond ? a : b`.
-- Generics, arrays, casts
-  - No spaces inside `<...>` and around wildcards: `List<? extends T>`.
-  - Array brackets have no inner spaces: `int[] a`, `a[0]`.
-  - Array initializers use a space after `{` and before `}` when on one line: `{ 1, 2 }`.
-  - Casts have no inner space: `(Type) value`.
-- Blank lines and structure
-  - 1 blank line after `package`.
-  - 1 blank line before imports; 1 after imports; keep 1 between import groups.
-  - 0 blank lines before fields; 1 blank line before methods; 1 before member types; 1 between top-level types.
-- Switch formatting
-  - `case` labels align with `switch`. Statements under a `case` are indented. `break` aligns with those statements.
-- Comments and Javadoc
-  - Format Javadoc, insert new lines at boundaries, and indent parameter descriptions. Use `@param`/`@return` each on its own line.
+- Avoid using return statements in the middle of a function.
+- Avoid using mutable variables/parameters/arguments.
 
 
 ## When you need to call tools from the shell, use this rubric:

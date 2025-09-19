@@ -18,6 +18,7 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
 import org.waveprotocol.box.attachment.AttachmentMetadata;
@@ -65,6 +66,7 @@ public class AttachmentServlet extends HttpServlet {
   private final File thumbnailPatternsDir;
 
   // Public for test/container construction on Jakarta path
+  @Inject
   public AttachmentServlet(AttachmentService service, WaveletProvider waveletProvider,
                            SessionManager sessionManager, Config config) {
     this.service = service;

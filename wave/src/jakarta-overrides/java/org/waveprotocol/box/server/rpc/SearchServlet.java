@@ -18,6 +18,8 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.google.protobuf.Message;
 import com.google.wave.api.JsonRpcConstant.ParamsProperty;
 import com.google.wave.api.JsonRpcResponse;
@@ -61,8 +63,9 @@ public class SearchServlet extends HttpServlet {
   private final ConversationUtil conversationUtil;
   private final ProtoSerializer serializer;
 
+  @Inject
   public SearchServlet(SessionManager sessionManager, EventDataConverterManager converterManager,
-                       OperationServiceRegistry operationRegistry, WaveletProvider waveletProvider,
+                       @Named("DataApiRegistry") OperationServiceRegistry operationRegistry, WaveletProvider waveletProvider,
                        ConversationUtil conversationUtil, ProtoSerializer serializer) {
     this.sessionManager = sessionManager;
     this.converterManager = converterManager;

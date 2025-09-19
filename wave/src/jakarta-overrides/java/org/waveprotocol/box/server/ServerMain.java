@@ -24,6 +24,7 @@ import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceModule;
 import org.waveprotocol.box.server.persistence.SignerInfoStore;
 import org.waveprotocol.box.server.rpc.*;
+import org.waveprotocol.box.server.robots.ProfileFetcherModule;
 import org.waveprotocol.box.server.robots.RobotRegistrationServlet;
 import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServlet;
@@ -97,13 +98,15 @@ public class ServerMain {
     Module searchModule = injector.getInstance(SearchModule.class);
 
     if (!isJakarta) {
-      // Legacy path wires robots/profile fetchers; omitted in Jakarta override
+      // Legacy path wires robots/profile fetchers directly from server module tree.
       injector = injector.createChildInjector(serverModule, persistenceModule,
           federationModule, searchModule);
     } else {
+      // Jakarta path wires explicit robot and profile modules while retaining the federation stub.
       Module robotApiModule = new RobotApiModule();
+      Module profileFetcherModule = injector.getInstance(ProfileFetcherModule.class);
       injector = injector.createChildInjector(serverModule, persistenceModule,
-          robotApiModule, federationModule);
+          robotApiModule, searchModule, federationModule, profileFetcherModule);
     }
 
     ServerRpcProvider server = injector.getInstance(ServerRpcProvider.class);

@@ -39,6 +39,7 @@ import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.wave.util.logging.Log;
@@ -52,6 +53,11 @@ import jakarta.servlet.http.HttpServlet;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -95,6 +101,10 @@ public class ServerRpcProvider {
     final Map<Descriptors.Descriptor, RegisteredServiceMethod> registeredServices = new ConcurrentHashMap<>();
     private Server httpServer;
     private ServletContextHandler servletContextHandler;
+    private Injector guiceInjector;
+    private final java.util.List<PendingServlet> pendingServlets = new java.util.ArrayList<>();
+    private final java.util.List<PendingFilter> pendingFilters = new java.util.ArrayList<>();
+    private final String[] resourceBases;
 
     public ServerRpcProvider(InetSocketAddress[] httpAddresses,
                              String[] resourceBases, Executor threadPool,
@@ -107,6 +117,7 @@ public class ServerRpcProvider {
         this.threadPool = threadPool;
         this.sessionManager = sessionManager;
         this.sessionHandler = sessionHandler;
+        this.resourceBases = resourceBases != null ? resourceBases : new String[]{"./war"};
     }
 
     public ServerRpcProvider(InetSocketAddress[] httpAddresses,
@@ -119,6 +130,7 @@ public class ServerRpcProvider {
         this.threadPool = executor;
         this.sessionManager = sessionManager;
         this.sessionHandler = sessionHandler;
+        this.resourceBases = resourceBases != null ? resourceBases : new String[]{"./war"};
     }
 
     @Inject
@@ -129,10 +141,17 @@ public class ServerRpcProvider {
         this.sessionHandler = sessionHandler;
         this.sessionManager = sessionManager;
         this.threadPool = executorService;
+        if (config != null && config.hasPath("core.resource_bases")) {
+            java.util.List<String> bases = config.getStringList("core.resource_bases");
+            this.resourceBases = bases.toArray(new String[0]);
+        } else {
+            this.resourceBases = new String[]{"./war"};
+        }
     }
 
     public void startWebSocketServer(final Injector injector) {
         try {
+            this.guiceInjector = injector;
             httpServer = new Server();
             // Configure access logging (NCSA) similar to legacy defaults
             try {
@@ -239,33 +258,86 @@ public class ServerRpcProvider {
             if (sessionHandler != null) {
                 context.setSessionHandler(sessionHandler);
             }
+            Resource baseResource = null;
+            if (resourceBases != null && resourceBases.length > 0) {
+                try {
+                    ResourceFactory factory = ResourceFactory.of(context);
+                    List<Resource> bases = new ArrayList<>();
+                    for (String base : resourceBases) {
+                        Resource resource = resolveResource(factory, base);
+                        if (resource != null) {
+                            bases.add(resource);
+                        }
+                    }
+                    if (!bases.isEmpty()) {
+                        baseResource = bases.size() == 1 ? bases.get(0) : ResourceFactory.combine(bases);
+                        context.setBaseResource(baseResource);
+                        try {
+                            Resource probe = baseResource.resolve("static/logo.png");
+                            LOG.info("Resolved base resource -> static/logo.png exists=" + (probe != null && probe.exists()));
+                        } catch (Exception ignore) {
+                            // diagnostic only
+                        }
+                    }
+                } catch (Exception e) {
+                    LOG.warning("Failed to configure servlet base resources " + Arrays.toString(resourceBases), e);
+                }
+            }
             this.servletContextHandler = context;
+            registerPendingServlets();
+            registerPendingFilters();
 
-            // Static resources base (optional): disabled in this stub to avoid API drift; defaults are used.
+            // Static resources base uses either configured entries or ./war fallback to serve legacy assets.
 
             // DefaultServlet mappings with caching semantics
-            java.util.Map<String, String> staticParams = new java.util.HashMap<>();
-            staticParams.put("etags", "true");
-            staticParams.put("cacheControl", "public, max-age=31536000, immutable");
-            ServletHolder staticHolder = new ServletHolder(DefaultServlet.class);
-            staticHolder.setInitParameters(staticParams);
+            Resource staticResource = null;
+            Resource webclientResource = null;
+            try {
+                if (baseResource != null) {
+                    staticResource = baseResource.resolve("static/");
+                    webclientResource = baseResource.resolve("webclient/");
+                }
+            } catch (Exception ignore) {}
+            if ((staticResource == null || !staticResource.exists()) && resourceBases != null) {
+                staticResource = resolveResource(ResourceFactory.of(context), "static");
+            }
+            if ((webclientResource == null || !webclientResource.exists()) && resourceBases != null) {
+                webclientResource = resolveResource(ResourceFactory.of(context), "webclient");
+            }
+
+            ServletHolder staticHolder = new ServletHolder("jakarta-static", DefaultServlet.class);
+            staticHolder.setInitParameter("etags", "true");
+            staticHolder.setInitParameter("cacheControl", "public, max-age=31536000, immutable");
+            if (resourceBases != null && resourceBases.length > 0) {
+                staticHolder.setInitParameter("dirAllowed", "false");
+            }
+            if (staticResource != null && staticResource.exists()) {
+                staticHolder.setInitParameter("baseResource", staticResource.getURI().toString());
+                LOG.info("Serving /static from " + staticResource);
+            } else if (baseResource != null) {
+                staticHolder.setInitParameter("baseResource", baseResource.getURI().toString());
+                staticHolder.setInitParameter("relativeResourceBase", "static/");
+                LOG.warning("Falling back to relative static/ under base resource for /static");
+            }
             context.addServlet(staticHolder, "/static/*");
 
-            java.util.Map<String, String> webclientParams = new java.util.HashMap<>();
-            webclientParams.put("etags", "true");
-            webclientParams.put("cacheControl", "no-cache, no-store, must-revalidate");
-            ServletHolder webclientHolder = new ServletHolder(DefaultServlet.class);
-            webclientHolder.setInitParameters(webclientParams);
+            ServletHolder webclientHolder = new ServletHolder("jakarta-webclient", DefaultServlet.class);
+            webclientHolder.setInitParameter("etags", "true");
+            webclientHolder.setInitParameter("cacheControl", "no-cache, no-store, must-revalidate");
+            if (webclientResource != null && webclientResource.exists()) {
+                webclientHolder.setInitParameter("baseResource", webclientResource.getURI().toString());
+                LOG.info("Serving /webclient from " + webclientResource);
+            } else if (baseResource != null) {
+                webclientHolder.setInitParameter("baseResource", baseResource.getURI().toString());
+                webclientHolder.setInitParameter("relativeResourceBase", "webclient/");
+                LOG.warning("Falling back to relative webclient/ under base resource for /webclient");
+            }
             context.addServlet(webclientHolder, "/webclient/*");
 
             // Minimal Jakarta replacements for server-side GWT services
-            try {
-                context.addServlet(new ServletHolder(new org.waveprotocol.box.server.rpc.RemoteLoggingJakartaServlet()), "/webclient/remote_logging");
-                context.addServlet(new ServletHolder(new org.waveprotocol.box.server.stat.StatuszJakartaServlet()), org.waveprotocol.box.stat.StatService.STAT_URL);
-                context.addServlet(new ServletHolder(new org.waveprotocol.box.server.stat.MetricsPrometheusServlet()), "/metrics");
-            } catch (Throwable t) {
-                LOG.warning("Failed to register Jakarta replacements for remote logging / statusz", t);
-            }
+            addServlet("/webclient/remote_logging", org.waveprotocol.box.server.rpc.RemoteLoggingJakartaServlet.class);
+            addServlet(org.waveprotocol.box.stat.StatService.STAT_URL, org.waveprotocol.box.server.stat.StatuszJakartaServlet.class);
+            addServlet("/metrics", org.waveprotocol.box.server.stat.MetricsPrometheusServlet.class);
 
             // Register metrics, security and caching filters programmatically (Jakarta variants)
             try {
@@ -410,23 +482,36 @@ public class ServerRpcProvider {
     public ServletHolder addServlet(String urlPattern, Class<?> servlet,
                                     @Nullable Map<String, String> initParams) {
         try {
-            if (servletContextHandler == null) {
-                if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addServlet deferred (context not initialized): " + urlPattern + " -> " + servlet.getName());
-                return new ServletHolder(DefaultServlet.class);
-            }
             if (!jakarta.servlet.http.HttpServlet.class.isAssignableFrom(servlet)) {
                 LOG.warning("[Jakarta] Skipping registration of non‑Jakarta servlet: " + servlet.getName() + " at " + urlPattern);
                 return new ServletHolder(DefaultServlet.class);
             }
             @SuppressWarnings("unchecked")
             Class<? extends HttpServlet> httpCls = (Class<? extends HttpServlet>) servlet;
-            ServletHolder holder = new ServletHolder(httpCls);
-            if (initParams != null && !initParams.isEmpty()) {
-                holder.setInitParameters(initParams);
+            Map<String, String> paramsCopy = (initParams == null || initParams.isEmpty()) ? null : new java.util.HashMap<>(initParams);
+            if (servletContextHandler == null || guiceInjector == null) {
+                pendingServlets.add(new PendingServlet(urlPattern, httpCls, paramsCopy));
+                if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addServlet deferred (context not initialized): " + urlPattern + " -> " + servlet.getName());
+                return new ServletHolder(httpCls);
             }
-            servletContextHandler.addServlet(holder, urlPattern);
-            if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addServlet " + urlPattern + " -> " + servlet.getName());
-            return holder;
+            try {
+                HttpServlet instance = guiceInjector.getInstance(httpCls);
+                ServletHolder holder = new ServletHolder(instance);
+                if (paramsCopy != null) {
+                    holder.setInitParameters(paramsCopy);
+                }
+                servletContextHandler.addServlet(holder, urlPattern);
+                if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addServlet " + urlPattern + " -> " + servlet.getName());
+                return holder;
+            } catch (Throwable t) {
+                LOG.warning("Failed to instantiate servlet '" + servlet.getName() + "' via Guice; falling back to default constructor", t);
+                ServletHolder holder = new ServletHolder(httpCls);
+                if (paramsCopy != null) {
+                    holder.setInitParameters(paramsCopy);
+                }
+                servletContextHandler.addServlet(holder, urlPattern);
+                return holder;
+            }
         } catch (Throwable t) {
             LOG.warning("Failed to add servlet '" + servlet + "' at '" + urlPattern + "'", t);
             return new ServletHolder(DefaultServlet.class);
@@ -439,19 +524,25 @@ public class ServerRpcProvider {
 
     public void addFilter(String urlPattern, Class<?> filter) {
         try {
-            if (servletContextHandler == null) {
-                if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addFilter deferred (context not initialized): " + urlPattern + " -> " + filter.getName());
-                return;
-            }
             if (!jakarta.servlet.Filter.class.isAssignableFrom(filter)) {
                 LOG.warning("[Jakarta] Skipping registration of non‑Jakarta filter: " + filter.getName() + " at " + urlPattern);
                 return;
             }
             @SuppressWarnings("unchecked")
             Class<? extends Filter> filt = (Class<? extends Filter>) filter;
-            org.eclipse.jetty.ee10.servlet.FilterHolder holder = new org.eclipse.jetty.ee10.servlet.FilterHolder(filt);
-            servletContextHandler.addFilter(holder, urlPattern, java.util.EnumSet.allOf(DispatcherType.class));
-            if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addFilter " + urlPattern + " -> " + filter.getName());
+            if (servletContextHandler == null || guiceInjector == null) {
+                pendingFilters.add(new PendingFilter(urlPattern, filt));
+                if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addFilter deferred (context not initialized): " + urlPattern + " -> " + filter.getName());
+                return;
+            }
+            try {
+                Filter instance = guiceInjector.getInstance(filt);
+                org.eclipse.jetty.ee10.servlet.FilterHolder holder = new org.eclipse.jetty.ee10.servlet.FilterHolder(instance);
+                servletContextHandler.addFilter(holder, urlPattern, java.util.EnumSet.allOf(DispatcherType.class));
+                if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addFilter " + urlPattern + " -> " + filter.getName());
+            } catch (Throwable t) {
+                LOG.warning("Failed to instantiate filter '" + filter.getName() + "' via Guice; skipping", t);
+            }
         } catch (Throwable t) {
             LOG.warning("Failed to add filter '" + filter + "' at '" + urlPattern + "'", t);
         }
@@ -510,6 +601,34 @@ public class ServerRpcProvider {
         return out;
     }
 
+    private void registerPendingServlets() {
+        if (servletContextHandler == null || guiceInjector == null || pendingServlets.isEmpty()) {
+            return;
+        }
+        for (PendingServlet pending : new ArrayList<>(pendingServlets)) {
+            try {
+                addServlet(pending.urlPattern, pending.servletClass, pending.initParams);
+            } catch (Throwable t) {
+                LOG.warning("Failed to register deferred servlet '" + pending.urlPattern + "'", t);
+            }
+        }
+        pendingServlets.clear();
+    }
+
+    private void registerPendingFilters() {
+        if (servletContextHandler == null || guiceInjector == null || pendingFilters.isEmpty()) {
+            return;
+        }
+        for (PendingFilter pending : new ArrayList<>(pendingFilters)) {
+            try {
+                addFilter(pending.urlPattern, pending.filterClass);
+            } catch (Throwable t) {
+                LOG.warning("Failed to register deferred filter '" + pending.urlPattern + "'", t);
+            }
+        }
+        pendingFilters.clear();
+    }
+
     /**
      * Exposes the registered service map for per-connection dispatchers.
      */
@@ -548,6 +667,70 @@ public class ServerRpcProvider {
         RegisteredServiceMethod(Service service, MethodDescriptor method) {
             this.service = service;
             this.method = method;
+        }
+    }
+
+    private Resource resolveResource(ResourceFactory factory, String base) {
+        if (base == null || base.isBlank()) {
+            return null;
+        }
+        Resource resource = null;
+        try {
+            resource = factory.newResource(base);
+            if (resource != null && resource.exists()) {
+                return resource;
+            }
+        } catch (Exception e) {
+            if (LOG.isFineLoggable()) {
+                LOG.fine("Failed to resolve resourceBase '" + base + "' via factory: " + e);
+            }
+        }
+        try {
+            Path candidate = Paths.get(base);
+            if (!candidate.isAbsolute()) {
+                candidate = candidate.normalize();
+            }
+            if (!Files.exists(candidate)) {
+                Path waveRelative = Paths.get("wave").resolve(base.startsWith("./") ? base.substring(2) : base);
+                if (Files.exists(waveRelative)) {
+                    candidate = waveRelative;
+                }
+            }
+            if (Files.exists(candidate)) {
+                Resource fallback = factory.newResource(candidate.toUri());
+                if (fallback != null && fallback.exists()) {
+                    LOG.info("Resolved resource base '" + base + "' to " + candidate.toAbsolutePath());
+                    return fallback;
+                }
+            }
+        } catch (Exception ex) {
+            if (LOG.isFineLoggable()) {
+                LOG.fine("Fallback resolution failed for resource base '" + base + "': " + ex);
+            }
+        }
+        LOG.warning("Skipping resource base '" + base + "' (not found)");
+        return null;
+    }
+
+    private static final class PendingServlet {
+        final String urlPattern;
+        final Class<? extends HttpServlet> servletClass;
+        final Map<String, String> initParams;
+
+        PendingServlet(String urlPattern, Class<? extends HttpServlet> servletClass, Map<String, String> initParams) {
+            this.urlPattern = urlPattern;
+            this.servletClass = servletClass;
+            this.initParams = initParams;
+        }
+    }
+
+    private static final class PendingFilter {
+        final String urlPattern;
+        final Class<? extends Filter> filterClass;
+
+        PendingFilter(String urlPattern, Class<? extends Filter> filterClass) {
+            this.urlPattern = urlPattern;
+            this.filterClass = filterClass;
         }
     }
 

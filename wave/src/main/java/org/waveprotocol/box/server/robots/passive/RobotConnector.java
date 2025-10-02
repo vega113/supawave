@@ -45,7 +45,7 @@ import java.util.List;
  *
  * @author ljvderijk@google.com (Lennard de Rijk)
  */
-public class RobotConnector {
+public class RobotConnector implements RobotCapabilityFetcher {
 
   private static final Log LOG = Log.get(RobotConnector.class);
 
@@ -99,6 +99,7 @@ public class RobotConnector {
    * @throws CapabilityFetchException if the capabilities couldn't be retrieved
    *         or parsed.
    */
+  @Override
   public RobotAccountData fetchCapabilities(RobotAccountData account, String activeApiUrl)
       throws CapabilityFetchException {
     RobotCapabilitiesParser parser = new RobotCapabilitiesParser(

@@ -19,13 +19,12 @@
 
 package org.waveprotocol.box.server.robots.operations;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.wave.api.InvalidRequestException;
@@ -36,16 +35,14 @@ import com.google.wave.api.ProtocolVersion;
 import com.google.wave.api.event.EventType;
 import com.google.wave.api.robot.Capability;
 import com.google.wave.api.robot.CapabilityFetchException;
-
 import junit.framework.TestCase;
-
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.robots.OperationContext;
 import org.waveprotocol.box.server.robots.RobotCapabilities;
-import org.waveprotocol.box.server.robots.passive.RobotConnector;
+import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.Collections;
@@ -53,8 +50,8 @@ import java.util.Map;
 
 public class NotifyOperationServiceTest extends TestCase {
 
-  private static final Map<EventType, Capability> EMPTY_CAPABILITIES = 
-    Collections.<EventType, Capability> emptyMap();
+  private static final Map<EventType, Capability> EMPTY_CAPABILITIES =
+      Collections.<EventType, Capability>emptyMap();
   private static final String OP_ID = "op1";
   private static final ParticipantId ROBOT = ParticipantId.ofUnsafe("robot@example.com");
   private static final String OLD_HASH = "oldHash";
@@ -69,19 +66,18 @@ public class NotifyOperationServiceTest extends TestCase {
       "http://www.example.com", "fake", NEW_CAPABILITIES, true);
 
   private AccountStore accountStore;
-  private RobotConnector connector;
+  private RecordingRobotCapabilityFetcher capabilityFetcher;
   private NotifyOperationService operationService;
   private OperationContext context;
 
   @Override
   protected void setUp() throws Exception {
     accountStore = mock(AccountStore.class);
-    connector = mock(RobotConnector.class);
     context = mock(OperationContext.class);
-    operationService = new NotifyOperationService(accountStore, connector);
+    capabilityFetcher = new RecordingRobotCapabilityFetcher();
+    operationService = new NotifyOperationService(accountStore, capabilityFetcher);
 
     when(accountStore.getAccount(ROBOT)).thenReturn(ROBOT_ACCOUNT);
-    when(connector.fetchCapabilities(eq(ROBOT_ACCOUNT), anyString())).thenReturn(NEW_ROBOT_ACCOUNT);
   }
 
   public void testUpdateCapabilites() throws Exception {
@@ -90,50 +86,48 @@ public class NotifyOperationServiceTest extends TestCase {
 
     operationService.execute(operation, context, ROBOT);
 
-    verify(connector).fetchCapabilities(eq(ROBOT_ACCOUNT), anyString());
+    assertEquals(1, capabilityFetcher.getCallCount());
+    assertSame(ROBOT_ACCOUNT, capabilityFetcher.getLastAccount());
     verify(accountStore).putAccount(NEW_ROBOT_ACCOUNT);
   }
 
   public void testDontUpdateIfHashesMatch() throws Exception {
-    OperationRequest operation =
-        new OperationRequest("robot.notify", OP_ID, Parameter.of(ParamsProperty.CAPABILITIES_HASH,
-            OLD_HASH));
+    OperationRequest operation = new OperationRequest(
+        "robot.notify", OP_ID, Parameter.of(ParamsProperty.CAPABILITIES_HASH, OLD_HASH));
 
     operationService.execute(operation, context, ROBOT);
 
-    verifyZeroInteractions(connector);
+    assertEquals(0, capabilityFetcher.getCallCount());
     verify(accountStore, never()).putAccount(any(AccountData.class));
   }
 
   public void testErrorOnFailingConnection() throws Exception {
-    OperationRequest operation =
-        new OperationRequest("robot.notify", OP_ID, Parameter.of(ParamsProperty.CAPABILITIES_HASH,
-            NEW_HASH));
+    OperationRequest operation = new OperationRequest(
+        "robot.notify", OP_ID, Parameter.of(ParamsProperty.CAPABILITIES_HASH, NEW_HASH));
 
-    when(connector.fetchCapabilities(any(RobotAccountData.class), anyString())).thenThrow(
-        new CapabilityFetchException(""));
+    capabilityFetcher.setException(new CapabilityFetchException(""));
 
     operationService.execute(operation, context, ROBOT);
 
     verify(accountStore, never()).putAccount(any(AccountData.class));
     verify(context).constructErrorResponse(eq(operation), anyString());
+    assertEquals(1, capabilityFetcher.getCallCount());
   }
 
   public void testExceptionOnUnknownAccount() throws Exception {
-    OperationRequest operation =
-        new OperationRequest("robot.notify", OP_ID, Parameter.of(ParamsProperty.CAPABILITIES_HASH,
-            NEW_HASH));
+    OperationRequest operation = new OperationRequest(
+        "robot.notify", OP_ID, Parameter.of(ParamsProperty.CAPABILITIES_HASH, NEW_HASH));
 
     when(accountStore.getAccount(ROBOT)).thenReturn(null);
 
     try {
       operationService.execute(operation, context, ROBOT);
       fail("Expected InvalidRequestException");
-    } catch (InvalidRequestException e) {
+    } catch (InvalidRequestException expected) {
       // expected
     }
 
-    verifyZeroInteractions(connector);
+    assertEquals(0, capabilityFetcher.getCallCount());
     verify(accountStore, never()).putAccount(any(AccountData.class));
   }
 
@@ -143,11 +137,51 @@ public class NotifyOperationServiceTest extends TestCase {
     try {
       operationService.execute(operation, context, ROBOT);
       fail("Expected InvalidRequestException");
-    } catch (InvalidRequestException e) {
+    } catch (InvalidRequestException expected) {
       // expected
     }
 
-    verifyZeroInteractions(connector);
+    assertEquals(0, capabilityFetcher.getCallCount());
     verify(accountStore, never()).putAccount(any(AccountData.class));
+  }
+
+  private static final class RecordingRobotCapabilityFetcher implements RobotCapabilityFetcher {
+    private RobotAccountData nextAccount = NEW_ROBOT_ACCOUNT;
+    private CapabilityFetchException exception;
+    private int callCount;
+    private RobotAccountData lastAccount;
+    private String lastActiveApiUrl;
+
+    @Override
+    public RobotAccountData fetchCapabilities(RobotAccountData account, String activeApiUrl)
+        throws CapabilityFetchException {
+      callCount++;
+      lastAccount = account;
+      lastActiveApiUrl = activeApiUrl;
+      if (exception != null) {
+        throw exception;
+      }
+      return nextAccount;
+    }
+
+    void setNextAccount(RobotAccountData account) {
+      this.nextAccount = account;
+    }
+
+    void setException(CapabilityFetchException exception) {
+      this.exception = exception;
+    }
+
+    int getCallCount() {
+      return callCount;
+    }
+
+    RobotAccountData getLastAccount() {
+      return lastAccount;
+    }
+
+    String getLastActiveApiUrl() {
+      return lastActiveApiUrl;
+    }
   }
 }

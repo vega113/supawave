@@ -33,7 +33,7 @@ import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.OperationContext;
 import org.waveprotocol.box.server.robots.RobotCapabilities;
-import org.waveprotocol.box.server.robots.passive.RobotConnector;
+import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
 import org.waveprotocol.box.server.robots.util.OperationUtil;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
@@ -49,12 +49,12 @@ public class NotifyOperationService implements OperationService {
   private static final Log LOG = Log.get(NotifyOperationService.class);
 
   private final AccountStore accountStore;
-  private final RobotConnector connector;
+  private final RobotCapabilityFetcher capabilityFetcher;
 
   @Inject
-  public NotifyOperationService(AccountStore accountStore, RobotConnector connector) {
+  public NotifyOperationService(AccountStore accountStore, RobotCapabilityFetcher capabilityFetcher) {
     this.accountStore = accountStore;
-    this.connector = connector;
+    this.capabilityFetcher = capabilityFetcher;
   }
 
   @Override
@@ -89,7 +89,7 @@ public class NotifyOperationService implements OperationService {
     }
 
     try {
-      robotAccountData = connector.fetchCapabilities(robotAccountData, "");
+      robotAccountData = capabilityFetcher.fetchCapabilities(robotAccountData, "");
     } catch (CapabilityFetchException e) {
       LOG.fine("Unable to retrieve capabilities for " + account.getId(), e);
       context.constructErrorResponse(operation, "Unable to retrieve new capabilities");

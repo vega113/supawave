@@ -42,6 +42,8 @@ import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.stat.RequestScopeFilter;
+import org.waveprotocol.box.server.stat.TimingFilter;
 import org.waveprotocol.wave.util.logging.Log;
 
 import javax.annotation.Nullable;
@@ -354,8 +356,28 @@ public class ServerRpcProvider {
 
                 org.eclipse.jetty.ee10.servlet.FilterHolder cacheNo = new org.eclipse.jetty.ee10.servlet.FilterHolder(new NoCacheFilter());
                 context.addFilter(cacheNo, "/webclient/*", java.util.EnumSet.allOf(DispatcherType.class));
+
+                // Request scope captures session context for Timing/Statusz compatibility.
+                org.eclipse.jetty.ee10.servlet.FilterHolder scopeHolder =
+                        new org.eclipse.jetty.ee10.servlet.FilterHolder(new RequestScopeFilter(sessionManager));
+                context.addFilter(scopeHolder, "/*", java.util.EnumSet.allOf(DispatcherType.class));
+
+                boolean enableProfiling = false;
+                try {
+                    if (effectiveCfg.hasPath("core.enable_profiling")) {
+                        enableProfiling = effectiveCfg.getBoolean("core.enable_profiling");
+                    }
+                } catch (ConfigException ce) {
+                    LOG.warning("Invalid config for core.enable_profiling; defaulting to disabled.", ce);
+                    enableProfiling = false;
+                }
+                if (enableProfiling) {
+                    org.eclipse.jetty.ee10.servlet.FilterHolder timingHolder =
+                            new org.eclipse.jetty.ee10.servlet.FilterHolder(new TimingFilter());
+                    context.addFilter(timingHolder, "/*", java.util.EnumSet.allOf(DispatcherType.class));
+                }
             } catch (Exception ex) {
-                LOG.warning("Failed to register Jakarta security/caching filters", ex);
+                LOG.warning("Failed to register Jakarta security/profiling filters", ex);
             }
 
             // Register Jakarta WebSocket endpoint programmatically with DI configurator

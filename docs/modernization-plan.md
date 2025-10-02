@@ -565,6 +565,7 @@ Task P5-T3: Migrate servlet code and configuration (Jakarta)
   - 2025-09-18: Added Micrometer HTTP metrics filter and Prometheus servlet, remote logging/statusz Jakarta variants, and completed robot operation/service registry overrides so Jakarta builds no longer rely on javax robot classes at runtime. Default builds now use the Jakarta overrides end-to-end.
   - 2025-09-18 (later): Introduced a Jakarta override for `com.google.wave.api.AbstractRobot`, excluded the javax servlet facade from Jakarta builds, and dropped the `HttpServletResponse` dependency from RobotConnectionUtil to keep shared libraries servlet-API agnostic.
   - 2025-09-18 (evening): Added Jakarta tests for Data API OAuth token flow, Prometheus `/metrics`, and NotifyOperationService hash refresh; `./gradlew -PjettyFamily=jakarta :wave:testJakarta` now exercises robot OAuth and observability endpoints.
+  - 2025-09-27: Re-enabled profiling instrumentation on the Jakarta stack by porting RequestScopeFilter/TimingFilter to jakarta.servlet, wiring them through ServerRpcProvider with StatModule enabled, and adding focused Jakarta tests for the filters.
 - Goal: Refactor imports and programmatic registrations to jakarta.* and remove javax.* from the Jakarta path.
 - Steps (remaining):
   1) Audit shared libraries (e.g., `com/google/wave/api/**`) still importing `javax.servlet` and either isolate them for the javax profile or provide Jakarta equivalents for runtime usage.

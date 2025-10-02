@@ -108,6 +108,8 @@ configurations {
                   'org.mongodb:mongodb-driver-sync:4.11.1'
         }
     }
+    gwtTestImplementation.extendsFrom(testImplementation)
+    gwtTestRuntimeOnly.extendsFrom(testRuntimeOnly)
 }
 
 //=============================================================================
@@ -134,11 +136,38 @@ sourceSets {
     }
     test {
         java {
-            srcDir 'src/test/java'
+            setSrcDirs(['src/test/java'])
+            exclude '**/*GwtTest*.java'
+            exclude '**/*GwtTestCase.java'
+            exclude '**/TestBase.java'
+            exclude '**/GenericGWTTestBase.java'
+            exclude '**/ContentTestBase.java'
+            exclude '**/ContentTestCase.java'
+            exclude '**/wave/client/**'
+            exclude '**/box/webclient/**'
         }
         resources {
             srcDir 'src/test/resources'
         }
+    }
+
+    gwtTest {
+        java {
+            setSrcDirs(['src/test/java'])
+            include '**/*GwtTest*.java'
+            include '**/*GwtTestCase.java'
+            include '**/TestBase.java'
+            include '**/GenericGWTTestBase.java'
+            include '**/ContentTestBase.java'
+            include '**/ContentTestCase.java'
+            include '**/wave/client/**'
+            include '**/box/webclient/**'
+        }
+        resources {
+            srcDir 'src/test/resources'
+        }
+        compileClasspath += sourceSets.main.output + sourceSets.test.compileClasspath
+        runtimeClasspath += output + compileClasspath + sourceSets.test.runtimeClasspath
     }
     
     // Jakarta (Jetty 12) POC source set. Standalone, does not depend on main sources.
@@ -252,7 +281,10 @@ if (jettyFamily == 'jakarta') {
                 'org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java',
                 'org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java',
                 // Shared robot API servlet facade (jakarta override lives under src/jakarta-overrides)
-                'com/google/wave/api/AbstractRobot.java'
+                'com/google/wave/api/AbstractRobot.java',
+                // Profiling filters replaced with Jakarta variants
+                'org/waveprotocol/box/server/stat/RequestScopeFilter.java',
+                'org/waveprotocol/box/server/stat/TimingFilter.java'
             ]
             if (patterns.any { rel == it }) return true
             // Exclude any org/apache/wave/box/server/rpc/* under src/main/java only
@@ -367,9 +399,11 @@ dependencies {
     testImplementation(
             [group: 'junit', name: 'junit', version: '4.12'],
             [group: "org.hamcrest", name: "hamcrest-junit", version: "2.0.0.0"],
-[group: "org.mockito", name: "mockito-core", version: "2.2.21"],
+            [group: "org.mockito", name: "mockito-core", version: "2.2.21"],
             [group: "org.testcontainers", name: "testcontainers", version: "1.19.7"],
-            [group: "org.testcontainers", name: "mongodb", version: "1.19.7"]
+            [group: "org.testcontainers", name: "mongodb", version: "1.19.7"],
+            [group: 'org.gwtproject', name: 'gwt-user', version: gwtVersion],
+            [group: 'org.gwtproject', name: 'gwt-dev', version: gwtVersion]
     )
     // Jakarta-only test compilation (reuses junit and mockito from testImplementation)
     jakartaTestImplementation (
@@ -905,11 +939,9 @@ sourceSets.jakartaTest.runtimeClasspath += sourceSets.jakartaSupport.output
 // Run the Jakarta POC server
 
 task testGwt(type: Test) {
-    include "**/*GwtTest*"
-
-    // Use explicit test outputs and runtime classpath (avoids Gradle 9 deprecation)
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
+    // Use dedicated GWT test source set
+    testClassesDirs = sourceSets.gwtTest.output.classesDirs
+    classpath = sourceSets.gwtTest.runtimeClasspath
 
     minHeapSize = "512m"
     maxHeapSize = "1024m"
@@ -926,16 +958,15 @@ task testGwt(type: Test) {
     }
 }
 
+testGwt.dependsOn compileGwtTestJava
 testGwt.dependsOn compileGwt
 
 // Dedicated task to run GWT JUnit tests with GWT tooling on the JVM classpath
 // This avoids polluting the default test task's classpath with gwt-dev/jetty.
  task testGwtHosted(type: Test) {
-     include "**/*GwtTest*"
-
      // Use explicit test outputs and runtime classpath and augment with GWT tooling
-     testClassesDirs = sourceSets.test.output.classesDirs
-     classpath = sourceSets.test.runtimeClasspath + configurations.gwt
+     testClassesDirs = sourceSets.gwtTest.output.classesDirs
+     classpath = sourceSets.gwtTest.runtimeClasspath + configurations.gwt
 
      // Run GWT JUnitShell under Java 11 for better compatibility (Jetty/ASM)
      def j11 = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(11) }
@@ -1001,6 +1032,13 @@ testAll.dependsOn compileJava, compileGwt
 testAll.dependsOn test, testMongo, testLarge, testGwt
 
 testGwt.mustRunAfter compileGwt, testLarge
+
+task printTestSources {
+    doLast {
+        println 'Test sources:'
+        sourceSets.test.java.asFileTree.each { println it }
+    }
+}
 testMongo.mustRunAfter compileJava, test
 testLarge.mustRunAfter test
 

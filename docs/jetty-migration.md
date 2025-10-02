@@ -18,6 +18,9 @@ Status Summary
   - Robot APIs: Active/Data/registration servlets, RobotApiModule wiring, passive connector, and operation/service registries live under `src/jakarta-overrides`.
   - Tests: jakartaTest and jakarta ITs cover forwarded headers, access logs, caching filters, security headers, DI guard, session lookup, and robot servlet flows.
 
+Recent changes (2025-09-27)
+- 2025-09-27: Restored profiling parity on the Jakarta server by porting RequestScopeFilter and TimingFilter to jakarta.servlet, re-enabling StatModule, and wiring the filters through ServerRpcProvider alongside targeted tests.
+
 Recent changes (2025-09-18)
 - 2025-09-18: Completed Jakarta robot service registries, RobotApiModule wiring, passive connector overrides, and NotifyOperationService; added a Jakarta override for `com.google.wave.api.AbstractRobot`; introduced Micrometer HTTP metrics filter, Prometheus `/metrics`, and Jakarta variants of remote logging/statusz. Verified `./gradlew -PjettyFamily=jakarta :wave:compileJava :wave:testJakarta :wave:testJakartaIT` with the Jakarta profile as default and documented the Jetty 9.4 fallback path.
 - 2025-09-18: Added dedicated Jakarta tests for the Data API OAuth token flow, Prometheus `/metrics` endpoint, and NotifyOperationService hash refresh to keep regression coverage on robot authentication and observability paths.

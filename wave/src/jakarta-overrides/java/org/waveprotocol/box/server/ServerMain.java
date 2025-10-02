@@ -87,8 +87,7 @@ public class ServerMain {
     Config config = injector.getInstance(Config.class);
     boolean isJakarta = isJakarta(config);
 
-    Module profilingModule = isJakarta ? new AbstractModule() { @Override protected void configure() {} }
-                                       : injector.getInstance(StatModule.class);
+    Module profilingModule = injector.getInstance(StatModule.class);
     ExecutorsModule executorsModule = injector.getInstance(ExecutorsModule.class);
     injector = injector.createChildInjector(profilingModule, executorsModule);
 

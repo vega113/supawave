@@ -239,6 +239,8 @@ public class ServerMain {
     server.addServlet("/fetch/*", FetchServlet.class);
     server.addServlet("/search/*", SearchServlet.class);
     server.addServlet("/notification/*", NotificationServlet.class);
+    server.addServlet("/healthz", HealthServlet.class);
+    server.addServlet("/readyz", HealthServlet.class);
 
     // Skip robots and GWT remote logging on Jakarta; these are javax/GWT-bound.
     if (!isJakarta(config)) {

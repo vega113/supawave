@@ -277,6 +277,7 @@ if (jettyFamily == 'jakarta') {
                 'org/waveprotocol/box/server/rpc/NotificationServlet.java',
                 'org/waveprotocol/box/server/rpc/WaveClientServlet.java',
                 'org/waveprotocol/box/server/rpc/WaveRefServlet.java',
+                'org/waveprotocol/box/server/rpc/HealthServlet.java',
                 // WebSocket wiring under javax
                 'org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java',
                 'org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java',
@@ -906,6 +907,7 @@ tasks.register('testJakartaIT', Test) {
         includeTestsMatching 'org.waveprotocol.box.server.jakarta.SignOutServletJakartaIT'
         includeTestsMatching 'org.waveprotocol.box.server.jakarta.GadgetProviderServletJakartaIT'
         includeTestsMatching 'org.waveprotocol.box.server.jakarta.InitialsAvatarsServletJakartaIT'
+        includeTestsMatching 'org.waveprotocol.box.server.jakarta.HealthServletJakartaIT'
     }
     // Open modules for Mockito on JDK 17
     jvmArgs += [

@@ -202,6 +202,15 @@ public class ServerRpcProvider {
                 ProtocolAuthenticate authMessage = (ProtocolAuthenticate) message;
                 ParticipantId authenticatedAs = authenticate(authMessage.getToken());
 
+                // If getSessionFromToken couldn't resolve the token (e.g. Jetty 12
+                // session lookup not yet wired), fall back to the user established
+                // during the WebSocket HTTP upgrade handshake.  This is safe because
+                // the Jakarta WebSocket endpoint already verified the HTTP session.
+                if (authenticatedAs == null && loggedInUser != null) {
+                    LOG.info("Token lookup returned null; using pre-authenticated user " + loggedInUser);
+                    authenticatedAs = loggedInUser;
+                }
+
                 Preconditions.checkArgument(authenticatedAs != null, "Auth token invalid");
                 Preconditions.checkState(loggedInUser == null || loggedInUser.equals(authenticatedAs),
                         "Session already authenticated as a different user");

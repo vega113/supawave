@@ -43,6 +43,7 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.waveprotocol.box.server.robots.active.ActiveApiOperationServiceRegistry;
 import org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiOperationServiceRegistry;
+import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
 import org.waveprotocol.box.server.robots.passive.RobotConnector;
 
 import java.util.concurrent.Executor;
@@ -67,6 +68,8 @@ public class RobotApiModule extends AbstractModule {
   protected void configure() {
     install(new EventDataConverterModule());
     install(new RobotSerializerModule());
+
+    bind(RobotCapabilityFetcher.class).to(RobotConnector.class);
 
     bind(String.class).annotatedWith(Names.named("authorize_token_path")).toInstance(
         AUTHORIZE_TOKEN_PATH);

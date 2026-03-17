@@ -45,7 +45,7 @@ public final class InitialsAvatarsServlet extends HttpServlet {
   @Inject
   public InitialsAvatarsServlet() throws IOException {
     try {
-      DEFAULT = ImageIO.read(Resources.getResource("static/images/avatar/unknown.jpg"));
+      DEFAULT = ImageIO.read(Resources.getResource("static/images/unknown.jpg"));
     } catch (Exception e) {
       // Log quietly and fall back to bundled resource to avoid noisy startup warnings.
       LOG.info("Default Avatar image not found on disk; using bundled fallback.");

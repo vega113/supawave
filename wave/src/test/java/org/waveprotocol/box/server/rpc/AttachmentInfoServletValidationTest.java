@@ -56,7 +56,7 @@ public class AttachmentInfoServletValidationTest {
   public void processIds_handlesNullEntriesSafely() {
     AttachmentService service = Mockito.mock(AttachmentService.class);
     WaveletProvider provider = Mockito.mock(WaveletProvider.class);
-    ProtoSerializer serializer = Mockito.mock(ProtoSerializer.class);
+    ProtoSerializer serializer = new ProtoSerializer();
 
     AttachmentInfoServlet servlet = newServlet(service, provider,
         Mockito.mock(org.waveprotocol.box.server.authentication.SessionManager.class), serializer);
@@ -83,4 +83,3 @@ public class AttachmentInfoServletValidationTest {
     }
   }
 }
-

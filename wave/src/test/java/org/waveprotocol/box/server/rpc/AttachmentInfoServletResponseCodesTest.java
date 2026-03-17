@@ -38,7 +38,7 @@ public class AttachmentInfoServletResponseCodesTest {
     return c.newInstance(mock(org.waveprotocol.box.server.attachment.AttachmentService.class),
         mock(org.waveprotocol.box.server.waveserver.WaveletProvider.class),
         mock(org.waveprotocol.box.server.authentication.SessionManager.class),
-        mock(org.waveprotocol.box.server.rpc.ProtoSerializer.class));
+        new org.waveprotocol.box.server.rpc.ProtoSerializer());
   }
 
   @Test
@@ -63,4 +63,3 @@ public class AttachmentInfoServletResponseCodesTest {
     verify(resp).sendError(HttpServletResponse.SC_BAD_REQUEST);
   }
 }
-

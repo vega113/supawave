@@ -19,7 +19,7 @@ import org.waveprotocol.box.server.robots.util.OperationUtil;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
-public final class NotifyOperationService implements OperationService {
+public class NotifyOperationService implements OperationService {
   private static final Log LOG = Log.get(NotifyOperationService.class);
 
   private final AccountStore accountStore;

@@ -2,7 +2,7 @@
 
 Status: In Progress (staged migration)
 Owner: Project Maintainers
-Date: 2025-09-18
+Date: 2025-10-11
 
 Status Summary
 - Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
@@ -21,6 +21,10 @@ Status Summary
 Recent changes (2025-09-27)
 - 2025-09-27: Restored profiling parity on the Jakarta server by porting RequestScopeFilter and TimingFilter to jakarta.servlet, re-enabling StatModule, and wiring the filters through ServerRpcProvider alongside targeted tests. Added Jakarta HealthServlet wiring and smoke coverage for /healthz and /readyz endpoints.
 - 2025-09-27: Removed the runtime `isJakarta` gating in ServerMain and made the Jakarta test suites part of the default `check`/`testAll` flow.
+
+Recent changes (2025-10-11)
+- 2025-10-11: Replaced the placeholder Jakarta WaveWebSocketEndpoint with the full RPC bridge (executor + session manager wiring) and restored blocking sends so RpcTest expectations pass. Updated AuthenticationServlet Jakarta overrides to fall back to `/` on unsafe `r` parameters, aligned unit/IT expectations, and documented the behavior.
+- 2025-10-11: Marked `testJakarta` and `testJakartaIT` as part of the default Gradle build; follow-up work on checkstyle conformance for jakarta-overrides is tracked separately.
 
 Recent changes (2025-09-18)
 - 2025-09-18: Completed Jakarta robot service registries, RobotApiModule wiring, passive connector overrides, and NotifyOperationService; added a Jakarta override for `com.google.wave.api.AbstractRobot`; introduced Micrometer HTTP metrics filter, Prometheus `/metrics`, and Jakarta variants of remote logging/statusz. Verified `./gradlew -PjettyFamily=jakarta :wave:compileJava :wave:testJakarta :wave:testJakartaIT` with the Jakarta profile as default and documented the Jetty 9.4 fallback path.

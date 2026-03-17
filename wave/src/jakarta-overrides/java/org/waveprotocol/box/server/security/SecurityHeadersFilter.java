@@ -16,12 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.waveprotocol.box.server.security.jakarta;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.typesafe.config.Config;
-import org.waveprotocol.wave.util.logging.Log;
+package org.waveprotocol.box.server.security.jakarta;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -29,9 +25,16 @@ import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
+
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import com.typesafe.config.Config;
+
+import org.waveprotocol.wave.util.logging.Log;
 
 /**
  * Jakarta variant: Filter that adds basic security headers to HTTP responses.
@@ -42,10 +45,11 @@ public final class SecurityHeadersFilter implements Filter {
   private final Config config;
 
   private static final String DEFAULT_CSP =
-      "default-src 'self'; " +
-      "base-uri 'self'; frame-ancestors 'self'; object-src 'none'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:";
+      "default-src 'self'; "
+          + "base-uri 'self'; frame-ancestors 'self'; object-src 'none'; "
+          + "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+          + "style-src 'self' 'unsafe-inline'; "
+          + "img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:";
 
   private static final String DEFAULT_REFERRER = "strict-origin-when-cross-origin";
   private static final String DEFAULT_XCTO = "nosniff";
@@ -61,15 +65,20 @@ public final class SecurityHeadersFilter implements Filter {
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
       throws IOException, ServletException {
-    HttpServletRequest req = (request instanceof HttpServletRequest) ? (HttpServletRequest) request : null;
+    HttpServletRequest req =
+        (request instanceof HttpServletRequest) ? (HttpServletRequest) request : null;
     if (response instanceof HttpServletResponse) {
       HttpServletResponse http = (HttpServletResponse) response;
 
-      String csp = config.hasPath("security.csp") ? config.getString("security.csp") : DEFAULT_CSP;
+      String csp = config.hasPath("security.csp")
+          ? config.getString("security.csp")
+          : DEFAULT_CSP;
       String referrer = config.hasPath("security.referrer_policy")
-          ? config.getString("security.referrer_policy") : DEFAULT_REFERRER;
+          ? config.getString("security.referrer_policy")
+          : DEFAULT_REFERRER;
       String xcto = config.hasPath("security.x_content_type_options")
-          ? config.getString("security.x_content_type_options") : DEFAULT_XCTO;
+          ? config.getString("security.x_content_type_options")
+          : DEFAULT_XCTO;
 
       if (!isCommitted(http)) {
         http.setHeader("Content-Security-Policy", csp);
@@ -78,10 +87,14 @@ public final class SecurityHeadersFilter implements Filter {
 
         // Conditionally add HSTS when connection is secure
         try {
-          int hstsMaxAge = config.hasPath("security.hsts_max_age") ? config.getInt("security.hsts_max_age") : 0;
-          boolean hstsIncludeSub = config.hasPath("security.hsts_include_subdomains") && config.getBoolean("security.hsts_include_subdomains");
+          int hstsMaxAge = config.hasPath("security.hsts_max_age")
+              ? config.getInt("security.hsts_max_age")
+              : 0;
+          boolean hstsIncludeSub = config.hasPath("security.hsts_include_subdomains")
+              && config.getBoolean("security.hsts_include_subdomains");
           if (hstsMaxAge > 0 && req != null && req.isSecure()) {
-            String value = "max-age=" + hstsMaxAge + (hstsIncludeSub ? "; includeSubDomains" : "");
+            String value = "max-age=" + hstsMaxAge
+                + (hstsIncludeSub ? "; includeSubDomains" : "");
             http.setHeader("Strict-Transport-Security", value);
           }
         } catch (Exception t) {

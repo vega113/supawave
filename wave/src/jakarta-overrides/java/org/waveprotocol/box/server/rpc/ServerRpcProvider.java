@@ -18,12 +18,15 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
+import com.google.protobuf.Message;
 import com.google.protobuf.Service;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.MethodDescriptor;
+import com.google.protobuf.RpcCallback;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import org.eclipse.jetty.server.Server;
@@ -41,16 +44,32 @@ import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolAuthenticate;
+import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolAuthenticationResult;
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.rpc.MessageExpectingChannel;
+import org.waveprotocol.box.server.rpc.ProtoCallback;
+import org.waveprotocol.box.server.rpc.ServerRpcController;
+import org.waveprotocol.box.server.rpc.ServerRpcControllerImpl;
+import org.waveprotocol.box.server.rpc.Rpc;
+import org.waveprotocol.box.server.rpc.WebSocketChannel;
+import org.waveprotocol.box.server.rpc.WebSocketChannelImpl;
 import org.waveprotocol.box.server.stat.RequestScopeFilter;
 import org.waveprotocol.box.server.stat.TimingFilter;
+import org.waveprotocol.box.stat.SessionContext;
+import org.waveprotocol.box.stat.Timer;
+import org.waveprotocol.box.stat.Timing;
 import org.waveprotocol.wave.util.logging.Log;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import javax.annotation.Nullable;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpSession;
+import jakarta.websocket.Session;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -65,6 +84,8 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ConcurrentHashMap;
 
+import jakarta.websocket.HandshakeResponse;
+import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpointConfig;
 import com.typesafe.config.ConfigFactory;
 
@@ -74,24 +95,9 @@ import org.waveprotocol.box.server.security.jakarta.StaticCacheFilter;
 import org.waveprotocol.box.server.security.jakarta.NoCacheFilter;
 
 /**
- * Minimal Jakarta-compatible stub of ServerRpcProvider to allow compiling the
- * main module against Jetty 12 while we migrate servlet APIs to jakarta.*.
- * This stub preserves the public surface used by ServerMain and friends.
- * <p>
- * Build-time notes
- * - Included only when building with -PjettyFamily=jakarta.
- * - Default build (javax/Jetty 9.4) continues to use the real class in src/main/java.
- * <p>
- * Migration checklist (P5‑T3)
- * - Servlet/Filter APIs: replace javax.servlet.* with jakarta.servlet.* across server code.
- * - Context/handlers: use ee10 variants (e.g., ServletContextHandler from org.eclipse.jetty.ee10.servlet).
- * - WebSockets: migrate org.eclipse.jetty.websocket.servlet.* to Jetty 12 websocket APIs
- * (jetty-websocket-jetty12 / ee10 websocket modules) and update WaveWebSocketServlet wiring.
- * - GZip: prefer server-side GzipHandler compatible with Jetty 12 packages.
- * - Forwarded headers, access logs, HTTPS/ALPN/HTTP2: map existing setup to Jetty 12 equivalents.
- * - Static resources and proxies: validate DefaultServlet and ProxyServlet coordinates under Jetty 12.
- * - Sessions: confirm SessionHandler and SessionDataStore APIs under Jetty 12.
- * - Remove this stub once jakarta implementation is complete and tests pass.
+ * Jakarta-compatible ServerRpcProvider built on Jetty 12 / EE10 APIs. This
+ * variant mirrors the legacy provider, wiring programmatic servlet and
+ * WebSocket registration for the jakarta.* namespace.
  */
 @Singleton
 public class ServerRpcProvider {
@@ -149,6 +155,133 @@ public class ServerRpcProvider {
         } else {
             this.resourceBases = new String[]{"./war"};
         }
+    }
+
+    static abstract class Connection implements ProtoCallback {
+        private final Map<Integer, ServerRpcController> activeRpcs = new ConcurrentHashMap<>();
+        private ParticipantId loggedInUser;
+        private final ServerRpcProvider provider;
+
+        Connection(ParticipantId loggedInUser, ServerRpcProvider provider) {
+            this.loggedInUser = loggedInUser;
+            this.provider = provider;
+        }
+
+        protected void expectMessages(MessageExpectingChannel channel) {
+            for (RegisteredServiceMethod serviceMethod : provider.registeredServices.values()) {
+                channel.expectMessage(serviceMethod.service.getRequestPrototype(serviceMethod.method));
+                if (LOG.isFineLoggable()) {
+                    LOG.fine("Expecting: " + serviceMethod.method.getFullName());
+                }
+            }
+            channel.expectMessage(Rpc.CancelRpc.getDefaultInstance());
+        }
+
+        protected abstract void sendMessage(int sequenceNo, Message message);
+
+        private ParticipantId authenticate(String token) {
+            if (token == null || token.isEmpty()) {
+                return null;
+            }
+            WebSession session = provider.sessionManager.getSessionFromToken(token);
+            return provider.sessionManager.getLoggedInUser(session);
+        }
+
+        @Override
+        public void message(final int sequenceNo, Message message) {
+            final String messageName = "/" + message.getClass().getSimpleName();
+            final Timer profilingTimer = Timing.startRequest(messageName);
+            if (message instanceof Rpc.CancelRpc) {
+                final ServerRpcController controller = activeRpcs.get(sequenceNo);
+                if (controller == null) {
+                    throw new IllegalStateException("Trying to cancel an RPC that is not active!");
+                }
+                LOG.info("Cancelling open RPC " + sequenceNo);
+                controller.cancel();
+            } else if (message instanceof ProtocolAuthenticate) {
+                ProtocolAuthenticate authMessage = (ProtocolAuthenticate) message;
+                ParticipantId authenticatedAs = authenticate(authMessage.getToken());
+
+                Preconditions.checkArgument(authenticatedAs != null, "Auth token invalid");
+                Preconditions.checkState(loggedInUser == null || loggedInUser.equals(authenticatedAs),
+                        "Session already authenticated as a different user");
+
+                loggedInUser = authenticatedAs;
+                LOG.info("Session authenticated as " + loggedInUser);
+                sendMessage(sequenceNo, ProtocolAuthenticationResult.getDefaultInstance());
+                if (profilingTimer != null) {
+                    Timing.stop(profilingTimer);
+                }
+            } else if (provider.registeredServices.containsKey(message.getDescriptorForType())) {
+                if (activeRpcs.containsKey(sequenceNo)) {
+                    throw new IllegalStateException(
+                            "Can't invoke a new RPC with a sequence number already in use.");
+                }
+                final RegisteredServiceMethod serviceMethod =
+                        provider.registeredServices.get(message.getDescriptorForType());
+
+                final ServerRpcController controller =
+                        new ServerRpcControllerImpl(message, serviceMethod.service, serviceMethod.method,
+                                loggedInUser, new RpcCallback<Message>() {
+                            @Override
+                            public synchronized void run(Message response) {
+                                boolean completed = response instanceof Rpc.RpcFinished ||
+                                        !serviceMethod.method.getOptions().getExtension(Rpc.isStreamingRpc);
+                                if (completed) {
+                                    boolean failed = response instanceof Rpc.RpcFinished &&
+                                            ((Rpc.RpcFinished) response).getFailed();
+                                    if (LOG.isFineLoggable()) {
+                                        LOG.fine("RPC " + sequenceNo + " is now finished, failed = " + failed);
+                                    }
+                                    if (failed) {
+                                        LOG.info("error = " + ((Rpc.RpcFinished) response).getErrorText());
+                                    }
+                                    activeRpcs.remove(sequenceNo);
+                                }
+                                sendMessage(sequenceNo, response);
+                                if (completed && profilingTimer != null) {
+                                    Timing.stop(profilingTimer);
+                                }
+                            }
+                        });
+
+                activeRpcs.put(sequenceNo, controller);
+                provider.threadPool.execute(controller);
+            } else {
+                throw new IllegalStateException(
+                        "Got expected but unknown message (" + message + ") for sequence: " + sequenceNo);
+            }
+        }
+    }
+
+    public static class WebSocketConnection extends Connection {
+        private final WebSocketChannel socketChannel;
+
+        WebSocketConnection(ParticipantId loggedInUser, ServerRpcProvider provider) {
+            super(loggedInUser, provider);
+            socketChannel = new WebSocketChannelImpl(this);
+            LOG.info("New websocket connection set up for user " + loggedInUser);
+            expectMessages(socketChannel);
+        }
+
+        public void attachSession(Session session) {
+            if (socketChannel instanceof WebSocketChannelImpl) {
+                ((WebSocketChannelImpl) socketChannel).attach(session);
+            }
+        }
+
+        public void handleText(String data) {
+            socketChannel.handleMessageString(data);
+        }
+
+        @Override
+        protected void sendMessage(int sequenceNo, Message message) {
+            socketChannel.sendMessage(sequenceNo, message);
+        }
+    }
+
+    public WebSocketConnection createWebSocketConnection(ParticipantId loggedInUser) {
+        return new WebSocketConnection(loggedInUser, this);
     }
 
     public void startWebSocketServer(final Injector injector) {
@@ -386,38 +519,19 @@ public class ServerRpcProvider {
                         .create(org.waveprotocol.box.server.rpc.jakarta.WaveWebSocketEndpoint.class, "/socket")
                         .configurator(new ServerEndpointConfig.Configurator() {
                             @Override
+                            public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
+                                HttpSession httpSession = (HttpSession) request.getHttpSession();
+                                if (httpSession != null) {
+                                    config.getUserProperties().put(HttpSession.class.getName(), httpSession);
+                                }
+                            }
+
+                            @Override
                             public <T> T getEndpointInstance(Class<T> endpointClass) {
                                 try {
                                     T ep = endpointClass.getDeclaredConstructor().newInstance();
-                                    // Build immutable service table and validate entries
-                                    @SuppressWarnings("unchecked")
-                                    Map<Descriptors.Descriptor, Object[]> table = new java.util.HashMap<>();
-                                    for (Map.Entry<Descriptors.Descriptor, RegisteredServiceMethod> e : registeredServices.entrySet()) {
-                                        table.put(e.getKey(), new Object[]{e.getValue().service, e.getValue().method});
-                                    }
-                                    if (threadPool == null || sessionManager == null) {
-                                        throw new IllegalStateException("Missing required dependencies (executor/sessionManager)");
-                                    }
-                                    // Validate table contents
-                                    for (Map.Entry<Descriptors.Descriptor, Object[]> e : table.entrySet()) {
-                                        if (e.getKey() == null || e.getValue() == null || e.getValue().length != 2) {
-                                            throw new IllegalStateException("Invalid service table entry for descriptor: " + e.getKey());
-                                        }
-                                        if (!(e.getValue()[0] instanceof com.google.protobuf.Service) ||
-                                                !(e.getValue()[1] instanceof Descriptors.MethodDescriptor)) {
-                                            throw new IllegalStateException("Service table entry types are invalid for: " + e.getKey());
-                                        }
-                                    }
-                                    var m = endpointClass.getMethod("setDependencies", java.util.concurrent.Executor.class,
-                                            org.waveprotocol.box.server.authentication.SessionManager.class,
-                                            java.util.Map.class);
-                                    Class<?>[] ptypes = m.getParameterTypes();
-                                    if (ptypes.length != 3 || !java.util.concurrent.Executor.class.isAssignableFrom(ptypes[0])
-                                            || !ptypes[1].getName().equals("org.waveprotocol.box.server.authentication.SessionManager")
-                                            || !java.util.Map.class.isAssignableFrom(ptypes[2])) {
-                                        throw new IllegalStateException("setDependencies signature mismatch on endpoint: " + m);
-                                    }
-                                    m.invoke(ep, threadPool, sessionManager, java.util.Collections.unmodifiableMap(table));
+                                    var method = endpointClass.getMethod("setDependencies", ServerRpcProvider.class);
+                                    method.invoke(ep, ServerRpcProvider.this);
                                     return ep;
                                 } catch (Throwable t) {
                                     throw new RuntimeException("Failed to create endpoint instance", t);

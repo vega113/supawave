@@ -18,54 +18,90 @@
  */
 package org.waveprotocol.box.server.rpc.jakarta;
 
+import jakarta.servlet.http.HttpSession;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnMessage;
 import jakarta.websocket.OnOpen;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
+import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.rpc.ServerRpcProvider;
+import org.waveprotocol.box.server.rpc.ServerRpcProvider.WebSocketConnection;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
-import java.util.Map;
-import java.util.concurrent.Executor;
-
 /**
- * Minimal Jakarta WebSocket endpoint bound at "/socket" used to satisfy
- * compile-time references during the servlet/EE10 migration. The real
- * per-connection dispatch remains in the legacy path until the full
- * migration lands. This endpoint accepts connections and drops frames.
+ * Jakarta EE WebSocket endpoint that bridges Jetty 12 websocket sessions to
+ * the legacy Wave WebSocket RPC machinery.
  */
 @ServerEndpoint("/socket")
 public class WaveWebSocketEndpoint {
   private static final Log LOG = Log.get(WaveWebSocketEndpoint.class);
+  private static final String CONNECTION_KEY = "wave.websocket.connection";
 
-  private volatile boolean depsSet = false;
+  private volatile ServerRpcProvider provider;
 
-  // Matches the signature invoked via reflection from ServerRpcProvider
-  public void setDependencies(Executor executor,
-                              org.waveprotocol.box.server.authentication.SessionManager sessionManager,
-                              Map<com.google.protobuf.Descriptors.Descriptor, Object[]> services) {
-    // Accept dependencies but do not wire a dispatcher in this minimal stub
-    depsSet = true;
+  // Invoked reflectively from ServerRpcProvider during endpoint registration
+  public void setDependencies(ServerRpcProvider provider) {
+    this.provider = provider;
   }
 
   @OnOpen
   public void onOpen(Session session) {
-    if (!depsSet) {
-      try { session.close(); } catch (Exception ignore) {}
-      LOG.warning("WebSocket open rejected: dependencies not set");
+    if (provider == null) {
+      LOG.warning("WebSocket open rejected: provider not initialized");
+      closeQuietly(session);
       return;
     }
-    LOG.fine("WebSocket opened: " + (session != null ? session.getId() : "null"));
+    try {
+      HttpSession httpSession = (HttpSession) session.getUserProperties()
+          .get(HttpSession.class.getName());
+      ParticipantId user = provider.getSessionManager()
+          .getLoggedInUser(WebSessions.wrap(httpSession));
+      WebSocketConnection connection = provider.createWebSocketConnection(user);
+      connection.attachSession(session);
+      session.getUserProperties().put(CONNECTION_KEY, connection);
+      if (LOG.isFineLoggable()) {
+        LOG.fine("WebSocket opened: id=" + session.getId() + " user=" +
+            (user != null ? user.getAddress() : "anonymous"));
+      }
+    } catch (Throwable t) {
+      LOG.warning("Failed to initialize websocket connection", t);
+      closeQuietly(session);
+    }
   }
 
   @OnMessage
   public void onMessage(Session session, String data) {
-    // Minimal stub: drop frames; future work will add per-connection dispatch.
-    LOG.fine("Dropping WebSocket frame (stub)");
+    WebSocketConnection connection =
+        (WebSocketConnection) session.getUserProperties().get(CONNECTION_KEY);
+    if (connection == null) {
+      LOG.warning("Dropping message on WebSocket without active connection");
+      return;
+    }
+    try {
+      connection.handleText(data);
+    } catch (Throwable t) {
+      LOG.warning("WebSocket message handling failed", t);
+      closeQuietly(session);
+    }
   }
 
   @OnClose
-  public void onClose() {
-    LOG.fine("WebSocket closed (stub)");
+  public void onClose(Session session) {
+    session.getUserProperties().remove(CONNECTION_KEY);
+    if (LOG.isFineLoggable()) {
+      LOG.fine("WebSocket closed: id=" + (session != null ? session.getId() : "null"));
+    }
+  }
+
+  private static void closeQuietly(Session session) {
+    if (session != null && session.isOpen()) {
+      try {
+        session.close();
+      } catch (Exception ignore) {
+        // ignore close failures
+      }
+    }
   }
 }

@@ -20,7 +20,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.util.Collections;
 import java.util.List;
 
-public final class RobotConnector implements RobotCapabilityFetcher {
+public class RobotConnector implements RobotCapabilityFetcher {
   private static final Log LOG = Log.get(RobotConnector.class);
 
   private final RobotConnection connection;

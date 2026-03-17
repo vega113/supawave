@@ -2,8 +2,8 @@
 
 This document tracks the staged migration from javax to jakarta for Apache Wave, aligned with the Jetty migration path.
 
-Status
-- Current baseline: Jetty 9.4.x, Java 17, javax.* APIs
+- Status
+- Current baseline: Jetty 12.x (EE10) on Java 17 with jakarta.* APIs (Gradle defaults to `-PjettyFamily=jakarta`); Jetty 9.4 remains available as a fallback with `-PjettyFamily=javax` for regression bisects.
 - Target: Jetty 12.x (EE 10/11), Java 17+, jakarta.* APIs
 - Strategy: Two-step migration
   1) Stabilize on Jetty 9.4 with modern infra (JDK 17, TLS, HTTP/2, logging, access logs, caching, health endpoints)

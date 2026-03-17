@@ -140,8 +140,7 @@ public class AuthenticationServletTest extends TestCase {
   public void testLoginDoesNotRedirectToRemoteSite() throws IOException {
     configureRedirectString("http://example.com/other/site");
     attemptLogin("frodo@example.com", "password", true);
-
-    verify(resp, never()).sendRedirect(anyString());
+    verify(resp).sendRedirect("/");
   }
 
   public void testIncorrectPasswordReturns403() throws IOException {
@@ -184,6 +183,8 @@ public class AuthenticationServletTest extends TestCase {
     // Servlet control flow forces us to set these return values first and
     // verify the logged in user was set afterwards.
     if (expectSuccess) {
+      when(req.getSession(false)).thenReturn(null, session);
+      when(manager.getLoggedInUser(Mockito.any())).thenReturn(USER);
       when(manager.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(USER);
     }
     servlet.doPost(req, resp);

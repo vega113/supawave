@@ -327,16 +327,29 @@ public class AuthenticationServlet extends HttpServlet {
       return;
     }
     String candidate;
-    try { candidate = URLDecoder.decode(encoded, "UTF-8"); }
-    catch (IllegalArgumentException iae) { resp.sendRedirect(DEFAULT_REDIRECT_URL); return; }
+    try {
+      candidate = URLDecoder.decode(encoded, "UTF-8");
+    } catch (IllegalArgumentException iae) {
+      LOG.fine("Rejecting redirect target due to decode failure");
+      resp.sendRedirect(DEFAULT_REDIRECT_URL);
+      return;
+    }
     if (candidate.length() > 2048 || candidate.indexOf('\r') >= 0 || candidate.indexOf('\n') >= 0) {
-      resp.sendRedirect(DEFAULT_REDIRECT_URL); return;
+      LOG.fine("Rejecting redirect target due to length or control characters");
+      resp.sendRedirect(DEFAULT_REDIRECT_URL);
+      return;
     }
     // Extra guardrails against encoded traversal/backslashes and mixed-encoding tricks
     String encLc = encoded.toLowerCase(java.util.Locale.ROOT);
-    if (encLc.contains("%0d") || encLc.contains("%0a")) { resp.sendRedirect(DEFAULT_REDIRECT_URL); return; }
+    if (encLc.contains("%0d") || encLc.contains("%0a")) {
+      LOG.fine("Rejecting redirect target containing encoded CR/LF");
+      resp.sendRedirect(DEFAULT_REDIRECT_URL);
+      return;
+    }
     if (candidate.indexOf('\\') >= 0 || encLc.contains("%5c") || containsEncodedPathTraversal(encLc)) {
-      resp.sendRedirect(DEFAULT_REDIRECT_URL); return;
+      LOG.fine("Rejecting redirect target due to traversal/backslash content");
+      resp.sendRedirect(DEFAULT_REDIRECT_URL);
+      return;
     }
     try {
       URI u = new URI(candidate).normalize();
@@ -345,13 +358,16 @@ public class AuthenticationServlet extends HttpServlet {
       String raw = u.toString();
       boolean looksSchemeRelative = raw.startsWith("//");
       boolean startsWithSlash = u.getPath() != null && u.getPath().startsWith("/");
-      boolean containsTraversal = u.getPath() != null && (u.getPath().contains("/../") || u.getPath().contains("/./"));
+      boolean containsTraversal =
+          u.getPath() != null && (u.getPath().contains("/../") || u.getPath().contains("/./"));
       if (hasScheme || hasAuthority || looksSchemeRelative || !startsWithSlash || containsTraversal) {
+        LOG.fine("Rejecting redirect target due to invalid scheme/authority/path: " + raw);
         resp.sendRedirect(DEFAULT_REDIRECT_URL);
         return;
       }
       resp.sendRedirect(raw);
     } catch (URISyntaxException use) {
+      LOG.fine("Rejecting redirect target due to invalid URI syntax: " + candidate, use);
       resp.sendRedirect(DEFAULT_REDIRECT_URL);
     }
   }

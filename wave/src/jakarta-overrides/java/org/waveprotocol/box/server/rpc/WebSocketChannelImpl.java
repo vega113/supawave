@@ -43,6 +43,6 @@ public class WebSocketChannelImpl extends WebSocketChannel {
     if (s == null || !s.isOpen()) {
       throw new IOException("WebSocket session not open");
     }
-    s.getAsyncRemote().sendText(data);
+    s.getBasicRemote().sendText(data);
   }
 }

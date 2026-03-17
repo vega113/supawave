@@ -556,7 +556,7 @@ Task P5-T2: Upgrade Jetty dependencies
   - Server starts cleanly under Jetty 12; Gradle defaults to Jakarta, and Jetty 9.4 fallback remains available on demand.
 
 Task P5-T3: Migrate servlet code and configuration (Jakarta)
-- Status: In Progress
+- Status: Completed
 - Work Log:
   - 2025-09-03: EE10 bootstrap in Jakarta ServerRpcProvider: multi-address binding, ResourceCollection static handling, GzipHandler, and programmatic @ServerEndpoint("/socket"). Endpoint uses per-connection dispatch (no static globals), DI via ServerEndpointConfig.Configurator with validation, and secure error handling (no echo fallback). Added soft-fail framing: first parse error logged, second closes the session.
   - 2025-09-03: Parity for forwarded headers (ForwardedRequestCustomizer) and access logs (NCSA) implemented and covered by jakartaTest.
@@ -567,11 +567,10 @@ Task P5-T3: Migrate servlet code and configuration (Jakarta)
   - 2025-09-18 (evening): Added Jakarta tests for Data API OAuth token flow, Prometheus `/metrics`, and NotifyOperationService hash refresh; `./gradlew -PjettyFamily=jakarta :wave:testJakarta` now exercises robot OAuth and observability endpoints.
   - 2025-09-27: Re-enabled profiling instrumentation on the Jakarta stack by porting RequestScopeFilter/TimingFilter to jakarta.servlet, wiring them through ServerRpcProvider with StatModule enabled, and adding focused Jakarta tests for the filters. HealthServlet now has a Jakarta override wired for /healthz and /readyz with IT coverage.
   - 2025-09-27 (later): Removed `isJakarta` branching from ServerMain and promoted testJakarta/testJakartaIT to default verification tasks.
+  - 2025-10-11: Replaced the placeholder WaveWebSocketEndpoint with the full RPC bridge, switched WebSocketChannelImpl back to blocking sends for deterministic tests, and updated AuthenticationServlet fallback handling; `testJakarta` and `testJakartaIT` now run as part of the default build.
 - Goal: Refactor imports and programmatic registrations to jakarta.* and remove javax.* from the Jakarta path.
-- Steps (remaining):
-  1) Audit shared libraries (e.g., `com/google/wave/api/**`) still importing `javax.servlet` and either isolate them for the javax profile or provide Jakarta equivalents for runtime usage.
-  2) Remove legacy javax adapters/tests that became dead code after the robot migration and consolidate shared utilities in `src/jakarta-overrides`.
-  3) Harden the new Jakarta robot OAuth/metrics coverage (extend to Active API message dispatch) and prep promotion of `:wave:testJakartaIT` to blocking once the InitialsAvatars servlet test is stabilized without external network dependencies.
+- Steps:
+  - Completed with follow-up checkstyle cleanup tracked under P5-T5.
 - Tests:
   - `./gradlew -PjettyFamily=jakarta :wave:testJakarta`
   - `./gradlew -PjettyFamily=jakarta :wave:testJakartaIT`
@@ -592,6 +591,19 @@ Task P5-T4: Remove temporary Jakarta migration scaffolding (flags + POC)
   - :wave:build and server smoke pass; `/poc/hello` no longer exists.
 - DoD:
   - No experimental flags/classes remain; Jakarta path parity validated by jakartaTest.
+
+Task P5-T5: Jakarta overrides checkstyle cleanup
+- Status: Planned
+- Goal: Bring the jakarta-overrides source sets back into compliance with the existing checkstyle rules so build pipelines can run `checkstyleMain` without exclusions.
+- Steps:
+  1) Address the import-order and formatting violations highlighted in `wave/build/reports/checkstyle/checkstyleJakartaSupport.html` (e.g., security filters, servlet overrides).
+  2) Ensure future Jakarta edits run the same formatting checks (add CI hook once file set is clean).
+- Tests:
+  - `./gradlew checkstyleMain checkstyleJakartaSupport`
+- AI Agent Guidance:
+  - Focus on `org/waveprotocol/box/server/security/jakarta/*` and other overrides currently failing checkstyle.
+- DoD:
+  - Checkstyle tasks succeed locally and can be enabled unconditionally in CI for Jakarta sources.
 
 -------------------------------------------------------------------------------
 Phase 6 — Library upgrades for security and maintainability

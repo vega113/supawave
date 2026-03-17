@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.waveprotocol.box.server.security.jakarta;
 
-import javax.inject.Singleton;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -27,7 +27,11 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
+
+import javax.inject.Singleton;
+
 import org.waveprotocol.wave.util.logging.Log;
 
 /**
@@ -53,7 +57,8 @@ public final class StaticCacheFilter implements Filter {
         String m = req.getMethod();
         if ("GET".equalsIgnoreCase(m) || "HEAD".equalsIgnoreCase(m)) {
           resp.setHeader("Cache-Control", CACHE_VALUE);
-          LOG.fine("StaticCacheFilter (jakarta) set Cache-Control on path=" + req.getRequestURI());
+          LOG.fine(
+              "StaticCacheFilter (jakarta) set Cache-Control on path=" + req.getRequestURI());
         }
       }
     }

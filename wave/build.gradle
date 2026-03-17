@@ -1003,10 +1003,6 @@ tasks.withType(JavaCompile).configureEach { t ->
     }
 }
 
-tasks.register('testGwt', Test) {
-    include "**/*GwtTest*"
-}
-
 // Dedicated test task for Jakarta checks (reflection-based; skips if classes absent)
 tasks.register('testJakarta', Test) {
     description = 'Runs tests for Jakarta migration stubs.'

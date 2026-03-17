@@ -77,3 +77,4 @@ journal/
 /.private-journal/
 /wave/bin/
 /pst/bin/
+target/

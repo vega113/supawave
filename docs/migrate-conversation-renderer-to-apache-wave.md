@@ -1,17 +1,18 @@
 # Migration Plan: Conversation Renderer (wiab.pro ➜ Apache Wave)
 
 Owner: Migration Engineering
-Last updated: 2025-09-18
+Last updated: 2025-09-27
 
 -------------------------------------------------------------------------------
 
-## Delta Since Last Edit (2025-09-18)
+## Delta Since Last Edit (2025-09-27)
 
 - Dev defaults now use typed object-form overrides in `application.conf`. Local runs
-  ship with `fragmentFetchMode="stream"`, `enableDynamicRendering=true`,
-  `enableFragmentsApplier=true`, `enableViewportStats=true`, and
-  `enableQuasiDeletionUi=true`; `server.fragments.transport="stream"` mirrors to
-  client defaults at startup.
+  ship with `fragmentFetchMode="http"` (stream remains available via override),
+  `enableDynamicRendering=true`, `enableFragmentsApplier=true`,
+  `enableViewportStats=true`, and `enableQuasiDeletionUi=true`; the server keeps
+  `server.fragments.transport="stream"` enabled so the client can upgrade to
+  view-channel fetch once the flag flips.
 - Flags (Task A): Added `enableDynamicRendering`, `enableQuasiDeletionUi`, and transport enum `fragmentFetchMode` (off|http|stream); server/gradle plumbing to pass flags via `-PclientFlags` and merge defaults.
 - Quasi (Phase 2 / Task B): Implemented `QuasiConversationViewAdapter` and `QuasiDeletable`; StageTwo wiring behind `enableQuasiDeletionUi`.
 - Deleted UI (Phase 3 / Task C): Added `BlipViewDomImpl#setQuasiDeleted(boolean)` and `.blip.deleted` styles; renderer marks quasi state before final removal.
@@ -19,6 +20,9 @@ Last updated: 2025-09-18
 - Dynamic renderer (Phase 5 / Task E): Implemented MVP windowing with page-in/out, placeholders, robust DOM reads, and resource cleanup on page-out via `BlipResourceCleaner` + `BlipAsyncRegistry`.
 - Resources: Added `Render.css` and loader; optimized placeholder toggling to avoid redundant DOM churn.
 - Fragment fetch (Phase 6 / Task F): the client now sends wave/wavelet/anchor hints to `/fragments`, sharing the same requester for `stream` and `http` modes while retaining metrics (`requesterSends`, `requesterCoalesced`).
+- Client HTTP requester currently treats 2xx responses as success without consuming
+  payloads; fragment metadata is exposed via metrics only until the applier path
+  is wired.
 - Dynamic viewport fetch now builds a `FragmentRequester.RequestContext` (wave/wavelet, anchor, limit, `SegmentId` list). When `enableFragmentFetchViewChannel=true` the client can fetch fragments (starting with HTTP fallback and upgrading to `ViewChannel.fetchFragments` once the mux is ready).
 - Setting `enableFragmentFetchForceLayer` forces the stream requester even when the cache is cold,
   logging `Dynamic fragments: force-layer override active…` to highlight the override.
@@ -27,7 +31,12 @@ Last updated: 2025-09-18
 - Security hardening: server-side redirect validation (SignOutServlet, DataApiOAuthServlet) and safe Content‑Disposition for downloads (AttachmentServlet) via new HttpSanitizers helpers. Unit tests cover sanitization and header construction.
 - Stream/HTTP fragment fetch: dynamic renderer now surfaces visible blip ids, and the GWT requester issues `/fragments` calls using `waveId`, `waveletId`, `startBlipId`, and `limit`.
 
-- 2025-09-18 investigation: even with `fragmentFetchMode="stream"` and `forceClientFragments=true`, the server still emits full snapshots on initial open. The fragments payload is additive, so dynamic rendering sees all blips immediately; fetcher callbacks never trigger additional ranges. Clamp-only changes reduce client apply work but not payload size. Measurement plan captured in docs/blocks-adoption-plan.md (snapshot gating follow-up).
+- 2025-09-18 investigation: when forcing `fragmentFetchMode="stream"` together with
+  `forceClientFragments=true`, the server still emits full snapshots on initial
+  open. The fragments payload is additive, so dynamic rendering sees all blips
+  immediately; fetcher callbacks never trigger additional ranges. Clamp-only
+  changes reduce client apply work but not payload size. Measurement plan
+  captured in docs/blocks-adoption-plan.md (snapshot gating follow-up).
 
 
 This document outlines how to port wiab.pro’s Conversation Renderer improvements into Apache Wave (incubator-wave), with a focus on:
@@ -295,7 +304,15 @@ Goal: If desired, integrate wiab.pro’s fragment-fetch flow to reduce payload/C
       - `http` → `ClientFragmentRequester` (`/fragments` endpoint) when `enableFragmentFetchViewChannel=true` (or force-layer); otherwise no fetches are issued.
       - `off` → no requester
     - Runtime logs highlight transitions: `Dynamic fragments: client fetch disabled; using NO_OP requester`, `Dynamic fragments: ViewChannel not ready, using HTTP fallback`, `Dynamic fragments: switching to ViewChannel fetch`, and `Dynamic fragments: force-layer override active…` when the override is in play.
-    - Server-side default: set `server.fragments.transport = "stream"`. The server mirrors this to the client’s default `fragmentFetchMode` automatically at startup for all runs (dev/prod). You can still override on the command line: `-PclientFlags="fragmentFetchMode=http"`.
+    - Server transport: keep `server.fragments.transport = "stream"` enabled. Dev
+      config currently pins `client.flags.defaults.fragmentFetchMode="http"` so
+      runs stay on the HTTP fallback until the stream path is production ready.
+      Override with `-PclientFlags="fragmentFetchMode=stream"` (or set the
+      Typesafe default) when validating view-channel fetch behavior.
+    - Current limitation: the HTTP requester treats 2xx responses as success and
+      discards the body. Fragment payloads are therefore only exercised via
+      view-channel fetch and metrics plumbing until the client-side parser and
+      applier path are ported.
 
 -------------------------------------------------------------------------------
 

@@ -19,12 +19,13 @@
 package org.waveprotocol.box.server.frontend;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
@@ -57,16 +58,27 @@ public final class FragmentsFetchBridgeImplTest {
     Config cfg = ConfigFactory.parseString("server.enableFetchFragmentsRpc=true");
     FragmentsFetchBridgeImpl bridge = new FragmentsFetchBridgeImpl(provider, cfg);
 
-    List<SegmentId> segs = Collections.singletonList(SegmentId.INDEX_ID);
+    List<SegmentId> segs = new java.util.ArrayList<>();
+    segs.add(SegmentId.INDEX_ID);
+    segs.add(SegmentId.ofBlipId("b+1"));
     long startV = 10L, endV = 20L;
     FragmentsPayload payload = bridge.fetch(wn, segs, startV, endV);
 
     assertEquals(123L, payload.snapshotVersion);
     assertEquals(startV, payload.startVersion);
     assertEquals(endV, payload.endVersion);
-    assertEquals(1, payload.ranges.size());
+    assertEquals(2, payload.ranges.size());
     assertEquals(SegmentId.INDEX_ID, payload.ranges.get(0).segment);
     assertEquals(startV, payload.ranges.get(0).from);
     assertEquals(endV, payload.ranges.get(0).to);
+    // Second range corresponds to the blip segment added above
+    assertEquals(SegmentId.ofBlipId("b+1"), payload.ranges.get(1).segment);
+    assertEquals(startV, payload.ranges.get(1).from);
+    assertEquals(endV, payload.ranges.get(1).to);
+    assertEquals(1, payload.fragments.size());
+    assertEquals(SegmentId.ofBlipId("b+1"), payload.fragments.get(0).segment);
+    assertNotNull(payload.fragments.get(0).rawSnapshot);
+    assertTrue(payload.fragments.get(0).adjustOperations.isEmpty());
+    assertTrue(payload.fragments.get(0).diffOperations.isEmpty());
   }
 }

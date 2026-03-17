@@ -34,7 +34,9 @@ import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.rpc.ServerRpcController;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
+import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
 import org.waveprotocol.wave.model.id.SegmentId;
+import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
@@ -217,6 +219,26 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                       .build());
                   emitted = 1;
                 }
+                ReadableWaveletData fragmentData = (snapshot != null) ? snapshot.snapshot : null;
+                List<FragmentsPayload.Fragment> rawFragments = RawFragmentsBuilder.build(fragmentData, ranges);
+                for (FragmentsPayload.Fragment fragment : rawFragments) {
+                  org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragment.Builder fragmentBuilder =
+                      org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragment.newBuilder()
+                          .setSegment(fragment.segment.asString());
+                  if (fragment.rawSnapshot != null && !fragment.rawSnapshot.isEmpty()) {
+                    fragmentBuilder.setSnapshot(
+                        org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentSnapshot.newBuilder()
+                            .setRawSnapshot(fragment.rawSnapshot)
+                            .build());
+                  }
+                  for (FragmentsPayload.Operation op : fragment.adjustOperations) {
+                    fragmentBuilder.addAdjustOperation(toProto(op));
+                  }
+                  for (FragmentsPayload.Operation op : fragment.diffOperations) {
+                    fragmentBuilder.addDiffOperation(toProto(op));
+                  }
+                  fb.addFragment(fragmentBuilder.build());
+                }
                 builder.setFragments(fb.build());
                 LOG.info("Emitting fragments for " + waveletName + ": ranges=" + fb.getRangeCount()
                     + " snapshotVersion=" + fb.getSnapshotVersion() + " endVersion=" + fb.getEndVersion());
@@ -248,6 +270,19 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
   private static boolean isDummyWavelet(WaveletName name) {
     try { return name != null && name.waveletId != null && name.waveletId.getId().startsWith("dummy+"); }
     catch (Throwable ignore) { return false; }
+  }
+
+  private static org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentOperation toProto(
+      FragmentsPayload.Operation op) {
+    org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentOperation.Builder builder =
+        org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentOperation.newBuilder()
+            .setOperations(op.operations)
+            .setTargetVersion(op.targetVersion)
+            .setTimestamp(op.timestamp);
+    if (op.author != null) {
+      builder.setAuthor(op.author);
+    }
+    return builder.build();
   }
 
   /** Computes the starting version for the fragments ranges attachment. */

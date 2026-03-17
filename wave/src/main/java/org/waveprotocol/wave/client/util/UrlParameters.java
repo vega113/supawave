@@ -63,7 +63,13 @@ public class UrlParameters implements TypedSource {
 
   public static UrlParameters get() {
     if (singleton == null) {
-      singleton = new UrlParameters(getQueryString());
+      String query;
+      try {
+        query = getQueryString();
+      } catch (Throwable err) {
+        query = "";
+      }
+      singleton = new UrlParameters(query != null ? query : "");
     }
     return singleton;
   }

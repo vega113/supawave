@@ -373,7 +373,8 @@ Goal: Port `RawFragment` types and client applier; switch client to RPC once ser
     - `stream`: use ViewChannel (RPC) fragments; requester is GWT‑safe no‑op that relies on the stream.
     - `http`: use `/fragments` endpoint with viewport hints.
     - `off`: disable requester entirely (client-only rendering).
-  - Prefer `stream` for production; keep `http` for legacy/proto.
+  - Prefer `stream` long-term; dev config currently pins the client to `http`
+    until the stream path is production ready.
 
 - DoD:
   - Dynamic renderer requests/receives fragments when `fragmentFetchMode != off`.
@@ -407,7 +408,7 @@ Status: planned
   - When true, wires the RPC handler; `WaveClientRpcImpl` may emit `ProtocolFragments`.
 - Transport knobs (unified):
   - Server: `server.fragments.transport` = `off|http|stream|both` (enables endpoints).
-  - Client: `fragmentFetchMode` = `off|http|stream` (client behavior). The server mirrors `server.fragments.transport` to the client default at startup for all runs. CLI overrides remain possible via `-PclientFlags`.
+  - Client: `fragmentFetchMode` = `off|http|stream` (client behavior). The server mirrors `server.fragments.transport` to the client default when no override is set; the dev `application.conf` currently pins the default to `http` to stay on the safe fallback while stream fetch stabilizes. CLI overrides remain possible via `-PclientFlags`.
   - Recommended: `stream`/`stream` for production; `both` on server only during migration/canaries.
 - `server.preferSegmentState` (bool, default false):
   - When true, if a `SegmentWaveletState` exists, emitted ranges are filtered to known segments; falls back to compat otherwise.

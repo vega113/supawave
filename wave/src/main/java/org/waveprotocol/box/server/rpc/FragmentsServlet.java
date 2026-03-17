@@ -22,8 +22,11 @@ package org.waveprotocol.box.server.rpc;
 import com.google.inject.Inject;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.frontend.FragmentsFetcherCompat;
 import org.waveprotocol.box.server.frontend.FragmentsRequest;
+import org.waveprotocol.box.server.frontend.RawFragmentsBuilder;
+import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -35,6 +38,7 @@ import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.jvm.JavaWaverefEncoder;
 import org.waveprotocol.wave.util.logging.Log;
 import org.waveprotocol.box.server.persistence.blocks.VersionRange;
+import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
@@ -114,8 +118,18 @@ public final class FragmentsServlet extends HttpServlet {
       FragmentsRequest fReq = buildFragmentsRequest(snapshotVersion, startVersion, endVersion);
       com.google.common.collect.ImmutableMap<SegmentId, VersionRange> ranges =
           FragmentsFetcherCompat.computeRangesForSegments(snapshotVersion, fReq, buildSegments(slice));
+      ReadableWaveletData data = null;
+      try {
+        CommittedWaveletSnapshot snap = waveletProvider.getSnapshot(wn);
+        if (snap != null) {
+          data = snap.snapshot;
+        }
+      } catch (WaveServerException ex) {
+        LOG.warning("FragmentsServlet: snapshot load failed for " + wn, ex);
+      }
+      List<FragmentsPayload.Fragment> rawFragments = RawFragmentsBuilder.build(data, ranges);
       // Build safe JSON with proper escaping and canonical waveref encoding
-      String json = buildJson(wn, metas, slice, snapshotVersion, fReq, ranges);
+      String json = buildJson(wn, metas, slice, snapshotVersion, fReq, ranges, rawFragments);
       // Help browsers avoid content-type sniffing
       resp.setHeader("X-Content-Type-Options", "nosniff");
       resp.getWriter().write(json);
@@ -177,7 +191,8 @@ public final class FragmentsServlet extends HttpServlet {
       List<String> slice,
       long snapshotVersion,
       FragmentsRequest fReq,
-      java.util.Map<SegmentId, VersionRange> ranges) {
+      java.util.Map<SegmentId, VersionRange> ranges,
+      List<FragmentsPayload.Fragment> fragmentsList) {
     class VersionInfo {
       long snapshot; long start; long end;
       VersionInfo(long s, long st, long en) { snapshot=s; start=st; end=en; }
@@ -190,12 +205,37 @@ public final class FragmentsServlet extends HttpServlet {
       String segment; long from; long to;
       RangeInfo(String s, long f, long t) { segment=s; from=f; to=t; }
     }
+    class FragmentOp {
+      String operations;
+      String author;
+      long targetVersion;
+      long timestamp;
+      FragmentOp(String operations, String author, long targetVersion, long timestamp) {
+        this.operations = operations;
+        this.author = author;
+        this.targetVersion = targetVersion;
+        this.timestamp = timestamp;
+      }
+    }
+    class FragmentInfo {
+      String segment;
+      List<FragmentOp> adjust;
+      List<FragmentOp> diff;
+      String rawSnapshot;
+      FragmentInfo(String segment, List<FragmentOp> adjust, List<FragmentOp> diff, String rawSnapshot) {
+        this.segment = segment;
+        this.adjust = adjust;
+        this.diff = diff;
+        this.rawSnapshot = rawSnapshot;
+      }
+    }
     class Response {
       String status = "ok";
       @SerializedName("waveRef") String waveRefPath;
       VersionInfo version;
       List<BlipInfo> blips;
       List<RangeInfo> ranges;
+      List<FragmentInfo> fragments;
     }
     Response out = new Response();
     // Canonical, server-encoded waveref path segment
@@ -210,6 +250,26 @@ public final class FragmentsServlet extends HttpServlet {
     out.ranges = new java.util.ArrayList<>(ranges.size());
     for (java.util.Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
       out.ranges.add(new RangeInfo(e.getKey().asString(), e.getValue().from(), e.getValue().to()));
+    }
+    if (fragmentsList == null || fragmentsList.isEmpty()) {
+      out.fragments = java.util.Collections.emptyList();
+    } else {
+      out.fragments = new java.util.ArrayList<>(fragmentsList.size());
+      for (FragmentsPayload.Fragment fragment : fragmentsList) {
+        List<FragmentOp> adjust = new java.util.ArrayList<>(fragment.adjustOperations.size());
+        for (FragmentsPayload.Operation op : fragment.adjustOperations) {
+          adjust.add(new FragmentOp(op.operations, op.author, op.targetVersion, op.timestamp));
+        }
+        List<FragmentOp> diff = new java.util.ArrayList<>(fragment.diffOperations.size());
+        for (FragmentsPayload.Operation op : fragment.diffOperations) {
+          diff.add(new FragmentOp(op.operations, op.author, op.targetVersion, op.timestamp));
+        }
+        out.fragments.add(new FragmentInfo(
+            fragment.segment.asString(),
+            adjust.isEmpty() ? java.util.Collections.<FragmentOp>emptyList() : adjust,
+            diff.isEmpty() ? java.util.Collections.<FragmentOp>emptyList() : diff,
+            fragment.rawSnapshot == null ? "" : fragment.rawSnapshot));
+      }
     }
     return new Gson().toJson(out);
   }

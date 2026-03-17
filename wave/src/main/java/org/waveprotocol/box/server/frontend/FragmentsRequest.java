@@ -16,58 +16,169 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.waveprotocol.box.server.frontend;
 
-import com.google.common.collect.ImmutableMap;
-import java.util.Collection;
-import java.util.Map;
-import org.waveprotocol.box.server.persistence.blocks.VersionRange;
 import org.waveprotocol.wave.model.id.SegmentId;
+import org.waveprotocol.wave.model.util.Preconditions;
 
-/** Compat FragmentsRequest builder mirroring wiab.pro shape. */
+import org.waveprotocol.box.server.persistence.blocks.VersionRange;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Request to raw fragments supplier.
+ *
+ * @author akaplanov@gmail.com (A. Kaplanov)
+ */
 public final class FragmentsRequest {
-  public static final long NO_VERSION = -1L;
+  public static final long NO_VERSION = -1;
 
-  public static final class Builder {
-    private final ImmutableMap.Builder<SegmentId, VersionRange> ranges = ImmutableMap.builder();
+  public static class Builder {
+    /** The start versions of segments to get by priority order. */
+    private final ImmutableMap.Builder<SegmentId, VersionRange> rangesBuilder = ImmutableMap.builder();
+
+    /** Get fragments from specified version (inclusive). */
     private long startVersion = NO_VERSION;
+
+    /** Get fragments to specified version (inclusive). */
     private long endVersion = NO_VERSION;
 
-    public Builder addRange(SegmentId id, VersionRange vr) { ranges.put(id, vr); return this; }
-    public Builder addRange(SegmentId id, long v) { ranges.put(id, VersionRange.of(v, v)); return this; }
-    public Builder addRanges(Map<SegmentId, VersionRange> m) { ranges.putAll(m); return this; }
-    public Builder setStartVersion(long v) { startVersion = v; return this; }
-    public Builder setEndVersion(long v) { endVersion = v; return this; }
+    /** Get available fragments from the cache. */
+    private boolean onlyFromCache = false;
+
+    /** Max reply size. */
+    private int maxReplySize = -1;
+
+    public Builder addRange(SegmentId segmentId, VersionRange range) {
+      this.rangesBuilder.put(segmentId, range);
+      return this;
+    }
+
+    public Builder addRange(SegmentId segmentId, long version) {
+      this.rangesBuilder.put(segmentId, VersionRange.of(version, version));
+      return this;
+    }
+
+    public Builder addRanges(Collection<SegmentId> segmentIds, long startVersion, long endVersion) {
+      for (SegmentId segmentId : segmentIds) {
+        this.rangesBuilder.put(segmentId, VersionRange.of(startVersion, endVersion));
+      }
+      return this;
+    }
+
+    public Builder addRanges(Map<SegmentId, VersionRange> segments) {
+      this.rangesBuilder.putAll(segments);
+      return this;
+    }
+
+    public Builder setStartVersion(long startVersion) {
+      this.startVersion = startVersion;
+      return this;
+    }
+
+    public Builder setEndVersion(long endVersion) {
+      this.endVersion = endVersion;
+      return this;
+    }
+
+    public Builder setOnlyFromCache(boolean onlyFromCache) {
+      this.onlyFromCache = onlyFromCache;
+      return this;
+    }
+
+    public Builder setMaxReplySize(int maxReplySize) {
+      this.maxReplySize = maxReplySize;
+      return this;
+    }
+
     public FragmentsRequest build() {
-      ImmutableMap<SegmentId, VersionRange> built = ranges.build();
-      boolean hasRanges = !built.isEmpty();
-      boolean hasCommon = (startVersion != NO_VERSION || endVersion != NO_VERSION);
-      if (hasRanges && hasCommon) {
-        throw new IllegalArgumentException("Cannot specify both explicit ranges and common start/end versions");
-      }
-      if (!hasRanges) {
-        if (startVersion == NO_VERSION || endVersion == NO_VERSION) {
-          throw new IllegalArgumentException("Common start/end versions must both be specified when no ranges are provided");
-        }
-        if (startVersion > endVersion) {
-          throw new IllegalArgumentException("startVersion > endVersion");
-        }
+      ImmutableMap<SegmentId, VersionRange> ranges = rangesBuilder.build();
+      if (ranges.isEmpty()) {
+        Preconditions.checkArgument(startVersion != NO_VERSION, "start version is not specified");
+        Preconditions.checkArgument(endVersion != NO_VERSION, "endVersion is not specified");
+        Preconditions.checkArgument(startVersion <= endVersion, "start version greater than end version");
       } else {
-        for (Map.Entry<SegmentId, VersionRange> e : built.entrySet()) {
-          if (e.getValue().from() > e.getValue().to()) {
-            throw new IllegalArgumentException("Invalid VersionRange for " + e.getKey());
-          }
-        }
+        Preconditions.checkArgument(startVersion == NO_VERSION, "common start version specified with ranges");
+        Preconditions.checkArgument(endVersion == NO_VERSION, "common end version specified with ranges");
       }
-      return new FragmentsRequest(built, startVersion, endVersion);
+      return new FragmentsRequest(ranges, startVersion, endVersion, onlyFromCache, maxReplySize);
     }
   }
 
+  /** The segments and its ranges to get by priority order. */
   public final ImmutableMap<SegmentId, VersionRange> ranges;
+
+  /** Get info from specified version (inclusive). */
   public final long startVersion;
+
+  /** Get info to specified version (inclusive). */
   public final long endVersion;
 
-  private FragmentsRequest(ImmutableMap<SegmentId, VersionRange> r, long s, long e) {
-    this.ranges = r; this.startVersion = s; this.endVersion = e;
+  /** Get available fragments from the cache. */
+  private final boolean onlyFromCache;
+
+  /** Max reply size. */
+  private final int maxReplySize;
+
+  private FragmentsRequest(ImmutableMap<SegmentId, VersionRange> range, long startVersion, long endVersion,
+      boolean onlyFromCache, int maxReplySize) {
+    this.ranges = range;
+    this.startVersion = startVersion;
+    this.endVersion = endVersion;
+    this.onlyFromCache = onlyFromCache;
+    this.maxReplySize = maxReplySize;
+  }
+
+  public Set<SegmentId> getSegmentIds() {
+    return Collections.unmodifiableSet(ranges.keySet());
+  }
+
+  public Set<SegmentId> getNotBlipSegmentIds() {
+    ImmutableSet.Builder<SegmentId> builder = ImmutableSet.builder();
+    for (SegmentId segmentId : ranges.keySet()) {
+      if (!segmentId.isBlip()) {
+        builder.add(segmentId);
+      }
+    }
+    return builder.build();
+  }
+
+  public ImmutableMap<SegmentId, VersionRange> getVersionRanges() {
+    return ranges;
+  }
+
+  public long getStartVersion(SegmentId segmentId) {
+    VersionRange range = ranges.get(segmentId);
+    Preconditions.checkNotNull(range, "No segment " + segmentId.toString());
+    return range.from();
+  }
+
+  public long getEndVersion(SegmentId segmentId) {
+    VersionRange range = ranges.get(segmentId);
+    Preconditions.checkNotNull(range, "No segment " + segmentId.toString());
+    return range.to();
+  }
+
+  public long getStartVersion() {
+    return startVersion;
+  }
+
+  public long getEndVersion() {
+    return endVersion;
+  }
+
+  public boolean isOnlyFromCache() {
+    return onlyFromCache;
+  }
+
+  public int getMaxReplySize() {
+    return maxReplySize;
   }
 }

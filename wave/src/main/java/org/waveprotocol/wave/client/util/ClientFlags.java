@@ -68,7 +68,12 @@ public final class ClientFlags extends ClientFlagsBase {
       // whether we are running in WFE or hosted mode. If we're in WFE,
       // initialize client flags with the js var, else initialize using query
       // string.
-      ExtendedJSObject jsObj = getJSObj();
+      ExtendedJSObject jsObj;
+      try {
+        jsObj = getJSObj();
+      } catch (Throwable err) {
+        jsObj = null;
+      }
       TypedSource source = (jsObj != null ? new WrappedJSObject(jsObj) : UrlParameters.get());
       instance = new ClientFlags(new ClientFlagsBaseHelper(source));
     }

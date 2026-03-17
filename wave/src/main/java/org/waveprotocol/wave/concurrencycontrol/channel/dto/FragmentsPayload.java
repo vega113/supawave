@@ -21,6 +21,7 @@ package org.waveprotocol.wave.concurrencycontrol.channel.dto;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import org.waveprotocol.wave.model.id.SegmentId;
 
 /**
@@ -37,20 +38,59 @@ public final class FragmentsPayload {
     }
   }
 
+  public static final class Operation {
+    public final String operations;
+    public final String author;
+    public final long targetVersion;
+    public final long timestamp;
+
+    public Operation(String operations, String author, long targetVersion, long timestamp) {
+      this.operations = Objects.requireNonNull(operations, "operations");
+      this.author = author;
+      this.targetVersion = targetVersion;
+      this.timestamp = timestamp;
+    }
+  }
+
+  public static final class Fragment {
+    public final SegmentId segment;
+    public final String rawSnapshot;
+    public final List<Operation> adjustOperations;
+    public final List<Operation> diffOperations;
+
+    public Fragment(SegmentId segment, String rawSnapshot,
+        List<Operation> adjustOperations, List<Operation> diffOperations) {
+      this.segment = Objects.requireNonNull(segment, "segment");
+      this.rawSnapshot = rawSnapshot;
+      this.adjustOperations = Collections.unmodifiableList(new ArrayList<>(adjustOperations));
+      this.diffOperations = Collections.unmodifiableList(new ArrayList<>(diffOperations));
+    }
+  }
+
   public final long snapshotVersion;
   public final long startVersion;
   public final long endVersion;
   public final List<Range> ranges;
+  public final List<Fragment> fragments;
 
-  private FragmentsPayload(long snapshotVersion, long startVersion, long endVersion, List<Range> ranges) {
+  private FragmentsPayload(long snapshotVersion, long startVersion, long endVersion,
+      List<Range> ranges, List<Fragment> fragments) {
     this.snapshotVersion = snapshotVersion;
     this.startVersion = startVersion;
     this.endVersion = endVersion;
     this.ranges = Collections.unmodifiableList(new ArrayList<>(ranges));
+    this.fragments = Collections.unmodifiableList(new ArrayList<>(fragments));
   }
 
-  public static FragmentsPayload of(long snapshotVersion, long startVersion, long endVersion, List<Range> ranges) {
-    return new FragmentsPayload(snapshotVersion, startVersion, endVersion, ranges);
+  public static FragmentsPayload of(long snapshotVersion, long startVersion, long endVersion,
+      List<Range> ranges, List<Fragment> fragments) {
+    return new FragmentsPayload(snapshotVersion, startVersion, endVersion, ranges,
+        fragments == null ? Collections.<Fragment>emptyList() : fragments);
+  }
+
+  public static FragmentsPayload of(long snapshotVersion, long startVersion, long endVersion,
+      List<Range> ranges) {
+    return new FragmentsPayload(snapshotVersion, startVersion, endVersion, ranges,
+        Collections.<Fragment>emptyList());
   }
 }
-

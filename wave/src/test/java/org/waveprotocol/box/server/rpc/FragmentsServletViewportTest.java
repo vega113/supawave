@@ -106,6 +106,14 @@ public final class FragmentsServletViewportTest {
     }
     assertTrue("Expected at least one blip segment", hasBlip);
     assertTrue("Expected at least 3 ranges (index, manifest, blip)", valid >= 3);
+    if (json.has("fragments")) {
+      JsonArray fragments = json.getAsJsonArray("fragments");
+      assertNotNull(fragments);
+      if (fragments.size() > 0) {
+        JsonObject fragment = fragments.get(0).getAsJsonObject();
+        assertTrue(fragment.has("segment"));
+      }
+    }
   }
 
   @Test
@@ -145,5 +153,9 @@ public final class FragmentsServletViewportTest {
       assertTrue(r.get("from").getAsLong() <= r.get("to").getAsLong());
     }
     assertTrue(hasBlip);
+    if (json.has("fragments")) {
+      JsonArray fragments = json.getAsJsonArray("fragments");
+      assertNotNull(fragments);
+    }
   }
 }

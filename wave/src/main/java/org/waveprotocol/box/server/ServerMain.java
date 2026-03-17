@@ -490,9 +490,37 @@ public class ServerMain {
     try {
       if (config.hasPath("server.fragments.transport")) {
         String v = config.getString("server.fragments.transport");
-        return (v == null) ? null : v.trim().toLowerCase();
+        if (v != null) {
+          v = v.trim().toLowerCase();
+          if (!v.isEmpty()) {
+            return v;
+          }
+        }
       }
     } catch (Throwable ignore) {}
+
+    boolean legacyHttp = false;
+    boolean legacyStream = false;
+    try {
+      if (config.hasPath("server.enableFragmentsHttp")) {
+        legacyHttp = config.getBoolean("server.enableFragmentsHttp");
+      }
+    } catch (Throwable ignore) {}
+    try {
+      if (config.hasPath("server.enableFetchFragmentsRpc")) {
+        legacyStream = config.getBoolean("server.enableFetchFragmentsRpc");
+      }
+    } catch (Throwable ignore) {}
+
+    if (legacyHttp && legacyStream) {
+      return "both";
+    }
+    if (legacyStream) {
+      return "stream";
+    }
+    if (legacyHttp) {
+      return "http";
+    }
     return null;
   }
 

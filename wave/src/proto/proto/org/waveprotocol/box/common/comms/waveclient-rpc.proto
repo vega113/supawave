@@ -197,12 +197,32 @@ message ProtocolFragments {
   optional int64 end_version = 3;
   // Ranges for each segment (e.g., index, manifest, blip:<id>)
   repeated ProtocolFragmentRange range = 4;
+  // Optional raw fragment payloads (snapshot + ops) keyed by segment id
+  repeated ProtocolFragment fragment = 5;
 }
 
 message ProtocolFragmentRange {
   required string segment = 1; // e.g., "index", "manifest", or "blip:b+123"
   required int64 from = 2;
   required int64 to = 3;
+}
+
+message ProtocolFragment {
+  required string segment = 1;
+  optional ProtocolFragmentSnapshot snapshot = 2;
+  repeated ProtocolFragmentOperation adjust_operation = 3;
+  repeated ProtocolFragmentOperation diff_operation = 4;
+}
+
+message ProtocolFragmentSnapshot {
+  required string raw_snapshot = 1;
+}
+
+message ProtocolFragmentOperation {
+  required string operations = 1;
+  optional string author = 2;
+  required int64 target_version = 3;
+  required int64 timestamp = 4;
 }
 
 /**

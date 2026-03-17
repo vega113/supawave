@@ -34,6 +34,8 @@ import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.jvm.JavaWaverefEncoder;
 import org.waveprotocol.wave.util.logging.Log;
@@ -42,9 +44,9 @@ import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +72,7 @@ public final class FragmentsServlet extends HttpServlet {
     if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
       org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.httpRequests.incrementAndGet();
     }
-    ParticipantId user = sessionManager.getLoggedInUser(req.getSession(false));
+    ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
     if (user == null) { resp.setStatus(HttpServletResponse.SC_FORBIDDEN); return; }
 
     String ref = req.getParameter("ref");

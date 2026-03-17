@@ -34,6 +34,9 @@ import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.rpc.ServerRpcController;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
+import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.model.id.SegmentId;
+import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
@@ -44,8 +47,11 @@ import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
+import org.waveprotocol.box.server.persistence.blocks.VersionRange;
 
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -59,9 +65,40 @@ import javax.annotation.Nullable;
 public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
 
   private static final Log LOG = Log.get(WaveClientRpcImpl.class);
+  /** Default and maximum number of blip segments to include when the client
+   * supplies viewport hints but omits or provides an out-of-range limit.
+   * Values are configurable; see {@link #setViewportLimits(int, int)}. */
+  private static volatile int DEFAULT_VIEWPORT_LIMIT = 5;
+  private static volatile int MAX_VIEWPORT_LIMIT = 50;
+
+  /** Config hook to adjust viewport limits at runtime (eager-read at startup). */
+  public static void setViewportLimits(int defaultLimit, int maxLimit) {
+    if (defaultLimit <= 0) defaultLimit = 1;
+    if (maxLimit < defaultLimit) maxLimit = defaultLimit;
+    DEFAULT_VIEWPORT_LIMIT = defaultLimit;
+    MAX_VIEWPORT_LIMIT = maxLimit;
+    LOG.info("Configured viewport limits: default=" + DEFAULT_VIEWPORT_LIMIT + ", max=" + MAX_VIEWPORT_LIMIT);
+  }
+
+  // Visible for tests
+  public static int getDefaultViewportLimit() { return DEFAULT_VIEWPORT_LIMIT; }
+  public static int getMaxViewportLimit() { return MAX_VIEWPORT_LIMIT; }
 
   private final ClientFrontend frontend;
   private final boolean handleAuthentication;
+
+  // Optional: fragments handler to emit ProtocolFragments in updates
+  private static volatile FragmentsViewChannelHandler fragmentsHandler;
+  // Dev/testing flag: force emitting a fragments payload even when a snapshot is sent.
+  private static volatile boolean forceFragmentsWithoutSnapshot = false;
+
+  public static void setFragmentsHandler(FragmentsViewChannelHandler handler) {
+    fragmentsHandler = handler;
+  }
+
+  public static void setForceClientFragments(boolean force) {
+    forceFragmentsWithoutSnapshot = force;
+  }
 
   /**
    * Creates a new RPC interface to the front-end.
@@ -124,7 +161,8 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
               builder.setResultingVersion(CoreWaveletOperationSerializer.serialize(
                   deltas.get((deltas.size() - 1)).getResultingVersion()));
             }
-            if (snapshot != null) {
+            boolean includeSnapshot = snapshot != null;
+            if (includeSnapshot) {
               Preconditions.checkState(committedVersion.equals(snapshot.committedVersion),
                   "Mismatched commit versions, snapshot: " + snapshot.committedVersion
                       + " expected: " + committedVersion);
@@ -140,9 +178,189 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                     CoreWaveletOperationSerializer.serialize(committedVersion));
               }
             }
+            FragmentsViewChannelHandler fh = fragmentsHandler;
+            if (fh != null && fh.isEnabled() && !isDummyWavelet(waveletName)) {
+              long startV = computeStartVersion(snapshot, committedVersion);
+              long endV = startV;
+
+              List<SegmentId> segs = selectVisibleSegments(fh, waveletName, snapshot, request);
+
+              try {
+                java.util.Map<SegmentId, VersionRange> ranges = fh.fetchFragments(waveletName, segs, startV, endV);
+                org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragments.Builder fb =
+                    org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragments.newBuilder()
+                        .setSnapshotVersion(startV)
+                        .setStartVersion(startV)
+                        .setEndVersion(endV);
+                int emitted = 0;
+                for (java.util.Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
+                  long from = e.getValue().from(); long to = e.getValue().to();
+                  if (from > to) {
+                    LOG.warning("Skipping invalid fragment range (from>to) for " + e.getKey() + " wavelet=" + waveletName);
+                    continue;
+                  }
+                  org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentRange r =
+                      org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentRange.newBuilder()
+                          .setSegment(e.getKey().asString())
+                          .setFrom(from)
+                          .setTo(to)
+                          .build();
+                  fb.addRange(r);
+                  emitted++;
+                }
+                if (emitted == 0 && forceFragmentsWithoutSnapshot) {
+                  long syntheticFrom = startV;
+                  long syntheticTo = (endV <= syntheticFrom) ? (syntheticFrom + 1) : endV;
+                  fb.setEndVersion(syntheticTo);
+                  fb.addRange(org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentRange.newBuilder()
+                      .setSegment(SegmentId.INDEX_ID.asString())
+                      .setFrom(syntheticFrom)
+                      .setTo(syntheticTo)
+                      .build());
+                  emitted = 1;
+                }
+                ReadableWaveletData fragmentData = (snapshot != null) ? snapshot.snapshot : null;
+                List<FragmentsPayload.Fragment> rawFragments = RawFragmentsBuilder.build(fragmentData, ranges);
+                for (FragmentsPayload.Fragment fragment : rawFragments) {
+                  org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragment.Builder fragmentBuilder =
+                      org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragment.newBuilder()
+                          .setSegment(fragment.segment.asString());
+                  if (fragment.rawSnapshot != null && !fragment.rawSnapshot.isEmpty()) {
+                    fragmentBuilder.setSnapshot(
+                        org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentSnapshot.newBuilder()
+                            .setRawSnapshot(fragment.rawSnapshot)
+                            .build());
+                  }
+                  for (FragmentsPayload.Operation op : fragment.adjustOperations) {
+                    fragmentBuilder.addAdjustOperation(toProto(op));
+                  }
+                  for (FragmentsPayload.Operation op : fragment.diffOperations) {
+                    fragmentBuilder.addDiffOperation(toProto(op));
+                  }
+                  fb.addFragment(fragmentBuilder.build());
+                }
+                builder.setFragments(fb.build());
+                LOG.info("Emitting fragments for " + waveletName + ": ranges=" + fb.getRangeCount()
+                    + " snapshotVersion=" + fb.getSnapshotVersion() + " endVersion=" + fb.getEndVersion());
+                if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+                  org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.emissionCount.incrementAndGet();
+                  org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.emissionRanges.addAndGet(emitted);
+                  if (segs.size() <= 2) {
+                    org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.emissionFallbacks.incrementAndGet();
+                  }
+                }
+              } catch (org.waveprotocol.box.server.waveserver.WaveServerException wse) {
+                LOG.warning("WaveServerException fetching fragments for " + waveletName + ": " + wse.getMessage(), wse);
+                if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+                  org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.emissionErrors.incrementAndGet();
+                }
+              } catch (Exception ex) {
+                LOG.warning("Unexpected error fetching fragments for " + waveletName, ex);
+                if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+                  org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.emissionErrors.incrementAndGet();
+                }
+              }
+            }
             done.run(builder.build());
           }
         });
+  }
+
+  /** Returns true if the wavelet id represents a synthetic open/marker wavelet. */
+  private static boolean isDummyWavelet(WaveletName name) {
+    try { return name != null && name.waveletId != null && name.waveletId.getId().startsWith("dummy+"); }
+    catch (Throwable ignore) { return false; }
+  }
+
+  private static org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentOperation toProto(
+      FragmentsPayload.Operation op) {
+    org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentOperation.Builder builder =
+        org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragmentOperation.newBuilder()
+            .setOperations(op.operations)
+            .setTargetVersion(op.targetVersion)
+            .setTimestamp(op.timestamp);
+    if (op.author != null) {
+      builder.setAuthor(op.author);
+    }
+    return builder.build();
+  }
+
+  /** Computes the starting version for the fragments ranges attachment. */
+  private static long computeStartVersion(@Nullable CommittedWaveletSnapshot snapshot,
+                                          @Nullable HashedVersion committedVersion) {
+    long v = 0L;
+    if (snapshot != null) {
+      v = snapshot.snapshot.getHashedVersion().getVersion();
+    } else if (committedVersion != null) {
+      v = committedVersion.getVersion();
+    }
+    return v;
+  }
+
+  /** Returns true if any viewport hint is present on the request. */
+  private static boolean hasViewportHints(ProtocolOpenRequest request) {
+    return request.hasViewportStartBlipId() || request.hasViewportDirection() || request.hasViewportLimit();
+  }
+
+  /** Resolves viewport limit with validation and clamping. */
+  private static int resolveViewportLimit(ProtocolOpenRequest request) {
+    int limit = DEFAULT_VIEWPORT_LIMIT;
+    if (!request.hasViewportLimit()) return limit;
+    int requested = request.getViewportLimit();
+    if (requested <= 0) return DEFAULT_VIEWPORT_LIMIT;
+    if (requested > MAX_VIEWPORT_LIMIT) return MAX_VIEWPORT_LIMIT;
+    return requested;
+  }
+
+  /**
+   * Selects the set of segments to attach as a fragments window.
+   *
+   * Rules:
+   * - Use viewport-aware selection only when a snapshot is available.
+   * - Otherwise, prefer blips from the snapshot; if none, fall back to INDEX/MANIFEST.
+   * - If still empty and snapshot exists, use heuristic manifest/time-based selection.
+   */
+  private List<SegmentId> selectVisibleSegments(FragmentsViewChannelHandler fh,
+                                                WaveletName waveletName,
+                                                @Nullable CommittedWaveletSnapshot snapshot,
+                                                ProtocolOpenRequest request) {
+    List<SegmentId> segs = new ArrayList<>();
+    segs.add(SegmentId.INDEX_ID);
+    segs.add(SegmentId.MANIFEST_ID);
+
+    final String vpStart = request.hasViewportStartBlipId() ? request.getViewportStartBlipId() : null;
+    final String vpDir = request.hasViewportDirection() ? request.getViewportDirection() : null;
+    final int vpLimit = resolveViewportLimit(request);
+
+    if (hasViewportHints(request)) {
+      if ((vpStart == null || vpStart.isEmpty()) && (vpDir != null && !vpDir.isEmpty()) && !request.hasViewportLimit()) {
+        if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+          org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.viewportAmbiguity.incrementAndGet();
+        }
+      }
+      // Intentionally avoid server-side computeVisibleSegments here to prevent snapshot reads
+      // under commit. Snapshot-based selection below provides a safe initial window.
+    }
+
+    if (segs.size() <= 2 && snapshot != null) {
+      int added = 0;
+      for (String docId : snapshot.snapshot.getDocumentIds()) {
+        if (docId != null && docId.startsWith("b+")) {
+          segs.add(SegmentId.ofBlipId(docId));
+          if (++added >= vpLimit) break;
+        }
+      }
+    }
+
+    // Avoid computeVisibleSegments fallback to prevent snapshot reads from commit thread.
+    return segs;
+  }
+
+  private static List<SegmentId> baseSegments() {
+    List<SegmentId> base = new ArrayList<>();
+    base.add(SegmentId.INDEX_ID);
+    base.add(SegmentId.MANIFEST_ID);
+    return base;
   }
 
   @Override

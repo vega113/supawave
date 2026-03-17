@@ -353,6 +353,14 @@ public class WaveServerImpl implements WaveletProvider, ReadableWaveletDataProvi
     return getSnapshot(waveletName).snapshot;
   }
 
+  public boolean isWriteLockHeldByCurrentThread(WaveletName waveletName) throws WaveServerException {
+    WaveletContainer wavelet = getWavelet(waveletName);
+    if (wavelet instanceof WaveletContainerImpl) {
+      return ((WaveletContainerImpl) wavelet).isWriteLockHeldByCurrentThread();
+    }
+    return false;
+  }
+
   @Override
   public void submitRequest(WaveletName waveletName, ProtocolWaveletDelta delta,
       final SubmitRequestListener listener) {

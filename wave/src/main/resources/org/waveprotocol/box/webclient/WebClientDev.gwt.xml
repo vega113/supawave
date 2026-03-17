@@ -31,11 +31,12 @@
 
   <!-- Specify the app entry point class.                         -->
   <entry-point class='org.waveprotocol.box.webclient.client.WebClient'/>
+  <!-- Collapse permutations for Super Dev Mode: single UA + single locale -->
   <set-property name="user.agent" value="safari" />
   <set-property name="mobile.user.agent" value="not_mobile" />
   <set-property name="loglevel" value="debug" />
-
-  <extend-property name="locale" values="en,ru"/>
+  <extend-property name="locale" values="en"/>
+  <set-property name="locale" value="en"/>
 
   <!-- This linker is required for superdev mode -->
   <add-linker name="xsiframe" />

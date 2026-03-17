@@ -175,6 +175,10 @@ abstract class WaveletContainerImpl implements WaveletContainer {
     writeLock.unlock();
   }
 
+  public boolean isWriteLockHeldByCurrentThread() {
+    return writeLock.isHeldByCurrentThread();
+  }
+
   protected void notifyOfDeltas(ImmutableList<WaveletDeltaRecord> deltas,
       ImmutableSet<String> domainsToNotify) {
     Preconditions.checkState(writeLock.isHeldByCurrentThread(), "must hold write lock");

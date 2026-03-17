@@ -46,6 +46,7 @@ import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.util.ReadableStringMap.ProcV;
+import java.util.logging.Logger;
 import org.waveprotocol.wave.model.util.ReadableStringSet;
 import org.waveprotocol.wave.model.util.ReadableStringSet.Proc;
 
@@ -66,6 +67,7 @@ import java.util.Map;
  */
 @SuppressWarnings("deprecation")
 public class MutableDocumentImpl<N, E extends N, T extends N> implements MutableDocument<N,E,T> {
+  private static final Logger CL_LOG = Logger.getLogger("DocClamp");
 
   protected final OperationSequencer<Nindo> sequencer;
 
@@ -137,7 +139,21 @@ public class MutableDocumentImpl<N, E extends N, T extends N> implements Mutable
 
   @Override
   public void insertText(int location, String text) {
-    Preconditions.checkPositionIndex(location, size());
+    // Defensive clamp: in rare cases the UI selection mapper may hand us a
+    // location slightly beyond the current document size (e.g., after paste
+    // sanitization removes characters while the selection still reflects the
+    // pre-sanitized DOM). Rather than throwing and breaking the user action,
+    // clamp to the current end of document.
+    int docSize = size();
+    int original = location;
+    if (location < 0) {
+      location = 0;
+    } else if (location > docSize) {
+      location = docSize;
+    }
+    if (original != location) {
+      CL_LOG.fine("clamp.insertText: orig=" + original + " new=" + location + " size=" + docSize);
+    }
 
     // TODO(danilatos): Get the schema constraints from the document
     // and use the corresponding permitted characters from there.
@@ -484,6 +500,13 @@ public class MutableDocumentImpl<N, E extends N, T extends N> implements Mutable
       begin();
 
       int location = doc.getLocation(point);
+      int size = doc.size();
+      int original = location;
+      if (location < 0) location = 0;
+      else if (location > size) location = size;
+      if (original != location) {
+        CL_LOG.fine("clamp.createElement: orig=" + original + " new=" + location + " size=" + size);
+      }
       consume(createElement(tagName, new AttributesImpl(attributes), at(location)));
 
       Point<N> result = doc.locate(location);
@@ -498,7 +521,18 @@ public class MutableDocumentImpl<N, E extends N, T extends N> implements Mutable
   @Override
   public void setAnnotation(int start, int end, String key, String value) {
     Annotations.checkPersistentKey(key);
-    Preconditions.checkPositionIndexes(start, end, doc.size());
+    // Defensive clamp: selection/index math during paste may briefly exceed size
+    int sz = doc.size();
+    int os = start, oe = end;
+    if (start < 0) start = 0;
+    if (end < 0) end = 0;
+    if (start > sz) start = sz;
+    if (end > sz) end = sz;
+    if (os != start || oe != end) {
+      CL_LOG.fine("clamp.setAnnotation: origStart=" + os + " origEnd=" + oe +
+          " newStart=" + start + " newEnd=" + end + " size=" + sz);
+    }
+    Preconditions.checkPositionIndexes(start, end, sz);
     if (start == end) {
       return;
     }

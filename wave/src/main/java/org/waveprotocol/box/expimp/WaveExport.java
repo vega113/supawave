@@ -57,6 +57,7 @@ import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionFactoryImpl;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
+import org.waveprotocol.box.server.util.HttpSanitizers;
 
 /**
  * Export waves from Wiab to files.
@@ -81,7 +82,8 @@ public class WaveExport {
   private String rpcServerUrl;
 
   public WaveExport(String serverUrl, String exportDir) {
-    this.serverUrl = serverUrl;
+    // Defensive: ensure no CR/LF sneak into URLs we pass to HTTP clients.
+    this.serverUrl = HttpSanitizers.stripHeaderBreakingChars(serverUrl);
     fileNames = new FileNames(exportDir);
     api = new WaveService();
     api.setFetchFimeout(WaveService.FETCH_INFINITE_TIMEOUT);

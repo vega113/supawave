@@ -1,0 +1,49 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.waveprotocol.wave.client.wavepanel.render;
+
+import org.waveprotocol.wave.client.wavepanel.view.BlipView;
+import org.waveprotocol.wave.client.wavepanel.view.dom.BlipViewDomImpl;
+import org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl;
+
+/** Minimal DOM helpers for placeholder visuals while loading blips. */
+public final class DynamicDomRenderer {
+  private DynamicDomRenderer() {}
+
+  @SuppressWarnings("unchecked")
+  public static void setPlaceholder(BlipView bv, boolean on) {
+    if (bv == null) return;
+    try {
+      BlipViewImpl<BlipViewDomImpl> impl = (BlipViewImpl<BlipViewDomImpl>) bv;
+      if (impl == null) return;
+      BlipViewDomImpl dom = impl.getIntrinsic();
+      if (dom == null || dom.getElement() == null) return;
+      if (on) {
+        RenderUtil.addClassIfAbsent(dom.getElement(), "placeholder");
+      } else {
+        RenderUtil.removeClassIfPresent(dom.getElement(), "placeholder");
+      }
+    } catch (ClassCastException | NullPointerException expected) {
+      // ignore: invalid or incomplete structures
+    } catch (Exception e) {
+      com.google.gwt.core.client.GWT.log("DynamicDomRenderer.setPlaceholder unexpected error", e);
+    }
+  }
+}

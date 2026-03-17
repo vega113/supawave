@@ -27,6 +27,7 @@ import org.waveprotocol.wave.client.editor.content.Registries;
 import org.waveprotocol.wave.client.wave.DocumentRegistry;
 import org.waveprotocol.wave.client.wave.InteractiveDocument;
 import org.waveprotocol.wave.client.wavepanel.view.AnchorView;
+import org.waveprotocol.wave.client.util.ClientFlags;
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
 import org.waveprotocol.wave.client.wavepanel.view.dom.BlipMetaDomImpl;
@@ -60,6 +61,12 @@ public final class BlipPager implements PagingHandler {
 
   /** Logical panel for widgets in paged-in blips to attach themselves to */
   private final LogicalPanel logicalPanel;
+
+  /** Optional hook to perform additional resource cleanup on page-out. */
+  public interface ResourceCleaner {
+    void cleanup(ConversationBlip blip, BlipViewDomImpl blipDom);
+  }
+  private ResourceCleaner resourceCleaner;
 
   /**
    * Maps models to implementations.
@@ -96,23 +103,42 @@ public final class BlipPager implements PagingHandler {
   }
 
   /**
+   * Sets an optional resource cleaner invoked during pageOut.
+   */
+  public void setResourceCleaner(ResourceCleaner cleaner) {
+    this.resourceCleaner = cleaner;
+  }
+
+  /**
    * Moves all the inline replies of a blip to their default-anchor locations.
    */
   private void saveInlineReplies(BlipMetaDomImpl metaDom) {
+    if (metaDom == null) {
+      return;
+    }
     // Iteration is done via ids, in order to identify the thread to get the
     // inline -> default location mapping.
 
     StringSequence inlineLocators = metaDom.getInlineLocators();
+    if (inlineLocators == null) {
+      return;
+    }
     String inlineId = inlineLocators.getFirst();
     while (inlineId != null) {
       AnchorView inlineUi = views.asAnchor(Document.get().getElementById(inlineId));
+      if (inlineUi == null) {
+        inlineId = inlineLocators.getNext(inlineId);
+        continue;
+      }
       InlineThreadView threadUi = inlineUi.getThread();
       if (threadUi != null) {
         // Move to default location.
         String defaultId = ViewIdMapper.defaultOfInlineAnchor(inlineId);
         AnchorView defaultUi = views.asAnchor(Document.get().getElementById(defaultId));
-        inlineUi.detach(threadUi);
-        defaultUi.attach(threadUi);
+        if (defaultUi != null) {
+          inlineUi.detach(threadUi);
+          defaultUi.attach(threadUi);
+        }
       }
 
       inlineId = inlineLocators.getNext(inlineId);
@@ -126,21 +152,31 @@ public final class BlipPager implements PagingHandler {
         (BlipViewImpl<BlipViewDomImpl>) viewProvider.getBlipView(blip);
     if (blipUi != null) {
       BlipViewDomImpl blipDom = blipUi.getIntrinsic();
+      if (blipDom != null && blipDom.getElement() != null) {
+        // Clear placeholder before rendering if dynamic rendering is enabled
+        if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+          RenderUtil.removeClassIfPresent(blipDom.getElement(), "placeholder");
+        }
+      }
       BlipMetaDomImpl metaDom =
           ((BlipMetaViewImpl<BlipMetaDomImpl>) blipUi.getMeta()).getIntrinsic();
+      if (metaDom == null) {
+        return;
+      }
       InteractiveDocument doc = docProvider.docOf(blip);
       Registries r = registries.get(blip);
 
-      // Very first thing that must be done is to extract and save the DOM of
-      // inline threads, since content-document rendering will blast them away.
       saveInlineReplies(metaDom);
 
-      // Clear content before rendering, so that doodad events caused by rendering
-      // apply on a fresh state.
       metaDom.clearContent();
-      doc.startRendering(r, logicalPanel);
-      metaDom.setContent(
-          doc.getDocument().getFullContentView().getDocumentElement().getImplNodelet());
+      if (doc != null) {
+        doc.startRendering(r, logicalPanel);
+        if (doc.getDocument() != null && doc.getDocument().getFullContentView() != null
+            && doc.getDocument().getFullContentView().getDocumentElement() != null) {
+          metaDom.setContent(
+              doc.getDocument().getFullContentView().getDocumentElement().getImplNodelet());
+        }
+      }
       blipPopulator.render(blip, metaDom);
     }
   }
@@ -152,13 +188,25 @@ public final class BlipPager implements PagingHandler {
         (BlipViewImpl<BlipViewDomImpl>) viewProvider.getBlipView(blip);
     if (blipUi != null) {
       BlipViewDomImpl blipDom = blipUi.getIntrinsic();
+      if (blipDom != null && blipDom.getElement() != null) {
+        // Add placeholder visual when paging out, to keep layout stable
+        if (Boolean.TRUE.equals(ClientFlags.get().enableDynamicRendering())) {
+          RenderUtil.addClassIfAbsent(blipDom.getElement(), "placeholder");
+        }
+      }
       BlipMetaDomImpl metaDom =
           ((BlipMetaViewImpl<BlipMetaDomImpl>) blipUi.getMeta()).getIntrinsic();
       InteractiveDocument doc = docProvider.docOf(blip);
 
-      // TODO: remove meta instead
-      doc.stopRendering();
-      metaDom.setContent(null);
+      if (resourceCleaner != null) {
+        resourceCleaner.cleanup(blip, blipDom);
+      }
+      if (doc != null) {
+        doc.stopRendering();
+      }
+      if (metaDom != null) {
+        metaDom.clearContent();
+      }
     }
   }
 }

@@ -86,6 +86,13 @@ message ProtocolOpenRequest {
   repeated string wavelet_id_prefix = 3;
   // Known wavelet versions for resynchronization.
   repeated WaveletVersion known_wavelet = 4;
+
+  // Optional viewport hints for server-side fragments emission.
+  // If provided, the server may use these to choose blip segments to include
+  // in the initial fragments window inside ProtocolWaveletUpdate.fragments.
+  optional string viewport_start_blip_id = 5;
+  optional string viewport_direction = 6; // "forward" (default) or "backward"
+  optional int32 viewport_limit = 7;      // max blip segments to include (default 5)
 }
 
 // A pair of (wavelet id, wavelet version)
@@ -175,6 +182,47 @@ message ProtocolWaveletUpdate {
   // Channel id, set only in the first update to a client.
   // The client includes it in submits.
   optional string channel_id = 7;
+
+  // Experimental: server-side fragments window for a wavelet.
+  // Carries version window and per-segment ranges for the client's current viewport.
+  optional ProtocolFragments fragments = 8;
+}
+
+// Experimental fragments payload (viewport window description)
+message ProtocolFragments {
+  // Snapshot (committed) version at the time of computing the window
+  optional int64 snapshot_version = 1;
+  // Requested start/end versions for the window
+  optional int64 start_version = 2;
+  optional int64 end_version = 3;
+  // Ranges for each segment (e.g., index, manifest, blip:<id>)
+  repeated ProtocolFragmentRange range = 4;
+  // Optional raw fragment payloads (snapshot + ops) keyed by segment id
+  repeated ProtocolFragment fragment = 5;
+}
+
+message ProtocolFragmentRange {
+  required string segment = 1; // e.g., "index", "manifest", or "blip:b+123"
+  required int64 from = 2;
+  required int64 to = 3;
+}
+
+message ProtocolFragment {
+  required string segment = 1;
+  optional ProtocolFragmentSnapshot snapshot = 2;
+  repeated ProtocolFragmentOperation adjust_operation = 3;
+  repeated ProtocolFragmentOperation diff_operation = 4;
+}
+
+message ProtocolFragmentSnapshot {
+  required string raw_snapshot = 1;
+}
+
+message ProtocolFragmentOperation {
+  required string operations = 1;
+  optional string author = 2;
+  required int64 target_version = 3;
+  required int64 timestamp = 4;
 }
 
 /**

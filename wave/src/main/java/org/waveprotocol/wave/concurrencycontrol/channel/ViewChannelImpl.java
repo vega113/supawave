@@ -19,8 +19,13 @@
 
 package org.waveprotocol.wave.concurrencycontrol.channel;
 
+import com.google.gwt.core.client.GWT;
 import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.concurrencycontrol.channel.WaveViewService.WaveViewServiceUpdate;
+import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier;
+import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics;
+import org.waveprotocol.wave.client.debug.FragmentsDebugIndicator;
 import org.waveprotocol.wave.concurrencycontrol.common.ChannelException;
 import org.waveprotocol.wave.concurrencycontrol.common.Recoverable;
 import org.waveprotocol.wave.concurrencycontrol.common.ResponseCode;
@@ -35,6 +40,7 @@ import org.waveprotocol.wave.model.version.HashedVersion;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.waveprotocol.wave.model.id.SegmentId;
 
 /**
  * Implementation of a view channel. This is a one off object. Once you've connected to the server
@@ -68,6 +74,37 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
   private static final int DEFAULT_MAX_VIEW_CHANNELS_PER_WAVE = 4;
 
   private static int maxViewChannelsPerWave = DEFAULT_MAX_VIEW_CHANNELS_PER_WAVE;
+
+  /** Optional bridge to server-side fragments handler; set on server startup. */
+  private static volatile FragmentsFetchBridge fragmentsBridge = null;
+  public static void setFragmentsFetchBridge(FragmentsFetchBridge bridge) {
+    fragmentsBridge = bridge;
+  }
+
+  /** Optional: client-side fragments applier. */
+  private static volatile RawFragmentsApplier fragmentsApplier = null;
+  public static void setFragmentsApplier(RawFragmentsApplier applier) {
+    fragmentsApplier = applier;
+  }
+  /**
+   * Flag to control whether fragments applier is invoked. Best-effort: if the applier throws,
+   * we log and continue delivering the update (never fail the update path).
+   */
+  private static volatile boolean enableFragmentsApplierFlag = false;
+  // Optional clamp for applier payload to limit burst cost; disabled by default.
+  // Do not use Integer.getInteger here; GWT's emulated JRE may not provide it.
+  private static volatile int applierMaxRangesPerApply = -1;
+  public static void setApplierMaxRangesPerApply(int max) { applierMaxRangesPerApply = max; }
+  public static void setFragmentsApplierEnabled(boolean enabled) { enableFragmentsApplierFlag = enabled; }
+  // Optional warn threshold for applier duration (milliseconds), defaults to 50ms
+  private static volatile int applierWarnMs = 50;
+  public static void setApplierWarnMs(int warnMs) { applierWarnMs = warnMs; }
+
+  private static void debugLog(String msg) {
+    try {
+      com.google.gwt.core.client.GWT.log(msg);
+    } catch (Throwable ignore) { }
+  }
 
 
   /**
@@ -182,6 +219,35 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
         "Cannot submit to disconnected view channel: %s, delta version %s", this,
         delta.getTargetVersion());
     doSubmitDelta(waveletId, delta, callback);
+  }
+
+  @Override
+  public void fetchFragments(WaveletId waveletId, List<SegmentId> segments,
+                             long startVersion, long endVersion) {
+    FragmentsFetchBridge bridge = fragmentsBridge;
+    if (bridge == null) {
+      return; // feature not enabled
+    }
+    try {
+      WaveletName wn = WaveletName.of(this.waveId, waveletId);
+      FragmentsPayload payload = bridge.fetch(wn, segments, startVersion, endVersion);
+      if (logger.trace().shouldLog()) {
+        logger.trace().log("fetchFragments: wn=" + wn + " payload ranges=" + payload.ranges.size());
+      }
+      if (openListener != null) {
+        openListener.onFragments(waveletId, payload);
+      }
+    } catch (Throwable t) {
+      // Best-effort only: log at trace and continue.
+      if (logger.trace().shouldLog()) {
+        try {
+          WaveletName wn = WaveletName.of(this.waveId, waveletId);
+          logger.trace().log("fetchFragments failed: wn=" + wn + " start=" + startVersion + " end=" + endVersion + " error=" + t);
+        } catch (Throwable ignore) {
+          // ignore logging errors
+        }
+      }
+    }
   }
 
   /**
@@ -329,6 +395,60 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
               // it's deltas or versions.
               openListener.onUpdate(waveletId, update.getDeltaList(),
                   lastCommittedVersion, currentVersion);
+            }
+            if (update.hasFragments()) {
+              FragmentsPayload payload = update.getFragments();
+              if (payload != null) {
+                openListener.onFragments(waveletId, payload);
+              }
+              // Optional: also forward to a global applier when enabled via property
+              // Best-effort applier hook (flag-gated). Errors are logged and update continues.
+              RawFragmentsApplier applier = fragmentsApplier;
+              if (payload != null) {
+                try {
+                  debugLog("ViewChannel fragments received: wavelet=" + waveletId
+                      + " ranges=" + payload.ranges.size()
+                      + " applierSet=" + (applier != null)
+                      + " flag=" + enableFragmentsApplierFlag
+                      + " maxRanges=" + applierMaxRangesPerApply);
+                } catch (Throwable ignore) {}
+              } else {
+                try { debugLog("ViewChannel fragments received null payload"); } catch (Throwable ignore) {}
+              }
+              if (applier != null && enableFragmentsApplierFlag && payload != null) {
+                try {
+                  long t0 = System.nanoTime();
+                  if (applierMaxRangesPerApply > 0 && payload.ranges.size() > applierMaxRangesPerApply) {
+                    java.util.List<FragmentsPayload.Range> subset = payload.ranges.subList(0, applierMaxRangesPerApply);
+                    payload = FragmentsPayload.of(
+                        payload.snapshotVersion, payload.startVersion, payload.endVersion,
+                        new java.util.ArrayList<>(subset));
+                  }
+                  applier.applyPayload(waveletId, payload);
+                  long dtMs = (System.nanoTime() - t0) / 1_000_000L;
+                  int warnMs = applierWarnMs;
+                  if (FragmentsMetrics.isEnabled()) {
+                    FragmentsMetrics.applierEvents.incrementAndGet();
+                    FragmentsMetrics.applierDurationsMs.addAndGet(dtMs);
+                  }
+                  if (dtMs > warnMs && logger.trace().shouldLog()) {
+                    logger.trace().log("Fragments applier took " + dtMs + "ms for wavelet " + waveletId);
+                  }
+                } catch (Throwable t) {
+                  logger.error().log("Fragments applier failed for wavelet " + waveletId + ": " + t);
+                }
+              } else {
+                try {
+                  debugLog("ViewChannel fragments not applied: applier=" + (applier != null)
+                      + " flag=" + enableFragmentsApplierFlag + " payloadNull=" + (payload == null));
+                } catch (Throwable ignore) {}
+              }
+              // Dev-only debug badge: increase on-screen counter when a fragments batch arrives
+              try {
+                if (payload != null && payload.ranges != null) {
+                  FragmentsDebugIndicator.onRanges(payload.ranges.size());
+                }
+              } catch (Throwable ignore) { }
             }
             if (update.hasMarker()) {
               openListener.onOpenFinished();

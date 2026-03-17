@@ -254,6 +254,34 @@ public class DataApiOAuthServletTest extends TestCase {
     verify(resp).sendRedirect(expectedRedirect);
   }
 
+  public void testDoAuthorizeTokenRedirectsWithSanitizedParams() throws Exception {
+    when(req.getPathInfo()).thenReturn(AUTHORIZE_TOKEN_PATH);
+    when(req.getMethod()).thenReturn("GET");
+    Map<String, String[]> params = getDoAuthorizeTokenParams();
+    // Inject CRLF into parameters; they should be removed in the constructed redirect
+    params.put(OAuth.OAUTH_CALLBACK, new String[] {"cb\r\nX:1"});
+    params.put(OAuth.OAUTH_TOKEN, new String[] {params.get(OAuth.OAUTH_TOKEN)[0] + "\r\nY:2"});
+    when(req.getParameterMap()).thenReturn(params);
+    when(req.getParameter(OAuth.OAUTH_CALLBACK)).thenReturn("cb\r\nX:1");
+    when(req.getParameter(OAuth.OAUTH_TOKEN)).thenReturn(params.get(OAuth.OAUTH_TOKEN)[0] + "\r\nY:2");
+
+    // Capture the argument given to getLoginUrl and ensure no CR/LF
+    final String[] captured = new String[1];
+    when(sessionManager.getLoginUrl(anyString())).thenAnswer(inv -> {
+      captured[0] = (String) inv.getArguments()[0];
+      return "/auth/login/fake";
+    });
+
+    when(sessionManager.getLoggedInUser(any(HttpSession.class))).thenReturn(null);
+
+    servlet.doGet(req, resp);
+
+    assertNotNull(captured[0]);
+    assertFalse(captured[0].contains("\r"));
+    assertFalse(captured[0].contains("\n"));
+    verify(resp).sendRedirect("/auth/login/fake");
+  }
+
   public void testDoAuthorizeTokenUnauthorizedOnWrongToken() throws Exception {
     when(req.getPathInfo()).thenReturn(AUTHORIZE_TOKEN_PATH);
     when(req.getMethod()).thenReturn("GET");

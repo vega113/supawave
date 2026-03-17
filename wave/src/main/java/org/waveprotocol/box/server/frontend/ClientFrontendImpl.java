@@ -153,7 +153,7 @@ public class ClientFrontendImpl implements ClientFrontend, WaveBus.Subscriber {
         return;
       }
 
-      LOG.info("snapshot in response is: " + (snapshotToSend != null));
+      LOG.fine("snapshot in response is: " + (snapshotToSend != null));
       if (snapshotToSend == null) {
         // Send deltas.
         openListener.onUpdate(waveletName, snapshotToSend, DeltaSequence.empty(), null, null,
@@ -171,7 +171,7 @@ public class ClientFrontendImpl implements ClientFrontend, WaveBus.Subscriber {
       LOG.info("sending just a channel id for " + dummyWaveletName);
       openListener.onUpdate(dummyWaveletName, null, DeltaSequence.empty(), null, null, channelId);
     }
-    LOG.info("sending marker for " + dummyWaveletName);
+    LOG.fine("sending marker for " + dummyWaveletName);
     openListener.onUpdate(dummyWaveletName, null, DeltaSequence.empty(), null, true, null);
   }
 

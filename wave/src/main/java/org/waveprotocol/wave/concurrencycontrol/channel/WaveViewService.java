@@ -64,6 +64,10 @@ public interface WaveViewService {
     List<TransformedWaveletDelta> getDeltaList();
 
     boolean hasMarker();
+
+    // Experimental: fragments payload in the update stream (default no-op)
+    default boolean hasFragments() { return false; }
+    default org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload getFragments() { return null; }
   }
 
   /**

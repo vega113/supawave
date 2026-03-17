@@ -349,6 +349,9 @@ public class Log {
     }
 
     LogRecord record = new MyLogRecord(level, contextualiseMessage(msg), t);
+    // Some bridges (e.g., JUL -> SLF4J) display "unknown.jul.logger" when the
+    // LoggerName is missing. Ensure the name is set for consistent output.
+    record.setLoggerName(logger.getName());
     logger.log(record);
   }
 

@@ -485,6 +485,26 @@ public class ClientFlagsBase {
 
   private final String welcomeWaveId;
 
+  // Conversation Renderer migration flags
+  private final Boolean enableQuasiDeletionUi;
+  private final Boolean enableDynamicRendering;
+  private final Boolean enableFragmentFetchViewChannel;
+  private final Boolean enableFragmentFetchForceLayer;
+  private final String fragmentFetchMode;
+  private final String initialViewportStartBlipId;
+  private final String initialViewportDirection;
+  private final Integer initialViewportLimit;
+  private final Integer dynamicPrerenderUpperPx;
+  private final Integer dynamicPrerenderLowerPx;
+  private final Integer dynamicPageOutSlackPx;
+  private final Integer dynamicScrollThrottleMs;
+  private final Integer dynamicSpeedBoostThresholdPx;
+  private final Double dynamicSpeedBoostFactor;
+  private final Integer quasiDeletionDwellMs;
+  private final Boolean enableFragmentsApplier;
+  private final Boolean forceClientFragments;
+  private final Integer fragmentsApplierMaxRanges;
+
 
   /**
    * Returns debug information for flag values.
@@ -726,7 +746,23 @@ public class ClientFlagsBase {
         "welcomePanelTutorialWaves", welcomePanelTutorialWaves,
         "welcomeWaveId", welcomeWaveId,
 
-      };
+        // Conversation Renderer migration flags
+        "enableQuasiDeletionUi", enableQuasiDeletionUi,
+        "enableDynamicRendering", enableDynamicRendering,
+        "enableFragmentFetchViewChannel", enableFragmentFetchViewChannel,
+        "enableFragmentFetchForceLayer", enableFragmentFetchForceLayer,
+        "fragmentFetchMode", fragmentFetchMode,
+        "initialViewportStartBlipId", initialViewportStartBlipId,
+        "initialViewportDirection", initialViewportDirection,
+        "initialViewportLimit", initialViewportLimit,
+        "dynamicPrerenderUpperPx", dynamicPrerenderUpperPx,
+        "dynamicPrerenderLowerPx", dynamicPrerenderLowerPx,
+        "dynamicPageOutSlackPx", dynamicPageOutSlackPx,
+        "dynamicScrollThrottleMs", dynamicScrollThrottleMs,
+        "dynamicSpeedBoostThresholdPx", dynamicSpeedBoostThresholdPx,
+        "dynamicSpeedBoostFactor", dynamicSpeedBoostFactor,
+
+    };
   }
 
   /**
@@ -962,7 +998,51 @@ public class ClientFlagsBase {
     welcomePanelTutorialWaves = helper.getString(FlagConstants.WELCOME_PANEL_TUTORIAL_WAVES, "");
     welcomeWaveId = helper.getString(FlagConstants.WELCOME_WAVE_ID, "");
 
+    // Conversation Renderer migration flags (default: off)
+    enableQuasiDeletionUi = helper.getBoolean(FlagConstants.ENABLE_QUASI_DELETION_UI, false);
+    enableDynamicRendering = helper.getBoolean(FlagConstants.ENABLE_DYNAMIC_RENDERING, false);
+    enableFragmentFetchViewChannel = helper.getBoolean(FlagConstants.ENABLE_FRAGMENT_FETCH_VIEW_CHANNEL, false);
+    enableFragmentFetchForceLayer = helper.getBoolean(FlagConstants.ENABLE_FRAGMENT_FETCH_FORCE_LAYER, false);
+    String ffm = helper.getString(FlagConstants.FRAGMENT_FETCH_MODE, null);
+    fragmentFetchMode = (ffm == null || ffm.trim().isEmpty()) ? null : ffm.trim().toLowerCase();
+    initialViewportStartBlipId = helper.getString(FlagConstants.INITIAL_VIEWPORT_START_BLIP_ID, null);
+    initialViewportDirection = helper.getString(FlagConstants.INITIAL_VIEWPORT_DIRECTION, null);
+    initialViewportLimit = helper.getInteger(FlagConstants.INITIAL_VIEWPORT_LIMIT, null);
+    dynamicPrerenderUpperPx = helper.getInteger(FlagConstants.DYNAMIC_PRERENDER_UPPER_PX, 600);
+    dynamicPrerenderLowerPx = helper.getInteger(FlagConstants.DYNAMIC_PRERENDER_LOWER_PX, 800);
+    dynamicPageOutSlackPx = helper.getInteger(FlagConstants.DYNAMIC_PAGE_OUT_SLACK_PX, 1200);
+    dynamicScrollThrottleMs = helper.getInteger(FlagConstants.DYNAMIC_SCROLL_THROTTLE_MS, 50);
+    dynamicSpeedBoostThresholdPx = helper.getInteger(FlagConstants.DYNAMIC_SPEED_BOOST_THRESHOLD_PX, 800);
+    dynamicSpeedBoostFactor = helper.getDouble(FlagConstants.DYNAMIC_SPEED_BOOST_FACTOR, 1.8);
+    quasiDeletionDwellMs = helper.getInteger(FlagConstants.QUASI_DELETION_DWELL_MS, 400);
+    enableFragmentsApplier = helper.getBoolean(FlagConstants.ENABLE_FRAGMENTS_APPLIER, false);
+    forceClientFragments = helper.getBoolean(FlagConstants.FORCE_CLIENT_FRAGMENTS, false);
+    fragmentsApplierMaxRanges = helper.getInteger(FlagConstants.FRAGMENTS_APPLIER_MAX_RANGES, null);
+
   }
+
+  /** Conversation Renderer migration flags */
+  public Boolean enableQuasiDeletionUi() { return enableQuasiDeletionUi; }
+  public Boolean enableDynamicRendering() { return enableDynamicRendering; }
+  public Boolean enableFragmentFetchViewChannel() { return enableFragmentFetchViewChannel; }
+  public Boolean enableFragmentFetchForceLayer() { return enableFragmentFetchForceLayer; }
+  /**
+   * Fragment fetch mode: "stream", "http", or "off". May be null when unset.
+   */
+  public String fragmentFetchMode() { return fragmentFetchMode; }
+  public Integer fragmentsApplierMaxRanges() { return fragmentsApplierMaxRanges; }
+  public String initialViewportStartBlipId() { return initialViewportStartBlipId; }
+  public String initialViewportDirection() { return initialViewportDirection; }
+  public Integer initialViewportLimit() { return initialViewportLimit; }
+  public Integer dynamicPrerenderUpperPx() { return dynamicPrerenderUpperPx; }
+  public Integer dynamicPrerenderLowerPx() { return dynamicPrerenderLowerPx; }
+  public Integer dynamicPageOutSlackPx() { return dynamicPageOutSlackPx; }
+  public Integer dynamicScrollThrottleMs() { return dynamicScrollThrottleMs; }
+  public Integer quasiDeletionDwellMs() { return quasiDeletionDwellMs; }
+  public Boolean enableFragmentsApplier() { return enableFragmentsApplier; }
+  public Boolean forceClientFragments() { return forceClientFragments; }
+  public Integer dynamicSpeedBoostThresholdPx() { return dynamicSpeedBoostThresholdPx; }
+  public Double dynamicSpeedBoostFactor() { return dynamicSpeedBoostFactor; }
 
 
   /**

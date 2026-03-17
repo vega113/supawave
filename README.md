@@ -218,6 +218,18 @@ Note: Until the Jakarta path becomes the default, you can continue to use the ex
 - Scrub CI/CD logs and artifacts as needed and prefer environment variables or secret stores for sensitive configuration.
 
 
+### WebSocket tuning (internal clients)
+
+Apache Wave uses an internal Jetty WebSocket client for live RPC channels. You can tune connection behavior via Typesafe Config (reference.conf/application.conf):
+
+- wave.websocket.connectTimeoutMs: Jetty client connect timeout (default: 10000)
+- wave.websocket.connectWaitMs: Max wait for a connect to complete per attempt (default: 15000)
+- wave.websocket.maxBackoffMs: Cap for exponential backoff between retries (default: 8000)
+- wave.websocket.jitterFraction: Jitter applied to backoff sleeps, as a fraction (default: 0.2 for ±20%)
+
+The server applies these to system properties at startup so the internal client picks them up. Override in config/application.conf to suit your environment.
+
+
 ## To learn more about Wave in a Box and Wave Federation Protocol:
 
 1. Subscribe to the wave-dev mailing list, find instructions at http://incubator.apache.org/wave/mailing-lists.html.

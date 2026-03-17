@@ -37,6 +37,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -148,38 +149,42 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       throw new IllegalStateException(e);
     }
 
-    final WebSocketClient client = new WebSocketClient();
-    client.setConnectTimeout(2000L);
+    int attempts = 3;
+    final int connectTimeoutMs = Integer.getInteger("wave.websocket.connectTimeoutMs", 10_000);
+    final int connectWaitMs = Integer.getInteger("wave.websocket.connectWaitMs", 15_000);
+    final int maxBackoffMs = Integer.getInteger("wave.websocket.maxBackoffMs", 8_000);
+    final double jitterFraction = Double.parseDouble(System.getProperty("wave.websocket.jitterFraction", "0.2"));
+    long backoffMs = 1000;
     Exception last = null;
-    try {
-      client.start();
-      final int maxAttempts = 3;
-      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          ClientUpgradeRequest request = new ClientUpgradeRequest();
-          client.connect(clientChannel, uri, request).get();
-          return client;
-        } catch (Exception ex) {
-          last = ex;
-          LOG.warning("WebSocket connect attempt " + attempt + "/" + maxAttempts +
-              " failed to " + uri + ": " + ex.getMessage(), ex);
-          if (attempt == maxAttempts) break;
-          try {
-            // Exponential backoff with basic jitter
-            long backoff = 250L * attempt + (long)(Math.random() * 100L);
-            Thread.sleep(backoff);
-          } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            break;
+    for (int i = 1; i <= attempts; i++) {
+      WebSocketClient client = new WebSocketClient();
+      client.setConnectTimeout(connectTimeoutMs);
+      boolean started = false;
+      try {
+        client.start();
+        started = true;
+        ClientUpgradeRequest request = new ClientUpgradeRequest();
+        client.connect(clientChannel, uri, request).get(connectWaitMs, TimeUnit.MILLISECONDS);
+        return client; // success
+      } catch (Exception ex) {
+        last = ex;
+        LOG.warning("WebSocket connect attempt " + i + " failed", ex);
+        if (started) {
+          try { client.stop(); } catch (Exception stopEx) {
+            LOG.warning("WebSocket client stop() failed during cleanup", stopEx);
           }
         }
+        if (i < attempts) {
+          long sleepMs = backoffMs;
+          if (jitterFraction > 0) {
+            double r = (Math.random() * 2 * jitterFraction) - jitterFraction; // [-jitter,+jitter]
+            sleepMs = Math.max(0, (long) (backoffMs * (1.0 + r)));
+          }
+          try { Thread.sleep(sleepMs); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+          backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
+        }
       }
-    } catch (Exception startEx) {
-      last = startEx;
     }
-    try { client.stop(); } catch (Exception ignore) {}
-    IOException ioe = new IOException("Failed to open WebSocket to " + inetAddress + " after retries");
-    if (last != null) ioe.initCause(last);
-    throw ioe;
+    throw new IOException(last);
   }
 }

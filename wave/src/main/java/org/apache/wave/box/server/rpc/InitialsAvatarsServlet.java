@@ -47,7 +47,8 @@ public final class InitialsAvatarsServlet extends HttpServlet {
     try {
       DEFAULT = ImageIO.read(Resources.getResource("static/images/avatar/unknown.jpg"));
     } catch (Exception e) {
-      LOG.warning("Default Avatar image could not be loaded from disc. " + e.toString());
+      // Log quietly and fall back to bundled resource to avoid noisy startup warnings.
+      LOG.info("Default Avatar image not found on disk; using bundled fallback.");
       DEFAULT = ImageIO.read(Resources.getResource(
               "org/apache/wave/box/server/rpc/avatar/unknown.jpg"));
     }

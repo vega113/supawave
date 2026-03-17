@@ -69,6 +69,7 @@ import org.waveprotocol.wave.model.util.StringMap;
 import org.waveprotocol.wave.model.util.StringSet;
 import org.waveprotocol.wave.model.util.ValueUtils;
 import org.waveprotocol.wave.model.util.ReadableStringMap.ProcV;
+import java.util.logging.Logger;
 import org.waveprotocol.wave.model.util.ReadableStringSet.Proc;
 
 import java.util.ArrayList;
@@ -97,6 +98,7 @@ import java.util.Map;
  */
 public class IndexedDocumentImpl<N, E extends N, T extends N, V>
     implements IndexedDocument<N, E, T>, Validator {
+  private static final Logger CL_LOG = Logger.getLogger("DocClamp");
 
   /**
    * Whether to perform validation on consumed ops and nindos
@@ -281,7 +283,17 @@ public class IndexedDocumentImpl<N, E extends N, T extends N, V>
    * {@inheritDoc}
    */
   public Point<N> locate(int location) {
-    Preconditions.checkPositionIndex(location, offsetList.size());
+    // Defensive clamp with diagnostics: selection and doc length can drift
+    int size = offsetList.size();
+    int original = location;
+    if (location < 0) {
+      location = 0;
+    } else if (location > size) {
+      location = size;
+    }
+    if (original != location) {
+      CL_LOG.fine("clamp.locate: orig=" + original + " new=" + location + " size=" + size);
+    }
     return offsetList.performActionAt(location, pointFinder);
   }
 

@@ -29,6 +29,7 @@ import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 
 import java.util.List;
 import java.util.Map;
+import org.waveprotocol.wave.model.id.SegmentId;
 
 /**
  * Encapsulates the WaveView rpcs as a channel.
@@ -102,6 +103,14 @@ public interface ViewChannel {
     void onUpdate(WaveletId waveletId, List<TransformedWaveletDelta> waveletDeltas,
         HashedVersion lastCommittedVersion, HashedVersion currentSignedVersion)
         throws ChannelException;
+
+    /**
+     * Experimental: server-side fragments window arrived.
+     * Default no-op; implementations may override when feature flag is enabled.
+     */
+    default void onFragments(WaveletId waveletId,
+                             org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload payload)
+        throws ChannelException { }
   }
 
   /**
@@ -138,4 +147,18 @@ public interface ViewChannel {
    * @return Debug string that details profile information regarding data being sent.
    */
   String debugGetProfilingInfo(WaveletId waveletId);
+
+  /**
+   * Experimental: request fragments (server-side segments) for a window.
+   * Default no-op; enabled only when server feature flag is on and implementation supports it.
+   */
+  default void fetchFragments(WaveletId waveletId, List<SegmentId> segments,
+                              long startVersion, long endVersion) {
+    // Stub: implementations may override when feature flag is enabled.
+  }
+
+  /**
+   * Configure a global fragments applier (optional). Implementations may ignore.
+   */
+  static void setFragmentsApplier(RawFragmentsApplier applier) {}
 }

@@ -136,6 +136,49 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
   }
 
   /**
+   * Opens a wave stream with optional viewport hints for server-side fragments.
+   *
+   * Parameter semantics and edge cases:
+   * - viewportStartBlipId: blip id (e.g., "b+abc") near which the server should
+   *   center the visible slice; when null or unknown, the server falls back to
+   *   snapshot/heuristic selection.
+   * - viewportDirection: "forward" or "backward". Any other value or null is
+   *   treated as "forward" by the server. The direction influences which side
+   *   of the start blip is preferred when selecting the slice.
+   * - viewportLimit: desired number of blip segments to include (excluding
+   *   index/manifest). Values <= 0 are ignored; server clamps to its own
+   *   allowed range. The server will always include at least index and
+   *   manifest, and then up to N blip segments.
+   *
+   * Backward compatibility: older servers/clients that don’t recognize these
+   * fields will simply ignore them. This method uses reflection to set fields
+   * so that older generated JSOs without the setters remain functional.
+   */
+  public void open(WaveId id, IdFilter filter, WaveWebSocketCallback stream,
+                   String viewportStartBlipId, String viewportDirection, int viewportLimit) {
+    streams.put(id, stream);
+    ProtocolOpenRequestJsoImpl request = ProtocolOpenRequestJsoImpl.create();
+    request.setWaveId(ModernIdSerialiser.INSTANCE.serialiseWaveId(id));
+    request.setParticipantId(userId);
+    for (String prefix : filter.getPrefixes()) {
+      request.addWaveletIdPrefix(prefix);
+    }
+    for (WaveletId wid : filter.getIds()) {
+      request.addWaveletIdPrefix(wid.getId());
+    }
+    if (viewportStartBlipId != null) {
+      request.setViewportStartBlipId(viewportStartBlipId);
+    }
+    if (viewportDirection != null) {
+      request.setViewportDirection(viewportDirection);
+    }
+    if (viewportLimit > 0) {
+      request.setViewportLimit(viewportLimit);
+    }
+    socket.open(request);
+  }
+
+  /**
    * Closes a wave stream.
    *
    * @param id wave to close

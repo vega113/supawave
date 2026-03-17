@@ -110,4 +110,7 @@ public class FakeWaveViewServiceUpdate implements WaveViewService.WaveViewServic
   @Override public List<TransformedWaveletDelta> getDeltaList() { return deltaList; }
 
   @Override public boolean hasMarker() { return marker != null; }
+
+  @Override public boolean hasFragments() { return false; }
+  @Override public org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload getFragments() { return null; }
 }

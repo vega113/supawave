@@ -142,6 +142,8 @@ public class StageTwoProvider extends StageTwo.DefaultProvider {
           stageOne.getDomAsViewProvider().setRenderer(getRenderer());
           ensureRendered();
 
+          configureFragmentsAndDynamicRendering();
+
           // Install eager UI.
           installFeatures();
 

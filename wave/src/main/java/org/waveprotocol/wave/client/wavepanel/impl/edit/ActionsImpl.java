@@ -29,6 +29,7 @@ import org.waveprotocol.wave.client.wave.InteractiveDocument;
 import org.waveprotocol.wave.client.wave.WaveDocuments;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.i18n.ActionMessages;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFramePresenter;
+import org.waveprotocol.wave.client.wavepanel.util.BlipUiUtil;
 import org.waveprotocol.wave.client.wavepanel.view.BlipLinkPopupView;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.ThreadView;
@@ -83,7 +84,10 @@ public final class ActionsImpl implements Actions {
 
   @Override
   public void startEditing(BlipView blipUi) {
-    focusAndEdit(blipUi);
+    boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
+    if (allowed) {
+      focusAndEdit(blipUi);
+    }
   }
 
   @Override
@@ -93,17 +97,20 @@ public final class ActionsImpl implements Actions {
 
   @Override
   public void reply(BlipView blipUi) {
-    ConversationBlip blip = views.getBlip(blipUi);
-    ContentDocument doc = documents.get(blip).getDocument();
-    // Insert the reply at a good spot near the current selection, or use the
-    // end of the document as a fallback.
-    int location = DocumentUtil.getLocationNearSelection(doc);
-    if (location == -1) {
-      location = blip.getContent().size() - 1;
+    boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
+    if (allowed) {
+      ConversationBlip blip = views.getBlip(blipUi);
+      ContentDocument doc = documents.get(blip).getDocument();
+      // Insert the reply at a good spot near the current selection, or use the
+      // end of the document as a fallback.
+      int location = DocumentUtil.getLocationNearSelection(doc);
+      if (location == -1) {
+        location = blip.getContent().size() - 1;
+      }
+      ConversationBlip reply = blip.addReplyThread(location).appendBlip();
+      blipQueue.flush();
+      focusAndEdit(views.getBlipView(reply));
     }
-    ConversationBlip reply = blip.addReplyThread(location).appendBlip();
-    blipQueue.flush();
-    focusAndEdit(views.getBlipView(reply));
   }
 
   @Override
@@ -119,18 +126,27 @@ public final class ActionsImpl implements Actions {
     // If focus is on the blip that is being deleted, move focus somewhere else.
     // If focus is on a blip inside the blip being deleted, don't worry about it
     // (checking could get too expensive).
-    if (blipUi.equals(focus.getFocusedBlip())) {
+    BlipView currentlyFocused = (focus != null) ? focus.getFocusedBlip() : null;
+    boolean deletingFocused = (blipUi != null && currentlyFocused != null && blipUi.equals(currentlyFocused));
+    if (deletingFocused) {
       // Move to next blip in thread if there is one, otherwise previous blip in
       // thread, otherwise previous blip in traversal order.
-      ThreadView parentUi = blipUi.getParent();
-      BlipView nextUi = parentUi.getBlipAfter(blipUi);
-      if (nextUi == null) {
-        nextUi = parentUi.getBlipBefore(blipUi);
+      ThreadView parentUi = (blipUi != null) ? blipUi.getParent() : null;
+      BlipView nextUi = null;
+      if (parentUi != null) {
+        nextUi = parentUi.getBlipAfter(blipUi);
+        if (nextUi == null) {
+          nextUi = parentUi.getBlipBefore(blipUi);
+        }
       }
       if (nextUi != null) {
-        focus.focus(nextUi);
+        if (focus != null) {
+          focus.focus(nextUi);
+        }
       } else {
-        focus.moveUp();
+        if (focus != null) {
+          focus.moveUp();
+        }
       }
     }
 
@@ -146,9 +162,12 @@ public final class ActionsImpl implements Actions {
    * Moves focus to a blip, and starts editing it.
    */
   private void focusAndEdit(BlipView blipUi) {
-    edit.stopEditing();
-    focus.focus(blipUi);
-    edit.startEditing(blipUi);
+    boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
+    if (allowed) {
+      edit.stopEditing();
+      focus.focus(blipUi);
+      edit.startEditing(blipUi);
+    }
   }
 
   @Override

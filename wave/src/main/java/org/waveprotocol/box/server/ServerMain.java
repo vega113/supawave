@@ -28,6 +28,8 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigException;
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.wave.box.server.rpc.InitialsAvatarsServlet;
 import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc;
 import org.waveprotocol.box.server.authentication.AccountStoreHolder;
@@ -36,6 +38,8 @@ import org.waveprotocol.box.server.executor.ExecutorsModule;
 import org.waveprotocol.box.server.frontend.ClientFrontend;
 import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
 import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
+import org.waveprotocol.box.server.frontend.FragmentsViewChannelHandler;
+import org.waveprotocol.box.server.frontend.FragmentsFetchBridgeImpl;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
@@ -62,6 +66,10 @@ import org.waveprotocol.box.server.stat.TimingFilter;
 import org.waveprotocol.box.server.waveserver.*;
 import org.waveprotocol.box.stat.StatService;
 import org.waveprotocol.wave.crypto.CertPathStore;
+import org.waveprotocol.box.server.dev.ClientApplierStatsServlet;
+import org.waveprotocol.box.server.security.SecurityHeadersFilter;
+import org.waveprotocol.box.server.security.StaticCacheFilter;
+import org.waveprotocol.box.server.security.NoCacheFilter;
 import org.waveprotocol.wave.federation.FederationTransport;
 import org.waveprotocol.wave.federation.noop.NoOpFederationModule;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
@@ -70,6 +78,22 @@ import org.waveprotocol.wave.util.logging.Log;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
+import java.io.PrintStream;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.LogManager;
+
+import org.waveprotocol.box.server.config.ConfigurationInitializationException;
+import org.waveprotocol.box.server.frontend.ManifestOrderCache;
+import org.waveprotocol.box.server.waveletstate.segment.SegmentWaveletStateRegistry;
+import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics;
+import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl;
+import org.waveprotocol.wave.concurrencycontrol.channel.impl.NoOpRawFragmentsApplier;
+import org.waveprotocol.wave.concurrencycontrol.channel.impl.SkeletonRawFragmentsApplier;
+import org.waveprotocol.wave.concurrencycontrol.channel.impl.RealRawFragmentsApplier;
+ 
+
+    
 
 /**
  * Wave Server entrypoint.
@@ -83,39 +107,17 @@ public class ServerMain {
   private static final Log LOG = Log.get(ServerMain.class);
 
   public static void main(String... args) {
-    // Route java.util.logging through SLF4J (logback) early
-    try {
-      java.util.logging.LogManager.getLogManager().reset();
-      SLF4JBridgeHandler.removeHandlersForRootLogger();
-      SLF4JBridgeHandler.install();
-    } catch (Throwable ignore) {
-      // If bridge not on classpath, continue without failing startup
-    }
-    // Ensure any uncaught exceptions are logged with a full stack trace
-    try {
-      Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-        try {
-          // Avoid passing the Throwable to logging to prevent Guice/ASM formatting issues
-          LOG.severe("Uncaught exception on thread " + thread.getName() + " (" + throwable.getClass().getName() + ")");
-        } catch (Throwable ignored) {
-          // Avoid throwing from the handler itself
-        } finally {
-          try {
-            // Print minimal stack trace without invoking Throwable.toString()/getMessage()
-            printStackTraceLite(throwable);
-          } catch (Throwable ignore2) {
-            // ignore
-          }
-        }
-      });
-    } catch (Throwable ignore) {
-      // Best-effort; do not fail startup if handler cannot be set
-    }
+    configureLoggingBridge();
+    installGlobalExceptionLogger();
     try {
       Module coreSettings = new AbstractModule() {
 
         @Override
         protected void configure() {
+          // Load configuration with precedence (single canonical location under module's config/):
+          // 1) System properties / -D overrides
+          // 2) config/application.conf (project-local overrides)
+          // 3) config/reference.conf (project-local defaults)
           Config config = ConfigFactory.defaultOverrides()
               .withFallback(ConfigFactory.parseFile(new File("config/application.conf")))
               .withFallback(ConfigFactory.parseFile(new File("config/reference.conf")))
@@ -123,6 +125,10 @@ public class ServerMain {
           bind(Config.class).toInstance(config);
           bind(Key.get(String.class, Names.named(CoreSettingsNames.WAVE_SERVER_DOMAIN)))
               .toInstance(config.getString("core.wave_server_domain"));
+          applyWebSocketSystemProperties(config);
+          configureFragmentsApplier(config);
+          enableFragmentsMetrics(config);
+          configureViewportLimits(config);
         }
       };
       run(coreSettings);
@@ -131,13 +137,10 @@ public class ServerMain {
     } catch (WaveServerException e) {
       LOG.severe("WaveServerException when running server:", e);
     } catch (Throwable t) {
-      // Avoid passing Throwable into logging to bypass Guice/ASM message formatting
       LOG.severe("Unexpected fatal error when running server (" + t.getClass().getName() + ")");
       try {
         printStackTraceLite(t);
-      } catch (Throwable ignore) {
-        // ignore
-      }
+      } catch (Throwable ignore) { }
     }
   }
 
@@ -207,19 +210,202 @@ public class ServerMain {
     return settingsInjector.getInstance(NoOpFederationModule.class);
   }
 
+  /** Configures JUL→SLF4J bridge if available. */
+  private static void configureLoggingBridge() {
+    try {
+      LogManager.getLogManager().reset();
+      SLF4JBridgeHandler.removeHandlersForRootLogger();
+      SLF4JBridgeHandler.install();
+    } catch (Throwable ignore) { }
+  }
+
+  /** Installs a minimal global uncaught exception handler that logs stack traces. */
+  private static void installGlobalExceptionLogger() {
+    try {
+      Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+        try {
+          LOG.severe("Uncaught exception on thread " + thread.getName() +
+              " (" + throwable.getClass().getName() + ")");
+        } finally {
+          try { printStackTraceLite(throwable); } catch (Throwable ignore) { }
+        }
+      });
+    } catch (Throwable ignore) { }
+  }
+
+  /** Applies WebSocket tunables to system properties for internal client channels. */
+  private static void applyWebSocketSystemProperties(Config config) {
+    try {
+      if (config.hasPath("wave.websocket.connectTimeoutMs")) {
+        System.setProperty("wave.websocket.connectTimeoutMs",
+            Integer.toString(config.getInt("wave.websocket.connectTimeoutMs")));
+      }
+      if (config.hasPath("wave.websocket.connectWaitMs")) {
+        System.setProperty("wave.websocket.connectWaitMs",
+            Integer.toString(config.getInt("wave.websocket.connectWaitMs")));
+      }
+      if (config.hasPath("wave.websocket.maxBackoffMs")) {
+        System.setProperty("wave.websocket.maxBackoffMs",
+            Integer.toString(config.getInt("wave.websocket.maxBackoffMs")));
+      }
+      if (config.hasPath("wave.websocket.jitterFraction")) {
+        System.setProperty("wave.websocket.jitterFraction",
+            Double.toString(config.getDouble("wave.websocket.jitterFraction")));
+      }
+    } catch (Throwable t) {
+      LOG.warning("Failed to apply wave.websocket config to system properties", t);
+    }
+  }
+
+  /** Configures the fragments applier instance and related warn threshold/flags. */
+  private static void configureFragmentsApplier(Config config) {
+    try {
+      boolean applierEnabled = false;
+      boolean forceClientFragments = false;
+      try {
+        if (config.hasPath("client.flags.defaults.enableFragmentsApplier")) {
+          applierEnabled = config.getBoolean("client.flags.defaults.enableFragmentsApplier");
+        } else if (config.hasPath("client.flags.defaults")) {
+          // Fallback: CSV-style defaults string (e.g., "a=true,b=false").
+          String s = config.getString("client.flags.defaults");
+          if (s != null) {
+            for (String p : s.split(",")) {
+              String t = p.trim();
+              if (t.isEmpty()) continue;
+              int eq = t.indexOf('=');
+              String name = (eq > 0) ? t.substring(0, eq).trim() : t;
+              String val = (eq > 0) ? t.substring(eq + 1).trim() : "true";
+              if ("enableFragmentsApplier".equals(name)) {
+                applierEnabled = Boolean.parseBoolean(val);
+              }
+              if ("forceClientFragments".equals(name)) {
+                forceClientFragments = Boolean.parseBoolean(val);
+              }
+            }
+          }
+        }
+        if (config.hasPath("wave.fragments.forceClientApplier")) {
+          forceClientFragments = config.getBoolean("wave.fragments.forceClientApplier");
+        }
+      } catch (ConfigException e) {
+        LOG.info("Failed reading fragments applier defaults; falling back to false", e);
+      }
+      try {
+        if (applierEnabled) {
+          String impl = "skeleton";
+          try {
+            if (config.hasPath("wave.fragments.applier.impl")) {
+              impl = config.getString("wave.fragments.applier.impl");
+            }
+          } catch (ConfigException ignore) { }
+          if ("real".equalsIgnoreCase(impl)) {
+            ViewChannelImpl.setFragmentsApplier(new RealRawFragmentsApplier());
+          } else {
+            ViewChannelImpl.setFragmentsApplier(new SkeletonRawFragmentsApplier());
+          }
+        } else {
+          ViewChannelImpl.setFragmentsApplier(new NoOpRawFragmentsApplier());
+        }
+        ViewChannelImpl.setFragmentsApplierEnabled(applierEnabled);
+        WaveClientRpcImpl.setForceClientFragments(forceClientFragments);
+        String applierCls = applierEnabled ? "SkeletonRawFragmentsApplier" : "NoOpRawFragmentsApplier";
+        int warnMs = 50;
+        try {
+          if (config.hasPath("wave.fragments.applier.warnMs")) {
+            warnMs = config.getInt("wave.fragments.applier.warnMs");
+          }
+        } catch (ConfigException e) {
+          LOG.info("Failed reading wave.fragments.applier.warnMs; using default " + warnMs, e);
+        }
+        try { ViewChannelImpl.setApplierWarnMs(warnMs); }
+        catch (Throwable ignore) { }
+        LOG.info("Fragments applier: enabled=" + applierEnabled + ", impl=" + applierCls + ", warnMs=" + warnMs
+            + ", forceClientFragments=" + forceClientFragments);
+        // If enabled on the server, mirror the flag to the client's wave.clientFlags so the
+        // GWT client also wires its client-side applier (ClientStatsRawFragmentsApplier) and we
+        // can observe activity via /dev/client-applier-stats.
+        if (applierEnabled) {
+          try {
+            String cf = System.getProperty("wave.clientFlags");
+            if (cf == null || !cf.contains("enableFragmentsApplier")) {
+              System.setProperty("wave.clientFlags",
+                  (cf == null || cf.isEmpty()) ? "enableFragmentsApplier=true"
+                      : (cf + ",enableFragmentsApplier=true"));
+            }
+          } catch (Throwable ignore) { }
+        }
+        if (forceClientFragments) {
+          try {
+            String cf = System.getProperty("wave.clientFlags");
+            if (cf == null || !cf.contains("forceClientFragments")) {
+              System.setProperty("wave.clientFlags",
+                  (cf == null || cf.isEmpty()) ? "forceClientFragments=true"
+                      : (cf + ",forceClientFragments=true"));
+            }
+          } catch (Throwable ignore) { }
+        }
+      } catch (Throwable t) {
+        LOG.warning("Failed to wire fragments applier instance; proceeding without applier", t);
+      }
+      if (config.hasPath("wave.fragments.applier.warnMs")) {
+        System.setProperty("wave.fragments.applier.warnMs",
+            Integer.toString(config.getInt("wave.fragments.applier.warnMs")));
+      }
+    } catch (Throwable t) {
+      LOG.warning("Failed to apply fragments applier config", t);
+    }
+  }
+
+  /** Enables fragments metrics counters when explicitly requested or when profiling is on. */
+  private static void enableFragmentsMetrics(Config config) {
+    boolean metrics = false;
+    try {
+      if (config.hasPath("wave.fragments.metrics.enabled")) {
+        metrics = config.getBoolean("wave.fragments.metrics.enabled");
+      } else if (config.hasPath("core.enable_profiling")) {
+        metrics = config.getBoolean("core.enable_profiling");
+      }
+    } catch (ConfigException ignore) { }
+    FragmentsMetrics.setEnabled(metrics);
+  }
+
+  /** Applies viewport defaults and bounds for emitting fragment windows. */
+  private static void configureViewportLimits(Config config) {
+    try {
+      int defLimit = WaveClientRpcImpl.getDefaultViewportLimit();
+      int maxLimit = WaveClientRpcImpl.getMaxViewportLimit();
+      if (config.hasPath("wave.fragments.defaultViewportLimit")) {
+        defLimit = config.getInt("wave.fragments.defaultViewportLimit");
+      }
+      if (config.hasPath("wave.fragments.maxViewportLimit")) {
+        maxLimit = config.getInt("wave.fragments.maxViewportLimit");
+      }
+      WaveClientRpcImpl.setViewportLimits(defLimit, maxLimit);
+    } catch (Exception e) {
+      LOG.warning("Failed to configure fragments viewport limits; using defaults", e);
+    }
+  }
+
   private static void initializeServer(Injector injector, String waveDomain)
       throws PersistenceException, WaveServerException {
     AccountStore accountStore = injector.getInstance(AccountStore.class);
     accountStore.initializeAccountStore();
     AccountStoreHolder.init(accountStore, waveDomain);
 
-    // Initialize the SignerInfoStore.
+    initializeSignerInfoStore(injector);
+    initializeWaveServer(injector);
+  }
+
+  /** Initializes the signer info store when the configured CertPathStore supports it. */
+  private static void initializeSignerInfoStore(Injector injector) throws PersistenceException {
     CertPathStore certPathStore = injector.getInstance(CertPathStore.class);
     if (certPathStore instanceof SignerInfoStore) {
-      ((SignerInfoStore)certPathStore).initializeSignerInfoStore();
+      ((SignerInfoStore) certPathStore).initializeSignerInfoStore();
     }
+  }
 
-    // Initialize the server.
+  /** Performs WaveletProvider initialization. */
+  private static void initializeWaveServer(Injector injector) throws PersistenceException, WaveServerException {
     WaveletProvider waveServer = injector.getInstance(WaveletProvider.class);
     waveServer.initialize();
   }
@@ -252,8 +438,30 @@ public class ServerMain {
       server.addServlet("/webclient/remote_logging", RemoteLoggingServiceImpl.class);
     }
     server.addServlet("/profile/*", FetchProfilesServlet.class);
+    // Dev endpoint: client-side fragments applier stats (session-based)
+    server.addServlet("/dev/client-applier-stats", ClientApplierStatsServlet.class);
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
+    try {
+      // Unified transport: single source of truth.
+      String transport = readFragmentsTransport(config);
+      if (transport == null || transport.isEmpty()) {
+        transport = "off";
+      }
+
+      // Mirror effective transport + booleans into system properties so ConfigFactory.load()
+      // (used by StatuszServlet) sees consistent values regardless of source.
+      setEffectiveTransportSystemProperties(config, transport);
+
+      if (isFragmentsHttpEnabled(transport)) {
+        server.addServlet("/fragments", FragmentsServlet.class);
+        server.addServlet("/fragments/*", FragmentsServlet.class);
+      } else {
+        LOG.info("Fragments HTTP endpoint is disabled (effective transport='" + transport + "')");
+      }
+    } catch (Exception e) {
+      LOG.warning("Failed to configure fragments transport/endpoints; leaving /fragments disabled", e);
+    }
 
     if (!isJakarta(config)) {
       String gadgetServerHostname = config.getString("core.gadget_server_hostname");
@@ -265,24 +473,141 @@ public class ServerMain {
 
     server.addServlet("/", WaveClientServlet.class);
 
-    // Filters are wired programmatically in Jakarta ServerRpcProvider; skip here on Jakarta.
-    if (!isJakarta(config)) {
-      // Security headers
-      server.addFilter("/*", org.waveprotocol.box.server.security.SecurityHeadersFilter.class);
-      // Static asset caching for /static/* and no-cache for GWT webclient
-      server.addFilter("/static/*", org.waveprotocol.box.server.security.StaticCacheFilter.class);
-      server.addFilter("/webclient/*", org.waveprotocol.box.server.security.NoCacheFilter.class);
-    }
+    addSecurityAndCachingFilters(server);
+    addProfiling(server, config);
+  }
 
-    // Profiling (TimingFilter/Statusz) uses javax APIs; skip on Jakarta.
-    if (!isJakarta(config)) {
-      server.addFilter("/*", RequestScopeFilter.class);
-      boolean enableProfiling = config.getBoolean("core.enable_profiling");
-      if (enableProfiling) {
-        server.addFilter("/*", TimingFilter.class);
-        server.addServlet(StatService.STAT_URL, StatuszServlet.class);
+  /** Installs security headers and caching/no-cache filters. */
+  private static void addSecurityAndCachingFilters(ServerRpcProvider server) {
+    server.addFilter("/*", SecurityHeadersFilter.class);
+    server.addFilter("/static/*", StaticCacheFilter.class);
+    server.addFilter("/webclient/*", NoCacheFilter.class);
+  }
+
+  /** Adds request-scoped metrics and status endpoints when profiling is enabled. */
+  private static void addProfiling(ServerRpcProvider server, Config config) {
+    server.addFilter("/*", RequestScopeFilter.class);
+    boolean enableProfiling = config.getBoolean("core.enable_profiling");
+    if (enableProfiling) {
+      server.addFilter("/*", TimingFilter.class);
+      server.addServlet(StatService.STAT_URL, StatuszServlet.class);
+    }
+  }
+
+  /**
+   * Reads the unified fragments transport from Typesafe Config.
+   * Expected values: off | http | stream | both
+   */
+  @javax.annotation.Nullable
+  private static String readFragmentsTransport(com.typesafe.config.Config config) {
+    try {
+      if (config.hasPath("server.fragments.transport")) {
+        String v = config.getString("server.fragments.transport");
+        if (v != null) {
+          v = v.trim().toLowerCase();
+          if (!v.isEmpty()) {
+            return v;
+          }
+        }
+      }
+    } catch (Throwable ignore) {}
+
+    boolean legacyHttp = false;
+    boolean legacyStream = false;
+    try {
+      if (config.hasPath("server.enableFragmentsHttp")) {
+        legacyHttp = config.getBoolean("server.enableFragmentsHttp");
+      }
+    } catch (Throwable ignore) {}
+    try {
+      if (config.hasPath("server.enableFetchFragmentsRpc")) {
+        legacyStream = config.getBoolean("server.enableFetchFragmentsRpc");
+      }
+    } catch (Throwable ignore) {}
+
+    if (legacyHttp && legacyStream) {
+      return "both";
+    }
+    if (legacyStream) {
+      return "stream";
+    }
+    if (legacyHttp) {
+      return "http";
+    }
+    return null;
+  }
+
+  /**
+   * Mirrors the configured transport into system properties so consumers using ConfigFactory.load()
+   * can observe the effective values. Also injects a default client fragmentFetchMode when absent.
+   */
+  private static void setEffectiveTransportSystemProperties(Config config, String transport) {
+    try { System.setProperty("server.fragments.transport", transport); } catch (Throwable ignore) {}
+    boolean httpEnabled = isFragmentsHttpEnabled(transport);
+    boolean streamEnabled = isFragmentsStreamEnabled(transport);
+    System.setProperty("server.enableFragmentsHttp", Boolean.toString(httpEnabled));
+    System.setProperty("server.enableFetchFragmentsRpc", Boolean.toString(streamEnabled));
+    String cf = System.getProperty("wave.clientFlags");
+    String configuredMode = null;
+    if (config != null && config.hasPath("client.flags.defaults.fragmentFetchMode")) {
+      try {
+        configuredMode = config.getString("client.flags.defaults.fragmentFetchMode");
+      } catch (Throwable ignore) {}
+    }
+    if (configuredMode != null) {
+      configuredMode = configuredMode.trim().toLowerCase();
+      if (configuredMode.isEmpty()) {
+        configuredMode = null;
       }
     }
+    if (cf == null || !cf.contains("fragmentFetchMode")) {
+      String mode = (configuredMode != null)
+          ? configuredMode
+          : (streamEnabled ? "stream" : (httpEnabled ? "http" : "off"));
+      System.setProperty("wave.clientFlags",
+          (cf == null || cf.isEmpty()) ? ("fragmentFetchMode=" + mode)
+              : (cf + ",fragmentFetchMode=" + mode));
+    } else if (configuredMode != null && cf != null) {
+      // Sync existing property to configured mode when caller supplied a default.
+      String updated = cf.replaceAll("fragmentFetchMode=([^,]+)", "fragmentFetchMode=" + configuredMode);
+      if (!updated.equals(cf)) {
+        System.setProperty("wave.clientFlags", updated);
+      }
+    }
+    // Also propagate selected client flag defaults when present in config
+    try {
+      String existing = System.getProperty("wave.clientFlags");
+      StringBuilder sb = new StringBuilder(existing == null ? "" : existing);
+      com.typesafe.config.Config cfg = com.typesafe.config.ConfigFactory.load();
+      if (cfg.hasPath("client.flags.defaults.quasiDeletionDwellMs")) {
+        int dwell = cfg.getInt("client.flags.defaults.quasiDeletionDwellMs");
+        if (sb.length() > 0) sb.append(',');
+        sb.append("quasiDeletionDwellMs=").append(dwell);
+      }
+      if (sb.length() > 0) {
+        System.setProperty("wave.clientFlags", sb.toString());
+      }
+    } catch (Throwable ignore) {}
+  }
+
+  private static boolean isFragmentsHttpEnabled(String transport) {
+    if (transport == null) {
+      return false;
+    }
+    if ("http".equals(transport) || "both".equals(transport) || "stream".equals(transport)) {
+      return true;
+    }
+    return false;
+  }
+
+  private static boolean isFragmentsStreamEnabled(String transport) {
+    if (transport == null) {
+      return false;
+    }
+    if ("stream".equals(transport) || "both".equals(transport)) {
+      return true;
+    }
+    return false;
   }
 
   private static void initializeRobots(Injector injector, WaveBus waveBus) {
@@ -308,6 +633,146 @@ public class ServerMain {
 
     ProtocolWaveClientRpc.Interface rpcImpl = WaveClientRpcImpl.create(frontend, false);
     server.registerService(ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
+    applyFragmentsConfig(injector.getInstance(com.typesafe.config.Config.class));
+    wireFragmentsHandler(injector, provider);
+    wireFragmentsFetchBridge(injector, provider);
+  }
+
+  /** Sets the FragmentsViewChannelHandler used to emit ProtocolFragments in updates. */
+  private static void wireFragmentsHandler(Injector injector, WaveletProvider provider) {
+    try {
+      WaveClientRpcImpl.setFragmentsHandler(
+          new FragmentsViewChannelHandler(provider, injector.getInstance(Config.class)));
+    } catch (Throwable t) {
+      LOG.warning("Failed to wire FragmentsViewChannelHandler; fragments RPC disabled", t);
+    }
+  }
+
+  /** Hooks ViewChannelImpl.fetchFragments via a lightweight server bridge. */
+  private static void wireFragmentsFetchBridge(Injector injector, WaveletProvider provider) {
+    try {
+      ViewChannelImpl.setFragmentsFetchBridge(
+          new FragmentsFetchBridgeImpl(provider, injector.getInstance(Config.class)));
+    } catch (Throwable t) {
+      LOG.warning("Failed to wire FragmentsFetchBridge; ViewChannel.fetchFragments disabled", t);
+    }
+  }
+
+  /**
+   * Applies and validates fragments-related cache configuration.
+   * Throws {@link org.waveprotocol.box.server.config.ConfigurationInitializationException}
+   * when values are invalid so startup can fail fast with actionable logs.
+   */
+  public static void applyFragmentsConfig(Config cfg) {
+ 
+    applySegmentRegistryMaxEntries(cfg);
+    applySegmentRegistryTtlMs(cfg);
+    applyManifestOrderCacheMaxEntries(cfg);
+    applyManifestOrderCacheTtlMs(cfg);
+    validateApplierWarnMs(cfg);
+    validateApplierImpl(cfg);
+  }
+
+  /** Validates and applies server.segmentStateRegistry.maxEntries. */
+  private static void applySegmentRegistryMaxEntries(Config cfg) {
+    if (!cfg.hasPath("server.segmentStateRegistry.maxEntries")) return;
+    final String key = "server.segmentStateRegistry.maxEntries";
+    try {
+      int max = cfg.getInt(key);
+      if (max <= 0) {
+        LOG.severe("Invalid config: " + key + "=" + max + " (must be > 0)");
+        throw new ConfigurationInitializationException(key + " must be > 0 (got " + max + ")");
+      }
+      SegmentWaveletStateRegistry.setMaxEntries(max);
+    } catch (com.typesafe.config.ConfigException e) {
+      LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+      throw new ConfigurationInitializationException("Invalid type for " + key, e);
+    }
+  }
+
+  /** Validates and applies server.segmentStateRegistry.ttlMs. */
+  private static void applySegmentRegistryTtlMs(Config cfg) {
+    if (!cfg.hasPath("server.segmentStateRegistry.ttlMs")) return;
+    final String key = "server.segmentStateRegistry.ttlMs";
+    try {
+      long ttl = cfg.getLong(key);
+      if (ttl < 0L) {
+        LOG.severe("Invalid config: " + key + "=" + ttl + " (must be >= 0; 0 disables TTL)");
+        throw new ConfigurationInitializationException(key + " must be >= 0 (got " + ttl + ")");
+      }
+      SegmentWaveletStateRegistry.setTtlMs(ttl);
+    } catch (com.typesafe.config.ConfigException e) {
+      LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+      throw new ConfigurationInitializationException("Invalid type for " + key, e);
+    }
+  }
+
+  /** Validates and applies wave.fragments.manifestOrderCache.maxEntries. */
+  private static void applyManifestOrderCacheMaxEntries(Config cfg) {
+    if (!cfg.hasPath("wave.fragments.manifestOrderCache.maxEntries")) return;
+    final String key = "wave.fragments.manifestOrderCache.maxEntries";
+    try {
+      int max = cfg.getInt(key);
+      if (max <= 0) {
+        LOG.severe("Invalid config: " + key + "=" + max + " (must be > 0)");
+        throw new ConfigurationInitializationException(key + " must be > 0 (got " + max + ")");
+      }
+      ManifestOrderCache.setMaxEntries(max);
+    } catch (com.typesafe.config.ConfigException e) {
+      LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+      throw new ConfigurationInitializationException("Invalid type for " + key, e);
+    }
+  }
+
+  /** Validates and applies wave.fragments.manifestOrderCache.ttlMs. */
+  private static void applyManifestOrderCacheTtlMs(Config cfg) {
+    if (!cfg.hasPath("wave.fragments.manifestOrderCache.ttlMs")) return;
+    final String key = "wave.fragments.manifestOrderCache.ttlMs";
+    try {
+      long ttl = cfg.getLong(key);
+      if (ttl < 0L) {
+        LOG.severe("Invalid config: " + key + "=" + ttl + " (must be >= 0; 0 disables TTL)");
+        throw new ConfigurationInitializationException(key + " must be >= 0 (got " + ttl + ")");
+      }
+      ManifestOrderCache.setTtlMs(ttl);
+    } catch (com.typesafe.config.ConfigException e) {
+      LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+      throw new ConfigurationInitializationException("Invalid type for " + key, e);
+    }
+  }
+
+  /** Validates wave.fragments.applier.warnMs. */
+  private static void validateApplierWarnMs(Config cfg) {
+    if (!cfg.hasPath("wave.fragments.applier.warnMs")) return;
+    final String key = "wave.fragments.applier.warnMs";
+    try {
+      int warn = cfg.getInt(key);
+      if (warn < 0) {
+        LOG.severe("Invalid config: " + key + "=" + warn + " (must be >= 0)");
+        throw new ConfigurationInitializationException(key + " must be >= 0 (got " + warn + ")");
+      }
+    } catch (ConfigException e) {
+      LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+      throw new ConfigurationInitializationException("Invalid type for " + key, e);
+    }
+  }
+
+  /** Validates wave.fragments.applier.impl against supported values. */
+  private static void validateApplierImpl(Config cfg) {
+    if (!cfg.hasPath("wave.fragments.applier.impl")) return;
+    final String key = "wave.fragments.applier.impl";
+    try {
+      String impl = cfg.getString(key);
+      String v = impl == null ? "" : impl.trim().toLowerCase();
+      if (!("noop".equals(v) || "skeleton".equals(v) || "real".equals(v))) {
+        LOG.severe("Invalid config: " + key + "='" + impl + "' (must be one of noop|skeleton|real)");
+        throw new ConfigurationInitializationException(
+            key + " must be one of noop|skeleton|real (got '" + impl + "')");
+      }
+    } catch (ConfigException e) {
+      LOG.severe("Invalid type for config: " + key + ": " + e.getMessage());
+      throw new ConfigurationInitializationException("Invalid type for " + key, e);
+    }
   }
 
   private static void initializeFederation(Injector injector) {

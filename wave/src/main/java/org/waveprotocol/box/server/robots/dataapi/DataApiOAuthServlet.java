@@ -55,6 +55,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.waveprotocol.box.server.util.HttpSanitizers;
 
 /**
  * Servlet responsible for the 3-legged OAuth dance required for the Data api.
@@ -193,11 +194,23 @@ public class DataApiOAuthServlet extends HttpServlet {
       return;
     }
 
-    // Check if the user is logged in, else redirect to login.
+    // Check if the user is logged in. If not, build a canonical, validated
+    // redirect back to the authorize endpoint with only the expected OAuth
+    // parameters (token + callback). This avoids passing a raw query string
+    // through multiple layers and enforces an allowlist early.
     ParticipantId user = sessionManager.getLoggedInUser(req.getSession(false));
     if (user == null) {
-      resp.sendRedirect(sessionManager.getLoginUrl(
-          DATA_API_OAUTH_PATH + authorizeTokenPath + "?" + req.getQueryString()));
+      // Pull only the two required params; they were already required above.
+      String tok = HttpSanitizers.stripHeaderBreakingChars(req.getParameter(OAuth.OAUTH_TOKEN));
+      String cb = HttpSanitizers.stripHeaderBreakingChars(req.getParameter(OAuth.OAUTH_CALLBACK));
+      // Construct a minimal, canonical query string using OAuth utilities.
+      String safeAuthorizeUrl = OAuth.addParameters(
+          DATA_API_OAUTH_PATH + authorizeTokenPath,
+          OAuth.OAUTH_TOKEN, tok,
+          OAuth.OAUTH_CALLBACK, cb);
+      String login = sessionManager.getLoginUrl(safeAuthorizeUrl);
+      // Final defense-in-depth: strip any header-breaking characters from the Location value.
+      resp.sendRedirect(HttpSanitizers.stripHeaderBreakingChars(login));
       return;
     }
 
@@ -298,7 +311,8 @@ public class DataApiOAuthServlet extends HttpServlet {
     // Create the callback url and send the user to it
     String callback = message.getParameter(OAuth.OAUTH_CALLBACK);
     callback = OAuth.addParameters(callback, OAuth.OAUTH_TOKEN, accessor.requestToken);
-    resp.sendRedirect(callback);
+    // OAuth callback may point off-site; sanitize to prevent response splitting.
+    resp.sendRedirect(HttpSanitizers.stripHeaderBreakingChars(callback));
   }
 
   /**
@@ -363,7 +377,7 @@ public class DataApiOAuthServlet extends HttpServlet {
       String url = accessor.consumer.serviceProvider.userAuthorizationURL
           + "?oauth_token=" + accessor.requestToken + "&oauth_callback="
           + req.getRequestURL().toString() + "&hd=default";
-      resp.sendRedirect(url);
+      resp.sendRedirect(HttpSanitizers.stripHeaderBreakingChars(url));
     } else {
       OAuthAccessor accessor;
       try {

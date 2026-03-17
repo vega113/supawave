@@ -26,5 +26,9 @@
   <inherits name="org.waveprotocol.wave.concurrencycontrol.Common" />
   <inherits name="org.waveprotocol.wave.common.logging.Logging" />
   <inherits name="org.waveprotocol.wave.model.Model" />
-  <source path="channel"/>
+  <source path="channel">
+    <!-- Exclude JVM/server-only implementations and non-GWT compatible code -->
+    <exclude name="impl/**"/>
+    <exclude name="FragmentRequesterImpl.java"/>
+  </source>
 </module>

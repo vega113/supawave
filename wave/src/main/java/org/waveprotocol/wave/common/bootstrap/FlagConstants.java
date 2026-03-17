@@ -254,6 +254,26 @@ public class FlagConstants {
   public static final String WELCOME_PANEL_TUTORIAL_WAVES = "226";
   public static final String WELCOME_WAVE_ID = "227";
 
+  // Conversation Renderer migration flags
+  public static final String ENABLE_QUASI_DELETION_UI = "228";
+  public static final String ENABLE_DYNAMIC_RENDERING = "229";
+  public static final String DYNAMIC_PRERENDER_UPPER_PX = "231";
+  public static final String DYNAMIC_PRERENDER_LOWER_PX = "232";
+  public static final String DYNAMIC_PAGE_OUT_SLACK_PX = "233";
+  public static final String DYNAMIC_SCROLL_THROTTLE_MS = "234";
+  public static final String DYNAMIC_SPEED_BOOST_THRESHOLD_PX = "235";
+  public static final String DYNAMIC_SPEED_BOOST_FACTOR = "236";
+  public static final String QUASI_DELETION_DWELL_MS = "242";
+  public static final String ENABLE_FRAGMENTS_APPLIER = "243";
+  public static final String FORCE_CLIENT_FRAGMENTS = "244";
+  public static final String FRAGMENTS_APPLIER_MAX_RANGES = "245";
+  public static final String ENABLE_FRAGMENT_FETCH_VIEW_CHANNEL = "237"; // deprecated (use FRAGMENT_FETCH_MODE)
+  public static final String ENABLE_FRAGMENT_FETCH_FORCE_LAYER = "249";
+  public static final String FRAGMENT_FETCH_MODE = "241"; // values: off|http|stream
+  public static final String INITIAL_VIEWPORT_START_BLIP_ID = "238";
+  public static final String INITIAL_VIEWPORT_DIRECTION = "239";
+  public static final String INITIAL_VIEWPORT_LIMIT = "240";
+
 
   public static final String[] __NAME_MAPPING__ = new String[] {
     "addContactHelpUrl", "0",
@@ -484,6 +504,33 @@ public class FlagConstants {
     "welcomePanelTutorialIcons", "225",
     "welcomePanelTutorialWaves", "226",
     "welcomeWaveId", "227",
+
+    // Conversation Renderer migration flags
+    "enableQuasiDeletionUi", "228",
+    "enableDynamicRendering", "229",
+    "dynamicPrerenderUpperPx", "231",
+    "dynamicPrerenderLowerPx", "232",
+    "dynamicPageOutSlackPx", "233",
+    "dynamicScrollThrottleMs", "234",
+    "dynamicSpeedBoostThresholdPx", "235",
+    "dynamicSpeedBoostFactor", "236",
+    // Quasi-deletion dwell time before removal (ms)
+    "quasiDeletionDwellMs", "242",
+    // Enable client-side fragments applier (dev observability)
+    "enableFragmentsApplier", "243",
+    // Force omit of initial snapshots so client applies fragments immediately
+    "forceClientFragments", "244",
+    "fragmentsApplierMaxRanges", "245",
+    // Prefer ViewChannel-based fragment flow instead of HTTP requester
+    "enableFragmentFetchViewChannel", "237",
+    // Force ViewChannel fragment requester even if cache state is cold
+    "enableFragmentFetchForceLayer", "249",
+    // Fragment fetch mode (enum): off|http|stream
+    "fragmentFetchMode", "241",
+    // Initial viewport hint flags (optional)
+    "initialViewportStartBlipId", "238",
+    "initialViewportDirection", "239",
+    "initialViewportLimit", "240",
 
   };
 }

@@ -189,3 +189,26 @@
 }
 
 .contentContainer, .replies, .privateReplies{word-wrap: break-word;}
+
+/* Quasi-deleted state (client-side visual only). */
+.blip.deleted {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.blip.deleted .contentContainer,
+.blip.deleted .menu,
+.blip.deleted .replies,
+.blip.deleted .privateReplies {
+  pointer-events: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+.blip.deleted .metabar {
+  background-color: #f1d6d6; /* light red */
+  color: #6b0000;            /* dark red text */
+}
+
+/* Marker class to ensure CssResource maps 'deleted' */
+.deleted {}

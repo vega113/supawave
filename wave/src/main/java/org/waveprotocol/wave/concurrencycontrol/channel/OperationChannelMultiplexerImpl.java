@@ -419,6 +419,11 @@ public class OperationChannelMultiplexerImpl implements OperationChannelMultiple
   }
 
   @Override
+  public ViewChannel getViewChannel() {
+    return viewChannel;
+  }
+
+  @Override
   public void createOperationChannel(WaveletId waveletId, ParticipantId creator) {
     if (channels.containsKey(waveletId)) {
       Preconditions.illegalArgument("Operation channel already exists for: " + waveletId);

@@ -19,8 +19,6 @@
 
 package org.waveprotocol.wave.client.common.util;
 
-import com.google.gwt.core.client.GWT;
-
 
 /**
  * Provides cross-platform encoding and decoding of arbitrary strings.
@@ -32,7 +30,30 @@ public interface StringCodec {
    * commas. Decoding restores the original string. This allows commas to be
    * used to mark structure (like Godel numbering).
    */
-  public StringCodec INSTANCE = GWT.isScript() ? new JsCodec() : new JavaCodec();
+  /**
+   * Lazily resolved instance that does not hard-link to GWT at JVM test runtime.
+   * Falls back to {@link JavaCodec} when GWT is absent or not in script mode.
+   */
+  public StringCodec INSTANCE = Holder.INSTANCE;
+
+  /**
+   * Initializes {@link #INSTANCE} without triggering classloading of GWT unless
+   * it is present. Uses reflection to avoid NoClassDefFoundError in unit tests.
+   */
+  final class Holder {
+    static final StringCodec INSTANCE = compute();
+
+    private static StringCodec compute() {
+      try {
+        if (com.google.gwt.core.client.GWT.isScript()) {
+          return new JsCodec();
+        }
+      } catch (Throwable ignored) {
+        // GWT not present or not in script mode; fall through to Java codec.
+      }
+      return new JavaCodec();
+    }
+  }
 
   /**
    * Encodes a string. This method provides the contract that, for any input

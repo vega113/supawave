@@ -44,6 +44,25 @@ At‑a‑Glance Checklist
 - [ ] Phase 7: Packaging & DX (dist/Docker)
 - [ ] Phase 8: J2CL/GWT 3 roadmap
 
+---
+
+Config Hygiene (new task bundle)
+
+- [ ] Replace direct System.getProperty reads in server code with Typesafe Config lookups
+  - Rationale: unify precedence and avoid divergent override paths.
+  - Precedence policy: system properties > application.conf > reference.conf.
+  - Action items:
+    - Audit for System.getProperty(…) usage in server code (e.g., TTL overrides, feature flags).
+    - Move those to Config (com.typesafe.config.Config) lookups.
+    - Ensure Config is constructed with ConfigFactory.systemProperties() withFallback(application) withFallback(reference) and resolved.
+    - Where the server writes wave.clientFlags (dev convenience), prefer deriving values from Config rather than re-reading JVM props.
+  - Verification:
+    - Add a short doc and checklist for keys like:
+      - server.segmentStateRegistry.ttlMs
+      - wave.fragments.manifestOrderCache.ttlMs
+      - server.fragments.transport
+    - Confirm that -Dkey=value overrides are reflected via Config (no direct System.getProperty calls remain).
+
 Milestones / Phases
 - Phase 0: Baseline, safety nets, and reproducibility
 - Phase 1: Protobuf and PST generation stabilization (done in part)

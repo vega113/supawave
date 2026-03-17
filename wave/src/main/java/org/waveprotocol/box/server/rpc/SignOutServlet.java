@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.util.HttpSanitizers;
 
 import java.io.IOException;
 import java.net.URI;
@@ -70,11 +71,9 @@ public class SignOutServlet extends HttpServlet {
       }
     }
 
-    {
-      resp.setStatus(HttpServletResponse.SC_OK);
-      resp.setContentType("text/html");
-      resp.getWriter().print("<html><body>Logged out.</body></html>");
-    }
+    resp.setStatus(HttpServletResponse.SC_OK);
+    resp.setContentType("text/html");
+    resp.getWriter().print("<html><body>Logged out.</body></html>");
   }
 
   private static boolean isSafeLocalRedirect(String r) {

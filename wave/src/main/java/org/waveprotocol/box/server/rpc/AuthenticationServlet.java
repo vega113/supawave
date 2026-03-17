@@ -375,9 +375,20 @@ private final WelcomeRobot welcomeBot;
         "The user is not logged in");
     String query = req.getQueryString();
 
+    String gwtCodesvr = extractGwtCodesvr(req);
+
+    // Not using req.getParameter() for this because calling that method might parse the password
+    // sitting in POST data into a String, where it could be read by another process after the
+    // string is garbage collected.
     String encoded = extractQueryParam(query, "r");
     if (encoded == null || encoded.isEmpty()) {
-      resp.sendRedirect(DEFAULT_REDIRECT_URL);
+      // Default redirect to root; preserve Super Dev Mode flag when present so
+      // the page can load from the running CodeServer without prompting again.
+      if (gwtCodesvr != null && !gwtCodesvr.isEmpty()) {
+        resp.sendRedirect(DEFAULT_REDIRECT_URL + "?gwt.codesvr=" + gwtCodesvr);
+      } else {
+        resp.sendRedirect(DEFAULT_REDIRECT_URL);
+      }
       return;
     }
 
@@ -421,8 +432,13 @@ private final WelcomeRobot welcomeBot;
         return;
       }
 
-      // Safe: path may include its own query/fragment
-      resp.sendRedirect(raw);
+      // Preserve Super Dev Mode flag on custom redirect if present and target has no query yet
+      if (gwtCodesvr != null && !gwtCodesvr.isEmpty()) {
+        String sep = raw.contains("?") ? "&" : "?";
+        resp.sendRedirect(raw + sep + "gwt.codesvr=" + gwtCodesvr);
+      } else {
+        resp.sendRedirect(raw);
+      }
     } catch (URISyntaxException use) {
       resp.sendRedirect(DEFAULT_REDIRECT_URL);
     }
@@ -450,6 +466,32 @@ private final WelcomeRobot welcomeBot;
     return null;
   }
 
+  private static String extractGwtCodesvr(HttpServletRequest req) {
+    // 1) If provided as a query param on this request, use it
+    String direct = req.getParameter("gwt.codesvr");
+    if (direct != null && !direct.isEmpty()) return sanitizeCodesvr(direct);
+    // 2) Try Referer header (common when user navigates from a page with the flag)
+    String ref = req.getHeader("Referer");
+    if (ref != null) {
+      try {
+        URI uri = new URI(ref);
+        String q = uri.getQuery();
+        if (q != null) {
+          for (String kv : q.split("&")) {
+            int idx = kv.indexOf('=');
+            if (idx > 0) {
+              String k = kv.substring(0, idx);
+              if ("gwt.codesvr".equals(k)) {
+                return sanitizeCodesvr(kv.substring(idx + 1));
+              }
+            }
+          }
+        }
+      } catch (URISyntaxException ignore) { }
+    }
+    return null;
+  }
+
   private static boolean containsEncodedPathTraversal(String encLc) {
     return encLc.contains("%2e%2e") ||
            encLc.contains("%2f%2e") ||
@@ -460,5 +502,20 @@ private final WelcomeRobot welcomeBot;
            encLc.contains("%5c%2e%2e") ||
            encLc.contains("%2e%2e%2f") ||
            encLc.contains("%2e%2e%5c");
+  }
+
+  private static String sanitizeCodesvr(String v) {
+    // Keep it simple: allow digits, colon, dot, and localhost-like tokens
+    // e.g., 127.0.0.1:9876 or localhost:9876
+    String s = v.trim();
+    // Drop any http:// prefix if present
+    if (s.startsWith("http://")) {
+      s = s.substring(7);
+    }
+    // Basic allowlist
+    if (s.matches("[a-zA-Z0-9._-]+:[0-9]{1,5}")) {
+      return s;
+    }
+    return null;
   }
 }

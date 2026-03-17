@@ -76,17 +76,33 @@ public class DataMigrationTool {
     final Map<String, String> propertyMap = new HashMap<>();
 
     for (String arg : cmdLineProperties.split(",")) {
-      String[] argTokens = arg.split("=");
-      propertyMap.put(argTokens[0], argTokens[1]);
+      if (arg == null) continue;
+      String token = arg.trim();
+      if (token.isEmpty()) continue;
+      int eq = token.indexOf('=');
+      if (eq <= 0) {
+        System.err.println("[DataMigrationTool] Ignoring malformed property '" + token + "' (expected key=value)");
+        continue;
+      }
+      String key = token.substring(0, eq).trim();
+      String value = token.substring(eq + 1).trim();
+      if (key.isEmpty()) {
+        System.err.println("[DataMigrationTool] Ignoring property with empty key: '" + token + "'");
+        continue;
+      }
+      String previous = propertyMap.put(key, value);
+      if (previous != null && !previous.equals(value)) {
+        System.err.println("[DataMigrationTool] Overriding property '" + key + "' from '" + previous + "' to '" + value + "'");
+      }
     }
 
     return new AbstractModule() {
 
       @Override
       protected void configure() {
-        Config config = ConfigFactory.load().withFallback(
-          ConfigFactory.parseFile(new File("application.conf")).withFallback(
-            ConfigFactory.parseFile(new File("reference.conf"))));
+        Config config = ConfigFactory.load()
+            .withFallback(ConfigFactory.parseFile(new File("config/application.conf")))
+            .withFallback(ConfigFactory.parseFile(new File("config/reference.conf")));
         bind(Config.class).toInstance(ConfigFactory.parseMap(propertyMap).withFallback(config));
       }
     };

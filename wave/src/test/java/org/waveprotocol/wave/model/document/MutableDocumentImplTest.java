@@ -342,30 +342,20 @@ public class MutableDocumentImplTest extends TestCase {
    * Test that trying to add an annotation with a negative start throws
    * an IndexOutOfBoundsException.
    */
-  public void testNegativeStartSetAnnotationThrowsException() throws Exception {
+  public void testNegativeStartSetAnnotationClampsToDocumentStart() throws Exception {
     init("<p>abcdef</p>");
-    try {
-      doc.setAnnotation(-1, 4, "style/color", "frub");
-      // Doh - no exception thrown. Fail the test
-      assert false;
-    } catch (IndexOutOfBoundsException iae) {
-      // expected
-    }
+    doc.setAnnotation(-1, 4, "style/color", "frub");
+    assertOperationResult("<?a \"style/color\"=\"frub\"?><p>abc<?a \"style/color\"?>def</p>");
   }
 
   /**
    * Test that trying to add an annotation with an end past the size throws
    * an IndexOutOfBoundsException.
    */
-  public void testSetAnnotationPastDocEndThrowsException() throws Exception {
+  public void testSetAnnotationPastDocEndClampsToDocumentEnd() throws Exception {
     init("<p>abcdef</p>");
-    try {
-      doc.setAnnotation(1, doc.size() + 1, "style/color", "frub");
-      // Doh - no exception thrown. Fail the test
-      fail();
-    } catch (IndexOutOfBoundsException iae) {
-      // expected
-    }
+    doc.setAnnotation(1, doc.size() + 1, "style/color", "frub");
+    assertOperationResult("<p><?a \"style/color\"=\"frub\"?>abcdef</p><?a \"style/color\"?>");
   }
 
   /**

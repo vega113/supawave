@@ -1,0 +1,219 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.waveprotocol.wave.client.debug;
+
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Document;
+import com.google.gwt.dom.client.Element;
+import com.google.gwt.user.client.Window;
+
+/**
+ * Tiny on-screen counter showing the number of fragments ranges received
+ * during the current session. Dev-only: enabled when the URL contains
+ * ll=debug (same toggle used by the GWT debug panel).
+ */
+public final class FragmentsDebugIndicator {
+  private static boolean initialized = false;
+  private static boolean enabled = false;
+  private static int totalRanges = 0;
+  private static Element badge;
+  private static boolean applierOn = false;
+  private static int blipsLoaded = 0;
+  private static int blipsTotal = 0;
+  private static final int ELAPSED_NOT_SET = -1;
+  private static int elapsedMs = ELAPSED_NOT_SET;
+  private static int applierApplied = 0;
+  private static int applierRejected = 0;
+  private static String fragmentMode = "";
+  private static boolean fragmentFetchEnabled = false;
+  private static boolean dynamicEnabled = false;
+  private static boolean hasClientMeta = false;
+
+  private FragmentsDebugIndicator() {}
+
+  private static boolean isLocalDevHost() {
+    try {
+      String h = Window.Location.getHostName();
+      if (h == null) return false;
+      h = h.toLowerCase();
+      return "localhost".equals(h) || "127.0.0.1".equals(h) || "local.net".equals(h);
+    } catch (Throwable ignore) {
+      return false;
+    }
+  }
+
+  private static void ensureInit() {
+    if (initialized) return;
+    initialized = true;
+    try {
+      String ll = Window.Location.getParameter("ll");
+      boolean applierFlag = false;
+      try {
+        Boolean ena = org.waveprotocol.wave.client.util.ClientFlags.get().enableFragmentsApplier();
+        applierFlag = (ena != null && ena);
+        if (!applierFlag) {
+          Boolean force = org.waveprotocol.wave.client.util.ClientFlags.get().forceClientFragments();
+          applierFlag = force != null && force;
+        }
+      } catch (Throwable ignore) { }
+
+      // Enable when ll=debug OR (enableFragmentsApplier=true and running on localhost/127.0.0.1)
+      enabled = "debug".equals(ll) || (applierFlag && isLocalDevHost());
+      if (!enabled) return;
+      badge = Document.get().createDivElement();
+      applierOn = applierFlag;
+      badge.getStyle().setProperty("position", "fixed");
+      badge.getStyle().setProperty("right", "8px");
+      badge.getStyle().setProperty("bottom", "8px");
+      badge.getStyle().setProperty("zIndex", "2147483647");
+      badge.getStyle().setProperty("background", "rgba(0,0,0,0.6)");
+      badge.getStyle().setProperty("color", "#fff");
+      badge.getStyle().setProperty("padding", "2px 6px");
+      badge.getStyle().setProperty("font", "12px/16px sans-serif");
+      badge.getStyle().setProperty("borderRadius", "4px");
+      Document.get().getBody().appendChild(badge);
+      updateBadge();
+    } catch (Throwable ignore) {
+      // Best-effort only
+    }
+  }
+
+  /**
+   * Increments the counter by the number of ranges in a received batch.
+   * Safe to call unconditionally; a lightweight guard prevents work unless
+   * ll=debug is present in the URL.
+   */
+  public static void onRanges(int ranges) {
+    ensureInit();
+    if (!enabled || ranges <= 0) return;
+    try {
+      totalRanges += ranges;
+      updateBadge();
+    } catch (Throwable ignore) {
+    }
+  }
+
+  /** Update displayed applier status (dev-only). */
+  public static void setApplierEnabled(boolean on) {
+    applierOn = on;
+    ensureInit();
+    if (!enabled) return;
+    try {
+      updateBadge();
+    } catch (Throwable ignore) { }
+  }
+
+  /** Update applied/rejected counters from the client fragments applier. */
+  public static void setApplierCounters(int applied, int rejected) {
+    applierApplied = Math.max(0, applied);
+    applierRejected = Math.max(0, rejected);
+    ensureInit();
+    if (!enabled) return;
+    try {
+      updateBadge();
+    } catch (Throwable ignore) { }
+  }
+
+  /** Update blip load stats (dev-only). */
+  public static void setBlipStats(int loaded, int total, int elapsed) {
+    blipsLoaded = Math.max(0, loaded);
+    blipsTotal = Math.max(0, total);
+    if (elapsed == Integer.MAX_VALUE) {
+      elapsedMs = ELAPSED_NOT_SET;
+    } else {
+      elapsedMs = Math.max(0, elapsed);
+    }
+    ensureInit();
+    if (!enabled) return;
+    try {
+      updateBadge();
+      GWT.log("Fragments badge: blips=" + blipsLoaded +
+          "/" + blipsTotal + " elapsedMs=" + elapsedMs);
+    } catch (Throwable t) {
+      GWT.log("Failed to update fragments badge", t);
+    }
+  }
+
+  public static void setClientFlags(String mode, boolean fetch, boolean dynamic) {
+
+    fragmentMode = (mode == null) ? "" : mode;
+    fragmentFetchEnabled = fetch;
+    dynamicEnabled = dynamic;
+    hasClientMeta = true;
+    ensureInit();
+    try {
+      updateBadge();
+      com.google.gwt.core.client.GWT.log("Fragments badge: flags mode=" + fragmentMode +
+          " fetch=" + fragmentFetchEnabled + " dynamic=" + dynamicEnabled);
+    } catch (Throwable ignore) { }
+  }
+
+  private static void updateBadge() {
+    if (!enabled || badge == null) {
+      return;
+    }
+    ensureClientFlagsCached();
+    StringBuilder text = new StringBuilder();
+    text.append("Fragments: ").append(totalRanges)
+        .append(" | Applier: ").append(applierOn ? "on" : "off")
+        .append(" | Blips: ").append(blipsLoaded).append('/').append(blipsTotal)
+        .append(" | Applied: ").append(applierApplied).append('/').append(applierRejected);
+    if (elapsedMs == ELAPSED_NOT_SET) {
+      text.append(" | T=--");
+    } else {
+      text.append(" | T=").append(elapsedMs).append("ms");
+    }
+    if (hasClientMeta) {
+      String mode = fragmentMode == null || fragmentMode.isEmpty() ? "-" : fragmentMode;
+      text.append(" | Mode: ").append(mode)
+          .append(" | Fetch: ").append(fragmentFetchEnabled ? "on" : "off")
+          .append(" | Dyn: ").append(dynamicEnabled ? "on" : "off");
+    }
+    badge.setInnerText(text.toString());
+  }
+
+  private static void ensureClientFlagsCached() {
+    if (hasClientMeta) {
+      return;
+    }
+    try {
+      String mode = null;
+      try {
+        mode = org.waveprotocol.wave.client.util.ClientFlags.get().fragmentFetchMode();
+      } catch (Throwable ignore) {
+      }
+      fragmentMode = (mode == null) ? "" : mode;
+      try {
+        Boolean fetchStream = org.waveprotocol.wave.client.util.ClientFlags.get().enableFragmentFetchViewChannel();
+        Boolean forceLayer = org.waveprotocol.wave.client.util.ClientFlags.get().enableFragmentFetchForceLayer();
+        fragmentFetchEnabled = (fetchStream != null && fetchStream.booleanValue())
+            || (forceLayer != null && forceLayer.booleanValue());
+      } catch (Throwable ignore) {
+      }
+      try {
+        Boolean dyn = org.waveprotocol.wave.client.util.ClientFlags.get().enableDynamicRendering();
+        dynamicEnabled = dyn != null && dyn.booleanValue();
+      } catch (Throwable ignore) {
+      }
+      hasClientMeta = true;
+      com.google.gwt.core.client.GWT.log("Fragments badge: populated client flags via fallback");
+    } catch (Throwable ignore) {
+    }
+  }
+}

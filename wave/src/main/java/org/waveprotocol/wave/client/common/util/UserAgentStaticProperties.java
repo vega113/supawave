@@ -19,8 +19,6 @@
 
 package org.waveprotocol.wave.client.common.util;
 
-import com.google.gwt.core.client.GWT;
-
 /**
  * Class to allow conditional compilation for different user agents.
  *
@@ -57,9 +55,10 @@ public class UserAgentStaticProperties {
    * @return an instance of UserAgent.
    */
   private static UserAgentStaticProperties createInstance() {
-    if (GWT.isClient()) {
-      return GWT.create(UserAgentStaticProperties.class);
-    } else {
+    try {
+      return com.google.gwt.core.client.GWT.create(UserAgentStaticProperties.class);
+    } catch (Throwable t) {
+      // Default to Firefox-like behavior in non-GWT runtimes/tests.
       return new FirefoxImpl();
     }
   }

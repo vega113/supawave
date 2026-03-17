@@ -153,6 +153,73 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     public boolean hasMarker() {
       return update.hasMarker() && update.getMarker();
     }
+
+    @Override
+    public boolean hasFragments() { return update.hasFragments(); }
+
+    @Override
+    public org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload getFragments() {
+      if (!update.hasFragments()) {
+        return null;
+      }
+      org.waveprotocol.box.common.comms.ProtocolFragments f = update.getFragments();
+      // Translate to client DTO used by ViewChannelImpl/appliers
+      java.util.List<org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Range> ranges =
+          new java.util.ArrayList<>();
+      java.util.List<org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Fragment> fragments =
+          new java.util.ArrayList<>();
+      for (org.waveprotocol.box.common.comms.ProtocolFragmentRange r : f.getRange()) {
+        String seg = r.getSegment();
+        org.waveprotocol.wave.model.id.SegmentId sid = null;
+        if ("index".equals(seg)) {
+          sid = org.waveprotocol.wave.model.id.SegmentId.INDEX_ID;
+        } else if ("manifest".equals(seg)) {
+          sid = org.waveprotocol.wave.model.id.SegmentId.MANIFEST_ID;
+        } else if (seg != null && seg.startsWith("blip:")) {
+          sid = org.waveprotocol.wave.model.id.SegmentId.ofBlipId(seg.substring("blip:".length()));
+        }
+        if (sid != null) {
+          ranges.add(new org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Range(
+              sid, r.getFrom(), r.getTo()));
+        }
+      }
+      for (int i = 0; i < f.getFragmentSize(); i++) {
+        org.waveprotocol.box.common.comms.ProtocolFragment fragment = f.getFragment(i);
+        String seg = fragment.getSegment();
+        org.waveprotocol.wave.model.id.SegmentId sid = null;
+        if ("index".equals(seg)) {
+          sid = org.waveprotocol.wave.model.id.SegmentId.INDEX_ID;
+        } else if ("manifest".equals(seg)) {
+          sid = org.waveprotocol.wave.model.id.SegmentId.MANIFEST_ID;
+        } else if (seg != null && seg.startsWith("blip:")) {
+          sid = org.waveprotocol.wave.model.id.SegmentId.ofBlipId(seg.substring("blip:".length()));
+        }
+        if (sid == null) {
+          continue;
+        }
+        java.util.List<org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Operation> adjust =
+            new java.util.ArrayList<>(fragment.getAdjustOperationSize());
+        for (int j = 0; j < fragment.getAdjustOperationSize(); j++) {
+          org.waveprotocol.box.common.comms.ProtocolFragmentOperation op = fragment.getAdjustOperation(j);
+          adjust.add(new org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Operation(
+              op.getOperations(), op.hasAuthor() ? op.getAuthor() : null, op.getTargetVersion(), op.getTimestamp()));
+        }
+        java.util.List<org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Operation> diff =
+            new java.util.ArrayList<>(fragment.getDiffOperationSize());
+        for (int j = 0; j < fragment.getDiffOperationSize(); j++) {
+          org.waveprotocol.box.common.comms.ProtocolFragmentOperation op = fragment.getDiffOperation(j);
+          diff.add(new org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Operation(
+              op.getOperations(), op.hasAuthor() ? op.getAuthor() : null, op.getTargetVersion(), op.getTimestamp()));
+        }
+        String rawSnapshot = fragment.hasSnapshot() ? fragment.getSnapshot().getRawSnapshot() : null;
+        fragments.add(new org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Fragment(
+            sid, rawSnapshot,
+            adjust.isEmpty() ? java.util.Collections.<org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Operation>emptyList() : adjust,
+            diff.isEmpty() ? java.util.Collections.<org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.Operation>emptyList() : diff));
+      }
+      return org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload.of(
+          f.getSnapshotVersion(), f.getStartVersion(), f.getEndVersion(), ranges, fragments);
+    }
   }
 
   /**
@@ -246,7 +313,19 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     this.callback = callback;
 
     openContext = AsyncCallContext.start("ProtocolOpenRequest");
-    mux.open(waveId, filter, this);
+    // Optional initial viewport hints from flags
+    String start = null, dir = null; int limit = 0;
+    try {
+      start = org.waveprotocol.wave.client.util.ClientFlags.get().initialViewportStartBlipId();
+      dir = org.waveprotocol.wave.client.util.ClientFlags.get().initialViewportDirection();
+      Integer lim = org.waveprotocol.wave.client.util.ClientFlags.get().initialViewportLimit();
+      limit = (lim != null && lim > 0) ? lim : 0;
+    } catch (Throwable ignored) {}
+    if ((start != null && !start.isEmpty()) || (dir != null && !dir.isEmpty()) || limit > 0) {
+      mux.open(waveId, filter, this, start, dir, limit);
+    } else {
+      mux.open(waveId, filter, this);
+    }
   }
 
   @Override

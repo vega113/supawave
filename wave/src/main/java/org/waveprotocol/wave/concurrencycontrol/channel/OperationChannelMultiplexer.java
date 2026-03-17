@@ -139,4 +139,12 @@ public interface OperationChannelMultiplexer {
    * @param creator address of the wavelet creator
    */
   public void createOperationChannel(WaveletId waveletId, ParticipantId creator);
+
+  /**
+   * Returns the active view channel if available. Default implementations may
+   * return {@code null} when the channel is not yet established.
+   */
+  public default ViewChannel getViewChannel() {
+    return null;
+  }
 }

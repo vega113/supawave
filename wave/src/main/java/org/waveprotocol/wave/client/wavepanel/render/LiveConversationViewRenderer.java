@@ -145,8 +145,28 @@ public class LiveConversationViewRenderer
     public void onBlipDeleted(ObservableConversationBlip blip) {
       BlipView blipView = views.getBlipView(blip);
       if (blipView != null) {
-        // TODO(user): Hide parent thread if it becomes empty.
-        blipView.remove();
+        // When quasi-deletion UI is enabled, allow a short grace period for
+        // the UI to show a transient deleted state before removing the node.
+        if (Boolean.TRUE.equals(org.waveprotocol.wave.client.util.ClientFlags.get().enableQuasiDeletionUi())) {
+          final BlipView toRemove = blipView;
+          int delayMs = 400;
+          try {
+            Integer dwell = org.waveprotocol.wave.client.util.ClientFlags.get().quasiDeletionDwellMs();
+            if (dwell != null && dwell >= 0) {
+              delayMs = dwell;
+            }
+          } catch (Throwable ignore) {}
+          try {
+            new com.google.gwt.user.client.Timer() {
+              @Override public void run() { toRemove.remove(); }
+            }.schedule(delayMs);
+          } catch (Throwable ignored) {
+            toRemove.remove();
+          }
+        } else {
+          // TODO(user): Hide parent thread if it becomes empty.
+          blipView.remove();
+        }
       }
       for (ParticipantId contributor : blip.getContributorIds()) {
         profileRenderer.unmonitorContribution(blip, contributor);

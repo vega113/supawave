@@ -141,6 +141,11 @@ public class WaveClientServlet extends HttpServlet {
     String username = parts[0];
     String userDomain = id.getDomain();
 
+    // Set Content-Type BEFORE getWriter() — once getWriter() is called,
+    // response headers are committed and setContentType() becomes a no-op.
+    response.setContentType("text/html");
+    response.setCharacterEncoding("UTF-8");
+    response.setStatus(HttpServletResponse.SC_OK);
     try {
       // Use the request Host header for websocket address to ensure cookies and
       // origin match (e.g., localhost vs 127.0.0.1).
@@ -156,9 +161,6 @@ public class WaveClientServlet extends HttpServlet {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
       return;
     }
-
-    response.setContentType("text/html");
-    response.setStatus(HttpServletResponse.SC_OK);
   }
 
   private JSONObject getClientFlags(HttpServletRequest request) {

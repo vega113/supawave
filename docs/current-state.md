@@ -35,21 +35,25 @@ Read these files first when resuming work:
    - Verified current repository snapshot and prioritized backlog.
 3. `docs/modernization-plan.md`
    - Detailed modernization ledger for phases 0 through 8.
-4. `docs/jetty-migration.md`
+4. `docs/j2cl-gwt3-inventory.md`
+   - Measured inventory of the current GWT-specific migration surface.
+5. `docs/j2cl-gwt3-decision-memo.md`
+   - Current go/no-go decision and dependency-ordered follow-on tasks for any future J2CL work.
+6. `docs/jetty-migration.md`
    - Detailed Jetty / Jakarta migration ledger and test history.
-5. `docs/migrate-conversation-renderer-to-apache-wave.md`
+7. `docs/migrate-conversation-renderer-to-apache-wave.md`
    - Detailed renderer, quasi-deletion, and fragment import log.
-6. `docs/blocks-adoption-plan.md`
+8. `docs/blocks-adoption-plan.md`
    - Detailed server-first fragments and segment-state adoption log.
-7. `docs/BUILDING-sbt.md`
+9. `docs/BUILDING-sbt.md`
    - State of the additive SBT build port.
-8. `docs/DEV_SETUP.md`
+10. `docs/DEV_SETUP.md`
    - Local development requirements and setup notes.
-9. `docs/SMOKE_TESTS.md`
+11. `docs/SMOKE_TESTS.md`
    - Manual and scripted smoke-test guidance.
-10. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
+12. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
    - Configuration behavior and fragments-specific settings.
-11. `.beads/issues.jsonl`
+13. `.beads/issues.jsonl`
    - Live project backlog for epics and tasks.
 
 ## Verified current state
@@ -63,6 +67,9 @@ Read these files first when resuming work:
 - Jakarta / Jetty 12 is the default server profile.
 - The legacy `javax` / Jetty 9.4 path still exists as a fallback for bisects.
 - The additive SBT build skeleton exists and can compile the server-only subset.
+- The Phase 8 planning artifacts now exist:
+  - `docs/j2cl-gwt3-inventory.md`
+  - `docs/j2cl-gwt3-decision-memo.md`
 
 ### Wiab.pro core work that is already imported
 
@@ -98,7 +105,9 @@ Read these files first when resuming work:
    complete.
 6. SBT is still additive and server-only. Gradle remains the canonical build.
 7. Packaging and DX verification still need a post-Jakarta pass.
-8. The documentation surface is now intentionally split between one canonical
+8. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
+   the prerequisite reduction tasks for any future J2CL work are still open.
+9. The documentation surface is now intentionally split between one canonical
    resume guide, a few live ledgers, and Beads tasks; do not re-open one-off
    plan docs when the live backlog already captures the work.
 
@@ -127,7 +136,9 @@ Read these files first when resuming work:
 - MongoDB v4 delta store completion.
 - Library upgrade closure.
 - SBT parity, packaging, and DX verification.
-- J2CL / GWT 3 inventory and planning.
+- J2CL / GWT 3 follow-on planning based on:
+  - `docs/j2cl-gwt3-inventory.md`
+  - `docs/j2cl-gwt3-decision-memo.md`
 
 ### 3. Wiab core import completion
 

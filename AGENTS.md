@@ -11,6 +11,8 @@ git worktrees.
 - Route substantive investigation, planning, implementation, and review to the
   appropriate agent type instead of doing the work directly in the lead thread.
 - Use repo-local Beads as the live task tracker for implementation work.
+- Use [docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md](/Users/vega/devroot/incubator-wave/docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md)
+  as the canonical detailed execution model for multi-agent task delivery.
 - Favor tool use over guesswork. Keep calls minimal, scoped, and purposeful.
 
 ## Agent Roles
@@ -78,6 +80,9 @@ git worktrees.
 - If no adequate plan exists, the agent must switch to plan mode, create the
   plan, run a Claude review (`claude-review`) on the plan, address the review
   comments, then switch back to work mode and implement.
+- For the full orchestration sequence, branch/worktree rules, Beads comment
+  template, and PR flow, follow
+  [docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md](/Users/vega/devroot/incubator-wave/docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md).
 - Implementation should follow the reviewed plan rather than improvised changes
   made in the middle of execution.
 - After implementation, review the code, run the reviewer flow, address review

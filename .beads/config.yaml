@@ -1,0 +1,7 @@
+# Repo-local Beads configuration for Apache Wave.
+# We track the backlog directly in JSONL so the roadmap can live in git
+# without requiring a local daemon or SQLite database in every environment.
+
+issue-prefix: "incubator-wave"
+no-db: true
+no-daemon: true

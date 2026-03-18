@@ -38,6 +38,23 @@ Last updated: 2025-09-27
   changes reduce client apply work but not payload size. Measurement plan
   captured in docs/blocks-adoption-plan.md (snapshot gating follow-up).
 
+Status note (2026-03-18)
+- The repository no longer lacks the renderer, quasi-deletion, or fragment
+  scaffolding described below. `DynamicRendererImpl`, `ObservableDynamicRenderer`,
+  `ScreenController`, `QuasiConversationViewAdapter`, and the fragment requester
+  / applier path are already present in the active tree.
+- Treat the phased narrative below as historical migration context and a detailed
+  implementation log.
+- Remaining gaps are narrower:
+  - finish the public `dynamicRendering(...)` entrypoints,
+  - decide and document the canonical fragment transport path,
+  - verify the combined renderer + fragments + quasi-deletion path on the
+    merged branch,
+  - keep the deeper blocks / snapshot gating follow-up in sync with
+    `docs/blocks-adoption-plan.md`.
+- Use `docs/current-state.md` and Beads epic `incubator-wave-wiab-core` for the
+  current backlog.
+
 
 This document outlines how to port wiab.pro’s Conversation Renderer improvements into Apache Wave (incubator-wave), with a focus on:
 
@@ -67,7 +84,9 @@ Wiab.pro adds a viewport-aware “dynamic renderer” and a “quasi-deletion”
     - `DomUtil.setQuasiDeleted(...)` attribute and CSS class on blip nodes
     - `BlipViewDomImpl.setQuasiDeleted(...)` updates visuals (background/border/title), cascades to children where needed
 
-Apache Wave (incubator-wave) currently lacks these modules. It uses `LiveConversationViewRenderer` (paging in/out) without virtualized DOM and does not expose a quasi-deletion UI.
+The text below starts from the pre-import baseline that existed when the
+migration began. The current repository already contains most of this
+infrastructure; use the status note above for the live state.
 
 -------------------------------------------------------------------------------
 

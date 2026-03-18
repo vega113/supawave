@@ -1,6 +1,9 @@
-# Building with SBT (Phase 1)
+# Building with SBT (Additive Server-Only Port)
 
-This is the initial SBT skeleton to compile and run the server on modern JDKs. It reuses vendored jars under `third_party/` (no external downloads required at compile time).
+This is the additive SBT port for compiling and running the server on modern
+JDKs. Gradle remains the canonical build. The SBT build currently targets the
+server-only subset and reuses vendored jars under `third_party/` to minimize
+drift.
 
 ## Prerequisites
 
@@ -49,8 +52,12 @@ Quick setup (macOS Apple Silicon)
 - Package fat JAR:
   - Build a runnable fat jar with:
     - `sbt assembly`
-    - Output at `target/scala-*/wiab-pro-server-<version>.jar`
-    - Run: `java -jar target/scala-*/wiab-pro-server-<version>.jar` (uses default `-Dwave.server.config=server.config` when run via sbt; for direct java, pass the needed `-D...` flags).
+    - Output at `target/scala-*/<project-name>-server-<version>.jar`
+    - Current default project name: `incubator-wave`, so the generated jar is
+      typically `target/scala-*/incubator-wave-server-<version>.jar`
+    - Run: `java -jar target/scala-*/incubator-wave-server-<version>.jar` (when
+      running outside `sbt`, also pass the required `-D...` flags such as
+      `-Dwave.server.config=/path/to/server.config`)
 
 ## Backend tests
 
@@ -77,7 +84,7 @@ Offline fallback (legacy): `sbt testBackend`
 
 ## Jakarta Mode
 
-- Enable Jakarta (Jetty 11, jakarta.servlet):
+- Enable Jakarta (Jetty 12 EE10, jakarta.servlet):
   - Compile: `sbt -Djakarta=true compile`
   - Run: `sbt -Djakarta=true run`
 - Bytecode: Jakarta builds with `--release 11`; default javax builds with `--release 8`.
@@ -114,7 +121,7 @@ Current Jakarta-only excludes (to be unwound): robots, render helpers, MongoDB p
 - Protobuf staging now runs before `protoc`, preventing intermittent "Could not make proto path relative" errors when compiling staged files.
 - Simplified SBT task ordering to avoid races: `generatePstMessages` depends on `generateProtos`; `compile` depends on `generatePstMessages`, `generateFlags`, and `generateGxp`.
 - Removed an unused `raw.proto` import from `block-store.proto` (was only storing serialized strings/bytes), eliminating protoc warnings.
-- Jetty upgraded: javax stack on 9.4.x; Jakarta stack on Jetty 11 (JSR 356 registrar).
+- Jetty upgraded: javax stack on 9.4.x; Jakarta stack on Jetty 12 EE10.
 - Jakarta mode compiles and runs a minimal server; enable with `sbt -Djakarta=true`.
 - Dependencies: Guice 5.1.0 + Guava 32.1.3-jre; slf4j-simple 2.0.x (Jakarta) / 1.7.x (javax).
 - Guava API patches: `CharMatcher.whitespace()` and `MoreExecutors.directExecutor()` in server code.

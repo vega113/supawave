@@ -1,0 +1,7 @@
+*
+!.gitignore
+!.local_version
+!README.md
+!config.yaml
+!issues.jsonl
+!metadata.json

@@ -5,6 +5,18 @@ Last updated: 2025-09-18
 
 Statuses: planned | in_progress | completed
 
+Status note (2026-03-18)
+- This document remains the detailed server-first migration log for fragments,
+  segment state, and blocks adoption.
+- The compat fetcher, fragment servlet, fragment requesters, and client applier
+  implementations already exist in the active tree.
+- Treat the phase-by-phase statuses below as historical implementation detail
+  unless they are reaffirmed by `docs/current-state.md` or the live Beads
+  backlog.
+- Remaining work is concentrated around end-to-end verification, snapshot
+  gating, storage-backed segment-state decisions, and the follow-on relationship
+  between blocks adoption and the renderer path.
+
 -------------------------------------------------------------------------------
 
 ## Delta Since Last Edit (2025-09-18)

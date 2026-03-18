@@ -63,6 +63,28 @@ Notes:
 - WebSocket auth: In dev, `network.session_cookie_http_only = false` so the legacy web client can read `JSESSIONID` for a WebSocket fallback authenticate.
 - The server renders the WebSocket address from the request Host header to avoid localhost/127.0.0.1 cookie mismatches.
 
+## Documentation map
+
+- Verified current status and prioritized backlog: `docs/current-state.md`
+- Detailed modernization ledger: `docs/modernization-plan.md`
+- Renderer / fragments import ledger: `docs/migrate-conversation-renderer-to-apache-wave.md`
+- Server-first blocks / segment-state ledger: `docs/blocks-adoption-plan.md`
+- Local development setup: `docs/DEV_SETUP.md`
+- Smoke-test guidance: `docs/SMOKE_TESTS.md`
+- SBT additive build notes: `docs/BUILDING-sbt.md`
+- Configuration and fragments flags: `docs/CONFIG_FLAGS.md`, `docs/fragments-config.md`
+- Beads epic index: `docs/epics/README.md`
+
+## Task tracking
+
+This repository now tracks its active roadmap in repo-local Beads files:
+
+- Human-readable overview: `docs/current-state.md`
+- Live backlog: `.beads/issues.jsonl`
+
+The `.beads/` directory is configured in no-db mode so the backlog can live in
+git without committing daemon state or SQLite runtime files.
+
 ## Setup with Vagrant
 
 A vagrant setup has been provided for automatic compile on a Ubuntu or Fedora
@@ -204,8 +226,6 @@ Use `scripts/wave-smoke.sh start|status|stop` against the installed dist.
 - Jakarta is now the default: `docker build -t wave:jakarta .`
 - Use `--build-arg JETTY_FAMILY=javax` if you need the legacy servlet profile: `docker build --build-arg JETTY_FAMILY=javax -t wave:javax .`
 - Run the container: `docker run --rm -p 9898:9898 wave:jakarta`
-
-Note: Until the Jakarta path becomes the default, you can continue to use the existing (javax/Jetty 9.4) build and switch to Jakarta explicitly via `-PjettyFamily=jakarta`.
 
 ### Enabling SSL and handling sensitive data
 

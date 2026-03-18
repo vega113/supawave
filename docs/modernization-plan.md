@@ -14,6 +14,12 @@ Notes
 - Prefer non-interactive commands; pass --no-daemon and --warning-mode all as needed.
 - Keep changes incremental and verifiable per phase.
 
+Canonical status note (2026-03-18)
+- Use `docs/current-state.md` for the verified repository snapshot and the live
+  prioritized backlog.
+- Keep this file as the detailed modernization task ledger and historical phase
+  log.
+
 How we track task status and updates
 - Each task includes a Status field with one of: Planned | In Progress | Completed.
 - When work starts, update Status: In Progress and add a short Work Log subsection if useful.

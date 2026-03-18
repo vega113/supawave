@@ -114,22 +114,28 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   private final RepeatingCommand reconnectCommand = new RepeatingCommand() {
     @Override
     public boolean execute() {
-      if (connectTry > MAX_INITIAL_FAILURES) {
-    	  return false;
+      boolean keepScheduled = true;
+      if (connected == ConnectState.CONNECTED) {
+        reconnectScheduled = false;
+        keepScheduled = false;
+      } else if (connected == ConnectState.DISCONNECTED) {
+        if (connectTry > MAX_INITIAL_FAILURES) {
+          reconnectScheduled = false;
+          keepScheduled = false;
+        } else {
+          connectTry++;
+          LOG.info("Attemping to reconnect");
+          connected = ConnectState.CONNECTING;
+          socket.connect();
+        }
       }
-      
-      connectTry++;
-      if (connected == ConnectState.DISCONNECTED) {
-        LOG.info("Attemping to reconnect");
-        connected = ConnectState.CONNECTING;
-        socket.connect();
-      }
-      return true;
+      return keepScheduled;
     }
   };
 
   private boolean connectedAtLeastOnce = false;
   private long connectTry = 0;
+  private boolean reconnectScheduled = false;
   private final String urlBase;
 
   public WaveWebSocketClient(boolean websocketNotAvailable, String urlBase) {
@@ -157,14 +163,14 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
    * Opens this connection.
    */
   public void connect() {
-    reconnectCommand.execute();
-    Scheduler.get().scheduleFixedDelay(reconnectCommand, RECONNECT_TIME_MS);
+    if (reconnectCommand.execute()) {
+      scheduleReconnect();
+    }
   }
 
   @Override
   public void onConnect() {
-    connected = ConnectState.CONNECTED;
-    connectedAtLeastOnce = true;
+    resetReconnectStateAfterConnect();
 
     // Sends the session cookie to the server via an RPC to work around browser bugs.
     // See: http://code.google.com/p/wave-protocol/issues/detail?id=119
@@ -187,6 +193,7 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   public void onDisconnect() {
     connected = ConnectState.DISCONNECTED;
     ClientEvents.get().fireEvent(new NetworkStatusEvent(ConnectionStatus.DISCONNECTED));
+    scheduleReconnect();
   }
 
   @Override
@@ -243,6 +250,19 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
       default:
         messages.add(message);
     }
+  }
+
+  private void scheduleReconnect() {
+    if (!reconnectScheduled) {
+      reconnectScheduled = true;
+      Scheduler.get().scheduleFixedDelay(reconnectCommand, RECONNECT_TIME_MS);
+    }
+  }
+
+  void resetReconnectStateAfterConnect() {
+    connected = ConnectState.CONNECTED;
+    connectedAtLeastOnce = true;
+    connectTry = 0;
   }
 
 }

@@ -135,10 +135,12 @@ public class FocusBlipSelector {
       // If there's blip reference then focus on that blip.
       // Find selected blip.
       if (documentId != null) {
-        blip = wave.getRoot().getBlip(documentId);
-        if (blip != null) {
-          return views.getBlipView(blip);
-        }
+        blip = conversation.getBlip(documentId);
+      } else if (conversation.getRootThread() != null) {
+        blip = conversation.getRootThread().getFirstBlip();
+      }
+      if (blip != null) {
+        return views.getBlipView(blip);
       }
       return null;
     }

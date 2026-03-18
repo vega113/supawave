@@ -191,12 +191,10 @@ public class StagesProvider extends Stages {
   }
 
   private void handleExistingWave(StageThree three) {
-    if (waveRef.hasDocumentId()) {
-      BlipQueueRenderer blipQueue = two.getBlipQueue();
-      blipQueue.flush();
-      selectAndFocusOnBlip(two.getReader(), two.getModelAsViewProvider(), two.getConversations(),
-          one.getFocusFrame(), waveRef);
-    }
+    BlipQueueRenderer blipQueue = two.getBlipQueue();
+    blipQueue.flush();
+    selectAndFocusOnBlip(two.getReader(), two.getModelAsViewProvider(), two.getConversations(),
+        one.getFocusFrame(), waveRef);
   }
 
   /**

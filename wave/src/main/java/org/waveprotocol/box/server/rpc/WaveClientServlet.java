@@ -203,11 +203,14 @@ public class WaveClientServlet extends HttpServlet {
         }
       }
 
+      applySystemPropertyClientFlags(ret);
+
       // Merge defaults from reference.conf/application.conf under client.flags.defaults
       // Support two forms for simplicity and clarity:
       // 1) Object form (preferred): client.flags.defaults.<flagName>=<typedValue>
       // 2) Legacy CSV string: client.flags.defaults = "flagA=true,flagB=123"
-      // Precedence: request params > object defaults > derived fragment defaults > CSV defaults
+      // Precedence: request params > -Dwave.clientFlags > object defaults >
+      // derived fragment defaults > CSV defaults
       try {
         if (config != null) {
           // Object-form defaults
@@ -284,6 +287,27 @@ public class WaveClientServlet extends HttpServlet {
     }
   }
 
+  private void applySystemPropertyClientFlags(JSONObject ret) {
+    try {
+      String sys = System.getProperty("wave.clientFlags");
+      if (sys == null || sys.trim().isEmpty()) {
+        return;
+      }
+      String[] pairs = sys.split(",");
+      for (String pair : pairs) {
+        String p = pair.trim();
+        if (p.isEmpty()) {
+          continue;
+        }
+        int eq = p.indexOf('=');
+        String name = (eq > 0) ? p.substring(0, eq).trim() : p;
+        String value = (eq > 0) ? p.substring(eq + 1).trim() : "true";
+        applyClientFlagValue(ret, name, value);
+      }
+    } catch (Exception ignored) {
+    }
+  }
+
   private void applyDerivedFragmentDefaults(JSONObject ret) {
     applyStringFlagDefault(ret, "fragmentFetchMode", "server.fragments.transport");
     applyBooleanFlagDefault(ret, "forceClientFragments", "wave.fragments.forceClientApplier");
@@ -316,6 +340,28 @@ public class WaveClientServlet extends HttpServlet {
     try {
       ret.put(FLAG_MAP.get(flagName), config.getBoolean(configPath));
     } catch (JSONException ignored) {
+    }
+  }
+
+  private void applyClientFlagValue(JSONObject ret, String name, String value) {
+    if (!FLAG_MAP.containsKey(name) || ret.has(FLAG_MAP.get(name))) {
+      return;
+    }
+    try {
+      Method getter = ClientFlagsBase.class.getMethod(name);
+      Class<?> retType = getter.getReturnType();
+      if (retType.equals(String.class)) {
+        ret.put(FLAG_MAP.get(name), value);
+      } else if (retType.equals(Integer.class)) {
+        ret.put(FLAG_MAP.get(name), Integer.parseInt(value));
+      } else if (retType.equals(Boolean.class)) {
+        ret.put(FLAG_MAP.get(name), Boolean.parseBoolean(value));
+      } else if (retType.equals(Float.class)) {
+        ret.put(FLAG_MAP.get(name), Float.parseFloat(value));
+      } else if (retType.equals(Double.class)) {
+        ret.put(FLAG_MAP.get(name), Double.parseDouble(value));
+      }
+    } catch (Exception ignored) {
     }
   }
 

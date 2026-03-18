@@ -19,14 +19,13 @@
 package org.waveprotocol.box.server.stat;
 
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.Properties;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -59,60 +58,16 @@ public final class StatuszServletConfigTest {
     System.setProperty("server.enableStorageSegmentState", "false");
 
     StatuszServlet servlet = new StatuszServlet(config);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
     StringWriter buffer = new StringWriter();
-    HttpServletRequest request = proxy(HttpServletRequest.class, (proxy, method, args) -> {
-      if ("getParameter".equals(method.getName()) && args != null && args.length == 1) {
-        return "fragments";
-      }
-      return defaultValue(method.getReturnType());
-    });
-    HttpServletResponse response = proxy(HttpServletResponse.class, (proxy, method, args) -> {
-      if ("getWriter".equals(method.getName())) {
-        return new PrintWriter(buffer);
-      }
-      return defaultValue(method.getReturnType());
-    });
+    when(request.getParameter("show")).thenReturn("fragments");
+    when(response.getWriter()).thenReturn(new PrintWriter(buffer));
 
     servlet.service(request, response);
 
     String output = buffer.toString();
     assertTrue(output.contains(
         "<pre>transport=stream; preferSegmentState=true; enableStorageSegmentState=true</pre>"));
-  }
-
-  private static <T> T proxy(Class<T> type, InvocationHandler handler) {
-    return type.cast(Proxy.newProxyInstance(
-        type.getClassLoader(), new Class<?>[] {type}, handler));
-  }
-
-  private static Object defaultValue(Class<?> returnType) {
-    if (!returnType.isPrimitive()) {
-      return null;
-    }
-    if (returnType == boolean.class) {
-      return false;
-    }
-    if (returnType == byte.class) {
-      return (byte) 0;
-    }
-    if (returnType == short.class) {
-      return (short) 0;
-    }
-    if (returnType == int.class) {
-      return 0;
-    }
-    if (returnType == long.class) {
-      return 0L;
-    }
-    if (returnType == float.class) {
-      return 0f;
-    }
-    if (returnType == double.class) {
-      return 0d;
-    }
-    if (returnType == char.class) {
-      return '\0';
-    }
-    return null;
   }
 }

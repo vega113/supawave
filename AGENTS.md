@@ -28,6 +28,10 @@ git worktrees.
   criteria.
 - If the task is complex enough to need a real implementation plan, the planner
   spawns an architect agent first.
+- If a task does not already have an adequate plan in Beads or the repo docs,
+  the planner must enter plan mode, write the plan, run a Claude review
+  (`claude-review`) on that plan, address the comments, and only then hand the
+  task off for implementation.
 
 ### Architect
 - Investigates the codebase, docs, and constraints for complex tasks.
@@ -41,6 +45,8 @@ git worktrees.
 - Uses `gpt-5.4-mini` with `high` reasoning.
 - Keeps the change set narrow and reports the files changed plus verification
   performed.
+- If the task can be split safely, the worker should spawn additional
+  `gpt-5.4-mini` subagents for independent implementation slices.
 
 ### Reviewer
 - Reviews worker output in a separate git worktree.
@@ -51,10 +57,35 @@ git worktrees.
 
 ## Git Worktrees And PRs
 - Every agent that edits code or docs must work in its own git worktree.
+- Prefer multiple worktrees with multiple agents over single-threaded work in
+  the main tree whenever the task can be parallelized safely.
 - Do not mix agent edits in the main working tree.
 - When implementation is complete and review is resolved, create a pull request
   from the reviewed worktree.
 - Keep Beads, commits, and PRs aligned so the task status is always traceable.
+
+## Task Workflow
+- Any agent working on a Beads task must first ensure there is a current plan
+  for that task.
+- If no adequate plan exists, the agent must switch to plan mode, create the
+  plan, run a Claude review (`claude-review`) on the plan, address the review
+  comments, then switch back to work mode and implement.
+- Implementation should follow the reviewed plan rather than improvised changes
+  made in the middle of execution.
+- After implementation, review the code, run the reviewer flow, address review
+  comments, and only then prepare the pull request.
+
+## Beads Updates
+- Agents working on tasks must update the Beads task with comments throughout
+  execution, not only at the end.
+- Beads comments must include every commit SHA created for the task and a short
+  summary of what each commit does.
+- Beads comments must also capture review feedback received from code review or
+  Claude review, plus the follow-up comment that explains how each important
+  finding was addressed.
+- Before opening a pull request, the task comments should reflect the final
+  implementation summary, the review outcome, and the commit list that landed
+  the work.
 
 ## Tool Usage Rules
 - Prefer MCP tools over free-form browsing when available.

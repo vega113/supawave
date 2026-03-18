@@ -1,6 +1,7 @@
 // incubator-wave SBT build (Phase 1: minimal Java-only skeleton, ported from Wiab.pro)
 
 ThisBuild / organization := "org.apache.wave"
+name := "incubator-wave"
 ThisBuild / scalaVersion := "3.3.4"
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 
@@ -169,10 +170,11 @@ Compile / mainClass := Some("org.waveprotocol.box.server.ServerMain")
 // Default runtime options for `sbt run`
 Compile / javaOptions ++= {
   val base = baseDirectory.value
+  val waveConfigDir = base / "wave" / "config"
   Seq(
-    s"-Dwave.server.config=${(base / "server.config").getAbsolutePath}",
-    s"-Djava.util.logging.config.file=${(base / "wiab-logging.conf").getAbsolutePath}",
-    s"-Djava.security.auth.login.config=${(base / "jaas.config").getAbsolutePath}",
+    s"-Dwave.server.config=${(waveConfigDir / "application.conf").getAbsolutePath}",
+    s"-Djava.util.logging.config.file=${(waveConfigDir / "wiab-logging.conf").getAbsolutePath}",
+    s"-Djava.security.auth.login.config=${(waveConfigDir / "jaas.config").getAbsolutePath}",
     "-Dorg.eclipse.jetty.LEVEL=INFO",
     "-Dorg.eclipse.jetty.util.log.class=org.eclipse.jetty.util.log.Slf4jLog",
     "-Dorg.slf4j.simpleLogger.logFile=System.out",
@@ -383,8 +385,8 @@ ThisBuild / prepareProtosForPB := {
   val stageDir = base / "target" / "proto-pb-src"
   IO.delete(stageDir)
   IO.createDirectory(stageDir)
-  // Collect existing .proto excluding bundled descriptor.proto
-  // We provide descriptor.proto via includePaths (src/) to avoid generating Java for it.
+  // Collect existing .proto excluding bundled descriptor.proto.
+  // We provide descriptor.proto via the bundled pst proto sources so protoc can resolve imports without generating Java for it.
   val rawProtos = (srcDir ** "*.proto").get
     .filterNot(_.getPath.replace('\\','/').endsWith("/google/protobuf/descriptor.proto"))
   rawProtos.foreach { f =>
@@ -418,7 +420,8 @@ Compile / PB.protoSources := Seq(baseDirectory.value / "target" / "proto-pb-src"
 // Include staged protos and original src for google/protobuf/descriptor.proto
 Compile / PB.includePaths := Seq(
   baseDirectory.value / "target" / "proto-pb-src",
-  baseDirectory.value / "wave" / "src" / "proto" / "proto"
+  baseDirectory.value / "wave" / "src" / "proto" / "proto",
+  baseDirectory.value / "pst" / "src" / "main" / "proto"
 )
 Compile / PB.targets := Seq(PB.gens.java -> (baseDirectory.value / "proto_src"))
 // Ensure staging runs before protoc
@@ -560,64 +563,27 @@ ThisBuild / generateGxp := {
 ThisBuild / prepareServerConfig := {
   val log = streams.value.log
   val base = baseDirectory.value
-  val dst = base / "server.config"
-  if (dst.exists()) {
-    log.info("server.config exists; skipping generation")
+  val runtimeConfigDir = base / "config"
+  val runtimeApplicationConf = runtimeConfigDir / "application.conf"
+  val runtimeReferenceConf = runtimeConfigDir / "reference.conf"
+  val sourceConfigDir = base / "wave" / "config"
+  val sourceApplicationConf = sourceConfigDir / "application.conf"
+  val sourceReferenceConf = sourceConfigDir / "reference.conf"
+
+  if (runtimeApplicationConf.exists() && runtimeReferenceConf.exists()) {
+    log.info("config/application.conf and config/reference.conf exist; skipping generation")
   } else {
-    val tpl = base / "server.config.example"
-    if (!tpl.exists) sys.error("Missing server.config.example; cannot bootstrap config")
-    val defaults: Map[String, String] = Map(
-      "WAVE_SERVER_DOMAIN" -> "local.net",
-      "HTTP_FRONTEND_PUBLIC_ADDRESS" -> "localhost:9898",
-      "HTTP_WEBSOCKET_PUBLIC_ADDRESS" -> "localhost:9898",
-      "HTTP_WEBSOCKET_PRESENTED_ADDRESS" -> "localhost:9898",
-      "HTTP_FRONTEND_ADDRESSES" -> "localhost:9898",
-      "RESOURCE_BASES" -> "./war",
-      "SIGNER_INFO_STORE_TYPE" -> "file",
-      "SIGNER_INFO_STORE_DIRECTORY" -> "_certificates",
-      "ATTACHMENT_STORE_TYPE" -> "disk",
-      "ATTACHMENT_STORE_DIRECTORY" -> "_attachments",
-      "ACCOUNT_STORE_TYPE" -> "file",
-      "ACCOUNT_STORE_DIRECTORY" -> "_accounts",
-      "DELTA_STORE_TYPE" -> "file",
-      "DELTA_STORE_DIRECTORY" -> "_deltas",
-      "BLOCK_STORE_TYPE" -> "file",
-      "BLOCK_STORE_DIRECTORY" -> "_blocks",
-      "SESSIONS_STORE_DIRECTORY" -> "_sessions",
-      "SESSION_COOKIE_MAX_AGE" -> "-1",
-      "WEBSOCKET_MAX_IDLE_TIME" -> "0",
-      "WEBSOCKET_MAX_MESSAGE_SIZE" -> "2",
-      "ADMIN_USER" -> "@local.net",
-      "WELCOME_WAVE_ID" -> "",
-      "LISTENER_EXECUTOR_THREAD_COUNT" -> "10",
-      "WAVELET_LOAD_EXECUTOR_THREAD_COUNT" -> "10",
-      "DELTA_PERSIST_EXECUTOR_THREAD_COUNT" -> "10",
-      "SNAPSHOT_PERSIST_EXECUTOR_THREAD_COUNT" -> "10",
-      "BLOCK_PERSIST_EXECUTOR_THREAD_COUNT" -> "10",
-      "STORAGE_INDEXING_EXECUTOR_THREAD_COUNT" -> "4",
-      "STORAGE_CONTINUATION_EXECUTOR_THREAD_COUNT" -> "10",
-      "LOOKUP_EXECUTOR_THREAD_COUNT" -> "10",
-      "ROBOT_CONNECTION_THREAD_COUNT" -> "10",
-      "ROBOT_GATEWAY_THREAD_COUNT" -> "10",
-      "DISABLE_REGISTRATION" -> "false",
-      "ENABLE_SSL" -> "false",
-      "SSL_KEYSTORE_PATH" -> "wiab.ks",
-      "SSL_KEYSTORE_PASSWORD" -> "changeme",
-      "ENABLE_CLIENTAUTH" -> "false",
-      "CLIENTAUTH_CERT_DOMAIN" -> "",
-      "DISABLE_LOGINPAGE" -> "false",
-      "SEARCH_TYPE" -> "lucene",
-      "INDEX_DIRECTORY" -> "_indexes",
-      "ANALYTICS_ACCOUNT" -> "",
-      "THUMBNAIL_PATTERNS_DIRECTORY" -> "thumbnail_patterns",
-      "GOOGLE_CLIENT_ID" -> "",
-      "GOOGLE_CLIENT_SECRET" -> "",
-      "ENABLE_PROFILING" -> "false"
-    )
-    val src = IO.read(tpl)
-    val content = defaults.foldLeft(src) { case (acc, (k,v)) => acc.replaceAllLiterally(s"@${k}@", v) }
-    IO.write(dst, content)
-    log.info("Wrote default server.config (edit as needed)")
+    if (!sourceApplicationConf.exists() || !sourceReferenceConf.exists()) {
+      sys.error("Missing wave/config/application.conf or wave/config/reference.conf; cannot bootstrap runtime config")
+    }
+    IO.createDirectory(runtimeConfigDir)
+    if (!runtimeApplicationConf.exists()) {
+      IO.copyFile(sourceApplicationConf, runtimeApplicationConf)
+    }
+    if (!runtimeReferenceConf.exists()) {
+      IO.copyFile(sourceReferenceConf, runtimeReferenceConf)
+    }
+    log.info("Bootstrapped config/application.conf and config/reference.conf from wave/config/")
   }
 }
 

@@ -75,6 +75,9 @@ Notes:
 - Configuration and fragments flags: `docs/CONFIG_FLAGS.md`, `docs/fragments-config.md`
 - Beads epic index: `docs/epics/README.md`
 
+Gradle remains the canonical build; the SBT notes document the additive
+server-only path and its current bootstrap/runtime behavior.
+
 ## Task tracking
 
 This repository now tracks its active roadmap in repo-local Beads files:

@@ -62,7 +62,8 @@ Read these files first when resuming work:
   the modernization ledger.
 - Jakarta / Jetty 12 is the default server profile.
 - The legacy `javax` / Jetty 9.4 path still exists as a fallback for bisects.
-- The additive SBT build skeleton exists and can compile the server-only subset.
+- The additive SBT build now uses stable jar naming and `wave/config/`-backed
+  runtime defaults, but it remains a server-only additive path.
 
 ### Wiab.pro core work that is already imported
 
@@ -96,7 +97,9 @@ Read these files first when resuming work:
    partially duplicated `System.getProperty(...)` paths in server code.
 5. `Mongo4DeltaStore` is still missing, so the MongoDB v4 migration is not
    complete.
-6. SBT is still additive and server-only. Gradle remains the canonical build.
+6. SBT is still additive and server-only. Its bootstrap/runtime path now tracks
+   `wave/config/`, the jar name is stable, and Gradle remains the canonical
+   build.
 7. Packaging and DX verification still need a post-Jakarta pass.
 8. The documentation surface is now intentionally split between one canonical
    resume guide, a few live ledgers, and Beads tasks; do not re-open one-off

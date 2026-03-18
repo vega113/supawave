@@ -712,6 +712,9 @@ Task P6-T4: Guava upgrade strategy (scoped)
 Phase 7 — Packaging, distribution, and developer experience
 -------------------------------------------------------------------------------
 
+- Additive SBT server-only build notes live in `docs/BUILDING-sbt.md`; keep
+  that path truthful to `wave/config/` and the stable `incubator-wave` jar name.
+
 Task P7-T1: Distributions
 - Status: Planned
 - Goal: Ensure distZip/distTar produce runnable server + client artifacts.

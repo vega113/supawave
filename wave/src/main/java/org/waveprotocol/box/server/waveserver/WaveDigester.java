@@ -100,18 +100,15 @@ public class WaveDigester {
     // waves, and requires raw wavelet access for snippeting.
     ObservableWaveletData root = null;
     ObservableWaveletData other = null;
-    ObservableWaveletData udw = null;
     for (ObservableWaveletData waveletData : wave.getWavelets()) {
       WaveletId waveletId = waveletData.getWaveletId();
       if (IdUtil.isConversationRootWaveletId(waveletId)) {
         root = waveletData;
       } else if (IdUtil.isConversationalId(waveletId)) {
         other = waveletData;
-      } else if (IdUtil.isUserDataWavelet(waveletId)
-          && waveletData.getCreator().equals(participant)) {
-        udw = waveletData;
       }
     }
+    ObservableWaveletData udw = findViewerUserDataWavelet(participant, wave.getWavelets());
 
     ObservableWaveletData convWavelet = root != null ? root : other;
     SupplementedWave supplement = null;
@@ -132,6 +129,21 @@ public class WaveDigester {
     }
 
     return digest;
+  }
+
+  static ObservableWaveletData findViewerUserDataWavelet(
+      ParticipantId participant, Iterable<? extends ObservableWaveletData> wavelets) {
+    if (participant == null || wavelets == null) {
+      return null;
+    }
+    String address = participant.getAddress();
+    for (ObservableWaveletData waveletData : wavelets) {
+      WaveletId waveletId = waveletData.getWaveletId();
+      if (IdUtil.isUserDataWavelet(address, waveletId)) {
+        return waveletData;
+      }
+    }
+    return null;
   }
 
   /**

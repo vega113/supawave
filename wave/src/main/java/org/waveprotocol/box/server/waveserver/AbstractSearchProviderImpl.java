@@ -142,7 +142,7 @@ public abstract class AbstractSearchProviderImpl implements SearchProvider {
           throws WaveletStateException {
     Preconditions.checkNotNull(wavelet);
     // If it is user data wavelet for the user - return true.
-    if (IdUtil.isUserDataWavelet(wavelet.getWaveletId()) && wavelet.getCreator().equals(user)) {
+    if (IdUtil.isUserDataWavelet(user.getAddress(), wavelet.getWaveletId())) {
       return true;
     }
     // The wavelet should have logged in user as participant for 'in:inbox'

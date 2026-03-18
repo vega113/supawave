@@ -60,9 +60,10 @@ git worktrees.
 - Prefer multiple worktrees with multiple agents over single-threaded work in
   the main tree whenever the task can be parallelized safely.
 - When a new worktree needs access to the existing file-based persistence
-  state, use `scripts/worktree-file-store.sh --source <source-checkout>` from
-  the target worktree before testing.
-- Prefer the script's default `symlink` mode so worktrees can reuse the same
+  state, use the Codex skill `incubator-wave-worktree-file-store`.
+- That skill should run `scripts/worktree-file-store.sh --source /Users/vega/devroot/incubator-wave`
+  from the target worktree before testing.
+- Prefer the script's default `symlink` mode so worktrees reuse the same
   `_accounts`, `_attachments`, and `_deltas` state. Use `--mode copy` only
   when isolated persistence state is explicitly needed.
 - Do not mix agent edits in the main working tree.

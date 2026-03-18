@@ -51,7 +51,7 @@ At‑a‑Glance Checklist
 - [x] P5‑T4: Remove temporary Jakarta migration scaffolding (flags + POC classes)
 - [ ] Phase 6: Library upgrades (protobuf/commons/mongo/guava)
 - [ ] Phase 7: Packaging & DX (dist/Docker)
-- [ ] Phase 8: J2CL/GWT 3 roadmap
+- [x] Phase 8: J2CL/GWT 3 roadmap documented
 
 ---
 
@@ -756,17 +756,31 @@ Phase 8 (optional) — J2CL / GWT 3 migration path outline
 -------------------------------------------------------------------------------
 
 Task P8-T1: Feasibility assessment and roadmap
-- Status: Planned
-- Goal: Outline steps to migrate the client to J2CL (GWT 3), which uses Closure Compiler and JsInterop extensively.
-- Steps:
-  1) Inventory GWT-specific APIs and legacy widgets; map replacements in J2CL world (Elemental2, JsInterop).
-  2) Identify blockers (guava-gwt usage, RPCs, legacy generators).
+- Status: Completed
+- Goal: Produce a measured inventory and decision memo for any future J2CL / GWT 3 work.
+- Work log:
+  - 2026-03-18: Re-verified the current GWT surface and documented the result in:
+    - `docs/j2cl-gwt3-inventory.md`
+    - `docs/j2cl-gwt3-decision-memo.md`
+- Summary:
+  - The repo is not ready for a full-app J2CL migration yet.
+  - The blocking surfaces are JSNI / `JavaScriptObject`, UiBinder and `GWT.create(...)`,
+    large `.gwt.xml` / deferred-binding usage, hosted GWT test harness debt, and
+    client dependency cleanup (especially `guava-gwt`).
+  - The recommended next move is prerequisite reduction, not a compiler/runtime switch.
+- Follow-on task titles proposed by the decision memo:
+  1) Module graph reduction for the web client
+  2) Client dependency cleanup
+  3) JsInterop / Elemental2 bridge pilot
+  4) JSNI / `JavaScriptObject` elimination in one vertical slice
+  5) GWT test harness replacement strategy
+  6) UiBinder replacement strategy
 - Tests:
-  - N/A; planning.
+  - N/A; planning/documentation task.
 - AI Agent Guidance:
-  - Start from wave/src/main/java/org/waveprotocol/box/webclient and related modules.
+  - Use the inventory and decision memo as the canonical Phase 8 starting point.
 - DoD:
-  - Document with identified epics and estimates.
+  - Inventory and decision memo exist and are referenced by the canonical docs.
 
 -------------------------------------------------------------------------------
 Appendix A — Common edit points and search tips (AI Agent)

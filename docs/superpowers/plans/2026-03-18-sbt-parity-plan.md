@@ -62,6 +62,7 @@ Current mismatches between Gradle reality and the SBT surface:
 - Possibly create or modify: `docs/BUILDING-sbt.md`
 
 - [ ] **Step 1: Decide whether to keep root-level `server.config` generation or switch SBT to the existing `wave/config/*` files**
+- [ ] **Step 1a: Record the chosen config-path direction in the task notes before editing files**
 - [ ] **Step 2: Prefer the narrower parity path**
   - Keep SBT aligned with the checked-in config layout under `wave/config/` if that avoids inventing new root-level config files.
 - [ ] **Step 3: Update `Compile / javaOptions` so runtime defaults point at real checked-in files**
@@ -76,7 +77,7 @@ Current mismatches between Gradle reality and the SBT surface:
 
 **Commit:**
 ```bash
-git add build.sbt docs/BUILDING-sbt.md server.config.example
+git add build.sbt docs/BUILDING-sbt.md
 git commit -m "Align SBT bootstrap paths with repo layout"
 ```
 
@@ -114,18 +115,24 @@ git commit -m "Fix SBT protobuf staging"
 
 - [ ] **Step 1: Pin the SBT project name explicitly**
   - Set `ThisBuild / name := "incubator-wave"` or equivalent so assembly output is stable across worktrees.
+- [ ] **Step 1a: Verify which scope controls `assembly / assemblyJarName` before changing `name`**
 - [ ] **Step 2: Evaluate whether SBT can safely default to Jakarta mode after Task 2**
-  - If `sbt -Djakarta=true compile` is green or close enough to stabilize in-scope, flip the default.
-  - If not, keep the default as-is but document the mismatch explicitly and open a follow-up Beads task instead of hiding it.
+- [ ] **Step 2a: Verify the exact property wiring for `jakartaMode` in `build.sbt`**
+  - Record whether the supported override is `-Djakarta=true`, `-DjakartaMode=true`, or another property name before running the verification command.
+- [ ] **Step 2b: Only attempt a default-mode flip if Task 2 reaches a useful green compile**
+  - If Task 2 still stops on another compile blocker, document the gap and do not attempt a mode flip in this task.
+- [ ] **Step 2c: If the verified Jakarta override command is green or close enough to stabilize in-scope, flip the default**
+- [ ] **Step 2d: Otherwise keep the default as-is, document the mismatch explicitly, and open a follow-up Beads task instead of hiding it**
 - [ ] **Step 3: Align the docs with the verified default mode**
   - The docs must stop implying Jakarta-default parity unless the build actually supports it.
 - [ ] **Step 4: Verify the resulting compile mode explicitly**
 
 **Verification:**
 - `sbt -batch 'show jakartaMode'`
+- `rg -n "jakartaMode|sys\\.props|System\\.getProperty" build.sbt`
 - `sbt -batch 'show name' 'show assembly / assemblyJarName'`
 - `sbt -batch compile`
-- `sbt -batch -Djakarta=true compile` if Jakarta-default is being considered
+- `sbt -batch -D<verified-jakarta-property>=true compile` if Jakarta-default is being considered
 
 **Commit:**
 ```bash
@@ -144,7 +151,7 @@ git commit -m "Stabilize SBT mode and artifact naming"
 - [ ] **Step 1: Rewrite `docs/BUILDING-sbt.md` around verified commands only**
 - [ ] **Step 2: Separate supported commands from legacy or partial commands**
   - Mark `testBackend` as legacy/offline fallback if it remains
-  - Mark any still-disabled codegen tasks as manual or unsupported
+  - Mark any still-disabled codegen tasks (`generatePstMessages`, `generateFlags`, `generateGxp`) as manual or unsupported
 - [ ] **Step 3: Update README and current-state references so they do not oversell parity**
 - [ ] **Step 4: If Task 3 cannot safely flip Jakarta default, document that explicitly as a remaining gap**
 - [ ] **Step 5: Verify every command shown in the final doc block actually works in the updated build**

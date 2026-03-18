@@ -87,6 +87,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import jakarta.websocket.HandshakeResponse;
 import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpointConfig;
+import jakarta.websocket.server.ServerContainer;
 import com.typesafe.config.ConfigFactory;
 
 // Jakarta security/caching filters
@@ -102,6 +103,8 @@ import org.waveprotocol.box.server.security.jakarta.NoCacheFilter;
 @Singleton
 public class ServerRpcProvider {
     private static final Log LOG = Log.get(ServerRpcProvider.class);
+    private static final long DEFAULT_WEBSOCKET_MAX_IDLE_TIME_MS = 0L;
+    private static final int DEFAULT_WEBSOCKET_MAX_MESSAGE_SIZE_MB = 2;
     private final Config config;
     private final SessionHandler sessionHandler;
     final SessionManager sessionManager;
@@ -291,6 +294,23 @@ public class ServerRpcProvider {
 
     public WebSocketConnection createWebSocketConnection(ParticipantId loggedInUser) {
         return new WebSocketConnection(loggedInUser, this);
+    }
+
+    static void configureWebSocketContainer(ServerContainer container, @Nullable Config config) {
+        long idleTimeoutMs = DEFAULT_WEBSOCKET_MAX_IDLE_TIME_MS;
+        int maxMessageSizeMb = DEFAULT_WEBSOCKET_MAX_MESSAGE_SIZE_MB;
+
+        if (config != null) {
+            if (config.hasPath("network.websocket_max_idle_time")) {
+                idleTimeoutMs = config.getLong("network.websocket_max_idle_time");
+            }
+            if (config.hasPath("network.websocket_max_message_size")) {
+                maxMessageSizeMb = config.getInt("network.websocket_max_message_size");
+            }
+        }
+
+        container.setDefaultMaxSessionIdleTimeout(idleTimeoutMs);
+        container.setDefaultMaxTextMessageBufferSize(maxMessageSizeMb * 1024 * 1024);
     }
 
     public void startWebSocketServer(final Injector injector) {
@@ -524,6 +544,7 @@ public class ServerRpcProvider {
 
             // Register Jakarta WebSocket endpoint programmatically with DI configurator
             JakartaWebSocketServletContainerInitializer.configure(context, (ctx, container) -> {
+                configureWebSocketContainer(container, config);
                 ServerEndpointConfig sec = ServerEndpointConfig.Builder
                         .create(org.waveprotocol.box.server.rpc.jakarta.WaveWebSocketEndpoint.class, "/socket")
                         .configurator(new ServerEndpointConfig.Configurator() {
@@ -594,6 +615,7 @@ public class ServerRpcProvider {
                 return;
             }
             jakarta.websocket.server.ServerContainer sc = (jakarta.websocket.server.ServerContainer) attr;
+            configureWebSocketContainer(sc, config);
             ServerEndpointConfig sec = ServerEndpointConfig.Builder
                     .create(org.waveprotocol.box.server.rpc.jakarta.WaveWebSocketEndpoint.class, "/socket")
                     .configurator(new ServerEndpointConfig.Configurator() {

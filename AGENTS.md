@@ -13,6 +13,8 @@ git worktrees.
 - Use repo-local Beads as the live task tracker for implementation work.
 - Use [docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md](/Users/vega/devroot/incubator-wave/docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md)
   as the canonical detailed execution model for multi-agent task delivery.
+- When that orchestration plan applies, follow it directly and do not invent an
+  alternative workflow in the middle of task execution.
 - Favor tool use over guesswork. Keep calls minimal, scoped, and purposeful.
 
 ## Agent Roles
@@ -83,6 +85,8 @@ git worktrees.
 - For the full orchestration sequence, branch/worktree rules, Beads comment
   template, and PR flow, follow
   [docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md](/Users/vega/devroot/incubator-wave/docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md).
+- If any short-form rule in `AGENTS.md` is ambiguous, the orchestration plan is
+  the authoritative source for task execution behavior.
 - Implementation should follow the reviewed plan rather than improvised changes
   made in the middle of execution.
 - After implementation, review the code, run the reviewer flow, address review

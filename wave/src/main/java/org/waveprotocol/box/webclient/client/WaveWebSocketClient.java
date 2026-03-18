@@ -124,7 +124,7 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
           keepScheduled = false;
         } else {
           connectTry++;
-          LOG.info("Attemping to reconnect");
+          LOG.info("Attempting to reconnect");
           connected = ConnectState.CONNECTING;
           socket.connect();
         }

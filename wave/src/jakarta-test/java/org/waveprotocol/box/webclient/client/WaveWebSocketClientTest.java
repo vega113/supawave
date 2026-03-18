@@ -94,6 +94,40 @@ public final class WaveWebSocketClientTest {
     assertEquals("CONNECTING", getConnectState(client));
   }
 
+  @Test
+  public void connectingTicksDoNotSpendReconnectBudget() throws Exception {
+    FakeWaveSocket socket = new FakeWaveSocket();
+    WaveWebSocketClient client = createClient(socket);
+
+    setConnectState(client, "CONNECTING");
+    setConnectTry(client, 1L);
+    setReconnectScheduled(client, true);
+
+    boolean keepScheduled = executeReconnectCommand(client);
+
+    assertTrue(keepScheduled);
+    assertEquals(1L, getConnectTry(client));
+    assertEquals(0, socket.connectCalls);
+    assertTrue(isReconnectScheduled(client));
+  }
+
+  @Test
+  public void exhaustedBudgetStopsReconnectLoop() throws Exception {
+    FakeWaveSocket socket = new FakeWaveSocket();
+    WaveWebSocketClient client = createClient(socket);
+
+    setConnectState(client, "DISCONNECTED");
+    setConnectTry(client, 3L);
+    setReconnectScheduled(client, true);
+
+    boolean keepScheduled = executeReconnectCommand(client);
+
+    assertFalse(keepScheduled);
+    assertEquals(3L, getConnectTry(client));
+    assertEquals(0, socket.connectCalls);
+    assertFalse(isReconnectScheduled(client));
+  }
+
   private static WaveWebSocketClient createClient(FakeWaveSocket socket) throws Exception {
     WaveWebSocketClient client = new WaveWebSocketClient(false, "");
     setField(client, "socket", socket);

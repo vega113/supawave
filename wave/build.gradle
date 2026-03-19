@@ -72,7 +72,6 @@ application {
         println "[run] Enabling client flags: ${cf}"
     }
 }
-application.applicationDefaultJvmArgs += ["-DjettyFamily=jakarta"]
 java {
     // Compile and target JDK 17 bytecode
     sourceCompatibility = JavaVersion.VERSION_17

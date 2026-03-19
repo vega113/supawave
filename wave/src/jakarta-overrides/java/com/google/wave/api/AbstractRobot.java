@@ -96,7 +96,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * annotation, the default contexts (parent and children), and empty filter will
  * be provided by default.
  */
-/** Jakarta variant compiled when -PjettyFamily=jakarta is active. */
+/** Jakarta variant compiled for the Jakarta-only server build. */
 public abstract class AbstractRobot extends HttpServlet implements EventHandler {
 
   /** Some mime types. */

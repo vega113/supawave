@@ -6,7 +6,7 @@
 
 **Architecture:** Treat this as dependency-ownership cleanup, not a blanket "upgrade everything" sweep. First reconcile the docs and build graph so the task works from the real dependency state. Then remove runtime debt on the default Jakarta path by replacing outdated servlet, multipart, MongoDB, and OAuth seams with either standard APIs or repo-local ownership. Keep the legacy `javax` profile and SBT build working until the default Gradle path is green and documented.
 
-**Tech Stack:** Gradle 8, SBT parity build, Java 17, Jetty 12 EE10 default with Jetty 9.4 fallback, Guice 5.1.0, Guava 32.1.3-jre, Apache Commons CLI and FileUpload, MongoDB Java drivers 2.x and 4.x spike code, legacy `net.oauth` stack, JUnit 4, Testcontainers, Beads.
+**Tech Stack:** Gradle 8, SBT parity build, Java 17, Jetty 12 EE10 default with Jetty 9.4 fallback, Guice 5.1.0, Guava 32.1.3-jre, Apache Commons CLI and FileUpload, MongoDB Java drivers 2.x and `mongodb-driver-sync:4.11.1`, legacy `net.oauth` stack, JUnit 4, Testcontainers, Beads.
 
 ---
 
@@ -23,8 +23,9 @@
   - Server-side Guava resolves to `32.1.3-jre`, and Guice 5.1.0 already runs against it.
   - Commons Lang, Commons Codec, Commons IO, HttpClient, and the `commons-logging` replacement are already in place.
 - Still actionable:
-  - `net.oauth.core` remains on the compile and runtime path, and the advertised `-PexcludeLegacyOAuth` switch does not currently exclude it.
+  - `net.oauth.core` remains on the compile and runtime path, and Chunk 1 must verify whether `-PexcludeLegacyOAuth` really fails before changing build logic.
   - `org.mongodb:mongo-java-driver:2.11.2` remains active while the repo contains only partial `mongodb4` replacements.
+  - `org.mongodb:mongodb-driver-sync:4.11.1` is already on the default Gradle path, so the Mongo work is about completing the 4.x wiring and then removing the 2.x driver rather than introducing 4.x from scratch.
   - `commons-fileupload:1.5` remains on the default runtime path even though the Jakarta `AttachmentServlet` no longer implements multipart upload.
   - `wave` relies on the locally built PST shadow jar for `commons-cli` classes instead of declaring a direct dependency, and SBT codegen still hard-codes `commons-cli-1.2.jar`, `guava-16.0.1.jar`, and a `protobuf-java-2.5.0.jar` fallback.
 - Retire rather than continue as Phase 6 library-upgrade debt:
@@ -85,6 +86,7 @@
 - `./gradlew -q :wave:dependencyInsight --dependency guava --configuration runtimeClasspath`
 - `./gradlew -q :wave:dependencyInsight --dependency commons-cli --configuration compileClasspath`
 - `./gradlew -q :wave:dependencyInsight --dependency oauth --configuration compileClasspath`
+- `./gradlew -q :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath`
 - `./gradlew -q :wave:clean :wave:compileJava`
 - `sbt compile`
 
@@ -95,12 +97,15 @@ Run:
 ```bash
 ./gradlew -q :wave:dependencyInsight --dependency commons-cli --configuration compileClasspath
 ./gradlew -q :wave:dependencyInsight --dependency oauth --configuration compileClasspath
+./gradlew -q :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
+./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration compileClasspath
+./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
 ./gradlew -q :wave:dependencies --configuration compileClasspath
 ```
 
 Expected before the fix:
 - `commons-cli` is not explicitly declared for `wave`.
-- `net.oauth` still appears even when the docs claim the exclusion switch exists.
+- The baseline shows whether `net.oauth` disappears cleanly when `-PexcludeLegacyOAuth=true` is enabled, rather than assuming the switch is broken.
 - The compile graph still reflects stale Phase 6 assumptions.
 
 - [ ] **Step 2: Update the docs to reflect the real closure matrix**
@@ -119,20 +124,21 @@ Implement these build changes:
 - Add a direct `commons-cli` dependency to `wave`.
 - Upgrade `pst/build.gradle` from `commons-cli:1.3.1` to `commons-cli:1.11.0`.
 - Remove any reliance on PST shadow jars for `commons-cli` classes in the `wave` compile path.
-- Replace stale repository URLs in `wave/build.gradle`; only keep a supported external repository if OAuth remains external after Task 4.
+- Do not remove the stale OAuth repository URLs yet; defer that cleanup to Chunk 4 once the chosen OAuth ownership path is implemented.
 
-- [ ] **Step 4: Fix the advertised OAuth exclusion switch**
+- [ ] **Step 4: Verify and, if needed, fix the advertised OAuth exclusion switch**
 
-Update `wave/build.gradle` so `-PexcludeLegacyOAuth=true` actually removes the three `net.oauth.core` coordinates from compile and runtime classpaths.
+Use the Step 1 baseline to decide whether a code change is needed. If the switch already works on both classpaths, keep the build logic as-is and record that finding in the task notes. If it does not, update `wave/build.gradle` so `-PexcludeLegacyOAuth=true` actually removes the three `net.oauth.core` coordinates from compile and runtime classpaths.
 
 Run:
 
 ```bash
 ./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration compileClasspath
+./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
 ```
 
 Expected after the fix:
-- No `net.oauth` artifacts remain when the switch is enabled.
+- No `net.oauth` artifacts remain when the switch is enabled, or the baseline proves that no build change was needed.
 
 - [ ] **Step 5: Verify the build still compiles after the ownership cleanup**
 
@@ -239,16 +245,16 @@ git commit -m "server: replace commons fileupload with servlet multipart"
 - Create: `wave/src/test/java/org/waveprotocol/box/server/persistence/mongodb4/PersistenceModuleMongo4IT.java`
 
 **Tests:**
-- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4AccountStoreIT`
-- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4AttachmentStoreIT`
-- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStoreIT`
-- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4SignerInfoStoreIT`
-- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.PersistenceModuleMongo4IT`
+- `./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4AccountStoreIT`
+- `./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4AttachmentStoreIT`
+- `./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStoreIT`
+- `./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4SignerInfoStoreIT`
+- `./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.PersistenceModuleMongo4IT`
 - `./gradlew -q :wave:dependencyInsight --dependency mongo-java-driver --configuration runtimeClasspath`
 
 - [ ] **Step 1: Add failing DI-driven Mongo integration tests**
 
-Use Testcontainers-backed tests to exercise the production wiring, not just direct class construction:
+Review the existing `Mongo4AccountStoreIT` and `Mongo4AttachmentStoreIT` tests first so this task extends the current coverage rather than duplicating it. Then use Testcontainers-backed tests to exercise the production wiring, not just direct class construction:
 - `AccountStore`
 - `AttachmentStore`
 - `SignerInfoStore`
@@ -291,11 +297,11 @@ Use the decision gate at the top of this plan:
 Run:
 
 ```bash
-./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4AccountStoreIT
-./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4AttachmentStoreIT
-./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStoreIT
-./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4SignerInfoStoreIT
-./gradlew -q :wave:test --tests org.waveprotocol.box.server.persistence.mongodb4.PersistenceModuleMongo4IT
+./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4AccountStoreIT
+./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4AttachmentStoreIT
+./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStoreIT
+./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.Mongo4SignerInfoStoreIT
+./gradlew -q :wave:itTest --tests org.waveprotocol.box.server.persistence.mongodb4.PersistenceModuleMongo4IT
 ./gradlew -q :wave:dependencyInsight --dependency mongo-java-driver --configuration runtimeClasspath
 ```
 
@@ -349,6 +355,7 @@ git commit -m "persistence: finish modern mongodb driver path"
 
 **Tests:**
 - `./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration compileClasspath`
+- `./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath`
 - `./gradlew -q :wave:test --tests com.google.wave.api.oauth.impl.OAuthServiceImplRobotTest`
 - `./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.active.ActiveApiServletTest`
 - `./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServletTest`
@@ -379,12 +386,7 @@ Cover the call sites that must continue to work if the feature remains:
 
 - [ ] **Step 3: Resolve the product decision gate before changing ownership**
 
-Before editing code, ask the project owner recorded on the task, currently Yuri Z., whether these endpoints remain supported:
-- robot OAuth endpoints,
-- Data API OAuth flows,
-- import or export OAuth helpers.
-
-Record the answer on `incubator-wave-modernization.3` and treat that comment as the authorization for either Step 4 or Step 5.
+Default assumption: robot OAuth endpoints, Data API OAuth flows, and import or export OAuth helpers remain supported. Record that default assumption on `incubator-wave-modernization.3` before editing. Only switch to the deletion path in Step 6 if there is explicit product approval to retire those endpoints.
 
 - [ ] **Step 4: Audit the exact `net.oauth` surface area before migrating it**
 
@@ -423,6 +425,7 @@ Run:
 ./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServletTest
 ./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.dataapi.DataApiServletTest
 ./gradlew -q -PjettyFamily=jakarta :wave:testJakartaIT --tests org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServletJakartaIT
+./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
 ./gradlew -q :wave:dependencies --configuration runtimeClasspath | rg net\\.oauth
 ```
 

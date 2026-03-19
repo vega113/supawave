@@ -369,7 +369,6 @@ dependencies {
             // Migrated from commons-httpclient 3.x to HttpClient 4.5.x
             [group: "org.apache.httpcomponents", name: "httpclient", version: "4.5.14"],
             [group: "org.apache.commons", name: "commons-lang3", version: "3.14.0"],
-            [group: "commons-fileupload", name: "commons-fileupload", version: "1.5"],
             // Route any Commons Logging calls through SLF4J instead of pulling commons-logging
             // Bridge legacy commons-logging to SLF4J 2.x
             [group: "org.slf4j", name: "jcl-over-slf4j", version: "2.0.13"],

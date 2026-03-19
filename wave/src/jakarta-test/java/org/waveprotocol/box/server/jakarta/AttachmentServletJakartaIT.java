@@ -1,6 +1,7 @@
 package org.waveprotocol.box.server.jakarta;
 
 import com.typesafe.config.ConfigFactory;
+import jakarta.servlet.MultipartConfigElement;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
@@ -22,9 +23,13 @@ import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.*;
 
@@ -51,6 +56,7 @@ public class AttachmentServletJakartaIT {
       ctx.setContextPath("/");
       AttachmentServlet servlet = new AttachmentServlet(svc, wprov, sm, ConfigFactory.parseString("core.thumbnail_patterns_directory=\".\""));
       ServletHolder holder = new ServletHolder(servlet);
+      holder.getRegistration().setMultipartConfig(new MultipartConfigElement(""));
       ctx.addServlet(holder, AttachmentServlet.ATTACHMENT_URL + "/*");
       // Map thumbnail as well for tests that hit /thumbnail/* on the base server
       ctx.addServlet(holder, AttachmentServlet.THUMBNAIL_URL + "/*");
@@ -157,6 +163,45 @@ public class AttachmentServletJakartaIT {
     String disp = c.getHeaderField("Content-Disposition");
     assertNotNull(disp);
     assertTrue(disp.contains("hello.txt"));
+  }
+
+  @Test
+  public void uploadsAttachmentWhenAuthorized() throws Exception {
+    ParticipantId user = new ParticipantId("user@example.com");
+    stubLoggedIn(sm, user);
+    Mockito.when(wprov.checkAccessPermission(Mockito.any(WaveletName.class), Mockito.eq(user))).thenReturn(true);
+
+    AttachmentId aid = AttachmentId.deserialise("att+upload");
+    String waveRef = "example.com/w+upload/example.com/conv+root";
+    WaveletName expectedWavelet = AttachmentUtil.waveRef2WaveletName(waveRef);
+    byte[] fileBytes = "uploaded payload".getBytes(StandardCharsets.UTF_8);
+    AtomicReference<byte[]> uploadedBytes = new AtomicReference<>();
+    Mockito.doAnswer(invocation -> {
+      InputStream stream = invocation.getArgument(1);
+      uploadedBytes.set(stream.readAllBytes());
+      return null;
+    }).when(svc).storeAttachment(
+        Mockito.eq(aid),
+        Mockito.any(InputStream.class),
+        Mockito.eq(expectedWavelet),
+        Mockito.eq("hello.txt"),
+        Mockito.eq(user));
+
+    HttpURLConnection c = postMultipart(
+        AttachmentServlet.ATTACHMENT_URL + "/upload",
+        aid.serialise(),
+        waveRef,
+        "nested/path/hello.txt",
+        fileBytes);
+
+    assertEquals(201, c.getResponseCode());
+    assertArrayEquals(fileBytes, uploadedBytes.get());
+    Mockito.verify(svc).storeAttachment(
+        Mockito.eq(aid),
+        Mockito.any(InputStream.class),
+        Mockito.eq(expectedWavelet),
+        Mockito.eq("hello.txt"),
+        Mockito.eq(user));
   }
 
   @Test
@@ -372,5 +417,60 @@ public class AttachmentServletJakartaIT {
   private static void stubLoggedIn(SessionManager manager, ParticipantId user) {
     Mockito.when(manager.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
     Mockito.when(manager.getLoggedInUser(Mockito.isNull(WebSession.class))).thenReturn(user);
+  }
+
+  private HttpURLConnection postMultipart(String path, String attachmentId, String waveRef,
+                                          String submittedFileName, byte[] fileBytes) throws Exception {
+    String boundary = "----WaveMultipart" + System.nanoTime();
+    byte[] body = buildMultipartBody(boundary, attachmentId, waveRef, submittedFileName, fileBytes);
+    URL url = new URL("http://localhost:" + port + path);
+    HttpURLConnection connection = TestSupport.openConnection(url);
+    connection.setRequestMethod("POST");
+    connection.setDoOutput(true);
+    connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+    connection.setRequestProperty("Content-Length", String.valueOf(body.length));
+    try (OutputStream out = connection.getOutputStream()) {
+      out.write(body);
+      out.flush();
+    }
+    return connection;
+  }
+
+  private static byte[] buildMultipartBody(String boundary, String attachmentId, String waveRef,
+                                           String submittedFileName, byte[] fileBytes) throws Exception {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    writeFormField(out, boundary, "attachmentId", attachmentId);
+    writeFormField(out, boundary, "waveRef", waveRef);
+    writeFileField(out, boundary, "file", submittedFileName, fileBytes);
+    out.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+    return out.toByteArray();
+  }
+
+  private static void writeFormField(ByteArrayOutputStream out, String boundary, String name,
+                                     String value) throws Exception {
+    writeMultipartHeader(out, boundary, name, null, null);
+    out.write(value.getBytes(StandardCharsets.UTF_8));
+    out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static void writeFileField(ByteArrayOutputStream out, String boundary, String name,
+                                     String fileName, byte[] content) throws Exception {
+    writeMultipartHeader(out, boundary, name, fileName, "text/plain");
+    out.write(content);
+    out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static void writeMultipartHeader(ByteArrayOutputStream out, String boundary, String name,
+                                           String fileName, String contentType) throws Exception {
+    out.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+    String disposition = "Content-Disposition: form-data; name=\"" + name + "\"";
+    if (fileName != null) {
+      disposition += "; filename=\"" + fileName + "\"";
+    }
+    out.write((disposition + "\r\n").getBytes(StandardCharsets.UTF_8));
+    if (contentType != null) {
+      out.write(("Content-Type: " + contentType + "\r\n").getBytes(StandardCharsets.UTF_8));
+    }
+    out.write("\r\n".getBytes(StandardCharsets.UTF_8));
   }
 }

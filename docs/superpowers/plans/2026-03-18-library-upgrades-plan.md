@@ -126,7 +126,7 @@ Implement these build changes:
 - Remove any reliance on PST shadow jars for `commons-cli` classes in the `wave` compile path.
 - Remove the stale OAuth repository URLs as part of the deletion path.
 
-- [ ] **Step 4: Remove the advertised OAuth exclusion switch and legacy dependencies**
+- [x] **Step 4: Remove the advertised OAuth exclusion switch and legacy dependencies**
 
 Use the Step 1 baseline to confirm the removal path. Update `wave/build.gradle` so the legacy OAuth repositories and `net.oauth.core` coordinates are gone from the default build, then record the remaining compile fallout as the expected result of retiring robot/Data API/import-export OAuth ownership.
 
@@ -140,7 +140,7 @@ Run:
 Expected after the fix:
 - No `net.oauth` artifacts remain on either classpath.
 
-- [ ] **Step 5: Verify the build outcome after the ownership cleanup**
+- [x] **Step 5: Verify the build outcome after the ownership cleanup**
 
 Run:
 
@@ -151,7 +151,7 @@ sbt compile
 
 Expected:
 - `net.oauth` no longer appears in the Gradle classpath reports.
-- `:wave:compileJava` fails in the OAuth-owned sources until those call sites are removed or quarantined.
+- `:wave:compileJava` passes on the Jakarta path after the OAuth-owned sources are quarantined.
 - Docs, Beads, and the build now agree that legacy OAuth is intentionally retired from this slice.
 
 - [ ] **Step 6: Commit**

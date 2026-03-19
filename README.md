@@ -83,6 +83,10 @@ closed on the Gradle path. The remaining library-upgrade work is narrowed to
 Commons multipart/CLI cleanup, MongoDB driver closure, legacy OAuth removal,
 and SBT library-input cleanup.
 
+The default Jakarta build now compiles without `net.oauth`, and the legacy
+robot, Data API, and import/export OAuth entrypoints are intentionally
+unsupported there for now.
+
 ## Task tracking
 
 This repository now tracks its active roadmap in repo-local Beads files:

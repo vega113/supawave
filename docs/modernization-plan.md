@@ -686,7 +686,7 @@ Task P6-T3: MongoDB driver modernization (scoped)
   - Spike compiles; adapters implemented; config flag can switch between old/new providers; basic integration test passes with MongoDB 4.x.
 
 Task P6-T6: Retire legacy OAuth libraries
-- Status: In Progress (deletion path)
+- Status: Completed on the default build; legacy OAuth is unsupported there
 - Goal: Remove net.oauth.core (oauth-provider/oauth/oauth-consumer @ 20100601-atlassian-2) from the default build and retire the legacy ownership model.
 - Steps:
   1) Grep usages across server/client for net.oauth.* APIs; confirm the call sites that still depend on the legacy stack.
@@ -694,10 +694,10 @@ Task P6-T6: Retire legacy OAuth libraries
   3) Record the expected fallout: robot and Data API OAuth flows, plus any import/export OAuth helpers, are intentionally out of scope for the default path until a later replacement task lands.
 - Tests:
   - Verify `net.oauth` no longer appears on the compile/runtime classpaths.
-  - Build fallout in OAuth-owned sources is expected until follow-up cleanup lands.
+  - `./gradlew -q :wave:compileJava` passes on the Jakarta path after the OAuth quarantine.
 - DoD:
   - Legacy OAuth dependencies and repository URLs are removed from the default build.
-  - The docs and Beads trail explicitly call out the accepted OAuth breakage.
+  - The docs and Beads trail explicitly call out the accepted OAuth breakage and the unsupported robot/Data API/import-export entrypoints.
 
 Task P6-T4: Guava upgrade strategy (scoped)
 - Status: Completed on the server path; client follow-up moved to Phase 8

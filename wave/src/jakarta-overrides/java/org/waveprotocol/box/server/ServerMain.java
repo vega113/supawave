@@ -26,10 +26,6 @@ import org.waveprotocol.box.server.persistence.SignerInfoStore;
 import org.waveprotocol.box.server.rpc.*;
 import org.waveprotocol.box.server.robots.ProfileFetcherModule;
 import org.waveprotocol.box.server.robots.RobotRegistrationServlet;
-import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
-import org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServlet;
-import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
-import org.waveprotocol.box.server.robots.RobotApiModule;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
 import org.waveprotocol.box.server.shutdown.Shutdownable;
@@ -94,11 +90,10 @@ public class ServerMain {
     Module federationModule = buildFederationModule(injector);
     PersistenceModule persistenceModule = injector.getInstance(PersistenceModule.class);
     Module searchModule = injector.getInstance(SearchModule.class);
-    Module robotApiModule = new RobotApiModule();
     Module profileFetcherModule = injector.getInstance(ProfileFetcherModule.class);
 
     injector = injector.createChildInjector(serverModule, persistenceModule,
-        robotApiModule, searchModule, federationModule, profileFetcherModule);
+        searchModule, federationModule, profileFetcherModule);
 
     ServerRpcProvider server = injector.getInstance(ServerRpcProvider.class);
     WaveBus waveBus = injector.getInstance(WaveBus.class);
@@ -153,11 +148,7 @@ public class ServerMain {
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
-    server.addServlet("/robot/dataapi", DataApiServlet.class);
-    server.addServlet(DataApiOAuthServlet.DATA_API_OAUTH_PATH + "/*", DataApiOAuthServlet.class);
-    server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
     server.addServlet("/robot/register/*", RobotRegistrationServlet.class);
-    server.addServlet("/robot/rpc", ActiveApiServlet.class);
     server.addServlet("/", WaveClientServlet.class);
   }
 

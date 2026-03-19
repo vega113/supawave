@@ -66,6 +66,7 @@ Notes:
 ## Documentation map
 
 - Verified current status and prioritized backlog: `docs/current-state.md`
+- Persistence topology and multi-instance blockers: `docs/persistence-topology-audit.md`
 - Detailed modernization ledgers: `docs/modernization-plan.md`, `docs/jetty-migration.md`
 - Historical renderer / fragments import ledger: `docs/migrate-conversation-renderer-to-apache-wave.md`
 - Historical server-first blocks / segment-state ledger: `docs/blocks-adoption-plan.md`

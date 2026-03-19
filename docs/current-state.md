@@ -53,7 +53,9 @@ Read these files first when resuming work:
    - Manual and scripted smoke-test guidance.
 12. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
    - Configuration behavior and fragments-specific settings.
-13. `.beads/issues.jsonl`
+13. `docs/persistence-topology-audit.md`
+   - Current persistence topology, Mongo coverage, and multi-instance blockers.
+14. `.beads/issues.jsonl`
    - Live project backlog for epics and tasks.
 
 ## Verified current state

@@ -26,8 +26,11 @@ import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.IdGeneratorImpl;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.document.util.LineContainers;
+import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
 import org.waveprotocol.wave.model.operation.SilentOperationSink;
 import org.waveprotocol.wave.model.operation.wave.BasicWaveletOperationContextFactory;
+import org.waveprotocol.wave.model.conversation.TitleHelper;
 import org.waveprotocol.wave.model.schema.SchemaCollection;
 import org.waveprotocol.wave.model.supplement.PrimitiveSupplement;
 import org.waveprotocol.wave.model.supplement.SupplementedWave;
@@ -129,6 +132,10 @@ public final class UnreadSharedWaveDigestTest extends TestCase {
     rootConversation.addParticipant(VIEWER);
     org.waveprotocol.wave.model.conversation.ConversationBlip rootBlip =
         rootConversation.getRootThread().appendBlip();
+    LineContainers.appendToLastLine(
+        rootBlip.getContent(),
+        XmlStringBuilder.createText("Root title"));
+    TitleHelper.maybeFindAndSetImplicitTitle(rootBlip.getContent());
     org.waveprotocol.wave.model.conversation.ObservableConversation secondaryConversation =
         conversationUtil
             .buildConversation(secondaryConversationModel)
@@ -136,7 +143,11 @@ public final class UnreadSharedWaveDigestTest extends TestCase {
             .iterator()
             .next();
     secondaryConversation.addParticipant(VIEWER);
-    secondaryConversation.getRootThread().appendBlip();
+    org.waveprotocol.wave.model.conversation.ConversationBlip secondaryBlip =
+        secondaryConversation.getRootThread().appendBlip();
+    LineContainers.appendToLastLine(
+        secondaryBlip.getContent(),
+        XmlStringBuilder.createText("Secondary unread blip"));
 
     WaveViewData wave =
         WaveViewDataImpl.create(
@@ -148,6 +159,7 @@ public final class UnreadSharedWaveDigestTest extends TestCase {
 
     assertEquals(2, digest.getUnreadCount());
     assertEquals(2, digest.getBlipCount());
+    assertEquals("Root title", digest.getTitle());
   }
 
   private static ObservableWaveletData createWavelet(WaveletId waveletId, ParticipantId creator) {

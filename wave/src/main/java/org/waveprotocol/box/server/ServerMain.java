@@ -321,35 +321,8 @@ public class ServerMain {
         catch (Throwable ignore) { }
         LOG.info("Fragments applier: enabled=" + applierEnabled + ", impl=" + applierCls + ", warnMs=" + warnMs
             + ", forceClientFragments=" + forceClientFragments);
-        // If enabled on the server, mirror the flag to the client's wave.clientFlags so the
-        // GWT client also wires its client-side applier (ClientStatsRawFragmentsApplier) and we
-        // can observe activity via /dev/client-applier-stats.
-        if (applierEnabled) {
-          try {
-            String cf = System.getProperty("wave.clientFlags");
-            if (cf == null || !cf.contains("enableFragmentsApplier")) {
-              System.setProperty("wave.clientFlags",
-                  (cf == null || cf.isEmpty()) ? "enableFragmentsApplier=true"
-                      : (cf + ",enableFragmentsApplier=true"));
-            }
-          } catch (Throwable ignore) { }
-        }
-        if (forceClientFragments) {
-          try {
-            String cf = System.getProperty("wave.clientFlags");
-            if (cf == null || !cf.contains("forceClientFragments")) {
-              System.setProperty("wave.clientFlags",
-                  (cf == null || cf.isEmpty()) ? "forceClientFragments=true"
-                      : (cf + ",forceClientFragments=true"));
-            }
-          } catch (Throwable ignore) { }
-        }
       } catch (Throwable t) {
         LOG.warning("Failed to wire fragments applier instance; proceeding without applier", t);
-      }
-      if (config.hasPath("wave.fragments.applier.warnMs")) {
-        System.setProperty("wave.fragments.applier.warnMs",
-            Integer.toString(config.getInt("wave.fragments.applier.warnMs")));
       }
     } catch (Throwable t) {
       LOG.warning("Failed to apply fragments applier config", t);
@@ -449,10 +422,6 @@ public class ServerMain {
         transport = "off";
       }
 
-      // Mirror effective transport + booleans into system properties so ConfigFactory.load()
-      // (used by StatuszServlet) sees consistent values regardless of source.
-      setEffectiveTransportSystemProperties(config, transport);
-
       if (isFragmentsHttpEnabled(transport)) {
         server.addServlet("/fragments", FragmentsServlet.class);
         server.addServlet("/fragments/*", FragmentsServlet.class);
@@ -535,59 +504,6 @@ public class ServerMain {
       return "http";
     }
     return null;
-  }
-
-  /**
-   * Mirrors the configured transport into system properties so consumers using ConfigFactory.load()
-   * can observe the effective values. Also injects a default client fragmentFetchMode when absent.
-   */
-  private static void setEffectiveTransportSystemProperties(Config config, String transport) {
-    try { System.setProperty("server.fragments.transport", transport); } catch (Throwable ignore) {}
-    boolean httpEnabled = isFragmentsHttpEnabled(transport);
-    boolean streamEnabled = isFragmentsStreamEnabled(transport);
-    System.setProperty("server.enableFragmentsHttp", Boolean.toString(httpEnabled));
-    System.setProperty("server.enableFetchFragmentsRpc", Boolean.toString(streamEnabled));
-    String cf = System.getProperty("wave.clientFlags");
-    String configuredMode = null;
-    if (config != null && config.hasPath("client.flags.defaults.fragmentFetchMode")) {
-      try {
-        configuredMode = config.getString("client.flags.defaults.fragmentFetchMode");
-      } catch (Throwable ignore) {}
-    }
-    if (configuredMode != null) {
-      configuredMode = configuredMode.trim().toLowerCase();
-      if (configuredMode.isEmpty()) {
-        configuredMode = null;
-      }
-    }
-    if (cf == null || !cf.contains("fragmentFetchMode")) {
-      String mode = (configuredMode != null)
-          ? configuredMode
-          : (streamEnabled ? "stream" : (httpEnabled ? "http" : "off"));
-      System.setProperty("wave.clientFlags",
-          (cf == null || cf.isEmpty()) ? ("fragmentFetchMode=" + mode)
-              : (cf + ",fragmentFetchMode=" + mode));
-    } else if (configuredMode != null && cf != null) {
-      // Sync existing property to configured mode when caller supplied a default.
-      String updated = cf.replaceAll("fragmentFetchMode=([^,]+)", "fragmentFetchMode=" + configuredMode);
-      if (!updated.equals(cf)) {
-        System.setProperty("wave.clientFlags", updated);
-      }
-    }
-    // Also propagate selected client flag defaults when present in config
-    try {
-      String existing = System.getProperty("wave.clientFlags");
-      StringBuilder sb = new StringBuilder(existing == null ? "" : existing);
-      com.typesafe.config.Config cfg = com.typesafe.config.ConfigFactory.load();
-      if (cfg.hasPath("client.flags.defaults.quasiDeletionDwellMs")) {
-        int dwell = cfg.getInt("client.flags.defaults.quasiDeletionDwellMs");
-        if (sb.length() > 0) sb.append(',');
-        sb.append("quasiDeletionDwellMs=").append(dwell);
-      }
-      if (sb.length() > 0) {
-        System.setProperty("wave.clientFlags", sb.toString());
-      }
-    } catch (Throwable ignore) {}
   }
 
   private static boolean isFragmentsHttpEnabled(String transport) {

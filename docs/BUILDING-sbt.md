@@ -169,10 +169,12 @@ persistence/migration.
 
 ## Troubleshooting
 
-- If SBT cannot resolve itself or plugins due to network restrictions, you can
-  still compile if `third_party/` covers all runtime jars and no managed
-  dependencies are defined (current setup). Running `sbt` requires internet on
-  first use; consider using a local SBT launcher if necessary.
+- If SBT cannot resolve itself or plugins due to network restrictions, note that
+  this build uses both vendored `third_party/` jars and managed dependencies.
+  Running `sbt` typically requires network access on first use unless local
+  Ivy/Maven/coursier caches are already warm; offline options are to pre-populate
+  those caches, vendor the managed jars, or use a local SBT launcher and
+  artifact proxy.
 - If `gen/` directories are missing, initial compile may still pass; features
   depending on generated sources may be unavailable until you run the
   corresponding manual tasks.

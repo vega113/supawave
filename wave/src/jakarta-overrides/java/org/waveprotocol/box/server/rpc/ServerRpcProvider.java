@@ -36,6 +36,9 @@ import org.eclipse.jetty.server.RequestLogWriter;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.ForwardedRequestCustomizer;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.ee10.servlet.SessionHandler;
 import org.eclipse.jetty.ee10.servlet.DefaultServlet;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
@@ -43,6 +46,7 @@ import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketSe
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolAuthenticate;
 import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolAuthenticationResult;
@@ -111,6 +115,9 @@ public class ServerRpcProvider {
     private final SessionHandler sessionHandler;
     final SessionManager sessionManager;
     final Executor threadPool;
+    private final boolean sslEnabled;
+    private final String sslKeystorePath;
+    private final String sslKeystorePassword;
     final Map<Descriptors.Descriptor, RegisteredServiceMethod> registeredServices = new ConcurrentHashMap<>();
     private Server httpServer;
     private ServletContextHandler servletContextHandler;
@@ -125,11 +132,13 @@ public class ServerRpcProvider {
                              SessionHandler sessionHandler, String sessionStoreDir,
                              boolean sslEnabled, String sslKeystorePath, String sslKeystorePassword,
                              boolean enableForwardedHeaders) {
-        // No-op: stub constructor
         this.config = null;
         this.threadPool = threadPool;
         this.sessionManager = sessionManager;
         this.sessionHandler = sessionHandler;
+        this.sslEnabled = sslEnabled;
+        this.sslKeystorePath = sslKeystorePath;
+        this.sslKeystorePassword = sslKeystorePassword;
         this.resourceBases = resourceBases != null ? resourceBases : new String[]{"./war"};
     }
 
@@ -138,11 +147,13 @@ public class ServerRpcProvider {
                              SessionHandler sessionHandler, String sessionStoreDir,
                              boolean sslEnabled, String sslKeystorePath, String sslKeystorePassword,
                              Executor executor) {
-        // No-op: stub constructor
         this.config = null;
         this.threadPool = executor;
         this.sessionManager = sessionManager;
         this.sessionHandler = sessionHandler;
+        this.sslEnabled = sslEnabled;
+        this.sslKeystorePath = sslKeystorePath;
+        this.sslKeystorePassword = sslKeystorePassword;
         this.resourceBases = resourceBases != null ? resourceBases : new String[]{"./war"};
     }
 
@@ -154,6 +165,9 @@ public class ServerRpcProvider {
         this.sessionHandler = sessionHandler;
         this.sessionManager = sessionManager;
         this.threadPool = executorService;
+        this.sslEnabled = config.getBoolean("security.enable_ssl");
+        this.sslKeystorePath = config.getString("security.ssl_keystore_path");
+        this.sslKeystorePassword = config.getString("security.ssl_keystore_password");
         if (config != null && config.hasPath("core.resource_bases")) {
             java.util.List<String> bases = config.getStringList("core.resource_bases");
             this.resourceBases = bases.toArray(new String[0]);
@@ -315,6 +329,65 @@ public class ServerRpcProvider {
         container.setDefaultMaxTextMessageBufferSize(maxMessageSizeMb * 1024 * 1024);
     }
 
+    static List<Connector> buildConnectors(Server httpServer,
+                                           InetSocketAddress[] httpAddresses,
+                                           boolean sslEnabled,
+                                           String sslKeystorePath,
+                                           String sslKeystorePassword,
+                                           boolean enableForwardedHeaders) {
+        List<Connector> connectors = new ArrayList<>();
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setSendServerVersion(false);
+        if (enableForwardedHeaders) {
+            httpConfig.addCustomizer(new ForwardedRequestCustomizer());
+        }
+
+        SslContextFactory.Server sslContextFactory = null;
+        HttpConfiguration httpsConfig = null;
+        if (sslEnabled) {
+            Preconditions.checkState(sslKeystorePath != null && !sslKeystorePath.isEmpty(),
+                    "SSL Keystore path left blank");
+            Preconditions.checkState(sslKeystorePassword != null && !sslKeystorePassword.isEmpty(),
+                    "SSL Keystore password left blank");
+
+            String[] excludeCiphers = {"SSL_RSA_EXPORT_WITH_RC4_40_MD5", "SSL_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                    "SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA", "SSL_RSA_WITH_DES_CBC_SHA",
+                    "SSL_DHE_RSA_WITH_DES_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
+                    "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA"};
+
+            sslContextFactory = new SslContextFactory.Server();
+            sslContextFactory.setKeyStorePath(sslKeystorePath);
+            sslContextFactory.setKeyStorePassword(sslKeystorePassword);
+            sslContextFactory.setRenegotiationAllowed(false);
+            sslContextFactory.setExcludeCipherSuites(excludeCiphers);
+            sslContextFactory.setIncludeProtocols("TLSv1.2", "TLSv1.3");
+            sslContextFactory.setWantClientAuth(true);
+
+            httpsConfig = new HttpConfiguration(httpConfig);
+            httpsConfig.addCustomizer(new SecureRequestCustomizer());
+            if (enableForwardedHeaders) {
+                httpsConfig.addCustomizer(new ForwardedRequestCustomizer());
+            }
+        }
+
+        for (InetSocketAddress address : httpAddresses) {
+            ServerConnector connector;
+            if (sslEnabled) {
+                connector = new ServerConnector(
+                        httpServer,
+                        new SslConnectionFactory(sslContextFactory, "http/1.1"),
+                        new HttpConnectionFactory(httpsConfig));
+            } else {
+                connector = new ServerConnector(httpServer, new HttpConnectionFactory(httpConfig));
+            }
+            connector.setHost(address.getAddress().getHostAddress());
+            connector.setPort(address.getPort());
+            connector.setIdleTimeout(0);
+            connectors.add(connector);
+        }
+        return connectors;
+    }
+
     public void startWebSocketServer(final Injector injector) {
         try {
             this.guiceInjector = injector;
@@ -334,7 +407,6 @@ public class ServerRpcProvider {
 
             // Forwarded headers toggle mirrors legacy flag: network.enable_forwarded_headers
             boolean enableFwd = false;
-            boolean strictFwd = false;
             if (config == null) {
                 LOG.fine("No Config provided; enable_forwarded_headers=false (forwarded headers disabled).");
             } else {
@@ -346,32 +418,9 @@ public class ServerRpcProvider {
                     LOG.warning("Invalid config for network.enable_forwarded_headers; disabling forwarded headers.", e);
                     enableFwd = false;
                 }
-                try {
-                    if (enableFwd && config.hasPath("network.forwarded_headers.strict")) {
-                        strictFwd = config.getBoolean("network.forwarded_headers.strict");
-                    }
-                } catch (ConfigException e) {
-                    LOG.warning("Invalid config for network.forwarded_headers.strict; using default (false).", e);
-                    strictFwd = false;
-                }
             }
-            final HttpConfiguration httpConfig = new HttpConfiguration();
-            if (enableFwd) {
-                if (strictFwd) {
-                    // First, strip invalid forwarded headers, then apply standard processing
-                    // Strict forwarded-header handling not available; fall back to Jetty defaults
-                    httpConfig.addCustomizer(new ForwardedRequestCustomizer());
-                    LOG.info("Enabled default forwarded-header handling (no strict pre-filter)");
-                } else {
-                    httpConfig.addCustomizer(new ForwardedRequestCustomizer());
-                    LOG.info("Enabled default forwarded-header handling (Jetty behavior)");
-                }
-            } else {
-                LOG.fine("Forwarded headers disabled");
-            }
-            // Build connectors for all configured addresses (compat with legacy)
-            int added = 0;
             java.util.List<String> invalidAddrs = new java.util.ArrayList<>();
+            java.util.List<InetSocketAddress> validAddrs = new java.util.ArrayList<>();
             List<String> addrs = (config != null && config.hasPath("core.http_frontend_addresses"))
                     ? config.getStringList("core.http_frontend_addresses")
                     : java.util.Collections.singletonList("127.0.0.1:9898");
@@ -385,11 +434,7 @@ public class ServerRpcProvider {
                     String host = a.substring(0, idx);
                     int port = Integer.parseInt(a.substring(idx + 1));
                     if (port <= 0 || port > 65535) throw new IllegalArgumentException("Port out of range");
-                    ServerConnector c = new ServerConnector(httpServer, new HttpConnectionFactory(httpConfig));
-                    c.setHost(host);
-                    c.setPort(port);
-                    httpServer.addConnector(c);
-                    added++;
+                    validAddrs.add(new InetSocketAddress(host, port));
                 } catch (Exception ex) {
                     invalidAddrs.add(a);
                 }
@@ -398,25 +443,29 @@ public class ServerRpcProvider {
                 LOG.warning("Ignoring invalid core.http_frontend_addresses entries: " + invalidAddrs +
                         "; expected format 'host:port' (e.g., 127.0.0.1:9898)");
             }
-            if (added == 0) {
+            if (validAddrs.isEmpty()) {
                 String def = (config != null && config.hasPath("core.default_http_frontend_address"))
                         ? config.getString("core.default_http_frontend_address") : "127.0.0.1:9898";
                 try {
                     int idx = def.lastIndexOf(':');
                     String host = def.substring(0, idx);
                     int port = Integer.parseInt(def.substring(idx + 1));
-                    ServerConnector c = new ServerConnector(httpServer, new HttpConnectionFactory(httpConfig));
-                    c.setHost(host);
-                    c.setPort(port);
-                    httpServer.addConnector(c);
+                    validAddrs.add(new InetSocketAddress(host, port));
                     LOG.info("No valid addresses configured; using default " + host + ":" + port);
                 } catch (Exception ex) {
                     LOG.severe("Invalid core.default_http_frontend_address '" + def + "'; using 127.0.0.1:9898", ex);
-                    ServerConnector c = new ServerConnector(httpServer, new HttpConnectionFactory(httpConfig));
-                    c.setHost("127.0.0.1");
-                    c.setPort(9898);
-                    httpServer.addConnector(c);
+                    validAddrs.add(new InetSocketAddress("127.0.0.1", 9898));
                 }
+            }
+
+            List<Connector> boundConnectors = buildConnectors(httpServer,
+                    validAddrs.toArray(new InetSocketAddress[0]),
+                    sslEnabled,
+                    sslKeystorePath,
+                    sslKeystorePassword,
+                    enableFwd);
+            for (Connector connector : boundConnectors) {
+                httpServer.addConnector(connector);
             }
 
             ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
@@ -590,7 +639,8 @@ public class ServerRpcProvider {
                 if (connectors[i] instanceof ServerConnector) {
                     ServerConnector sc = (ServerConnector) connectors[i];
                     if (i > 0) sb.append(", ");
-                    sb.append("ws://").append(sc.getHost()).append(":").append(sc.getLocalPort()).append("/socket");
+                    sb.append(sslEnabled ? "wss://" : "ws://")
+                            .append(sc.getHost()).append(":").append(sc.getLocalPort()).append("/socket");
                 }
             }
             LOG.info(sb.toString());

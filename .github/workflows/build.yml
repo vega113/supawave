@@ -64,15 +64,15 @@ jobs:
 
       - name: Compile Jakarta sources (PR-blocking)
         continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: ./gradlew --no-daemon --warning-mode all -PjettyFamily=jakarta :wave:classes :wave:jakartaTestClasses
+        run: ./gradlew --no-daemon --warning-mode all :wave:classes :wave:jakartaTestClasses
 
       - name: Run jakartaTest (PR-blocking)
         continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: ./gradlew --no-daemon --warning-mode all -PjettyFamily=jakarta :wave:testJakarta
+        run: ./gradlew --no-daemon --warning-mode all :wave:testJakarta
 
       - name: Run jakarta ITs (PR-blocking)
         continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: ./gradlew --no-daemon --warning-mode all -PjettyFamily=jakarta :wave:testJakartaIT
+        run: ./gradlew --no-daemon --warning-mode all :wave:testJakartaIT
 
       - name: Publish jakartaTest reports
         if: always()

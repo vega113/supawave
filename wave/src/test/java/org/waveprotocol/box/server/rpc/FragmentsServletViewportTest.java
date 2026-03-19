@@ -27,9 +27,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 import org.junit.Test;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
@@ -42,6 +39,9 @@ import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 /** Tests FragmentsServlet viewport params produce blip ranges. */
 public final class FragmentsServletViewportTest {

@@ -57,7 +57,7 @@ Requirements: Java 17+, Gradle Wrapper (included)
 
    - Default dev URL: http://localhost:9898/
    - If you enabled SSL: https://localhost:9898/
-   - The Jakarta (Jetty 12) profile is the default. Use `./gradlew -PjettyFamily=javax :wave:run` if you need the legacy Jetty 9.4 build for bisects.
+   - The server/runtime path is Jakarta-only (Jetty 12 EE10).
 
 Notes:
 - WebSocket auth: In dev, `network.session_cookie_http_only = false` so the legacy web client can read `JSESSIONID` for a WebSocket fallback authenticate.
@@ -216,24 +216,19 @@ To build an installable distribution:
     ./gradlew :wave:installDist
 Use `scripts/wave-smoke.sh start|status|stop` against the installed dist.
 
-### Jetty profiles (Jakarta by default)
+### Jetty profile
 
-**Jakarta EE 10 (default):**
-- Standard builds and `./gradlew :wave:run` already target Jetty 12 with Jakarta APIs.
+**Jakarta EE 10:**
+- Standard builds and `./gradlew :wave:run` target Jetty 12 with Jakarta APIs.
 - The dedicated Jakarta test suites remain available when you want to be explicit:
-  - Compile Jakarta sources and tests: `./gradlew -PjettyFamily=jakarta :wave:classes :wave:jakartaTestClasses`
-  - Run Jakarta unit tests: `./gradlew -PjettyFamily=jakarta :wave:testJakarta`
-  - Run Jakarta integration tests: `./gradlew -PjettyFamily=jakarta :wave:testJakartaIT`
-  - Build an installable distribution: `./gradlew -PjettyFamily=jakarta :wave:installDist`
-
-**Legacy Jetty 9.4 (javax) fallback:**
-- Only needed for bisects or compatibility testing: `./gradlew -PjettyFamily=javax :wave:run`
-- Matching build/test commands work with the same flag, e.g. `./gradlew -PjettyFamily=javax :wave:test`
+  - Compile Jakarta sources and tests: `./gradlew :wave:classes :wave:jakartaTestClasses`
+  - Run Jakarta unit tests: `./gradlew :wave:testJakarta`
+  - Run Jakarta integration tests: `./gradlew :wave:testJakartaIT`
+  - Build an installable distribution: `./gradlew :wave:installDist`
 
 **Docker builds:**
-- Jakarta is now the default: `docker build -t wave:jakarta .`
-- Use `--build-arg JETTY_FAMILY=javax` if you need the legacy servlet profile: `docker build --build-arg JETTY_FAMILY=javax -t wave:javax .`
-- Run the container: `docker run --rm -p 9898:9898 wave:jakarta`
+- Build the development image: `docker build -t wave:dev .`
+- Run the container: `docker run --rm -p 9898:9898 wave:dev`
 
 ### Enabling SSL and handling sensitive data
 

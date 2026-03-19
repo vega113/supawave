@@ -62,7 +62,7 @@ Reference-centric summary (see docs/fragments-viewport-behavior.md and docs/frag
   - RPC emission path (fragments presence + viewport limits): `WaveClientRpcFragmentsTest`, `WaveClientRpcViewportHintsTest`
   - ViewChannel bridge: `FragmentsFetchBridgeImplTest`
   - Compat segment state: `SegmentWaveletStateCompatTest`
-  - HTTP gating: `wave/src/test/java/org/waveprotocol/box/server/FragmentsHttpGatingTest.java`
+  - HTTP gating: covered historically by a legacy unit test; the current Jakarta-only branch now relies on the dedicated fragments servlet and smoke verification paths instead of the removed fallback test.
   - Manifest-order cache: `wave/src/test/java/org/waveprotocol/box/server/frontend/ManifestOrderCacheTest.java`
   - Segment state registry: `wave/src/test/java/org/waveprotocol/box/server/waveletstate/segment/SegmentWaveletStateRegistryTest.java`, `.../SegmentWaveletStateRegistryConcurrencyTest.java`
   - Fragment requester shaping: `wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/channel/FragmentRequesterTest.java`

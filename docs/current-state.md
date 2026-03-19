@@ -64,8 +64,9 @@ Read these files first when resuming work:
 - Gradle 8 migration and the associated deprecation cleanup are in place.
 - GWT 2.x on JDK 17 is already wired well enough to be tracked as completed in
   the modernization ledger.
-- Jakarta / Jetty 12 is the default server profile.
-- The legacy `javax` / Jetty 9.4 path still exists as a fallback for bisects.
+- Jakarta / Jetty 12 is the supported server profile.
+- The legacy `javax` / Jetty 9.4 fallback has been retired; the live
+  server/runtime path is Jakarta-only.
 - The additive SBT build now has stable artifact naming and `wave/config`-backed
   bootstrap defaults, but it remains an additive server-only path with
   remaining Java-compilation follow-up work.
@@ -108,13 +109,15 @@ Read these files first when resuming work:
    ownership, and SBT bootstrap/library-input cleanup.
 5. `Mongo4DeltaStore` is still missing, so the MongoDB v4 migration is not
    complete.
-6. SBT is still additive and server-only. Bootstrap/protobuf parity is fixed,
+6. The repo now runs on a Jakarta-only server/runtime path, but dead
+   compatibility branches and stale history references still need cleanup.
+7. SBT is still additive and server-only. Bootstrap/protobuf parity is fixed,
    but later Java-compilation work is still open and the proto include path now
    points at the PST-owned descriptor proto tree.
-7. Packaging and DX verification still need a post-Jakarta pass.
-8. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
+8. Packaging and DX verification still need a post-Jakarta pass.
+9. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
    the prerequisite reduction tasks for any future J2CL work are still open.
-9. The documentation surface is now intentionally split between one canonical
+10. The documentation surface is now intentionally split between one canonical
    resume guide, a few live ledgers, and Beads tasks; do not re-open one-off
    plan docs when the live backlog already captures the work.
 

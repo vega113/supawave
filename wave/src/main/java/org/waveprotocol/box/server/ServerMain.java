@@ -197,13 +197,7 @@ public class ServerMain {
   }
 
   private static boolean isJakarta(Config config) {
-    try {
-      if (config != null && config.hasPath("core.jetty_family")) {
-        return "jakarta".equalsIgnoreCase(config.getString("core.jetty_family"));
-      }
-    } catch (Throwable ignore) {}
-    String prop = System.getProperty("jettyFamily", System.getProperty("wave.jetty.family", "javax"));
-    return "jakarta".equalsIgnoreCase(prop);
+    return true;
   }
 
   private static Module buildFederationModule(Injector settingsInjector) {

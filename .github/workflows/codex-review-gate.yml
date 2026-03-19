@@ -45,6 +45,28 @@ jobs:
                     labels(first: 100) {
                       nodes { name }
                     }
+                    commits(last: 1) {
+                      nodes {
+                        commit {
+                          statusCheckRollup {
+                            contexts(first: 100) {
+                              nodes {
+                                __typename
+                                ... on StatusContext {
+                                  context
+                                  state
+                                }
+                                ... on CheckRun {
+                                  name
+                                  conclusion
+                                  status
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
                     reviewThreads(first: 100) {
                       nodes { isResolved }
                     }
@@ -67,12 +89,25 @@ jobs:
 
             const labels = pullRequest.labels.nodes.map((label) => label.name);
             const unresolved = pullRequest.reviewThreads.nodes.filter((thread) => !thread.isResolved).length;
+            const statusNodes =
+              pullRequest.commits.nodes[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
+            const codeRabbitPassed = statusNodes.some((node) => {
+              if (node.__typename === "StatusContext") {
+                return node.context === "CodeRabbit" && node.state === "SUCCESS";
+              }
+              if (node.__typename === "CheckRun") {
+                return node.name === "CodeRabbit" && node.conclusion === "SUCCESS";
+              }
+              return false;
+            });
 
             const approvedByReviewBot =
-              labels.includes("codex-reviewed") || labels.includes("coderabbitai-reviewed");
+              labels.includes("codex-reviewed") ||
+              labels.includes("coderabbitai-reviewed") ||
+              codeRabbitPassed;
 
             if (!approvedByReviewBot) {
-              core.setFailed("Missing required review label: `codex-reviewed` or `coderabbitai-reviewed`");
+              core.setFailed("Missing required review signal: `codex-reviewed`, `coderabbitai-reviewed`, or successful CodeRabbit status");
               return;
             }
 

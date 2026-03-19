@@ -1,0 +1,117 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Deploy Contabo
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-contabo.yml'
+      - 'Dockerfile'
+      - 'build.gradle'
+      - 'gradle/**'
+      - 'scripts/**'
+      - 'wave/**'
+      - 'deploy/contabo/**'
+
+concurrency:
+  group: deploy-contabo
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy Wave to Contabo
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      RELEASE_ID: ${{ github.sha }}
+      IMAGE_REF: supawave-wave:${{ github.sha }}
+      CANONICAL_HOST: wave.supawave.ai
+      ROOT_HOST: supawave.ai
+      WWW_HOST: www.supawave.ai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.CONTABO_SSH_KEY }}
+
+      - name: Verify installDist and smoke checks
+        run: ./gradlew --no-daemon --warning-mode all :pst:build :wave:smokeInstalled
+
+      - name: Build container image
+        run: docker build --tag "$IMAGE_REF" .
+
+      - name: Assemble deployment bundle
+        run: |
+          set -euo pipefail
+          bundle_dir="$RUNNER_TEMP/supawave-bundle"
+          rm -rf "$bundle_dir"
+          mkdir -p "$bundle_dir"
+          cp deploy/contabo/compose.yml "$bundle_dir/compose.yml"
+          cp deploy/contabo/Caddyfile "$bundle_dir/Caddyfile"
+          cp deploy/contabo/application.conf "$bundle_dir/application.conf"
+          cp deploy/contabo/deploy.sh "$bundle_dir/deploy.sh"
+          chmod +x "$bundle_dir/deploy.sh"
+          docker save "$IMAGE_REF" | gzip > "$bundle_dir/image.tar.gz"
+          tar -C "$bundle_dir" -czf "$RUNNER_TEMP/supawave-release.tgz" .
+
+      - name: Trust Contabo host key
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          ssh-keyscan -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" -H "${{ secrets.CONTABO_SSH_HOST }}" >> "$HOME/.ssh/known_hosts"
+
+      - name: Upload bundle
+        run: |
+          set -euo pipefail
+          remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
+          remote_incoming="$remote_root/incoming"
+          ssh -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "mkdir -p '$remote_incoming'"
+          scp -P "${{ secrets.CONTABO_SSH_PORT || '22' }}" "$RUNNER_TEMP/supawave-release.tgz" \
+            "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}:$remote_incoming/$RELEASE_ID.tgz"
+
+      - name: Deploy on Contabo
+        run: |
+          set -euo pipefail
+          remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
+          release_dir="$remote_root/releases/$RELEASE_ID"
+          ssh -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "
+            set -euo pipefail
+            rm -rf '$release_dir'
+            mkdir -p '$release_dir'
+            tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C '$release_dir'
+            chmod +x '$release_dir/deploy.sh'
+            DEPLOY_ROOT='$remote_root' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' bash '$release_dir/deploy.sh' deploy
+          "

@@ -75,6 +75,9 @@ Notes:
 - Configuration and fragments flags: `docs/CONFIG_FLAGS.md`, `docs/fragments-config.md`
 - Beads epic index: `docs/epics/README.md`
 
+Gradle remains the canonical build; the SBT notes document the additive
+server-only path and its current bootstrap/runtime behavior.
+
 The Phase 6 ledger now treats protobuf and the server-side Guava upgrade as
 closed on the Gradle path. The remaining library-upgrade work is narrowed to
 Commons multipart/CLI cleanup, MongoDB driver closure, legacy OAuth ownership,

@@ -67,8 +67,8 @@ Read these files first when resuming work:
 - Jakarta / Jetty 12 is the supported server profile.
 - The legacy `javax` / Jetty 9.4 fallback has been retired; the live
   server/runtime path is Jakarta-only.
-- The additive SBT build now has stable artifact naming and `wave/config`-backed
-  bootstrap defaults, but it remains an additive server-only path with
+- The additive SBT build now uses stable jar naming and `wave/config/`-backed
+  runtime defaults, but it remains a server-only additive path with
   remaining Java-compilation follow-up work.
 - Phase 6 protobuf and server-side Guava work are already closed on the Gradle
   path.
@@ -96,24 +96,41 @@ Read these files first when resuming work:
   - `ViewChannelFragmentRequester`
   - `RealRawFragmentsApplier`
 
+### Smoke verification on core-smoke
+
+- `./gradlew -q :wave:compileJava` passes on this branch.
+- `./gradlew -q :wave:smokeUi` passes on this branch and reports
+  `ROOT=302 WEBCLIENT=200` followed by `UI smoke OK`.
+- `./gradlew -q :wave:test` still fails at `:wave:compileTestJava` with legacy
+  test debt in the server tree. The current failures include Jetty session API
+  drift in `FragmentsHttpGatingTest`, stale
+  `ServerMain.applyFragmentsConfig(...)` references in
+  `ServerMainApplierConfigValidationTest` and `ServerMainConfigValidationTest`,
+  javax/jakarta servlet mismatches in `FragmentsServletViewportTest`, and
+  WebSession/HttpSession generic drift in `DataApiOAuthServletTest`.
+
 ### Highest-value gaps that still remain
 
-1. End-to-end verification of the merged renderer + quasi-deletion + fragments
-   path has not been completed on the current branch.
+1. The full browser variant sweep for the merged renderer + quasi-deletion +
+   fragments path has not been completed in this lane yet.
 2. `DynamicRendererImpl` still has TODO entrypoints for the public
    `dynamicRendering(...)` methods.
 3. The HTTP fragment requester still treats successful responses as metrics-only
    success and does not parse or apply returned fragment payloads.
-4. Remaining library-upgrade debt is now narrowed to Commons multipart cleanup,
+4. The default `:wave:test` path is blocked at `compileTestJava` by legacy test
+   debt, so it is not yet a reliable smoke gate.
+5. Remaining library-upgrade debt is now narrowed to Commons multipart cleanup,
    explicit `commons-cli` ownership in `wave`, MongoDB 2.x removal, legacy OAuth
    ownership, and SBT bootstrap/library-input cleanup.
-5. `Mongo4DeltaStore` is still missing, so the MongoDB v4 migration is not
+6. Config hygiene is incomplete: fragment and segment settings still have
+   partially duplicated `System.getProperty(...)` paths in server code.
+7. `Mongo4DeltaStore` is still missing, so the MongoDB v4 migration is not
    complete.
-6. The repo now runs on a Jakarta-only server/runtime path, but dead
+8. The repo now runs on a Jakarta-only server/runtime path, but dead
    compatibility branches and stale history references still need cleanup.
-7. SBT is still additive and server-only. Bootstrap/protobuf parity is fixed,
-   but later Java-compilation work is still open and the proto include path now
-   points at the PST-owned descriptor proto tree.
+9. SBT is still additive and server-only. Its bootstrap/runtime path now tracks
+   `wave/config/`, the jar name is stable, and Gradle remains the canonical
+   build.
 8. Packaging and DX verification still need a post-Jakarta pass.
 9. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
    the prerequisite reduction tasks for any future J2CL work are still open.

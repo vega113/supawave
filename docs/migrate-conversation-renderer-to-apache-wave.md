@@ -3,11 +3,20 @@
 Owner: Migration Engineering
 Last updated: 2025-09-27
 
-Status note (2026-03-18)
+Status note (2026-03-19)
 - Historical implementation ledger for the renderer, quasi-deletion, and
   fragments import work.
 - The canonical current state lives in `docs/current-state.md`; active work is
   tracked in `.beads/issues.jsonl` under `incubator-wave-wiab-core`.
+- Core-smoke verification on this branch is green for
+  `./gradlew -q :wave:compileJava` and `./gradlew -q :wave:smokeUi`, with
+  `smokeUi` reporting `ROOT=302 WEBCLIENT=200` and `UI smoke OK`.
+- The current `./gradlew -q :wave:test` blocker is still
+  `:wave:compileTestJava`, which fails with 24 legacy test errors centered on
+  Jetty session API drift, javax/jakarta servlet mismatches, and stale
+  `ServerMain.applyFragmentsConfig(...)` references.
+- This lane did not run the longer browser variant sweep; the smoke evidence
+  here is limited to the scripted compile and UI smoke envelope.
 
 -------------------------------------------------------------------------------
 

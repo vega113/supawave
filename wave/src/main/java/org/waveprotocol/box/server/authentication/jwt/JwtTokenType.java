@@ -6,8 +6,7 @@ public enum JwtTokenType {
   BROWSER_SESSION("browser-session"),
   ROBOT_ASSERTION("robot-assertion"),
   ROBOT_ACCESS("robot-access"),
-  DATA_API_ACCESS("data-api-access"),
-  GADGET_EMBED("gadget-embed");
+  DATA_API_ACCESS("data-api-access");
 
   private final String claimValue;
 

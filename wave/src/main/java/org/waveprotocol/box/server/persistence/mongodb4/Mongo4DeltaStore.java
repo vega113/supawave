@@ -113,11 +113,11 @@ public class Mongo4DeltaStore implements DeltaStore {
     ImmutableSet.Builder<WaveId> builder = ImmutableSet.builder();
 
     try {
-      List<Object> results = getDeltaCollection().distinct(
-          Mongo4DeltaStoreUtil.FIELD_WAVE_ID, Object.class).into(new java.util.ArrayList<>());
+      List<String> results = getDeltaCollection().distinct(
+          Mongo4DeltaStoreUtil.FIELD_WAVE_ID, String.class).into(new java.util.ArrayList<>());
 
-      for (Object o : results) {
-        builder.add(WaveId.deserialise((String) o));
+      for (String waveId : results) {
+        builder.add(WaveId.deserialise(waveId));
       }
 
     } catch (MongoException e) {

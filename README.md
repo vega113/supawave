@@ -78,6 +78,11 @@ Notes:
 Gradle remains the canonical build; the SBT notes document the additive
 server-only path and its current bootstrap/runtime behavior.
 
+The Phase 6 ledger now treats protobuf and the server-side Guava upgrade as
+closed on the Gradle path. The remaining library-upgrade work is narrowed to
+Commons multipart/CLI cleanup, MongoDB driver closure, legacy OAuth ownership,
+and SBT library-input cleanup.
+
 ## Task tracking
 
 This repository now tracks its active roadmap in repo-local Beads files:
@@ -191,6 +196,8 @@ Distribution Tasks:
 To build the client and server:
     `./gradlew jar`
 It will be created in wave/build/libs/wave-*version*.jar
+
+The Gradle build now owns `commons-cli` directly in `wave`, while the additive SBT bootstrap still uses the vendored runtime jars described in `docs/BUILDING-sbt.md`.
 
 The sources can also be packaged into a jar by doing
     `./gradlew sourcesJar`

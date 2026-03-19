@@ -67,6 +67,8 @@ import javax.annotation.Nullable;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.MultipartConfigElement;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpSession;
 import jakarta.websocket.Session;
@@ -664,6 +666,7 @@ public class ServerRpcProvider {
             try {
                 HttpServlet instance = guiceInjector.getInstance(httpCls);
                 ServletHolder holder = new ServletHolder(instance);
+                configureMultipartIfNeeded(holder, httpCls);
                 if (paramsCopy != null) {
                     holder.setInitParameters(paramsCopy);
                 }
@@ -673,6 +676,7 @@ public class ServerRpcProvider {
             } catch (Throwable t) {
                 LOG.warning("Failed to instantiate servlet '" + servlet.getName() + "' via Guice; falling back to default constructor", t);
                 ServletHolder holder = new ServletHolder(httpCls);
+                configureMultipartIfNeeded(holder, httpCls);
                 if (paramsCopy != null) {
                     holder.setInitParameters(paramsCopy);
                 }
@@ -687,6 +691,20 @@ public class ServerRpcProvider {
 
     public ServletHolder addServlet(String urlPattern, Class<?> servlet) {
         return addServlet(urlPattern, servlet, null);
+    }
+
+    private void configureMultipartIfNeeded(ServletHolder holder, Class<? extends HttpServlet> servletClass) {
+        MultipartConfig multipartConfig = servletClass.getAnnotation(MultipartConfig.class);
+        if (multipartConfig == null) {
+            return;
+        }
+        MultipartConfigElement multipartConfigElement =
+            new MultipartConfigElement(
+                multipartConfig.location(),
+                multipartConfig.maxFileSize(),
+                multipartConfig.maxRequestSize(),
+                multipartConfig.fileSizeThreshold());
+        holder.getRegistration().setMultipartConfig(multipartConfigElement);
     }
 
     public void addFilter(String urlPattern, Class<?> filter) {

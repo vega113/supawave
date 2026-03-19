@@ -178,15 +178,30 @@ public class Mongo4DeltaStoreUtil {
   public static WaveletDeltaRecord deserializeWaveletDeltaRecord(Document document)
       throws PersistenceException {
     try {
+      byte[] appliedBytes = deserializeBinary(document.get(FIELD_APPLIED));
+      if (appliedBytes == null) {
+        throw new PersistenceException(
+            "Missing or invalid '" + FIELD_APPLIED + "' field in delta document _id="
+                + document.get("_id"));
+      }
       return new WaveletDeltaRecord(
           deserializeHashedVersion((Document) document.get(FIELD_APPLIEDATVERSION)),
-          ByteStringMessage.parseProtocolAppliedWaveletDelta(ByteString.copyFrom((byte[]) document
-              .get(FIELD_APPLIED))),
+          ByteStringMessage.parseProtocolAppliedWaveletDelta(ByteString.copyFrom(appliedBytes)),
           deserializeTransformedWaveletDelta((Document) document.get(FIELD_TRANSFORMED)));
 
     } catch (InvalidProtocolBufferException e) {
       throw new PersistenceException(e);
     }
+  }
+
+  private static byte[] deserializeBinary(Object value) {
+    if (value instanceof Binary) {
+      return ((Binary) value).getData();
+    }
+    if (value instanceof byte[]) {
+      return (byte[]) value;
+    }
+    return null;
   }
 
   public static HashedVersion deserializeHashedVersion(Document document) {

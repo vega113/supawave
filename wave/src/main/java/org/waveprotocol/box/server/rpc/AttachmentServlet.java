@@ -22,10 +22,6 @@ package org.waveprotocol.box.server.rpc;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.FileItemFactory;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.io.FilenameUtils;
 import org.waveprotocol.box.attachment.AttachmentMetadata;
 import org.waveprotocol.box.server.attachment.AttachmentService;
@@ -41,18 +37,21 @@ import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 import java.io.*;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
-import java.util.List;
+import java.util.Collection;
 import java.util.logging.Level;
 
 /**
@@ -64,6 +63,7 @@ import java.util.logging.Level;
 
 @SuppressWarnings("serial")
 @Singleton
+@MultipartConfig
 public class AttachmentServlet extends HttpServlet {
   public static String ATTACHMENT_URL = "/attachment";
   public static String THUMBNAIL_URL = "/thumbnail";
@@ -282,73 +282,92 @@ public class AttachmentServlet extends HttpServlet {
   @Override
   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException,
       IOException {
-    // Process only multipart requests.
-    if (ServletFileUpload.isMultipartContent(request)) {
-      // Create a factory for disk-based file items.
-      FileItemFactory factory = new DiskFileItemFactory();
-
-      // Create a new file upload handler.
-      ServletFileUpload upload = new ServletFileUpload(factory);
-
-      // Parse the request.
-      try {
-        @SuppressWarnings("unchecked")
-        List<FileItem> items = upload.parseRequest(request);
-        AttachmentId id = null;
-        String waveRefStr = null;
-        FileItem fileItem = null;
-        for (FileItem item : items) {
-          // Process only file upload - discard other form item types.
-          if (item.isFormField()) {
-            if (item.getFieldName().equals("attachmentId")) {
-              id = AttachmentId.deserialise(item.getString());
-            }
-            if (item.getFieldName().equals("waveRef")) {
-              waveRefStr = item.getString();
-            }
-          } else {
-            fileItem = item;
-          }
-        }
-
-        if (id == null) {
-          response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No attachment Id in the request.");
-          return;
-        }
-        if (waveRefStr == null) {
-          response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No wave reference in request.");
-          return;
-        }
-
-        WaveletName waveletName = AttachmentUtil.waveRef2WaveletName(waveRefStr);
-        ParticipantId user = sessionManager.getLoggedInUser(request.getSession(false));
-        boolean isAuthorized = waveletProvider.checkAccessPermission(waveletName, user);
-        if (!isAuthorized) {
-          response.sendError(HttpServletResponse.SC_FORBIDDEN);
-          return;
-        }
-
-        // Get only the file name not whole path.
-        if (fileItem != null && fileItem.getName()  != null) {
-          String fileName = FilenameUtils.getName(fileItem.getName());
-          service.storeAttachment(id, fileItem.getInputStream(), waveletName, fileName, user);
-          response.setStatus(HttpServletResponse.SC_CREATED);
-          String msg =
-              String.format("The file with name: %s and id: %s was created successfully.",
-                  fileName, id);
-          LOG.fine(msg);
-          response.getWriter().print("OK");
-          response.flushBuffer();
-        }
-      } catch (Exception e) {
-        LOG.severe("Upload error", e);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-            "An error occurred while upload the file : " + e.getMessage());
+    try {
+      if (!isMultipartRequest(request)) {
+        LOG.severe("Request contents type is not supported by the servlet.");
+        response.sendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE,
+            "Request contents type is not supported by the servlet.");
+        return;
       }
-    } else {
-      LOG.severe("Request contents type is not supported by the servlet.");
-      response.sendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE,
-          "Request contents type is not supported by the servlet.");
+
+      UploadRequest uploadRequest = readUploadRequest(request);
+      if (uploadRequest.attachmentId == null) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No attachment Id in the request.");
+        return;
+      }
+      if (uploadRequest.waveRefStr == null) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No wave reference in request.");
+        return;
+      }
+      if (uploadRequest.filePart == null) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No file in request.");
+        return;
+      }
+
+      WaveletName waveletName = AttachmentUtil.waveRef2WaveletName(uploadRequest.waveRefStr);
+      ParticipantId user = sessionManager.getLoggedInUser(request.getSession(false));
+      if (!isAuthorized(waveletName, user)) {
+        response.sendError(HttpServletResponse.SC_FORBIDDEN);
+        return;
+      }
+
+      String submittedFileName = uploadRequest.filePart.getSubmittedFileName();
+      String fileName = submittedFileName != null ? FilenameUtils.getName(submittedFileName) : "";
+      try (InputStream fileStream = uploadRequest.filePart.getInputStream()) {
+        service.storeAttachment(uploadRequest.attachmentId, fileStream, waveletName, fileName, user);
+      }
+
+      response.setStatus(HttpServletResponse.SC_CREATED);
+      LOG.fine(String.format("The file with name: %s and id: %s was created successfully.", fileName,
+          uploadRequest.attachmentId));
+      response.getWriter().print("OK");
+      response.flushBuffer();
+    } catch (Exception e) {
+      LOG.severe("Upload error", e);
+      response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "An error occurred while upload the file : " + e.getMessage());
+    }
+  }
+
+  private boolean isMultipartRequest(HttpServletRequest request) {
+    String contentType = request.getContentType();
+    return contentType != null && contentType.toLowerCase().startsWith("multipart/");
+  }
+
+  private UploadRequest readUploadRequest(HttpServletRequest request) throws IOException, ServletException {
+    AttachmentId id = null;
+    String waveRefStr = null;
+    Part filePart = null;
+    Collection<Part> parts = request.getParts();
+    for (Part part : parts) {
+      String submittedFileName = part.getSubmittedFileName();
+      if (submittedFileName == null) {
+        String value = new String(part.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        if ("attachmentId".equals(part.getName())) {
+          try {
+            id = AttachmentId.deserialise(value);
+          } catch (InvalidIdException e) {
+            LOG.warning("Problem deserializing attachment id from multipart request", e);
+          }
+        } else if ("waveRef".equals(part.getName())) {
+          waveRefStr = value;
+        }
+      } else {
+        filePart = part;
+      }
+    }
+    return new UploadRequest(id, waveRefStr, filePart);
+  }
+
+  private static final class UploadRequest {
+    final AttachmentId attachmentId;
+    final String waveRefStr;
+    final Part filePart;
+
+    UploadRequest(AttachmentId attachmentId, String waveRefStr, Part filePart) {
+      this.attachmentId = attachmentId;
+      this.waveRefStr = waveRefStr;
+      this.filePart = filePart;
     }
   }
 

@@ -417,7 +417,7 @@ ThisBuild / prepareProtosForPB := {
 ThisBuild / PB.protocVersion := "3.25.3"
 
 Compile / PB.protoSources := Seq(baseDirectory.value / "target" / "proto-pb-src")
-// Include staged protos and original src for google/protobuf/descriptor.proto
+// Include staged protos plus the PST proto tree that owns google/protobuf/descriptor.proto
 Compile / PB.includePaths := Seq(
   baseDirectory.value / "target" / "proto-pb-src",
   baseDirectory.value / "wave" / "src" / "proto" / "proto",
@@ -465,6 +465,7 @@ ThisBuild / generatePstMessages := {
   val pstSources = (base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "pst" ** "*.java").get
   val antlrJar = (base / "third_party" / "codegen" / "antlr" / "antlr-3.2.jar").getAbsolutePath
   val guavaJar = (base / "third_party" / "runtime" / "guava" / "guava-16.0.1.jar").getAbsolutePath
+  // SBT still bootstraps PST tools from vendored runtime jars; Gradle now owns the main wave commons-cli dependency.
   val commonsCliJar = (base / "third_party" / "runtime" / "commons_cli" / "commons-cli-1.2.jar").getAbsolutePath
   val javacPst = Seq(
     "javac",

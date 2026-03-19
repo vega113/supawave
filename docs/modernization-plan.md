@@ -49,7 +49,7 @@ At‑a‑Glance Checklist
 - [x] P5‑T2: Jetty deps upgrade to Jakarta (Jetty 12)
 - [x] P5‑T3: Servlet/Jakarta code migration
 - [x] P5‑T4: Remove temporary Jakarta migration scaffolding (flags + POC classes)
-- [ ] Phase 6: Library upgrades (protobuf/commons/mongo/guava)
+- [ ] Phase 6: Library upgrade closure (remaining commons/mongo/oauth/build ownership)
 - [ ] Phase 7: Packaging & DX (dist/Docker)
 - [x] Phase 8: J2CL/GWT 3 roadmap documented
 
@@ -638,8 +638,8 @@ Phase 6 — Library upgrades for security and maintainability
 -------------------------------------------------------------------------------
 
 Task P6-T1: Upgrade protobuf-java to 3.25.x (optional)
-- Status: Planned
-- Goal: Align with recent protobuf runtime while keeping PST shading rules to avoid conflicts.
+- Status: Completed on the Gradle path
+- Goal: Keep the Gradle path aligned on protobuf 3.25.x while treating any remaining SBT jar fallback cleanup as separate additive-build work.
 - Steps:
   1) Update protobuf-java deps in pst and wave to 3.25.x (if compatible with protoc version).
   2) Keep pst shadowJar excluding protobuf runtime.
@@ -651,17 +651,18 @@ Task P6-T1: Upgrade protobuf-java to 3.25.x (optional)
   - Codegen and runtime both work with updated protobuf.
 
 Task P6-T2: Upgrade Typesafe Config, Commons, and other utilities
- - Status: In Progress
- - Work Log:
+- Status: In Progress, narrowed
+- Work Log:
    - 2025-09-01: Upgraded commons-io to 2.16.1, commons-codec to 1.16.1, and velocity to 1.7; replaced commons-logging with jcl-over-slf4j. Verified server compile and runtime smoke. Deferred commons-lang 2.x → 3.x until import sweep completed.
    - 2025-09-01 (later): Completed commons-lang migration to commons-lang3 (StringUtils imports updated). Removed unused commons-collections. Left commons-configuration removed (we use Typesafe Config 1.4.3).
    - Notes: commons-httpclient 3.1 replaced with Apache HttpClient 4.5.x across Robot and Solr paths (compile/runtime verified). Further work tracked for MongoDB driver upgrade under P6‑T3.
+   - 2026-03-19: Remaining scope narrowed to explicit `commons-cli` ownership in `wave`, the Jakarta multipart upload path, and the SBT library-input cleanup tracked separately from the server Gradle path.
 - Goal: Bring common libs to supported versions to reduce CVEs.
 - Steps:
-  1) Upgraded: commons-io to 2.16.1, commons-codec to 1.16.1, velocity to 1.7.
-  2) Replaced commons-logging with jcl-over-slf4j to route JCL calls to SLF4J.
-  3) Left in place (for now, API-compat concerns): commons-lang 2.x, commons-configuration 1.x, commons-httpclient 3.1 (used by legacy robot/solr code). Plan incremental replacement or isolation.
-  4) Keep changes small; verify compile and smoke.
+  1. Completed already: commons-io 2.16.1, commons-codec 1.16.1, velocity 1.7, commons-lang3, Typesafe Config 1.4.3, and Apache HttpClient 4.5.x on the Gradle path.
+  2. Remove `commons-fileupload:1.5` from the runtime path now that the servlet-native multipart path has landed on both profiles.
+  3. Make `commons-cli` explicit in `wave` so the server build no longer relies on the PST shadow jar for those classes.
+  4. Track SBT-specific jar-input cleanup as additive-build follow-up work, separate from the Gradle server closure.
 - Tests:
   - ./gradlew build and server smoke.
 - AI Agent Guidance:
@@ -673,9 +674,10 @@ Task P6-T3: MongoDB driver modernization (scoped)
 - Status: In Progress
 - Goal: 2.11.2 is obsolete; modern drivers are 4.x+. This may require code changes; scope carefully.
 - Steps:
-  1) Added spike classes under persistence/mongodb4 (Mongo4DbProvider) using mongodb-driver-sync 4.11.x (not wired by default).
-  2) Document required code changes; split into follow-up tasks (GridFS -> GridFSBucket, DB/DBCollection -> MongoDatabase/MongoCollection, exceptions -> MongoException subclasses).
-  3) Next: add compile-time adapters for CertPathStore/AttachmentStore/AccountStore/DeltaStore backed by the new driver and behind a config flag (e.g., core.mongodb_driver = v4).
+  1) `mongodb-driver-sync:4.11.1` is already present on the default Gradle dependency graph.
+  2) Finish the remaining adapters and config wiring behind the modern driver seam.
+  3) Remove `mongo-java-driver:2.11.2` from the default runtime once the v4 path is fully wired and verified.
+  4) Keep the implementation work aligned with `incubator-wave-modernization.2`; this ledger entry only owns the dependency-ownership summary.
 - Tests:
   - Compile-only spike validated; next step will include adapter tests with an embedded Mongo.
 - AI Agent Guidance:
@@ -684,23 +686,23 @@ Task P6-T3: MongoDB driver modernization (scoped)
   - Spike compiles; adapters implemented; config flag can switch between old/new providers; basic integration test passes with MongoDB 4.x.
 
 Task P6-T6: Evaluate and replace legacy OAuth libraries
-- Status: Planned
-- Goal: Audit usage of net.oauth.core (oauth-provider/oauth/oauth-consumer @ 20100601-atlassian-2) and replace with modern libraries or remove if unused.
+- Status: In Progress
+- Goal: Audit usage of net.oauth.core (oauth-provider/oauth/oauth-consumer @ 20100601-atlassian-2), verify the exclusion switch on both classpaths, and then internalize or remove the legacy ownership model.
 - Steps:
   1) Grep usages across server/client for net.oauth.* APIs; confirm runtime call paths.
-  2) If needed, prefer maintained alternatives (e.g., OAuth 1.0/2.0 via ScribeJava or Spring Security OAuth) and scope minimal replacements.
-  3) Add -PexcludeLegacyOAuth Gradle switch (done) to omit legacy deps during evaluation.
+  2) Verify `-PexcludeLegacyOAuth=true` on both compile and runtime classpaths before changing build logic.
+  3) Keep the default assumption that robot and Data API OAuth flows remain supported unless product explicitly retires them.
 - Tests:
   - Build without legacy deps using -PexcludeLegacyOAuth and run smoke; add targeted tests if functionality remains required.
 - DoD:
   - Either removed with no functional loss or replaced with a modern, maintained library; dependencies documented.
 
 Task P6-T4: Guava upgrade strategy (scoped)
-- Status: Planned
-- Goal: Server-side can move to modern Guava; client-side guava-gwt is complicated.
+- Status: Completed on the server path; client follow-up moved to Phase 8
+- Goal: Keep the server on modern Guava while treating `guava-gwt` cleanup as a later client migration problem.
 - Steps:
-  1) Upgrade server-side to com.google.guava:guava:32.1.3-jre (or latest) and fix breakages.
-  2) Keep client-side guava-gwt as-is initially; open epic to migrate client code away from guava-gwt (or verify GWT 2.10+/J2CL compatibility of modern guava if possible).
+  1) Completed: the server now runs on `com.google.guava:guava:32.1.3-jre`.
+  2) Keep client-side guava-gwt as-is until the Phase 8 J2CL / GWT 3 reduction work is ready.
 - Tests:
   - ./gradlew :wave:compileJava and unit tests.
 - AI Agent Guidance:

@@ -333,12 +333,6 @@ sourceSets.main.java {
 //=============================================================================
 repositories {
     mavenCentral()
-    maven {
-        url 'https://oauth.googlecode.com/svn/code/maven/'
-    }
-    maven {
-        url 'https://maven.atlassian.com/3rdparty/'
-    }
 }
 
 // Ensure a single SLF4J binding (Logback) and evict legacy binders
@@ -396,10 +390,9 @@ dependencies {
             [group: "javax.jdo", name: "jdo2-api", version: "2.1"]
     )
     if (!project.hasProperty('excludeLegacyOAuth')) {
-        implementation (
-                [group: "net.oauth.core", name: "oauth-provider", version: "20100601-atlassian-2"],
-                [group: "net.oauth.core", name: "oauth", version: "20100601-atlassian-2"],
-                [group: "net.oauth.core", name: "oauth-consumer", version: "20100601-atlassian-2"]
+        implementation fileTree(
+                dir: '../third_party/runtime/oauth',
+                include: ['oauth-common.jar', 'oauth-provider.jar', 'oauth-consumer.jar']
         )
     }
     implementation fileTree(dir: '../pst/build/libs', include: '**/*.jar')

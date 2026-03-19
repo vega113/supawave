@@ -687,11 +687,12 @@ Task P6-T3: MongoDB driver modernization (scoped)
 
 Task P6-T6: Evaluate and replace legacy OAuth libraries
 - Status: In Progress
-- Goal: Audit usage of net.oauth.core (oauth-provider/oauth/oauth-consumer @ 20100601-atlassian-2), verify the exclusion switch on both classpaths, and then internalize or remove the legacy ownership model.
+- Goal: Audit usage of the legacy OAuth stack, verify the exclusion switch on both classpaths, and then internalize or remove the ownership model.
 - Steps:
   1) Grep usages across server/client for net.oauth.* APIs; confirm runtime call paths.
   2) Verify `-PexcludeLegacyOAuth=true` on both compile and runtime classpaths before changing build logic.
   3) Keep the default assumption that robot and Data API OAuth flows remain supported unless product explicitly retires them.
+  4) Completed for the current slice: default Gradle builds now load OAuth jars from `third_party/runtime/oauth` instead of resolving `net.oauth.core` from the retired Google Code / Atlassian repositories.
 - Tests:
   - Build without legacy deps using -PexcludeLegacyOAuth and run smoke; add targeted tests if functionality remains required.
 - DoD:

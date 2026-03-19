@@ -44,7 +44,7 @@ Session adapter behavior
   - Behavior:
     - false (default): log a one-time warning and return null for compatibility.
     - true: throw `UnsupportedOperationException` to surface accidental usages early.
-  - Scope: Applies to `JavaxSessionWrapper` (Jakarta migration path only). No effect on legacy javax profile.
+  - Scope: Applies to `JavaxSessionWrapper` on the Jakarta-only runtime path.
 
 ## Test/Env Variables (non-Typesafe Config)
 

@@ -8,6 +8,8 @@ Status note (2026-03-18)
 - Detailed Jetty / Jakarta migration ledger kept for implementation history.
 - Canonical current-state tracking lives in `docs/current-state.md` and
   `.beads/issues.jsonl` under `incubator-wave-modernization`.
+- The legacy `-PjettyFamily=javax` fallback is now on the retirement path; new
+  work should assume the Jakarta runtime as the only supported server profile.
 
 Status Summary
 - Completed: Stage 1 — Jetty 9.4 baseline upgrade and server hardening validated on JDK 17.
@@ -49,7 +51,7 @@ Recent changes (2025-09-18)
   - SearchServletJakartaIT: invalid parameter 400s, out-of-range clamping, injection-safe serialization, and serializer failure → 500.
 - TestSupport added (public, test-only) to centralize EE10 availability checks and consistent skip policy.
 - CI: added non-blocking :wave:testJakartaIT step and artifact publishing. Plan to flip to blocking after a burn-in window.
-- Compatibility note (updated 2025‑09‑18): The Jakarta build’s compile and runtime classpaths now contain only Jakarta APIs. The transitional `javax.servlet-api` dependency has been removed; use `-PjettyFamily=javax` when you need the legacy Jetty 9.4 stack during bisects.
+- Compatibility note (updated 2026‑03‑19): The Jakarta build’s compile and runtime classpaths now contain only Jakarta APIs. The old `-PjettyFamily=javax` fallback is being retired rather than maintained as an active bisect path.
 
 Security & correctness hardening
 - AttachmentServlet (both javax and Jakarta):
@@ -75,7 +77,7 @@ Open Work Items (Jakarta)
 - Finish servlet/filter import sweep for remaining robot-backed modules (e.g., Gadget provider operations) and add focused ITs as coverage grows.
 - Replace `guice-servlet` on Jakarta path with programmatic registration; keep Guice core for DI.
 - Promote `:wave:testJakartaIT` to blocking in CI after a 1–2 week burn‑in.
-- Ensure javax fallback profile documentation stays current (now opt-in via `-PjettyFamily=javax`).
+- Remove the remaining docs/build/test references to the retired `javax` fallback profile.
 
 Objective
 - Upgrade Wave’s embedded/used Jetty from 9.2.x to a supported release to improve security, compatibility with modern JDKs, and long-term maintainability.
@@ -107,7 +109,7 @@ Timeline (as of 2025-09-08)
 
 Remaining items
 - Coordinate with Infra/CI to flip the Jakarta suites (`:wave:testJakarta`, `:wave:testJakartaIT`) to blocking status and enforce green gates for Jetty 12 builds.
-- Plan the community verification window before removing the `-PjettyFamily=javax` fallback profile; document criteria and timeline in docs/CONFIG_FLAGS.md.
+- Execute the fallback-retirement cleanup tracked in `incubator-wave-modernization.9`.
 - Continue deprecation cleanup where low risk; track remaining GWT hosted-test limitations separately.
 
 Scope and Impact Areas

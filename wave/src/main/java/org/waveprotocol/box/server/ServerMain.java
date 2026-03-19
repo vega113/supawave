@@ -202,7 +202,7 @@ public class ServerMain {
         return "jakarta".equalsIgnoreCase(config.getString("core.jetty_family"));
       }
     } catch (Throwable ignore) {}
-    String prop = System.getProperty("jettyFamily", System.getProperty("wave.jetty.family", "javax"));
+    String prop = System.getProperty("jettyFamily", System.getProperty("wave.jetty.family", "jakarta"));
     return "jakarta".equalsIgnoreCase(prop);
   }
 

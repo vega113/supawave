@@ -45,12 +45,10 @@ version = "0.4.2"
 ext {
     // Allow overriding from the command line: ./gradlew -PgwtVersion=2.12.2
     gwtVersion = findProperty('gwtVersion') ?: '2.10.0'
-    // Allow overriding Jetty version for server via -PjettyVersion
-    jettyVersion = findProperty('jettyVersion') ?: '9.4.54.v20240208'
+    // Legacy Jetty pin retained only for GWT toolchain dependency alignment.
+    gwtJettyVersion = findProperty('gwtJettyVersion') ?: '9.4.54.v20240208'
     // Jetty 12 (EE10) version for Jakarta POC
     jettyEe10Version = findProperty('jettyEe10Version') ?: '12.0.23'
-    // Jetty family selector for main server deps: 'jakarta' (Jetty 12) by default; override with -PjettyFamily=javax if needed
-    jettyFamily = findProperty('jettyFamily') ?: 'jakarta'
     // Server-side Guava version (aligned with Guice 5; client guava-gwt stays compileOnly)
     waveGuavaVersion = findProperty('waveGuavaVersion') ?: '32.1.3-jre'
 }
@@ -74,10 +72,7 @@ application {
         println "[run] Enabling client flags: ${cf}"
     }
 }
-// Ensure the runtime sees the selected Jetty family via a system property
-if (jettyFamily == 'jakarta') {
-    application.applicationDefaultJvmArgs += ["-DjettyFamily=jakarta"]
-}
+application.applicationDefaultJvmArgs += ["-DjettyFamily=jakarta"]
 java {
     // Compile and target JDK 17 bytecode
     sourceCompatibility = JavaVersion.VERSION_17
@@ -119,7 +114,7 @@ configurations {
     gwt {
         resolutionStrategy.eachDependency { details ->
             if (['org.eclipse.jetty', 'org.eclipse.jetty.websocket', 'org.eclipse.jetty.http2'].contains(details.requested.group)) {
-                details.useVersion(jettyVersion)
+                details.useVersion(gwtJettyVersion)
             }
         }
     }
@@ -250,15 +245,12 @@ sourceSets {
     }
 }
 
-// When building against Jetty 12 (jakarta), configure sources declaratively instead of
-// mutating the compileJava task. This avoids brittle multi-invocation issues and keeps
-// Gradle configuration cache-friendly.
-if (jettyFamily == 'jakarta') {
-    sourceSets.main.java {
-        // Bring in Jakarta override sources
-        srcDir 'src/jakarta-overrides/java'
-        // Exclude specific javax-era sources only from src/main/java, not from overrides
-        exclude { details ->
+// The server/runtime path is Jakarta-only. Keep the source selection declarative.
+sourceSets.main.java {
+    // Bring in Jakarta override sources
+    srcDir 'src/jakarta-overrides/java'
+    // Exclude specific javax-era sources only from src/main/java, not from overrides
+    exclude { details ->
             def p = details.file.toPath().normalize().toString()
             if (!p.contains("${projectDir}/src/main/java/")) return false
             def rel = p.substring(p.indexOf('/src/main/java/') + '/src/main/java/'.length())
@@ -327,7 +319,6 @@ if (jettyFamily == 'jakarta') {
             // Exclude GWT client sources from Jakarta server compile
             
             return false
-        }
     }
 }
 
@@ -465,54 +456,27 @@ dependencies {
     )
 }
 
-// Select Jetty modules based on jettyFamily
-if (jettyFamily == 'javax') {
-    dependencies {
-        implementation group: "org.gwtproject", name: "gwt-user", version: gwtVersion
-        implementation group: "com.google.inject.extensions", name: "guice-servlet", version: (findProperty('guiceVersion') ?: '5.1.0')
-        implementation group: "org.eclipse.jetty", name: "jetty-annotations", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-client", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-http", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-io", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-proxy", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-security", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-server", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-servlet", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-servlets", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-util", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-webapp", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-xml", version: jettyVersion
-        implementation group: "org.eclipse.jetty", name: "jetty-alpn-java-server", version: jettyVersion
-        implementation group: "org.eclipse.jetty.http2", name: "http2-server", version: jettyVersion
-        implementation group: "org.eclipse.jetty.websocket", name: "websocket-api", version: jettyVersion
-        implementation group: "org.eclipse.jetty.websocket", name: "websocket-client", version: jettyVersion
-        implementation group: "org.eclipse.jetty.websocket", name: "websocket-common", version: jettyVersion
-        implementation group: "org.eclipse.jetty.websocket", name: "websocket-server", version: jettyVersion
-        implementation group: "org.eclipse.jetty.websocket", name: "websocket-servlet", version: jettyVersion
-    }
-    } else if (jettyFamily == 'jakarta') {
-        dependencies {
-            implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyEe10Version
-            implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: jettyEe10Version
-            implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-webapp', version: jettyEe10Version
-            implementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
-            implementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: jettyEe10Version
-            // APIs for compile only; Jetty provides runtime
-            implementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
-            implementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
-        // Provide GWT user API at compile time only to satisfy client/server cross references; keep off runtime
-        compileOnly group: 'org.gwtproject', name: 'gwt-user', version: gwtVersion
+dependencies {
+    implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyEe10Version
+    implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: jettyEe10Version
+    implementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-webapp', version: jettyEe10Version
+    implementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+    implementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: jettyEe10Version
+    // APIs for compile only; Jetty provides runtime
+    implementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
+    implementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
+    // Provide GWT user API at compile time only to satisfy client/server cross references; keep off runtime
+    compileOnly group: 'org.gwtproject', name: 'gwt-user', version: gwtVersion
 
-        // Micrometer (Jakarta path): core + Prometheus registry
-        implementation group: 'io.micrometer', name: 'micrometer-core', version: '1.12.5'
-        implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.12.5'
+    // Micrometer (Jakarta path): core + Prometheus registry
+    implementation group: 'io.micrometer', name: 'micrometer-core', version: '1.12.5'
+    implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.12.5'
 
-            // Jakarta support sourceSet dependencies (needed to compile jakarta-overrides)
-            jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
-            jakartaSupportImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
-            jakartaSupportImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
-        }
-    }
+    // Jakarta support sourceSet dependencies
+    jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
+    jakartaSupportImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
+    jakartaSupportImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
+}
 
 // (Removed duplicate Jakarta dependency blocks to avoid version drift)
 
@@ -524,10 +488,6 @@ dependencies {
         [group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-webapp', version: jettyEe10Version],
         [group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0']
     )
-    // Ensure jakartaSupport compiles even when jettyFamily != 'jakarta'
-    jakartaSupportImplementation group: 'org.eclipse.jetty', name: 'jetty-session', version: jettyEe10Version
-    jakartaSupportImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
-    jakartaSupportImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.1.1'
 }
 
 // Align server-side Guava; keep guava-gwt strictly compileOnly for client code

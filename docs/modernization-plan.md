@@ -93,7 +93,7 @@ Task P5-T2: Jetty deps upgrade to Jakarta (Jetty 12)
 - Work Log (2025-09-15):
   - Made the Jakarta profile the default (`jettyFamily=jakarta`) and verified `./gradlew :wave:compileJava` plus `:wave:testJakarta :wave:testJakartaIT` succeed without extra properties.
   - Added Jakarta overrides/tests for InitialsAvatarsServlet and updated existing ITs to use WebSessions, keeping javax usage confined to `compileOnly`.
-  - Updated docs to reflect the default flip and new coverage; javax profile remains available via `-PjettyFamily=javax` for fallback.
+  - Updated docs to reflect the default flip and new coverage; the old javax fallback is now scheduled for retirement under `incubator-wave-modernization.9`.
 - DoD:
   - `./gradlew -PjettyFamily=jakarta :wave:compileJava testJakartaIT` passes locally and in CI.
   - Jakarta runtime classpath contains only `jakarta.*` APIs; any javax usage is limited to `compileOnly` for migration adapters/tests and scheduled for removal.
@@ -105,7 +105,7 @@ Task P5-T3: Servlet/Jakarta code migration
   - 2025-09-15: Ported the robot web tier (Active/Data APIs, registration flows, avatar endpoints) to `jakarta-overrides`, added `RegistrationSupport`, and excluded the legacy javax servlets from Jakarta builds.
   - 2025-09-18: Finalized shared library cleanup (`AbstractRobot` override, servlet-free `RobotConnectionUtil`), enabled Micrometer/Prometheus Jakarta endpoints, and added Jakarta ITs for Data API OAuth, Prometheus metrics scraping, and NotifyOperationService hash refresh.
 - Deliverables:
-  - Jakarta source tree now covers all servlet/filter/websocket wiring and robot APIs with no runtime `javax.*` dependencies; the legacy javax profile remains opt-in via `-PjettyFamily=javax`.
+  - Jakarta source tree now covers all servlet/filter/websocket wiring and robot APIs with no runtime `javax.*` dependencies; the old fallback profile is now being retired instead of maintained.
   - Shared libraries used by both profiles are servlet-namespace agnostic, and the Gradle source selection prevents duplicate classes when building the Jakarta distribution.
   - Jakarta tests exercise forwarded headers, caching/security filters, registration + avatar flows, robot OAuth, capability refresh, and metrics exposure.
 - Tests:
@@ -570,18 +570,18 @@ Task P5-T2: Upgrade Jetty dependencies
   - 2025-09-03: Jakarta (-PjettyFamily=jakarta) server bootstrap and endpoint dispatch are working; continue under P5‑T3 for servlet import migration and parity features.
   - 2025-09-07: Kept default `jettyFamily=javax` (Jetty 9.4) while Jakarta work stabilizes. `javax.servlet-api` remained compileOnly on Jakarta builds for transitional stubs.
   - 2025-09-15: Flipped the Gradle default to `jettyFamily=jakarta`, aligned Jetty 12 modules, removed the transitional `javax.servlet-api` compileOnly dependency, and introduced Micrometer HTTP metrics plus a `/metrics` servlet on the Jakarta path to preserve production observability.
-  - 2025-09-18: Verified `./gradlew -PjettyFamily=jakarta :wave:compileJava :wave:testJakarta :wave:testJakartaIT` succeeds with the Jakarta profile as default; documented `-PjettyFamily=javax` fallback for Jetty 9.4 smoke/bisect scenarios.
+  - 2025-09-18: Verified the Jakarta compile/test paths succeeded with the Jakarta profile as default; the old `jettyFamily=javax` smoke/bisect path is now being retired.
 - Goal: Replace 9.4.x (current) with chosen target (Jetty 12 / Jakarta) in a controlled, non-breaking way.
 - Steps:
   1) Update org.eclipse.jetty:* dependencies in wave/build.gradle and wire EE10 modules. (Done)
   2) Ensure the Jakarta path uses `jakarta.servlet-api` exclusively and keep `javax.servlet-api` off the classpath. (Done)
-  3) Flip the default Gradle profile to Jakarta while preserving an opt-in `-PjettyFamily=javax` fallback for troubleshooting. (Done)
+  3) Flip the default Gradle profile to Jakarta. (Done; fallback retirement is now tracked separately.)
 - Tests:
   - 2025-09-18: `./gradlew -PjettyFamily=jakarta :wave:compileJava :wave:testJakarta :wave:testJakartaIT`
 - AI Agent Guidance:
   - Watch for servlet filter/servlet registration changes.
 - DoD:
-  - Server starts cleanly under Jetty 12; Gradle defaults to Jakarta, and Jetty 9.4 fallback remains available on demand.
+  - Server starts cleanly under Jetty 12; the Jakarta path is the only supported server runtime.
 
 Task P5-T3: Migrate servlet code and configuration (Jakarta)
 - Status: Completed

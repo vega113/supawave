@@ -22,14 +22,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/deploy-contabo.yml'
-      - 'Dockerfile'
-      - 'build.gradle'
-      - 'gradle/**'
-      - 'scripts/**'
-      - 'wave/**'
-      - 'deploy/contabo/**'
 
 concurrency:
   group: deploy-contabo

@@ -1,0 +1,81 @@
+name: Codex Review Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+      - edited
+      - dismissed
+  issue_comment:
+    types:
+      - created
+      - edited
+
+jobs:
+  codex-review-gate:
+    name: Codex Review Gate
+    if: ${{ github.event.pull_request != null || github.event.issue.pull_request != null }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    steps:
+      - name: Evaluate codex review gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = context.payload.pull_request?.number ?? context.payload.issue?.number;
+
+            const query = `
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    isDraft
+                    labels(first: 100) {
+                      nodes { name }
+                    }
+                    reviewThreads(first: 100) {
+                      nodes { isResolved }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query, { owner, repo, number: prNumber });
+            const pullRequest = result.repository.pullRequest;
+            if (!pullRequest) {
+              core.setFailed(`Pull request #${prNumber} not found`);
+              return;
+            }
+
+            if (pullRequest.isDraft) {
+              core.setFailed("Draft PRs cannot pass Codex Review Gate");
+              return;
+            }
+
+            const labels = pullRequest.labels.nodes.map((label) => label.name);
+            const unresolved = pullRequest.reviewThreads.nodes.filter((thread) => !thread.isResolved).length;
+
+            if (!labels.includes("codex-reviewed")) {
+              core.setFailed("Missing required `codex-reviewed` label");
+              return;
+            }
+
+            if (unresolved > 0) {
+              core.setFailed(`There are ${unresolved} unresolved review conversation(s)`);
+              return;
+            }
+
+            core.info("Codex review gate passed");

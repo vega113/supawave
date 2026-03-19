@@ -16,9 +16,26 @@
 # under the License.
 
 services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    command:
+      - --bind_ip_all
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/mongo/db:/data/db
+
   wave:
     image: ${WAVE_IMAGE:?set WAVE_IMAGE before running compose}
     restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
     ports:
       - "127.0.0.1:9898:9898"
     volumes:

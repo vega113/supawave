@@ -129,11 +129,11 @@ Read these files first when resuming work:
    `incubator-wave-jwt-auth` epic.
 6. Config hygiene is incomplete: fragment and segment settings still have
    partially duplicated `System.getProperty(...)` paths in server code.
-7. The repo now includes `Mongo4DeltaStore`, `Mongo4AccountStore`,
-   `Mongo4AttachmentStore`, and `Mongo4SignerInfoStore`, but the production
-   persistence topology is still unresolved: the active Jakarta runtime keeps
-   sessions process-local, the default search path is node-local, and the
-   default store configuration still points mutable state at file/disk paths.
+7. `Mongo4DeltaStore` is present, together with `Mongo4AccountStore`,
+   `Mongo4AttachmentStore`, and `Mongo4SignerInfoStore`. The remaining Mongo
+   work is promoting the production deploy path to the v4-backed stores and
+   then retiring the
+   legacy v2 fallback on a separate schedule.
 8. The repo now runs on a Jakarta-only server/runtime path, but dead
    compatibility branches and stale history references still need cleanup.
 9. SBT is still additive and server-only. Its bootstrap/runtime path now tracks

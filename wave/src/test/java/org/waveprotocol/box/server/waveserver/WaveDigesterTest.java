@@ -42,6 +42,8 @@ import org.waveprotocol.wave.model.wave.ObservableWavelet;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 
+import java.util.Collections;
+
 /**
  * Unit tests for {@link WaveDigester}.
  *
@@ -75,7 +77,12 @@ public class WaveDigesterTest extends TestCase {
     SupplementedWave supplement = mock(SupplementedWave.class);
     when(supplement.isUnread(any(ConversationBlip.class))).thenReturn(true);
 
-    Digest digest = digester.generateDigest(conversation, supplement, observableWaveletData);
+    Digest digest =
+        digester.generateDigest(
+            conversation,
+            supplement,
+            observableWaveletData,
+            Collections.singletonList(observableWaveletData));
 
     assertEquals("", digest.getTitle());
     assertEquals(digest.getBlipCount(), 0);
@@ -94,7 +101,12 @@ public class WaveDigesterTest extends TestCase {
     SupplementedWave supplement = mock(SupplementedWave.class);
     when(supplement.isUnread(any(ConversationBlip.class))).thenReturn(true);
 
-    Digest digest = digester.generateDigest(conversation, supplement, observableWaveletData);
+    Digest digest =
+        digester.generateDigest(
+            conversation,
+            supplement,
+            observableWaveletData,
+            Collections.singletonList(observableWaveletData));
 
     assertEquals(title, digest.getTitle());
     assertEquals(1, digest.getBlipCount());
@@ -112,7 +124,12 @@ public class WaveDigesterTest extends TestCase {
 
     SupplementedWave supplement = mock(SupplementedWave.class);
     when(supplement.isUnread(any(ConversationBlip.class))).thenReturn(true, true, false);
-    Digest digest = digester.generateDigest(conversation, supplement, observableWaveletData);
+    Digest digest =
+        digester.generateDigest(
+            conversation,
+            supplement,
+            observableWaveletData,
+            Collections.singletonList(observableWaveletData));
 
     assertEquals(3, digest.getBlipCount());
     assertEquals(2, digest.getUnreadCount());

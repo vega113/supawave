@@ -95,8 +95,9 @@ import jakarta.servlet.http.HttpServletResponse;
  * If the robot does not specify the {@link EventHandler.Capability}
  * annotation, the default contexts (parent and children), and empty filter will
  * be provided by default.
+ *
+ * <p>This is the Jakarta variant compiled for the Jakarta-only server build.
  */
-/** Jakarta variant compiled when -PjettyFamily=jakarta is active. */
 public abstract class AbstractRobot extends HttpServlet implements EventHandler {
 
   /** Some mime types. */

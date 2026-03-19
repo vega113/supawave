@@ -72,8 +72,6 @@ import java.security.cert.X509Certificate;
 /**
  * Jakarta variant of AuthenticationServlet.
  * - Uses jakarta.servlet.* APIs.
- * - Bridges HttpSession access via JakartaSessionAdapters to the legacy
- *   javax-based SessionManager interface.
  * - Supports both jakarta and javax X509 certificate request attributes for
  *   compatibility across containers.
  */

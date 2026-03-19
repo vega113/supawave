@@ -459,7 +459,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     } catch (InvalidIdException e) {
       throw new IllegalArgumentException(e);
     }
-    ParticipantId creator = ParticipantId.ofUnsafe(snapshot.getParticipantId(0));
+    ParticipantId creator = getSnapshotCreator(snapshot);
     HashedVersion version = deserialize(snapshot.getVersion());
     long lmt = snapshot.getLastModifiedTime();
     long ctime = snapshot.getCreationTime();
@@ -474,6 +474,14 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
       deserialize(waveletData, docSnapshot);
     }
     return waveletData;
+  }
+
+  private static ParticipantId getSnapshotCreator(WaveletSnapshot snapshot) {
+    String creator = snapshot.getCreator();
+    if (creator != null && !creator.isEmpty()) {
+      return ParticipantId.ofUnsafe(creator);
+    }
+    return ParticipantId.ofUnsafe(snapshot.getParticipantId(0));
   }
 
   private static void deserialize(WaveletDataImpl waveletData, DocumentSnapshot docSnapshot) {

@@ -18,7 +18,9 @@
  */
 package org.waveprotocol.box.server.stat;
 
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.typesafe.config.Config;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -38,10 +40,16 @@ import org.waveprotocol.box.stat.Timing;
  */
 @Singleton
 public class StatuszServlet extends HttpServlet {
+  private final Config config;
   private final String SHOW_SESSION_MEASUREMENTS = "session-measurements";
   private final String SHOW_GLOBAL_MEASUREMENTS = "global-measurements";
   private final String SHOW_STATS = "stats";
   private final String SHOW_FRAGMENTS = "fragments";
+
+  @Inject
+  public StatuszServlet(Config config) {
+    this.config = config;
+  }
 
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -94,56 +102,10 @@ public class StatuszServlet extends HttpServlet {
 
   protected void writeFragments(HttpServletRequest req, PrintWriter writer) {
     writer.write(Timing.renderTitle("Fragments Metrics", 2));
-    // Effective transport line
     try {
-      // Merge module-local config/application.conf unconditionally so we display the same
-      // effective values the server actually uses.
-      com.typesafe.config.Config cfg = com.typesafe.config.ConfigFactory.load();
-      try {
-        java.io.File f = new java.io.File("config/application.conf");
-        if (f.exists()) {
-          com.typesafe.config.Config fcfg = com.typesafe.config.ConfigFactory.parseFile(f).resolve();
-          cfg = fcfg.withFallback(cfg);
-        }
-      } catch (Throwable ignore) {}
-      String transport = null;
-      try {
-        if (cfg.hasPath("server.fragments.transport")) {
-          transport = cfg.getString("server.fragments.transport");
-        }
-      } catch (Throwable ignore) {}
-      if (transport == null || transport.trim().isEmpty()) {
-        String sp = System.getProperty("server.fragments.transport");
-        if (sp != null && !sp.trim().isEmpty()) {
-          transport = sp;
-        }
-      }
-      if (transport == null || transport.trim().isEmpty()) {
-        try {
-          java.io.File f = new java.io.File("config/application.conf");
-          if (f.exists()) {
-            com.typesafe.config.Config fcfg = com.typesafe.config.ConfigFactory.parseFile(f).resolve();
-            if (fcfg.hasPath("server.fragments.transport")) {
-              transport = fcfg.getString("server.fragments.transport");
-            }
-            cfg = fcfg.withFallback(cfg);
-          }
-        } catch (Throwable ignore) {}
-      }
-      transport = (transport == null) ? "off" : transport.trim().toLowerCase();
-      // preferSegmentState / enableStorageSegmentState: try config, then system props, then files
-      boolean prefer = false;
-      boolean enableStorage = false;
-      try { if (cfg.hasPath("server.preferSegmentState")) prefer = cfg.getBoolean("server.preferSegmentState"); } catch (Throwable ignore) {}
-      try { if (cfg.hasPath("server.enableStorageSegmentState")) enableStorage = cfg.getBoolean("server.enableStorageSegmentState"); } catch (Throwable ignore) {}
-      if (!prefer) {
-        String sp = System.getProperty("server.preferSegmentState");
-        if (sp != null) prefer = Boolean.parseBoolean(sp);
-      }
-      if (!enableStorage) {
-        String sp = System.getProperty("server.enableStorageSegmentState");
-        if (sp != null) enableStorage = Boolean.parseBoolean(sp);
-      }
+      String transport = readString("server.fragments.transport", "off");
+      boolean prefer = readBoolean("server.preferSegmentState");
+      boolean enableStorage = readBoolean("server.enableStorageSegmentState");
       writer.write("<pre>transport=" + transport + "; preferSegmentState=" + prefer + "; enableStorageSegmentState=" + enableStorage + "</pre>");
     } catch (Throwable t) {
       writer.write("<pre>transport=unknown (" + t.getClass().getSimpleName() + ")</pre>");
@@ -260,6 +222,25 @@ public class StatuszServlet extends HttpServlet {
     } catch (Throwable ignore) {
       // best-effort only
     }
+  }
+
+  private String readString(String path, String defaultValue) {
+    String value = defaultValue;
+    if (config != null && config.hasPath(path)) {
+      String configured = config.getString(path);
+      if (configured != null && !configured.trim().isEmpty()) {
+        value = configured.trim().toLowerCase();
+      }
+    }
+    return value;
+  }
+
+  private boolean readBoolean(String path) {
+    boolean value = false;
+    if (config != null && config.hasPath(path)) {
+      value = config.getBoolean(path);
+    }
+    return value;
   }
 
   private static long tryInvokeLong(Object target, String method) {

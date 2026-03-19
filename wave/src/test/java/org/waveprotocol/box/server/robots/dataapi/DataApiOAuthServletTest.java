@@ -272,7 +272,7 @@ public class DataApiOAuthServletTest extends TestCase {
       return "/auth/login/fake";
     });
 
-    when(sessionManager.getLoggedInUser(any(HttpSession.class))).thenReturn(null);
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(null);
 
     servlet.doGet(req, resp);
 

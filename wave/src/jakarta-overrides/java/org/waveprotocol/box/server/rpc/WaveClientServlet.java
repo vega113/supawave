@@ -67,6 +67,7 @@ public class WaveClientServlet extends HttpServlet {
   private final String domain;
   private final String analyticsAccount;
   private final SessionManager sessionManager;
+  private final boolean hasExplicitWebsocketPresentedAddress;
   private final String websocketPresentedAddress;
   private final Config config;
 
@@ -77,14 +78,17 @@ public class WaveClientServlet extends HttpServlet {
       SessionManager sessionManager) {
     List<String> httpAddresses = config.getStringList("core.http_frontend_addresses");
     String websocketAddress = config.getString("core.http_websocket_public_address");
-    String websocketPresentedAddress = config.getString("core.http_websocket_presented_address");
+    String configuredWebsocketPresentedAddress =
+        config.getString("core.http_websocket_presented_address");
     this.domain = domain;
     String websocketAddress1 =
         StringUtils.isEmpty(websocketAddress) ? httpAddresses.get(0) : websocketAddress;
+    this.hasExplicitWebsocketPresentedAddress =
+        StringUtils.isNotEmpty(configuredWebsocketPresentedAddress);
     this.websocketPresentedAddress =
-        StringUtils.isEmpty(websocketPresentedAddress)
-            ? websocketAddress1
-            : websocketPresentedAddress;
+        hasExplicitWebsocketPresentedAddress
+            ? configuredWebsocketPresentedAddress
+            : websocketAddress1;
     this.analyticsAccount = config.getString("administration.analytics_account");
     this.sessionManager = sessionManager;
     this.config = config;
@@ -105,8 +109,12 @@ public class WaveClientServlet extends HttpServlet {
       if (locale != null) {
         String requestLocale = UrlParameters.getParameters(request.getQueryString()).get("locale");
         if (requestLocale == null) {
+          String redirectUrl = request.getRequestURL().toString();
+          if (request.getQueryString() != null && !request.getQueryString().isEmpty()) {
+            redirectUrl += "?" + request.getQueryString();
+          }
           response.sendRedirect(
-              UrlParameters.addParameter(request.getRequestURL().toString(), "locale", locale));
+              UrlParameters.addParameter(redirectUrl, "locale", locale));
           return;
         }
       }
@@ -120,7 +128,7 @@ public class WaveClientServlet extends HttpServlet {
     try (var w = response.getWriter()) {
       String hostHeader = request.getHeader("Host");
       String wsAddressForPage =
-          (hostHeader != null && !hostHeader.isEmpty())
+          (!hasExplicitWebsocketPresentedAddress && hostHeader != null && !hostHeader.isEmpty())
               ? hostHeader
               : websocketPresentedAddress;
       WaveClientPage.write(
@@ -137,7 +145,7 @@ public class WaveClientServlet extends HttpServlet {
     }
   }
 
-  private JSONObject getClientFlags(HttpServletRequest request) {
+  JSONObject getClientFlags(HttpServletRequest request) {
     JSONObject ret = new JSONObject();
 
     Enumeration<?> iter = request.getParameterNames();

@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Properties;
 import jakarta.servlet.http.HttpServletRequest;
@@ -122,9 +121,6 @@ public final class WaveClientServletFragmentDefaultsTest {
     HttpServletRequest request = mock(HttpServletRequest.class);
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
 
-    Method method = WaveClientServlet.class.getDeclaredMethod(
-        "getClientFlags", HttpServletRequest.class);
-    method.setAccessible(true);
-    return (JSONObject) method.invoke(servlet, request);
+    return servlet.getClientFlags(request);
   }
 }

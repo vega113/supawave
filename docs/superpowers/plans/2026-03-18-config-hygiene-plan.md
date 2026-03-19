@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Lock The Shared Config Seams
+## Task 1: Lock The Shared Config Seams
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/stat/StatuszServlet.java`
@@ -43,7 +43,7 @@ Commit message:
 git commit -m "Unify fragment config resolution"
 ```
 
-### Task 2: Guard Compatibility
+## Task 2: Guard Compatibility
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/ServerMain.java`

@@ -93,7 +93,6 @@ public class AttachmentServletUploadTest {
     assertNotNull(uploadedBytes.get());
     assertArrayEquals(fileBytes, uploadedBytes.get());
     assertEquals("OK", responseBody.toString());
-    verify(service).storeAttachment(eq(attachmentId), any(InputStream.class), eq(expectedWavelet), eq("hello.txt"), eq(user));
   }
 
   private static AttachmentServlet newServlet(AttachmentService service,

@@ -43,7 +43,7 @@ public class Mongo4AccountStoreIT {
 
         // Human round-trip
         ParticipantId hid = ParticipantId.ofUnsafe("human@example.com");
-        byte[] salt = new byte[] {1,2,3,4,5,6,7,8,9,10};
+        byte[] salt = new byte[PasswordDigest.MINIMUM_SALT_LENGTH];
         byte[] dig = new byte[] {4,5,6};
         PasswordDigest pd = PasswordDigest.from(salt, dig);
         AccountData human = new HumanAccountDataImpl(hid, pd);

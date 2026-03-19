@@ -659,10 +659,10 @@ Task P6-T2: Upgrade Typesafe Config, Commons, and other utilities
    - 2026-03-19: Remaining scope narrowed to explicit `commons-cli` ownership in `wave`, the Jakarta multipart upload path, and the SBT library-input cleanup tracked separately from the server Gradle path.
 - Goal: Bring common libs to supported versions to reduce CVEs.
 - Steps:
-  1) Completed already: commons-io 2.16.1, commons-codec 1.16.1, velocity 1.7, commons-lang3, Typesafe Config 1.4.3, and Apache HttpClient 4.5.x on the Gradle path.
-  2) Keep `commons-fileupload:1.5` only until the servlet-native multipart path lands on both profiles.
-  3) Make `commons-cli` explicit in `wave` so the server build no longer relies on the PST shadow jar for those classes.
-  4) Keep SBT-specific jar-input cleanup tracked as additive-build follow-up work instead of claiming it as part of the Gradle server closure.
+  1. Completed already: commons-io 2.16.1, commons-codec 1.16.1, velocity 1.7, commons-lang3, Typesafe Config 1.4.3, and Apache HttpClient 4.5.x on the Gradle path.
+  2. Remove `commons-fileupload:1.5` from the runtime path now that the servlet-native multipart path has landed on both profiles.
+  3. Make `commons-cli` explicit in `wave` so the server build no longer relies on the PST shadow jar for those classes.
+  4. Keep SBT-specific jar-input cleanup tracked as additive-build follow-up work instead of claiming it as part of the Gradle server closure.
 - Tests:
   - ./gradlew build and server smoke.
 - AI Agent Guidance:

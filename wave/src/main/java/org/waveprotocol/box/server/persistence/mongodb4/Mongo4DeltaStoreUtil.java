@@ -179,6 +179,11 @@ public class Mongo4DeltaStoreUtil {
       throws PersistenceException {
     try {
       byte[] appliedBytes = deserializeBinary(document.get(FIELD_APPLIED));
+      if (appliedBytes == null) {
+        throw new PersistenceException(
+            "Missing or invalid '" + FIELD_APPLIED + "' field in delta document _id="
+                + document.get("_id"));
+      }
       return new WaveletDeltaRecord(
           deserializeHashedVersion((Document) document.get(FIELD_APPLIEDATVERSION)),
           ByteStringMessage.parseProtocolAppliedWaveletDelta(ByteString.copyFrom(appliedBytes)),

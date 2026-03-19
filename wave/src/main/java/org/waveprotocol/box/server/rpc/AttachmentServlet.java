@@ -344,7 +344,11 @@ public class AttachmentServlet extends HttpServlet {
       if (submittedFileName == null) {
         String value = new String(part.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         if ("attachmentId".equals(part.getName())) {
-          id = AttachmentId.deserialise(value);
+          try {
+            id = AttachmentId.deserialise(value);
+          } catch (InvalidIdException e) {
+            LOG.warning("Problem deserializing attachment id from multipart request", e);
+          }
         } else if ("waveRef".equals(part.getName())) {
           waveRefStr = value;
         }

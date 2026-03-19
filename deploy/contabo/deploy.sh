@@ -28,6 +28,8 @@ root_host=${ROOT_HOST:-supawave.ai}
 www_host=${WWW_HOST:-www.supawave.ai}
 internal_port=${WAVE_INTERNAL_PORT:-9898}
 smoke_image=${SMOKE_IMAGE:-curlimages/curl:8.10.1}
+registry_host=${GHCR_REGISTRY_HOST:-ghcr.io}
+deploy_env_file="$deploy_root/shared/deploy.env"
 
 require_docker() {
   command -v docker >/dev/null 2>&1 || {
@@ -46,6 +48,14 @@ ensure_layout() {
   mkdir -p "$deploy_root"/shared/{accounts,attachments,caddy-config,caddy-data,certificates,deltas,indexes,sessions}
 }
 
+load_deploy_env() {
+  if [[ -f "$deploy_env_file" ]]; then
+    set -a
+    source "$deploy_env_file"
+    set +a
+  fi
+}
+
 activate_release() {
   ln -sfn "$release_dir" "$deploy_root/current"
 }
@@ -56,8 +66,15 @@ remember_previous_release() {
   fi
 }
 
-load_image() {
-  gzip -dc "$release_dir/image.tar.gz" | docker load >/dev/null
+login_registry_if_needed() {
+  if [[ -n "${GHCR_USERNAME:-}" && -n "${GHCR_TOKEN:-}" ]]; then
+    printf '%s' "$GHCR_TOKEN" | docker login "$registry_host" -u "$GHCR_USERNAME" --password-stdin >/dev/null
+  fi
+}
+
+pull_image() {
+  local image_ref="${WAVE_IMAGE:-supawave-wave:$(basename "$release_dir")}"
+  docker pull "$image_ref" >/dev/null
 }
 
 compose_up() {
@@ -117,13 +134,14 @@ rollback_release() {
 }
 
 deploy_release() {
-  if [[ ! -f "$release_dir/compose.yml" || ! -f "$release_dir/Caddyfile" || ! -f "$release_dir/application.conf" || ! -f "$release_dir/image.tar.gz" ]]; then
+  if [[ ! -f "$release_dir/compose.yml" || ! -f "$release_dir/Caddyfile" || ! -f "$release_dir/application.conf" ]]; then
     echo "Release bundle is incomplete" >&2
     exit 1
   fi
 
   remember_previous_release
-  load_image
+  login_registry_if_needed
+  pull_image
   activate_release
   compose_up
 
@@ -139,6 +157,7 @@ deploy_release() {
 
 require_docker
 ensure_layout
+load_deploy_env
 
 case "$cmd" in
   deploy)

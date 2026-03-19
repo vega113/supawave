@@ -42,9 +42,10 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      packages: write
     env:
       RELEASE_ID: ${{ github.sha }}
-      IMAGE_REF: supawave-wave:${{ github.sha }}
+      IMAGE_REF: ghcr.io/${{ github.repository }}:${{ github.sha }}
       CANONICAL_HOST: wave.supawave.ai
       ROOT_HOST: supawave.ai
       WWW_HOST: www.supawave.ai
@@ -70,8 +71,16 @@ jobs:
       - name: Verify installDist and smoke checks
         run: ./gradlew --no-daemon --warning-mode all :pst:build :wave:smokeInstalled
 
-      - name: Build container image
-        run: docker build --tag "$IMAGE_REF" .
+      - name: Log in to GitHub Container Registry
+        run: |
+          set -euo pipefail
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push container image
+        run: |
+          set -euo pipefail
+          docker build --tag "$IMAGE_REF" .
+          docker push "$IMAGE_REF"
 
       - name: Assemble deployment bundle
         run: |
@@ -84,7 +93,6 @@ jobs:
           cp deploy/contabo/application.conf "$bundle_dir/application.conf"
           cp deploy/contabo/deploy.sh "$bundle_dir/deploy.sh"
           chmod +x "$bundle_dir/deploy.sh"
-          docker save "$IMAGE_REF" | gzip > "$bundle_dir/image.tar.gz"
           tar -C "$bundle_dir" -czf "$RUNNER_TEMP/supawave-release.tgz" .
 
       - name: Trust Contabo host key
@@ -113,5 +121,5 @@ jobs:
             mkdir -p '$release_dir'
             tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C '$release_dir'
             chmod +x '$release_dir/deploy.sh'
-            DEPLOY_ROOT='$remote_root' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' bash '$release_dir/deploy.sh' deploy
+            DEPLOY_ROOT='$remote_root' WAVE_IMAGE='$IMAGE_REF' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' bash '$release_dir/deploy.sh' deploy
           "

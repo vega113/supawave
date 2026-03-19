@@ -11,7 +11,7 @@ git worktrees.
 - Route substantive investigation, planning, implementation, and review to the
   appropriate agent type instead of doing the work directly in the lead thread.
 - Use repo-local Beads as the live task tracker for implementation work.
-- Use [docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md](/Users/vega/devroot/incubator-wave/docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md)
+- Use [docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md](docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md)
   as the canonical detailed execution model for multi-agent task delivery.
 - When that orchestration plan applies, follow it directly and do not invent an
   alternative workflow in the middle of task execution.
@@ -84,7 +84,7 @@ git worktrees.
   comments, then switch back to work mode and implement.
 - For the full orchestration sequence, branch/worktree rules, Beads comment
   template, and PR flow, follow
-  [docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md](/Users/vega/devroot/incubator-wave/docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md).
+  [docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md](docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md).
 - If any short-form rule in `AGENTS.md` is ambiguous, the orchestration plan is
   the authoritative source for task execution behavior.
 - Implementation should follow the reviewed plan rather than improvised changes
@@ -146,6 +146,8 @@ Below are practical, action-focused rules for each MCP server defined in `~/.cod
 - Only terminate a turn when the problem is solved or the requested output is
   produced.
 - When uncertain, research or deduce the most reasonable approach and continue.
+- If a task worktree picks up an unexpected git diff or commit, do not stop to ask the user what to do first. Review the unexpected diff, consult Claude review on the diff when the preservation choice is not obvious, keep the useful commits, and continue with the task.
+- Only escalate after that review path if the branch state is still ambiguous or recovery would require destructive history edits.
 - Do not ask the human to confirm assumptions unless the task is blocked on
   unavailable information.
 - Use the memory toolchain frequently to capture technical insights, failed

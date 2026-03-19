@@ -2,6 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use this document together with `docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md` when selecting the next batch of Beads tasks to execute. This file assigns task leads, worktree names, and parallel execution waves.
 
+Status: Dated execution snapshot for the 2026-03-18 queue. Use `.beads/issues.jsonl`
+as the live source of current task readiness before launching a lane.
+
 **Goal:** Execute the current open Beads tasks in a parallel but controlled way, without oversubscribing the available agent budget or creating file-ownership conflicts.
 
 **Architecture:** Parallelize across independent Beads tasks, but cap live execution to two team-lead streams at a time because each stream expands into architect, planner, worker, reviewer, and Claude review. Use later waves to queue the next ready tasks so every team lead already has a designated lane even if it is not launched immediately.
@@ -20,8 +23,6 @@ As of this plan, the ready non-epic tasks are:
   - Close remaining library-upgrade debt
 - `incubator-wave-modernization.4`
   - Bring SBT docs and behavior to parity with the additive server build
-- `incubator-wave-modernization.6`
-  - Produce the J2CL / GWT 3 inventory and decision memo
 - `incubator-wave-modernization.8`
   - Harden browser websocket reconnect handling after disconnects
 - `incubator-wave-wiab-core.1`
@@ -91,13 +92,6 @@ These are independent enough to run once one Wave 1 slot frees up.
   - Worktree: `/Users/vega/devroot/worktrees/incubator-wave/sbt-parity`
   - Branch: `sbt-parity`
   - Why here: mostly build/doc/task-wiring work, low overlap with runtime fixes
-
-- `TL-j2cl-inventory`
-  - Task: `incubator-wave-modernization.6`
-  - Worktree: `/Users/vega/devroot/worktrees/incubator-wave/j2cl-inventory`
-  - Branch: `j2cl-inventory`
-  - Why here: investigation and planning-heavy, minimal overlap with code
-    implementation tasks
 
 ### Wave 3: Broader Validation And Cleanup
 
@@ -196,13 +190,9 @@ Then, when one slot frees:
 
 Then:
 
-4. `TL-j2cl-inventory`
+4. `TL-library-upgrades`
 
-Then:
-
-5. `TL-library-upgrades`
-
-6. `TL-core-smoke`
+5. `TL-core-smoke`
 
 This order front-loads runtime stability, then planning/build work, then
 broader validation.

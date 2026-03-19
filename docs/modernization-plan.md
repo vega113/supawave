@@ -672,18 +672,22 @@ Task P6-T2: Upgrade Typesafe Config, Commons, and other utilities
 
 Task P6-T3: MongoDB driver modernization (scoped)
 - Status: In Progress
-- Goal: 2.11.2 is obsolete; modern drivers are 4.x+. This may require code changes; scope carefully.
+- Goal: 2.11.2 is obsolete; modern drivers are 4.x+. The repo already has the
+  Mongo4 store set in code, so the remaining work is now production-topology
+  and rollout alignment rather than proving the adapters exist.
 - Steps:
   1) `mongodb-driver-sync:4.11.1` is already present on the default Gradle dependency graph.
-  2) Finish the remaining adapters and config wiring behind the modern driver seam.
-  3) Remove `mongo-java-driver:2.11.2` from the default runtime once the v4 path is fully wired and verified.
-  4) Keep the implementation work aligned with `incubator-wave-modernization.2`; this ledger entry only owns the dependency-ownership summary.
+  2) Treat `Mongo4DeltaStore`, `Mongo4AccountStore`, `Mongo4AttachmentStore`, and `Mongo4SignerInfoStore` as existing code, not future placeholders.
+  3) Decide the intended production persistence topology: core stores can move to Mongo, but sessions and search are still separate blockers on the active Jakarta runtime.
+  4) Remove `mongo-java-driver:2.11.2` from the default runtime once the v4 path is the intended production path and the adjacent topology decisions are explicit.
+  5) Keep the implementation work aligned with `incubator-wave-modernization.2` and `incubator-wave-modernization.10`; this ledger entry owns the summary, not every follow-up detail.
 - Tests:
-  - Compile-only spike validated; next step will include adapter tests with an embedded Mongo.
+  - Mongo4 adapter tests already exist and were used in the library-upgrades lane.
+  - Remaining work needs production-topology verification, not just compile-only proof.
 - AI Agent Guidance:
-  - Identify usage via grep for com.mongodb.* APIs.
+  - Do not treat Mongo4 support as hypothetical. Start from the existing adapters and audit what still keeps the active runtime node-local.
 - DoD:
-  - Spike compiles; adapters implemented; config flag can switch between old/new providers; basic integration test passes with MongoDB 4.x.
+  - The intended production path is explicit: which stores run on Mongo, what remains local, and what still blocks multi-instance safety.
 
 Task P6-T6: Retire legacy OAuth libraries
 - Status: Completed on the default build; legacy OAuth is unsupported there

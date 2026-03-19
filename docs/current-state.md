@@ -53,7 +53,9 @@ Read these files first when resuming work:
    - Manual and scripted smoke-test guidance.
 12. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
    - Configuration behavior and fragments-specific settings.
-13. `.beads/issues.jsonl`
+13. `docs/persistence-topology-audit.md`
+   - Current persistence topology, Mongo coverage, and multi-instance blockers.
+14. `.beads/issues.jsonl`
    - Live project backlog for epics and tasks.
 
 ## Verified current state
@@ -127,8 +129,10 @@ Read these files first when resuming work:
    `incubator-wave-jwt-auth` epic.
 6. Config hygiene is incomplete: fragment and segment settings still have
    partially duplicated `System.getProperty(...)` paths in server code.
-7. `Mongo4DeltaStore` is present; the remaining Mongo work here is promoting
-   the production deploy path to the v4-backed stores and then retiring the
+7. `Mongo4DeltaStore` is present, together with `Mongo4AccountStore`,
+   `Mongo4AttachmentStore`, and `Mongo4SignerInfoStore`. The remaining Mongo
+   work is promoting the production deploy path to the v4-backed stores and
+   then retiring the
    legacy v2 fallback on a separate schedule.
 8. The repo now runs on a Jakarta-only server/runtime path, but dead
    compatibility branches and stale history references still need cleanup.

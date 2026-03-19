@@ -6,30 +6,30 @@ This inventory lists the concrete repository surfaces that a JWT redesign would 
 
 ### Effective runtime path
 
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/SessionManager.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/SessionManager.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/SessionManagerImpl.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/SessionManagerImpl.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/WebSession.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/WebSession.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/WebSessions.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/WebSessions.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/AuthenticationServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/AuthenticationServlet.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/ServerRpcProvider.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/ServerRpcProvider.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/WaveClientServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/WaveClientServlet.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/SessionManager.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/SessionManager.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/SessionManagerImpl.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/SessionManagerImpl.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/WebSession.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/WebSession.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/WebSessions.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/authentication/WebSessions.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/AuthenticationServlet.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/AuthenticationServlet.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/ServerRpcProvider.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/ServerRpcProvider.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/WaveClientServlet.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/WaveClientServlet.java)
 
 ### Legacy mirror and tests still relevant during migration
 
-- [`wave/src/main/java/org/waveprotocol/box/server/authentication/SessionManager.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/authentication/SessionManager.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/authentication/SessionManagerImpl.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/authentication/SessionManagerImpl.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/rpc/AuthenticationServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/rpc/AuthenticationServlet.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/rpc/ServerRpcProvider.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/rpc/ServerRpcProvider.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/rpc/WaveClientServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/rpc/WaveClientServlet.java)
-- [`wave/src/test/java/org/waveprotocol/box/server/rpc/AuthenticationServletTest.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/test/java/org/waveprotocol/box/server/rpc/AuthenticationServletTest.java)
-- [`wave/src/test/java/org/waveprotocol/box/server/authentication/SessionManagerTest.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/test/java/org/waveprotocol/box/server/authentication/SessionManagerTest.java)
-- [`wave/src/jakarta-test/java/org/waveprotocol/box/server/jakarta/AuthenticationServletJakartaIT.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-test/java/org/waveprotocol/box/server/jakarta/AuthenticationServletJakartaIT.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/authentication/SessionManager.java`](../../wave/src/main/java/org/waveprotocol/box/server/authentication/SessionManager.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/authentication/SessionManagerImpl.java`](../../wave/src/main/java/org/waveprotocol/box/server/authentication/SessionManagerImpl.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/rpc/AuthenticationServlet.java`](../../wave/src/main/java/org/waveprotocol/box/server/rpc/AuthenticationServlet.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/rpc/ServerRpcProvider.java`](../../wave/src/main/java/org/waveprotocol/box/server/rpc/ServerRpcProvider.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/rpc/WaveClientServlet.java`](../../wave/src/main/java/org/waveprotocol/box/server/rpc/WaveClientServlet.java)
+- [`wave/src/test/java/org/waveprotocol/box/server/rpc/AuthenticationServletTest.java`](../../wave/src/test/java/org/waveprotocol/box/server/rpc/AuthenticationServletTest.java)
+- [`wave/src/test/java/org/waveprotocol/box/server/authentication/SessionManagerTest.java`](../../wave/src/test/java/org/waveprotocol/box/server/authentication/SessionManagerTest.java)
+- [`wave/src/jakarta-test/java/org/waveprotocol/box/server/jakarta/AuthenticationServletJakartaIT.java`](../../wave/src/jakarta-test/java/org/waveprotocol/box/server/jakarta/AuthenticationServletJakartaIT.java)
 
 ### Browser client surfaces
 
-- [`wave/src/main/java/org/waveprotocol/box/webclient/client/WaveWebSocketClient.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/webclient/client/WaveWebSocketClient.java)
-- [`wave/src/main/java/org/waveprotocol/box/webclient/client/Session.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/webclient/client/Session.java)
-- [`wave/src/main/java/org/waveprotocol/box/common/SessionConstants.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/common/SessionConstants.java)
+- [`wave/src/main/java/org/waveprotocol/box/webclient/client/WaveWebSocketClient.java`](../../wave/src/main/java/org/waveprotocol/box/webclient/client/WaveWebSocketClient.java)
+- [`wave/src/main/java/org/waveprotocol/box/webclient/client/Session.java`](../../wave/src/main/java/org/waveprotocol/box/webclient/client/Session.java)
+- [`wave/src/main/java/org/waveprotocol/box/common/SessionConstants.java`](../../wave/src/main/java/org/waveprotocol/box/common/SessionConstants.java)
 
 Why these matter:
 
@@ -40,35 +40,35 @@ Why these matter:
 
 ### Effective runtime path
 
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotApiModule.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotApiModule.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/passive/RobotConnector.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/passive/RobotConnector.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/register/RobotRegistrar.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/register/RobotRegistrar.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotApiModule.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotApiModule.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/passive/RobotConnector.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/passive/RobotConnector.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/register/RobotRegistrar.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/register/RobotRegistrar.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java)
 
 ### Shared and legacy surfaces
 
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/RobotApiModule.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/RobotApiModule.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/passive/RobotConnector.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/passive/RobotConnector.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/passive/RobotsGateway.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/passive/RobotsGateway.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/passive/Robot.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/passive/Robot.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/register/RobotRegistrar.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/register/RobotRegistrar.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/operations/NotifyOperationService.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/operations/NotifyOperationService.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/RobotApiModule.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/RobotApiModule.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/passive/RobotConnector.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/passive/RobotConnector.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/passive/RobotsGateway.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/passive/RobotsGateway.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/passive/Robot.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/passive/Robot.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/register/RobotRegistrar.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/register/RobotRegistrar.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/operations/NotifyOperationService.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/operations/NotifyOperationService.java)
 
 ### Robot client library surfaces
 
-- [`wave/src/main/java/com/google/wave/api/AbstractRobot.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/AbstractRobot.java)
-- [`wave/src/jakarta-overrides/java/com/google/wave/api/AbstractRobot.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/com/google/wave/api/AbstractRobot.java)
-- [`wave/src/main/java/com/google/wave/api/WaveService.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/WaveService.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/util/OAuthUtil.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/util/OAuthUtil.java)
-- [`wave/src/main/java/com/google/wave/api/robot/HttpRobotConnection.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/robot/HttpRobotConnection.java)
-- [`wave/src/main/java/org/waveprotocol/box/expimp/OAuth.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/expimp/OAuth.java)
-- [`wave/src/main/java/org/waveprotocol/box/expimp/WaveImport.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/expimp/WaveImport.java)
-- [`wave/src/main/java/org/waveprotocol/box/expimp/WaveExport.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/expimp/WaveExport.java)
+- [`wave/src/main/java/com/google/wave/api/AbstractRobot.java`](../../wave/src/main/java/com/google/wave/api/AbstractRobot.java)
+- [`wave/src/jakarta-overrides/java/com/google/wave/api/AbstractRobot.java`](../../wave/src/jakarta-overrides/java/com/google/wave/api/AbstractRobot.java)
+- [`wave/src/main/java/com/google/wave/api/WaveService.java`](../../wave/src/main/java/com/google/wave/api/WaveService.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/util/OAuthUtil.java`](../../wave/src/main/java/org/waveprotocol/box/server/util/OAuthUtil.java)
+- [`wave/src/main/java/com/google/wave/api/robot/HttpRobotConnection.java`](../../wave/src/main/java/com/google/wave/api/robot/HttpRobotConnection.java)
+- [`wave/src/main/java/org/waveprotocol/box/expimp/OAuth.java`](../../wave/src/main/java/org/waveprotocol/box/expimp/OAuth.java)
+- [`wave/src/main/java/org/waveprotocol/box/expimp/WaveImport.java`](../../wave/src/main/java/org/waveprotocol/box/expimp/WaveImport.java)
+- [`wave/src/main/java/org/waveprotocol/box/expimp/WaveExport.java`](../../wave/src/main/java/org/waveprotocol/box/expimp/WaveExport.java)
 
 Why these matter:
 
@@ -79,28 +79,28 @@ Why these matter:
 
 ### Effective runtime path
 
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java)
 
 ### Shared and legacy surfaces
 
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java)
-- [`wave/src/main/java/com/google/wave/api/oauth/OAuthService.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/oauth/OAuthService.java)
-- [`wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java)
-- [`wave/src/main/java/com/google/wave/api/oauth/impl/OAuthUser.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/oauth/impl/OAuthUser.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java`](../../wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java)
+- [`wave/src/main/java/com/google/wave/api/oauth/OAuthService.java`](../../wave/src/main/java/com/google/wave/api/oauth/OAuthService.java)
+- [`wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java`](../../wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java)
+- [`wave/src/main/java/com/google/wave/api/oauth/impl/OAuthUser.java`](../../wave/src/main/java/com/google/wave/api/oauth/impl/OAuthUser.java)
 
 ### Tests
 
-- [`wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletTest.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletTest.java)
-- [`wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiServletTest.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiServletTest.java)
-- [`wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java)
-- [`wave/src/jakarta-test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletJakartaIT.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletJakartaIT.java)
-- [`wave/src/test/java/com/google/wave/api/oauth/impl/OAuthServiceImplRobotTest.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/test/java/com/google/wave/api/oauth/impl/OAuthServiceImplRobotTest.java)
+- [`wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletTest.java`](../../wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletTest.java)
+- [`wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiServletTest.java`](../../wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiServletTest.java)
+- [`wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java`](../../wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java)
+- [`wave/src/jakarta-test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletJakartaIT.java`](../../wave/src/jakarta-test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletJakartaIT.java)
+- [`wave/src/test/java/com/google/wave/api/oauth/impl/OAuthServiceImplRobotTest.java`](../../wave/src/test/java/com/google/wave/api/oauth/impl/OAuthServiceImplRobotTest.java)
 
 Why these matter:
 
@@ -109,13 +109,13 @@ Why these matter:
 
 ## 4. Robot identity persistence and schema
 
-- [`wave/src/main/java/org/waveprotocol/box/server/account/RobotAccountData.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/account/RobotAccountData.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/account/RobotAccountDataImpl.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/account/RobotAccountDataImpl.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/persistence/file/FileAccountStore.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/persistence/file/FileAccountStore.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/persistence/protos/ProtoAccountDataSerializer.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/persistence/protos/ProtoAccountDataSerializer.java)
-- [`wave/src/proto/proto/org/waveprotocol/box/server/persistence/protos/account-store.proto`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/proto/proto/org/waveprotocol/box/server/persistence/protos/account-store.proto)
-- [`wave/src/main/java/org/waveprotocol/box/server/persistence/mongodb/MongoDbStore.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/persistence/mongodb/MongoDbStore.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/persistence/mongodb4/Mongo4AccountStore.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/persistence/mongodb4/Mongo4AccountStore.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/account/RobotAccountData.java`](../../wave/src/main/java/org/waveprotocol/box/server/account/RobotAccountData.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/account/RobotAccountDataImpl.java`](../../wave/src/main/java/org/waveprotocol/box/server/account/RobotAccountDataImpl.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/persistence/file/FileAccountStore.java`](../../wave/src/main/java/org/waveprotocol/box/server/persistence/file/FileAccountStore.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/persistence/protos/ProtoAccountDataSerializer.java`](../../wave/src/main/java/org/waveprotocol/box/server/persistence/protos/ProtoAccountDataSerializer.java)
+- [`wave/src/proto/proto/org/waveprotocol/box/server/persistence/protos/account-store.proto`](../../wave/src/proto/proto/org/waveprotocol/box/server/persistence/protos/account-store.proto)
+- [`wave/src/main/java/org/waveprotocol/box/server/persistence/mongodb/MongoDbStore.java`](../../wave/src/main/java/org/waveprotocol/box/server/persistence/mongodb/MongoDbStore.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/persistence/mongodb4/Mongo4AccountStore.java`](../../wave/src/main/java/org/waveprotocol/box/server/persistence/mongodb4/Mongo4AccountStore.java)
 
 Why these matter:
 
@@ -124,20 +124,20 @@ Why these matter:
 
 ## 5. Gadget and OpenSocial-adjacent surfaces
 
-- [`wave/src/main/java/org/waveprotocol/box/server/rpc/GadgetProviderServlet.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/rpc/GadgetProviderServlet.java)
-- [`wave/src/main/java/org/waveprotocol/box/server/ServerMain.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/ServerMain.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerMain.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerMain.java)
-- [`wave/config/reference.conf`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/config/reference.conf)
-- [`wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetDataStore.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetDataStore.java)
-- [`wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetDataStoreImpl.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetDataStoreImpl.java)
-- [`wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetRenderer.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetRenderer.java)
-- [`wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetWidget.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetWidget.java)
-- [`wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java)
-- [`wave/src/main/java/com/google/wave/api/oauth/impl/PopupLoginFormHandler.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/oauth/impl/PopupLoginFormHandler.java)
-- [`wave/src/main/java/com/google/wave/api/oauth/impl/SimpleLoginFormHandler.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/oauth/impl/SimpleLoginFormHandler.java)
-- [`wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpMessage.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpMessage.java)
-- [`wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpResponseMessage.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpResponseMessage.java)
-- [`wave/src/test/java/org/waveprotocol/wave/client/gadget/renderer/GadgetNonEditorGwtTest.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/test/java/org/waveprotocol/wave/client/gadget/renderer/GadgetNonEditorGwtTest.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/rpc/GadgetProviderServlet.java`](../../wave/src/main/java/org/waveprotocol/box/server/rpc/GadgetProviderServlet.java)
+- [`wave/src/main/java/org/waveprotocol/box/server/ServerMain.java`](../../wave/src/main/java/org/waveprotocol/box/server/ServerMain.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerMain.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerMain.java)
+- [`wave/config/reference.conf`](../../wave/config/reference.conf)
+- [`wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetDataStore.java`](../../wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetDataStore.java)
+- [`wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetDataStoreImpl.java`](../../wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetDataStoreImpl.java)
+- [`wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetRenderer.java`](../../wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetRenderer.java)
+- [`wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetWidget.java`](../../wave/src/main/java/org/waveprotocol/wave/client/gadget/renderer/GadgetWidget.java)
+- [`wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java`](../../wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java)
+- [`wave/src/main/java/com/google/wave/api/oauth/impl/PopupLoginFormHandler.java`](../../wave/src/main/java/com/google/wave/api/oauth/impl/PopupLoginFormHandler.java)
+- [`wave/src/main/java/com/google/wave/api/oauth/impl/SimpleLoginFormHandler.java`](../../wave/src/main/java/com/google/wave/api/oauth/impl/SimpleLoginFormHandler.java)
+- [`wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpMessage.java`](../../wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpMessage.java)
+- [`wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpResponseMessage.java`](../../wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpResponseMessage.java)
+- [`wave/src/test/java/org/waveprotocol/wave/client/gadget/renderer/GadgetNonEditorGwtTest.java`](../../wave/src/test/java/org/waveprotocol/wave/client/gadget/renderer/GadgetNonEditorGwtTest.java)
 
 Why these matter:
 
@@ -146,11 +146,11 @@ Why these matter:
 
 ## 6. Build, dependency, and runtime wiring
 
-- [`wave/build.gradle`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/build.gradle)
-- [`wave/src/main/java/org/waveprotocol/box/server/ServerModule.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/main/java/org/waveprotocol/box/server/ServerModule.java)
-- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerModule.java`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerModule.java)
-- [`wave/config/reference.conf`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/config/reference.conf)
-- [`wave/config/application.conf`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/wave/config/application.conf)
+- [`wave/build.gradle`](../../wave/build.gradle)
+- [`wave/src/main/java/org/waveprotocol/box/server/ServerModule.java`](../../wave/src/main/java/org/waveprotocol/box/server/ServerModule.java)
+- [`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerModule.java`](../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerModule.java)
+- [`wave/config/reference.conf`](../../wave/config/reference.conf)
+- [`wave/config/application.conf`](../../wave/config/application.conf)
 
 Why these matter:
 
@@ -159,11 +159,11 @@ Why these matter:
 
 ## 7. Legacy docs that should be updated when implementation starts
 
-- [`docs/modernization-plan.md`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/docs/modernization-plan.md)
-- [`docs/jetty-migration.md`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/docs/jetty-migration.md)
-- [`docs/current-state.md`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/docs/current-state.md)
-- [`docs/blocks-adoption-plan.md`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/docs/blocks-adoption-plan.md)
-- [`docs/superpowers/plans/2026-03-18-library-upgrades-plan.md`](/Users/vega/devroot/worktrees/incubator-wave/jwt-auth-research-lane/docs/superpowers/plans/2026-03-18-library-upgrades-plan.md)
+- [`docs/modernization-plan.md`](../../docs/modernization-plan.md)
+- [`docs/jetty-migration.md`](../../docs/jetty-migration.md)
+- [`docs/current-state.md`](../../docs/current-state.md)
+- [`docs/blocks-adoption-plan.md`](../../docs/blocks-adoption-plan.md)
+- [`docs/superpowers/plans/2026-03-18-library-upgrades-plan.md`](../../docs/superpowers/plans/2026-03-18-library-upgrades-plan.md)
 
 Why these matter:
 

@@ -190,7 +190,7 @@ If gadgets are strategically being retired, the redesign should say so explicitl
 
 - Decide whether Wave is the token issuer or whether it will trust an external issuer.
 - Decide whether gadgets stay in scope.
-- Decide whether robot registration remains interactive or becomes admin or config driven.
+- Decide whether robot registration remains interactive or becomes admin- or config-driven.
 - Decide whether import/export tooling must migrate at the same time as robots.
 
 Exit criteria:

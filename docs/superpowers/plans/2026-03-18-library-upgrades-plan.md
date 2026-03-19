@@ -4,9 +4,9 @@
 
 **Goal:** Close the remaining library-upgrade debt after the Java 17 / Jakarta migration by reconciling the Phase 6 ledger with the actual build, eliminating the libraries that still block the default Jakarta runtime, and explicitly retiring debt that belongs in later phases.
 
-**Architecture:** Treat this as dependency-ownership cleanup, not a blanket "upgrade everything" sweep. First reconcile the docs and build graph so the task works from the real dependency state. Then remove runtime debt on the default Jakarta path by replacing outdated servlet, multipart, MongoDB, and OAuth seams with either standard APIs or repo-local ownership. Keep the legacy `javax` profile and SBT build working until the default Gradle path is green and documented.
+**Architecture:** Treat this as dependency-ownership cleanup, not a blanket "upgrade everything" sweep. First reconcile the docs and build graph so the task works from the real dependency state. Then remove runtime debt on the default Jakarta path by replacing outdated servlet, multipart, MongoDB, and OAuth seams with either standard APIs or explicit retirement. The server/runtime path is Jakarta-only; this historical plan should no longer instruct workers to use the removed `javax` fallback or the removed `-PexcludeLegacyOAuth` switch.
 
-**Tech Stack:** Gradle 8, SBT parity build, Java 17, Jetty 12 EE10 default with Jetty 9.4 fallback, Guice 5.1.0, Guava 32.1.3-jre, Apache Commons CLI and FileUpload, MongoDB Java drivers 2.x and `mongodb-driver-sync:4.11.1`, legacy `net.oauth` stack, JUnit 4, Testcontainers, Beads.
+**Tech Stack:** Gradle 8, SBT parity build, Java 17, Jakarta-only server/runtime path, Guice 5.1.0, Guava 32.1.3-jre, Apache Commons CLI, standard servlet multipart upload, MongoDB Java drivers 2.x and `mongodb-driver-sync:4.11.1`, JUnit 4, Testcontainers, Beads.
 
 ---
 
@@ -23,7 +23,6 @@
   - Server-side Guava resolves to `32.1.3-jre`, and Guice 5.1.0 already runs against it.
   - Commons Lang, Commons Codec, Commons IO, HttpClient, and the `commons-logging` replacement are already in place.
 - Still actionable:
-  - `net.oauth.core` remains on the compile and runtime path, and Chunk 1 must verify whether `-PexcludeLegacyOAuth` really fails before changing build logic.
   - `org.mongodb:mongo-java-driver:2.11.2` remains active while the repo contains only partial `mongodb4` replacements.
   - `org.mongodb:mongodb-driver-sync:4.11.1` is already on the default Gradle path, so the Mongo work is about completing the 4.x wiring and then removing the 2.x driver rather than introducing 4.x from scratch.
   - `commons-fileupload:1.5` remains on the default runtime path even though the Jakarta `AttachmentServlet` no longer implements multipart upload.
@@ -52,13 +51,13 @@
   - Default implementation path: finish the existing sync-driver seam on 4.11.x first, because the repo already contains `mongodb4` adapters and tests.
   - Only bump all the way to the current 5.x line in the same task if infra confirms the supported MongoDB server floor is at least 4.2.
 - OAuth product scope:
-  - Default assumption: robot OAuth flows and import or export tooling remain supported.
-  - If product explicitly approves removal of robot OAuth and import or export entrypoints, the worker may replace the internalization track with endpoint removal and dependency deletion.
+  - Approved path for this lane: retire robot OAuth flows and import/export tooling from the default build.
+  - Use endpoint removal and dependency deletion rather than internalization, and record the resulting breakage as expected for this slice.
 
 ## Out Of Scope
 
 - J2CL or GWT 3 migration, `guava-gwt` replacement, or any broader client rewrite.
-- Removing the `-PjettyFamily=javax` fallback profile.
+- Reintroducing or depending on the retired `jettyFamily` fallback profile.
 - Lucene, JDOM, JDO, BouncyCastle, or other deep library refreshes that are not required to close the concrete debt above.
 - Feature work unrelated to dependency ownership, runtime parity, or build reproducibility.
 
@@ -67,7 +66,7 @@
 - Chunk 1 is mandatory first. It fixes the doc and build ownership drift that the later chunks depend on.
 - Chunk 2 can start after Chunk 1.
 - Chunk 3 should run under `incubator-wave-modernization.2` after Chunk 1, because it is already a separate Beads task and depends on the config hygiene work tracked by `incubator-wave-modernization.1`.
-- Chunk 4 depends on Chunk 1 because it needs the `-PexcludeLegacyOAuth` switch to work before the worker can prove dependency removal.
+- Chunk 4 is historical on this branch: legacy OAuth is intentionally retired from the default build, and the replacement work now lives under the separate JWT-auth epic.
 - Chunk 5 should run under `incubator-wave-modernization.4` after Chunk 1.
 
 ## Chunk 1: Ledger And Build Ownership
@@ -98,14 +97,11 @@ Run:
 ./gradlew -q :wave:dependencyInsight --dependency commons-cli --configuration compileClasspath
 ./gradlew -q :wave:dependencyInsight --dependency oauth --configuration compileClasspath
 ./gradlew -q :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
-./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration compileClasspath
-./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
 ./gradlew -q :wave:dependencies --configuration compileClasspath
 ```
 
 Expected before the fix:
 - `commons-cli` is not explicitly declared for `wave`.
-- The baseline shows whether `net.oauth` disappears cleanly when `-PexcludeLegacyOAuth=true` is enabled, rather than assuming the switch is broken.
 - The compile graph still reflects stale Phase 6 assumptions.
 
 - [ ] **Step 2: Update the docs to reflect the real closure matrix**
@@ -124,23 +120,23 @@ Implement these build changes:
 - Add a direct `commons-cli` dependency to `wave`.
 - Upgrade `pst/build.gradle` from `commons-cli:1.3.1` to `commons-cli:1.11.0`.
 - Remove any reliance on PST shadow jars for `commons-cli` classes in the `wave` compile path.
-- Do not remove the stale OAuth repository URLs yet; defer that cleanup to Chunk 4 once the chosen OAuth ownership path is implemented.
+- Remove the stale OAuth repository URLs as part of the deletion path.
 
-- [ ] **Step 4: Verify and, if needed, fix the advertised OAuth exclusion switch**
+- [x] **Step 4: Remove the advertised OAuth exclusion switch and legacy dependencies**
 
-Use the Step 1 baseline to decide whether a code change is needed. If the switch already works on both classpaths, keep the build logic as-is and record that finding in the task notes. If it does not, update `wave/build.gradle` so `-PexcludeLegacyOAuth=true` actually removes the three `net.oauth.core` coordinates from compile and runtime classpaths.
+Use the Step 1 baseline to confirm the removal path. Update `wave/build.gradle` so the legacy OAuth repositories and `net.oauth.core` coordinates are gone from the default build, then record the remaining compile fallout as the expected result of retiring robot/Data API/import-export OAuth ownership.
 
 Run:
 
 ```bash
-./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration compileClasspath
-./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
+./gradlew -q :wave:dependencyInsight --dependency oauth --configuration compileClasspath
+./gradlew -q :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
 ```
 
 Expected after the fix:
-- No `net.oauth` artifacts remain when the switch is enabled, or the baseline proves that no build change was needed.
+- No `net.oauth` artifacts remain on either classpath.
 
-- [ ] **Step 5: Verify the build still compiles after the ownership cleanup**
+- [x] **Step 5: Verify the build outcome after the ownership cleanup**
 
 Run:
 
@@ -150,9 +146,9 @@ sbt compile
 ```
 
 Expected:
-- Both Gradle and SBT compile.
-- `commons-cli` is explicit in the build graph.
-- Docs and build outputs no longer disagree about what is still open.
+- `net.oauth` no longer appears in the Gradle classpath reports.
+- `:wave:compileJava` passes on the Jakarta path after the OAuth-owned sources are quarantined.
+- Docs, Beads, and the build now agree that legacy OAuth is intentionally retired from this slice.
 
 - [ ] **Step 6: Commit**
 
@@ -173,8 +169,8 @@ git commit -m "build: reconcile remaining library upgrade debt"
 - Create: `wave/src/test/java/org/waveprotocol/box/server/rpc/AttachmentServletUploadTest.java`
 
 **Tests:**
-- `./gradlew -q -PjettyFamily=jakarta :wave:testJakartaIT --tests org.waveprotocol.box.server.jakarta.AttachmentServletJakartaIT`
-- `./gradlew -q -PjettyFamily=javax :wave:test --tests org.waveprotocol.box.server.rpc.AttachmentServletUploadTest`
+- `./gradlew -q :wave:testJakartaIT --tests org.waveprotocol.box.server.jakarta.AttachmentServletJakartaIT`
+- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.rpc.AttachmentServletUploadTest`
 - `./gradlew -q :wave:dependencyInsight --dependency commons-fileupload --configuration runtimeClasspath`
 
 - [ ] **Step 1: Add a failing Jakarta upload test**
@@ -209,8 +205,8 @@ Update `wave/build.gradle` to remove `commons-fileupload`.
 Run:
 
 ```bash
-./gradlew -q -PjettyFamily=jakarta :wave:testJakartaIT --tests org.waveprotocol.box.server.jakarta.AttachmentServletJakartaIT
-./gradlew -q -PjettyFamily=javax :wave:test --tests org.waveprotocol.box.server.rpc.AttachmentServletUploadTest
+./gradlew -q :wave:testJakartaIT --tests org.waveprotocol.box.server.jakarta.AttachmentServletJakartaIT
+./gradlew -q :wave:test --tests org.waveprotocol.box.server.rpc.AttachmentServletUploadTest
 ./gradlew -q :wave:dependencyInsight --dependency commons-fileupload --configuration runtimeClasspath
 ```
 
@@ -321,124 +317,32 @@ git commit -m "persistence: finish modern mongodb driver path"
 
 ### Task 4: Replace external `net.oauth` ownership with either repo-local code or approved feature removal
 
-**Files:**
-- Modify: `wave/build.gradle`
-- Modify: `wave/src/main/java/com/google/wave/api/WaveService.java`
-- Modify: `wave/src/main/java/com/google/wave/api/AbstractRobot.java`
-- Modify: `wave/src/main/java/com/google/wave/api/oauth/impl/OAuthServiceImpl.java`
-- Modify: `wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpClient.java`
-- Modify: `wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpMessage.java`
-- Modify: `wave/src/main/java/com/google/wave/api/oauth/impl/OpenSocialHttpResponseMessage.java`
-- Modify: `wave/src/main/java/org/waveprotocol/box/server/robots/RobotApiModule.java`
-- Modify: `wave/src/main/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java`
-- Modify: `wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java`
-- Modify: `wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java`
-- Modify: `wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java`
-- Modify: `wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java`
-- Modify: `wave/src/main/java/org/waveprotocol/box/server/util/OAuthUtil.java`
-- Modify: `wave/src/main/java/org/waveprotocol/box/expimp/OAuth.java`
-- Modify: `wave/src/jakarta-overrides/java/com/google/wave/api/AbstractRobot.java`
-- Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/RobotApiModule.java`
-- Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/active/ActiveApiServlet.java`
-- Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java`
-- Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java`
-- Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java`
-- Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java`
-- Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/util/JakartaHttpRequestMessage.java`
-- Modify: `wave/src/test/java/com/google/wave/api/oauth/impl/OAuthServiceImplRobotTest.java`
-- Modify: `wave/src/test/java/org/waveprotocol/box/server/robots/active/ActiveApiServletTest.java`
-- Modify: `wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletTest.java`
-- Modify: `wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java`
-- Modify: `wave/src/test/java/org/waveprotocol/box/server/robots/dataapi/DataApiServletTest.java`
-- Modify: `wave/src/jakarta-test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletJakartaIT.java`
-- Create or Modify: `wave/src/main/java/org/waveprotocol/box/server/oauth/**`
+### Task 4: Retire legacy OAuth from the default Jakarta build (historical result)
 
-**Tests:**
-- `./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration compileClasspath`
-- `./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath`
-- `./gradlew -q :wave:test --tests com.google.wave.api.oauth.impl.OAuthServiceImplRobotTest`
-- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.active.ActiveApiServletTest`
-- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServletTest`
-- `./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.dataapi.DataApiServletTest`
-- `./gradlew -q -PjettyFamily=jakarta :wave:testJakartaIT --tests org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServletJakartaIT`
+This task is no longer an executable future plan on this branch. The branch now
+records the approved retirement path instead:
 
-- [ ] **Step 1: Add a failing build assertion for OAuth dependency removal**
+- `net.oauth` dependencies and legacy repository URLs were removed from the
+  default build
+- the default Jakarta compile path no longer includes the legacy robot, Data
+  API, or import/export OAuth surfaces
+- follow-on auth replacement work moved to the separate
+  `incubator-wave-jwt-auth` epic rather than preserving the old OAuth 1.0 model
 
-Use the fixed exclusion switch from Task 1 and prove that enabling it leaves the current code uncompilable or behaviorally incomplete before the implementation change.
-
-Run:
+Current verification on this branch:
 
 ```bash
-./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration compileClasspath
+./gradlew -q :wave:dependencyInsight --dependency oauth --configuration compileClasspath
+./gradlew -q :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
+./gradlew -q :wave:compileJava
 ```
 
-Expected before the fix:
-- The repo still needs the external OAuth implementation for the tested behavior.
+Expected now:
 
-- [ ] **Step 2: Add failing behavioral coverage for the supported OAuth flows**
-
-Cover the call sites that must continue to work if the feature remains:
-- robot OAuth service helpers,
-- Active API servlet validation,
-- Data API OAuth dance on both `javax` and Jakarta paths,
-- token container semantics,
-- import or export OAuth helper behavior if the tools remain in scope.
-
-- [ ] **Step 3: Resolve the product decision gate before changing ownership**
-
-Default assumption: robot OAuth endpoints, Data API OAuth flows, and import or export OAuth helpers remain supported. Record that default assumption on `incubator-wave-modernization.3` before editing. Only switch to the deletion path in Step 6 if there is explicit product approval to retire those endpoints.
-
-- [ ] **Step 4: Audit the exact `net.oauth` surface area before migrating it**
-
-List the actual types used by the repo and group them by seam:
-- provider-side request validation,
-- token storage and accessor helpers,
-- client-side HTTP wrappers,
-- import or export helper usage.
-
-If the surface is materially larger than the current plan assumes, stop and update the task comment before continuing.
-
-- [ ] **Step 5: Implement the preferred ownership model**
-
-Preferred path if the features remain supported:
-- copy or relocate the minimal `net.oauth` implementation that the repo actually uses into a repo-local package,
-- switch imports from the external coordinates to the repo-local package,
-- remove the external `net.oauth.core` dependencies and repository entries.
-
-Do not spend this task on a ScribeJava or Spring Security migration. Those libraries are not a narrow drop-in replacement for the provider-side OAuth 1.0 flows the repo still exercises.
-
-- [ ] **Step 6: Only if product approves removal, take the deletion path instead**
-
-If product explicitly approves removing robot OAuth and import or export tooling:
-- delete the no-longer-supported entrypoints,
-- remove their tests,
-- remove the build dependencies and repository definitions,
-- update docs to state the endpoints are retired.
-
-- [ ] **Step 7: Verify the chosen path**
-
-Run:
-
-```bash
-./gradlew -q :wave:test --tests com.google.wave.api.oauth.impl.OAuthServiceImplRobotTest
-./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.active.ActiveApiServletTest
-./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServletTest
-./gradlew -q :wave:test --tests org.waveprotocol.box.server.robots.dataapi.DataApiServletTest
-./gradlew -q -PjettyFamily=jakarta :wave:testJakartaIT --tests org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServletJakartaIT
-./gradlew -q -PexcludeLegacyOAuth=true :wave:dependencyInsight --dependency oauth --configuration runtimeClasspath
-./gradlew -q :wave:dependencies --configuration runtimeClasspath | rg net\\.oauth
-```
-
-Expected after the fix:
-- Supported OAuth flows still work.
-- `net.oauth` no longer appears as an external dependency on the runtime classpath.
-
-- [ ] **Step 8: Commit**
-
-```bash
-git add wave/build.gradle wave/src/main/java/com/google/wave/api wave/src/main/java/org/waveprotocol/box/server wave/src/main/java/org/waveprotocol/box/expimp wave/src/jakarta-overrides/java/com/google/wave/api wave/src/jakarta-overrides/java/org/waveprotocol/box/server wave/src/test/java/com/google/wave/api/oauth/impl/OAuthServiceImplRobotTest.java wave/src/test/java/org/waveprotocol/box/server/robots wave/src/jakarta-test/java/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletJakartaIT.java
-git commit -m "server: remove external legacy oauth dependency"
-```
+- no `net.oauth` artifacts remain on the default compile or runtime classpaths
+- `:wave:compileJava` passes on the default Jakarta path
+- docs, Beads, and the build all agree that the legacy OAuth path is retired
+  from this slice
 
 ## Chunk 5: SBT And Vendored-Jar Parity
 

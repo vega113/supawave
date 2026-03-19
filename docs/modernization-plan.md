@@ -685,17 +685,19 @@ Task P6-T3: MongoDB driver modernization (scoped)
 - DoD:
   - Spike compiles; adapters implemented; config flag can switch between old/new providers; basic integration test passes with MongoDB 4.x.
 
-Task P6-T6: Evaluate and replace legacy OAuth libraries
-- Status: In Progress
-- Goal: Audit usage of net.oauth.core (oauth-provider/oauth/oauth-consumer @ 20100601-atlassian-2), verify the exclusion switch on both classpaths, and then internalize or remove the legacy ownership model.
+Task P6-T6: Retire legacy OAuth libraries
+- Status: Completed on the default build; legacy OAuth is unsupported there
+- Goal: Remove net.oauth.core (oauth-provider/oauth/oauth-consumer @ 20100601-atlassian-2) from the default build and retire the legacy ownership model.
 - Steps:
-  1) Grep usages across server/client for net.oauth.* APIs; confirm runtime call paths.
-  2) Verify `-PexcludeLegacyOAuth=true` on both compile and runtime classpaths before changing build logic.
-  3) Keep the default assumption that robot and Data API OAuth flows remain supported unless product explicitly retires them.
+  1) Grep usages across server/client for net.oauth.* APIs; confirm the call sites that still depend on the legacy stack.
+  2) Remove the legacy OAuth repositories and dependency wiring from the build.
+  3) Record the expected fallout: robot and Data API OAuth flows, plus any import/export OAuth helpers, are intentionally out of scope for the default path until a later replacement task lands.
 - Tests:
-  - Build without legacy deps using -PexcludeLegacyOAuth and run smoke; add targeted tests if functionality remains required.
+  - Verify `net.oauth` no longer appears on the compile/runtime classpaths.
+  - `./gradlew -q :wave:compileJava` passes on the Jakarta path after the OAuth quarantine.
 - DoD:
-  - Either removed with no functional loss or replaced with a modern, maintained library; dependencies documented.
+  - Legacy OAuth dependencies and repository URLs are removed from the default build.
+  - The docs and Beads trail explicitly call out the accepted OAuth breakage and the unsupported robot/Data API/import-export entrypoints.
 
 Task P6-T4: Guava upgrade strategy (scoped)
 - Status: Completed on the server path; client follow-up moved to Phase 8

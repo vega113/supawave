@@ -119,9 +119,12 @@ Read these files first when resuming work:
    success and does not parse or apply returned fragment payloads.
 4. The default `:wave:test` path is blocked at `compileTestJava` by legacy test
    debt, so it is not yet a reliable smoke gate.
-5. Remaining library-upgrade debt is now narrowed to Commons multipart cleanup,
-   explicit `commons-cli` ownership in `wave`, MongoDB 2.x removal, legacy OAuth
-   ownership, and SBT bootstrap/library-input cleanup.
+5. Remaining library-upgrade debt is now narrowed to MongoDB 2.x removal and
+   SBT bootstrap/library-input cleanup. Commons multipart/CLI cleanup already
+   landed on `main`, and this branch removes `net.oauth` from the default build.
+   Legacy robot, Data API, and import/export OAuth surfaces are intentionally
+   unavailable there for now while the JWT replacement work moves under the
+   `incubator-wave-jwt-auth` epic.
 6. Config hygiene is incomplete: fragment and segment settings still have
    partially duplicated `System.getProperty(...)` paths in server code.
 7. `Mongo4DeltaStore` is still missing, so the MongoDB v4 migration is not

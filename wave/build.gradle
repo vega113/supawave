@@ -217,6 +217,8 @@ sourceSets {
         resources { srcDir 'src/jakarta-test/resources' }
         // Exclude endpoint guard test until EE10 endpoint is enabled
         java.exclude 'org/waveprotocol/box/server/jakarta/WaveWebSocketEndpointInitGuardTest.java'
+        // Legacy OAuth Jakarta IT is intentionally retired on this branch with the OAuth runtime.
+        java.exclude 'org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletJakartaIT.java'
         compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
         runtimeClasspath += output + compileClasspath + configurations.testRuntimeClasspath
     }
@@ -251,36 +253,13 @@ sourceSets {
 sourceSets.main.java {
     // Bring in Jakarta override sources
     srcDir 'src/jakarta-overrides/java'
-    def mainJavaRoot = projectDir.toPath().resolve('src').resolve('main').resolve('java').toAbsolutePath().normalize()
-    // Exclude specific javax-era sources only from src/main/java, not from overrides
     exclude { details ->
-            def path = details.file.toPath().toAbsolutePath().normalize()
-            if (!path.startsWith(mainJavaRoot)) return false
-            def rel = mainJavaRoot.relativize(path).toString().replace(File.separator, '/')
-            // Explicit guard: never exclude robots sources on Jakarta builds; other code depends on types
-            if (rel.startsWith('org/waveprotocol/box/server/robots/')) {
-                def excludeFiles = [
-                    'org/waveprotocol/box/server/robots/RobotApiModule.java',
-                    'org/waveprotocol/box/server/robots/RobotRegistrationServlet.java',
-                    'org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java',
-                    'org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java',
-                    'org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java',
-                    'org/waveprotocol/box/server/robots/dataapi/DataApiOperationServiceRegistry.java',
-                    'org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java',
-                    'org/waveprotocol/box/server/robots/active/ActiveApiServlet.java',
-                    'org/waveprotocol/box/server/robots/active/ActiveApiOperationServiceRegistry.java',
-                    'org/waveprotocol/box/server/robots/passive/RobotConnector.java',
-                    'org/waveprotocol/box/server/robots/operations/NotifyOperationService.java',
-                    'org/waveprotocol/box/server/robots/register/RobotRegistrar.java',
-                    'org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java'
-                ]
-                if (excludeFiles.any { rel == it }) return true
-                // Keep value types and utils (e.g., robots/util, RobotCapabilities)
-                return false
-            }
-            // Exclude legacy utility tying to robot agents on Jakarta
-            if (rel == 'org/waveprotocol/box/server/util/RegistrationUtil.java') return true
-            def patterns = [
+        def sourcePath = details.file.toPath().toAbsolutePath().normalize().toString().replace(File.separator, '/')
+        def matches = { String suffix -> sourcePath.endsWith('/' + suffix) }
+        def underMain = sourcePath.contains('/src/main/java/')
+        def underJakarta = sourcePath.contains('/src/jakarta-overrides/java/')
+        if (underMain) {
+            def mainExactExcludes = [
                 'org/waveprotocol/box/server/rpc/ServerRpcProvider.java',
                 'org/waveprotocol/box/server/ServerModule.java',
                 'org/waveprotocol/box/server/StatModule.java',
@@ -288,14 +267,21 @@ sourceSets.main.java {
                 'org/waveprotocol/box/server/authentication/SessionManager.java',
                 'org/waveprotocol/box/server/robots/RobotApiModule.java',
                 'org/waveprotocol/box/server/robots/RobotRegistrationServlet.java',
+                'org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java',
+                'org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java',
+                'org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java',
+                'org/waveprotocol/box/server/robots/dataapi/DataApiOperationServiceRegistry.java',
+                'org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java',
+                'org/waveprotocol/box/server/robots/active/ActiveApiServlet.java',
+                'org/waveprotocol/box/server/robots/active/ActiveApiOperationServiceRegistry.java',
+                'org/waveprotocol/box/server/robots/passive/RobotConnector.java',
                 'org/waveprotocol/box/server/robots/operations/NotifyOperationService.java',
+                'org/waveprotocol/box/server/robots/register/RobotRegistrar.java',
+                'org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java',
                 'org/waveprotocol/box/server/rpc/UserRegistrationServlet.java',
-                // ServerMain and servlet/bootstrap classes come from Jakarta overrides on this path.
                 'org/waveprotocol/box/server/rpc/AuthenticationServlet.java',
                 'org/waveprotocol/box/server/rpc/SignOutServlet.java',
-                // Keep HttpRequestBasedCallbackHandler available for Jakarta auth servlet
                 'org/waveprotocol/box/server/authentication/SessionManagerImpl.java',
-                // Prevent javax variants where Jakarta overrides exist
                 'org/waveprotocol/box/server/rpc/AttachmentServlet.java',
                 'org/waveprotocol/box/server/rpc/SearchServlet.java',
                 'org/waveprotocol/box/server/rpc/GadgetProviderServlet.java',
@@ -307,21 +293,44 @@ sourceSets.main.java {
                 'org/waveprotocol/box/server/rpc/WaveClientServlet.java',
                 'org/waveprotocol/box/server/rpc/WaveRefServlet.java',
                 'org/waveprotocol/box/server/rpc/HealthServlet.java',
-                // WebSocket wiring under javax
                 'org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java',
                 'org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java',
-                // Shared robot API servlet facade (jakarta override lives under src/jakarta-overrides)
                 'com/google/wave/api/AbstractRobot.java',
-                // Profiling filters replaced with Jakarta variants
+                'com/google/wave/api/WaveService.java',
+                'org/waveprotocol/box/expimp/Console.java',
+                'org/waveprotocol/box/expimp/DeltaParser.java',
+                'org/waveprotocol/box/expimp/DomainConverter.java',
+                'org/waveprotocol/box/expimp/FileNames.java',
+                'org/waveprotocol/box/expimp/OAuth.java',
+                'org/waveprotocol/box/expimp/WaveImport.java',
+                'org/waveprotocol/box/expimp/WaveExport.java',
+                'org/waveprotocol/box/server/util/OAuthUtil.java',
+                'org/waveprotocol/box/server/util/RegistrationUtil.java',
                 'org/waveprotocol/box/server/stat/RequestScopeFilter.java',
                 'org/waveprotocol/box/server/stat/TimingFilter.java'
             ]
-            if (patterns.any { rel == it }) return true
-            // Exclude any org/apache/wave/box/server/rpc/* under src/main/java only
-            if (rel.startsWith('org/apache/wave/box/server/rpc/')) return true
-            // Exclude GWT client sources from Jakarta server compile
-            
+            if (mainExactExcludes.any { matches(it) }) return true
+            if (sourcePath.contains('/com/google/wave/api/oauth/')) return true
+            if (sourcePath.contains('/org/waveprotocol/box/server/robots/agent/')) return true
+            if (sourcePath.contains('/org/waveprotocol/examples/robots/')) return true
+            if (sourcePath.contains('/org/apache/wave/box/server/rpc/')) return true
             return false
+        }
+        if (underJakarta) {
+            def jakartaExactExcludes = [
+                'com/google/wave/api/AbstractRobot.java',
+                'org/waveprotocol/box/server/robots/RobotApiModule.java',
+                'org/waveprotocol/box/server/robots/active/ActiveApiServlet.java',
+                'org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java',
+                'org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java',
+                'org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java',
+                'org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java',
+                'org/waveprotocol/box/server/robots/util/JakartaHttpRequestMessage.java'
+            ]
+            if (jakartaExactExcludes.any { matches(it) }) return true
+            return false
+        }
+        return false
     }
 }
 
@@ -333,12 +342,6 @@ sourceSets.main.java {
 //=============================================================================
 repositories {
     mavenCentral()
-    maven {
-        url 'https://oauth.googlecode.com/svn/code/maven/'
-    }
-    maven {
-        url 'https://maven.atlassian.com/3rdparty/'
-    }
 }
 
 // Ensure a single SLF4J binding (Logback) and evict legacy binders
@@ -395,13 +398,6 @@ dependencies {
             [group: "javax.inject", name: "javax.inject", version: "1"],
             [group: "javax.jdo", name: "jdo2-api", version: "2.1"]
     )
-    if (!project.hasProperty('excludeLegacyOAuth')) {
-        implementation (
-                [group: "net.oauth.core", name: "oauth-provider", version: "20100601-atlassian-2"],
-                [group: "net.oauth.core", name: "oauth", version: "20100601-atlassian-2"],
-                [group: "net.oauth.core", name: "oauth-consumer", version: "20100601-atlassian-2"]
-        )
-    }
     implementation fileTree(dir: '../pst/build/libs', include: '**/*.jar')
     // High-performance in-memory cache for manifest ordering
     implementation ([group: "com.github.ben-manes.caffeine", name: "caffeine", version: "3.1.8"])

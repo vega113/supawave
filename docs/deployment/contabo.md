@@ -96,8 +96,7 @@ Defaults used by the workflow when optional secrets are omitted:
 
 ## Rollback
 
-To roll back manually, run the release script from the current release
- directory:
+To roll back manually, run the release script from the current release directory:
 
 ```bash
 bash ~/supawave/current/deploy.sh rollback

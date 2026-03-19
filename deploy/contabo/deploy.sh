@@ -134,6 +134,7 @@ deploy_release() {
 
   echo "Smoke checks failed, rolling back" >&2
   rollback_release
+  exit 1
 }
 
 require_docker

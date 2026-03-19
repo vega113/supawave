@@ -13,7 +13,7 @@
 ### Task 1: Reproduce The State-Machine Bug
 
 **Files:**
-- Create: `wave/src/test/java/org/waveprotocol/box/webclient/client/WaveWebSocketClientTest.java`
+- Create: `wave/src/jakarta-test/java/org/waveprotocol/box/webclient/client/WaveWebSocketClientTest.java`
 - Modify: `wave/src/main/java/org/waveprotocol/box/webclient/client/WaveWebSocketClient.java`
 
 - [ ] **Step 1: Add a failing test showing that a successful initial connect consumes reconnect budget needed for a later disconnect**
@@ -49,7 +49,7 @@ git commit -m "Harden websocket reconnect loop"
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/webclient/client/WaveWebSocketClient.java`
-- Modify or Extend: `wave/src/test/java/org/waveprotocol/box/webclient/client/WaveWebSocketClientTest.java`
+- Modify or Extend: `wave/src/jakarta-test/java/org/waveprotocol/box/webclient/client/WaveWebSocketClientTest.java`
 
 - [ ] **Step 1: If the existing code already distinguishes initial connect from reconnect, emit `RECONNECTING` and `RECONNECTED` appropriately**
 

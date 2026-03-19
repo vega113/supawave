@@ -27,8 +27,6 @@ import static org.waveprotocol.wave.communication.gwt.JsonHelper.setPropertyAsOb
 import static org.waveprotocol.wave.communication.gwt.JsonHelper.setPropertyAsString;
 
 import com.google.common.base.Preconditions;
-import com.google.gwt.core.client.Scheduler;
-import com.google.gwt.core.client.Scheduler.RepeatingCommand;
 import com.google.gwt.user.client.Cookies;
 
 import org.waveprotocol.box.common.comms.jso.ProtocolAuthenticateJsoImpl;
@@ -111,31 +109,10 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
 
   private final Queue<JsonMessage> messages = CollectionUtils.createQueue();
 
-  private final RepeatingCommand reconnectCommand = new RepeatingCommand() {
-    @Override
-    public boolean execute() {
-      boolean keepScheduled = true;
-      if (connected == ConnectState.CONNECTED) {
-        reconnectScheduled = false;
-        keepScheduled = false;
-      } else if (connected == ConnectState.DISCONNECTED) {
-        if (connectTry > MAX_INITIAL_FAILURES) {
-          reconnectScheduled = false;
-          keepScheduled = false;
-        } else {
-          connectTry++;
-          LOG.info("Attempting to reconnect");
-          connected = ConnectState.CONNECTING;
-          socket.connect();
-        }
-      }
-      return keepScheduled;
-    }
-  };
-
   private boolean connectedAtLeastOnce = false;
   private long connectTry = 0;
   private boolean reconnectScheduled = false;
+  private com.google.gwt.user.client.Timer reconnectTimer;
   private final String urlBase;
 
   public WaveWebSocketClient(boolean websocketNotAvailable, String urlBase) {
@@ -163,7 +140,7 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
    * Opens this connection.
    */
   public void connect() {
-    if (reconnectCommand.execute()) {
+    if (attemptReconnect()) {
       scheduleReconnect();
     }
   }
@@ -193,6 +170,7 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   public void onDisconnect() {
     connected = ConnectState.DISCONNECTED;
     ClientEvents.get().fireEvent(new NetworkStatusEvent(ConnectionStatus.DISCONNECTED));
+    cancelReconnectTimer();
     scheduleReconnect();
   }
 
@@ -255,7 +233,8 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   private void scheduleReconnect() {
     if (!reconnectScheduled) {
       reconnectScheduled = true;
-      Scheduler.get().scheduleFixedDelay(reconnectCommand, RECONNECT_TIME_MS);
+      reconnectTimer = createReconnectTimer();
+      reconnectTimer.schedule(RECONNECT_TIME_MS);
     }
   }
 
@@ -263,6 +242,47 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
     connected = ConnectState.CONNECTED;
     connectedAtLeastOnce = true;
     connectTry = 0;
+    cancelReconnectTimer();
+  }
+
+  boolean attemptReconnect() {
+    boolean keepScheduled = true;
+    if (connected == ConnectState.CONNECTED) {
+      cancelReconnectTimer();
+      keepScheduled = false;
+    } else if (connected == ConnectState.DISCONNECTED) {
+      if (connectTry > MAX_INITIAL_FAILURES) {
+        cancelReconnectTimer();
+        keepScheduled = false;
+      } else {
+        connectTry++;
+        LOG.info("Attempting to reconnect");
+        connected = ConnectState.CONNECTING;
+        socket.connect();
+      }
+    }
+    return keepScheduled;
+  }
+
+  com.google.gwt.user.client.Timer createReconnectTimer() {
+    return new com.google.gwt.user.client.Timer() {
+      @Override
+      public void run() {
+        reconnectScheduled = false;
+        reconnectTimer = null;
+        if (attemptReconnect()) {
+          scheduleReconnect();
+        }
+      }
+    };
+  }
+
+  private void cancelReconnectTimer() {
+    if (reconnectTimer != null) {
+      reconnectTimer.cancel();
+      reconnectTimer = null;
+    }
+    reconnectScheduled = false;
   }
 
 }

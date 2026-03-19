@@ -64,8 +64,7 @@ Read these files first when resuming work:
 - Gradle 8 migration and the associated deprecation cleanup are in place.
 - GWT 2.x on JDK 17 is already wired well enough to be tracked as completed in
   the modernization ledger.
-- Jakarta / Jetty 12 is the default server profile.
-- The legacy `javax` / Jetty 9.4 path still exists as a fallback for bisects.
+- Jakarta / Jetty 12 is the supported server profile.
 - The additive SBT build skeleton exists and can compile the server-only subset.
 - The Phase 8 planning artifacts now exist:
   - `docs/j2cl-gwt3-inventory.md`
@@ -103,11 +102,13 @@ Read these files first when resuming work:
    partially duplicated `System.getProperty(...)` paths in server code.
 5. `Mongo4DeltaStore` is still missing, so the MongoDB v4 migration is not
    complete.
-6. SBT is still additive and server-only. Gradle remains the canonical build.
-7. Packaging and DX verification still need a post-Jakarta pass.
-8. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
+6. The repo now runs on a Jakarta-only server/runtime path, but dead
+   compatibility branches and stale history references still need cleanup.
+7. SBT is still additive and server-only. Gradle remains the canonical build.
+8. Packaging and DX verification still need a post-Jakarta pass.
+9. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
    the prerequisite reduction tasks for any future J2CL work are still open.
-9. The documentation surface is now intentionally split between one canonical
+10. The documentation surface is now intentionally split between one canonical
    resume guide, a few live ledgers, and Beads tasks; do not re-open one-off
    plan docs when the live backlog already captures the work.
 

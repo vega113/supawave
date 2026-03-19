@@ -12,10 +12,8 @@ COPY wave /workspace/wave
 COPY scripts /workspace/scripts
 # Minimal copy for build to reduce layers; docs/keys are not needed for build
 
-# Build only the server distribution (installDist)
-# Allow switching Jetty family at build time (default: jakarta)
-ARG JETTY_FAMILY=jakarta
-RUN ./gradlew --no-daemon -PjettyFamily=${JETTY_FAMILY} :wave:installDist
+# Build only the server distribution (installDist) on the Jakarta-only path
+RUN ./gradlew --no-daemon :wave:installDist
 
 # Runtime stage: slim JRE image
 FROM eclipse-temurin:17-jre

@@ -1337,7 +1337,7 @@ tasks.register('smokeInstalled', Exec) {
     description = 'Builds installDist and runs scripts/wave-smoke.sh against it.'
     dependsOn tasks.named('installDist')
     workingDir = rootProject.projectDir
-    commandLine 'bash', '-lc', 'scripts/wave-smoke.sh start && scripts/wave-smoke.sh check && scripts/wave-smoke.sh stop'
+    commandLine 'bash', '-lc', 'bash scripts/wave-smoke.sh start && bash scripts/wave-smoke.sh check && bash scripts/wave-smoke.sh stop'
 }
 
 //=============================================================================

@@ -15,6 +15,10 @@ on:
       - submitted
       - edited
       - dismissed
+  pull_request_review_thread:
+    types:
+      - resolved
+      - unresolved
   issue_comment:
     types:
       - created
@@ -23,7 +27,7 @@ on:
 jobs:
   codex-review-gate:
     name: Codex Review Gate
-    if: ${{ github.event.pull_request != null || github.event.issue.pull_request != null }}
+    if: ${{ github.event.pull_request != null || github.event.issue.pull_request != null || github.event.review_thread.pull_request != null }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -35,7 +39,10 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const prNumber = context.payload.pull_request?.number ?? context.payload.issue?.number;
+            const prNumber =
+              context.payload.pull_request?.number ??
+              context.payload.issue?.number ??
+              context.payload.review_thread?.pull_request?.number;
 
             const query = `
               query($owner: String!, $repo: String!, $number: Int!) {

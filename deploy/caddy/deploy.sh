@@ -90,6 +90,13 @@ pull_image() {
   docker pull "$image_ref" >/dev/null
 }
 
+render_application_config() {
+  local app_config="$release_dir/application.conf"
+  if [[ -f "$app_config" ]]; then
+    perl -0pi -e 's/wave\.example\.test/'"$canonical_host"'/g' "$app_config"
+  fi
+}
+
 compose_up() {
   DEPLOY_ROOT="$deploy_root" \
   WAVE_IMAGE="${WAVE_IMAGE:-supawave-wave:$(basename "$release_dir")}" \
@@ -155,6 +162,7 @@ deploy_release() {
   remember_previous_release
   login_registry_if_needed
   pull_image
+  render_application_config
   activate_release
   if ! compose_up; then
     echo "Compose startup failed, rolling back" >&2

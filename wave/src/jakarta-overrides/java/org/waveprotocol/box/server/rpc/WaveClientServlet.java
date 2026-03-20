@@ -301,12 +301,7 @@ public class WaveClientServlet extends HttpServlet {
     }
 
     if (valueType == ConfigValueType.NUMBER) {
-      Number number = (Number) unwrapped;
-      if (Math.rint(number.doubleValue()) == number.doubleValue()) {
-        ret.put(FLAG_MAP.get(name), number.intValue());
-      } else {
-        ret.put(FLAG_MAP.get(name), number.doubleValue());
-      }
+      ret.put(FLAG_MAP.get(name), unwrapped);
     }
   }
 
@@ -329,7 +324,11 @@ public class WaveClientServlet extends HttpServlet {
     }
 
     if (trimmed.matches("-?\\d+")) {
-      ret.put(FLAG_MAP.get(name), Integer.parseInt(trimmed));
+      try {
+        ret.put(FLAG_MAP.get(name), Integer.parseInt(trimmed));
+      } catch (NumberFormatException ignored) {
+        ret.put(FLAG_MAP.get(name), Long.parseLong(trimmed));
+      }
       return;
     }
 

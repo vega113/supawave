@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    command:
+      - --bind_ip_all
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/mongo/db:/data/db
+
+  wave:
+    image: ${WAVE_IMAGE:?set WAVE_IMAGE before running compose}
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:9898:9898"
+    volumes:
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/accounts:/opt/wave/_accounts
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/attachments:/opt/wave/_attachments
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/certificates:/opt/wave/_certificates
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/deltas:/opt/wave/_deltas
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/indexes:/opt/wave/_indexes
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/sessions:/opt/wave/_sessions
+      - ./application.conf:/opt/wave/config/application.conf:ro
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on:
+      - wave
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CANONICAL_HOST: ${CANONICAL_HOST:?set CANONICAL_HOST before running compose}
+      ROOT_HOST: ${ROOT_HOST:?set ROOT_HOST before running compose}
+      WWW_HOST: ${WWW_HOST:?set WWW_HOST before running compose}
+      WAVE_INTERNAL_PORT: ${WAVE_INTERNAL_PORT:?set WAVE_INTERNAL_PORT before running compose}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/caddy-data:/data
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/caddy-config:/config

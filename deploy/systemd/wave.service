@@ -1,0 +1,18 @@
+[Unit]
+Description=Apache Wave application service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wave
+Group=wave
+WorkingDirectory=/opt/wave
+EnvironmentFile=/etc/wave/wave.env
+ExecStart=/usr/bin/java -jar /opt/wave/wave.jar
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

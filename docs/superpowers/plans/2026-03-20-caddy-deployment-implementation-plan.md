@@ -1,6 +1,6 @@
 # Caddy Deployment Flavor Implementation Plan
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED: Follow `docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md` as the canonical execution model when it applies, and use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implement the reviewed deployment-flavor design by shipping provider-neutral Linux host docs, standalone and Caddy deployment guides, official Caddy assets, systemd examples, and host bootstrap/prerequisite guidance without regressing the current automated deployment path.
 
@@ -133,7 +133,7 @@ CANONICAL_HOST=wave.example.test \
 ROOT_HOST=example.test \
 WWW_HOST=www.example.test \
 docker compose -f deploy/caddy/compose.yml config | tee /tmp/caddy-compose.rendered
-grep -E "YOUR_|CHANGEME|example\.com" /tmp/caddy-compose.rendered && exit 1 || true
+grep -E 'YOUR_|CHANGEME|\$\{[A-Z_][A-Z0-9_]*\}' /tmp/caddy-compose.rendered && exit 1 || true
 ```
 Expected: shell syntax passes, the canonical env example loads successfully, Compose config renders without missing variable errors, and the rendered config does not contain unresolved placeholder values.
 

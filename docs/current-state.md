@@ -25,6 +25,14 @@ state of the repository.
   - Use it as a source of truth for remaining product features and deeper
     data-layer behavior that were not yet imported.
 
+## Deployment modes
+
+The supported deployment modes are now:
+- standalone direct-TLS Wave
+- Caddy-fronted Wave, recommended for many operators
+
+Cloudflare is optional and should be treated as an overlay, not as a baseline deployment requirement.
+
 ## Canonical documentation set
 
 Read these files first when resuming work:
@@ -47,11 +55,13 @@ Read these files first when resuming work:
    - Detailed server-first fragments and segment-state adoption log.
 9. `docs/BUILDING-sbt.md`
    - State of the additive SBT build port.
-10. `docs/DEV_SETUP.md`
+10. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
+   - Canonical deployment documentation set and provider-neutral Linux host guidance.
+11. `docs/DEV_SETUP.md`
    - Local development requirements and setup notes.
-11. `docs/SMOKE_TESTS.md`
+12. `docs/SMOKE_TESTS.md`
    - Manual and scripted smoke-test guidance.
-12. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
+13. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
    - Configuration behavior and fragments-specific settings.
 13. `docs/persistence-topology-audit.md`
    - Current persistence topology, Mongo coverage, and multi-instance blockers.

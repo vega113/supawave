@@ -22,12 +22,13 @@ import com.google.common.collect.Maps;
 import com.google.gxp.base.GxpContext;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import com.typesafe.config.ConfigValue;
+import com.typesafe.config.ConfigValueType;
 import com.typesafe.config.Config;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -45,7 +46,6 @@ import org.waveprotocol.box.server.gxp.TopBar;
 import org.waveprotocol.box.server.gxp.WaveClientPage;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
 import org.waveprotocol.box.server.util.UrlParameters;
-import org.waveprotocol.wave.client.util.ClientFlagsBase;
 import org.waveprotocol.wave.common.bootstrap.FlagConstants;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
@@ -173,13 +173,9 @@ public class WaveClientServlet extends HttpServlet {
       return;
     }
     try {
-      Method getter = ClientFlagsBase.class.getMethod(name);
-      Class<?> retType = getter.getReturnType();
-      putTypedValue(ret, name, value, retType);
-    } catch (SecurityException | NumberFormatException ex) {
+      putInferredValue(ret, name, value);
+    } catch (NumberFormatException ex) {
       LOG.warning("Ignoring flag [" + name + "]: " + ex.getClass().getSimpleName());
-    } catch (NoSuchMethodException ex) {
-      LOG.warning("Failed to find the flag [" + name + "] in ClientFlagsBase.");
     } catch (JSONException ex) {
       LOG.warning("Failed to encode flag [" + name + "]");
     }
@@ -217,9 +213,7 @@ public class WaveClientServlet extends HttpServlet {
           continue;
         }
         try {
-          Method getter = ClientFlagsBase.class.getMethod(name);
-          Class<?> retType = getter.getReturnType();
-          putConfiguredValue(ret, name, path, retType);
+          putConfiguredValue(ret, name, path);
         } catch (Exception ignored) {
         }
       }
@@ -285,43 +279,66 @@ public class WaveClientServlet extends HttpServlet {
       return;
     }
     try {
-      Method getter = ClientFlagsBase.class.getMethod(name);
-      Class<?> retType = getter.getReturnType();
-      putTypedValue(ret, name, value, retType);
+      putInferredValue(ret, name, value);
     } catch (Exception ignored) {
     }
   }
 
-  private void putConfiguredValue(JSONObject ret, String name, String path, Class<?> retType)
+  private void putConfiguredValue(JSONObject ret, String name, String path)
       throws JSONException {
-    if (retType.equals(String.class)) {
-      ret.put(FLAG_MAP.get(name), config.getString(path));
-    } else if (retType.equals(Integer.class)) {
-      ret.put(FLAG_MAP.get(name), config.getInt(path));
-    } else if (retType.equals(Boolean.class)) {
-      ret.put(FLAG_MAP.get(name), config.getBoolean(path));
-    } else if (retType.equals(Float.class)) {
-      ret.put(FLAG_MAP.get(name), (float) config.getDouble(path));
-    } else if (retType.equals(Double.class)) {
-      ret.put(FLAG_MAP.get(name), config.getDouble(path));
+    ConfigValue value = config.getValue(path);
+    ConfigValueType valueType = value.valueType();
+    Object unwrapped = value.unwrapped();
+
+    if (valueType == ConfigValueType.STRING) {
+      ret.put(FLAG_MAP.get(name), String.valueOf(unwrapped));
+      return;
+    }
+
+    if (valueType == ConfigValueType.BOOLEAN) {
+      ret.put(FLAG_MAP.get(name), (Boolean) unwrapped);
+      return;
+    }
+
+    if (valueType == ConfigValueType.NUMBER) {
+      Number number = (Number) unwrapped;
+      if (Math.rint(number.doubleValue()) == number.doubleValue()) {
+        ret.put(FLAG_MAP.get(name), number.intValue());
+      } else {
+        ret.put(FLAG_MAP.get(name), number.doubleValue());
+      }
     }
   }
 
-  private void putTypedValue(JSONObject ret, String name, String value, Class<?> retType)
+  private void putInferredValue(JSONObject ret, String name, String value)
       throws JSONException {
-    if (retType.equals(String.class)) {
-      ret.put(FLAG_MAP.get(name), value);
-    } else if (retType.equals(Integer.class)) {
-      ret.put(FLAG_MAP.get(name), Integer.parseInt(value));
-    } else if (retType.equals(Boolean.class)) {
-      ret.put(FLAG_MAP.get(name), Boolean.parseBoolean(value));
-    } else if (retType.equals(Float.class)) {
-      ret.put(FLAG_MAP.get(name), Float.parseFloat(value));
-    } else if (retType.equals(Double.class)) {
-      ret.put(FLAG_MAP.get(name), Double.parseDouble(value));
-    } else {
-      LOG.warning("Ignoring flag [" + name + "] with unknown return type: " + retType);
+    if (value == null) {
+      ret.put(FLAG_MAP.get(name), JSONObject.NULL);
+      return;
     }
+
+    String trimmed = value.trim();
+    if (trimmed.isEmpty()) {
+      ret.put(FLAG_MAP.get(name), trimmed);
+      return;
+    }
+
+    if ("true".equalsIgnoreCase(trimmed) || "false".equalsIgnoreCase(trimmed)) {
+      ret.put(FLAG_MAP.get(name), Boolean.parseBoolean(trimmed));
+      return;
+    }
+
+    if (trimmed.matches("-?\\d+")) {
+      ret.put(FLAG_MAP.get(name), Integer.parseInt(trimmed));
+      return;
+    }
+
+    if (trimmed.matches("-?(?:\\d+\\.\\d*|\\d*\\.\\d+)(?:[eE][+-]?\\d+)?")) {
+      ret.put(FLAG_MAP.get(name), Double.parseDouble(trimmed));
+      return;
+    }
+
+    ret.put(FLAG_MAP.get(name), trimmed);
   }
 
   private JSONObject getSessionJson(WebSession session) {

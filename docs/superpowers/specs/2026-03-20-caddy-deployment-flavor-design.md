@@ -14,6 +14,19 @@ The project should remain standalone-capable, while making Caddy easy and explic
 - Documentation should treat standalone and caddy-fronted modes as first-class deployment choices.
 - For many production operators, the recommended mode is caddy-fronted because certificate management and redirect handling are simpler and less error-prone.
 
+## Supported Host Baseline
+- The canonical deployment docs should be provider-neutral and assume a generic Linux host, not a specific VPS vendor.
+- The baseline supported host should be a systemd-based x86_64 Linux machine, with Ubuntu LTS used as the reference environment for package names and examples.
+- Other Linux distributions may work if they provide equivalent packages, service management, and network behavior.
+- The docs should explicitly list required host prerequisites and should also provide a setup/bootstrap script for the reference Linux baseline when practical.
+
+Minimum host-prerequisite topics to document:
+- public DNS pointed at the host and ports `80`/`443` reachable
+- systemd available for the non-Docker service examples
+- common bootstrap tools such as `curl`, `tar`, and `openssl`
+- Java 17 available for standalone Wave deployment
+- Docker Engine and `docker compose` available for the Docker-based Caddy deployment path
+
 ## Why Support Caddy
 Caddy solves internet-edge concerns that are adjacent to, but separate from, Wave itself:
 - public TLS certificate issuance and renewal
@@ -38,7 +51,7 @@ Wave owns TLS directly.
 
 Shape:
 - Wave listens on `443` for HTTPS
-- optional HTTP listener on `80` for redirects or certificate validation support, depending on the chosen cert flow
+- optional HTTP listener on `80` for redirects or ACME HTTP-01 challenge validation, depending on the chosen cert flow
 - no Caddy in the runtime topology
 
 Recommended use:
@@ -49,8 +62,8 @@ Recommended use:
 Required docs/assets:
 - standalone deployment guide
 - direct-TLS config example
-- certificate/keystore guidance using pre-provisioned public certificates as the baseline documented path for this task
-- standalone systemd example
+- certificate/keystore guidance with pre-provisioned public certificates as the baseline documented path
+- standalone systemd example, including the optional `:80` listener/redirect companion path when that mode is documented
 - validation checklist
 
 ### 2. Caddy-Fronted
@@ -101,7 +114,7 @@ Recommended outcome:
 Update or create:
 - `README.md`
 - `docs/current-state.md`
-- `docs/deployment/contabo.md`
+- `docs/deployment/linux-host.md`
 - `docs/deployment/standalone.md`
 - `docs/deployment/caddy.md`
 
@@ -113,14 +126,17 @@ Content requirements:
 
 ### Deployment Assets
 Ship and maintain:
-- official `deploy/contabo/Caddyfile`
-- official `deploy/contabo/compose.yml`
+- official `deploy/caddy/Caddyfile`
+- official `deploy/caddy/compose.yml`
 - non-Docker `systemd` example for `wave + caddy`
 - non-Docker `systemd` example for standalone Wave TLS
+- Linux host prerequisites checklist
+- reference Linux host setup/bootstrap script for host prerequisites and common packages
 
 Asset/doc boundary:
 - `deploy/` contains runnable deployment assets such as compose files, Caddyfiles, and service-unit examples
 - `docs/deployment/` contains operator-facing prose guidance and validation steps
+- provider-specific notes, if ever needed, should be optional examples layered on top of the provider-neutral deployment docs rather than the canonical deployment story
 
 ### Migration Guidance
 Document:
@@ -146,6 +162,7 @@ Validation must explicitly cover:
 - Docker example validation such as `docker compose config`, startup, and healthy-response checks
 - systemd example validation such as unit-file linting, service startup, and healthy-response checks
 - whether validation is CI-enforced, manual-only, or both for each shipped asset
+- Linux host setup validation such as a dry-run or documented expected outcome for the reference setup/bootstrap script
 
 ### Troubleshooting
 Include in this task a short operator FAQ covering:
@@ -172,7 +189,7 @@ This task should not include:
 - `README.md`: short deployment overview and links to both supported modes
 - `docs/deployment/standalone.md`: direct-TLS Wave setup and operational notes
 - `docs/deployment/caddy.md`: what Caddy is, why to use it, and how it fronts Wave
-- `docs/deployment/contabo.md`: provider-specific example using the chosen supported flavor(s)
+- `docs/deployment/linux-host.md`: generic Linux host prerequisites, bootstrap flow, and links to both supported flavors
 - `docs/current-state.md`: brief statement of the two supported deployment flavors and current recommendation
 
 ## Acceptance Criteria
@@ -180,5 +197,6 @@ This task should not include:
 - The docs clearly explain what Caddy is and why operators may prefer it.
 - Official Caddy deployment assets are present in the repo and referenced from the docs.
 - Official standalone and caddy-fronted non-Docker systemd examples are present in the repo and referenced from the docs.
+- The repo documents a provider-neutral Linux host baseline and includes either a reference setup script or an explicit prerequisites checklist for that baseline.
 - The docs include a decision matrix, migration guidance, and validation steps.
 - The docs clearly state that Caddy is supported but not required and not embedded into Wave.

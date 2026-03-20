@@ -305,7 +305,7 @@ rg -n 'deploy/(contabo|caddy)' .github/workflows/deploy-contabo.yml docs/deploym
 ```
 Expected: workflow/docs point consistently at the chosen canonical asset path and any compatibility path is explicitly documented.
 
-- [ ] **Step 3a: Add CI validation for the canonical deployment assets**
+- [ ] **Step 4: Add CI validation for the canonical deployment assets**
 
 Modify the appropriate build workflow so it runs at least:
 ```bash
@@ -318,7 +318,7 @@ Expected: the new canonical deployment assets are checked automatically on push 
 
 Live end-to-end execution of `deploy-contabo.yml` against a real host is explicitly deferred out of this documentation/assets task and should be handled as a separate operational verification step after merge.
 
-- [ ] **Step 4: Update Beads with plan and verification summary**
+- [ ] **Step 5: Update Beads with plan and verification summary**
 
 Add comments to `incubator-wave-deployment.6` covering:
 - plan path
@@ -326,7 +326,7 @@ Add comments to `incubator-wave-deployment.6` covering:
 - verification commands
 - any compatibility choice kept for the current deploy workflow
 
-- [ ] **Step 5: Final review and commit if cross-reference fixes were needed**
+- [ ] **Step 6: Final review and commit if cross-reference fixes were needed**
 
 Run:
 ```bash

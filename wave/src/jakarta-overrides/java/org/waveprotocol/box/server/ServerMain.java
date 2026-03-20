@@ -19,12 +19,14 @@ import org.waveprotocol.box.server.frontend.ClientFrontend;
 import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
 import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
+import org.waveprotocol.box.server.dev.ClientApplierStatsJakartaServlet;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceModule;
 import org.waveprotocol.box.server.persistence.SignerInfoStore;
 import org.waveprotocol.box.server.rpc.*;
 import org.waveprotocol.box.server.robots.ProfileFetcherModule;
+import org.waveprotocol.box.server.robots.JakartaRobotApiBindingsModule;
 import org.waveprotocol.box.server.robots.RobotRegistrationServlet;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
@@ -91,9 +93,10 @@ public class ServerMain {
     PersistenceModule persistenceModule = injector.getInstance(PersistenceModule.class);
     Module searchModule = injector.getInstance(SearchModule.class);
     Module profileFetcherModule = injector.getInstance(ProfileFetcherModule.class);
+    Module robotApiModule = new JakartaRobotApiBindingsModule();
 
     injector = injector.createChildInjector(serverModule, persistenceModule,
-        searchModule, federationModule, profileFetcherModule);
+        robotApiModule, searchModule, federationModule, profileFetcherModule);
 
     ServerRpcProvider server = injector.getInstance(ServerRpcProvider.class);
     WaveBus waveBus = injector.getInstance(WaveBus.class);
@@ -143,6 +146,7 @@ public class ServerMain {
     server.addServlet("/locale/*", LocaleServlet.class);
     server.addServlet("/fetch/*", FetchServlet.class);
     server.addServlet("/search/*", SearchServlet.class);
+    server.addServlet("/dev/client-applier-stats", ClientApplierStatsJakartaServlet.class);
     server.addServlet("/healthz", HealthServlet.class);
     server.addServlet("/readyz", HealthServlet.class);
     server.addServlet("/profile/*", FetchProfilesServlet.class);

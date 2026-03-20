@@ -15,6 +15,7 @@ import java.util.Objects;
 
 public final class JwtKeyRing {
   private final Map<String, JwtKeyMaterial> keyMaterials;
+  private final String signingKeyId;
 
   public JwtKeyRing(Collection<JwtKeyMaterial> keyMaterials) {
     Objects.requireNonNull(keyMaterials, "keyMaterials");
@@ -32,6 +33,7 @@ public final class JwtKeyRing {
       }
     }
     this.keyMaterials = Map.copyOf(materialMap);
+    this.signingKeyId = sortedMaterials.get(0).keyId();
   }
 
   public static JwtKeyRing generate(String keyId) {
@@ -48,6 +50,10 @@ public final class JwtKeyRing {
       throw new IllegalArgumentException("Unknown key id: " + keyId);
     }
     return material;
+  }
+
+  public String signingKeyId() {
+    return signingKeyId;
   }
 
   public Collection<JwtKeyMaterial> keyMaterials() {

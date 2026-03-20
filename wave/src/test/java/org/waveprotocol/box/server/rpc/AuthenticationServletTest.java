@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.mockito.ArgumentCaptor;
 import junit.framework.TestCase;
 
 import org.mockito.Mock;
@@ -41,6 +42,8 @@ import org.waveprotocol.box.server.authentication.AuthTestUtil;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwt;
+import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtIssuer;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -53,6 +56,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.Locale;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -69,6 +73,7 @@ public class AuthenticationServletTest extends TestCase {
   @Mock private HttpServletResponse resp;
   @Mock private HttpSession session;
   @Mock private SessionManager manager;
+  @Mock private BrowserSessionJwtIssuer browserSessionJwtIssuer;
 
   @Override
   protected void setUp() throws Exception {
@@ -86,9 +91,10 @@ public class AuthenticationServletTest extends TestCase {
       "security.clientauth_cert_domain", "",
       "administration.disable_loginpage", false)
     );
+    when(browserSessionJwtIssuer.tokenLifetimeSeconds()).thenReturn(900L);
 
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
-        manager, "examPLe.com", config);
+        manager, "examPLe.com", config, browserSessionJwtIssuer);
     AccountStoreHolder.init(store, "eXaMple.com");
   }
 
@@ -147,6 +153,7 @@ public class AuthenticationServletTest extends TestCase {
     attemptLogin("frodo@example.com", "incorrect", false);
 
     verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(resp, never()).addCookie(Mockito.any());
     verify(manager, never()).setLoggedInUser(Mockito.any(), Mockito.any());
   }
 
@@ -154,6 +161,7 @@ public class AuthenticationServletTest extends TestCase {
     attemptLogin("madeup@example.com", "incorrect", false);
 
     verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(resp, never()).addCookie(Mockito.any());
     verify(manager, never()).setLoggedInUser(Mockito.any(), Mockito.any());
   }
 
@@ -186,10 +194,20 @@ public class AuthenticationServletTest extends TestCase {
       when(req.getSession(false)).thenReturn(null, session);
       when(manager.getLoggedInUser(Mockito.any())).thenReturn(USER);
       when(manager.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(USER);
+      when(browserSessionJwtIssuer.issue(USER)).thenReturn("browser-jwt");
     }
     servlet.doPost(req, resp);
     if (expectSuccess) {
       verify(manager).setLoggedInUser(Mockito.any(WebSession.class), eq(USER));
+      ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
+      verify(resp).addCookie(cookieCaptor.capture());
+      Cookie cookie = cookieCaptor.getValue();
+      assertEquals(BrowserSessionJwt.COOKIE_NAME, cookie.getName());
+      assertEquals("browser-jwt", cookie.getValue());
+      assertEquals("/", cookie.getPath());
+      assertTrue(cookie.isHttpOnly());
+      assertFalse(cookie.getSecure());
+      assertEquals(900, cookie.getMaxAge());
     }
   }
 }

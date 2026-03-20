@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtIssuer;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.rpc.AuthenticationServlet;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -27,12 +28,14 @@ public class AuthenticationServletJakartaIT {
   private int port;
 
   private SessionManager sessionManager;
+  private BrowserSessionJwtIssuer browserSessionJwtIssuer;
   private AccountStore accountStore;
 
   @Before
   public void start() throws Exception {
     TestSupport.assumeJettyEe10PresentOrSkip();
     sessionManager = Mockito.mock(SessionManager.class);
+    browserSessionJwtIssuer = Mockito.mock(BrowserSessionJwtIssuer.class);
     accountStore = Mockito.mock(AccountStore.class);
 
     server = new Server();
@@ -54,7 +57,8 @@ public class AuthenticationServletJakartaIT {
         Configuration.getConfiguration(),
         sessionManager,
         "example.com",
-        cfg
+        cfg,
+        browserSessionJwtIssuer
     );
 
     ctx.addServlet(new ServletHolder(servlet), "/auth/signin");

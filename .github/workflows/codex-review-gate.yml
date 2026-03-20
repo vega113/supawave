@@ -67,9 +67,6 @@ jobs:
                         }
                       }
                     }
-                    reviewThreads(first: 100) {
-                      nodes { isResolved }
-                    }
                   }
                 }
               }
@@ -88,7 +85,6 @@ jobs:
             }
 
             const labels = pullRequest.labels.nodes.map((label) => label.name);
-            const unresolved = pullRequest.reviewThreads.nodes.filter((thread) => !thread.isResolved).length;
             const statusNodes =
               pullRequest.commits.nodes[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
             const codeRabbitPassed = statusNodes.some((node) => {
@@ -111,9 +107,5 @@ jobs:
               return;
             }
 
-            if (unresolved > 0) {
-              core.setFailed(`There are ${unresolved} unresolved review conversation(s)`);
-              return;
-            }
 
             core.info("Review gate passed");

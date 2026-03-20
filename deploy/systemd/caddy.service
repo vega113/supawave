@@ -1,0 +1,20 @@
+[Unit]
+Description=Caddy reverse proxy for Apache Wave
+After=network-online.target wave.service
+Wants=network-online.target
+Requires=wave.service
+
+[Service]
+Type=notify
+User=caddy
+Group=caddy
+EnvironmentFile=/etc/caddy/wave-caddy.env
+ExecStart=/usr/bin/caddy run --environ --config /etc/caddy/Caddyfile
+ExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile --force
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

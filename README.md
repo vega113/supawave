@@ -66,6 +66,9 @@ Notes:
 ## Documentation map
 
 - Verified current status and prioritized backlog: `docs/current-state.md`
+- Deployment entry point: `docs/deployment/README.md`
+- Generic Linux host baseline: `docs/deployment/linux-host.md`
+- Supported deployment flavors: `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
 - Persistence topology and multi-instance blockers: `docs/persistence-topology-audit.md`
 - Detailed modernization ledgers: `docs/modernization-plan.md`, `docs/jetty-migration.md`
 - Historical renderer / fragments import ledger: `docs/migrate-conversation-renderer-to-apache-wave.md`

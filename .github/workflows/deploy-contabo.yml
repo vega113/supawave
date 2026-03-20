@@ -80,10 +80,10 @@ jobs:
           bundle_dir="$RUNNER_TEMP/supawave-bundle"
           rm -rf "$bundle_dir"
           mkdir -p "$bundle_dir"
-          cp deploy/contabo/compose.yml "$bundle_dir/compose.yml"
-          cp deploy/contabo/Caddyfile "$bundle_dir/Caddyfile"
-          cp deploy/contabo/application.conf "$bundle_dir/application.conf"
-          cp deploy/contabo/deploy.sh "$bundle_dir/deploy.sh"
+          cp deploy/caddy/compose.yml "$bundle_dir/compose.yml"
+          cp deploy/caddy/Caddyfile "$bundle_dir/Caddyfile"
+          cp deploy/caddy/application.conf "$bundle_dir/application.conf"
+          cp deploy/caddy/deploy.sh "$bundle_dir/deploy.sh"
           chmod +x "$bundle_dir/deploy.sh"
           tar -C "$bundle_dir" -czf "$RUNNER_TEMP/supawave-release.tgz" .
 

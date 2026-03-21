@@ -41,7 +41,8 @@ At runtime, confirm:
 - redirects point to the canonical host as intended
 
 Note:
-- The shipped Compose example is a provider-neutral baseline, not a final production-hardening guide. Mongo authentication and backup hardening remain explicit follow-up work.
+- The shipped Compose example is a provider-neutral baseline, not a final production-hardening guide.
+- See `../../deploy/mongo/README.md` for the Mongo authentication, backup, restore, and durability follow-through that still needs to be completed before this topology is treated as live-overlay safe.
 
 ## Non-Docker path
 

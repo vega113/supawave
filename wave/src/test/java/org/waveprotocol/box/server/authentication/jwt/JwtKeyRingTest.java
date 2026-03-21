@@ -51,7 +51,7 @@ public final class JwtKeyRingTest {
   public void rejectsWeakGeneratedKeySizes() {
     try {
       JwtKeyRing.generate("alpha", 1024);
-      fail("Expected illegal argument");
+      fail("Expected JwtValidationException");
     } catch (IllegalArgumentException expected) {
       assertTrue(expected.getMessage().contains("2048"));
     }
@@ -95,7 +95,7 @@ public final class JwtKeyRingTest {
 
     try {
       JwtWireFormat.issue(claims, keyRing.keyMaterial("alpha"));
-      fail("Expected illegal argument");
+      fail("Expected JwtValidationException");
     } catch (IllegalArgumentException expected) {
       assertTrue(expected.getMessage().contains("key id"));
     }
@@ -113,7 +113,7 @@ public final class JwtKeyRingTest {
     try {
       keyRing.validator(Clock.fixed(Instant.ofEpochSecond(15L), ZoneOffset.UTC))
           .validate(token, new JwtRevocationState(0L, 0L));
-      fail("Expected illegal argument");
+      fail("Expected JwtValidationException");
     } catch (JwtValidationException expected) {
       assertTrue(expected.getMessage().contains("parse"));
     }

@@ -116,6 +116,7 @@ Required reviewer output:
 
 - [ ] Add a Beads comment listing all commit SHAs and what each commit does.
 - [ ] Add a Beads comment summarizing architect findings, plan-review feedback, code-review feedback, and how each important comment was addressed.
+- [ ] Run a local server sanity verification appropriate to the changed area before opening the PR, and record the exact command plus result in Beads.
 - [ ] Run final verification on the agreed targeted test set.
 - [ ] Open a PR from the task branch into `main`.
 - [ ] Add the PR link or number to the Beads task comments.
@@ -150,6 +151,10 @@ Review:
 - Claude code review: <summary>
 - Reviewer findings: <summary>
 - Resolutions: <summary>
+
+Local server sanity:
+- <exact command>
+- <result>
 
 PR:
 - <url or PR number>

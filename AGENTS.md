@@ -72,6 +72,12 @@ git worktrees.
   when isolated persistence state is explicitly needed.
 - Do not mix agent edits in the main working tree.
 - Use `/Users/vega/devroot/worktrees` as the shared root for local worktrees.
+- Before opening a PR for app-affecting changes, run a local server sanity
+  verification appropriate to the area changed and record the exact command
+  plus result in Beads.
+- Keep that check narrow and relevant: boot the app and hit a local health or
+  auth endpoint for server/runtime changes, or exercise the affected UI against
+  the local server for client changes.
 - When implementation is complete and review is resolved, create a pull request
   from the reviewed worktree.
 - Keep Beads, commits, and PRs aligned so the task status is always traceable.

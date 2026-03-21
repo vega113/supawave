@@ -18,6 +18,8 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import org.waveprotocol.wave.util.logging.Log;
+
 import java.io.IOException;
 import jakarta.websocket.Session;
 
@@ -27,6 +29,7 @@ import jakarta.websocket.Session;
  * wiring. It allows the rest of the migration to proceed incrementally.
  */
 public class WebSocketChannelImpl extends WebSocketChannel {
+  private static final Log LOG = Log.get(WebSocketChannelImpl.class);
   private volatile Session session;
 
   public WebSocketChannelImpl(ProtoCallback callback) {
@@ -37,11 +40,18 @@ public class WebSocketChannelImpl extends WebSocketChannel {
     this.session = session;
   }
 
+  public void detach() {
+    this.session = null;
+  }
+
   @Override
   protected void sendMessageString(String data) throws IOException {
     Session s = this.session;
     if (s == null || !s.isOpen()) {
-      throw new IOException("WebSocket session not open");
+      if (LOG.isFineLoggable()) {
+        LOG.fine("WebSocket is not connected");
+      }
+      return;
     }
     s.getBasicRemote().sendText(data);
   }

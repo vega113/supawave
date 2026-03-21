@@ -298,6 +298,12 @@ public class ServerRpcProvider {
             }
         }
 
+        public void detachSession() {
+            if (socketChannel instanceof WebSocketChannelImpl) {
+                ((WebSocketChannelImpl) socketChannel).detach();
+            }
+        }
+
         public void handleText(String data) {
             socketChannel.handleMessageString(data);
         }

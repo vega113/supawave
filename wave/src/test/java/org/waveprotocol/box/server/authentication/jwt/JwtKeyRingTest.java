@@ -51,7 +51,7 @@ public final class JwtKeyRingTest {
   public void rejectsWeakGeneratedKeySizes() {
     try {
       JwtKeyRing.generate("alpha", 1024);
-      fail("Expected JwtValidationException");
+      fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException expected) {
       assertTrue(expected.getMessage().contains("2048"));
     }
@@ -95,7 +95,7 @@ public final class JwtKeyRingTest {
 
     try {
       JwtWireFormat.issue(claims, keyRing.keyMaterial("alpha"));
-      fail("Expected JwtValidationException");
+      fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException expected) {
       assertTrue(expected.getMessage().contains("key id"));
     }

@@ -21,6 +21,8 @@ set -euo pipefail
 
 zone_name="${ZONE_NAME:-supawave.ai}"
 origin_ip="${ORIGIN_IP:-86.48.3.138}"
+canonical_host="${CANONICAL_HOST:-wave.${zone_name}}"
+www_host="${WWW_HOST:-www.${zone_name}}"
 api_base="https://api.cloudflare.com/client/v4"
 
 require_env() {
@@ -95,7 +97,8 @@ Current account context:
 
 Once the zone exists in this account, apply the minimal DNS setup:
   1. Create an A record for ${zone_name} -> ${origin_ip}
-  2. Optionally create a CNAME for www.${zone_name} -> ${zone_name}
+  2. Create an A record for ${canonical_host} -> ${origin_ip}
+  3. Create a CNAME for ${www_host} -> ${zone_name}
 
 If the zone is not yet onboarded, create or import it first:
   curl -sS -X POST "${api_base}/zones" \
@@ -114,7 +117,9 @@ print_plan() {
 Cloudflare zone found for ${zone_name}: ${zone_id}
 
 Planned records:
-  A    ${zone_name} -> ${origin_ip} (proxied=false, ttl=auto)
+  A      ${zone_name} -> ${origin_ip} (proxied=false, ttl=auto)
+  A      ${canonical_host} -> ${origin_ip} (proxied=false, ttl=auto)
+  CNAME  ${www_host} -> ${zone_name} (proxied=false, ttl=auto)
 EOF
 }
 
@@ -141,6 +146,8 @@ main() {
   fi
 
   create_dns_record "$zone_id" "A" "$zone_name" "$origin_ip" false
+  create_dns_record "$zone_id" "A" "$canonical_host" "$origin_ip" false
+  create_dns_record "$zone_id" "CNAME" "$www_host" "$zone_name" false
 }
 
 main "$@"

@@ -66,6 +66,10 @@ Notes:
 ## Documentation map
 
 - Verified current status and prioritized backlog: `docs/current-state.md`
+- Deployment entry point: `docs/deployment/README.md`
+- Generic Linux host baseline: `docs/deployment/linux-host.md`
+- Supported deployment flavors: `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
+- Persistence topology and multi-instance blockers: `docs/persistence-topology-audit.md`
 - Detailed modernization ledgers: `docs/modernization-plan.md`, `docs/jetty-migration.md`
 - Historical renderer / fragments import ledger: `docs/migrate-conversation-renderer-to-apache-wave.md`
 - Historical server-first blocks / segment-state ledger: `docs/blocks-adoption-plan.md`
@@ -80,8 +84,11 @@ server-only path and its current bootstrap/runtime behavior.
 
 The Phase 6 ledger now treats protobuf and the server-side Guava upgrade as
 closed on the Gradle path. The remaining library-upgrade work is narrowed to
-Commons multipart/CLI cleanup, MongoDB driver closure, legacy OAuth ownership,
-and SBT library-input cleanup.
+MongoDB driver closure and SBT library-input cleanup.
+
+The default Jakarta build now compiles without `net.oauth`, and the legacy
+robot, Data API, and import/export OAuth surfaces are intentionally
+unsupported there for now while the replacement moves under the JWT-auth epic.
 
 ## Task tracking
 

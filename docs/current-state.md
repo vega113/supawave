@@ -25,6 +25,14 @@ state of the repository.
   - Use it as a source of truth for remaining product features and deeper
     data-layer behavior that were not yet imported.
 
+## Deployment modes
+
+The supported deployment modes are now:
+- standalone direct-TLS Wave
+- Caddy-fronted Wave, recommended for many operators
+
+Cloudflare is optional and should be treated as an overlay, not as a baseline deployment requirement.
+
 ## Canonical documentation set
 
 Read these files first when resuming work:
@@ -47,13 +55,17 @@ Read these files first when resuming work:
    - Detailed server-first fragments and segment-state adoption log.
 9. `docs/BUILDING-sbt.md`
    - State of the additive SBT build port.
-10. `docs/DEV_SETUP.md`
+10. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
+   - Canonical deployment documentation set and provider-neutral Linux host guidance.
+11. `docs/DEV_SETUP.md`
    - Local development requirements and setup notes.
-11. `docs/SMOKE_TESTS.md`
+12. `docs/SMOKE_TESTS.md`
    - Manual and scripted smoke-test guidance.
-12. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
+13. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
    - Configuration behavior and fragments-specific settings.
-13. `.beads/issues.jsonl`
+13. `docs/persistence-topology-audit.md`
+   - Current persistence topology, Mongo coverage, and multi-instance blockers.
+14. `.beads/issues.jsonl`
    - Live project backlog for epics and tasks.
 
 ## Verified current state
@@ -119,13 +131,19 @@ Read these files first when resuming work:
    success and does not parse or apply returned fragment payloads.
 4. The default `:wave:test` path is blocked at `compileTestJava` by legacy test
    debt, so it is not yet a reliable smoke gate.
-5. Remaining library-upgrade debt is now narrowed to Commons multipart cleanup,
-   explicit `commons-cli` ownership in `wave`, MongoDB 2.x removal, legacy OAuth
-   ownership, and SBT bootstrap/library-input cleanup.
+5. Remaining library-upgrade debt is now narrowed to MongoDB 2.x removal and
+   SBT bootstrap/library-input cleanup. Commons multipart/CLI cleanup already
+   landed on `main`, and this branch removes `net.oauth` from the default build.
+   Legacy robot, Data API, and import/export OAuth surfaces are intentionally
+   unavailable there for now while the JWT replacement work moves under the
+   `incubator-wave-jwt-auth` epic.
 6. Config hygiene is incomplete: fragment and segment settings still have
    partially duplicated `System.getProperty(...)` paths in server code.
-7. `Mongo4DeltaStore` is still missing, so the MongoDB v4 migration is not
-   complete.
+7. `Mongo4DeltaStore` is present, together with `Mongo4AccountStore`,
+   `Mongo4AttachmentStore`, and `Mongo4SignerInfoStore`. The remaining Mongo
+   work is promoting the production deploy path to the v4-backed stores and
+   then retiring the
+   legacy v2 fallback on a separate schedule.
 8. The repo now runs on a Jakarta-only server/runtime path, but dead
    compatibility branches and stale history references still need cleanup.
 9. SBT is still additive and server-only. Its bootstrap/runtime path now tracks

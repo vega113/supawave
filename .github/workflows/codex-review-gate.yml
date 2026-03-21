@@ -1,0 +1,111 @@
+name: Codex Review Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+      - edited
+      - dismissed
+  issue_comment:
+    types:
+      - created
+      - edited
+
+jobs:
+  codex-review-gate:
+    name: Codex Review Gate
+    if: ${{ github.event.pull_request != null || github.event.issue.pull_request != null }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    steps:
+      - name: Evaluate review gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = context.payload.pull_request?.number ?? context.payload.issue?.number;
+
+            const query = `
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    isDraft
+                    labels(first: 100) {
+                      nodes { name }
+                    }
+                    commits(last: 1) {
+                      nodes {
+                        commit {
+                          statusCheckRollup {
+                            contexts(first: 100) {
+                              nodes {
+                                __typename
+                                ... on StatusContext {
+                                  context
+                                  state
+                                }
+                                ... on CheckRun {
+                                  name
+                                  conclusion
+                                  status
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query, { owner, repo, number: prNumber });
+            const pullRequest = result.repository.pullRequest;
+            if (!pullRequest) {
+              core.setFailed(`Pull request #${prNumber} not found`);
+              return;
+            }
+
+            if (pullRequest.isDraft) {
+              core.setFailed("Draft PRs cannot pass Codex Review Gate");
+              return;
+            }
+
+            const labels = pullRequest.labels.nodes.map((label) => label.name);
+            const statusNodes =
+              pullRequest.commits.nodes[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
+            const codeRabbitPassed = statusNodes.some((node) => {
+              if (node.__typename === "StatusContext") {
+                return node.context === "CodeRabbit" && node.state === "SUCCESS";
+              }
+              if (node.__typename === "CheckRun") {
+                return node.name === "CodeRabbit" && node.conclusion === "SUCCESS";
+              }
+              return false;
+            });
+
+            const approvedByReviewBot =
+              labels.includes("codex-reviewed") ||
+              labels.includes("coderabbitai-reviewed") ||
+              codeRabbitPassed;
+
+            if (!approvedByReviewBot) {
+              core.setFailed("Missing required review signal: `codex-reviewed`, `coderabbitai-reviewed`, or successful CodeRabbit status");
+              return;
+            }
+
+
+            core.info("Review gate passed");

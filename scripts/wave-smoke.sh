@@ -50,10 +50,20 @@ status() {
 }
 
 check() {
-  echo "Root HEAD:";         curl -sS -I "http://localhost:$PORT/" || true
-  echo "Remote logging HEAD:"; curl -sS -I "http://localhost:$PORT/webclient/remote_logging" || true
-  echo "Profile HEAD:";       curl -sS -I "http://localhost:$PORT/profile/" || true
-  echo "Search HEAD:";        curl -sS -I "http://localhost:$PORT/search/" || true
+  root_status=$(curl -sS -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" || true)
+  webclient_status=$(curl -sS -o /dev/null -w "%{http_code}" "http://localhost:$PORT/webclient/webclient.nocache.js" || true)
+  echo "ROOT_STATUS=${root_status:-000}"
+  echo "WEBCLIENT_STATUS=${webclient_status:-000}"
+
+  if [[ "${root_status}" -ne 200 && "${root_status}" -ne 302 ]]; then
+    echo "Unexpected root status: ${root_status}" >&2
+    return 1
+  fi
+
+  if [[ "${webclient_status}" -ne 200 ]]; then
+    echo "Missing compiled webclient asset: /webclient/webclient.nocache.js" >&2
+    return 1
+  fi
 }
 
 stop() {
@@ -89,4 +99,3 @@ case "$cmd" in
   stop) stop ;;
   *) echo "Usage: $0 {start|status|check|stop}" >&2; exit 1 ;;
  esac
-

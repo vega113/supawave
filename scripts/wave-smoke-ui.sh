@@ -29,7 +29,7 @@ done
 
 # Probe endpoints
 root_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/ || true)
-webclient_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/webclient/ || true)
+webclient_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/webclient/webclient.nocache.js || true)
 
 echo "ROOT=$root_status WEBCLIENT=$webclient_status"
 
@@ -39,15 +39,15 @@ if [[ "${root_status}" == "000" ]]; then
   exit 1
 fi
 
-# Accept 200 or 302 from root (signin redirect) and 200 from webclient dir listing or index
+# Accept 200 or 302 from root (signin redirect) and require the compiled webclient bootstrap asset
 if [[ "$root_status" -ne 200 && "$root_status" -ne 302 ]]; then
   echo "Unexpected root status: $root_status" >&2
   tail -n 200 "$RUN_OUT" || true
   exit 1
 fi
 
-if [[ "$webclient_status" -ne 200 && "$webclient_status" -ne 302 && "$webclient_status" -ne 403 ]]; then
-  echo "Unexpected /webclient/ status: $webclient_status" >&2
+if [[ "$webclient_status" -ne 200 ]]; then
+  echo "Missing compiled /webclient/webclient.nocache.js asset: $webclient_status" >&2
   tail -n 200 "$RUN_OUT" || true
   exit 1
 fi

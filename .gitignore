@@ -90,3 +90,4 @@ project/project/
 
 ### Proto generated sources (not committed)
 proto_src/
+/.env.local

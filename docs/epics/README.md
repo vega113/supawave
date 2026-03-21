@@ -22,8 +22,9 @@ Wave resumption work. The live issue data is tracked in `.beads/issues.jsonl`.
 
 - `incubator-wave-modernization`
   - Finish modernization phases 6 through 8.
-  - Focus: config hygiene, MongoDB v4 delta store, library upgrades, SBT parity,
-    packaging and DX, and the J2CL / GWT 3 inventory.
+  - Focus: config hygiene, production persistence topology, Mongo-backed store
+    completion, library upgrades, SBT parity, packaging and DX, and the J2CL /
+    GWT 3 inventory.
 
 - `incubator-wave-wiab-core`
   - Complete the already-imported Wiab renderer, fragments, and quasi-deletion

@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Vector;
 import java.util.Properties;
 import jakarta.servlet.http.HttpServletRequest;
 import org.json.JSONObject;
@@ -113,6 +115,33 @@ public final class WaveClientServletFragmentDefaultsTest {
     JSONObject flags = getClientFlags(config);
 
     assertTrue(flags.getBoolean(FlagConstants.ENABLE_DYNAMIC_RENDERING));
+  }
+
+  @Test
+  public void requestFlagsAreTypedWithoutClientFlagsBaseReflection() throws Exception {
+    Config config = ConfigFactory.parseString(
+        "core.http_frontend_addresses=[\"127.0.0.1:9898\"]\n" +
+        "core.http_websocket_public_address=\"\"\n" +
+        "core.http_websocket_presented_address=\"\"\n" +
+        "administration.analytics_account=\"\"\n");
+
+    WaveClientServlet servlet = new WaveClientServlet(
+        "example.com", config, mock(SessionManager.class));
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    Enumeration<String> names = new Vector<>(java.util.List.of(
+        "forceClientFragments",
+        "fragmentsApplierMaxRanges",
+        "fragmentFetchMode")).elements();
+    when(request.getParameterNames()).thenReturn(names);
+    when(request.getParameter("forceClientFragments")).thenReturn("true");
+    when(request.getParameter("fragmentsApplierMaxRanges")).thenReturn("7");
+    when(request.getParameter("fragmentFetchMode")).thenReturn("stream");
+
+    JSONObject flags = servlet.getClientFlags(request);
+
+    assertTrue(flags.getBoolean(FlagConstants.FORCE_CLIENT_FRAGMENTS));
+    assertEquals(7, flags.getInt(FlagConstants.FRAGMENTS_APPLIER_MAX_RANGES));
+    assertEquals("stream", flags.getString(FlagConstants.FRAGMENT_FETCH_MODE));
   }
 
   private static JSONObject getClientFlags(Config config) throws Exception {

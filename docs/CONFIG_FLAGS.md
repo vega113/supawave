@@ -8,10 +8,10 @@ This page documents configuration flags and environment variables recently added
 ## Server Flags (Typesafe Config)
 
 - core.mongodb_driver: string (default: "v2")
-  - Purpose: Select legacy MongoDB driver (v2) or modern driver (v4) for stores that support it.
+  - Purpose: Select legacy MongoDB driver (v2) or modern driver (v4) for the core stores that already have Mongo-backed implementations.
   - Values: v2 | v4
-  - Notes: v4 currently used in scoped adapters/tests; plan to switch default to v4 once all stores migrate.
-  - Cleanup: See P6‑T5 below.
+  - Notes: The repo already contains `Mongo4DeltaStore`, `Mongo4AccountStore`, `Mongo4AttachmentStore`, and `Mongo4SignerInfoStore`. The remaining production blockers are not those stores themselves, but the surrounding topology: the active Jakarta runtime still uses a minimal session handler, and the default search path is still node-local.
+  - Cleanup: See `docs/persistence-topology-audit.md` and P6‑T3 below.
 
 - network.enable_forwarded_headers: boolean (default: false)
   - Purpose: Add Forwarded/Proxy header support in Jetty Http/HTTPS configurations.
@@ -54,8 +54,8 @@ This page documents configuration flags and environment variables recently added
   - Scope: Removed experimental.enable_programmatic_poc, experimental.native_servlet_registration, and the POC classes under org.waveprotocol.box.server.poc.
 
 - P6‑T5: Finalize Mongo driver modernization flag
-  - Scope: Switch default of core.mongodb_driver to v4; deprecate v2 path and remove after stores fully migrate.
-  - Trigger: After all Mongo-backed stores have v4 implementations and tests are green in CI.
+  - Scope: Switch default of core.mongodb_driver to v4 once the intended production persistence topology is settled.
+  - Trigger: After the Mongo-backed core stores are validated on the active runtime and the adjacent topology blockers (sessions, search) have explicit decisions.
 
 ## How to Override
 

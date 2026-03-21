@@ -19,17 +19,15 @@ import org.waveprotocol.box.server.frontend.ClientFrontend;
 import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
 import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
+import org.waveprotocol.box.server.dev.ClientApplierStatsJakartaServlet;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceModule;
 import org.waveprotocol.box.server.persistence.SignerInfoStore;
 import org.waveprotocol.box.server.rpc.*;
 import org.waveprotocol.box.server.robots.ProfileFetcherModule;
+import org.waveprotocol.box.server.robots.JakartaRobotApiBindingsModule;
 import org.waveprotocol.box.server.robots.RobotRegistrationServlet;
-import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
-import org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServlet;
-import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
-import org.waveprotocol.box.server.robots.RobotApiModule;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
 import org.waveprotocol.box.server.shutdown.Shutdownable;
@@ -94,8 +92,8 @@ public class ServerMain {
     Module federationModule = buildFederationModule(injector);
     PersistenceModule persistenceModule = injector.getInstance(PersistenceModule.class);
     Module searchModule = injector.getInstance(SearchModule.class);
-    Module robotApiModule = new RobotApiModule();
     Module profileFetcherModule = injector.getInstance(ProfileFetcherModule.class);
+    Module robotApiModule = new JakartaRobotApiBindingsModule();
 
     injector = injector.createChildInjector(serverModule, persistenceModule,
         robotApiModule, searchModule, federationModule, profileFetcherModule);
@@ -148,16 +146,12 @@ public class ServerMain {
     server.addServlet("/locale/*", LocaleServlet.class);
     server.addServlet("/fetch/*", FetchServlet.class);
     server.addServlet("/search/*", SearchServlet.class);
+    server.addServlet("/dev/client-applier-stats", ClientApplierStatsJakartaServlet.class);
     server.addServlet("/healthz", HealthServlet.class);
     server.addServlet("/readyz", HealthServlet.class);
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
-    server.addServlet("/robot/dataapi", DataApiServlet.class);
-    server.addServlet(DataApiOAuthServlet.DATA_API_OAUTH_PATH + "/*", DataApiOAuthServlet.class);
-    server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
-    server.addServlet("/robot/register/*", RobotRegistrationServlet.class);
-    server.addServlet("/robot/rpc", ActiveApiServlet.class);
     server.addServlet("/", WaveClientServlet.class);
   }
 
@@ -193,4 +187,3 @@ public class ServerMain {
     }, ServerMain.class.getSimpleName(), ShutdownPriority.Server);
   }
 }
-

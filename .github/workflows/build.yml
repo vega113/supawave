@@ -29,6 +29,18 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           cache-disabled: false
+
+      - name: Validate canonical deployment assets
+        run: |
+          bash -n scripts/deployment/bootstrap-linux-host.sh
+          bash -n deploy/caddy/deploy.sh
+          WAVE_IMAGE=ghcr.io/example/wave:test \
+          DEPLOY_ROOT=/tmp/supawave \
+          WAVE_INTERNAL_PORT=9898 \
+          CANONICAL_HOST=wave.example.test \
+          ROOT_HOST=example.test \
+          WWW_HOST=www.example.test \
+          docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
       
       - name: Build PST and Wave (no tests)
         run: ./gradlew --no-daemon --warning-mode all :pst:build :wave:assemble

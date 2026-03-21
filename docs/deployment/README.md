@@ -8,6 +8,7 @@ Read in this order:
 1. `linux-host.md` for the generic Linux host baseline and prerequisites
 2. `standalone.md` if you want a minimal direct-TLS deployment
 3. `caddy.md` if you want the recommended reverse-proxy deployment
-4. optional overlays such as `contabo.md` and `cloudflare-supawave.md` only after reading the generic docs
+4. `../../deploy/mongo/README.md` for Mongo auth, backup, restore, and durability guidance
+5. optional overlays such as `contabo.md` and `cloudflare-supawave.md` only after reading the generic docs
 
 Provider-specific notes are overlays, not the canonical deployment story.

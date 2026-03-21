@@ -25,6 +25,20 @@ The current default config in [reference.conf](../wave/config/reference.conf) st
 That means the out-of-the-box runtime is still optimized for a single node with
 local mutable state.
 
+## Production Hardening Status
+
+Mongo is the intended production persistence direction, but the deployment is
+not yet safe for a live overlay.
+
+Reason:
+- the repo does not yet wire Mongo username/password config through the Wave
+  application
+- the deployment story still lacks a validated backup/restore drill
+- the durability target is not yet documented as a production requirement
+
+Use `../deploy/mongo/README.md` for the operator follow-through that still has to
+land before the Mongo-backed deployment can be treated as production-grade.
+
 ## What Already Exists
 
 ### File-backed stores

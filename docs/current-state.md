@@ -142,8 +142,10 @@ Read these files first when resuming work:
 7. `Mongo4DeltaStore` is present, together with `Mongo4AccountStore`,
    `Mongo4AttachmentStore`, and `Mongo4SignerInfoStore`. The remaining Mongo
    work is promoting the production deploy path to the v4-backed stores and
-   then retiring the
-   legacy v2 fallback on a separate schedule.
+   then retiring the legacy v2 fallback on a separate schedule. The live
+   overlay is still not production-safe until Mongo auth, backup/restore, and
+   durability guidance are closed out. See `../deploy/mongo/README.md` for the
+   operator follow-through.
 8. The repo now runs on a Jakarta-only server/runtime path, but dead
    compatibility branches and stale history references still need cleanup.
 9. SBT is still additive and server-only. Its bootstrap/runtime path now tracks

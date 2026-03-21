@@ -60,36 +60,39 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {
     // Let the view expire if it not accessed for some time.
     explicitPerUserWaveViews =
-        CacheBuilder.newBuilder().expireAfterAccess(PER_USER_WAVES_VIEW_CACHE_MINUTES, TimeUnit.MINUTES)
-            .<ParticipantId, Multimap<WaveId, WaveletId>>build(new CacheLoader<ParticipantId, Multimap<WaveId, WaveletId>>() {
+        CacheBuilder.newBuilder().expireAfterAccess(PER_USER_WAVES_VIEW_CACHE_MINUTES,
+            TimeUnit.MINUTES).<ParticipantId, Multimap<WaveId, WaveletId>>build(
+                new CacheLoader<ParticipantId, Multimap<WaveId, WaveletId>>() {
 
-              @Override
-              public Multimap<WaveId, WaveletId> load(final ParticipantId user) {
-                Multimap<WaveId, WaveletId> userView = HashMultimap.create();
+          @Override
+          public Multimap<WaveId, WaveletId> load(final ParticipantId user) {
+            Multimap<WaveId, WaveletId> userView = HashMultimap.create();
+            try {
+              waveMap.loadAllWavelets();
+            } catch (WaveletStateException e) {
+              throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
+            }
 
-                // Create initial per user waves view by looping over all waves
-                // in the waves store.
-                Map<WaveId, Wave> waves = waveMap.getWaves();
-                for (Map.Entry<WaveId, Wave> entry : waves.entrySet()) {
-                  Wave wave = entry.getValue();
-                  for (WaveletContainer c : wave) {
-                    WaveletId waveletId = c.getWaveletName().waveletId;
-                    try {
-                      if (!c.hasParticipant(user)) {
-                        continue;
-                      }
-                      // Add this wave to the user view.
-                      userView.put(entry.getKey(), waveletId);
-                    } catch (WaveletStateException e) {
-                      LOG.warning("Failed to access wavelet " + c.getWaveletName(), e);
-                    }
+            Map<WaveId, Wave> waves = waveMap.getWaves();
+            for (Map.Entry<WaveId, Wave> entry : waves.entrySet()) {
+              Wave wave = entry.getValue();
+              for (WaveletContainer c : wave) {
+                WaveletId waveletId = c.getWaveletName().waveletId;
+                try {
+                  if (!c.hasParticipant(user)) {
+                    continue;
                   }
+                  userView.put(entry.getKey(), waveletId);
+                } catch (WaveletStateException e) {
+                  LOG.warning("Failed to access wavelet " + c.getWaveletName(), e);
                 }
-                LOG.info("Initalized waves view for user: " + user.getAddress()
-                    + ", number of waves in view: " + userView.size());
-                return userView;
               }
-            });
+            }
+            LOG.info("Initalized waves view for user: " + user.getAddress()
+                + ", number of waves in view: " + userView.size());
+            return userView;
+          }
+        });
   }
 
   @Override

@@ -89,7 +89,11 @@ public class WaveWebSocketEndpoint {
 
   @OnClose
   public void onClose(Session session) {
-    session.getUserProperties().remove(CONNECTION_KEY);
+    WebSocketConnection connection =
+        (WebSocketConnection) session.getUserProperties().remove(CONNECTION_KEY);
+    if (connection != null) {
+      connection.detachSession();
+    }
     if (LOG.isFineLoggable()) {
       LOG.fine("WebSocket closed: id=" + (session != null ? session.getId() : "null"));
     }

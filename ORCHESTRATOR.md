@@ -223,15 +223,17 @@ Most historical deployment/docs lanes were pruned already.
 
 When resuming work:
 1. Read this file.
-2. Check open PRs:
+2. If orchestration-plan work applies, follow the canonical orchestration plan: `docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md`
+3. Check open PRs:
    - `gh pr list --repo vega113/incubator-wave --state open`
-3. Check live deploy status:
+4. Check live deploy status:
    - `gh run list --repo vega113/incubator-wave --workflow deploy-contabo.yml --limit 5`
-4. If touching production deploy behavior, verify live endpoints first:
+5. If touching production deploy behavior, verify live endpoints first:
    - `https://supawave.ai/`
    - `https://supawave.ai/webclient/webclient.nocache.js`
-5. If production is broken, inspect host with explicit key:
-   - `ssh -i ~/.ssh/acfs_ed25519 -o IdentitiesOnly=yes ubuntu@86.48.3.138 ...`
+6. If production is broken, inspect host with explicit key and host from the secure runbook:
+   - `ssh -i <PRIVATE_KEY_PATH> -o IdentitiesOnly=yes <USER>@<HOST> ...`
+   - Use the internal secure runbook for the actual host, IP, and key path.
 
 ## Short Operational Playbook
 
@@ -260,4 +262,3 @@ Check:
 - Jakarta child injector module list
 - presence of `JakartaRobotApiBindingsModule`
 - presence of `ClientApplierStatsJakartaServlet`
-

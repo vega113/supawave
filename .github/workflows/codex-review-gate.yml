@@ -35,7 +35,10 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const prNumber = context.payload.pull_request?.number ?? context.payload.issue?.number;
+            const prNumber =
+              context.payload.pull_request?.number ??
+              context.payload.issue?.number ??
+              context.payload.review_thread?.pull_request?.number;
 
             const query = `
               query($owner: String!, $repo: String!, $number: Int!) {
@@ -48,6 +51,7 @@ jobs:
                     commits(last: 1) {
                       nodes {
                         commit {
+                          committedDate
                           statusCheckRollup {
                             contexts(first: 100) {
                               nodes {
@@ -85,8 +89,10 @@ jobs:
             }
 
             const labels = pullRequest.labels.nodes.map((label) => label.name);
+            const latestCommit = pullRequest.commits.nodes[0]?.commit ?? null;
+            const prUpdatedAt = Date.parse(context.payload.pull_request?.updated_at ?? "");
             const statusNodes =
-              pullRequest.commits.nodes[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
+              latestCommit?.statusCheckRollup?.contexts?.nodes ?? [];
             const codeRabbitPassed = statusNodes.some((node) => {
               if (node.__typename === "StatusContext") {
                 return node.context === "CodeRabbit" && node.state === "SUCCESS";
@@ -98,14 +104,28 @@ jobs:
             });
 
             const approvedByReviewBot =
-              labels.includes("codex-reviewed") ||
-              labels.includes("coderabbitai-reviewed") ||
-              codeRabbitPassed;
+              labels.includes("codex-reviewed");
 
-            if (!approvedByReviewBot) {
+            if (approvedByReviewBot) {
+              core.info("Review gate passed via `codex-reviewed` label");
+              return;
+            }
+
+            const latestCommitAt = latestCommit ? Date.parse(latestCommit.committedDate) : NaN;
+            const baselineAt = Number.isNaN(prUpdatedAt) ? latestCommitAt : prUpdatedAt;
+            const commitAgeMs = Number.isNaN(baselineAt) ? Number.POSITIVE_INFINITY : Date.now() - baselineAt;
+            const reviewGracePeriodMs = 10 * 60 * 1000;
+            const codeRabbitApproved = labels.includes("coderabbitai-reviewed") || codeRabbitPassed;
+
+            if (!codeRabbitApproved) {
               core.setFailed("Missing required review signal: `codex-reviewed`, `coderabbitai-reviewed`, or successful CodeRabbit status");
               return;
             }
 
+            if (commitAgeMs < reviewGracePeriodMs) {
+              const remainingMinutes = Math.ceil((reviewGracePeriodMs - commitAgeMs) / 60000);
+              core.setFailed("CodeRabbit is green, but the PR is still inside the 10 minute Codex-review window (" + remainingMinutes + " minute(s) remaining)");
+              return;
+            }
 
-            core.info("Review gate passed");
+            core.info("Review gate passed after the 10 minute Codex-review window using CodeRabbit");

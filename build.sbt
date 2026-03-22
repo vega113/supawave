@@ -117,9 +117,8 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   val isSrc = underMain
   val commonExcludes =
     (isSrc && p.contains("/org/waveprotocol/box/webclient/")) ||
-    (isSrc && p.contains("/org/waveprotocol/wave/client/") &&
-      !p.endsWith("/wave/client/state/BlipReadStateMonitor.java") &&
-      !p.endsWith("/wave/client/debug/FragmentsDebugIndicator.java")) ||
+    // wave/client/ is included in compile (GWT jars are % Provided)
+    // Only exclude JSO overlay types that require GWT dev mode
     (isSrc && p.contains("/org/waveprotocol/wave/communication/gwt/")) ||
     (isSrc && p.contains("/com/google/gwt/")) ||
     // Exclude stat shims since we have the real source files

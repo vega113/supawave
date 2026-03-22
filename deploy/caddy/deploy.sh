@@ -76,6 +76,12 @@ activate_release() {
 remember_previous_release() {
   if [[ -L "$deploy_root/current" ]]; then
     ln -sfn "$(readlink -f "$deploy_root/current")" "$deploy_root/previous"
+    # Remember the image currently running so rollback can restore it
+    local current_image
+    current_image=$(docker inspect --format='{{.Config.Image}}' "${project_name}-wave-1" 2>/dev/null || true)
+    if [[ -n "$current_image" ]]; then
+      printf '%s' "$current_image" > "$deploy_root/previous_image"
+    fi
   fi
 }
 
@@ -139,9 +145,16 @@ rollback_release() {
     exit 1
   fi
 
+  local rollback_image
+  if [[ -f "$deploy_root/previous_image" ]]; then
+    rollback_image=$(cat "$deploy_root/previous_image")
+  else
+    rollback_image="${WAVE_IMAGE:-supawave-wave:$(basename "$previous_release")}"
+  fi
+
   ln -sfn "$previous_release" "$deploy_root/current"
   DEPLOY_ROOT="$deploy_root" \
-  WAVE_IMAGE="${WAVE_IMAGE:-supawave-wave:$(basename "$previous_release")}" \
+  WAVE_IMAGE="$rollback_image" \
   CANONICAL_HOST="$canonical_host" \
   ROOT_HOST="$root_host" \
   WWW_HOST="$www_host" \

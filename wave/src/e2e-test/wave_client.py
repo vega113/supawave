@@ -2,6 +2,8 @@
 HTTP client for interacting with the Apache Wave server in E2E tests.
 """
 
+from http.cookies import SimpleCookie
+
 import requests
 
 
@@ -86,7 +88,8 @@ class WaveServerClient:
             elif cookie.name == "wave-session-jwt":
                 jwt = cookie.value
 
-        # Fallback: parse Set-Cookie header directly
+        # Fallback: parse Set-Cookie header with http.cookies.SimpleCookie
+        # to correctly handle commas in Expires values.
         if jsessionid is None or jwt is None:
             raw_headers = (
                 resp.raw.headers.getlist("Set-Cookie")
@@ -94,15 +97,15 @@ class WaveServerClient:
                 else [resp.headers.get("Set-Cookie", "")]
             )
             for hdr in raw_headers:
-                for part in hdr.split(","):
-                    part = part.strip()
-                    if jsessionid is None and part.startswith("JSESSIONID="):
-                        jsessionid = part.split("=", 1)[1].split(";")[0]
-                    if jwt is None and "wave-session-jwt=" in part:
-                        for segment in part.split(";"):
-                            segment = segment.strip()
-                            if segment.startswith("wave-session-jwt="):
-                                jwt = segment.split("=", 1)[1]
+                cookie = SimpleCookie()
+                try:
+                    cookie.load(hdr)
+                except Exception:
+                    continue
+                if jsessionid is None and "JSESSIONID" in cookie:
+                    jsessionid = cookie["JSESSIONID"].value
+                if jwt is None and "wave-session-jwt" in cookie:
+                    jwt = cookie["wave-session-jwt"].value
 
         return {
             "status_code": resp.status_code,

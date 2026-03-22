@@ -82,13 +82,29 @@ def server():
         raise FileNotFoundError(f"Wave start script not found: {wave_bin}")
 
     print(f"[conftest] Starting Wave server from {wave_bin} ...")
-    proc = subprocess.Popen(
-        [wave_bin],
+    popen_kwargs = dict(
         cwd=os.path.join(repo_root, "wave", "build", "install", "wave"),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        preexec_fn=os.setsid,
     )
+    if os.name == "posix":
+        popen_kwargs["preexec_fn"] = os.setsid
+
+    proc = subprocess.Popen([wave_bin], **popen_kwargs)
+
+    def _terminate(proc):
+        """Terminate the server process (and its children on POSIX)."""
+        if os.name == "posix":
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        else:
+            proc.terminate()
+
+    def _force_kill(proc):
+        """Force-kill the server process (and its children on POSIX)."""
+        if os.name == "posix":
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        else:
+            proc.kill()
 
     try:
         _wait_for_healthz(_DEFAULT_BASE_URL)
@@ -96,12 +112,11 @@ def server():
         yield _DEFAULT_BASE_URL
     finally:
         print("[conftest] Stopping Wave server ...")
-        # Kill the whole process group so child processes are cleaned up too.
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            _terminate(proc)
             proc.wait(timeout=15)
         except Exception:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            _force_kill(proc)
             proc.wait(timeout=5)
 
 

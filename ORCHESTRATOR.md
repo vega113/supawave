@@ -208,9 +208,10 @@ GWT 2.10.0 runs on a pinned Jetty 9.4 toolchain (separate from the runtime
 Jetty 12). The `gwtJettyVersion` must not be changed independently.
 
 ### 4. Beads Issues File
-`.beads/issues.jsonl` line 50 currently has corruption (truncated JSON),
-which prevents `bd` commands from working. This needs to be fixed before
-any beads-based task tracking can resume.
+`.beads/issues.jsonl` is JSONL format (one JSON object per line). Past
+corruption (literal newlines in comment text fields) was fixed in PR #37.
+Future edits must preserve the one-object-per-line format to avoid
+breaking `bd` commands.
 
 ### 5. Test Compilation Debt
 `./gradlew :wave:test` fails at `compileTestJava` due to:

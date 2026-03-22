@@ -437,7 +437,10 @@ JakartaTest / unmanagedSources := (JakartaTest / unmanagedSources).value.filterN
   val p = f.getPath.replace('\\', '/')
   p.endsWith("/WaveWebSocketEndpointInitGuardTest.java") ||
   p.endsWith("/DataApiOAuthServletJakartaIT.java") ||
-  p.endsWith("/WaveWebSocketClientTest.java")  // depends on webclient WaveSocket (excluded from SBT)
+  // Tests that depend on GWT client/webclient classes excluded from SBT compilation
+  p.endsWith("/WaveWebSocketClientTest.java") ||
+  p.endsWith("/RemoteWaveViewServiceEmptyUserDataSnapshotTest.java") ||
+  p.endsWith("/FocusBlipSelectorTest.java")
 }
 // Runtime filter: exclude *IT classes from this config (unit tests only)
 JakartaTest / testOptions += Tests.Filter { name =>
@@ -468,7 +471,10 @@ JakartaIT / unmanagedSources := (JakartaIT / unmanagedSources).value.filterNot {
   val p = f.getPath.replace('\\', '/')
   p.endsWith("/WaveWebSocketEndpointInitGuardTest.java") ||
   p.endsWith("/DataApiOAuthServletJakartaIT.java") ||
-  p.endsWith("/WaveWebSocketClientTest.java")  // depends on webclient WaveSocket (excluded from SBT)
+  // Tests that depend on GWT client/webclient classes excluded from SBT compilation
+  p.endsWith("/WaveWebSocketClientTest.java") ||
+  p.endsWith("/RemoteWaveViewServiceEmptyUserDataSnapshotTest.java") ||
+  p.endsWith("/FocusBlipSelectorTest.java")
 }
 // Only run the explicit IT allowlist (Gradle lines 1047-1058)
 JakartaIT / testOptions += Tests.Filter { name =>

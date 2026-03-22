@@ -19,7 +19,6 @@ javacOptions ++= {
 Compile / unmanagedSourceDirectories ++= Seq(
   baseDirectory.value / "wave" / "src" / "main" / "java",
   baseDirectory.value / "proto_src",
-  baseDirectory.value / "gen" / "gxp",
   baseDirectory.value / "gen" / "messages",
   baseDirectory.value / "gen" / "flags",
   baseDirectory.value / "gen" / "shims"
@@ -322,7 +321,6 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
 // Ensure `sbt clean` removes generated sources only (dependencies/caches are preserved)
 cleanFiles ++= Seq(
   baseDirectory.value / "proto_src",
-  baseDirectory.value / "gen" / "gxp",
   baseDirectory.value / "gen" / "messages",
   baseDirectory.value / "gen" / "flags"
 )
@@ -334,7 +332,6 @@ ThisBuild / deepClean := {
   val base = baseDirectory.value
   val gen  = Seq(
     base / "proto_src",
-    base / "gen" / "gxp",
     base / "gen" / "messages",
     base / "gen" / "flags",
     base / "target" / "proto-pb-src"
@@ -360,7 +357,6 @@ import sbt.complete.DefaultParsers._
 
 lazy val prepareProtosForPB = taskKey[Unit]("Stage .protodevel/.proto into target/proto-pb-src for sbt-protoc")
 lazy val generatePstMessages = taskKey[Unit]("Generate PST DTO sources into gen/messages")
-lazy val generateGxp = taskKey[Unit]("Generate GXP sources into gen/gxp with gxpc")
 lazy val generateFlags = taskKey[Unit]("Generate ClientFlags and FlagConstants into gen/flags")
 lazy val prepareServerConfig = taskKey[Unit]("Generate server.config from server-config.example when missing")
 lazy val testBackend = taskKey[Unit]("Run backend unit tests via Ant (excludes GWT/large/mongodb)")
@@ -529,38 +525,6 @@ ThisBuild / generatePstMessages := {
   }
 }
 
-ThisBuild / generateGxp := {
-  val log = streams.value.log
-  val base = baseDirectory.value
-  val srcDir = base / "wave" / "src" / "main" / "java"
-  val genDir = base / "gen" / "gxp"
-  IO.createDirectory(genDir)
-  // If outputs already exist, skip (developers can delete to force regen)
-  val gxpSrcs = (srcDir / "org" / "waveprotocol" / "box" / "server" / "gxp" * "*.gxp").get
-  val outPkgDir = genDir / "org" / "waveprotocol" / "box" / "server" / "gxp"
-  val haveOutputs = outPkgDir.exists && (outPkgDir ** "*.java").get.nonEmpty
-  if (gxpSrcs.isEmpty) {
-    log.info("No GXP sources found; skipping generation")
-  } else if (haveOutputs) {
-    log.info("GXP outputs already present; skipping generation")
-  } else {
-    val gxpcJar = base / "third_party" / "runtime" / "gxp" / "gxp-0.2.4-beta.jar"
-    if (!gxpcJar.exists) sys.error("Missing GXP compiler jar: third_party/runtime/gxp/gxp-0.2.4-beta.jar")
-    val cp = gxpcJar.getAbsolutePath
-    // Invoke gxpc CLI: set source base, output dir, and language; pass all .gxp files as inputs
-    val args = Seq(
-      "com.google.gxp.compiler.cli.Gxpc",
-      "--source", srcDir.getAbsolutePath,
-      "--dir", genDir.getAbsolutePath,
-      "--output_language", "java"
-    ) ++ gxpSrcs.map(_.getAbsolutePath)
-    val cmd = Seq("java", "-cp", cp) ++ args
-    log.info(cmd.mkString(" "))
-    val code = Process(cmd, base).!(ProcessLogger(s => log.info(s), e => log.error(e)))
-    if (code != 0) log.warn("GXP generation failed; continuing with existing sources (if any)")
-  }
-}
-
 ThisBuild / prepareServerConfig := {
   val log = streams.value.log
   val base = baseDirectory.value
@@ -661,7 +625,7 @@ generatePstMessages := (generatePstMessages).dependsOn(Compile / PB.generate).va
 Compile / compile := (Compile / compile)
   // .dependsOn(generatePstMessages) // disabled for now - requires JDK; can be run manually with `sbt generatePstMessages`
   // .dependsOn(generateFlags) // disabled for now - requires JDK; can be run manually with `sbt generateFlags`
-  // .dependsOn(generateGxp) // disabled for now - requires gxpc jar; can be run manually with `sbt generateGxp`
+  // GXP generation removed: templates replaced by HtmlRenderer.java
   .value
 
 // Ensure `run` has a config in place

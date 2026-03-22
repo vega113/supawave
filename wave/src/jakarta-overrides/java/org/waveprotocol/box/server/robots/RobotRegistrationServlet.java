@@ -17,7 +17,6 @@
 package org.waveprotocol.box.server.robots;
 
 import com.google.common.base.Strings;
-import com.google.gxp.base.GxpContext;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -27,8 +26,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.account.RobotAccountData;
-import org.waveprotocol.box.server.gxp.RobotRegistrationPage;
-import org.waveprotocol.box.server.gxp.RobotRegistrationSuccessPage;
+import org.waveprotocol.box.server.rpc.HtmlRenderer;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
 import org.waveprotocol.box.server.robots.util.RobotsUtil.RobotRegistrationException;
@@ -78,7 +76,7 @@ public final class RobotRegistrationServlet extends HttpServlet {
 
   private void renderRegistrationPage(HttpServletRequest req, HttpServletResponse resp, String message)
       throws IOException {
-    RobotRegistrationPage.write(resp.getWriter(), new GxpContext(req.getLocale()), domain, message, analyticsAccount);
+    resp.getWriter().write(HtmlRenderer.renderRobotRegistrationPage(domain, message, analyticsAccount));
     resp.setContentType("text/html");
     resp.setStatus(HttpServletResponse.SC_OK);
   }
@@ -112,8 +110,8 @@ public final class RobotRegistrationServlet extends HttpServlet {
       return;
     }
 
-    RobotRegistrationSuccessPage.write(resp.getWriter(), new GxpContext(req.getLocale()),
-        robotAccount.getId().getAddress(), robotAccount.getConsumerSecret(), analyticsAccount);
+    resp.getWriter().write(HtmlRenderer.renderRobotRegistrationSuccessPage(
+        robotAccount.getId().getAddress(), robotAccount.getConsumerSecret(), analyticsAccount));
     resp.setContentType("text/html");
     resp.setStatus(HttpServletResponse.SC_OK);
   }

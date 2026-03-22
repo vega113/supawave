@@ -20,7 +20,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
-import com.google.gxp.base.GxpContext;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import jakarta.inject.Singleton;
@@ -39,8 +38,7 @@ import net.oauth.OAuthValidator;
 import org.waveprotocol.box.server.robots.util.JakartaHttpRequestMessage;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSessions;
-import org.waveprotocol.box.server.gxp.OAuthAuthorizeTokenPage;
-import org.waveprotocol.box.server.gxp.OAuthAuthorizationCodePage;
+import org.waveprotocol.box.server.rpc.HtmlRenderer;
 import org.waveprotocol.wave.model.id.TokenGenerator;
 import org.waveprotocol.wave.model.util.CharBase64;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -187,8 +185,8 @@ public final class DataApiOAuthServlet extends HttpServlet {
   private void doAuthorizeTokenGet(HttpServletRequest req, HttpServletResponse resp, ParticipantId user)
       throws IOException {
     Preconditions.checkNotNull(user, "User must be supplied");
-    OAuthAuthorizeTokenPage.write(resp.getWriter(), new GxpContext(req.getLocale()),
-        user.getAddress(), getOrGenerateXsrfToken(user));
+    resp.getWriter().write(HtmlRenderer.renderOAuthAuthorizeTokenPage(
+        user.getAddress(), getOrGenerateXsrfToken(user)));
     resp.setContentType(HTML_CONTENT_TYPE);
     resp.setStatus(HttpServletResponse.SC_OK);
   }
@@ -307,8 +305,7 @@ public final class DataApiOAuthServlet extends HttpServlet {
       String authorizationCode = authorizedAccessor.requestToken + " "
           + authorizedAccessor.accessToken + " " + authorizedAccessor.tokenSecret;
       String base64AuthCode = CharBase64.encode(authorizationCode.getBytes());
-      OAuthAuthorizationCodePage.write(resp.getWriter(), new GxpContext(req.getLocale()),
-          base64AuthCode);
+      resp.getWriter().write(HtmlRenderer.renderOAuthAuthorizationCodePage(base64AuthCode));
       resp.setContentType(HTML_CONTENT_TYPE);
       resp.setStatus(HttpServletResponse.SC_OK);
     }

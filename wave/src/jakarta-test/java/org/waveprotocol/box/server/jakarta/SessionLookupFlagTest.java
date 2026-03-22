@@ -42,9 +42,9 @@ public class SessionLookupFlagTest {
     // Use reflection to avoid compile-time dependency on Jetty 12 in this test
     final Class<?> shClass;
     try {
-      shClass = Class.forName("org.eclipse.jetty.session.SessionHandler");
+      shClass = Class.forName("org.eclipse.jetty.ee10.servlet.SessionHandler");
     } catch (ClassNotFoundException cnfe) {
-      org.junit.Assume.assumeTrue("Jetty 12 SessionHandler not present; skipping", false);
+      org.junit.Assume.assumeTrue("Jetty EE10 SessionHandler not present; skipping", false);
       return;
     }
     Object handler = shClass.getConstructor().newInstance();

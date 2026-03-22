@@ -33,6 +33,8 @@ import java.util.Arrays;
 import java.util.List;
 import javax.security.auth.login.Configuration;
 import org.eclipse.jetty.ee10.servlet.SessionHandler;
+import org.eclipse.jetty.session.DefaultSessionCache;
+import org.eclipse.jetty.session.FileSessionDataStore;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.SessionManagerImpl;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRingPersistence;
@@ -110,8 +112,75 @@ public class ServerModule extends AbstractModule {
 
   @Provides @Singleton
   public SessionHandler provideSessionHandler(Config config) {
-    // For the Jakarta path, return a minimal SessionHandler; cookie/storage
-    // specifics are handled elsewhere during full migration.
-    return new SessionHandler();
+    SessionHandler sessionHandler = new SessionHandler();
+
+    // Configure cookie attributes to match the javax variant
+    try {
+      sessionHandler.getSessionCookieConfig()
+          .setMaxAge(config.getInt("network.session_cookie_max_age"));
+    } catch (Exception ignore) {}
+    try {
+      boolean httpOnly = true;
+      try {
+        if (config.hasPath("network.session_cookie_http_only")) {
+          httpOnly = config.getBoolean("network.session_cookie_http_only");
+        }
+      } catch (Exception ignored) {}
+      sessionHandler.getSessionCookieConfig().setHttpOnly(httpOnly);
+
+      boolean enableSsl = false;
+      try { enableSsl = config.getBoolean("security.enable_ssl"); } catch (Exception ignored) {}
+      if (enableSsl) {
+        sessionHandler.getSessionCookieConfig().setSecure(true);
+      }
+      // Set SameSite=LAX if supported by the runtime Jetty version
+      try {
+        Class<?> sameSiteClass = Class.forName("org.eclipse.jetty.http.HttpCookie$SameSite");
+        if (sameSiteClass.isEnum()) {
+          Object lax = null;
+          Object[] consts = sameSiteClass.getEnumConstants();
+          if (consts != null) {
+            for (Object c : consts) {
+              if ("LAX".equals(String.valueOf(c))) { lax = c; break; }
+            }
+          }
+          if (lax != null) {
+            SessionHandler.class.getMethod("setSameSite", sameSiteClass)
+                .invoke(sessionHandler, lax);
+          }
+        }
+      } catch (Throwable ignored) {}
+    } catch (Exception ignore) {}
+
+    // File-backed session data store for persistence across restarts.
+    // Validate the directory thoroughly BEFORE wiring the cache: once the
+    // cache is set on the SessionHandler, Jetty will attempt to start the
+    // FileSessionDataStore during httpServer.start().  If the store
+    // directory is missing or unwritable at that point, Jetty throws
+    // IllegalStateException which kills the entire server startup.
+    try {
+      java.io.File storeDir =
+          new java.io.File(config.getString("core.sessions_store_directory"));
+      if (!storeDir.exists()) {
+        storeDir.mkdirs();
+      }
+      if (storeDir.isDirectory() && storeDir.canRead() && storeDir.canWrite()) {
+        DefaultSessionCache cache = new DefaultSessionCache(sessionHandler);
+        FileSessionDataStore dataStore = new FileSessionDataStore();
+        dataStore.setStoreDir(storeDir);
+        cache.setSessionDataStore(dataStore);
+        sessionHandler.setSessionCache(cache);
+      } else {
+        org.waveprotocol.wave.util.logging.Log.get(ServerModule.class)
+            .warning("Session store directory '" + storeDir.getAbsolutePath()
+                + "' is not a readable/writable directory; "
+                + "sessions will not persist across restarts");
+      }
+    } catch (Exception e) {
+      org.waveprotocol.wave.util.logging.Log.get(ServerModule.class)
+          .warning("Failed to configure file-backed session store; sessions will not persist across restarts", e);
+    }
+
+    return sessionHandler;
   }
 }

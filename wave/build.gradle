@@ -174,6 +174,20 @@ sourceSets {
             // These are unrelated to current work and can be revisited separately.
             exclude 'org/waveprotocol/box/server/authentication/SessionManagerTest.java'
             exclude 'org/waveprotocol/box/server/rpc/FetchServletTest.java'
+            // Exclude OAuth/Robot tests whose production classes were removed or
+            // excluded by the Jakarta migration (net.oauth, AbstractBaseRobotAgent,
+            // expimp utilities, robot agent helpers).
+            // Re-enable once the OAuth migration is complete.
+            exclude 'com/google/wave/api/AbstractRobotTest.java'
+            exclude 'com/google/wave/api/oauth/impl/OAuthServiceImplRobotTest.java'
+            exclude 'org/waveprotocol/box/server/robots/active/ActiveApiServletTest.java'
+            exclude 'org/waveprotocol/box/server/robots/agent/AbstractRobotAgentTest.java'
+            exclude 'org/waveprotocol/box/server/robots/agent/RobotAgentUtilTest.java'
+            exclude 'org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletTest.java'
+            exclude 'org/waveprotocol/box/server/robots/dataapi/DataApiServletTest.java'
+            exclude 'org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java'
+            exclude 'org/waveprotocol/box/expimp/DomainConverterTest.java'
+            exclude 'org/waveprotocol/box/expimp/DeltaParserTest.java'
         }
         resources {
             srcDir 'src/test/resources'

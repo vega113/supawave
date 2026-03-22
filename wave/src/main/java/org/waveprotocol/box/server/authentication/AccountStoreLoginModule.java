@@ -93,6 +93,10 @@ public class AccountStoreLoginModule implements LoginModule {
     ParticipantId id = null;
     
     String address = nameCallback.getName();
+    if (address == null) {
+      passwordCallback.clearPassword();
+      return false;
+    }
     if (!address.contains(ParticipantId.DOMAIN_PREFIX)) {
       address = address + ParticipantId.DOMAIN_PREFIX + AccountStoreHolder.getDefaultDomain();
     }

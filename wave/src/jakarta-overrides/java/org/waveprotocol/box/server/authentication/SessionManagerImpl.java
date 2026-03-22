@@ -42,11 +42,11 @@ public final class SessionManagerImpl implements SessionManager {
   private final AccountStore accountStore;
   private static final Log LOG = Log.get(SessionManagerImpl.class);
   private final Config config;
-  private final org.eclipse.jetty.session.SessionHandler sessionHandler;
+  private final org.eclipse.jetty.ee10.servlet.SessionHandler sessionHandler;
 
   @Inject
   public SessionManagerImpl(AccountStore accountStore,
-                            org.eclipse.jetty.session.SessionHandler sessionHandler,
+                            org.eclipse.jetty.ee10.servlet.SessionHandler sessionHandler,
                             Config config) {
     Preconditions.checkNotNull(accountStore, "Null account store");
     this.accountStore = accountStore;

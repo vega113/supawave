@@ -25,6 +25,13 @@ jobs:
           java-version: '17'
           cache: 'sbt'
 
+      - name: Install sbt
+        run: |
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x99E82A75642AC823" | sudo apt-key add -
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sbt
+
       - name: Validate canonical deployment assets
         run: |
           bash -n scripts/deployment/bootstrap-linux-host.sh
@@ -60,6 +67,13 @@ jobs:
           java-version: '17'
           cache: 'sbt'
 
+      - name: Install sbt
+        run: |
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x99E82A75642AC823" | sudo apt-key add -
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sbt
+
       - name: Compile Jakarta sources (PR-blocking)
         continue-on-error: ${{ github.event_name != 'pull_request' }}
         run: sbt --batch wave/compile "wave/jakartaTest:compile"
@@ -78,8 +92,8 @@ jobs:
         with:
           name: test-reports-jakarta
           path: |
-            wave/target/test-reports/jakartaTest/**
-            wave/target/reports/tests/jakartaTest/**
+            target/test-reports/jakartaTest/**
+            target/reports/tests/jakartaTest/**
 
       - name: Publish jakarta IT reports
         if: always()
@@ -87,8 +101,8 @@ jobs:
         with:
           name: test-reports-jakarta-it
           path: |
-            wave/target/test-reports/jakartaIT/**
-            wave/target/reports/tests/jakartaIT/**
+            target/test-reports/jakartaIT/**
+            target/reports/tests/jakartaIT/**
 
       - name: Guard experimental flags for release (tags/releases/release branches)
         if: ${{ github.ref_type == 'tag' || (github.event_name == 'release' && github.event.action == 'published') || (github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))) }}

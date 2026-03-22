@@ -4,9 +4,11 @@
 FROM eclipse-temurin:17-jdk AS build
 WORKDIR /workspace
 
-# Install SBT
-RUN curl -fsSL "https://github.com/sbt/sbt/releases/download/v1.10.2/sbt-1.10.2.tgz" \
-    | tar xz -C /usr/local --strip-components=1
+# Install SBT (with checksum verification)
+RUN curl -fsSL -o /tmp/sbt.tgz "https://github.com/sbt/sbt/releases/download/v1.10.2/sbt-1.10.2.tgz" \
+    && echo "a716dd018bd68bc7a95a2dd10337663aa76f443ad6c99deabe5eadd1adfc7639 /tmp/sbt.tgz" | sha256sum -c - \
+    && tar xz -C /usr/local --strip-components=1 -f /tmp/sbt.tgz \
+    && rm /tmp/sbt.tgz
 
 # Leverage Docker layer caching: copy SBT build definitions first
 COPY project/build.properties project/plugins.sbt /workspace/project/

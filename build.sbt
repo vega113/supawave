@@ -555,10 +555,7 @@ testStress := {
 // testAll: run all test suites (Gradle equivalent runs test + testMongo + testLarge +
 //          testJakarta + testJakartaIT + testStress). GWT tests are dropped because
 //          SBT does not support GWT compilation; they remain in the Gradle build only.
-lazy val testAll = taskKey[Unit]("Run all test suites (unit + Jakarta + stacktrace + thumb + mongo + large + stress)")
-// NOTE: testAll cannot directly aggregate task results; callers should invoke:
-//   sbt "test; jakartaTest:test; jakartaIT:test; stacktraceTest:test; thumbTest:test"
-// or define a sequential aggregation in CI. The alias below is for documentation.
+addCommandAlias("testAll", "; test; jakartaTest:test; jakartaIT:test; stacktraceTest:test; thumbTest:test")
 
 // -------------------------------------------
 // Distribution via sbt-native-packager (Phase 5)
@@ -609,11 +606,16 @@ smokeInstalled := {
   val script = base / "scripts" / "wave-smoke.sh"
   val env = Map("INSTALL_DIR" -> stageDir.getAbsolutePath)
   log.info(s"Running smoke test against staged distribution at ${stageDir}")
-  val cmds = Seq("start", "check", "stop")
-  cmds.foreach { cmd =>
-    val code = scala.sys.process.Process(Seq("bash", script.getAbsolutePath, cmd), base, env.toSeq: _*)
+  def runSmoke(cmd: String): Int =
+    scala.sys.process.Process(Seq("bash", script.getAbsolutePath, cmd), base, env.toSeq: _*)
       .!(scala.sys.process.ProcessLogger(s => log.info(s), e => log.error(e)))
-    if (code != 0) sys.error(s"wave-smoke.sh $cmd failed with exit code $code")
+  try {
+    val startCode = runSmoke("start")
+    if (startCode != 0) sys.error(s"wave-smoke.sh start failed with exit code $startCode")
+    val checkCode = runSmoke("check")
+    if (checkCode != 0) sys.error(s"wave-smoke.sh check failed with exit code $checkCode")
+  } finally {
+    runSmoke("stop")
   }
 }
 

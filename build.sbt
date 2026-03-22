@@ -117,13 +117,11 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   val isSrc = underMain
   val commonExcludes =
     (isSrc && p.contains("/org/waveprotocol/box/webclient/")) ||
-    (isSrc && p.contains("/org/waveprotocol/wave/client/")) ||
+    (isSrc && p.contains("/org/waveprotocol/wave/client/") && !p.endsWith("/wave/client/state/BlipReadStateMonitor.java")) ||
     (isSrc && p.contains("/org/waveprotocol/wave/communication/gwt/")) ||
     (isSrc && p.contains("/com/google/gwt/")) ||
     // Exclude stat shims since we have the real source files
     (p.contains("/gen/shims/") && p.contains("/org/waveprotocol/box/stat/")) ||
-    // Model files that depend on GWT client classes
-    (isSrc && p.endsWith("/org/waveprotocol/wave/model/document/WaveContext.java")) ||
     // GXP-dependent server RPC pages
     (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/ChangePasswordServlet.java")) ||
     (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/GoogleAuthenticationServlet.java")) ||

@@ -41,6 +41,7 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.ee10.servlet.SessionHandler;
 import org.eclipse.jetty.ee10.servlet.DefaultServlet;
+import org.eclipse.jetty.ee10.servlet.ResourceServlet;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
@@ -508,9 +509,7 @@ public class ServerRpcProvider {
             registerPendingServlets();
             registerPendingFilters();
 
-            // Static resources base uses either configured entries or ./war fallback to serve legacy assets.
-
-            // DefaultServlet mappings with caching semantics
+            // Static resources: resolve sub-directories for /static and /webclient
             Resource staticResource = null;
             Resource webclientResource = null;
             try {
@@ -526,32 +525,60 @@ public class ServerRpcProvider {
                 webclientResource = resolveResource(ResourceFactory.of(context), "webclient");
             }
 
-            ServletHolder staticHolder = new ServletHolder("jakarta-static", DefaultServlet.class);
+            // Jetty 12 EE10: use ResourceServlet (not DefaultServlet) for non-root
+            // path mappings.  DefaultServlet is reserved for the "/" mapping and will
+            // log warnings + mis-resolve paths when mounted on /static/* or /webclient/*.
+            // ResourceServlet defaults pathInfoOnly=true, which strips the servlet-path
+            // prefix before resolving against the baseResource, preventing double-path
+            // lookups that caused buffer-release errors in the previous DefaultServlet
+            // configuration.
+            ServletHolder staticHolder =
+                new ServletHolder("jakarta-static", ResourceServlet.class);
             staticHolder.setInitParameter("etags", "true");
-            staticHolder.setInitParameter("cacheControl", "public, max-age=31536000, immutable");
-            if (resourceBases != null && resourceBases.length > 0) {
-                staticHolder.setInitParameter("dirAllowed", "false");
-            }
+            staticHolder.setInitParameter("cacheControl",
+                "public, max-age=31536000, immutable");
+            staticHolder.setInitParameter("dirAllowed", "false");
             if (staticResource != null && staticResource.exists()) {
-                staticHolder.setInitParameter("baseResource", staticResource.getURI().toString());
+                staticHolder.setInitParameter("baseResource",
+                    staticResource.getURI().toString());
                 LOG.info("Serving /static from " + staticResource);
             } else if (baseResource != null) {
-                staticHolder.setInitParameter("baseResource", baseResource.getURI().toString());
-                staticHolder.setInitParameter("relativeResourceBase", "static/");
-                LOG.warning("Falling back to relative static/ under base resource for /static");
+                Resource fallback = baseResource.resolve("static/");
+                if (fallback != null && fallback.exists()) {
+                    staticHolder.setInitParameter("baseResource",
+                        fallback.getURI().toString());
+                } else {
+                    staticHolder.setInitParameter("baseResource",
+                        baseResource.getURI().toString());
+                }
+                LOG.warning(
+                    "Falling back to base resource for /static: "
+                        + staticHolder.getInitParameter("baseResource"));
             }
             context.addServlet(staticHolder, "/static/*");
 
-            ServletHolder webclientHolder = new ServletHolder("jakarta-webclient", DefaultServlet.class);
+            ServletHolder webclientHolder =
+                new ServletHolder("jakarta-webclient", ResourceServlet.class);
             webclientHolder.setInitParameter("etags", "true");
-            webclientHolder.setInitParameter("cacheControl", "no-cache, no-store, must-revalidate");
+            webclientHolder.setInitParameter("cacheControl",
+                "no-cache, no-store, must-revalidate");
+            webclientHolder.setInitParameter("dirAllowed", "false");
             if (webclientResource != null && webclientResource.exists()) {
-                webclientHolder.setInitParameter("baseResource", webclientResource.getURI().toString());
+                webclientHolder.setInitParameter("baseResource",
+                    webclientResource.getURI().toString());
                 LOG.info("Serving /webclient from " + webclientResource);
             } else if (baseResource != null) {
-                webclientHolder.setInitParameter("baseResource", baseResource.getURI().toString());
-                webclientHolder.setInitParameter("relativeResourceBase", "webclient/");
-                LOG.warning("Falling back to relative webclient/ under base resource for /webclient");
+                Resource fallback = baseResource.resolve("webclient/");
+                if (fallback != null && fallback.exists()) {
+                    webclientHolder.setInitParameter("baseResource",
+                        fallback.getURI().toString());
+                } else {
+                    webclientHolder.setInitParameter("baseResource",
+                        baseResource.getURI().toString());
+                }
+                LOG.warning(
+                    "Falling back to base resource for /webclient: "
+                        + webclientHolder.getInitParameter("baseResource"));
             }
             context.addServlet(webclientHolder, "/webclient/*");
 

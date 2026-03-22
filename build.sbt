@@ -8,12 +8,8 @@ ThisBuild / version      := "0.1.0-SNAPSHOT"
 // Compile Java first, Scala later (we'll add Scala modules in future phases)
 Compile / compileOrder := CompileOrder.JavaThenScala
 
-// Target bytecode by mode:
-// - Default (javax): use --release 8 to accommodate legacy sources
-// - Jakarta mode: use --release 11 because jakarta.servlet-api 5+ requires Java 11 bytecode
-javacOptions ++= {
-  if ((ThisBuild / jakartaMode).value) Seq("--release", "11") else Seq("--release", "8")
-}
+// Target bytecode for Jakarta runtime
+javacOptions ++= Seq("--release", "11")
 
 // Include Maven standard source layout and generated sources
 Compile / unmanagedSourceDirectories ++= Seq(
@@ -25,10 +21,7 @@ Compile / unmanagedSourceDirectories ++= Seq(
   baseDirectory.value / "gen" / "shims"
 )
 
-// Include jakarta-specific sources when enabled
-Compile / unmanagedSourceDirectories ++= {
-  if ((ThisBuild / jakartaMode).value) Seq(baseDirectory.value / "wave" / "src" / "jakarta-overrides" / "java") else Seq()
-}
+Compile / unmanagedSourceDirectories += baseDirectory.value / "wave" / "src" / "jakarta-overrides" / "java"
 
 // Exclude GWT client and legacy Socket.IO server shims from compilation
 Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =>
@@ -71,59 +64,47 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   (isSrc && p.endsWith("/org/waveprotocol/wave/model/raw/serialization/JsoSerializer.java"))
 }
 
-// In jakarta mode, exclude any javax-servlet/websocket based sources and legacy ServerMain
+// Exclude any javax-servlet/websocket based sources and legacy ServerMain
 Compile / unmanagedSources := {
   val files = (Compile / unmanagedSources).value
-  if ((ThisBuild / jakartaMode).value) {
-    files.filterNot { f =>
-      val p = f.getPath.replace('\\','/')
-      val isSrc = p.contains("/wave/src/main/java/")
-      val excludeByName = isSrc && p.endsWith("/org/waveprotocol/box/server/ServerMain.java")
-      val excludeByImport = isSrc && {
-        // Read a few lines to detect javax servlet/websocket usage
-        val lines = try IO.readLines(f) catch { case _: Throwable => Nil }
-        lines.exists { l =>
-          val s = l.trim
-          s.startsWith("import javax.servlet") || s.startsWith("import javax.websocket")
-        }
+  files.filterNot { f =>
+    val p = f.getPath.replace('\\','/')
+    val isSrc = p.contains("/wave/src/main/java/")
+    val excludeByName = isSrc && p.endsWith("/org/waveprotocol/box/server/ServerMain.java")
+    val excludeByImport = isSrc && {
+      val lines = try IO.readLines(f) catch { case _: Throwable => Nil }
+      lines.exists { l =>
+        val s = l.trim
+        s.startsWith("import javax.servlet") || s.startsWith("import javax.websocket")
       }
-      // Allow robots core (registries, utils, modules) in Jakarta mode.
-      // Exclude robot agents and examples to avoid pulling optional deps.
-      val excludeRobotsAgents = p.contains("/src/org/waveprotocol/box/server/robots/agent/")
-      val excludeRobotsExamples = p.contains("/src/org/waveprotocol/examples/robots/")
-      // Include attachment service/utilities; Jakarta servlet variant is stubbed for constants
-      val excludeAttachments = false
-      // Include render package; individual javax servlets will be dropped by import detection
-      val excludeRender = false
-      val excludeSearchProfile = p.endsWith("/src/org/waveprotocol/box/server/rpc/FetchProfilesServlet.java") ||
-                                 p.endsWith("/src/org/waveprotocol/box/server/rpc/AbstractSearchServlet.java") ||
-                                 p.endsWith("/src/org/waveprotocol/box/server/rpc/InitSeensWavelet.java")
-      // Include MongoDB persistence sources in Jakarta mode
-      val excludeMongo = false
-      val excludeHtmlModule = p.endsWith("/src/org/waveprotocol/box/server/HtmlModule.java")
-      val excludeRegistrationUtil = p.endsWith("/src/org/waveprotocol/box/server/util/RegistrationUtil.java")
-      // Include the real WaveDigester (works without javax deps)
-      val excludeWaveDigester = false
-      // Allow search core and Lucene persistence in Jakarta mode (we provide jakarta servlets separately)
-      val excludeSearch = false
-      val excludeLucenePersistence = false
-      // Include migration utilities
-      val excludeMigration = false
-      val excludeDataTools = false
-      // Needed by RobotApiModule provider
-      val excludeRobotHttpConn = false
-      val excludeDefaultServerModule = p.endsWith("/src/org/waveprotocol/box/server/ServerModule.java")
-      val excludeDefaultMappings = p.endsWith("/src/org/waveprotocol/box/server/http/JettyServletMappingsConfigurer.java")
-      val excludePersistenceModule = p.endsWith("/src/org/waveprotocol/box/server/persistence/PersistenceModule.java")
-      val excludeGenShims = p.contains("/gen/shims/") && !(
-        p.endsWith("/gen/shims/org/waveprotocol/box/webclient/search/WaveContext.java") ||
-        p.endsWith("/gen/shims/org/waveprotocol/box/server/rpc/render/view/builder/TagsViewBuilder.java")
-      )
-      val baseExcludes = excludeByName || excludeByImport || excludeAttachments || excludeRender || excludeSearchProfile || excludeMongo || excludeHtmlModule || excludeRegistrationUtil || excludeDefaultServerModule || excludeDefaultMappings || excludePersistenceModule || excludeMigration || excludeDataTools || excludeGenShims
-      val robotsExcludes = excludeRobotsAgents || excludeRobotsExamples
-      baseExcludes || robotsExcludes
     }
-  } else files
+    val excludeRobotsAgents = p.contains("/src/org/waveprotocol/box/server/robots/agent/")
+    val excludeRobotsExamples = p.contains("/src/org/waveprotocol/examples/robots/")
+    val excludeAttachments = false
+    val excludeRender = false
+    val excludeSearchProfile = p.endsWith("/src/org/waveprotocol/box/server/rpc/FetchProfilesServlet.java") ||
+                               p.endsWith("/src/org/waveprotocol/box/server/rpc/AbstractSearchServlet.java") ||
+                               p.endsWith("/src/org/waveprotocol/box/server/rpc/InitSeensWavelet.java")
+    val excludeMongo = false
+    val excludeHtmlModule = p.endsWith("/src/org/waveprotocol/box/server/HtmlModule.java")
+    val excludeRegistrationUtil = p.endsWith("/src/org/waveprotocol/box/server/util/RegistrationUtil.java")
+    val excludeWaveDigester = false
+    val excludeSearch = false
+    val excludeLucenePersistence = false
+    val excludeMigration = false
+    val excludeDataTools = false
+    val excludeRobotHttpConn = false
+    val excludeDefaultServerModule = p.endsWith("/src/org/waveprotocol/box/server/ServerModule.java")
+    val excludeDefaultMappings = p.endsWith("/src/org/waveprotocol/box/server/http/JettyServletMappingsConfigurer.java")
+    val excludePersistenceModule = p.endsWith("/src/org/waveprotocol/box/server/persistence/PersistenceModule.java")
+    val excludeGenShims = p.contains("/gen/shims/") && !(
+      p.endsWith("/gen/shims/org/waveprotocol/box/webclient/search/WaveContext.java") ||
+      p.endsWith("/gen/shims/org/waveprotocol/box/server/rpc/render/view/builder/TagsViewBuilder.java")
+    )
+    val baseExcludes = excludeByName || excludeByImport || excludeAttachments || excludeRender || excludeSearchProfile || excludeMongo || excludeHtmlModule || excludeRegistrationUtil || excludeDefaultServerModule || excludeDefaultMappings || excludePersistenceModule || excludeMigration || excludeDataTools || excludeGenShims
+    val robotsExcludes = excludeRobotsAgents || excludeRobotsExamples
+    baseExcludes || robotsExcludes
+  }
 }
 
 Test / unmanagedSourceDirectories += baseDirectory.value / "wave" / "src" / "test" / "java"
@@ -201,14 +182,9 @@ ThisBuild / assembly / assemblyMergeStrategy := {
 }
 
 // Managed dependencies
-lazy val JettyV         = "9.4.54.v20240208"          // javax servlet stack (default)
 lazy val JettyJakartaV  = "12.0.23"                    // jakarta servlet stack (EE10, matches Gradle)
 lazy val JakartaServletV = "5.0.0"                     // jakarta.servlet-api
 lazy val JakartaWsV      = "2.0.0"                     // jakarta.websocket-api
-
-// Build-time flag (scaffold): enable Jakarta dependencies when true
-lazy val jakartaMode = settingKey[Boolean]("Enable Jakarta servlet/websocket dependencies (scaffold; default false)")
-ThisBuild / jakartaMode := sys.props.get("jakarta").exists(_.trim.toLowerCase == "true")
 
 // Dependencies independent of container choice
 lazy val coreDeps = Seq(
@@ -227,61 +203,19 @@ lazy val coreDeps = Seq(
   "com.google.inject.extensions" % "guice-assistedinject" % "5.1.0"
 )
 
-// Container-specific dependencies (javax vs jakarta)
-lazy val containerDeps = Def.setting {
-  if (jakartaMode.value) Seq(
-    // Jetty Jakarta stack (scaffold; not enabled by default)
-    "org.eclipse.jetty" % "jetty-server"  % JettyJakartaV,
-    "org.eclipse.jetty" % "jetty-servlet" % JettyJakartaV,
-    "org.eclipse.jetty" % "jetty-servlets" % JettyJakartaV,
-    "org.eclipse.jetty" % "jetty-webapp" % JettyJakartaV,
-    "org.eclipse.jetty" % "jetty-proxy"   % JettyJakartaV,
-    // Jakarta APIs
-    "jakarta.servlet"    % "jakarta.servlet-api"    % JakartaServletV,
-    "jakarta.websocket"  % "jakarta.websocket-api"  % JakartaWsV,
-    // Jetty JSR‑356 Jakarta implementation for Jetty 11
-    // Correct artifact is websocket-jakarta-server (jakarta-websocket-server-impl does not exist on Maven Central)
-    "org.eclipse.jetty.websocket" % "websocket-jakarta-server" % JettyJakartaV,
-    // Logging backend compatible with slf4j-api 2.x
-    "org.slf4j" % "slf4j-simple" % "2.0.13"
-  ) else Seq(
-    // Jetty 9.4.x (javax.servlet)
-    "org.eclipse.jetty" % "jetty-server"  % JettyV,
-    "org.eclipse.jetty" % "jetty-servlet" % JettyV,
-    "org.eclipse.jetty" % "jetty-servlets"% JettyV,
-    "org.eclipse.jetty" % "jetty-webapp"  % JettyV,
-    "org.eclipse.jetty" % "jetty-proxy"   % JettyV,
-    // JSR 356 (javax.servlet stack)
-    "javax.websocket" % "javax.websocket-api" % "1.1",
-    "org.eclipse.jetty.websocket" % "javax-websocket-server-impl" % JettyV,
-    // javax.servlet API
-    "javax.servlet" % "javax.servlet-api" % "3.1.0",
-    // Logging backend compatible with slf4j-api 1.7
-    "org.slf4j" % "slf4j-simple" % "1.7.36"
-  )
-}
+lazy val containerDeps = Seq(
+  "org.eclipse.jetty" % "jetty-server"  % JettyJakartaV,
+  "org.eclipse.jetty" % "jetty-servlet" % JettyJakartaV,
+  "org.eclipse.jetty" % "jetty-servlets" % JettyJakartaV,
+  "org.eclipse.jetty" % "jetty-webapp" % JettyJakartaV,
+  "org.eclipse.jetty" % "jetty-proxy"   % JettyJakartaV,
+  "jakarta.servlet"    % "jakarta.servlet-api"    % JakartaServletV,
+  "jakarta.websocket"  % "jakarta.websocket-api"  % JakartaWsV,
+  "org.eclipse.jetty.websocket" % "websocket-jakarta-server" % JettyJakartaV,
+  "org.slf4j" % "slf4j-simple" % "2.0.13"
+)
 
-libraryDependencies ++= (coreDeps ++ containerDeps.value)
-
-// Force Jetty modules to consistent versions. Only pin 9.4.x in non‑Jakarta mode;
-// leave Jakarta mode unpinned to avoid forcing javax-era artifacts.
-dependencyOverrides ++= {
-  if (jakartaMode.value) Seq.empty
-  else Seq(
-    "org.eclipse.jetty" % "jetty-util" % JettyV,
-    "org.eclipse.jetty" % "jetty-io" % JettyV,
-    "org.eclipse.jetty" % "jetty-http" % JettyV,
-    "org.eclipse.jetty" % "jetty-xml" % JettyV,
-    "org.eclipse.jetty" % "jetty-server" % JettyV,
-    "org.eclipse.jetty" % "jetty-servlet" % JettyV,
-    "org.eclipse.jetty" % "jetty-servlets" % JettyV,
-    "org.eclipse.jetty" % "jetty-webapp" % JettyV,
-    "org.eclipse.jetty.websocket" % "websocket-api" % JettyV,
-    "org.eclipse.jetty.websocket" % "websocket-common" % JettyV,
-    "org.eclipse.jetty.websocket" % "websocket-api" % JettyV,
-    "org.eclipse.jetty.websocket" % "websocket-common" % JettyV
-  )
-}
+libraryDependencies ++= (coreDeps ++ containerDeps)
 
 // Test JVM flags (Guice/cglib on JDK 17, enable assertions)
 Test / javaOptions ++= Seq(
@@ -358,6 +292,39 @@ import sbt._
 import sbtprotoc.ProtocPlugin.autoImport._
 import sbt.complete.DefaultParsers._
 
+lazy val pst = Project("pst", file("pst"))
+  .settings(
+    crossPaths := false,
+    autoScalaLibrary := false,
+    Compile / compileOrder := CompileOrder.JavaThenScala,
+    Compile / unmanagedSourceDirectories += baseDirectory.value / "generated" / "main" / "java",
+    libraryDependencies ++= Seq(
+      "com.google.protobuf" % "protobuf-java" % "3.25.3",
+      "com.google.guava" % "guava" % "19.0",
+      "org.antlr" % "antlr" % "3.2",
+      "commons-cli" % "commons-cli" % "1.11.0",
+      "junit" % "junit" % "4.12" % Test
+    ),
+    Compile / PB.protoSources := Seq(baseDirectory.value / "src" / "main" / "proto"),
+    Compile / PB.includePaths := Seq(baseDirectory.value / "src" / "main" / "proto"),
+    Compile / PB.targets := Seq(PB.gens.java -> (baseDirectory.value / "generated" / "main" / "java")),
+    Compile / compile := (Compile / compile).dependsOn(Compile / PB.generate).value,
+    Compile / mainClass := Some("org.apache.wave.pst.PstMain"),
+    assembly / mainClass := Some("org.apache.wave.pst.PstMain"),
+    assembly / assemblyJarName := s"wave-pst-${version.value}.jar",
+    assembly / test := {},
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      cp.filter { attributed =>
+        val jarName = attributed.data.getName
+        jarName.startsWith("protobuf-java-") || jarName.startsWith("guava-")
+      }
+    }
+  )
+
+lazy val wave = Project("wave", file(".")).aggregate(pst)
+lazy val root = wave
+
 lazy val prepareProtosForPB = taskKey[Unit]("Stage .protodevel/.proto into target/proto-pb-src for sbt-protoc")
 lazy val generatePstMessages = taskKey[Unit]("Generate PST DTO sources into gen/messages")
 lazy val generateGxp = taskKey[Unit]("Generate GXP sources into gen/gxp with gxpc")
@@ -432,12 +399,11 @@ ThisBuild / generatePstMessages := {
   val log = streams.value.log
   val base = baseDirectory.value
   val outSrc = base / "proto_src"
-  val pstToolClasses = base / "target" / "pst-tool-classes"
   val pstProtoClasses = base / "target" / "pst-proto-classes"
   val genMsgDir = base / "gen" / "messages"
-  IO.createDirectory(pstToolClasses)
   IO.createDirectory(pstProtoClasses)
   IO.createDirectory(genMsgDir)
+  val pstAssemblyJar = (pst / assembly).value
 
   // Compile proto_src Java to classes for reflection
   // Exclude any generated google.protobuf runtime classes if present
@@ -460,27 +426,6 @@ ThisBuild / generatePstMessages := {
     "-d", pstProtoClasses.getAbsolutePath
   ) ++ protoSources.map(_.getAbsolutePath)
   runCmd(log)(javacProto, base)
-
-  // Compile PST tool sources
-  val pstSources = (base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "pst" ** "*.java").get
-  val antlrJar = (base / "third_party" / "codegen" / "antlr" / "antlr-3.2.jar").getAbsolutePath
-  val guavaJar = (base / "third_party" / "runtime" / "guava" / "guava-16.0.1.jar").getAbsolutePath
-  // SBT still bootstraps PST tools from vendored runtime jars; Gradle now owns the main wave commons-cli dependency.
-  val commonsCliJar = (base / "third_party" / "runtime" / "commons_cli" / "commons-cli-1.2.jar").getAbsolutePath
-  val javacPst = Seq(
-    "javac",
-    "-g",
-    "-cp",
-      Seq(
-        antlrJar,
-        guavaJar,
-        commonsCliJar,
-        protobufJar,
-        pstProtoClasses.getAbsolutePath // for org.waveprotocol.protobuf.Extensions, etc.
-      ).mkString(java.io.File.pathSeparator),
-    "-d", pstToolClasses.getAbsolutePath
-  ) ++ pstSources.map(_.getAbsolutePath)
-  runCmd(log)(javacPst, base)
 
   // Template files (as in Ant macros)
   val tmplRoot = base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "pst" / "templates"
@@ -509,14 +454,10 @@ ThisBuild / generatePstMessages := {
     "org/waveprotocol/wave/model/raw/Raw.class"
   ).map(cls)
 
-  val cp = Seq(
-    pstToolClasses.getAbsolutePath,
-    pstProtoClasses.getAbsolutePath,
-    protobufJar,
-    antlrJar,
-    guavaJar,
-    commonsCliJar
-  ).mkString(java.io.File.pathSeparator)
+  val depCp = (Compile / dependencyClasspath).value.map(_.data.getAbsolutePath)
+  val cp = (Seq(pstAssemblyJar.getAbsolutePath, pstProtoClasses.getAbsolutePath, protobufJar) ++ depCp)
+    .distinct
+    .mkString(java.io.File.pathSeparator)
 
   protosToGen.foreach { protoClassFile =>
     val args = Seq(
@@ -524,7 +465,7 @@ ThisBuild / generatePstMessages := {
       "-d", genMsgDir.getAbsolutePath,
       "-f", protoClassFile
     ) ++ templates
-    val cmd = Seq("java", "-cp", cp, "org.waveprotocol.pst.PstMain") ++ args
+    val cmd = Seq("java", "-cp", cp, "org.apache.wave.pst.PstMain") ++ args
     runCmd(log)(cmd, base)
   }
 }

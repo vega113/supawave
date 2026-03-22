@@ -18,7 +18,6 @@ javacOptions ++= Seq("--release", "17")
 Compile / unmanagedSourceDirectories ++= Seq(
   baseDirectory.value / "wave" / "src" / "main" / "java",
   baseDirectory.value / "proto_src",
-  baseDirectory.value / "gen" / "gxp",
   baseDirectory.value / "gen" / "messages",
   baseDirectory.value / "gen" / "flags",
   baseDirectory.value / "gen" / "shims"
@@ -251,6 +250,9 @@ libraryDependencies ++= Seq(
   "com.google.code.findbugs"       % "jsr305"                     % "2.0.1",
   "javax.inject"                   % "javax.inject"               % "1",
 
+  // --- JSON ---
+  "org.json"                       % "json"                       % "20231013",
+
   // --- XML / DOM ---
   "dom4j"                          % "dom4j"                      % "1.6.1",
   "org.jdom"                       % "jdom"                       % "1.1.3",
@@ -282,7 +284,7 @@ libraryDependencies ++= Seq(
   "com.github.ben-manes.caffeine"  % "caffeine"                   % "3.1.8",
 
   // --- GXP compiler (used at codegen time and needed on compile classpath for generated sources) ---
-  "com.google.gxp"                 % "google-gxp"                 % "0.2.4-beta",
+  // google-gxp removed — replaced by HtmlRenderer.java
 
   // --- Jetty 12 / EE10 (Jakarta Servlet 6) ---
   "org.eclipse.jetty"              % "jetty-server"               % JettyV,
@@ -401,7 +403,6 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
 // Ensure `sbt clean` removes generated sources only (dependencies/caches are preserved)
 cleanFiles ++= Seq(
   baseDirectory.value / "proto_src",
-  baseDirectory.value / "gen" / "gxp",
   baseDirectory.value / "gen" / "messages",
   baseDirectory.value / "gen" / "flags"
 )
@@ -660,7 +661,6 @@ ThisBuild / deepClean := {
   val base = baseDirectory.value
   val gen  = Seq(
     base / "proto_src",
-    base / "gen" / "gxp",
     base / "gen" / "messages",
     base / "gen" / "flags",
     base / "target" / "proto-pb-src"
@@ -719,7 +719,6 @@ lazy val root = wave
 
 lazy val prepareProtosForPB = taskKey[Unit]("Stage .protodevel/.proto into target/proto-pb-src for sbt-protoc")
 lazy val generatePstMessages = taskKey[Unit]("Generate PST DTO sources into gen/messages")
-lazy val generateGxp = taskKey[Unit]("Generate GXP sources into gen/gxp with gxpc")
 lazy val generateFlags = taskKey[Unit]("Generate ClientFlags and FlagConstants into gen/flags")
 lazy val prepareServerConfig = taskKey[Unit]("Generate server.config from server-config.example when missing")
 lazy val testBackend = taskKey[Unit]("Run backend unit tests via Ant (excludes GWT/large/mongodb)")
@@ -862,41 +861,7 @@ ThisBuild / generatePstMessages := {
   }
 }
 
-ThisBuild / generateGxp := {
-  val log = streams.value.log
-  val base = baseDirectory.value
-  // GXP templates live under wave/src/main/gxp (matching Gradle's src/main/gxp)
-  val gxpRoot = base / "wave" / "src" / "main" / "gxp"
-  val genDir = base / "gen" / "gxp"
-  IO.createDirectory(genDir)
-  // If outputs already exist, skip (developers can delete to force regen)
-  val gxpSrcs = (gxpRoot ** "*.gxp").get
-  val outPkgDir = genDir / "org" / "waveprotocol" / "box" / "server" / "gxp"
-  val haveOutputs = outPkgDir.exists && (outPkgDir ** "*.java").get.nonEmpty
-  if (gxpSrcs.isEmpty) {
-    log.info("No GXP sources found; skipping generation")
-  } else if (haveOutputs) {
-    log.info("GXP outputs already present; skipping generation")
-  } else {
-    // Resolve google-gxp from managed dependencies (Phase 2)
-    val gxpcJar = (Compile / dependencyClasspath).value
-      .map(_.data)
-      .find(f => f.getName.startsWith("google-gxp-"))
-      .getOrElse(sys.error("google-gxp not found on managed classpath"))
-    val cp = gxpcJar.getAbsolutePath
-    // Invoke gxpc CLI: --source is the GXP root, --dir is the output root
-    val args = Seq(
-      "com.google.gxp.compiler.cli.Gxpc",
-      "--source", gxpRoot.getAbsolutePath,
-      "--dir", genDir.getAbsolutePath,
-      "--output_language", "java"
-    ) ++ gxpSrcs.map(_.getAbsolutePath)
-    val cmd = Seq("java", "-cp", cp) ++ args
-    log.info(cmd.mkString(" "))
-    val code = Process(cmd, base).!(ProcessLogger(s => log.info(s), e => log.error(e)))
-    if (code != 0) log.warn("GXP generation failed; continuing with existing sources (if any)")
-  }
-}
+// GXP removed — replaced by HtmlRenderer.java (see PR #42)
 
 ThisBuild / prepareServerConfig := {
   val log = streams.value.log
@@ -1002,9 +967,9 @@ ThisBuild / generateFlags := {
 generatePstMessages := (generatePstMessages).dependsOn(Compile / PB.generate).value
 
 Compile / compile := (Compile / compile)
-  .dependsOn(generatePstMessages)
+.dependsOn(generatePstMessages)
   .dependsOn(generateFlags)
-  .dependsOn(generateGxp)
+  // generateGxp removed — GXP replaced by HtmlRenderer
   .value
 
 // Ensure `run` has a config in place
@@ -1075,7 +1040,7 @@ ThisBuild / compileGwt := {
         base / "wave" / "generated" / "src" / "main" / "java",
         base / "proto_src",
         base / "gen" / "messages",
-        base / "gen" / "gxp",
+        // gen/gxp removed — GXP replaced by HtmlRenderer
         base / "gen" / "flags"
       ).filter(_.exists)
 

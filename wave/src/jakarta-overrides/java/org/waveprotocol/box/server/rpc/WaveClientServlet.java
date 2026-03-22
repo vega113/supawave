@@ -19,7 +19,6 @@
 package org.waveprotocol.box.server.rpc;
 
 import com.google.common.collect.Maps;
-import com.google.gxp.base.GxpContext;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.typesafe.config.ConfigValue;
@@ -42,8 +41,6 @@ import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
-import org.waveprotocol.box.server.gxp.TopBar;
-import org.waveprotocol.box.server.gxp.WaveClientPage;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
 import org.waveprotocol.box.server.util.UrlParameters;
 import org.waveprotocol.wave.common.bootstrap.FlagConstants;
@@ -131,14 +128,13 @@ public class WaveClientServlet extends HttpServlet {
           (!hasExplicitWebsocketPresentedAddress && hostHeader != null && !hostHeader.isEmpty())
               ? hostHeader
               : websocketPresentedAddress;
-      WaveClientPage.write(
-          w,
-          new GxpContext(request.getLocale()),
+      String topBarHtml = HtmlRenderer.renderTopBar(username, userDomain);
+      w.write(HtmlRenderer.renderWaveClientPage(
           getSessionJson(WebSessions.from(request, false)),
           getClientFlags(request),
           wsAddressForPage,
-          TopBar.getGxpClosure(username, userDomain),
-          analyticsAccount);
+          topBarHtml,
+          analyticsAccount));
     } catch (IOException e) {
       LOG.warning("Failed to render WaveClient page", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

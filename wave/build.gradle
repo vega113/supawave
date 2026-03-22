@@ -122,6 +122,13 @@ configurations {
     }
 }
 
+// Exclude legacy mongo-java-driver from runtime to prevent BSON class conflict with v4 driver
+configurations {
+    runtimeClasspath {
+        exclude group: 'org.mongodb', module: 'mongo-java-driver'
+    }
+}
+
 // Dedicated runtime classpath for integration tests that need MongoDB 4.x driver
 configurations {
     itRuntimeClasspath {

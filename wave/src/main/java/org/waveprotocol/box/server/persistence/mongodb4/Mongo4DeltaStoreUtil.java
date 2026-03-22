@@ -276,8 +276,11 @@ public class Mongo4DeltaStoreUtil {
 
   private static DocOp deserializeDocOp(Document document) throws PersistenceException {
     try {
-      return CoreWaveletOperationSerializer.deserialize(ProtocolDocumentOperation
-          .parseFrom(((byte[]) document.get(FIELD_BYTES))));
+      byte[] bytes = deserializeBinary(document.get(FIELD_BYTES));
+      if (bytes == null) {
+        throw new PersistenceException("Missing or invalid '" + FIELD_BYTES + "' in DocOp document");
+      }
+      return CoreWaveletOperationSerializer.deserialize(ProtocolDocumentOperation.parseFrom(bytes));
     } catch (InvalidProtocolBufferException e) {
       throw new PersistenceException(e);
     }

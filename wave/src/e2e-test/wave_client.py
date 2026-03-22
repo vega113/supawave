@@ -1,8 +1,148 @@
 """
-HTTP client for interacting with the Apache Wave server in E2E tests.
+HTTP + WebSocket client for interacting with the Apache Wave server in E2E tests.
 """
 
+import asyncio
+import json
+
 import requests
+import websockets
+
+
+# ---------------------------------------------------------------------------
+# WebSocket wrapper
+# ---------------------------------------------------------------------------
+
+class WaveWebSocket:
+    """Thin async wrapper around a ``websockets`` connection.
+
+    Messages are framed as JSON envelopes::
+
+        {"messageType": "<name>", "sequenceNumber": <int>, "message": {...}}
+    """
+
+    def __init__(self, ws, seq: int = 0):
+        self.ws = ws
+        self.seq = seq
+
+    async def send(self, msg_type: str, payload: dict):
+        """Send an envelope with the given *msg_type* and *payload*."""
+        msg = {
+            "messageType": msg_type,
+            "sequenceNumber": self.seq,
+            "message": payload,
+        }
+        self.seq += 1
+        await self.ws.send(json.dumps(msg))
+
+    async def recv(self, timeout: float = 10) -> dict:
+        """Receive and parse a single JSON envelope."""
+        raw = await asyncio.wait_for(self.ws.recv(), timeout=timeout)
+        return json.loads(raw)
+
+    async def recv_until(self, msg_type: str, timeout: float = 30) -> dict:
+        """Receive messages until one with *messageType* == *msg_type* arrives."""
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + timeout
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise TimeoutError(f"Timed out waiting for {msg_type}")
+            msg = await self.recv(timeout=remaining)
+            if msg.get("messageType") == msg_type:
+                return msg
+
+    async def close(self):
+        """Gracefully close the underlying connection."""
+        await self.ws.close()
+
+
+# ---------------------------------------------------------------------------
+# Wave protocol helpers (numeric-string-key format)
+# ---------------------------------------------------------------------------
+
+def make_hashed_version(version: int, history_hash: str) -> dict:
+    """Build a ``ProtocolHashedVersion`` payload.
+
+    ``history_hash`` must be an uppercase-hex-encoded string (or empty
+    string for version 0).
+    """
+    return {"1": version, "2": history_hash}
+
+
+def make_open_request(participant: str, wave_id: str) -> dict:
+    """Build a ``ProtocolOpenRequest`` payload.
+
+    Fields: 1=participant_id, 2=wave_id, 3=wavelet_id_prefix[], 4=known_wavelet[].
+    """
+    return {
+        "1": participant,
+        "2": wave_id,
+        "3": [],
+        "4": [],
+    }
+
+
+def make_add_participant_delta(
+    author: str,
+    new_participant: str,
+    version: int,
+    history_hash: str,
+) -> dict:
+    """Build a ``ProtocolWaveletDelta`` with a single *add_participant* op."""
+    return {
+        "1": make_hashed_version(version, history_hash),
+        "2": author,
+        "3": [{"1": new_participant}],   # operations[]: add_participant
+        "4": [],                          # address_path
+    }
+
+
+def make_blip_delta(
+    author: str,
+    blip_id: str,
+    text: str,
+    version: int,
+    history_hash: str,
+) -> dict:
+    """Build a ``ProtocolWaveletDelta`` with a *mutate_document* op.
+
+    Creates (or overwrites) a document with ``<body><line/>text</body>``.
+    """
+    return {
+        "1": make_hashed_version(version, history_hash),
+        "2": author,
+        "3": [{
+            "3": {                               # mutate_document
+                "1": blip_id,                    # document_id
+                "2": {                           # document_operation
+                    "1": [                       # components[]
+                        {"3": {"1": "body", "2": []}},    # element_start <body>
+                        {"3": {"1": "line", "2": []}},    # element_start <line>
+                        {"4": True},                       # element_end </line>
+                        {"2": text},                       # characters
+                        {"4": True},                       # element_end </body>
+                    ],
+                },
+            },
+        }],
+        "4": [],
+    }
+
+
+def make_submit_request(
+    wavelet_name: str,
+    delta: dict,
+    channel_id: str | None = None,
+) -> dict:
+    """Build a ``ProtocolSubmitRequest`` payload.
+
+    Fields: 1=wavelet_name, 2=delta, 3=channel_id (optional).
+    """
+    msg: dict = {"1": wavelet_name, "2": delta}
+    if channel_id:
+        msg["3"] = channel_id
+    return msg
 
 
 class WaveServerClient:
@@ -110,6 +250,29 @@ class WaveServerClient:
             "jwt": jwt,
             "success": resp.status_code in (200, 302, 303),
         }
+
+    # ------------------------------------------------------------------
+    # WebSocket
+    # ------------------------------------------------------------------
+
+    async def ws_connect(self, jsessionid: str) -> WaveWebSocket:
+        """Open a WebSocket to ``/socket`` authenticated via JSESSIONID cookie."""
+        ws_url = self.base_url.replace("http://", "ws://").replace("https://", "wss://")
+        ws = await websockets.connect(
+            f"{ws_url}/socket",
+            additional_headers={"Cookie": f"JSESSIONID={jsessionid}"},
+        )
+        return WaveWebSocket(ws)
+
+    async def ws_authenticate(self, wave_ws: WaveWebSocket, token: str):
+        """Send ``ProtocolAuthenticate`` and (optionally) wait for the result.
+
+        On the Jakarta / Jetty path the server already knows the user from
+        the JSESSIONID cookie sent during the upgrade, so this is a
+        belt-and-suspenders step.  The server replies with
+        ``ProtocolAuthenticationResult``.
+        """
+        await wave_ws.send("ProtocolAuthenticate", {"1": token})
 
     # ------------------------------------------------------------------
     # Search

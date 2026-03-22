@@ -19,7 +19,13 @@ trap cleanup EXIT
 
 rm -f "$RUN_OUT" "$PID_FILE" || true
 
-( cd "$ROOT_DIR" && ./gradlew :wave:run > "$RUN_OUT" 2>&1 & echo $! > "$PID_FILE" )
+if command -v sbt >/dev/null 2>&1; then
+  ( cd "$ROOT_DIR" && sbt run > "$RUN_OUT" 2>&1 & echo $! > "$PID_FILE" )
+elif [[ -x "$ROOT_DIR/gradlew" ]]; then
+  ( cd "$ROOT_DIR" && ./gradlew :wave:run > "$RUN_OUT" 2>&1 & echo $! > "$PID_FILE" )
+else
+  echo "Neither sbt nor gradlew found" >&2; exit 1
+fi
 
 # Wait up to 90s for server to start
 for i in {1..90}; do

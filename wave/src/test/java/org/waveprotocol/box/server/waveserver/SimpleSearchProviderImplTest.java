@@ -27,7 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.gxp.com.google.common.collect.Maps;
+import com.google.common.collect.Maps;
 import com.google.wave.api.SearchResult;
 
 import com.typesafe.config.Config;

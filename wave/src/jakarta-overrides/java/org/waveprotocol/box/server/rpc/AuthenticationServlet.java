@@ -20,7 +20,6 @@ package org.waveprotocol.box.server.rpc;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.gxp.base.GxpContext;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -36,7 +35,6 @@ import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwt;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtCookie;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtIssuer;
-import org.waveprotocol.box.server.gxp.AuthenticationPage;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.util.RegistrationSupport;
 import org.waveprotocol.wave.model.id.WaveIdentifiers;
@@ -211,8 +209,8 @@ public class AuthenticationServlet extends HttpServlet {
         LOG.info("User authentication failed: " + e.getLocalizedMessage());
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
         resp.setContentType("text/html;charset=utf-8");
-        AuthenticationPage.write(resp.getWriter(), new GxpContext(req.getLocale()), domain, message,
-            responseType, isLoginPageDisabled, analyticsAccount);
+        resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, message,
+            responseType, isLoginPageDisabled, analyticsAccount));
         return;
       }
 
@@ -329,8 +327,8 @@ public class AuthenticationServlet extends HttpServlet {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
       }
       resp.setContentType("text/html;charset=utf-8");
-      AuthenticationPage.write(resp.getWriter(), new GxpContext(req.getLocale()), domain, "",
-          RESPONSE_STATUS_NONE, isLoginPageDisabled, analyticsAccount);
+      resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, "",
+          RESPONSE_STATUS_NONE, isLoginPageDisabled, analyticsAccount));
     }
   }
 

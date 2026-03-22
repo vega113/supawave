@@ -14,13 +14,17 @@ set -euo pipefail
 # - If a port conflict persists, you can forcefully clear Java processes (dangerous):
 #     killall java
 
-INSTALL_DIR="wave/build/install/wave"
+if [[ -d "wave/target/universal/stage" ]]; then
+  INSTALL_DIR="${INSTALL_DIR:-wave/target/universal/stage}"
+else
+  INSTALL_DIR="${INSTALL_DIR:-wave/build/install/wave}"
+fi
 PID_FILE="$INSTALL_DIR/wave_server.pid"
 PORT=9898
 
 start() {
   if [[ ! -x "$INSTALL_DIR/bin/wave" ]]; then
-    echo "Install dir not found: $INSTALL_DIR. Run: ./gradlew :wave:installDist" >&2
+    echo "Install dir not found: $INSTALL_DIR. Run: sbt Universal/stage" >&2
     exit 1
   fi
   (cd "$INSTALL_DIR" && nohup ./bin/wave > wave_server.out 2>&1 & echo $! > wave_server.pid)

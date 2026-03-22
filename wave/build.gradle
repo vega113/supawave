@@ -111,7 +111,6 @@ def applyClientDebugFlags(Task task, String flags) {
 //=============================================================================
 configurations {
     generateMessages
-    generateGXP
     protoCompile
     gwt {
         resolutionStrategy.eachDependency { details ->
@@ -379,7 +378,7 @@ configurations.all { cfg ->
 dependencies {
     implementation (
             [group: "com.google.code.gson", name: "gson", version: "2.10.1"],
-            [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"],
+            [group: "org.json", name: "json", version: "20231013"],
             [group: "com.typesafe", name: "config", version: "1.4.3"],
             [group: "commons-codec", name: "commons-codec", version: "1.16.1"],
             [group: "commons-cli", name: "commons-cli", version: "1.11.0"],
@@ -401,7 +400,6 @@ dependencies {
             [group: "dom4j", name: "dom4j", version: "1.6.1"],
             [group: "eu.infomas", name: "annotation-detector", version: "3.0.0"],
             [group: "org.antlr", name: "antlr", version: "3.2"],
-            [group: "org.apache.velocity", name: "velocity", version: "1.7"],
             [group: "org.apache.lucene", name: "lucene-core", version: "3.5.0"],
             [group: "org.bouncycastle", name: "bcprov-jdk16", version: "1.45"],
             
@@ -423,9 +421,6 @@ dependencies {
     // High-performance in-memory cache for manifest ordering
     implementation ([group: "com.github.ben-manes.caffeine", name: "caffeine", version: "3.1.8"])
     compileOnly ([group: "com.google.guava", name: "guava-gwt", version: "20.0"]) 
-    generateGXP (
-        [group: "com.google.gxp", name: "google-gxp", version: "0.2.4-beta"]
-    )
     gwt (
         [group: "org.gwtproject", name: "gwt-dev", version: gwtVersion],
         [group: "org.gwtproject", name: "gwt-codeserver", version: gwtVersion],
@@ -694,39 +689,14 @@ tasks.register("gwtBuild") {
     dependsOn("compileGwt", "compileGwtDemo", "compileGwtDev", "testGwt")
 }
 
-task generateGXP {
-    description = 'Generate source files from GXP prototypes'
-    FileTree inputFiles = fileTree(dir: 'src/main/gxp', include: '**/*.gxp')
-    inputs.files inputFiles
-    File outputDir = file("generated/main/java")
-    outputs.dir outputDir
-    doLast {
-        def j17 = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
-        javaexec {
-            executable = j17.get().executablePath.asFile.absolutePath
-            mainClass = "com.google.gxp.compiler.cli.Gxpc"
-            classpath += configurations.generateGXP
-            args = [
-                    "--dir",
-                    "generated/main/java",
-                    "--source",
-                    "src/main/gxp",
-                    "--output_language",
-                    "java"
-            ]
-            args += fileTree(dir: 'src/main/gxp', include: '**/*.gxp').getFiles()
-        }
-    }
-}
-
 //=============================================================================
 // Gwt Compilation Options
 //=============================================================================
 task compileGwt {
     description = 'Compiles the GWT sources for production'
     FileTree inputFiles = fileTree(dir: 'generated/src/main/java', include: '**/*.java')
-    // Ensure generated sources (PST + GXP + proto) exist before compiling GWT
-    dependsOn 'generateMessages', 'generateGXP'
+    // Ensure generated sources (PST + proto) exist before compiling GWT
+    dependsOn 'generateMessages'
     doLast {
         def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
         javaexec {
@@ -766,7 +736,7 @@ compileGwt.mustRunAfter compileJava
 task compileGwtDemo {
     description = 'Compiles the GWT sources for Demo'
     // Ensure generated sources exist before compiling GWT
-    dependsOn 'generateMessages', 'generateGXP'
+    dependsOn 'generateMessages'
     doLast {
         def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
         javaexec {
@@ -785,7 +755,7 @@ task compileGwtDemo {
 task compileGwtDev {
     description = 'Compiles the GWT sources for Development'
     // Ensure generated sources exist before compiling GWT
-    dependsOn 'generateMessages', 'generateGXP'
+    dependsOn 'generateMessages'
     doLast {
         def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
         javaexec {
@@ -813,8 +783,8 @@ task compileGwtDev {
 
 // Ensure the GWT client is compiled before running the server so the app works end-to-end.
 run.dependsOn compileGwt
-// Make generateMessages and generateGXP prerequisites without clobbering other dependencies
-compileJava.dependsOn generateMessages, generateGXP
+// Make generateMessages a prerequisite without clobbering other dependencies
+compileJava.dependsOn generateMessages
 
 // Convenience task retained for explicit invocation (same as default run behavior)
 tasks.register('runWithGwt') {
@@ -840,8 +810,8 @@ task gwtDev {
 tasks.register('gwtCodeServer') {
     group = 'gwt'
     description = 'Runs the GWT CodeServer (Super Dev Mode harness) for WebClientDev.'
-    // Ensure sources are generated (JSOs/GXP) so CodeServer can see them
-    dependsOn 'generateMessages', 'generateGXP'
+    // Ensure sources are generated (JSOs) so CodeServer can see them
+    dependsOn 'generateMessages'
     doLast {
         def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
         javaexec {
@@ -872,7 +842,7 @@ tasks.register('gwtCodeServer') {
 task gwtDev2 {
     description = 'Runs the hosted mode server, for debugging the Gwt client ' +
             'in a JVM.'
-    dependsOn 'generateMessages', 'generateGXP'
+    dependsOn 'generateMessages'
     doFirst {
         println ''
         println '----------------------------------------------'

@@ -18,7 +18,6 @@
  */
 package org.waveprotocol.box.server.rpc;
 
-import com.google.gxp.base.GxpContext;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -29,7 +28,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.authentication.HttpRequestBasedCallbackHandler;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
-import org.waveprotocol.box.server.gxp.UserRegistrationPage;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.util.RegistrationSupport;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
@@ -128,7 +126,7 @@ public final class UserRegistrationServlet extends HttpServlet {
     dest.setCharacterEncoding("UTF-8");
     dest.setContentType("text/html;charset=utf-8");
     String safeMessage = (message == null) ? "" : message;
-    UserRegistrationPage.write(dest.getWriter(), new GxpContext(locale), domain, safeMessage,
-        responseType, registrationDisabled, analyticsAccount);
+    dest.getWriter().write(HtmlRenderer.renderUserRegistrationPage(domain, safeMessage,
+        responseType, registrationDisabled, analyticsAccount));
   }
 }

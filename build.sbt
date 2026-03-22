@@ -1,4 +1,4 @@
-// incubator-wave SBT build (Phase 1: minimal Java-only skeleton, ported from Wiab.pro)
+// incubator-wave SBT build (Phase 2: managed dependencies, ported from Gradle)
 
 ThisBuild / organization := "org.apache.wave"
 name := "incubator-wave"
@@ -8,8 +8,8 @@ ThisBuild / version      := "0.1.0-SNAPSHOT"
 // Compile Java first, Scala later (we'll add Scala modules in future phases)
 Compile / compileOrder := CompileOrder.JavaThenScala
 
-// Target bytecode for Jakarta runtime
-javacOptions ++= Seq("--release", "11")
+// Target bytecode for Jakarta runtime (JDK 17 for records, pattern matching)
+javacOptions ++= Seq("--release", "17")
 
 // Include Maven standard source layout and generated sources
 Compile / unmanagedSourceDirectories ++= Seq(
@@ -53,6 +53,7 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/render/view/ModelAsViewProvider.java")) ||
   // Legacy helpers with client coupling that are unnecessary for server run
   p.endsWith("/org/waveprotocol/wave/concurrencycontrol/channel/ViewChannelImpl.java") ||
+  p.endsWith("/org/waveprotocol/wave/concurrencycontrol/channel/ClientStatsRawFragmentsApplier.java") ||
   p.endsWith("/org/waveprotocol/wave/migration/helpers/FixLinkAnnotationsFilter.java") ||
   // Exclude servlets that depend on GXP-generated classes when GXP generation is disabled
   p.endsWith("/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java") ||
@@ -64,14 +65,31 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   (isSrc && p.endsWith("/org/waveprotocol/wave/model/raw/serialization/JsoSerializer.java"))
 }
 
-// Exclude any javax-servlet/websocket based sources and legacy ServerMain
+// Exclude javax-based sources, legacy ServerMain, and src/main/java files that have
+// a jakarta-overrides counterpart (to prevent duplicate class errors).
 Compile / unmanagedSources := {
   val files = (Compile / unmanagedSources).value
+  val base = baseDirectory.value
+
+  // Build set of relative paths that exist in jakarta-overrides, so we can exclude
+  // the corresponding src/main/java file to avoid duplicate class errors.
+  val jakartaOverridesRoot = base / "wave" / "src" / "jakarta-overrides" / "java"
+  val jakartaOverrideRelPaths: Set[String] = if (jakartaOverridesRoot.exists) {
+    (jakartaOverridesRoot ** "*.java").get.flatMap { f =>
+      IO.relativize(jakartaOverridesRoot, f)
+    }.toSet
+  } else Set.empty
+  val srcMainRoot = base / "wave" / "src" / "main" / "java"
+
   files.filterNot { f =>
     val p = f.getPath.replace('\\','/')
     val isSrc = p.contains("/wave/src/main/java/")
     val excludeByName = isSrc && p.endsWith("/org/waveprotocol/box/server/ServerMain.java")
-    val excludeByImport = isSrc && {
+    // Exclude src/main/java files that have a jakarta-overrides replacement
+    val excludeByOverride = isSrc && {
+      IO.relativize(srcMainRoot, f).exists(jakartaOverrideRelPaths.contains)
+    }
+    val excludeByImport = isSrc && !excludeByOverride && {
       val lines = try IO.readLines(f) catch { case _: Throwable => Nil }
       lines.exists { l =>
         val s = l.trim
@@ -101,7 +119,7 @@ Compile / unmanagedSources := {
       p.endsWith("/gen/shims/org/waveprotocol/box/webclient/search/WaveContext.java") ||
       p.endsWith("/gen/shims/org/waveprotocol/box/server/rpc/render/view/builder/TagsViewBuilder.java")
     )
-    val baseExcludes = excludeByName || excludeByImport || excludeAttachments || excludeRender || excludeSearchProfile || excludeMongo || excludeHtmlModule || excludeRegistrationUtil || excludeDefaultServerModule || excludeDefaultMappings || excludePersistenceModule || excludeMigration || excludeDataTools || excludeGenShims
+    val baseExcludes = excludeByName || excludeByOverride || excludeByImport || excludeAttachments || excludeRender || excludeSearchProfile || excludeMongo || excludeHtmlModule || excludeRegistrationUtil || excludeDefaultServerModule || excludeDefaultMappings || excludePersistenceModule || excludeMigration || excludeDataTools || excludeGenShims
     val robotsExcludes = excludeRobotsAgents || excludeRobotsExamples
     baseExcludes || robotsExcludes
   }
@@ -109,35 +127,8 @@ Compile / unmanagedSources := {
 
 Test / unmanagedSourceDirectories += baseDirectory.value / "wave" / "src" / "test" / "java"
 
-// Bring in vendored jars from third_party (filtered). Assign rather than append to avoid duplicates/precedence issues.
-def filteredThirdParty(cp: Seq[Attributed[File]]) = cp.filterNot { a =>
-  val n = a.data.getName
-  val p = a.data.getPath.replace('\\','/')
-  // Exclude jars with broken manifest, legacy protobuf runtime, and Jetty/socketio vendored jars (we use managed Jetty).
-  p.contains("/third_party/test/") ||
-  n.startsWith("guava-treerangemap") ||
-  n.startsWith("guava-gwt-") ||
-  n.startsWith("guava-") ||
-  n.startsWith("guice-") ||
-  n == "protobuf-java-2.5.0.jar" ||
-  p.contains("/third_party/runtime/socketio/") ||
-  p.contains("/third_party/runtime/jetty/") ||
-  n.startsWith("gwt-dev") ||
-  n.startsWith("websocket-") ||
-  n == "servlet-api-3.1.jar"
-}
-
-Compile / unmanagedJars := {
-  val all = (baseDirectory.value / "third_party" ** "*.jar").classpath
-  filteredThirdParty(all)
-}
-
-Test / unmanagedJars := {
-  val all = (baseDirectory.value / "third_party" ** "*.jar").classpath
-  val filtered = filteredThirdParty(all)
-  val testOnly = (baseDirectory.value / "third_party" / "test" ** "*.jar").classpath
-  filtered ++ testOnly
-}
+// Phase 2: all dependencies are now managed via libraryDependencies; third_party/ is no longer on the classpath.
+// Codegen tasks resolve JARs from managed deps via (Compile / dependencyClasspath).
 
 // Serve static assets from wave/war/ via classpath resources (Jetty will still serve filesystem if desired)
 Compile / resourceDirectories += baseDirectory.value / "wave" / "war"
@@ -163,11 +154,11 @@ Compile / javaOptions ++= {
   )
 }
 
-// Assembly settings (Phase 1 placeholder): enable when migrating off unmanaged jars
+// Assembly settings
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtassembly.MergeStrategy
 
-// Assembly: build a runnable fat JAR for ServerMain including unmanaged jars
+// Assembly: build a runnable fat JAR for ServerMain
 assembly / mainClass := (Compile / mainClass).value
 ThisBuild / assembly / assemblyJarName := s"${name.value}-server-${version.value}.jar"
 ThisBuild / assembly / test := {}
@@ -181,41 +172,147 @@ ThisBuild / assembly / assemblyMergeStrategy := {
   case x => MergeStrategy.first
 }
 
-// Managed dependencies
-lazy val JettyJakartaV  = "12.0.23"                    // jakarta servlet stack (EE10, matches Gradle)
-lazy val JakartaServletV = "5.0.0"                     // jakarta.servlet-api
-lazy val JakartaWsV      = "2.0.0"                     // jakarta.websocket-api
+// ---------------------------------------------------------------------------
+// Managed dependencies — ported from wave/build.gradle
+// ---------------------------------------------------------------------------
+lazy val JettyV          = "12.0.23"     // Jetty 12 / EE10 (Jakarta Servlet 6)
+lazy val GuavaV          = "32.1.3-jre"  // server-side Guava, aligned with Guice 5
+lazy val GuiceV          = "5.1.0"
+lazy val ProtobufV       = "3.25.3"
+lazy val Slf4jV          = "2.0.13"
+lazy val LogbackV        = "1.5.6"
+lazy val MongoV4         = "4.11.1"
 
-// Dependencies independent of container choice
-lazy val coreDeps = Seq(
-  // Test stack: run JUnit tests via sbt
-  "junit" % "junit" % "4.13.2" % Test,
-  "com.novocode" % "junit-interface" % "0.11" % Test,
-  // Protobuf runtime for generated sources
-  "com.google.protobuf" % "protobuf-java" % "3.25.3",
-  // Utilities
-  "commons-io" % "commons-io" % "2.15.1",
-  // Guava (required by Guice 5)
-  "com.google.guava" % "guava" % "32.1.3-jre",
-  // Guice (upgrade for Java 11+ compatibility)
-  "com.google.inject" % "guice" % "5.1.0",
-  "com.google.inject.extensions" % "guice-servlet" % "5.1.0",
-  "com.google.inject.extensions" % "guice-assistedinject" % "5.1.0"
+libraryDependencies ++= Seq(
+  // --- Test ---
+  "junit"                          % "junit"                      % "4.12"     % Test,
+  "com.novocode"                   % "junit-interface"            % "0.11"     % Test,
+  "org.hamcrest"                   % "hamcrest-junit"             % "2.0.0.0"  % Test,
+  "org.mockito"                    % "mockito-core"               % "2.2.21"   % Test,
+
+  // --- Protobuf ---
+  "com.google.protobuf"            % "protobuf-java"              % ProtobufV,
+
+  // --- Guava & Guice ---
+  "com.google.guava"               % "guava"                      % GuavaV,
+  // guava-gwt excluded: only needed for GWT client compilation, causes errors with Guava 32.x
+  "com.google.inject"              % "guice"                      % GuiceV,
+  "com.google.inject.extensions"   % "guice-servlet"              % GuiceV,
+  "com.google.inject.extensions"   % "guice-assistedinject"       % GuiceV,
+
+  // --- Serialization ---
+  "com.google.code.gson"           % "gson"                       % "2.10.1",
+
+  // --- Config ---
+  "com.typesafe"                   % "config"                     % "1.4.3",
+
+  // --- Commons ---
+  "commons-codec"                  % "commons-codec"              % "1.16.1",
+  "commons-cli"                    % "commons-cli"                % "1.11.0",
+  "commons-io"                     % "commons-io"                 % "2.16.1",
+  "org.apache.commons"             % "commons-lang3"              % "3.14.0",
+
+  // --- HTTP ---
+  "org.apache.httpcomponents"      % "httpclient"                 % "4.5.14",
+  "org.apache.httpcomponents"      % "httpcore"                   % "4.4.16",
+
+  // --- Logging (SLF4J 2.x + Logback) ---
+  "org.slf4j"                      % "slf4j-api"                  % Slf4jV,
+  "ch.qos.logback"                 % "logback-classic"            % LogbackV,
+  "org.slf4j"                      % "jcl-over-slf4j"             % Slf4jV,
+  "org.slf4j"                      % "jul-to-slf4j"               % Slf4jV,
+  "org.slf4j"                      % "log4j-over-slf4j"           % Slf4jV,
+
+  // --- Annotations ---
+  "com.google.code.findbugs"       % "jsr305"                     % "2.0.1",
+  "javax.inject"                   % "javax.inject"               % "1",
+
+  // --- XML / DOM ---
+  "dom4j"                          % "dom4j"                      % "1.6.1",
+  "org.jdom"                       % "jdom"                       % "1.1.3",
+
+  // --- Classpath scanning ---
+  "eu.infomas"                     % "annotation-detector"        % "3.0.0",
+
+  // --- Parser / template ---
+  "org.antlr"                      % "antlr"                      % "3.2",
+  "org.apache.velocity"            % "velocity"                   % "1.7",
+
+  // --- Search ---
+  "org.apache.lucene"              % "lucene-core"                % "3.5.0",
+
+  // --- OAuth (net.oauth.core) ---
+  "net.oauth.core"                 % "oauth"                      % "20090825",
+  "net.oauth.core"                 % "oauth-consumer"             % "20090823",
+  "net.oauth.core"                 % "oauth-provider"             % "20090531",
+
+  // --- Crypto ---
+  "org.bouncycastle"               % "bcprov-jdk16"               % "1.45",
+
+  // --- Persistence ---
+  "javax.jdo"                      % "jdo2-api"                   % "2.1",
+  "org.mongodb"                    % "mongo-java-driver"          % "2.11.2" % Provided,  // compile-only; excluded from runtime (Gradle runtimeClasspath.exclude)
+  "org.mongodb"                    % "mongodb-driver-sync"        % MongoV4,
+
+  // --- Cache ---
+  "com.github.ben-manes.caffeine"  % "caffeine"                   % "3.1.8",
+
+  // --- GXP compiler (used at codegen time and needed on compile classpath for generated sources) ---
+  "com.google.gxp"                 % "google-gxp"                 % "0.2.4-beta",
+
+  // --- Jetty 12 / EE10 (Jakarta Servlet 6) ---
+  "org.eclipse.jetty"              % "jetty-server"               % JettyV,
+  "org.eclipse.jetty.ee10"         % "jetty-ee10-servlet"         % JettyV,
+  "org.eclipse.jetty.ee10"         % "jetty-ee10-webapp"          % JettyV,
+  "org.eclipse.jetty"              % "jetty-session"              % JettyV,
+  "org.eclipse.jetty.ee10.websocket" % "jetty-ee10-websocket-jakarta-server" % JettyV,
+
+  // --- Jakarta APIs ---
+  "jakarta.servlet"                % "jakarta.servlet-api"        % "6.0.0",
+  "jakarta.websocket"              % "jakarta.websocket-api"      % "2.1.1",
+
+  // --- Metrics ---
+  "io.micrometer"                  % "micrometer-core"            % "1.12.5",
+  "io.micrometer"                  % "micrometer-registry-prometheus" % "1.12.5",
+
+  // --- GWT (compile-only for server-side cross-references) ---
+  "org.gwtproject"                 % "gwt-user"                   % "2.10.0"   % Provided
 )
 
-lazy val containerDeps = Seq(
-  "org.eclipse.jetty" % "jetty-server"  % JettyJakartaV,
-  "org.eclipse.jetty" % "jetty-servlet" % JettyJakartaV,
-  "org.eclipse.jetty" % "jetty-servlets" % JettyJakartaV,
-  "org.eclipse.jetty" % "jetty-webapp" % JettyJakartaV,
-  "org.eclipse.jetty" % "jetty-proxy"   % JettyJakartaV,
-  "jakarta.servlet"    % "jakarta.servlet-api"    % JakartaServletV,
-  "jakarta.websocket"  % "jakarta.websocket-api"  % JakartaWsV,
-  "org.eclipse.jetty.websocket" % "websocket-jakarta-server" % JettyJakartaV,
-  "org.slf4j" % "slf4j-simple" % "2.0.13"
+// ---------------------------------------------------------------------------
+// Exclusions: ensure a single SLF4J binding (Logback) and evict legacy junk
+// ---------------------------------------------------------------------------
+excludeDependencies ++= Seq(
+  ExclusionRule("org.slf4j",                "slf4j-simple"),
+  ExclusionRule("org.slf4j",                "slf4j-nop"),
+  ExclusionRule("org.slf4j",                "slf4j-log4j12"),
+  ExclusionRule("org.apache.logging.log4j", "log4j-slf4j-impl"),
+  ExclusionRule("org.apache.logging.log4j", "log4j-slf4j2-impl"),
+  // Prefer jcl-over-slf4j over the real commons-logging
+  ExclusionRule("commons-logging",          "commons-logging")
 )
 
-libraryDependencies ++= (coreDeps ++ containerDeps)
+// Exclude legacy mongo-java-driver from runtime (compile-only for migration code).
+// We declare it as Compile-only (not Runtime) in libraryDependencies instead.
+// The Gradle build uses configurations.runtimeClasspath.exclude for this.
+
+// ---------------------------------------------------------------------------
+// Dependency overrides: pin transitive versions for alignment
+// ---------------------------------------------------------------------------
+dependencyOverrides ++= Seq(
+  // SLF4J alignment
+  "org.slf4j"          % "slf4j-api"        % Slf4jV,
+  "org.slf4j"          % "jcl-over-slf4j"   % Slf4jV,
+  "org.slf4j"          % "jul-to-slf4j"     % Slf4jV,
+  "org.slf4j"          % "log4j-over-slf4j" % Slf4jV,
+  "ch.qos.logback"     % "logback-classic"  % LogbackV,
+  // Guava alignment
+  "com.google.guava"   % "guava"            % GuavaV,
+  // MongoDB 4.x driver alignment
+  "org.mongodb"        % "bson"               % MongoV4,
+  "org.mongodb"        % "mongodb-driver-core" % MongoV4,
+  "org.mongodb"        % "mongodb-driver-sync" % MongoV4
+)
 
 // Test JVM flags (Guice/cglib on JDK 17, enable assertions)
 Test / javaOptions ++= Seq(
@@ -406,19 +503,20 @@ ThisBuild / generatePstMessages := {
   val pstAssemblyJar = (pst / assembly).value
 
   // Compile proto_src Java to classes for reflection
-  // Exclude any generated google.protobuf runtime classes if present
   val protoSources = (outSrc ** "*.java").get.filterNot { f =>
     val p = f.getPath.replace('\\', '/')
     p.contains("/com/google/protobuf/")
   }
   if (protoSources.isEmpty) sys.error("proto_src is empty — run Compile / PB.generate first.")
-  // Prefer a modern protobuf-java runtime jar (installed by tools/install-macos-deps.sh)
-  val protobufDir = base / "third_party" / "runtime" / "protobuf"
-  val protobufJar = {
-    val candidates = (protobufDir * "protobuf-java-*.jar").get
-    if (candidates.nonEmpty) candidates.maxBy(_.getName).getAbsolutePath
-    else (protobufDir / "protobuf-java-2.5.0.jar").getAbsolutePath // fallback if user didn't run deps script
-  }
+
+  // Resolve protobuf-java from managed dependencies
+  val depCp = (Compile / dependencyClasspath).value.map(_.data.getAbsolutePath)
+  val protobufJar = (Compile / dependencyClasspath).value
+    .map(_.data)
+    .find(_.getName.startsWith("protobuf-java-"))
+    .map(_.getAbsolutePath)
+    .getOrElse(sys.error("protobuf-java not found on managed classpath"))
+
   val javacProto = Seq(
     "javac",
     "-g",
@@ -454,8 +552,7 @@ ThisBuild / generatePstMessages := {
     "org/waveprotocol/wave/model/raw/Raw.class"
   ).map(cls)
 
-  val depCp = (Compile / dependencyClasspath).value.map(_.data.getAbsolutePath)
-  val cp = (Seq(pstAssemblyJar.getAbsolutePath, pstProtoClasses.getAbsolutePath, protobufJar) ++ depCp)
+  val cp = (Seq(pstAssemblyJar.getAbsolutePath, pstProtoClasses.getAbsolutePath) ++ depCp)
     .distinct
     .mkString(java.io.File.pathSeparator)
 
@@ -485,8 +582,11 @@ ThisBuild / generateGxp := {
   } else if (haveOutputs) {
     log.info("GXP outputs already present; skipping generation")
   } else {
-    val gxpcJar = base / "third_party" / "runtime" / "gxp" / "gxp-0.2.4-beta.jar"
-    if (!gxpcJar.exists) sys.error("Missing GXP compiler jar: third_party/runtime/gxp/gxp-0.2.4-beta.jar")
+    // Resolve google-gxp from managed dependencies
+    val gxpcJar = (Compile / dependencyClasspath).value
+      .map(_.data)
+      .find(f => f.getName.startsWith("google-gxp-"))
+      .getOrElse(sys.error("google-gxp not found on managed classpath"))
     val cp = gxpcJar.getAbsolutePath
     // Invoke gxpc CLI: set source base, output dir, and language; pass all .gxp files as inputs
     val args = Seq(
@@ -573,19 +673,14 @@ ThisBuild / generateFlags := {
     val valueUtils = base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "wave" / "model" / "util" / "ValueUtils.java"
     if (valueUtils.exists) flagsSrcs :+ valueUtils else flagsSrcs
   }
-  val runtimeJars = (base / "third_party" / "runtime" ** "*.jar").classpath
-    .map(_.data.getAbsolutePath)
-    // Exclude jars with broken manifests and legacy protobuf runtime
-    .filterNot { p =>
-      val n = new java.io.File(p).getName
-      n.startsWith("guava-treerangemap") || n == "protobuf-java-2.5.0.jar"
-    }
-  val cp = runtimeJars.mkString(java.io.File.pathSeparator)
+  // Use managed dependency classpath instead of third_party jars
+  val depCp = (Compile / dependencyClasspath).value.map(_.data.getAbsolutePath)
+  val cp = depCp.mkString(java.io.File.pathSeparator)
   val javacCmd = Seq("javac", "-g", "-cp", cp, "-d", toolClasses.getAbsolutePath) ++ generatorSources.map(_.getAbsolutePath)
   runCmd(log)(javacCmd, base)
 
   // Run the generator
-  val javaCp = (Seq(toolClasses.getAbsolutePath) ++ runtimeJars).mkString(java.io.File.pathSeparator)
+  val javaCp = (Seq(toolClasses.getAbsolutePath) ++ depCp).mkString(java.io.File.pathSeparator)
   val args = Seq(
     (base / "client.default.config").getAbsolutePath,
     "org.waveprotocol.box.clientflags",

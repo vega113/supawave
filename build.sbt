@@ -458,8 +458,9 @@ JakartaTest / fork := true
 // Include main compile output on classpath
 JakartaTest / dependencyClasspath ++= (Compile / exportedProducts).value
 JakartaTest / dependencyClasspath ++= (Test / dependencyClasspath).value
-JakartaTest / dependencyClasspath ++= (Compile / resourceDirectories).value.map(Attributed.blank)
+// Include main resources and full classpath for forked JVM
 JakartaTest / dependencyClasspath ++= (Compile / fullClasspath).value
+JakartaTest / fullClasspath ++= Seq(Attributed.blank(baseDirectory.value / "wave" / "src" / "main" / "resources"))
 
 // --- JakartaIT source directories & allowlist (Gradle lines 1046-1058) ---
 // Same source dir as JakartaTest, but only runs the explicit IT allowlist
@@ -507,6 +508,8 @@ JakartaIT / javaOptions ++= Seq(
 JakartaIT / fork := true
 JakartaIT / dependencyClasspath ++= (Compile / exportedProducts).value
 JakartaIT / dependencyClasspath ++= (Test / dependencyClasspath).value
+JakartaIT / dependencyClasspath ++= (Compile / fullClasspath).value
+JakartaIT / fullClasspath ++= Seq(Attributed.blank(baseDirectory.value / "wave" / "src" / "main" / "resources"))
 
 // --- StacktraceTest source directories ---
 StacktraceTest / unmanagedSourceDirectories := Seq(

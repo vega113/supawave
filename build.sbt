@@ -1,19 +1,18 @@
-// incubator-wave SBT build (Phase 1: minimal Java-only skeleton, ported from Wiab.pro)
+// incubator-wave SBT build (Phases 1-5: managed deps, source sets, codegen, native-packager)
 
 ThisBuild / organization := "org.apache.wave"
 name := "incubator-wave"
 ThisBuild / scalaVersion := "3.3.4"
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 
+// Enable sbt-native-packager for distribution packaging (Phase 5)
+enablePlugins(JavaAppPackaging)
+
 // Compile Java first, Scala later (we'll add Scala modules in future phases)
 Compile / compileOrder := CompileOrder.JavaThenScala
 
-// Target bytecode by mode:
-// - Default (javax): use --release 8 to accommodate legacy sources
-// - Jakarta mode: use --release 11 because jakarta.servlet-api 5+ requires Java 11 bytecode
-javacOptions ++= {
-  if ((ThisBuild / jakartaMode).value) Seq("--release", "11") else Seq("--release", "8")
-}
+// Java toolchain: compile and target JDK 17 bytecode (matches Gradle's java.toolchain.languageVersion)
+javacOptions ++= Seq("--release", "17")
 
 // Include Maven standard source layout and generated sources
 Compile / unmanagedSourceDirectories ++= Seq(
@@ -25,140 +24,137 @@ Compile / unmanagedSourceDirectories ++= Seq(
   baseDirectory.value / "gen" / "shims"
 )
 
-// Include jakarta-specific sources when enabled
-Compile / unmanagedSourceDirectories ++= {
-  if ((ThisBuild / jakartaMode).value) Seq(baseDirectory.value / "wave" / "src" / "jakarta-overrides" / "java") else Seq()
-}
+Compile / unmanagedSourceDirectories += baseDirectory.value / "wave" / "src" / "jakarta-overrides" / "java"
+// SBT-only stubs for GWT client classes used by server code (no-op implementations)
+Compile / unmanagedSourceDirectories += baseDirectory.value / "wave" / "src" / "sbt-stubs" / "java"
 
-// Exclude GWT client and legacy Socket.IO server shims from compilation
+// ─── Per-file exclusion list (replicates wave/build.gradle lines 283-356 exactly) ───
+// The Gradle build is Jakarta-only. The full Gradle exclusion list is applied.
+// Files common to both modes (GWT client trees, generated JSO, retired agents/OAuth) are always excluded.
 Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =>
   val p = f.getPath.replace('\\', '/')
-  val isSrc = p.contains("/wave/src/main/java/")
-  // Exclude client trees only when under src/, not shims
-  (isSrc && p.contains("/org/waveprotocol/box/webclient/")) ||
-  (isSrc && p.contains("/org/waveprotocol/wave/client/")) ||
-  (isSrc && p.contains("/org/waveprotocol/wave/communication/gwt/")) ||
-  (isSrc && p.contains("/com/google/gwt/")) ||
-  (isSrc && p.contains("/org/waveprotocol/box/expimp/")) ||
-  // Exclude stat shims since we have the real source files
-  (p.contains("/gen/shims/") && p.contains("/org/waveprotocol/box/stat/")) ||
-  // GXP-dependent server RPC pages
-  // WaveClientServlet enabled when GXP generation works
-  (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/UserRegistrationServlet.java")) ||
-  (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/ChangePasswordServlet.java")) ||
-  // AuthenticationServlet enabled for login flow
-  (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/GoogleAuthenticationServlet.java")) ||
-  (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/GoogleAuthenticationCallbackServlet.java")) ||
-  // Exclude Socket.IO server shims
-  p.endsWith("/org/waveprotocol/box/server/rpc/AbstractWaveSocketIOServlet.java") ||
-  p.endsWith("/org/waveprotocol/box/server/rpc/SocketIOServerChannel.java") ||
-  p.endsWith("/org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java") ||
-  p.endsWith("/org/waveprotocol/box/webclient/client/WaveSocketFactory.java") ||
-  // Specific render view classes that couple to client (keep core render enabled).
-  // Exclude only if coming from src/, allow shims under gen/shims.
-  (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/render/view/builder/TagsViewBuilder.java")) ||
-  (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/render/view/ModelAsViewProvider.java")) ||
-  // Legacy helpers with client coupling that are unnecessary for server run
-  p.endsWith("/org/waveprotocol/wave/concurrencycontrol/channel/ViewChannelImpl.java") ||
-  p.endsWith("/org/waveprotocol/wave/migration/helpers/FixLinkAnnotationsFilter.java") ||
-  // Exclude servlets that depend on GXP-generated classes when GXP generation is disabled
-  p.endsWith("/org/waveprotocol/box/server/robots/RobotRegistrationServlet.java") ||
-  p.endsWith("/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java") ||
-  // Exclude generated GWT JSO implementations under gen/messages
-  p.contains("/gen/messages/") && p.contains("/jso/") ||
-  // Exclude GWT-only JSON serializers that reference JSO implementations
-  (isSrc && p.endsWith("/org/waveprotocol/wave/model/raw/serialization/JsoSerializerAdaptor.java")) ||
-  (isSrc && p.endsWith("/org/waveprotocol/wave/model/raw/serialization/JsoSerializer.java"))
-}
+  val underMain    = p.contains("/wave/src/main/java/")
+  val underJakarta = p.contains("/wave/src/jakarta-overrides/java/")
 
-// In jakarta mode, exclude any javax-servlet/websocket based sources and legacy ServerMain
-Compile / unmanagedSources := {
-  val files = (Compile / unmanagedSources).value
-  if ((ThisBuild / jakartaMode).value) {
-    files.filterNot { f =>
-      val p = f.getPath.replace('\\','/')
-      val isSrc = p.contains("/wave/src/main/java/")
-      val excludeByName = isSrc && p.endsWith("/org/waveprotocol/box/server/ServerMain.java")
-      val excludeByImport = isSrc && {
-        // Read a few lines to detect javax servlet/websocket usage
-        val lines = try IO.readLines(f) catch { case _: Throwable => Nil }
-        lines.exists { l =>
-          val s = l.trim
-          s.startsWith("import javax.servlet") || s.startsWith("import javax.websocket")
-        }
-      }
-      // Allow robots core (registries, utils, modules) in Jakarta mode.
-      // Exclude robot agents and examples to avoid pulling optional deps.
-      val excludeRobotsAgents = p.contains("/src/org/waveprotocol/box/server/robots/agent/")
-      val excludeRobotsExamples = p.contains("/src/org/waveprotocol/examples/robots/")
-      // Include attachment service/utilities; Jakarta servlet variant is stubbed for constants
-      val excludeAttachments = false
-      // Include render package; individual javax servlets will be dropped by import detection
-      val excludeRender = false
-      val excludeSearchProfile = p.endsWith("/src/org/waveprotocol/box/server/rpc/FetchProfilesServlet.java") ||
-                                 p.endsWith("/src/org/waveprotocol/box/server/rpc/AbstractSearchServlet.java") ||
-                                 p.endsWith("/src/org/waveprotocol/box/server/rpc/InitSeensWavelet.java")
-      // Include MongoDB persistence sources in Jakarta mode
-      val excludeMongo = false
-      val excludeHtmlModule = p.endsWith("/src/org/waveprotocol/box/server/HtmlModule.java")
-      val excludeRegistrationUtil = p.endsWith("/src/org/waveprotocol/box/server/util/RegistrationUtil.java")
-      // Include the real WaveDigester (works without javax deps)
-      val excludeWaveDigester = false
-      // Allow search core and Lucene persistence in Jakarta mode (we provide jakarta servlets separately)
-      val excludeSearch = false
-      val excludeLucenePersistence = false
-      // Include migration utilities
-      val excludeMigration = false
-      val excludeDataTools = false
-      // Needed by RobotApiModule provider
-      val excludeRobotHttpConn = false
-      val excludeDefaultServerModule = p.endsWith("/src/org/waveprotocol/box/server/ServerModule.java")
-      val excludeDefaultMappings = p.endsWith("/src/org/waveprotocol/box/server/http/JettyServletMappingsConfigurer.java")
-      val excludePersistenceModule = p.endsWith("/src/org/waveprotocol/box/server/persistence/PersistenceModule.java")
-      val excludeGenShims = p.contains("/gen/shims/") && !(
-        p.endsWith("/gen/shims/org/waveprotocol/box/webclient/search/WaveContext.java") ||
-        p.endsWith("/gen/shims/org/waveprotocol/box/server/rpc/render/view/builder/TagsViewBuilder.java")
-      )
-      val baseExcludes = excludeByName || excludeByImport || excludeAttachments || excludeRender || excludeSearchProfile || excludeMongo || excludeHtmlModule || excludeRegistrationUtil || excludeDefaultServerModule || excludeDefaultMappings || excludePersistenceModule || excludeMigration || excludeDataTools || excludeGenShims
-      val robotsExcludes = excludeRobotsAgents || excludeRobotsExamples
-      baseExcludes || robotsExcludes
-    }
-  } else files
+  // --- Exact excludes under src/main/java (Gradle mainExactExcludes, lines 283-332) ---
+  // These files have Jakarta replacements in src/jakarta-overrides/java.
+  val mainExactExcludes: Set[String] = Set(
+    "org/waveprotocol/box/server/rpc/ServerRpcProvider.java",
+    "org/waveprotocol/box/server/ServerModule.java",
+    "org/waveprotocol/box/server/StatModule.java",
+    "org/waveprotocol/box/server/ServerMain.java",
+    "org/waveprotocol/box/server/authentication/SessionManager.java",
+    "org/waveprotocol/box/server/robots/RobotApiModule.java",
+    "org/waveprotocol/box/server/robots/RobotRegistrationServlet.java",
+    "org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java",
+    "org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java",
+    "org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java",
+    "org/waveprotocol/box/server/robots/dataapi/DataApiOperationServiceRegistry.java",
+    "org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java",
+    "org/waveprotocol/box/server/robots/active/ActiveApiServlet.java",
+    "org/waveprotocol/box/server/robots/active/ActiveApiOperationServiceRegistry.java",
+    "org/waveprotocol/box/server/robots/passive/RobotConnector.java",
+    "org/waveprotocol/box/server/robots/operations/NotifyOperationService.java",
+    "org/waveprotocol/box/server/robots/register/RobotRegistrar.java",
+    "org/waveprotocol/box/server/robots/register/RobotRegistrarImpl.java",
+    "org/waveprotocol/box/server/rpc/UserRegistrationServlet.java",
+    "org/waveprotocol/box/server/rpc/AuthenticationServlet.java",
+    "org/waveprotocol/box/server/rpc/SignOutServlet.java",
+    "org/waveprotocol/box/server/authentication/SessionManagerImpl.java",
+    "org/waveprotocol/box/server/rpc/AttachmentServlet.java",
+    "org/waveprotocol/box/server/rpc/SearchServlet.java",
+    "org/waveprotocol/box/server/rpc/GadgetProviderServlet.java",
+    "org/waveprotocol/box/server/rpc/AttachmentInfoServlet.java",
+    "org/waveprotocol/box/server/rpc/FetchServlet.java",
+    "org/waveprotocol/box/server/rpc/FetchProfilesServlet.java",
+    "org/waveprotocol/box/server/rpc/LocaleServlet.java",
+    "org/waveprotocol/box/server/rpc/NotificationServlet.java",
+    "org/waveprotocol/box/server/rpc/WaveClientServlet.java",
+    "org/waveprotocol/box/server/rpc/WaveRefServlet.java",
+    "org/waveprotocol/box/server/rpc/HealthServlet.java",
+    "org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java",
+    "org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java",
+    "com/google/wave/api/AbstractRobot.java",
+    "com/google/wave/api/WaveService.java",
+    "org/waveprotocol/box/expimp/Console.java",
+    "org/waveprotocol/box/expimp/DeltaParser.java",
+    "org/waveprotocol/box/expimp/DomainConverter.java",
+    "org/waveprotocol/box/expimp/FileNames.java",
+    "org/waveprotocol/box/expimp/OAuth.java",
+    "org/waveprotocol/box/expimp/WaveImport.java",
+    "org/waveprotocol/box/expimp/WaveExport.java",
+    "org/waveprotocol/box/server/util/OAuthUtil.java",
+    "org/waveprotocol/box/server/util/RegistrationUtil.java",
+    "org/waveprotocol/box/server/stat/RequestScopeFilter.java",
+    "org/waveprotocol/box/server/stat/TimingFilter.java"
+  )
+
+  // --- Directory-level excludes under src/main/java (Gradle lines 334-337) ---
+  val mainDirExcluded = underMain && (
+    p.contains("/com/google/wave/api/oauth/") ||
+    p.contains("/org/waveprotocol/box/server/robots/agent/") ||
+    p.contains("/org/waveprotocol/examples/robots/") ||
+    p.contains("/org/apache/wave/box/server/rpc/")
+  )
+
+  // Jakarta mode: apply full Gradle exclusion list
+  val mainFileExcluded = underMain && mainExactExcludes.exists(suffix => p.endsWith("/" + suffix))
+
+  // --- Exact excludes under src/jakarta-overrides/java (Gradle lines 341-349) ---
+  val jakartaExactExcludes: Set[String] = Set(
+    "com/google/wave/api/AbstractRobot.java",
+    "org/waveprotocol/box/server/robots/RobotApiModule.java",
+    "org/waveprotocol/box/server/robots/active/ActiveApiServlet.java",
+    "org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java",
+    "org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java",
+    "org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java",
+    "org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java",
+    "org/waveprotocol/box/server/robots/util/JakartaHttpRequestMessage.java"
+  )
+
+  val jakartaFileExcluded = underJakarta && jakartaExactExcludes.exists(suffix => p.endsWith("/" + suffix))
+
+  // --- Common exclusions (always applied) ---
+  // GWT client trees, gen/shims stat, JSO, Socket.IO, etc.
+  val isSrc = underMain
+  val commonExcludes =
+    (isSrc && p.contains("/org/waveprotocol/box/webclient/")) ||
+    (isSrc && p.contains("/org/waveprotocol/wave/client/") &&
+      !p.endsWith("/wave/client/state/BlipReadStateMonitor.java") &&
+      !p.endsWith("/wave/client/state/ThreadReadStateMonitor.java")) ||
+    (isSrc && p.contains("/org/waveprotocol/wave/communication/gwt/")) ||
+    (isSrc && p.contains("/com/google/gwt/")) ||
+    // Exclude stat shims since we have the real source files
+    (p.contains("/gen/shims/") && p.contains("/org/waveprotocol/box/stat/")) ||
+    // GXP-dependent server RPC pages
+    (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/ChangePasswordServlet.java")) ||
+    (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/GoogleAuthenticationServlet.java")) ||
+    (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/GoogleAuthenticationCallbackServlet.java")) ||
+    // Exclude Socket.IO server shims
+    p.endsWith("/org/waveprotocol/box/server/rpc/AbstractWaveSocketIOServlet.java") ||
+    p.endsWith("/org/waveprotocol/box/server/rpc/SocketIOServerChannel.java") ||
+    // Specific render view classes that couple to client (keep core render enabled).
+    (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/render/view/builder/TagsViewBuilder.java")) ||
+    (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/render/view/ModelAsViewProvider.java")) ||
+    // Legacy helpers with client coupling that are unnecessary for server run
+    p.endsWith("/org/waveprotocol/wave/concurrencycontrol/channel/ViewChannelImpl.java") ||
+    p.endsWith("/org/waveprotocol/wave/migration/helpers/FixLinkAnnotationsFilter.java") ||
+    // Exclude generated GWT JSO implementations under gen/messages
+    (p.contains("/gen/messages/") && p.contains("/jso/")) ||
+    // Exclude GWT-only JSON serializers that reference JSO implementations
+    (isSrc && p.endsWith("/org/waveprotocol/wave/model/raw/serialization/JsoSerializerAdaptor.java")) ||
+    (isSrc && p.endsWith("/org/waveprotocol/wave/model/raw/serialization/JsoSerializer.java"))
+
+  mainFileExcluded || mainDirExcluded || jakartaFileExcluded || commonExcludes
 }
 
 Test / unmanagedSourceDirectories += baseDirectory.value / "wave" / "src" / "test" / "java"
 
-// Bring in vendored jars from third_party (filtered). Assign rather than append to avoid duplicates/precedence issues.
-def filteredThirdParty(cp: Seq[Attributed[File]]) = cp.filterNot { a =>
-  val n = a.data.getName
-  val p = a.data.getPath.replace('\\','/')
-  // Exclude jars with broken manifest, legacy protobuf runtime, and Jetty/socketio vendored jars (we use managed Jetty).
-  p.contains("/third_party/test/") ||
-  n.startsWith("guava-treerangemap") ||
-  n.startsWith("guava-gwt-") ||
-  n.startsWith("guava-") ||
-  n.startsWith("guice-") ||
-  n == "protobuf-java-2.5.0.jar" ||
-  p.contains("/third_party/runtime/socketio/") ||
-  p.contains("/third_party/runtime/jetty/") ||
-  n.startsWith("gwt-dev") ||
-  n.startsWith("websocket-") ||
-  n == "servlet-api-3.1.jar"
-}
-
-Compile / unmanagedJars := {
-  val all = (baseDirectory.value / "third_party" ** "*.jar").classpath
-  filteredThirdParty(all)
-}
-
-Test / unmanagedJars := {
-  val all = (baseDirectory.value / "third_party" ** "*.jar").classpath
-  val filtered = filteredThirdParty(all)
-  val testOnly = (baseDirectory.value / "third_party" / "test" ** "*.jar").classpath
-  filtered ++ testOnly
-}
+// Phase 2: all dependencies are now managed via libraryDependencies; third_party/ is no longer on the classpath.
+// Codegen tasks resolve JARs from managed deps via (Compile / dependencyClasspath).
 
 // Serve static assets from wave/war/ via classpath resources (Jetty will still serve filesystem if desired)
+Compile / resourceDirectories += baseDirectory.value / "wave" / "src" / "main" / "resources"
 Compile / resourceDirectories += baseDirectory.value / "wave" / "war"
 
 // Prefer forking when running, to mimic production flags when needed
@@ -182,11 +178,11 @@ Compile / javaOptions ++= {
   )
 }
 
-// Assembly settings (Phase 1 placeholder): enable when migrating off unmanaged jars
+// Assembly settings
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtassembly.MergeStrategy
 
-// Assembly: build a runnable fat JAR for ServerMain including unmanaged jars
+// Assembly: build a runnable fat JAR for ServerMain
 assembly / mainClass := (Compile / mainClass).value
 ThisBuild / assembly / assemblyJarName := s"${name.value}-server-${version.value}.jar"
 ThisBuild / assembly / test := {}
@@ -200,106 +196,168 @@ ThisBuild / assembly / assemblyMergeStrategy := {
   case x => MergeStrategy.first
 }
 
-// Managed dependencies
-lazy val JettyV         = "9.4.54.v20240208"          // javax servlet stack (default)
-lazy val JettyJakartaV  = "12.0.23"                    // jakarta servlet stack (EE10, matches Gradle)
-lazy val JakartaServletV = "5.0.0"                     // jakarta.servlet-api
-lazy val JakartaWsV      = "2.0.0"                     // jakarta.websocket-api
+// ---------------------------------------------------------------------------
+// Managed dependencies — ported from wave/build.gradle
+// ---------------------------------------------------------------------------
+lazy val JettyV          = "12.0.23"     // Jetty 12 / EE10 (Jakarta Servlet 6)
+lazy val GuavaV          = "32.1.3-jre"  // server-side Guava, aligned with Guice 5
+lazy val GuiceV          = "5.1.0"
+lazy val ProtobufV       = "3.25.3"
+lazy val Slf4jV          = "2.0.13"
+lazy val LogbackV        = "1.5.6"
+lazy val MongoV4         = "4.11.1"
 
-// Build-time flag (scaffold): enable Jakarta dependencies when true
-lazy val jakartaMode = settingKey[Boolean]("Enable Jakarta servlet/websocket dependencies (scaffold; default false)")
-ThisBuild / jakartaMode := sys.props.get("jakarta").exists(_.trim.toLowerCase == "true")
+libraryDependencies ++= Seq(
+  // --- Test ---
+  "junit"                          % "junit"                      % "4.12"     % Test,
+  "com.novocode"                   % "junit-interface"            % "0.11"     % Test,
+  "org.hamcrest"                   % "hamcrest-junit"             % "2.0.0.0"  % Test,
+  "org.mockito"                    % "mockito-core"               % "2.2.21"   % Test,
 
-// Dependencies independent of container choice
-lazy val coreDeps = Seq(
-  // Test stack: run JUnit tests via sbt
-  "junit" % "junit" % "4.13.2" % Test,
-  "com.novocode" % "junit-interface" % "0.11" % Test,
-  // Protobuf runtime for generated sources
-  "com.google.protobuf" % "protobuf-java" % "3.25.3",
-  // Utilities
-  "commons-io" % "commons-io" % "2.15.1",
-  // Guava (required by Guice 5)
-  "com.google.guava" % "guava" % "32.1.3-jre",
-  // Guice (upgrade for Java 11+ compatibility)
-  "com.google.inject" % "guice" % "5.1.0",
-  "com.google.inject.extensions" % "guice-servlet" % "5.1.0",
-  "com.google.inject.extensions" % "guice-assistedinject" % "5.1.0"
+  // --- Protobuf ---
+  "com.google.protobuf"            % "protobuf-java"              % ProtobufV,
+
+  // --- Guava & Guice ---
+  "com.google.guava"               % "guava"                      % GuavaV,
+  // guava-gwt excluded: only needed for GWT client compilation, causes errors with Guava 32.x
+  "com.google.inject"              % "guice"                      % GuiceV,
+  "com.google.inject.extensions"   % "guice-servlet"              % GuiceV,
+  "com.google.inject.extensions"   % "guice-assistedinject"       % GuiceV,
+
+  // --- Serialization ---
+  "com.google.code.gson"           % "gson"                       % "2.10.1",
+
+  // --- Config ---
+  "com.typesafe"                   % "config"                     % "1.4.3",
+
+  // --- Commons ---
+  "commons-codec"                  % "commons-codec"              % "1.16.1",
+  "commons-cli"                    % "commons-cli"                % "1.11.0",
+  "commons-io"                     % "commons-io"                 % "2.16.1",
+  "org.apache.commons"             % "commons-lang3"              % "3.14.0",
+
+  // --- HTTP ---
+  "org.apache.httpcomponents"      % "httpclient"                 % "4.5.14",
+  "org.apache.httpcomponents"      % "httpcore"                   % "4.4.16",
+
+  // --- Logging (SLF4J 2.x + Logback) ---
+  "org.slf4j"                      % "slf4j-api"                  % Slf4jV,
+  "ch.qos.logback"                 % "logback-classic"            % LogbackV,
+  "org.slf4j"                      % "jcl-over-slf4j"             % Slf4jV,
+  "org.slf4j"                      % "jul-to-slf4j"               % Slf4jV,
+  "org.slf4j"                      % "log4j-over-slf4j"           % Slf4jV,
+
+  // --- Annotations ---
+  "com.google.code.findbugs"       % "jsr305"                     % "2.0.1",
+  "javax.inject"                   % "javax.inject"               % "1",
+
+  // --- XML / DOM ---
+  "dom4j"                          % "dom4j"                      % "1.6.1",
+  "org.jdom"                       % "jdom"                       % "1.1.3",
+
+  // --- Classpath scanning ---
+  "eu.infomas"                     % "annotation-detector"        % "3.0.0",
+
+  // --- Parser / template ---
+  "org.antlr"                      % "antlr"                      % "3.2",
+  "org.apache.velocity"            % "velocity"                   % "1.7",
+
+  // --- Search ---
+  "org.apache.lucene"              % "lucene-core"                % "3.5.0",
+
+  // --- OAuth (net.oauth.core) ---
+  "net.oauth.core"                 % "oauth"                      % "20090825",
+  "net.oauth.core"                 % "oauth-consumer"             % "20090823",
+  "net.oauth.core"                 % "oauth-provider"             % "20090531",
+
+  // --- Crypto ---
+  "org.bouncycastle"               % "bcprov-jdk16"               % "1.45",
+
+  // --- Persistence ---
+  "javax.jdo"                      % "jdo2-api"                   % "2.1",
+  "org.mongodb"                    % "mongo-java-driver"          % "2.11.2" % Provided,  // compile-only; excluded from runtime (Gradle runtimeClasspath.exclude)
+  "org.mongodb"                    % "mongodb-driver-sync"        % MongoV4,
+
+  // --- Cache ---
+  "com.github.ben-manes.caffeine"  % "caffeine"                   % "3.1.8",
+
+  // --- GXP compiler (used at codegen time and needed on compile classpath for generated sources) ---
+  "com.google.gxp"                 % "google-gxp"                 % "0.2.4-beta",
+
+  // --- Jetty 12 / EE10 (Jakarta Servlet 6) ---
+  "org.eclipse.jetty"              % "jetty-server"               % JettyV,
+  "org.eclipse.jetty.ee10"         % "jetty-ee10-servlet"         % JettyV,
+  "org.eclipse.jetty.ee10"         % "jetty-ee10-webapp"          % JettyV,
+  "org.eclipse.jetty"              % "jetty-session"              % JettyV,
+  "org.eclipse.jetty.ee10.websocket" % "jetty-ee10-websocket-jakarta-server" % JettyV,
+
+  // --- Jakarta APIs ---
+  "jakarta.servlet"                % "jakarta.servlet-api"        % "6.0.0",
+  "jakarta.websocket"              % "jakarta.websocket-api"      % "2.1.1",
+
+  // --- Metrics ---
+  "io.micrometer"                  % "micrometer-core"            % "1.12.5",
+  "io.micrometer"                  % "micrometer-registry-prometheus" % "1.12.5",
+
+  // --- GWT (compile-only for server-side cross-references) ---
+  "org.gwtproject"                 % "gwt-user"                   % "2.10.0"   % Provided
 )
 
-// Container-specific dependencies (javax vs jakarta)
-lazy val containerDeps = Def.setting {
-  if (jakartaMode.value) Seq(
-    // Jetty Jakarta stack (scaffold; not enabled by default)
-    "org.eclipse.jetty" % "jetty-server"  % JettyJakartaV,
-    "org.eclipse.jetty" % "jetty-servlet" % JettyJakartaV,
-    "org.eclipse.jetty" % "jetty-servlets" % JettyJakartaV,
-    "org.eclipse.jetty" % "jetty-webapp" % JettyJakartaV,
-    "org.eclipse.jetty" % "jetty-proxy"   % JettyJakartaV,
-    // Jakarta APIs
-    "jakarta.servlet"    % "jakarta.servlet-api"    % JakartaServletV,
-    "jakarta.websocket"  % "jakarta.websocket-api"  % JakartaWsV,
-    // Jetty JSR‑356 Jakarta implementation for Jetty 11
-    // Correct artifact is websocket-jakarta-server (jakarta-websocket-server-impl does not exist on Maven Central)
-    "org.eclipse.jetty.websocket" % "websocket-jakarta-server" % JettyJakartaV,
-    // Logging backend compatible with slf4j-api 2.x
-    "org.slf4j" % "slf4j-simple" % "2.0.13"
-  ) else Seq(
-    // Jetty 9.4.x (javax.servlet)
-    "org.eclipse.jetty" % "jetty-server"  % JettyV,
-    "org.eclipse.jetty" % "jetty-servlet" % JettyV,
-    "org.eclipse.jetty" % "jetty-servlets"% JettyV,
-    "org.eclipse.jetty" % "jetty-webapp"  % JettyV,
-    "org.eclipse.jetty" % "jetty-proxy"   % JettyV,
-    // JSR 356 (javax.servlet stack)
-    "javax.websocket" % "javax.websocket-api" % "1.1",
-    "org.eclipse.jetty.websocket" % "javax-websocket-server-impl" % JettyV,
-    // javax.servlet API
-    "javax.servlet" % "javax.servlet-api" % "3.1.0",
-    // Logging backend compatible with slf4j-api 1.7
-    "org.slf4j" % "slf4j-simple" % "1.7.36"
-  )
-}
+// ---------------------------------------------------------------------------
+// Exclusions: ensure a single SLF4J binding (Logback) and evict legacy junk
+// ---------------------------------------------------------------------------
+excludeDependencies ++= Seq(
+  ExclusionRule("org.slf4j",                "slf4j-simple"),
+  ExclusionRule("org.slf4j",                "slf4j-nop"),
+  ExclusionRule("org.slf4j",                "slf4j-log4j12"),
+  ExclusionRule("org.apache.logging.log4j", "log4j-slf4j-impl"),
+  ExclusionRule("org.apache.logging.log4j", "log4j-slf4j2-impl"),
+  // Prefer jcl-over-slf4j over the real commons-logging
+  ExclusionRule("commons-logging",          "commons-logging")
+)
 
-libraryDependencies ++= (coreDeps ++ containerDeps.value)
+// Exclude legacy mongo-java-driver from runtime (compile-only for migration code).
+// We declare it as Compile-only (not Runtime) in libraryDependencies instead.
+// The Gradle build uses configurations.runtimeClasspath.exclude for this.
 
-// Force Jetty modules to consistent versions. Only pin 9.4.x in non‑Jakarta mode;
-// leave Jakarta mode unpinned to avoid forcing javax-era artifacts.
-dependencyOverrides ++= {
-  if (jakartaMode.value) Seq.empty
-  else Seq(
-    "org.eclipse.jetty" % "jetty-util" % JettyV,
-    "org.eclipse.jetty" % "jetty-io" % JettyV,
-    "org.eclipse.jetty" % "jetty-http" % JettyV,
-    "org.eclipse.jetty" % "jetty-xml" % JettyV,
-    "org.eclipse.jetty" % "jetty-server" % JettyV,
-    "org.eclipse.jetty" % "jetty-servlet" % JettyV,
-    "org.eclipse.jetty" % "jetty-servlets" % JettyV,
-    "org.eclipse.jetty" % "jetty-webapp" % JettyV,
-    "org.eclipse.jetty.websocket" % "websocket-api" % JettyV,
-    "org.eclipse.jetty.websocket" % "websocket-common" % JettyV,
-    "org.eclipse.jetty.websocket" % "websocket-api" % JettyV,
-    "org.eclipse.jetty.websocket" % "websocket-common" % JettyV
-  )
-}
+// ---------------------------------------------------------------------------
+// Dependency overrides: pin transitive versions for alignment
+// ---------------------------------------------------------------------------
+dependencyOverrides ++= Seq(
+  // SLF4J alignment
+  "org.slf4j"          % "slf4j-api"        % Slf4jV,
+  "org.slf4j"          % "jcl-over-slf4j"   % Slf4jV,
+  "org.slf4j"          % "jul-to-slf4j"     % Slf4jV,
+  "org.slf4j"          % "log4j-over-slf4j" % Slf4jV,
+  "ch.qos.logback"     % "logback-classic"  % LogbackV,
+  // Guava alignment
+  "com.google.guava"   % "guava"            % GuavaV,
+  // MongoDB 4.x driver alignment
+  "org.mongodb"        % "bson"               % MongoV4,
+  "org.mongodb"        % "mongodb-driver-core" % MongoV4,
+  "org.mongodb"        % "mongodb-driver-sync" % MongoV4
+)
 
-// Test JVM flags (Guice/cglib on JDK 17, enable assertions)
+// Test JVM flags (Guice/cglib on JDK 17, enable assertions; matches Gradle test.jvmArgs lines 958-961)
 Test / javaOptions ++= Seq(
   "-ea",
   "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+  "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
+  "--add-opens", "java.base/java.util=ALL-UNNAMED",
   "--add-opens", "java.base/java.io=ALL-UNNAMED"
 )
 
-// Keep tests deterministic and similar to Ant: exclude GWT, large, and MongoDB tests
+// Keep tests deterministic: exclude GWT, large, stress, and MongoDB tests (matches Gradle test task, lines 945-980)
 Test / testOptions += Tests.Filter { name =>
   val isJUnit = name.endsWith("Test")
   val isGwt = name.endsWith("GwtTest")
   val isLarge = name.endsWith("LargeTest")
+  val isStress = name.contains("StressTest")
   val isMongo = name.contains(".mongodb.")
   val isFederation = name.contains(".wave.federation.")
   val isPersistence = name.contains(".server.persistence.")
   val isAllowedPersistence = name.contains(".server.persistence.memory.") || name.contains(".server.persistence.file.")
-  isJUnit && !isGwt && !isLarge && !isMongo && !isFederation && (!isPersistence || isAllowedPersistence)
+  isJUnit && !isGwt && !isLarge && !isStress && !isMongo && !isFederation && (!isPersistence || isAllowedPersistence)
 }
 
 // Make JUnit output verbose for debugging (stack traces, test names)
@@ -308,11 +366,32 @@ Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
 // Make test resources available (e.g., *.schema stored under wave/src/test/)
 Test / unmanagedResourceDirectories += baseDirectory.value / "wave" / "src" / "test" / "resources"
 
-// Exclude client/GWT-dependent tests from compilation (server-only phase)
+// Exclude client/GWT-dependent tests from compilation (replicates Gradle test source set, lines 170-198)
 Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
   val p = f.getPath.replace('\\', '/')
+  val fn = f.getName
+  // GWT test bases/cases
+  fn.contains("GwtTest") || fn == "GwtTestCase.java" ||
+  fn == "TestBase.java" || fn == "GenericGWTTestBase.java" ||
+  fn == "ContentTestBase.java" || fn == "ContentTestCase.java" ||
+  // Client and webclient trees
   p.contains("/org/waveprotocol/wave/client/") ||
   p.contains("/org/waveprotocol/box/webclient/") ||
+  // Legacy Jetty API tests that break on JDK17
+  p.endsWith("/org/waveprotocol/box/server/authentication/SessionManagerTest.java") ||
+  p.endsWith("/org/waveprotocol/box/server/rpc/FetchServletTest.java") ||
+  // OAuth/Robot tests whose production classes are excluded
+  p.endsWith("/com/google/wave/api/AbstractRobotTest.java") ||
+  p.endsWith("/com/google/wave/api/oauth/impl/OAuthServiceImplRobotTest.java") ||
+  p.endsWith("/org/waveprotocol/box/server/robots/active/ActiveApiServletTest.java") ||
+  p.endsWith("/org/waveprotocol/box/server/robots/agent/AbstractRobotAgentTest.java") ||
+  p.endsWith("/org/waveprotocol/box/server/robots/agent/RobotAgentUtilTest.java") ||
+  p.endsWith("/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletTest.java") ||
+  p.endsWith("/org/waveprotocol/box/server/robots/dataapi/DataApiServletTest.java") ||
+  p.endsWith("/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java") ||
+  p.endsWith("/org/waveprotocol/box/expimp/DomainConverterTest.java") ||
+  p.endsWith("/org/waveprotocol/box/expimp/DeltaParserTest.java") ||
+  // Additional render/concurrencycontrol/migration exclusions
   p.contains("/org/waveprotocol/box/server/rpc/render/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/migration/") ||
@@ -326,6 +405,253 @@ cleanFiles ++= Seq(
   baseDirectory.value / "gen" / "messages",
   baseDirectory.value / "gen" / "flags"
 )
+
+// =============================================================================
+// Phase 3 — Custom Test Configurations
+// Replicates Gradle source sets: jakartaTest, jakartaIT (subset of jakartaTest),
+// stacktraceTest, thumbTest.  Each extends Test so it inherits the JUnit runner,
+// managed/unmanaged classpath, and JVM flags.
+// =============================================================================
+
+// --- Configuration definitions ---
+lazy val JakartaTest    = config("jakartaTest")    extend Test  describedAs "Jakarta unit tests (excludes *IT)"
+lazy val JakartaIT      = config("jakartaIT")      extend Test  describedAs "Jakarta integration tests (*IT allowlist)"
+lazy val StacktraceTest = config("stacktraceTest") extend Test  describedAs "Isolated StackTraces utility tests"
+lazy val ThumbTest      = config("thumbTest")      extend Test  describedAs "Isolated AttachmentServlet thumbnail tests"
+
+// Wire all four configs into the project so `sbt jakartaTest:test` etc. work
+inConfig(JakartaTest)(Defaults.testSettings)
+inConfig(JakartaIT)(Defaults.testSettings)
+inConfig(StacktraceTest)(Defaults.testSettings)
+inConfig(ThumbTest)(Defaults.testSettings)
+
+// --- JakartaTest source directories & exclusions ---
+// Source: wave/src/jakarta-test/java, excludes *IT classes and specific retired tests
+JakartaTest / unmanagedSourceDirectories := Seq(
+  baseDirectory.value / "wave" / "src" / "jakarta-test" / "java"
+)
+JakartaTest / unmanagedResourceDirectories := Seq(
+  baseDirectory.value / "wave" / "src" / "jakarta-test" / "resources"
+)
+// Exclude integration test classes and specific retired/disabled tests (Gradle lines 240-242)
+JakartaTest / unmanagedSources := (JakartaTest / unmanagedSources).value.filterNot { f =>
+  val p = f.getPath.replace('\\', '/')
+  p.endsWith("/WaveWebSocketEndpointInitGuardTest.java") ||
+  p.endsWith("/DataApiOAuthServletJakartaIT.java") ||
+  // Tests that depend on GWT client/webclient classes excluded from SBT compilation
+  p.endsWith("/WaveWebSocketClientTest.java") ||
+  p.endsWith("/RemoteWaveViewServiceEmptyUserDataSnapshotTest.java") ||
+  p.endsWith("/FocusBlipSelectorTest.java")
+}
+// Runtime filter: exclude *IT classes from this config (unit tests only)
+JakartaTest / testOptions += Tests.Filter { name =>
+  !name.endsWith("IT")
+}
+JakartaTest / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
+JakartaTest / javaOptions ++= Seq(
+  "-ea",
+  "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+  "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
+  "--add-opens", "java.base/java.util=ALL-UNNAMED"
+)
+JakartaTest / fork := true
+// Include main compile output on classpath
+JakartaTest / dependencyClasspath ++= (Compile / exportedProducts).value
+JakartaTest / dependencyClasspath ++= (Test / dependencyClasspath).value
+// Include main resources and full classpath for forked JVM
+JakartaTest / dependencyClasspath ++= (Compile / fullClasspath).value
+JakartaTest / fullClasspath ++= Seq(Attributed.blank(baseDirectory.value / "wave" / "src" / "main" / "resources"))
+
+// --- JakartaIT source directories & allowlist (Gradle lines 1046-1058) ---
+// Same source dir as JakartaTest, but only runs the explicit IT allowlist
+JakartaIT / unmanagedSourceDirectories := Seq(
+  baseDirectory.value / "wave" / "src" / "jakarta-test" / "java"
+)
+JakartaIT / unmanagedResourceDirectories := Seq(
+  baseDirectory.value / "wave" / "src" / "jakarta-test" / "resources"
+)
+// Exclude the same files as JakartaTest from compilation
+JakartaIT / unmanagedSources := (JakartaIT / unmanagedSources).value.filterNot { f =>
+  val p = f.getPath.replace('\\', '/')
+  p.endsWith("/WaveWebSocketEndpointInitGuardTest.java") ||
+  p.endsWith("/DataApiOAuthServletJakartaIT.java") ||
+  // Tests that depend on GWT client/webclient classes excluded from SBT compilation
+  p.endsWith("/WaveWebSocketClientTest.java") ||
+  p.endsWith("/RemoteWaveViewServiceEmptyUserDataSnapshotTest.java") ||
+  p.endsWith("/FocusBlipSelectorTest.java")
+}
+// Only run the explicit IT allowlist (Gradle lines 1047-1058)
+JakartaIT / testOptions += Tests.Filter { name =>
+  val allowlist = Set(
+    "org.waveprotocol.box.server.jakarta.ForwardedHeadersJakartaIT",
+    "org.waveprotocol.box.server.jakarta.ForwardedHeadersStrictFuzzJakartaIT",
+    "org.waveprotocol.box.server.jakarta.AccessLogJakartaIT",
+    "org.waveprotocol.box.server.jakarta.SecurityHeadersJakartaIT",
+    "org.waveprotocol.box.server.jakarta.CachingFiltersJakartaIT",
+    "org.waveprotocol.box.server.jakarta.AttachmentServletJakartaIT",
+    "org.waveprotocol.box.server.jakarta.SearchServletJakartaIT",
+    "org.waveprotocol.box.server.jakarta.AuthenticationServletJakartaIT",
+    "org.waveprotocol.box.server.jakarta.SignOutServletJakartaIT",
+    "org.waveprotocol.box.server.jakarta.GadgetProviderServletJakartaIT",
+    "org.waveprotocol.box.server.jakarta.InitialsAvatarsServletJakartaIT",
+    "org.waveprotocol.box.server.jakarta.HealthServletJakartaIT"
+  )
+  allowlist.contains(name)
+}
+JakartaIT / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
+JakartaIT / javaOptions ++= Seq(
+  "-ea",
+  "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+  "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
+  "--add-opens", "java.base/java.util=ALL-UNNAMED"
+)
+JakartaIT / fork := true
+JakartaIT / dependencyClasspath ++= (Compile / exportedProducts).value
+JakartaIT / dependencyClasspath ++= (Test / dependencyClasspath).value
+JakartaIT / dependencyClasspath ++= (Compile / fullClasspath).value
+JakartaIT / fullClasspath ++= Seq(Attributed.blank(baseDirectory.value / "wave" / "src" / "main" / "resources"))
+
+// --- StacktraceTest source directories ---
+StacktraceTest / unmanagedSourceDirectories := Seq(
+  baseDirectory.value / "wave" / "src" / "stacktrace-test" / "java"
+)
+StacktraceTest / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
+StacktraceTest / javaOptions ++= Seq(
+  "-ea",
+  "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+)
+StacktraceTest / fork := true
+StacktraceTest / dependencyClasspath ++= (Compile / exportedProducts).value
+
+// --- ThumbTest source directories ---
+ThumbTest / unmanagedSourceDirectories := Seq(
+  baseDirectory.value / "wave" / "src" / "thumb-test" / "java"
+)
+ThumbTest / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
+ThumbTest / javaOptions ++= Seq(
+  "-ea",
+  "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+)
+ThumbTest / fork := true
+ThumbTest / dependencyClasspath ++= (Compile / exportedProducts).value
+
+// --- Additional per-config dependencies (matches Gradle) ---
+// JakartaTest and JakartaIT need Jakarta WebSocket + Jetty EE10 test deps
+libraryDependencies ++= Seq(
+  "jakarta.websocket"           % "jakarta.websocket-api"                     % "2.1.1"  % JakartaTest,
+  "org.eclipse.jetty"           % "jetty-server"                              % JettyV % JakartaTest,
+  "org.eclipse.jetty.ee10"      % "jetty-ee10-servlet"                        % JettyV % JakartaTest,
+  "org.eclipse.jetty.ee10.websocket" % "jetty-ee10-websocket-jakarta-server"  % JettyV % JakartaTest,
+  "org.mockito"                 % "mockito-core"                              % "2.2.21" % JakartaTest,
+  "junit"                       % "junit"                                     % "4.12"   % JakartaTest,
+  "com.github.sbt"              % "junit-interface"                           % "0.13.3" % JakartaTest,
+  "junit"                       % "junit"                                     % "4.12"   % JakartaIT,
+  "com.github.sbt"              % "junit-interface"                           % "0.13.3" % JakartaIT,
+  "jakarta.websocket"           % "jakarta.websocket-api"                     % "2.1.1"  % JakartaIT,
+  "org.eclipse.jetty"           % "jetty-server"                              % JettyV % JakartaIT,
+  "org.eclipse.jetty.ee10"      % "jetty-ee10-servlet"                        % JettyV % JakartaIT,
+  "org.eclipse.jetty.ee10.websocket" % "jetty-ee10-websocket-jakarta-server"  % JettyV % JakartaIT,
+  "org.mockito"                 % "mockito-core"                              % "2.2.21" % JakartaIT,
+  // ThumbTest needs jakarta.servlet-api
+  "jakarta.servlet"             % "jakarta.servlet-api"                       % "6.0.0"  % ThumbTest
+)
+
+// --- Convenience aliases (Gradle task equivalents) ---
+// testMongo: run MongoDB-specific tests from default test source set
+lazy val testMongo = taskKey[Unit]("Run MongoDB persistence tests")
+testMongo := {
+  // Use (Test / testOnly) to select only MongoDB tests
+  (Test / testOnly).toTask(" -- --tests=*server.persistence.mongodb*").value
+}
+
+// testLarge: run *LargeTest* from default test source set
+lazy val testLarge = taskKey[Unit]("Run large (slow) tests")
+testLarge := {
+  (Test / testOnly).toTask(" -- --tests=*LargeTest*").value
+}
+
+// testStress: run *StressTest* from default test source set
+lazy val testStress = taskKey[Unit]("Run stress-style tests")
+testStress := {
+  (Test / testOnly).toTask(" -- --tests=*StressTest*").value
+}
+
+// testAll: run all test suites (Gradle equivalent runs test + testMongo + testLarge +
+//          testJakarta + testJakartaIT + testStress). GWT tests are dropped because
+//          SBT does not support GWT compilation; they remain in the Gradle build only.
+addCommandAlias("testAll", "; test; jakartaTest:test; jakartaIT:test; stacktraceTest:test; thumbTest:test")
+
+// -------------------------------------------
+// Distribution via sbt-native-packager (Phase 5)
+// -------------------------------------------
+
+executableScriptName := "wave"
+
+// Map config files, war assets, and root docs into the Universal stage
+Universal / mappings ++= {
+  val base = baseDirectory.value
+  // wave/config/ -> config/
+  val configDir = base / "wave" / "config"
+  val configFiles = (configDir ** "*").get.filter(_.isFile).map { f =>
+    f -> ("config/" + IO.relativize(configDir, f).get)
+  }
+  // wave/war/ -> war/
+  val warDir = base / "wave" / "war"
+  val warFiles = (warDir ** "*").get.filter(_.isFile).map { f =>
+    f -> ("war/" + IO.relativize(warDir, f).get)
+  }
+  // Root docs
+  val rootDocs = Seq("THANKS", "RELEASE-NOTES", "KEYS", "DISCLAIMER").flatMap { name =>
+    val f = base / name
+    if (f.exists) Some(f -> name) else None
+  }
+  configFiles ++ warFiles ++ rootDocs
+}
+
+// JVM args matching Gradle's applicationDefaultJvmArgs
+Universal / javaOptions ++= Seq(
+  "-J-Xmx1024M",
+  "-Dorg.eclipse.jetty.LEVEL=DEBUG",
+  "-Dlogback.configurationFile=config/logback.xml",
+  "-Dguice_include_stack_traces=OFF",
+  "-Djava.security.auth.login.config=config/jaas.config",
+  "-J--add-opens=java.base/java.lang=ALL-UNNAMED",
+  "-J--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+  "-J--add-opens=java.base/java.util=ALL-UNNAMED"
+)
+
+// Smoke test tasks (Phase 5)
+lazy val smokeInstalled = taskKey[Unit]("Smoke-test the staged distribution via scripts/wave-smoke.sh")
+smokeInstalled := {
+  val log = streams.value.log
+  val base = baseDirectory.value
+  // Depend on Universal/stage to produce the install directory
+  val stageDir = (Universal / stage).value
+  val script = base / "scripts" / "wave-smoke.sh"
+  val env = Map("INSTALL_DIR" -> stageDir.getAbsolutePath)
+  log.info(s"Running smoke test against staged distribution at ${stageDir}")
+  def runSmoke(cmd: String): Int =
+    scala.sys.process.Process(Seq("bash", script.getAbsolutePath, cmd), base, env.toSeq: _*)
+      .!(scala.sys.process.ProcessLogger(s => log.info(s), e => log.error(e)))
+  try {
+    val startCode = runSmoke("start")
+    if (startCode != 0) sys.error(s"wave-smoke.sh start failed with exit code $startCode")
+    val checkCode = runSmoke("check")
+    if (checkCode != 0) sys.error(s"wave-smoke.sh check failed with exit code $checkCode")
+  } finally {
+    runSmoke("stop")
+  }
+}
+
+lazy val smokeUi = taskKey[Unit]("UI smoke test via scripts/wave-smoke-ui.sh")
+smokeUi := {
+  val log = streams.value.log
+  val base = baseDirectory.value
+  val script = base / "scripts" / "wave-smoke-ui.sh"
+  val code = scala.sys.process.Process(Seq("bash", script.getAbsolutePath), base)
+    .!(scala.sys.process.ProcessLogger(s => log.info(s), e => log.error(e)))
+  if (code != 0) sys.error(s"wave-smoke-ui.sh failed with exit code $code")
+}
 
 // Deep clean task: removes generated sources and local sbt/coursier caches pinned via .sbtopts
 lazy val deepClean = taskKey[Unit]("Remove generated sources and project-local caches (.sbt-boot, .sbt-global, .ivy2, .coursier-cache)")
@@ -351,12 +677,45 @@ ThisBuild / deepClean := {
 }
 
 // -----------------------------
-// Codegen tasks (Phase 2, minimal)
+// Codegen tasks (Phase 4: reconciled with Gradle)
 // -----------------------------
 import scala.sys.process._
 import sbt._
 import sbtprotoc.ProtocPlugin.autoImport._
 import sbt.complete.DefaultParsers._
+
+lazy val pst = Project("pst", file("pst"))
+  .settings(
+    crossPaths := false,
+    autoScalaLibrary := false,
+    Compile / compileOrder := CompileOrder.JavaThenScala,
+    Compile / unmanagedSourceDirectories += baseDirectory.value / "generated" / "main" / "java",
+    libraryDependencies ++= Seq(
+      "com.google.protobuf" % "protobuf-java" % "3.25.3",
+      "com.google.guava" % "guava" % "19.0",
+      "org.antlr" % "antlr" % "3.2",
+      "commons-cli" % "commons-cli" % "1.11.0",
+      "junit" % "junit" % "4.12" % Test
+    ),
+    Compile / PB.protoSources := Seq(baseDirectory.value / "src" / "main" / "proto"),
+    Compile / PB.includePaths := Seq(baseDirectory.value / "src" / "main" / "proto"),
+    Compile / PB.targets := Seq(PB.gens.java -> (baseDirectory.value / "generated" / "main" / "java")),
+    Compile / compile := (Compile / compile).dependsOn(Compile / PB.generate).value,
+    Compile / mainClass := Some("org.apache.wave.pst.PstMain"),
+    assembly / mainClass := Some("org.apache.wave.pst.PstMain"),
+    assembly / assemblyJarName := s"wave-pst-${version.value}.jar",
+    assembly / test := {},
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      cp.filter { attributed =>
+        val jarName = attributed.data.getName
+        jarName.startsWith("protobuf-java-") || jarName.startsWith("guava-")
+      }
+    }
+  )
+
+lazy val wave = Project("wave", file(".")).aggregate(pst)
+lazy val root = wave
 
 lazy val prepareProtosForPB = taskKey[Unit]("Stage .protodevel/.proto into target/proto-pb-src for sbt-protoc")
 lazy val generatePstMessages = taskKey[Unit]("Generate PST DTO sources into gen/messages")
@@ -432,27 +791,27 @@ ThisBuild / generatePstMessages := {
   val log = streams.value.log
   val base = baseDirectory.value
   val outSrc = base / "proto_src"
-  val pstToolClasses = base / "target" / "pst-tool-classes"
   val pstProtoClasses = base / "target" / "pst-proto-classes"
   val genMsgDir = base / "gen" / "messages"
-  IO.createDirectory(pstToolClasses)
   IO.createDirectory(pstProtoClasses)
   IO.createDirectory(genMsgDir)
+  val pstAssemblyJar = (pst / assembly).value
 
   // Compile proto_src Java to classes for reflection
-  // Exclude any generated google.protobuf runtime classes if present
   val protoSources = (outSrc ** "*.java").get.filterNot { f =>
     val p = f.getPath.replace('\\', '/')
     p.contains("/com/google/protobuf/")
   }
   if (protoSources.isEmpty) sys.error("proto_src is empty — run Compile / PB.generate first.")
-  // Prefer a modern protobuf-java runtime jar (installed by tools/install-macos-deps.sh)
-  val protobufDir = base / "third_party" / "runtime" / "protobuf"
-  val protobufJar = {
-    val candidates = (protobufDir * "protobuf-java-*.jar").get
-    if (candidates.nonEmpty) candidates.maxBy(_.getName).getAbsolutePath
-    else (protobufDir / "protobuf-java-2.5.0.jar").getAbsolutePath // fallback if user didn't run deps script
-  }
+
+  // Resolve protobuf-java from managed dependencies
+  val depCp = (Compile / dependencyClasspath).value.map(_.data.getAbsolutePath)
+  val protobufJar = (Compile / dependencyClasspath).value
+    .map(_.data)
+    .find(_.getName.startsWith("protobuf-java-"))
+    .map(_.getAbsolutePath)
+    .getOrElse(sys.error("protobuf-java not found on managed classpath"))
+
   val javacProto = Seq(
     "javac",
     "-g",
@@ -460,27 +819,6 @@ ThisBuild / generatePstMessages := {
     "-d", pstProtoClasses.getAbsolutePath
   ) ++ protoSources.map(_.getAbsolutePath)
   runCmd(log)(javacProto, base)
-
-  // Compile PST tool sources
-  val pstSources = (base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "pst" ** "*.java").get
-  val antlrJar = (base / "third_party" / "codegen" / "antlr" / "antlr-3.2.jar").getAbsolutePath
-  val guavaJar = (base / "third_party" / "runtime" / "guava" / "guava-16.0.1.jar").getAbsolutePath
-  // SBT still bootstraps PST tools from vendored runtime jars; Gradle now owns the main wave commons-cli dependency.
-  val commonsCliJar = (base / "third_party" / "runtime" / "commons_cli" / "commons-cli-1.2.jar").getAbsolutePath
-  val javacPst = Seq(
-    "javac",
-    "-g",
-    "-cp",
-      Seq(
-        antlrJar,
-        guavaJar,
-        commonsCliJar,
-        protobufJar,
-        pstProtoClasses.getAbsolutePath // for org.waveprotocol.protobuf.Extensions, etc.
-      ).mkString(java.io.File.pathSeparator),
-    "-d", pstToolClasses.getAbsolutePath
-  ) ++ pstSources.map(_.getAbsolutePath)
-  runCmd(log)(javacPst, base)
 
   // Template files (as in Ant macros)
   val tmplRoot = base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "pst" / "templates"
@@ -495,28 +833,23 @@ ThisBuild / generatePstMessages := {
   ).map(_.getAbsolutePath)
 
   // Proto descriptor class paths to generate messages for
+  // AUTHORITATIVE list — must match wave/build.gradle generateMessages.proto_classes
   def cls(rel: String) = (pstProtoClasses / rel).getAbsolutePath
   val protosToGen = Seq(
+    "org/waveprotocol/box/common/comms/WaveClientRpc.class",
     "org/waveprotocol/box/search/SearchProto.class",
-    "org/waveprotocol/box/searches/SearchesProto.class",
-    "org/waveprotocol/box/contact/ContactsProto.class",
     "org/waveprotocol/box/profile/ProfilesProto.class",
-    "org/waveprotocol/box/server/persistence/protos/ProtoSnapshotStoreData.class",
+    "org/waveprotocol/box/server/rpc/Rpc.class",
     "org/waveprotocol/box/attachment/AttachmentProto.class",
-    "org/waveprotocol/wave/clientserver/ClientServer.class",
-    "org/waveprotocol/wave/clientserver/Rpc.class",
     "org/waveprotocol/wave/federation/Proto.class",
-    "org/waveprotocol/wave/model/raw/Raw.class"
+    "org/waveprotocol/wave/concurrencycontrol/ClientServer.class",
+    "org/waveprotocol/wave/diff/Diff.class"
   ).map(cls)
 
-  val cp = Seq(
-    pstToolClasses.getAbsolutePath,
-    pstProtoClasses.getAbsolutePath,
-    protobufJar,
-    antlrJar,
-    guavaJar,
-    commonsCliJar
-  ).mkString(java.io.File.pathSeparator)
+  // Put protobuf-java (from depCp) BEFORE the PST assembly to avoid version conflicts
+  val cp = (Seq(protobufJar, pstProtoClasses.getAbsolutePath, pstAssemblyJar.getAbsolutePath) ++ depCp)
+    .distinct
+    .mkString(java.io.File.pathSeparator)
 
   protosToGen.foreach { protoClassFile =>
     val args = Seq(
@@ -524,7 +857,7 @@ ThisBuild / generatePstMessages := {
       "-d", genMsgDir.getAbsolutePath,
       "-f", protoClassFile
     ) ++ templates
-    val cmd = Seq("java", "-cp", cp, "org.waveprotocol.pst.PstMain") ++ args
+    val cmd = Seq("java", "-cp", cp, "org.apache.wave.pst.PstMain") ++ args
     runCmd(log)(cmd, base)
   }
 }
@@ -532,11 +865,12 @@ ThisBuild / generatePstMessages := {
 ThisBuild / generateGxp := {
   val log = streams.value.log
   val base = baseDirectory.value
-  val srcDir = base / "wave" / "src" / "main" / "java"
+  // GXP templates live under wave/src/main/gxp (matching Gradle's src/main/gxp)
+  val gxpRoot = base / "wave" / "src" / "main" / "gxp"
   val genDir = base / "gen" / "gxp"
   IO.createDirectory(genDir)
   // If outputs already exist, skip (developers can delete to force regen)
-  val gxpSrcs = (srcDir / "org" / "waveprotocol" / "box" / "server" / "gxp" * "*.gxp").get
+  val gxpSrcs = (gxpRoot ** "*.gxp").get
   val outPkgDir = genDir / "org" / "waveprotocol" / "box" / "server" / "gxp"
   val haveOutputs = outPkgDir.exists && (outPkgDir ** "*.java").get.nonEmpty
   if (gxpSrcs.isEmpty) {
@@ -544,13 +878,16 @@ ThisBuild / generateGxp := {
   } else if (haveOutputs) {
     log.info("GXP outputs already present; skipping generation")
   } else {
-    val gxpcJar = base / "third_party" / "runtime" / "gxp" / "gxp-0.2.4-beta.jar"
-    if (!gxpcJar.exists) sys.error("Missing GXP compiler jar: third_party/runtime/gxp/gxp-0.2.4-beta.jar")
+    // Resolve google-gxp from managed dependencies (Phase 2)
+    val gxpcJar = (Compile / dependencyClasspath).value
+      .map(_.data)
+      .find(f => f.getName.startsWith("google-gxp-"))
+      .getOrElse(sys.error("google-gxp not found on managed classpath"))
     val cp = gxpcJar.getAbsolutePath
-    // Invoke gxpc CLI: set source base, output dir, and language; pass all .gxp files as inputs
+    // Invoke gxpc CLI: --source is the GXP root, --dir is the output root
     val args = Seq(
       "com.google.gxp.compiler.cli.Gxpc",
-      "--source", srcDir.getAbsolutePath,
+      "--source", gxpRoot.getAbsolutePath,
       "--dir", genDir.getAbsolutePath,
       "--output_language", "java"
     ) ++ gxpSrcs.map(_.getAbsolutePath)
@@ -623,35 +960,41 @@ ThisBuild / generateFlags := {
   val base = baseDirectory.value
   val genDir = base / "gen" / "flags" / "org" / "waveprotocol" / "box" / "clientflags"
   val toolClasses = base / "target" / "flags-tool-classes"
-  IO.createDirectory(genDir)
-  IO.createDirectory(toolClasses)
 
-  // Compile the flag generator tool
-  val generatorSources = {
-    val flagsSrcs = (base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "wave" / "util" / "flags" ** "*.java").get
-    val valueUtils = base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "wave" / "model" / "util" / "ValueUtils.java"
-    if (valueUtils.exists) flagsSrcs :+ valueUtils else flagsSrcs
-  }
-  val runtimeJars = (base / "third_party" / "runtime" ** "*.jar").classpath
-    .map(_.data.getAbsolutePath)
-    // Exclude jars with broken manifests and legacy protobuf runtime
-    .filterNot { p =>
-      val n = new java.io.File(p).getName
-      n.startsWith("guava-treerangemap") || n == "protobuf-java-2.5.0.jar"
+  // Guard: FlagConstants.java is already checked-in under wave/src/main/java and the
+  // ClientFlagsGenerator tool + client.default.config are not present in this repository.
+  // Skip generation if either prerequisite is missing.
+  val configFile = base / "client.default.config"
+  val generatorSources = (base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "wave" / "util" / "flags" ** "*.java").get
+  if (!configFile.exists) {
+    log.info("client.default.config not found; skipping flag generation (FlagConstants.java is already checked in)")
+  } else if (generatorSources.isEmpty) {
+    log.info("Flag generator sources not found; skipping flag generation (FlagConstants.java is already checked in)")
+  } else {
+    IO.createDirectory(genDir)
+    IO.createDirectory(toolClasses)
+
+    // Compile the flag generator tool
+    val allSources = {
+      val valueUtils = base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "wave" / "model" / "util" / "ValueUtils.java"
+      if (valueUtils.exists) generatorSources :+ valueUtils else generatorSources
     }
-  val cp = runtimeJars.mkString(java.io.File.pathSeparator)
-  val javacCmd = Seq("javac", "-g", "-cp", cp, "-d", toolClasses.getAbsolutePath) ++ generatorSources.map(_.getAbsolutePath)
-  runCmd(log)(javacCmd, base)
+    // Use managed dependency classpath (Phase 2)
+    val depCp = (Compile / dependencyClasspath).value.map(_.data.getAbsolutePath)
+    val cp = depCp.mkString(java.io.File.pathSeparator)
+    val javacCmd = Seq("javac", "-g", "-cp", cp, "-d", toolClasses.getAbsolutePath) ++ allSources.map(_.getAbsolutePath)
+    runCmd(log)(javacCmd, base)
 
-  // Run the generator
-  val javaCp = (Seq(toolClasses.getAbsolutePath) ++ runtimeJars).mkString(java.io.File.pathSeparator)
-  val args = Seq(
-    (base / "client.default.config").getAbsolutePath,
-    "org.waveprotocol.box.clientflags",
-    genDir.getAbsolutePath + java.io.File.separator
-  )
-  val run = Seq("java", "-cp", javaCp, "org.waveprotocol.wave.util.flags.ClientFlagsGenerator") ++ args
-  runCmd(log)(run, base)
+    // Run the generator
+    val javaCp = (Seq(toolClasses.getAbsolutePath) ++ depCp).mkString(java.io.File.pathSeparator)
+    val args = Seq(
+      configFile.getAbsolutePath,
+      "org.waveprotocol.box.clientflags",
+      genDir.getAbsolutePath + java.io.File.separator
+    )
+    val run = Seq("java", "-cp", javaCp, "org.waveprotocol.wave.util.flags.ClientFlagsGenerator") ++ args
+    runCmd(log)(run, base)
+  }
 }
 
 // Ensure codegen runs before compilation
@@ -659,10 +1002,111 @@ ThisBuild / generateFlags := {
 generatePstMessages := (generatePstMessages).dependsOn(Compile / PB.generate).value
 
 Compile / compile := (Compile / compile)
-  // .dependsOn(generatePstMessages) // disabled for now - requires JDK; can be run manually with `sbt generatePstMessages`
-  // .dependsOn(generateFlags) // disabled for now - requires JDK; can be run manually with `sbt generateFlags`
-  // .dependsOn(generateGxp) // disabled for now - requires gxpc jar; can be run manually with `sbt generateGxp`
+  .dependsOn(generatePstMessages)
+  .dependsOn(generateFlags)
+  .dependsOn(generateGxp)
   .value
 
 // Ensure `run` has a config in place
 Compile / run := (Compile / run).dependsOn(prepareServerConfig).evaluated
+
+// =============================================================================
+// Phase 6: GWT Compilation Bridge
+// =============================================================================
+// GWT compilation is complex: it requires Jetty 9.4 on the classpath (gwt-dev
+// bundles it), source directories as classpath entries, and the GWT Compiler
+// main class (com.google.gwt.dev.Compiler). There is no maintained SBT GWT
+// plugin, so we use a transitional bridge that delegates to Gradle when
+// available and falls back to a native Fork.java invocation otherwise.
+//
+// GWT tests (testGwt) are disabled in CI and deferred to a future phase.
+// The Gradle build defines them but they are not part of the default test task.
+// =============================================================================
+
+// Dedicated GWT configuration — does NOT extend Compile to avoid pulling
+// Jetty 12 (jakarta) or Jetty 9.4 (javax) from the main compile classpath.
+// GWT ships its own embedded Jetty 9.4 inside gwt-dev.jar.
+lazy val Gwt = config("gwt").hide
+
+ivyConfigurations += Gwt
+
+lazy val GwtVersion = "2.10.0"
+
+libraryDependencies ++= Seq(
+  "org.gwtproject" % "gwt-dev"        % GwtVersion % Gwt,
+  "org.gwtproject" % "gwt-user"       % GwtVersion % Gwt,
+  "org.gwtproject" % "gwt-codeserver" % GwtVersion % Gwt,
+  "com.google.guava" % "guava-gwt"    % "20.0"     % Gwt
+)
+
+// Setting to control whether compileGwt is wired into stage/package tasks.
+// CI can pass -DskipGwt=true to skip GWT compilation entirely.
+lazy val skipGwt = settingKey[Boolean]("Skip GWT compilation (default: false, set -DskipGwt=true to skip)")
+ThisBuild / skipGwt := sys.props.get("skipGwt").exists(_.trim.toLowerCase == "true")
+
+lazy val compileGwt = taskKey[Unit]("Compile GWT client (delegates to Gradle when available, otherwise uses native Fork.java)")
+
+ThisBuild / compileGwt := {
+  val log      = streams.value.log
+  val base     = baseDirectory.value
+  val skip     = (ThisBuild / skipGwt).value
+  // Eagerly resolve these outside any if-branch so SBT's task macro is happy.
+  // They are only used in native mode but must be evaluated statically.
+  val resolved = update.value
+  val compileCp = (Compile / dependencyClasspath).value.map(_.data)
+
+  if (skip) {
+    log.info("[compileGwt] Skipped (skipGwt=true)")
+  } else {
+    val gradlew = base / "gradlew"
+    if (gradlew.exists && gradlew.canExecute) {
+      // --- Bridge mode: delegate to Gradle ---
+      log.info("[compileGwt] Bridge mode — delegating to Gradle")
+      val cmd = Seq(gradlew.getAbsolutePath, "--no-daemon", ":wave:compileGwt")
+      val code = Process(cmd, base).!(ProcessLogger(s => log.info(s), e => log.error(e)))
+      if (code != 0) sys.error("[compileGwt] Gradle delegation failed (exit " + code + ")")
+    } else {
+      // --- Native SBT mode: fork GWT Compiler directly ---
+      log.info("[compileGwt] Native mode — forking com.google.gwt.dev.Compiler")
+
+      // GWT needs Java source directories on the classpath (for translatable source)
+      val javaSrcDirs = Seq(
+        base / "wave" / "src" / "main" / "java",
+        base / "wave" / "generated" / "src" / "main" / "java",
+        base / "proto_src",
+        base / "gen" / "messages",
+        base / "gen" / "gxp",
+        base / "gen" / "flags"
+      ).filter(_.exists)
+
+      // Resolve the isolated Gwt configuration (gwt-dev, gwt-user, gwt-codeserver, guava-gwt)
+      val gwtJars = resolved.select(configurationFilter(Gwt.name))
+
+      // Full classpath: source dirs (first, for GWT source lookup) + GWT jars + compile classpath
+      val fullCp = javaSrcDirs ++ gwtJars ++ compileCp
+
+      val forkOpts = ForkOptions()
+        .withRunJVMOptions(Vector("-Xmx1024M"))
+
+      val gwtArgs = Seq(
+        "-style", "OBFUSCATED",
+        "-XdisableClassMetadata",
+        "-XdisableCastChecking",
+        "-localWorkers", "4",
+        "org.waveprotocol.box.webclient.WebClientProd"
+      )
+
+      log.info("[compileGwt] Classpath has " + fullCp.size + " entries")
+      val cpStr = fullCp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
+
+      val exitCode = Fork.java(
+        forkOpts,
+        Seq("-cp", cpStr, "com.google.gwt.dev.Compiler") ++ gwtArgs
+      )
+      if (exitCode != 0) sys.error("[compileGwt] GWT Compiler failed (exit " + exitCode + ")")
+    }
+  }
+}
+
+// Wire compileGwt to run after compileJava (GWT needs compiled classes)
+compileGwt := (compileGwt).dependsOn(Compile / compile).value

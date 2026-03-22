@@ -980,7 +980,7 @@ generatePstMessages := (generatePstMessages).dependsOn(Compile / PB.generate).va
 Compile / compile := (Compile / compile)
   .dependsOn(generatePstMessages)
   .dependsOn(generateFlags)
-  // .dependsOn(generateGxp) // disabled — requires gxpc jar; can be run manually with `sbt generateGxp`
+  .dependsOn(generateGxp)
   .value
 
 // Ensure `run` has a config in place

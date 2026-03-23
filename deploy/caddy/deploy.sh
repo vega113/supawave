@@ -110,6 +110,8 @@ compose_up() {
   ROOT_HOST="$root_host" \
   WWW_HOST="$www_host" \
   WAVE_INTERNAL_PORT="$internal_port" \
+  RESEND_API_KEY="${RESEND_API_KEY:-}" \
+  WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
     docker compose --project-name "$project_name" -f "$release_dir/compose.yml" up -d --remove-orphans
 }
 
@@ -159,6 +161,8 @@ rollback_release() {
   ROOT_HOST="$root_host" \
   WWW_HOST="$www_host" \
   WAVE_INTERNAL_PORT="$internal_port" \
+  RESEND_API_KEY="${RESEND_API_KEY:-}" \
+  WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
     docker compose --project-name "$project_name" -f "$deploy_root/current/compose.yml" up -d --remove-orphans
 
   wait_for_ready

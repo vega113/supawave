@@ -105,7 +105,6 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
 
   // --- Exact excludes under src/jakarta-overrides/java (Gradle lines 341-349) ---
   val jakartaExactExcludes: Set[String] = Set(
-    "com/google/wave/api/AbstractRobot.java",
     "org/waveprotocol/box/server/robots/RobotApiModule.java",
     "org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java",
     "org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java",

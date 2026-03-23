@@ -48,17 +48,20 @@ public final class UserRegistrationServlet extends HttpServlet {
   private final String domain;
   private final boolean registrationDisabled;
   private final String analyticsAccount;
+  private final WelcomeWaveCreator welcomeWaveCreator;
 
   @Inject
   public UserRegistrationServlet(AccountStore accountStore,
                                  @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
-                                 Config config) {
+                                 Config config,
+                                 WelcomeWaveCreator welcomeWaveCreator) {
     this.accountStore = accountStore;
     this.domain = domain;
     this.registrationDisabled = config.getBoolean("administration.disable_registration");
     this.analyticsAccount = config.hasPath("administration.analytics_account")
         ? config.getString("administration.analytics_account")
         : "";
+    this.welcomeWaveCreator = welcomeWaveCreator;
   }
 
   @Override
@@ -116,6 +119,12 @@ public final class UserRegistrationServlet extends HttpServlet {
 
     if (!RegistrationSupport.createAccount(accountStore, id, digest)) {
       return "An unexpected error occurred while trying to create the account";
+    }
+
+    try {
+      welcomeWaveCreator.createWelcomeWave(id);
+    } catch (Exception e) {
+      // Welcome wave failure must not block registration.
     }
 
     return null;

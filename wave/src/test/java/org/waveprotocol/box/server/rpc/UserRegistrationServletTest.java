@@ -47,6 +47,8 @@ import java.util.Locale;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.waveprotocol.box.server.rpc.WelcomeWaveCreator;
+
 /**
  * @author josephg@gmail.com (Joseph Gentle)
  */
@@ -54,6 +56,7 @@ public class UserRegistrationServletTest extends TestCase {
   private final AccountData account = new HumanAccountDataImpl(
       ParticipantId.ofUnsafe("frodo@example.com"), new PasswordDigest("password".toCharArray()));
   private AccountStore store;
+  private WelcomeWaveCreator welcomeWaveCreator;
 
   @Mock private HttpServletRequest req;
   @Mock private HttpServletResponse resp;
@@ -63,7 +66,7 @@ public class UserRegistrationServletTest extends TestCase {
     MockitoAnnotations.initMocks(this);
     store = new MemoryStore();
     store.putAccount(account);
-
+    welcomeWaveCreator = mock(WelcomeWaveCreator.class);
   }
 
   public void testRegisterNewUserEnabled() throws Exception {
@@ -133,14 +136,14 @@ public class UserRegistrationServletTest extends TestCase {
       "administration.analytics_account", "UA-someid")
     );
     UserRegistrationServlet enabledServlet =
-        new UserRegistrationServlet(store, "example.com", config1);
+        new UserRegistrationServlet(store, "example.com", config1, welcomeWaveCreator);
 
     Config config2 = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "administration.disable_registration", true,
       "administration.analytics_account", "UA-someid")
     );
     UserRegistrationServlet disabledServlet =
-        new UserRegistrationServlet(store, "example.com", config2);
+        new UserRegistrationServlet(store, "example.com", config2, welcomeWaveCreator);
 
     when(req.getParameter("address")).thenReturn(address);
     when(req.getParameter("password")).thenReturn(password);

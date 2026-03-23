@@ -273,7 +273,12 @@ plumbing** (Conversation API, views, controllers, servlets, toolbar) is absent.
 
 ### Tags -- model (Phase 1)
 
-Source directory: `/Users/vega/devroot/Wiab.pro/src/org/waveprotocol`
+Source directory: `${WIAB_PRO_ROOT}/src/org/waveprotocol`
+
+> **Setup note**: `${WIAB_PRO_ROOT}` refers to the root of your local
+> [Wiab.pro](https://github.com/nicedoc/Wiab.pro) checkout. Clone the
+> repository and set the variable (or substitute the path) before using
+> the file references below.
 
 | Wiab.pro file | Action |
 |--------------|--------|

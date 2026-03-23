@@ -210,8 +210,12 @@ public final class DynamicRendererImpl implements ObservableDynamicRenderer<Elem
     // Ensure the target blip is paged in.
     if (!pagedIn.contains(startBlip)) {
       queue.add(startBlip);
-      pagedIn.add(startBlip);
-      queue.flush();
+      try {
+        queue.flush();
+        pagedIn.add(startBlip);
+      } catch (Throwable t) {
+        GWT.log("DynamicRenderer: flush failed for startBlip, not marking as ready", t);
+      }
     }
     fireBlipRendered(startBlip);
     fireBlipReady(startBlip);
@@ -812,8 +816,13 @@ public final class DynamicRendererImpl implements ObservableDynamicRenderer<Elem
 
   // ---- Listener notification helpers ----
 
+  /** Returns a snapshot of the listener set to avoid ConcurrentModificationException. */
+  private List<ObservableDynamicRenderer.Listener> listenerSnapshot() {
+    return new ArrayList<>(rendererListeners);
+  }
+
   private void fireBeforeRenderingStarted() {
-    for (ObservableDynamicRenderer.Listener l : rendererListeners) {
+    for (ObservableDynamicRenderer.Listener l : listenerSnapshot()) {
       try {
         l.onBeforeRenderingStarted();
       } catch (Throwable t) {
@@ -825,7 +834,7 @@ public final class DynamicRendererImpl implements ObservableDynamicRenderer<Elem
   }
 
   private void fireBeforePhaseStarted() {
-    for (ObservableDynamicRenderer.Listener l : rendererListeners) {
+    for (ObservableDynamicRenderer.Listener l : listenerSnapshot()) {
       try {
         l.onBeforePhaseStarted();
       } catch (Throwable t) {
@@ -837,7 +846,7 @@ public final class DynamicRendererImpl implements ObservableDynamicRenderer<Elem
   }
 
   private void fireBlipRendered(ConversationBlip blip) {
-    for (ObservableDynamicRenderer.Listener l : rendererListeners) {
+    for (ObservableDynamicRenderer.Listener l : listenerSnapshot()) {
       try {
         l.onBlipRendered(blip);
       } catch (Throwable t) {
@@ -849,7 +858,7 @@ public final class DynamicRendererImpl implements ObservableDynamicRenderer<Elem
   }
 
   private void fireBlipReady(ConversationBlip blip) {
-    for (ObservableDynamicRenderer.Listener l : rendererListeners) {
+    for (ObservableDynamicRenderer.Listener l : listenerSnapshot()) {
       try {
         l.onBlipReady(blip);
       } catch (Throwable t) {
@@ -861,7 +870,7 @@ public final class DynamicRendererImpl implements ObservableDynamicRenderer<Elem
   }
 
   private void firePhaseFinished(ObservableDynamicRenderer.RenderResult result) {
-    for (ObservableDynamicRenderer.Listener l : rendererListeners) {
+    for (ObservableDynamicRenderer.Listener l : listenerSnapshot()) {
       try {
         l.onPhaseFinished(result);
       } catch (Throwable t) {
@@ -873,7 +882,7 @@ public final class DynamicRendererImpl implements ObservableDynamicRenderer<Elem
   }
 
   private void fireRenderingFinished(ObservableDynamicRenderer.RenderResult result) {
-    for (ObservableDynamicRenderer.Listener l : rendererListeners) {
+    for (ObservableDynamicRenderer.Listener l : listenerSnapshot()) {
       try {
         l.onRenderingFinished(result);
       } catch (Throwable t) {

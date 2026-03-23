@@ -15,6 +15,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.waveprotocol.box.server.robots.active.ActiveApiOperationServiceRegistry;
+import org.waveprotocol.box.server.robots.agent.LocalOperationSubmitter;
 import org.waveprotocol.box.server.robots.dataapi.DataApiOperationServiceRegistry;
 import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
 import org.waveprotocol.box.server.robots.passive.RobotConnector;
@@ -34,6 +35,7 @@ public final class JakartaRobotApiBindingsModule extends AbstractModule {
     install(new RobotSerializerModule());
     bind(RobotRegistrar.class).to(RobotRegistrarImpl.class).in(Singleton.class);
     bind(RobotCapabilityFetcher.class).to(RobotConnector.class);
+    bind(LocalOperationSubmitter.class).in(Singleton.class);
   }
 
   @Provides

@@ -338,7 +338,6 @@ sourceSets.main.java {
         }
         if (underJakarta) {
             def jakartaExactExcludes = [
-                'com/google/wave/api/AbstractRobot.java',
                 'org/waveprotocol/box/server/robots/RobotApiModule.java',
                 'org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java',
                 'org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java',

@@ -46,6 +46,9 @@ services:
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/indexes:/opt/wave/_indexes
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/sessions:/opt/wave/_sessions
       - ./application.conf:/opt/wave/config/application.conf:ro
+    environment:
+      - RESEND_API_KEY=${RESEND_API_KEY:?set RESEND_API_KEY before deploying}
+      - WAVE_MAIL_PROVIDER=${WAVE_MAIL_PROVIDER:-logging}
 
   caddy:
     image: caddy:2.8.4-alpine

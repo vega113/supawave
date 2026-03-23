@@ -107,14 +107,32 @@ public final class HtmlRenderer {
   /**
    * Renders the login page.
    *
-   * @param domain           the wave server domain (e.g. "example.com")
-   * @param message          status message to display (may be empty)
-   * @param responseType     one of "NONE", "FAILED", "SUCCESS"
-   * @param disableLoginPage if true, show a disabled-auth notice instead of the form
-   * @param analyticsAccount Google Analytics account ID (may be null/empty)
+   * @param domain              the wave server domain (e.g. "example.com")
+   * @param message             status message to display (may be empty)
+   * @param responseType        one of "NONE", "FAILED", "SUCCESS"
+   * @param disableLoginPage    if true, show a disabled-auth notice instead of the form
+   * @param analyticsAccount    Google Analytics account ID (may be null/empty)
    */
   public static String renderAuthenticationPage(String domain, String message,
       String responseType, boolean disableLoginPage, String analyticsAccount) {
+    return renderAuthenticationPage(domain, message, responseType, disableLoginPage,
+        analyticsAccount, false, false);
+  }
+
+  /**
+   * Renders the login page with optional email auth links.
+   *
+   * @param domain              the wave server domain (e.g. "example.com")
+   * @param message             status message to display (may be empty)
+   * @param responseType        one of "NONE", "FAILED", "SUCCESS"
+   * @param disableLoginPage    if true, show a disabled-auth notice instead of the form
+   * @param analyticsAccount    Google Analytics account ID (may be null/empty)
+   * @param passwordResetEnabled whether to show "Forgot password?" link
+   * @param magicLinkEnabled     whether to show "Login with email" link
+   */
+  public static String renderAuthenticationPage(String domain, String message,
+      String responseType, boolean disableLoginPage, String analyticsAccount,
+      boolean passwordResetEnabled, boolean magicLinkEnabled) {
     StringBuilder sb = new StringBuilder(4096);
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
@@ -144,6 +162,16 @@ public final class HtmlRenderer {
       sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
       sb.append("    <input type=\"submit\" class=\"btn-primary\" name=\"signIn\" id=\"signIn\" value=\"Sign in\">\n");
       sb.append("  </form>\n");
+      if (passwordResetEnabled) {
+        sb.append("  <div class=\"footer-link\">\n");
+        sb.append("    <a href=\"/auth/password-reset\">Forgot password?</a>\n");
+        sb.append("  </div>\n");
+      }
+      if (magicLinkEnabled) {
+        sb.append("  <div class=\"footer-link\">\n");
+        sb.append("    <a href=\"/auth/magic-link\">Login with email link</a>\n");
+        sb.append("  </div>\n");
+      }
       sb.append("  <div class=\"footer-link\">\n");
       sb.append("    Don't have an account? <a href=\"/auth/register\">Register</a>\n");
       sb.append("  </div>\n");
@@ -563,7 +591,241 @@ public final class HtmlRenderer {
   }
 
   // =========================================================================
-  // 9. Analytics Fragment (private helper)
+  // 9. Password Reset Request Page
+  // =========================================================================
+
+  /**
+   * Renders the password reset request page (enter your username/email).
+   */
+  public static String renderPasswordResetRequestPage(String domain, String message,
+      String responseType, String analyticsAccount) {
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Reset Password - Wave in a Box</title>\n");
+    sb.append(AUTH_CSS);
+    appendAnalyticsFragment(sb, analyticsAccount, null);
+    sb.append("</head>\n<body onload=\"init()\">\n");
+
+    sb.append("<div class=\"card\">\n");
+    sb.append("  <h1>Reset Password</h1>\n");
+    sb.append("  <div class=\"subtitle\">Enter your username to receive a reset link</div>\n");
+
+    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
+
+    sb.append("  <form id=\"resetForm\" method=\"post\" action=\"\">\n");
+    sb.append("    <label for=\"address\">Username</label>\n");
+    sb.append("    <div class=\"input-group\">\n");
+    sb.append("      <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
+    sb.append("      <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+    sb.append("    </div>\n");
+    sb.append("    <input type=\"submit\" class=\"btn-primary\" value=\"Send Reset Link\">\n");
+    sb.append("  </form>\n");
+
+    sb.append("  <div class=\"footer-link\">\n");
+    sb.append("    <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    sb.append("<script>\n");
+    sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
+    sb.append("var RESPONSE_STATUS_FAILED = \"FAILED\";\n");
+    sb.append("var RESPONSE_STATUS_SUCCESS = \"SUCCESS\";\n");
+    sb.append("var message = ").append(escapeJsonString(message)).append(";\n");
+    sb.append("var responseType = ").append(escapeJsonString(responseType)).append(";\n");
+    sb.append("function init() { handleResponse(responseType, message); }\n");
+    sb.append("function handleResponse(rt, msg) {\n");
+    sb.append("  var lbl = document.getElementById(\"messageLbl\");\n");
+    sb.append("  if (!lbl) return;\n");
+    sb.append("  if (rt == RESPONSE_STATUS_NONE) { lbl.style.display = \"none\"; }\n");
+    sb.append("  else if (rt == RESPONSE_STATUS_FAILED) {\n");
+    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg error\"; lbl.innerHTML = msg;\n");
+    sb.append("  } else if (rt == RESPONSE_STATUS_SUCCESS) {\n");
+    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg success\"; lbl.innerHTML = msg;\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
+  // 10. Password Reset Form Page (new password)
+  // =========================================================================
+
+  /**
+   * Renders the password reset form page (enter new password).
+   */
+  public static String renderPasswordResetFormPage(String domain, String token, String message,
+      String responseType, String analyticsAccount) {
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Set New Password - Wave in a Box</title>\n");
+    sb.append(AUTH_CSS);
+    appendAnalyticsFragment(sb, analyticsAccount, null);
+    sb.append("</head>\n<body onload=\"init()\">\n");
+
+    sb.append("<div class=\"card\">\n");
+    sb.append("  <h1>Set New Password</h1>\n");
+    sb.append("  <div class=\"subtitle\">Enter your new password below</div>\n");
+
+    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
+
+    sb.append("  <form id=\"resetForm\" method=\"post\" action=\"\">\n");
+    sb.append("    <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(token)).append("\">\n");
+    sb.append("    <label for=\"password\">New Password</label>\n");
+    sb.append("    <input type=\"password\" name=\"password\" id=\"password\" autocomplete=\"new-password\">\n");
+    sb.append("    <label for=\"confirmPassword\">Confirm Password</label>\n");
+    sb.append("    <input type=\"password\" name=\"confirmPassword\" id=\"confirmPassword\" autocomplete=\"new-password\">\n");
+    sb.append("    <input type=\"submit\" class=\"btn-primary\" value=\"Update Password\">\n");
+    sb.append("  </form>\n");
+
+    sb.append("  <div class=\"footer-link\">\n");
+    sb.append("    <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    sb.append("<script>\n");
+    sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
+    sb.append("var RESPONSE_STATUS_FAILED = \"FAILED\";\n");
+    sb.append("var RESPONSE_STATUS_SUCCESS = \"SUCCESS\";\n");
+    sb.append("var message = ").append(escapeJsonString(message)).append(";\n");
+    sb.append("var responseType = ").append(escapeJsonString(responseType)).append(";\n");
+    sb.append("function init() { handleResponse(responseType, message); }\n");
+    sb.append("function handleResponse(rt, msg) {\n");
+    sb.append("  var lbl = document.getElementById(\"messageLbl\");\n");
+    sb.append("  if (!lbl) return;\n");
+    sb.append("  if (rt == RESPONSE_STATUS_NONE) { lbl.style.display = \"none\"; }\n");
+    sb.append("  else if (rt == RESPONSE_STATUS_FAILED) {\n");
+    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg error\"; lbl.innerHTML = msg;\n");
+    sb.append("  } else if (rt == RESPONSE_STATUS_SUCCESS) {\n");
+    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg success\"; lbl.innerHTML = msg;\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
+  // 11. Magic Link Request Page
+  // =========================================================================
+
+  /**
+   * Renders the magic link login request page.
+   */
+  public static String renderMagicLinkRequestPage(String domain, String message,
+      String responseType, String analyticsAccount) {
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Login with Email - Wave in a Box</title>\n");
+    sb.append(AUTH_CSS);
+    appendAnalyticsFragment(sb, analyticsAccount, null);
+    sb.append("</head>\n<body onload=\"init()\">\n");
+
+    sb.append("<div class=\"card\">\n");
+    sb.append("  <h1>Login with Email</h1>\n");
+    sb.append("  <div class=\"subtitle\">Enter your username to receive a login link</div>\n");
+
+    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
+
+    sb.append("  <form id=\"magicForm\" method=\"post\" action=\"\">\n");
+    sb.append("    <label for=\"address\">Username</label>\n");
+    sb.append("    <div class=\"input-group\">\n");
+    sb.append("      <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
+    sb.append("      <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+    sb.append("    </div>\n");
+    sb.append("    <input type=\"submit\" class=\"btn-primary\" value=\"Send Login Link\">\n");
+    sb.append("  </form>\n");
+
+    sb.append("  <div class=\"footer-link\">\n");
+    sb.append("    <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    sb.append("<script>\n");
+    sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
+    sb.append("var RESPONSE_STATUS_FAILED = \"FAILED\";\n");
+    sb.append("var RESPONSE_STATUS_SUCCESS = \"SUCCESS\";\n");
+    sb.append("var message = ").append(escapeJsonString(message)).append(";\n");
+    sb.append("var responseType = ").append(escapeJsonString(responseType)).append(";\n");
+    sb.append("function init() { handleResponse(responseType, message); }\n");
+    sb.append("function handleResponse(rt, msg) {\n");
+    sb.append("  var lbl = document.getElementById(\"messageLbl\");\n");
+    sb.append("  if (!lbl) return;\n");
+    sb.append("  if (rt == RESPONSE_STATUS_NONE) { lbl.style.display = \"none\"; }\n");
+    sb.append("  else if (rt == RESPONSE_STATUS_FAILED) {\n");
+    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg error\"; lbl.innerHTML = msg;\n");
+    sb.append("  } else if (rt == RESPONSE_STATUS_SUCCESS) {\n");
+    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg success\"; lbl.innerHTML = msg;\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
+  // 12. Email Confirmation Page
+  // =========================================================================
+
+  /**
+   * Renders the email confirmation result page.
+   */
+  public static String renderEmailConfirmationPage(String domain, String message,
+      String responseType, String analyticsAccount) {
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Email Confirmation - Wave in a Box</title>\n");
+    sb.append(AUTH_CSS);
+    appendAnalyticsFragment(sb, analyticsAccount, null);
+    sb.append("</head>\n<body onload=\"init()\">\n");
+
+    sb.append("<div class=\"card\">\n");
+    sb.append("  <h1>Email Confirmation</h1>\n");
+
+    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
+
+    sb.append("  <div class=\"footer-link\">\n");
+    sb.append("    <a href=\"/auth/signin\">Go to Sign In</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    sb.append("<script>\n");
+    sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
+    sb.append("var RESPONSE_STATUS_FAILED = \"FAILED\";\n");
+    sb.append("var RESPONSE_STATUS_SUCCESS = \"SUCCESS\";\n");
+    sb.append("var message = ").append(escapeJsonString(message)).append(";\n");
+    sb.append("var responseType = ").append(escapeJsonString(responseType)).append(";\n");
+    sb.append("function init() { handleResponse(responseType, message); }\n");
+    sb.append("function handleResponse(rt, msg) {\n");
+    sb.append("  var lbl = document.getElementById(\"messageLbl\");\n");
+    sb.append("  if (!lbl) return;\n");
+    sb.append("  if (rt == RESPONSE_STATUS_NONE) { lbl.style.display = \"none\"; }\n");
+    sb.append("  else if (rt == RESPONSE_STATUS_FAILED) {\n");
+    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg error\"; lbl.innerHTML = msg;\n");
+    sb.append("  } else if (rt == RESPONSE_STATUS_SUCCESS) {\n");
+    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg success\"; lbl.innerHTML = msg;\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
+  // 13. Analytics Fragment (private helper)
   // =========================================================================
 
   /**

@@ -68,7 +68,7 @@ incubator-wave/
 | Logging | SLF4J 2.x + Logback 1.5.6 |
 | Metrics | Micrometer + Prometheus registry |
 | Crypto | BouncyCastle |
-| Test | JUnit 4.12, Mockito 2.2.21, TestContainers 1.19.7 |
+| Test | JUnit 4.12, Mockito 2.2.21, TestContainers 1.21.4 |
 | Deploy | Docker, Caddy, SystemD, GitHub Actions |
 
 ### Entry Points

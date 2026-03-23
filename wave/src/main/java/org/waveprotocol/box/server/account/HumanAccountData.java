@@ -44,6 +44,21 @@ public interface HumanAccountData extends AccountData {
   PasswordDigest getPasswordDigest();
 
   /**
+   * Returns whether the user's email address has been confirmed.
+   * Defaults to true for backward compatibility with existing accounts.
+   *
+   * @return true if the email is confirmed (or confirmation is not required).
+   */
+  boolean isEmailConfirmed();
+
+  /**
+   * Sets the email confirmation status.
+   *
+   * @param confirmed true if the email has been confirmed.
+   */
+  void setEmailConfirmed(boolean confirmed);
+
+  /**
    * Gets user's locale.
    *
    * @return The user's locale.

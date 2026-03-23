@@ -65,6 +65,8 @@ public class PersistenceModule extends AbstractModule {
   private final String mongoDBPort;
 
   private final String mongoDBdatabase;
+  private final String mongoDBUsername;
+  private final String mongoDBPassword;
   private final String mongoDriver;
 
 
@@ -77,6 +79,8 @@ public class PersistenceModule extends AbstractModule {
     this.mongoDBHost = config.getString("core.mongodb_host");
     this.mongoDBPort = config.getString("core.mongodb_port");
     this.mongoDBdatabase = config.getString("core.mongodb_database");
+    this.mongoDBUsername = config.hasPath("core.mongodb_username") ? config.getString("core.mongodb_username") : "";
+    this.mongoDBPassword = config.hasPath("core.mongodb_password") ? config.getString("core.mongodb_password") : "";
     this.mongoDriver = config.hasPath("core.mongodb_driver") ? config.getString("core.mongodb_driver") : "v2";
   }
 
@@ -92,7 +96,8 @@ public class PersistenceModule extends AbstractModule {
 
   public org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider getMongo4Provider() {
     if (mongo4Provider == null) {
-      mongo4Provider = new org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider(mongoDBHost, mongoDBPort, mongoDBdatabase);
+      mongo4Provider = new org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider(
+          mongoDBHost, mongoDBPort, mongoDBdatabase, mongoDBUsername, mongoDBPassword);
     }
     return mongo4Provider;
   }

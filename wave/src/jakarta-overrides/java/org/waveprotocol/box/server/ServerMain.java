@@ -28,6 +28,7 @@ import org.waveprotocol.box.server.rpc.*;
 import org.waveprotocol.box.server.robots.ProfileFetcherModule;
 import org.waveprotocol.box.server.robots.JakartaRobotApiBindingsModule;
 import org.waveprotocol.box.server.robots.RobotRegistrationServlet;
+import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiTokenServlet;
@@ -111,6 +112,7 @@ public class ServerMain {
 
     initializeServer(injector, domain);
     initializeServlets(server, config);
+    initializeRobots(injector, waveBus);
     initializeFrontend(injector, server, waveBus);
     initializeSearch(injector, waveBus);
     initializeShutdownHandler(server);
@@ -161,6 +163,11 @@ public class ServerMain {
     server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
     server.addServlet("/robot/dataapi/token", DataApiTokenServlet.class);
     server.addServlet("/", WaveClientServlet.class);
+  }
+
+  private static void initializeRobots(Injector injector, WaveBus waveBus) {
+    RobotsGateway robotsGateway = injector.getInstance(RobotsGateway.class);
+    waveBus.subscribe(robotsGateway);
   }
 
   private static void initializeFrontend(Injector injector, ServerRpcProvider server,

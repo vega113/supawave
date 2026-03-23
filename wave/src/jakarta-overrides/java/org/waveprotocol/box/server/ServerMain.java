@@ -162,7 +162,54 @@ public class ServerMain {
     server.addServlet("/robot/dataapi", DataApiServlet.class);
     server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
     server.addServlet("/robot/dataapi/token", DataApiTokenServlet.class);
+
+    // Register FragmentsServlet for HTTP fragment transport (mirrors main ServerMain logic).
+    try {
+      String transport = readFragmentsTransport(config);
+      if (transport == null || transport.isEmpty()) {
+        transport = "off";
+      }
+      if (isFragmentsHttpEnabled(transport)) {
+        server.addServlet("/fragments", FragmentsServlet.class);
+        server.addServlet("/fragments/*", FragmentsServlet.class);
+      } else {
+        LOG.info("Fragments HTTP endpoint is disabled (effective transport='" + transport + "')");
+      }
+    } catch (Exception e) {
+      LOG.warning("Failed to configure fragments transport/endpoints; leaving /fragments disabled", e);
+    }
+
     server.addServlet("/", WaveClientServlet.class);
+  }
+
+  /**
+   * Reads the unified fragments transport from Typesafe Config.
+   * Expected values: off | http | stream | both
+   */
+  private static String readFragmentsTransport(Config config) {
+    try {
+      if (config.hasPath("server.fragments.transport")) {
+        String v = config.getString("server.fragments.transport");
+        if (v != null) {
+          v = v.trim().toLowerCase();
+          if (!v.isEmpty()) {
+            return v;
+          }
+        }
+      }
+    } catch (Exception e) {
+      LOG.warning("Error reading server.fragments.transport", e);
+    }
+    return null;
+  }
+
+  private static boolean isFragmentsHttpEnabled(String transport) {
+    if (transport == null) {
+      return false;
+    }
+    // Enable HTTP endpoint for http, both, and stream modes (stream mode needs
+    // the HTTP endpoint as a fallback before the view channel is ready).
+    return "http".equals(transport) || "both".equals(transport) || "stream".equals(transport);
   }
 
   private static void initializeRobots(Injector injector, WaveBus waveBus) {

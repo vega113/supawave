@@ -363,7 +363,8 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
         .append(ROBOT_URL_FIELD, account.getUrl())
         .append(ROBOT_SECRET_FIELD, account.getConsumerSecret())
         .append(ROBOT_CAPABILITIES_FIELD, capabilitiesToObject(account.getCapabilities()))
-        .append(ROBOT_VERIFIED_FIELD, account.isVerified());
+        .append(ROBOT_VERIFIED_FIELD, account.isVerified())
+        .append("tokenExpirySeconds", account.getTokenExpirySeconds());
   }
 
   private DBObject capabilitiesToObject(RobotCapabilities capabilities) {
@@ -398,7 +399,9 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     RobotCapabilities capabilities =
         objectToCapabilities((DBObject) robot.get(ROBOT_CAPABILITIES_FIELD));
     boolean verified = (Boolean) robot.get(ROBOT_VERIFIED_FIELD);
-    return new RobotAccountDataImpl(id, url, secret, capabilities, verified);
+    Object tokenExpiryObj = robot.get("tokenExpirySeconds");
+    long tokenExpirySeconds = tokenExpiryObj instanceof Number ? ((Number) tokenExpiryObj).longValue() : 0L;
+    return new RobotAccountDataImpl(id, url, secret, capabilities, verified, tokenExpirySeconds);
   }
 
   @SuppressWarnings("unchecked")

@@ -445,6 +445,13 @@ public final class HtmlRenderer {
     sb.append("    </div>\n");
     sb.append("    <label for=\"location\">Robot URL</label>\n");
     sb.append("    <input type=\"text\" name=\"location\" id=\"location\">\n");
+    sb.append("    <label for=\"token_expiry\">Token Expiry</label>\n");
+    sb.append("    <select name=\"token_expiry\" id=\"token_expiry\" style=\"width:100%;padding:9px 10px;font-size:14px;border:1px solid #ccc;border-radius:4px;margin-bottom:14px;\">\n");
+    sb.append("      <option value=\"0\" selected>No expiry</option>\n");
+    sb.append("      <option value=\"3600\">1 hour</option>\n");
+    sb.append("      <option value=\"86400\">1 day</option>\n");
+    sb.append("      <option value=\"604800\">1 week</option>\n");
+    sb.append("    </select>\n");
     sb.append("    <input type=\"submit\" class=\"btn-primary\" value=\"Register\">\n");
     sb.append("  </form>\n");
     sb.append("  <div class=\"footer-link\">\n");

@@ -72,6 +72,12 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
   @Override
   public RobotAccountData registerNew(ParticipantId robotId, String location)
       throws RobotRegistrationException, PersistenceException {
+    return registerNew(robotId, location, 0L);
+  }
+
+  @Override
+  public RobotAccountData registerNew(ParticipantId robotId, String location, long tokenExpirySeconds)
+      throws RobotRegistrationException, PersistenceException {
     Preconditions.checkNotNull(robotId);
     Preconditions.checkNotNull(location);
     Preconditions.checkArgument(!location.isEmpty());
@@ -80,7 +86,7 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
       throw new RobotRegistrationException(robotId.getAddress()
           + " is already in use, please choose another one.");
     }
-    return registerRobot(robotId, location);
+    return registerRobot(robotId, location, tokenExpirySeconds);
   }
 
   @Override
@@ -129,9 +135,14 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
 
   private RobotAccountData registerRobot(ParticipantId robotId, String location)
       throws RobotRegistrationException, PersistenceException {
+    return registerRobot(robotId, location, 0L);
+  }
+
+  private RobotAccountData registerRobot(ParticipantId robotId, String location, long tokenExpirySeconds)
+      throws RobotRegistrationException, PersistenceException {
     String robotLocation = computeValidateRobotUrl(location);
     RobotAccountData robotAccount = new RobotAccountDataImpl(robotId, robotLocation,
-        tokenGenerator.generateToken(TOKEN_LENGTH), null, true);
+        tokenGenerator.generateToken(TOKEN_LENGTH), null, true, tokenExpirySeconds);
     accountStore.putAccount(robotAccount);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(robotAccount);

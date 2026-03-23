@@ -54,6 +54,19 @@ public interface RobotRegistrar {
       throws RobotRegistrationException, PersistenceException;
 
   /**
+   * Registers a new robot account with configurable token expiry.
+   *
+   * @param robotId the robotId to register.
+   * @param location the location of the robot (URI).
+   * @param tokenExpirySeconds token expiry in seconds (0 = no expiry).
+   * @return the newly registered robot account.
+   * @throws RobotRegistrationException if account for this id already exist.
+   * @throws PersistenceException if the persistence layer reports an error.
+   */
+  public RobotAccountData registerNew(ParticipantId robotId, String location, long tokenExpirySeconds)
+      throws RobotRegistrationException, PersistenceException;
+
+  /**
    * Unregisters a robot by removing it from the account store.
    *
    * @param robotId the id to remove.

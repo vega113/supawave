@@ -129,6 +129,17 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
   }
 
   /**
+   * Asserts that {@link #localWaveService} has been set, throwing an
+   * {@link IllegalStateException} with a clear message if it has not.
+   */
+  private void requireLocalWaveService() {
+    if (localWaveService == null) {
+      throw new IllegalStateException(
+          "LocalWaveService not initialized — call setLocalWaveService() first");
+    }
+  }
+
+  /**
    * Returns the version hash of this robot.
    */
   protected String getVersion() {
@@ -145,6 +156,7 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
    * @throws IOException if there is a problem submitting the operations.
    */
   public List<JsonRpcResponse> submit(Wavelet wavelet, String rpcServerUrl) throws IOException {
+    requireLocalWaveService();
     return localWaveService.submit(wavelet, rpcServerUrl);
   }
 
@@ -157,20 +169,24 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
    * @return a stub of a wavelet.
    */
   public Wavelet blindWavelet(WaveId waveId, WaveletId waveletId) {
+    requireLocalWaveService();
     return localWaveService.blindWavelet(waveId, waveletId);
   }
 
   public Wavelet blindWavelet(WaveId waveId, WaveletId waveletId, String proxyForId) {
+    requireLocalWaveService();
     return localWaveService.blindWavelet(waveId, waveletId, proxyForId);
   }
 
   public Wavelet blindWavelet(WaveId waveId, WaveletId waveletId, String proxyForId,
       Map<String, Blip> blips) {
+    requireLocalWaveService();
     return localWaveService.blindWavelet(waveId, waveletId, proxyForId, blips);
   }
 
   public Wavelet blindWavelet(WaveId waveId, WaveletId waveletId, String proxyForId,
       Map<String, Blip> blips, Map<String, BlipThread> threads) {
+    requireLocalWaveService();
     return localWaveService.blindWavelet(waveId, waveletId, proxyForId, blips, threads);
   }
 
@@ -178,19 +194,23 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
    * Creates a new wave with a list of participants on it.
    */
   public Wavelet newWave(String domain, Set<String> participants) {
+    requireLocalWaveService();
     return localWaveService.newWave(domain, participants);
   }
 
   public Wavelet newWave(String domain, Set<String> participants, String proxyForId) {
+    requireLocalWaveService();
     return localWaveService.newWave(domain, participants, proxyForId);
   }
 
   public Wavelet newWave(String domain, Set<String> participants, String msg, String proxyForId) {
+    requireLocalWaveService();
     return localWaveService.newWave(domain, participants, msg, proxyForId);
   }
 
   public Wavelet newWave(String domain, Set<String> participants, String msg, String proxyForId,
       String rpcServerUrl) throws IOException, InvalidIdException {
+    requireLocalWaveService();
     return localWaveService.newWave(domain, participants, msg, proxyForId, rpcServerUrl);
   }
 
@@ -199,6 +219,7 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
    */
   public SearchResult search(String query, Integer index, Integer numResults, String rpcServerUrl)
       throws IOException {
+    requireLocalWaveService();
     return localWaveService.search(query, index, numResults, rpcServerUrl);
   }
 
@@ -207,11 +228,13 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
    */
   public Wavelet fetchWavelet(WaveId waveId, WaveletId waveletId, String rpcServerUrl)
       throws IOException {
+    requireLocalWaveService();
     return localWaveService.fetchWavelet(waveId, waveletId, rpcServerUrl);
   }
 
   public Wavelet fetchWavelet(WaveId waveId, WaveletId waveletId, String proxyForId,
       String rpcServerUrl) throws IOException {
+    requireLocalWaveService();
     return localWaveService.fetchWavelet(waveId, waveletId, proxyForId, rpcServerUrl);
   }
 

@@ -33,6 +33,7 @@ import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.rpc.HtmlRenderer;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
@@ -86,6 +87,167 @@ public final class DataApiTokenServlet extends HttpServlet {
     this.clock = clock;
     this.issuer = issuer;
     this.accountStore = accountStore;
+  }
+
+  @Override
+  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
+    if (user == null) {
+      resp.sendRedirect("/auth/signin?r=/robot/dataapi/token");
+      return;
+    }
+
+    resp.setContentType("text/html;charset=utf-8");
+    resp.setHeader("Cache-Control", "no-store");
+    resp.setHeader("Pragma", "no-cache");
+    resp.setStatus(HttpServletResponse.SC_OK);
+    try (PrintWriter writer = resp.getWriter()) {
+      writer.write(renderTokenPage(user.getAddress()));
+    }
+  }
+
+  private static String renderTokenPage(String userAddress) {
+    String safeUser = HtmlRenderer.escapeHtml(userAddress);
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Data API Token - Wave in a Box</title>\n");
+    // Same card CSS as auth pages (HtmlRenderer.AUTH_CSS)
+    sb.append("<style>\n");
+    sb.append("*, *::before, *::after { box-sizing: border-box; }\n");
+    sb.append("body {\n");
+    sb.append("  margin: 0; padding: 0;\n");
+    sb.append("  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,\n");
+    sb.append("    Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;\n");
+    sb.append("  background: #f0f2f5;\n");
+    sb.append("  color: #333;\n");
+    sb.append("}\n");
+    sb.append(".card {\n");
+    sb.append("  max-width: 520px; margin: 60px auto; padding: 32px 28px;\n");
+    sb.append("  background: #fff;\n");
+    sb.append("  border-radius: 8px;\n");
+    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.10);\n");
+    sb.append("}\n");
+    sb.append(".card h1 {\n");
+    sb.append("  font-size: 22px; margin: 0 0 6px; font-weight: 600;\n");
+    sb.append("}\n");
+    sb.append(".card .subtitle {\n");
+    sb.append("  font-size: 14px; color: #666; margin-bottom: 20px;\n");
+    sb.append("}\n");
+    sb.append(".btn-primary {\n");
+    sb.append("  display: inline-block; padding: 10px 24px;\n");
+    sb.append("  background: #1a73e8; color: #fff; border: none; border-radius: 4px;\n");
+    sb.append("  font-size: 14px; font-weight: 500; cursor: pointer;\n");
+    sb.append("  transition: background 0.15s;\n");
+    sb.append("}\n");
+    sb.append(".btn-primary:hover { background: #1557b0; }\n");
+    sb.append(".btn-secondary {\n");
+    sb.append("  display: inline-block; padding: 10px 24px;\n");
+    sb.append("  background: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px;\n");
+    sb.append("  font-size: 14px; font-weight: 500; cursor: pointer;\n");
+    sb.append("  transition: background 0.15s;\n");
+    sb.append("}\n");
+    sb.append(".btn-secondary:hover { background: #f8f8f8; }\n");
+    sb.append(".msg { font-size: 13px; min-height: 18px; margin-bottom: 10px; }\n");
+    sb.append(".msg.error { color: #d93025; }\n");
+    sb.append(".msg.success { color: #188038; }\n");
+    sb.append(".buttons { display: flex; gap: 8px; margin-top: 8px; }\n");
+    sb.append("#tokenResult { display: none; margin-top: 20px; }\n");
+    sb.append("#tokenResult textarea {\n");
+    sb.append("  width: 100%; height: 120px; padding: 10px; font-size: 13px;\n");
+    sb.append("  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;\n");
+    sb.append("  border: 1px solid #ccc; border-radius: 4px; resize: vertical;\n");
+    sb.append("  background: #f8f9fa; color: #333;\n");
+    sb.append("}\n");
+    sb.append("#tokenResult label {\n");
+    sb.append("  display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px;\n");
+    sb.append("}\n");
+    sb.append("#tokenResult .meta {\n");
+    sb.append("  font-size: 12px; color: #666; margin-top: 6px;\n");
+    sb.append("}\n");
+    sb.append("</style>\n");
+    sb.append("</head>\n<body>\n");
+
+    sb.append("<div class=\"card\">\n");
+    sb.append("  <h1>Data API Token</h1>\n");
+    sb.append("  <div class=\"subtitle\">Logged in as: ").append(safeUser).append("</div>\n");
+    sb.append("  <div class=\"msg\" id=\"statusMsg\"></div>\n");
+    sb.append("  <div class=\"buttons\">\n");
+    sb.append("    <button class=\"btn-primary\" id=\"generateBtn\" onclick=\"generateToken()\">Generate Token</button>\n");
+    sb.append("  </div>\n");
+    sb.append("  <div id=\"tokenResult\">\n");
+    sb.append("    <label for=\"tokenText\">Access Token</label>\n");
+    sb.append("    <textarea id=\"tokenText\" readonly onclick=\"this.focus();this.select();\"></textarea>\n");
+    sb.append("    <div class=\"meta\">Token type: <strong>bearer</strong> | Expires in: <span id=\"expiresIn\"></span> seconds</div>\n");
+    sb.append("    <div class=\"buttons\">\n");
+    sb.append("      <button class=\"btn-secondary\" id=\"copyBtn\" onclick=\"copyToken()\">Copy to clipboard</button>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    sb.append("<script>\n");
+    sb.append("function generateToken() {\n");
+    sb.append("  var btn = document.getElementById('generateBtn');\n");
+    sb.append("  var msg = document.getElementById('statusMsg');\n");
+    sb.append("  btn.disabled = true;\n");
+    sb.append("  btn.textContent = 'Generating...';\n");
+    sb.append("  msg.style.display = 'none';\n");
+    sb.append("  fetch(window.location.pathname, { method: 'POST', credentials: 'same-origin' })\n");
+    sb.append("    .then(function(r) {\n");
+    sb.append("      if (r.status === 401) {\n");
+    sb.append("        window.location.href = '/auth/signin?r=/robot/dataapi/token';\n");
+    sb.append("        return new Promise(function() {});\n");
+    sb.append("      }\n");
+    sb.append("      if (!r.ok) {\n");
+    sb.append("        return r.json().catch(function() { return {}; }).then(function(body) {\n");
+    sb.append("          throw new Error(body.error || 'HTTP ' + r.status);\n");
+    sb.append("        });\n");
+    sb.append("      }\n");
+    sb.append("      return r.json();\n");
+    sb.append("    })\n");
+    sb.append("    .then(function(data) {\n");
+    sb.append("      if (data.error) throw new Error(data.error);\n");
+    sb.append("      document.getElementById('tokenText').value = data.access_token;\n");
+    sb.append("      document.getElementById('expiresIn').textContent = data.expires_in;\n");
+    sb.append("      document.getElementById('tokenResult').style.display = 'block';\n");
+    sb.append("      msg.className = 'msg success';\n");
+    sb.append("      msg.textContent = 'Token generated successfully.';\n");
+    sb.append("      msg.style.display = 'block';\n");
+    sb.append("      btn.textContent = 'Regenerate Token';\n");
+    sb.append("      btn.disabled = false;\n");
+    sb.append("    })\n");
+    sb.append("    .catch(function(err) {\n");
+    sb.append("      msg.className = 'msg error';\n");
+    sb.append("      msg.textContent = 'Failed to generate token: ' + err.message;\n");
+    sb.append("      msg.style.display = 'block';\n");
+    sb.append("      btn.textContent = 'Generate Token';\n");
+    sb.append("      btn.disabled = false;\n");
+    sb.append("    });\n");
+    sb.append("}\n");
+    sb.append("function copyToken() {\n");
+    sb.append("  var ta = document.getElementById('tokenText');\n");
+    sb.append("  var copyBtn = document.getElementById('copyBtn');\n");
+    sb.append("  ta.select();\n");
+    sb.append("  ta.setSelectionRange(0, ta.value.length);\n");
+    sb.append("  if (navigator.clipboard && navigator.clipboard.writeText) {\n");
+    sb.append("    navigator.clipboard.writeText(ta.value).then(function() {\n");
+    sb.append("      copyBtn.textContent = 'Copied!';\n");
+    sb.append("      setTimeout(function() { copyBtn.textContent = 'Copy to clipboard'; }, 2000);\n");
+    sb.append("    }, function() {\n");
+    sb.append("      copyBtn.textContent = 'Copy failed';\n");
+    sb.append("      setTimeout(function() { copyBtn.textContent = 'Copy to clipboard'; }, 2000);\n");
+    sb.append("    });\n");
+    sb.append("  } else {\n");
+    sb.append("    var ok = document.execCommand('copy');\n");
+    sb.append("    copyBtn.textContent = ok ? 'Copied!' : 'Copy failed';\n");
+    sb.append("    setTimeout(function() { copyBtn.textContent = 'Copy to clipboard'; }, 2000);\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
   }
 
   @Override

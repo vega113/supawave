@@ -40,6 +40,7 @@ jobs:
           CANONICAL_HOST=wave.example.test \
           ROOT_HOST=example.test \
           WWW_HOST=www.example.test \
+          RESEND_API_KEY=test-dummy \
           docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
       
       - name: Build PST and Wave (no tests)

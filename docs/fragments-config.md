@@ -44,6 +44,14 @@ now default to `fragmentFetchMode = "stream"`.  The `enableFragmentFetchViewChan
 flag defaults to `true` in reference.conf.  Setting `fragmentFetchMode = "http"`
 still works for the metrics-only path; setting `"off"` disables fragment fetching.
 
+> **Server-side requirement for `fragmentFetchMode = "http"`**: Because the
+> default server transport is now `server.fragments.transport = "stream"`, the
+> HTTP `/fragments` endpoint is **not** enabled unless the server is also
+> configured with `server.fragments.transport = "http"` or `"both"`. Changing
+> only the client-side `fragmentFetchMode` to `"http"` without updating the
+> server will point at a disabled endpoint. Operators must ensure both sides
+> agree on the transport.
+
 Context and Source of Truth
 - Server reads these keys via `ServerMain` during startup:
   - `initializeServlets(...)` (HTTP endpoint gating)

@@ -23,14 +23,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'sbt'
+          cache: 'gradle'
 
-      - name: Install sbt
-        run: |
-          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
-          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x99E82A75642AC823" | sudo apt-key add -
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq sbt
+      - name: Gradle build
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-disabled: false
 
       - name: Validate canonical deployment assets
         run: |
@@ -43,17 +41,19 @@ jobs:
           ROOT_HOST=example.test \
           WWW_HOST=www.example.test \
           docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
-
+      
       - name: Build PST and Wave (no tests)
-        run: sbt --batch pst/assembly wave/compile
+        run: ./gradlew --no-daemon --warning-mode all :pst:build :wave:assemble
 
-      - name: Smoke UI (server startup + health check)
-        run: sbt --batch wave/smokeUi
-        continue-on-error: true  # GWT webclient assets not available in SBT build
+      - name: Smoke UI (server startup + probes)
+        run: ./gradlew --no-daemon --warning-mode all :wave:smokeUi
 
       - name: Smoke Installed Dist
-        run: sbt --batch wave/smokeInstalled
-        continue-on-error: true  # Requires GWT webclient assets
+        run: ./gradlew --no-daemon --warning-mode all :wave:smokeInstalled
+
+      - name: Compile Jakarta POC (non-blocking)
+        continue-on-error: true
+        run: ./gradlew --no-daemon --warning-mode all :wave:compileJakarta
 
   server-jakarta:
     name: Jakarta Profile (Jetty 12, non-blocking)
@@ -67,26 +67,24 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'sbt'
+          cache: 'gradle'
 
-      - name: Install sbt
-        run: |
-          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
-          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x99E82A75642AC823" | sudo apt-key add -
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq sbt
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-disabled: false
 
       - name: Compile Jakarta sources (PR-blocking)
         continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: sbt --batch pst/assembly wave/compile "wave/jakartaTest:compile"
+        run: ./gradlew --no-daemon --warning-mode all :wave:classes :wave:jakartaTestClasses
 
       - name: Run jakartaTest (PR-blocking)
         continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: sbt --batch "wave/jakartaTest:test"
+        run: ./gradlew --no-daemon --warning-mode all :wave:testJakarta
 
       - name: Run jakarta ITs (PR-blocking)
         continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: sbt --batch "wave/jakartaIT:test"
+        run: ./gradlew --no-daemon --warning-mode all :wave:testJakartaIT
 
       - name: Publish jakartaTest reports
         if: always()
@@ -94,8 +92,8 @@ jobs:
         with:
           name: test-reports-jakarta
           path: |
-            target/test-reports/jakartaTest/**
-            target/reports/tests/jakartaTest/**
+            wave/build/test-results/testJakarta/**
+            wave/build/reports/tests/testJakarta/**
 
       - name: Publish jakarta IT reports
         if: always()
@@ -103,8 +101,8 @@ jobs:
         with:
           name: test-reports-jakarta-it
           path: |
-            target/test-reports/jakartaIT/**
-            target/reports/tests/jakartaIT/**
+            wave/build/test-results/testJakartaIT/**
+            wave/build/reports/tests/testJakartaIT/**
 
       - name: Guard experimental flags for release (tags/releases/release branches)
         if: ${{ github.ref_type == 'tag' || (github.event_name == 'release' && github.event.action == 'published') || (github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))) }}
@@ -117,8 +115,8 @@ jobs:
         with:
           name: test-reports
           path: |
-            **/target/test-reports/**/*
-            **/target/reports/tests/**/*
+            **/build/test-results/**/*
+            **/build/reports/tests/**/*
 
   client-gwt:
     if: ${{ false }} # enable after Phase 4 (GWT modernization)
@@ -133,7 +131,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'sbt'
+          cache: 'gradle'
 
-      - name: SBT build (GWT)
-        run: sbt --batch wave/compileGwt
+      - name: Gradle build (GWT)
+        run: ./gradlew --no-daemon --warning-mode all :wave:compileGwt

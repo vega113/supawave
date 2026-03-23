@@ -69,6 +69,42 @@ public final class DataApiTokenServlet extends HttpServlet {
   private static final String JSON_CONTENT_TYPE = "application/json";
   private static final String GRANT_TYPE_CLIENT_CREDENTIALS = "client_credentials";
 
+  /** Inline CSS for the token page, matching the auth-style card layout used elsewhere. */
+  private static final String PAGE_CSS =
+      "<style>\n"
+      + "*, *::before, *::after { box-sizing: border-box; }\n"
+      + "body {\n"
+      + "  margin: 0; padding: 0;\n"
+      + "  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,\n"
+      + "    Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;\n"
+      + "  background: #f0f2f5;\n"
+      + "  color: #333;\n"
+      + "}\n"
+      + ".card {\n"
+      + "  max-width: 420px; margin: 60px auto; padding: 32px 28px;\n"
+      + "  background: #fff;\n"
+      + "  border-radius: 8px;\n"
+      + "  box-shadow: 0 2px 8px rgba(0,0,0,0.10);\n"
+      + "}\n"
+      + ".card h1 { font-size: 22px; margin: 0 0 6px; font-weight: 600; }\n"
+      + ".card .subtitle { font-size: 14px; color: #666; margin-bottom: 20px; }\n"
+      + "label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }\n"
+      + ".btn-primary {\n"
+      + "  display: inline-block; padding: 10px 24px;\n"
+      + "  background: #1a73e8; color: #fff; border: none; border-radius: 4px;\n"
+      + "  font-size: 14px; font-weight: 500; cursor: pointer;\n"
+      + "  transition: background 0.15s;\n"
+      + "}\n"
+      + ".btn-primary:hover { background: #1557b0; }\n"
+      + ".btn-primary:disabled { background: #94bef0; cursor: default; }\n"
+      + ".msg { font-size: 13px; min-height: 18px; margin-bottom: 10px; }\n"
+      + ".msg.error { color: #d93025; }\n"
+      + ".msg.success { color: #188038; }\n"
+      + ".footer-link { font-size: 13px; margin-top: 16px; text-align: center; }\n"
+      + ".footer-link a { color: #1a73e8; text-decoration: none; }\n"
+      + ".footer-link a:hover { text-decoration: underline; }\n"
+      + "</style>\n";
+
   private final SessionManager sessionManager;
   private final JwtKeyRing keyRing;
   private final Clock clock;
@@ -86,6 +122,95 @@ public final class DataApiTokenServlet extends HttpServlet {
     this.clock = clock;
     this.issuer = issuer;
     this.accountStore = accountStore;
+  }
+
+  @Override
+  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
+    if (user == null) {
+      resp.sendRedirect("/auth/signin?r=/robot/dataapi/token");
+      return;
+    }
+
+    resp.setContentType("text/html;charset=UTF-8");
+    resp.setCharacterEncoding("UTF-8");
+    resp.setStatus(HttpServletResponse.SC_OK);
+
+    String selectStyle = "width:100%;padding:9px 10px;font-size:14px;"
+        + "border:1px solid #ccc;border-radius:4px;margin-bottom:14px;";
+
+    try (PrintWriter w = resp.getWriter()) {
+      w.write("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+      w.write("<meta charset=\"UTF-8\">\n");
+      w.write("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+      w.write("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+      w.write("<title>Data API Token - Wave in a Box</title>\n");
+      w.write(PAGE_CSS);
+      w.write("</head>\n<body>\n");
+      w.write("<div class=\"card\">\n");
+      w.write("  <h1>Data API Token</h1>\n");
+      w.write("  <div class=\"subtitle\">Generate a JWT access token for the Data API</div>\n");
+
+      w.write("  <label for=\"expiry\">Token Expiry</label>\n");
+      w.write("  <select id=\"expiry\" name=\"expiry\" style=\"" + selectStyle + "\">\n");
+      w.write("    <option value=\"0\" selected>Never</option>\n");
+      w.write("    <option value=\"3600\">1 hour</option>\n");
+      w.write("    <option value=\"86400\">1 day</option>\n");
+      w.write("    <option value=\"604800\">1 week</option>\n");
+      w.write("    <option value=\"2592000\">30 days</option>\n");
+      w.write("    <option value=\"31536000\">1 year</option>\n");
+      w.write("  </select>\n");
+
+      w.write("  <button id=\"generateBtn\" class=\"btn-primary\" onclick=\"generateToken()\">Generate Token</button>\n");
+
+      w.write("  <div id=\"result\" style=\"display:none;margin-top:18px;\">\n");
+      w.write("    <label>Access Token</label>\n");
+      w.write("    <textarea id=\"tokenValue\" readonly style=\"width:100%;height:80px;padding:9px 10px;");
+      w.write("font-size:13px;font-family:monospace;border:1px solid #ccc;border-radius:4px;");
+      w.write("resize:vertical;margin-bottom:8px;\"></textarea>\n");
+      w.write("    <div id=\"tokenMeta\" class=\"msg success\"></div>\n");
+      w.write("  </div>\n");
+      w.write("  <div id=\"errorMsg\" class=\"msg error\" style=\"display:none;\"></div>\n");
+
+      w.write("  <div class=\"footer-link\">\n");
+      w.write("    <a href=\"/\">&larr; Back to Wave</a>\n");
+      w.write("  </div>\n");
+      w.write("</div>\n");
+
+      w.write("<script>\n");
+      w.write("function generateToken() {\n");
+      w.write("  var expiry = document.getElementById('expiry').value;\n");
+      w.write("  var btn = document.getElementById('generateBtn');\n");
+      w.write("  btn.disabled = true; btn.textContent = 'Generating...';\n");
+      w.write("  document.getElementById('errorMsg').style.display = 'none';\n");
+      w.write("  document.getElementById('result').style.display = 'none';\n");
+      w.write("  fetch(window.location.pathname, {\n");
+      w.write("    method: 'POST',\n");
+      w.write("    headers: {'Content-Type': 'application/x-www-form-urlencoded'},\n");
+      w.write("    body: 'expiry=' + expiry\n");
+      w.write("  }).then(function(r) { return r.json(); })\n");
+      w.write("  .then(function(data) {\n");
+      w.write("    btn.disabled = false; btn.textContent = 'Generate Token';\n");
+      w.write("    if (data.error) {\n");
+      w.write("      document.getElementById('errorMsg').textContent = data.error_description || data.error;\n");
+      w.write("      document.getElementById('errorMsg').style.display = 'block';\n");
+      w.write("    } else {\n");
+      w.write("      document.getElementById('tokenValue').value = data.access_token;\n");
+      w.write("      var meta = 'Token type: ' + data.token_type;\n");
+      w.write("      if (data.expires_in >= 3153600000) { meta += ' | Never expires'; }\n");
+      w.write("      else { meta += ' | Expires in: ' + data.expires_in + ' seconds'; }\n");
+      w.write("      document.getElementById('tokenMeta').textContent = meta;\n");
+      w.write("      document.getElementById('result').style.display = 'block';\n");
+      w.write("    }\n");
+      w.write("  }).catch(function(e) {\n");
+      w.write("    btn.disabled = false; btn.textContent = 'Generate Token';\n");
+      w.write("    document.getElementById('errorMsg').textContent = 'Request failed: ' + e;\n");
+      w.write("    document.getElementById('errorMsg').style.display = 'block';\n");
+      w.write("  });\n");
+      w.write("}\n");
+      w.write("</script>\n");
+      w.write("</body>\n</html>\n");
+    }
   }
 
   @Override
@@ -107,11 +232,13 @@ public final class DataApiTokenServlet extends HttpServlet {
       return;
     }
 
+    long expirySeconds = parseExpiryParam(req);
+
     long issuedAt = clock.instant().getEpochSecond();
-    long expiresAt = issuedAt + DEFAULT_TOKEN_LIFETIME_SECONDS;
+    long expiresAt = issuedAt + expirySeconds;
 
     String token = issueToken(user.getAddress(), issuedAt, expiresAt);
-    sendTokenResponse(resp, token, DEFAULT_TOKEN_LIFETIME_SECONDS);
+    sendTokenResponse(resp, token, expirySeconds);
   }
 
   /** Path B: Robot authenticates with client_id and client_secret. */
@@ -160,14 +287,42 @@ public final class DataApiTokenServlet extends HttpServlet {
       return;
     }
 
-    long tokenExpirySeconds = robotAccount.getTokenExpirySeconds();
-    long lifetimeSeconds = tokenExpirySeconds > 0 ? tokenExpirySeconds : NO_EXPIRY_LIFETIME_SECONDS;
+    // Use explicit expiry parameter if provided, else fall back to the robot's configured expiry.
+    String expiryParam = req.getParameter("expiry");
+    long lifetimeSeconds;
+    if (expiryParam != null && !expiryParam.isEmpty()) {
+      lifetimeSeconds = parseExpiryParam(req);
+    } else {
+      long tokenExpirySeconds = robotAccount.getTokenExpirySeconds();
+      lifetimeSeconds = tokenExpirySeconds > 0 ? tokenExpirySeconds : NO_EXPIRY_LIFETIME_SECONDS;
+    }
 
     long issuedAt = clock.instant().getEpochSecond();
     long expiresAt = issuedAt + lifetimeSeconds;
 
     String token = issueToken(robotAccount.getId().getAddress(), issuedAt, expiresAt);
     sendTokenResponse(resp, token, lifetimeSeconds);
+  }
+
+  /**
+   * Parses the {@code expiry} request parameter.
+   * Returns the lifetime in seconds: 0 maps to ~100 years ("never expires"),
+   * any positive value is used as-is, and missing/invalid values fall back to the default.
+   */
+  private static long parseExpiryParam(HttpServletRequest req) {
+    String expiryParam = req.getParameter("expiry");
+    long expirySeconds = DEFAULT_TOKEN_LIFETIME_SECONDS;
+    if (expiryParam != null && !expiryParam.isEmpty()) {
+      try {
+        expirySeconds = Long.parseLong(expiryParam);
+      } catch (NumberFormatException e) {
+        // keep default
+      }
+    }
+    if (expirySeconds == 0) {
+      expirySeconds = NO_EXPIRY_LIFETIME_SECONDS;
+    }
+    return expirySeconds;
   }
 
   private String issueToken(String subject, long issuedAt, long expiresAt) {

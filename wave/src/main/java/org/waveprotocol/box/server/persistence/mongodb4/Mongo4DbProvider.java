@@ -5,6 +5,8 @@ import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import org.waveprotocol.box.server.persistence.AttachmentStore;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.waveserver.DeltaStore;
@@ -40,8 +42,8 @@ public class Mongo4DbProvider implements AutoCloseable {
     this.host = host;
     this.port = port;
     this.database = database;
-    this.username = username;
-    this.password = password;
+    this.username = username != null ? username : "";
+    this.password = password != null ? password : "";
   }
 
   /** Convenience constructor for unauthenticated connections. */
@@ -51,9 +53,12 @@ public class Mongo4DbProvider implements AutoCloseable {
 
   private void ensure() {
     if (client == null) {
-      String userInfo = (username != null && !username.isEmpty())
-          ? username + ":" + password + "@"
-          : "";
+      String userInfo = "";
+      if (!username.isEmpty()) {
+        String encodedUser = URLEncoder.encode(username, StandardCharsets.UTF_8).replace("+", "%20");
+        String encodedPass = URLEncoder.encode(password, StandardCharsets.UTF_8).replace("+", "%20");
+        userInfo = encodedUser + ":" + encodedPass + "@";
+      }
       String authQuery = userInfo.isEmpty() ? "" : "?authSource=admin";
       String uri = "mongodb://" + userInfo + host + ":" + port + "/" + database + authQuery;
       MongoClientSettings settings = MongoClientSettings.builder()

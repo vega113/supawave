@@ -6,7 +6,10 @@ public enum JwtTokenType {
   BROWSER_SESSION("browser-session"),
   ROBOT_ASSERTION("robot-assertion"),
   ROBOT_ACCESS("robot-access"),
-  DATA_API_ACCESS("data-api-access");
+  DATA_API_ACCESS("data-api-access"),
+  PASSWORD_RESET("password-reset"),
+  MAGIC_LINK("magic-link"),
+  EMAIL_CONFIRM("email-confirm");
 
   private final String claimValue;
 

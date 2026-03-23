@@ -85,7 +85,11 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/util/OAuthUtil.java",
     "org/waveprotocol/box/server/util/RegistrationUtil.java",
     "org/waveprotocol/box/server/stat/RequestScopeFilter.java",
-    "org/waveprotocol/box/server/stat/TimingFilter.java"
+    "org/waveprotocol/box/server/stat/TimingFilter.java",
+    // Security filters with Jakarta overrides (resolve "Multiple sources matched" warnings)
+    "org/waveprotocol/box/server/security/SecurityHeadersFilter.java",
+    "org/waveprotocol/box/server/security/NoCacheFilter.java",
+    "org/waveprotocol/box/server/security/StaticCacheFilter.java"
   )
 
   // --- Directory-level excludes under src/main/java (Gradle lines 334-337) ---
@@ -101,7 +105,6 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
 
   // --- Exact excludes under src/jakarta-overrides/java (Gradle lines 341-349) ---
   val jakartaExactExcludes: Set[String] = Set(
-    "com/google/wave/api/AbstractRobot.java",
     "org/waveprotocol/box/server/robots/RobotApiModule.java",
     "org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java",
     "org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java",
@@ -209,6 +212,8 @@ libraryDependencies ++= Seq(
   "com.novocode"                   % "junit-interface"            % "0.11"     % Test,
   "org.hamcrest"                   % "hamcrest-junit"             % "2.0.0.0"  % Test,
   "org.mockito"                    % "mockito-core"               % "2.2.21"   % Test,
+  "org.testcontainers"             % "testcontainers"             % "1.21.4"   % Test,
+  "org.testcontainers"             % "mongodb"                    % "1.21.4"   % Test,
 
   // --- Protobuf ---
   "com.google.protobuf"            % "protobuf-java"              % ProtobufV,
@@ -394,7 +399,10 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
   p.contains("/org/waveprotocol/box/server/rpc/render/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/migration/") ||
-  p.contains("/wave/src/test/java/org/waveprotocol/wave/model/document/util/")
+  p.contains("/wave/src/test/java/org/waveprotocol/wave/model/document/util/") ||
+  // MongoDB integration tests — require Testcontainers; run via Gradle itTest, not sbt test
+  fn.endsWith("IT.java") ||
+  fn == "MongoItTestUtil.java"
 }
 
 // Ensure `sbt clean` removes generated sources only (dependencies/caches are preserved)
@@ -422,6 +430,14 @@ inConfig(JakartaTest)(Defaults.testSettings)
 inConfig(JakartaIT)(Defaults.testSettings)
 inConfig(StacktraceTest)(Defaults.testSettings)
 inConfig(ThumbTest)(Defaults.testSettings)
+
+// Suppress "unused key" linter warnings for keys auto-created by Defaults.testSettings in custom configs
+Global / excludeLintKeys ++= Set(
+  JakartaTest / javaSource, JakartaTest / scalaSource, JakartaTest / resourceDirectory, JakartaTest / semanticdbTargetRoot,
+  JakartaIT / javaSource, JakartaIT / scalaSource, JakartaIT / resourceDirectory, JakartaIT / semanticdbTargetRoot,
+  StacktraceTest / javaSource, StacktraceTest / scalaSource, StacktraceTest / semanticdbTargetRoot,
+  ThumbTest / javaSource, ThumbTest / scalaSource, ThumbTest / semanticdbTargetRoot
+)
 
 // --- JakartaTest source directories & exclusions ---
 // Source: wave/src/jakarta-test/java, excludes *IT classes and specific retired tests
@@ -926,6 +942,8 @@ ThisBuild / generateFlags := {
   // Guard: FlagConstants.java is already checked-in under wave/src/main/java and the
   // ClientFlagsGenerator tool + client.default.config are not present in this repository.
   // Skip generation if either prerequisite is missing.
+  // Extract .value outside of if/else to satisfy SBT macro requirements
+  val depCp = (Compile / dependencyClasspath).value.map(_.data.getAbsolutePath)
   val configFile = base / "client.default.config"
   val generatorSources = (base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "wave" / "util" / "flags" ** "*.java").get
   if (!configFile.exists) {
@@ -941,8 +959,6 @@ ThisBuild / generateFlags := {
       val valueUtils = base / "wave" / "src" / "main" / "java" / "org" / "waveprotocol" / "wave" / "model" / "util" / "ValueUtils.java"
       if (valueUtils.exists) generatorSources :+ valueUtils else generatorSources
     }
-    // Use managed dependency classpath (Phase 2)
-    val depCp = (Compile / dependencyClasspath).value.map(_.data.getAbsolutePath)
     val cp = depCp.mkString(java.io.File.pathSeparator)
     val javacCmd = Seq("javac", "-g", "-cp", cp, "-d", toolClasses.getAbsolutePath) ++ allSources.map(_.getAbsolutePath)
     runCmd(log)(javacCmd, base)

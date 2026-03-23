@@ -213,8 +213,8 @@ libraryDependencies ++= Seq(
   "com.novocode"                   % "junit-interface"            % "0.11"     % Test,
   "org.hamcrest"                   % "hamcrest-junit"             % "2.0.0.0"  % Test,
   "org.mockito"                    % "mockito-core"               % "2.2.21"   % Test,
-  "org.testcontainers"             % "testcontainers"             % "1.19.7"   % Test,
-  "org.testcontainers"             % "mongodb"                    % "1.19.7"   % Test,
+  "org.testcontainers"             % "testcontainers"             % "1.21.4"   % Test,
+  "org.testcontainers"             % "mongodb"                    % "1.21.4"   % Test,
 
   // --- Protobuf ---
   "com.google.protobuf"            % "protobuf-java"              % ProtobufV,

@@ -20,6 +20,7 @@ import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
 import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.dev.ClientApplierStatsJakartaServlet;
+import org.waveprotocol.box.server.mail.MailModule;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceModule;
@@ -98,9 +99,10 @@ public class ServerMain {
     Module searchModule = injector.getInstance(SearchModule.class);
     Module profileFetcherModule = injector.getInstance(ProfileFetcherModule.class);
     Module robotApiModule = new JakartaRobotApiBindingsModule();
+    Module mailModule = injector.getInstance(MailModule.class);
 
     injector = injector.createChildInjector(serverModule, persistenceModule,
-        robotApiModule, searchModule, federationModule, profileFetcherModule);
+        robotApiModule, searchModule, federationModule, profileFetcherModule, mailModule);
 
     ServerRpcProvider server = injector.getInstance(ServerRpcProvider.class);
     WaveBus waveBus = injector.getInstance(WaveBus.class);
@@ -148,6 +150,9 @@ public class ServerMain {
     server.addServlet("/auth/signin", AuthenticationServlet.class);
     server.addServlet("/auth/signout", SignOutServlet.class);
     server.addServlet("/auth/register", UserRegistrationServlet.class);
+    server.addServlet("/auth/confirm-email", EmailConfirmServlet.class);
+    server.addServlet("/auth/password-reset", PasswordResetServlet.class);
+    server.addServlet("/auth/magic-link", MagicLinkServlet.class);
     server.addServlet("/locale/*", LocaleServlet.class);
     server.addServlet("/fetch/*", FetchServlet.class);
     server.addServlet("/search/*", SearchServlet.class);

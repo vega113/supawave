@@ -99,6 +99,9 @@ public class AuthenticationServlet extends HttpServlet {
   private final boolean secureCookiesByDefault;
   private boolean failedClientAuth = false;
   private final String analyticsAccount;
+  private final boolean passwordResetEnabled;
+  private final boolean magicLinkEnabled;
+  private final boolean emailConfirmationEnabled;
 
   @Inject
   public AuthenticationServlet(AccountStore accountStore,
@@ -123,6 +126,12 @@ public class AuthenticationServlet extends HttpServlet {
     this.secureCookiesByDefault = config.getBoolean("security.enable_ssl");
     this.analyticsAccount = config.hasPath("core.analytics_account") ?
         config.getString("core.analytics_account") : "";
+    this.passwordResetEnabled = !config.hasPath("core.password_reset_enabled")
+        || config.getBoolean("core.password_reset_enabled");
+    this.magicLinkEnabled = config.hasPath("core.magic_link_enabled")
+        && config.getBoolean("core.magic_link_enabled");
+    this.emailConfirmationEnabled = config.hasPath("core.email_confirmation_enabled")
+        && config.getBoolean("core.email_confirmation_enabled");
   }
 
   private static X509Certificate[] getClientCerts(HttpServletRequest req) {
@@ -210,7 +219,8 @@ public class AuthenticationServlet extends HttpServlet {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
         resp.setContentType("text/html;charset=utf-8");
         resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, message,
-            responseType, isLoginPageDisabled, analyticsAccount));
+            responseType, isLoginPageDisabled, analyticsAccount,
+            passwordResetEnabled, magicLinkEnabled));
         return;
       }
 
@@ -228,6 +238,25 @@ public class AuthenticationServlet extends HttpServlet {
         throw new IllegalStateException(
             "The user provided valid authentication information, but we don't "
                 + "know how to map their identity to a wave user address.");
+      }
+    }
+
+    // Check email confirmation if enabled
+    if (emailConfirmationEnabled && loggedInAddress != null) {
+      try {
+        org.waveprotocol.box.server.account.AccountData acct =
+            accountStore.getAccount(loggedInAddress);
+        if (acct != null && acct.isHuman() && !acct.asHuman().isEmailConfirmed()) {
+          String message = "Your email has not been confirmed. Please check your inbox.";
+          resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+          resp.setContentType("text/html;charset=utf-8");
+          resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, message,
+              RESPONSE_STATUS_FAILED, isLoginPageDisabled, analyticsAccount,
+              passwordResetEnabled, magicLinkEnabled));
+          return;
+        }
+      } catch (org.waveprotocol.box.server.persistence.PersistenceException e) {
+        LOG.severe("Failed to check email confirmation for " + loggedInAddress, e);
       }
     }
 
@@ -328,7 +357,8 @@ public class AuthenticationServlet extends HttpServlet {
       }
       resp.setContentType("text/html;charset=utf-8");
       resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, "",
-          RESPONSE_STATUS_NONE, isLoginPageDisabled, analyticsAccount));
+          RESPONSE_STATUS_NONE, isLoginPageDisabled, analyticsAccount,
+          passwordResetEnabled, magicLinkEnabled));
     }
   }
 

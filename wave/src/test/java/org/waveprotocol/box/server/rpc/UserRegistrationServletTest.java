@@ -36,6 +36,8 @@ import org.mockito.MockitoAnnotations;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
+import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
+import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -131,19 +133,22 @@ public class UserRegistrationServletTest extends TestCase {
       HttpServletRequest req, HttpServletResponse resp, String address,
       String password, boolean disabledRegistration) throws IOException {
 
+    EmailTokenIssuer tokenIssuer = mock(EmailTokenIssuer.class);
+    MailProvider mailProvider = mock(MailProvider.class);
+
     Config config1 = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "administration.disable_registration", false,
       "administration.analytics_account", "UA-someid")
     );
     UserRegistrationServlet enabledServlet =
-        new UserRegistrationServlet(store, "example.com", config1, welcomeWaveCreator);
+        new UserRegistrationServlet(store, "example.com", config1, tokenIssuer, mailProvider, welcomeWaveCreator);
 
     Config config2 = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "administration.disable_registration", true,
       "administration.analytics_account", "UA-someid")
     );
     UserRegistrationServlet disabledServlet =
-        new UserRegistrationServlet(store, "example.com", config2, welcomeWaveCreator);
+        new UserRegistrationServlet(store, "example.com", config2, tokenIssuer, mailProvider, welcomeWaveCreator);
 
     when(req.getParameter("address")).thenReturn(address);
     when(req.getParameter("password")).thenReturn(password);
@@ -157,6 +162,6 @@ public class UserRegistrationServletTest extends TestCase {
       enabledServlet.doPost(req, resp);
     }
 
-    verify(writer, atLeastOnce()).append(anyString());
+    verify(writer, atLeastOnce()).write(anyString());
   }
 }

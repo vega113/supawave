@@ -139,7 +139,6 @@ final class WaveViewSubscription {
    * client.
    */
   public synchronized void submitResponse(WaveletName waveletName, HashedVersion version) {
-    Preconditions.checkNotNull(version, "Null delta application version");
     WaveletId waveletId = waveletName.waveletId;
     WaveletChannelState state;
     try {
@@ -148,8 +147,22 @@ final class WaveViewSubscription {
       throw new RuntimeException(ex);
     }
     Preconditions.checkState(state.hasOutstandingSubmit);
-    state.submittedEndVersions.add(version.getVersion());
     state.hasOutstandingSubmit = false;
+
+    if (version == null) {
+      // Submit failed — no version to record.  Release held-back deltas
+      // without filtering (we have no own-delta version to match against).
+      LOG.info("Submit failed (null version) on channel " + channelId);
+      if (!state.heldBackDeltas.isEmpty()) {
+        for (TransformedWaveletDelta delta : state.heldBackDeltas) {
+          sendUpdate(waveletName, Collections.singletonList(delta), null);
+        }
+        state.heldBackDeltas.clear();
+      }
+      return;
+    }
+
+    state.submittedEndVersions.add(version.getVersion());
     LOG.info("Submit resolved on channel " + channelId);
 
     // Forward any queued deltas.

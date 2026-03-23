@@ -121,12 +121,74 @@ Read these files first when resuming work:
   javax/jakarta servlet mismatches in `FragmentsServletViewportTest`, and
   WebSession/HttpSession generic drift in `DataApiOAuthServletTest`.
 
+### Wiab core smoke verification (2026-03-23)
+
+Code-path analysis of the three imported Wiab features: dynamic renderer,
+fragments (HTTP fetch mode), and quasi-deletion UI.
+
+**Dynamic Renderer (`DynamicRendererImpl`):**
+- Wired in `StageTwo.configureFragmentsAndDynamicRendering()` when
+  `enableDynamicRendering=true`.
+- MVP windowing (page-in/out, placeholders, throttled scroll, speed boost)
+  is fully implemented and functional.
+- Fragment fetch integration works: `maybeRequestFragments()` builds a
+  `RequestContext` with wave/wavelet/anchor/segments and dispatches via
+  the configured `FragmentRequester`.
+- The three public `dynamicRendering(...)` overloads remain TODO stubs.
+  These are targeted navigation entrypoints (jump-to-blip), not the core
+  viewport windowing path.
+
+**Fragments (HTTP fetch mode):**
+- `ClientFragmentRequester` issues GET requests to `/fragments` with
+  `waveId`, `waveletId`, `startBlipId`, `direction`, and `limit` params.
+- `FragmentsServlet` (server-side) is a full Jakarta servlet that reads
+  the wavelet, slices blips around the anchor, builds segment ranges,
+  and returns a JSON response with blip metadata, version info, ranges,
+  and raw fragment payloads.
+- **Fix applied:** The Jakarta override `ServerMain` was missing
+  `FragmentsServlet` registration at `/fragments` and `/fragments/*`.
+  The main `ServerMain` had this wired via `readFragmentsTransport()` /
+  `isFragmentsHttpEnabled()`, but the Jakarta override did not replicate
+  the block. This has now been fixed; the Jakarta `ServerMain` reads
+  `server.fragments.transport` from config and conditionally registers
+  the servlet for `http`, `stream`, and `both` transport modes.
+- HTTP mode currently treats 2xx responses as metrics-only success;
+  `ClientFragmentRequester.onResponseReceived()` calls `cb.onSuccess()`
+  without parsing the returned JSON payload. Fragment metadata is
+  exposed via `FragmentsMetrics` counters only.
+- Production config (`deploy/contabo/application.conf`) already has
+  `server.fragments.transport = "stream"` and all client flags enabled.
+
+**Quasi-deletion UI:**
+- `QuasiConversationViewAdapter` proxies the conversation view and emits
+  `onBeforeBlipQuasiRemoved` callbacks before standard delete events.
+- `StageTwo` hooks the adapter when `enableQuasiDeletionUi=true`:
+  `BlipViewDomImpl.setQuasiDeleted(true)` adds a `.deleted` CSS class
+  and `data-deleted` attribute; a tooltip shows "Deleted by {author} at
+  {time}".
+- The adapter is initialized in `configureFragmentsAndDynamicRendering()`
+  and the DOM listener is attached during `createUi()`.
+- `quasiDeletionDwellMs=1000` is configured; the dwell delay is
+  application-level, controlled by how long the quasi-deleted CSS class
+  persists before the model removes the blip.
+- This is a client-side GWT feature with no server-side component.
+
+**Production endpoint verification (supawave.ai):**
+- `/fragments` returns 302 (auth redirect) -- endpoint is registered and
+  reachable (requires authentication, as expected).
+- `/speedz` returns 200 with "ok" (basic health response).
+- `/fetch/` returns 404 (expected; needs a waveref path suffix).
+- Config flags confirmed on production: all fragment/renderer/quasi flags
+  match the `deploy/contabo/application.conf` defaults.
+
 ### Highest-value gaps that still remain
 
-1. The full browser variant sweep for the merged renderer + quasi-deletion +
-   fragments path has not been completed in this lane yet.
+1. Browser-level variant sweep (default http, stream override, all-flags-off
+   regression) has not been executed against a live running dev server with
+   devtools observation. The code-path analysis above verifies wiring
+   correctness but not runtime behavior in a browser.
 2. `DynamicRendererImpl` still has TODO entrypoints for the public
-   `dynamicRendering(...)` methods.
+   `dynamicRendering(...)` methods (targeted navigation, not core windowing).
 3. The HTTP fragment requester still treats successful responses as metrics-only
    success and does not parse or apply returned fragment payloads.
 4. The default `:wave:test` path is blocked at `compileTestJava` by legacy test

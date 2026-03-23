@@ -95,6 +95,7 @@ public class ProtoAccountDataSerializer {
     builder.setUrl(account.getUrl());
     builder.setConsumerSecret(account.getConsumerSecret());
     builder.setIsVerified(account.isVerified());
+    builder.setTokenExpirySeconds(account.getTokenExpirySeconds());
     if (account.getCapabilities() != null) {
       builder.setRobotCapabilities(serialize(account.getCapabilities()));
     }
@@ -161,8 +162,9 @@ public class ProtoAccountDataSerializer {
     if (data.hasRobotCapabilities()) {
       capabilities = deserialize(data.getRobotCapabilities());
     }
+    long tokenExpirySeconds = data.hasTokenExpirySeconds() ? data.getTokenExpirySeconds() : 0L;
     return new RobotAccountDataImpl(id, data.getUrl(), data.getConsumerSecret(),
-        capabilities, data.getIsVerified());
+        capabilities, data.getIsVerified(), tokenExpirySeconds);
   }
 
   private static RobotCapabilities deserialize(ProtoRobotCapabilities data) {

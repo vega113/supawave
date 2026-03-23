@@ -85,10 +85,23 @@ public final class RobotRegistrationServlet extends HttpServlet {
   private void handleRegistration(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     String username = req.getParameter("username");
     String location = req.getParameter("location");
+    String tokenExpiryParam = req.getParameter("token_expiry");
 
     if (Strings.isNullOrEmpty(username) || Strings.isNullOrEmpty(location)) {
       renderRegistrationPage(req, resp, "Please complete all fields.");
       return;
+    }
+
+    long tokenExpirySeconds = 0L;
+    if (!Strings.isNullOrEmpty(tokenExpiryParam)) {
+      try {
+        tokenExpirySeconds = Long.parseLong(tokenExpiryParam);
+        if (tokenExpirySeconds < 0) {
+          tokenExpirySeconds = 0L;
+        }
+      } catch (NumberFormatException e) {
+        tokenExpirySeconds = 0L;
+      }
     }
 
     ParticipantId id;
@@ -101,7 +114,7 @@ public final class RobotRegistrationServlet extends HttpServlet {
 
     RobotAccountData robotAccount;
     try {
-      robotAccount = robotRegistrar.registerNew(id, location);
+      robotAccount = robotRegistrar.registerNew(id, location, tokenExpirySeconds);
     } catch (RobotRegistrationException e) {
       renderRegistrationPage(req, resp, e.getMessage());
       return;

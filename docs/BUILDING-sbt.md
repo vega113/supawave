@@ -13,8 +13,8 @@ reuses vendored jars under `third_party/`, and is kept aligned with the checked-
 
 ## Prerequisites
 
-- Java 17+ installed (Temurin recommended). The default javax profile targets
-  `--release 8`; Jakarta mode targets `--release 11`.
+- Java 17+ installed (Temurin recommended). The build targets `--release 11`
+  (Jakarta).
 - SBT 1.10+ installed.
 - `protoc` is provided by `sbt-protoc` (embedded protoc v3.25.x).
 - `ant` is only needed for the legacy `testBackend` fallback.
@@ -110,28 +110,27 @@ reuses vendored jars under `third_party/`, and is kept aligned with the checked-
 - `prepareServerConfig` now bootstraps the root `config/` directory from
   `wave/config/` instead of expecting a `server.config.example` file.
 
-## Jakarta Mode
+## Jakarta (default)
 
-- Enable Jakarta (Jetty 12 EE10, jakarta.servlet):
-  - Compile: `sbt -Djakarta=true compile`
-  - Run: `sbt -Djakarta=true run`
-- Bytecode: Jakarta builds with `--release 11`; default javax builds with
-  `--release 8`.
-- The default SBT profile is still `javax` (`show jakartaMode` returns `false`).
-  Jakarta remains an explicit override.
-- Endpoints (Jakarta):
+The server runtime is Jakarta-only (Jetty 12 EE10, `jakarta.servlet`). The
+legacy `javax` / Jetty 9.4 fallback has been retired.
+
+- Compile: `sbt compile`
+- Run: `sbt run`
+- Bytecode: builds with `--release 11`.
+- Endpoints:
   - `/statusz/socket` (JSON status)
   - `/socket` (JSR 356 WebSocket)
   - `/static/*`, `/webclient/*`, `/render/*` (static)
   - `/auth/signin`, `/` (login + client page)
   - `/search/*` (search API), `/searches` (saved queries), `/notification/*`
     (digests)
-- Persistence (Jakarta): memory/file only; MongoDB and migration tools are not
-  wired yet.
+- Persistence: memory/file only; MongoDB and migration tools are not wired in
+  the SBT path yet.
 - If port 9898 is busy: update `HTTP_FRONTEND_ADDRESSES` in `config/application.conf`
   or set `-DHTTP_FRONTEND_ADDRESSES=...` via `Compile / javaOptions`.
 
-Current Jakarta-only excludes (to be unwound): robots, render helpers, MongoDB
+Current excludes (to be unwound): robots, render helpers, MongoDB
 persistence/migration.
 
 ## Server Adapters & Shims
@@ -173,10 +172,9 @@ persistence/migration.
   of the default path.
 - Removed an unused `raw.proto` import from `block-store.proto`, eliminating
   protoc warnings.
-- Jetty upgraded: javax stack on 9.4.x; Jakarta stack on Jetty 12 EE10.
-- Jakarta mode remains available behind `-Djakarta=true`.
-- Dependencies: Guice 5.1.0 + Guava 32.1.3-jre; slf4j-simple 2.0.x (Jakarta) /
-  1.7.x (javax).
+- Jetty upgraded to 12 EE10 (Jakarta); the legacy Jetty 9.4 / javax path has
+  been retired.
+- Dependencies: Guice 5.1.0 + Guava 32.1.3-jre; slf4j-simple 2.0.x.
 - Guava API patches: `CharMatcher.whitespace()` and `MoreExecutors.directExecutor()`
   in server code.
 

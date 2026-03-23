@@ -3,7 +3,7 @@
 Owner: Migration Engineering
 Last updated: 2025-09-27
 
-Status note (2026-03-19)
+Status note (2026-03-23)
 - Historical implementation ledger for the renderer, quasi-deletion, and
   fragments import work.
 - The canonical current state lives in `docs/current-state.md`; active work is
@@ -15,8 +15,18 @@ Status note (2026-03-19)
   `:wave:compileTestJava`, which fails with 24 legacy test errors centered on
   Jetty session API drift, javax/jakarta servlet mismatches, and stale
   `ServerMain.applyFragmentsConfig(...)` references.
-- This lane did not run the longer browser variant sweep; the smoke evidence
-  here is limited to the scripted compile and UI smoke envelope.
+- Wiab core smoke verification (2026-03-23) completed code-path analysis:
+  - Dynamic renderer: MVP windowing fully wired in StageTwo; `dynamicRendering()`
+    TODO stubs are targeted-navigation entrypoints, not core windowing.
+  - Fragments HTTP: `FragmentsServlet` was missing from Jakarta `ServerMain`
+    registration -- now fixed. Client `ClientFragmentRequester` issues GET to
+    `/fragments`; server returns JSON with blip metadata, ranges, and raw
+    fragment payloads. HTTP mode currently metrics-only (payload not consumed).
+  - Quasi-deletion: fully wired client-side via `QuasiConversationViewAdapter`
+    and `BlipViewDomImpl.setQuasiDeleted()`; CSS class + tooltip applied.
+  - Snapshot gating caveat: `forceClientFragments=true` still delivers full
+    snapshots on initial open; fragment windows are additive.
+  - Browser variant sweep (devtools observation) not yet executed.
 
 -------------------------------------------------------------------------------
 

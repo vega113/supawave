@@ -26,12 +26,20 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
+import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
+import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.HttpRequestBasedCallbackHandler;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
+import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
+import org.waveprotocol.box.server.mail.MailException;
+import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.util.RegistrationSupport;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -44,21 +52,36 @@ import java.util.Locale;
 @SuppressWarnings("serial")
 @Singleton
 public final class UserRegistrationServlet extends HttpServlet {
+
+  private static final Log LOG = Log.get(UserRegistrationServlet.class);
+
   private final AccountStore accountStore;
   private final String domain;
   private final boolean registrationDisabled;
   private final String analyticsAccount;
+  private final boolean emailConfirmationEnabled;
+  private final EmailTokenIssuer emailTokenIssuer;
+  private final MailProvider mailProvider;
+  private final WelcomeWaveCreator welcomeWaveCreator;
 
   @Inject
   public UserRegistrationServlet(AccountStore accountStore,
                                  @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
-                                 Config config) {
+                                 Config config,
+                                 EmailTokenIssuer emailTokenIssuer,
+                                 MailProvider mailProvider,
+                                 WelcomeWaveCreator welcomeWaveCreator) {
     this.accountStore = accountStore;
     this.domain = domain;
     this.registrationDisabled = config.getBoolean("administration.disable_registration");
     this.analyticsAccount = config.hasPath("administration.analytics_account")
         ? config.getString("administration.analytics_account")
         : "";
+    this.emailConfirmationEnabled = config.hasPath("core.email_confirmation_enabled")
+        && config.getBoolean("core.email_confirmation_enabled");
+    this.emailTokenIssuer = emailTokenIssuer;
+    this.mailProvider = mailProvider;
+    this.welcomeWaveCreator = welcomeWaveCreator;
   }
 
   @Override
@@ -75,12 +98,20 @@ public final class UserRegistrationServlet extends HttpServlet {
     if (!registrationDisabled) {
       message = tryCreateUser(
           req.getParameter(HttpRequestBasedCallbackHandler.ADDRESS_FIELD),
-          req.getParameter(HttpRequestBasedCallbackHandler.PASSWORD_FIELD));
+          req.getParameter(HttpRequestBasedCallbackHandler.PASSWORD_FIELD),
+          req);
     }
 
     if (message != null || registrationDisabled) {
-      resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-      responseType = AuthenticationServlet.RESPONSE_STATUS_FAILED;
+      // Check if the message is actually a confirmation-pending success
+      if (message != null && message.startsWith("CONFIRM_PENDING:")) {
+        message = message.substring("CONFIRM_PENDING:".length());
+        resp.setStatus(HttpServletResponse.SC_OK);
+        responseType = AuthenticationServlet.RESPONSE_STATUS_SUCCESS;
+      } else {
+        resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        responseType = AuthenticationServlet.RESPONSE_STATUS_FAILED;
+      }
     } else {
       message = "Registration complete.";
       resp.setStatus(HttpServletResponse.SC_OK);
@@ -90,7 +121,7 @@ public final class UserRegistrationServlet extends HttpServlet {
     writeRegistrationPage(message, responseType, req.getLocale(), resp);
   }
 
-  private String tryCreateUser(String username, String password) {
+  private String tryCreateUser(String username, String password, HttpServletRequest req) {
     ParticipantId id;
     try {
       id = RegistrationSupport.checkNewUsername(domain, username);
@@ -114,11 +145,68 @@ public final class UserRegistrationServlet extends HttpServlet {
       Arrays.fill(passwordChars, '\0');
     }
 
-    if (!RegistrationSupport.createAccount(accountStore, id, digest)) {
-      return "An unexpected error occurred while trying to create the account";
-    }
+    if (emailConfirmationEnabled) {
+      // Create the account with emailConfirmed=false
+      HumanAccountDataImpl account = new HumanAccountDataImpl(id, digest);
+      account.setEmailConfirmed(false);
+      try {
+        accountStore.putAccount(account);
+      } catch (PersistenceException e) {
+        LOG.severe("Failed to create account for " + id, e);
+        return "An unexpected error occurred while trying to create the account";
+      }
 
-    return null;
+      // Send confirmation email
+      try {
+        String token = emailTokenIssuer.issueEmailConfirmToken(id);
+        String confirmUrl = buildConfirmUrl(req, token);
+        String emailBody = renderConfirmEmail(id.getAddress(), confirmUrl);
+        mailProvider.sendEmail(id.getAddress(), "Confirm your Wave account", emailBody);
+        LOG.info("Confirmation email sent to " + id.getAddress());
+      } catch (MailException e) {
+        LOG.severe("Failed to send confirmation email to " + id.getAddress(), e);
+      }
+
+      return "CONFIRM_PENDING:Registration successful! Please check your email to confirm your account.";
+    } else {
+      if (!RegistrationSupport.createAccount(accountStore, id, digest)) {
+        return "An unexpected error occurred while trying to create the account";
+      }
+
+      try {
+        welcomeWaveCreator.createWelcomeWave(id);
+      } catch (Exception e) {
+        // Welcome wave failure must not block registration.
+      }
+
+      return null;
+    }
+  }
+
+  private String buildConfirmUrl(HttpServletRequest req, String token) {
+    String scheme = req.getScheme();
+    String serverName = req.getServerName();
+    int serverPort = req.getServerPort();
+    StringBuilder url = new StringBuilder();
+    url.append(scheme).append("://").append(serverName);
+    if (("http".equals(scheme) && serverPort != 80)
+        || ("https".equals(scheme) && serverPort != 443)) {
+      url.append(":").append(serverPort);
+    }
+    url.append("/auth/confirm-email?token=").append(token);
+    return url.toString();
+  }
+
+  private String renderConfirmEmail(String address, String confirmUrl) {
+    return "<html><body>"
+        + "<h2>Confirm Your Account</h2>"
+        + "<p>Welcome to Wave! Please confirm your account: <b>"
+        + HtmlRenderer.escapeHtml(address) + "</b></p>"
+        + "<p>Click the link below to activate your account:</p>"
+        + "<p><a href=\"" + HtmlRenderer.escapeHtml(confirmUrl) + "\">Confirm Email</a></p>"
+        + "<p>If you did not register, you can safely ignore this email.</p>"
+        + "<p>This link will expire in 24 hours.</p>"
+        + "</body></html>";
   }
 
   private void writeRegistrationPage(String message, String responseType, Locale locale,

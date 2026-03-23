@@ -6,7 +6,8 @@ public enum JwtAudience {
   BROWSER("browser"),
   WEBSOCKET("websocket"),
   ROBOT("robot"),
-  DATA_API("data-api");
+  DATA_API("data-api"),
+  EMAIL("email");
 
   private final String claimValue;
 

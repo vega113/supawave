@@ -34,6 +34,7 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   private final ParticipantId id;
   private final PasswordDigest passwordDigest;
   private String locale;
+  private boolean emailConfirmed = true;
 
   /**
    * Creates an {@link HumanAccountData} for the given username, with no
@@ -70,6 +71,16 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   @Override
   public PasswordDigest getPasswordDigest() {
     return passwordDigest;
+  }
+
+  @Override
+  public boolean isEmailConfirmed() {
+    return emailConfirmed;
+  }
+
+  @Override
+  public void setEmailConfirmed(boolean confirmed) {
+    this.emailConfirmed = confirmed;
   }
 
   @Override

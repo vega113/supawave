@@ -20,6 +20,7 @@ import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
 import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.dev.ClientApplierStatsJakartaServlet;
+import org.waveprotocol.box.server.mail.MailModule;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceModule;
@@ -98,9 +99,10 @@ public class ServerMain {
     Module searchModule = injector.getInstance(SearchModule.class);
     Module profileFetcherModule = injector.getInstance(ProfileFetcherModule.class);
     Module robotApiModule = new JakartaRobotApiBindingsModule();
+    Module mailModule = injector.getInstance(MailModule.class);
 
     injector = injector.createChildInjector(serverModule, persistenceModule,
-        robotApiModule, searchModule, federationModule, profileFetcherModule);
+        robotApiModule, searchModule, federationModule, profileFetcherModule, mailModule);
 
     ServerRpcProvider server = injector.getInstance(ServerRpcProvider.class);
     WaveBus waveBus = injector.getInstance(WaveBus.class);
@@ -148,6 +150,9 @@ public class ServerMain {
     server.addServlet("/auth/signin", AuthenticationServlet.class);
     server.addServlet("/auth/signout", SignOutServlet.class);
     server.addServlet("/auth/register", UserRegistrationServlet.class);
+    server.addServlet("/auth/confirm-email", EmailConfirmServlet.class);
+    server.addServlet("/auth/password-reset", PasswordResetServlet.class);
+    server.addServlet("/auth/magic-link", MagicLinkServlet.class);
     server.addServlet("/locale/*", LocaleServlet.class);
     server.addServlet("/fetch/*", FetchServlet.class);
     server.addServlet("/search/*", SearchServlet.class);
@@ -162,7 +167,54 @@ public class ServerMain {
     server.addServlet("/robot/dataapi", DataApiServlet.class);
     server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
     server.addServlet("/robot/dataapi/token", DataApiTokenServlet.class);
+
+    // Register FragmentsServlet for HTTP fragment transport (mirrors main ServerMain logic).
+    try {
+      String transport = readFragmentsTransport(config);
+      if (transport == null || transport.isEmpty()) {
+        transport = "off";
+      }
+      if (isFragmentsHttpEnabled(transport)) {
+        server.addServlet("/fragments", FragmentsServlet.class);
+        server.addServlet("/fragments/*", FragmentsServlet.class);
+      } else {
+        LOG.info("Fragments HTTP endpoint is disabled (effective transport='" + transport + "')");
+      }
+    } catch (Exception e) {
+      LOG.warning("Failed to configure fragments transport/endpoints; leaving /fragments disabled", e);
+    }
+
     server.addServlet("/", WaveClientServlet.class);
+  }
+
+  /**
+   * Reads the unified fragments transport from Typesafe Config.
+   * Expected values: off | http | stream | both
+   */
+  private static String readFragmentsTransport(Config config) {
+    try {
+      if (config.hasPath("server.fragments.transport")) {
+        String v = config.getString("server.fragments.transport");
+        if (v != null) {
+          v = v.trim().toLowerCase();
+          if (!v.isEmpty()) {
+            return v;
+          }
+        }
+      }
+    } catch (Exception e) {
+      LOG.warning("Error reading server.fragments.transport", e);
+    }
+    return null;
+  }
+
+  private static boolean isFragmentsHttpEnabled(String transport) {
+    if (transport == null) {
+      return false;
+    }
+    // Enable HTTP endpoint for http, both, and stream modes (stream mode needs
+    // the HTTP endpoint as a fallback before the view channel is ready).
+    return "http".equals(transport) || "both".equals(transport) || "stream".equals(transport);
   }
 
   private static void initializeRobots(Injector injector, WaveBus waveBus) {

@@ -35,9 +35,10 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   private final String consumerSecret;
   private final RobotCapabilities capabilities;
   private final boolean isVerified;
+  private final long tokenExpirySeconds;
 
   /**
-   * Creates a new {@link RobotAccountData}.
+   * Creates a new {@link RobotAccountData} with default token expiry (0 = no expiry).
    *
    *  The capabilities map and version may only be null if the capabilitiesHash
    * is null and vice versa.
@@ -52,6 +53,23 @@ public final class RobotAccountDataImpl implements RobotAccountData {
    */
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
       RobotCapabilities capabilities, boolean isVerified) {
+    this(id, url, consumerSecret, capabilities, isVerified, 0L);
+  }
+
+  /**
+   * Creates a new {@link RobotAccountData} with configurable token expiry.
+   *
+   * @param id non-null participant id for this account.
+   * @param url non-null url where the robot can be reached.
+   * @param consumerSecret non-null consumer secret used in OAuth.
+   * @param capabilities {@link RobotCapabilities} representing the robot's
+   *        capabilties.xml. May be null.
+   * @param isVerified boolean indicating whether this {@link RobotAccountData}
+   *        has been verified.
+   * @param tokenExpirySeconds token expiry in seconds (0 = no expiry).
+   */
+  public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
+      RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds) {
     Preconditions.checkNotNull(id, "Id can not be null");
     Preconditions.checkNotNull(url, "Url can not be null");
     Preconditions.checkNotNull(consumerSecret, "Consumer secret can not be null");
@@ -62,6 +80,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     this.consumerSecret = consumerSecret;
     this.capabilities = capabilities;
     this.isVerified = isVerified;
+    this.tokenExpirySeconds = tokenExpirySeconds;
   }
 
   @Override
@@ -110,6 +129,11 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   }
 
   @Override
+  public long getTokenExpirySeconds() {
+    return tokenExpirySeconds;
+  }
+
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
@@ -118,6 +142,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     result = prime * result + ((id == null) ? 0 : id.hashCode());
     result = prime * result + (isVerified ? 1231 : 1237);
     result = prime * result + ((url == null) ? 0 : url.hashCode());
+    result = prime * result + Long.hashCode(tokenExpirySeconds);
     return result;
   }
 
@@ -164,6 +189,9 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     } else if (!url.equals(other.url)) {
       return false;
     }
+    if (tokenExpirySeconds != other.tokenExpirySeconds) {
+      return false;
+    }
     return true;
   }
 
@@ -174,6 +202,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
 	",url=" + url +
 	",consumerSecret=" + consumerSecret +
 	",capabilities=" + capabilities +
-	",isVerified=" + isVerified + "]";
+	",isVerified=" + isVerified +
+	",tokenExpirySeconds=" + tokenExpirySeconds + "]";
   }
 }

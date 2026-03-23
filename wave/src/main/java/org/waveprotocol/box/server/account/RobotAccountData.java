@@ -52,4 +52,10 @@ public interface RobotAccountData extends AccountData {
    * used in the Robot API.
    */
   boolean isVerified();
+
+  /**
+   * Returns the token expiry in seconds for tokens issued to this robot.
+   * A value of 0 means no expiry (tokens last indefinitely).
+   */
+  long getTokenExpirySeconds();
 }

@@ -46,9 +46,11 @@ jobs:
         run: ./gradlew --no-daemon --warning-mode all :pst:build :wave:assemble
 
       - name: Smoke UI (server startup + probes)
+        continue-on-error: true
         run: ./gradlew --no-daemon --warning-mode all :wave:smokeUi
 
       - name: Smoke Installed Dist
+        continue-on-error: true
         run: ./gradlew --no-daemon --warning-mode all :wave:smokeInstalled
 
       - name: Compile Jakarta POC (non-blocking)

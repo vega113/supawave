@@ -35,6 +35,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      issues: write
     env:
       RELEASE_ID: ${{ github.sha }}
       IMAGE_REF: ghcr.io/${{ github.repository }}:${{ github.sha }}
@@ -126,3 +127,99 @@ jobs:
             chmod +x '$release_dir/deploy.sh'
             DEPLOY_ROOT='$remote_root' WAVE_IMAGE='$IMAGE_REF' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' RESEND_API_KEY='$RESEND_API_KEY' bash '$release_dir/deploy.sh' deploy
           "
+
+      - name: Close deploy-failure issues on success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'deploy-failure',
+              state: 'open'
+            });
+            for (const issue of issues) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Resolved by successful deploy of ${context.sha.substring(0, 8)} in [run ${context.runId}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`
+              });
+            }
+
+      - name: Create GitHub issue on deploy failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Check for existing open deploy-failure issue to avoid duplicates
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'deploy-failure',
+              state: 'open'
+            });
+            if (existing.length > 0) {
+              const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body: `Another deploy failure occurred.\n\n**Commit:** \`${context.sha.substring(0, 8)}\`\n**Run:** [${context.runId}](${runUrl})\n**Time:** ${new Date().toISOString()}`
+              });
+              core.info(`Commented on existing issue #${existing[0].number}`);
+              return;
+            }
+
+            // Ensure the deploy-failure label exists
+            try {
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'deploy-failure'
+              });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: 'deploy-failure',
+                  color: 'e11d48',
+                  description: 'Automated: deploy to Contabo failed'
+                });
+              }
+            }
+
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = `Deploy failed: ${context.sha.substring(0, 8)}`;
+            const body = [
+              `## Deploy Failure\n`,
+              `| Field | Value |`,
+              `|-------|-------|`,
+              `| **Commit** | \`${context.sha}\` |`,
+              `| **Branch** | \`${context.ref}\` |`,
+              `| **Run** | [${context.runId}](${runUrl}) |`,
+              `| **Triggered by** | @${context.actor} |`,
+              `| **Time** | ${new Date().toISOString()} |\n`,
+              `### Next Steps`,
+              `1. Check the [deploy logs](${runUrl})`,
+              `2. The previous version is still running (auto-rollback)`,
+              `3. Fix the issue and push a new commit to trigger redeploy\n`,
+              `> This issue will be auto-closed when the next deploy succeeds.`
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['deploy-failure']
+            });

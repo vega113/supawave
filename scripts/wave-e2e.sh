@@ -11,7 +11,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT=9898
-INSTALL_DIR="$REPO_ROOT/wave/target/universal/stage"
+INSTALL_DIR="$REPO_ROOT/target/universal/stage"
 RESULTS_DIR="$REPO_ROOT/wave/target/e2e-results"
 E2E_DIR="$REPO_ROOT/wave/src/e2e-test"
 PID_FILE="$INSTALL_DIR/wave_server.pid"

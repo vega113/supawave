@@ -59,4 +59,4 @@ jobs:
           name: e2e-results
           path: |
             wave/target/e2e-results/
-            wave/target/universal/stage/wave_server.out
+            target/universal/stage/wave_server.out

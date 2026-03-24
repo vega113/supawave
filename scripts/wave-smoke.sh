@@ -9,13 +9,13 @@ set -euo pipefail
 #   ./scripts/wave-smoke.sh stop    # stops server listening on port 9898
 #
 # Notes:
-# - Expects the distribution staged at wave/target/universal/stage (SBT) or wave/build/install/wave (legacy)
+# - Expects the distribution staged at target/universal/stage (SBT) or wave/build/install/wave (legacy)
 # - On Java 17, the application is configured with --add-opens in SBT to support Guice/cglib
 # - If a port conflict persists, you can forcefully clear Java processes (dangerous):
 #     killall java
 
-if [[ -d "wave/target/universal/stage" ]]; then
-  INSTALL_DIR="${INSTALL_DIR:-wave/target/universal/stage}"
+if [[ -d "target/universal/stage" ]]; then
+  INSTALL_DIR="${INSTALL_DIR:-target/universal/stage}"
 else
   INSTALL_DIR="${INSTALL_DIR:-wave/build/install/wave}"
 fi

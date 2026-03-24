@@ -110,6 +110,10 @@ check() {
   # Health endpoint check
   health_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/healthz" || true)
   echo "HEALTH_STATUS=${health_status:-000}"
+  if [[ "${health_status}" -ne 200 ]]; then
+    echo "Unexpected health status: ${health_status}" >&2
+    return 1
+  fi
 
   # Webclient check is optional — GWT may not be compiled in SBT builds
   webclient_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/webclient/webclient.nocache.js" || true)

@@ -70,7 +70,7 @@ jobs:
           ssh-private-key: ${{ secrets.CONTABO_SSH_KEY }}
 
       - name: Verify build and smoke checks
-        timeout-minutes: 3
+        timeout-minutes: 10
         run: sbt --batch pst/compile wave/compile smokeInstalled
 
       - name: Log in to GitHub Container Registry

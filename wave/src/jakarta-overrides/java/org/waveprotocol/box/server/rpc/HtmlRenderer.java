@@ -33,6 +33,59 @@ public final class HtmlRenderer {
   private HtmlRenderer() {} // utility class
 
   // =========================================================================
+  // Wave Theme Constants
+  // =========================================================================
+
+  private static final String WAVE_PRIMARY = "#0077b6";
+  private static final String WAVE_ACCENT = "#00b4d8";
+  private static final String WAVE_LIGHT = "#90e0ef";
+  private static final String WAVE_GRADIENT = "linear-gradient(135deg, #0077b6 0%, #00b4d8 50%, #90e0ef 100%)";
+
+  // =========================================================================
+  // Animated wave SVG (reusable across pages)
+  // =========================================================================
+
+  private static final String WAVE_SVG =
+      "<div class=\"wave-bg\">\n"
+      + "  <svg viewBox=\"0 0 1440 150\" preserveAspectRatio=\"none\">\n"
+      + "    <path d=\"M0,50 C360,150 1080,-50 1440,50 L1440,150 L0,150 Z\" fill=\"rgba(0,119,182,0.15)\">\n"
+      + "      <animate attributeName=\"d\" dur=\"8s\" repeatCount=\"indefinite\"\n"
+      + "        values=\"M0,50 C360,150 1080,-50 1440,50 L1440,150 L0,150 Z;\n"
+      + "                M0,80 C360,-20 1080,120 1440,30 L1440,150 L0,150 Z;\n"
+      + "                M0,50 C360,150 1080,-50 1440,50 L1440,150 L0,150 Z\"/>\n"
+      + "    </path>\n"
+      + "    <path d=\"M0,80 C480,0 960,120 1440,40 L1440,150 L0,150 Z\" fill=\"rgba(0,180,216,0.10)\">\n"
+      + "      <animate attributeName=\"d\" dur=\"10s\" repeatCount=\"indefinite\"\n"
+      + "        values=\"M0,80 C480,0 960,120 1440,40 L1440,150 L0,150 Z;\n"
+      + "                M0,40 C480,120 960,0 1440,80 L1440,150 L0,150 Z;\n"
+      + "                M0,80 C480,0 960,120 1440,40 L1440,150 L0,150 Z\"/>\n"
+      + "    </path>\n"
+      + "    <path d=\"M0,100 C320,60 720,130 1440,70 L1440,150 L0,150 Z\" fill=\"rgba(144,224,239,0.08)\">\n"
+      + "      <animate attributeName=\"d\" dur=\"12s\" repeatCount=\"indefinite\"\n"
+      + "        values=\"M0,100 C320,60 720,130 1440,70 L1440,150 L0,150 Z;\n"
+      + "                M0,70 C320,130 720,60 1440,100 L1440,150 L0,150 Z;\n"
+      + "                M0,100 C320,60 720,130 1440,70 L1440,150 L0,150 Z\"/>\n"
+      + "    </path>\n"
+      + "  </svg>\n"
+      + "</div>\n";
+
+  // =========================================================================
+  // Wave logo SVG (inline, no external file dependency)
+  // =========================================================================
+
+  private static final String WAVE_LOGO_SVG =
+      "<svg width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n"
+      + "  <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"" + WAVE_PRIMARY + "\"/>\n"
+      + "  <path d=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\" "
+      + "stroke=\"white\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\">\n"
+      + "    <animate attributeName=\"d\" dur=\"3s\" repeatCount=\"indefinite\"\n"
+      + "      values=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;\n"
+      + "              M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;\n"
+      + "              M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\"/>\n"
+      + "  </path>\n"
+      + "</svg>\n";
+
+  // =========================================================================
   // Shared CSS for auth-style pages (login, registration, robot registration)
   // =========================================================================
 
@@ -43,61 +96,99 @@ public final class HtmlRenderer {
       + "  margin: 0; padding: 0;\n"
       + "  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,\n"
       + "    Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;\n"
-      + "  background: #f0f2f5;\n"
+      + "  background: " + WAVE_GRADIENT + ";\n"
       + "  color: #333;\n"
+      + "  min-height: 100vh;\n"
+      + "}\n"
+      + ".wave-bg {\n"
+      + "  position: fixed; bottom: 0; left: 0; width: 100%; height: 180px; z-index: 0;\n"
+      + "  pointer-events: none;\n"
+      + "}\n"
+      + ".wave-bg svg { width: 100%; height: 100%; }\n"
+      + ".page-wrapper {\n"
+      + "  position: relative; z-index: 1;\n"
+      + "  display: flex; flex-direction: column; align-items: center;\n"
+      + "  min-height: 100vh; padding: 40px 16px 200px;\n"
+      + "}\n"
+      + ".brand {\n"
+      + "  text-align: center; margin-bottom: 24px;\n"
+      + "}\n"
+      + ".brand svg { margin-bottom: 8px; }\n"
+      + ".brand-name {\n"
+      + "  font-size: 28px; font-weight: 700; color: #fff;\n"
+      + "  letter-spacing: -0.5px;\n"
       + "}\n"
       + ".card {\n"
-      + "  max-width: 420px; margin: 60px auto; padding: 32px 28px;\n"
+      + "  width: 100%; max-width: 420px; padding: 32px 28px;\n"
       + "  background: #fff;\n"
-      + "  border-radius: 8px;\n"
-      + "  box-shadow: 0 2px 8px rgba(0,0,0,0.10);\n"
+      + "  border-radius: 12px;\n"
+      + "  box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);\n"
       + "}\n"
       + ".card h1 {\n"
-      + "  font-size: 22px; margin: 0 0 6px; font-weight: 600;\n"
+      + "  font-size: 22px; margin: 0 0 6px; font-weight: 600; color: #1a1a2e;\n"
       + "}\n"
       + ".card .subtitle {\n"
       + "  font-size: 14px; color: #666; margin-bottom: 20px;\n"
       + "}\n"
-      + "label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }\n"
+      + "label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: #444; }\n"
       + ".input-group {\n"
       + "  display: flex; align-items: center; margin-bottom: 14px;\n"
       + "}\n"
       + ".input-group input {\n"
-      + "  flex: 1; padding: 9px 10px; font-size: 14px;\n"
-      + "  border: 1px solid #ccc; border-radius: 4px;\n"
-      + "  outline: none; transition: border-color 0.15s;\n"
+      + "  flex: 1; padding: 10px 12px; font-size: 14px;\n"
+      + "  border: 1.5px solid #d0d5dd; border-radius: 8px;\n"
+      + "  outline: none; transition: border-color 0.2s, box-shadow 0.2s;\n"
+      + "  background: #fafbfc;\n"
       + "}\n"
-      + ".input-group input:focus { border-color: #1a73e8; }\n"
+      + ".input-group input:focus {\n"
+      + "  border-color: " + WAVE_PRIMARY + ";\n"
+      + "  box-shadow: 0 0 0 3px rgba(0,119,182,0.12);\n"
+      + "  background: #fff;\n"
+      + "}\n"
       + ".input-group .domain-suffix {\n"
-      + "  margin-left: 6px; font-size: 13px; color: #666; white-space: nowrap;\n"
+      + "  margin-left: 8px; font-size: 13px; color: #666; white-space: nowrap;\n"
       + "}\n"
       + "input[type=text], input[type=password] {\n"
-      + "  width: 100%; padding: 9px 10px; font-size: 14px;\n"
-      + "  border: 1px solid #ccc; border-radius: 4px;\n"
-      + "  outline: none; transition: border-color 0.15s;\n"
-      + "  margin-bottom: 14px;\n"
+      + "  width: 100%; padding: 10px 12px; font-size: 14px;\n"
+      + "  border: 1.5px solid #d0d5dd; border-radius: 8px;\n"
+      + "  outline: none; transition: border-color 0.2s, box-shadow 0.2s;\n"
+      + "  margin-bottom: 14px; background: #fafbfc;\n"
       + "}\n"
-      + "input[type=text]:focus, input[type=password]:focus { border-color: #1a73e8; }\n"
+      + "input[type=text]:focus, input[type=password]:focus {\n"
+      + "  border-color: " + WAVE_PRIMARY + ";\n"
+      + "  box-shadow: 0 0 0 3px rgba(0,119,182,0.12);\n"
+      + "  background: #fff;\n"
+      + "}\n"
       + ".btn-primary {\n"
-      + "  display: inline-block; padding: 10px 24px;\n"
-      + "  background: #1a73e8; color: #fff; border: none; border-radius: 4px;\n"
-      + "  font-size: 14px; font-weight: 500; cursor: pointer;\n"
-      + "  transition: background 0.15s;\n"
+      + "  display: inline-block; padding: 11px 28px;\n"
+      + "  background: " + WAVE_PRIMARY + "; color: #fff; border: none; border-radius: 8px;\n"
+      + "  font-size: 14px; font-weight: 600; cursor: pointer;\n"
+      + "  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;\n"
       + "}\n"
-      + ".btn-primary:hover { background: #1557b0; }\n"
+      + ".btn-primary:hover {\n"
+      + "  background: #005f8f;\n"
+      + "  box-shadow: 0 4px 12px rgba(0,119,182,0.3);\n"
+      + "}\n"
+      + ".btn-primary:active { transform: translateY(1px); }\n"
       + ".btn-secondary {\n"
-      + "  display: inline-block; padding: 10px 24px;\n"
-      + "  background: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px;\n"
-      + "  font-size: 14px; font-weight: 500; cursor: pointer; margin-right: 8px;\n"
+      + "  display: inline-block; padding: 11px 28px;\n"
+      + "  background: #fff; color: " + WAVE_PRIMARY + "; border: 1.5px solid " + WAVE_PRIMARY + "; border-radius: 8px;\n"
+      + "  font-size: 14px; font-weight: 600; cursor: pointer; margin-right: 8px;\n"
+      + "  transition: background 0.2s;\n"
       + "}\n"
-      + ".btn-secondary:hover { background: #f8f8f8; }\n"
+      + ".btn-secondary:hover { background: #f0f8ff; }\n"
       + ".msg { font-size: 13px; min-height: 18px; margin-bottom: 10px; }\n"
       + ".msg.error { color: #d93025; }\n"
       + ".msg.success { color: #188038; }\n"
       + ".footer-link { font-size: 13px; margin-top: 16px; text-align: center; }\n"
-      + ".footer-link a { color: #1a73e8; text-decoration: none; }\n"
+      + ".footer-link a { color: " + WAVE_PRIMARY + "; text-decoration: none; font-weight: 500; }\n"
       + ".footer-link a:hover { text-decoration: underline; }\n"
       + ".buttons { display: flex; gap: 8px; margin-top: 8px; }\n"
+      + "@media (max-width: 480px) {\n"
+      + "  .page-wrapper { padding: 24px 12px 180px; }\n"
+      + "  .card { padding: 24px 20px; }\n"
+      + "  .brand-name { font-size: 24px; }\n"
+      + "}\n"
       + "</style>\n";
 
   // =========================================================================
@@ -133,50 +224,58 @@ public final class HtmlRenderer {
   public static String renderAuthenticationPage(String domain, String message,
       String responseType, boolean disableLoginPage, String analyticsAccount,
       boolean passwordResetEnabled, boolean magicLinkEnabled) {
-    StringBuilder sb = new StringBuilder(4096);
+    StringBuilder sb = new StringBuilder(8192);
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<title>Wave in a Box login</title>\n");
+    sb.append("<title>Sign In - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body onload=\"init()\">\n");
 
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Wave in a Box</h1>\n");
-    sb.append("  <div class=\"subtitle\">@").append(escapeHtml(domain)).append("</div>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
+    sb.append("  </div>\n");
+
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Sign In</h1>\n");
+    sb.append("    <div class=\"subtitle\">@").append(escapeHtml(domain)).append("</div>\n");
 
     if (disableLoginPage) {
-      sb.append("  <p>HTTP authentication disabled by administrator. "
+      sb.append("    <p>HTTP authentication disabled by administrator. "
           + "Install and use your certificate instead.</p>\n");
     } else {
-      sb.append("  <form id=\"wiab_loginform\" action=\"\" method=\"post\">\n");
-      sb.append("    <label for=\"address\">Username</label>\n");
-      sb.append("    <div class=\"input-group\">\n");
-      sb.append("      <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
-      sb.append("      <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
-      sb.append("    </div>\n");
-      sb.append("    <label for=\"password\">Password</label>\n");
-      sb.append("    <input type=\"password\" name=\"password\" id=\"password\" autocomplete=\"current-password\">\n");
-      sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
-      sb.append("    <input type=\"submit\" class=\"btn-primary\" name=\"signIn\" id=\"signIn\" value=\"Sign in\">\n");
-      sb.append("  </form>\n");
+      sb.append("    <form id=\"wiab_loginform\" action=\"\" method=\"post\">\n");
+      sb.append("      <label for=\"address\">Username</label>\n");
+      sb.append("      <div class=\"input-group\">\n");
+      sb.append("        <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\" placeholder=\"your.name\">\n");
+      sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+      sb.append("      </div>\n");
+      sb.append("      <label for=\"password\">Password</label>\n");
+      sb.append("      <input type=\"password\" name=\"password\" id=\"password\" autocomplete=\"current-password\" placeholder=\"Enter your password\">\n");
+      sb.append("      <div class=\"msg\" id=\"messageLbl\"></div>\n");
+      sb.append("      <input type=\"submit\" class=\"btn-primary\" name=\"signIn\" id=\"signIn\" value=\"Sign in\" style=\"width:100%;\">\n");
+      sb.append("    </form>\n");
       if (passwordResetEnabled) {
-        sb.append("  <div class=\"footer-link\">\n");
-        sb.append("    <a href=\"/auth/password-reset\">Forgot password?</a>\n");
-        sb.append("  </div>\n");
+        sb.append("    <div class=\"footer-link\">\n");
+        sb.append("      <a href=\"/auth/password-reset\">Forgot password?</a>\n");
+        sb.append("    </div>\n");
       }
       if (magicLinkEnabled) {
-        sb.append("  <div class=\"footer-link\">\n");
-        sb.append("    <a href=\"/auth/magic-link\">Login with email link</a>\n");
-        sb.append("  </div>\n");
+        sb.append("    <div class=\"footer-link\">\n");
+        sb.append("      <a href=\"/auth/magic-link\">Login with email link</a>\n");
+        sb.append("    </div>\n");
       }
-      sb.append("  <div class=\"footer-link\">\n");
-      sb.append("    Don't have an account? <a href=\"/auth/register\">Register</a>\n");
-      sb.append("  </div>\n");
+      sb.append("    <div class=\"footer-link\">\n");
+      sb.append("      Don't have an account? <a href=\"/auth/register\">Register</a>\n");
+      sb.append("    </div>\n");
     }
-    sb.append("</div>\n"); // .card
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
 
     sb.append("<script>\n");
     sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
@@ -214,43 +313,55 @@ public final class HtmlRenderer {
    */
   public static String renderUserRegistrationPage(String domain, String message,
       String responseType, boolean disableRegistration, String analyticsAccount) {
-    StringBuilder sb = new StringBuilder(4096);
+    StringBuilder sb = new StringBuilder(8192);
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<title>Register a New Account - Wave in a Box</title>\n");
+    sb.append("<title>Create Account - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body onload=\"init()\">\n");
 
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Register</h1>\n");
-    sb.append("  <div class=\"subtitle\">Create a new account @").append(escapeHtml(domain)).append("</div>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
+    sb.append("  </div>\n");
 
-    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
-    sb.append("  <span id=\"loginLink\" style=\"display:none;\"> Please <a href=\"/auth/signin\">sign in</a>.</span>\n");
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Create Account</h1>\n");
+    sb.append("    <div class=\"subtitle\">Join the wave @").append(escapeHtml(domain)).append("</div>\n");
+
+    sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
+    sb.append("    <span id=\"loginLink\" style=\"display:none;\"> Please <a href=\"/auth/signin\">sign in</a>.</span>\n");
 
     if (disableRegistration) {
-      sb.append("  <p>Registration disabled by administrator.</p>\n");
+      sb.append("    <p>Registration disabled by administrator.</p>\n");
     } else {
-      sb.append("  <form id=\"regForm\" name=\"regForm\" method=\"post\" action=\"\">\n");
-      sb.append("    <label for=\"address\">Username</label>\n");
-      sb.append("    <div class=\"input-group\">\n");
-      sb.append("      <input type=\"text\" name=\"address\" id=\"address\" tabindex=\"1\" autocomplete=\"username\">\n");
-      sb.append("      <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
-      sb.append("    </div>\n");
-      sb.append("    <label for=\"password\">Password</label>\n");
-      sb.append("    <input type=\"password\" name=\"password\" id=\"password\" tabindex=\"2\" autocomplete=\"new-password\">\n");
-      sb.append("    <label for=\"verifypass\">Re-enter Password</label>\n");
-      sb.append("    <input type=\"password\" name=\"verifypass\" id=\"verifypass\" tabindex=\"3\" autocomplete=\"new-password\">\n");
-      sb.append("    <div class=\"buttons\">\n");
-      sb.append("      <input type=\"button\" class=\"btn-secondary\" value=\"Cancel\" onclick=\"history.go(-1)\" tabindex=\"4\">\n");
-      sb.append("      <input type=\"button\" class=\"btn-primary\" value=\"Register\" tabindex=\"5\" onclick=\"validate()\">\n");
-      sb.append("    </div>\n");
-      sb.append("  </form>\n");
+      sb.append("    <form id=\"regForm\" name=\"regForm\" method=\"post\" action=\"\">\n");
+      sb.append("      <label for=\"address\">Username</label>\n");
+      sb.append("      <div class=\"input-group\">\n");
+      sb.append("        <input type=\"text\" name=\"address\" id=\"address\" tabindex=\"1\" autocomplete=\"username\" placeholder=\"your.name\">\n");
+      sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+      sb.append("      </div>\n");
+      sb.append("      <label for=\"password\">Password</label>\n");
+      sb.append("      <input type=\"password\" name=\"password\" id=\"password\" tabindex=\"2\" autocomplete=\"new-password\" placeholder=\"Choose a password\">\n");
+      sb.append("      <label for=\"verifypass\">Confirm Password</label>\n");
+      sb.append("      <input type=\"password\" name=\"verifypass\" id=\"verifypass\" tabindex=\"3\" autocomplete=\"new-password\" placeholder=\"Re-enter your password\">\n");
+      sb.append("      <div class=\"buttons\">\n");
+      sb.append("        <input type=\"button\" class=\"btn-secondary\" value=\"Cancel\" onclick=\"history.go(-1)\" tabindex=\"4\">\n");
+      sb.append("        <input type=\"button\" class=\"btn-primary\" value=\"Create Account\" tabindex=\"5\" onclick=\"validate()\" style=\"flex:1;\">\n");
+      sb.append("      </div>\n");
+      sb.append("    </form>\n");
     }
-    sb.append("</div>\n"); // .card
+
+    sb.append("    <div class=\"footer-link\">\n");
+    sb.append("      Already have an account? <a href=\"/auth/signin\">Sign in</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
 
     sb.append("<script>\n");
     sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
@@ -296,7 +407,266 @@ public final class HtmlRenderer {
   }
 
   // =========================================================================
-  // 3. Wave Client Page
+  // 3. Landing Page (public, for non-authenticated users)
+  // =========================================================================
+
+  /**
+   * Renders the public landing page shown at / when the user is not logged in.
+   *
+   * @param domain           the wave server domain
+   * @param analyticsAccount Google Analytics account ID (may be null/empty)
+   */
+  public static String renderLandingPage(String domain, String analyticsAccount) {
+    StringBuilder sb = new StringBuilder(16384);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\" lang=\"en\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>SupaWave - Real-time Collaborative Communication</title>\n");
+    sb.append("<meta name=\"description\" content=\"SupaWave is a real-time collaborative communication platform. Create, share, and collaborate on conversations with rich media and live editing.\">\n");
+    sb.append("<style>\n");
+
+    // Reset & base
+    sb.append("*, *::before, *::after { box-sizing: border-box; }\n");
+    sb.append("body {\n");
+    sb.append("  margin: 0; padding: 0;\n");
+    sb.append("  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,\n");
+    sb.append("    Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;\n");
+    sb.append("  color: #1a1a2e; background: #fff;\n");
+    sb.append("  overflow-x: hidden;\n");
+    sb.append("}\n");
+    sb.append("a { text-decoration: none; }\n");
+
+    // Nav
+    sb.append(".nav {\n");
+    sb.append("  display: flex; align-items: center; justify-content: space-between;\n");
+    sb.append("  padding: 16px 32px; position: relative; z-index: 10;\n");
+    sb.append("}\n");
+    sb.append(".nav-brand {\n");
+    sb.append("  display: flex; align-items: center; gap: 10px;\n");
+    sb.append("}\n");
+    sb.append(".nav-brand-name {\n");
+    sb.append("  font-size: 22px; font-weight: 700; color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("}\n");
+    sb.append(".nav-links { display: flex; gap: 12px; align-items: center; }\n");
+    sb.append(".nav-link {\n");
+    sb.append("  padding: 8px 20px; font-size: 14px; font-weight: 600;\n");
+    sb.append("  border-radius: 8px; transition: all 0.2s;\n");
+    sb.append("}\n");
+    sb.append(".nav-link-signin {\n");
+    sb.append("  color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("  border: 1.5px solid ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("}\n");
+    sb.append(".nav-link-signin:hover { background: #f0f8ff; }\n");
+    sb.append(".nav-link-register {\n");
+    sb.append("  color: #fff; background: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("}\n");
+    sb.append(".nav-link-register:hover {\n");
+    sb.append("  background: #005f8f;\n");
+    sb.append("  box-shadow: 0 4px 12px rgba(0,119,182,0.3);\n");
+    sb.append("}\n");
+
+    // Hero
+    sb.append(".hero {\n");
+    sb.append("  position: relative;\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  padding: 80px 32px 160px; text-align: center; color: #fff;\n");
+    sb.append("  overflow: hidden;\n");
+    sb.append("}\n");
+    sb.append(".hero-content { position: relative; z-index: 2; max-width: 720px; margin: 0 auto; }\n");
+    sb.append(".hero h1 {\n");
+    sb.append("  font-size: 52px; font-weight: 800; margin: 0 0 16px;\n");
+    sb.append("  letter-spacing: -1px; line-height: 1.1;\n");
+    sb.append("}\n");
+    sb.append(".hero .tagline {\n");
+    sb.append("  font-size: 22px; font-weight: 400; opacity: 0.92;\n");
+    sb.append("  margin-bottom: 12px;\n");
+    sb.append("}\n");
+    sb.append(".hero .description {\n");
+    sb.append("  font-size: 16px; opacity: 0.85; max-width: 540px;\n");
+    sb.append("  margin: 0 auto 32px; line-height: 1.6;\n");
+    sb.append("}\n");
+    sb.append(".hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }\n");
+    sb.append(".hero-btn {\n");
+    sb.append("  padding: 14px 36px; font-size: 16px; font-weight: 600;\n");
+    sb.append("  border-radius: 10px; transition: all 0.2s; display: inline-block;\n");
+    sb.append("}\n");
+    sb.append(".hero-btn-primary {\n");
+    sb.append("  background: #fff; color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("}\n");
+    sb.append(".hero-btn-primary:hover {\n");
+    sb.append("  background: #f0f8ff;\n");
+    sb.append("  box-shadow: 0 6px 20px rgba(0,0,0,0.15);\n");
+    sb.append("  transform: translateY(-2px);\n");
+    sb.append("}\n");
+    sb.append(".hero-btn-secondary {\n");
+    sb.append("  background: rgba(255,255,255,0.15); color: #fff;\n");
+    sb.append("  border: 2px solid rgba(255,255,255,0.4);\n");
+    sb.append("  backdrop-filter: blur(4px);\n");
+    sb.append("}\n");
+    sb.append(".hero-btn-secondary:hover {\n");
+    sb.append("  background: rgba(255,255,255,0.25);\n");
+    sb.append("  border-color: rgba(255,255,255,0.6);\n");
+    sb.append("}\n");
+
+    // Hero wave decoration
+    sb.append(".hero-wave {\n");
+    sb.append("  position: absolute; bottom: -2px; left: 0; width: 100%; z-index: 1;\n");
+    sb.append("  line-height: 0;\n");
+    sb.append("}\n");
+    sb.append(".hero-wave svg { width: 100%; height: auto; }\n");
+
+    // Features section
+    sb.append(".features {\n");
+    sb.append("  padding: 80px 32px; max-width: 1000px; margin: 0 auto;\n");
+    sb.append("}\n");
+    sb.append(".features h2 {\n");
+    sb.append("  text-align: center; font-size: 32px; font-weight: 700;\n");
+    sb.append("  margin: 0 0 48px; color: #1a1a2e;\n");
+    sb.append("}\n");
+    sb.append(".features-grid {\n");
+    sb.append("  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));\n");
+    sb.append("  gap: 32px;\n");
+    sb.append("}\n");
+    sb.append(".feature-card {\n");
+    sb.append("  background: #f8fbff; border-radius: 12px; padding: 28px;\n");
+    sb.append("  border: 1px solid #e8f0fe;\n");
+    sb.append("  transition: transform 0.2s, box-shadow 0.2s;\n");
+    sb.append("}\n");
+    sb.append(".feature-card:hover {\n");
+    sb.append("  transform: translateY(-4px);\n");
+    sb.append("  box-shadow: 0 8px 24px rgba(0,119,182,0.1);\n");
+    sb.append("}\n");
+    sb.append(".feature-icon {\n");
+    sb.append("  width: 48px; height: 48px; border-radius: 12px;\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  display: flex; align-items: center; justify-content: center;\n");
+    sb.append("  margin-bottom: 16px; font-size: 24px; color: #fff;\n");
+    sb.append("}\n");
+    sb.append(".feature-card h3 {\n");
+    sb.append("  font-size: 18px; font-weight: 600; margin: 0 0 8px;\n");
+    sb.append("}\n");
+    sb.append(".feature-card p {\n");
+    sb.append("  font-size: 14px; color: #555; line-height: 1.6; margin: 0;\n");
+    sb.append("}\n");
+
+    // Footer
+    sb.append(".landing-footer {\n");
+    sb.append("  text-align: center; padding: 32px;\n");
+    sb.append("  color: #888; font-size: 13px;\n");
+    sb.append("  border-top: 1px solid #eee;\n");
+    sb.append("}\n");
+    sb.append(".landing-footer a { color: ").append(WAVE_PRIMARY).append("; }\n");
+
+    // Responsive
+    sb.append("@media (max-width: 640px) {\n");
+    sb.append("  .nav { padding: 12px 16px; }\n");
+    sb.append("  .hero { padding: 48px 20px 120px; }\n");
+    sb.append("  .hero h1 { font-size: 32px; }\n");
+    sb.append("  .hero .tagline { font-size: 18px; }\n");
+    sb.append("  .hero .description { font-size: 14px; }\n");
+    sb.append("  .features { padding: 48px 20px; }\n");
+    sb.append("  .features h2 { font-size: 24px; }\n");
+    sb.append("}\n");
+
+    sb.append("</style>\n");
+    appendAnalyticsFragment(sb, analyticsAccount, null);
+    sb.append("</head>\n<body>\n");
+
+    // -- Navigation --
+    sb.append("<nav class=\"nav\">\n");
+    sb.append("  <div class=\"nav-brand\">\n");
+    sb.append("    <svg width=\"32\" height=\"32\" viewBox=\"0 0 48 48\" fill=\"none\">\n");
+    sb.append("      <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"").append(WAVE_PRIMARY).append("\"/>\n");
+    sb.append("      <path d=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\" ");
+    sb.append("stroke=\"white\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\"/>\n");
+    sb.append("    </svg>\n");
+    sb.append("    <span class=\"nav-brand-name\">SupaWave</span>\n");
+    sb.append("  </div>\n");
+    sb.append("  <div class=\"nav-links\">\n");
+    sb.append("    <a href=\"/auth/signin\" class=\"nav-link nav-link-signin\">Sign In</a>\n");
+    sb.append("    <a href=\"/auth/register\" class=\"nav-link nav-link-register\">Register</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</nav>\n");
+
+    // -- Hero --
+    sb.append("<section class=\"hero\">\n");
+    sb.append("  <div class=\"hero-content\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG.replace("width=\"48\" height=\"48\"", "width=\"72\" height=\"72\""));
+    sb.append("    <h1>SupaWave</h1>\n");
+    sb.append("    <p class=\"tagline\">Real-time collaborative communication</p>\n");
+    sb.append("    <p class=\"description\">Wave brings conversations to life. Create rich, ").append(
+        "collaborative discussions where everyone can contribute in real time. ").append(
+        "Edit, reply, and build on ideas together &#8212; all in one place.</p>\n");
+    sb.append("    <div class=\"hero-buttons\">\n");
+    sb.append("      <a href=\"/auth/register\" class=\"hero-btn hero-btn-primary\">Get Started</a>\n");
+    sb.append("      <a href=\"/auth/signin\" class=\"hero-btn hero-btn-secondary\">Sign In</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n");
+    // Hero bottom wave divider
+    sb.append("  <div class=\"hero-wave\">\n");
+    sb.append("    <svg viewBox=\"0 0 1440 120\" preserveAspectRatio=\"none\">\n");
+    sb.append("      <path d=\"M0,40 C360,120 1080,0 1440,60 L1440,120 L0,120 Z\" fill=\"#ffffff\">\n");
+    sb.append("        <animate attributeName=\"d\" dur=\"8s\" repeatCount=\"indefinite\"\n");
+    sb.append("          values=\"M0,40 C360,120 1080,0 1440,60 L1440,120 L0,120 Z;\n");
+    sb.append("                  M0,70 C360,0 1080,100 1440,30 L1440,120 L0,120 Z;\n");
+    sb.append("                  M0,40 C360,120 1080,0 1440,60 L1440,120 L0,120 Z\"/>\n");
+    sb.append("      </path>\n");
+    sb.append("    </svg>\n");
+    sb.append("  </div>\n");
+    sb.append("</section>\n");
+
+    // -- Features --
+    sb.append("<section class=\"features\">\n");
+    sb.append("  <h2>Why SupaWave?</h2>\n");
+    sb.append("  <div class=\"features-grid\">\n");
+
+    sb.append("    <div class=\"feature-card\">\n");
+    sb.append("      <div class=\"feature-icon\">\n");
+    sb.append("        <svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"2\" stroke-linecap=\"round\">\n");
+    sb.append("          <path d=\"M13 2L3 14h9l-1 8 10-12h-9l1-8z\"/>\n");
+    sb.append("        </svg>\n");
+    sb.append("      </div>\n");
+    sb.append("      <h3>Real-Time Collaboration</h3>\n");
+    sb.append("      <p>See changes as they happen. Multiple participants can edit and contribute simultaneously with character-by-character live updates.</p>\n");
+    sb.append("    </div>\n");
+
+    sb.append("    <div class=\"feature-card\">\n");
+    sb.append("      <div class=\"feature-icon\">\n");
+    sb.append("        <svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"2\" stroke-linecap=\"round\">\n");
+    sb.append("          <path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/>\n");
+    sb.append("        </svg>\n");
+    sb.append("      </div>\n");
+    sb.append("      <h3>Threaded Conversations</h3>\n");
+    sb.append("      <p>Organize discussions naturally. Reply inline, branch conversations, and keep context intact across complex collaborative threads.</p>\n");
+    sb.append("    </div>\n");
+
+    sb.append("    <div class=\"feature-card\">\n");
+    sb.append("      <div class=\"feature-icon\">\n");
+    sb.append("        <svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"2\" stroke-linecap=\"round\">\n");
+    sb.append("          <circle cx=\"12\" cy=\"12\" r=\"10\"/>\n");
+    sb.append("          <path d=\"M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>\n");
+    sb.append("        </svg>\n");
+    sb.append("      </div>\n");
+    sb.append("      <h3>Open &amp; Federated</h3>\n");
+    sb.append("      <p>Built on the open Apache Wave protocol. Self-host your own server and communicate across federated Wave instances.</p>\n");
+    sb.append("    </div>\n");
+
+    sb.append("  </div>\n");
+    sb.append("</section>\n");
+
+    // -- Footer --
+    sb.append("<footer class=\"landing-footer\">\n");
+    sb.append("  Powered by <a href=\"https://incubator.apache.org/projects/wave.html\">Apache Wave</a>\n");
+    sb.append("  &middot; @").append(escapeHtml(domain)).append("\n");
+    sb.append("</footer>\n");
+
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
+  // 4. Wave Client Page
   // =========================================================================
 
   /**
@@ -313,7 +683,7 @@ public final class HtmlRenderer {
     StringBuilder sb = new StringBuilder(4096);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n");
-    sb.append("<title>Wave in a Box</title>\n");
+    sb.append("<title>SupaWave</title>\n");
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
     // Session variables
     sb.append("<script type=\"text/javascript\">\n");
@@ -409,7 +779,7 @@ public final class HtmlRenderer {
     StringBuilder sb = new StringBuilder(2048);
     sb.append("<div class=\"topbar\">\n");
     sb.append("  <a href=\"/\"><img src=\"/static/logo.png\" alt=\"logo\" class=\"logo\"></a>\n");
-    sb.append("  <div class=\"title\">Wave in a box</div>\n");
+    sb.append("  <div class=\"title\">SupaWave</div>\n");
     sb.append("  <div class=\"banner\" id=\"banner\"></div>\n");
     sb.append("  <div class=\"info\">\n");
     if (username == null) {
@@ -460,32 +830,39 @@ public final class HtmlRenderer {
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body>\n");
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Robot Registration</h1>\n");
-    if (message != null && !message.isEmpty()) {
-      sb.append("  <p><b>").append(escapeHtml(message)).append("</b></p>\n");
-    }
-    sb.append("  <form method=\"post\" action=\"\">\n");
-    sb.append("    <label for=\"username\">Robot Username</label>\n");
-    sb.append("    <div class=\"input-group\">\n");
-    sb.append("      <input type=\"text\" name=\"username\" id=\"username\">\n");
-    sb.append("      <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
-    sb.append("    </div>\n");
-    sb.append("    <label for=\"location\">Robot URL</label>\n");
-    sb.append("    <input type=\"text\" name=\"location\" id=\"location\">\n");
-    sb.append("    <label for=\"token_expiry\">Token Expiry</label>\n");
-    sb.append("    <select name=\"token_expiry\" id=\"token_expiry\" style=\"width:100%;padding:9px 10px;font-size:14px;border:1px solid #ccc;border-radius:4px;margin-bottom:14px;\">\n");
-    sb.append("      <option value=\"0\" selected>No expiry</option>\n");
-    sb.append("      <option value=\"3600\">1 hour</option>\n");
-    sb.append("      <option value=\"86400\">1 day</option>\n");
-    sb.append("      <option value=\"604800\">1 week</option>\n");
-    sb.append("    </select>\n");
-    sb.append("    <input type=\"submit\" class=\"btn-primary\" value=\"Register\">\n");
-    sb.append("  </form>\n");
-    sb.append("  <div class=\"footer-link\">\n");
-    sb.append("    <a href=\"/\">&larr; Back to Wave</a>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
-    sb.append("</div>\n");
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Robot Registration</h1>\n");
+    if (message != null && !message.isEmpty()) {
+      sb.append("    <p><b>").append(escapeHtml(message)).append("</b></p>\n");
+    }
+    sb.append("    <form method=\"post\" action=\"\">\n");
+    sb.append("      <label for=\"username\">Robot Username</label>\n");
+    sb.append("      <div class=\"input-group\">\n");
+    sb.append("        <input type=\"text\" name=\"username\" id=\"username\">\n");
+    sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+    sb.append("      </div>\n");
+    sb.append("      <label for=\"location\">Robot URL</label>\n");
+    sb.append("      <input type=\"text\" name=\"location\" id=\"location\">\n");
+    sb.append("      <label for=\"token_expiry\">Token Expiry</label>\n");
+    sb.append("      <select name=\"token_expiry\" id=\"token_expiry\" style=\"width:100%;padding:10px 12px;font-size:14px;border:1.5px solid #d0d5dd;border-radius:8px;margin-bottom:14px;background:#fafbfc;\">\n");
+    sb.append("        <option value=\"0\" selected>No expiry</option>\n");
+    sb.append("        <option value=\"3600\">1 hour</option>\n");
+    sb.append("        <option value=\"86400\">1 day</option>\n");
+    sb.append("        <option value=\"604800\">1 week</option>\n");
+    sb.append("      </select>\n");
+    sb.append("      <input type=\"submit\" class=\"btn-primary\" value=\"Register\" style=\"width:100%;\">\n");
+    sb.append("    </form>\n");
+    sb.append("    <div class=\"footer-link\">\n");
+    sb.append("      <a href=\"/\">&larr; Back to SupaWave</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -511,18 +888,25 @@ public final class HtmlRenderer {
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body>\n");
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Robot Registered</h1>\n");
-    sb.append("  <p>Your robot has been successfully registered. Please take note of the consumer\n");
-    sb.append("  token and token secret to use for the Active API.</p>\n");
-    sb.append("  <table>\n");
-    sb.append("    <tr><td><b>Consumer Token</b></td><td>").append(escapeHtml(token)).append("</td></tr>\n");
-    sb.append("    <tr><td><b>Consumer Token Secret</b></td><td>").append(escapeHtml(tokenSecret)).append("</td></tr>\n");
-    sb.append("  </table>\n");
-    sb.append("  <div class=\"footer-link\">\n");
-    sb.append("    <a href=\"/\">&larr; Back to Wave</a>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
-    sb.append("</div>\n");
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Robot Registered</h1>\n");
+    sb.append("    <p>Your robot has been successfully registered. Please take note of the consumer\n");
+    sb.append("    token and token secret to use for the Active API.</p>\n");
+    sb.append("    <table>\n");
+    sb.append("      <tr><td><b>Consumer Token</b></td><td>").append(escapeHtml(token)).append("</td></tr>\n");
+    sb.append("      <tr><td><b>Consumer Token Secret</b></td><td>").append(escapeHtml(tokenSecret)).append("</td></tr>\n");
+    sb.append("    </table>\n");
+    sb.append("    <div class=\"footer-link\">\n");
+    sb.append("      <a href=\"/\">&larr; Back to SupaWave</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -545,18 +929,25 @@ public final class HtmlRenderer {
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
     sb.append(AUTH_CSS);
     sb.append("</head>\n<body>\n");
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Authorization Required</h1>\n");
-    sb.append("  <p>You are logged in as <b>").append(escapeHtml(user)).append("</b>.</p>\n");
-    sb.append("  <p>A program would like to access your waves and perform operations on your behalf.</p>\n");
-    sb.append("  <form method=\"post\" action=\"\">\n");
-    sb.append("    <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(xsrfToken)).append("\">\n");
-    sb.append("    <div class=\"buttons\">\n");
-    sb.append("      <input type=\"submit\" class=\"btn-primary\" value=\"Agree\" name=\"agree\">\n");
-    sb.append("      <input type=\"submit\" class=\"btn-secondary\" value=\"Cancel\" name=\"cancel\">\n");
-    sb.append("    </div>\n");
-    sb.append("  </form>\n");
-    sb.append("</div>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
+    sb.append("  </div>\n");
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Authorization Required</h1>\n");
+    sb.append("    <p>You are logged in as <b>").append(escapeHtml(user)).append("</b>.</p>\n");
+    sb.append("    <p>A program would like to access your waves and perform operations on your behalf.</p>\n");
+    sb.append("    <form method=\"post\" action=\"\">\n");
+    sb.append("      <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(xsrfToken)).append("\">\n");
+    sb.append("      <div class=\"buttons\">\n");
+    sb.append("        <input type=\"submit\" class=\"btn-primary\" value=\"Agree\" name=\"agree\">\n");
+    sb.append("        <input type=\"submit\" class=\"btn-secondary\" value=\"Cancel\" name=\"cancel\">\n");
+    sb.append("      </div>\n");
+    sb.append("    </form>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -578,14 +969,21 @@ public final class HtmlRenderer {
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
     sb.append(AUTH_CSS);
     sb.append("</head>\n<body>\n");
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Authorization Code</h1>\n");
-    sb.append("  <p>Please copy this code, switch to your application and paste it there:</p>\n");
-    sb.append("  <input id=\"code\" type=\"text\" readonly ");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
+    sb.append("  </div>\n");
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Authorization Code</h1>\n");
+    sb.append("    <p>Please copy this code, switch to your application and paste it there:</p>\n");
+    sb.append("    <input id=\"code\" type=\"text\" readonly ");
     sb.append("style=\"width:100%;font-family:monospace;\" ");
     sb.append("onclick=\"this.focus();this.select();\" ");
     sb.append("value=\"").append(escapeHtml(code)).append("\">\n");
-    sb.append("</div>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -604,30 +1002,38 @@ public final class HtmlRenderer {
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<title>Reset Password - Wave in a Box</title>\n");
+    sb.append("<title>Reset Password - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body onload=\"init()\">\n");
 
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Reset Password</h1>\n");
-    sb.append("  <div class=\"subtitle\">Enter your username to receive a reset link</div>\n");
-
-    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
-
-    sb.append("  <form id=\"resetForm\" method=\"post\" action=\"\">\n");
-    sb.append("    <label for=\"address\">Username</label>\n");
-    sb.append("    <div class=\"input-group\">\n");
-    sb.append("      <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
-    sb.append("      <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
-    sb.append("    </div>\n");
-    sb.append("    <input type=\"submit\" class=\"btn-primary\" value=\"Send Reset Link\">\n");
-    sb.append("  </form>\n");
-
-    sb.append("  <div class=\"footer-link\">\n");
-    sb.append("    <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
-    sb.append("</div>\n");
+
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Reset Password</h1>\n");
+    sb.append("    <div class=\"subtitle\">Enter your username to receive a reset link</div>\n");
+
+    sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
+
+    sb.append("    <form id=\"resetForm\" method=\"post\" action=\"\">\n");
+    sb.append("      <label for=\"address\">Username</label>\n");
+    sb.append("      <div class=\"input-group\">\n");
+    sb.append("        <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
+    sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+    sb.append("      </div>\n");
+    sb.append("      <input type=\"submit\" class=\"btn-primary\" value=\"Send Reset Link\" style=\"width:100%;\">\n");
+    sb.append("    </form>\n");
+
+    sb.append("    <div class=\"footer-link\">\n");
+    sb.append("      <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
 
     sb.append("<script>\n");
     sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
@@ -665,30 +1071,38 @@ public final class HtmlRenderer {
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<title>Set New Password - Wave in a Box</title>\n");
+    sb.append("<title>Set New Password - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body onload=\"init()\">\n");
 
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Set New Password</h1>\n");
-    sb.append("  <div class=\"subtitle\">Enter your new password below</div>\n");
-
-    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
-
-    sb.append("  <form id=\"resetForm\" method=\"post\" action=\"\">\n");
-    sb.append("    <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(token)).append("\">\n");
-    sb.append("    <label for=\"password\">New Password</label>\n");
-    sb.append("    <input type=\"password\" name=\"password\" id=\"password\" autocomplete=\"new-password\">\n");
-    sb.append("    <label for=\"confirmPassword\">Confirm Password</label>\n");
-    sb.append("    <input type=\"password\" name=\"confirmPassword\" id=\"confirmPassword\" autocomplete=\"new-password\">\n");
-    sb.append("    <input type=\"submit\" class=\"btn-primary\" value=\"Update Password\">\n");
-    sb.append("  </form>\n");
-
-    sb.append("  <div class=\"footer-link\">\n");
-    sb.append("    <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
-    sb.append("</div>\n");
+
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Set New Password</h1>\n");
+    sb.append("    <div class=\"subtitle\">Enter your new password below</div>\n");
+
+    sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
+
+    sb.append("    <form id=\"resetForm\" method=\"post\" action=\"\">\n");
+    sb.append("      <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(token)).append("\">\n");
+    sb.append("      <label for=\"password\">New Password</label>\n");
+    sb.append("      <input type=\"password\" name=\"password\" id=\"password\" autocomplete=\"new-password\">\n");
+    sb.append("      <label for=\"confirmPassword\">Confirm Password</label>\n");
+    sb.append("      <input type=\"password\" name=\"confirmPassword\" id=\"confirmPassword\" autocomplete=\"new-password\">\n");
+    sb.append("      <input type=\"submit\" class=\"btn-primary\" value=\"Update Password\" style=\"width:100%;\">\n");
+    sb.append("    </form>\n");
+
+    sb.append("    <div class=\"footer-link\">\n");
+    sb.append("      <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
 
     sb.append("<script>\n");
     sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
@@ -726,30 +1140,38 @@ public final class HtmlRenderer {
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<title>Login with Email - Wave in a Box</title>\n");
+    sb.append("<title>Login with Email - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body onload=\"init()\">\n");
 
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Login with Email</h1>\n");
-    sb.append("  <div class=\"subtitle\">Enter your username to receive a login link</div>\n");
-
-    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
-
-    sb.append("  <form id=\"magicForm\" method=\"post\" action=\"\">\n");
-    sb.append("    <label for=\"address\">Username</label>\n");
-    sb.append("    <div class=\"input-group\">\n");
-    sb.append("      <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
-    sb.append("      <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
-    sb.append("    </div>\n");
-    sb.append("    <input type=\"submit\" class=\"btn-primary\" value=\"Send Login Link\">\n");
-    sb.append("  </form>\n");
-
-    sb.append("  <div class=\"footer-link\">\n");
-    sb.append("    <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
-    sb.append("</div>\n");
+
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Login with Email</h1>\n");
+    sb.append("    <div class=\"subtitle\">Enter your username to receive a login link</div>\n");
+
+    sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
+
+    sb.append("    <form id=\"magicForm\" method=\"post\" action=\"\">\n");
+    sb.append("      <label for=\"address\">Username</label>\n");
+    sb.append("      <div class=\"input-group\">\n");
+    sb.append("        <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
+    sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+    sb.append("      </div>\n");
+    sb.append("      <input type=\"submit\" class=\"btn-primary\" value=\"Send Login Link\" style=\"width:100%;\">\n");
+    sb.append("    </form>\n");
+
+    sb.append("    <div class=\"footer-link\">\n");
+    sb.append("      <a href=\"/auth/signin\">&larr; Back to Sign In</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
 
     sb.append("<script>\n");
     sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
@@ -787,20 +1209,28 @@ public final class HtmlRenderer {
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<title>Email Confirmation - Wave in a Box</title>\n");
+    sb.append("<title>Email Confirmation - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body onload=\"init()\">\n");
 
-    sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Email Confirmation</h1>\n");
-
-    sb.append("  <div class=\"msg\" id=\"messageLbl\"></div>\n");
-
-    sb.append("  <div class=\"footer-link\">\n");
-    sb.append("    <a href=\"/auth/signin\">Go to Sign In</a>\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
-    sb.append("</div>\n");
+
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Email Confirmation</h1>\n");
+
+    sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
+
+    sb.append("    <div class=\"footer-link\">\n");
+    sb.append("      <a href=\"/auth/signin\">Go to Sign In</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
 
     sb.append("<script>\n");
     sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");

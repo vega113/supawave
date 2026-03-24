@@ -138,4 +138,9 @@ public class WaveletProviderStub implements WaveletProvider {
   public void setAllowsAccess(boolean allowsAccess) {
     this.allowsAccess = allowsAccess;
   }
+
+  @Override
+  public HashedVersion getHashedVersion(WaveletName waveletName, long version) {
+    return null;
+  }
 }

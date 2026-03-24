@@ -130,4 +130,17 @@ public interface WaveletProvider {
    *         a bad state
    */
   CommittedWaveletSnapshot getSnapshot(WaveletName waveletName) throws WaveServerException;
+
+  /**
+   * Returns the hashed version at the given version number for the specified
+   * wavelet, if the version is at a delta boundary.
+   *
+   * @param waveletName the wavelet to look up
+   * @param version the version number
+   * @return the hashed version at that version, or null if the wavelet doesn't
+   *         exist or the version is not a delta boundary
+   * @throws WaveServerException if storage access fails or the wavelet is in a
+   *         bad state
+   */
+  HashedVersion getHashedVersion(WaveletName waveletName, long version) throws WaveServerException;
 }

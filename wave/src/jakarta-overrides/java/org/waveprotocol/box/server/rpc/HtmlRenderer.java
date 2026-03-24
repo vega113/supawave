@@ -931,6 +931,7 @@ public final class HtmlRenderer {
     sb.append("      closePanel();\n");
     sb.append("    } else {\n");
     sb.append("      body.classList.remove('mobile-wave-open');\n");
+    sb.append("      openPanel();\n");
     sb.append("    }\n");
     sb.append("  }\n");
     sb.append("  window.addEventListener('hashchange', onHashChange);\n");

@@ -112,6 +112,11 @@ public final class ActionsImpl implements Actions {
   }
 
   @Override
+  public void toggleDraftMode() {
+    edit.toggleDraftMode();
+  }
+
+  @Override
   public void reply(BlipView blipUi) {
     boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
     if (allowed) {

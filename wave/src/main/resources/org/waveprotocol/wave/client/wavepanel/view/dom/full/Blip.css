@@ -142,30 +142,53 @@
 .menu {
   float: right;
   cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
 }
 
 .menuOption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   border-radius: 4px;
   -moz-border-radius: 4px;
   -webkit-border-radius: 4px;
   cursor: pointer;
-  padding: 0.3em 0.5em;
-  font-size: 12px;
   color: #718096;
   transition: all 0.15s ease;
 }
 
 .read .menuOption:hover {
-  background-color: rgba(0,119,182,0.06);
-  color: #0077b6;
+  background-color: #edf2f7;
+  color: #2d3748;
 }
 
 .unread .menuOption:hover {
-  background-color: rgba(0,119,182,0.08);
-  color: #0077b6;
+  background-color: #edf2f7;
+  color: #2d3748;
 }
 
-/* Inverted colors for selected menu option. */
+/* Delete icon turns red on hover. */
+.menuOption[data-option="delete"]:hover {
+  color: #e53e3e;
+}
+
+/* Done icon turns green on hover. */
+.menuOption[data-option="edit_done"]:hover {
+  color: #38a169;
+}
+
+/* Draft icon active state (blue). */
+.menuOptionSelected[data-option="draft"],
+.menuOptionSelected[data-option="draft"]:hover {
+  color: #0077b6;
+  background-color: #ebf8ff;
+}
+
+/* Selected menu option (e.g., Done while editing). */
 .read .menuOptionSelected, .read .menuOptionSelected:hover {
   background-color: #0077b6;
   color: #fff;

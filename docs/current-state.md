@@ -265,8 +265,9 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
 - Tags, archive, and stored searches.
 - Draft mode.
 - Contacts.
-- Decide whether the deeper Wiab blocks / snapshot / history layer should be
-  adopted or only selectively mined for ideas.
+- ~~Decide whether the deeper Wiab blocks / snapshot / history layer should be
+  adopted or only selectively mined for ideas.~~
+  (Decided 2026-03-24: not adopting. See `docs/snapshot-gating-decision.md`.)
 
 ## Beads epics
 

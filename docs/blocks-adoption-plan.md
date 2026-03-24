@@ -1,9 +1,9 @@
 # Server-First Blocks Adoption Plan
 
 Owner: Migration Engineering
-Last updated: 2025-09-18
+Last updated: 2026-03-24
 
-Statuses: planned | in_progress | completed
+Statuses: planned | in_progress | completed | deferred
 
 Status note (2026-03-18)
 - This document remains the detailed server-first migration log for fragments,

@@ -22,14 +22,15 @@ COPY build.sbt /workspace/
 COPY project /workspace/project
 COPY .sbtopts /workspace/
 
-# Copy source trees
+# Copy source trees and root docs needed by Universal/stage mappings
 COPY pst /workspace/pst
 COPY wave /workspace/wave
 COPY gen /workspace/gen
 COPY scripts /workspace/scripts
+COPY THANKS RELEASE-NOTES KEYS DISCLAIMER /workspace/
 
-# Build the staged distribution (sbt-native-packager Universal/stage)
-RUN sbt --batch Universal/stage
+# Build sequentially: compile, GWT client, then stage the distribution
+RUN sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage"
 
 # Runtime stage: slim JRE image
 FROM eclipse-temurin:17-jre

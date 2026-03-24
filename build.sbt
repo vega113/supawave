@@ -1067,8 +1067,10 @@ ThisBuild / compileGwt := {
       log.info("[compileGwt] Native mode — forking com.google.gwt.dev.Compiler")
 
       // GWT needs Java source directories on the classpath (for translatable source)
+      // GWT needs source dirs + resources (for .gwt.xml module files) on classpath
       val javaSrcDirs = Seq(
         base / "wave" / "src" / "main" / "java",
+        base / "wave" / "src" / "main" / "resources",
         base / "wave" / "generated" / "src" / "main" / "java",
         base / "proto_src",
         base / "gen" / "messages",

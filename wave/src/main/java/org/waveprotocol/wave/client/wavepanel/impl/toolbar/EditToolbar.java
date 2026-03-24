@@ -39,15 +39,10 @@ import org.waveprotocol.wave.client.editor.toolbar.ParagraphApplicationControlle
 import org.waveprotocol.wave.client.editor.toolbar.ParagraphTraversalController;
 import org.waveprotocol.wave.client.editor.toolbar.TextSelectionController;
 import org.waveprotocol.wave.client.editor.util.EditorAnnotationUtil;
-import org.waveprotocol.wave.client.gadget.GadgetXmlUtil;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.color.ColorHelper;
-import org.waveprotocol.wave.client.wavepanel.impl.toolbar.gadget.GadgetInfoProviderImpl;
-import org.waveprotocol.wave.client.wavepanel.impl.toolbar.gadget.GadgetSelectorWidget;
-import org.waveprotocol.wave.client.wavepanel.impl.toolbar.gadget.GwtGadgetInfoParser;
 import org.waveprotocol.wave.client.wavepanel.view.AttachmentPopupView;
 import org.waveprotocol.wave.client.wavepanel.view.AttachmentPopupView.Listener;
-import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 import org.waveprotocol.wave.client.widget.toolbar.SubmenuToolbarView;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarButtonViewBuilder;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarView;
@@ -177,8 +172,7 @@ public class EditToolbar {
     createInsertLinkButton(group);
     createRemoveLinkButton(group);
 
-    group = toolbarUi.addGroup();
-    createInsertGadgetButton(group, user);
+    // Gadget button removed — gadgets are not supported in current deployment.
 
     group = toolbarUi.addGroup();
     createInsertAttachmentButton(group, user);
@@ -330,45 +324,6 @@ public class EditToolbar {
             createClearHeadingsListener().onClicked();
           }
         });
-  }
-
-  private void createInsertGadgetButton(ToolbarView toolbar, final ParticipantId user) {
-    new ToolbarButtonViewBuilder()
-        .setIcon(css.insertGadget())
-        .applyTo(toolbar.addClickButton(), new ToolbarClickButton.Listener() {
-          @Override public void onClicked() {
-            final FocusedRange focusedRange = editor.getSelectionHelper().getSelectionRange();
-            GadgetSelectorWidget selector = new GadgetSelectorWidget(new GadgetInfoProviderImpl(new GwtGadgetInfoParser()));
-            selector.addFeaturedOptions();
-            final UniversalPopup popup = selector.showInPopup();
-            selector.setListener(new GadgetSelectorWidget.Listener() {
-              @Override public void onSelect(String url) {
-                insertGadget(url, focusedRange);
-                popup.hide();
-              }
-            });
-          }
-        });
-  }
-
-  private void insertGadget(String url, FocusedRange focusedRange) {
-    int from = -1;
-    if (focusedRange != null) {
-      from = focusedRange.getFocus();
-    }
-    if (url != null && !url.isEmpty()) {
-      XmlStringBuilder xml = GadgetXmlUtil.constructXml(url, "", user.getAddress());
-      CMutableDocument document = editor.getDocument();
-      if (document == null) {
-        return;
-      }
-      if (from != -1) {
-        Point<ContentNode> point = document.locate(from);
-        document.insertXml(point, xml);
-      } else {
-        LineContainers.appendLine(document, xml);
-      }
-    }
   }
 
   private void createInsertAttachmentButton(ToolbarView toolbar, final ParticipantId user) {

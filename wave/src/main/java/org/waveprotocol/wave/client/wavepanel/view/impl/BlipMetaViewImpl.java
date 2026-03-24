@@ -158,6 +158,11 @@ public final class BlipMetaViewImpl<I extends IntrinsicBlipMetaView> // \u2620
   }
 
   @Override
+  public void setTimeTooltip(String fullDateTime) {
+    impl.setTimeTooltip(fullDateTime);
+  }
+
+  @Override
   public void setAvatar(String imageUrl) {
      impl.setAvatar(imageUrl);
   }

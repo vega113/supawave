@@ -112,6 +112,33 @@ public final class DateUtils {
   }
 
   /**
+   * Formats a date as a full date/time string suitable for tooltips.
+   * Example: "Monday, March 24, 2026 1:43:12 PM"
+   */
+  public String formatFullDateTime(long time) {
+    return formatFullDateTime(new Date(time));
+  }
+
+  /**
+   * Formats a date as a full date/time string suitable for tooltips.
+   */
+  public String formatFullDateTime(Date date) {
+    if (!GWT.isClient()) {
+      return "formatFullDateTime is not yet implemented in unit test code";
+    }
+    return getFullDateTimeFormat().format(date);
+  }
+
+  private static DateTimeFormat fullDateTimeFormat;
+
+  private static DateTimeFormat getFullDateTimeFormat() {
+    if (fullDateTimeFormat == null) {
+      fullDateTimeFormat = DateTimeFormat.getFormat("EEEE, MMMM d, yyyy h:mm:ss a");
+    }
+    return fullDateTimeFormat;
+  }
+
+  /**
    * Formats the specified date and time as a String.
    */
   public String formatDateTime(Date date) {

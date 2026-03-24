@@ -53,6 +53,13 @@ public interface IntrinsicBlipMetaView {
   void setTime(String time);
 
   /**
+   * Sets the tooltip for the time element, showing the full date/time on hover.
+   */
+  default void setTimeTooltip(String fullDateTime) {
+    // no-op by default; implementations can override to set a title attribute
+  }
+
+  /**
    * Sets the line of text at the top of this blip.
    */
   void setMetaline(String metaline);

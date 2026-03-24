@@ -83,14 +83,16 @@ public final class UndercurrentShallowBlipRenderer implements ShallowBlipRendere
 
   @Override
   public void renderTime(ConversationBlip blip, IntrinsicBlipMetaView meta) {
+    long timestamp;
     if (blip.getLastModifiedTime() == 0) {
       //Blip sent using c/s protocol, which has no timestamp attached (WAVE-181)
       //Using received time as an estimate of the sent time
-      meta.setTime(dateUtils.formatPastDate(new Date().getTime()));
+      timestamp = new Date().getTime();
+    } else {
+      timestamp = blip.getLastModifiedTime();
     }
-    else {
-      meta.setTime(dateUtils.formatPastDate(blip.getLastModifiedTime()));
-    }
+    meta.setTime(dateUtils.formatPastDate(timestamp));
+    meta.setTimeTooltip(dateUtils.formatFullDateTime(timestamp));
   }
 
   @Override

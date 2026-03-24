@@ -112,8 +112,14 @@ public class FetchContactsServiceImpl implements FetchContactsService {
     if (contactsArray != null) {
       for (int i = 0; i < contactsArray.length(); i++) {
         ContactJso c = contactsArray.get(i);
-        String participantAddress = c.getParticipant();
-        if (participantAddress == null || participantAddress.isEmpty()) {
+        // Use String.valueOf() to coerce JSNI return values that may not be
+        // true JS strings (e.g. if the server returns an unexpected type for
+        // the "participant" field).  Without this, calling indexOf() on a
+        // non-string produces "b.indexOf is not a function" in GWT-compiled JS.
+        String raw = c.getParticipant();
+        String participantAddress = raw == null ? null : String.valueOf((Object) raw);
+        if (participantAddress == null || participantAddress.isEmpty()
+            || "undefined".equals(participantAddress) || "null".equals(participantAddress)) {
           LOG.trace().log("Skipping contact entry with missing participant");
           continue;
         }

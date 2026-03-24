@@ -989,8 +989,64 @@ public final class HtmlRenderer {
     sb.append("  };\n");
     sb.append("})();\n");
     sb.append("</script>\n");
+    // -- Version upgrade detection polling --
+    appendVersionCheckScript(sb);
     sb.append("</body>\n</html>\n");
     return sb.toString();
+  }
+
+  /**
+   * Appends an inline script that polls {@code /version} every 60 seconds and
+   * shows a non-intrusive banner when the server version changes (i.e. the
+   * server has been upgraded while the client page is still open).
+   */
+  private static void appendVersionCheckScript(StringBuilder sb) {
+    sb.append("<script>\n");
+    sb.append("(function() {\n");
+    sb.append("  var currentVersion = null;\n");
+    sb.append("  function checkVersion() {\n");
+    sb.append("    fetch('/version', {cache: 'no-store'})\n");
+    sb.append("      .then(function(r) { return r.json(); })\n");
+    sb.append("      .then(function(data) {\n");
+    sb.append("        if (currentVersion === null) {\n");
+    sb.append("          currentVersion = data.version;\n");
+    sb.append("        } else if (data.version !== currentVersion) {\n");
+    sb.append("          showUpgradeBanner();\n");
+    sb.append("        }\n");
+    sb.append("      })\n");
+    sb.append("      .catch(function() {});\n");
+    sb.append("  }\n");
+    sb.append("  function showUpgradeBanner() {\n");
+    sb.append("    if (document.getElementById('upgrade-banner')) return;\n");
+    sb.append("    var banner = document.createElement('div');\n");
+    sb.append("    banner.id = 'upgrade-banner';\n");
+    sb.append("    banner.setAttribute('role', 'alert');\n");
+    sb.append("    var msg = document.createElement('span');\n");
+    sb.append("    msg.textContent = 'A new version of SupaWave is available.';\n");
+    sb.append("    var reload = document.createElement('a');\n");
+    sb.append("    reload.href = '#';\n");
+    sb.append("    reload.textContent = 'Reload';\n");
+    sb.append("    reload.style.cssText = 'color:white;font-weight:bold;text-decoration:underline;';\n");
+    sb.append("    reload.onclick = function(e) { e.preventDefault(); location.reload(); };\n");
+    sb.append("    var dismiss = document.createElement('span');\n");
+    sb.append("    dismiss.textContent = '\\u2715';\n");
+    sb.append("    dismiss.style.cssText = 'cursor:pointer;margin-left:12px;font-size:16px;';\n");
+    sb.append("    dismiss.setAttribute('role', 'button');\n");
+    sb.append("    dismiss.setAttribute('aria-label', 'Dismiss');\n");
+    sb.append("    dismiss.onclick = function() { banner.remove(); };\n");
+    sb.append("    banner.appendChild(msg);\n");
+    sb.append("    banner.appendChild(reload);\n");
+    sb.append("    banner.appendChild(dismiss);\n");
+    sb.append("    banner.style.cssText = 'position:fixed;bottom:20px;right:20px;")
+       .append("background:").append(WAVE_PRIMARY).append(";color:white;padding:12px 20px;")
+       .append("border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:9999;")
+       .append("font-family:system-ui,sans-serif;font-size:14px;display:flex;align-items:center;gap:8px;';\n");
+    sb.append("    document.body.appendChild(banner);\n");
+    sb.append("  }\n");
+    sb.append("  checkVersion();\n");
+    sb.append("  setInterval(checkVersion, 60000);\n");
+    sb.append("})();\n");
+    sb.append("</script>\n");
   }
 
   // =========================================================================

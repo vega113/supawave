@@ -165,6 +165,7 @@ public class ServerMain {
     server.addServlet("/dev/client-applier-stats", ClientApplierStatsJakartaServlet.class);
     server.addServlet("/healthz", HealthServlet.class);
     server.addServlet("/readyz", HealthServlet.class);
+    server.addServlet("/version", VersionServlet.class);
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);

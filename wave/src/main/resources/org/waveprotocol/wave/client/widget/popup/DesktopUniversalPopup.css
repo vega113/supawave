@@ -23,6 +23,8 @@
   position: absolute;
   z-index: 1000; /* Make popup appear on top of other panels */
   background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
 }
 
 @eval fadeInTime INSTANCE.FADE_IN_MS;
@@ -45,8 +47,7 @@
   right: 0px;
   bottom: 0px;
   left: -12px;
-  background-color: black;
-  opacity: 0.6;
-  filter: "alpha(opacity=40%)";
+  background-color: rgba(0,0,0,0.4);
+  opacity: 1;
   z-index: 3;
 }

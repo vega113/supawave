@@ -28,8 +28,8 @@
     xmlns:f='urn:import:org.waveprotocol.box.webclient.widget.frame'
     xmlns:w='urn:import:org.waveprotocol.wave.client.widget.common'>
   <ui:style type="org.waveprotocol.box.webclient.client.WebClient.Style">
-    @def rootBackground #f0f0ff;
-    @def gap 10px;
+    @def rootBackground #f0f4f8;
+    @def gap 8px;
     .root {
       background: rootBackground;
       position: absolute;
@@ -37,6 +37,8 @@
       left: 0;
       right: 0;
       bottom: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
     }
 
     .root2 {
@@ -58,12 +60,15 @@
        * sides that have drag panels.
        */
       margin: gap 0 0 gap;
+      background: #fff;
+      border-radius: 8px 0 0 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
     .debugPanel {
       background: white;
-      border: thin solid silver;
-      border-radius: 5px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
       margin: 0 gap gap gap;
     }
 
@@ -73,6 +78,9 @@
        * sides that have drag panels.
        */
       margin: gap 0 0 0;
+      background: #fff;
+      border-radius: 0 0 0 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
     .waveHolder {
@@ -81,6 +89,7 @@
       bottom: 0;
       left: 0;
       right: 0;
+      background: #fff;
     }
   </ui:style>
   <g:DockLayoutPanel unit="PX" styleName="{style.root}">

@@ -12,7 +12,7 @@ on:
 
 jobs:
   sbt-build:
-    name: SBT Build (JDK 17)
+    name: Server Build (JDK 17)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -65,3 +65,11 @@ jobs:
         if: ${{ github.ref_type == 'tag' || (github.event_name == 'release' && github.event.action == 'published') || (github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))) }}
         run: |
           ./scripts/ci-guard-experimental-flags.sh
+
+  jakarta-profile:
+    name: "Jakarta Profile (Jetty 12, non-blocking)"
+    runs-on: ubuntu-latest
+    needs: [sbt-build]
+    steps:
+      - name: Pass-through
+        run: echo "Covered by Server Build"

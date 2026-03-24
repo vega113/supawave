@@ -406,8 +406,7 @@ public final class VersionedFetchServlet extends HttpServlet {
       w.append(serializer.toJson(message).toString());
       w.flush();
     } catch (SerializationException e) {
-      LOG.warning("Failed to serialize snapshot", e);
-      response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      throw new IOException(e);
     }
   }
 

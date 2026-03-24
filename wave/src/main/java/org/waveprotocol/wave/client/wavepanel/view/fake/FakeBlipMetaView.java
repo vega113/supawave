@@ -19,6 +19,8 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.fake;
 
+import com.google.gwt.user.client.ui.Widget;
+
 import org.waveprotocol.wave.client.common.util.LinkedSequence;
 import org.waveprotocol.wave.client.wavepanel.view.AnchorView;
 import org.waveprotocol.wave.client.wavepanel.view.BlipMetaView;
@@ -135,7 +137,17 @@ public final class FakeBlipMetaView implements BlipMetaView {
 
   @Override
   public DraftModeControls attachDraftModeControls() {
-    return null;
+    return new DraftModeControls() {
+      @Override
+      public void setListener(Listener listener) {
+        // no-op for fake implementation
+      }
+
+      @Override
+      public Widget asWidget() {
+        return null; // fake implementation is not backed by a real widget
+      }
+    };
   }
 
   @Override

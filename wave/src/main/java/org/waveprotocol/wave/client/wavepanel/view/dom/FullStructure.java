@@ -169,20 +169,25 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         }
 
         private DraftModeControlsWidget draftModeControls;
+        private BlipMetaDomImpl draftModeControlsOwner;
 
         @Override
         public BlipMetaView.DraftModeControls attachDraftModeControlsWidget(BlipMetaDomImpl impl) {
           Preconditions.checkArgument(draftModeControls == null,
               "Draft mode controls widget is already attached");
           draftModeControls = new DraftModeControlsWidget(impl.getDraftModeControls());
+          draftModeControlsOwner = impl;
           return draftModeControls;
         }
 
         @Override
         public void detachDraftModeControlsWidget(BlipMetaDomImpl impl) {
           Preconditions.checkNotNull(draftModeControls,
-              "Editor mode controls widget is not attached");
+              "Draft mode controls widget is not attached");
+          Preconditions.checkArgument(draftModeControlsOwner == impl,
+              "Draft mode controls widget attached to a different blip meta");
           draftModeControls = null;
+          draftModeControlsOwner = null;
           impl.getDraftModeControls().removeAllChildren();
         }
 

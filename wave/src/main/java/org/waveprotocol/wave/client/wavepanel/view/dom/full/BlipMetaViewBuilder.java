@@ -232,8 +232,9 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
       close(output);
 
       // Draft-mode controls container (hidden by default).
-      output.appendHtmlConstant("<div id=\"" + Components.DRAFTMODECONTROLS.getDomId(id)
-          + "\" style=\"display:none\"></div>");
+      output.appendHtmlConstant("<div id=\"");
+      output.appendEscaped(Components.DRAFTMODECONTROLS.getDomId(id));
+      output.appendHtmlConstant("\" style=\"display:none\"></div>");
     }
     close(output);
   }

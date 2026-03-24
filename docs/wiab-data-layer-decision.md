@@ -25,7 +25,7 @@ Key interfaces and implementations:
 
 Snapshots are computed by **replaying all deltas from version zero**:
 
-```
+```java
 DeltaStoreBasedWaveletState.create():
   ImmutableList<WaveletDeltaRecord> deltas = readAll(deltasAccess);
   WaveletData snapshot = WaveletDataUtil.buildWaveletFromDeltas(

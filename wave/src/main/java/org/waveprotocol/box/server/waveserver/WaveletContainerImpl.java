@@ -489,6 +489,18 @@ abstract class WaveletContainerImpl implements WaveletContainer {
   }
 
   @Override
+  public HashedVersion getHashedVersion(long version) throws WaveletStateException {
+    awaitLoad();
+    acquireReadLock();
+    try {
+      checkStateOk();
+      return waveletState.getHashedVersion(version);
+    } finally {
+      releaseReadLock();
+    }
+  }
+
+  @Override
   public void requestHistory(HashedVersion startVersion, HashedVersion endVersion,
       Receiver<ByteStringMessage<ProtocolAppliedWaveletDelta>> receiver)
       throws AccessControlException, WaveletStateException {

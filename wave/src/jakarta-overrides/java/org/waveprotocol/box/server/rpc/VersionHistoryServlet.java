@@ -232,8 +232,13 @@ public final class VersionHistoryServlet extends HttpServlet {
     }
 
     try {
-      HashedVersion startVersion = HashedVersion.unsigned(start);
-      HashedVersion endVersion = HashedVersion.unsigned(end);
+      HashedVersion startVersion = waveletProvider.getHashedVersion(waveletName, start);
+      HashedVersion endVersion = waveletProvider.getHashedVersion(waveletName, end);
+      if (startVersion == null || endVersion == null) {
+        resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
+            "Invalid version range: start or end is not at a delta boundary");
+        return;
+      }
       int MAX_DELTAS = 1000;
       LinkedList<DeltaInfo> deltas = new LinkedList<>();
 

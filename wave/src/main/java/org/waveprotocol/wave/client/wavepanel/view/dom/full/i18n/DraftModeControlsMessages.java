@@ -40,6 +40,6 @@ public interface DraftModeControlsMessages extends Messages {
   @DefaultMessage("Finish editing. Discard draft")
   String cancelHint();
 
-  @DefaultMessage("Your edits are buffered and will be sent when you finish editing")
+  @DefaultMessage("Your edits are buffered and will be sent when you finish editing or uncheck Draft")
   String draftInfo();
 }

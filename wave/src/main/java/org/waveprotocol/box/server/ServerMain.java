@@ -169,8 +169,8 @@ public class ServerMain {
       injector = injector.createChildInjector(serverModule, persistenceModule, robotApiModule,
           federationModule, searchModule, profileFetcherModule);
     } else {
-      // Start minimally on Jakarta but keep federation no-op module for required bindings
-      injector = injector.createChildInjector(serverModule, persistenceModule, federationModule);
+      injector = injector.createChildInjector(serverModule, persistenceModule, federationModule,
+          searchModule);
     }
 
     ServerRpcProvider server = injector.getInstance(ServerRpcProvider.class);
@@ -191,8 +191,8 @@ public class ServerMain {
     initializeFrontend(injector, server, waveBus);
     if (!isJakarta) {
       initializeFederation(injector);
-      initializeSearch(injector, waveBus);
     }
+    initializeSearch(injector, waveBus);
     initializeShutdownHandler(server);
 
     LOG.info("Starting server");

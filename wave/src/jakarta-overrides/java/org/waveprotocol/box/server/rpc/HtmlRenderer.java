@@ -164,6 +164,9 @@ public final class HtmlRenderer {
       + "  color: " + WAVE_TEXT + ";\n"
       + "  font-weight: 600;\n"
       + "}\n"
+      + "#app [di][data-selected] span[class*=\"unread\"] {\n"
+      + "  color: #fff !important;\n"
+      + "}\n"
 
       // --- Participants panel ---
       + "#app [kind=\"s\"] {\n"
@@ -1143,8 +1146,10 @@ public final class HtmlRenderer {
     sb.append("        if (m.type === 'childList') {\n");
     sb.append("          for (var i = 0; i < m.removedNodes.length; i++) {\n");
     sb.append("            var node = m.removedNodes[i];\n");
-    sb.append("            if (node.nodeType === 1 && node.hasAttribute && node.hasAttribute('data-selected')) {\n");
-    sb.append("              node.removeAttribute('data-selected');\n");
+    sb.append("            if (node.nodeType === 1) {\n");
+    sb.append("              if (node.hasAttribute && node.hasAttribute('data-selected')) node.removeAttribute('data-selected');\n");
+    sb.append("              var desc = node.querySelectorAll ? node.querySelectorAll('[data-selected]') : [];\n");
+    sb.append("              for (var j = 0; j < desc.length; j++) desc[j].removeAttribute('data-selected');\n");
     sb.append("            }\n");
     sb.append("          }\n");
     sb.append("        }\n");

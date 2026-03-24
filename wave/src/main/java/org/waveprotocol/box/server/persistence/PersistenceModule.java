@@ -23,6 +23,9 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
+import org.waveprotocol.box.server.contact.ContactManager;
+import org.waveprotocol.box.server.contact.ContactManagerImpl;
+import org.waveprotocol.box.server.contact.ContactsRecorder;
 import org.waveprotocol.box.server.persistence.file.FileAccountStore;
 import org.waveprotocol.box.server.persistence.file.FileAttachmentStore;
 import org.waveprotocol.box.server.persistence.file.FileDeltaStore;
@@ -108,6 +111,7 @@ public class PersistenceModule extends AbstractModule {
     bindAttachmentStore();
     bindAccountStore();
     bindDeltaStore();
+    bindContactStore();
   }
 
   /**
@@ -161,6 +165,16 @@ public class PersistenceModule extends AbstractModule {
     } else {
       throw new RuntimeException("Invalid account store type: '" + accountStoreType + "'");
     }
+  }
+
+  /**
+   * Binds the ContactStore and ContactManager. Currently only memory-backed.
+   * File and MongoDB backends can be added later following the same pattern.
+   */
+  private void bindContactStore() {
+    bind(ContactStore.class).to(MemoryStore.class).in(Singleton.class);
+    bind(ContactManager.class).to(ContactManagerImpl.class).in(Singleton.class);
+    bind(ContactsRecorder.class).in(Singleton.class);
   }
 
   private void bindDeltaStore() {

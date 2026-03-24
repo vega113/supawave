@@ -56,6 +56,8 @@ import org.waveprotocol.box.server.robots.agent.welcome.WelcomeRobot;
 import org.waveprotocol.box.server.robots.dataapi.DataApiOAuthServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
 import org.waveprotocol.box.server.robots.passive.RobotsGateway;
+import org.waveprotocol.box.server.contact.ContactsRecorder;
+import org.waveprotocol.box.server.persistence.ContactStore;
 import org.waveprotocol.box.server.rpc.*;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
@@ -185,6 +187,7 @@ public class ServerMain {
       initializeRobotAgents(server);
       initializeRobots(injector, waveBus);
     }
+    initializeContacts(injector, waveBus);
     initializeFrontend(injector, server, waveBus);
     if (!isJakarta) {
       initializeFederation(injector);
@@ -359,6 +362,9 @@ public class ServerMain {
     accountStore.initializeAccountStore();
     AccountStoreHolder.init(accountStore, waveDomain);
 
+    ContactStore contactStore = injector.getInstance(ContactStore.class);
+    contactStore.initializeContactStore();
+
     initializeSignerInfoStore(injector);
     initializeWaveServer(injector);
   }
@@ -405,10 +411,15 @@ public class ServerMain {
       server.addServlet("/webclient/remote_logging", RemoteLoggingServiceImpl.class);
     }
     server.addServlet("/profile/*", FetchProfilesServlet.class);
+    server.addServlet("/contacts", FetchContactsServlet.class);
     // Dev endpoint: client-side fragments applier stats (session-based)
     server.addServlet("/dev/client-applier-stats", ClientApplierStatsServlet.class);
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
+    // Note: this javax ServerMain is excluded from compilation (see mainExactExcludes in build.gradle).
+    // The active registration lives in the jakarta-overrides variant of ServerMain.
+    server.addServlet("/folder/*", FolderServlet.class);
+    server.addServlet("/searches", SearchesServlet.class);
     try {
       // Unified transport: single source of truth.
       String transport = readFragmentsTransport(config);
@@ -530,6 +541,12 @@ public class ServerMain {
     server.addServlet(PasswordAdminRobot.ROBOT_URI + "/*", PasswordAdminRobot.class);
     server.addServlet(WelcomeRobot.ROBOT_URI + "/*", WelcomeRobot.class);
     server.addServlet(RegistrationRobot.ROBOT_URI + "/*", RegistrationRobot.class);
+  }
+
+  /** Subscribes the contacts recorder to the wave bus so contact relationships are tracked. */
+  private static void initializeContacts(Injector injector, WaveBus waveBus) {
+    ContactsRecorder contactsRecorder = injector.getInstance(ContactsRecorder.class);
+    waveBus.subscribe(contactsRecorder);
   }
 
   private static void initializeFrontend(Injector injector, ServerRpcProvider server,

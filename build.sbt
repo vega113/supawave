@@ -71,6 +71,8 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/rpc/WaveClientServlet.java",
     "org/waveprotocol/box/server/rpc/WaveRefServlet.java",
     "org/waveprotocol/box/server/rpc/HealthServlet.java",
+    "org/waveprotocol/box/server/rpc/FolderServlet.java",
+    "org/waveprotocol/box/server/rpc/SearchesServlet.java",
     "org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java",
     "org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java",
     "com/google/wave/api/AbstractRobot.java",

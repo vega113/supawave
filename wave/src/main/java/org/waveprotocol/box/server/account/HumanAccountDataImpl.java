@@ -21,8 +21,11 @@ package org.waveprotocol.box.server.account;
 
 import com.google.common.base.Preconditions;
 
+import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+
+import java.util.List;
 
 /**
  * Human Account. Expected to be expanded when authentication is implemented.
@@ -35,6 +38,7 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   private final PasswordDigest passwordDigest;
   private String locale;
   private boolean emailConfirmed = true;
+  private List<SearchesItem> searches;
 
   /**
    * Creates an {@link HumanAccountData} for the given username, with no
@@ -94,6 +98,16 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   }
 
   @Override
+  public List<SearchesItem> getSearches() {
+    return searches;
+  }
+
+  @Override
+  public void setSearches(List<SearchesItem> searches) {
+    this.searches = searches;
+  }
+
+  @Override
   public boolean isHuman() {
     return true;
   }
@@ -120,6 +134,7 @@ public final class HumanAccountDataImpl implements HumanAccountData {
     result = prime * result + ((id == null) ? 0 : id.hashCode());
     result = prime * result + ((passwordDigest == null) ? 0 : passwordDigest.hashCode());
     result = prime * result + ((locale == null) ? 0 : locale.hashCode());
+    result = prime * result + ((searches == null) ? 0 : searches.hashCode());
     return result;
   }
 
@@ -138,6 +153,9 @@ public final class HumanAccountDataImpl implements HumanAccountData {
     if (locale == null) {
       if (other.locale != null) return false;
     } else if (!locale.equals(other.locale)) return false;
+    if (searches == null) {
+      if (other.searches != null) return false;
+    } else if (!searches.equals(other.searches)) return false;
     return true;
   }
 }

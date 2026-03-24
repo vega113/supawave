@@ -232,4 +232,29 @@ public interface Editor extends EditorContext {
    * triggered asynchronously.
    */
   void flushSaveSelection();
+
+  /**
+   * @return true if the editor is currently in draft mode (ops buffered locally,
+   *         not sent upstream).
+   */
+  boolean isDraftMode();
+
+  /**
+   * @return true if there are pending changes made in draft mode.
+   */
+  boolean isDraftModified();
+
+  /**
+   * Switch editor to draft mode. Subsequent edits will be buffered locally
+   * and not sent to the server until {@link #leaveDraftMode(boolean)} is called.
+   */
+  void enterDraftMode();
+
+  /**
+   * Switch editor back to normal mode.
+   *
+   * @param saveChanges if true, flush all buffered draft ops to the server;
+   *        if false, invert and discard all draft changes.
+   */
+  void leaveDraftMode(boolean saveChanges);
 }

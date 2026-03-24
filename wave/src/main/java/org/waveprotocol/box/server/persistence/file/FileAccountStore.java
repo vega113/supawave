@@ -97,7 +97,8 @@ public class FileAccountStore implements AccountStore {
       File[] files = dir.listFiles((d, name) -> name.endsWith(ACCOUNT_FILE_EXTENSION));
       if (files != null) {
         for (File f : files) {
-          String addr = f.getName().replace(ACCOUNT_FILE_EXTENSION, "");
+          String fileName = f.getName();
+          String addr = fileName.substring(0, fileName.length() - ACCOUNT_FILE_EXTENSION.length());
           ParticipantId pid;
           try {
             pid = ParticipantId.of(addr);

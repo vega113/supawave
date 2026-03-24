@@ -149,33 +149,37 @@ public final class PasswordResetServlet extends HttpServlet {
     try {
       AccountData account = null;
 
-      // If it looks like an email, try looking up by stored email first.
-      if (normalized.contains("@")) {
-        account = accountStore.getAccountByEmail(normalized);
-      }
-
-      // Fall back to participant ID lookup
-      if (account == null) {
-        String participantAddr = normalized.contains("@") ? normalized : normalized + "@" + domain;
+      // Prioritize participant ID lookup to avoid stored-email shadowing a real participant.
+      String participantAddr = normalized.contains("@") ? normalized : normalized + "@" + domain;
+      try {
         ParticipantId id = ParticipantId.of(participantAddr);
         account = accountStore.getAccount(id);
+      } catch (InvalidParticipantAddress ignored) {
+        // Not a valid participant address; try email lookup below.
+      }
+
+      // Fall back to email lookup if no participant match found.
+      if (account == null && normalized.contains("@")) {
+        account = accountStore.getAccountByEmail(normalized);
       }
 
       if (account != null && account.isHuman()) {
         HumanAccountData human = account.asHuman();
-        // Send to stored email if available, otherwise fall back to wave address
-        String sendTo = (human.getEmail() != null && !human.getEmail().isEmpty())
-            ? human.getEmail() : account.getId().getAddress();
-        String jwtToken = emailTokenIssuer.issuePasswordResetToken(account.getId());
-        String resetUrl = buildResetUrl(req, jwtToken);
-        String emailBody = renderResetEmail(account.getId().getAddress(), resetUrl);
-        mailProvider.sendEmail(sendTo, "Password Reset - Wave", emailBody);
-        LOG.info("Password reset email sent for user " + account.getId().getAddress());
+        if (!human.isEmailConfirmed()) {
+          LOG.info("Password reset requested for unconfirmed account");
+        } else {
+          // Send to stored email if confirmed and available, otherwise fall back to wave address
+          String sendTo = (human.getEmail() != null && !human.getEmail().isEmpty())
+              ? human.getEmail() : account.getId().getAddress();
+          String jwtToken = emailTokenIssuer.issuePasswordResetToken(account.getId());
+          String resetUrl = buildResetUrl(req, jwtToken);
+          String emailBody = renderResetEmail(account.getId().getAddress(), resetUrl);
+          mailProvider.sendEmail(sendTo, "Password Reset - Wave", emailBody);
+          LOG.info("Password reset email sent for user " + account.getId().getAddress());
+        }
       } else {
         LOG.info("Password reset requested for non-existent account: " + normalized);
       }
-    } catch (InvalidParticipantAddress e) {
-      LOG.info("Invalid address in password reset request: " + normalized);
     } catch (PersistenceException e) {
       LOG.severe("Persistence error during password reset request", e);
     } catch (MailException e) {

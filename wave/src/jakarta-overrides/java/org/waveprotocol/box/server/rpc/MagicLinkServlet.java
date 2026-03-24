@@ -140,16 +140,18 @@ public final class MagicLinkServlet extends HttpServlet {
     try {
       AccountData account = null;
 
-      // If it looks like an email, try looking up by stored email first.
-      if (normalized.contains("@")) {
-        account = accountStore.getAccountByEmail(normalized);
-      }
-
-      // Fall back to participant ID lookup
-      if (account == null) {
-        String participantAddr = normalized.contains("@") ? normalized : normalized + "@" + domain;
+      // Prioritize participant ID lookup to avoid stored-email shadowing a real participant.
+      String participantAddr = normalized.contains("@") ? normalized : normalized + "@" + domain;
+      try {
         ParticipantId id = ParticipantId.of(participantAddr);
         account = accountStore.getAccount(id);
+      } catch (InvalidParticipantAddress ignored) {
+        // Not a valid participant address; try email lookup below.
+      }
+
+      // Fall back to email lookup if no participant match found.
+      if (account == null && normalized.contains("@")) {
+        account = accountStore.getAccountByEmail(normalized);
       }
 
       if (account != null && account.isHuman()) {
@@ -170,8 +172,6 @@ public final class MagicLinkServlet extends HttpServlet {
       } else {
         LOG.info("Magic link requested for non-existent account: " + normalized);
       }
-    } catch (InvalidParticipantAddress e) {
-      LOG.info("Invalid address in magic link request: " + normalized);
     } catch (PersistenceException e) {
       LOG.severe("Persistence error during magic link request", e);
     } catch (MailException e) {

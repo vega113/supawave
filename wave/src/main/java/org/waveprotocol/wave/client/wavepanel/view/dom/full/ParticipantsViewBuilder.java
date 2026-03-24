@@ -25,7 +25,6 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.closeSpan;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpan;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpanWith;
-import static org.waveprotocol.wave.client.uibuilder.OutputHelper.button;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.GWT;
@@ -33,6 +32,7 @@ import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.resources.client.ImageResource;
 
+import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.uibuilder.BuilderHelper.Component;
 import org.waveprotocol.wave.client.uibuilder.HtmlClosureCollection;
@@ -142,9 +142,9 @@ public final class ParticipantsViewBuilder implements UiBuilder {
             }
             closeSpan(output);
             appendSpan(output, null, css.addButton(), TypeCodes.kind(Type.ADD_PARTICIPANT));
-            button(output, null, css.newWaveWithParticipantsButton(),
+            newWaveIcon(output, css.newWaveWithParticipantsButton(),
                 TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
-                messages.newWaveWithParticipantsOfCurrentWave(), messages.newWave());
+                messages.newWaveWithParticipantsOfCurrentWave());
           }
           closeSpan(output);
 
@@ -152,9 +152,9 @@ public final class ParticipantsViewBuilder implements UiBuilder {
           openSpan(output, null, css.simple(), null);
           {
             appendSpan(output, null, css.addButton(), TypeCodes.kind(Type.ADD_PARTICIPANT));
-            button(output, null, css.newWaveWithParticipantsButton(),
+            newWaveIcon(output, css.newWaveWithParticipantsButton(),
                 TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
-                messages.newWaveWithParticipantsOfCurrentWave(), messages.newWave());
+                messages.newWaveWithParticipantsOfCurrentWave());
           }
           closeSpan(output);
         }
@@ -163,6 +163,30 @@ public final class ParticipantsViewBuilder implements UiBuilder {
       close(output);
     }
     close(output);
+  }
+
+  /**
+   * Renders a compact circular icon button for "new wave with participants".
+   * Replaces the former bulky {@code <button>} with an inline SVG "+" icon.
+   */
+  private static void newWaveIcon(SafeHtmlBuilder output, String clazz, String kind, String title) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedKind = kind != null ? EscapeUtils.htmlEscape(kind) : null;
+    String escapedTitle = title != null ? EscapeUtils.htmlEscape(title) : null;
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + (escapedKind != null ? " kind='" + escapedKind + "'" : "")
+        + (escapedTitle != null ? " title='" + escapedTitle + "'" : "")
+        + " role='button' tabindex='0'"
+        + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
+        + ">"
+        + "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+        + "stroke='currentColor' stroke-width='2'>"
+        + "<line x1='12' y1='5' x2='12' y2='19'/>"
+        + "<line x1='5' y1='12' x2='19' y2='12'/>"
+        + "</svg>"
+        + "</span>");
   }
 
   // Rather than install a regular handler, this is an experiment at injecting

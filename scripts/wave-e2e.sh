@@ -11,8 +11,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT=9898
-INSTALL_DIR="$REPO_ROOT/wave/build/install/wave"
-RESULTS_DIR="$REPO_ROOT/wave/build/e2e-results"
+INSTALL_DIR="$REPO_ROOT/wave/target/universal/stage"
+RESULTS_DIR="$REPO_ROOT/wave/target/e2e-results"
 E2E_DIR="$REPO_ROOT/wave/src/e2e-test"
 PID_FILE="$INSTALL_DIR/wave_server.pid"
 
@@ -44,8 +44,8 @@ start_server() {
   fi
 
   if [[ ! -x "$INSTALL_DIR/bin/wave" ]]; then
-    echo "[e2e] Distribution not found -- building with Gradle ..."
-    "$REPO_ROOT/gradlew" --no-daemon --warning-mode all :wave:installDist
+    echo "[e2e] Distribution not found -- building with SBT ..."
+    (cd "$REPO_ROOT" && sbt --batch Universal/stage)
   fi
 
   echo "[e2e] Starting Wave server ..."

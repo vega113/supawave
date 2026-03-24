@@ -96,7 +96,10 @@ public class WaveClientServlet extends HttpServlet {
       throws IOException {
     ParticipantId id = sessionManager.getLoggedInUser(WebSessions.from(request, false));
     if (id == null) {
-      response.sendRedirect(sessionManager.getLoginUrl("/"));
+      response.setContentType("text/html");
+      response.setCharacterEncoding("UTF-8");
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.getWriter().write(HtmlRenderer.renderLandingPage(domain, analyticsAccount));
       return;
     }
 

@@ -167,6 +167,8 @@ public class ServerMain {
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
+    server.addServlet("/folder/*", FolderServlet.class);
+    server.addServlet("/searches", SearchesServlet.class);
     server.addServlet("/robot/register/*", RobotRegistrationServlet.class);
     server.addServlet("/robot/rpc", ActiveApiServlet.class);
     server.addServlet("/robot/dataapi", DataApiServlet.class);

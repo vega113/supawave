@@ -19,6 +19,9 @@
 
 package org.waveprotocol.wave.model.conversation;
 
+import com.google.common.collect.ImmutableSet;
+
+import org.waveprotocol.wave.model.document.Document;
 import org.waveprotocol.wave.model.document.MutableDocument;
 import org.waveprotocol.wave.model.document.util.Point;
 import org.waveprotocol.wave.model.document.util.Point.El;
@@ -66,6 +69,30 @@ public class TagsDocument<N, E extends N, T extends N> {
   public TagsDocument(MutableDocument<N, E, T> tagsDocument) {
     this.doc = tagsDocument;
     this.listeners = new ArrayList<Listener>();
+  }
+
+  /**
+   * Reads all tags from a document.
+   *
+   * @param doc the document containing tags
+   * @return an immutable set of tag names
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public static ImmutableSet<String> getTags(Document doc) {
+    final ImmutableSet.Builder<String> tags = ImmutableSet.builder();
+    TagsDocument tagsDocument = new TagsDocument(doc);
+    tagsDocument.addListener(new TagsDocument.Listener() {
+      @Override
+      public void onAdd(String tagName) {
+        tags.add(tagName);
+      }
+      @Override
+      public void onRemove(int tagPosition) {
+        // Not called during processInitialState.
+      }
+    });
+    tagsDocument.processInitialState();
+    return tags.build();
   }
 
   /**

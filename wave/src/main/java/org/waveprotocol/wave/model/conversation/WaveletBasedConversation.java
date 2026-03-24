@@ -20,6 +20,7 @@
 package org.waveprotocol.wave.model.conversation;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 
 import org.waveprotocol.wave.model.document.Doc;
 import org.waveprotocol.wave.model.document.Document;
@@ -219,6 +220,9 @@ public final class WaveletBasedConversation implements ObservableConversation {
   /** Anchor listeners. */
   private final CopyOnWriteSet<AnchorListener> anchorListeners = CopyOnWriteSet.create();
 
+  /** Tag listeners. */
+  private final CopyOnWriteSet<TagListener> tagListeners = CopyOnWriteSet.create();
+
   /** Blips in this conversation. */
   private final StringMap<WaveletBasedConversationBlip> blips = CollectionUtils.createStringMap();
 
@@ -402,6 +406,42 @@ public final class WaveletBasedConversation implements ObservableConversation {
   }
 
   @Override
+  public Set<String> getTags() {
+    ObservableDocument tagsDoc = wavelet.getDocument(IdConstants.TAGS_DOC_ID);
+    if (tagsDoc == null) {
+      return ImmutableSet.of();
+    }
+    return TagsDocument.getTags(tagsDoc);
+  }
+
+  @Override
+  public void addTag(String tag) {
+    checkIsUsable();
+    Set<String> tags = getTags();
+    if (!tags.contains(tag)) {
+      ObservableDocument tagsDoc = wavelet.getDocument(IdConstants.TAGS_DOC_ID);
+      new TagsDocument<>(tagsDoc).addTag(tag);
+      triggerOnTagAdded(tag);
+    }
+  }
+
+  @Override
+  public void removeTag(String tag) {
+    checkIsUsable();
+    Set<String> tags = getTags();
+    if (tags.contains(tag)) {
+      ObservableDocument tagsDoc = wavelet.getDocument(IdConstants.TAGS_DOC_ID);
+      new TagsDocument<>(tagsDoc).deleteTag(tag);
+      triggerOnTagRemoved(tag);
+    }
+  }
+
+  @Override
+  public boolean isRoot() {
+    return !hasAnchor();
+  }
+
+  @Override
   public void addListener(Listener listener) {
     listeners.add(listener);
   }
@@ -419,6 +459,16 @@ public final class WaveletBasedConversation implements ObservableConversation {
   @Override
   public void removeListener(AnchorListener listener) {
     anchorListeners.remove(listener);
+  }
+
+  @Override
+  public void addTagListener(TagListener listener) {
+    tagListeners.add(listener);
+  }
+
+  @Override
+  public void removeTagListener(TagListener listener) {
+    tagListeners.remove(listener);
   }
 
   @Override
@@ -614,6 +664,18 @@ public final class WaveletBasedConversation implements ObservableConversation {
       long newTimestamp) {
     for (Listener l : listeners) {
       l.onBlipTimestampChanged(blip, oldTimestamp, newTimestamp);
+    }
+  }
+
+  private void triggerOnTagAdded(String tag) {
+    for (TagListener l : tagListeners) {
+      l.onTagAdded(tag);
+    }
+  }
+
+  private void triggerOnTagRemoved(String tag) {
+    for (TagListener l : tagListeners) {
+      l.onTagRemoved(tag);
     }
   }
 }

@@ -39,7 +39,9 @@ public class AttachmentInfoServletValidationTest {
   @Test
   public void getIdsFromRequest_skipsEmptyAndInvalidTokens() throws Exception {
     HttpServletRequest req = Mockito.mock(HttpServletRequest.class);
-    // Empty tokens (trailing comma), whitespace, and obvious invalid token
+    // Empty tokens (trailing comma), whitespace, and obvious invalid token.
+    // "abc123" is a valid legacy (domain-less) attachment ID, so only the
+    // empty/whitespace/percent tokens should be skipped.
     Mockito.when(req.getParameter("attachmentIds")).thenReturn("abc123,,  ,bad%id");
 
     Method m = AttachmentInfoServlet.class.getDeclaredMethod("getIdsFromRequest", HttpServletRequest.class);
@@ -48,8 +50,9 @@ public class AttachmentInfoServletValidationTest {
     List<AttachmentId> ids = (List<AttachmentId>) m.invoke(null, req);
 
     assertNotNull(ids);
-    // No valid tokens expected in this synthetic case → empty list
-    assertTrue(ids.isEmpty());
+    // "abc123" is a valid legacy attachment id (no domain separator needed)
+    assertEquals(1, ids.size());
+    assertEquals("abc123", ids.get(0).getId());
   }
 
   @Test

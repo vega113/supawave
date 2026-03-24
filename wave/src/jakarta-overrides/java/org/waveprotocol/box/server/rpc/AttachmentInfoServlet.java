@@ -126,10 +126,6 @@ public class AttachmentInfoServlet extends HttpServlet {
                 LOG.fine("Skipping invalid attachmentId token: " + mask(trimmed));
                 continue;
             }
-            if (!trimmed.contains(AttachmentId.ATTACHMENT_PART_SEPARATOR)) {
-                LOG.fine("Skipping attachmentId without domain separator: " + mask(trimmed));
-                continue;
-            }
             try {
                 ids.add(AttachmentId.deserialise(trimmed));
             }

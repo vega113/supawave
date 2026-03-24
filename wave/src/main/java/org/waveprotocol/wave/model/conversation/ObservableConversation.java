@@ -48,6 +48,25 @@ public interface ObservableConversation extends Conversation,
     void onAnchorChanged(Anchor oldAnchor, Anchor newAnchor);
   }
 
+  /**
+   * Receives events about tags in the conversation.
+   */
+  interface TagListener {
+    /**
+     * Notifies this listener that a tag was added.
+     *
+     * @param tag the added tag
+     */
+    void onTagAdded(String tag);
+
+    /**
+     * Notifies this listener that a tag was removed.
+     *
+     * @param tag the removed tag
+     */
+    void onTagRemoved(String tag);
+  }
+
   /** Receives events on a conversation. */
   interface Listener {
     /**
@@ -146,5 +165,15 @@ public interface ObservableConversation extends Conversation,
    * Removes an anchor listener from this conversation.
    */
   void removeListener(AnchorListener listener);
+
+  /**
+   * Adds a tag listener to this conversation.
+   */
+  void addTagListener(TagListener listener);
+
+  /**
+   * Removes a tag listener from this conversation.
+   */
+  void removeTagListener(TagListener listener);
 
 }

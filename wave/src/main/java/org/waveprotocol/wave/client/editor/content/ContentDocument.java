@@ -72,8 +72,12 @@ import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.Nindo;
 import org.waveprotocol.wave.model.document.operation.NindoSink;
+import org.waveprotocol.wave.model.document.operation.algorithm.Composer;
+import org.waveprotocol.wave.model.document.operation.algorithm.Transformer;
 import org.waveprotocol.wave.model.document.operation.automaton.DocOpAutomaton.ViolationCollector;
 import org.waveprotocol.wave.model.document.operation.automaton.DocumentSchema;
+import org.waveprotocol.wave.model.operation.OperationPair;
+import org.waveprotocol.wave.model.operation.TransformException;
 import org.waveprotocol.wave.model.document.raw.TextNodeOrganiser;
 import org.waveprotocol.wave.model.document.util.DocHelper;
 import org.waveprotocol.wave.model.document.util.DocIterate;
@@ -98,6 +102,7 @@ import org.waveprotocol.wave.model.util.StringMap;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -1663,6 +1668,38 @@ public class ContentDocument {
 
   //// Begin DocumentOperationSink impl ////
 
+  //// Draft ops support ////
+
+  private LinkedList<DocOp> draftOps = new LinkedList<DocOp>();
+
+  /**
+   * @return the list of locally buffered draft ops.
+   */
+  public List<DocOp> getDraftOps() {
+    return draftOps;
+  }
+
+  /**
+   * Transforms pending draft ops against an incoming server op so the draft
+   * remains valid. Returns the (possibly transformed) server op to apply.
+   */
+  public DocOp addIncomingOpToDraft(DocOp operation) {
+    if (!draftOps.isEmpty()) {
+      try {
+        DocOp composed = Composer.compose(draftOps);
+        OperationPair<DocOp> pair = Transformer.transform(composed, operation);
+        operation = pair.serverOp();
+        draftOps.clear();
+        draftOps.add(pair.clientOp());
+      } catch (TransformException e) {
+        EditorStaticDeps.logger.error().logPlainText("Draft OT transform failed: " + e.getMessage());
+      } catch (RuntimeException e) {
+        EditorStaticDeps.logger.error().logPlainText("Draft op compose failed: " + e.getMessage());
+      }
+    }
+    return operation;
+  }
+
   /**
    * Applies an operation while disabling DOM mutation events
    *
@@ -1670,6 +1707,7 @@ public class ContentDocument {
    * consistent state, before calling this method.
    */
   public void consume(DocOp operation) {
+    operation = addIncomingOpToDraft(operation);
     consume(operation, false, true);
     notifyListener(operation);
   }

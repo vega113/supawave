@@ -122,6 +122,8 @@ import org.waveprotocol.wave.model.document.indexed.LocationMapper;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.Nindo;
+import org.waveprotocol.wave.model.document.operation.algorithm.Composer;
+import org.waveprotocol.wave.model.document.operation.algorithm.DocOpInverter;
 import org.waveprotocol.wave.model.document.operation.automaton.DocumentSchema;
 import org.waveprotocol.wave.model.document.operation.automaton.DocumentSchema.PermittedCharacters;
 import org.waveprotocol.wave.model.document.util.Annotations;
@@ -359,6 +361,9 @@ public class EditorImpl extends LogicalPanel.Impl implements
   /** Buffer of outgoing ops, for when we suppress sending them. */
   List<DocOp> suppressedOutgoingOps;
 
+  /** Whether the editor is currently in draft mode (ops buffered locally). */
+  private boolean draftMode = false;
+
   /**
    * Sink for outgoing operations
    *
@@ -369,7 +374,11 @@ public class EditorImpl extends LogicalPanel.Impl implements
         public void consume(DocOp op) {
           try {
             if (permitOperations) {
-              innerOutputSink.consume(op);
+              if (draftMode) {
+                content.getDraftOps().add(op);
+              } else {
+                innerOutputSink.consume(op);
+              }
             } else {
               suppressedOutgoingOps.add(op);
             }
@@ -2697,6 +2706,49 @@ public class EditorImpl extends LogicalPanel.Impl implements
     content.flushAnnotationPainting();
   }
 
+
+  // Draft mode support
+
+  @Override
+  public boolean isDraftMode() {
+    return draftMode;
+  }
+
+  @Override
+  public void enterDraftMode() {
+    Preconditions.checkArgument(!draftMode, "Editor is already in draft mode");
+    draftMode = true;
+  }
+
+  @Override
+  public void leaveDraftMode(boolean saveChanges) {
+    Preconditions.checkArgument(draftMode, "Editor is not in draft mode");
+    draftMode = false;
+
+    if (!content.getDraftOps().isEmpty()) {
+      if (saveChanges) {
+        for (DocOp op : content.getDraftOps()) {
+          innerOutputSink.consume(op);
+        }
+        content.getDraftOps().clear();
+      } else {
+        try {
+          DocOp inv = DocOpInverter.invert(Composer.compose(content.getDraftOps()));
+          content.getDraftOps().clear();
+          content.consume(inv);
+        } catch (RuntimeException e) {
+          EditorStaticDeps.logger.error().logPlainText(
+              "Failed to compose/invert draft ops for discard: " + e.getMessage());
+          content.getDraftOps().clear();
+        }
+      }
+    }
+  }
+
+  @Override
+  public boolean isDraftModified() {
+    return content != null && !content.getDraftOps().isEmpty();
+  }
 
   @Override
   public String toString() {

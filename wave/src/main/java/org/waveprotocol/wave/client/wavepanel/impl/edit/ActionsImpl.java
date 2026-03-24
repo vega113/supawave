@@ -190,4 +190,14 @@ public final class ActionsImpl implements Actions {
     blipLinkPopupView.setLinkInfo(waveRefStringValue);
     blipLinkPopupView.show();
   }
+
+  @Override
+  public void enterDraftMode() {
+    edit.enterDraftMode();
+  }
+
+  @Override
+  public void leaveDraftMode(boolean saveChanges) {
+    edit.leaveDraftMode(saveChanges);
+  }
 }

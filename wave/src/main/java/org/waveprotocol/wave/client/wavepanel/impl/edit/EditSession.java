@@ -143,8 +143,12 @@ public final class EditSession
 
   /**
    * Ends the current edit session, if there is one.
+   * Any unsaved draft changes are silently saved before ending.
    */
   public void stopEditing() {
+    if (isDraftMode()) {
+      leaveDraftMode(true);
+    }
     endSession();
   }
 
@@ -275,6 +279,34 @@ public final class EditSession
     for (Listener listener : listeners) {
       listener.onSessionEnd(editor, blipUi);
     }
+  }
+
+  //
+  // Draft mode.
+  //
+
+  /** Enters draft mode on the current edit session's editor. */
+  public void enterDraftMode() {
+    if (isEditing()) {
+      editor.enterDraftMode();
+    }
+  }
+
+  /** Leaves draft mode, optionally saving or discarding changes. */
+  public void leaveDraftMode(boolean saveChanges) {
+    if (isEditing()) {
+      editor.leaveDraftMode(saveChanges);
+    }
+  }
+
+  /** @return true if the current edit session is in draft mode. */
+  public boolean isDraftMode() {
+    return isEditing() && editor.isDraftMode();
+  }
+
+  /** @return true if there are unsaved draft changes. */
+  public boolean isDraftModified() {
+    return isEditing() && isDraftMode() && editor.isDraftModified();
   }
 
 }

@@ -30,7 +30,9 @@ import org.waveprotocol.box.server.persistence.file.FileAccountStore;
 import org.waveprotocol.box.server.persistence.file.FileAttachmentStore;
 import org.waveprotocol.box.server.persistence.file.FileDeltaStore;
 import org.waveprotocol.box.server.persistence.file.FileSignerInfoStore;
+import org.waveprotocol.box.server.persistence.file.FileSnapshotStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
+import org.waveprotocol.box.server.persistence.memory.MemorySnapshotStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.box.server.persistence.mongodb.MongoDbProvider;
 import org.waveprotocol.box.server.waveserver.DeltaStore;
@@ -111,6 +113,7 @@ public class PersistenceModule extends AbstractModule {
     bindAttachmentStore();
     bindAccountStore();
     bindDeltaStore();
+    bindSnapshotStore();
     bindContactStore();
   }
 
@@ -175,6 +178,29 @@ public class PersistenceModule extends AbstractModule {
     bind(ContactStore.class).to(MemoryStore.class).in(Singleton.class);
     bind(ContactManager.class).to(ContactManagerImpl.class).in(Singleton.class);
     bind(ContactsRecorder.class).in(Singleton.class);
+  }
+
+  /**
+   * Binds the SnapshotStore based on the delta_store_type.
+   * Snapshots follow the same backend as deltas.
+   */
+  private void bindSnapshotStore() {
+    if (deltaStoreType.equalsIgnoreCase("memory")) {
+      bind(SnapshotStore.class).to(MemorySnapshotStore.class).in(Singleton.class);
+    } else if (deltaStoreType.equalsIgnoreCase("file")) {
+      bind(SnapshotStore.class).to(FileSnapshotStore.class).in(Singleton.class);
+    } else if (deltaStoreType.equalsIgnoreCase("mongodb")) {
+      if ("v4".equalsIgnoreCase(mongoDriver)) {
+        bind(SnapshotStore.class).toInstance(getMongo4Provider().provideMongoDbSnapshotStore());
+      } else {
+        // Legacy v2 driver: fall back to memory-based snapshot store since
+        // the v2 driver module does not have a snapshot store implementation.
+        bind(SnapshotStore.class).to(MemorySnapshotStore.class).in(Singleton.class);
+      }
+    } else {
+      // Unknown store type: bind memory snapshot store as safe fallback
+      bind(SnapshotStore.class).to(MemorySnapshotStore.class).in(Singleton.class);
+    }
   }
 
   private void bindDeltaStore() {

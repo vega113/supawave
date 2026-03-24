@@ -95,7 +95,9 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     // Security filters with Jakarta overrides (resolve "Multiple sources matched" warnings)
     "org/waveprotocol/box/server/security/SecurityHeadersFilter.java",
     "org/waveprotocol/box/server/security/NoCacheFilter.java",
-    "org/waveprotocol/box/server/security/StaticCacheFilter.java"
+    "org/waveprotocol/box/server/security/StaticCacheFilter.java",
+    // Versioned fetch servlet with Jakarta override
+    "org/waveprotocol/box/server/rpc/VersionedFetchServlet.java"
   )
 
   // --- Directory-level excludes under src/main/java (Gradle lines 334-337) ---

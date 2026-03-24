@@ -516,7 +516,8 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<title>Version History - ").append(eWaveDomain).append("/").append(eWaveId).append("</title>\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
 
     // ── CSS ──
     sb.append("<style>\n");

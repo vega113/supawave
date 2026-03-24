@@ -136,6 +136,13 @@ public final class DataApiTokenServlet extends HttpServlet {
     sb.append(".card .subtitle {\n");
     sb.append("  font-size: 14px; color: #666; margin-bottom: 20px;\n");
     sb.append("}\n");
+    sb.append("label {\n");
+    sb.append("  display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px;\n");
+    sb.append("}\n");
+    sb.append("select {\n");
+    sb.append("  width: 100%; padding: 9px 10px; font-size: 14px;\n");
+    sb.append("  border: 1px solid #ccc; border-radius: 4px; margin-bottom: 14px;\n");
+    sb.append("}\n");
     sb.append(".btn-primary {\n");
     sb.append("  display: inline-block; padding: 10px 24px;\n");
     sb.append("  background: #1a73e8; color: #fff; border: none; border-radius: 4px;\n");
@@ -174,13 +181,24 @@ public final class DataApiTokenServlet extends HttpServlet {
     sb.append("  <h1>Data API Token</h1>\n");
     sb.append("  <div class=\"subtitle\">Logged in as: ").append(safeUser).append("</div>\n");
     sb.append("  <div class=\"msg\" id=\"statusMsg\"></div>\n");
+
+    sb.append("  <label for=\"expiry\">Token Expiry</label>\n");
+    sb.append("  <select id=\"expiry\" name=\"expiry\">\n");
+    sb.append("    <option value=\"0\" selected>Never</option>\n");
+    sb.append("    <option value=\"3600\">1 hour</option>\n");
+    sb.append("    <option value=\"86400\">1 day</option>\n");
+    sb.append("    <option value=\"604800\">1 week</option>\n");
+    sb.append("    <option value=\"2592000\">30 days</option>\n");
+    sb.append("    <option value=\"31536000\">1 year</option>\n");
+    sb.append("  </select>\n");
+
     sb.append("  <div class=\"buttons\">\n");
     sb.append("    <button class=\"btn-primary\" id=\"generateBtn\" onclick=\"generateToken()\">Generate Token</button>\n");
     sb.append("  </div>\n");
     sb.append("  <div id=\"tokenResult\">\n");
     sb.append("    <label for=\"tokenText\">Access Token</label>\n");
     sb.append("    <textarea id=\"tokenText\" readonly onclick=\"this.focus();this.select();\"></textarea>\n");
-    sb.append("    <div class=\"meta\">Token type: <strong>bearer</strong> | Expires in: <span id=\"expiresIn\"></span> seconds</div>\n");
+    sb.append("    <div class=\"meta\">Token type: <strong>bearer</strong> | <span id=\"expiryMeta\"></span></div>\n");
     sb.append("    <div class=\"buttons\">\n");
     sb.append("      <button class=\"btn-secondary\" id=\"copyBtn\" onclick=\"copyToken()\">Copy to clipboard</button>\n");
     sb.append("    </div>\n");
@@ -189,12 +207,18 @@ public final class DataApiTokenServlet extends HttpServlet {
 
     sb.append("<script>\n");
     sb.append("function generateToken() {\n");
+    sb.append("  var expiry = document.getElementById('expiry').value;\n");
     sb.append("  var btn = document.getElementById('generateBtn');\n");
     sb.append("  var msg = document.getElementById('statusMsg');\n");
     sb.append("  btn.disabled = true;\n");
     sb.append("  btn.textContent = 'Generating...';\n");
     sb.append("  msg.style.display = 'none';\n");
-    sb.append("  fetch(window.location.pathname, { method: 'POST', credentials: 'same-origin' })\n");
+    sb.append("  fetch(window.location.pathname, {\n");
+    sb.append("    method: 'POST',\n");
+    sb.append("    credentials: 'same-origin',\n");
+    sb.append("    headers: {'Content-Type': 'application/x-www-form-urlencoded'},\n");
+    sb.append("    body: 'expiry=' + expiry\n");
+    sb.append("  })\n");
     sb.append("    .then(function(r) {\n");
     sb.append("      if (r.status === 401) {\n");
     sb.append("        window.location.href = '/auth/signin?r=/robot/dataapi/token';\n");
@@ -202,15 +226,19 @@ public final class DataApiTokenServlet extends HttpServlet {
     sb.append("      }\n");
     sb.append("      if (!r.ok) {\n");
     sb.append("        return r.json().catch(function() { return {}; }).then(function(body) {\n");
-    sb.append("          throw new Error(body.error || 'HTTP ' + r.status);\n");
+    sb.append("          throw new Error(body.error_description || body.error || 'HTTP ' + r.status);\n");
     sb.append("        });\n");
     sb.append("      }\n");
     sb.append("      return r.json();\n");
     sb.append("    })\n");
     sb.append("    .then(function(data) {\n");
-    sb.append("      if (data.error) throw new Error(data.error);\n");
+    sb.append("      if (data.error) throw new Error(data.error_description || data.error);\n");
     sb.append("      document.getElementById('tokenText').value = data.access_token;\n");
-    sb.append("      document.getElementById('expiresIn').textContent = data.expires_in;\n");
+    sb.append("      if (data.expires_in >= 3153600000) {\n");
+    sb.append("        document.getElementById('expiryMeta').textContent = 'Never expires';\n");
+    sb.append("      } else {\n");
+    sb.append("        document.getElementById('expiryMeta').textContent = 'Expires in: ' + data.expires_in + ' seconds';\n");
+    sb.append("      }\n");
     sb.append("      document.getElementById('tokenResult').style.display = 'block';\n");
     sb.append("      msg.className = 'msg success';\n");
     sb.append("      msg.textContent = 'Token generated successfully.';\n");
@@ -269,11 +297,13 @@ public final class DataApiTokenServlet extends HttpServlet {
       return;
     }
 
+    long expirySeconds = parseExpiryParam(req);
+
     long issuedAt = clock.instant().getEpochSecond();
-    long expiresAt = issuedAt + DEFAULT_TOKEN_LIFETIME_SECONDS;
+    long expiresAt = issuedAt + expirySeconds;
 
     String token = issueToken(user.getAddress(), issuedAt, expiresAt);
-    sendTokenResponse(resp, token, DEFAULT_TOKEN_LIFETIME_SECONDS);
+    sendTokenResponse(resp, token, expirySeconds);
   }
 
   /** Path B: Robot authenticates with client_id and client_secret. */
@@ -322,14 +352,42 @@ public final class DataApiTokenServlet extends HttpServlet {
       return;
     }
 
-    long tokenExpirySeconds = robotAccount.getTokenExpirySeconds();
-    long lifetimeSeconds = tokenExpirySeconds > 0 ? tokenExpirySeconds : NO_EXPIRY_LIFETIME_SECONDS;
+    // Use explicit expiry parameter if provided, else fall back to the robot's configured expiry.
+    String expiryParam = req.getParameter("expiry");
+    long lifetimeSeconds;
+    if (expiryParam != null && !expiryParam.isEmpty()) {
+      lifetimeSeconds = parseExpiryParam(req);
+    } else {
+      long tokenExpirySeconds = robotAccount.getTokenExpirySeconds();
+      lifetimeSeconds = tokenExpirySeconds > 0 ? tokenExpirySeconds : NO_EXPIRY_LIFETIME_SECONDS;
+    }
 
     long issuedAt = clock.instant().getEpochSecond();
     long expiresAt = issuedAt + lifetimeSeconds;
 
     String token = issueToken(robotAccount.getId().getAddress(), issuedAt, expiresAt);
     sendTokenResponse(resp, token, lifetimeSeconds);
+  }
+
+  /**
+   * Parses the {@code expiry} request parameter.
+   * Returns the lifetime in seconds: 0 or negative values map to ~100 years ("never expires"),
+   * any positive value is used as-is, and missing/invalid values fall back to the default.
+   */
+  private static long parseExpiryParam(HttpServletRequest req) {
+    String expiryParam = req.getParameter("expiry");
+    long expirySeconds = DEFAULT_TOKEN_LIFETIME_SECONDS;
+    if (expiryParam != null && !expiryParam.isEmpty()) {
+      try {
+        expirySeconds = Long.parseLong(expiryParam);
+      } catch (NumberFormatException e) {
+        // keep default
+      }
+    }
+    if (expirySeconds <= 0) {
+      expirySeconds = NO_EXPIRY_LIFETIME_SECONDS;
+    }
+    return expirySeconds;
   }
 
   private String issueToken(String subject, long issuedAt, long expiresAt) {

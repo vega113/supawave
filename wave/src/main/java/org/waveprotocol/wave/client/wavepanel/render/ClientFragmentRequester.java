@@ -30,7 +30,22 @@ import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
 
-/** Simple client requester that calls /fragments with wave/wavelet params (HTTP path). */
+/**
+ * HTTP fragment requester: fires GET /fragments for metrics and health-check purposes.
+ *
+ * <p>This requester does <b>not</b> parse or apply the JSON response payload returned by
+ * {@code FragmentsServlet}. It exists so that the server-side HTTP metrics counters
+ * ({@code httpRequests}, {@code httpOk}, {@code httpErrors}) are exercised during development
+ * and smoke-testing, and so that operators can verify the servlet returns 200 for a given
+ * wave/wavelet pair.
+ *
+ * <p>The canonical fragment transport path is <b>stream mode</b> via
+ * {@link ViewChannelFragmentRequester}, which delivers {@code FragmentsPayload} over the
+ * existing ViewChannel WebSocket and feeds it into the {@code RawFragmentsApplier} pipeline.
+ * HTTP mode is retained as a fallback for stream-not-ready scenarios and as a diagnostic tool.
+ *
+ * @see ViewChannelFragmentRequester
+ */
 public final class ClientFragmentRequester implements FragmentRequester {
   private static final int DEFAULT_LIMIT = 12;
   private final String endpoint;

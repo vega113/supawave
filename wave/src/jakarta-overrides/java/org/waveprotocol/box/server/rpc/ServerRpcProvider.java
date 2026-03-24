@@ -758,14 +758,32 @@ public class ServerRpcProvider {
                 if (LOG.isFineLoggable()) LOG.fine("[Jakarta] addServlet " + urlPattern + " -> " + servlet.getName());
                 return holder;
             } catch (Throwable t) {
-                LOG.warning("Failed to instantiate servlet '" + servlet.getName() + "' via Guice; falling back to default constructor", t);
-                ServletHolder holder = new ServletHolder(httpCls);
-                configureMultipartIfNeeded(holder, httpCls);
-                if (paramsCopy != null) {
-                    holder.setInitParameters(paramsCopy);
+                // Only fall back to Jetty's default-constructor instantiation when
+                // the servlet actually has a no-arg constructor.  Servlets that rely
+                // on @Inject (like UserRegistrationServlet) have no default
+                // constructor; silently registering a Class-based ServletHolder for
+                // them causes a NoSuchMethodException at request time.
+                boolean hasDefaultCtor = false;
+                try {
+                    httpCls.getConstructor();
+                    hasDefaultCtor = true;
+                } catch (NoSuchMethodException ignored) {}
+                if (hasDefaultCtor) {
+                    LOG.warning("Failed to instantiate servlet '" + servlet.getName()
+                        + "' via Guice; falling back to default constructor", t);
+                    ServletHolder holder = new ServletHolder(httpCls);
+                    configureMultipartIfNeeded(holder, httpCls);
+                    if (paramsCopy != null) {
+                        holder.setInitParameters(paramsCopy);
+                    }
+                    servletContextHandler.addServlet(holder, urlPattern);
+                    return holder;
+                } else {
+                    LOG.severe("Failed to instantiate servlet '" + servlet.getName()
+                        + "' via Guice and no default constructor available; "
+                        + "servlet will NOT be registered at " + urlPattern, t);
+                    return new ServletHolder(DefaultServlet.class);
                 }
-                servletContextHandler.addServlet(holder, urlPattern);
-                return holder;
             }
         } catch (Throwable t) {
             LOG.warning("Failed to add servlet '" + servlet + "' at '" + urlPattern + "'", t);

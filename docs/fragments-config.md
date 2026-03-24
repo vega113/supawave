@@ -1,9 +1,56 @@
 # Fragments Configuration Reference
 
-Last updated: 2025-09-10
+Last updated: 2026-03-23
 
 This is a concise, reference-first guide to fragments-related configuration.
 Defaults are shown; see reference.conf for inline comments.
+
+## Canonical Fragment Transport Path (Decision Record)
+
+**Decision**: Stream mode (`fragmentFetchMode = "stream"`) is the canonical
+transport path for delivering fragment data from server to client.
+
+**Rationale** (evaluated 2026-03-23):
+
+The system has two fragment transport mechanisms:
+
+1. **Stream mode** (ViewChannel WebSocket): The `ViewChannelFragmentRequester`
+   calls `ViewChannel.fetchFragments()`, which invokes `FragmentsFetchBridge`
+   server-side, returns a `FragmentsPayload`, and delivers it through the
+   existing `ViewChannel.Listener.onFragments()` callback.  The payload then
+   flows into the `RawFragmentsApplier` pipeline (flag-gated, clamped, and
+   fully metered).  This path is **complete end-to-end**.
+
+2. **HTTP mode** (GET /fragments): `ClientFragmentRequester` sends a GET
+   request to `FragmentsServlet`, which returns rich JSON (blips, ranges,
+   raw fragment operations).  However, the client **discards the response
+   payload** -- it only checks the HTTP status code for success/failure.
+   Finishing the HTTP parsing path would require new GWT JSON overlay code
+   and a callback bridge into the applier pipeline.
+
+Stream mode was chosen because:
+- It reuses the existing WebSocket connection (no extra TCP/TLS handshake).
+- The full request-to-apply pipeline already works.
+- Fragment delivery is ordered with respect to delta updates on the same channel.
+- The applier hook is wired with flag gating, range clamping, and metrics.
+
+HTTP mode is retained for:
+- Server-side smoke testing and metrics (`httpRequests`, `httpOk`, `httpErrors`).
+- Operator diagnostics (curl the endpoint to verify servlet registration).
+- Future: potential REST API for non-WebSocket clients.
+
+**Migration**: All config files (reference.conf, application.conf, deploy configs)
+now default to `fragmentFetchMode = "stream"`.  The `enableFragmentFetchViewChannel`
+flag defaults to `true` in reference.conf.  Setting `fragmentFetchMode = "http"`
+still works for the metrics-only path; setting `"off"` disables fragment fetching.
+
+> **Server-side requirement for `fragmentFetchMode = "http"`**: Because the
+> default server transport is now `server.fragments.transport = "stream"`, the
+> HTTP `/fragments` endpoint is **not** enabled unless the server is also
+> configured with `server.fragments.transport = "http"` or `"both"`. Changing
+> only the client-side `fragmentFetchMode` to `"http"` without updating the
+> server will point at a disabled endpoint. Operators must ensure both sides
+> agree on the transport.
 
 Context and Source of Truth
 - Server reads these keys via `ServerMain` during startup:
@@ -202,6 +249,17 @@ Tuning loop
   - Value is validated at startup; invalid values fail fast with a clear message.
 
 ## Client flags (merged into client.flags.defaults)
+- `client.flags.defaults.fragmentFetchMode` (string, default `"stream"`)
+  - `"stream"` (canonical): fragments delivered via ViewChannel WebSocket.
+  - `"http"`: fires GET /fragments for metrics; response payload is not applied.
+  - `"off"`: disables fragment fetching entirely.
+- `client.flags.defaults.enableFragmentFetchViewChannel` (bool, default `true`)
+  - Allows the ViewChannel stream path.  Deprecated: stream mode now implies this.
+  - Kept for backward compatibility; setting to `false` while mode is `"stream"`
+    no longer prevents stream activation.
+- `client.flags.defaults.enableFragmentFetchForceLayer` (bool, default `false`)
+  - Forces the ViewChannel requester even when the channel is not yet open.
+  - Dev/testing only.
 - `client.flags.defaults.enableFragmentsApplier` (bool, default `false`)
   - Enables client-side RawFragmentsApplier hook in ViewChannelImpl.
 

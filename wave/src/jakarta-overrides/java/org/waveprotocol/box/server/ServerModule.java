@@ -83,6 +83,12 @@ public class ServerModule extends AbstractModule {
     // (which reference EE10 types) during injector creation.
     bind(ServerRpcProvider.class).toProvider(ServerRpcProviderJakartaProvider.class).in(Singleton.class);
     bind(RobotRegistrar.class).to(RobotRegistrarImpl.class).in(Singleton.class);
+
+    // Explicit binding for WelcomeWaveCreator so that Guice can inject it
+    // into UserRegistrationServlet.  Without this, JIT binding may fail when
+    // the injector child-chain hasn't been fully wired yet.
+    bind(org.waveprotocol.box.server.rpc.WelcomeWaveCreator.class).in(Singleton.class);
+    bind(org.waveprotocol.box.server.robots.util.ConversationUtil.class).in(Singleton.class);
   }
 
   @Provides @Singleton

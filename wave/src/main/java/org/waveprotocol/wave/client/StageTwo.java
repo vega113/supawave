@@ -932,7 +932,10 @@ public interface StageTwo {
                             && getBlipQueue() != null && getPagingHandler() != null) {
                         FragmentRequester requester;
                         boolean fetchEnabled = fragmentFetchEnabled;
-                        boolean allowStream = viewFetchEnabled || forceLayerEnabled;
+                        // Stream mode is canonical: if fragmentFetchMode=stream, allow it
+                        // regardless of the legacy enableFragmentFetchViewChannel flag.
+                        boolean allowStream = viewFetchEnabled || forceLayerEnabled
+                                || "stream".equals(fragmentMode);
                         if (!fetchEnabled) {
                             try { GWT.log("Dynamic fragments: client fetch disabled; using NO_OP requester"); }
                             catch (Throwable ignore) {}
@@ -987,12 +990,16 @@ public interface StageTwo {
                                     break;
                                 case "http":
                                     requester = new ClientFragmentRequester();
-                                    try { GWT.log("Dynamic fragments: using HTTP fragment requester"); }
+                                    try { GWT.log("Dynamic fragments: using HTTP fragment requester (metrics-only; payload not applied)"); }
                                     catch (Throwable ignore) {}
                                     break;
                                 case "off":
+                                    requester = FragmentRequester.NO_OP;
+                                    break;
                                 default:
                                     requester = FragmentRequester.NO_OP;
+                                    try { GWT.log("Dynamic fragments: unknown fragmentFetchMode '" + fragmentMode + "'; using NO_OP requester"); }
+                                    catch (Throwable ignore) {}
                             }
                         } else {
                             requester = FragmentRequester.NO_OP;

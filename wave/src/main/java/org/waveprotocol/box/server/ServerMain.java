@@ -409,6 +409,10 @@ public class ServerMain {
     server.addServlet("/dev/client-applier-stats", ClientApplierStatsServlet.class);
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
+    // Note: this javax ServerMain is excluded from compilation (see mainExactExcludes in build.gradle).
+    // The active registration lives in the jakarta-overrides variant of ServerMain.
+    server.addServlet("/folder/*", FolderServlet.class);
+    server.addServlet("/searches", SearchesServlet.class);
     try {
       // Unified transport: single source of truth.
       String transport = readFragmentsTransport(config);

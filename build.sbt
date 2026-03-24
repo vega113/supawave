@@ -653,18 +653,32 @@ smokeInstalled := {
   // Depend on Universal/stage to produce the install directory
   val stageDir = (Universal / stage).value
   val script = base / "scripts" / "wave-smoke.sh"
-  val env = Map("INSTALL_DIR" -> stageDir.getAbsolutePath)
+  val env = Map("INSTALL_DIR" -> stageDir.getAbsolutePath, "STOP_TIMEOUT" -> "30")
   log.info(s"Running smoke test against staged distribution at ${stageDir}")
   def runSmoke(cmd: String): Int =
     scala.sys.process.Process(Seq("bash", script.getAbsolutePath, cmd), base, env.toSeq: _*)
       .!(scala.sys.process.ProcessLogger(s => log.info(s), e => log.error(e)))
+  def runSmokeWithTimeout(cmd: String, timeoutSec: Int): Int = {
+    val proc = scala.sys.process.Process(Seq("bash", script.getAbsolutePath, cmd), base, env.toSeq: _*)
+      .run(scala.sys.process.ProcessLogger(s => log.info(s), e => log.error(e)))
+    val future = scala.concurrent.Future(proc.exitValue())(scala.concurrent.ExecutionContext.global)
+    try {
+      scala.concurrent.Await.result(future, scala.concurrent.duration.Duration(timeoutSec, "seconds"))
+    } catch {
+      case _: java.util.concurrent.TimeoutException =>
+        log.error(s"wave-smoke.sh $cmd timed out after ${timeoutSec}s — destroying process")
+        proc.destroy()
+        1
+    }
+  }
   try {
     val startCode = runSmoke("start")
     if (startCode != 0) sys.error(s"wave-smoke.sh start failed with exit code $startCode")
     val checkCode = runSmoke("check")
     if (checkCode != 0) sys.error(s"wave-smoke.sh check failed with exit code $checkCode")
   } finally {
-    runSmoke("stop")
+    // Use a timeout for stop to prevent CI hangs if the process can't be killed
+    runSmokeWithTimeout("stop", 60)
   }
 }
 

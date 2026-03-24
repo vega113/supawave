@@ -21,7 +21,7 @@ Wiab.pro addressed this through its "blocks" data layer (~11K lines, ~103 files)
 
 ## Architecture
 
-```
+```text
                     ┌──────────────────────────────┐
                     │   DeltaStoreBasedWaveletState │
                     │         .create()             │
@@ -124,7 +124,7 @@ Snapshot writes happen **synchronously on the persist executor thread**, immedia
 
 **Critical concurrency detail**: The `snapshot` field in `DeltaStoreBasedWaveletState` is a mutable `WaveletData` object that `appendDelta()` modifies on the container write thread, while `persisterTask` runs asynchronously on the persist executor. Reading `snapshot` from the persist thread without synchronization would risk capturing a partially-applied or ahead-of-persisted-version state.
 
-**Solution**: Instead of serializing the live `snapshot` object, the snapshot trigger reconstructs the wavelet state at the just-persisted version by replaying only the deltas that were just persisted (which are already available in the `cachedDeltas` map and guaranteed immutable). This gives a consistent point-in-time view matching exactly the persisted delta boundary, with no locking required. Alternatively, a simpler approach: take a **snapshot copy** (`WaveletDataUtil.copyWavelet(snapshot)`) under the container lock inside `appendDelta()` whenever the delta count crosses a snapshot boundary, and enqueue that immutable copy for the persist thread to serialize. This avoids reading mutable state from the persist thread.
+**Solution**: When `appendDelta()` detects that the delta count has crossed a snapshot boundary, it takes a **defensive copy** via `WaveletDataUtil.copyWavelet(snapshot)` under the container lock and publishes it to the `pendingSnapshotCopy` `AtomicReference`. The persist thread atomically consumes this immutable copy via `getAndSet(null)` and serializes it after the deltas are durably stored. Because `appendDelta()` is serialized by the container lock, the copy is a consistent point-in-time view. The live `snapshot` field is never read from the persist thread, eliminating the concurrency hazard entirely.
 
 ### 5. Snapshot Reads Are Fallible and Non-Fatal
 
@@ -413,7 +413,7 @@ if (snapCopy != null) {
 
 `FileSnapshotStore` stores snapshots as protobuf files:
 
-```
+```text
 _snapshots/
   {encoded-wave-id}/
     {encoded-wavelet-id}/

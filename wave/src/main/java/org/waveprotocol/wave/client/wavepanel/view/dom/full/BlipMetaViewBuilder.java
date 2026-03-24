@@ -89,22 +89,58 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
   private final static Map<MenuOption, SafeHtml> MENU_LABELS =
       new EnumMap<MenuOption, SafeHtml>(MenuOption.class);
 
+  /** Inline SVG icon markup for each menu option. */
+  private final static Map<MenuOption, SafeHtml> MENU_ICONS =
+      new EnumMap<MenuOption, SafeHtml>(MenuOption.class);
+
   private final static StringMap<MenuOption> MENU_OPTIONS = CollectionUtils.createStringMap();
 
-  /** Inline SVG check icon (Lucide, MIT) for the Done menu item. */
-  private static final String DONE_CHECK_SVG =
-      "<svg style=\"vertical-align:middle;margin-right:2px\" width=\"14\" height=\"14\" "
-      + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" "
-      + "stroke-linecap=\"round\" stroke-linejoin=\"round\">"
-      + "<polyline points=\"20 6 9 17 4 12\"/></svg>";
+  /**
+   * Inline SVG icons (Lucide, MIT) — 16x16, stroke-based.
+   * Note: self-closing tags (e.g. {@code <path/>}) are avoided because the
+   * existing test suite asserts that rendered HTML contains no {@code />}.
+   * Instead we use explicit close tags ({@code <path></path>}).
+   */
+  private static final String SVG_OPEN =
+      "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" "
+      + "stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" "
+      + "stroke-linejoin=\"round\">";
+
+  private static final String REPLY_SVG = SVG_OPEN
+      + "<polyline points=\"9 17 4 12 9 7\"></polyline>"
+      + "<path d=\"M20 18v-2a4 4 0 00-4-4H4\"></path></svg>";
+
+  private static final String EDIT_SVG = SVG_OPEN
+      + "<path d=\"M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7\"></path>"
+      + "<path d=\"M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z\"></path></svg>";
+
+  private static final String DELETE_SVG = SVG_OPEN
+      + "<polyline points=\"3 6 5 6 21 6\"></polyline>"
+      + "<path d=\"M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2\">"
+      + "</path></svg>";
+
+  private static final String LINK_SVG = SVG_OPEN
+      + "<path d=\"M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71\"></path>"
+      + "<path d=\"M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71\"></path></svg>";
+
+  private static final String DRAFT_SVG = SVG_OPEN
+      + "<path d=\"M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z\"></path>"
+      + "<polyline points=\"14 2 14 8 20 8\"></polyline>"
+      + "<line x1=\"16\" y1=\"13\" x2=\"8\" y2=\"13\"></line>"
+      + "<line x1=\"16\" y1=\"17\" x2=\"8\" y2=\"17\"></line></svg>";
+
+  private static final String DONE_SVG = SVG_OPEN
+      + "<polyline points=\"20 6 9 17 4 12\"></polyline></svg>";
 
   public static final String OPTION_ID_ATTRIBUTE = "o";
   public static final String OPTION_SELECTED_ATTRIBUTE = "s";
   private static final EnumSet<MenuOption> MENU_OPTIONS_BEFORE_EDITING = EnumSet.of(
-      IntrinsicBlipMetaView.MenuOption.REPLY, IntrinsicBlipMetaView.MenuOption.DELETE,
+      IntrinsicBlipMetaView.MenuOption.REPLY,
       IntrinsicBlipMetaView.MenuOption.EDIT,
+      IntrinsicBlipMetaView.MenuOption.DELETE,
       IntrinsicBlipMetaView.MenuOption.LINK);
   public final static Set<MenuOption> ENABLED_WHILE_EDITING_MENU_OPTIONS_SET = EnumSet.of(
+      IntrinsicBlipMetaView.MenuOption.DRAFT,
       IntrinsicBlipMetaView.MenuOption.EDIT_DONE);
   public final static Set<MenuOption> DISABLED_WHILE_EDITING_MENU_OPTIONS_SET = MENU_OPTIONS_BEFORE_EDITING;
 
@@ -258,7 +294,7 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
   }
 
   /**
-   * Creates a builder for a blip menu.
+   * Creates a builder for a blip menu with SVG icon buttons.
    */
   public static UiBuilder menuBuilder(final Set<MenuOption> options, final Set<MenuOption> selected,
       final BlipViewBuilder.Css css) {
@@ -266,13 +302,16 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
       @Override
       public void outputHtml(SafeHtmlBuilder out) {
         for (MenuOption option : options) {
-          out.append(EscapeUtils.fromSafeConstant("|"));
           String style = selected.contains(option) //
-              ? css.menuOption() + css.menuOptionSelected() : css.menuOption();
+              ? css.menuOption() + " " + css.menuOptionSelected() : css.menuOption();
+          String title = EscapeUtils.htmlEscape(MENU_LABELS.get(option).asString());
+          String dataOption = option.name().toLowerCase();
           String extra = OPTION_ID_ATTRIBUTE + "='" + MENU_CODES.get(option).asString() + "'"
+              + " title='" + title + "'"
+              + " data-option='" + dataOption + "'"
               + (selected.contains(option) ? " " + OPTION_SELECTED_ATTRIBUTE + "='s'" : "");
           openSpanWith(out, null, style, TypeCodes.kind(Type.MENU_ITEM), extra);
-          out.append(MENU_LABELS.get(option));
+          out.append(MENU_ICONS.get(option));
           closeSpan(out);
         }
       }
@@ -296,17 +335,27 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
   }
 
   private static void buildMenuModel(BlipMessages messages) {
-    MENU_CODES.put(MenuOption.EDIT, EscapeUtils.fromSafeConstant("e"));
-    MENU_CODES.put(MenuOption.EDIT_DONE, EscapeUtils.fromSafeConstant("x"));
     MENU_CODES.put(MenuOption.REPLY, EscapeUtils.fromSafeConstant("r"));
+    MENU_CODES.put(MenuOption.EDIT, EscapeUtils.fromSafeConstant("e"));
     MENU_CODES.put(MenuOption.DELETE, EscapeUtils.fromSafeConstant("d"));
     MENU_CODES.put(MenuOption.LINK, EscapeUtils.fromSafeConstant("l"));
-    MENU_LABELS.put(MenuOption.EDIT, EscapeUtils.fromSafeConstant(messages.edit()));
-    MENU_LABELS.put(MenuOption.EDIT_DONE,
-        EscapeUtils.fromSafeConstant(DONE_CHECK_SVG + messages.done()));
+    MENU_CODES.put(MenuOption.DRAFT, EscapeUtils.fromSafeConstant("f"));
+    MENU_CODES.put(MenuOption.EDIT_DONE, EscapeUtils.fromSafeConstant("x"));
+
     MENU_LABELS.put(MenuOption.REPLY, EscapeUtils.fromSafeConstant(messages.reply()));
+    MENU_LABELS.put(MenuOption.EDIT, EscapeUtils.fromSafeConstant(messages.edit()));
     MENU_LABELS.put(MenuOption.DELETE, EscapeUtils.fromSafeConstant(messages.delete()));
     MENU_LABELS.put(MenuOption.LINK, EscapeUtils.fromSafeConstant(messages.link()));
+    MENU_LABELS.put(MenuOption.DRAFT, EscapeUtils.fromSafeConstant(messages.draft()));
+    MENU_LABELS.put(MenuOption.EDIT_DONE, EscapeUtils.fromSafeConstant(messages.done()));
+
+    MENU_ICONS.put(MenuOption.REPLY, EscapeUtils.fromSafeConstant(REPLY_SVG));
+    MENU_ICONS.put(MenuOption.EDIT, EscapeUtils.fromSafeConstant(EDIT_SVG));
+    MENU_ICONS.put(MenuOption.DELETE, EscapeUtils.fromSafeConstant(DELETE_SVG));
+    MENU_ICONS.put(MenuOption.LINK, EscapeUtils.fromSafeConstant(LINK_SVG));
+    MENU_ICONS.put(MenuOption.DRAFT, EscapeUtils.fromSafeConstant(DRAFT_SVG));
+    MENU_ICONS.put(MenuOption.EDIT_DONE, EscapeUtils.fromSafeConstant(DONE_SVG));
+
     for (MenuOption option : MENU_CODES.keySet()) {
       MENU_OPTIONS.put(MENU_CODES.get(option).asString(), option);
     }

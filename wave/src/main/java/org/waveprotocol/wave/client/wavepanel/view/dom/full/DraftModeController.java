@@ -91,11 +91,10 @@ public class DraftModeController implements EditSession.Listener,
 
   @Override
   public void onModeChange(boolean draft) {
-    if (draft) {
-      actions.enterDraftMode();
-    } else {
-      actions.leaveDraftMode(true);
-    }
+    // Use toggleDraftMode() which checks the editor's actual draft state,
+    // rather than enter/leave directly, to stay in sync when the action-bar
+    // draft toggle and Ctrl+D keyboard shortcut are mixed.
+    actions.toggleDraftMode();
   }
 
   @Override

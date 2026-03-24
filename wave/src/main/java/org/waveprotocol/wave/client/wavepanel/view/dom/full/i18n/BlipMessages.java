@@ -40,4 +40,7 @@ public interface BlipMessages extends Messages {
 
   @DefaultMessage("Link")
   String link();
+
+  @DefaultMessage("Draft")
+  String draft();
 }

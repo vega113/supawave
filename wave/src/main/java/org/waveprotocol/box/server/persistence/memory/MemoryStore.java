@@ -20,7 +20,9 @@
 package org.waveprotocol.box.server.persistence.memory;
 
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.contact.Contact;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.ContactStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.SignerInfoStore;
 import org.waveprotocol.wave.crypto.CertPathStore;
@@ -30,6 +32,8 @@ import org.waveprotocol.wave.crypto.SignerInfo;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignerInfo;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,7 +50,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author ljvderijk@google.com (Lennard de Rijk)
  *
  */
-public class MemoryStore implements SignerInfoStore, AccountStore {
+public class MemoryStore implements SignerInfoStore, AccountStore, ContactStore {
 
   private final CertPathStore certPathStore;
 
@@ -95,5 +99,29 @@ public class MemoryStore implements SignerInfoStore, AccountStore {
   @Override
   public void removeAccount(ParticipantId id) {
     accountStore.remove(id);
+  }
+
+  /*
+   *  ContactStore
+   */
+
+  private final Map<ParticipantId, List<Contact>> contactsStore =
+      new ConcurrentHashMap<ParticipantId, List<Contact>>();
+
+  @Override
+  public void initializeContactStore() throws PersistenceException {
+    // Nothing to initialize for in-memory store.
+  }
+
+  @Override
+  public List<Contact> getContacts(ParticipantId participant) throws PersistenceException {
+    List<Contact> stored = contactsStore.get(participant);
+    return stored != null ? new ArrayList<Contact>(stored) : null;
+  }
+
+  @Override
+  public void storeContacts(ParticipantId participant, List<Contact> contacts)
+      throws PersistenceException {
+    contactsStore.put(participant, new ArrayList<Contact>(contacts));
   }
 }

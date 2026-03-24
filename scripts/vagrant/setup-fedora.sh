@@ -30,11 +30,12 @@ curl -L https://www.scala-sbt.org/sbt-rpm.repo | sudo tee /etc/yum.repos.d/sbt-r
 dnf install -y sbt || true
 
 # create the binary
-cd /vagrant
+cd /vagrant || exit 1
 sbt --batch Universal/stage
 
 # Get Apache Wave version
 WAVE_INSTALL="target/universal/stage"
-sudo cp -R "$WAVE_INSTALL" /opt/apache/wave/
+sudo mkdir -p /opt/apache/wave/wave
+sudo cp -R "$WAVE_INSTALL"/. /opt/apache/wave/wave/
 cd ..
 cp scripts/vagrant/application.conf /opt/apache/wave/wave/config/application.conf

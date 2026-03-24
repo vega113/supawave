@@ -1389,6 +1389,8 @@ public final class HtmlRenderer {
     sb.append("          currentVersion = data.version;\n");
     sb.append("          currentBuildTime = data.buildTime;\n");
     sb.append("        } else if (data.version !== currentVersion || data.buildTime !== currentBuildTime) {\n");
+    sb.append("          currentVersion = data.version;\n");
+    sb.append("          currentBuildTime = data.buildTime;\n");
     sb.append("          showUpgradeBanner();\n");
     sb.append("        }\n");
     sb.append("      })\n");

@@ -349,6 +349,17 @@ public class WaveServerImpl implements WaveletProvider, ReadableWaveletDataProvi
   }
 
   @Override
+  public HashedVersion getHashedVersion(WaveletName waveletName, long version)
+      throws WaveServerException {
+    Preconditions.checkState(initialized, "Wave server not yet initialized");
+    WaveletContainer wavelet = getWavelet(waveletName);
+    if (wavelet == null) {
+      return null;
+    }
+    return wavelet.getHashedVersion(version);
+  }
+
+  @Override
   public ReadableWaveletData getReadableWaveletData(WaveletName waveletName)
       throws WaveServerException {
     return getSnapshot(waveletName).snapshot;

@@ -760,10 +760,19 @@ public final class HtmlRenderer {
     // =================================================================
     // RESPONSIVE: Tablet (768-1023px) - narrower search panel
     // =================================================================
-    sb.append("@media (max-width: 1023px) {\n");
+    sb.append("@media (min-width: 768px) and (max-width: 1023px) {\n");
     sb.append("  .topbar .domain { display: none; }\n");
     sb.append("  #unsavedStateContainer { display: none !important; }\n");
     sb.append("  .topbar .lang { display: none; }\n");
+    sb.append("  [data-mobile-role='search-panel'] {\n");
+    sb.append("    width: 280px !important;\n");
+    sb.append("  }\n");
+    sb.append("  [data-mobile-role='split-dragger'] {\n");
+    sb.append("    left: 280px !important;\n");
+    sb.append("  }\n");
+    sb.append("  [data-mobile-role='wave-panel'] {\n");
+    sb.append("    left: 286px !important;\n");
+    sb.append("  }\n");
     sb.append("}\n");
     // =================================================================
     // RESPONSIVE: Mobile (<768px) - single column layout
@@ -856,7 +865,7 @@ public final class HtmlRenderer {
     // App container
     sb.append("<div id=\"app\" style=\"position:absolute; top:41px; right:0px; bottom:0px; left:0px;\"></div>\n");
     // Mobile backdrop overlay (for closing slide panel)
-    sb.append("<div class=\"mobile-backdrop\" id=\"mobileBackdrop\" role=\"button\" aria-label=\"Close navigation\"></div>\n");
+    sb.append("<div class=\"mobile-backdrop\" id=\"mobileBackdrop\" role=\"button\" tabindex=\"0\" aria-label=\"Close navigation\"></div>\n");
     sb.append("<noscript>\n");
     sb.append("<div style=\"width:22em;position:absolute;left:50%;margin-left:-11em;");
     sb.append("color:red;background-color:white;border:1px solid red;padding:4px;font-family:sans-serif\">\n");
@@ -896,8 +905,13 @@ public final class HtmlRenderer {
     sb.append("  }\n");
     sb.append("  if (backdrop) {\n");
     sb.append("    backdrop.addEventListener('click', function() { closePanel(); });\n");
+    sb.append("    backdrop.addEventListener('keydown', function(e) {\n");
+    sb.append("      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {\n");
+    sb.append("        e.preventDefault(); closePanel();\n");
+    sb.append("      }\n");
+    sb.append("    });\n");
     sb.append("  }\n");
-    // -- Back button: go back to inbox (clear wave hash) --
+    // -- Back button: go back to inbox (clear wave hash and reopen search panel) --
     sb.append("  if (backBtn) {\n");
     sb.append("    backBtn.addEventListener('click', function(e) {\n");
     sb.append("      e.stopPropagation();\n");
@@ -905,6 +919,7 @@ public final class HtmlRenderer {
     sb.append("        window.location.hash = '';\n");
     sb.append("      }\n");
     sb.append("      body.classList.remove('mobile-wave-open');\n");
+    sb.append("      openPanel();\n");
     sb.append("    });\n");
     sb.append("  }\n");
     // -- Listen for hash changes to detect wave open/close --
@@ -919,11 +934,14 @@ public final class HtmlRenderer {
     sb.append("    }\n");
     sb.append("  }\n");
     sb.append("  window.addEventListener('hashchange', onHashChange);\n");
-    // -- On resize, clean up mobile classes if switching to desktop --
+    // -- On resize, clean up mobile classes if switching to desktop,
+    //    or recompute wave-open state if returning to mobile --
     sb.append("  window.addEventListener('resize', function() {\n");
     sb.append("    if (!isMobile()) {\n");
     sb.append("      body.classList.remove('mobile-panel-open');\n");
     sb.append("      body.classList.remove('mobile-wave-open');\n");
+    sb.append("    } else {\n");
+    sb.append("      onHashChange();\n");
     sb.append("    }\n");
     sb.append("  });\n");
     // -- Initial check for deep-linked wave --

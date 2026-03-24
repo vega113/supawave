@@ -22,7 +22,7 @@
   - These inline styles require `!important` overrides in media queries
 
 ### Key DOM Structure (post-GWT render)
-```
+```html
 <div class="topbar">...</div>
 <div id="app" style="position:absolute; top:41px; ...">
   <div style="position:absolute; ...">              <!-- DockLayoutPanel -->

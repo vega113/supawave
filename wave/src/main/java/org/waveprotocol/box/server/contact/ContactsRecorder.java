@@ -67,9 +67,21 @@ public class ContactsRecorder implements WaveBus.Subscriber {
 
   @Override
   public void waveletUpdate(ReadableWaveletData wavelet, DeltaSequence deltas) {
-    // Build a mutable copy of the current participant set. We walk deltas in
-    // order so this stays in sync as participants are added/removed.
+    // The wavelet snapshot represents the state AFTER all deltas have been
+    // applied (per WaveBus.Subscriber contract). Reconstruct the pre-delta
+    // participant set by walking the deltas in reverse and undoing each
+    // participant change.
     HashSet<ParticipantId> participants = Sets.newHashSet(wavelet.getParticipants());
+    for (int i = deltas.size() - 1; i >= 0; i--) {
+      for (WaveletOperation op : deltas.get(i)) {
+        if (op instanceof AddParticipant) {
+          participants.remove(((AddParticipant) op).getParticipantId());
+        } else if (op instanceof RemoveParticipant) {
+          participants.add(((RemoveParticipant) op).getParticipantId());
+        }
+      }
+    }
+    // Now walk deltas forward with the correct pre-delta participant set.
     for (int i = 0; i < deltas.size(); i++) {
       updateContacts(participants, deltas.get(i));
     }

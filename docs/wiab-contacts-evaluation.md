@@ -53,7 +53,7 @@ frequently and recently contacted users appear first.
 | `RemakeContactsServlet` | `src/.../rpc/RemakeContactsServlet.java` | Medium | Bulk rebuild from delta history |
 | `ProtoContactsDataSerializer` | `src/.../persistence/protos/ProtoContactsDataSerializer.java` | Low | Proto <-> domain roundtrip |
 | Config: `CONTACT_STORE_TYPE`, `CONTACT_STORE_DIRECTORY` | `CoreSettings` | Low | Two new config keys |
-| Executor: `ContactExecutor` | `ExecutorAnnotations` / `ExecutorsModule` | **Already exists** in incubator-wave |
+| Executor: `ContactExecutor` | `ExecutorAnnotations` / `ExecutorsModule` | N/A | **Already exists** in incubator-wave |
 
 ### Client-side (GWT; NOT ported now)
 

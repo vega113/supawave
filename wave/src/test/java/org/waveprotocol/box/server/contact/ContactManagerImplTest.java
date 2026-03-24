@@ -27,6 +27,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Tests for {@link ContactManagerImpl}.
@@ -40,15 +41,24 @@ public class ContactManagerImplTest extends TestCase {
   private static final ParticipantId USER3 = ParticipantId.ofUnsafe("user3@example.com");
 
   private long currentTime;
+  private ScheduledExecutorService executor;
 
   @Override
   protected void setUp() throws Exception {
     currentTime = Calendar.getInstance().getTimeInMillis();
+    executor = Executors.newSingleThreadScheduledExecutor();
+  }
+
+  @Override
+  protected void tearDown() throws Exception {
+    if (executor != null) {
+      executor.shutdownNow();
+    }
   }
 
   public void testContactAddedWhenCallIsStored() throws Exception {
     ContactManager contactManager = new ContactManagerImpl(
-        new MemoryStore(), Executors.newSingleThreadScheduledExecutor());
+        new MemoryStore(), executor);
 
     contactManager.newCall(USER1, USER2, currentTime, true);
 
@@ -61,7 +71,7 @@ public class ContactManagerImplTest extends TestCase {
 
   public void testContactsFilteredByTime() throws Exception {
     ContactManager contactManager = new ContactManagerImpl(
-        new MemoryStore(), Executors.newSingleThreadScheduledExecutor());
+        new MemoryStore(), executor);
 
     contactManager.newCall(USER1, USER2, currentTime - 1, true);
     contactManager.newCall(USER1, USER3, currentTime, true);
@@ -73,7 +83,7 @@ public class ContactManagerImplTest extends TestCase {
 
   public void testDirectCallScoreBonus() throws Exception {
     ContactManager contactManager = new ContactManagerImpl(
-        new MemoryStore(), Executors.newSingleThreadScheduledExecutor());
+        new MemoryStore(), executor);
 
     contactManager.newCall(USER1, USER2, currentTime, true);
 
@@ -88,7 +98,7 @@ public class ContactManagerImplTest extends TestCase {
 
   public void testIndirectCallScoreBonus() throws Exception {
     ContactManager contactManager = new ContactManagerImpl(
-        new MemoryStore(), Executors.newSingleThreadScheduledExecutor());
+        new MemoryStore(), executor);
 
     contactManager.newCall(USER1, USER2, currentTime, false);
 
@@ -103,7 +113,7 @@ public class ContactManagerImplTest extends TestCase {
 
   public void testBonusesExpireOverTime() throws Exception {
     ContactManager contactManager = new ContactManagerImpl(
-        new MemoryStore(), Executors.newSingleThreadScheduledExecutor());
+        new MemoryStore(), executor);
 
     for (int i = 0; i < 1000; i++) {
       contactManager.newCall(USER1, USER2, currentTime - 999 + i, true);
@@ -119,7 +129,7 @@ public class ContactManagerImplTest extends TestCase {
 
   public void testOrderIndependence() throws Exception {
     ContactManager contactManager = new ContactManagerImpl(
-        new MemoryStore(), Executors.newSingleThreadScheduledExecutor());
+        new MemoryStore(), executor);
 
     // Chronological order
     contactManager.newCall(USER1, USER2, currentTime - 1, true);

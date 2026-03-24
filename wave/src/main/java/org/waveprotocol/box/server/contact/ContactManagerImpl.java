@@ -72,7 +72,7 @@ public class ContactManagerImpl implements ContactManager {
         .build(new CacheLoader<ParticipantId, Map<ParticipantId, Contact>>() {
           @Override
           public Map<ParticipantId, Contact> load(ParticipantId participantId) throws Exception {
-            Map<ParticipantId, Contact> contacts = Maps.newHashMap();
+            Map<ParticipantId, Contact> contacts = Maps.newConcurrentMap();
             List<Contact> list = contactStore.getContacts(participantId);
             if (list != null) {
               for (Contact contact : list) {
@@ -148,19 +148,17 @@ public class ContactManagerImpl implements ContactManager {
     } catch (ExecutionException ex) {
       throw new PersistenceException(ex);
     }
-    Contact contact = contacts.get(interlocutor);
-    if (contact != null) {
-      long bonus = addBonus(
-          contact.getLastContactTime(), contact.getScoreBonus(), time, outgoing, direct);
-      if (time > contact.getLastContactTime()) {
-        contact.setLastContactTime(time);
+    contacts.compute(interlocutor, (key, existing) -> {
+      if (existing != null) {
+        long bonus = addBonus(
+            existing.getLastContactTime(), existing.getScoreBonus(), time, outgoing, direct);
+        long newTime = Math.max(time, existing.getLastContactTime());
+        return new ContactImpl(interlocutor, newTime, bonus);
+      } else {
+        long bonus = getBonus(outgoing, direct);
+        return new ContactImpl(interlocutor, time, bonus);
       }
-      contact.setScoreBonus(bonus);
-    } else {
-      long bonus = getBonus(outgoing, direct);
-      contact = new ContactImpl(interlocutor, time, bonus);
-      contacts.put(interlocutor, contact);
-    }
+    });
     contactsToWrite.put(participant, contacts);
   }
 

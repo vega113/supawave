@@ -81,16 +81,16 @@
 
 .unread .count {
   color: white;
-  background-image: literal("-moz-linear-gradient(0% 100% 90deg, rgb(93,140,9), rgb(149,184,0))");
-  background-image: literal("-webkit-gradient(linear, 0% 100%, 0% 0%, from(rgb(93,140,9)), to(rgb(149,184,0)))");
-  border: 1px solid rgb(93,140,9);
+  background-color: #00b4d8;
+  background-image: none;
+  border: none;
 }
 
 .read .count {
-  color: gray;
-  background-image: literal("-moz-linear-gradient(0% 100% 90deg, rgb(220,220,220), white)");
-  background-image: literal("-webkit-gradient(linear, 0% 100%, 0% 0%, from(rgb(220,220,220)), to(white))");
-  border: 1px solid rgb(154,154,154);
+  color: #718096;
+  background-color: #f0f4f8;
+  background-image: none;
+  border: 1px solid #e2e8f0;
 }
 
 .expanded.dropContainer {
@@ -137,12 +137,12 @@
    * All other sides go in.
    */
   margin: 1em 0.5em 1em -2em;
-  box-shadow: 0px 0px 4px #808080;
-  -moz-box-shadow: 0px 0px 4px #808080;
-  -webkit-box-shadow: 0px 0px 4px #808080;
-  border-radius: 4px;
-  -moz-border-radius: 4px;
-  -webkit-border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  -moz-box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  -webkit-box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  border-radius: 8px;
+  -moz-border-radius: 8px;
+  -webkit-border-radius: 8px;
 }
 
 @if user.agent ie6 ie8 {

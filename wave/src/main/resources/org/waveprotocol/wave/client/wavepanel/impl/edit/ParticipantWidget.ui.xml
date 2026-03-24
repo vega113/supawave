@@ -23,8 +23,15 @@
     .self {
       overflow: hidden;
       cursor: pointer;
-      border: 1px solid #ccc;
-      margin: 0px 0px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      margin: 4px 0;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .self:hover {
+      background: rgba(0,119,182,0.04);
+      border-color: #0077b6;
     }
 
     .img {
@@ -34,6 +41,7 @@
     .img img {
       width: 50px;
       height: 50px;
+      border-radius: 50%;
     }
 
     .tx {
@@ -44,7 +52,7 @@
     }
 
     .img, .tx, .self h3 {
-      margin: 15px;
+      margin: 12px;
     }
   </ui:style>
 

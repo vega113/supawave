@@ -27,7 +27,8 @@
 .title {
   font-size: 15px;
   whitespace: nowrap;
-  color: #5a99df;
+  color: #0077b6;
+  font-weight: 600;
 }
 
 .explanation {

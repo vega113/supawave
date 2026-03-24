@@ -40,6 +40,337 @@ public final class HtmlRenderer {
   private static final String WAVE_ACCENT = "#00b4d8";
   private static final String WAVE_LIGHT = "#90e0ef";
   private static final String WAVE_GRADIENT = "linear-gradient(135deg, #0077b6 0%, #00b4d8 50%, #90e0ef 100%)";
+  private static final String WAVE_BG = "#f0f4f8";
+  private static final String WAVE_BORDER = "#e2e8f0";
+  private static final String WAVE_TEXT = "#1a202c";
+  private static final String WAVE_TEXT_MUTED = "#718096";
+  private static final String WAVE_FONT =
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif";
+
+  // =========================================================================
+  // Wave Panel CSS (ocean theme for GWT client panels)
+  // =========================================================================
+
+  /**
+   * Comprehensive CSS overrides for the GWT webclient panels. Uses stable
+   * {@code [kind="X"]} attribute selectors because GWT obfuscates class names.
+   * All rules are scoped under {@code #app} to avoid leaking into auth pages.
+   */
+  private static final String WAVE_PANEL_CSS =
+      "\n/* ===== SupaWave Panel Theme ===== */\n"
+
+      // --- Global / App container ---
+      + "#app {\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  background: " + WAVE_BG + ";\n"
+      + "  color: " + WAVE_TEXT + ";\n"
+      + "}\n"
+
+      // --- Split panel dragger ---
+      + ".gwt-SplitLayoutPanel-HDragger {\n"
+      + "  background: " + WAVE_BG + " !important;\n"
+      + "  width: 6px !important;\n"
+      + "  cursor: col-resize;\n"
+      + "}\n"
+      + ".gwt-SplitLayoutPanel-VDragger {\n"
+      + "  background: " + WAVE_BG + " !important;\n"
+      + "  height: 6px !important;\n"
+      + "  cursor: row-resize;\n"
+      + "}\n"
+
+      // --- Search panel (left sidebar) ---
+      // Search area header bar
+      + "#app [kind=\"c\"] { background: #fff; }\n"
+
+      // Search input – scoped to the search widget to avoid overriding
+      // component-specific CSS (e.g. input.query padding in Search.css)
+      + "#app [kind=\"c\"] input[type=\"search\"],\n"
+      + "#app [kind=\"c\"] input[type=\"text\"] {\n"
+      + "  box-sizing: border-box;\n"
+      + "  border: 1.5px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 20px;\n"
+      + "  padding: 6px 14px;\n"
+      + "  font-size: 13px;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  outline: none;\n"
+      + "  transition: border-color 0.2s, box-shadow 0.2s;\n"
+      + "  background: #fff;\n"
+      + "}\n"
+      + "#app [kind=\"c\"] input[type=\"search\"]:focus,\n"
+      + "#app [kind=\"c\"] input[type=\"text\"]:focus {\n"
+      + "  border-color: " + WAVE_PRIMARY + ";\n"
+      + "  box-shadow: 0 0 0 3px rgba(0,119,182,0.10);\n"
+      + "}\n"
+
+      // Filter buttons (Shared / All / Inbox) – scoped to search panel
+      // to avoid breaking fixed-dimension toolbars elsewhere
+      + "#app [kind=\"c\"] .gwt-Button {\n"
+      + "  box-sizing: border-box;\n"
+      + "  border: 1.5px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 16px;\n"
+      + "  background: #fff;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  font-size: 12px;\n"
+      + "  font-weight: 500;\n"
+      + "  padding: 4px 14px;\n"
+      + "  cursor: pointer;\n"
+      + "  transition: all 0.15s ease;\n"
+      + "  line-height: 1.4;\n"
+      + "}\n"
+      + "#app [kind=\"c\"] .gwt-Button:hover {\n"
+      + "  border-color: " + WAVE_PRIMARY + ";\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "  background: rgba(0,119,182,0.04);\n"
+      + "}\n"
+
+      // --- Digest list items (wave inbox) ---
+      // Digest items have a `di` attribute
+      + "#app [di] {\n"
+      + "  border-bottom: 1px solid " + WAVE_BORDER + ";\n"
+      + "  padding: 10px 12px;\n"
+      + "  cursor: pointer;\n"
+      + "  transition: background 0.15s ease;\n"
+      + "  background: #fff;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "}\n"
+      + "#app [di]:hover {\n"
+      + "  background: rgba(144,224,239,0.12);\n"
+      + "}\n"
+      // Selected digest — use a stable data-attribute set by JS observer
+      // instead of hard-coding CssResource-obfuscated class names.
+      + "#app [di][data-selected] {\n"
+      + "  background: " + WAVE_PRIMARY + " !important;\n"
+      + "  color: #fff !important;\n"
+      + "}\n"
+
+      // Digest avatars - round
+      + "#app [di] img {\n"
+      + "  border-radius: 50%;\n"
+      + "  border-color: " + WAVE_BORDER + ";\n"
+      + "}\n"
+
+      // Unread count badge
+      + "#app [di] span[class*=\"unreadCount\"],\n"
+      + "#app [di] span[style*=\"border-radius\"] {\n"
+      + "  background-color: " + WAVE_ACCENT + " !important;\n"
+      + "  border: none !important;\n"
+      + "  color: #fff !important;\n"
+      + "  font-size: 11px;\n"
+      + "  font-weight: 600;\n"
+      + "  padding: 1px 8px;\n"
+      + "  border-radius: 10px;\n"
+      + "}\n"
+
+      // Digest title - unread bold
+      + "#app [di] span[class*=\"unread\"] {\n"
+      + "  color: " + WAVE_TEXT + ";\n"
+      + "  font-weight: 600;\n"
+      + "}\n"
+      + "#app [di][data-selected] span[class*=\"unread\"] {\n"
+      + "  color: #fff !important;\n"
+      + "}\n"
+
+      // --- Participants panel ---
+      + "#app [kind=\"s\"] {\n"
+      + "  background: linear-gradient(180deg, #e8f4f8 0%, #fff 100%) !important;\n"
+      + "  border-bottom: 1px solid " + WAVE_BORDER + " !important;\n"
+      + "  border-left: none !important;\n"
+      + "}\n"
+      // Participant avatars - round
+      + "#app [kind=\"s\"] img[kind=\"p\"],\n"
+      + "#app [kind=\"s\"] img {\n"
+      + "  border-radius: 50%;\n"
+      + "  border: 2px solid #fff;\n"
+      + "  box-shadow: 0 1px 3px rgba(0,0,0,0.1);\n"
+      + "  transition: transform 0.15s ease;\n"
+      + "}\n"
+      + "#app [kind=\"s\"] img:hover {\n"
+      + "  transform: scale(1.08);\n"
+      + "}\n"
+      // Add participant button
+      + "#app [kind=\"a\"] {\n"
+      + "  cursor: pointer;\n"
+      + "  opacity: 0.7;\n"
+      + "  transition: opacity 0.15s ease;\n"
+      + "}\n"
+      + "#app [kind=\"a\"]:hover {\n"
+      + "  opacity: 1;\n"
+      + "}\n"
+
+      // --- New Wave With Participants button ---
+      + "#app [kind=\"npw\"] {\n"
+      + "  background: " + WAVE_PRIMARY + " !important;\n"
+      + "  color: #fff !important;\n"
+      + "  border: none !important;\n"
+      + "  border-radius: 20px !important;\n"
+      + "  padding: 5px 16px !important;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  font-size: 12px;\n"
+      + "  font-weight: 600;\n"
+      + "  cursor: pointer;\n"
+      + "  transition: background 0.2s ease, box-shadow 0.2s ease;\n"
+      + "  display: inline-block;\n"
+      + "  text-align: center;\n"
+      + "  line-height: 1.6;\n"
+      + "  box-shadow: 0 1px 3px rgba(0,119,182,0.2);\n"
+      + "  width: auto !important;\n"
+      + "  margin: 4px 5px !important;\n"
+      + "}\n"
+      + "#app [kind=\"npw\"]:hover {\n"
+      + "  background: #005f8f !important;\n"
+      + "  box-shadow: 0 3px 8px rgba(0,119,182,0.3);\n"
+      + "}\n"
+
+      // --- Blips ---
+      + "#app [kind=\"b\"] {\n"
+      + "  position: relative;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "}\n"
+
+      // Blip meta area
+      + "#app [kind=\"m\"] {\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "}\n"
+      // Blip avatar - round
+      + "#app [kind=\"m\"] img {\n"
+      + "  border-radius: 50%;\n"
+      + "  border: 2px solid #fff;\n"
+      + "  box-shadow: 0 1px 2px rgba(0,0,0,0.08);\n"
+      + "}\n"
+
+      // Metabar - override the green/gray scheme
+      // Read state: light gray-blue
+      + "#app [kind=\"m\"] > div:first-child + div {\n"
+      + "  border-radius: 6px;\n"
+      + "  transition: all 200ms ease;\n"
+      + "}\n"
+
+      // --- Focus frame (selected blip border) ---
+      // The focus frame is rendered as an absolutely positioned div.
+      // We can't target it by kind, but it has specific border styles
+      // that we can override via the GWT class patterns.
+      // Border color from green (rgb(114,135,27)) to ocean blue:
+      + "#app div[style*=\"border\"][style*=\"rgb(114, 135, 27)\"],\n"
+      + "#app div[style*=\"border\"][style*=\"rgb(114,135,27)\"] {\n"
+      + "  border-color: " + WAVE_PRIMARY + " !important;\n"
+      + "}\n"
+
+      // --- Menu items (Edit, Reply, Delete, Link) ---
+      + "#app [kind=\"i\"] {\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  font-size: 12px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  padding: 3px 6px;\n"
+      + "  border-radius: 4px;\n"
+      + "  cursor: pointer;\n"
+      + "  transition: all 0.15s ease;\n"
+      + "}\n"
+      + "#app [kind=\"i\"]:hover {\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "  background: rgba(0,119,182,0.06);\n"
+      + "}\n"
+
+      // --- Reply box ---
+      + "#app [kind=\"rb\"] {\n"
+      + "  background: " + WAVE_BG + " !important;\n"
+      + "  border: 1.5px dashed " + WAVE_BORDER + " !important;\n"
+      + "  border-radius: 8px !important;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  font-size: 13px;\n"
+      + "  padding: 8px 12px !important;\n"
+      + "  transition: all 0.2s ease;\n"
+      + "}\n"
+      + "#app [kind=\"rb\"]:hover {\n"
+      + "  border-color: " + WAVE_ACCENT + " !important;\n"
+      + "  background: rgba(0,180,216,0.04) !important;\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+      + "#app [kind=\"rb\"] img {\n"
+      + "  border-radius: 50%;\n"
+      + "}\n"
+
+      // --- Inline thread toggle (collapse/expand) ---
+      + "#app [kind=\"g\"] {\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  font-size: 12px;\n"
+      + "}\n"
+
+      // Continuation indicator bar
+      + "#app [kind=\"ci\"] {\n"
+      + "  transition: opacity 0.2s ease;\n"
+      + "}\n"
+
+      // --- Conversation scroll area ---
+      // Scrollbar styling for webkit browsers
+      + "#app ::-webkit-scrollbar {\n"
+      + "  width: 8px;\n"
+      + "}\n"
+      + "#app ::-webkit-scrollbar-track {\n"
+      + "  background: " + WAVE_BG + ";\n"
+      + "}\n"
+      + "#app ::-webkit-scrollbar-thumb {\n"
+      + "  background: #c4cdd5;\n"
+      + "  border-radius: 4px;\n"
+      + "}\n"
+      + "#app ::-webkit-scrollbar-thumb:hover {\n"
+      + "  background: #a0aec0;\n"
+      + "}\n"
+
+      // --- Popup / Dialog overrides ---
+      // Popups have z-index:1000 and position:absolute
+      + "#app .gwt-PopupPanel,\n"
+      + "body > .gwt-PopupPanel {\n"
+      + "  border-radius: 10px;\n"
+      + "  box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "}\n"
+
+      // --- Profile popup card ---
+      + "#app .gwt-PopupPanel img,\n"
+      + "body > .gwt-PopupPanel img {\n"
+      + "  border-radius: 50%;\n"
+      + "}\n"
+
+      // --- Toolbar (edit toolbar, formatting bar) ---
+      + "#app .gwt-ToggleButton,\n"
+      + "#app .gwt-PushButton {\n"
+      + "  border-radius: 4px;\n"
+      + "  transition: background 0.1s ease;\n"
+      + "}\n"
+
+      // --- Loading animation colors ---
+      // Override the pulsing placeholder from #EEE to themed
+      + "@keyframes supawave-pulse {\n"
+      + "  0% { background-color: #f0f4f8; }\n"
+      + "  50% { background-color: #e2e8f0; }\n"
+      + "  100% { background-color: #f0f4f8; }\n"
+      + "}\n"
+
+      // --- Show More button in search results ---
+      + "#app div[style*=\"visibility\"][style*=\"hidden\"] ~ div,\n"
+      + "#app div[style*=\"cursor: pointer\"][style*=\"text-align: center\"] {\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+
+      // --- General link styling inside app ---
+      + "#app a {\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "  text-decoration: none;\n"
+      + "}\n"
+      + "#app a:hover {\n"
+      + "  text-decoration: underline;\n"
+      + "}\n"
+
+      // --- Selection highlight ---
+      + "#app ::selection {\n"
+      + "  background: rgba(0,180,216,0.2);\n"
+      + "}\n"
+
+      + "/* ===== End SupaWave Panel Theme ===== */\n";
 
   // =========================================================================
   // Animated wave SVG (reusable across pages)
@@ -743,6 +1074,8 @@ public final class HtmlRenderer {
     sb.append(".user-menu-dropdown a { display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px; transition: background 0.1s; }\n");
     sb.append(".user-menu-dropdown a:hover { background: #f0f4f8; color: ").append(WAVE_PRIMARY).append("; }\n");
     sb.append(".user-menu-dropdown .divider { border-top: 1px solid #e2e8f0; margin: 4px 0; }\n");
+    // Wave panel theme overrides (ocean blue/teal for GWT panels)
+    sb.append(WAVE_PANEL_CSS);
     // -- Hamburger and back button (hidden on desktop) --
     sb.append(".mobile-hamburger, .mobile-back {\n");
     sb.append("  display: none; background: none; border: none; cursor: pointer;\n");
@@ -987,6 +1320,49 @@ public final class HtmlRenderer {
     sb.append("    var url = '/history/' + encodeURIComponent(waveDomain) + '/' + encodeURIComponent(waveId) + '/' + encodeURIComponent(waveDomain) + '/conv+root';\n");
     sb.append("    window.open(url, '_blank');\n");
     sb.append("  };\n");
+    // -- Observe digest elements for GWT selection class changes and mirror
+    //    to a stable data-selected attribute so CSS can target it reliably. --
+    sb.append("  var appEl = document.getElementById('app');\n");
+    sb.append("  if (appEl) {\n");
+    sb.append("    var selObs = new MutationObserver(function(mutations) {\n");
+    sb.append("      mutations.forEach(function(m) {\n");
+    sb.append("        if (m.type === 'attributes' && m.attributeName === 'class') {\n");
+    sb.append("          var el = m.target;\n");
+    sb.append("          if (!el.hasAttribute('di')) return;\n");
+    sb.append("          var prev = (m.oldValue || '').split(/\\s+/);\n");
+    sb.append("          var curr = el.className.split(/\\s+/);\n");
+    sb.append("          var added = curr.filter(function(c){ return c && prev.indexOf(c) < 0; });\n");
+    sb.append("          var removed = prev.filter(function(c){ return c && curr.indexOf(c) < 0; });\n");
+    sb.append("          if (added.length === 1 && removed.length === 0) el.setAttribute('data-selected', '');\n");
+    sb.append("          if (removed.length === 1 && added.length === 0) el.removeAttribute('data-selected');\n");
+    sb.append("        }\n");
+    sb.append("        // Clear data-selected on digest rows removed from the DOM\n");
+    sb.append("        // so recycled/pooled rows don't retain stale selection state.\n");
+    sb.append("        if (m.type === 'childList') {\n");
+    sb.append("          for (var i = 0; i < m.removedNodes.length; i++) {\n");
+    sb.append("            var node = m.removedNodes[i];\n");
+    sb.append("            if (node.nodeType === 1) {\n");
+    sb.append("              if (node.hasAttribute && node.hasAttribute('data-selected')) node.removeAttribute('data-selected');\n");
+    sb.append("              var desc = node.querySelectorAll ? node.querySelectorAll('[data-selected]') : [];\n");
+    sb.append("              for (var j = 0; j < desc.length; j++) desc[j].removeAttribute('data-selected');\n");
+    sb.append("            }\n");
+    sb.append("          }\n");
+    sb.append("          // Initialize data-selected for added digest rows that already\n");
+    sb.append("          // carry the selected class (e.g. recycled/pooled rows).\n");
+    sb.append("          for (var k = 0; k < m.addedNodes.length; k++) {\n");
+    sb.append("            var aNode = m.addedNodes[k];\n");
+    sb.append("            if (aNode.nodeType === 1) {\n");
+    sb.append("              if (aNode.hasAttribute && aNode.hasAttribute('di') && /\\bselected\\b/.test(aNode.className || '')) aNode.setAttribute('data-selected', '');\n");
+    sb.append("              var aDesc = aNode.querySelectorAll ? aNode.querySelectorAll('[di]') : [];\n");
+    sb.append("              for (var l = 0; l < aDesc.length; l++) { if (/\\bselected\\b/.test(aDesc[l].className || '')) aDesc[l].setAttribute('data-selected', ''); }\n");
+    sb.append("            }\n");
+    sb.append("          }\n");
+    sb.append("        }\n");
+    sb.append("      });\n");
+    sb.append("    });\n");
+    sb.append("    selObs.observe(appEl, { attributes: true, attributeOldValue: true,\n");
+    sb.append("      attributeFilter: ['class'], subtree: true, childList: true });\n");
+    sb.append("  }\n");
     sb.append("})();\n");
     sb.append("</script>\n");
     sb.append("</body>\n</html>\n");

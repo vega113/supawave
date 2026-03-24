@@ -24,7 +24,7 @@
 
 .self {
   height: searchHeight;
-  background-color: blue;
+  background-color: #fff;
   margin: auto;
   position: relative;
 }
@@ -46,16 +46,26 @@
 
 input.query {
   height: 25px;
-  border-width: 1px;  /* Standardize (Webkit default is 2px, FF is 3). */
-  padding: 1px;
-  width: 100%;  /* Stretch to width of container. */
+  box-sizing: border-box;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 2px 14px;
+  width: 100%;
+  font-size: 13px;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input.query:focus {
+  border-color: #0077b6;
+  box-shadow: 0 0 0 3px rgba(0,119,182,0.10);
 }
 
 .searchButtonsPanel {
-  width: 190px;
-  margin: 13px 5px;
+  width: 200px;
+  margin: 11px 5px;
   float: right;
-  font-family: verdana;
   font-size: 12px;
   line-height: 20px;
 }
@@ -63,10 +73,23 @@ input.query {
 .searchButton {
   margin: 0 3px;
   text-align: center;
-  height: 25px;
+  height: 28px;
   width: 55px;
   float: left;
   cursor: pointer;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  color: #718096;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.searchButton:hover {
+  border-color: #0077b6;
+  color: #0077b6;
+  background: rgba(0,119,182,0.04);
 }
 
 /* input elements only stretch width with a 100% width (block-model layout can
@@ -77,6 +100,6 @@ input.query {
  */
 .searchboxContainer {
   height: 25px;
-  margin: 13px 200px 13px 13px;  /* Right amount is button panel size. */
+  margin: 13px 210px 13px 13px;  /* Right amount is button panel size (200px + 5px margins). */
   padding-right: 6px; /* Compensate for broken layout model for inputs. */
 }

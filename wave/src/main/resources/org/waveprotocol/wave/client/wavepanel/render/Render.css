@@ -25,11 +25,11 @@
 }
 
 .flap {
-  z-index: 40000;    
-  background-color: #EEE;
+  z-index: 40000;
+  background-color: #e8f0f8;
   border-width: 0;
   -webkit-animation: anima 2s ease-out infinite; /* Chrome, Safari, Opera */
-  animation: anima 2s ease-out infinite; /* Standard browser */  
+  animation: anima 2s ease-out infinite; /* Standard browser */
 }
 
 .flap.opaque { opacity: 1; }
@@ -37,7 +37,7 @@
 
 .placeholder {
   position: relative;
-  background-color: #EEE;
+  background-color: #e8f0f8;
   border-width: 0;
   -webkit-animation: anima 2s ease-out infinite; /* Chrome, Safari, Opera */
   animation: anima 2s ease-out infinite; /* Standard browser */
@@ -46,15 +46,15 @@
 
 /* Chrome, Safari, Opera */
 @-webkit-keyframes anima {
-  0% {background-color: #FFF;}
-  50% {background-color: #EEE;}
-  100% {background-color: #FFF;}    
+  0% {background-color: #f0f4f8;}
+  50% {background-color: #e2e8f0;}
+  100% {background-color: #f0f4f8;}
 }
 
 /* Standard browser */
 @keyframes anima {
-  0% {background-color: #FFF;}
-  50% {background-color: #EEE;}
-  100% {background-color: #FFF;}    
+  0% {background-color: #f0f4f8;}
+  50% {background-color: #e2e8f0;}
+  100% {background-color: #f0f4f8;}
 }
 

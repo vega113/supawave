@@ -41,4 +41,4 @@ EXPOSE 9898
 
 # Default to production-ish config location; users can mount or bake their own.
 # To use SSL, mount a keystore & set env WAVE_SSL_KEYSTORE_PASSWORD, and edit config/application.conf.
-ENTRYPOINT ["/opt/wave/bin/incubator-wave"]
+ENTRYPOINT ["/opt/wave/bin/wave"]

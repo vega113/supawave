@@ -1089,7 +1089,11 @@ ThisBuild / compileGwt := {
       val forkOpts = ForkOptions()
         .withRunJVMOptions(Vector("-Xmx1024M"))
 
+      // Output to wave/war/ so Universal/stage mappings pick it up
+      val warDir = (base / "wave" / "war").getAbsolutePath
+
       val gwtArgs = Seq(
+        "-war", warDir,
         "-style", "OBFUSCATED",
         "-XdisableClassMetadata",
         "-XdisableCastChecking",

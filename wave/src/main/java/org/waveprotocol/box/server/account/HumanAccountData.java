@@ -19,7 +19,10 @@
 
 package org.waveprotocol.box.server.account;
 
+import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
+
+import java.util.List;
 
 /**
  * {@link HumanAccountData} representing an account from a human.
@@ -70,4 +73,18 @@ public interface HumanAccountData extends AccountData {
    *
    */
   void setLocale(String locale);
+
+  /**
+   * Gets the user's stored searches.
+   *
+   * @return The user's searches, or null if none are set.
+   */
+  List<SearchesItem> getSearches();
+
+  /**
+   * Sets the user's stored searches.
+   *
+   * @param searches the searches to store
+   */
+  void setSearches(List<SearchesItem> searches);
 }

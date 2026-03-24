@@ -1135,8 +1135,8 @@ public final class HtmlRenderer {
     sb.append("          var curr = el.className.split(/\\s+/);\n");
     sb.append("          var added = curr.filter(function(c){ return c && prev.indexOf(c) < 0; });\n");
     sb.append("          var removed = prev.filter(function(c){ return c && curr.indexOf(c) < 0; });\n");
-    sb.append("          if (added.length > 0) el.setAttribute('data-selected', '');\n");
-    sb.append("          if (removed.length > 0) el.removeAttribute('data-selected');\n");
+    sb.append("          if (added.length === 1 && removed.length === 0) el.setAttribute('data-selected', '');\n");
+    sb.append("          if (removed.length === 1 && added.length === 0) el.removeAttribute('data-selected');\n");
     sb.append("        }\n");
     sb.append("      });\n");
     sb.append("    });\n");

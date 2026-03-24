@@ -519,7 +519,8 @@ JakartaIT / testOptions += Tests.Filter { name =>
     "org.waveprotocol.box.server.jakarta.SignOutServletJakartaIT",
     "org.waveprotocol.box.server.jakarta.GadgetProviderServletJakartaIT",
     "org.waveprotocol.box.server.jakarta.InitialsAvatarsServletJakartaIT",
-    "org.waveprotocol.box.server.jakarta.HealthServletJakartaIT"
+    "org.waveprotocol.box.server.jakarta.HealthServletJakartaIT",
+    "org.waveprotocol.box.server.jakarta.VersionServletJakartaIT"
   )
   allowlist.contains(name)
 }

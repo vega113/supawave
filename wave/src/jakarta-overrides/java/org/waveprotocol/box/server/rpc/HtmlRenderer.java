@@ -1023,7 +1023,8 @@ public final class HtmlRenderer {
    * @param analyticsAccount Google Analytics account ID (may be null/empty)
    */
   public static String renderWaveClientPage(JSONObject sessionJson, JSONObject clientFlags,
-      String websocketAddress, String topBarHtml, String analyticsAccount) {
+      String websocketAddress, String topBarHtml, String analyticsAccount,
+      String serverVersion, long serverBuildTime) {
     StringBuilder sb = new StringBuilder(4096);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n");
@@ -1365,8 +1366,68 @@ public final class HtmlRenderer {
     sb.append("  }\n");
     sb.append("})();\n");
     sb.append("</script>\n");
+    // -- Version upgrade detection polling --
+    appendVersionCheckScript(sb, serverVersion, serverBuildTime);
     sb.append("</body>\n</html>\n");
     return sb.toString();
+  }
+
+  /**
+   * Appends an inline script that polls {@code /version} every 60 seconds and
+   * shows a non-intrusive banner when the server version or build time changes
+   * (i.e. the server has been upgraded while the client page is still open).
+   */
+  private static void appendVersionCheckScript(StringBuilder sb,
+      String serverVersion, long serverBuildTime) {
+    sb.append("<script>\n");
+    sb.append("(function() {\n");
+    sb.append("  var currentVersion = ").append(escapeJsonString(serverVersion)).append(";\n");
+    sb.append("  var currentBuildTime = ").append(serverBuildTime).append(";\n");
+    sb.append("  var pollInFlight = false;\n");
+    sb.append("  function checkVersion() {\n");
+    sb.append("    if (pollInFlight) return;\n");
+    sb.append("    pollInFlight = true;\n");
+    sb.append("    fetch('/version', {cache: 'no-store'})\n");
+    sb.append("      .then(function(r) { return r.json(); })\n");
+    sb.append("      .then(function(data) {\n");
+    sb.append("        if (data.version !== currentVersion || data.buildTime !== currentBuildTime) {\n");
+    sb.append("          showUpgradeBanner();\n");
+    sb.append("        }\n");
+    sb.append("      })\n");
+    sb.append("      .catch(function() {})\n");
+    sb.append("      .then(function() { pollInFlight = false; });\n");
+    sb.append("  }\n");
+    sb.append("  function showUpgradeBanner() {\n");
+    sb.append("    if (document.getElementById('upgrade-banner')) return;\n");
+    sb.append("    var banner = document.createElement('div');\n");
+    sb.append("    banner.id = 'upgrade-banner';\n");
+    sb.append("    banner.setAttribute('role', 'alert');\n");
+    sb.append("    var msg = document.createElement('span');\n");
+    sb.append("    msg.textContent = 'A new version of SupaWave is available.';\n");
+    sb.append("    var reload = document.createElement('a');\n");
+    sb.append("    reload.href = '#';\n");
+    sb.append("    reload.textContent = 'Reload';\n");
+    sb.append("    reload.style.cssText = 'color:white;font-weight:bold;text-decoration:underline;';\n");
+    sb.append("    reload.onclick = function(e) { e.preventDefault(); location.reload(); };\n");
+    sb.append("    var dismiss = document.createElement('button');\n");
+    sb.append("    dismiss.type = 'button';\n");
+    sb.append("    dismiss.textContent = '\\u2715';\n");
+    sb.append("    dismiss.style.cssText = 'background:none;border:0;color:white;cursor:pointer;font-size:16px;padding:0;line-height:1;';\n");
+    sb.append("    dismiss.setAttribute('aria-label', 'Dismiss');\n");
+    sb.append("    dismiss.onclick = function() { banner.remove(); };\n");
+    sb.append("    banner.appendChild(msg);\n");
+    sb.append("    banner.appendChild(reload);\n");
+    sb.append("    banner.appendChild(dismiss);\n");
+    sb.append("    banner.style.cssText = 'position:fixed;bottom:20px;right:20px;max-width:420px;")
+       .append("background:").append(WAVE_PRIMARY).append(";color:white;padding:12px 20px;")
+       .append("border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:9999;")
+       .append("font-family:system-ui,sans-serif;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;';\n");
+    sb.append("    document.body.appendChild(banner);\n");
+    sb.append("  }\n");
+    sb.append("  checkVersion();\n");
+    sb.append("  setInterval(checkVersion, 60000);\n");
+    sb.append("})();\n");
+    sb.append("</script>\n");
   }
 
   // =========================================================================

@@ -103,12 +103,12 @@ public final class ActionsImpl implements Actions {
 
   @Override
   public void enterDraftMode() {
-    // TODO(draft-mode): engage op-buffering on the current editor session.
+    edit.enterDraftMode();
   }
 
   @Override
   public void leaveDraftMode(boolean saveChanges) {
-    // TODO(draft-mode): flush or discard buffered ops accordingly.
+    edit.leaveDraftMode(saveChanges);
   }
 
   @Override
@@ -205,15 +205,5 @@ public final class ActionsImpl implements Actions {
     BlipLinkPopupView blipLinkPopupView = blipUi.createLinkPopup();
     blipLinkPopupView.setLinkInfo(waveRefStringValue);
     blipLinkPopupView.show();
-  }
-
-  @Override
-  public void enterDraftMode() {
-    edit.enterDraftMode();
-  }
-
-  @Override
-  public void leaveDraftMode(boolean saveChanges) {
-    edit.leaveDraftMode(saveChanges);
   }
 }

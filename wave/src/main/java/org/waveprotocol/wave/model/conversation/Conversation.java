@@ -23,7 +23,6 @@ import org.waveprotocol.wave.model.document.Document;
 import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.wave.model.wave.Wavelet;
 
 import java.util.Set;
 
@@ -189,4 +188,35 @@ public interface Conversation {
    * @return this conversation's id
    */
   String getId();
+
+  /**
+   * Gets the set of tags on this conversation.
+   * The returned set is not modifiable.
+   *
+   * @return this conversation's tags.
+   */
+  Set<String> getTags();
+
+  /**
+   * Adds a tag to this conversation. Does nothing if the tag is
+   * already present on this conversation.
+   *
+   * @param tag tag to add
+   */
+  void addTag(String tag);
+
+  /**
+   * Removes a tag from this conversation. Does nothing if the
+   * tag is not present on this conversation.
+   *
+   * @param tag tag to remove
+   */
+  void removeTag(String tag);
+
+  /**
+   * Checks if the conversation is root in its conversation view.
+   *
+   * @return true, if the conversation is root
+   */
+  boolean isRoot();
 }

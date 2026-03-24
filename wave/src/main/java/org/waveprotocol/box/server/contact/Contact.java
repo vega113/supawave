@@ -1,4 +1,4 @@
-<!--
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,21 +15,31 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- -->
-<?xml version="1.0" encoding="utf-8"?>
-<module>
-  <inherits name="com.google.gwt.user.User"/>
-  <inherits name="org.waveprotocol.wave.model.Model"/>
-  <inherits name="org.waveprotocol.wave.model.account.Account"/>
-  <inherits name="org.waveprotocol.wave.model.conversation.Conversation"/>
-  <inherits name="org.waveprotocol.wave.model.util.Util"/>
-   
-  <source path=""/>
-   
-  <source path="converter"/>
-   
-  <source path="converter/v21"/>
-   
-  <source path="converter/v22"/>
-    
-</module>
+ */
+
+package org.waveprotocol.box.server.contact;
+
+import org.waveprotocol.wave.model.wave.ParticipantId;
+
+/**
+ * Represents a contact relationship between the owning user and another participant.
+ *
+ * <p>Ported from Wiab.pro (original author: akaplanov@gmail.com).
+ */
+public interface Contact {
+
+  /** Returns the participant id of the contact (the other user). */
+  ParticipantId getParticipantId();
+
+  /** Returns the timestamp (epoch ms) of the most recent interaction with this contact. */
+  long getLastContactTime();
+
+  /** Sets the timestamp of the most recent interaction. */
+  void setLastContactTime(long time);
+
+  /** Returns the score bonus (in milliseconds) used for ranking contacts. */
+  long getScoreBonus();
+
+  /** Sets the score bonus. */
+  void setScoreBonus(long bonus);
+}

@@ -90,6 +90,13 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
 
   private final static StringMap<MenuOption> MENU_OPTIONS = CollectionUtils.createStringMap();
 
+  /** Inline SVG check icon (Lucide, MIT) for the Done menu item. */
+  private static final String DONE_CHECK_SVG =
+      "<svg style=\"vertical-align:middle;margin-right:2px\" width=\"14\" height=\"14\" "
+      + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" "
+      + "stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      + "<polyline points=\"20 6 9 17 4 12\"/></svg>";
+
   public static final String OPTION_ID_ATTRIBUTE = "o";
   public static final String OPTION_SELECTED_ATTRIBUTE = "s";
   private static final EnumSet<MenuOption> MENU_OPTIONS_BEFORE_EDITING = EnumSet.of(
@@ -284,7 +291,8 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
     MENU_CODES.put(MenuOption.DELETE, EscapeUtils.fromSafeConstant("d"));
     MENU_CODES.put(MenuOption.LINK, EscapeUtils.fromSafeConstant("l"));
     MENU_LABELS.put(MenuOption.EDIT, EscapeUtils.fromSafeConstant(messages.edit()));
-    MENU_LABELS.put(MenuOption.EDIT_DONE, EscapeUtils.fromSafeConstant(messages.done()));
+    MENU_LABELS.put(MenuOption.EDIT_DONE,
+        EscapeUtils.fromSafeConstant(DONE_CHECK_SVG + messages.done()));
     MENU_LABELS.put(MenuOption.REPLY, EscapeUtils.fromSafeConstant(messages.reply()));
     MENU_LABELS.put(MenuOption.DELETE, EscapeUtils.fromSafeConstant(messages.delete()));
     MENU_LABELS.put(MenuOption.LINK, EscapeUtils.fromSafeConstant(messages.link()));

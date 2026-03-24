@@ -1114,6 +1114,19 @@ public final class HtmlRenderer {
     sb.append("    var d = document.querySelector('.user-menu-dropdown');\n");
     sb.append("    if (d) d.classList.remove('open');\n");
     sb.append("  });\n");
+    sb.append("  window.openVersionHistory = function() {\n");
+    sb.append("    var hash = window.location.hash;\n");
+    sb.append("    if (!hash || hash.length < 2) { alert('No wave is currently open.'); return; }\n");
+    sb.append("    // Hash format: #waveDomain/waveId  (e.g. #example.com/w+abc123)\n");
+    sb.append("    var ref = hash.substring(1);\n");
+    sb.append("    var parts = ref.split('/');\n");
+    sb.append("    if (parts.length < 2) { alert('Cannot determine wave ID from URL.'); return; }\n");
+    sb.append("    var waveDomain = parts[0];\n");
+    sb.append("    var waveId = parts[1];\n");
+    sb.append("    // Default to conv+root wavelet in the wave's domain\n");
+    sb.append("    var url = '/history/' + encodeURIComponent(waveDomain) + '/' + encodeURIComponent(waveId) + '/' + encodeURIComponent(waveDomain) + '/conv+root';\n");
+    sb.append("    window.open(url, '_blank');\n");
+    sb.append("  };\n");
     sb.append("})();\n");
     sb.append("</script>\n");
     sb.append("</body>\n</html>\n");
@@ -1153,6 +1166,7 @@ public final class HtmlRenderer {
       sb.append("      <div class=\"user-menu-dropdown\">\n");
       sb.append("        <a href=\"/robot/register/create\">Robot Registration</a>\n");
       sb.append("        <a href=\"/robot/dataapi/token\">API Token</a>\n");
+      sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <a id=\"signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
       sb.append("      </div>\n");

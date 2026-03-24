@@ -102,7 +102,7 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     wave.getOrCreateLocalWavelet(WAVELET_ID);
 
     waveMap = new ReloadingWaveMap(
-        new DeltaStoreBasedSnapshotStore(new org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore()),
+        new DeltaStoreBasedSnapshotStore(new org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore(), null),
         localFactory, remoteFactory, ImmutableMap.of(WAVE_ID, wave));
   }
 

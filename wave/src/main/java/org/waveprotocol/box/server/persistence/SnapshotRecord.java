@@ -17,29 +17,28 @@
  * under the License.
  */
 
-package org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n;
+package org.waveprotocol.box.server.persistence;
 
-import com.google.gwt.i18n.client.Messages;
+import com.google.common.base.Preconditions;
 
 /**
- * Internationalized messages for the draft-mode controls widget.
+ * A stored wavelet snapshot with its version metadata.
  */
-public interface DraftModeControlsMessages extends Messages {
-  @DefaultMessage("Draft")
-  String draft();
+public final class SnapshotRecord {
+  private final long version;
+  private final byte[] snapshotData;  // Serialized PersistedWaveletSnapshot
 
-  @DefaultMessage("Done")
-  String doneTitle();
+  public SnapshotRecord(long version, byte[] snapshotData) {
+    Preconditions.checkArgument(version > 0, "version must be positive");
+    this.version = version;
+    this.snapshotData = Preconditions.checkNotNull(snapshotData, "snapshotData");
+  }
 
-  @DefaultMessage("Cancel")
-  String cancelTitle();
+  public long getVersion() {
+    return version;
+  }
 
-  @DefaultMessage("Done — save draft (Ctrl+Enter)")
-  String doneHint();
-
-  @DefaultMessage("Cancel — discard draft (Esc)")
-  String cancelHint();
-
-  @DefaultMessage("Toggle draft mode (Ctrl+D)")
-  String draftHint();
+  public byte[] getSnapshotData() {
+    return snapshotData;
+  }
 }

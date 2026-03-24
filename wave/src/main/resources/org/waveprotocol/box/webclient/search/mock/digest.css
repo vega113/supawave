@@ -35,19 +35,21 @@
 
 .digest {
   min-width: 100px;
-  padding: 4px 10px 4px 4px; /* 4px padding, but a bit extra on the RHS. */
-  border-bottom: 1px solid #eee;
+  padding: 10px 12px 10px 8px;
+  border-bottom: 1px solid #e2e8f0;
   cursor: pointer;
-  color: grey;
+  color: #718096;
+  transition: background 0.15s ease;
+  background: #fff;
 }
 
 .digest:hover {
-  background-color: #eee;
+  background-color: rgba(144,224,239,0.12);
 }
 
 .digest.selected {
-  background-color: #789e35;
-  color: white;  
+  background-color: #0077b6;
+  color: white;
 }
 
 .inner {
@@ -67,19 +69,23 @@
   height: 30px;
   width: 30px;
   margin-right: 4px;
-  border: 1px solid #b3b3b3;
-  border-radius: 1px;
-  -moz-border-radius: 1px;
-  -webkit-border-radius: 1px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 50%;
+  -moz-border-radius: 50%;
+  -webkit-border-radius: 50%;
 }
 
 .unread {
-  font-weight: bold;
-  color: black;  
+  font-weight: 600;
+  color: #1a202c;
 }
 
 .selected .unread {
   color: white;
+}
+
+.selected .info {
+  color: rgba(255,255,255,0.8);
 }
 
 .info {
@@ -88,12 +94,14 @@
 }
 
 .unreadCount {
-  color: white;
-  background-color: #99bb00;
+  color: #1a202c;
+  background-color: #00b4d8;
 
-  /* Make a bubble. Leading is 16px, so 8px border radius is a bubble. */
-  padding: 0 0.5em;
-  border-radius: 8px;
-  -moz-border-radius: 8px;
-  -webkit-border-radius: 8px; 
+  /* Teal pill badge for unread count */
+  padding: 1px 8px;
+  border-radius: 10px;
+  -moz-border-radius: 10px;
+  -webkit-border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
 }

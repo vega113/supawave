@@ -69,9 +69,9 @@
  * Top-level element, toggles between fixed-height and autoheight.
  */
 .panel {
-  border-bottom: 1px solid #B8C6D9;
-  border-left: 1px solid #E4F1FE;
-  background-color: #c9e2fc;
+  border-bottom: 1px solid #e2e8f0;
+  border-left: none;
+  background: linear-gradient(180deg, #e8f4f8 0%, #fff 100%);
   overflow: hidden;
   height: 46px;
   min-width: 110px;  /* 1 avatar, and nice room for buttons. */
@@ -114,8 +114,15 @@ div.participant {
 img.participant {
   height: 40px;
   width: 40px;
-  border: 1px solid #cad0d9;
+  border: 2px solid #fff;
+  border-radius: 50%;
   margin: 4px 0 0 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: transform 0.15s ease;
+}
+
+img.participant:hover {
+  transform: scale(1.08);
 }
 
 .toggleGroup {
@@ -146,7 +153,7 @@ img.participant {
    *   (4px 0 0 4px) + (8px 0 8px 0) + (2px 0 0 0)border
    */
   padding: 14px 0 8px 4px;
-  background-color: #c9e2fc;
+  background: linear-gradient(180deg, #e8f4f8 0%, #fff 100%);
   bottom: 0;
   width: 10em;
 }

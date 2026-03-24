@@ -39,9 +39,9 @@
   top: 0;
   right: 0;
   left: 0;
-  border-bottom: 1px solid #B8C6D9;
-  border-left: 1px solid #E4F1FE;
-  background-color: #c9e2fc;
+  border-bottom: 1px solid #e2e8f0;
+  border-left: none;
+  background-color: #fff;
   overflow: hidden;
 }
 
@@ -51,7 +51,7 @@
   top: toolbarTop;
   right: 0;
   left: 0;
-  border-left: 1px solid #E4F1FE;
+  border-left: none;
 }
 
 .list {
@@ -72,11 +72,11 @@
 @sprite .showMore {
   gwt-image: 'emptyToolbar';
   line-height: value('emptyToolbar.getHeight', 'px');
-  font-weight: bold;
-  font-size: 14px;
+  font-weight: 500;
+  font-size: 13px;
   text-align: center;
   cursor: pointer;
-  color: gray;
+  color: #0077b6;
   /* Creates 20% bottom space in the scrollable area. */
   margin-bottom: 20%;
 }

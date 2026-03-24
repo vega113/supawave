@@ -85,6 +85,19 @@ public final class HtmlRenderer {
       + "  </path>\n"
       + "</svg>\n";
 
+  /** Smaller 28px version of the wave logo for the in-app top bar. */
+  private static final String WAVE_LOGO_SVG_SMALL =
+      "<svg width=\"28\" height=\"28\" viewBox=\"0 0 48 48\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"vertical-align:middle;\">\n"
+      + "  <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"" + WAVE_PRIMARY + "\"/>\n"
+      + "  <path d=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\" "
+      + "stroke=\"white\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\">\n"
+      + "    <animate attributeName=\"d\" dur=\"3s\" repeatCount=\"indefinite\"\n"
+      + "      values=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;\n"
+      + "              M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;\n"
+      + "              M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\"/>\n"
+      + "  </path>\n"
+      + "</svg>";
+
   // =========================================================================
   // Shared CSS for auth-style pages (login, registration, robot registration)
   // =========================================================================
@@ -691,33 +704,43 @@ public final class HtmlRenderer {
     sb.append("var __websocket_address = ").append(escapeJsonString(websocketAddress)).append(";\n");
     sb.append("var __client_flags = ").append(clientFlags.toString()).append(";\n");
     sb.append("</script>\n");
-    // Inline styles (same as original WaveClientPage.gxp)
+    // Inline styles for wave client top bar
     sb.append("<style type=\"text/css\">\n");
     sb.append("body { margin: 0; }\n");
     sb.append(".topbar {\n");
-    sb.append("  height: 32px; line-height: 32px;\n");
-    sb.append("  border-bottom: solid 1px black; overflow: visible;\n");
-    sb.append("  font-family: \"Gill Sans\", \"Lucida Grande\", Verdana, Arial, sans-serif;\n");
-    sb.append("  font-size: 16px; padding: 0 0.5em;\n");
+    sb.append("  height: 40px; line-height: 40px;\n");
+    sb.append("  background: #fff;\n");
+    sb.append("  border-bottom: 1px solid #e2e8f0;\n");
+    sb.append("  box-shadow: 0 1px 3px rgba(0,0,0,0.06);\n");
+    sb.append("  overflow: visible;\n");
+    sb.append("  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,\n");
+    sb.append("    Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;\n");
+    sb.append("  font-size: 14px; padding: 0 12px;\n");
     sb.append("  position: relative; z-index: 1;\n");
+    sb.append("  display: flex; align-items: center;\n");
     sb.append("}\n");
-    sb.append(".logo { padding: 1px; float: left; }\n");
-    sb.append(".title { float: left; margin-left: 0.5em; }\n");
-    sb.append(".banner { float: left; margin-left: 0.5em; }\n");
-    sb.append(".earth { padding: 4px; float: left; }\n");
+    sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; gap: 8px; }\n");
+    sb.append(".topbar-brand svg { flex-shrink: 0; }\n");
+    sb.append(".title {\n");
+    sb.append("  font-size: 17px; font-weight: 700; color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("  letter-spacing: -0.3px;\n");
+    sb.append("}\n");
+    sb.append(".banner { margin-left: 12px; }\n");
     sb.append(".lang { height: 19px; }\n");
-    sb.append(".domain { color: #606060; }\n");
-    sb.append(".info { float: right; }\n");
-    sb.append(".online { color: green; }\n");
-    sb.append(".connecting { color: #ff7f00; font-weight: bold; }\n");
-    sb.append(".offline { color: red; font-weight: bold; }\n");
+    sb.append(".domain { color: #8896a6; font-weight: 400; }\n");
+    sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4a5568; }\n");
+    sb.append(".info a { color: ").append(WAVE_PRIMARY).append("; text-decoration: none; font-weight: 500; }\n");
+    sb.append(".info a:hover { text-decoration: underline; }\n");
+    sb.append(".online { color: #38a169; }\n");
+    sb.append(".connecting { color: #dd6b20; font-weight: 600; }\n");
+    sb.append(".offline { color: #e53e3e; font-weight: 600; }\n");
     sb.append(".user-menu { position: relative; display: inline-block; cursor: pointer; }\n");
-    sb.append(".user-menu-toggle { background: none; border: none; color: inherit; cursor: pointer; font: inherit; padding: 4px 8px; border-radius: 4px; }\n");
-    sb.append(".user-menu-toggle:hover { background: rgba(255,255,255,0.15); }\n");
-    sb.append(".user-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background: #fff; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); min-width: 200px; z-index: 1000; padding: 4px 0; margin-top: 4px; }\n");
+    sb.append(".user-menu-toggle { background: none; border: none; color: #4a5568; cursor: pointer; font: inherit; padding: 4px 10px; border-radius: 6px; transition: background 0.15s; }\n");
+    sb.append(".user-menu-toggle:hover { background: #f0f4f8; }\n");
+    sb.append(".user-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); min-width: 210px; z-index: 1000; padding: 4px 0; margin-top: 6px; border: 1px solid #e2e8f0; }\n");
     sb.append(".user-menu-dropdown.open { display: block; }\n");
-    sb.append(".user-menu-dropdown a { display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px; }\n");
-    sb.append(".user-menu-dropdown a:hover { background: #f0f4f8; }\n");
+    sb.append(".user-menu-dropdown a { display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px; transition: background 0.1s; }\n");
+    sb.append(".user-menu-dropdown a:hover { background: #f0f4f8; color: ").append(WAVE_PRIMARY).append("; }\n");
     sb.append(".user-menu-dropdown .divider { border-top: 1px solid #e2e8f0; margin: 4px 0; }\n");
     sb.append("</style>\n");
     // GWT stats + nocache JS
@@ -739,7 +762,7 @@ public final class HtmlRenderer {
     // Top bar
     sb.append(topBarHtml).append("\n");
     // App container
-    sb.append("<div id=\"app\" style=\"position:absolute; top:33px; right:0px; bottom:0px; left:0px;\"></div>\n");
+    sb.append("<div id=\"app\" style=\"position:absolute; top:41px; right:0px; bottom:0px; left:0px;\"></div>\n");
     sb.append("<noscript>\n");
     sb.append("<div style=\"width:22em;position:absolute;left:50%;margin-left:-11em;");
     sb.append("color:red;background-color:white;border:1px solid red;padding:4px;font-family:sans-serif\">\n");
@@ -778,18 +801,17 @@ public final class HtmlRenderer {
   public static String renderTopBar(String username, String domain) {
     StringBuilder sb = new StringBuilder(2048);
     sb.append("<div class=\"topbar\">\n");
-    sb.append("  <a href=\"/\"><img src=\"/static/logo.png\" alt=\"logo\" class=\"logo\"></a>\n");
-    sb.append("  <div class=\"title\">SupaWave</div>\n");
+    sb.append("  <a href=\"/\" class=\"topbar-brand\">").append(WAVE_LOGO_SVG_SMALL);
+    sb.append("<span class=\"title\">SupaWave</span></a>\n");
     sb.append("  <div class=\"banner\" id=\"banner\"></div>\n");
     sb.append("  <div class=\"info\">\n");
     if (username == null) {
-      sb.append("    Not logged in |\n");
-      sb.append("    <a href=\"/auth/register\">Register</a> |\n");
+      sb.append("    <a href=\"/auth/register\">Register</a>\n");
       sb.append("    <a href=\"/auth/signin?r=/\">Sign In</a>\n");
     } else {
-      sb.append("    <select id=\"lang\" class=\"lang\" size=\"1\"></select> |\n");
-      sb.append("    <span id=\"unsavedStateContainer\" style=\"width:60px\">Saved</span> |\n");
-      sb.append("    <span id=\"netstatus\" class=\"offline\">Offline</span> |\n");
+      sb.append("    <select id=\"lang\" class=\"lang\" size=\"1\"></select>\n");
+      sb.append("    <span id=\"unsavedStateContainer\" style=\"width:60px\">Saved</span>\n");
+      sb.append("    <span id=\"netstatus\" class=\"offline\">Offline</span>\n");
       sb.append("    <div class=\"user-menu\">\n");
       sb.append("      <button class=\"user-menu-toggle\">\n");
       sb.append("        ").append(escapeHtml(username));

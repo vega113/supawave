@@ -112,7 +112,12 @@ public class FetchContactsServiceImpl implements FetchContactsService {
     if (contactsArray != null) {
       for (int i = 0; i < contactsArray.length(); i++) {
         ContactJso c = contactsArray.get(i);
-        ParticipantId participantId = ParticipantId.ofUnsafe(c.getParticipant());
+        String participantAddress = c.getParticipant();
+        if (participantAddress == null || participantAddress.isEmpty()) {
+          LOG.trace().log("Skipping contact entry with missing participant");
+          continue;
+        }
+        ParticipantId participantId = ParticipantId.ofUnsafe(participantAddress);
         contacts.add(new ContactEntry(participantId, c.getScore()));
       }
     }

@@ -80,6 +80,11 @@ public final class RemoteContactManagerImpl extends AbstractContactManager {
 
       @Override
       public void onSuccess(long serverTimestamp, List<FetchContactsService.ContactEntry> entries) {
+        if (serverTimestamp < timestamp) {
+          LOG.trace().log("Ignoring stale contacts response. serverTimestamp=" + serverTimestamp
+              + ", currentTimestamp=" + timestamp);
+          return;
+        }
         timestamp = serverTimestamp;
         if (!entries.isEmpty()) {
           for (FetchContactsService.ContactEntry entry : entries) {

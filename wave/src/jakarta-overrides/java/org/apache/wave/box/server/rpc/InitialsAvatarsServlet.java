@@ -50,9 +50,9 @@ public final class InitialsAvatarsServlet extends HttpServlet {
       return ImageIO.read(Resources.getResource(
           "org/apache/wave/box/server/rpc/avatar/unknown.jpg"));
     } catch (Exception primary) {
-      LOG.warning("Default avatar image missing from static path; falling back", primary);
+      LOG.warning("Default avatar image missing from classpath path; trying WAR fallback.", primary);
       return ImageIO.read(Resources.getResource(
-          "org/apache/wave/box/server/rpc/avatar/unknown.jpg"));
+          "static/images/unknown.jpg"));
     }
   }
 

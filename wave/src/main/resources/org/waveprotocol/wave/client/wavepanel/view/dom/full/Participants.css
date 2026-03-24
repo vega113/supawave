@@ -73,7 +73,7 @@
   border-left: none;
   background: linear-gradient(180deg, #e8f4f8 0%, #fff 100%);
   overflow: hidden;
-  height: 46px;
+  height: 50px;
   min-width: 110px;  /* 1 avatar, and nice room for buttons. */
 
   /*

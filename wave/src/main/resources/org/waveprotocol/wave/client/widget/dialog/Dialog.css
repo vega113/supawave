@@ -56,6 +56,15 @@
   transition: all 0.15s ease;
 }
 
+.dialogButton:hover {
+  border-color: #0077b6;
+  background: rgba(0, 119, 182, 0.04);
+}
+
+.dialogButton:active {
+  background: rgba(0, 119, 182, 0.08);
+}
+
 .glassPanel {
   position: absolute;
   top: 0;

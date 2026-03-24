@@ -94,7 +94,7 @@
 }
 
 .unreadCount {
-  color: white;
+  color: #1a202c;
   background-color: #00b4d8;
 
   /* Teal pill badge for unread count */

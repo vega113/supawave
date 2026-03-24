@@ -134,14 +134,9 @@ public final class HtmlRenderer {
       + "#app [di]:hover {\n"
       + "  background: rgba(144,224,239,0.12);\n"
       + "}\n"
-      // Selected digest
-      + "#app [di].SWCa-b {\n"
-      + "  background: " + WAVE_PRIMARY + " !important;\n"
-      + "  color: #fff !important;\n"
-      + "}\n"
-      // Also handle via more generic attribute approach - the selected class
-      // is dynamically added. We target any digest with white color override:
-      + "#app [di][class*=\"selected\"] {\n"
+      // Selected digest — use a stable data-attribute set by JS observer
+      // instead of hard-coding CssResource-obfuscated class names.
+      + "#app [di][data-selected] {\n"
       + "  background: " + WAVE_PRIMARY + " !important;\n"
       + "  color: #fff !important;\n"
       + "}\n"
@@ -1127,6 +1122,27 @@ public final class HtmlRenderer {
     sb.append("    var url = '/history/' + encodeURIComponent(waveDomain) + '/' + encodeURIComponent(waveId) + '/' + encodeURIComponent(waveDomain) + '/conv+root';\n");
     sb.append("    window.open(url, '_blank');\n");
     sb.append("  };\n");
+    // -- Observe digest elements for GWT selection class changes and mirror
+    //    to a stable data-selected attribute so CSS can target it reliably. --
+    sb.append("  var appEl = document.getElementById('app');\n");
+    sb.append("  if (appEl) {\n");
+    sb.append("    var selObs = new MutationObserver(function(mutations) {\n");
+    sb.append("      mutations.forEach(function(m) {\n");
+    sb.append("        if (m.type === 'attributes' && m.attributeName === 'class') {\n");
+    sb.append("          var el = m.target;\n");
+    sb.append("          if (!el.hasAttribute('di')) return;\n");
+    sb.append("          var prev = (m.oldValue || '').split(/\\s+/);\n");
+    sb.append("          var curr = el.className.split(/\\s+/);\n");
+    sb.append("          var added = curr.filter(function(c){ return c && prev.indexOf(c) < 0; });\n");
+    sb.append("          var removed = prev.filter(function(c){ return c && curr.indexOf(c) < 0; });\n");
+    sb.append("          if (added.length > 0) el.setAttribute('data-selected', '');\n");
+    sb.append("          if (removed.length > 0) el.removeAttribute('data-selected');\n");
+    sb.append("        }\n");
+    sb.append("      });\n");
+    sb.append("    });\n");
+    sb.append("    selObs.observe(appEl, { attributes: true, attributeOldValue: true,\n");
+    sb.append("      attributeFilter: ['class'], subtree: true });\n");
+    sb.append("  }\n");
     sb.append("})();\n");
     sb.append("</script>\n");
     sb.append("</body>\n</html>\n");

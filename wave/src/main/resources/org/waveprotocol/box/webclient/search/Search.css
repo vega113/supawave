@@ -99,6 +99,6 @@ input.query:focus {
  */
 .searchboxContainer {
   height: 25px;
-  margin: 13px 200px 13px 13px;  /* Right amount is button panel size. */
+  margin: 13px 210px 13px 13px;  /* Right amount is button panel size (200px + 5px margins). */
   padding-right: 6px; /* Compensate for broken layout model for inputs. */
 }

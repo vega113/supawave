@@ -94,7 +94,6 @@
   width: 2.5em;
   float: left;
   margin-left: -3.5em;
-
   border: 2px solid #fff;
   border-radius: 50%;
   -moz-border-radius: 50%;
@@ -108,10 +107,8 @@
   -moz-border-radius: 6px;
   -webkit-border-radius: 6px;
   padding: 0.3em;
-
   margin-left: -0.3em;  /* Make the border not shift the content. */
   margin-bottom: 0.7em; /* 2.5em - (1em + 0.3emx2) - (0.2em aesthetic) */
-
   transition: all 200ms ease;
   -moz-transition: all 200ms ease;
   -webkit-transition: all 200ms ease;

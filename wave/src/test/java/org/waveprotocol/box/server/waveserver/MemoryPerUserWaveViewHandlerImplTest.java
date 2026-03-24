@@ -218,5 +218,10 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     public boolean isDeltaSigner(HashedVersion hashedVersion, ByteString signerId) {
       return false;
     }
+
+    @Override
+    public HashedVersion getHashedVersion(long version) {
+      throw new UnsupportedOperationException();
+    }
   }
 }

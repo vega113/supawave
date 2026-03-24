@@ -147,4 +147,15 @@ interface WaveletContainer {
    */
   boolean isEmpty() throws WaveletStateException;
 
+  /**
+   * Returns the hashed version at the given version number, if the version is
+   * at a delta boundary.
+   *
+   * @param version the version number to look up
+   * @return the hashed version at that version, or null if not a delta boundary
+   * @throws WaveletStateException if the wavelet is in a state unsuitable for
+   *         the operation.
+   */
+  HashedVersion getHashedVersion(long version) throws WaveletStateException;
+
 }

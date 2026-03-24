@@ -61,6 +61,7 @@ public final class FragmentsServletViewportTest {
       @Override public void submitRequest(WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, SubmitRequestListener l) {}
       @Override public org.waveprotocol.box.common.ExceptionalIterator<WaveId, org.waveprotocol.box.server.waveserver.WaveServerException> getWaveIds() { return null; }
       @Override public com.google.common.collect.ImmutableSet<WaveletId> getWaveletIds(WaveId waveId) { return com.google.common.collect.ImmutableSet.of(); }
+      @Override public HashedVersion getHashedVersion(WaveletName waveletName, long version) { return null; }
     };
   }
 

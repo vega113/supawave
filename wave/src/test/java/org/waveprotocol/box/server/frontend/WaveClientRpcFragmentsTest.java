@@ -93,6 +93,11 @@ public final class WaveClientRpcFragmentsTest {
             public com.google.common.collect.ImmutableSet<WaveletId> getWaveletIds(WaveId waveId) {
                 return com.google.common.collect.ImmutableSet.of();
             }
+
+            @Override
+            public HashedVersion getHashedVersion(WaveletName waveletName, long version) {
+                return null;
+            }
         };
     WaveClientRpcImpl.setFragmentsHandler(new FragmentsViewChannelHandler(provider,
         ConfigFactory.parseString("server.enableFetchFragmentsRpc=true")));

@@ -93,8 +93,8 @@
   overflow: auto;
   /* Positioned contained for add button. */
   position: relative;
-  /* Room for absolutely positioned add button. */
-  padding-right: 11em;
+  /* Room for absolutely positioned add and new-wave buttons. */
+  padding-right: 6em;
 }
 
 .participant {
@@ -155,7 +155,7 @@ img.participant:hover {
   padding: 14px 0 8px 4px;
   background: linear-gradient(180deg, #e8f4f8 0%, #fff 100%);
   bottom: 0;
-  width: 10em;
+  width: 5em;
 }
 
 .extra {
@@ -177,9 +177,17 @@ img.participant:hover {
 }
 
 .newWaveWithParticipantsButton {
-  position: absolute;
-  width: 7em;
-  margin-left: 5px;
+  margin-left: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0077b6;
+  color: white;
+  vertical-align: middle;
 }
 
 /*

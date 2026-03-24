@@ -82,9 +82,11 @@ public final class HtmlRenderer {
       // Search area header bar
       + "#app [kind=\"c\"] { background: #fff; }\n"
 
-      // Search input
-      + "#app input[type=\"search\"],\n"
-      + "#app input[type=\"text\"] {\n"
+      // Search input – scoped to the search widget to avoid overriding
+      // component-specific CSS (e.g. input.query padding in Search.css)
+      + "#app [kind=\"c\"] input[type=\"search\"],\n"
+      + "#app [kind=\"c\"] input[type=\"text\"] {\n"
+      + "  box-sizing: border-box;\n"
       + "  border: 1.5px solid " + WAVE_BORDER + ";\n"
       + "  border-radius: 20px;\n"
       + "  padding: 6px 14px;\n"
@@ -94,8 +96,8 @@ public final class HtmlRenderer {
       + "  transition: border-color 0.2s, box-shadow 0.2s;\n"
       + "  background: #fff;\n"
       + "}\n"
-      + "#app input[type=\"search\"]:focus,\n"
-      + "#app input[type=\"text\"]:focus {\n"
+      + "#app [kind=\"c\"] input[type=\"search\"]:focus,\n"
+      + "#app [kind=\"c\"] input[type=\"text\"]:focus {\n"
       + "  border-color: " + WAVE_PRIMARY + ";\n"
       + "  box-shadow: 0 0 0 3px rgba(0,119,182,0.10);\n"
       + "}\n"
@@ -1150,6 +1152,16 @@ public final class HtmlRenderer {
     sb.append("              if (node.hasAttribute && node.hasAttribute('data-selected')) node.removeAttribute('data-selected');\n");
     sb.append("              var desc = node.querySelectorAll ? node.querySelectorAll('[data-selected]') : [];\n");
     sb.append("              for (var j = 0; j < desc.length; j++) desc[j].removeAttribute('data-selected');\n");
+    sb.append("            }\n");
+    sb.append("          }\n");
+    sb.append("          // Initialize data-selected for added digest rows that already\n");
+    sb.append("          // carry the selected class (e.g. recycled/pooled rows).\n");
+    sb.append("          for (var k = 0; k < m.addedNodes.length; k++) {\n");
+    sb.append("            var aNode = m.addedNodes[k];\n");
+    sb.append("            if (aNode.nodeType === 1) {\n");
+    sb.append("              if (aNode.hasAttribute && aNode.hasAttribute('di') && /\\bselected\\b/.test(aNode.className || '')) aNode.setAttribute('data-selected', '');\n");
+    sb.append("              var aDesc = aNode.querySelectorAll ? aNode.querySelectorAll('[di]') : [];\n");
+    sb.append("              for (var l = 0; l < aDesc.length; l++) { if (/\\bselected\\b/.test(aDesc[l].className || '')) aDesc[l].setAttribute('data-selected', ''); }\n");
     sb.append("            }\n");
     sb.append("          }\n");
     sb.append("        }\n");

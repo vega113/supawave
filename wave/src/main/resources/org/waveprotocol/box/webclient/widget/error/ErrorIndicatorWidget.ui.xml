@@ -153,11 +153,11 @@
         <div class="{style.actions}">
           <gwt:Anchor href="javascript:;" ui:field="copyBtn" visible="false"
                       styleName="{style.btn}">
-            Copy error
+            <ui:text from="{msg.copyError}"/>
           </gwt:Anchor>
           <gwt:Anchor href="javascript:;" ui:field="dismissBtn"
                       styleName="{style.btn} {style.btnPrimary}">
-            Dismiss
+            <ui:text from="{msg.dismiss}"/>
           </gwt:Anchor>
         </div>
       </div>

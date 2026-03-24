@@ -44,4 +44,16 @@ public interface ErrorMessages extends Messages {
 
   @DefaultMessage("Stack trace:")
   String stackTrace();
+
+  @DefaultMessage("Copy error")
+  String copyError();
+
+  @DefaultMessage("Dismiss")
+  String dismiss();
+
+  @DefaultMessage("Copied!")
+  String copied();
+
+  @DefaultMessage("Copy failed")
+  String copyFailed();
 }

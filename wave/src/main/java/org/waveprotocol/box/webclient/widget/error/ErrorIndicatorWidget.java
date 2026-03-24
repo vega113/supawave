@@ -30,6 +30,7 @@ import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTMLPanel;
 
+import org.waveprotocol.box.webclient.widget.error.i18n.ErrorMessages;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 
 /**
@@ -57,6 +58,7 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
   }
 
   private static final Binder BINDER = GWT.create(Binder.class);
+  private static final ErrorMessages MESSAGES = GWT.create(ErrorMessages.class);
 
   @UiField
   Style style;
@@ -105,7 +107,8 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
 
   @UiHandler("copyBtn")
   void handleCopyClick(ClickEvent e) {
-    copyToClipboard(stack.getInnerText(), copyBtn.getElement());
+    copyToClipboard(stack.getInnerText(), copyBtn.getElement(),
+        MESSAGES.copied(), MESSAGES.copyFailed());
   }
 
   @UiHandler("dismissBtn")
@@ -113,9 +116,13 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
     overlay.getStyle().setProperty("display", "none");
   }
 
-  private static native void copyToClipboard(String text, Element btn) /*-{
+  private static native void copyToClipboard(String text, Element btn,
+      String copiedLabel, String failedLabel) /*-{
     function onSuccess() {
-      btn.innerText = 'Copied!';
+      btn.innerText = copiedLabel;
+    }
+    function onFailure() {
+      btn.innerText = failedLabel;
     }
     function fallback() {
       var ta = $doc.createElement('textarea');
@@ -125,10 +132,14 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
       $doc.body.appendChild(ta);
       ta.select();
       try {
-        $doc.execCommand('copy');
-        onSuccess();
+        var ok = $doc.execCommand('copy');
+        if (ok) {
+          onSuccess();
+        } else {
+          onFailure();
+        }
       } catch (e) {
-        btn.innerText = 'Copy failed';
+        onFailure();
       }
       $doc.body.removeChild(ta);
     }

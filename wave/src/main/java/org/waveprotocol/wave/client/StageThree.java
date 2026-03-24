@@ -50,6 +50,7 @@ import org.waveprotocol.wave.client.wavepanel.impl.toolbar.ToolbarSwitcher;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.ViewToolbar;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.DraftModeController;
 import org.waveprotocol.wave.client.widget.popup.PopupChromeFactory;
 import org.waveprotocol.wave.client.widget.popup.PopupFactory;
 import org.waveprotocol.wave.model.conversation.ConversationView;
@@ -224,6 +225,7 @@ public interface StageThree {
       ParticipantController.install(panel, models, profiles, getLocalDomain(), user,
           participantMessages, getContactManager());
       KeepFocusInView.install(edit, panel);
+      DraftModeController.install(panel, actions, edit);
       stageTwo.getDiffController().upgrade(edit);
     }
   }

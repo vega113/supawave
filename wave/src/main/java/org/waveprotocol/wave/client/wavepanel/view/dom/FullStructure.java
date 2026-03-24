@@ -62,6 +62,7 @@ import org.waveprotocol.wave.client.wavepanel.view.impl.BlipMenuItemViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.BlipMetaViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.BlipViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.ContinuationIndicatorViewImpl;
+import org.waveprotocol.wave.client.wavepanel.view.impl.DraftModeControlsWidget;
 import org.waveprotocol.wave.client.wavepanel.view.impl.InlineConversationViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.InlineThreadViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.ParticipantViewImpl;
@@ -165,6 +166,39 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         @Override
         public void remove(BlipMetaDomImpl impl) {
           impl.remove();
+        }
+
+        private DraftModeControlsWidget draftModeControls;
+        private BlipMetaDomImpl draftModeControlsOwner;
+
+        @Override
+        public BlipMetaView.DraftModeControls attachDraftModeControlsWidget(BlipMetaDomImpl impl) {
+          Preconditions.checkArgument(draftModeControls == null,
+              "Draft mode controls widget is already attached");
+          draftModeControls = new DraftModeControlsWidget(impl.getDraftModeControls());
+          draftModeControlsOwner = impl;
+          return draftModeControls;
+        }
+
+        @Override
+        public void detachDraftModeControlsWidget(BlipMetaDomImpl impl) {
+          Preconditions.checkNotNull(draftModeControls,
+              "Draft mode controls widget is not attached");
+          Preconditions.checkArgument(draftModeControlsOwner == impl,
+              "Draft mode controls widget attached to a different blip meta");
+          draftModeControls = null;
+          draftModeControlsOwner = null;
+          impl.getDraftModeControls().removeAllChildren();
+        }
+
+        @Override
+        public void showDraftModeControls(BlipMetaDomImpl impl) {
+          impl.getDraftModeControls().getStyle().setDisplay(Display.BLOCK);
+        }
+
+        @Override
+        public void hideDraftModeControls(BlipMetaDomImpl impl) {
+          impl.getDraftModeControls().getStyle().setDisplay(Display.NONE);
         }
       };
 

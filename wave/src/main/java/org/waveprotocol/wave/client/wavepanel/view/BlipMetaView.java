@@ -19,6 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.view;
 
+import com.google.gwt.user.client.ui.IsWidget;
 
 /**
  * The 'meta' part of a blip, which contains all the view state and structure
@@ -26,6 +27,44 @@ package org.waveprotocol.wave.client.wavepanel.view;
  *
  */
 public interface BlipMetaView extends View, IntrinsicBlipMetaView {
+
+  /**
+   * Controls widget for draft mode, providing a checkbox and done/cancel buttons.
+   */
+  public interface DraftModeControls extends IsWidget {
+    /** Listener for draft-mode control events. */
+    public interface Listener {
+      /** Called when the draft-mode checkbox changes. */
+      void onModeChange(boolean draft);
+      /** Called when the user clicks Done (save draft). */
+      void onDone();
+      /** Called when the user clicks Cancel (discard draft). */
+      void onCancel();
+    }
+
+    /** Sets the listener for control events. */
+    void setListener(Listener listener);
+  }
+
+  /**
+   * Attaches and returns a draft-mode controls widget inside this blip meta.
+   */
+  DraftModeControls attachDraftModeControls();
+
+  /**
+   * Detaches and removes the draft-mode controls widget.
+   */
+  void detachDraftModeControls();
+
+  /**
+   * Shows the draft-mode controls (sets display to visible).
+   */
+  void showDraftModeControls();
+
+  /**
+   * Hides the draft-mode controls (sets display to none).
+   */
+  void hideDraftModeControls();
 
   //
   // Structure.

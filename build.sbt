@@ -161,8 +161,10 @@ Test / unmanagedSourceDirectories += baseDirectory.value / "wave" / "src" / "tes
 // Codegen tasks resolve JARs from managed deps via (Compile / dependencyClasspath).
 
 // Serve static assets from wave/war/ via classpath resources (Jetty will still serve filesystem if desired)
-Compile / resourceDirectories += baseDirectory.value / "wave" / "src" / "main" / "resources"
-Compile / resourceDirectories += baseDirectory.value / "wave" / "war"
+// NOTE: must use unmanagedResourceDirectories (not resourceDirectories) so SBT actually
+// scans these dirs and includes their files in unmanagedResources / the classpath JAR.
+Compile / unmanagedResourceDirectories += baseDirectory.value / "wave" / "src" / "main" / "resources"
+Compile / unmanagedResourceDirectories += baseDirectory.value / "wave" / "war"
 
 // Prefer forking when running, to mimic production flags when needed
 fork := true

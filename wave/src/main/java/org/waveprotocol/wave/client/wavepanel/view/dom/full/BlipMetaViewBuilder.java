@@ -23,6 +23,7 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.closeSpan;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.image;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
+import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpanWith;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -118,6 +119,7 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
   //
 
   private String time;
+  private String timeTooltip;
   private String metaline;
   private String avatarUrl;
   private boolean read = true;
@@ -160,6 +162,11 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
   @Override
   public void setTime(String time) {
     this.time = time;
+  }
+
+  @Override
+  public void setTimeTooltip(String fullDateTime) {
+    this.timeTooltip = fullDateTime;
   }
 
   @Override
@@ -218,7 +225,11 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
         close(output);
 
         // Time.
-        open(output, Components.TIME.getDomId(id), css.time(), null);
+        {
+          String titleAttr = timeTooltip != null
+              ? "title='" + EscapeUtils.htmlEscape(timeTooltip) + "'" : null;
+          openWith(output, Components.TIME.getDomId(id), css.time(), null, titleAttr);
+        }
         if (time != null) {
           output.appendEscaped(time);
         }

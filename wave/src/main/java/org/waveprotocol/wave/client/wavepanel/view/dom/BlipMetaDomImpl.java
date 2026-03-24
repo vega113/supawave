@@ -100,6 +100,11 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
   }
 
   @Override
+  public void setTimeTooltip(String fullDateTime) {
+    getTime().setTitle(fullDateTime);
+  }
+
+  @Override
   public void setAvatar(String avatarUrl) {
     getAvatar().setSrc(avatarUrl);
   }

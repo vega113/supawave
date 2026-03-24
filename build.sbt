@@ -14,6 +14,10 @@ Compile / compileOrder := CompileOrder.JavaThenScala
 // Java toolchain: compile and target JDK 17 bytecode (matches Gradle's java.toolchain.languageVersion)
 javacOptions ++= Seq("--release", "17")
 
+// Disable Javadoc generation — gwt-user sources reference GWTBridge (in gwt-dev)
+// which is not on the compile classpath, causing Javadoc to fail during Universal/stage.
+Compile / doc / sources := Seq.empty
+
 // Include Maven standard source layout and generated sources
 Compile / unmanagedSourceDirectories ++= Seq(
   baseDirectory.value / "wave" / "src" / "main" / "java",
@@ -426,6 +430,9 @@ lazy val JakartaTest    = config("jakartaTest")    extend Test  describedAs "Jak
 lazy val JakartaIT      = config("jakartaIT")      extend Test  describedAs "Jakarta integration tests (*IT allowlist)"
 lazy val StacktraceTest = config("stacktraceTest") extend Test  describedAs "Isolated StackTraces utility tests"
 lazy val ThumbTest      = config("thumbTest")      extend Test  describedAs "Isolated AttachmentServlet thumbnail tests"
+
+// Register all custom test configs with Ivy so POM generation can resolve them
+ivyConfigurations ++= Seq(JakartaTest, JakartaIT, StacktraceTest, ThumbTest)
 
 // Wire all four configs into the project so `sbt jakartaTest:test` etc. work
 inConfig(JakartaTest)(Defaults.testSettings)

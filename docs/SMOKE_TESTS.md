@@ -1,36 +1,33 @@
 # Smoke Tests Summary
 
-Date: 2026-03-23
+Date: 2026-03-24
 Environment:
-- OS: macOS
-- Shell: zsh
-- Java: JDK 17 (per local JAVA_HOME)
-- Gradle: Wrapper 8.7
+- OS: macOS / Linux
+- Shell: zsh / bash
+- Java: JDK 17
+- Build: SBT 1.10+
 - Server profile: Jakarta-only (Jetty 12 EE10)
 
 ## Automated smoke script
 
-The preferred smoke path uses `scripts/wave-smoke.sh` against the installed
+The preferred smoke path uses `scripts/wave-smoke.sh` against the staged
 distribution:
 
-1. Build: `./gradlew :wave:installDist`
+1. Build: `sbt Universal/stage`
 2. Start: `bash scripts/wave-smoke.sh start` (waits for HTTP readiness)
 3. Check: `bash scripts/wave-smoke.sh check`
    - Expected: `ROOT_STATUS=302`, `WEBCLIENT_STATUS=200`
 4. Stop: `bash scripts/wave-smoke.sh stop`
 
-## Gradle-level smoke
+## SBT-level smoke
 
-- `./gradlew -q :wave:compileJava` -- passes.
-- `./gradlew -q :wave:smokeUi` -- passes (ROOT=302, WEBCLIENT=200).
-- `./gradlew -q :wave:test` -- still blocked at `:wave:compileTestJava` by
-  legacy test debt (see `docs/current-state.md` for details).
+- `sbt wave/compile` -- passes.
+- `sbt smokeInstalled` -- stages and runs smoke tests.
 
 ## Build artifacts
 
-- PST JARs under `pst/build/libs`
-- Wave JAR under `wave/build/libs`; `installDist` produces a runnable
-  distribution at `wave/build/install/wave/`
+- PST JAR under `pst/target/`
+- Wave fat JAR via `sbt assembly`; staged distribution at `target/universal/stage/`
 
 ## Docker
 
@@ -41,19 +38,3 @@ Build the image (multi-stage, Java 17, Jakarta-only):
 Run (HTTP on 9898):
 
     docker run --rm -p 9898:9898 wave:dev
-
-## Previous results
-
-Commands executed:
-- `./gradlew --no-daemon --warning-mode all :pst:build :wave:build` -- SUCCESS
-- `./gradlew :wave:installDist` -- SUCCESS
-- `scripts/wave-smoke.sh start && check && stop` -- ROOT=302, WEBCLIENT=200
-
-Notable Gradle deprecation warnings (tracked for Gradle 9 cleanup):
-- In pst/build.gradle:
-  - Deprecated: org.gradle.api.plugins.Convention
-  - Deprecated: org.gradle.api.plugins.JavaPluginConvention
-  - Deprecated: org.gradle.util.ConfigureUtil
-- In wave/build.gradle:
-  - Deprecated: ApplicationPluginConvention (due to applicationDefaultJvmArgs usage)
-  - Deprecated: Relying on Test.classpath convention in custom Test task (testGwt)

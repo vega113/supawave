@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 PORT=9898
 RUN_OUT="$ROOT_DIR/run.ui.out"
-PID_FILE="$ROOT_DIR/gradle.ui.pid"
+PID_FILE="$ROOT_DIR/sbt.ui.pid"
 
 cleanup() {
   ( pkill -f "org.waveprotocol.box.server.ServerMain" >/dev/null 2>&1 || true )
@@ -21,10 +21,8 @@ rm -f "$RUN_OUT" "$PID_FILE" || true
 
 if command -v sbt >/dev/null 2>&1; then
   ( cd "$ROOT_DIR" && sbt run > "$RUN_OUT" 2>&1 & echo $! > "$PID_FILE" )
-elif [[ -x "$ROOT_DIR/gradlew" ]]; then
-  ( cd "$ROOT_DIR" && ./gradlew :wave:run > "$RUN_OUT" 2>&1 & echo $! > "$PID_FILE" )
 else
-  echo "Neither sbt nor gradlew found" >&2; exit 1
+  echo "sbt not found — install SBT 1.10+ to run smoke tests" >&2; exit 1
 fi
 
 # Wait up to 90s for server to start

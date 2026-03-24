@@ -21,6 +21,7 @@
 package org.waveprotocol.wave.client;
 
 import com.google.gwt.core.client.GWT;
+import org.waveprotocol.wave.client.account.ContactManager;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.common.util.AsyncHolder;
 import org.waveprotocol.wave.client.doodad.selection.SelectionExtractor;
@@ -49,6 +50,7 @@ import org.waveprotocol.wave.client.wavepanel.impl.toolbar.ToolbarSwitcher;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.ViewToolbar;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.DraftModeController;
 import org.waveprotocol.wave.client.widget.popup.PopupChromeFactory;
 import org.waveprotocol.wave.client.widget.popup.PopupFactory;
 import org.waveprotocol.wave.model.conversation.ConversationView;
@@ -183,6 +185,14 @@ public interface StageThree {
     }
 
     /**
+     * Returns the contact manager for participant autocomplete, or null if
+     * contacts are not available. Subclasses may override this.
+     */
+    protected ContactManager getContactManager() {
+      return null;
+    }
+
+    /**
      * Installs parts of stage three that have dependencies.
      * <p>
      * This method is only called once all asynchronously loaded components of
@@ -212,8 +222,10 @@ public interface StageThree {
       WaveTitleHandler.install(edit, models);
       ReplyIndicatorController.install(actions, edit, panel);
       EditController.install(focus, actions, panel);
-      ParticipantController.install(panel, models, profiles, getLocalDomain(), user, participantMessages);
+      ParticipantController.install(panel, models, profiles, getLocalDomain(), user,
+          participantMessages, getContactManager());
       KeepFocusInView.install(edit, panel);
+      DraftModeController.install(panel, actions, edit);
       stageTwo.getDiffController().upgrade(edit);
     }
   }

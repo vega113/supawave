@@ -41,19 +41,19 @@ software:
 
 ## Quick Start (Dev)
 
-Requirements: Java 17+, Gradle Wrapper (included)
+Requirements: Java 17+, SBT 1.10+
 
-1) One‑time bootstrap (creates config and optional dev keystore):
+1) One-time bootstrap (creates config and optional dev keystore):
 
    - Dev HTTP only:
      `scripts/wave-bootstrap.sh`
 
-   - Dev HTTPS (self‑signed):
+   - Dev HTTPS (self-signed):
      `scripts/wave-bootstrap.sh --with-ssl`
 
 2) Run the server:
 
-   `./gradlew :wave:run`
+   `sbt run`
 
    - Default dev URL: http://localhost:9898/
    - If you enabled SSL: https://localhost:9898/
@@ -75,16 +75,11 @@ Notes:
 - Historical server-first blocks / segment-state ledger: `docs/blocks-adoption-plan.md`
 - Local development setup: `docs/DEV_SETUP.md`
 - Smoke-test guidance: `docs/SMOKE_TESTS.md`
-- SBT additive build notes: `docs/BUILDING-sbt.md`
+- SBT build notes: `docs/BUILDING-sbt.md`
 - Configuration and fragments flags: `docs/CONFIG_FLAGS.md`, `docs/fragments-config.md`
 - Beads epic index: `docs/epics/README.md`
 
-Gradle remains the canonical build; the SBT notes document the additive
-server-only path and its current bootstrap/runtime behavior.
-
-The Phase 6 ledger now treats protobuf and the server-side Guava upgrade as
-closed on the Gradle path. The remaining library-upgrade work is narrowed to
-MongoDB driver closure and SBT library-input cleanup.
+SBT is now the sole build system. Gradle has been removed (Phase 8).
 
 The default Jakarta build now compiles without `net.oauth`, and the legacy
 robot, Data API, and import/export OAuth surfaces are intentionally
@@ -147,94 +142,55 @@ These vagrant setups are not production use and should not be used as such.
 
 ## Setup Dev
 
-Apache Wave can be setup for eclipse and intellij IDE's.
+Apache Wave can be setup for IntelliJ IDEA by importing the project as an SBT project.
 
-Running `./gradlew eclipse` or `./gradlew idea` will generate all project files needed.
-In a situation where dependencies have changed or project structure has changed
-run `./gradlew cleanEclipse` or `./gradlew cleanIdea` depending on your IDE.
+## SBT Tasks
 
+Apache Wave now targets Java 17+. SBT 1.10+ is required.
 
-## Gradle Tasks
-
-Apache Wave now targets Java 17+. Use the included Gradle Wrapper.
-
-Gradle tasks can be run by `./gradlew [task name]`
-
-Test Tasks:
-
-- **test**: runs the standard unit tests.
-- **testMongo**: runs the mongodb tests.
-- **testLarge**: runs the more lengthy test cases.
-- **testGwt**: runs gwt specific tests (currently broken till gwt jetty conflict issue).
-- **testAll**: runs all the above tests.
+SBT tasks can be run by `sbt <task name>`.
 
 Compile Tasks:
 
-- **generateMessages**: Generates the message source files from the .st sources.
-- **generateGXP**: Compiles sources from the gxp files.
-- **compileJava**: Compiles all java sources.
-- **compileGwt**: Compiles all the Gwt sources.
-- **compileGwtDemo**: Compiles all the Gwt sources in Demo style.
-- **compileGwtDev**: Compiles all the Gwt sources in Dev style.
-
-Check Tasks:
-
-- **rat**: will run the apache rat tool to check all distribution files.
+- **compile**: compiles all Java sources (wave module).
+- **pst/compile**: compiles the PST code-generation tool.
 
 Run Tasks:
 
-- **run**: runs the server with the default parameters and with gwt compiled normally.
-- **gwtDev**: runs the gwt development mode.
+- **run**: runs the server with the default parameters.
 
 Distribution Tasks:
-- **jar**: builds jar file for the project.
-- **sourcesJar**: builds a source jar file for each project.
-- **createDist**: builds the zip and tar file for bin and source.
-- **createDistBin**: builds the zip for distribution.
-- **createDistBinZip**: builds the zip for distribution.
-- **createDistBinTar**: builds the tar for distribution.
-- **createDistSource**: builds the zip and tar file for distributing the source.
-- **createDistSourceZip**: builds the zip for distributing the source.
-- **createDistSourceTar**: builds the tar for distributing the source.
+- **assembly**: builds a fat JAR for the project.
+- **Universal/stage**: stages a runnable distribution at `target/universal/stage/`.
+- **Universal/packageBin**: builds a zip distribution.
 
+Smoke Tasks:
+- **smokeInstalled**: stages and smoke-tests the distribution via `scripts/wave-smoke.sh`.
 
 ## Build
 
-To build the client and server:
-    `./gradlew jar`
-It will be created in wave/build/libs/wave-*version*.jar
+To compile the server:
 
-The Gradle build now owns `commons-cli` directly in `wave`, while the additive SBT bootstrap still uses the vendored runtime jars described in `docs/BUILDING-sbt.md`.
-
-The sources can also be packaged into a jar by doing
-    `./gradlew sourcesJar`
-This will create a `project name`-sources.jar in each projects build/libs directory.
-
-Note:
-
-- if pst-`version`.jar is unable to be found run `./gradlew pst:jar` then retry.
-- if a jar is unable to be unzipped with wave:extractApi then delete the jar from your cache and try again.
-    You may need to restart. If problem persists let the newsgroup know or create an issue on Jira.
+    sbt compile
 
 Take a look at the reference.conf to learn about configuration and possible/default values.
 
 To run from sources:
-    ./gradlew :wave:run
+
+    sbt run
+
 The web client is accessible by default at http://localhost:9898/.
 
-To build an installable distribution:
-    ./gradlew :wave:installDist
-Use `scripts/wave-smoke.sh start|status|stop` against the installed dist.
+To build a staged distribution:
+
+    sbt Universal/stage
+
+Use `scripts/wave-smoke.sh start|status|stop` against the staged dist.
 
 ### Jetty profile
 
 **Jakarta EE 10:**
-- Standard builds and `./gradlew :wave:run` target Jetty 12 with Jakarta APIs.
-- The dedicated Jakarta test suites remain available when you want to be explicit:
-  - Compile Jakarta sources and tests: `./gradlew :wave:classes :wave:jakartaTestClasses`
-  - Run Jakarta unit tests: `./gradlew :wave:testJakarta`
-  - Run Jakarta integration tests: `./gradlew :wave:testJakartaIT`
-  - Build an installable distribution: `./gradlew :wave:installDist`
+- Standard builds and `sbt run` target Jetty 12 with Jakarta APIs.
 
 **Docker builds:**
 - Build the development image: `docker build -t wave:dev .`
@@ -314,7 +270,7 @@ security {
 Run with the password provided by environment variable:
 
     export WAVE_SSL_KEYSTORE_PASSWORD='...'
-    ./gradlew :wave:run
+    sbt run
 
 
 ### X.509 client authentication (optional)
@@ -346,7 +302,8 @@ Solr integration is currently disabled. The code paths remain for historical ref
 but the build no longer relies on Ant and we do not ship Solr helpers. If you want to
 experiment, point `core.search_type = solr` and set `core.solr_base_url`, then run a
 separate Solr instance yourself. Contributions to re-enable and modernize Solr support
-via Gradle are welcome.
+are welcome.
+
 ## Docker
 
 Build the image (multi-stage, Java 17):

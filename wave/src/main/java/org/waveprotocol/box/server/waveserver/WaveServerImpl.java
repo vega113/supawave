@@ -49,6 +49,7 @@ import org.waveprotocol.wave.federation.Proto.ProtocolSignerInfo;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.federation.WaveletFederationListener;
 import org.waveprotocol.wave.federation.WaveletFederationProvider;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -557,7 +558,16 @@ public class WaveServerImpl implements WaveletProvider, ReadableWaveletDataProvi
       // TODO(arb): add v0 policer here.
       LocalWaveletContainer wavelet = getOrCreateLocalWavelet(waveletName);
       try {
-        if (!wavelet.checkAccessPermission(ParticipantId.of(delta.getAuthor()))) {
+        ParticipantId author = ParticipantId.of(delta.getAuthor());
+        // User-data wavelets are owned by a specific user; the owner always has
+        // write access even before they are formally added as a participant.
+        // The server sends an empty UDW snapshot during wave open, and the
+        // client writes supplement data before adding itself as a participant,
+        // so the standard participant-based access check would deny the second
+        // write.
+        boolean isOwnUserDataWavelet =
+            IdUtil.isUserDataWavelet(author.getAddress(), waveletName.waveletId);
+        if (!isOwnUserDataWavelet && !wavelet.checkAccessPermission(author)) {
           resultListener.onFailure(FederationErrors.badRequest(
               delta.getAuthor() + " is not a participant of " + waveletName));
           return;
@@ -583,14 +593,23 @@ public class WaveServerImpl implements WaveletProvider, ReadableWaveletDataProvi
             CoreWaveletOperationSerializer.serialize(transformedDelta.getResultingVersion()),
             transformedDelta.getApplicationTimestamp());
       } catch (OperationException e) {
+        LOG.warning("Submit to " + waveletName + " failed: OperationException: " + e.getMessage());
         resultListener.onFailure(FederationErrors.badRequest(e.getMessage()));
       } catch (InvalidProtocolBufferException e) {
+        LOG.warning("Submit to " + waveletName + " failed: InvalidProtocolBufferException: "
+            + e.getMessage());
         resultListener.onFailure(FederationErrors.badRequest(e.getMessage()));
       } catch (InvalidHashException e) {
+        LOG.warning("Submit to " + waveletName + " failed: InvalidHashException: "
+            + e.getMessage());
         resultListener.onFailure(FederationErrors.badRequest(e.getMessage()));
       } catch (PersistenceException e) {
+        LOG.warning("Submit to " + waveletName + " failed: PersistenceException: "
+            + e.getMessage());
         resultListener.onFailure(FederationErrors.internalServerError(e.getMessage()));
       } catch (WaveletStateException e) {
+        LOG.warning("Submit to " + waveletName + " failed: WaveletStateException: "
+            + e.getMessage());
         resultListener.onFailure(FederationErrors.internalServerError(e.getMessage()));
       }
     } else {

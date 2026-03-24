@@ -66,6 +66,18 @@ public final class BlipMetaViewImpl<I extends IntrinsicBlipMetaView> // \u2620
     void remove(I impl);
 
     BlipView getBlip(I impl);
+
+    //
+    // Draft-mode controls
+    //
+
+    DraftModeControls attachDraftModeControlsWidget(I impl);
+
+    void detachDraftModeControlsWidget(I impl);
+
+    void showDraftModeControls(I impl);
+
+    void hideDraftModeControls(I impl);
   }
 
   public BlipMetaViewImpl(Helper<? super I> helper, I impl) {
@@ -109,6 +121,26 @@ public final class BlipMetaViewImpl<I extends IntrinsicBlipMetaView> // \u2620
   @Override
   public void removeFocusChrome(FocusFrameView frame) {
     helper.removeChrome(impl, frame);
+  }
+
+  @Override
+  public DraftModeControls attachDraftModeControls() {
+    return helper.attachDraftModeControlsWidget(impl);
+  }
+
+  @Override
+  public void detachDraftModeControls() {
+    helper.detachDraftModeControlsWidget(impl);
+  }
+
+  @Override
+  public void showDraftModeControls() {
+    helper.showDraftModeControls(impl);
+  }
+
+  @Override
+  public void hideDraftModeControls() {
+    helper.hideDraftModeControls(impl);
   }
 
   @Override

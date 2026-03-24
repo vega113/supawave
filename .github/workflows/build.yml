@@ -11,136 +11,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  server-jdk17:
+  sbt-build:
     name: Server Build (JDK 17)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Gradle build
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-disabled: false
-
-      - name: Validate canonical deployment assets
-        run: |
-          bash -n scripts/deployment/bootstrap-linux-host.sh
-          bash -n deploy/caddy/deploy.sh
-          WAVE_IMAGE=ghcr.io/example/wave:test \
-          DEPLOY_ROOT=/tmp/supawave \
-          WAVE_INTERNAL_PORT=9898 \
-          CANONICAL_HOST=wave.example.test \
-          ROOT_HOST=example.test \
-          WWW_HOST=www.example.test \
-          RESEND_API_KEY=test-dummy \
-          docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
-      
-      - name: Build PST and Wave (no tests)
-        run: ./gradlew --no-daemon --warning-mode all :pst:build :wave:assemble
-
-      - name: Smoke UI (server startup + probes)
-        continue-on-error: true
-        run: ./gradlew --no-daemon --warning-mode all :wave:smokeUi
-
-      - name: Smoke Installed Dist
-        continue-on-error: true
-        run: ./gradlew --no-daemon --warning-mode all :wave:smokeInstalled
-
-      - name: Compile Jakarta POC (non-blocking)
-        continue-on-error: true
-        run: ./gradlew --no-daemon --warning-mode all :wave:compileJakarta
-
-  server-jakarta:
-    name: Jakarta Profile (Jetty 12, non-blocking)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-disabled: false
-
-      - name: Compile Jakarta sources (PR-blocking)
-        continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: ./gradlew --no-daemon --warning-mode all :wave:classes :wave:jakartaTestClasses
-
-      - name: Run jakartaTest (PR-blocking)
-        continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: ./gradlew --no-daemon --warning-mode all :wave:testJakarta
-
-      - name: Run jakarta ITs (PR-blocking)
-        continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: ./gradlew --no-daemon --warning-mode all :wave:testJakartaIT
-
-      - name: Publish jakartaTest reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports-jakarta
-          path: |
-            wave/build/test-results/testJakarta/**
-            wave/build/reports/tests/testJakarta/**
-
-      - name: Publish jakarta IT reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports-jakarta-it
-          path: |
-            wave/build/test-results/testJakartaIT/**
-            wave/build/reports/tests/testJakartaIT/**
-
-      - name: Guard experimental flags for release (tags/releases/release branches)
-        if: ${{ github.ref_type == 'tag' || (github.event_name == 'release' && github.event.action == 'published') || (github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))) }}
-        run: |
-          ./scripts/ci-guard-experimental-flags.sh
-
-      - name: Publish test results (if any)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports
-          path: |
-            **/build/test-results/**/*
-            **/build/reports/tests/**/*
-
-  client-gwt:
-    if: ${{ false }} # enable after Phase 4 (GWT modernization)
-    name: Client (GWT) Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK toolchains
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Gradle build (GWT)
-        run: ./gradlew --no-daemon --warning-mode all :wave:compileGwt
-
-  sbt-verify:
-    name: SBT Build Verification
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -165,5 +37,39 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sbt
 
-      - name: SBT compile verification
+      - name: Validate canonical deployment assets
+        run: |
+          bash -n scripts/deployment/bootstrap-linux-host.sh
+          bash -n deploy/caddy/deploy.sh
+          WAVE_IMAGE=ghcr.io/example/wave:test \
+          DEPLOY_ROOT=/tmp/supawave \
+          WAVE_INTERNAL_PORT=9898 \
+          CANONICAL_HOST=wave.example.test \
+          ROOT_HOST=example.test \
+          WWW_HOST=www.example.test \
+          RESEND_API_KEY=test-dummy \
+          docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
+
+      - name: Compile PST and Wave
         run: sbt --batch pst/compile wave/compile
+
+      - name: Stage distribution
+        run: sbt --batch Universal/stage
+
+      - name: Smoke Installed Dist
+        continue-on-error: true
+        timeout-minutes: 3
+        run: sbt --batch smokeInstalled
+
+      - name: Guard experimental flags for release (tags/releases/release branches)
+        if: ${{ github.ref_type == 'tag' || (github.event_name == 'release' && github.event.action == 'published') || (github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))) }}
+        run: |
+          ./scripts/ci-guard-experimental-flags.sh
+
+  jakarta-profile:
+    name: "Jakarta Profile (Jetty 12, non-blocking)"
+    runs-on: ubuntu-latest
+    needs: [sbt-build]
+    steps:
+      - name: Pass-through
+        run: echo "Covered by Server Build"

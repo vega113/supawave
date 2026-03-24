@@ -25,6 +25,7 @@ import com.google.gwt.dom.client.StyleInjector;
 import org.waveprotocol.wave.client.editor.EditorImpl;
 import org.waveprotocol.wave.client.wavepanel.view.dom.CssProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n.BlipMessages;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n.DraftModeControlsMessages;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n.ReplyBoxMessages;
 import org.waveprotocol.wave.client.widget.dialog.Dialog;
 
@@ -57,6 +58,9 @@ public final class WavePanelResourceLoader {
 
   private final static ReplyBoxMessages replyBoxMessages =
       GWT.create(ReplyBoxMessages.class);
+
+  private final static DraftModeControlsMessages draftModeControlsMessages =
+      GWT.create(DraftModeControlsMessages.class);
 
   static {
     // Inject all CSS synchronously. CSS must be injected synchronously, so that
@@ -117,6 +121,10 @@ public final class WavePanelResourceLoader {
 
   public static ReplyBoxMessages getReplyBoxMessages() {
     return replyBoxMessages;
+  }
+
+  public static DraftModeControlsMessages getDraftModeControlsMessages() {
+    return draftModeControlsMessages;
   }
 
   /**

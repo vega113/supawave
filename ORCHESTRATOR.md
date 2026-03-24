@@ -35,7 +35,6 @@ incubator-wave/
 │   ├── src/main/resources/          # Config, logback, etc.
 │   ├── config/                      # HOCON config (reference.conf, application.conf)
 │   ├── war/                         # Static web assets
-│   └── build.gradle                 # Wave module build (1362 lines)
 ├── pst/                     # Protocol Schema Tool (15 files, code generation)
 ├── deploy/                  # Deployment configs
 │   ├── caddy/               # Caddy reverse proxy (compose.yml, Caddyfile, deploy.sh)
@@ -45,10 +44,9 @@ incubator-wave/
 ├── docs/                    # Architecture docs, modernization ledgers
 ├── .beads/                  # Issue tracking (JSONL, no-db mode)
 ├── .github/workflows/       # CI: build.yml, deploy-contabo.yml, codex-review-gate.yml
-├── Dockerfile               # Multi-stage JDK17 build
-├── build.gradle             # Root build (source/binary dist tasks)
-├── settings.gradle          # Includes: wave, pst
-└── build.sbt                # Additive SBT build (Java-only skeleton)
+├── Dockerfile               # Multi-stage JDK17 build (SBT)
+├── build.sbt                # SBT build definition
+└── project/                 # SBT plugins, build properties
 ```
 
 ### Technology Stack
@@ -56,7 +54,7 @@ incubator-wave/
 | Layer | Technology |
 |-------|-----------|
 | Language | Java 17 (source & target) |
-| Build | Gradle 8 (primary), SBT (additive) |
+| Build | SBT 1.10 |
 | Web framework | Jetty 12 EE10 (Jakarta servlets) |
 | DI | Google Guice 5.1.0 |
 | Serialization | Protocol Buffers 3.25.3, Gson 2.10.1 |
@@ -108,7 +106,7 @@ The codebase maintains a **dual-source pattern** for Jakarta migration:
 - `wave/src/main/java/` — Contains original javax-based code
 - `wave/src/jakarta-overrides/java/` — Contains Jakarta EE10 replacements
 
-The build uses source exclusions in `wave/build.gradle` to swap javax classes
+The build uses source exclusions in `build.sbt` to swap javax classes
 for their Jakarta overrides. This means **the same class name exists in two
 locations** — edits must go to the jakarta-overrides version for any class that
 has one there. The override directory contains replacements for:
@@ -221,11 +219,11 @@ Key runtime files:
 ### Build & Verify
 
 ```bash
-./gradlew clean build          # Full build
-./gradlew check                # Build + tests + checkstyle
-./gradlew :wave:compileJava    # Quick compile check
-./gradlew :wave:smokeUi        # Server startup + HTTP probes
-./gradlew :wave:run            # Run dev server on :9898
+sbt clean compile              # Full build
+sbt test                       # Build + tests
+sbt wave/compile               # Quick compile check
+sbt smokeInstalled             # Stage + smoke-test distribution
+sbt run                        # Run dev server on :9898
 ```
 
 ### Test Patterns
@@ -330,7 +328,7 @@ If similar symptoms appear again, inspect:
 - Guice module assembly for Jakarta child injector
 
 ### 4. Jakarta Override Source Exclusion
-The `wave/build.gradle` uses complex `exclude` patterns to swap javax for
+`build.sbt` uses `unmanagedSources` filter patterns to swap javax for
 jakarta classes. Adding new servlets requires updating both the main source
 and the jakarta-overrides directory, plus the exclusion list.
 
@@ -349,7 +347,7 @@ Future edits must preserve the one-object-per-line format to avoid
 breaking `bd` commands.
 
 ### 8. Test Compilation Debt
-`./gradlew :wave:test` fails at `compileTestJava` due to:
+`sbt test` fails at test compilation due to:
 - Jetty session API drift in `FragmentsHttpGatingTest`
 - Stale `ServerMain.applyFragmentsConfig(...)` references
 - javax/jakarta servlet mismatches in viewport tests

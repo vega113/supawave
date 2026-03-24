@@ -29,7 +29,7 @@ Java (/* */ style):
  */
 ```
 
-Proto, Gradle/Groovy, Properties (line comments):
+Proto, SBT/Scala, Properties (line comments):
 ```proto
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
@@ -58,12 +58,11 @@ Shell/INI (hash comments):
 
 
 ## 2. Language levels and build
-- Java 17 (source and target) is used (see wave/build.gradle and pst/build.gradle).
-- Protobuf is built via the Gradle protobuf plugin; do not edit generated sources under generated/.
+- Java 17 (source and target) is used (see build.sbt).
+- Protobuf is built via the sbt-protoc plugin; do not edit generated sources under generated/.
 - Run local checks before pushing:
-  - ./gradlew clean build
-  - ./gradlew check (includes tests, Checkstyle)
-  - Optional: run Sonar locally if configured; sonar-project.properties exists.
+  - sbt clean compile
+  - sbt test
 
 
 ## 3. Formatting and style
@@ -206,7 +205,7 @@ Client/websocket paths:
 - Place unit tests under wave/src/test/java (or pst/src/test/java for pst).
 - Write tests for new features and bug fixes (happy path, edge cases, error handling).
 - Keep tests deterministic and independent. Avoid relying on external services when possible.
-- Run `./gradlew test` before committing. For broader checks, run `./gradlew check`.
+- Run `sbt test` before committing.
 
 
 ## 14. Dependencies and third‑party code
@@ -220,8 +219,8 @@ Before submitting a PR:
 - License headers present on all new/modified files.
 - Code is formatted with the Eclipse profile; no unused imports; line length ≤ 100.
 - Logging and error handling follow these guidelines; no swallowed exceptions.
-- Thread‑safety considerations documented; no unintended shared mutable state.
-- Tests added/updated and passing locally (`./gradlew clean check`).
+- Thread-safety considerations documented; no unintended shared mutable state.
+- Tests added/updated and passing locally (`sbt clean test`).
 - Configuration keys documented with defaults; no hard‑coded environment specifics.
 - No secrets/PII checked in; no debug prints.
 - Commit messages are clear and reference issues where applicable.

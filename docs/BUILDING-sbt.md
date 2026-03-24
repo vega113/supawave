@@ -1,15 +1,8 @@
-# Building with SBT (Additive Server-Only Port)
+# Building with SBT
 
-> Status: WIP contributor handoff, not a supported end-user build. `sbt compile`
-> still fails after `protoc` on remaining library-upgrade debt tracked under
-> `incubator-wave-modernization.3` plus smaller SBT-only gaps. Keep using Gradle
-> for normal development and treat this document as the current state of the
-> additive port rather than a promise of parity.
-
-This is the additive SBT port for compiling and running the server on modern
-JDKs. Gradle remains the canonical build. The SBT build stays server-only,
-reuses vendored jars under `third_party/`, and is kept aligned with the checked-in
-`wave/config/` layout.
+SBT is the sole build system for Apache Wave (Gradle was removed in Phase 8).
+The SBT build compiles the server on JDK 17, reuses vendored jars under
+`third_party/`, and is aligned with the checked-in `wave/config/` layout.
 
 ## Prerequisites
 

@@ -341,6 +341,20 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
       @Override
       public void run(ProtocolSubmitResponse response) {
         callContext.stop();
+        // Check for server-side submit failure: the response carries an error
+        // message and no resulting version when the delta was rejected.
+        if (response.hasErrorMessage() && response.getErrorMessage() != null
+            && !response.getErrorMessage().isEmpty()) {
+          HashedVersion resultVersion = HashedVersion.unsigned(0);
+          if (response.hasHashedVersionAfterApplication()) {
+            resultVersion =
+                WaveletOperationSerializer.deserialize(response.getHashedVersionAfterApplication());
+            versions.updateHistory(wavelet, response.getHashedVersionAfterApplication());
+          }
+          callback.onSuccess(resultVersion, response.getOperationsApplied(),
+              response.getErrorMessage(), ResponseCode.INTERNAL_ERROR);
+          return;
+        }
         HashedVersion resultVersion = HashedVersion.unsigned(0);
         if (response.hasHashedVersionAfterApplication()) {
           resultVersion =

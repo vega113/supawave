@@ -9,10 +9,10 @@ Apache Wave is a standalone Wave server and rich GWT web client, serving as the 
 **Quick Start:**
 ```bash
 # Build everything
-./gradlew clean build
+sbt compile
 
 # Run the server
-./gradlew run
+sbt run
 
 # Open the client
 # Navigate to http://localhost:9898
@@ -25,114 +25,66 @@ Apache Wave is a standalone Wave server and rich GWT web client, serving as the 
 
 ## Prerequisites
 
-- **Java 8 (JDK 1.8)** - Required for compilation and runtime. The codebase uses sourceCompatibility 1.8 and GWT 2.8.0.
-- **Gradle** - Use the included Gradle wrapper (`./gradlew`)
+- **Java 17 (JDK 17)** - Required for compilation and runtime.
+- **SBT 1.10+** - The sole build system (Gradle was removed in Phase 8).
 - **Optional Dependencies:**
   - MongoDB for alternate storage backend testing
   - Java keystore file for SSL configuration
 - **Network:** Default HTTP endpoint is `localhost:9898`. Ensure the port is available or adjust configuration.
 
-**Note:** This project requires Java 8. Newer Java versions may cause Gradle build failures.
-
 ## Essential Build and Development Commands
 
 ### Build and Artifacts
 ```bash
-# Build all components
-./gradlew build
+# Compile all sources
+sbt compile
 
-# Build server and client jar
-./gradlew jar
-# Output: wave/build/libs/wave-0.4.2.jar
+# Build PST tool
+sbt pst/compile
 
-# Build source jars for each project
-./gradlew sourcesJar
-```
-
-### GWT Compilation
-```bash
-# Standard GWT compile (production)
-./gradlew compileGwt
-
-# Demo style compilation
-./gradlew compileGwtDemo
-
-# Development style compilation
-./gradlew compileGwtDev
-
-# GWT Super Dev Mode (for debugging)
-./gradlew gwtDev
+# Build fat JAR
+sbt assembly
+# Output: target/scala-*/incubator-wave-server-<version>.jar
 ```
 
 ### Server Execution
 ```bash
 # Run server from source
-./gradlew run
+sbt run
 ```
 
 ### Distribution Packaging
 ```bash
-# Build full source and binary distributions
-./gradlew createDist
-# Output: distributions/ directory
+# Stage a runnable distribution
+sbt Universal/stage
+# Output: target/universal/stage/
 
-# Build application distribution
-./gradlew :wave:assembleDist
-# Output: wave/build/distributions/
+# Build a zip distribution
+sbt Universal/packageBin
 ```
 
-### IDE Support
+### Code Generation
 ```bash
-# Eclipse project files
-./gradlew eclipse
-./gradlew cleanEclipse
-
-# IntelliJ IDEA project files
-./gradlew idea
-./gradlew cleanIdea
+# Protobuf compilation is handled automatically by sbt-protoc during compile
+sbt compile
 ```
-
-### Code Generation and Checks
-```bash
-# Generate message sources from Protocol Buffers
-./gradlew generateMessages
-
-# Generate GXP template sources
-./gradlew generateGXP
-
-# Apache RAT license checks
-./gradlew rat
-
-# Clean all build artifacts
-./gradlew clean
-```
-
-**Note:** If PST jar is missing during generation, build it explicitly: `./gradlew pst:jar`
 
 ## Running the Server
 
 ### From Source
 ```bash
-# Using Gradle
-./gradlew run
+# Using SBT
+sbt run
 # Client available at: http://localhost:9898
 ```
 
-### Using Distribution Scripts
+### Using Staged Distribution
 ```bash
-# Create distribution
-./gradlew :wave:assembleDist
+# Stage distribution
+sbt Universal/stage
 
-# Extract and run
-cd wave/build/distributions
-unzip wave-0.4.2.zip
-cd wave-0.4.2
-
-# Unix/Linux/macOS
-bin/wave
-
-# Windows
-bin/wave.bat
+# Run
+./target/universal/stage/bin/incubator-wave
 ```
 
 ### Configuration
@@ -154,7 +106,6 @@ core {
 
 ### Client Architecture
 - **GWT Web Client:** Compiled to JavaScript and served from the `war/` directory
-- **Super Dev Mode:** Available for rapid development iteration
 - **Real-time Communication:** WebSocket-based with fallback mechanisms
 
 ### Server Architecture
@@ -163,8 +114,8 @@ core {
 
 **Core Components:**
 - **Dependency Injection:** Google Guice modules assemble server subsystems
-- **HTTP/WebSocket Server:** Jetty 9.2 handles all network communication
-- **RPC Layer:** 
+- **HTTP/WebSocket Server:** Jetty 12 EE10 handles all network communication
+- **RPC Layer:**
   - `ProtocolWaveClientRpc` defines the client API surface
   - `WaveClientRpcImpl` implements the client-facing operations
   - Protocol Buffers (proto2) with PST code generation for messages
@@ -197,26 +148,14 @@ core {
 - **Security:** SSL/TLS and X.509 client certificate support
 
 ### Key Technologies
-- **GWT 2.8:** Client-side framework
-- **Protocol Buffers 2.6.1:** RPC serialization with PST code generation
-- **Google Guice:** Dependency injection
-- **Jetty 9.2:** HTTP and WebSocket server
+- **GWT 2.10.0:** Client-side framework
+- **Protocol Buffers 3.25.3:** RPC serialization with PST code generation
+- **Google Guice 5.1.0:** Dependency injection
+- **Jetty 12 EE10:** HTTP and WebSocket server (Jakarta)
 - **Typesafe Config:** HOCON configuration management
 - **BouncyCastle:** Cryptographic operations
 
 ## Key Development Workflows
-
-### GWT Super Dev Mode
-```bash
-# Start Super Dev Mode server
-./gradlew gwtDev
-
-# Follow Gradle output instructions to:
-# 1. Open the code server page
-# 2. Enable dev mode in browser
-# 3. Make changes and recompile modules
-# 4. Browser refresh picks up updated JS
-```
 
 ### Switching Storage Backends
 
@@ -256,21 +195,6 @@ security {
 }
 ```
 
-### X.509 Client Authentication
-```hocon
-# config/application.conf
-administration {
-  disable_loginpage : true
-}
-security {
-  enable_ssl : true
-  enable_clientauth : true
-  clientauth_cert_domain : "example.com"
-  ssl_keystore_path : "wave.keystore"
-  ssl_keystore_password : "changeit"
-}
-```
-
 ### Vagrant Development Environment
 ```bash
 # Linux VM with pre-built Wave
@@ -278,8 +202,9 @@ vagrant up ubuntu
 # or
 vagrant up fedora
 
-# Windows development VM
-vagrant up win10
+# Access Wave at: http://localhost:9898 (forwarded from VM)
+# SSH access: vagrant ssh ubuntu (or fedora)
+# Wave installed at: /opt/apache/wave (inside VM)
 ```
 
 The Linux VMs install Wave to `/opt/apache/wave` and bind to `0.0.0.0:9898` for external access.
@@ -287,22 +212,24 @@ The Linux VMs install Wave to `/opt/apache/wave` and bind to `0.0.0.0:9898` for 
 ## Important File Locations and Structure
 
 ### Build Configuration
-- **`wave/build.gradle`** - Main application build script with dependencies, JVM args, and tasks
-- **`build.gradle`** - Root project configuration and distribution tasks
-- **`settings.gradle`** - Multi-project settings
+- **`build.sbt`** - Main SBT build definition with dependencies, source sets, and tasks
+- **`project/plugins.sbt`** - SBT plugin declarations (protobuf, assembly, native-packager)
+- **`project/build.properties`** - SBT version
 
 ### Source Code
 - **`wave/src/main/java`** - Server-side Java source including ServerMain and servlets
+- **`wave/src/jakarta-overrides/java`** - Jakarta EE10 servlet replacements
 - **`wave/src/test/java`** - Server-side test code
 - **`wave/src/proto/proto`** - Protocol Buffer definitions (`.protodevel` files) used by PST
 
 ### Generated Code
-- **`wave/generated/main/java`** - Generated Java sources from PST and GXP
-- **`wave/generated/proto/java`** - Generated Protocol Buffer Java classes
+- **`proto_src/`** - Generated Protocol Buffer Java classes
+- **`gen/messages/`** - Generated message sources
+- **`gen/flags/`** - Generated flag sources
+- **`gen/shims/`** - SBT-only stubs for GWT client classes
 
 ### Web Resources
 - **`wave/war`** - GWT client resources served to browsers
-- **`wave/war/WEB-INF`** - Generated during build, contains web.xml and classes
 
 ### Configuration
 - **`wave/config/reference.conf`** - Complete configuration reference with defaults
@@ -311,8 +238,7 @@ The Linux VMs install Wave to `/opt/apache/wave` and bind to `0.0.0.0:9898` for 
 - **`wave/config/jaas.config`** - JAAS authentication configuration
 
 ### Distributions
-- **`wave/build/distributions/`** - Application distribution archives from `:wave:assembleDist`
-- **`distributions/`** - Combined source and binary distributions from `createDist`
+- **`target/universal/stage/`** - Staged runnable distribution from `sbt Universal/stage`
 
 ### PST Module
 - **`pst/`** - Protocol Buffer String Templating tools for code generation
@@ -331,29 +257,9 @@ Created automatically with default file-based storage:
 
 ### Test Execution
 ```bash
-# Standard unit tests
-./gradlew test
-
-# MongoDB integration tests
-./gradlew testMongo
-# Requires MongoDB running on configured host:port
-
-# Large/long-running tests
-./gradlew testLarge
-
-# GWT client tests (currently broken)
-./gradlew testGwt
-
-# All test suites
-./gradlew testAll
+# Unit tests
+sbt test
 ```
-
-### Test Configuration
-- **JaCoCo:** Code coverage reporting is enabled
-- **Test Logging:** Adjust `wave/config/wiab-logging.conf` for test-specific logging
-- **MongoDB Tests:** Require a running MongoDB instance matching `core.mongodb_*` settings
-
-**Note:** `testGwt` is currently broken due to a GWT-Jetty classpath conflict. Use other test suites for validation.
 
 ## Troubleshooting and Tips
 
@@ -361,17 +267,12 @@ Created automatically with default file-based storage:
 
 **PST jar not found:**
 ```bash
-./gradlew pst:jar
+sbt pst/assembly
 # Then retry your original command
 ```
 
-**wave:extractApi unzip error:**
-- Clear the problematic jar from Gradle cache (`~/.gradle/caches/`)
-- Restart your IDE
-- Retry the build
-
 **Java version compatibility:**
-- Ensure Java 8 is installed and active
+- Ensure Java 17 is installed and active
 - Check `java -version` output
 - Set `JAVA_HOME` if necessary
 
@@ -399,71 +300,8 @@ core {
 - Ensure firewall allows local connections
 - Verify database name and permissions
 
-### GWT Development Issues
 
-**GWT compilation failures:**
-- Ensure all Java sources compile first: `./gradlew compileJava`
-- Check for GWT-incompatible Java features in client code
-- Verify GWT module definitions in `.gwt.xml` files
-
-**Super Dev Mode connection issues:**
-- Check that both the Wave server and GWT Dev Mode server are running
-- Verify the Super Dev Mode bookmarklets are installed
-- Clear browser cache and retry
-
-## Appendix: Vagrant and Binary Distributions
-
-### Vagrant Usage
-
-**Linux Development VMs:**
-```bash
-# Ubuntu with automatic Wave build and install
-vagrant up ubuntu
-
-# Fedora with automatic Wave build and install  
-vagrant up fedora
-
-# Access Wave at: http://localhost:9898 (forwarded from VM)
-# SSH access: vagrant ssh ubuntu (or fedora)
-# Wave installed at: /opt/apache/wave (inside VM)
-```
-
-**Windows Development VM:**
-```bash
-# Windows 10 development environment
-vagrant up win10
-
-# Manual build required inside VM following Gradle task documentation
-# Source copied to: ~/Documents/Apache-Wave (inside VM)
-```
-
-### Binary Distributions
-
-**Official Releases:**
-- Latest releases: https://dist.apache.org/repos/dist/release/incubator/wave/
-- Development builds: https://dist.apache.org/repos/dist/dev/incubator/wave/
-- Nightly builds: https://builds.apache.org/view/S-Z/view/Wave/job/wave-artifacts/lastSuccessfulBuild/artifact/
-
-**Running Binary Distributions:**
-```bash
-# Extract archive
-tar -xjf apache-wave-bin-0.4.tar.bz2
-cd apache-wave-bin-0.4
-
-# Unix/Linux/macOS
-./bin/wave
-
-# Windows
-bin\wave.bat
-```
-
-**Configuration for Binary Distributions:**
-- Copy `config/reference.conf` to `config/application.conf` 
-- Edit `config/application.conf` with your overrides
-- Ensure proper file permissions on data directories
-
-
-# Integration Guide (Non‑Duplicative)
+# Integration Guide (Non-Duplicative)
 
 This document focuses on how to use AI agent-specific tooling with this repository.
 For all general project information (overview, structure, setup, building, running,
@@ -493,7 +331,7 @@ document its work so activity is auditable, decisions are explainable, and progr
 
 Recommended structure for each journal update:
 
-1. Context: What I am working on now and why (include “start-of-turn context refresh” when applicable).
+1. Context: What I am working on now and why (include "start-of-turn context refresh" when applicable).
 2. Plan: Current plan and tasks (with statuses: Not started / In progress / Blocked / Done).
 3. Decision Log: Alternatives considered and rationale for any choices made.
 4. Progress: Actions taken, results, and evidence (links/paths/commits/tests if relevant).
@@ -512,7 +350,7 @@ Examples (prompts to the agent or tool-invocation intent):
   (more robust, higher effort). Chose B due to long-term maintainability and testability."
 - Progress update: "Journal: Completed task 1 (analysis). Findings: file X requires section Y.
   Starting task 2."
-- End-of-turn: "Journal: Summary – Implemented section addition in GEMINI.md, no code changes
+- End-of-turn: "Journal: Summary - Implemented section addition in GEMINI.md, no code changes
   required. Remaining: team review. Next step: integrate feedback."
 
 Notes:

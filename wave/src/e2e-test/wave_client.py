@@ -62,11 +62,36 @@ class WaveWebSocket:
 # Wave protocol helpers (numeric-string-key format)
 # ---------------------------------------------------------------------------
 
+def compute_version_zero_hash(domain: str, wave_local_id: str, wavelet_local_id: str) -> str:
+    """Compute the history-hash for version 0 of a wavelet.
+
+    The Wave protocol defines version 0's hash as the UTF-8 bytes of the
+    wavelet name encoded as a ``wave://`` URI.  When the wave domain and
+    wavelet domain are the same the URI path elides the wavelet domain::
+
+        wave://<wavelet_domain>/<wave_local_id>/<wavelet_local_id>
+
+    Returns an **uppercase hex** string suitable for the JSON wire format.
+    """
+    uri = f"wave://{domain}/{wave_local_id}/{wavelet_local_id}"
+    return uri.encode("utf-8").hex().upper()
+
+
+def make_wavelet_name(domain: str, wave_local_id: str, wavelet_local_id: str) -> str:
+    """Build the serialised wavelet name in the modern ``/``-separated format.
+
+    When the wave domain and wavelet domain are the same the wavelet
+    domain is represented as ``~`` (elision)::
+
+        <domain>/<wave_local_id>/~/<wavelet_local_id>
+    """
+    return f"{domain}/{wave_local_id}/~/{wavelet_local_id}"
+
+
 def make_hashed_version(version: int, history_hash: str) -> dict:
     """Build a ``ProtocolHashedVersion`` payload.
 
-    ``history_hash`` must be an uppercase-hex-encoded string (or empty
-    string for version 0).
+    ``history_hash`` must be an uppercase-hex-encoded string.
     """
     return {"1": version, "2": history_hash}
 
@@ -290,6 +315,37 @@ class WaveServerClient:
         resp = self.session.get(
             f"{self.base_url}/search/",
             params={"query": query, "index": 0, "numResults": 10},
+            cookies=cookies,
+            timeout=10,
+        )
+        try:
+            return resp.json()
+        except ValueError:
+            return {
+                "status_code": resp.status_code,
+                "text": resp.text,
+            }
+
+    # ------------------------------------------------------------------
+    # Fetch
+    # ------------------------------------------------------------------
+
+    def fetch(self, jsessionid: str, wave_id: str) -> dict:
+        """GET /fetch/<wave_id> with JSESSIONID cookie.
+
+        The *wave_id* uses the ``domain!id`` format, e.g.
+        ``local.net/w+abc123``.  The server decodes it as a wave-ref path.
+
+        Returns the parsed JSON body on success, or a dict with the raw
+        status code and text on failure.
+        """
+        cookies = {"JSESSIONID": jsessionid}
+        # The fetch servlet expects the wave-ref encoded in the URL path.
+        # Wave IDs use the format "domain!id" which maps to "domain/id" in
+        # the URL path (the JavaWaverefEncoder handles the conversion).
+        path = wave_id.replace("!", "/")
+        resp = self.session.get(
+            f"{self.base_url}/fetch/{path}",
             cookies=cookies,
             timeout=10,
         )

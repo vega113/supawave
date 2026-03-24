@@ -53,6 +53,13 @@ public interface Actions {
   void stopEditing();
 
   /**
+   * Stops editing a blip, choosing whether to save or discard changes.
+   *
+   * @param save true to save (flush) the draft, false to discard
+   */
+  void stopEditing(boolean save);
+
+  /**
    * Replies to a blip.
    */
   void reply(BlipView blipUi);

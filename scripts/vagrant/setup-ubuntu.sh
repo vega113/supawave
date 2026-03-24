@@ -27,12 +27,18 @@ cd /opt
 sudo mkdir apache
 cd apache
 sudo mkdir wave
+# install SBT
+echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
+apt-get update
+apt-get install -y sbt || true
+
 # create the binary
 cd /vagrant
-./gradlew clean :wave:installDist
+sbt --batch Universal/stage
 
 # Get Apache Wave version
-WAVE_INSTALL="wave/build/install/wave"
+WAVE_INSTALL="target/universal/stage"
 sudo cp -R "$WAVE_INSTALL" /opt/apache/wave/
 cd ..
 cp scripts/vagrant/application.conf /opt/apache/wave/wave/config/application.conf

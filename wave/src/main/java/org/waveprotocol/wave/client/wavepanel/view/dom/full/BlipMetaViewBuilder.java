@@ -64,7 +64,9 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
     /** The element containing the document. */
     CONTENT("C"),
     /** The element containing menu options. */
-    MENU("N"), ;
+    MENU("N"),
+    /** The element containing draft-mode controls. */
+    DRAFTMODECONTROLS("E"), ;
 
     private final String postfix;
 
@@ -228,6 +230,11 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
       open(output, Components.CONTENT.getDomId(id), css.contentContainer(), "document");
       content.outputHtml(output);
       close(output);
+
+      // Draft-mode controls container (hidden by default).
+      output.appendHtmlConstant("<div id=\"");
+      output.appendEscaped(Components.DRAFTMODECONTROLS.getDomId(id));
+      output.appendHtmlConstant("\" style=\"display:none\"></div>");
     }
     close(output);
   }

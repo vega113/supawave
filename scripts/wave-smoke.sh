@@ -9,13 +9,13 @@ set -euo pipefail
 #   ./scripts/wave-smoke.sh stop    # stops server listening on port 9898
 #
 # Notes:
-# - Expects the distribution installed at wave/build/install/wave
-# - On Java 17, the application is configured with --add-opens in Gradle to support Guice/cglib
+# - Expects the distribution staged at target/universal/stage (SBT) or wave/build/install/wave (legacy)
+# - On Java 17, the application is configured with --add-opens in SBT to support Guice/cglib
 # - If a port conflict persists, you can forcefully clear Java processes (dangerous):
 #     killall java
 
-if [[ -d "wave/target/universal/stage" ]]; then
-  INSTALL_DIR="${INSTALL_DIR:-wave/target/universal/stage}"
+if [[ -d "target/universal/stage" ]]; then
+  INSTALL_DIR="${INSTALL_DIR:-target/universal/stage}"
 else
   INSTALL_DIR="${INSTALL_DIR:-wave/build/install/wave}"
 fi
@@ -71,28 +71,48 @@ check() {
 }
 
 stop() {
-  # Try to stop by port listener first
-  pids=$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null || true)
-  if [[ -n "${pids:-}" ]]; then
-    echo "$pids" | xargs -I{} kill {} || true
-    for i in {1..10}; do
-      sleep 1
-      if ! lsof -tiTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
-        echo "Stopped listeners on $PORT"
-        return 0
-      fi
-    done
+  # Collect all PIDs to kill (port listeners + PID file)
+  all_pids=""
+
+  # PIDs from port listener
+  port_pids=$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null || true)
+  if [[ -n "${port_pids:-}" ]]; then
+    all_pids="$port_pids"
   fi
-  # Fallback to PID file
+
+  # PID from PID file
   if [[ -f "$PID_FILE" ]]; then
-    pid=$(cat "$PID_FILE")
-    if [[ -n "$pid" ]]; then
-      kill "$pid" || true
-      echo "Stopped PID=$pid"
-      return 0
+    file_pid=$(cat "$PID_FILE")
+    if [[ -n "${file_pid:-}" ]]; then
+      all_pids="${all_pids:+$all_pids$'\n'}$file_pid"
     fi
   fi
-  echo "No running server detected on port $PORT"
+
+  if [[ -z "${all_pids:-}" ]]; then
+    echo "No running server detected on port $PORT"
+    return 0
+  fi
+
+  # Deduplicate and send SIGTERM
+  all_pids=$(echo "$all_pids" | sort -u)
+  echo "$all_pids" | xargs -I{} kill {} 2>/dev/null || true
+
+  # Wait up to 5 seconds for graceful shutdown
+  for i in {1..5}; do
+    sleep 1
+    if ! lsof -tiTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
+      echo "Stopped server on port $PORT"
+      rm -f "$PID_FILE"
+      return 0
+    fi
+  done
+
+  # Force kill if still running
+  echo "Graceful shutdown timed out; sending SIGKILL"
+  echo "$all_pids" | xargs -I{} kill -9 {} 2>/dev/null || true
+  sleep 1
+  rm -f "$PID_FILE"
+  echo "Force-stopped server on port $PORT"
 }
 
 cmd=${1:-}

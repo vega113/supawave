@@ -37,14 +37,10 @@ war/WEB-INF
 */.settings/
 .metadata/
 
-### Gradle
-.gradle
-build/
-wave/build/
+### Build output
 wave/war/WEB-INF/
 wave/war/webclient/
 wave/war/org*
-pst/build/
 distributions/
 ### Reports
 reports/
@@ -70,10 +66,8 @@ journal/
 /wave_server.pid
 /wave/config/dev-keystore.jks
 /wave/config/dev-keystore.jks.bak
-/gradle.pid
 /run.out
 /run.ui.out
-/gradle.ui.pid
 /.private-journal/
 /wave/bin/
 /pst/bin/

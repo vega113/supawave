@@ -76,5 +76,5 @@ if $WITH_SSL; then
   echo "SSL enabled in $APP_CONF"
 fi
 
-echo "Bootstrap complete. You can run: ./gradlew :wave:run"
+echo "Bootstrap complete. You can run: sbt run"
 

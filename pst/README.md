@@ -12,20 +12,20 @@ field definition via templates.
 Generally, PST is an integral part of the Apache Wave build process, and not
 called directly. If you want to build it, you can run
 
-  `gradle build`
+  `sbt pst/compile`
 
-but it'll usually will be built for your.
+but it'll usually will be built for you.
 
 ## Standalone use
 
 If you want to test PST directly, you'll need to build a standalone version
 with
 
-  `gradle shadowJar`
+  `sbt pst/assembly`
 
 which allows you check out the example via
 
-  `java -jar build/libs/wave-pst-0.1.jar -d example -f example/example.proto example/example.st`
+  `java -jar pst/target/wave-pst-0.1.0-SNAPSHOT.jar -d example -f example/example.proto example/example.st`
 
 which will result in example/com/example/Person.java being created from the
 Protobuf definition of the Person schema in example/example.proto.
@@ -47,7 +47,7 @@ PST generates the corresponding java code using the following steps:
 
 Apache Wave is using proto2 Protocol Buffers as documented in
 https://developers.google.com/protocol-buffers/docs/proto .. the task
-generateMessages in wave/build.gradle is responsible for combining String
+generateMessages in build.sbt is responsible for combining String
 Templates as per http://www.stringtemplate.org/ to Java Classes.
 
 A quick introduction to String Templates can be found under

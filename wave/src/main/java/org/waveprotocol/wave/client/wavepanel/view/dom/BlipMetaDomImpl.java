@@ -80,6 +80,7 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
   private Element metaline;
   private Element metabar;
   private Element menu;
+  private Element draftModeControls;
 
   private StringSequence inlineLocators;
 
@@ -277,6 +278,13 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
       contentContainer = load(id, Components.CONTENT);
     }
     return contentContainer;
+  }
+
+  public Element getDraftModeControls() {
+    if (draftModeControls == null) {
+      draftModeControls = load(id, Components.DRAFTMODECONTROLS);
+    }
+    return draftModeControls;
   }
 
   public void remove() {

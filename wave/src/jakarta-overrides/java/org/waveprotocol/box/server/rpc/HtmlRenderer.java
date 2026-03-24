@@ -696,6 +696,7 @@ public final class HtmlRenderer {
     StringBuilder sb = new StringBuilder(4096);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0\">\n");
     sb.append("<title>SupaWave</title>\n");
     sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
     // Session variables
@@ -742,6 +743,97 @@ public final class HtmlRenderer {
     sb.append(".user-menu-dropdown a { display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px; transition: background 0.1s; }\n");
     sb.append(".user-menu-dropdown a:hover { background: #f0f4f8; color: ").append(WAVE_PRIMARY).append("; }\n");
     sb.append(".user-menu-dropdown .divider { border-top: 1px solid #e2e8f0; margin: 4px 0; }\n");
+    // -- Hamburger and back button (hidden on desktop) --
+    sb.append(".mobile-hamburger, .mobile-back {\n");
+    sb.append("  display: none; background: none; border: none; cursor: pointer;\n");
+    sb.append("  width: 40px; height: 40px; padding: 0; align-items: center; justify-content: center;\n");
+    sb.append("  color: #4a5568; font-size: 22px; flex-shrink: 0;\n");
+    sb.append("}\n");
+    // -- Mobile backdrop overlay --
+    sb.append(".mobile-backdrop {\n");
+    sb.append("  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;\n");
+    sb.append("  background: rgba(0,0,0,0.4); z-index: 99;\n");
+    sb.append("}\n");
+    sb.append("body.mobile-panel-open .mobile-backdrop { display: block; }\n");
+    // -- Touch optimization --
+    sb.append("html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }\n");
+    // =================================================================
+    // RESPONSIVE: Tablet (768-1023px) - narrower search panel
+    // =================================================================
+    sb.append("@media (max-width: 1023px) {\n");
+    sb.append("  .topbar .domain { display: none; }\n");
+    sb.append("  #unsavedStateContainer { display: none !important; }\n");
+    sb.append("  .topbar .lang { display: none; }\n");
+    sb.append("}\n");
+    // =================================================================
+    // RESPONSIVE: Mobile (<768px) - single column layout
+    // =================================================================
+    sb.append("@media (max-width: 767px) {\n");
+    // -- Top bar compact --
+    sb.append("  .topbar { height: 48px; line-height: 48px; padding: 0 8px; gap: 4px; }\n");
+    sb.append("  .mobile-hamburger { display: flex; }\n");
+    sb.append("  body.mobile-wave-open .mobile-hamburger { display: none; }\n");
+    sb.append("  .mobile-back { display: none; }\n");
+    sb.append("  body.mobile-wave-open .mobile-back { display: flex; }\n");
+    sb.append("  .topbar .title { font-size: 15px; }\n");
+    sb.append("  .topbar .banner { display: none; }\n");
+    sb.append("  .topbar .info { gap: 4px; }\n");
+    sb.append("  .topbar .domain { display: none; }\n");
+    sb.append("  .topbar .lang { display: none; }\n");
+    sb.append("  #unsavedStateContainer { display: none !important; }\n");
+    sb.append("  .user-menu-toggle { padding: 4px 6px; font-size: 12px; }\n");
+    // -- App container adjust for taller mobile topbar --
+    sb.append("  #app { top: 49px !important; }\n");
+    // -- GWT SplitLayoutPanel overrides --
+    // GWT generates obfuscated class names and deeply nested DOM. We use
+    // data-mobile-role attributes set by JS (which finds the stable
+    // gwt-SplitLayoutPanel-HDragger class) to target the panels reliably.
+    sb.append("  [data-mobile-role='search-panel'] {\n");
+    sb.append("    position: fixed !important;\n");
+    sb.append("    left: 0 !important; top: 0 !important;\n");
+    sb.append("    width: 85vw !important; max-width: 360px !important;\n");
+    sb.append("    height: 100vh !important; bottom: auto !important;\n");
+    sb.append("    z-index: 100 !important;\n");
+    sb.append("    transform: translateX(-100%);\n");
+    sb.append("    transition: transform 0.3s ease;\n");
+    sb.append("    box-shadow: none;\n");
+    sb.append("    background: #fff;\n");
+    sb.append("  }\n");
+    sb.append("  body.mobile-panel-open [data-mobile-role='search-panel'] {\n");
+    sb.append("    transform: translateX(0);\n");
+    sb.append("    box-shadow: 4px 0 20px rgba(0,0,0,0.15);\n");
+    sb.append("  }\n");
+    // -- Hide the SplitLayoutPanel dragger on mobile --
+    sb.append("  [data-mobile-role='split-dragger'] {\n");
+    sb.append("    display: none !important;\n");
+    sb.append("  }\n");
+    // -- Wave content panel takes full width --
+    sb.append("  [data-mobile-role='wave-panel'] {\n");
+    sb.append("    left: 0 !important;\n");
+    sb.append("    width: 100% !important;\n");
+    sb.append("    right: 0 !important;\n");
+    sb.append("  }\n");
+    // -- User menu dropdown full width on mobile --
+    sb.append("  .user-menu-dropdown {\n");
+    sb.append("    position: fixed !important; left: 8px; right: 8px;\n");
+    sb.append("    top: 48px; width: auto !important; min-width: 0 !important;\n");
+    sb.append("  }\n");
+    sb.append("  .user-menu-dropdown a {\n");
+    sb.append("    padding: 12px 16px; font-size: 15px;\n");
+    sb.append("    min-height: 44px; display: flex; align-items: center;\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    // =================================================================
+    // RESPONSIVE: Small mobile (<480px) - extra compact
+    // =================================================================
+    sb.append("@media (max-width: 479px) {\n");
+    sb.append("  .topbar { padding: 0 4px; }\n");
+    sb.append("  .topbar-brand svg { width: 22px; height: 22px; }\n");
+    sb.append("  .topbar .title { font-size: 14px; }\n");
+    sb.append("  [data-mobile-role='search-panel'] {\n");
+    sb.append("    width: 90vw !important; max-width: none !important;\n");
+    sb.append("  }\n");
+    sb.append("}\n");
     sb.append("</style>\n");
     // GWT stats + nocache JS
     sb.append("<script type=\"text/javascript\">\n");
@@ -763,6 +855,8 @@ public final class HtmlRenderer {
     sb.append(topBarHtml).append("\n");
     // App container
     sb.append("<div id=\"app\" style=\"position:absolute; top:41px; right:0px; bottom:0px; left:0px;\"></div>\n");
+    // Mobile backdrop overlay (for closing slide panel)
+    sb.append("<div class=\"mobile-backdrop\" id=\"mobileBackdrop\" role=\"button\" aria-label=\"Close navigation\"></div>\n");
     sb.append("<noscript>\n");
     sb.append("<div style=\"width:22em;position:absolute;left:50%;margin-left:-11em;");
     sb.append("color:red;background-color:white;border:1px solid red;padding:4px;font-family:sans-serif\">\n");
@@ -771,6 +865,7 @@ public final class HtmlRenderer {
     sb.append("</noscript>\n");
     sb.append("<script>\n");
     sb.append("(function() {\n");
+    // -- User menu toggle (existing) --
     sb.append("  var toggle = document.querySelector('.user-menu-toggle');\n");
     sb.append("  if (toggle) {\n");
     sb.append("    toggle.addEventListener('click', function(e) {\n");
@@ -782,6 +877,84 @@ public final class HtmlRenderer {
     sb.append("    var d = document.querySelector('.user-menu-dropdown');\n");
     sb.append("    if (d) d.classList.remove('open');\n");
     sb.append("  });\n");
+    // -- Mobile navigation --
+    sb.append("  var isMobile = function() { return window.innerWidth < 768; };\n");
+    sb.append("  var body = document.body;\n");
+    sb.append("  var hamburger = document.getElementById('mobileHamburger');\n");
+    sb.append("  var backBtn = document.getElementById('mobileBack');\n");
+    sb.append("  var backdrop = document.getElementById('mobileBackdrop');\n");
+    sb.append("  function openPanel() {\n");
+    sb.append("    body.classList.add('mobile-panel-open');\n");
+    sb.append("  }\n");
+    sb.append("  function closePanel() {\n");
+    sb.append("    body.classList.remove('mobile-panel-open');\n");
+    sb.append("  }\n");
+    sb.append("  if (hamburger) {\n");
+    sb.append("    hamburger.addEventListener('click', function(e) {\n");
+    sb.append("      e.stopPropagation(); openPanel();\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+    sb.append("  if (backdrop) {\n");
+    sb.append("    backdrop.addEventListener('click', function() { closePanel(); });\n");
+    sb.append("  }\n");
+    // -- Back button: go back to inbox (clear wave hash) --
+    sb.append("  if (backBtn) {\n");
+    sb.append("    backBtn.addEventListener('click', function(e) {\n");
+    sb.append("      e.stopPropagation();\n");
+    sb.append("      if (window.location.hash) {\n");
+    sb.append("        window.location.hash = '';\n");
+    sb.append("      }\n");
+    sb.append("      body.classList.remove('mobile-wave-open');\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+    // -- Listen for hash changes to detect wave open/close --
+    sb.append("  function onHashChange() {\n");
+    sb.append("    if (!isMobile()) return;\n");
+    sb.append("    var hash = window.location.hash;\n");
+    sb.append("    if (hash && hash.length > 1) {\n");
+    sb.append("      body.classList.add('mobile-wave-open');\n");
+    sb.append("      closePanel();\n");
+    sb.append("    } else {\n");
+    sb.append("      body.classList.remove('mobile-wave-open');\n");
+    sb.append("    }\n");
+    sb.append("  }\n");
+    sb.append("  window.addEventListener('hashchange', onHashChange);\n");
+    // -- On resize, clean up mobile classes if switching to desktop --
+    sb.append("  window.addEventListener('resize', function() {\n");
+    sb.append("    if (!isMobile()) {\n");
+    sb.append("      body.classList.remove('mobile-panel-open');\n");
+    sb.append("      body.classList.remove('mobile-wave-open');\n");
+    sb.append("    }\n");
+    sb.append("  });\n");
+    // -- Initial check for deep-linked wave --
+    sb.append("  if (isMobile() && window.location.hash && window.location.hash.length > 1) {\n");
+    sb.append("    body.classList.add('mobile-wave-open');\n");
+    sb.append("  }\n");
+    // -- Mark GWT panels with data-mobile-role attributes --
+    // GWT renders asynchronously, so we watch for the SplitLayoutPanel dragger
+    // (which has the stable class gwt-SplitLayoutPanel-HDragger) and then mark
+    // its sibling panels. This lets our CSS target them reliably despite
+    // obfuscated GWT class names and deep nesting.
+    sb.append("  function markPanels() {\n");
+    sb.append("    var dragger = document.querySelector('.gwt-SplitLayoutPanel-HDragger');\n");
+    sb.append("    if (!dragger) return false;\n");
+    sb.append("    var draggerWrapper = dragger.parentElement;\n");
+    sb.append("    if (!draggerWrapper) return false;\n");
+    sb.append("    var searchPanel = draggerWrapper.previousElementSibling;\n");
+    sb.append("    var wavePanel = draggerWrapper.nextElementSibling;\n");
+    sb.append("    if (searchPanel) searchPanel.setAttribute('data-mobile-role', 'search-panel');\n");
+    sb.append("    draggerWrapper.setAttribute('data-mobile-role', 'split-dragger');\n");
+    sb.append("    if (wavePanel) wavePanel.setAttribute('data-mobile-role', 'wave-panel');\n");
+    sb.append("    return true;\n");
+    sb.append("  }\n");
+    sb.append("  if (!markPanels()) {\n");
+    sb.append("    var obs = new MutationObserver(function(mutations, observer) {\n");
+    sb.append("      if (markPanels()) observer.disconnect();\n");
+    sb.append("    });\n");
+    sb.append("    obs.observe(document.getElementById('app') || document.body, {\n");
+    sb.append("      childList: true, subtree: true\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
     sb.append("})();\n");
     sb.append("</script>\n");
     sb.append("</body>\n</html>\n");
@@ -801,6 +974,8 @@ public final class HtmlRenderer {
   public static String renderTopBar(String username, String domain) {
     StringBuilder sb = new StringBuilder(2048);
     sb.append("<div class=\"topbar\">\n");
+    sb.append("  <button class=\"mobile-hamburger\" id=\"mobileHamburger\" aria-label=\"Open navigation\">&#9776;</button>\n");
+    sb.append("  <button class=\"mobile-back\" id=\"mobileBack\" aria-label=\"Back to inbox\">&#8592;</button>\n");
     sb.append("  <a href=\"/\" class=\"topbar-brand\">").append(WAVE_LOGO_SVG_SMALL);
     sb.append("<span class=\"title\">SupaWave</span></a>\n");
     sb.append("  <div class=\"banner\" id=\"banner\"></div>\n");

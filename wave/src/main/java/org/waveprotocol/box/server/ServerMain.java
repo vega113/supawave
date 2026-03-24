@@ -400,6 +400,7 @@ public class ServerMain {
 
     server.addServlet("/locale/*", LocaleServlet.class);
     server.addServlet("/fetch/*", FetchServlet.class);
+    server.addServlet("/fetch/version/*", VersionedFetchServlet.class);
     server.addServlet("/search/*", SearchServlet.class);
     server.addServlet("/notification/*", NotificationServlet.class);
     server.addServlet("/healthz", HealthServlet.class);

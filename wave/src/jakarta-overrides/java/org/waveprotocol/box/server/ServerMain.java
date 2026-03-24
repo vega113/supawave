@@ -160,6 +160,7 @@ public class ServerMain {
     server.addServlet("/auth/magic-link", MagicLinkServlet.class);
     server.addServlet("/locale/*", LocaleServlet.class);
     server.addServlet("/fetch/*", FetchServlet.class);
+    server.addServlet("/fetch/version/*", VersionedFetchServlet.class);
     server.addServlet("/search/*", SearchServlet.class);
     server.addServlet("/dev/client-applier-stats", ClientApplierStatsJakartaServlet.class);
     server.addServlet("/healthz", HealthServlet.class);
@@ -167,6 +168,7 @@ public class ServerMain {
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
+    server.addServlet("/history/*", VersionHistoryServlet.class);
     server.addServlet("/folder/*", FolderServlet.class);
     server.addServlet("/searches", SearchesServlet.class);
     server.addServlet("/robot/register/*", RobotRegistrationServlet.class);

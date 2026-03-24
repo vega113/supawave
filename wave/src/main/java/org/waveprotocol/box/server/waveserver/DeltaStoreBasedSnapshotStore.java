@@ -26,6 +26,7 @@ import com.google.inject.Inject;
 import org.waveprotocol.box.common.ExceptionalIterator;
 import org.waveprotocol.box.server.persistence.FileNotFoundPersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.persistence.SnapshotStore;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
@@ -191,15 +192,18 @@ class DeltaStoreBasedSnapshotStore implements DeltaAndSnapshotStore {
   }
 
   private final DeltaStore deltaStore;
+  private final SnapshotStore snapshotStore;
 
   /**
    * Constructs a {@link DeltaAndSnapshotStore} instance which wraps {@code deltaStore}.
    *
    * @param deltaStore The underlying {@link DeltaStore}.
+   * @param snapshotStore The snapshot store for cleanup on wavelet deletion.
    */
   @Inject
-  public DeltaStoreBasedSnapshotStore(DeltaStore deltaStore) {
+  public DeltaStoreBasedSnapshotStore(DeltaStore deltaStore, SnapshotStore snapshotStore) {
     this.deltaStore = deltaStore;
+    this.snapshotStore = snapshotStore;
   }
 
   @Override
@@ -211,6 +215,15 @@ class DeltaStoreBasedSnapshotStore implements DeltaAndSnapshotStore {
   public void delete(WaveletName waveletName) throws PersistenceException,
       FileNotFoundPersistenceException {
     deltaStore.delete(waveletName);
+    // Also clean up any persisted snapshots for this wavelet.
+    if (snapshotStore != null) {
+      try {
+        snapshotStore.deleteSnapshots(waveletName);
+      } catch (PersistenceException e) {
+        // Non-fatal: orphan snapshots are harmless (they'd be ignored on load
+        // since the delta store would be empty).
+      }
+    }
   }
 
   @Override

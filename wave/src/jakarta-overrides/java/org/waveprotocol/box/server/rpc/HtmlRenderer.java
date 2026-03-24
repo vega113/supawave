@@ -1381,7 +1381,10 @@ public final class HtmlRenderer {
     sb.append("(function() {\n");
     sb.append("  var currentVersion = null;\n");
     sb.append("  var currentBuildTime = null;\n");
+    sb.append("  var pollInFlight = false;\n");
     sb.append("  function checkVersion() {\n");
+    sb.append("    if (pollInFlight) return;\n");
+    sb.append("    pollInFlight = true;\n");
     sb.append("    fetch('/version', {cache: 'no-store'})\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
@@ -1389,12 +1392,11 @@ public final class HtmlRenderer {
     sb.append("          currentVersion = data.version;\n");
     sb.append("          currentBuildTime = data.buildTime;\n");
     sb.append("        } else if (data.version !== currentVersion || data.buildTime !== currentBuildTime) {\n");
-    sb.append("          currentVersion = data.version;\n");
-    sb.append("          currentBuildTime = data.buildTime;\n");
     sb.append("          showUpgradeBanner();\n");
     sb.append("        }\n");
     sb.append("      })\n");
-    sb.append("      .catch(function() {});\n");
+    sb.append("      .catch(function() {})\n");
+    sb.append("      .then(function() { pollInFlight = false; });\n");
     sb.append("  }\n");
     sb.append("  function showUpgradeBanner() {\n");
     sb.append("    if (document.getElementById('upgrade-banner')) return;\n");

@@ -55,6 +55,7 @@ import org.waveprotocol.box.webclient.search.WaveStore;
 import org.waveprotocol.box.webclient.widget.error.ErrorIndicatorPresenter;
 import org.waveprotocol.box.webclient.widget.frame.FramedPanel;
 import org.waveprotocol.box.webclient.widget.loading.LoadingIndicator;
+import org.waveprotocol.wave.client.account.ContactManager;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
@@ -85,6 +86,8 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.waveref.InvalidWaveRefException;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
+
+import org.waveprotocol.box.webclient.contact.RemoteContactManagerImpl;
 
 import java.util.Date;
 import java.util.Set;
@@ -128,6 +131,7 @@ public class WebClient implements EntryPoint {
   }
 
   private final ProfileManager profiles = new RemoteProfileManagerImpl();
+  private final RemoteContactManagerImpl contactManager = new RemoteContactManagerImpl();
   private final UniversalPopup turbulencePopup = createTurbulencePopup();
 
   @UiField
@@ -201,6 +205,8 @@ public class WebClient implements EntryPoint {
       loggedInUser = new ParticipantId(Session.get().getAddress());
       idGenerator = ClientIdGenerator.create();
       loginToServer();
+      // Fetch the contacts list for participant autocomplete.
+      contactManager.update();
     }
 
     setupUi();
@@ -377,7 +383,7 @@ public class WebClient implements EntryPoint {
     Element unsavedIndicator = Document.get().getElementById("unsavedStateContainer");
     StagesProvider wave =
         new StagesProvider(holder, unsavedIndicator, waveHolder, waveFrame, waveRef, channel, idGenerator,
-            profiles, waveStore, isNewWave, Session.get().getDomain(), participants);
+            profiles, waveStore, isNewWave, Session.get().getDomain(), participants, contactManager);
     this.wave = wave;
     wave.load(new Command() {
       @Override

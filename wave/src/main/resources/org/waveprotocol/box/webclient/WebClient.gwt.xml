@@ -48,6 +48,7 @@
   <inherits name='org.waveprotocol.box.webclient.common.Common'/>
   <inherits name='org.waveprotocol.box.webclient.search.Search'/>
   <inherits name='org.waveprotocol.box.webclient.profile.Profile'/>
+  <inherits name='org.waveprotocol.box.webclient.contact.Contact'/>
   <inherits name='org.waveprotocol.box.webclient.widget.error.Error'/>
   <inherits name='org.waveprotocol.box.webclient.widget.frame.Frame'/>
   <inherits name='org.waveprotocol.box.webclient.widget.loading.Loading'/>

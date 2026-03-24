@@ -25,6 +25,7 @@ import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.Window;
 
+import org.waveprotocol.wave.client.account.ContactManager;
 import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
@@ -64,21 +65,27 @@ public final class ParticipantController {
   private final String localDomain;
   private final ParticipantId user;
   private final ParticipantMessages messages;
+  @Nullable
+  private final ContactManager contactManager;
   private UniversalPopup popup = null;
 
   /**
    * @param localDomain nullable. if provided, automatic suffixing will occur.
    * @param user the logged in user
+   * @param contactManager nullable. if provided, contact suggestions will appear
+   *        when adding participants.
    */
   ParticipantController(
       DomAsViewProvider views, ModelAsViewProvider models, ProfileManager profiles,
-      String localDomain, ParticipantId user, ParticipantMessages messages) {
+      String localDomain, ParticipantId user, ParticipantMessages messages,
+      @Nullable ContactManager contactManager) {
     this.views = views;
     this.models = models;
     this.profiles = profiles;
     this.localDomain = localDomain;
     this.user = user;
     this.messages = messages;
+    this.contactManager = contactManager;
   }
 
   /**
@@ -87,9 +94,20 @@ public final class ParticipantController {
    */
   public static void install(WavePanel panel, ModelAsViewProvider models, ProfileManager profiles,
       String localDomain, ParticipantId user, ParticipantMessages messages) {
+    install(panel, models, profiles, localDomain, user, messages, null);
+  }
+
+  /**
+   * Builds and installs the participant control feature with contact autocomplete.
+   * @param user the logged in user
+   * @param contactManager nullable. if provided, contacts are used for autocomplete
+   */
+  public static void install(WavePanel panel, ModelAsViewProvider models, ProfileManager profiles,
+      String localDomain, ParticipantId user, ParticipantMessages messages,
+      @Nullable ContactManager contactManager) {
     ParticipantController controller =
         new ParticipantController(panel.getViewProvider(), models, profiles,
-          localDomain, user, messages);
+          localDomain, user, messages, contactManager);
     controller.install(panel.getHandlers());
   }
 
@@ -184,9 +202,55 @@ public final class ParticipantController {
   }
 
   /**
-   * Shows an add-participant popup.
+   * Shows an add-participant popup with contact autocomplete suggestions.
+   * If no contact manager is available, falls back to a plain browser prompt.
    */
-  private void handleAddButtonClicked(Element context) {
+  private void handleAddButtonClicked(final Element context) {
+    if (contactManager == null) {
+      handleAddButtonClickedLegacy(context);
+      return;
+    }
+
+    final ParticipantsView participantsUi = views.fromAddButton(context);
+    final Conversation conversation = models.getParticipants(participantsUi);
+
+    ParticipantAddWidget addWidget = new ParticipantAddWidget();
+    addWidget.setContactManager(contactManager);
+    addWidget.setLocalDomain(localDomain);
+
+    popup = null;
+    addWidget.setListener(new ParticipantAddWidget.Listener() {
+      @Override
+      public void onAdd(String addressString) {
+        if (popup != null) {
+          popup.hide();
+        }
+        ParticipantId[] participants;
+        try {
+          participants = buildParticipantList(localDomain, addressString);
+        } catch (InvalidParticipantAddress e) {
+          Window.alert(e.getMessage());
+          return;
+        }
+        for (ParticipantId participant : participants) {
+          conversation.addParticipant(participant);
+        }
+      }
+
+      @Override
+      public void onCancel() {
+        if (popup != null) {
+          popup.hide();
+        }
+      }
+    });
+    popup = addWidget.showInPopup();
+  }
+
+  /**
+   * Legacy add-participant using a plain browser prompt (no autocomplete).
+   */
+  private void handleAddButtonClickedLegacy(Element context) {
     String addressString = Window.prompt("Add a participant(s) (separate with comma ','): ", "");
     if (addressString == null) {
       return;

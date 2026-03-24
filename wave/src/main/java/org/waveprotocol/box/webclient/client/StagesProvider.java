@@ -28,6 +28,7 @@ import org.waveprotocol.wave.client.StageThree;
 import org.waveprotocol.wave.client.StageTwo;
 import org.waveprotocol.wave.client.StageZero;
 import org.waveprotocol.wave.client.Stages;
+import org.waveprotocol.wave.client.account.ContactManager;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.common.util.AsyncHolder;
 import org.waveprotocol.wave.client.common.util.AsyncHolder.Accessor;
@@ -72,6 +73,7 @@ public class StagesProvider extends Stages {
   private final WaveStore waveStore;
   private final boolean isNewWave;
   private final String localDomain;
+  private final ContactManager contactManager;
 
   private boolean closed;
   private StageOne one;
@@ -94,11 +96,12 @@ public class StagesProvider extends Stages {
    * @param idGenerator
    * @param participants the participants to add to the newly created wave. null
    *                     if only the creator should be added
+   * @param contactManager the contact manager for participant autocomplete, or null
    */
   public StagesProvider(Element wavePanelElement, Element unsavedIndicatorElement,
       LogicalPanel rootPanel, FramedPanel waveFrame, WaveRef waveRef, RemoteViewServiceMultiplexer channel,
       IdGenerator idGenerator, ProfileManager profiles, WaveStore store, boolean isNewWave,
-      String localDomain, Set<ParticipantId> participants) {
+      String localDomain, Set<ParticipantId> participants, ContactManager contactManager) {
     this.wavePanelElement = wavePanelElement;
     this.unsavedIndicatorElement = unsavedIndicatorElement;
     this.waveFrame = waveFrame;
@@ -111,6 +114,7 @@ public class StagesProvider extends Stages {
     this.isNewWave = isNewWave;
     this.localDomain = localDomain;
     this.participants = participants;
+    this.contactManager = contactManager;
   }
 
   @Override
@@ -156,6 +160,11 @@ public class StagesProvider extends Stages {
       @Override
       protected String getLocalDomain() {
         return localDomain;
+      }
+
+      @Override
+      protected ContactManager getContactManager() {
+        return contactManager;
       }
     });
   }

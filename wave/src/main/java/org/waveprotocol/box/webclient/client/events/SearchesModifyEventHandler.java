@@ -17,37 +17,19 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search.i18n;
+package org.waveprotocol.box.webclient.client.events;
 
-import com.google.gwt.i18n.client.Messages;
-import com.google.gwt.i18n.client.Messages.DefaultMessage;
+import com.google.gwt.event.shared.EventHandler;
+
+import java.util.List;
+
+import org.waveprotocol.box.searches.SearchesItem;
 
 /**
+ * Handler for {@link SearchesModifyEvent}.
  *
- * @author akaplanov (Andrew Kaplanov)
+ * Ported from Wiab.pro.
  */
-public interface SearchPresenterMessages extends Messages {
-  @DefaultMessage("New Wave")
-  String newWave();
-
-  @DefaultMessage("of {0}")
-  String of(int count);
-
-  @DefaultMessage("of unknown")
-  String ofUnknown();
-
-  @DefaultMessage("New Wave")
-  String newWaveHint();
-
-  @DefaultMessage("To Inbox")
-  String toInbox();
-
-  @DefaultMessage("To Archive")
-  String toArchive();
-
-  @DefaultMessage("Modify")
-  String modify();
-
-  @DefaultMessage("Searching...")
-  String searching();
+public abstract class SearchesModifyEventHandler implements EventHandler {
+  public abstract void onSearchesListModify(List<SearchesItem> searches);
 }

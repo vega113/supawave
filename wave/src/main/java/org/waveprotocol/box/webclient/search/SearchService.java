@@ -21,6 +21,7 @@ package org.waveprotocol.box.webclient.search;
 
 import com.google.gwt.http.client.Request;
 
+import org.waveprotocol.wave.model.conversation.InboxState;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.ValueUtils;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -112,6 +113,11 @@ public interface SearchService {
     @Override
     public int getBlipCount() {
       return blipCount;
+    }
+
+    @Override
+    public InboxState getInboxState() {
+      return null; // Inbox state not available in search snapshots
     }
 
     @Override

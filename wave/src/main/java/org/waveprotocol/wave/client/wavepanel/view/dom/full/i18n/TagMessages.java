@@ -17,37 +17,27 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search.i18n;
+package org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n;
 
 import com.google.gwt.i18n.client.Messages;
-import com.google.gwt.i18n.client.Messages.DefaultMessage;
 
 /**
+ * i18n messages for the tags view builder.
  *
- * @author akaplanov (Andrew Kaplanov)
+ * Ported from Wiab.pro.
+ *
+ * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
-public interface SearchPresenterMessages extends Messages {
-  @DefaultMessage("New Wave")
-  String newWave();
+public interface TagMessages extends Messages {
+  @DefaultMessage("Tags:")
+  String tags();
 
-  @DefaultMessage("of {0}")
-  String of(int count);
+  @DefaultMessage("less")
+  String less();
 
-  @DefaultMessage("of unknown")
-  String ofUnknown();
+  @DefaultMessage("more")
+  String more();
 
-  @DefaultMessage("New Wave")
-  String newWaveHint();
-
-  @DefaultMessage("To Inbox")
-  String toInbox();
-
-  @DefaultMessage("To Archive")
-  String toArchive();
-
-  @DefaultMessage("Modify")
-  String modify();
-
-  @DefaultMessage("Searching...")
-  String searching();
+  @DefaultMessage("Add tag")
+  String addTagHint();
 }

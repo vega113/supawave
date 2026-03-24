@@ -20,34 +20,36 @@
 package org.waveprotocol.box.webclient.search.i18n;
 
 import com.google.gwt.i18n.client.Messages;
-import com.google.gwt.i18n.client.Messages.DefaultMessage;
 
 /**
+ * i18n messages for the searches editor popup.
  *
- * @author akaplanov (Andrew Kaplanov)
+ * Ported from Wiab.pro.
+ *
+ * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
-public interface SearchPresenterMessages extends Messages {
-  @DefaultMessage("New Wave")
-  String newWave();
+public interface SearchesEditorMessages extends Messages {
+  @DefaultMessage("Searches")
+  String searches();
 
-  @DefaultMessage("of {0}")
-  String of(int count);
-
-  @DefaultMessage("of unknown")
-  String ofUnknown();
-
-  @DefaultMessage("New Wave")
-  String newWaveHint();
-
-  @DefaultMessage("To Inbox")
-  String toInbox();
-
-  @DefaultMessage("To Archive")
-  String toArchive();
+  @DefaultMessage("Add")
+  String add();
 
   @DefaultMessage("Modify")
   String modify();
 
-  @DefaultMessage("Searching...")
-  String searching();
+  @DefaultMessage("Remove")
+  String remove();
+
+  @DefaultMessage("Up")
+  String up();
+
+  @DefaultMessage("Down")
+  String down();
+
+  @DefaultMessage("Cancel")
+  String cancel();
+
+  @DefaultMessage("Ok")
+  String ok();
 }

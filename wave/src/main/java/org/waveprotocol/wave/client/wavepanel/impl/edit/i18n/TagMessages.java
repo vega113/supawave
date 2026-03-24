@@ -17,37 +17,30 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search.i18n;
+package org.waveprotocol.wave.client.wavepanel.impl.edit.i18n;
 
 import com.google.gwt.i18n.client.Messages;
-import com.google.gwt.i18n.client.Messages.DefaultMessage;
 
 /**
+ * i18n messages for the tag controller (add/remove dialogs).
  *
- * @author akaplanov (Andrew Kaplanov)
+ * Ported from Wiab.pro.
+ *
+ * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
-public interface SearchPresenterMessages extends Messages {
-  @DefaultMessage("New Wave")
-  String newWave();
+public interface TagMessages extends Messages {
+  @DefaultMessage("Add tag(s) (separate with comma '',''): ")
+  String addTagPrompt();
 
-  @DefaultMessage("of {0}")
-  String of(int count);
+  @DefaultMessage("Do you want to remove tag \"{0}\"?")
+  String removeTagPrompt(String tag);
 
-  @DefaultMessage("of unknown")
-  String ofUnknown();
+  @DefaultMessage("Added by {0} at {1}")
+  String added(String authorName, String timestamp);
 
-  @DefaultMessage("New Wave")
-  String newWaveHint();
+  @DefaultMessage("Removed by {0} at {1}")
+  String removed(String authorName, String timestamp);
 
-  @DefaultMessage("To Inbox")
-  String toInbox();
-
-  @DefaultMessage("To Archive")
-  String toArchive();
-
-  @DefaultMessage("Modify")
-  String modify();
-
-  @DefaultMessage("Searching...")
-  String searching();
+  @DefaultMessage("Add tag")
+  String addTagHint();
 }

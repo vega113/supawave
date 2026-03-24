@@ -17,37 +17,36 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search.i18n;
-
-import com.google.gwt.i18n.client.Messages;
-import com.google.gwt.i18n.client.Messages.DefaultMessage;
+package org.waveprotocol.box.webclient.folder;
 
 /**
+ * Interface for a folder operation URL builder.
  *
- * @author akaplanov (Andrew Kaplanov)
+ * Ported from Wiab.pro.
+ *
+ * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
-public interface SearchPresenterMessages extends Messages {
-  @DefaultMessage("New Wave")
-  String newWave();
+public interface FolderOperationBuilder {
 
-  @DefaultMessage("of {0}")
-  String of(int count);
+  public static final String PARAM_OPERATION = "operation";
+  public static final String PARAM_FOLDER = "folder";
+  public static final String PARAM_WAVE_ID = "waveId";
 
-  @DefaultMessage("of unknown")
-  String ofUnknown();
+  public static final String OPERATION_MOVE = "move";
 
-  @DefaultMessage("New Wave")
-  String newWaveHint();
+  public static final String FOLDER_INBOX = "inbox";
+  public static final String FOLDER_ARCHIVE = "archive";
 
-  @DefaultMessage("To Inbox")
-  String toInbox();
+  public static final String FOLDER_OPERATION_URL_BASE = "/folder";
 
-  @DefaultMessage("To Archive")
-  String toArchive();
+  /**
+   * @param name of parameter
+   * @param value of parameter
+   */
+  FolderOperationBuilder addParameter(String name, String value);
 
-  @DefaultMessage("Modify")
-  String modify();
-
-  @DefaultMessage("Searching...")
-  String searching();
+  /**
+   * @return URL with operation to send
+   */
+  String getUrl();
 }

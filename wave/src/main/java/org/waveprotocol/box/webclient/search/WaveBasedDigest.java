@@ -34,6 +34,7 @@ import org.waveprotocol.wave.model.wave.Blip;
 import org.waveprotocol.wave.model.wave.ObservableWavelet;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.WaveViewListener;
+import org.waveprotocol.wave.model.conversation.InboxState;
 import org.waveprotocol.wave.model.wave.Wavelet;
 import org.waveprotocol.wave.model.wave.WaveletListener;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
@@ -203,6 +204,11 @@ public final class WaveBasedDigest
   public double getLastModifiedTime() {
     ensureLmt();
     return lastModified;
+  }
+
+  @Override
+  public InboxState getInboxState() {
+    return null; // Inbox state tracking not yet wired to live wave digests
   }
 
 

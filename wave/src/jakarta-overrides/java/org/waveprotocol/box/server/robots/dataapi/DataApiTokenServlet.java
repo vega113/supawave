@@ -112,7 +112,8 @@ public final class DataApiTokenServlet extends HttpServlet {
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<title>Data API Token - Wave in a Box</title>\n");
     // Same card CSS as auth pages (HtmlRenderer.AUTH_CSS)
     sb.append("<style>\n");

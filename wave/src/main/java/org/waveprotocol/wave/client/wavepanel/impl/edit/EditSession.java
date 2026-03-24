@@ -146,9 +146,6 @@ public final class EditSession
    * Any unsaved draft changes are silently saved before ending.
    */
   public void stopEditing() {
-    if (isDraftMode()) {
-      leaveDraftMode(true);
-    }
     endSession();
   }
 
@@ -196,6 +193,9 @@ public final class EditSession
    */
   private void endSession() {
     if (isEditing()) {
+      if (editor.isDraftMode()) {
+        editor.leaveDraftMode(true);
+      }
       selectionExtractor.stop(editor);
       container.doOrphan(editor.getWidget());
       editor.blur();

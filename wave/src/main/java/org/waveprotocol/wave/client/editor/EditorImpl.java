@@ -2716,31 +2716,28 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
   @Override
   public void enterDraftMode() {
+    flushSynchronous();
     Preconditions.checkArgument(!draftMode, "Editor is already in draft mode");
     draftMode = true;
   }
 
   @Override
   public void leaveDraftMode(boolean saveChanges) {
+    flushSynchronous();
     Preconditions.checkArgument(draftMode, "Editor is not in draft mode");
     draftMode = false;
 
     if (!content.getDraftOps().isEmpty()) {
       if (saveChanges) {
-        for (DocOp op : content.getDraftOps()) {
+        for (Iterator<DocOp> it = content.getDraftOps().iterator(); it.hasNext();) {
+          DocOp op = it.next();
           innerOutputSink.consume(op);
+          it.remove();
         }
-        content.getDraftOps().clear();
       } else {
-        try {
-          DocOp inv = DocOpInverter.invert(Composer.compose(content.getDraftOps()));
-          content.getDraftOps().clear();
-          content.consume(inv);
-        } catch (RuntimeException e) {
-          EditorStaticDeps.logger.error().logPlainText(
-              "Failed to compose/invert draft ops for discard: " + e.getMessage());
-          content.getDraftOps().clear();
-        }
+        DocOp inv = DocOpInverter.invert(Composer.compose(content.getDraftOps()));
+        content.consume(inv);
+        content.getDraftOps().clear();
       }
     }
   }

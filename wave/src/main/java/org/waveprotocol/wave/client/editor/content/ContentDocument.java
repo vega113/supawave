@@ -1693,8 +1693,10 @@ public class ContentDocument {
         draftOps.add(pair.clientOp());
       } catch (TransformException e) {
         EditorStaticDeps.logger.error().logPlainText("Draft OT transform failed: " + e.getMessage());
+        draftOps.clear();
       } catch (RuntimeException e) {
         EditorStaticDeps.logger.error().logPlainText("Draft op compose failed: " + e.getMessage());
+        draftOps.clear();
       }
     }
     return operation;

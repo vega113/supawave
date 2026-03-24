@@ -58,6 +58,7 @@ editing a "compose then send" workflow similar to email drafts.
 ## Files Touched in Wiab.pro
 
 ### New files (not in Apache Wave)
+
 | File | Layer |
 |------|-------|
 | `DraftModeController.java` | Client controller |
@@ -70,6 +71,7 @@ editing a "compose then send" workflow similar to email drafts.
 | `EditSessionFinisherMessages_ru.properties` | i18n (Russian) |
 
 ### Modified files (differ from Apache Wave)
+
 | File | Changes |
 |------|---------|
 | `Editor.java` | +4 methods: `isDraftMode`, `isDraftModified`, `enterDraftMode`, `leaveDraftMode` |

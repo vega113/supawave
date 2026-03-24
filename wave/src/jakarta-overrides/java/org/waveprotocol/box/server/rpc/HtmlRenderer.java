@@ -1373,20 +1373,22 @@ public final class HtmlRenderer {
 
   /**
    * Appends an inline script that polls {@code /version} every 60 seconds and
-   * shows a non-intrusive banner when the server version changes (i.e. the
-   * server has been upgraded while the client page is still open).
+   * shows a non-intrusive banner when the server version or build time changes
+   * (i.e. the server has been upgraded while the client page is still open).
    */
   private static void appendVersionCheckScript(StringBuilder sb) {
     sb.append("<script>\n");
     sb.append("(function() {\n");
     sb.append("  var currentVersion = null;\n");
+    sb.append("  var currentBuildTime = null;\n");
     sb.append("  function checkVersion() {\n");
     sb.append("    fetch('/version', {cache: 'no-store'})\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
     sb.append("        if (currentVersion === null) {\n");
     sb.append("          currentVersion = data.version;\n");
-    sb.append("        } else if (data.version !== currentVersion) {\n");
+    sb.append("          currentBuildTime = data.buildTime;\n");
+    sb.append("        } else if (data.version !== currentVersion || data.buildTime !== currentBuildTime) {\n");
     sb.append("          showUpgradeBanner();\n");
     sb.append("        }\n");
     sb.append("      })\n");

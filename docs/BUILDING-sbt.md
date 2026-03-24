@@ -6,7 +6,7 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
 
 ## Prerequisites
 
-- Java 17+ installed (Temurin recommended). The build targets `--release 11`
+- Java 17+ installed (Temurin recommended). The build targets `--release 17`
   (Jakarta).
 - SBT 1.10+ installed.
 - `protoc` is provided by `sbt-protoc` (embedded protoc v3.25.x).
@@ -87,9 +87,9 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
   - Additionally, federation/XMPP tests are excluded by default (deprecated
     subsystem).
   - Add `-v` for more logging: `sbt -v test`.
-- Offline fallback (legacy): `sbt testBackend`
-  - Deprecated. The legacy Ant runner and vendored `third_party/` JARs have been
-    removed. Use `sbt test` instead.
+- Legacy command placeholder: `sbt testBackend`
+  - Removed. This command now fails fast because the Ant runner and vendored
+    `third_party/` JARs were removed. Use `sbt test` instead.
 
 ## Notes
 
@@ -111,7 +111,7 @@ legacy `javax` / Jetty 9.4 fallback has been retired.
 
 - Compile: `sbt compile`
 - Run: `sbt run`
-- Bytecode: builds with `--release 11`.
+- Bytecode: builds with `--release 17`.
 - Endpoints:
   - `/statusz/socket` (JSON status)
   - `/socket` (JSR 356 WebSocket)
@@ -177,8 +177,8 @@ persistence/migration.
 - If SBT cannot resolve itself or plugins due to network restrictions, note that
   all dependencies are now managed via Coursier. Running `sbt` requires network
   access on first use unless local Ivy/Maven/Coursier caches are already warm;
-  offline options are to pre-populate those caches, vendor the managed jars, or
-  use a local SBT launcher and artifact proxy.
+  offline options are to pre-populate those caches or use a local SBT launcher
+  and artifact proxy.
 - If `gen/` directories are missing, initial compile may still pass; features
   depending on generated sources may be unavailable until you run the
   corresponding manual tasks.

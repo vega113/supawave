@@ -35,8 +35,9 @@ import java.io.IOException;
  *
  * <p>The version string is read from {@code core.server_version} in the
  * Typesafe Config (overridable via the {@code WAVE_SERVER_VERSION} environment
- * variable). {@code buildTime} is captured once at servlet construction time
- * (effectively the JVM startup timestamp).
+ * variable). {@code buildTime} is derived deterministically from the version
+ * string so that all instances sharing the same version return the same value
+ * (avoiding false upgrade banners behind a load balancer).
  */
 @Singleton
 public final class VersionServlet extends HttpServlet {
@@ -47,7 +48,7 @@ public final class VersionServlet extends HttpServlet {
   public VersionServlet(Config config) {
     this.version = config.hasPath("core.server_version")
         ? config.getString("core.server_version") : "dev";
-    this.buildTime = System.currentTimeMillis();
+    this.buildTime = stableHash(this.version);
   }
 
   /** Visible-for-testing constructor. */
@@ -88,5 +89,16 @@ public final class VersionServlet extends HttpServlet {
       }
     }
     return sb.toString();
+  }
+
+  /**
+   * Returns a deterministic long derived from the version string so that every
+   * instance running the same version advertises the same {@code buildTime}.
+   */
+  private static long stableHash(String version) {
+    // Use Math.abs to keep the value positive; fall back to 0 for the
+    // edge case where hashCode returns Integer.MIN_VALUE.
+    long h = version == null ? 0L : Math.abs((long) version.hashCode());
+    return h;
   }
 }

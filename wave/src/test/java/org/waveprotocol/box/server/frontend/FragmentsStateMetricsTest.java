@@ -48,6 +48,7 @@ public final class FragmentsStateMetricsTest {
     @Override public org.waveprotocol.box.common.ExceptionalIterator<WaveId, org.waveprotocol.box.server.waveserver.WaveServerException> getWaveIds() { return null; }
     @Override public com.google.common.collect.ImmutableSet<WaveletId> getWaveletIds(WaveId waveId) { return com.google.common.collect.ImmutableSet.of(); }
     @Override public CommittedWaveletSnapshot getSnapshot(WaveletName wn) { return null; }
+    @Override public HashedVersion getHashedVersion(WaveletName wn, long version) { return null; }
   }
 
   @Before public void enableMetrics() { FragmentsMetrics.setEnabled(true); }

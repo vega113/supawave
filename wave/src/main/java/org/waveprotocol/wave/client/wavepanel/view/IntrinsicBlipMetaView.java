@@ -32,12 +32,14 @@ public interface IntrinsicBlipMetaView {
   enum MenuOption {
     /** Option to reply to this blip. */
     REPLY,
+    /** Option to edit this blip. */
+    EDIT,
     /** Option to delete this blip. */
     DELETE,
     /** Option to link to this blip. */
     LINK,
-    /** Option to edit this blip. */
-    EDIT,
+    /** Option to toggle draft mode while editing. */
+    DRAFT,
     /** Option to finish edit this blip. */
     EDIT_DONE,;
   }

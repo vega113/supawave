@@ -232,8 +232,13 @@ public final class VersionHistoryServlet extends HttpServlet {
     }
 
     try {
-      HashedVersion startVersion = HashedVersion.unsigned(start);
-      HashedVersion endVersion = HashedVersion.unsigned(end);
+      HashedVersion startVersion = waveletProvider.getHashedVersion(waveletName, start);
+      HashedVersion endVersion = waveletProvider.getHashedVersion(waveletName, end);
+      if (startVersion == null || endVersion == null) {
+        resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
+            "Invalid version range: start or end is not at a delta boundary");
+        return;
+      }
       int MAX_DELTAS = 1000;
       LinkedList<DeltaInfo> deltas = new LinkedList<>();
 
@@ -511,7 +516,8 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<title>Version History - ").append(eWaveDomain).append("/").append(eWaveId).append("</title>\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
 
     // ── CSS ──
     sb.append("<style>\n");

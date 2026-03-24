@@ -93,6 +93,12 @@ public final class PreferSegmentStateTest {
         throws WaveServerException {
       return null;
     }
+
+    @Override
+    public HashedVersion getHashedVersion(WaveletName waveletName, long version)
+        throws WaveServerException {
+      return null;
+    }
   }
 
   private static final class StateWithIndexManifestOnly implements SegmentWaveletState {

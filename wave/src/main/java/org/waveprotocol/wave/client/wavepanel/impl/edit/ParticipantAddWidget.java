@@ -257,15 +257,26 @@ public class ParticipantAddWidget extends Composite {
 
     if (contactManager != null) {
       List<ParticipantId> contacts = contactManager.getContacts();
-      for (ParticipantId contact : contacts) {
-        if (currentSuggestions.size() >= MAX_SUGGESTIONS) {
-          break;
-        }
-        String address = contact.getAddress();
-        if (token.isEmpty() || address.toLowerCase().contains(token)) {
-          // Don't suggest addresses already entered before the last comma
-          if (!isAlreadyEntered(address)) {
-            currentSuggestions.add(address);
+      if (contacts != null) {
+        for (ParticipantId contact : contacts) {
+          if (currentSuggestions.size() >= MAX_SUGGESTIONS) {
+            break;
+          }
+          if (contact == null) {
+            continue;
+          }
+          // Coerce via String.valueOf() to guard against GWT JSNI returning
+          // a non-string JS value from ParticipantId.getAddress().
+          String address = String.valueOf((Object) contact.getAddress());
+          if (address == null || address.isEmpty()
+              || "null".equals(address) || "undefined".equals(address)) {
+            continue;
+          }
+          if (token.isEmpty() || address.toLowerCase().contains(token)) {
+            // Don't suggest addresses already entered before the last comma
+            if (!isAlreadyEntered(address)) {
+              currentSuggestions.add(address);
+            }
           }
         }
       }

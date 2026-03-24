@@ -86,6 +86,11 @@ public final class FragmentsViewChannelHandlerTest {
         public CommittedWaveletSnapshot getSnapshot(WaveletName waveletName) throws WaveServerException {
             return null;
         }
+
+        @Override
+        public HashedVersion getHashedVersion(WaveletName waveletName, long version) throws WaveServerException {
+            return null;
+        }
     }
 
     @Test

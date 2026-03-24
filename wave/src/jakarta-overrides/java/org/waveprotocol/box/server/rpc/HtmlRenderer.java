@@ -404,29 +404,88 @@ public final class HtmlRenderer {
   // Wave logo SVG (inline, no external file dependency)
   // =========================================================================
 
+  // Backup: Original logo (Option A)
+  // private static final String WAVE_LOGO_SVG_ORIGINAL =
+  //     "<svg width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n"
+  //     + "  <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"" + WAVE_PRIMARY + "\"/>\n"
+  //     + "  <path d=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\" "
+  //     + "stroke=\"white\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\">\n"
+  //     + "    <animate attributeName=\"d\" dur=\"3s\" repeatCount=\"indefinite\"\n"
+  //     + "      values=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;\n"
+  //     + "              M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;\n"
+  //     + "              M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\"/>\n"
+  //     + "  </path>\n"
+  //     + "</svg>\n";
+
+  /**
+   * Option D: Firefly Glowing Wave — blue wave with amber/gold spark at crest.
+   * 48px default; callers replace width/height for 72px (hero) or 120px use.
+   */
   private static final String WAVE_LOGO_SVG =
       "<svg width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n"
-      + "  <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"" + WAVE_PRIMARY + "\"/>\n"
-      + "  <path d=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\" "
-      + "stroke=\"white\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\">\n"
-      + "    <animate attributeName=\"d\" dur=\"3s\" repeatCount=\"indefinite\"\n"
-      + "      values=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;\n"
-      + "              M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;\n"
-      + "              M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\"/>\n"
+      + "  <defs>\n"
+      + "    <linearGradient id=\"d-bg\" x1=\"0\" y1=\"0\" x2=\"48\" y2=\"48\" gradientUnits=\"userSpaceOnUse\">\n"
+      + "      <stop offset=\"0%\" stop-color=\"#023e6b\"/>\n"
+      + "      <stop offset=\"100%\" stop-color=\"#0077b6\"/>\n"
+      + "    </linearGradient>\n"
+      + "    <radialGradient id=\"d-glow\" cx=\"24\" cy=\"18\" r=\"8\" gradientUnits=\"userSpaceOnUse\">\n"
+      + "      <stop offset=\"0%\" stop-color=\"#ffd166\" stop-opacity=\"0.8\"/>\n"
+      + "      <stop offset=\"100%\" stop-color=\"#f4a261\" stop-opacity=\"0\"/>\n"
+      + "    </radialGradient>\n"
+      + "  </defs>\n"
+      + "  <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"url(#d-bg)\"/>\n"
+      + "  <circle cx=\"24\" cy=\"19\" r=\"7\" fill=\"url(#d-glow)\">\n"
+      + "    <animate attributeName=\"opacity\" dur=\"3s\" repeatCount=\"indefinite\" values=\"0.7;1;0.7\"/>\n"
+      + "  </circle>\n"
+      + "  <path d=\"M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28\" "
+      + "stroke=\"white\" stroke-width=\"2.5\" stroke-linecap=\"round\" fill=\"none\">\n"
+      + "    <animate attributeName=\"d\" dur=\"4s\" repeatCount=\"indefinite\"\n"
+      + "      values=\"M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28;\n"
+      + "              M8 30 Q14 20 20 30 Q24 36 28 30 Q34 20 40 30;\n"
+      + "              M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28\"/>\n"
       + "  </path>\n"
+      + "  <circle cx=\"24\" cy=\"19\" r=\"2.2\" fill=\"#ffd166\">\n"
+      + "    <animate attributeName=\"r\" dur=\"3s\" repeatCount=\"indefinite\" values=\"1.8;2.8;1.8\"/>\n"
+      + "  </circle>\n"
+      + "  <g stroke=\"#ffd166\" stroke-width=\"0.8\" stroke-linecap=\"round\" opacity=\"0.5\">\n"
+      + "    <line x1=\"24\" y1=\"14.5\" x2=\"24\" y2=\"13\"/>\n"
+      + "    <line x1=\"28\" y1=\"17\" x2=\"29.5\" y2=\"16\"/>\n"
+      + "    <line x1=\"20\" y1=\"17\" x2=\"18.5\" y2=\"16\"/>\n"
+      + "  </g>\n"
       + "</svg>\n";
 
-  /** Smaller 28px version of the wave logo for the in-app top bar. */
+  /** Smaller 28px version of the Firefly Glowing Wave logo for the in-app top bar. */
   private static final String WAVE_LOGO_SVG_SMALL =
       "<svg width=\"28\" height=\"28\" viewBox=\"0 0 48 48\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"vertical-align:middle;\">\n"
-      + "  <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"" + WAVE_PRIMARY + "\"/>\n"
-      + "  <path d=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\" "
-      + "stroke=\"white\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\">\n"
-      + "    <animate attributeName=\"d\" dur=\"3s\" repeatCount=\"indefinite\"\n"
-      + "      values=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;\n"
-      + "              M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;\n"
-      + "              M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\"/>\n"
+      + "  <defs>\n"
+      + "    <linearGradient id=\"d-bg-sm\" x1=\"0\" y1=\"0\" x2=\"48\" y2=\"48\" gradientUnits=\"userSpaceOnUse\">\n"
+      + "      <stop offset=\"0%\" stop-color=\"#023e6b\"/>\n"
+      + "      <stop offset=\"100%\" stop-color=\"#0077b6\"/>\n"
+      + "    </linearGradient>\n"
+      + "    <radialGradient id=\"d-glow-sm\" cx=\"24\" cy=\"18\" r=\"8\" gradientUnits=\"userSpaceOnUse\">\n"
+      + "      <stop offset=\"0%\" stop-color=\"#ffd166\" stop-opacity=\"0.8\"/>\n"
+      + "      <stop offset=\"100%\" stop-color=\"#f4a261\" stop-opacity=\"0\"/>\n"
+      + "    </radialGradient>\n"
+      + "  </defs>\n"
+      + "  <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"url(#d-bg-sm)\"/>\n"
+      + "  <circle cx=\"24\" cy=\"19\" r=\"7\" fill=\"url(#d-glow-sm)\">\n"
+      + "    <animate attributeName=\"opacity\" dur=\"3s\" repeatCount=\"indefinite\" values=\"0.7;1;0.7\"/>\n"
+      + "  </circle>\n"
+      + "  <path d=\"M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28\" "
+      + "stroke=\"white\" stroke-width=\"2.5\" stroke-linecap=\"round\" fill=\"none\">\n"
+      + "    <animate attributeName=\"d\" dur=\"4s\" repeatCount=\"indefinite\"\n"
+      + "      values=\"M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28;\n"
+      + "              M8 30 Q14 20 20 30 Q24 36 28 30 Q34 20 40 30;\n"
+      + "              M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28\"/>\n"
       + "  </path>\n"
+      + "  <circle cx=\"24\" cy=\"19\" r=\"2.2\" fill=\"#ffd166\">\n"
+      + "    <animate attributeName=\"r\" dur=\"3s\" repeatCount=\"indefinite\" values=\"1.8;2.8;1.8\"/>\n"
+      + "  </circle>\n"
+      + "  <g stroke=\"#ffd166\" stroke-width=\"0.8\" stroke-linecap=\"round\" opacity=\"0.5\">\n"
+      + "    <line x1=\"24\" y1=\"14.5\" x2=\"24\" y2=\"13\"/>\n"
+      + "    <line x1=\"28\" y1=\"17\" x2=\"29.5\" y2=\"16\"/>\n"
+      + "    <line x1=\"20\" y1=\"17\" x2=\"18.5\" y2=\"16\"/>\n"
+      + "  </g>\n"
       + "</svg>";
 
   // =========================================================================
@@ -572,7 +631,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<title>Sign In - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
@@ -663,7 +723,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<title>Create Account - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
@@ -784,7 +845,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\" lang=\"en\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<title>SupaWave - Real-time Collaborative Communication</title>\n");
     sb.append("<meta name=\"description\" content=\"SupaWave is a real-time collaborative communication platform. Create, share, and collaborate on conversations with rich media and live editing.\">\n");
     sb.append("<style>\n");
@@ -1049,7 +1111,8 @@ public final class HtmlRenderer {
     sb.append("<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0\">\n");
     sb.append("<title>SupaWave</title>\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     // Session variables
     sb.append("<script type=\"text/javascript\">\n");
     sb.append("var __session = ").append(sessionJson.toString()).append(";\n");
@@ -1512,7 +1575,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<title>Robot Registration</title>\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body>\n");
@@ -1570,7 +1634,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<title>Robot Successfully Registered</title>\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body>\n");
@@ -1612,7 +1677,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<title>Authorization Required</title>\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append(AUTH_CSS);
     sb.append("</head>\n<body>\n");
     sb.append(WAVE_SVG);
@@ -1652,7 +1718,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<title>Authorization code</title>\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append(AUTH_CSS);
     sb.append("</head>\n<body>\n");
     sb.append(WAVE_SVG);
@@ -1687,7 +1754,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<title>Reset Password - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
@@ -1753,7 +1821,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<title>Set New Password - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
@@ -1822,7 +1891,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<title>Login with Email - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
@@ -1888,7 +1958,8 @@ public final class HtmlRenderer {
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-    sb.append("<link rel=\"shortcut icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<title>Email Confirmation - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);

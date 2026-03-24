@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SupaWave Logo Concepts</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #0077b6, #00b4d8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #8892a4;
+    font-size: 15px;
+    margin-bottom: 48px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.5;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: #1a1d2b;
+    border-radius: 16px;
+    padding: 32px;
+    border: 1px solid #2a2d3d;
+    transition: border-color 0.3s;
+  }
+
+  .card:hover {
+    border-color: #0077b6;
+  }
+
+  .card-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #00b4d8;
+    margin-bottom: 8px;
+  }
+
+  .card h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #f0f4f8;
+  }
+
+  .card p {
+    font-size: 13px;
+    color: #8892a4;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 32px;
+    margin-bottom: 16px;
+  }
+
+  .logo-size {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-size span {
+    font-size: 11px;
+    color: #5a6275;
+    font-weight: 500;
+  }
+
+  .logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .section-divider {
+    max-width: 1100px;
+    margin: 48px auto;
+    border: none;
+    border-top: 1px solid #2a2d3d;
+  }
+
+  .bg-test-title {
+    text-align: center;
+    font-size: 16px;
+    color: #8892a4;
+    margin-bottom: 24px;
+  }
+
+  .bg-test-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .bg-test-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .bg-test-cell {
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bg-test-cell span {
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .bg-test-cell.light {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+  }
+
+  .bg-test-cell.light span { color: #4a5568; }
+
+  .bg-test-cell.dark {
+    background: #0f1117;
+    border: 1px solid #2a2d3d;
+  }
+
+  .bg-test-cell.dark span { color: #8892a4; }
+
+  @media (prefers-reduced-motion: reduce) {
+    svg animate,
+    svg animateTransform {
+      display: none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>SupaWave Logo Concepts</h1>
+<p class="subtitle">
+  Four logo directions exploring the intersection of Firefly-style "wave" communication
+  and ocean wave dynamics. Each concept encodes the letter "W" and works from 16px favicon
+  up to 120px hero placement.
+</p>
+
+<div class="grid">
+
+  <!-- ============================================================ -->
+  <!-- OPTION A: Current Logo                                       -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <span class="card-label">Option A</span>
+    <h2>Current Logo</h2>
+    <p>
+      The existing SupaWave mark: a simple animated sine-wave path inside a filled circle.
+      Clean and recognizable but generic — could be any audio or water app.
+      Kept here as the baseline for comparison.
+    </p>
+    <div class="logo-row">
+      <div class="logo-size">
+        <div class="logo-container">
+          <!-- Current logo at 120px -->
+          <svg width="120" height="120" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="24" fill="#0077b6"/>
+            <path d="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20"
+              stroke="white" stroke-width="3" stroke-linecap="round" fill="none">
+              <animate attributeName="d" dur="3s" repeatCount="indefinite"
+                values="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;
+                        M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;
+                        M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20"/>
+            </path>
+          </svg>
+        </div>
+        <span>120px</span>
+      </div>
+      <div class="logo-size">
+        <div class="logo-container">
+          <!-- Current logo at 48px -->
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="24" fill="#0077b6"/>
+            <path d="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20"
+              stroke="white" stroke-width="3" stroke-linecap="round" fill="none">
+              <animate attributeName="d" dur="3s" repeatCount="indefinite"
+                values="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;
+                        M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;
+                        M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20"/>
+            </path>
+          </svg>
+        </div>
+        <span>48px</span>
+      </div>
+      <div class="logo-size">
+        <div class="logo-container">
+          <!-- Current logo at 16px -->
+          <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="24" fill="#0077b6"/>
+            <path d="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20"
+              stroke="white" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <span>16px</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OPTION B: Firefly Signal Wave                                -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <span class="card-label">Option B</span>
+    <h2>Firefly Signal Wave</h2>
+    <p>
+      Inspired by Firefly's "wave" communication system — concentric signal arcs
+      radiate outward from a focal point, forming a "W" shape as they expand.
+      The pulsing animation evokes a transmission being sent across the verse.
+    </p>
+    <div class="logo-row">
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="120" height="120" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="b-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0077b6"/>
+                <stop offset="100%" stop-color="#00b4d8"/>
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="24" fill="url(#b-grad)"/>
+            <!-- Central transmission dot -->
+            <circle cx="24" cy="32" r="2.5" fill="white">
+              <animate attributeName="opacity" dur="2s" repeatCount="indefinite"
+                values="1;0.6;1"/>
+            </circle>
+            <!-- Signal arc 1 (innermost) — forms left arm of W -->
+            <path d="M18 26 Q21 20 24 26 Q27 20 30 26" stroke="white" stroke-width="2"
+              stroke-linecap="round" fill="none" opacity="0.9">
+              <animate attributeName="opacity" dur="2s" repeatCount="indefinite"
+                values="0.9;0.5;0.9" begin="0s"/>
+            </path>
+            <!-- Signal arc 2 (middle) -->
+            <path d="M14 22 Q19 13 24 22 Q29 13 34 22" stroke="white" stroke-width="2"
+              stroke-linecap="round" fill="none" opacity="0.7">
+              <animate attributeName="opacity" dur="2s" repeatCount="indefinite"
+                values="0.7;0.3;0.7" begin="0.3s"/>
+            </path>
+            <!-- Signal arc 3 (outermost) -->
+            <path d="M10 18 Q17 7 24 18 Q31 7 38 18" stroke="white" stroke-width="1.8"
+              stroke-linecap="round" fill="none" opacity="0.45">
+              <animate attributeName="opacity" dur="2s" repeatCount="indefinite"
+                values="0.45;0.15;0.45" begin="0.6s"/>
+            </path>
+          </svg>
+        </div>
+        <span>120px</span>
+      </div>
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="b-grad-48" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0077b6"/>
+                <stop offset="100%" stop-color="#00b4d8"/>
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="24" fill="url(#b-grad-48)"/>
+            <circle cx="24" cy="32" r="2.5" fill="white">
+              <animate attributeName="opacity" dur="2s" repeatCount="indefinite" values="1;0.6;1"/>
+            </circle>
+            <path d="M18 26 Q21 20 24 26 Q27 20 30 26" stroke="white" stroke-width="2"
+              stroke-linecap="round" fill="none" opacity="0.9">
+              <animate attributeName="opacity" dur="2s" repeatCount="indefinite" values="0.9;0.5;0.9" begin="0s"/>
+            </path>
+            <path d="M14 22 Q19 13 24 22 Q29 13 34 22" stroke="white" stroke-width="2"
+              stroke-linecap="round" fill="none" opacity="0.7">
+              <animate attributeName="opacity" dur="2s" repeatCount="indefinite" values="0.7;0.3;0.7" begin="0.3s"/>
+            </path>
+            <path d="M10 18 Q17 7 24 18 Q31 7 38 18" stroke="white" stroke-width="1.8"
+              stroke-linecap="round" fill="none" opacity="0.45">
+              <animate attributeName="opacity" dur="2s" repeatCount="indefinite" values="0.45;0.15;0.45" begin="0.6s"/>
+            </path>
+          </svg>
+        </div>
+        <span>48px</span>
+      </div>
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="24" fill="#0077b6"/>
+            <circle cx="24" cy="32" r="3" fill="white"/>
+            <path d="M15 22 Q19.5 12 24 22 Q28.5 12 33 22" stroke="white" stroke-width="3.5"
+              stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <span>16px</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OPTION C: Ocean Wave + Chat Bubble                           -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <span class="card-label">Option C</span>
+    <h2>Dynamic Wave + Chat Bubble</h2>
+    <p>
+      A cresting ocean wave whose curl doubles as a speech bubble tail.
+      The wave silhouette contains a subtle "W" in its troughs.
+      The inner wave line suggests active communication in progress.
+      Gentle bobbing animation keeps it alive.
+    </p>
+    <div class="logo-row">
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="120" height="120" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="c-grad" x1="0" y1="8" x2="48" y2="40" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0077b6"/>
+                <stop offset="100%" stop-color="#00b4d8"/>
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="24" fill="url(#c-grad)"/>
+            <!-- Wave crest shape that forms a chat-bubble silhouette -->
+            <g>
+              <animateTransform attributeName="transform" type="translate"
+                dur="3s" repeatCount="indefinite"
+                values="0,0; 0,-0.8; 0,0.4; 0,0"/>
+              <!-- Main wave body / bubble shape -->
+              <path d="M8 28 Q8 18 16 18 L32 18 Q40 18 40 28 L40 30 Q40 36 34 36 L20 36 L14 40 L16 36 L14 36 Q8 36 8 30 Z"
+                fill="white" opacity="0.95"/>
+              <!-- W-shaped wave line inside the bubble -->
+              <path d="M13 26 Q16.5 21 20 26 Q23.5 31 27 26 Q30.5 21 34 26"
+                stroke="#0077b6" stroke-width="2.2" stroke-linecap="round" fill="none">
+                <animate attributeName="d" dur="4s" repeatCount="indefinite"
+                  values="M13 26 Q16.5 21 20 26 Q23.5 31 27 26 Q30.5 21 34 26;
+                          M13 27 Q16.5 23 20 27 Q23.5 31 27 27 Q30.5 23 34 27;
+                          M13 26 Q16.5 21 20 26 Q23.5 31 27 26 Q30.5 21 34 26"/>
+              </path>
+            </g>
+          </svg>
+        </div>
+        <span>120px</span>
+      </div>
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="c-grad-48" x1="0" y1="8" x2="48" y2="40" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0077b6"/>
+                <stop offset="100%" stop-color="#00b4d8"/>
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="24" fill="url(#c-grad-48)"/>
+            <g>
+              <animateTransform attributeName="transform" type="translate"
+                dur="3s" repeatCount="indefinite"
+                values="0,0; 0,-0.8; 0,0.4; 0,0"/>
+              <path d="M8 28 Q8 18 16 18 L32 18 Q40 18 40 28 L40 30 Q40 36 34 36 L20 36 L14 40 L16 36 L14 36 Q8 36 8 30 Z"
+                fill="white" opacity="0.95"/>
+              <path d="M13 26 Q16.5 21 20 26 Q23.5 31 27 26 Q30.5 21 34 26"
+                stroke="#0077b6" stroke-width="2.2" stroke-linecap="round" fill="none">
+                <animate attributeName="d" dur="4s" repeatCount="indefinite"
+                  values="M13 26 Q16.5 21 20 26 Q23.5 31 27 26 Q30.5 21 34 26;
+                          M13 27 Q16.5 23 20 27 Q23.5 31 27 27 Q30.5 23 34 27;
+                          M13 26 Q16.5 21 20 26 Q23.5 31 27 26 Q30.5 21 34 26"/>
+              </path>
+            </g>
+          </svg>
+        </div>
+        <span>48px</span>
+      </div>
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="24" fill="#0077b6"/>
+            <path d="M8 28 Q8 18 16 18 L32 18 Q40 18 40 28 L40 30 Q40 36 34 36 L20 36 L14 40 L16 36 L14 36 Q8 36 8 30 Z"
+              fill="white" opacity="0.95"/>
+            <path d="M13 27 Q18 21 24 27 Q30 33 35 27" stroke="#0077b6" stroke-width="3" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <span>16px</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OPTION D: Firefly Glowing Wave                               -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <span class="card-label">Option D</span>
+    <h2>Firefly Glowing Wave</h2>
+    <p>
+      Merges Firefly's warm amber aesthetic with the ocean-wave identity.
+      A luminous W-shaped wave flows across a deep blue field, with a
+      firefly-like spark glowing at the crest — a signal crossing the black.
+      The glow pulse suggests life, warmth, and connection.
+    </p>
+    <div class="logo-row">
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="120" height="120" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="d-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#023e6b"/>
+                <stop offset="100%" stop-color="#0077b6"/>
+              </linearGradient>
+              <radialGradient id="d-glow" cx="24" cy="18" r="8" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#ffd166" stop-opacity="0.9"/>
+                <stop offset="50%" stop-color="#f4a261" stop-opacity="0.4"/>
+                <stop offset="100%" stop-color="#f4a261" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="d-glow-outer" cx="24" cy="18" r="14" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#ffd166" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="#ffd166" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle cx="24" cy="24" r="24" fill="url(#d-bg)"/>
+            <!-- Outer glow halo -->
+            <circle cx="24" cy="19" r="12" fill="url(#d-glow-outer)">
+              <animate attributeName="r" dur="3s" repeatCount="indefinite"
+                values="10;13;10"/>
+              <animate attributeName="opacity" dur="3s" repeatCount="indefinite"
+                values="0.6;1;0.6"/>
+            </circle>
+            <!-- Inner glow -->
+            <circle cx="24" cy="19" r="7" fill="url(#d-glow)">
+              <animate attributeName="r" dur="3s" repeatCount="indefinite"
+                values="6;8;6"/>
+              <animate attributeName="opacity" dur="3s" repeatCount="indefinite"
+                values="0.7;1;0.7"/>
+            </circle>
+            <!-- W-shaped wave path — white with slight translucency -->
+            <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28"
+              stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none">
+              <animate attributeName="d" dur="4s" repeatCount="indefinite"
+                values="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28;
+                        M8 30 Q14 20 20 30 Q24 36 28 30 Q34 20 40 30;
+                        M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28"/>
+            </path>
+            <!-- Firefly spark at the crest -->
+            <circle cx="24" cy="19" r="2.2" fill="#ffd166">
+              <animate attributeName="r" dur="3s" repeatCount="indefinite"
+                values="1.8;2.8;1.8"/>
+              <animate attributeName="opacity" dur="3s" repeatCount="indefinite"
+                values="0.8;1;0.8"/>
+            </circle>
+            <!-- Tiny sparkle rays -->
+            <g stroke="#ffd166" stroke-width="0.8" stroke-linecap="round" opacity="0.6">
+              <line x1="24" y1="14.5" x2="24" y2="13">
+                <animate attributeName="opacity" dur="3s" repeatCount="indefinite" values="0.6;0.2;0.6"/>
+              </line>
+              <line x1="28" y1="17" x2="29.5" y2="16">
+                <animate attributeName="opacity" dur="3s" repeatCount="indefinite" values="0.4;0.7;0.4" begin="0.5s"/>
+              </line>
+              <line x1="20" y1="17" x2="18.5" y2="16">
+                <animate attributeName="opacity" dur="3s" repeatCount="indefinite" values="0.5;0.2;0.5" begin="1s"/>
+              </line>
+              <line x1="26.5" y1="15" x2="27.5" y2="13.5">
+                <animate attributeName="opacity" dur="3s" repeatCount="indefinite" values="0.3;0.7;0.3" begin="0.8s"/>
+              </line>
+              <line x1="21.5" y1="15" x2="20.5" y2="13.5">
+                <animate attributeName="opacity" dur="3s" repeatCount="indefinite" values="0.6;0.3;0.6" begin="1.5s"/>
+              </line>
+            </g>
+          </svg>
+        </div>
+        <span>120px</span>
+      </div>
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="d-bg-48" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#023e6b"/>
+                <stop offset="100%" stop-color="#0077b6"/>
+              </linearGradient>
+              <radialGradient id="d-glow-48" cx="24" cy="18" r="8" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#ffd166" stop-opacity="0.8"/>
+                <stop offset="100%" stop-color="#f4a261" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle cx="24" cy="24" r="24" fill="url(#d-bg-48)"/>
+            <circle cx="24" cy="19" r="7" fill="url(#d-glow-48)">
+              <animate attributeName="opacity" dur="3s" repeatCount="indefinite" values="0.7;1;0.7"/>
+            </circle>
+            <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28"
+              stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none">
+              <animate attributeName="d" dur="4s" repeatCount="indefinite"
+                values="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28;
+                        M8 30 Q14 20 20 30 Q24 36 28 30 Q34 20 40 30;
+                        M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28"/>
+            </path>
+            <circle cx="24" cy="19" r="2.2" fill="#ffd166">
+              <animate attributeName="r" dur="3s" repeatCount="indefinite" values="1.8;2.8;1.8"/>
+            </circle>
+            <g stroke="#ffd166" stroke-width="0.8" stroke-linecap="round" opacity="0.5">
+              <line x1="24" y1="14.5" x2="24" y2="13"/>
+              <line x1="28" y1="17" x2="29.5" y2="16"/>
+              <line x1="20" y1="17" x2="18.5" y2="16"/>
+            </g>
+          </svg>
+        </div>
+        <span>48px</span>
+      </div>
+      <div class="logo-size">
+        <div class="logo-container">
+          <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="24" fill="#0a4f82"/>
+            <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28"
+              stroke="white" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <circle cx="24" cy="18" r="3.5" fill="#ffd166"/>
+          </svg>
+        </div>
+        <span>16px</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Background comparison strip -->
+<hr class="section-divider">
+<p class="bg-test-title">Background Compatibility (48px)</p>
+<div class="bg-test-grid">
+  <!-- Option A on light -->
+  <div class="bg-test-cell light">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="24" r="24" fill="#0077b6"/>
+      <path d="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20" stroke="white" stroke-width="3" stroke-linecap="round" fill="none">
+        <animate attributeName="d" dur="3s" repeatCount="indefinite"
+          values="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20"/>
+      </path>
+    </svg>
+    <span>A — Light</span>
+  </div>
+  <!-- Option B on light -->
+  <div class="bg-test-cell light">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <defs>
+        <linearGradient id="bl-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#0077b6"/><stop offset="100%" stop-color="#00b4d8"/>
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="24" fill="url(#bl-grad)"/>
+      <circle cx="24" cy="32" r="2.5" fill="white"/>
+      <path d="M18 26 Q21 20 24 26 Q27 20 30 26" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M14 22 Q19 13 24 22 Q29 13 34 22" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/>
+      <path d="M10 18 Q17 7 24 18 Q31 7 38 18" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.45"/>
+    </svg>
+    <span>B — Light</span>
+  </div>
+  <!-- Option C on light -->
+  <div class="bg-test-cell light">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <defs>
+        <linearGradient id="cl-grad" x1="0" y1="8" x2="48" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#0077b6"/><stop offset="100%" stop-color="#00b4d8"/>
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="24" fill="url(#cl-grad)"/>
+      <path d="M8 28 Q8 18 16 18 L32 18 Q40 18 40 28 L40 30 Q40 36 34 36 L20 36 L14 40 L16 36 L14 36 Q8 36 8 30 Z" fill="white" opacity="0.95"/>
+      <path d="M13 26 Q16.5 21 20 26 Q23.5 31 27 26 Q30.5 21 34 26" stroke="#0077b6" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    </svg>
+    <span>C — Light</span>
+  </div>
+  <!-- Option D on light -->
+  <div class="bg-test-cell light">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <defs>
+        <linearGradient id="dl-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#023e6b"/><stop offset="100%" stop-color="#0077b6"/>
+        </linearGradient>
+        <radialGradient id="dl-glow" cx="24" cy="18" r="8" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#ffd166" stop-opacity="0.8"/><stop offset="100%" stop-color="#f4a261" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <circle cx="24" cy="24" r="24" fill="url(#dl-bg)"/>
+      <circle cx="24" cy="19" r="7" fill="url(#dl-glow)"/>
+      <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <circle cx="24" cy="19" r="2.2" fill="#ffd166"/>
+      <g stroke="#ffd166" stroke-width="0.8" stroke-linecap="round" opacity="0.5">
+        <line x1="24" y1="14.5" x2="24" y2="13"/><line x1="28" y1="17" x2="29.5" y2="16"/><line x1="20" y1="17" x2="18.5" y2="16"/>
+      </g>
+    </svg>
+    <span>D — Light</span>
+  </div>
+  <!-- Option A on dark -->
+  <div class="bg-test-cell dark">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="24" r="24" fill="#0077b6"/>
+      <path d="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20" stroke="white" stroke-width="3" stroke-linecap="round" fill="none">
+        <animate attributeName="d" dur="3s" repeatCount="indefinite"
+          values="M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20;M10 24 Q16 36 22 24 Q28 12 34 24 Q38 30 38 30;M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20"/>
+      </path>
+    </svg>
+    <span>A — Dark</span>
+  </div>
+  <!-- Option B on dark -->
+  <div class="bg-test-cell dark">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <defs>
+        <linearGradient id="bd-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#0077b6"/><stop offset="100%" stop-color="#00b4d8"/>
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="24" fill="url(#bd-grad)"/>
+      <circle cx="24" cy="32" r="2.5" fill="white"/>
+      <path d="M18 26 Q21 20 24 26 Q27 20 30 26" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M14 22 Q19 13 24 22 Q29 13 34 22" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/>
+      <path d="M10 18 Q17 7 24 18 Q31 7 38 18" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.45"/>
+    </svg>
+    <span>B — Dark</span>
+  </div>
+  <!-- Option C on dark -->
+  <div class="bg-test-cell dark">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <defs>
+        <linearGradient id="cd-grad" x1="0" y1="8" x2="48" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#0077b6"/><stop offset="100%" stop-color="#00b4d8"/>
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="24" fill="url(#cd-grad)"/>
+      <path d="M8 28 Q8 18 16 18 L32 18 Q40 18 40 28 L40 30 Q40 36 34 36 L20 36 L14 40 L16 36 L14 36 Q8 36 8 30 Z" fill="white" opacity="0.95"/>
+      <path d="M13 26 Q16.5 21 20 26 Q23.5 31 27 26 Q30.5 21 34 26" stroke="#0077b6" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    </svg>
+    <span>C — Dark</span>
+  </div>
+  <!-- Option D on dark -->
+  <div class="bg-test-cell dark">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <defs>
+        <linearGradient id="dd-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#023e6b"/><stop offset="100%" stop-color="#0077b6"/>
+        </linearGradient>
+        <radialGradient id="dd-glow" cx="24" cy="18" r="8" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#ffd166" stop-opacity="0.8"/><stop offset="100%" stop-color="#f4a261" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <circle cx="24" cy="24" r="24" fill="url(#dd-bg)"/>
+      <circle cx="24" cy="19" r="7" fill="url(#dd-glow)">
+        <animate attributeName="opacity" dur="3s" repeatCount="indefinite" values="0.7;1;0.7"/>
+      </circle>
+      <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none">
+        <animate attributeName="d" dur="4s" repeatCount="indefinite"
+          values="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28;M8 30 Q14 20 20 30 Q24 36 28 30 Q34 20 40 30;M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28"/>
+      </path>
+      <circle cx="24" cy="19" r="2.2" fill="#ffd166">
+        <animate attributeName="r" dur="3s" repeatCount="indefinite" values="1.8;2.8;1.8"/>
+      </circle>
+      <g stroke="#ffd166" stroke-width="0.8" stroke-linecap="round" opacity="0.5">
+        <line x1="24" y1="14.5" x2="24" y2="13"/><line x1="28" y1="17" x2="29.5" y2="16"/><line x1="20" y1="17" x2="18.5" y2="16"/>
+      </g>
+    </svg>
+    <span>D — Dark</span>
+  </div>
+</div>
+
+</body>
+</html>

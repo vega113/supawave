@@ -97,4 +97,10 @@ public interface Actions {
    *        if false, discard all draft changes.
    */
   void leaveDraftMode(boolean saveChanges);
+
+  /**
+   * Toggles draft mode: enters draft if currently in normal mode,
+   * or leaves draft (saving changes) if already in draft mode.
+   */
+  void toggleDraftMode();
 }

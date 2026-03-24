@@ -151,7 +151,10 @@ public final class ParticipantController {
       @Nullable String localDomain, String addresses) throws InvalidParticipantAddress {
     Preconditions.checkNotNull(addresses, "Expected non-null address");
 
-    String[] addressList = addresses.split(",");
+    // Coerce via String.valueOf() to protect against GWT JSNI type confusion
+    // where a non-string JS value might be passed as a Java String parameter.
+    String safeAddresses = String.valueOf((Object) addresses);
+    String[] addressList = safeAddresses.split(",");
     ParticipantId[] participants = new ParticipantId[addressList.length];
 
     for (int i = 0; i < addressList.length; i++) {

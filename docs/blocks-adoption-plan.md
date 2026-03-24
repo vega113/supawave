@@ -435,11 +435,14 @@ Status: planned
 
 ## Remaining Work (Ordered Checklist)
 
-1) Real SegmentWaveletState (storage‑backed)
-- Design: interval schema and indices; migration strategy from snapshots/deltas.
-- Implement read path with caching; write/migration task to prefill common intervals.
-- Prefer real state in `FragmentsFetcher` when available (flag‑gated); compat remains the
-  fallback.
+1) Real SegmentWaveletState (storage‑backed) — **deferred indefinitely (2026-03-24)**
+- **Decision:** The deeper blocks data layer will not be adopted. The current compat
+  shim is sufficient. See `docs/snapshot-gating-decision.md`.
+- Original scope (preserved for reference):
+  - Design: interval schema and indices; migration strategy from snapshots/deltas.
+  - Implement read path with caching; write/migration task to prefill common intervals.
+  - Prefer real state in `FragmentsFetcher` when available (flag‑gated); compat remains the
+    fallback.
 
 Success criteria
 - Functional
@@ -496,11 +499,16 @@ Success criteria
 - Remove obsolete client flag paths; consolidate Typesafe defaults.
 - Deprecate or remove compat code paths once the storage-backed state is stable.
 
-6) Snapshot gating for fragment-first opens (deferred)
-- Skip initial `WaveletSnapshot` when `forceClientFragments` or equivalent fragment-only mode is active so the client can rely on ranges.
-- Ensure `ViewChannelImpl` and renderer tolerate snapshot-absent opens; guard downstream callers.
-- Measurement plan: capture WebSocket frame sizes, client scripting time, and `/statusz?show=fragments` metrics before/after the change (see docs/migrate-conversation-renderer-to-apache-wave.md for dynamic renderer context).
-- Follow-on: once snapshot gating lands, consider replacing the HTTP fallback with a native RPC requester.
+6) Snapshot gating for fragment-first opens (deferred indefinitely)
+- **Decision (2026-03-24):** Snapshot gating and the deeper Wiab.pro blocks data
+  layer are deferred indefinitely. The current delta-based storage with the compat
+  segment-state shim is sufficient for the foreseeable use case. See
+  `docs/snapshot-gating-decision.md` for the full decision record.
+- Original scope (preserved for reference):
+  - Skip initial `WaveletSnapshot` when `forceClientFragments` or equivalent fragment-only mode is active so the client can rely on ranges.
+  - Ensure `ViewChannelImpl` and renderer tolerate snapshot-absent opens; guard downstream callers.
+  - Measurement plan: capture WebSocket frame sizes, client scripting time, and `/statusz?show=fragments` metrics before/after the change (see docs/migrate-conversation-renderer-to-apache-wave.md for dynamic renderer context).
+  - Follow-on: once snapshot gating lands, consider replacing the HTTP fallback with a native RPC requester.
 
 ### Task 6.2 — Cleanup deprecated flags/paths
 

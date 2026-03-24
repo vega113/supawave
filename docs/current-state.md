@@ -227,7 +227,8 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
 - Tags / archive / saved-search user-facing functionality beyond the lower-level
   APIs already present in Apache Wave.
 - The deeper Wiab snapshot / history / blocks storage model and the
-  segment-aware reopen behavior built around it.
+  segment-aware reopen behavior built around it. (Evaluated 2026-03-24:
+  not adopting. See `docs/snapshot-gating-decision.md`.)
 
 ## Canonical execution order
 
@@ -256,7 +257,8 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
 - Decide the fragment transport path:
   - make HTTP mode fully functional, or
   - declare stream mode canonical and reduce HTTP to explicit fallback behavior.
-- Revisit snapshot gating and storage-backed segment-state follow-ups.
+- ~~Revisit snapshot gating and storage-backed segment-state follow-ups.~~
+  (Decided 2026-03-24: deferred indefinitely. See `docs/snapshot-gating-decision.md`.)
 
 ### 4. Wiab product feature evaluation and import
 

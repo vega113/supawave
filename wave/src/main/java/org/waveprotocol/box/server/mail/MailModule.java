@@ -61,13 +61,27 @@ public class MailModule extends AbstractModule {
         return new LoggingMailProvider();
 
       case "resend":
-        LOG.info("Using ResendMailProvider");
-        return new ResendMailProvider(config);
+        try {
+          LOG.info("Using ResendMailProvider");
+          return new ResendMailProvider(config);
+        } catch (Exception e) {
+          LOG.severe("Failed to create ResendMailProvider (missing resend_api_key or "
+              + "email_from_address?); falling back to LoggingMailProvider. "
+              + "Registration and other servlets will still work, but emails "
+              + "will NOT be sent. Error: " + e.getMessage());
+          return new LoggingMailProvider();
+        }
 
       default:
         // Treat as FQCN for a custom MailProvider implementation
         LOG.info("Loading custom MailProvider: " + providerName);
-        return loadCustomProvider(providerName, config);
+        try {
+          return loadCustomProvider(providerName, config);
+        } catch (Exception e) {
+          LOG.severe("Failed to load custom MailProvider '" + providerName
+              + "'; falling back to LoggingMailProvider. Error: " + e.getMessage());
+          return new LoggingMailProvider();
+        }
     }
   }
 

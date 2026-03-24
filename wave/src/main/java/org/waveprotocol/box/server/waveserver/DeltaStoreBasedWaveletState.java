@@ -31,10 +31,16 @@ import com.google.common.util.concurrent.ListenableFutureTask;
 
 import org.waveprotocol.box.common.ListReceiver;
 import org.waveprotocol.box.common.Receiver;
+import org.waveprotocol.box.common.comms.WaveClientRpc.WaveletSnapshot;
+import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.persistence.SnapshotRecord;
+import org.waveprotocol.box.server.persistence.SnapshotStore;
+import org.waveprotocol.box.server.persistence.protos.ProtoSnapshotStoreData.PersistedWaveletSnapshot;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.wave.federation.Proto.ProtocolAppliedWaveletDelta;
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.OperationException;
 import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
@@ -99,7 +105,7 @@ class DeltaStoreBasedWaveletState implements WaveletState {
   }
 
   /**
-   * Creates a new delta store based state.
+   * Creates a new delta store based state (legacy, without snapshot support).
    *
    * The executor must ensure that only one thread executes at any time for each
    * state instance.
@@ -112,20 +118,108 @@ class DeltaStoreBasedWaveletState implements WaveletState {
    */
   public static DeltaStoreBasedWaveletState create(DeltaStore.DeltasAccess deltasAccess,
       Executor persistExecutor) throws PersistenceException {
+    return create(deltasAccess, null, 0, persistExecutor);
+  }
+
+  /**
+   * Creates a new delta store based state, optionally loading from a snapshot.
+   *
+   * If a valid snapshot is available in the snapshot store, only deltas after
+   * the snapshot version are replayed. If no snapshot is found or validation
+   * fails, falls back to full replay from version 0.
+   *
+   * @param deltasAccess delta store accessor
+   * @param snapshotStore snapshot store (nullable; null disables snapshots)
+   * @param snapshotInterval delta count between snapshot writes (0 = disabled)
+   * @param persistExecutor executor for making persistence calls
+   * @return a state initialized from the deltas
+   * @throws PersistenceException if a failure occurs while reading or
+   *         processing stored deltas
+   */
+  public static DeltaStoreBasedWaveletState create(DeltaStore.DeltasAccess deltasAccess,
+      SnapshotStore snapshotStore, int snapshotInterval,
+      Executor persistExecutor) throws PersistenceException {
     if (deltasAccess.isEmpty()) {
       return new DeltaStoreBasedWaveletState(deltasAccess, ImmutableList.<WaveletDeltaRecord>of(),
-          null, persistExecutor);
-    } else {
+          null, snapshotStore, snapshotInterval, persistExecutor);
+    }
+
+    WaveletName waveletName = deltasAccess.getWaveletName();
+    WaveletData snapshot = null;
+
+    // Try to load from snapshot store
+    if (snapshotStore != null) {
       try {
-        ImmutableList<WaveletDeltaRecord> deltas = readAll(deltasAccess, null);
-        WaveletData snapshot = WaveletDataUtil.buildWaveletFromDeltas(deltasAccess.getWaveletName(),
-            Iterators.transform(deltas.iterator(), TRANSFORMED));
-        return new DeltaStoreBasedWaveletState(deltasAccess, deltas, snapshot, persistExecutor);
-      } catch (IOException e) {
-        throw new PersistenceException("Failed to read stored deltas", e);
-      } catch (OperationException e) {
-        throw new PersistenceException("Failed to compose stored deltas", e);
+        SnapshotRecord record = snapshotStore.getLatestSnapshot(waveletName);
+        if (record != null && record.getVersion() <= deltasAccess.getEndVersion().getVersion()) {
+          PersistedWaveletSnapshot persisted =
+              PersistedWaveletSnapshot.parseFrom(record.getSnapshotData());
+          snapshot = SnapshotSerializer.deserializeWavelet(
+              persisted.getSnapshot(),
+              WaveId.deserialise(persisted.getWaveId()));
+          HashedVersion snapshotHashedVersion = snapshot.getHashedVersion();
+
+          // Validate: the snapshot's hashed version must correspond to
+          // an actual delta boundary in the delta store, with matching hash.
+          if (!snapshotHashedVersion.equals(deltasAccess.getEndVersion())) {
+            HashedVersion storedHash = deltasAccess.getAppliedAtVersion(
+                snapshotHashedVersion.getVersion());
+            if (storedHash == null || !storedHash.equals(snapshotHashedVersion)) {
+              LOG.warning("Snapshot hashed version " + snapshotHashedVersion
+                  + " does not match delta store boundary (stored: " + storedHash
+                  + "), falling back to full replay for " + waveletName);
+              snapshot = null;
+            }
+          }
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to load snapshot for " + waveletName
+            + ", falling back to full replay: " + e);
+        snapshot = null;
       }
+    }
+
+    // Replay deltas from snapshot version (or zero) to end
+    try {
+      if (snapshot != null) {
+        // Partial replay from snapshot version to delta store end
+        try {
+          HashedVersion startHash = snapshot.getHashedVersion();
+          HashedVersion endHash = deltasAccess.getEndVersion();
+          if (startHash.getVersion() < endHash.getVersion()) {
+            ListReceiver<WaveletDeltaRecord> receiver = new ListReceiver<WaveletDeltaRecord>();
+            readDeltasInRange(deltasAccess, null, startHash, endHash, receiver);
+            for (WaveletDeltaRecord record : receiver) {
+              WaveletDataUtil.applyWaveletDelta(record.getTransformedDelta(), snapshot);
+            }
+          }
+          // Final validation: snapshot version must match delta store end version
+          if (!snapshot.getHashedVersion().equals(deltasAccess.getEndVersion())) {
+            throw new IOException("Snapshot version " + snapshot.getHashedVersion()
+                + " doesn't match expected end version " + deltasAccess.getEndVersion()
+                + " after partial replay");
+          }
+        } catch (Exception e) {
+          LOG.warning("Partial replay from snapshot failed for " + waveletName
+              + ", falling back to full replay: " + e);
+          snapshot = null;  // triggers full replay below
+        }
+      }
+
+      if (snapshot == null) {
+        // Full replay (current behavior, also used as fallback)
+        ImmutableList<WaveletDeltaRecord> deltas = readAll(deltasAccess, null);
+        snapshot = WaveletDataUtil.buildWaveletFromDeltas(
+            waveletName, Iterators.transform(deltas.iterator(), TRANSFORMED));
+      }
+
+      return new DeltaStoreBasedWaveletState(
+          deltasAccess, snapshot,
+          snapshotStore, snapshotInterval, persistExecutor);
+    } catch (IOException e) {
+      throw new PersistenceException("Failed to read stored deltas", e);
+    } catch (OperationException e) {
+      throw new PersistenceException("Failed to compose stored deltas", e);
     }
   }
 
@@ -179,6 +273,24 @@ class DeltaStoreBasedWaveletState implements WaveletState {
   private final HashedVersion versionZero;
   private final DeltaStore.DeltasAccess deltasAccess;
 
+  /** Optional snapshot store for periodic snapshot persistence. */
+  private final SnapshotStore snapshotStore;
+
+  /** Number of deltas between snapshot writes. 0 = disabled. */
+  private final int snapshotInterval;
+
+  /** Counts deltas appended since last snapshot was captured. */
+  private int deltasSinceLastSnapshot = 0;
+
+  /**
+   * Immutable snapshot copy queued for persist-time serialization.
+   * Set by appendDelta() under the container lock when the delta count
+   * crosses a snapshot boundary. Consumed atomically by the persist
+   * thread via getAndSet(null).
+   */
+  private final AtomicReference<ReadableWaveletData> pendingSnapshotCopy =
+      new AtomicReference<>(null);
+
   /** The lock that guards access to persistence related state. */
   private final Object persistLock = new Object();
 
@@ -221,6 +333,42 @@ class DeltaStoreBasedWaveletState implements WaveletState {
         Preconditions.checkState(v.equals(version));
         deltasAccess.append(deltas.build());
       }
+      // After successful delta persistence, store a pending snapshot if any.
+      // Atomically consume the pending copy, then check whether its version
+      // is covered by the deltas we just persisted.  If the snapshot is ahead
+      // of what is durable, put it back for the next persist task.
+      if (snapshotStore != null) {
+        ReadableWaveletData snapCopy = pendingSnapshotCopy.getAndSet(null);
+        if (snapCopy != null) {
+          if (snapCopy.getHashedVersion().getVersion() <= version.getVersion()) {
+            // Safe to store: all referenced deltas are durable.
+            try {
+              WaveletSnapshot proto = SnapshotSerializer.serializeWavelet(
+                  snapCopy, snapCopy.getHashedVersion());
+              PersistedWaveletSnapshot persisted = PersistedWaveletSnapshot.newBuilder()
+                  .setWaveId(snapCopy.getWaveId().serialise())
+                  .setSnapshot(proto)
+                  .build();
+              snapshotStore.storeSnapshot(
+                  deltasAccess.getWaveletName(),
+                  persisted.toByteArray(),
+                  snapCopy.getHashedVersion().getVersion());
+            } catch (Exception e) {
+              LOG.warning("Failed to store snapshot at version "
+                  + snapCopy.getHashedVersion().getVersion() + " for "
+                  + deltasAccess.getWaveletName() + ": " + e);
+              // Non-fatal: snapshots are optimization only
+            }
+          } else {
+            // Snapshot is ahead of persisted deltas -- put it back.
+            // Use compareAndSet(null, snapCopy) so we don't clobber a
+            // newer copy that appendDelta() may have set concurrently.
+            // If CAS fails, the newer copy subsumes this one (and will
+            // be picked up by the next persist task).
+            pendingSnapshotCopy.compareAndSet(null, snapCopy);
+          }
+        }
+      }
       synchronized (persistLock) {
         Preconditions.checkState(last == lastPersistedVersion.get(),
             "lastPersistedVersion changed while we were writing to storage");
@@ -256,7 +404,7 @@ class DeltaStoreBasedWaveletState implements WaveletState {
   private final AtomicReference<HashedVersion> lastPersistedVersion;
 
   /**
-   * Constructs a wavelet state with the given deltas and snapshot.
+   * Constructs a wavelet state with the given deltas and snapshot (legacy, no snapshot store).
    * The deltas must be the contents of deltasAccess, and they
    * must be contiguous from version zero.
    * The snapshot must be the composition of the deltas, or null if there
@@ -266,12 +414,42 @@ class DeltaStoreBasedWaveletState implements WaveletState {
   @VisibleForTesting
   DeltaStoreBasedWaveletState(DeltaStore.DeltasAccess deltasAccess,
       List<WaveletDeltaRecord> deltas, WaveletData snapshot, Executor persistExecutor) {
+    this(deltasAccess, deltas, snapshot, null, 0, persistExecutor);
+  }
+
+  /**
+   * Constructs a wavelet state with the given deltas, snapshot and snapshot store.
+   */
+  @VisibleForTesting
+  DeltaStoreBasedWaveletState(DeltaStore.DeltasAccess deltasAccess,
+      List<WaveletDeltaRecord> deltas, WaveletData snapshot,
+      SnapshotStore snapshotStore, int snapshotInterval,
+      Executor persistExecutor) {
     Preconditions.checkArgument(deltasAccess.isEmpty() == deltas.isEmpty());
     Preconditions.checkArgument(deltas.isEmpty() == (snapshot == null));
     this.persistExecutor = persistExecutor;
     this.versionZero = HASH_FACTORY.createVersionZero(deltasAccess.getWaveletName());
     this.deltasAccess = deltasAccess;
     this.snapshot = snapshot;
+    this.snapshotStore = snapshotStore;
+    this.snapshotInterval = snapshotInterval;
+    this.lastPersistedVersion = new AtomicReference<HashedVersion>(deltasAccess.getEndVersion());
+  }
+
+  /**
+   * Constructs a wavelet state with a pre-built snapshot (no delta list required).
+   * Used by the snapshot-aware create() factory method.
+   */
+  private DeltaStoreBasedWaveletState(DeltaStore.DeltasAccess deltasAccess,
+      WaveletData snapshot, SnapshotStore snapshotStore, int snapshotInterval,
+      Executor persistExecutor) {
+    Preconditions.checkArgument(deltasAccess.isEmpty() == (snapshot == null));
+    this.persistExecutor = persistExecutor;
+    this.versionZero = HASH_FACTORY.createVersionZero(deltasAccess.getWaveletName());
+    this.deltasAccess = deltasAccess;
+    this.snapshot = snapshot;
+    this.snapshotStore = snapshotStore;
+    this.snapshotInterval = snapshotInterval;
     this.lastPersistedVersion = new AtomicReference<HashedVersion>(deltasAccess.getEndVersion());
   }
 
@@ -450,6 +628,16 @@ class DeltaStoreBasedWaveletState implements WaveletState {
 
     // Now that we built the snapshot without any exceptions, we record the delta.
     cachedDeltas.put(deltaRecord.getAppliedAtVersion(), deltaRecord);
+
+    // Check if we should capture a snapshot for persistence.
+    deltasSinceLastSnapshot++;
+    if (snapshotStore != null && snapshotInterval > 0
+        && deltasSinceLastSnapshot >= snapshotInterval) {
+      // Take a defensive copy under the container lock.
+      // If a previous copy has not yet been consumed, the newer one subsumes it.
+      pendingSnapshotCopy.set(WaveletDataUtil.copyWavelet(snapshot));
+      deltasSinceLastSnapshot = 0;
+    }
   }
 
   @Override

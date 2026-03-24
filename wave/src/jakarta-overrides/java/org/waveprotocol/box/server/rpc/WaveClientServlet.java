@@ -67,6 +67,8 @@ public class WaveClientServlet extends HttpServlet {
   private final boolean hasExplicitWebsocketPresentedAddress;
   private final String websocketPresentedAddress;
   private final Config config;
+  private final String serverVersion;
+  private final long serverBuildTime;
 
   @Inject
   public WaveClientServlet(
@@ -89,6 +91,9 @@ public class WaveClientServlet extends HttpServlet {
     this.analyticsAccount = config.getString("administration.analytics_account");
     this.sessionManager = sessionManager;
     this.config = config;
+    this.serverVersion = config.hasPath("core.server_version")
+        ? config.getString("core.server_version") : "dev";
+    this.serverBuildTime = System.currentTimeMillis();
   }
 
   @Override
@@ -137,7 +142,9 @@ public class WaveClientServlet extends HttpServlet {
           getClientFlags(request),
           wsAddressForPage,
           topBarHtml,
-          analyticsAccount));
+          analyticsAccount,
+          serverVersion,
+          serverBuildTime));
     } catch (IOException e) {
       LOG.warning("Failed to render WaveClient page", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

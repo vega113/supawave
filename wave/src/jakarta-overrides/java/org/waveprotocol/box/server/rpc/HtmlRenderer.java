@@ -1023,7 +1023,8 @@ public final class HtmlRenderer {
    * @param analyticsAccount Google Analytics account ID (may be null/empty)
    */
   public static String renderWaveClientPage(JSONObject sessionJson, JSONObject clientFlags,
-      String websocketAddress, String topBarHtml, String analyticsAccount) {
+      String websocketAddress, String topBarHtml, String analyticsAccount,
+      String serverVersion, long serverBuildTime) {
     StringBuilder sb = new StringBuilder(4096);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n");
@@ -1366,7 +1367,7 @@ public final class HtmlRenderer {
     sb.append("})();\n");
     sb.append("</script>\n");
     // -- Version upgrade detection polling --
-    appendVersionCheckScript(sb);
+    appendVersionCheckScript(sb, serverVersion, serverBuildTime);
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -1376,11 +1377,12 @@ public final class HtmlRenderer {
    * shows a non-intrusive banner when the server version or build time changes
    * (i.e. the server has been upgraded while the client page is still open).
    */
-  private static void appendVersionCheckScript(StringBuilder sb) {
+  private static void appendVersionCheckScript(StringBuilder sb,
+      String serverVersion, long serverBuildTime) {
     sb.append("<script>\n");
     sb.append("(function() {\n");
-    sb.append("  var currentVersion = null;\n");
-    sb.append("  var currentBuildTime = null;\n");
+    sb.append("  var currentVersion = ").append(escapeJsonString(serverVersion)).append(";\n");
+    sb.append("  var currentBuildTime = ").append(serverBuildTime).append(";\n");
     sb.append("  var pollInFlight = false;\n");
     sb.append("  function checkVersion() {\n");
     sb.append("    if (pollInFlight) return;\n");
@@ -1388,10 +1390,7 @@ public final class HtmlRenderer {
     sb.append("    fetch('/version', {cache: 'no-store'})\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
-    sb.append("        if (currentVersion === null) {\n");
-    sb.append("          currentVersion = data.version;\n");
-    sb.append("          currentBuildTime = data.buildTime;\n");
-    sb.append("        } else if (data.version !== currentVersion || data.buildTime !== currentBuildTime) {\n");
+    sb.append("        if (data.version !== currentVersion || data.buildTime !== currentBuildTime) {\n");
     sb.append("          showUpgradeBanner();\n");
     sb.append("        }\n");
     sb.append("      })\n");

@@ -78,6 +78,9 @@ public class ProtoAccountDataSerializer {
     if (account.getPasswordDigest() != null) {
       builder.setPasswordDigest(serialize(account.getPasswordDigest()));
     }
+    if (account.getEmail() != null) {
+      builder.setEmail(account.getEmail());
+    }
     return builder.build();
   }
 
@@ -145,11 +148,16 @@ public class ProtoAccountDataSerializer {
 
   private static HumanAccountData deserialize(String account_id, ProtoHumanAccountData data) {
     ParticipantId id = ParticipantId.ofUnsafe(account_id);
+    HumanAccountDataImpl account;
     if (data.hasPasswordDigest()) {
-      return new HumanAccountDataImpl(id, deserialize(data.getPasswordDigest()));
+      account = new HumanAccountDataImpl(id, deserialize(data.getPasswordDigest()));
     } else {
-      return new HumanAccountDataImpl(id);
+      account = new HumanAccountDataImpl(id);
     }
+    if (data.hasEmail()) {
+      account.setEmail(data.getEmail());
+    }
+    return account;
   }
 
   private static PasswordDigest deserialize(ProtoPasswordDigest data) {

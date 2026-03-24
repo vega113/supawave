@@ -654,9 +654,11 @@ public final class HtmlRenderer {
    * @param responseType        one of "NONE", "FAILED", "SUCCESS"
    * @param disableRegistration if true, show a disabled notice instead of the form
    * @param analyticsAccount    Google Analytics account ID (may be null/empty)
+   * @param emailRequired       if true, email field is required; otherwise optional
    */
   public static String renderUserRegistrationPage(String domain, String message,
-      String responseType, boolean disableRegistration, String analyticsAccount) {
+      String responseType, boolean disableRegistration, String analyticsAccount,
+      boolean emailRequired) {
     StringBuilder sb = new StringBuilder(8192);
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
@@ -690,13 +692,19 @@ public final class HtmlRenderer {
       sb.append("        <input type=\"text\" name=\"address\" id=\"address\" tabindex=\"1\" autocomplete=\"username\" placeholder=\"your.name\">\n");
       sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
       sb.append("      </div>\n");
+      if (emailRequired) {
+        sb.append("      <label for=\"email\">Email</label>\n");
+      } else {
+        sb.append("      <label for=\"email\">Email <span style=\"font-weight:normal;color:#999;\">(optional)</span></label>\n");
+      }
+      sb.append("      <input type=\"email\" name=\"email\" id=\"email\" tabindex=\"2\" autocomplete=\"email\" placeholder=\"your@email.com\">\n");
       sb.append("      <label for=\"password\">Password</label>\n");
-      sb.append("      <input type=\"password\" name=\"password\" id=\"password\" tabindex=\"2\" autocomplete=\"new-password\" placeholder=\"Choose a password\">\n");
+      sb.append("      <input type=\"password\" name=\"password\" id=\"password\" tabindex=\"3\" autocomplete=\"new-password\" placeholder=\"Choose a password\">\n");
       sb.append("      <label for=\"verifypass\">Confirm Password</label>\n");
-      sb.append("      <input type=\"password\" name=\"verifypass\" id=\"verifypass\" tabindex=\"3\" autocomplete=\"new-password\" placeholder=\"Re-enter your password\">\n");
+      sb.append("      <input type=\"password\" name=\"verifypass\" id=\"verifypass\" tabindex=\"4\" autocomplete=\"new-password\" placeholder=\"Re-enter your password\">\n");
       sb.append("      <div class=\"buttons\">\n");
-      sb.append("        <input type=\"button\" class=\"btn-secondary\" value=\"Cancel\" onclick=\"history.go(-1)\" tabindex=\"4\">\n");
-      sb.append("        <input type=\"button\" class=\"btn-primary\" value=\"Create Account\" tabindex=\"5\" onclick=\"validate()\" style=\"flex:1;\">\n");
+      sb.append("        <input type=\"button\" class=\"btn-secondary\" value=\"Cancel\" onclick=\"history.go(-1)\" tabindex=\"5\">\n");
+      sb.append("        <input type=\"button\" class=\"btn-primary\" value=\"Create Account\" tabindex=\"6\" onclick=\"validate()\" style=\"flex:1;\">\n");
       sb.append("      </div>\n");
       sb.append("    </form>\n");
     }
@@ -714,6 +722,7 @@ public final class HtmlRenderer {
     sb.append("var message = ").append(escapeJsonString(message)).append(";\n");
     sb.append("var responseType = ").append(escapeJsonString(responseType)).append(";\n");
     sb.append("var domain = ").append(escapeJsonString(domain)).append(";\n");
+    sb.append("var emailRequired = ").append(emailRequired).append(";\n");
     sb.append("function init() { setFocus(); handleResponse(responseType, message); }\n");
     sb.append("function setFocus() { var el = document.getElementById(\"address\"); if (el) el.focus(); }\n");
     sb.append("function handleResponse(rt, msg) {\n");
@@ -734,6 +743,13 @@ public final class HtmlRenderer {
     sb.append("  if (!isAlphaNumeric(address)) {\n");
     sb.append("    handleResponse(RESPONSE_STATUS_FAILED, \"Only letters (a-z), numbers (0-9), and periods (.) are allowed in Username\"); return;\n");
     sb.append("  }\n");
+    sb.append("  var email = document.getElementById(\"email\").value.trim();\n");
+    sb.append("  if (emailRequired && email.length < 1) {\n");
+    sb.append("    handleResponse(RESPONSE_STATUS_FAILED, \"Email address is required\"); return;\n");
+    sb.append("  }\n");
+    sb.append("  if (email.length > 0 && !isValidEmail(email)) {\n");
+    sb.append("    handleResponse(RESPONSE_STATUS_FAILED, \"Please enter a valid email address\"); return;\n");
+    sb.append("  }\n");
     sb.append("  var password = document.getElementById(\"password\").value;\n");
     sb.append("  var verifypass = document.getElementById(\"verifypass\").value;\n");
     sb.append("  if (password != null && verifypass != null && password != verifypass) {\n");
@@ -744,6 +760,9 @@ public final class HtmlRenderer {
     sb.append("}\n");
     sb.append("function isAlphaNumeric(s) {\n");
     sb.append("  return s.length > 0 && s.search(/[^a-zA-Z0-9.]/g) == -1;\n");
+    sb.append("}\n");
+    sb.append("function isValidEmail(s) {\n");
+    sb.append("  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(s);\n");
     sb.append("}\n");
     sb.append("</script>\n");
     sb.append("</body>\n</html>\n");
@@ -1683,16 +1702,13 @@ public final class HtmlRenderer {
 
     sb.append("  <div class=\"card\">\n");
     sb.append("    <h1>Reset Password</h1>\n");
-    sb.append("    <div class=\"subtitle\">Enter your username to receive a reset link</div>\n");
+    sb.append("    <div class=\"subtitle\">Enter your username or email to receive a reset link</div>\n");
 
     sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
 
     sb.append("    <form id=\"resetForm\" method=\"post\" action=\"\">\n");
-    sb.append("      <label for=\"address\">Username</label>\n");
-    sb.append("      <div class=\"input-group\">\n");
-    sb.append("        <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
-    sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
-    sb.append("      </div>\n");
+    sb.append("      <label for=\"address\">Username or Email</label>\n");
+    sb.append("      <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\" placeholder=\"username or your@email.com\">\n");
     sb.append("      <input type=\"submit\" class=\"btn-primary\" value=\"Send Reset Link\" style=\"width:100%;\">\n");
     sb.append("    </form>\n");
 
@@ -1821,16 +1837,13 @@ public final class HtmlRenderer {
 
     sb.append("  <div class=\"card\">\n");
     sb.append("    <h1>Login with Email</h1>\n");
-    sb.append("    <div class=\"subtitle\">Enter your username to receive a login link</div>\n");
+    sb.append("    <div class=\"subtitle\">Enter your username or email to receive a login link</div>\n");
 
     sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
 
     sb.append("    <form id=\"magicForm\" method=\"post\" action=\"\">\n");
-    sb.append("      <label for=\"address\">Username</label>\n");
-    sb.append("      <div class=\"input-group\">\n");
-    sb.append("        <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\">\n");
-    sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
-    sb.append("      </div>\n");
+    sb.append("      <label for=\"address\">Username or Email</label>\n");
+    sb.append("      <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\" placeholder=\"username or your@email.com\">\n");
     sb.append("      <input type=\"submit\" class=\"btn-primary\" value=\"Send Login Link\" style=\"width:100%;\">\n");
     sb.append("    </form>\n");
 

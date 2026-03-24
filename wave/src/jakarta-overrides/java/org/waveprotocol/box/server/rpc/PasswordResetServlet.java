@@ -134,30 +134,44 @@ public final class PasswordResetServlet extends HttpServlet {
 
   private void handleResetRequest(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
-    String username = req.getParameter("address");
+    String input = req.getParameter("address");
     // Always show the same message to prevent user enumeration
     String successMessage = "If an account exists with that address, a reset link has been sent.";
 
-    if (username == null || username.trim().isEmpty()) {
+    if (input == null || input.trim().isEmpty()) {
       writeRequestPage(resp, successMessage,
           AuthenticationServlet.RESPONSE_STATUS_SUCCESS, HttpServletResponse.SC_OK);
       return;
     }
 
-    String normalized = username.trim().toLowerCase(Locale.ROOT);
-    if (!normalized.contains("@")) {
-      normalized = normalized + "@" + domain;
-    }
+    String normalized = input.trim().toLowerCase(Locale.ROOT);
 
     try {
-      ParticipantId id = ParticipantId.of(normalized);
-      AccountData account = accountStore.getAccount(id);
+      AccountData account = null;
+
+      // If it looks like an external email (contains @ and is not a wave address),
+      // try looking up by email first.
+      if (normalized.contains("@") && !normalized.endsWith("@" + domain)) {
+        account = accountStore.getAccountByEmail(normalized);
+      }
+
+      // Fall back to participant ID lookup
+      if (account == null) {
+        String participantAddr = normalized.contains("@") ? normalized : normalized + "@" + domain;
+        ParticipantId id = ParticipantId.of(participantAddr);
+        account = accountStore.getAccount(id);
+      }
+
       if (account != null && account.isHuman()) {
-        String jwtToken = emailTokenIssuer.issuePasswordResetToken(id);
+        HumanAccountData human = account.asHuman();
+        // Send to stored email if available, otherwise fall back to wave address
+        String sendTo = (human.getEmail() != null && !human.getEmail().isEmpty())
+            ? human.getEmail() : account.getId().getAddress();
+        String jwtToken = emailTokenIssuer.issuePasswordResetToken(account.getId());
         String resetUrl = buildResetUrl(req, jwtToken);
-        String emailBody = renderResetEmail(id.getAddress(), resetUrl);
-        mailProvider.sendEmail(id.getAddress(), "Password Reset - Wave", emailBody);
-        LOG.info("Password reset email sent to " + id.getAddress());
+        String emailBody = renderResetEmail(account.getId().getAddress(), resetUrl);
+        mailProvider.sendEmail(sendTo, "Password Reset - Wave", emailBody);
+        LOG.info("Password reset email sent to " + sendTo);
       } else {
         LOG.info("Password reset requested for non-existent account: " + normalized);
       }
@@ -213,8 +227,11 @@ public final class PasswordResetServlet extends HttpServlet {
 
       HumanAccountDataImpl updatedAccount =
           new HumanAccountDataImpl(participantId, digest);
-      // Preserve email confirmation status
+      // Preserve email confirmation status and email address
       updatedAccount.setEmailConfirmed(account.asHuman().isEmailConfirmed());
+      if (account.asHuman().getEmail() != null) {
+        updatedAccount.setEmail(account.asHuman().getEmail());
+      }
       accountStore.putAccount(updatedAccount);
       LOG.info("Password reset completed for user " + address);
 

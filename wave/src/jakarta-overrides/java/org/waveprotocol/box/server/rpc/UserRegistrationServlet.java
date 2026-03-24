@@ -26,8 +26,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
-import org.waveprotocol.box.server.account.AccountData;
-import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.HttpRequestBasedCallbackHandler;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
@@ -43,7 +41,6 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * Jakarta-compatible user registration servlet. Mirrors the legacy behavior
@@ -55,11 +52,15 @@ public final class UserRegistrationServlet extends HttpServlet {
 
   private static final Log LOG = Log.get(UserRegistrationServlet.class);
 
+  private static final java.util.regex.Pattern EMAIL_PATTERN =
+      java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+
   private final AccountStore accountStore;
   private final String domain;
   private final boolean registrationDisabled;
   private final String analyticsAccount;
   private final boolean emailConfirmationEnabled;
+  private final boolean emailRequired;
   private final EmailTokenIssuer emailTokenIssuer;
   private final MailProvider mailProvider;
   private final WelcomeWaveCreator welcomeWaveCreator;
@@ -79,6 +80,10 @@ public final class UserRegistrationServlet extends HttpServlet {
         : "";
     this.emailConfirmationEnabled = config.hasPath("core.email_confirmation_enabled")
         && config.getBoolean("core.email_confirmation_enabled");
+    boolean configEmailRequired = config.hasPath("core.email_required_for_registration")
+        && config.getBoolean("core.email_required_for_registration");
+    // Email is always required when email confirmation is enabled.
+    this.emailRequired = this.emailConfirmationEnabled || configEmailRequired;
     this.emailTokenIssuer = emailTokenIssuer;
     this.mailProvider = mailProvider;
     this.welcomeWaveCreator = welcomeWaveCreator;
@@ -86,7 +91,7 @@ public final class UserRegistrationServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    writeRegistrationPage("", AuthenticationServlet.RESPONSE_STATUS_NONE, req.getLocale(), resp);
+    writeRegistrationPage("", AuthenticationServlet.RESPONSE_STATUS_NONE, resp);
   }
 
   @Override
@@ -99,6 +104,7 @@ public final class UserRegistrationServlet extends HttpServlet {
       message = tryCreateUser(
           req.getParameter(HttpRequestBasedCallbackHandler.ADDRESS_FIELD),
           req.getParameter(HttpRequestBasedCallbackHandler.PASSWORD_FIELD),
+          req.getParameter("email"),
           req);
     }
 
@@ -118,10 +124,11 @@ public final class UserRegistrationServlet extends HttpServlet {
       responseType = AuthenticationServlet.RESPONSE_STATUS_SUCCESS;
     }
 
-    writeRegistrationPage(message, responseType, req.getLocale(), resp);
+    writeRegistrationPage(message, responseType, resp);
   }
 
-  private String tryCreateUser(String username, String password, HttpServletRequest req) {
+  private String tryCreateUser(String username, String password, String email,
+                               HttpServletRequest req) {
     ParticipantId id;
     try {
       id = RegistrationSupport.checkNewUsername(domain, username);
@@ -131,6 +138,15 @@ public final class UserRegistrationServlet extends HttpServlet {
 
     if (RegistrationSupport.doesAccountExist(accountStore, id)) {
       return "Account already exists";
+    }
+
+    // Normalize and validate email
+    String normalizedEmail = (email == null) ? "" : email.trim();
+    if (emailRequired && normalizedEmail.isEmpty()) {
+      return "Email address is required";
+    }
+    if (!normalizedEmail.isEmpty() && !EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
+      return "Please enter a valid email address";
     }
 
     if (password == null) {
@@ -149,6 +165,9 @@ public final class UserRegistrationServlet extends HttpServlet {
       // Create the account with emailConfirmed=false
       HumanAccountDataImpl account = new HumanAccountDataImpl(id, digest);
       account.setEmailConfirmed(false);
+      if (!normalizedEmail.isEmpty()) {
+        account.setEmail(normalizedEmail);
+      }
       try {
         accountStore.putAccount(account);
       } catch (PersistenceException e) {
@@ -156,20 +175,29 @@ public final class UserRegistrationServlet extends HttpServlet {
         return "An unexpected error occurred while trying to create the account";
       }
 
-      // Send confirmation email
+      // Send confirmation email to the provided email address
+      String sendTo = !normalizedEmail.isEmpty() ? normalizedEmail : id.getAddress();
       try {
         String token = emailTokenIssuer.issueEmailConfirmToken(id);
         String confirmUrl = buildConfirmUrl(req, token);
         String emailBody = renderConfirmEmail(id.getAddress(), confirmUrl);
-        mailProvider.sendEmail(id.getAddress(), "Confirm your Wave account", emailBody);
-        LOG.info("Confirmation email sent to " + id.getAddress());
+        mailProvider.sendEmail(sendTo, "Confirm your Wave account", emailBody);
+        LOG.info("Confirmation email sent to " + sendTo);
       } catch (MailException e) {
-        LOG.severe("Failed to send confirmation email to " + id.getAddress(), e);
+        LOG.severe("Failed to send confirmation email to " + sendTo, e);
       }
 
       return "CONFIRM_PENDING:Registration successful! Please check your email to confirm your account.";
     } else {
-      if (!RegistrationSupport.createAccount(accountStore, id, digest)) {
+      // Create account with email stored
+      HumanAccountDataImpl account = new HumanAccountDataImpl(id, digest);
+      if (!normalizedEmail.isEmpty()) {
+        account.setEmail(normalizedEmail);
+      }
+      try {
+        accountStore.putAccount(account);
+      } catch (PersistenceException e) {
+        LOG.severe("Failed to create account for " + id, e);
         return "An unexpected error occurred while trying to create the account";
       }
 
@@ -209,12 +237,12 @@ public final class UserRegistrationServlet extends HttpServlet {
         + "</body></html>";
   }
 
-  private void writeRegistrationPage(String message, String responseType, Locale locale,
+  private void writeRegistrationPage(String message, String responseType,
                                      HttpServletResponse dest) throws IOException {
     dest.setCharacterEncoding("UTF-8");
     dest.setContentType("text/html;charset=utf-8");
     String safeMessage = (message == null) ? "" : message;
     dest.getWriter().write(HtmlRenderer.renderUserRegistrationPage(domain, safeMessage,
-        responseType, registrationDisabled, analyticsAccount));
+        responseType, registrationDisabled, analyticsAccount, emailRequired));
   }
 }

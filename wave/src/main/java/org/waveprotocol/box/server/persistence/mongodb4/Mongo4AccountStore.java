@@ -34,6 +34,7 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String ACCOUNT_ROBOT_DATA_FIELD = "robot";
 
   private static final String HUMAN_PASSWORD_FIELD = "passwordDigest";
+  private static final String HUMAN_EMAIL_FIELD = "email";
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
 
@@ -99,6 +100,22 @@ final class Mongo4AccountStore implements AccountStore {
     }
   }
 
+  @Override
+  public AccountData getAccountByEmail(String email) throws PersistenceException {
+    if (email == null || email.isEmpty()) return null;
+    try {
+      Document doc = col.find(eq(ACCOUNT_HUMAN_DATA_FIELD + "." + HUMAN_EMAIL_FIELD, email)).first();
+      if (doc == null) return null;
+      String idStr = doc.getString("_id");
+      ParticipantId id = ParticipantId.ofUnsafe(idStr);
+      Document human = (Document) doc.get(ACCOUNT_HUMAN_DATA_FIELD);
+      if (human != null) return objectToHuman(id, human);
+      return null;
+    } catch (RuntimeException e) {
+      throw new PersistenceException(e);
+    }
+  }
+
   private static Document humanToObject(HumanAccountData account) {
     Document doc = new Document();
     PasswordDigest digest = account.getPasswordDigest();
@@ -106,6 +123,9 @@ final class Mongo4AccountStore implements AccountStore {
       doc.append(HUMAN_PASSWORD_FIELD, new Document()
           .append(PASSWORD_SALT_FIELD, new Binary(digest.getSalt()))
           .append(PASSWORD_DIGEST_FIELD, new Binary(digest.getDigest())));
+    }
+    if (account.getEmail() != null) {
+      doc.append(HUMAN_EMAIL_FIELD, account.getEmail());
     }
     return doc;
   }
@@ -118,7 +138,12 @@ final class Mongo4AccountStore implements AccountStore {
       Binary dig = (Binary) d.get(PASSWORD_DIGEST_FIELD);
       if (salt != null && dig != null) pd = PasswordDigest.from(salt.getData(), dig.getData());
     }
-    return new HumanAccountDataImpl(id, pd);
+    HumanAccountDataImpl account = new HumanAccountDataImpl(id, pd);
+    String email = doc.getString(HUMAN_EMAIL_FIELD);
+    if (email != null) {
+      account.setEmail(email);
+    }
+    return account;
   }
 
   private static Document robotToObject(RobotAccountData account) {

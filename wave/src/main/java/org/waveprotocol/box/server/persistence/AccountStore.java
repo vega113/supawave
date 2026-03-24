@@ -60,4 +60,17 @@ public interface AccountStore {
    * @param id the participant id of the account to remove.
    */
   void removeAccount(ParticipantId id) throws PersistenceException;
+
+  /**
+   * Returns an {@link AccountData} for the given email address, or null if
+   * no account has that email.
+   *
+   * <p>Default implementation returns null (backward compatible for stores
+   * that have not indexed by email).
+   *
+   * @param email the email address to look up.
+   */
+  default AccountData getAccountByEmail(String email) throws PersistenceException {
+    return null;
+  }
 }

@@ -62,6 +62,20 @@ public interface HumanAccountData extends AccountData {
   void setEmailConfirmed(boolean confirmed);
 
   /**
+   * Returns the user's email address, or null if none is set.
+   *
+   * @return the email address, or null.
+   */
+  String getEmail();
+
+  /**
+   * Sets the user's email address.
+   *
+   * @param email the email address, or null to clear.
+   */
+  void setEmail(String email);
+
+  /**
    * Gets user's locale.
    *
    * @return The user's locale.

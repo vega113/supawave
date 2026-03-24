@@ -36,6 +36,7 @@ import java.util.List;
 public final class HumanAccountDataImpl implements HumanAccountData {
   private final ParticipantId id;
   private final PasswordDigest passwordDigest;
+  private String email;
   private String locale;
   private boolean emailConfirmed = true;
   private List<SearchesItem> searches;
@@ -88,6 +89,16 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   }
 
   @Override
+  public String getEmail() {
+    return email;
+  }
+
+  @Override
+  public void setEmail(String email) {
+    this.email = email;
+  }
+
+  @Override
   public String getLocale() {
     return locale;
   }
@@ -133,6 +144,7 @@ public final class HumanAccountDataImpl implements HumanAccountData {
     int result = 1;
     result = prime * result + ((id == null) ? 0 : id.hashCode());
     result = prime * result + ((passwordDigest == null) ? 0 : passwordDigest.hashCode());
+    result = prime * result + ((email == null) ? 0 : email.hashCode());
     result = prime * result + ((locale == null) ? 0 : locale.hashCode());
     result = prime * result + ((searches == null) ? 0 : searches.hashCode());
     return result;
@@ -150,6 +162,9 @@ public final class HumanAccountDataImpl implements HumanAccountData {
     if (passwordDigest == null) {
       if (other.passwordDigest != null) return false;
     } else if (!passwordDigest.equals(other.passwordDigest)) return false;
+    if (email == null) {
+      if (other.email != null) return false;
+    } else if (!email.equals(other.email)) return false;
     if (locale == null) {
       if (other.locale != null) return false;
     } else if (!locale.equals(other.locale)) return false;

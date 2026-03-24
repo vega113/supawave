@@ -17,37 +17,36 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search.i18n;
+package org.waveprotocol.box.webclient.search;
 
-import com.google.gwt.i18n.client.Messages;
-import com.google.gwt.i18n.client.Messages.DefaultMessage;
+import java.util.List;
+
+import org.waveprotocol.box.searches.SearchesItem;
 
 /**
+ * Asynchronous RPC to server /searches servlet.
  *
- * @author akaplanov (Andrew Kaplanov)
+ * Ported from Wiab.pro.
+ *
+ * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
-public interface SearchPresenterMessages extends Messages {
-  @DefaultMessage("New Wave")
-  String newWave();
+public interface SearchesService {
 
-  @DefaultMessage("of {0}")
-  String of(int count);
+  interface StoreCallback {
 
-  @DefaultMessage("of unknown")
-  String ofUnknown();
+    void onFailure(String message);
 
-  @DefaultMessage("New Wave")
-  String newWaveHint();
+    void onSuccess();
+  }
 
-  @DefaultMessage("To Inbox")
-  String toInbox();
+  interface GetCallback {
 
-  @DefaultMessage("To Archive")
-  String toArchive();
+    void onFailure(String message);
 
-  @DefaultMessage("Modify")
-  String modify();
+    void onSuccess(List<SearchesItem> searches);
+  }
 
-  @DefaultMessage("Searching...")
-  String searching();
+  public void storeSearches(List<SearchesItem> searches, final StoreCallback callback);
+
+  public void getSearches(final GetCallback callback);
 }

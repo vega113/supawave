@@ -32,6 +32,8 @@ import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.ParticipantView;
 import org.waveprotocol.wave.client.wavepanel.view.ParticipantsView;
+import org.waveprotocol.wave.client.wavepanel.view.TagView;
+import org.waveprotocol.wave.client.wavepanel.view.TagsView;
 import org.waveprotocol.wave.client.wavepanel.view.RootThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.ThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.TopConversationView;
@@ -324,6 +326,21 @@ public final class FakeRenderer implements WaveRenderer<View>, ModelAsViewProvid
 
   @Override
   public Conversation getParticipants(ParticipantsView participantsUi) {
+    return null;
+  }
+
+  @Override
+  public TagsView getTagsView(Conversation conv) {
+    return null;
+  }
+
+  @Override
+  public Conversation getTags(TagsView tagsUi) {
+    return null;
+  }
+
+  @Override
+  public Pair<Conversation, String> getTag(TagView tagUi) {
     return null;
   }
 }

@@ -17,37 +17,28 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search.i18n;
-
-import com.google.gwt.i18n.client.Messages;
-import com.google.gwt.i18n.client.Messages.DefaultMessage;
+package org.waveprotocol.box.webclient.folder;
 
 /**
+ * Interface that exposes folder operation services to the client.
  *
- * @author akaplanov (Andrew Kaplanov)
+ * Ported from Wiab.pro.
+ *
+ * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
-public interface SearchPresenterMessages extends Messages {
-  @DefaultMessage("New Wave")
-  String newWave();
+public interface FolderOperationService {
 
-  @DefaultMessage("of {0}")
-  String of(int count);
+  public interface Callback {
+    void onFailure(String message);
 
-  @DefaultMessage("of unknown")
-  String ofUnknown();
+    void onSuccess();
+  }
 
-  @DefaultMessage("New Wave")
-  String newWaveHint();
-
-  @DefaultMessage("To Inbox")
-  String toInbox();
-
-  @DefaultMessage("To Archive")
-  String toArchive();
-
-  @DefaultMessage("Modify")
-  String modify();
-
-  @DefaultMessage("Searching...")
-  String searching();
+  /**
+   * Performs a folder operation on the wave.
+   *
+   * @param url to send
+   * @param callback through which the folder operation results are returned.
+   */
+  public void execute(String url, final Callback callback);
 }

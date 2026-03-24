@@ -17,37 +17,33 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search.i18n;
-
-import com.google.gwt.i18n.client.Messages;
-import com.google.gwt.i18n.client.Messages.DefaultMessage;
+package org.waveprotocol.wave.client.wavepanel.view;
 
 /**
+ * View of a single tag.
  *
- * @author akaplanov (Andrew Kaplanov)
+ * Ported from Wiab.pro.
  */
-public interface SearchPresenterMessages extends Messages {
-  @DefaultMessage("New Wave")
-  String newWave();
+public interface IntrinsicTagView {
 
-  @DefaultMessage("of {0}")
-  String of(int count);
+  /** The display state of a tag. */
+  public enum TagState {
+    NORMAL,
+    ADDED,
+    REMOVED
+  }
 
-  @DefaultMessage("of unknown")
-  String ofUnknown();
+  String getId();
 
-  @DefaultMessage("New Wave")
-  String newWaveHint();
+  String getName();
 
-  @DefaultMessage("To Inbox")
-  String toInbox();
+  void setName(String name);
 
-  @DefaultMessage("To Archive")
-  String toArchive();
+  TagState getState();
 
-  @DefaultMessage("Modify")
-  String modify();
+  void setState(TagState state);
 
-  @DefaultMessage("Searching...")
-  String searching();
+  String getHint();
+
+  void setHint(String hint);
 }

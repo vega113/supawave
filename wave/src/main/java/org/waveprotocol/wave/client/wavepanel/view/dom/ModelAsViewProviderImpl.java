@@ -30,6 +30,8 @@ import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.ParticipantView;
 import org.waveprotocol.wave.client.wavepanel.view.ParticipantsView;
 import org.waveprotocol.wave.client.wavepanel.view.RootThreadView;
+import org.waveprotocol.wave.client.wavepanel.view.TagView;
+import org.waveprotocol.wave.client.wavepanel.view.TagsView;
 import org.waveprotocol.wave.client.wavepanel.view.ThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
 import org.waveprotocol.wave.model.conversation.Conversation;
@@ -126,5 +128,24 @@ public class ModelAsViewProviderImpl implements ModelAsViewProvider {
   @Override
   public Pair<Conversation, ParticipantId> getParticipant(ParticipantView participantUi) {
     return viewIdMapper.participantOf(participantUi.getId());
+  }
+
+  @Override
+  public TagsView getTagsView(Conversation conv) {
+    // Tags view ID mapping not yet wired; return null until render chain
+    // integration is complete.
+    return null;
+  }
+
+  @Override
+  public Conversation getTags(TagsView tagsUi) {
+    // Tags model mapping not yet wired.
+    return null;
+  }
+
+  @Override
+  public Pair<Conversation, String> getTag(TagView tagUi) {
+    // Tag model mapping not yet wired.
+    return null;
   }
 }

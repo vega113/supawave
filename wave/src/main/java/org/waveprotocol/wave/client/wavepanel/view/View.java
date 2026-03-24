@@ -67,6 +67,9 @@ public interface View {
     PARTICIPANTS,
     ADD_PARTICIPANT,
     NEW_WAVE_WITH_PARTICIPANTS,
+    TAGS,
+    TAG,
+    ADD_TAG,
   }
 
   Type getType();

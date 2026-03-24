@@ -160,6 +160,63 @@ public final class OutputHelper {
   }
 
   /**
+   * Opens an element with title and shortcut attributes.
+   *
+   * @param tag tag for the element
+   * @param builder output builder
+   * @param id value for the HTML id attribute (or {@code null} for none)
+   * @param clazz value for the CSS class attribute (or {@code null} for none)
+   * @param kind value for the kind attribute (or {@code null} for none)
+   * @param extra extra HTML, which must be a compile-time safe string
+   * @param title value for the title attribute (or {@code null} for none)
+   * @param shortcut shortcut key hint text (or {@code null} for none)
+   */
+  private static void openWithAllParameters(SafeHtmlBuilder builder,
+      String tag,
+      String id,
+      String clazz,
+      String kind,
+      String extra,
+      String title,
+      String shortcut) {
+    String titleValue = title;
+    if (shortcut != null) {
+      titleValue = (titleValue != null ? titleValue + " " : "") + "(" + shortcut + ")";
+    }
+    builder.appendHtmlConstant("<" + tag
+        + (id != null ? " id='" + id + "'" : "")
+        + (clazz != null ? " class='" + clazz + "'" : "")
+        + (kind != null ? " " + BuilderHelper.KIND_ATTRIBUTE + "='" + kind + "'" : "")
+        + (titleValue != null ? " title='" + titleValue + "'" : "")
+        + (extra != null ? " " + extra : "") + ">");
+  }
+
+  /**
+   * Opens a div with title and shortcut attributes.
+   */
+  public static void openWith(SafeHtmlBuilder builder, String id, String clazz,
+      String kind, String extra, String title, String shortcut) {
+    openWithAllParameters(builder, "div", id, clazz, kind, extra, title, shortcut);
+  }
+
+  /**
+   * Opens a span with title and shortcut attributes.
+   */
+  public static void openSpanWith(SafeHtmlBuilder builder, String id, String clazz,
+      String kind, String extra, String title, String shortcut) {
+    openWithAllParameters(builder, "span", id, clazz, kind, extra, title, shortcut);
+  }
+
+  /**
+   * Opens and closes a span with title and shortcut attributes.
+   */
+  public static void appendSpanWith(SafeHtmlBuilder builder, String id, String style,
+      String kind, String extra, String title, String shortcut) {
+    openSpanWith(builder, id, style, kind, extra, title, shortcut);
+    closeSpan(builder);
+  }
+
+  /**
    * Appends an image.
    *
    * @param url attribute-value safe URL

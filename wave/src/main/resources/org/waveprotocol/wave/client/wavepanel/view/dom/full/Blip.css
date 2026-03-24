@@ -172,18 +172,18 @@
 }
 
 /* Delete icon turns red on hover. */
-.menuOption[title="Delete"]:hover {
+.menuOption[data-option="delete"]:hover {
   color: #e53e3e;
 }
 
 /* Done icon turns green on hover. */
-.menuOption[title="Done"]:hover {
+.menuOption[data-option="edit_done"]:hover {
   color: #38a169;
 }
 
 /* Draft icon active state (blue). */
-.menuOptionSelected[title="Draft"],
-.menuOptionSelected[title="Draft"]:hover {
+.menuOptionSelected[data-option="draft"],
+.menuOptionSelected[data-option="draft"]:hover {
   color: #0077b6;
   background-color: #ebf8ff;
 }

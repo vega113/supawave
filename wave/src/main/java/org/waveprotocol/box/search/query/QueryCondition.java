@@ -106,22 +106,23 @@ public class QueryCondition {
   }
 
   public boolean isInbox() {
-    return Field.IN.equals(field) && value.equals(VALUE_INBOX);
+    return !not && Field.IN.equals(field) && VALUE_INBOX.equals(value);
   }
 
   public boolean isArchive() {
-    return Field.IN.equals(field) && value.equals(VALUE_ARCHIVE);
+    return !not && Field.IN.equals(field) && VALUE_ARCHIVE.equals(value);
   }
 
   public boolean isPublic() {
-    return Field.WITH.equals(field) && value.equals(VALUE_PUBLIC);
+    return !not && Field.WITH.equals(field) && VALUE_PUBLIC.equals(value);
   }
 
   @Override
   public String toString() {
+    String prefix = not ? "!" : "";
     if (phrase) {
-      return field.toString() + ":\"" + value + "\"";
+      return prefix + field.toString() + ":\"" + value + "\"";
     }
-    return field.toString() + ":" + value;
+    return prefix + field.toString() + ":" + value;
   }
 }

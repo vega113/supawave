@@ -80,7 +80,7 @@ public final class FolderServlet extends HttpServlet {
 
   @Override
   @VisibleForTesting
-  protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+  protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
     ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(request, false));
     if (user == null) {
       response.setStatus(HttpServletResponse.SC_FORBIDDEN);
@@ -90,10 +90,14 @@ public final class FolderServlet extends HttpServlet {
     String folder = request.getParameter("folder");
     String[] waves = request.getParameterValues("waveId");
     if ("move".equals(operation)) {
+      if (!"archive".equals(folder) && !"inbox".equals(folder)) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unknown folder");
+        return;
+      }
       if (waves != null) {
         for (String wave : waves) {
-          WaveId waveId = WaveId.deserialise(StringEscapeUtils.unescapeHtml4(wave));
           try {
+            WaveId waveId = WaveId.deserialise(StringEscapeUtils.unescapeHtml4(wave));
             moveToFolder(waveId, folder, user);
           } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Move to " + folder + " error ", ex);

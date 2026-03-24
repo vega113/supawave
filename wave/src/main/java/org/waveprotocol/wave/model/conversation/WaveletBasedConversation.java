@@ -417,9 +417,13 @@ public final class WaveletBasedConversation implements ObservableConversation {
   @Override
   public void addTag(String tag) {
     checkIsUsable();
+    if (tag == null) {
+      return;
+    }
     Set<String> tags = getTags();
     if (!tags.contains(tag)) {
       ObservableDocument tagsDoc = wavelet.getDocument(IdConstants.TAGS_DOC_ID);
+      Preconditions.checkState(tagsDoc != null, "Tags document is missing");
       new TagsDocument<>(tagsDoc).addTag(tag);
       triggerOnTagAdded(tag);
     }
@@ -494,6 +498,7 @@ public final class WaveletBasedConversation implements ObservableConversation {
     manifest.removeListener(manifestListener);
     listeners.clear();
     anchorListeners.clear();
+    tagListeners.clear();
     rootThread.destroy();
     isUsable = false;
   }

@@ -69,6 +69,7 @@ public class QueryParser {
           field = QueryCondition.Field.CONTENT;
           value = matcher.group(0);
           phrase = true;
+          not = false;
         }
       } else {
         field = QueryCondition.Field.CONTENT;

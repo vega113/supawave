@@ -15,14 +15,15 @@
 package org.waveprotocol.box.server.rpc;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Inject;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -82,8 +83,7 @@ public final class SearchesServlet extends HttpServlet {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
         return;
       }
-      BufferedReader reader = req.getReader();
-      String request = reader.readLine();
+      String request = req.getReader().lines().collect(Collectors.joining("\n"));
       List<SearchesItem> searches = GSON.fromJson(request, SEARCHES_LIST_TYPE);
       AccountData account = accountStore.getAccount(participant);
       HumanAccountData humanAccount;
@@ -95,6 +95,8 @@ public final class SearchesServlet extends HttpServlet {
       humanAccount.setSearches(searches);
       accountStore.putAccount(humanAccount);
       resp.setStatus(HttpServletResponse.SC_OK);
+    } catch (JsonParseException ex) {
+      resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid searches payload");
     } catch (PersistenceException ex) {
       throw new IOException(ex);
     }

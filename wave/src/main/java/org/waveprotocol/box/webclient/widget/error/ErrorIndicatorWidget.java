@@ -30,6 +30,7 @@ import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTMLPanel;
 
+import org.waveprotocol.box.webclient.widget.error.i18n.ErrorMessages;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 
 /**
@@ -45,12 +46,19 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
     String expanded();
 
     // Classes not used by code, but forced to be declared thanks to UiBinder.
+    String overlay();
+    String header();
+    String message();
+    String actions();
+    String btn();
+    String btnPrimary();
+    String alert();
     String detail();
-
     String stack();
   }
 
   private static final Binder BINDER = GWT.create(Binder.class);
+  private static final ErrorMessages MESSAGES = GWT.create(ErrorMessages.class);
 
   @UiField
   Style style;
@@ -62,6 +70,12 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
   Element stack;
   @UiField
   Element bug;
+  @UiField
+  Element overlay;
+  @UiField
+  Anchor copyBtn;
+  @UiField
+  Anchor dismissBtn;
 
   private Listener listener;
 
@@ -91,6 +105,51 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
     }
   }
 
+  @UiHandler("copyBtn")
+  void handleCopyClick(ClickEvent e) {
+    copyToClipboard(stack.getInnerText(), copyBtn.getElement(),
+        MESSAGES.copied(), MESSAGES.copyFailed());
+  }
+
+  @UiHandler("dismissBtn")
+  void handleDismissClick(ClickEvent e) {
+    overlay.getStyle().setProperty("display", "none");
+  }
+
+  private static native void copyToClipboard(String text, Element btn,
+      String copiedLabel, String failedLabel) /*-{
+    function onSuccess() {
+      btn.innerText = copiedLabel;
+    }
+    function onFailure() {
+      btn.innerText = failedLabel;
+    }
+    function fallback() {
+      var ta = $doc.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      $doc.body.appendChild(ta);
+      ta.select();
+      try {
+        var ok = $doc.execCommand('copy');
+        if (ok) {
+          onSuccess();
+        } else {
+          onFailure();
+        }
+      } catch (e) {
+        onFailure();
+      }
+      $doc.body.removeChild(ta);
+    }
+    if ($wnd.navigator.clipboard && $wnd.navigator.clipboard.writeText) {
+      $wnd.navigator.clipboard.writeText(text).then(onSuccess, fallback);
+    } else {
+      fallback();
+    }
+  }-*/;
+
   @Override
   public void setStack(SafeHtml stack) {
     this.stack.setInnerHTML(stack.asString());
@@ -104,6 +163,7 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
   @Override
   public void showDetailLink() {
     showDetail.setVisible(true);
+    copyBtn.setVisible(true);
   }
 
   @Override

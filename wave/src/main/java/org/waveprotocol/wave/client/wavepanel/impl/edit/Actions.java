@@ -76,4 +76,18 @@ public interface Actions {
    * Pops up a link info for the blip.
    */
   void popupLink(BlipView blipUi);
+
+  /**
+   * Switch editor to draft mode. Subsequent edits are buffered locally
+   * and not sent to the server.
+   */
+  void enterDraftMode();
+
+  /**
+   * Switch editor back to normal mode.
+   *
+   * @param saveChanges if true, flush buffered draft ops upstream;
+   *        if false, discard all draft changes.
+   */
+  void leaveDraftMode(boolean saveChanges);
 }

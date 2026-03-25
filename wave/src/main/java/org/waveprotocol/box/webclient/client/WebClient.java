@@ -60,6 +60,7 @@ import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.common.util.AsyncHolder.Accessor;
+import org.waveprotocol.wave.client.common.util.UserAgent;
 import org.waveprotocol.wave.client.debug.logger.LogLevel;
 import org.waveprotocol.wave.client.doodad.attachment.AttachmentManagerImpl;
 import org.waveprotocol.wave.client.doodad.attachment.AttachmentManagerProvider;
@@ -438,10 +439,10 @@ public class WebClient implements EntryPoint {
           return;
         }
         com.google.gwt.dom.client.NativeEvent event = preview.getNativeEvent();
-        // 'O' key = keyCode 79.  Shift must be held. Ctrl or Meta (Cmd) must be held.
+        // 'O' key = keyCode 79. Shift must be held. Modifier: Meta (Cmd) on Mac, Ctrl elsewhere.
         if (event.getKeyCode() == 'O'
             && event.getShiftKey()
-            && (event.getMetaKey() || event.getCtrlKey())) {
+            && (UserAgent.isMac() ? event.getMetaKey() : event.getCtrlKey())) {
           event.preventDefault();
           preview.cancel();
           ClientEvents.get().fireEvent(new WaveCreationEvent());

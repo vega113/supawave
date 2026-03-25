@@ -236,7 +236,7 @@ public final class SearchPresenter
 
     // "New Wave" action button — compact dark icon+text compose button.
     ToolbarClickButton newWaveButton = new ToolbarButtonViewBuilder()
-        .setTooltip(messages.newWaveHint() + " (\u21E7\u2318O)")
+        .setTooltip(messages.newWaveHint() + " (Shift+Ctrl/Cmd+O)")
         .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {

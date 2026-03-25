@@ -19,7 +19,6 @@
 
 package org.waveprotocol.box.webclient.client;
 
-import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.InputElement;
 import com.google.gwt.dom.client.Style;
@@ -32,7 +31,6 @@ import com.google.gwt.user.client.EventListener;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HTML;
-import com.google.gwt.user.client.ui.InlineHTML;
 import com.google.gwt.user.client.ui.SimplePanel;
 
 import java.util.Date;
@@ -120,6 +118,9 @@ public final class VersionScrubber extends Composite {
     container.getElement().appendChild(tooltipEl);
 
     initWidget(container);
+
+    // Start hidden; shown explicitly when history mode is entered.
+    setVisible(false);
 
     // Wire up event handlers
     wireEvents();

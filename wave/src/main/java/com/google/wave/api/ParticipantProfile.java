@@ -36,6 +36,10 @@ public final class ParticipantProfile implements Serializable {
   private final String name;
   private final String imageUrl;
   private final String profileUrl;
+  private final String firstName;
+  private final String lastName;
+  private final String bio;
+  private final long lastSeenTime;
 
   /**
    * Constructs an empty profile.
@@ -65,10 +69,31 @@ public final class ParticipantProfile implements Serializable {
    */
   public ParticipantProfile(String address, String name, String imageUrl,
       String profileUrl) {
+    this(address, name, imageUrl, profileUrl, null, null, null, 0);
+  }
+
+  /**
+   * Constructs a full profile with extended fields.
+   *
+   * @param address the address of the participant.
+   * @param name the display name of the participant.
+   * @param imageUrl the URL of the participant's avatar.
+   * @param profileUrl the URL of the participant's external profile page.
+   * @param firstName the first name, or null.
+   * @param lastName the last name, or null.
+   * @param bio the bio text, or null.
+   * @param lastSeenTime epoch millis of last activity (0 if hidden or unknown).
+   */
+  public ParticipantProfile(String address, String name, String imageUrl,
+      String profileUrl, String firstName, String lastName, String bio, long lastSeenTime) {
     this.address = address;
     this.name = name;
     this.imageUrl = imageUrl;
     this.profileUrl = profileUrl;
+    this.firstName = firstName;
+    this.lastName = lastName;
+    this.bio = bio;
+    this.lastSeenTime = lastSeenTime;
   }
 
   /**
@@ -97,5 +122,25 @@ public final class ParticipantProfile implements Serializable {
    */
   public String getProfileUrl() {
     return profileUrl;
+  }
+
+  /** @return the first name, or null if not set. */
+  public String getFirstName() {
+    return firstName;
+  }
+
+  /** @return the last name, or null if not set. */
+  public String getLastName() {
+    return lastName;
+  }
+
+  /** @return the bio, or null if not set. */
+  public String getBio() {
+    return bio;
+  }
+
+  /** @return epoch millis of last activity, or 0 if hidden/unknown. */
+  public long getLastSeenTime() {
+    return lastSeenTime;
   }
 }

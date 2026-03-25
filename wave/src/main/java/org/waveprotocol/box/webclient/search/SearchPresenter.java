@@ -80,14 +80,10 @@ public final class SearchPresenter
       + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
       + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
 
-  /** New Wave: pencil-square / compose icon (14px, white stroke). */
-  private static final String ICON_NEW_WAVE =
-      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" "
-      + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" "
-      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
-      + "<path d=\"M12 20h9\"></path>"
-      + "<path d=\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\"></path>"
-      + "</svg>";
+  /** New Wave: pencil-square / compose icon. */
+  private static final String ICON_NEW_WAVE = SVG_OPEN
+      + "<path d=\"M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7\"></path>"
+      + "<path d=\"M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z\"></path></svg>";
 
   /** Manage Searches: settings/sliders icon. */
   private static final String ICON_MODIFY = SVG_OPEN
@@ -275,10 +271,7 @@ public final class SearchPresenter
             scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
           }
         });
-    newWaveButton.setVisualElement(
-        createNewWaveVisual(ICON_NEW_WAVE, messages.newWave()));
-    // Mark the New Wave button so CSS can style it prominently.
-    newWaveButton.hackGetWidget().getElement().setAttribute("data-action", "new-wave");
+    newWaveButton.setVisualElement(createSvgIcon(ICON_NEW_WAVE));
 
     // --- Group 2: Saved Searches ---
     ToolbarView savedSearchesGroup = toolbarUi.addGroup();

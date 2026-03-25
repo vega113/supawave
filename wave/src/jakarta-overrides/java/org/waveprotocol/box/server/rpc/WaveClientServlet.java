@@ -38,9 +38,11 @@ import org.json.JSONObject;
 import org.waveprotocol.box.common.SessionConstants;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
 import org.waveprotocol.box.server.util.UrlParameters;
 import org.waveprotocol.wave.common.bootstrap.FlagConstants;
@@ -64,6 +66,7 @@ public class WaveClientServlet extends HttpServlet {
   private final String domain;
   private final String analyticsAccount;
   private final SessionManager sessionManager;
+  private final AccountStore accountStore;
   private final boolean hasExplicitWebsocketPresentedAddress;
   private final String websocketPresentedAddress;
   private final Config config;
@@ -75,6 +78,7 @@ public class WaveClientServlet extends HttpServlet {
       @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
       Config config,
       SessionManager sessionManager,
+      AccountStore accountStore,
       VersionServlet versionServlet) {
     List<String> httpAddresses = config.getStringList("core.http_frontend_addresses");
     String websocketAddress = config.getString("core.http_websocket_public_address");
@@ -91,6 +95,7 @@ public class WaveClientServlet extends HttpServlet {
             : websocketAddress1;
     this.analyticsAccount = config.getString("administration.analytics_account");
     this.sessionManager = sessionManager;
+    this.accountStore = accountStore;
     this.config = config;
     this.serverVersion = config.hasPath("core.server_version")
         ? config.getString("core.server_version") : "dev";
@@ -128,6 +133,15 @@ public class WaveClientServlet extends HttpServlet {
 
     String username = id.getAddress().split("@")[0];
     String userDomain = id.getDomain();
+    String userRole = HumanAccountData.ROLE_USER; // default
+    try {
+      AccountData acctData = accountStore.getAccount(id);
+      if (acctData != null && acctData.isHuman()) {
+        userRole = acctData.asHuman().getRole();
+      }
+    } catch (Exception e) {
+      LOG.warning("Failed to look up role for " + id.getAddress(), e);
+    }
     response.setContentType("text/html");
     response.setCharacterEncoding("UTF-8");
     response.setStatus(HttpServletResponse.SC_OK);
@@ -137,7 +151,7 @@ public class WaveClientServlet extends HttpServlet {
           (!hasExplicitWebsocketPresentedAddress && hostHeader != null && !hostHeader.isEmpty())
               ? hostHeader
               : websocketPresentedAddress;
-      String topBarHtml = HtmlRenderer.renderTopBar(username, userDomain);
+      String topBarHtml = HtmlRenderer.renderTopBar(username, userDomain, userRole);
       w.write(HtmlRenderer.renderWaveClientPage(
           getSessionJson(WebSessions.from(request, false)),
           getClientFlags(request),

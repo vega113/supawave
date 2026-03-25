@@ -39,14 +39,16 @@ public final class FixedConversationViewBuilder extends TopConversationViewBuild
   private final String id;
   private final UiBuilder rootThread;
   private final UiBuilder participants;
+  private final UiBuilder tags;
 
   @VisibleForTesting
   FixedConversationViewBuilder(
-      Css css, String id, UiBuilder rootThread, UiBuilder participants) {
+      Css css, String id, UiBuilder rootThread, UiBuilder participants, UiBuilder tags) {
     this.css = css;
     this.id = id;
     this.rootThread = rootThread;
     this.participants = participants;
+    this.tags = tags;
   }
 
   /**
@@ -55,17 +57,19 @@ public final class FixedConversationViewBuilder extends TopConversationViewBuild
    * @param id DOM id
    * @param threadUi UI for the thread
    * @param participantsUi UI for the participants
+   * @param tagsUi UI for the tags
    */
   public static FixedConversationViewBuilder createRoot(
-      String id, UiBuilder threadUi, UiBuilder participantsUi) {
+      String id, UiBuilder threadUi, UiBuilder participantsUi, UiBuilder tagsUi) {
     return new FixedConversationViewBuilder(
-        WavePanelResourceLoader.getConversation().css(), id, threadUi, participantsUi);
+        WavePanelResourceLoader.getConversation().css(), id, threadUi, participantsUi, tagsUi);
   }
 
   @Override
   public void outputHtml(SafeHtmlBuilder out) {
     open(out, id, css.fixedSelf(), TypeCodes.kind(Type.ROOT_CONVERSATION));
     participants.outputHtml(out);
+    tags.outputHtml(out);
     append(out, Components.TOOLBAR_CONTAINER.getDomId(id), css.toolbar(), null);
     // Scroll panel
     open(out, Components.THREAD_CONTAINER.getDomId(id), css.fixedThread(), null);

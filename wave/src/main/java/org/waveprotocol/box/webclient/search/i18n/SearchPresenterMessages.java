@@ -36,6 +36,18 @@ public interface SearchPresenterMessages extends Messages {
   @DefaultMessage("of unknown")
   String ofUnknown();
 
+  @DefaultMessage("New Wave")
+  String newWaveHint();
+
+  @DefaultMessage("To Inbox")
+  String toInbox();
+
+  @DefaultMessage("To Archive")
+  String toArchive();
+
+  @DefaultMessage("Modify")
+  String modify();
+
   @DefaultMessage("Searching...")
   String searching();
 }

@@ -39,6 +39,7 @@ When ANY PR merges, immediately update ALL other BEHIND PRs. Don't wait for next
 Check all monitored repos for open issues. Spawn background agents to fix actionable ones.
 
 ## 4. Codex Review Gate handling
+- Gate checks CodeRabbit status + grace period window
 - Gate uses latest **commit timestamp** as baseline (not prUpdatedAt)
 - 5-minute grace period after latest commit push
 - Comments/thread resolutions do NOT restart the timer
@@ -57,3 +58,10 @@ Check all monitored repos for open issues. Spawn background agents to fix action
 | tube2web | `--squash` |
 | tubescribes | `--squash` |
 | slides-lab | `--squash` |
+
+## Improvement Roadmap
+1. Gate baseline uses commit SHA (not prUpdatedAt)
+2. Reduced grace period to 5 minutes
+3. TODO: Enable GitHub merge queue to eliminate BEHIND cascade
+4. TODO: Configure chatgpt-codex-connector to skip merge commits
+5. TODO: Auto-resolve P2/informational threads that don't need code changes

@@ -36,6 +36,8 @@
            styleName='{css.searchButton}'><ui:text from="{msg.all}"/></g:Button>
        <g:Button ui:field='searchButtonInbox' title='Show waves in my inbox'
            styleName='{css.searchButton}'><ui:text from="{msg.inbox}"/></g:Button>
+       <g:Button ui:field='searchButtonArchive' title='Show archived waves'
+           styleName='{css.searchButton}'><ui:text from="{msg.archive}"/></g:Button>
      </div>
      <div class='{css.searchboxContainer}'>
        <g:TextBox ui:field='query' styleName='{css.query}'/>

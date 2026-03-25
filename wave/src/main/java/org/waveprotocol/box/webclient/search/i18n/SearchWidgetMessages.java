@@ -35,4 +35,19 @@ public interface SearchWidgetMessages extends Messages {
 
   @DefaultMessage("Inbox")
   public String inbox();
+
+  @DefaultMessage("My inbox")
+  public String inboxHint();
+
+  @DefaultMessage("Archive")
+  public String archive();
+
+  @DefaultMessage("My archive")
+  public String archiveHint();
+
+  @DefaultMessage("Public")
+  public String pub();
+
+  @DefaultMessage("Public waves")
+  public String pubHint();
 }

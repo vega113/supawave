@@ -69,7 +69,11 @@ import org.waveprotocol.wave.client.wavepanel.view.impl.ParticipantViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.ParticipantsViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.ReplyBoxViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.RootThreadViewImpl;
+import org.waveprotocol.wave.client.wavepanel.view.impl.TagViewImpl;
+import org.waveprotocol.wave.client.wavepanel.view.impl.TagsViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.TopConversationViewImpl;
+import org.waveprotocol.wave.client.wavepanel.view.TagView;
+import org.waveprotocol.wave.client.wavepanel.view.TagsView;
 import org.waveprotocol.wave.client.widget.popup.AlignedPopupPositioner;
 import org.waveprotocol.wave.client.widget.profile.ProfilePopupView;
 import org.waveprotocol.wave.client.widget.profile.ProfilePopupWidget;
@@ -103,7 +107,10 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         Type.ROOT_CONVERSATION,
         Type.INLINE_CONVERSATION,
         Type.PARTICIPANT,
-        Type.PARTICIPANTS}) {
+        Type.PARTICIPANTS,
+        Type.TAGS,
+        Type.TAG,
+        Type.ADD_TAG}) {
       kinds.add(kind(type));
     }
     KNOWN_KINDS = kinds;
@@ -563,6 +570,44 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         }
       };
 
+  private final TagViewImpl.Helper<TagDomImpl> tagHelper =
+      new TagViewImpl.Helper<TagDomImpl>() {
+
+        @Override
+        public void remove(TagDomImpl impl) {
+          impl.remove();
+        }
+      };
+
+  private final TagsViewImpl.Helper<TagsDomImpl> tagsHelper =
+      new TagsViewImpl.Helper<TagsDomImpl>() {
+
+        @Override
+        public TagView append(TagsDomImpl impl, Conversation conv, String tag,
+            org.waveprotocol.wave.model.operation.wave.WaveletOperationContext opContext,
+            boolean showDiff) {
+          // Stub: full rendering integration deferred
+          return null;
+        }
+
+        @Override
+        public TagView remove(TagsDomImpl impl, Conversation conv, String tag,
+            org.waveprotocol.wave.model.operation.wave.WaveletOperationContext opContext,
+            boolean showDiff) {
+          // Stub: full rendering integration deferred
+          return null;
+        }
+
+        @Override
+        public void clearDiffs(TagsDomImpl impl) {
+        }
+
+        @Override
+        public void remove(TagsDomImpl impl) {
+          impl.remove();
+        }
+      };
+
   /** Injected Css resources providing access to style names to apply. */
   private final CssProvider cssProvider;
       
@@ -653,6 +698,12 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         return asParticipant(e);
       case PARTICIPANTS:
         return asParticipants(e);
+      case TAGS:
+        return asTags(e);
+      case TAG:
+        return asTag(e);
+      case ADD_TAG:
+        return null; // ADD_TAG is a button, not a structural view
       default:
         throw new AssertionError();
     }
@@ -854,6 +905,31 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
     // Assume that the nearest kinded ancestor of the add button is the
     // participants view (an exception is thrown if not).
     return asParticipants(e);
+  }
+
+  @Override
+  public TagView asTag(Element e) {
+    return new TagViewImpl<TagDomImpl>(tagHelper, TagDomImpl.of(e));
+  }
+
+  @Override
+  public TagsView asTags(Element e) {
+    return new TagsViewImpl<TagsDomImpl>(tagsHelper, TagsDomImpl.of(e));
+  }
+
+  @Override
+  public TagsView tagsFromAddButton(Element e) {
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.ADD_TAG);
+    if (e != null && typeOf(e) == Type.ADD_TAG) {
+      e = e.getParentElement();
+    }
+    while (e != null && !hasKnownType(e)) {
+      e = e.getParentElement();
+    }
+    if (e != null && typeOf(e) == Type.TAGS) {
+      return asTags(e);
+    }
+    return null;
   }
 
   @Override

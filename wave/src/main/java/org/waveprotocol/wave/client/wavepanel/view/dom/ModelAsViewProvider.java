@@ -27,6 +27,8 @@ import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.ParticipantView;
 import org.waveprotocol.wave.client.wavepanel.view.ParticipantsView;
 import org.waveprotocol.wave.client.wavepanel.view.RootThreadView;
+import org.waveprotocol.wave.client.wavepanel.view.TagView;
+import org.waveprotocol.wave.client.wavepanel.view.TagsView;
 import org.waveprotocol.wave.client.wavepanel.view.ThreadView;
 import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
@@ -78,4 +80,13 @@ public interface ModelAsViewProvider {
 
   /** @return the participant represented by {@code participantUi}. */
   Pair<Conversation, ParticipantId> getParticipant(ParticipantView participantUi);
+
+  /** @return the tags view for {@code conv}, if it exists. */
+  TagsView getTagsView(Conversation conv);
+
+  /** @return the (mutable) tag collection represented by {@code tagsUi}. */
+  Conversation getTags(TagsView tagsUi);
+
+  /** @return the tag represented by {@code tagUi}. */
+  Pair<Conversation, String> getTag(TagView tagUi);
 }

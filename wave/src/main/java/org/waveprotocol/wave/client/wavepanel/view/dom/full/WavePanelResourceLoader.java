@@ -50,6 +50,8 @@ public final class WavePanelResourceLoader {
       GWT.create(TopConversationViewBuilder.Resources.class);
   private final static ParticipantsViewBuilder.Resources participants =
       GWT.create(ParticipantsViewBuilder.Resources.class);
+  private final static TagsViewBuilder.Resources tags =
+      GWT.create(TagsViewBuilder.Resources.class);
   private final static Dialog.Resources dialog =
       GWT.create(Dialog.Resources.class);
 
@@ -77,6 +79,7 @@ public final class WavePanelResourceLoader {
     StyleInjector.inject(inlineContinuation.css().getText(), isSynchronous);
     StyleInjector.inject(conversation.css().getText(), isSynchronous);
     StyleInjector.inject(participants.css().getText(), isSynchronous);
+    StyleInjector.inject(tags.css().getText(), isSynchronous);
     StyleInjector.inject(dialog.css().getText(), isSynchronous);
   }
 
@@ -109,6 +112,10 @@ public final class WavePanelResourceLoader {
 
   public static ParticipantsViewBuilder.Resources getParticipants() {
     return participants;
+  }
+
+  public static TagsViewBuilder.Resources getTags() {
+    return tags;
   }
 
   public static Dialog.Resources getDialog() {

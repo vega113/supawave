@@ -61,6 +61,45 @@ public final class ViewIdMapper {
     return modelMapper.participantId(c, p) + "P";
   }
 
+  public String tagsOf(Conversation c) {
+    return modelMapper.convId(c) + "G";
+  }
+
+  public String tagOf(Conversation c, String tag) {
+    return tagsOf(c) + "." + encodeTagName(tag);
+  }
+
+  /** Reverse mapping: extract conversation and tag name from tag DOM id. */
+  public Pair<Conversation, String> tagOf(String domId) {
+    // Tag ids are of form: <tagsId>.<encodedTagName>
+    if (domId != null) {
+      int dotIdx = domId.lastIndexOf('.');
+      if (dotIdx > 0) {
+        String encodedTag = domId.substring(dotIdx + 1);
+        String tagsId = domId.substring(0, dotIdx);
+        if (tagsId.endsWith("G")) {
+          Conversation conv = participantsOf(tagsId.substring(0, tagsId.length() - 1) + "P");
+          if (conv != null) {
+            return Pair.of(conv, decodeTagName(encodedTag));
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Escapes dot characters in tag names to safely encode them in DOM ids. */
+  private static String encodeTagName(String tag) {
+    // Escape dots by replacing with a safe sequence.
+    return tag.replace(".", "\\.");
+  }
+
+  /** Unescapes dot characters in tag names from DOM ids. */
+  private static String decodeTagName(String encoded) {
+    // Unescape dots that were escaped during encoding.
+    return encoded.replace("\\.", ".");
+  }
+
   public String threadOf(ConversationThread t) {
     return modelMapper.threadId(t) + "T";
   }

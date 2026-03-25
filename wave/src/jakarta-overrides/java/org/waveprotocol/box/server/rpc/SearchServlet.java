@@ -77,6 +77,7 @@ public class SearchServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse response) throws IOException {
+    long startMs = System.currentTimeMillis();
     ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
     if (user == null) { response.setStatus(HttpServletResponse.SC_FORBIDDEN); return; }
     SearchRequest searchRequest;
@@ -101,6 +102,8 @@ public class SearchServlet extends HttpServlet {
         "\", index=" + searchRequest.getIndex() + ", numResults=" + searchRequest.getNumResults() +
         ", remote=" + String.valueOf(req.getRemoteAddr());
     serializeObjectToServlet(searchResponse, ctx, response);
+    long elapsedMs = System.currentTimeMillis() - startMs;
+    LOG.info("SearchServlet.doGet: " + ctx + ", took " + elapsedMs + " ms");
   }
 
   private static SearchRequest parseSearchRequest(HttpServletRequest req) {

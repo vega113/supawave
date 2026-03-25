@@ -29,4 +29,7 @@ import com.google.gwt.i18n.client.Messages.DefaultMessage;
 public interface ActionMessages extends Messages {
   @DefaultMessage("Invalid wavelet Id {0}")
   String invalidWaveletId(String waveletId);
+
+  @DefaultMessage("Maximum reply depth reached. Try replying to a parent message instead.")
+  String maxReplyDepthReached();
 }

@@ -75,6 +75,11 @@ public class WaveDigester {
     this.conversationUtil = conversationUtil;
   }
 
+  /** Returns the conversation utility used by this digester. */
+  ConversationUtil getConversationUtil() {
+    return conversationUtil;
+  }
+
   public SearchResult generateSearchResult(ParticipantId participant, String query,
       Collection<WaveViewData> results) {
     // Generate exactly one digest per wave. This includes conversational and

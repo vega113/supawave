@@ -179,7 +179,7 @@ public interface StageThree {
       ModelAsViewProvider views = stageTwo.getModelAsViewProvider();
       ConversationView wave = stageTwo.getConversations();
       return ViewToolbar.create(stageTwo.getStageOne().getFocusFrame(), views, wave,
-          stageTwo.getReader());
+          stageTwo.getReader(), stageTwo.getWave().getWaveId());
     }
 
     protected String getLocalDomain() {

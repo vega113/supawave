@@ -280,20 +280,25 @@ public final class AdminServlet extends HttpServlet {
     WebSession session = WebSessions.from(req, false);
     ParticipantId user = sessionManager.getLoggedInUser(session);
     if (user == null) {
-      resp.sendRedirect("/auth/signin?r=/admin");
+      String pathInfo = req.getPathInfo();
+      if (pathInfo != null && pathInfo.startsWith("/api/")) {
+        sendJsonError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+      } else {
+        resp.sendRedirect("/auth/signin?r=/admin");
+      }
       return null;
     }
 
     try {
       AccountData acct = accountStore.getAccount(user);
       if (acct == null || !acct.isHuman()) {
-        resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
+        sendForbidden(req, resp);
         return null;
       }
       HumanAccountData human = acct.asHuman();
       String role = human.getRole();
       if (!HumanAccountData.ROLE_OWNER.equals(role) && !HumanAccountData.ROLE_ADMIN.equals(role)) {
-        resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied — admin role required");
+        sendForbidden(req, resp);
         return null;
       }
       return human;
@@ -301,6 +306,22 @@ public final class AdminServlet extends HttpServlet {
       LOG.severe("Failed to check admin access for " + user, e);
       resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
       return null;
+    }
+  }
+
+  /**
+   * Sends a 403 response — styled HTML for page requests, JSON for API requests.
+   */
+  private static void sendForbidden(HttpServletRequest req, HttpServletResponse resp)
+      throws IOException {
+    String pathInfo = req.getPathInfo();
+    if (pathInfo != null && pathInfo.startsWith("/api/")) {
+      sendJsonError(resp, HttpServletResponse.SC_FORBIDDEN, "Access denied — admin role required");
+    } else {
+      resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+      resp.setContentType("text/html;charset=utf-8");
+      resp.setCharacterEncoding("UTF-8");
+      resp.getWriter().write(HtmlRenderer.renderAccessDeniedPage());
     }
   }
 

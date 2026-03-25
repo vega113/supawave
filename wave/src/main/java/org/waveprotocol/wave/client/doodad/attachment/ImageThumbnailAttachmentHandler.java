@@ -103,6 +103,12 @@ public class ImageThumbnailAttachmentHandler implements SimpleAttachmentManager.
     if (metadata != null) {
       renderer.getView(e).setAttachmentSize(metadata.getWidth(), metadata.getHeight());
     }
+
+    // Set file type info for non-image attachments so the view can display
+    // an appropriate icon/preview card
+    if (metadata == null) {
+      renderer.getView(e).setFileTypeInfo(c.getMimeType(), c.getFilename());
+    }
   }
 
   @Override

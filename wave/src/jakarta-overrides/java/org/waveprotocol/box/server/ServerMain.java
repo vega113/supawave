@@ -21,6 +21,8 @@ import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.dev.ClientApplierStatsJakartaServlet;
 import org.waveprotocol.box.server.mail.MailModule;
+import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceModule;
@@ -45,6 +47,7 @@ import org.waveprotocol.wave.crypto.CertPathStore;
 import org.waveprotocol.wave.federation.FederationTransport;
 import org.waveprotocol.wave.federation.noop.NoOpFederationModule;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 import org.waveprotocol.wave.util.logging.Log;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -117,6 +120,7 @@ public class ServerMain {
     }
 
     initializeServer(injector, domain);
+    bootstrapOwner(injector.getInstance(AccountStore.class), config, domain);
     initializeServlets(server, config);
     initializeRobots(injector, waveBus);
     initializeRobotAgents(injector);
@@ -147,11 +151,53 @@ public class ServerMain {
     waveServer.initialize();
   }
 
+  /**
+   * Ensures the configured owner address has the "owner" role. This covers the
+   * case where the account was created before auto-owner detection existed.
+   * If {@code core.owner_address} is unset or the account doesn't exist yet,
+   * this is a no-op.
+   */
+  private static void bootstrapOwner(AccountStore accountStore, Config config, String domain) {
+    String ownerAddress = "";
+    if (config.hasPath("core.owner_address")) {
+      ownerAddress = config.getString("core.owner_address").trim();
+    }
+    if (ownerAddress.isEmpty()) {
+      return;
+    }
+    // Append domain if the address has no '@'
+    if (!ownerAddress.contains("@")) {
+      ownerAddress = ownerAddress + "@" + domain;
+    }
+    try {
+      ParticipantId pid = ParticipantId.ofUnsafe(ownerAddress);
+      AccountData acct = accountStore.getAccount(pid);
+      if (acct == null) {
+        LOG.info("Configured owner " + ownerAddress + " does not exist yet — skipping bootstrap");
+        return;
+      }
+      if (!acct.isHuman()) {
+        LOG.warning("Configured owner " + ownerAddress + " is not a human account — skipping");
+        return;
+      }
+      HumanAccountData human = acct.asHuman();
+      if (!HumanAccountData.ROLE_OWNER.equals(human.getRole())) {
+        LOG.info("Bootstrapping owner role for " + ownerAddress
+            + " (was '" + human.getRole() + "')");
+        human.setRole(HumanAccountData.ROLE_OWNER);
+        accountStore.putAccount(acct);
+      }
+    } catch (PersistenceException e) {
+      LOG.severe("Failed to bootstrap owner for " + ownerAddress, e);
+    }
+  }
+
   private static void initializeServlets(ServerRpcProvider server, Config config) {
     server.addServlet("/gadget/gadgetlist", GadgetProviderServlet.class);
     server.addServlet(AttachmentServlet.ATTACHMENT_URL + "/*", AttachmentServlet.class);
     server.addServlet(AttachmentServlet.THUMBNAIL_URL + "/*", AttachmentServlet.class);
     server.addServlet(AttachmentInfoServlet.ATTACHMENTS_INFO_URL, AttachmentInfoServlet.class);
+    server.addServlet(UrlPreviewServlet.URL_PREVIEW_URL, UrlPreviewServlet.class);
     server.addServlet("/auth/signin", AuthenticationServlet.class);
     server.addServlet("/auth/signout", SignOutServlet.class);
     server.addServlet("/auth/register", UserRegistrationServlet.class);

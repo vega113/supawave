@@ -38,7 +38,6 @@
   display: flex;
   align-items: center;
   padding: 0 8px;
-  gap: 6px;
 }
 
 @if (org.waveprotocol.wave.client.common.util.QuirksConstants.SUPPORTS_SEARCH_INPUT) {
@@ -65,42 +64,4 @@ input.query:focus {
   border-color: #0077b6;
   box-shadow: 0 0 0 3px rgba(0,119,182,0.10);
   background: #fff;
-}
-
-/* Icon button panel: compact flex row of action icons beside the search box. */
-.searchButtonsPanel {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-/* Each filter/action button is a minimal icon circle with tooltip. */
-.searchButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  cursor: pointer;
-  border: 1.5px solid transparent;
-  border-radius: 50%;
-  background: none;
-  color: #718096;
-  font-size: 15px;
-  padding: 0;
-  transition: all 0.15s ease;
-}
-
-.searchButton:hover {
-  border-color: #0077b6;
-  color: #0077b6;
-  background: rgba(0,119,182,0.06);
-}
-
-/* The search box container takes all remaining space via flex. */
-.searchboxContainer {
-  flex: 1;
-  min-width: 0;
-  height: 31px;
 }

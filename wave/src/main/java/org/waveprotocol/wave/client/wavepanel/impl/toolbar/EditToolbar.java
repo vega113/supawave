@@ -354,6 +354,12 @@ public class EditToolbar {
 
               @Override
               public void onDone(String encodedWaveRef, String attachmentId, String fullFileName) {
+                onDoneWithSize(encodedWaveRef, attachmentId, fullFileName, "small");
+              }
+
+              @Override
+              public void onDoneWithSize(String encodedWaveRef, String attachmentId,
+                  String fullFileName, String displaySize) {
                 // Insert a file name linking to the attachment URL.
                 int lastSlashPos = fullFileName.lastIndexOf("/");
                 int lastBackSlashPos = fullFileName.lastIndexOf("\\");
@@ -383,8 +389,10 @@ public class EditToolbar {
                     point = doc.locate(doc.size() - 1);
                   }
                 }
-                XmlStringBuilder content = ImageThumbnail.constructXml(attachmentId, fileName);
-                ImageThumbnailWrapper thumbnail = ImageThumbnailWrapper.of(doc.insertXml(point, content));
+                XmlStringBuilder content = ImageThumbnail.constructXmlWithSize(
+                    attachmentId, displaySize, fileName);
+                ImageThumbnailWrapper thumbnail = ImageThumbnailWrapper.of(
+                    doc.insertXml(point, content));
                 thumbnail.setAttachmentId(attachmentId);
               }
             });

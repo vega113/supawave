@@ -236,11 +236,15 @@
 }
 
 .replies {
-  margin: 0 0.75em 0 3.75em;
+  margin: 0 0.75em 0 1em;
+  border-left: 2px solid rgba(0,119,182,0.15);
+  padding-left: 8px;
 }
 
 .privateReplies {
-  margin: 0 0.75em 0.5em 3.75em;
+  margin: 0 0.75em 0.5em 1em;
+  border-left: 2px solid rgba(0,119,182,0.10);
+  padding-left: 8px;
 }
 
 .contentContainer, .replies, .privateReplies{word-wrap: break-word;}

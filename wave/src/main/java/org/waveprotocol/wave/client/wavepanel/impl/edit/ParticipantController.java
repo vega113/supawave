@@ -234,7 +234,7 @@ public final class ParticipantController {
     if (isPublic) {
       // Open-lock icon for public state (unlocked = everyone can see)
       buttonElement.setInnerHTML(
-          "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+          "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' "
           + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
           + "stroke-linejoin='round'>"
           + "<rect x='3' y='11' width='18' height='11' rx='2' ry='2'/>"
@@ -245,7 +245,7 @@ public final class ParticipantController {
     } else {
       // Closed-lock icon for private state (locked = only participants)
       buttonElement.setInnerHTML(
-          "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+          "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' "
           + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
           + "stroke-linejoin='round'>"
           + "<rect x='3' y='11' width='18' height='11' rx='2' ry='2'/>"

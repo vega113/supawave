@@ -42,6 +42,16 @@
      <div class='{css.searchboxContainer}'>
        <g:TextBox ui:field='query' styleName='{css.query}'/>
      </div>
+     <div class='{css.searchButtonsPanel}'>
+       <g:Button ui:field='searchButtonShared' title='Shared waves'
+           styleName='{css.searchButton}'>S</g:Button>
+       <g:Button ui:field='searchButtonAll' title='All waves'
+           styleName='{css.searchButton}'>A</g:Button>
+       <g:Button ui:field='searchButtonInbox' title='Inbox'
+           styleName='{css.searchButton}'>I</g:Button>
+       <g:Button ui:field='searchButtonArchive' title='Archive'
+           styleName='{css.searchButton}'>X</g:Button>
+     </div>
    </div>
   </g:HTMLPanel>
 </ui:UiBinder>

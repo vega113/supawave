@@ -212,7 +212,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
         + ">"
         // Material "person_add" icon (person silhouette + plus sign)
-        + "<svg width='18' height='18' viewBox='0 0 24 24' fill='currentColor'>"
+        + "<svg width='15' height='15' viewBox='0 0 24 24' fill='currentColor'>"
         + "<path d='M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 "
         + "4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/>"
         + "</svg>"
@@ -236,7 +236,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
         + ">"
         // Wave/water icon with a small plus: three wavy lines + plus symbol
-        + "<svg width='18' height='18' viewBox='0 0 24 24' fill='currentColor'>"
+        + "<svg width='15' height='15' viewBox='0 0 24 24' fill='currentColor'>"
         + "<path d='M21 14c-1.11 0-1.98-.42-2.76-1.13-.78.71-1.64 1.13-2.74 1.13s-1.97-.42-2.75-1.13c-.78.71-1.64 "
         + "1.13-2.75 1.13s-1.96-.42-2.74-1.13C6.47 13.58 5.61 14 4.5 14c-1.11 0-1.97-.42-2.75-1.13-.15.14-.31.26-."
         + "48.38v2.49c.34-.11.69-.24 1.23-.24 1.11 0 1.97.42 2.75 1.13.78-.71 1.64-1.13 2.75-1.13s1.96.42 2.74 1."

@@ -232,8 +232,12 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     }
   }
 
+  private static final Pattern IN_ALL_PATTERN = Pattern.compile("\\bin:all\\b");
+
   private static boolean isAllQuery(String query) {
-    return !IN_PATTERN.matcher(query).find();
+    // The query is an "all" query if there is no 'in:' filter, or if
+    // the explicit 'in:all' filter is used.
+    return !IN_PATTERN.matcher(query).find() || IN_ALL_PATTERN.matcher(query).find();
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {

@@ -93,8 +93,14 @@ public class LocalParagraphEventHandler extends NodeEventHandlerImpl {
         doc.locate(doc.getLocation(point)), LineContainers.LINE_TAGNAME, secondAttrs);
 
     ContentElement newLocalParagraph = Line.fromLineElement(newLineElement).getParagraph();
-    element.getSelectionHelper().setCaret(
-        Point.start(element.getRenderedContentView(), newLocalParagraph));
+
+    // Guard against the editing context being lost (e.g. if the edit session
+    // was ended by a concurrent event during the createElement operation).
+    // Without this check, getSelectionHelper() throws "Not in an editing context".
+    if (element.getContext().editing().hasEditor()) {
+      element.getSelectionHelper().setCaret(
+          Point.start(element.getRenderedContentView(), newLocalParagraph));
+    }
 
     return true;
   }

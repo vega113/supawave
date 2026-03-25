@@ -100,4 +100,16 @@ public interface IntrinsicBlipMetaView {
    * @param option option to de-select
    */
   void deselect(MenuOption option);
+
+  /**
+   * Sets the draft-mode active visual indicator on the blip meta.
+   * When active, the blip shows a notification banner and visual distinction
+   * (dashed border, amber tint, DRAFT badge) so the user knows changes are
+   * being buffered and not yet visible to other participants.
+   *
+   * @param active true to show draft-mode indicator, false to hide it
+   */
+  default void setDraftActive(boolean active) {
+    // no-op by default; DOM implementations override to toggle a CSS class
+  }
 }

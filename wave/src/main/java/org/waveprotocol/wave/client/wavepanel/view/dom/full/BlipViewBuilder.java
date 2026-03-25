@@ -81,6 +81,9 @@ public class BlipViewBuilder implements UiBuilder, IntrinsicBlipView {
 
     // Quasi-deleted state class
     String deleted();
+
+    // Draft-mode active indicator class
+    String draftActive();
   }
 
   /** An enum for all the components of a blip view. */

@@ -23,7 +23,6 @@ import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.InputElement;
 import com.google.gwt.dom.client.Style;
-import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyCodes;
@@ -128,17 +127,15 @@ public final class VersionScrubber extends Composite {
 
   /** Wires up DOM event handlers for the range input and exit button. */
   private void wireEvents() {
-    // Range input change event (fires on mouse release)
-    DOM.sinkEvents(rangeInput, Event.ONCHANGE | Event.ONINPUT
+    // Range input change event (fires on mouse release) and keyboard/mouse events.
+    // Note: HTML5 'input' event is not in GWT's event model, so we use JSNI below.
+    DOM.sinkEvents(rangeInput, Event.ONCHANGE
         | Event.ONKEYDOWN | Event.ONMOUSEMOVE | Event.ONMOUSEOUT);
     DOM.setEventListener(rangeInput, new EventListener() {
       public void onBrowserEvent(Event event) {
         int type = DOM.eventGetType(event);
-        if (type == Event.ONCHANGE || type == Event.ONINPUT) {
-          int val = Integer.parseInt(InputElement.as(rangeInput).getValue());
-          if (listener != null) {
-            listener.onScrubberMoved(val);
-          }
+        if (type == Event.ONCHANGE) {
+          onRangeInput();
         } else if (type == Event.ONKEYDOWN) {
           int keyCode = event.getKeyCode();
           if (keyCode == KeyCodes.KEY_LEFT) {
@@ -169,6 +166,11 @@ public final class VersionScrubber extends Composite {
       }
     });
 
+    // Use JSNI to add the HTML5 'input' event listener, which GWT's Event
+    // class does not support (no ONINPUT constant). This fires continuously
+    // as the user drags the range slider, providing real-time feedback.
+    addNativeInputListener(rangeInput);
+
     // Exit button click
     exitButton.addClickHandler(new ClickHandler() {
       public void onClick(ClickEvent event) {
@@ -178,6 +180,27 @@ public final class VersionScrubber extends Composite {
       }
     });
   }
+
+  /** Called when the range input value changes (from either 'input' or 'change' events). */
+  private void onRangeInput() {
+    int val = Integer.parseInt(InputElement.as(rangeInput).getValue());
+    if (listener != null) {
+      listener.onScrubberMoved(val);
+    }
+  }
+
+  /**
+   * Adds a native 'input' event listener via JSNI. The HTML5 'input' event
+   * fires continuously while the user drags a range slider, unlike 'change'
+   * which only fires on release. GWT's {@link Event} class lacks an ONINPUT
+   * constant, so we attach the listener directly through JavaScript.
+   */
+  private native void addNativeInputListener(Element el) /*-{
+    var self = this;
+    el.addEventListener('input', function(e) {
+      self.@org.waveprotocol.box.webclient.client.VersionScrubber::onRangeInput()();
+    });
+  }-*/;
 
   /** Sets the listener for scrubber events. */
   public void setListener(Listener listener) {

@@ -20,6 +20,7 @@ import com.google.wave.api.Context;
 import com.google.wave.api.ProtocolVersion;
 import com.google.wave.api.event.EventType;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +37,12 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String HUMAN_PASSWORD_FIELD = "passwordDigest";
   private static final String HUMAN_EMAIL_FIELD = "email";
   private static final String HUMAN_EMAIL_CONFIRMED_FIELD = "emailConfirmed";
+  private static final String HUMAN_ROLE_FIELD = "role";
+  private static final String HUMAN_STATUS_FIELD = "status";
+  private static final String HUMAN_TIER_FIELD = "tier";
+  private static final String HUMAN_REGISTRATION_TIME_FIELD = "registrationTime";
+  private static final String HUMAN_LAST_LOGIN_TIME_FIELD = "lastLoginTime";
+  private static final String HUMAN_LAST_ACTIVITY_TIME_FIELD = "lastActivityTime";
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
 
@@ -117,6 +124,34 @@ final class Mongo4AccountStore implements AccountStore {
     }
   }
 
+  @Override
+  public List<AccountData> getAllAccounts() throws PersistenceException {
+    try {
+      List<AccountData> result = new ArrayList<>();
+      for (Document doc : col.find()) {
+        String idStr = doc.getString("_id");
+        ParticipantId id = ParticipantId.ofUnsafe(idStr);
+        Document human = (Document) doc.get(ACCOUNT_HUMAN_DATA_FIELD);
+        if (human != null) {
+          result.add(objectToHuman(id, human));
+        }
+        // Intentionally skip robots — admin page only shows human accounts
+      }
+      return result;
+    } catch (RuntimeException e) {
+      throw new PersistenceException(e);
+    }
+  }
+
+  @Override
+  public long getAccountCount() throws PersistenceException {
+    try {
+      return col.countDocuments();
+    } catch (RuntimeException e) {
+      throw new PersistenceException(e);
+    }
+  }
+
   private static Document humanToObject(HumanAccountData account) {
     Document doc = new Document();
     PasswordDigest digest = account.getPasswordDigest();
@@ -129,6 +164,19 @@ final class Mongo4AccountStore implements AccountStore {
       doc.append(HUMAN_EMAIL_FIELD, account.getEmail());
     }
     doc.append(HUMAN_EMAIL_CONFIRMED_FIELD, account.isEmailConfirmed());
+    // Admin / role / status fields
+    doc.append(HUMAN_ROLE_FIELD, account.getRole());
+    doc.append(HUMAN_STATUS_FIELD, account.getStatus());
+    doc.append(HUMAN_TIER_FIELD, account.getTier());
+    if (account.getRegistrationTime() != 0) {
+      doc.append(HUMAN_REGISTRATION_TIME_FIELD, account.getRegistrationTime());
+    }
+    if (account.getLastLoginTime() != 0) {
+      doc.append(HUMAN_LAST_LOGIN_TIME_FIELD, account.getLastLoginTime());
+    }
+    if (account.getLastActivityTime() != 0) {
+      doc.append(HUMAN_LAST_ACTIVITY_TIME_FIELD, account.getLastActivityTime());
+    }
     return doc;
   }
 
@@ -148,6 +196,31 @@ final class Mongo4AccountStore implements AccountStore {
     Boolean emailConfirmed = doc.getBoolean(HUMAN_EMAIL_CONFIRMED_FIELD);
     if (emailConfirmed != null) {
       account.setEmailConfirmed(emailConfirmed);
+    }
+    // Admin / role / status fields
+    String role = doc.getString(HUMAN_ROLE_FIELD);
+    if (role != null) {
+      account.setRole(role);
+    }
+    String status = doc.getString(HUMAN_STATUS_FIELD);
+    if (status != null) {
+      account.setStatus(status);
+    }
+    String tier = doc.getString(HUMAN_TIER_FIELD);
+    if (tier != null) {
+      account.setTier(tier);
+    }
+    Long registrationTime = doc.getLong(HUMAN_REGISTRATION_TIME_FIELD);
+    if (registrationTime != null) {
+      account.setRegistrationTime(registrationTime);
+    }
+    Long lastLoginTime = doc.getLong(HUMAN_LAST_LOGIN_TIME_FIELD);
+    if (lastLoginTime != null) {
+      account.setLastLoginTime(lastLoginTime);
+    }
+    Long lastActivityTime = doc.getLong(HUMAN_LAST_ACTIVITY_TIME_FIELD);
+    if (lastActivityTime != null) {
+      account.setLastActivityTime(lastActivityTime);
     }
     return account;
   }

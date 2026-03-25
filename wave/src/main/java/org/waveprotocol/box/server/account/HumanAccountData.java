@@ -101,4 +101,72 @@ public interface HumanAccountData extends AccountData {
    * @param searches the searches to store
    */
   void setSearches(List<SearchesItem> searches);
+
+  // =========================================================================
+  // Admin / role / status fields
+  // =========================================================================
+
+  /** User role constants. */
+  String ROLE_OWNER = "owner";
+  String ROLE_ADMIN = "admin";
+  String ROLE_USER  = "user";
+
+  /** User status constants. */
+  String STATUS_ACTIVE    = "active";
+  String STATUS_SUSPENDED = "suspended";
+  String STATUS_BANNED    = "banned";
+
+  /** User tier constants. */
+  String TIER_FREE = "free";
+
+  /**
+   * Returns the user's role: "owner", "admin", or "user".
+   * Defaults to "user" if not set.
+   */
+  String getRole();
+
+  /** Sets the user's role. */
+  void setRole(String role);
+
+  /**
+   * Returns the user's account status: "active", "suspended", or "banned".
+   * Defaults to "active" if not set.
+   */
+  String getStatus();
+
+  /** Sets the user's account status. */
+  void setStatus(String status);
+
+  /**
+   * Returns the user's tier: "free" (default).
+   * Placeholder for future commercialization.
+   */
+  String getTier();
+
+  /** Sets the user's tier. */
+  void setTier(String tier);
+
+  /**
+   * Returns the epoch millis when the user registered, or 0 if unknown.
+   */
+  long getRegistrationTime();
+
+  /** Sets the registration timestamp (epoch millis). */
+  void setRegistrationTime(long registrationTime);
+
+  /**
+   * Returns the epoch millis of the user's last login, or 0 if unknown.
+   */
+  long getLastLoginTime();
+
+  /** Sets the last login timestamp (epoch millis). */
+  void setLastLoginTime(long lastLoginTime);
+
+  /**
+   * Returns the epoch millis of the user's last activity, or 0 if unknown.
+   */
+  long getLastActivityTime();
+
+  /** Sets the last activity timestamp (epoch millis). */
+  void setLastActivityTime(long lastActivityTime);
 }

@@ -22,6 +22,8 @@ package org.waveprotocol.box.server.persistence;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
+import java.util.List;
+
 /**
  * Interface for the storage and retrieval of {@link AccountData}s.
  *
@@ -72,5 +74,24 @@ public interface AccountStore {
    */
   default AccountData getAccountByEmail(String email) throws PersistenceException {
     return null;
+  }
+
+  /**
+   * Returns all human accounts in the store.
+   *
+   * <p>Default implementation returns an empty list (backward compatible for
+   * stores that have not implemented enumeration).
+   */
+  default List<AccountData> getAllAccounts() throws PersistenceException {
+    return java.util.Collections.emptyList();
+  }
+
+  /**
+   * Returns the total count of human accounts in the store.
+   *
+   * <p>Default implementation returns 0 (backward compatible).
+   */
+  default long getAccountCount() throws PersistenceException {
+    return 0;
   }
 }

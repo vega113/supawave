@@ -32,7 +32,6 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
-import java.net.URLDecoder;
 
 /**
  * A servlet that enables the client to fetch user profiles. Typically hosted on
@@ -73,12 +72,15 @@ public final class FetchProfilesServlet extends HttpServlet {
       return;
     }
 
-    String[] addresses = URLDecoder.decode(addressesParam, "UTF-8").split(",");
+    String[] addresses = addressesParam.split(",");
 
     ProfileResponse.Builder builder = ProfileResponse.newBuilder();
+    boolean hasProfiles = false;
     for (String address : addresses) {
       String trimmed = address.trim();
-      if (trimmed.isEmpty()) continue;
+      if (trimmed.isEmpty()) {
+        continue;
+      }
       ParticipantProfile profile = profilesFetcher.fetchProfile(trimmed);
       builder.addProfiles(
           ProfileResponse.FetchedProfile.newBuilder()
@@ -87,6 +89,12 @@ public final class FetchProfilesServlet extends HttpServlet {
               .setImageUrl(profile.getImageUrl())
               .setProfileUrl(profile.getProfileUrl())
               .build());
+      hasProfiles = true;
+    }
+
+    if (!hasProfiles) {
+      response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No valid addresses provided");
+      return;
     }
 
     ProfileResponse profileResponse = builder.build();

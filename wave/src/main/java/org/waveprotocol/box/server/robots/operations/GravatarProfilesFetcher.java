@@ -37,8 +37,8 @@ import java.util.logging.Logger;
  * <p>Email resolution order:
  * <ol>
  *   <li>The user's registered email from {@link HumanAccountData#getEmail()}</li>
- *   <li>Fallback: {@code username@supawave.ai} (ensures every user gets a unique
- *       identicon even without a registered email)</li>
+ *   <li>Fallback: {@code sha256(address)@wave-avatar.invalid} (ensures every user
+ *       gets a unique identicon even without a registered email)</li>
  * </ol>
  *
  * <p>Users can customize their avatar by registering at gravatar.com with the
@@ -52,7 +52,7 @@ public class GravatarProfilesFetcher implements ProfilesFetcher {
       Logger.getLogger(GravatarProfilesFetcher.class.getCanonicalName());
 
   private static final String GRAVATAR_URL = "https://www.gravatar.com/avatar/";
-  private static final String FALLBACK_DOMAIN = "supawave.ai";
+  private static final String FALLBACK_DOMAIN = "wave-avatar.invalid";
 
   private final AccountStore accountStore;
 
@@ -65,7 +65,7 @@ public class GravatarProfilesFetcher implements ProfilesFetcher {
    * Resolves the email address to use for Gravatar hashing.
    *
    * <p>Looks up the user's registered email in the account store first.
-   * Falls back to {@code username@supawave.ai} if no email is registered.
+   * Falls back to {@code sha256(address)@wave-avatar.invalid} if no email is registered.
    *
    * @param address the wave address (e.g. {@code user@example.com})
    * @return the email to hash for Gravatar
@@ -84,9 +84,11 @@ public class GravatarProfilesFetcher implements ProfilesFetcher {
     } catch (Exception e) {
       LOG.log(Level.WARNING, "Failed to look up account for " + address, e);
     }
-    // Fallback: use username@supawave.ai
-    String username = address.contains("@") ? address.split("@")[0] : address;
-    return username + "@" + FALLBACK_DOMAIN;
+    // Fallback: hash the full address to avoid collisions between users with the
+    // same local part on different domains, and use a non-routable .invalid TLD
+    // so no real Gravatar account can override the identicon.
+    String syntheticLocalPart = DigestUtils.sha256Hex(address.trim());
+    return syntheticLocalPart + "@" + FALLBACK_DOMAIN;
   }
 
   /**

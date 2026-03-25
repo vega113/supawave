@@ -1134,9 +1134,9 @@ public final class HtmlRenderer {
     sb.append("body { margin: 0; }\n");
     sb.append(".topbar {\n");
     sb.append("  height: 40px; line-height: 40px;\n");
-    sb.append("  background: #fff;\n");
-    sb.append("  border-bottom: 1px solid #e2e8f0;\n");
-    sb.append("  box-shadow: 0 1px 3px rgba(0,0,0,0.06);\n");
+    sb.append("  background: linear-gradient(135deg, #023e6b 0%, ").append(WAVE_PRIMARY).append(" 60%, ").append(WAVE_ACCENT).append(" 100%);\n");
+    sb.append("  border-bottom: none;\n");
+    sb.append("  box-shadow: 0 2px 8px rgba(0,50,100,0.18);\n");
     sb.append("  overflow: visible;\n");
     sb.append("  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,\n");
     sb.append("    Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;\n");
@@ -1147,23 +1147,69 @@ public final class HtmlRenderer {
     sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; gap: 8px; }\n");
     sb.append(".topbar-brand svg { flex-shrink: 0; }\n");
     sb.append(".title {\n");
-    sb.append("  font-size: 17px; font-weight: 700; color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("  font-size: 17px; font-weight: 700; color: #fff;\n");
     sb.append("  letter-spacing: -0.3px;\n");
     sb.append("}\n");
     sb.append(".banner { margin-left: 12px; }\n");
-    sb.append(".lang { height: 19px; }\n");
-    sb.append(".domain { color: #8896a6; font-weight: 400; }\n");
-    sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4a5568; }\n");
-    sb.append(".info a { color: ").append(WAVE_PRIMARY).append("; text-decoration: none; font-weight: 500; }\n");
+    // -- Icon-based status indicators --
+    sb.append(".topbar-icon {\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  width: 32px; height: 32px; border-radius: 6px; cursor: default;\n");
+    sb.append("  transition: transform 0.15s, background 0.15s;\n");
+    sb.append("  background: rgba(255,255,255,0.10);\n");
+    sb.append("  position: relative;\n");
+    sb.append("}\n");
+    sb.append(".topbar-icon:hover {\n");
+    sb.append("  transform: scale(1.1);\n");
+    sb.append("  background: rgba(255,255,255,0.18);\n");
+    sb.append("}\n");
+    sb.append(".topbar-icon svg { width: 20px; height: 20px; }\n");
+    // Language selector icon button
+    sb.append(".lang-icon-btn {\n");
+    sb.append("  cursor: pointer; position: relative;\n");
+    sb.append("}\n");
+    sb.append(".lang-icon-btn select {\n");
+    sb.append("  position: absolute; top: 0; left: 0; width: 100%; height: 100%;\n");
+    sb.append("  opacity: 0; cursor: pointer; font-size: 14px;\n");
+    sb.append("}\n");
+    // Save status icon
+    sb.append("#unsavedStateContainer {\n");
+    sb.append("  display: inline-flex !important; align-items: center; justify-content: center;\n");
+    sb.append("  width: 32px !important; height: 32px;\n");
+    sb.append("}\n");
+    sb.append("#unsavedStateContainer svg { width: 20px; height: 20px; }\n");
+    // Connection status icon
+    sb.append("#netstatus {\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("}\n");
+    sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
+    sb.append(".online svg { color: #68d391; }\n");
+    sb.append(".connecting svg { color: #fbd38d; }\n");
+    sb.append(".offline svg { color: #fc8181; }\n");
+    // Info bar
+    sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.9); }\n");
+    sb.append(".info a { color: #fff; text-decoration: none; font-weight: 500; }\n");
     sb.append(".info a:hover { text-decoration: underline; }\n");
-    sb.append(".online { color: #38a169; }\n");
-    sb.append(".connecting { color: #dd6b20; font-weight: 600; }\n");
-    sb.append(".offline { color: #e53e3e; font-weight: 600; }\n");
+    // -- Avatar circle --
+    sb.append(".user-avatar {\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  width: 28px; height: 28px; border-radius: 50%;\n");
+    sb.append("  background: rgba(255,255,255,0.25); color: #fff;\n");
+    sb.append("  font-weight: 700; font-size: 13px; text-transform: uppercase;\n");
+    sb.append("  flex-shrink: 0;\n");
+    sb.append("}\n");
+    // -- User menu --
     sb.append(".user-menu { position: relative; display: inline-block; cursor: pointer; }\n");
-    sb.append(".user-menu-toggle { background: none; border: none; color: #4a5568; cursor: pointer; font: inherit; padding: 4px 10px; border-radius: 6px; transition: background 0.15s; }\n");
-    sb.append(".user-menu-toggle:hover { background: #f0f4f8; }\n");
+    sb.append(".user-menu-toggle {\n");
+    sb.append("  background: rgba(255,255,255,0.10); border: none; color: #fff;\n");
+    sb.append("  cursor: pointer; font: inherit; padding: 3px 8px 3px 4px; border-radius: 20px;\n");
+    sb.append("  transition: background 0.15s; display: flex; align-items: center; gap: 6px; line-height: 1;\n");
+    sb.append("}\n");
+    sb.append(".user-menu-toggle:hover { background: rgba(255,255,255,0.22); }\n");
+    sb.append(".user-menu-toggle .caret { font-size: 10px; opacity: 0.8; }\n");
     sb.append(".user-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); min-width: 210px; z-index: 1000; padding: 4px 0; margin-top: 6px; border: 1px solid #e2e8f0; }\n");
     sb.append(".user-menu-dropdown.open { display: block; }\n");
+    sb.append(".user-menu-dropdown .user-info { padding: 10px 16px; border-bottom: 1px solid #e2e8f0; color: #4a5568; font-size: 12px; }\n");
     sb.append(".user-menu-dropdown a { display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px; transition: background 0.1s; }\n");
     sb.append(".user-menu-dropdown a:hover { background: #f0f4f8; color: ").append(WAVE_PRIMARY).append("; }\n");
     sb.append(".user-menu-dropdown .divider { border-top: 1px solid #e2e8f0; margin: 4px 0; }\n");
@@ -1173,7 +1219,7 @@ public final class HtmlRenderer {
     sb.append(".mobile-hamburger, .mobile-back {\n");
     sb.append("  display: none; background: none; border: none; cursor: pointer;\n");
     sb.append("  width: 40px; height: 40px; padding: 0; align-items: center; justify-content: center;\n");
-    sb.append("  color: #4a5568; font-size: 22px; flex-shrink: 0;\n");
+    sb.append("  color: rgba(255,255,255,0.9); font-size: 22px; flex-shrink: 0;\n");
     sb.append("}\n");
     // -- Mobile backdrop overlay --
     sb.append(".mobile-backdrop {\n");
@@ -1187,9 +1233,6 @@ public final class HtmlRenderer {
     // RESPONSIVE: Tablet (768-1023px) - narrower search panel
     // =================================================================
     sb.append("@media (min-width: 768px) and (max-width: 1023px) {\n");
-    sb.append("  .topbar .domain { display: none; }\n");
-    sb.append("  #unsavedStateContainer { display: none !important; }\n");
-    sb.append("  .topbar .lang { display: none; }\n");
     sb.append("  [data-mobile-role='search-panel'] {\n");
     sb.append("    width: 280px !important;\n");
     sb.append("  }\n");
@@ -1213,10 +1256,8 @@ public final class HtmlRenderer {
     sb.append("  .topbar .title { font-size: 15px; }\n");
     sb.append("  .topbar .banner { display: none; }\n");
     sb.append("  .topbar .info { gap: 4px; }\n");
-    sb.append("  .topbar .domain { display: none; }\n");
-    sb.append("  .topbar .lang { display: none; }\n");
-    sb.append("  #unsavedStateContainer { display: none !important; }\n");
-    sb.append("  .user-menu-toggle { padding: 4px 6px; font-size: 12px; }\n");
+    sb.append("  .lang-icon-btn { display: none; }\n");
+    sb.append("  .user-menu-toggle { padding: 3px 6px 3px 3px; }\n");
     // -- App container adjust for taller mobile topbar --
     sb.append("  #app { top: 49px !important; }\n");
     // -- GWT SplitLayoutPanel overrides --
@@ -1265,6 +1306,9 @@ public final class HtmlRenderer {
     sb.append("  .topbar { padding: 0 4px; }\n");
     sb.append("  .topbar-brand svg { width: 22px; height: 22px; }\n");
     sb.append("  .topbar .title { font-size: 14px; }\n");
+    sb.append("  .topbar-icon { width: 28px; height: 28px; }\n");
+    sb.append("  .topbar-icon svg { width: 16px; height: 16px; }\n");
+    sb.append("  .user-avatar { width: 24px; height: 24px; font-size: 11px; }\n");
     sb.append("  [data-mobile-role='search-panel'] {\n");
     sb.append("    width: 90vw !important; max-width: none !important;\n");
     sb.append("  }\n");
@@ -1533,7 +1577,12 @@ public final class HtmlRenderer {
    * @param domain   the wave server domain
    */
   public static String renderTopBar(String username, String domain) {
-    StringBuilder sb = new StringBuilder(2048);
+    StringBuilder sb = new StringBuilder(4096);
+    String fullAddress = (username != null && domain != null)
+        ? escapeHtml(username) + "@" + escapeHtml(domain) : "";
+    String firstLetter = (username != null && !username.isEmpty())
+        ? escapeHtml(username.substring(0, 1).toUpperCase()) : "?";
+
     sb.append("<div class=\"topbar\">\n");
     sb.append("  <button class=\"mobile-hamburger\" id=\"mobileHamburger\" aria-label=\"Open navigation\">&#9776;</button>\n");
     sb.append("  <button class=\"mobile-back\" id=\"mobileBack\" aria-label=\"Back to inbox\">&#8592;</button>\n");
@@ -1545,16 +1594,25 @@ public final class HtmlRenderer {
       sb.append("    <a href=\"/auth/register\">Register</a>\n");
       sb.append("    <a href=\"/auth/signin?r=/\">Sign In</a>\n");
     } else {
-      sb.append("    <select id=\"lang\" class=\"lang\" size=\"1\"></select>\n");
-      sb.append("    <span id=\"unsavedStateContainer\" style=\"width:60px\">Saved</span>\n");
-      sb.append("    <span id=\"netstatus\" class=\"offline\">Offline</span>\n");
+      // -- Language selector: globe icon wrapping a transparent <select> --
+      sb.append("    <div class=\"topbar-icon lang-icon-btn\" title=\"Language\">\n");
+      sb.append("      ").append(ICON_GLOBE).append("\n");
+      sb.append("      <select id=\"lang\" size=\"1\"></select>\n");
+      sb.append("    </div>\n");
+      // -- Save status indicator: cloud-check icon, updated by GWT --
+      sb.append("    <span id=\"unsavedStateContainer\" class=\"topbar-icon\" title=\"All changes saved\">");
+      sb.append(ICON_CLOUD_CHECK).append("</span>\n");
+      // -- Connection status: wifi-off icon for initial offline state, updated by GWT --
+      sb.append("    <span id=\"netstatus\" class=\"topbar-icon offline\" title=\"Offline\">");
+      sb.append(ICON_WIFI_OFF).append("</span>\n");
+      // -- User menu with avatar --
       sb.append("    <div class=\"user-menu\">\n");
-      sb.append("      <button class=\"user-menu-toggle\">\n");
-      sb.append("        ").append(escapeHtml(username));
-      sb.append("<span class=\"domain\">@").append(escapeHtml(domain)).append("</span>");
-      sb.append(" &#9662;\n");
+      sb.append("      <button class=\"user-menu-toggle\" title=\"").append(fullAddress).append("\">\n");
+      sb.append("        <span class=\"user-avatar\">").append(firstLetter).append("</span>\n");
+      sb.append("        <span class=\"caret\">&#9662;</span>\n");
       sb.append("      </button>\n");
       sb.append("      <div class=\"user-menu-dropdown\">\n");
+      sb.append("        <div class=\"user-info\">").append(fullAddress).append("</div>\n");
       sb.append("        <a href=\"/robot/register/create\">Robot Registration</a>\n");
       sb.append("        <a href=\"/robot/dataapi/token\">API Token</a>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
@@ -1567,6 +1625,46 @@ public final class HtmlRenderer {
     sb.append("</div>");
     return sb.toString();
   }
+
+  // =========================================================================
+  // Inline SVG Icons for top bar
+  // =========================================================================
+
+  /** Globe icon for language selector. */
+  private static final String ICON_GLOBE =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      + "<circle cx=\"12\" cy=\"12\" r=\"10\"/>"
+      + "<ellipse cx=\"12\" cy=\"12\" rx=\"4\" ry=\"10\"/>"
+      + "<path d=\"M2 12h20\"/>"
+      + "<path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10\"/>"
+      + "</svg>";
+
+  /** Cloud with checkmark icon for saved state. */
+  private static final String ICON_CLOUD_CHECK =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
+      + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
+      + "</svg>";
+  /** WiFi/signal icon for connection status. */
+  private static final String ICON_WIFI =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      + "<path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/>"
+      + "<path d=\"M5.07 12.5a10 10 0 0 1 13.86 0\"/>"
+      + "<path d=\"M8.72 16a6 6 0 0 1 6.56 0\"/>"
+      + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
+      + "</svg>";
+
+  /** WiFi-off icon for disconnected state. */
+  private static final String ICON_WIFI_OFF =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      + "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/>"
+      + "<path d=\"M16.72 11.06A10.94 10.94 0 0 1 19 12.55\"/>"
+      + "<path d=\"M5 12.55a10.94 10.94 0 0 1 5.17-2.39\"/>"
+      + "<path d=\"M10.71 5.05A16 16 0 0 1 22.56 9\"/>"
+      + "<path d=\"M1.42 9a15.91 15.91 0 0 1 4.7-2.88\"/>"
+      + "<path d=\"M8.53 16.11a6 6 0 0 1 6.95 0\"/>"
+      + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
+      + "</svg>";
 
   // =========================================================================
   // 5. Robot Registration Page

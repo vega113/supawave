@@ -75,16 +75,34 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
 
             Map<WaveId, Wave> waves = waveMap.getWaves();
             for (Map.Entry<WaveId, Wave> entry : waves.entrySet()) {
+              WaveId waveId = entry.getKey();
               Wave wave = entry.getValue();
-              for (WaveletContainer c : wave) {
-                WaveletId waveletId = c.getWaveletName().waveletId;
+
+              // Collect wavelet IDs from both persisted storage and in-memory
+              // containers.  lookupWavelets() returns IDs from the DB snapshot
+              // taken when the Wave was first loaded — this covers wavelets
+              // that exist after a server restart.  wave.iterator() returns
+              // containers that were created during the current session (e.g.
+              // via submitRequest) but may not yet be in the stored lookup.
+              java.util.Set<WaveletId> waveletIds = new java.util.HashSet<>();
+              try {
+                waveletIds.addAll(waveMap.lookupWavelets(waveId));
+              } catch (WaveletStateException e) {
+                LOG.warning("Failed to look up wavelets for wave " + waveId, e);
+              }
+              for (WaveletContainer wc : wave) {
+                waveletIds.add(wc.getWaveletName().waveletId);
+              }
+
+              for (WaveletId waveletId : waveletIds) {
+                WaveletName waveletName = WaveletName.of(waveId, waveletId);
                 try {
-                  if (!c.hasParticipant(user)) {
-                    continue;
+                  WaveletContainer c = waveMap.getWavelet(waveletName);
+                  if (c != null && c.hasParticipant(user)) {
+                    userView.put(waveId, waveletId);
                   }
-                  userView.put(entry.getKey(), waveletId);
                 } catch (WaveletStateException e) {
-                  LOG.warning("Failed to access wavelet " + c.getWaveletName(), e);
+                  LOG.warning("Failed to access wavelet " + waveletName, e);
                 }
               }
             }

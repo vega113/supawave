@@ -76,6 +76,9 @@ public interface SearchPanelView {
   /** @return a rendering of {@code digest}. */
   DigestView insertAfter(DigestView ref, Digest digest);
 
+  /** Re-renders an existing digest view in-place with updated digest data. */
+  void renderDigest(DigestView digestUi, Digest digest);
+
   /** Removes all digest views. */
   void clearDigests();
 

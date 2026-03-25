@@ -201,6 +201,12 @@ public final class ParticipantController {
       return;
     }
 
+    // Guard against null/empty localDomain before building the shared domain participant.
+    if (localDomain == null || localDomain.isEmpty()) {
+      Window.alert(messages.publicToggleNotAvailable());
+      return;
+    }
+
     // Build the shared domain participant (e.g., @example.com).
     ParticipantId domainParticipant =
         ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(localDomain);
@@ -365,6 +371,22 @@ public final class ParticipantController {
     profileUi.addControl(EscapeUtils.fromSafeConstant(messages.remove()), new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
+        // Enforce creator-only rule for removing the shared-domain participant
+        // (i.e., toggling wave visibility). This prevents non-creators from
+        // making a public wave private via the participant remove action.
+        if (localDomain != null && !localDomain.isEmpty()) {
+          ParticipantId domainParticipant =
+              ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(localDomain);
+          if (participation.second.equals(domainParticipant)) {
+            Set<ParticipantId> currentParticipants = participation.first.getParticipantIds();
+            ParticipantId creator = currentParticipants.iterator().next();
+            if (!user.equals(creator)) {
+              Window.alert(messages.onlyOwnerCanTogglePublic());
+              profileView.hide();
+              return;
+            }
+          }
+        }
         participation.first.removeParticipant(participation.second);
         // The presenter is configured to destroy itself on view hide.
         profileView.hide();

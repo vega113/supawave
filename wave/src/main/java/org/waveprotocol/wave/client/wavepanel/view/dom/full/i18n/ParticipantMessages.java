@@ -43,4 +43,7 @@ public interface ParticipantMessages extends Messages {
 
   @DefaultMessage("Make wave private")
   String makeWavePrivate();
+
+  @DefaultMessage("Add participant to this wave")
+  String addParticipantToThisWave();
  }

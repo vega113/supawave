@@ -89,12 +89,12 @@
 }
 
 .flow {
-  /* Expand to floated content. */
-  overflow: auto;
+  /* Expand to floated content – hidden prevents unwanted scrollbars. */
+  overflow: hidden;
   /* Positioned contained for add button. */
   position: relative;
   /* Room for absolutely positioned add and new-wave buttons. */
-  padding-right: 6em;
+  padding-right: 7em;
 }
 
 .participant {
@@ -155,12 +155,12 @@ img.participant:hover {
   padding: 14px 0 8px 4px;
   background: linear-gradient(180deg, #e8f4f8 0%, #fff 100%);
   bottom: 0;
-  width: 5em;
+  width: 6em;
 }
 
 .extra {
   position: absolute;
-  width: 4em;
+  width: 6em;
   margin-left: 4px;
 
   /* Note that, due to borders and padding being scaled separately, the
@@ -177,17 +177,25 @@ img.participant:hover {
 }
 
 .newWaveWithParticipantsButton {
-  margin-left: 4px;
+  margin-left: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: #0077b6;
+  background: linear-gradient(135deg, #00b4d8, #0077b6);
   color: white;
   vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(0, 119, 182, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+.newWaveWithParticipantsButton:hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.4);
+  background: linear-gradient(135deg, #0096c7, #005f8f);
 }
 
 /*
@@ -208,11 +216,25 @@ img.participant:hover {
   margin-right: 0.3em;
 }
 
-@sprite .addButton {
-  gwt-image: 'addButton';
-  /* The button is a span, to conform to HTML's backward schema. */
-  display: inline-block;
+.addButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #48cae4, #00b4d8);
+  color: white;
   cursor: pointer;
+  vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(0, 180, 216, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+.addButton:hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 12px rgba(0, 180, 216, 0.4);
+  background: linear-gradient(135deg, #00b4d8, #0096c7);
 }
 
 .publicToggleButton {
@@ -227,9 +249,12 @@ img.participant:hover {
   background: #0077b6;
   color: white;
   vertical-align: middle;
-  transition: background 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 119, 182, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
 }
 
 .publicToggleButton:hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.4);
   background: #005f8a;
 }

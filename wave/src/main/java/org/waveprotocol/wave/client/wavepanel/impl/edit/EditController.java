@@ -47,9 +47,15 @@ public final class EditController implements KeySignalHandler {
     DEFAULT_BINDINGS.put(KeyCombo.CTRL_E, Action.EDIT_BLIP);
     DEFAULT_BINDINGS.put(KeyCombo.CTRL_R, Action.REPLY_TO_BLIP);
     DEFAULT_BINDINGS.put(KeyCombo.CTRL_ENTER, Action.REPLY_TO_BLIP);
-    DEFAULT_BINDINGS.put(KeyCombo.ENTER, Action.REPLY_TO_BLIP);
+    DEFAULT_BINDINGS.put(KeyCombo.ENTER, Action.EDIT_BLIP);
     DEFAULT_BINDINGS.put(KeyCombo.SHIFT_ENTER, Action.CONTINUE_THREAD);
     DEFAULT_BINDINGS.put(KeyCombo.SHIFT_DELETE, Action.DELETE_BLIP);
+    // Single-key blip action hotkeys (only fire when focus is on body, not in an editor)
+    DEFAULT_BINDINGS.put(KeyCombo.LETTER_R, Action.REPLY_TO_BLIP);
+    DEFAULT_BINDINGS.put(KeyCombo.LETTER_E, Action.EDIT_BLIP);
+    DEFAULT_BINDINGS.put(KeyCombo.DELETE, Action.DELETE_BLIP);
+    DEFAULT_BINDINGS.put(KeyCombo.BACKSPACE, Action.DELETE_BLIP);
+    DEFAULT_BINDINGS.put(KeyCombo.LETTER_L, Action.POPUP_LINK);
   }
 
   EditController(FocusedActions actions, EnumMap<KeyCombo, Action> keyBindings) {
@@ -92,6 +98,9 @@ public final class EditController implements KeySignalHandler {
         break;
       case DELETE_THREAD:
         actions.deleteThread();
+        break;
+      case POPUP_LINK:
+        actions.popupLink();
         break;
       default:
         throw new AssertionError("unknown action: " + action);

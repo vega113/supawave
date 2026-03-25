@@ -293,6 +293,9 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
     close(output);
   }
 
+  /** CSS class name for the edit-mode keyboard hint. */
+  public static final String EDIT_HINT_CLASS = "editHint";
+
   /**
    * Creates a builder for a blip menu with SVG icon buttons.
    */
@@ -313,6 +316,11 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
           openSpanWith(out, null, style, TypeCodes.kind(Type.MENU_ITEM), extra);
           out.append(MENU_ICONS.get(option));
           closeSpan(out);
+        }
+        // Show a subtle keyboard hint when in edit mode
+        if (options.contains(MenuOption.EDIT_DONE)) {
+          out.appendHtmlConstant(
+              "<span class='" + EDIT_HINT_CLASS + "'>Shift+Enter to finish, Esc to cancel</span>");
         }
       }
     };

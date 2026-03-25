@@ -79,6 +79,13 @@ public final class FocusedActions {
     }
   }
 
+  void popupLink() {
+    BlipView blipUi = getBlipContext();
+    if (blipUi != null) {
+      actions.popupLink(blipUi);
+    }
+  }
+
   private BlipView getBlipContext() {
     return focus.getFocusedBlip();
   }

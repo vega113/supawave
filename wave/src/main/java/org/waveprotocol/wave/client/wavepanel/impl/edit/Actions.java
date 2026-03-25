@@ -40,6 +40,8 @@ public interface Actions {
     DELETE_BLIP,
     /** Deletes the thread of the focused blip. */
     DELETE_THREAD,
+    /** Pops up a link for the focused blip. */
+    POPUP_LINK,
   }
 
   /**

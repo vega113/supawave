@@ -240,6 +240,13 @@ public enum KeyCombo {
   /***/
   ORDER_I,
 
+  /** Plain letter keys (no modifiers) for blip action hotkeys. */
+  LETTER_R,
+  /***/
+  LETTER_E,
+  /***/
+  LETTER_L,
+
   /** Shortcuts for Canned response insertion */
   CTRL_SHIFT_1,
   /***/

@@ -131,6 +131,11 @@ public class EventWrapper {
 
       put('L' + CTRL + SHIFT, KeyCombo.CTRL_SHIFT_L);
 
+      // Plain letter keys (no modifiers) for blip action hotkeys
+      put((int) 'R', KeyCombo.LETTER_R);
+      put((int) 'E', KeyCombo.LETTER_E);
+      put((int) 'L', KeyCombo.LETTER_L);
+
       put('F' + CTRL + ALT, KeyCombo.CTRL_ALT_F);
       put('D' + CTRL + ALT, KeyCombo.CTRL_ALT_D);
       put('G' + CTRL + ALT, KeyCombo.CTRL_ALT_G);

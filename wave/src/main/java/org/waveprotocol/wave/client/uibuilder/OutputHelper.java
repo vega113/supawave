@@ -160,6 +160,75 @@ public final class OutputHelper {
   }
 
   /**
+   * Opens an element with title and shortcut attributes.
+   *
+   * @param tag tag for the element
+   * @param builder output builder
+   * @param id value for the HTML id attribute (or {@code null} for none)
+   * @param clazz value for the CSS class attribute (or {@code null} for none)
+   * @param kind value for the kind attribute (or {@code null} for none)
+   * @param extra extra HTML, which must be a compile-time safe string
+   * @param title value for the title attribute (or {@code null} for none)
+   * @param shortcut shortcut key hint text (or {@code null} for none)
+   */
+  /**
+   * Escapes a string for safe inclusion in a single-quoted HTML attribute value.
+   */
+  private static String escapeAttr(String value) {
+    return value == null ? null
+        : value.replace("&", "&amp;")
+            .replace("'", "&#39;")
+            .replace("\"", "&quot;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;");
+  }
+
+  private static void openWithAllParameters(SafeHtmlBuilder builder,
+      String tag,
+      String id,
+      String clazz,
+      String kind,
+      String extra,
+      String title,
+      String shortcut) {
+    String titleValue = title;
+    if (shortcut != null) {
+      titleValue = (titleValue != null ? titleValue + " " : "") + "(" + shortcut + ")";
+    }
+    builder.appendHtmlConstant("<" + tag
+        + (id != null ? " id='" + escapeAttr(id) + "'" : "")
+        + (clazz != null ? " class='" + escapeAttr(clazz) + "'" : "")
+        + (kind != null ? " " + BuilderHelper.KIND_ATTRIBUTE + "='" + escapeAttr(kind) + "'" : "")
+        + (titleValue != null ? " title='" + escapeAttr(titleValue) + "'" : "")
+        + (extra != null ? " " + extra : "") + ">");
+  }
+
+  /**
+   * Opens a div with title and shortcut attributes.
+   */
+  public static void openWith(SafeHtmlBuilder builder, String id, String clazz,
+      String kind, String extra, String title, String shortcut) {
+    openWithAllParameters(builder, "div", id, clazz, kind, extra, title, shortcut);
+  }
+
+  /**
+   * Opens a span with title and shortcut attributes.
+   */
+  public static void openSpanWith(SafeHtmlBuilder builder, String id, String clazz,
+      String kind, String extra, String title, String shortcut) {
+    openWithAllParameters(builder, "span", id, clazz, kind, extra, title, shortcut);
+  }
+
+  /**
+   * Opens and closes a span with title and shortcut attributes.
+   */
+  public static void appendSpanWith(SafeHtmlBuilder builder, String id, String style,
+      String kind, String extra, String title, String shortcut) {
+    openSpanWith(builder, id, style, kind, extra, title, shortcut);
+    closeSpan(builder);
+  }
+
+  /**
    * Appends an image.
    *
    * @param url attribute-value safe URL
@@ -170,11 +239,11 @@ public final class OutputHelper {
       SafeHtmlBuilder builder, String id, String style, SafeHtml url, SafeHtml info, String kind) {
     String safeUrl = url != null ? EscapeUtils.sanitizeUri(url.asString()) : null;
     SafeHtml img = EscapeUtils.fromSafeConstant("<img " //
-        + "id='" + id + "' " //
-        + "class='" + style + "' " //
+        + "id='" + escapeAttr(id) + "' " //
+        + "class='" + escapeAttr(style) + "' " //
         + (safeUrl != null ? "src='" + safeUrl + "' " : "") //
-        + (info != null ? " alt='" + info.asString() + "' title='" + info.asString() + "' " : "") //
-        + (kind != null ? " " + KIND_ATTRIBUTE + "='" + kind + "'" : "") //
+        + (info != null ? " alt='" + escapeAttr(info.asString()) + "' title='" + escapeAttr(info.asString()) + "' " : "") //
+        + (kind != null ? " " + KIND_ATTRIBUTE + "='" + escapeAttr(kind) + "'" : "") //
         + "></img>");
     builder.append(img);
   }
@@ -186,10 +255,10 @@ public final class OutputHelper {
       String title,
       String caption) {
     builder.appendHtmlConstant("<button " //
-        + (id != null ? " id='" + id + "'" : "") //
-        + (title != null ? " title='" + title + "'" : "") //
-        + (clazz != null ? " class='" + clazz + "'" : "") //
-        + (kind != null ? " " + BuilderHelper.KIND_ATTRIBUTE + "='" + kind + "'" : "") //
+        + (id != null ? " id='" + escapeAttr(id) + "'" : "") //
+        + (title != null ? " title='" + escapeAttr(title) + "'" : "") //
+        + (clazz != null ? " class='" + escapeAttr(clazz) + "'" : "") //
+        + (kind != null ? " " + BuilderHelper.KIND_ATTRIBUTE + "='" + escapeAttr(kind) + "'" : "") //
         + ">"+ caption + "</button>");
   }
 }

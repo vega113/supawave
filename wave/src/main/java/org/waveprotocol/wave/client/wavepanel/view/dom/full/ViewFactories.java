@@ -34,8 +34,8 @@ public final class ViewFactories {
   private static abstract class BaseFactory implements ViewFactory {
     @Override
     public final InlineConversationViewBuilder createInlineConversationView(
-        String id, UiBuilder threadUi, UiBuilder participantsUi) {
-      return InlineConversationViewBuilder.create(id, participantsUi, threadUi);
+        String id, UiBuilder threadUi, UiBuilder participantsUi, UiBuilder tagsUi) {
+      return InlineConversationViewBuilder.create(id, participantsUi, threadUi, tagsUi);
     }
   }
 
@@ -47,8 +47,8 @@ public final class ViewFactories {
 
     @Override
     public TopConversationViewBuilder createTopConversationView(
-        String id, UiBuilder threadUi, UiBuilder participantsUi) {
-      return FlowConversationViewBuilder.createRoot(id, threadUi, participantsUi);
+        String id, UiBuilder threadUi, UiBuilder participantsUi, UiBuilder tagsUi) {
+      return FlowConversationViewBuilder.createRoot(id, threadUi, participantsUi, tagsUi);
     }
   };
 
@@ -60,8 +60,8 @@ public final class ViewFactories {
 
     @Override
     public TopConversationViewBuilder createTopConversationView(
-        String id, UiBuilder threadUi, UiBuilder participantsUi) {
-      return FixedConversationViewBuilder.createRoot(id, threadUi, participantsUi);
+        String id, UiBuilder threadUi, UiBuilder participantsUi, UiBuilder tagsUi) {
+      return FixedConversationViewBuilder.createRoot(id, threadUi, participantsUi, tagsUi);
     }
   };
 }

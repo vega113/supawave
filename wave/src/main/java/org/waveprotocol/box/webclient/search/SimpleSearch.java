@@ -31,6 +31,7 @@ import org.waveprotocol.wave.model.document.WaveContext;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.CollectionUtils;
+import org.waveprotocol.wave.model.conversation.InboxState;
 import org.waveprotocol.wave.model.util.CopyOnWriteSet;
 import org.waveprotocol.wave.model.util.ReadableStringMap.ProcV;
 import org.waveprotocol.wave.model.util.StringMap;
@@ -158,6 +159,11 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
     @Override
     public double getLastModifiedTime() {
       return getDelegate().getLastModifiedTime();
+    }
+
+    @Override
+    public InboxState getInboxState() {
+      return getDelegate().getInboxState();
     }
 
     //

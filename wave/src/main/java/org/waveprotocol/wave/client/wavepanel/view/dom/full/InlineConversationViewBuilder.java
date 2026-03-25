@@ -42,12 +42,12 @@ public final class InlineConversationViewBuilder implements IntrinsicInlineConve
    * Creates a UI builder for an inline thread.
    */
   public static InlineConversationViewBuilder create(String id, UiBuilder participants,
-      UiBuilder thread) {
+      UiBuilder thread, UiBuilder tags) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
     Preconditions.checkArgument(!id.contains("\'"));
     return new InlineConversationViewBuilder(CollapsibleBuilder.create(id,
-        TypeCodes.kind(Type.INLINE_CONVERSATION), compose(participants, thread)));
+        TypeCodes.kind(Type.INLINE_CONVERSATION), compose(participants, tags, thread)));
   }
 
   @VisibleForTesting

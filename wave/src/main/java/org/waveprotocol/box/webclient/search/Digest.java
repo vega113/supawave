@@ -19,6 +19,7 @@
 
 package org.waveprotocol.box.webclient.search;
 
+import org.waveprotocol.wave.model.conversation.InboxState;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
@@ -54,4 +55,9 @@ public interface Digest {
 
   /** @return the epoch time of the last modification of this wave. */
   double getLastModifiedTime();
+
+  /**
+   * @return the inbox state of this wave for the current user, or null if unknown.
+   */
+  InboxState getInboxState();
 }

@@ -46,7 +46,9 @@
 
   <!-- TODO(hearnden): delete webclient.common.  It's not common to anything. -->
   <inherits name='org.waveprotocol.box.webclient.common.Common'/>
+  <inherits name='org.waveprotocol.box.searches.Searches'/>
   <inherits name='org.waveprotocol.box.webclient.search.Search'/>
+  <inherits name='org.waveprotocol.box.webclient.folder.Folder'/>
   <inherits name='org.waveprotocol.box.webclient.profile.Profile'/>
   <inherits name='org.waveprotocol.box.webclient.contact.Contact'/>
   <inherits name='org.waveprotocol.box.webclient.widget.error.Error'/>

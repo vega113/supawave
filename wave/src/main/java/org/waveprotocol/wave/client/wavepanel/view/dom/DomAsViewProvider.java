@@ -33,6 +33,8 @@ import org.waveprotocol.wave.client.wavepanel.view.ParticipantView;
 import org.waveprotocol.wave.client.wavepanel.view.ParticipantsView;
 import org.waveprotocol.wave.client.wavepanel.view.ReplyBoxView;
 import org.waveprotocol.wave.client.wavepanel.view.RootThreadView;
+import org.waveprotocol.wave.client.wavepanel.view.TagView;
+import org.waveprotocol.wave.client.wavepanel.view.TagsView;
 import org.waveprotocol.wave.client.wavepanel.view.TopConversationView;
 
 /**
@@ -90,6 +92,15 @@ public interface DomAsViewProvider {
 
   /** @return {@code source} exposed as a conversation view. */
   ConversationView asConversation(Element e);
+
+  /** @return {@code source} exposed as a tag view. */
+  TagView asTag(Element source);
+
+  /** @return {@code source} exposed as a tags view. */
+  TagsView asTags(Element source);
+
+  /** @return the tags view that surrounds the add-tag button {@code source}. */
+  TagsView tagsFromAddButton(Element source);
 
   // etc.
 }

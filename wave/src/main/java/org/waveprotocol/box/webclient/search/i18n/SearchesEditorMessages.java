@@ -1,0 +1,56 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.waveprotocol.box.webclient.search.i18n;
+
+import com.google.gwt.i18n.client.Messages;
+import com.google.gwt.i18n.client.Messages.DefaultMessage;
+
+/**
+ * i18n messages for the searches editor popup.
+ *
+ * Ported from Wiab.pro.
+ *
+ * @author akaplanov@gmail.com (Andrew Kaplanov)
+ */
+public interface SearchesEditorMessages extends Messages {
+  @DefaultMessage("Searches")
+  String searches();
+
+  @DefaultMessage("Add")
+  String add();
+
+  @DefaultMessage("Modify")
+  String modify();
+
+  @DefaultMessage("Remove")
+  String remove();
+
+  @DefaultMessage("Up")
+  String up();
+
+  @DefaultMessage("Down")
+  String down();
+
+  @DefaultMessage("Cancel")
+  String cancel();
+
+  @DefaultMessage("Ok")
+  String ok();
+}

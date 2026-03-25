@@ -27,8 +27,8 @@ import org.waveprotocol.wave.client.uibuilder.UiBuilder;
  */
 public interface ViewFactory {
   InlineConversationViewBuilder createInlineConversationView(String id, UiBuilder threadUi,
-      UiBuilder participantsUi);
+      UiBuilder participantsUi, UiBuilder tagsUi);
 
   TopConversationViewBuilder createTopConversationView(String id, UiBuilder threadUi,
-      UiBuilder participantsUi);
+      UiBuilder participantsUi, UiBuilder tagsUi);
 }

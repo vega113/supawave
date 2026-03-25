@@ -20,6 +20,7 @@
 package org.waveprotocol.box.webclient.search;
 
 import com.google.gwt.core.client.GWT;
+import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.webclient.search.Search.State;
 import org.waveprotocol.box.webclient.search.i18n.SearchPresenterMessages;
 import org.waveprotocol.wave.client.account.Profile;
@@ -36,6 +37,9 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.IdentityMap;
 import org.waveprotocol.wave.model.wave.SourcesEvents;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Presents a search model into a search view.
@@ -74,6 +78,7 @@ public final class SearchPresenter
 
   // Internal state
   private final IdentityMap<DigestView, Digest> digestUis = CollectionUtils.createIdentityMap();
+  private final List<ToolbarClickButton> savedSearchButtons = new ArrayList<>();
   private final IncrementalTask searchUpdater = new IncrementalTask() {
     @Override
     public boolean execute() {
@@ -160,6 +165,12 @@ public final class SearchPresenter
     profiles.removeListener(this);
   }
 
+  /** The current user's saved searches. */
+  private final List<SearchesItem> savedSearches = new ArrayList<SearchesItem>();
+  private final SearchesService searchesService = new RemoteSearchesService();
+  private SearchesEditorPopup searchesEditorPopup;
+  private ToolbarView savedSearchGroup;
+
   /**
    * Adds custom buttons to the toolbar.
    */
@@ -180,9 +191,105 @@ public final class SearchPresenter
             scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
           }
         });
+
+    // Add "Manage Searches" button.
+    new ToolbarButtonViewBuilder().setText(messages.modify()).applyTo(
+        group.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            openSearchesEditor();
+          }
+        });
+
     // Fake group with empty button - to force the separator be displayed.
     group = toolbarUi.addGroup();
     new ToolbarButtonViewBuilder().setText("").applyTo(group.addClickButton(), null);
+
+    // Load saved searches from server and render them as toolbar buttons.
+    loadSavedSearches();
+  }
+
+  /**
+   * Opens the saved searches editor popup.
+   */
+  private void openSearchesEditor() {
+    if (searchesEditorPopup == null) {
+      searchesEditorPopup = new SearchesEditorPopup();
+    }
+    searchesEditorPopup.init(savedSearches, new SearchesEditorPopup.Listener() {
+      @Override
+      public void onShow() {
+      }
+
+      @Override
+      public void onHide() {
+      }
+
+      @Override
+      public void onDone(List<SearchesItem> newSearches) {
+        savedSearches.clear();
+        savedSearches.addAll(newSearches);
+        // Rebuild toolbar to reflect changes.
+        rebuildSavedSearchButtons();
+      }
+    });
+    searchesEditorPopup.show();
+  }
+
+  /**
+   * Loads saved searches from the server and renders them as toolbar buttons.
+   */
+  private void loadSavedSearches() {
+    searchesService.getSearches(new SearchesService.GetCallback() {
+      @Override
+      public void onFailure(String message) {
+        // Silently ignore - saved searches are optional.
+      }
+
+      @Override
+      public void onSuccess(List<SearchesItem> searches) {
+        savedSearches.clear();
+        savedSearches.addAll(searches);
+        rebuildSavedSearchButtons();
+      }
+    });
+  }
+
+  /**
+   * Adds saved search quick-access buttons to the toolbar.
+   */
+  private void rebuildSavedSearchButtons() {
+    GroupingToolbar.View toolbarUi = searchUi.getToolbar();
+
+    // Remove old buttons from the toolbar
+    for (ToolbarClickButton button : savedSearchButtons) {
+      button.getElement().removeFromParent();
+    }
+    savedSearchButtons.clear();
+
+    // Create the saved search group lazily on first use.
+    if (savedSearchGroup == null && !savedSearches.isEmpty()) {
+      savedSearchGroup = toolbarUi.addGroup();
+    }
+
+    // Recreate buttons if group exists and there are searches.
+    if (savedSearchGroup != null && !savedSearches.isEmpty()) {
+      for (final SearchesItem item : savedSearches) {
+        ToolbarClickButton button = savedSearchGroup.addClickButton();
+        savedSearchButtons.add(button);
+        new ToolbarButtonViewBuilder().setText(item.getName()).applyTo(
+            button, new ToolbarClickButton.Listener() {
+              @Override
+              public void onClicked() {
+                searchUi.getSearch().setQuery(item.getQuery());
+                onQueryEntered();
+              }
+            });
+      }
+    } else if (savedSearchGroup != null && savedSearches.isEmpty()) {
+      // Clear the group reference if there are no searches
+      savedSearchGroup = null;
+    }
   }
 
   /**
@@ -365,15 +472,15 @@ public final class SearchPresenter
       return;
     }
 
-    DigestView digestUi = findDigestView(digest);
-    if (digestUi == null) {
+    setSelected(null);
+    DigestView digestToRemove = findDigestView(digest);
+    if (digestToRemove == null) {
       return;
     }
-    // Re-render the existing view in-place instead of removing and re-inserting,
-    // which avoids DOM destruction/reconstruction that causes visual blinking.
-    searchUi.renderDigest(digestUi, digest);
-    // Refresh the digestUis map so it points at the updated Digest instance.
-    digestUis.put(digestUi, digest);
+    DigestView insertRef = searchUi.getNext(digestToRemove);
+    digestToRemove.remove();
+    DigestView newDigestUi = insertDigest(insertRef, digest);
+    setSelected(newDigestUi);
   }
 
   @Override

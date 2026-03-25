@@ -77,6 +77,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   Button searchButtonAll;
   @UiField
   Button searchButtonInbox;
+  @UiField
+  Button searchButtonArchive;
 
   private Listener listener;
 
@@ -145,6 +147,12 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   @UiHandler("searchButtonInbox")
   public void onHandleInbox(ClickEvent event) {
     setQuery("in:inbox");
+    onQuery();
+  }
+
+  @UiHandler("searchButtonArchive")
+  public void onHandleArchive(ClickEvent event) {
+    setQuery("in:archive");
     onQuery();
   }
 }

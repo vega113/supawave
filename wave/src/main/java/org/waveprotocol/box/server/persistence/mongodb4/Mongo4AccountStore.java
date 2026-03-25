@@ -35,6 +35,7 @@ final class Mongo4AccountStore implements AccountStore {
 
   private static final String HUMAN_PASSWORD_FIELD = "passwordDigest";
   private static final String HUMAN_EMAIL_FIELD = "email";
+  private static final String HUMAN_EMAIL_CONFIRMED_FIELD = "emailConfirmed";
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
 
@@ -127,6 +128,7 @@ final class Mongo4AccountStore implements AccountStore {
     if (account.getEmail() != null) {
       doc.append(HUMAN_EMAIL_FIELD, account.getEmail());
     }
+    doc.append(HUMAN_EMAIL_CONFIRMED_FIELD, account.isEmailConfirmed());
     return doc;
   }
 
@@ -142,6 +144,10 @@ final class Mongo4AccountStore implements AccountStore {
     String email = doc.getString(HUMAN_EMAIL_FIELD);
     if (email != null) {
       account.setEmail(email);
+    }
+    Boolean emailConfirmed = doc.getBoolean(HUMAN_EMAIL_CONFIRMED_FIELD);
+    if (emailConfirmed != null) {
+      account.setEmailConfirmed(emailConfirmed);
     }
     return account;
   }

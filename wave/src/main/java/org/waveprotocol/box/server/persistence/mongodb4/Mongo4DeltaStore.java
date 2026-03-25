@@ -46,6 +46,8 @@ import java.util.Set;
  */
 public class Mongo4DeltaStore implements DeltaStore {
 
+  private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(Mongo4DeltaStore.class.getName());
+
   /** Name of the MongoDB collection to store Deltas */
   private static final String DELTAS_COLLECTION = "deltas";
 
@@ -92,6 +94,7 @@ public class Mongo4DeltaStore implements DeltaStore {
           .into(new java.util.ArrayList<>());
 
       if (documents == null || documents.isEmpty()) {
+        LOG.info("Mongo4DeltaStore.lookup(" + waveId.serialise() + "): found 0 wavelets");
         return ImmutableSet.of();
       } else {
         ImmutableSet.Builder<WaveletId> builder = ImmutableSet.builder();
@@ -99,7 +102,9 @@ public class Mongo4DeltaStore implements DeltaStore {
           builder.add(WaveletId.deserialise((String) waveletIdDocument
               .get(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID)));
         }
-        return builder.build();
+        ImmutableSet<WaveletId> result = builder.build();
+        LOG.info("Mongo4DeltaStore.lookup(" + waveId.serialise() + "): found " + result.size() + " wavelets");
+        return result;
       }
     } catch (MongoException e) {
       throw new PersistenceException(e);
@@ -124,7 +129,9 @@ public class Mongo4DeltaStore implements DeltaStore {
       throw new PersistenceException(e);
     }
 
-    return ExceptionalIterator.FromIterator.create(builder.build().iterator());
+    ImmutableSet<WaveId> waveIds = builder.build();
+    LOG.info("Mongo4DeltaStore.getWaveIdIterator: found " + waveIds.size() + " waves in MongoDB");
+    return ExceptionalIterator.FromIterator.create(waveIds.iterator());
   }
 
   /**

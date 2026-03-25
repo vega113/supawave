@@ -62,6 +62,7 @@ public class MemoryPerUserWaveViewProviderTest extends PerUserWaveViewProviderTe
     LocalWaveletContainer c = mock(LocalWaveletContainer.class);
     when(c.hasParticipant(PARTICIPANT)).thenReturn(true);
     when(waveMap.getLocalWavelet(WAVELET_NAME)).thenReturn(c);
+    when(waveMap.getWavelet(WAVELET_NAME)).thenReturn(c);
   }
 
   @Override

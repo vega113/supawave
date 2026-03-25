@@ -303,7 +303,7 @@ public final class SearchPresenter
 
     // Remove old buttons from the toolbar
     for (ToolbarClickButton button : savedSearchButtons) {
-      button.getElement().removeFromParent();
+      button.hackGetWidget().getElement().removeFromParent();
     }
     savedSearchButtons.clear();
 

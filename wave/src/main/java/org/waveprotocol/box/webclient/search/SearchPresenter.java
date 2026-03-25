@@ -261,7 +261,7 @@ public final class SearchPresenter
     // --- Group 2: Saved Searches ---
     ToolbarView savedSearchesGroup = toolbarUi.addGroup();
     new ToolbarButtonViewBuilder()
-        .setTooltip(messages.savedSearches())
+        .setTooltip(messages.savedSearchesHint())
         .applyTo(savedSearchesGroup.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {

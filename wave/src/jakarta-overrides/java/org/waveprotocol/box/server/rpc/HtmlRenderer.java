@@ -3364,6 +3364,54 @@ public final class HtmlRenderer {
   }
 
   // =========================================================================
+  // Access Denied (403) Page
+  // =========================================================================
+
+  /**
+   * Renders a styled 403 "Access Restricted" page that matches the SupaWave
+   * ocean theme used on other auth pages.
+   */
+  public static String renderAccessDeniedPage() {
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Access Restricted - SupaWave</title>\n");
+    sb.append(AUTH_CSS);
+    sb.append("</head>\n<body>\n");
+
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
+    sb.append("  </div>\n");
+
+    sb.append("  <div class=\"card\" style=\"text-align:center;\">\n");
+
+    // Lock icon SVG
+    sb.append("    <svg width=\"64\" height=\"64\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"margin-bottom:16px;\">\n");
+    sb.append("      <rect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\" stroke=\"").append(WAVE_PRIMARY).append("\" stroke-width=\"1.5\" fill=\"none\"/>\n");
+    sb.append("      <path d=\"M7 11V7a5 5 0 1 1 10 0v4\" stroke=\"").append(WAVE_PRIMARY).append("\" stroke-width=\"1.5\" stroke-linecap=\"round\" fill=\"none\"/>\n");
+    sb.append("      <circle cx=\"12\" cy=\"16.5\" r=\"1.5\" fill=\"").append(WAVE_PRIMARY).append("\"/>\n");
+    sb.append("    </svg>\n");
+
+    sb.append("    <h1 style=\"color:#1a1a2e;\">Access Restricted</h1>\n");
+    sb.append("    <p style=\"color:#666; font-size:15px; margin:8px 0 24px; line-height:1.5;\">\n");
+    sb.append("      This page is only available to server administrators.\n");
+    sb.append("    </p>\n");
+    sb.append("    <a href=\"/\" class=\"btn-primary\" style=\"text-decoration:none; display:inline-block;\">Return to SupaWave</a>\n");
+
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
+
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
   // HTML / JSON escaping helpers
   // =========================================================================
 

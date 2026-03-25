@@ -101,6 +101,25 @@ public final class SearchPresenter
       + "<line x1=\"9\" y1=\"8\" x2=\"15\" y2=\"8\"></line>"
       + "<line x1=\"17\" y1=\"16\" x2=\"23\" y2=\"16\"></line></svg>";
 
+  /** Inbox: inbox tray icon. */
+  private static final String ICON_INBOX = SVG_OPEN
+      + "<polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"></polyline>"
+      + "<path d=\"M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89"
+      + "A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z\"></path></svg>";
+
+  /** All/Public: globe icon. */
+  private static final String ICON_ALL = SVG_OPEN
+      + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
+      + "<line x1=\"2\" y1=\"12\" x2=\"22\" y2=\"12\"></line>"
+      + "<path d=\"M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"
+      + " 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z\"></path></svg>";
+
+  /** Archive: archive box icon. */
+  private static final String ICON_ARCHIVE = SVG_OPEN
+      + "<polyline points=\"21 8 21 21 3 21 3 8\"></polyline>"
+      + "<rect x=\"1\" y=\"3\" width=\"22\" height=\"5\"></rect>"
+      + "<line x1=\"10\" y1=\"12\" x2=\"14\" y2=\"12\"></line></svg>";
+
   // External references
   private final TimerService scheduler;
   private final Search search;
@@ -226,18 +245,21 @@ public final class SearchPresenter
   }
 
   /**
-   * Adds custom buttons to the toolbar.
-   * Uses compact SVG icons with tooltips instead of text labels so the
-   * toolbar fits in the narrow search panel on both desktop and mobile.
+   * Adds action and filter buttons to the unified toolbar row.
+   * <p>
+   * Layout: [New Wave] | [Saved Searches] | [Inbox] [Public] [Archive]
+   * Each logical section is a separate toolbar group so the framework
+   * renders dividers between them automatically.
    */
   private void initToolbarMenu() {
     GroupingToolbar.View toolbarUi = searchUi.getToolbar();
-    ToolbarView group = toolbarUi.addGroup();
 
+    // --- Group 1: New Wave ---
+    ToolbarView newWaveGroup = toolbarUi.addGroup();
     // "New Wave" action button — compact dark icon+text compose button.
     ToolbarClickButton newWaveButton = new ToolbarButtonViewBuilder()
         .setTooltip(messages.newWaveHint() + " (Shift+Ctrl/Cmd+O)")
-        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+        .applyTo(newWaveGroup.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
             actionHandler.onCreateWave();
@@ -255,15 +277,49 @@ public final class SearchPresenter
     // Mark the New Wave button so CSS can style it prominently.
     newWaveButton.hackGetWidget().getElement().setAttribute("data-action", "new-wave");
 
-    // "Saved Searches" button (opens the searches editor).
+    // --- Group 2: Saved Searches ---
+    ToolbarView savedSearchesGroup = toolbarUi.addGroup();
     new ToolbarButtonViewBuilder()
-        .setTooltip(messages.savedSearches())
-        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+        .setTooltip(messages.savedSearchesHint())
+        .applyTo(savedSearchesGroup.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
             openSearchesEditor();
           }
         }).setVisualElement(createSvgIcon(ICON_MODIFY));
+
+    // --- Group 3: Filter icons (Inbox, Public/All, Archive) ---
+    ToolbarView filterGroup = toolbarUi.addGroup();
+
+    new ToolbarButtonViewBuilder()
+        .setTooltip("Inbox")
+        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            searchUi.getSearch().setQuery("in:inbox");
+            onQueryEntered();
+          }
+        }).setVisualElement(createSvgIcon(ICON_INBOX));
+
+    new ToolbarButtonViewBuilder()
+        .setTooltip("All waves")
+        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            searchUi.getSearch().setQuery("in:all");
+            onQueryEntered();
+          }
+        }).setVisualElement(createSvgIcon(ICON_ALL));
+
+    new ToolbarButtonViewBuilder()
+        .setTooltip("Archive")
+        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            searchUi.getSearch().setQuery("in:archive");
+            onQueryEntered();
+          }
+        }).setVisualElement(createSvgIcon(ICON_ARCHIVE));
 
     // Load saved searches from server and render them as toolbar buttons.
     loadSavedSearches();

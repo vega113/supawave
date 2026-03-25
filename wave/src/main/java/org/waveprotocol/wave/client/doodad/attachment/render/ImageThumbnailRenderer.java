@@ -85,6 +85,12 @@ public class ImageThumbnailRenderer extends GwtRenderingMutationHandler {
     element.setProperty(ImageThumbnailWrapper.PROPERTY, new ImageThumbnailWrapper(element));
 
     fanoutAttrs(element);
+
+    // Apply display size if set on the element
+    String displaySize = element.getAttribute(ImageThumbnail.DISPLAY_SIZE_ATTR);
+    if (displaySize != null) {
+      getView(element).setDisplaySize(displaySize);
+    }
   }
 
   @Override
@@ -102,6 +108,9 @@ public class ImageThumbnailRenderer extends GwtRenderingMutationHandler {
     if (ImageThumbnail.STYLE_ATTR.equals(name)) {
       ImageThumbnailView view = getView(element);
       view.setFullSizeMode(ImageThumbnail.STYLE_FULL.equals(newValue));
+    } else if (ImageThumbnail.DISPLAY_SIZE_ATTR.equals(name)) {
+      ImageThumbnailView view = getView(element);
+      view.setDisplaySize(newValue);
     } else if (ImageThumbnail.ATTACHMENT_ATTR.equals(name)) {
       ImageThumbnailWrapper w = ImageThumbnailWrapper.of(element);
       assert w != null;

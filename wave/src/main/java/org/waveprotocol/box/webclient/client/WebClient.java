@@ -486,6 +486,8 @@ public class WebClient implements EntryPoint {
 
   private void setupLocaleSelect() {
     final SelectElement select = (SelectElement) Document.get().getElementById("lang");
+    final com.google.gwt.dom.client.Element langCodeBadge =
+        Document.get().getElementById("langCode");
     String currentLocale = LocaleInfo.getCurrentLocale().getLocaleName();
     String[] localeNames = LocaleInfo.getAvailableLocaleNames();
     for (String locale : localeNames) {
@@ -500,10 +502,13 @@ public class WebClient implements EntryPoint {
         }
       }
     }
+    // Show the current language code badge next to the globe icon
+    updateLangCodeBadge(langCodeBadge, select.getValue());
     EventDispatcherPanel.of(select).registerChangeHandler(null, new WaveChangeHandler() {
 
       @Override
       public boolean onChange(ChangeEvent event, Element context) {
+        updateLangCodeBadge(langCodeBadge, select.getValue());
         UrlBuilder builder = Location.createUrlBuilder().setParameter(
                 "locale", select.getValue());
         Window.Location.replace(builder.buildString());
@@ -511,6 +516,19 @@ public class WebClient implements EntryPoint {
         return true;
       }
     });
+  }
+
+  /**
+   * Updates the language code badge with the 2-letter uppercase code
+   * derived from the locale value (e.g., "en" -> "EN", "pt_BR" -> "PT").
+   */
+  private void updateLangCodeBadge(com.google.gwt.dom.client.Element badge, String locale) {
+    if (badge == null || locale == null || locale.isEmpty()) {
+      return;
+    }
+    // Extract the language part before any underscore (e.g., "pt_BR" -> "pt")
+    String lang = locale.contains("_") ? locale.substring(0, locale.indexOf('_')) : locale;
+    badge.setInnerText(lang.toUpperCase());
   }
 
   /** WiFi SVG icon for connected state (white for contrast on dark topbar). */

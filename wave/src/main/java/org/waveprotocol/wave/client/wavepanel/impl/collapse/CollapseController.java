@@ -64,14 +64,26 @@ public final class CollapseController implements WaveMouseDownHandler {
     if (event.getNativeButton() != NativeEvent.BUTTON_LEFT) {
       return false;
     }
-    handleClick(panel.fromToggle(source));
-    return false;
-  }
 
-  /**
-   * Handles a click on a toggle.
-   */
-  private void handleClick(InlineThreadView thread) {
+    InlineThreadView thread = panel.fromToggle(source);
+    if (thread == null) {
+      return false;
+    }
+
+    // Check if slide navigation should handle this toggle event.
+    // Only intercept expand actions (thread is currently collapsed) on
+    // deeply nested threads.
+    ThreadNavigationPresenter navigator = collapser.getNavigator();
+    if (navigator != null && thread.isCollapsed()
+        && navigator.shouldSlideNavigate(thread)) {
+      // Expand the thread normally, then enter slide navigation mode.
+      collapser.expand(thread);
+      navigator.enterThread(thread);
+      return true;  // Consume the event.
+    }
+
+    // Standard collapse/expand toggle.
     collapser.toggle(thread);
+    return false;
   }
 }

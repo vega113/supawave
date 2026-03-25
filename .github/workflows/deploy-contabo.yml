@@ -207,9 +207,19 @@ jobs:
             }
 
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            // Detect which step failed
-            const failedStep = context.job?.steps?.find(s => s.outcome === 'failure')?.name
-              || (steps.deploy?.outcome === 'failure' ? 'Deploy on Contabo' : 'Build/push (pre-deploy)');
+            // Use the Actions API to find which step failed
+            let failedStep = 'Unknown step';
+            try {
+              const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+              });
+              for (const job of jobs.jobs) {
+                const failed = (job.steps || []).find(s => s.conclusion === 'failure');
+                if (failed) { failedStep = failed.name; break; }
+              }
+            } catch (e) { core.warning('Could not detect failed step: ' + e.message); }
             const title = `Deploy failed: ${context.sha.substring(0, 8)} (${failedStep})`;
             const body = [
               `## Deploy Failure\n`,

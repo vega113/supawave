@@ -128,7 +128,11 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     (isSrc && p.contains("/org/waveprotocol/box/webclient/")) ||
     (isSrc && p.contains("/org/waveprotocol/wave/client/") &&
       !p.endsWith("/wave/client/state/BlipReadStateMonitor.java") &&
-      !p.endsWith("/wave/client/state/ThreadReadStateMonitor.java")) ||
+      !p.endsWith("/wave/client/state/ThreadReadStateMonitor.java") &&
+      // SSR Phase 1: pure-model render interfaces needed by ServerHtmlRenderer (#216)
+      !p.endsWith("/wave/client/render/RenderingRules.java") &&
+      !p.endsWith("/wave/client/render/ReductionBasedRenderer.java") &&
+      !p.endsWith("/wave/client/render/WaveRenderer.java")) ||
     (isSrc && p.contains("/org/waveprotocol/wave/communication/gwt/")) ||
     (isSrc && p.contains("/com/google/gwt/")) ||
     // Exclude stat shims since we have the real source files
@@ -405,8 +409,9 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
   p.endsWith("/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java") ||
   p.endsWith("/org/waveprotocol/box/expimp/DomainConverterTest.java") ||
   p.endsWith("/org/waveprotocol/box/expimp/DeltaParserTest.java") ||
-  // Additional render/concurrencycontrol/migration exclusions
-  p.contains("/org/waveprotocol/box/server/rpc/render/") ||
+  // Additional render/concurrencycontrol/migration exclusions (keep SSR tests)
+  (p.contains("/org/waveprotocol/box/server/rpc/render/") &&
+    !p.endsWith("/ServerHtmlRendererTest.java")) ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/migration/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/model/document/util/") ||

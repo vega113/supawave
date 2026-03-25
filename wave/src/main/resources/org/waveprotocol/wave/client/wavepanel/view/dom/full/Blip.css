@@ -192,18 +192,13 @@
   color: #38a169;
 }
 
-/* Draft icon active state (blue). */
-.menuOptionSelected[data-option="draft"],
-.menuOptionSelected[data-option="draft"]:hover {
+/* Draft icon active/selected state (blue tint). */
+.read .menuOptionSelected[data-option="draft"],
+.read .menuOptionSelected[data-option="draft"]:hover,
+.unread .menuOptionSelected[data-option="draft"],
+.unread .menuOptionSelected[data-option="draft"]:hover {
   color: #0077b6;
   background-color: #ebf8ff;
-}
-
-/* Selected menu option (e.g., Done while editing). */
-.read .menuOptionSelected, .read .menuOptionSelected:hover {
-  background-color: #0077b6;
-  color: #fff;
-  border-radius: 4px;
 }
 
 /*

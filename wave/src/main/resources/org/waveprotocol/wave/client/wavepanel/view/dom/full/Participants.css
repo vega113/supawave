@@ -89,8 +89,8 @@
 }
 
 .flow {
-  /* Expand to floated content. */
-  overflow: auto;
+  /* Expand to floated content – hidden prevents unwanted scrollbars. */
+  overflow: hidden;
   /* Positioned contained for add button. */
   position: relative;
   /* Room for absolutely positioned add and new-wave buttons. */
@@ -177,13 +177,13 @@ img.participant:hover {
 }
 
 .newWaveWithParticipantsButton {
-  margin-left: 4px;
+  margin-left: 2px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #0077b6;
   color: white;

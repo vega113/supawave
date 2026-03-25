@@ -392,8 +392,8 @@ public class WebClient implements EntryPoint {
       loggedInUser = new ParticipantId(Session.get().getAddress());
       idGenerator = ClientIdGenerator.create();
       loginToServer();
-      // Fetch the contacts list for participant autocomplete.
-      contactManager.update();
+      // Contacts fetch is deferred until after the first search response
+      // arrives (see setupSearchPanel) so it does not block wave list display.
     }
 
     setupUi();
@@ -467,6 +467,32 @@ public class WebClient implements EntryPoint {
         };
     Search search = SimpleSearch.create(RemoteSearchService.create(), waveStore);
     SearchPresenter.create(search, searchPanel, actionHandler, profiles);
+
+    // Defer contacts fetch until after the first search response arrives
+    // so the /contacts request does not compete with the critical /search
+    // request for network bandwidth and server resources.
+    Search.Listener contactLoader = new Search.Listener() {
+      private boolean fired = false;
+      private void maybeLoad() {
+        if (!fired && search.getState() == Search.State.READY) {
+          fired = true;
+          contactManager.update();
+          search.removeListener(this);
+        }
+      }
+
+      @Override
+      public void onStateChanged() {
+        maybeLoad();
+      }
+
+      @Override public void onDigestAdded(int index, Search.Digest digest) {}
+      @Override public void onDigestRemoved(int index, Search.Digest digest) {}
+      @Override public void onDigestReady(int index, Search.Digest digest) {}
+      @Override public void onTotalChanged(int total) {}
+    };
+    search.addListener(contactLoader);
+    contactLoader.onStateChanged();
   }
 
   private void setupWavePanel() {

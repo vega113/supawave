@@ -44,4 +44,10 @@ public interface ToolbarMessages extends Messages {
 
   @DefaultMessage("To Inbox")
   String toInbox();
+
+  @DefaultMessage("History")
+  String history();
+
+  @DefaultMessage("Version History (H)")
+  String historyTooltip();
 }

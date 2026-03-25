@@ -27,8 +27,12 @@ import org.waveprotocol.box.common.ListReceiver;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
+import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.persistence.SnapshotStore;
 import org.waveprotocol.box.server.rpc.ProtoSerializer.SerializationException;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
+import org.waveprotocol.box.server.waveserver.ChangeGroup;
+import org.waveprotocol.box.server.waveserver.VersionGrouper;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -60,6 +64,8 @@ import java.util.List;
  *   <li>{@code GET /fetch/version/{waveId}/{waveletId}/history?start=S&end=E} — delta metadata
  *       for the given version range</li>
  *   <li>{@code GET /fetch/version/{waveId}/{waveletId}/info} — current version info</li>
+ *   <li>{@code GET /fetch/version/{waveId}/{waveletId}/groups?maxGap=30&blipId=X&limit=100&cursor=N}
+ *       — grouped change history with optional blip filtering and pagination</li>
  * </ul>
  *
  * <p>All endpoints verify the requesting user is a wavelet participant.
@@ -72,13 +78,16 @@ public final class VersionedFetchServlet extends HttpServlet {
   private final WaveletProvider waveletProvider;
   private final ProtoSerializer serializer;
   private final SessionManager sessionManager;
+  private final SnapshotStore snapshotStore;
 
   @Inject
   public VersionedFetchServlet(
-      WaveletProvider waveletProvider, ProtoSerializer serializer, SessionManager sessionManager) {
+      WaveletProvider waveletProvider, ProtoSerializer serializer,
+      SessionManager sessionManager, SnapshotStore snapshotStore) {
     this.waveletProvider = waveletProvider;
     this.serializer = serializer;
     this.sessionManager = sessionManager;
+    this.snapshotStore = snapshotStore;
   }
 
   @Override
@@ -98,7 +107,7 @@ public final class VersionedFetchServlet extends HttpServlet {
     // Strip leading slash
     String path = pathInfo.substring(1);
 
-    // Detect trailing /history or /info
+    // Detect trailing /history, /info, or /groups
     String mode = "snapshot"; // default
     if (path.endsWith("/history")) {
       mode = "history";
@@ -106,6 +115,9 @@ public final class VersionedFetchServlet extends HttpServlet {
     } else if (path.endsWith("/info")) {
       mode = "info";
       path = path.substring(0, path.length() - "/info".length());
+    } else if (path.endsWith("/groups")) {
+      mode = "groups";
+      path = path.substring(0, path.length() - "/groups".length());
     }
 
     // Parse waveId/waveletId from path: domain/waveId/domain/waveletId
@@ -150,6 +162,9 @@ public final class VersionedFetchServlet extends HttpServlet {
         break;
       case "info":
         handleInfo(response, waveletName);
+        break;
+      case "groups":
+        handleGroups(req, response, waveletName);
         break;
       default:
         response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unknown mode");
@@ -394,6 +409,207 @@ public final class VersionedFetchServlet extends HttpServlet {
     info.addProperty("creator", snapshot.getCreator().getAddress());
 
     writeJsonResponse(response, info);
+  }
+
+  /**
+   * Handles groups requests. Groups consecutive deltas by the same author within
+   * a configurable time gap, with optional blip ID filtering and cursor-based pagination.
+   *
+   * <p>Query params:
+   * <ul>
+   *   <li>{@code maxGap} - max seconds between consecutive deltas to merge (default 30)</li>
+   *   <li>{@code blipId} - if provided, only return groups that touch this blip</li>
+   *   <li>{@code limit} - max number of groups to return (default 100)</li>
+   *   <li>{@code cursor} - group ID to start from (for pagination)</li>
+   * </ul>
+   */
+  private void handleGroups(HttpServletRequest req, HttpServletResponse response,
+      WaveletName waveletName) throws IOException {
+    // Parse query params
+    long maxGapMs = VersionGrouper.DEFAULT_MAX_GAP_MS;
+    String maxGapParam = req.getParameter("maxGap");
+    if (maxGapParam != null) {
+      try {
+        long maxGapSeconds = Long.parseLong(maxGapParam);
+        if (maxGapSeconds < 0) {
+          response.sendError(HttpServletResponse.SC_BAD_REQUEST, "maxGap must be non-negative");
+          return;
+        }
+        maxGapMs = maxGapSeconds * 1000L;
+      } catch (NumberFormatException e) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid maxGap: " + maxGapParam);
+        return;
+      }
+    }
+
+    String blipIdFilter = req.getParameter("blipId");
+
+    int limit = 100;
+    String limitParam = req.getParameter("limit");
+    if (limitParam != null) {
+      try {
+        limit = Integer.parseInt(limitParam);
+        if (limit < 1) {
+          response.sendError(HttpServletResponse.SC_BAD_REQUEST, "limit must be >= 1");
+          return;
+        }
+        if (limit > 1000) {
+          limit = 1000; // cap to prevent abuse
+        }
+      } catch (NumberFormatException e) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid limit: " + limitParam);
+        return;
+      }
+    }
+
+    int cursor = 0;
+    String cursorParam = req.getParameter("cursor");
+    if (cursorParam != null) {
+      try {
+        cursor = Integer.parseInt(cursorParam);
+        if (cursor < 0) {
+          response.sendError(HttpServletResponse.SC_BAD_REQUEST, "cursor must be non-negative");
+          return;
+        }
+      } catch (NumberFormatException e) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid cursor: " + cursorParam);
+        return;
+      }
+    }
+
+    // Get current version
+    CommittedWaveletSnapshot current;
+    try {
+      current = waveletProvider.getSnapshot(waveletName);
+    } catch (WaveServerException e) {
+      LOG.warning("Failed to fetch snapshot for groups of " + waveletName, e);
+      response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      return;
+    }
+
+    if (current == null) {
+      response.sendError(HttpServletResponse.SC_NOT_FOUND, "Wavelet not found");
+      return;
+    }
+
+    long currentVersion = current.snapshot.getVersion();
+    if (currentVersion == 0) {
+      // Empty wavelet, no groups
+      JsonObject result = new JsonObject();
+      result.add("groups", new JsonArray());
+      result.addProperty("hasMore", false);
+      writeJsonResponse(response, result);
+      return;
+    }
+
+    // Fetch all deltas
+    try {
+      HashedVersion startVersion = HashedVersion.unsigned(0);
+      HashedVersion endVersion = HashedVersion.unsigned(currentVersion);
+      ListReceiver<TransformedWaveletDelta> receiver = new ListReceiver<>();
+      waveletProvider.getHistory(waveletName, startVersion, endVersion, receiver);
+
+      List<TransformedWaveletDelta> deltas = new ArrayList<>();
+      for (TransformedWaveletDelta delta : receiver) {
+        deltas.add(delta);
+      }
+
+      // Group deltas
+      List<ChangeGroup> allGroups = VersionGrouper.group(deltas, maxGapMs);
+
+      // Filter by blipId if specified
+      if (blipIdFilter != null && !blipIdFilter.isEmpty()) {
+        List<ChangeGroup> filtered = new ArrayList<>();
+        int newId = 0;
+        for (ChangeGroup g : allGroups) {
+          if (g.getBlipIds().contains(blipIdFilter)) {
+            // Re-number the filtered groups sequentially
+            filtered.add(new ChangeGroup(newId++, g.getAuthor(), g.getStartVersion(),
+                g.getEndVersion(), g.getTimestamp(), g.getBlipIds(), g.getOpCount()));
+          }
+        }
+        allGroups = filtered;
+      }
+
+      // Apply cursor-based pagination
+      int startIdx = 0;
+      if (cursor > 0) {
+        // Find the index of the group with id >= cursor
+        for (int i = 0; i < allGroups.size(); i++) {
+          if (allGroups.get(i).getId() >= cursor) {
+            startIdx = i;
+            break;
+          }
+          if (i == allGroups.size() - 1) {
+            startIdx = allGroups.size(); // cursor past end
+          }
+        }
+      }
+
+      int endIdx = Math.min(startIdx + limit, allGroups.size());
+      boolean hasMore = endIdx < allGroups.size();
+
+      JsonArray groupsArray = new JsonArray();
+      for (int i = startIdx; i < endIdx; i++) {
+        groupsArray.add(allGroups.get(i).toJson());
+      }
+
+      JsonObject result = new JsonObject();
+      result.add("groups", groupsArray);
+      result.addProperty("hasMore", hasMore);
+      if (hasMore) {
+        result.addProperty("nextCursor", allGroups.get(endIdx).getId());
+      }
+
+      writeJsonResponse(response, result);
+
+      // Pre-cache snapshots at group boundary versions (async, best-effort)
+      preCacheGroupBoundarySnapshots(waveletName, allGroups, startIdx, endIdx);
+
+    } catch (WaveServerException e) {
+      LOG.warning("Failed to compute groups for " + waveletName, e);
+      response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Pre-caches snapshots at group boundary versions (endVersion of each group)
+   * in the SnapshotStore so that scrubbing between groups in the UI is fast.
+   * This is best-effort; failures are logged but do not affect the API response.
+   */
+  private void preCacheGroupBoundarySnapshots(WaveletName waveletName,
+      List<ChangeGroup> groups, int startIdx, int endIdx) {
+    for (int i = startIdx; i < endIdx; i++) {
+      long boundaryVersion = groups.get(i).getEndVersion();
+      if (boundaryVersion <= 0) {
+        continue;
+      }
+      try {
+        // Build snapshot at this version by replaying deltas
+        HashedVersion start = HashedVersion.unsigned(0);
+        HashedVersion end = HashedVersion.unsigned(boundaryVersion);
+        ListReceiver<TransformedWaveletDelta> receiver = new ListReceiver<>();
+        waveletProvider.getHistory(waveletName, start, end, receiver);
+        List<TransformedWaveletDelta> filteredDeltas = new ArrayList<>();
+        for (TransformedWaveletDelta delta : receiver) {
+          if (delta.getResultingVersion().getVersion() <= boundaryVersion) {
+            filteredDeltas.add(delta);
+          }
+        }
+        if (filteredDeltas.isEmpty()) {
+          continue;
+        }
+        ObservableWaveletData wavelet = WaveletDataUtil.buildWaveletFromDeltas(
+            waveletName, filteredDeltas.iterator());
+        Message message = SnapshotSerializer.serializeWavelet(
+            wavelet, wavelet.getHashedVersion());
+        byte[] serialized = message.toByteArray();
+        snapshotStore.storeSnapshot(waveletName, serialized, boundaryVersion);
+      } catch (WaveServerException | OperationException | PersistenceException e) {
+        LOG.warning("Failed to pre-cache snapshot at version " + boundaryVersion
+            + " for " + waveletName + ": " + e.getMessage());
+      }
+    }
   }
 
   private void serializeSnapshotToResponse(ReadableWaveletData snapshot,

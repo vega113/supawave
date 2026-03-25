@@ -223,6 +223,74 @@ public final class Snippets {
     return sb.toString();
   }
 
+  /**
+   * Returns a snippet from the last (most recently added) blip in the
+   * conversation manifest, representing the latest reply.  If the wave has
+   * only one blip (the root), returns an empty string so the digest can
+   * fall back to showing the root blip body text minus the title.
+   *
+   * @param wavelet the wavelet data
+   * @param maxSnippetLength maximum character length of the returned snippet
+   * @return the snippet text from the last reply blip, or empty string
+   */
+  public static String renderSnippetFromLastBlip(final ReadableWaveletData wavelet,
+      final int maxSnippetLength) {
+    Set<String> docsIds = wavelet.getDocumentIds();
+
+    ReadableBlipData manifestDoc = null;
+    if (docsIds.contains(DocumentConstants.MANIFEST_DOCUMENT_ID)) {
+      manifestDoc = wavelet.getDocument(DocumentConstants.MANIFEST_DOCUMENT_ID);
+    }
+
+    if (manifestDoc == null) {
+      return "";
+    }
+
+    // Collect all blip IDs from the manifest in order.
+    final List<String> blipIds = new ArrayList<String>();
+    DocOp docOp = manifestDoc.getContent().asOperation();
+    docOp.apply(InitializationCursorAdapter.adapt(new DocInitializationCursor() {
+      @Override
+      public void annotationBoundary(AnnotationBoundaryMap map) {
+      }
+
+      @Override
+      public void characters(String chars) {
+      }
+
+      @Override
+      public void elementEnd() {
+      }
+
+      @Override
+      public void elementStart(String type, Attributes attrs) {
+        if (DocumentConstants.BLIP.equals(type)) {
+          String blipId = attrs.get(DocumentConstants.BLIP_ID);
+          if (blipId != null) {
+            blipIds.add(blipId);
+          }
+        }
+      }
+    }));
+
+    if (blipIds.size() <= 1) {
+      // Only the root blip exists; no replies yet.
+      return "";
+    }
+
+    // Use the last blip as the "latest reply" snippet source.
+    String lastBlipId = blipIds.get(blipIds.size() - 1);
+    ReadableBlipData document = wavelet.getDocument(lastBlipId);
+    if (document == null) {
+      return "";
+    }
+    String text = collateTextForDocuments(Arrays.asList(document)).trim();
+    if (text.length() > maxSnippetLength) {
+      return text.substring(0, maxSnippetLength);
+    }
+    return text;
+  }
+
   private Snippets() {
   }
 }

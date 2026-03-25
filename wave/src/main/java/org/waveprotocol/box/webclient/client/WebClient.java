@@ -301,9 +301,9 @@ public class WebClient implements EntryPoint {
     });
   }
 
-  /** WiFi SVG icon for connected state. */
+  /** WiFi SVG icon for connected state (white for contrast on dark topbar). */
   private static final String WIFI_ICON_SVG =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\""
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\""
           + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
           + "<path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/>"
           + "<path d=\"M5.07 12.5a10 10 0 0 1 13.86 0\"/>"
@@ -311,9 +311,9 @@ public class WebClient implements EntryPoint {
           + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
           + "</svg>";
 
-  /** WiFi-off SVG icon for disconnected state. */
+  /** WiFi-off SVG icon for disconnected state (white for contrast on dark topbar). */
   private static final String WIFI_OFF_ICON_SVG =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\""
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\""
           + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
           + "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/>"
           + "<path d=\"M16.72 11.06A10.94 10.94 0 0 1 19 12.55\"/>"

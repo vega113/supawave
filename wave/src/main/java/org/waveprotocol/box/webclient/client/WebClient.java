@@ -33,6 +33,7 @@ import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
@@ -59,6 +60,7 @@ import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.common.util.AsyncHolder.Accessor;
+import org.waveprotocol.wave.client.common.util.UserAgent;
 import org.waveprotocol.wave.client.debug.logger.LogLevel;
 import org.waveprotocol.wave.client.doodad.attachment.AttachmentManagerImpl;
 import org.waveprotocol.wave.client.doodad.attachment.AttachmentManagerProvider;
@@ -390,8 +392,8 @@ public class WebClient implements EntryPoint {
       loggedInUser = new ParticipantId(Session.get().getAddress());
       idGenerator = ClientIdGenerator.create();
       loginToServer();
-      // Fetch the contacts list for participant autocomplete.
-      contactManager.update();
+      // Contacts fetch is deferred until after the first search response
+      // arrives (see setupSearchPanel) so it does not block wave list display.
     }
 
     setupUi();
@@ -422,6 +424,31 @@ public class WebClient implements EntryPoint {
     setupWavePanel();
 
     FocusManager.init();
+    setupGlobalShortcuts();
+  }
+
+  /**
+   * Registers global keyboard shortcuts that work from anywhere in the app.
+   * Shift+Cmd+O (Mac) / Shift+Ctrl+O (Windows/Linux) triggers New Wave.
+   */
+  private void setupGlobalShortcuts() {
+    Event.addNativePreviewHandler(new Event.NativePreviewHandler() {
+      @Override
+      public void onPreviewNativeEvent(Event.NativePreviewEvent preview) {
+        if (preview.getTypeInt() != Event.ONKEYDOWN) {
+          return;
+        }
+        com.google.gwt.dom.client.NativeEvent event = preview.getNativeEvent();
+        // 'O' key = keyCode 79. Shift must be held. Modifier: Meta (Cmd) on Mac, Ctrl elsewhere.
+        if (event.getKeyCode() == 'O'
+            && event.getShiftKey()
+            && (UserAgent.isMac() ? event.getMetaKey() : event.getCtrlKey())) {
+          event.preventDefault();
+          preview.cancel();
+          ClientEvents.get().fireEvent(new WaveCreationEvent());
+        }
+      }
+    });
   }
 
   private void setupSearchPanel() {
@@ -440,6 +467,32 @@ public class WebClient implements EntryPoint {
         };
     Search search = SimpleSearch.create(RemoteSearchService.create(), waveStore);
     SearchPresenter.create(search, searchPanel, actionHandler, profiles);
+
+    // Defer contacts fetch until after the first search response arrives
+    // so the /contacts request does not compete with the critical /search
+    // request for network bandwidth and server resources.
+    Search.Listener contactLoader = new Search.Listener() {
+      private boolean fired = false;
+      private void maybeLoad() {
+        if (!fired && search.getState() == Search.State.READY) {
+          fired = true;
+          contactManager.update();
+          search.removeListener(this);
+        }
+      }
+
+      @Override
+      public void onStateChanged() {
+        maybeLoad();
+      }
+
+      @Override public void onDigestAdded(int index, Search.Digest digest) {}
+      @Override public void onDigestRemoved(int index, Search.Digest digest) {}
+      @Override public void onDigestReady(int index, Search.Digest digest) {}
+      @Override public void onTotalChanged(int total) {}
+    };
+    search.addListener(contactLoader);
+    contactLoader.onStateChanged();
   }
 
   private void setupWavePanel() {

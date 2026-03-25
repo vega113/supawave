@@ -50,8 +50,13 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
   /**
    * The period of time in minutes the per user waves view should be actively
    * kept up to date after last access.
+   *
+   * The initial cache load is expensive (full wavelet scan), but incremental
+   * updates via {@link #onParticipantAdded}/{@link #onParticipantRemoved}
+   * keep the view current between loads. A longer expiry avoids redundant
+   * full-scan rebuilds while the event-driven updates maintain correctness.
    */
-  private static final int PER_USER_WAVES_VIEW_CACHE_MINUTES = 5;
+  private static final int PER_USER_WAVES_VIEW_CACHE_MINUTES = 60;
 
   /** The loading cache that holds wave viev per each online user.*/
   public LoadingCache<ParticipantId, Multimap<WaveId, WaveletId>> explicitPerUserWaveViews;
@@ -66,6 +71,7 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
 
           @Override
           public Multimap<WaveId, WaveletId> load(final ParticipantId user) {
+            long startMs = System.currentTimeMillis();
             Multimap<WaveId, WaveletId> userView = HashMultimap.create();
             try {
               waveMap.loadAllWavelets();
@@ -106,8 +112,10 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
                 }
               }
             }
-            LOG.info("Initalized waves view for user: " + user.getAddress()
-                + ", number of waves in view: " + userView.size());
+            long elapsedMs = System.currentTimeMillis() - startMs;
+            LOG.info("Initialized waves view for user: " + user.getAddress()
+                + ", number of waves in view: " + userView.size()
+                + ", took " + elapsedMs + " ms");
             return userView;
           }
         });

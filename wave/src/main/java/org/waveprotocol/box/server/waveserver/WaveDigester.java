@@ -205,7 +205,7 @@ public class WaveDigester {
     String snippet = Snippets.renderSnippet(rawWaveletData, DIGEST_SNIPPET_LENGTH).trim();
     if (snippet.startsWith(title) && !title.isEmpty()) {
       // Strip the title from the snippet if the snippet starts with the title.
-      snippet = snippet.substring(title.length());
+      snippet = snippet.substring(title.length()).trim();
     }
     String waveId = ApiIdSerializer.instance().serialiseWaveId(rawWaveletData.getWaveId());
     List<String> participants = CollectionUtils.newArrayList();

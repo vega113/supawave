@@ -181,10 +181,16 @@ public final class ActionsImpl implements Actions {
 
   /**
    * Moves focus to a blip, and starts editing it.
+   * If already editing the target blip, this is a no-op to avoid
+   * disrupting the current edit session (e.g. resetting cursor position
+   * or invalidating the editing context mid-operation).
    */
   private void focusAndEdit(BlipView blipUi) {
     boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
     if (allowed) {
+      if (edit.isEditing() && blipUi.equals(edit.getBlip())) {
+        return;
+      }
       edit.stopEditing();
       focus.focus(blipUi);
       edit.startEditing(blipUi);

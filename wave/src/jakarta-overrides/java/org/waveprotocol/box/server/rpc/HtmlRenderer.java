@@ -143,6 +143,31 @@ public final class HtmlRenderer {
       + "  }\n"
       + "}\n"
 
+      // --- Prominent "New Wave" toolbar button (pill-shaped, ocean gradient) ---
+      + "#app [data-action=\"new-wave\"] {\n"
+      + "  background: linear-gradient(135deg, " + WAVE_PRIMARY + ", #00b4d8) !important;\n"
+      + "  color: #fff !important;\n"
+      + "  border: none !important;\n"
+      + "  border-radius: 16px !important;\n"
+      + "  padding: 4px 14px !important;\n"
+      + "  font-weight: 600 !important;\n"
+      + "  font-size: 12px !important;\n"
+      + "  font-family: " + WAVE_FONT + " !important;\n"
+      + "  cursor: pointer;\n"
+      + "  box-shadow: 0 2px 8px rgba(0,119,182,0.25);\n"
+      + "  transition: all 0.2s ease;\n"
+      + "  letter-spacing: 0.02em;\n"
+      + "}\n"
+      + "#app [data-action=\"new-wave\"]:hover {\n"
+      + "  background: linear-gradient(135deg, #005f8f, #0096c7) !important;\n"
+      + "  box-shadow: 0 4px 14px rgba(0,119,182,0.35);\n"
+      + "  transform: translateY(-1px);\n"
+      + "}\n"
+      + "#app [data-action=\"new-wave\"]:active {\n"
+      + "  transform: translateY(0);\n"
+      + "  box-shadow: 0 1px 4px rgba(0,119,182,0.3);\n"
+      + "}\n"
+
       // --- Digest list items (wave inbox) ---
       // Digest items have a `di` attribute
       + "#app [di] {\n"

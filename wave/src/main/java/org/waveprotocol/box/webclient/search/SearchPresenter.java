@@ -216,7 +216,8 @@ public final class SearchPresenter
   private void initToolbarMenu() {
     GroupingToolbar.View toolbarUi = searchUi.getToolbar();
     ToolbarView group = toolbarUi.addGroup();
-    new ToolbarButtonViewBuilder()
+    ToolbarClickButton newWaveButton = new ToolbarButtonViewBuilder()
+        .setText(messages.newWave())
         .setTooltip(messages.newWaveHint())
         .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
@@ -230,7 +231,9 @@ public final class SearchPresenter
             int delay = 500;
             scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
           }
-        }).setVisualElement(createSvgIcon(ICON_NEW_WAVE));
+        });
+    // Mark the New Wave button so CSS can style it prominently.
+    newWaveButton.hackGetWidget().getElement().setAttribute("data-action", "new-wave");
 
     // Add "Manage Searches" button with sliders icon.
     new ToolbarButtonViewBuilder()

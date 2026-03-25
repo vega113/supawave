@@ -49,7 +49,7 @@ public final class SecurityHeadersFilter implements Filter {
           + "base-uri 'self'; frame-ancestors 'self'; object-src 'none'; "
           + "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
           + "style-src 'self' 'unsafe-inline'; "
-          + "img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:";
+          + "img-src 'self' data: https://www.gravatar.com; font-src 'self' data:; connect-src 'self' ws: wss:";
 
   private static final String DEFAULT_REFERRER = "strict-origin-when-cross-origin";
   private static final String DEFAULT_XCTO = "nosniff";

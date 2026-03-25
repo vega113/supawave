@@ -22,7 +22,6 @@ package org.waveprotocol.wave.client.wavepanel.impl.edit;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.user.client.Window;
 
 import org.waveprotocol.wave.client.wavepanel.WavePanel;
 import org.waveprotocol.wave.client.wavepanel.event.EventHandlerRegistry;
@@ -41,9 +40,8 @@ import org.waveprotocol.wave.model.util.Pair;
 /**
  * Installs the add/remove tag controls.
  *
- * Ported from Wiab.pro, adapted for Apache Wave (removed KeyComboManager
- * dependency, uses Window.prompt/confirm instead of Wiab.pro DialogBox
- * extensions).
+ * Uses styled modal popups ({@link TagInputWidget}) instead of browser-native
+ * {@code Window.prompt/confirm} dialogs.
  */
 public final class TagController {
 
@@ -86,24 +84,37 @@ public final class TagController {
   }
 
   /**
-   * Shows an add-tag prompt.
+   * Shows a styled modal for adding tags.
    */
-  private void handleAddButtonClicked(Element addButton) {
-    String input = Window.prompt(messages.addTagPrompt(), "");
-    if (input != null && !input.isEmpty()) {
-      addTagsInner(addButton, input);
-    }
+  private void handleAddButtonClicked(final Element addButton) {
+    TagInputWidget widget = new TagInputWidget(messages.addTagPrompt());
+    widget.showInPopup(new TagInputWidget.Listener() {
+      @Override
+      public void onSubmit(String tagValue) {
+        addTagsInner(addButton, tagValue);
+      }
+
+      @Override
+      public void onCancel() {
+        // no-op
+      }
+    });
   }
 
+  /**
+   * Shows a styled confirmation modal for removing a tag.
+   */
   private void handleTagClicked(Element context) {
     TagView tagView = views.asTag(context);
     if (!TagState.REMOVED.equals(tagView.getState())) {
       final Pair<Conversation, String> tag = models.getTag(tagView);
       if (tag != null) {
-        boolean confirmed = Window.confirm(messages.removeTagPrompt(tag.second));
-        if (confirmed) {
-          tag.first.removeTag(tag.second);
-        }
+        TagInputWidget.showRemoveConfirm(tag.second, new Runnable() {
+          @Override
+          public void run() {
+            tag.first.removeTag(tag.second);
+          }
+        });
       }
     }
   }

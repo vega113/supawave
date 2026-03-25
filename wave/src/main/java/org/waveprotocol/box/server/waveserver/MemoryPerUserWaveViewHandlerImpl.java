@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -75,17 +76,23 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
 
             Map<WaveId, Wave> waves = waveMap.getWaves();
             for (Map.Entry<WaveId, Wave> entry : waves.entrySet()) {
-              Wave wave = entry.getValue();
-              for (WaveletContainer c : wave) {
-                WaveletId waveletId = c.getWaveletName().waveletId;
-                try {
-                  if (!c.hasParticipant(user)) {
-                    continue;
+              WaveId waveId = entry.getKey();
+              try {
+                // Explicitly look up stored wavelet IDs and load each container
+                ImmutableSet<WaveletId> waveletIds = waveMap.lookupWavelets(waveId);
+                for (WaveletId waveletId : waveletIds) {
+                  WaveletName waveletName = WaveletName.of(waveId, waveletId);
+                  try {
+                    WaveletContainer c = waveMap.getWavelet(waveletName);
+                    if (c != null && c.hasParticipant(user)) {
+                      userView.put(waveId, waveletId);
+                    }
+                  } catch (WaveletStateException e) {
+                    LOG.warning("Failed to access wavelet " + waveletName, e);
                   }
-                  userView.put(entry.getKey(), waveletId);
-                } catch (WaveletStateException e) {
-                  LOG.warning("Failed to access wavelet " + c.getWaveletName(), e);
                 }
+              } catch (WaveletStateException e) {
+                LOG.warning("Failed to look up wavelets for wave " + waveId, e);
               }
             }
             LOG.info("Initalized waves view for user: " + user.getAddress()

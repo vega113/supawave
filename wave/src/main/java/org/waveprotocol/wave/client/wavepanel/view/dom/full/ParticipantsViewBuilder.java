@@ -128,7 +128,8 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         {
           participantUis.outputHtml(output);
 
-          // Overflow-mode panel.
+          // Overflow-mode panel (toggle + add, but NO new-wave button to
+          // avoid duplication with the single-line panel).
           openSpan(output, null, css.extra(), null);
           {
             openSpanWith(output, null, css.toggleGroup(), null, "onclick=\"" + onClickJs() + "\"");
@@ -141,17 +142,18 @@ public final class ParticipantsViewBuilder implements UiBuilder {
               closeSpan(output);
             }
             closeSpan(output);
-            appendSpan(output, null, css.addButton(), TypeCodes.kind(Type.ADD_PARTICIPANT));
-            newWaveIcon(output, css.newWaveWithParticipantsButton(),
-                TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
-                messages.newWaveWithParticipantsOfCurrentWave());
+            addParticipantIcon(output, css.addButton(),
+                TypeCodes.kind(Type.ADD_PARTICIPANT),
+                messages.addParticipantToThisWave());
           }
           closeSpan(output);
 
           // Single-line mode panel.
           openSpan(output, null, css.simple(), null);
           {
-            appendSpan(output, null, css.addButton(), TypeCodes.kind(Type.ADD_PARTICIPANT));
+            addParticipantIcon(output, css.addButton(),
+                TypeCodes.kind(Type.ADD_PARTICIPANT),
+                messages.addParticipantToThisWave());
             newWaveIcon(output, css.newWaveWithParticipantsButton(),
                 TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
                 messages.newWaveWithParticipantsOfCurrentWave());
@@ -166,8 +168,33 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   }
 
   /**
-   * Renders a compact circular icon button for "new wave with participants".
-   * Replaces the former bulky {@code <button>} with an inline SVG "+" icon.
+   * Renders a circular icon button for "add participant to this wave".
+   * Uses a Material-style person-add SVG icon.
+   */
+  private static void addParticipantIcon(
+      SafeHtmlBuilder output, String clazz, String kind, String title) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedKind = kind != null ? EscapeUtils.htmlEscape(kind) : null;
+    String escapedTitle = title != null ? EscapeUtils.htmlEscape(title) : null;
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + (escapedKind != null ? " kind='" + escapedKind + "'" : "")
+        + (escapedTitle != null ? " title='" + escapedTitle + "'" : "")
+        + " role='button' tabindex='0'"
+        + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
+        + ">"
+        // Material "person_add" icon (person silhouette + plus sign)
+        + "<svg width='18' height='18' viewBox='0 0 24 24' fill='currentColor'>"
+        + "<path d='M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 "
+        + "4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/>"
+        + "</svg>"
+        + "</span>");
+  }
+
+  /**
+   * Renders a circular icon button for "new wave with participants".
+   * Uses a wave-style SVG icon to distinguish it from the add-participant button.
    */
   private static void newWaveIcon(SafeHtmlBuilder output, String clazz, String kind, String title) {
     String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
@@ -181,10 +208,22 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + " role='button' tabindex='0'"
         + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
         + ">"
-        + "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
-        + "stroke='currentColor' stroke-width='2'>"
-        + "<line x1='12' y1='5' x2='12' y2='19'/>"
-        + "<line x1='5' y1='12' x2='19' y2='12'/>"
+        // Wave/water icon with a small plus: three wavy lines + plus symbol
+        + "<svg width='18' height='18' viewBox='0 0 24 24' fill='currentColor'>"
+        + "<path d='M21 14c-1.11 0-1.98-.42-2.76-1.13-.78.71-1.64 1.13-2.74 1.13s-1.97-.42-2.75-1.13c-.78.71-1.64 "
+        + "1.13-2.75 1.13s-1.96-.42-2.74-1.13C6.47 13.58 5.61 14 4.5 14c-1.11 0-1.97-.42-2.75-1.13-.15.14-.31.26-."
+        + "48.38v2.49c.34-.11.69-.24 1.23-.24 1.11 0 1.97.42 2.75 1.13.78-.71 1.64-1.13 2.75-1.13s1.96.42 2.74 1."
+        + "13c.78-.71 1.65-1.13 2.76-1.13s1.97.42 2.75 1.13c.78-.71 1.64-1.13 2.75-1.13.54 0 .89.13 1.23.24v-2.49"
+        + "c-.17-.12-.33-.24-.48-.38-.78.71-1.64 1.13-2.75 1.13zm0-5c-1.11 0-1.98-.42-2.76-1.13-.78.71-1.64 1.13-2"
+        + ".74 1.13s-1.97-.42-2.75-1.13c-.78.71-1.64 1.13-2.75 1.13s-1.96-.42-2.74-1.13C6.47 8.58 5.61 9 4.5 9c-1"
+        + ".11 0-1.97-.42-2.75-1.13-.15.14-.31.26-.48.38v2.49c.34-.11.69-.24 1.23-.24 1.11 0 1.97.42 2.75 1.13.78-"
+        + ".71 1.64-1.13 2.75-1.13s1.96.42 2.74 1.13c.78-.71 1.65-1.13 2.76-1.13s1.97.42 2.75 1.13c.78-.71 1.64-1"
+        + ".13 2.75-1.13.54 0 .89.13 1.23.24V8.25c-.17-.12-.33-.24-.48-.38C22.98 8.58 22.11 9 21 9zm0 10c-1.11 0-1"
+        + ".98-.42-2.76-1.13-.78.71-1.64 1.13-2.74 1.13s-1.97-.42-2.75-1.13c-.78.71-1.64 1.13-2.75 1.13s-1.96-.42"
+        + "-2.74-1.13C6.47 18.58 5.61 19 4.5 19c-1.11 0-1.97-.42-2.75-1.13-.15.14-.31.26-.48.38v2.49c.34-.11.69-.2"
+        + "4 1.23-.24 1.11 0 1.97.42 2.75 1.13.78-.71 1.64-1.13 2.75-1.13s1.96.42 2.74 1.13c.78-.71 1.65-1.13 2.7"
+        + "6-1.13s1.97.42 2.75 1.13c.78-.71 1.64-1.13 2.75-1.13.54 0 .89.13 1.23.24v-2.49c-.17-.12-.33-.24-.48-.3"
+        + "8-.78.71-1.64 1.13-2.75 1.13z'/>"
         + "</svg>"
         + "</span>");
   }

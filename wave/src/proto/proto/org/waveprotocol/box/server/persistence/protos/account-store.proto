@@ -48,6 +48,7 @@ message ProtoAccountData {
 message ProtoHumanAccountData {
 	optional ProtoPasswordDigest password_digest = 1;
 	optional string email = 2;
+	optional bool email_confirmed = 3 [default = true];
 }
 
 // The values from a PAsswordDigest instance

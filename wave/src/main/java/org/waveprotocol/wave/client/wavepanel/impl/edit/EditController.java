@@ -53,8 +53,8 @@ public final class EditController implements KeySignalHandler {
     // Single-key blip action hotkeys (only fire when focus is on body, not in an editor)
     DEFAULT_BINDINGS.put(KeyCombo.LETTER_R, Action.REPLY_TO_BLIP);
     DEFAULT_BINDINGS.put(KeyCombo.LETTER_E, Action.EDIT_BLIP);
-    DEFAULT_BINDINGS.put(KeyCombo.DELETE, Action.DELETE_BLIP);
-    DEFAULT_BINDINGS.put(KeyCombo.BACKSPACE, Action.DELETE_BLIP);
+    // Note: bare DELETE / BACKSPACE intentionally not bound to DELETE_BLIP
+    // to prevent accidental data loss. Use Shift+Delete instead.
     DEFAULT_BINDINGS.put(KeyCombo.LETTER_L, Action.POPUP_LINK);
   }
 

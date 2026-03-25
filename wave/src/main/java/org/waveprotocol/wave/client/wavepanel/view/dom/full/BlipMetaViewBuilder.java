@@ -320,7 +320,7 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
         // Show a subtle keyboard hint when in edit mode
         if (options.contains(MenuOption.EDIT_DONE)) {
           out.appendHtmlConstant(
-              "<span class='" + EDIT_HINT_CLASS + "'>Shift+Enter to finish, Esc to cancel</span>");
+              "<span class='" + EDIT_HINT_CLASS + "'>Shift+Enter to finish, Esc to exit</span>");
         }
       }
     };

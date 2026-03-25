@@ -62,6 +62,8 @@ public class PersistenceModule extends AbstractModule {
 
   private final String deltaStoreType;
 
+  private final String contactStoreType;
+
   private MongoDbProvider mongoDbProvider;
   private org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider mongo4Provider;
 
@@ -81,6 +83,8 @@ public class PersistenceModule extends AbstractModule {
     this.attachmentStoreType = config.getString("core.attachment_store_type");
     this.accountStoreType = config.getString("core.account_store_type");
     this.deltaStoreType = config.getString("core.delta_store_type");
+    this.contactStoreType = config.hasPath("core.contact_store_type")
+        ? config.getString("core.contact_store_type") : "memory";
     this.mongoDBHost = config.getString("core.mongodb_host");
     this.mongoDBPort = config.getString("core.mongodb_port");
     this.mongoDBdatabase = config.getString("core.mongodb_database");
@@ -171,11 +175,26 @@ public class PersistenceModule extends AbstractModule {
   }
 
   /**
-   * Binds the ContactStore and ContactManager. Currently only memory-backed.
-   * File and MongoDB backends can be added later following the same pattern.
+   * Binds the ContactStore and ContactManager.
+   * Supported types: memory, mongodb.
    */
   private void bindContactStore() {
-    bind(ContactStore.class).to(MemoryStore.class).in(Singleton.class);
+    if (contactStoreType.equalsIgnoreCase("mongodb")) {
+      if ("v4".equalsIgnoreCase(mongoDriver)) {
+        bind(ContactStore.class).toInstance(getMongo4Provider().provideMongoDbContactStore());
+      } else {
+        throw new IllegalStateException(
+            "contact_store_type is set to 'mongodb' but the legacy v2 MongoDB driver "
+            + "does not support ContactStore. Set core.mongodb_driver to 'v4' or use "
+            + "contact_store_type 'memory'.");
+      }
+    } else if (contactStoreType.equalsIgnoreCase("memory")) {
+      bind(ContactStore.class).to(MemoryStore.class).in(Singleton.class);
+    } else {
+      throw new IllegalStateException(
+          "Unknown contact_store_type: '" + contactStoreType
+          + "'. Supported values are 'memory' and 'mongodb'.");
+    }
     bind(ContactManager.class).to(ContactManagerImpl.class).in(Singleton.class);
     bind(ContactsRecorder.class).in(Singleton.class);
   }

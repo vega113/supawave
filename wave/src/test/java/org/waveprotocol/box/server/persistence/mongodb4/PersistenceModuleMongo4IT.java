@@ -11,6 +11,7 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.AttachmentStore;
+import org.waveprotocol.box.server.persistence.ContactStore;
 import org.waveprotocol.box.server.persistence.PersistenceModule;
 import org.waveprotocol.wave.crypto.CertPathStore;
 import org.waveprotocol.box.server.waveserver.DeltaStore;
@@ -35,6 +36,7 @@ public class PersistenceModuleMongo4IT {
               + "  signer_info_store_type = \"mongodb\"\n"
               + "  attachment_store_type = \"mongodb\"\n"
               + "  account_store_type = \"mongodb\"\n"
+              + "  contact_store_type = \"mongodb\"\n"
               + "  delta_store_type = \"mongodb\"\n"
               + "  mongodb_host = \"" + mongo.getHost() + "\"\n"
               + "  mongodb_port = \"" + mongo.getMappedPort(27017) + "\"\n"
@@ -48,6 +50,7 @@ public class PersistenceModuleMongo4IT {
       assertTrue(injector.getInstance(AttachmentStore.class) instanceof Mongo4AttachmentStore);
       assertTrue(injector.getInstance(AccountStore.class) instanceof Mongo4AccountStore);
       assertTrue(injector.getInstance(DeltaStore.class) instanceof Mongo4DeltaStore);
+      assertTrue(injector.getInstance(ContactStore.class) instanceof Mongo4ContactStore);
     } finally {
       MongoItTestUtil.stopQuietly(mongo, LOG);
     }

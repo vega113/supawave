@@ -19,16 +19,20 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.collapse;
 
-import org.waveprotocol.wave.client.wavepanel.impl.WavePanelImpl;
-
 /**
  * Builds and installs the thread slide navigation feature alongside the
  * existing collapse/expand feature.
  *
  * <p>This builder creates a {@link ThreadNavigationPresenter} and a
- * {@link BreadcrumbWidget}, wires them together, and installs the
- * {@link ThreadNavigationController} to intercept toggle events that
- * should use slide navigation instead of normal collapse/expand.
+ * {@link BreadcrumbWidget}, wires them together, and registers the
+ * navigator with the {@link CollapsePresenter} so that toggle events on
+ * deeply nested threads use slide navigation instead of normal
+ * collapse/expand.
+ *
+ * <p>The navigation logic is handled inside {@link CollapseController}
+ * (which checks the navigator before performing a standard toggle),
+ * avoiding the need for a separate mouse-down handler registration that
+ * would conflict with the existing collapse handler.
  */
 public final class ThreadNavigationBuilder {
   private ThreadNavigationBuilder() {
@@ -37,12 +41,12 @@ public final class ThreadNavigationBuilder {
   /**
    * Builds and installs the thread navigation feature.
    *
-   * @param panel     the wave panel to install into
-   * @param collapser the existing collapse presenter (for delegation)
+   * @param collapser the existing collapse presenter (which also owns
+   *                  the single TOGGLE mouse-down handler)
    * @return the thread navigation presenter
    */
   public static ThreadNavigationPresenter createAndInstallIn(
-      WavePanelImpl panel, CollapsePresenter collapser) {
+      CollapsePresenter collapser) {
     ThreadNavigationPresenter navigator = new ThreadNavigationPresenter();
 
     // Create and wire up the breadcrumb widget
@@ -50,8 +54,9 @@ public final class ThreadNavigationBuilder {
     breadcrumb.setPresenter(navigator);
     navigator.setBreadcrumb(breadcrumb);
 
-    // Install the navigation controller that intercepts toggle events
-    ThreadNavigationController.install(navigator, collapser, panel);
+    // Wire the navigator into the collapse presenter so that
+    // CollapseController can delegate to it for deep threads.
+    collapser.setNavigator(navigator);
 
     return navigator;
   }
@@ -60,14 +65,13 @@ public final class ThreadNavigationBuilder {
    * Builds and installs the thread navigation feature with a custom
    * depth threshold.
    *
-   * @param panel          the wave panel to install into
    * @param collapser      the existing collapse presenter
    * @param depthThreshold the depth threshold for slide navigation
    * @return the thread navigation presenter
    */
   public static ThreadNavigationPresenter createAndInstallIn(
-      WavePanelImpl panel, CollapsePresenter collapser, int depthThreshold) {
-    ThreadNavigationPresenter navigator = createAndInstallIn(panel, collapser);
+      CollapsePresenter collapser, int depthThreshold) {
+    ThreadNavigationPresenter navigator = createAndInstallIn(collapser);
     navigator.setDepthThreshold(depthThreshold);
     return navigator;
   }

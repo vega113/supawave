@@ -45,6 +45,12 @@ public interface ToolbarMessages extends Messages {
   @DefaultMessage("To Inbox")
   String toInbox();
 
+  @DefaultMessage("Last")
+  String last();
+
+  @DefaultMessage("Go to last message (End)")
+  String lastTooltip();
+
   @DefaultMessage("History")
   String history();
 

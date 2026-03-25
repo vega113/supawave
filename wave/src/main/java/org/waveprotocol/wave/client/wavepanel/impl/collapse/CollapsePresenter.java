@@ -47,6 +47,9 @@ public final class CollapsePresenter {
   private SupplementedWave supplement;
   private ModelAsViewProvider modelAsView;
 
+  /** Optional thread navigation presenter for slide-based deep-thread navigation. */
+  private ThreadNavigationPresenter navigator;
+
   /**
    * Injects the supplement and model-view mapping so that collapse/expand
    * actions are persisted to the user-data wavelet.  Also installs an event
@@ -111,5 +114,21 @@ public final class CollapsePresenter {
             collapsed ? ThreadState.COLLAPSED : ThreadState.EXPANDED);
       }
     }
+  }
+
+  /**
+   * Sets the thread navigation presenter for slide-based navigation of
+   * deeply nested threads. When set, toggle actions on threads at or above
+   * the depth threshold will use slide navigation instead of inline expand.
+   *
+   * @param navigator the thread navigation presenter, or null to disable
+   */
+  public void setNavigator(ThreadNavigationPresenter navigator) {
+    this.navigator = navigator;
+  }
+
+  /** @return the thread navigation presenter, or null if not set. */
+  public ThreadNavigationPresenter getNavigator() {
+    return navigator;
   }
 }

@@ -219,6 +219,86 @@ public final class ProfileResponseBuilder {
      * under the License.
      */
     private String profileUrl;
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    private String firstName;
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    private String lastName;
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    private String bio;
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    private Long lastSeenTime;
     public FetchedProfileBuilder() {
     }
 
@@ -319,6 +399,118 @@ public final class ProfileResponseBuilder {
       return this;
     }
 
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    public FetchedProfileBuilder clearFirstName() {
+      firstName = null;
+      return this;
+    }
+
+    public FetchedProfileBuilder setFirstName(String value) {
+      this.firstName = value;
+      return this;
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    public FetchedProfileBuilder clearLastName() {
+      lastName = null;
+      return this;
+    }
+
+    public FetchedProfileBuilder setLastName(String value) {
+      this.lastName = value;
+      return this;
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    public FetchedProfileBuilder clearBio() {
+      bio = null;
+      return this;
+    }
+
+    public FetchedProfileBuilder setBio(String value) {
+      this.bio = value;
+      return this;
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    public FetchedProfileBuilder clearLastSeenTime() {
+      lastSeenTime = null;
+      return this;
+    }
+
+    public FetchedProfileBuilder setLastSeenTime(long value) {
+      this.lastSeenTime = value;
+      return this;
+    }
+
     /** Builds a {@link FetchedProfile} using this builder and a factory. */
     public FetchedProfile build(Factory factory) {
       FetchedProfile message = factory.create();
@@ -405,6 +597,90 @@ public final class ProfileResponseBuilder {
        * under the License.
        */
       message.setProfileUrl(profileUrl);
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License");
+       you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      message.setFirstName(firstName);
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License");
+       you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      message.setLastName(lastName);
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License");
+       you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      message.setBio(bio);
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License");
+       you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      message.setLastSeenTime(lastSeenTime);
       return message;
     }
 

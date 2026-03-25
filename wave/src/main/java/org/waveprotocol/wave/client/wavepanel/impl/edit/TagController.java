@@ -42,8 +42,8 @@ import org.waveprotocol.wave.model.util.Pair;
  * Installs the add/remove tag controls.
  *
  * Ported from Wiab.pro, adapted for Apache Wave (removed KeyComboManager
- * dependency, uses Window.prompt/confirm instead of Wiab.pro DialogBox
- * extensions).
+ * dependency). Uses {@link TagInputWidget} for the add-tag dialog and
+ * {@code Window.confirm} for tag removal.
  */
 public final class TagController {
 
@@ -86,13 +86,21 @@ public final class TagController {
   }
 
   /**
-   * Shows an add-tag prompt.
+   * Shows an add-tag popup using {@link TagInputWidget}.
    */
-  private void handleAddButtonClicked(Element addButton) {
-    String input = Window.prompt(messages.addTagPrompt(), "");
-    if (input != null && !input.isEmpty()) {
-      addTagsInner(addButton, input);
-    }
+  private void handleAddButtonClicked(final Element addButton) {
+    TagInputWidget widget = new TagInputWidget(messages.addTagPrompt());
+    widget.showInPopup(new TagInputWidget.Listener() {
+      @Override
+      public void onSubmit(String tagValue) {
+        addTagsInner(addButton, tagValue);
+      }
+
+      @Override
+      public void onCancel() {
+        // no-op: user dismissed the dialog
+      }
+    });
   }
 
   private void handleTagClicked(Element context) {

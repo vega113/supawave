@@ -362,8 +362,12 @@ public class ServerMain {
     accountStore.initializeAccountStore();
     AccountStoreHolder.init(accountStore, waveDomain);
 
-    ContactStore contactStore = injector.getInstance(ContactStore.class);
-    contactStore.initializeContactStore();
+    try {
+      ContactStore contactStore = injector.getInstance(ContactStore.class);
+      contactStore.initializeContactStore();
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to initialize ContactStore (contacts may not work): " + e.getMessage());
+    }
 
     initializeSignerInfoStore(injector);
     initializeWaveServer(injector);

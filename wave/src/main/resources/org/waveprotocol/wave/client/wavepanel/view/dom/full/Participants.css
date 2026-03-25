@@ -214,3 +214,22 @@ img.participant:hover {
   display: inline-block;
   cursor: pointer;
 }
+
+.publicToggleButton {
+  margin-left: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0077b6;
+  color: white;
+  vertical-align: middle;
+  transition: background 0.15s ease;
+}
+
+.publicToggleButton:hover {
+  background: #005f8a;
+}

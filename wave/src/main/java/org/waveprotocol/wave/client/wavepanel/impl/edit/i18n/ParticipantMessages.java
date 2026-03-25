@@ -29,4 +29,13 @@ import com.google.gwt.i18n.client.Messages.DefaultMessage;
 public interface ParticipantMessages extends Messages {
   @DefaultMessage("Remove")
   String remove();
+
+  @DefaultMessage("Only the wave creator can change public/private visibility.")
+  String onlyOwnerCanTogglePublic();
+
+  @DefaultMessage("Make wave public")
+  String makeWavePublic();
+
+  @DefaultMessage("Make wave private")
+  String makeWavePrivate();
 }

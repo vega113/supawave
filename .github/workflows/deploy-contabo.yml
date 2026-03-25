@@ -208,8 +208,7 @@ jobs:
 
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             // Detect which step failed
-            const failedStep = context.job?.steps?.find(s => s.outcome === 'failure')?.name
-              || (steps.deploy?.outcome === 'failure' ? 'Deploy on Contabo' : 'Build/push (pre-deploy)');
+            const failedStep = context.job?.steps?.find(s => s.outcome === 'failure')?.name || 'Unknown step';
             const title = `Deploy failed: ${context.sha.substring(0, 8)} (${failedStep})`;
             const body = [
               `## Deploy Failure\n`,

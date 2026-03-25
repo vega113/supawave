@@ -49,6 +49,7 @@ services:
     environment:
       - RESEND_API_KEY=${RESEND_API_KEY:?set RESEND_API_KEY before deploying}
       - WAVE_MAIL_PROVIDER=${WAVE_MAIL_PROVIDER:-logging}
+      - WAVE_EMAIL_FROM=${WAVE_EMAIL_FROM:?set WAVE_EMAIL_FROM before deploying}
 
   caddy:
     image: caddy:2.8.4-alpine

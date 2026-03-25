@@ -199,24 +199,23 @@ public final class HtmlRenderer {
       + "  opacity: 1;\n"
       + "}\n"
 
-      // --- New Wave With Participants button ---
+      // --- New Wave With Participants button (compact circle) ---
       + "#app [kind=\"npw\"] {\n"
       + "  background: " + WAVE_PRIMARY + " !important;\n"
       + "  color: #fff !important;\n"
       + "  border: none !important;\n"
-      + "  border-radius: 20px !important;\n"
-      + "  padding: 5px 16px !important;\n"
-      + "  font-family: " + WAVE_FONT + ";\n"
-      + "  font-size: 12px;\n"
-      + "  font-weight: 600;\n"
+      + "  border-radius: 50% !important;\n"
+      + "  padding: 0 !important;\n"
       + "  cursor: pointer;\n"
       + "  transition: background 0.2s ease, box-shadow 0.2s ease;\n"
-      + "  display: inline-block;\n"
-      + "  text-align: center;\n"
-      + "  line-height: 1.6;\n"
+      + "  display: inline-flex !important;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  width: 24px !important;\n"
+      + "  height: 24px !important;\n"
       + "  box-shadow: 0 1px 3px rgba(0,119,182,0.2);\n"
-      + "  width: auto !important;\n"
-      + "  margin: 4px 5px !important;\n"
+      + "  margin: 0 2px !important;\n"
+      + "  vertical-align: middle;\n"
       + "}\n"
       + "#app [kind=\"npw\"]:hover {\n"
       + "  background: #005f8f !important;\n"
@@ -551,13 +550,13 @@ public final class HtmlRenderer {
       + ".input-group .domain-suffix {\n"
       + "  margin-left: 8px; font-size: 13px; color: #666; white-space: nowrap;\n"
       + "}\n"
-      + "input[type=text], input[type=password] {\n"
+      + "input[type=text], input[type=email], input[type=password] {\n"
       + "  width: 100%; padding: 10px 12px; font-size: 14px;\n"
       + "  border: 1.5px solid #d0d5dd; border-radius: 8px;\n"
       + "  outline: none; transition: border-color 0.2s, box-shadow 0.2s;\n"
       + "  margin-bottom: 14px; background: #fafbfc;\n"
       + "}\n"
-      + "input[type=text]:focus, input[type=password]:focus {\n"
+      + "input[type=text]:focus, input[type=email]:focus, input[type=password]:focus {\n"
       + "  border-color: " + WAVE_PRIMARY + ";\n"
       + "  box-shadow: 0 0 0 3px rgba(0,119,182,0.12);\n"
       + "  background: #fff;\n"
@@ -1001,11 +1000,7 @@ public final class HtmlRenderer {
     // -- Navigation --
     sb.append("<nav class=\"nav\">\n");
     sb.append("  <div class=\"nav-brand\">\n");
-    sb.append("    <svg width=\"32\" height=\"32\" viewBox=\"0 0 48 48\" fill=\"none\">\n");
-    sb.append("      <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"").append(WAVE_PRIMARY).append("\"/>\n");
-    sb.append("      <path d=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\" ");
-    sb.append("stroke=\"white\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\"/>\n");
-    sb.append("    </svg>\n");
+    sb.append("    ").append(WAVE_LOGO_SVG_SMALL.replace("width=\"28\" height=\"28\"", "width=\"32\" height=\"32\""));
     sb.append("    <span class=\"nav-brand-name\">SupaWave</span>\n");
     sb.append("  </div>\n");
     sb.append("  <div class=\"nav-links\">\n");

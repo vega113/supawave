@@ -125,6 +125,7 @@ public class SearchServlet extends AbstractSearchServlet {
   @Override
   @VisibleForTesting
   protected void doGet(HttpServletRequest req, HttpServletResponse response) throws IOException {
+    long startMs = System.currentTimeMillis();
     ParticipantId user = sessionManager.getLoggedInUser(req.getSession(false));
     if (user == null) {
       response.setStatus(HttpServletResponse.SC_FORBIDDEN);
@@ -144,6 +145,8 @@ public class SearchServlet extends AbstractSearchServlet {
         "\", index=" + searchRequest.getIndex() + ", numResults=" + searchRequest.getNumResults() +
         ", remote=" + String.valueOf(req.getRemoteAddr());
     serializeObjectToServlet(searchResponse, ctx, response);
+    long elapsedMs = System.currentTimeMillis() - startMs;
+    LOG.info("SearchServlet.doGet: " + ctx + ", took " + elapsedMs + " ms");
   }
 
   private int computeTotalResultsNumberGuess(SearchRequest searchRequest, SearchResult searchResult) {

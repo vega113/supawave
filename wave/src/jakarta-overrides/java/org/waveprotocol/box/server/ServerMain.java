@@ -330,12 +330,15 @@ public class ServerMain {
 
   private static void initializeSearch(Injector injector, WaveBus waveBus)
       throws WaveServerException {
+    long startMs = System.currentTimeMillis();
     PerUserWaveViewDistpatcher waveViewDistpatcher = injector.getInstance(PerUserWaveViewDistpatcher.class);
     PerUserWaveViewBus.Listener listener = injector.getInstance(PerUserWaveViewBus.Listener.class);
     waveViewDistpatcher.addListener(listener);
     waveBus.subscribe(waveViewDistpatcher);
     WaveIndexer waveIndexer = injector.getInstance(WaveIndexer.class);
     waveIndexer.remakeIndex();
+    long elapsedMs = System.currentTimeMillis() - startMs;
+    LOG.info("initializeSearch completed in " + elapsedMs + " ms");
   }
 
   private static void initializeShutdownHandler(final ServerRpcProvider server) {

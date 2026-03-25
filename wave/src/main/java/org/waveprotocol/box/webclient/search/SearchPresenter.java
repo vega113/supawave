@@ -208,6 +208,9 @@ public final class SearchPresenter
     return wrapper;
   }
 
+  /** Whether saved searches have been loaded from the server yet. */
+  private boolean savedSearchesLoaded = false;
+
   /**
    * Adds custom buttons to the toolbar.
    * Uses compact SVG icons with tooltips instead of text labels so the
@@ -247,8 +250,8 @@ public final class SearchPresenter
           }
         }).setVisualElement(createSvgIcon(ICON_MODIFY));
 
-    // Load saved searches from server and render them as toolbar buttons.
-    loadSavedSearches();
+    // Saved searches are loaded lazily after the first search result arrives
+    // (see onStateChanged) to avoid competing with the critical /search request.
   }
 
   /**
@@ -459,6 +462,12 @@ public final class SearchPresenter
     //
     if (search.getState() == State.READY) {
       renderTitle();
+      // Deferred load: fetch saved searches after the first search result
+      // arrives so the /searches request does not block wave list display.
+      if (!savedSearchesLoaded) {
+        savedSearchesLoaded = true;
+        loadSavedSearches();
+      }
     }
   }
 

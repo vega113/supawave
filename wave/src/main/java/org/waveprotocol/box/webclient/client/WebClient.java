@@ -46,6 +46,7 @@ import com.google.gwt.user.client.ui.UIObject;
 import org.waveprotocol.box.webclient.client.i18n.WebClientMessages;
 import org.waveprotocol.box.webclient.profile.RemoteProfileManagerImpl;
 import org.waveprotocol.box.webclient.search.RemoteSearchService;
+import org.waveprotocol.box.webclient.search.Digest;
 import org.waveprotocol.box.webclient.search.Search;
 import org.waveprotocol.box.webclient.search.SearchPanelRenderer;
 import org.waveprotocol.box.webclient.search.SearchPanelWidget;
@@ -513,9 +514,9 @@ public class WebClient implements EntryPoint {
         maybeLoad();
       }
 
-      @Override public void onDigestAdded(int index, Search.Digest digest) {}
-      @Override public void onDigestRemoved(int index, Search.Digest digest) {}
-      @Override public void onDigestReady(int index, Search.Digest digest) {}
+      @Override public void onDigestAdded(int index, Digest digest) {}
+      @Override public void onDigestRemoved(int index, Digest digest) {}
+      @Override public void onDigestReady(int index, Digest digest) {}
       @Override public void onTotalChanged(int total) {}
     };
     search.addListener(contactLoader);

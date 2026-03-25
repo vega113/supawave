@@ -20,7 +20,9 @@
 package org.waveprotocol.box.webclient.widget.error;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -35,6 +37,10 @@ import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 
 /**
  * GWT implementation of the UI for an error indicator.
+ * Uses a floating ocean/dark-themed toast banner (SupaWave style).
+ *
+ * <p>CSS keyframe animations are injected dynamically because GWT's
+ * CSS parser does not support {@code @keyframes}.
  */
 public final class ErrorIndicatorWidget extends Composite implements ErrorIndicatorView {
 
@@ -42,17 +48,13 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
   }
 
   interface Style extends CssResource {
-    // Css classes used by code.
     String expanded();
-
-    // Classes not used by code, but forced to be declared thanks to UiBinder.
     String overlay();
     String header();
     String message();
     String actions();
     String btn();
     String btnPrimary();
-    String alert();
     String detail();
     String stack();
   }
@@ -60,33 +62,159 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
   private static final Binder BINDER = GWT.create(Binder.class);
   private static final ErrorMessages MESSAGES = GWT.create(ErrorMessages.class);
 
-  @UiField
-  Style style;
-  @UiField
-  Anchor showDetail;
-  @UiField
-  Element detail;
-  @UiField
-  Element stack;
-  @UiField
-  Element bug;
-  @UiField
-  Element overlay;
-  @UiField
-  Anchor copyBtn;
-  @UiField
-  Anchor dismissBtn;
+  /** Whether the global keyframe CSS has been injected. */
+  private static boolean cssInjected = false;
+
+  @UiField Style style;
+  @UiField Anchor showDetail;
+  @UiField Element detail;
+  @UiField Element stack;
+  @UiField Element bug;
+  @UiField Element overlay;
+  @UiField Anchor copyBtn;
+  @UiField Anchor dismissBtn;
+  @UiField Element waveDecor;
+  @UiField Element glowDot;
+  @UiField Element titleText;
+  @UiField Element helpText;
+  @UiField Element refreshBtn;
+  @UiField Element stackHeader;
 
   private Listener listener;
 
-
   private ErrorIndicatorWidget() {
+    injectKeyframeCss();
     initWidget(BINDER.createAndBindUi(this));
+    applyTheming();
   }
 
   public static ErrorIndicatorWidget create() {
     return new ErrorIndicatorWidget();
   }
+
+  // ---- Keyframe injection (once per page load) ----
+
+  private static void injectKeyframeCss() {
+    if (cssInjected) return;
+    cssInjected = true;
+    String css =
+        "@keyframes errorFadeIn {"
+      + "  from { opacity: 0; transform: translateX(-50%) translateY(-24px); }"
+      + "  to   { opacity: 1; transform: translateX(-50%) translateY(0); }"
+      + "}"
+      + "@keyframes errorWaveMotion {"
+      + "  0%   { transform: translateX(0); }"
+      + "  100% { transform: translateX(-50%); }"
+      + "}"
+      + "@keyframes glowPulse {"
+      + "  0%, 100% { opacity: 0.5; }"
+      + "  50%      { opacity: 1; }"
+      + "}";
+    Element styleEl = Document.get().createStyleElement();
+    styleEl.setInnerHTML(css);
+    Document.get().getHead().appendChild(styleEl);
+  }
+
+  // ---- Apply ocean/dark theme styles programmatically ----
+
+  private void applyTheming() {
+    // Overlay: floating toast with ocean gradient
+    com.google.gwt.dom.client.Style s = overlay.getStyle();
+    s.setProperty("background",
+        "linear-gradient(135deg, #0d1b2a 0%, #1b3a5c 40%, #1a6fa0 100%)");
+    s.setProperty("color", "#e0f0ff");
+    s.setProperty("borderRadius", "14px");
+    s.setProperty("boxShadow",
+        "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)");
+    s.setProperty("animation", "errorFadeIn 0.4s ease-out");
+    s.setProperty("transform", "translateX(-50%)");
+    s.setProperty("maxWidth", "calc(100vw - 32px)");
+
+    // Glowing dot
+    com.google.gwt.dom.client.Style dotStyle = glowDot.getStyle();
+    dotStyle.setProperty("background", "#4fc3f7");
+    dotStyle.setProperty("boxShadow", "0 0 8px rgba(79,195,247,0.5)");
+    dotStyle.setProperty("animation", "glowPulse 2s ease-in-out infinite");
+
+    // Title
+    titleText.setInnerText(MESSAGES.somethingWentWrong());
+    titleText.getStyle().setProperty("letterSpacing", "0.2px");
+    titleText.getStyle().setProperty("color", "#e0f0ff");
+
+    // Help text
+    helpText.setInnerText(MESSAGES.errorHelpText());
+
+    // Stack trace header
+    stackHeader.setInnerText(MESSAGES.stackTrace());
+    com.google.gwt.dom.client.Style shStyle = stackHeader.getStyle();
+    shStyle.setProperty("color", "#7ab8db");
+    shStyle.setProperty("textTransform", "uppercase");
+    shStyle.setProperty("letterSpacing", "0.5px");
+
+    // Detail panel
+    com.google.gwt.dom.client.Style detailStyle = detail.getStyle();
+    detailStyle.setProperty("background", "rgba(0,0,0,0.2)");
+    detailStyle.setProperty("borderTop", "1px solid rgba(255,255,255,0.06)");
+    detailStyle.setProperty("borderRadius", "0 0 14px 14px");
+    detailStyle.setProperty("transition",
+        "max-height 300ms ease-in-out, padding 300ms ease-in-out");
+
+    // Stack trace text
+    stack.getStyle().setProperty("color", "#a0cfee");
+
+    // Refresh button (primary)
+    applyButtonStyle(refreshBtn, true);
+    applyRefreshAction(refreshBtn);
+
+    // Other buttons
+    applyButtonStyle(showDetail.getElement(), false);
+    applyButtonStyle(copyBtn.getElement(), false);
+    applyButtonStyle(dismissBtn.getElement(), false);
+
+    // Wave decoration at bottom of banner
+    waveDecor.getStyle().setProperty("borderRadius", "0 0 14px 14px");
+    waveDecor.setInnerHTML(
+        "<div style='"
+      + "position: absolute; bottom: -4px; left: 0; width: 200%; height: 28px;"
+      + "background: repeating-linear-gradient(90deg,"
+      + "  transparent 0px, transparent 30px,"
+      + "  rgba(255,255,255,0.04) 30px, rgba(255,255,255,0.04) 60px,"
+      + "  transparent 60px, transparent 100px,"
+      + "  rgba(255,255,255,0.025) 100px, rgba(255,255,255,0.025) 140px,"
+      + "  transparent 140px, transparent 200px);"
+      + "border-radius: 40% 40% 0 0;"
+      + "animation: errorWaveMotion 8s linear infinite;"
+      + "'></div>");
+  }
+
+  /** Applies ocean-themed button styling to an element. */
+  private static void applyButtonStyle(Element el, boolean primary) {
+    com.google.gwt.dom.client.Style s = el.getStyle();
+    s.setProperty("borderRadius", "8px");
+    s.setProperty("letterSpacing", "0.2px");
+    if (primary) {
+      s.setProperty("background", "rgba(79,195,247,0.2)");
+      s.setProperty("color", "#e0f7ff");
+      s.setProperty("border", "1px solid rgba(79,195,247,0.35)");
+    } else {
+      s.setProperty("background", "rgba(255,255,255,0.08)");
+      s.setProperty("color", "#c8e6ff");
+      s.setProperty("border", "1px solid rgba(255,255,255,0.15)");
+    }
+  }
+
+  /** Wires the refresh link to reload the page (stripping the hash). */
+  private static native void applyRefreshAction(Element el) /*-{
+    el.onclick = function(e) {
+      e.preventDefault();
+      var href = $wnd.location.href;
+      var idx = href.indexOf('#');
+      if (idx >= 0) href = href.substring(0, idx);
+      $wnd.location.replace(href);
+    };
+  }-*/;
+
+  // ---- View interface ----
 
   @Override
   public void init(Listener listener) {
@@ -113,8 +241,18 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
 
   @UiHandler("dismissBtn")
   void handleDismissClick(ClickEvent e) {
-    overlay.getStyle().setProperty("display", "none");
+    dismissWithAnimation(overlay);
   }
+
+  /** Fades the overlay out over 300ms and then hides it. */
+  private static native void dismissWithAnimation(Element el) /*-{
+    el.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(-50%) translateY(-24px)';
+    $wnd.setTimeout(function() {
+      el.style.display = 'none';
+    }, 300);
+  }-*/;
 
   private static native void copyToClipboard(String text, Element btn,
       String copiedLabel, String failedLabel) /*-{

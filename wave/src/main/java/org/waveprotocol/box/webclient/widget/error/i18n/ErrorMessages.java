@@ -33,13 +33,19 @@ public interface ErrorMessages extends Messages {
   @DefaultMessage("An error has occurred")
   String errorHasOccurred();
 
+  @DefaultMessage("Something went wrong")
+  String somethingWentWrong();
+
+  @DefaultMessage("Don''t worry -- your work is safe. Try refreshing to get back on track.")
+  String errorHelpText();
+
   @DefaultMessage("Please")
   String please();
 
-  @DefaultMessage("refresh")
+  @DefaultMessage("Refresh page")
   String refreshPage();
 
-  @DefaultMessage("Show error detail")
+  @DefaultMessage("Details")
   String showErrorDetail();
 
   @DefaultMessage("Stack trace:")

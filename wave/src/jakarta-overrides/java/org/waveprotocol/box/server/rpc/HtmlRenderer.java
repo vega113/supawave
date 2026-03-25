@@ -1991,6 +1991,15 @@ public final class HtmlRenderer {
     sb.append("  display: none;\n");
     sb.append("}\n");
     sb.append(".lang-icon-btn::after { display: none !important; }\n");
+    // Language code badge next to globe icon
+    sb.append("#langCode {\n");
+    sb.append("  font-size: 10px; font-weight: 700; color: white;\n");
+    sb.append("  letter-spacing: 0.5px; line-height: 1;\n");
+    sb.append("  pointer-events: none; user-select: none;\n");
+    sb.append("  position: absolute; bottom: 1px; right: -2px;\n");
+    sb.append("  background: rgba(0,0,0,0.45); border-radius: 3px;\n");
+    sb.append("  padding: 1px 2px;\n");
+    sb.append("}\n");
     // Saved state: small green dot
     sb.append(".topbar-icon.saved::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
     // Saving state: pulsing amber dot
@@ -2527,6 +2536,7 @@ public final class HtmlRenderer {
       // -- Language selector: globe icon wrapping a transparent <select> --
       sb.append("    <div class=\"topbar-icon lang-icon-btn\" title=\"Language\">\n");
       sb.append("      ").append(ICON_GLOBE).append("\n");
+      sb.append("      <span id=\"langCode\"></span>\n");
       sb.append("      <select id=\"lang\" size=\"1\"></select>\n");
       sb.append("    </div>\n");
       // -- Save status indicator: cloud-check icon, updated by GWT --

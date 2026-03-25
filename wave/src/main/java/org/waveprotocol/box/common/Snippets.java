@@ -20,7 +20,6 @@
 package org.waveprotocol.box.common;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
 import org.waveprotocol.wave.model.document.operation.Attributes;
@@ -158,28 +157,28 @@ public final class Snippets {
 
   /**
    * Returns a snippet or null.
+   *
+   * Renders blips in conversation manifest order so the root blip content
+   * always comes first.  This ensures the wave title (derived from the root
+   * blip) can be reliably stripped from the snippet prefix and that reply
+   * blip content never displaces the root blip content at the start of the
+   * snippet.
    */
   public static String renderSnippet(final ReadableWaveletData wavelet,
       final int maxSnippetLength) {
     final StringBuilder sb = new StringBuilder();
     Set<String> docsIds = wavelet.getDocumentIds();
-    long newestLmt = -1;
-    ReadableBlipData newestBlip = null;
-    for (String docId : docsIds) {
-      ReadableBlipData blip = wavelet.getDocument(docId);
-      long currentLmt = blip.getLastModifiedTime();
-      if (currentLmt > newestLmt) {
-        newestLmt = currentLmt;
-        newestBlip = blip;
-      }
+
+    // Find the conversation manifest document.
+    ReadableBlipData manifestDoc = null;
+    if (docsIds.contains(DocumentConstants.MANIFEST_DOCUMENT_ID)) {
+      manifestDoc = wavelet.getDocument(DocumentConstants.MANIFEST_DOCUMENT_ID);
     }
-    if (newestBlip == null) {
-      // Render whatever data we have and hope its good enough
-      sb.append(collateTextForWavelet(wavelet));
-    } else {
-      DocOp docOp = newestBlip.getContent().asOperation();
-      sb.append(collateTextForOps(Lists.newArrayList(docOp)));
-      sb.append(" ");
+
+    if (manifestDoc != null) {
+      // Walk the conversation manifest to render blips in their natural
+      // (root-first) order instead of picking the most-recently-modified blip.
+      DocOp docOp = manifestDoc.getContent().asOperation();
       docOp.apply(InitializationCursorAdapter.adapt(new DocInitializationCursor() {
         @Override
         public void annotationBoundary(AnnotationBoundaryMap map) {
@@ -214,6 +213,9 @@ public final class Snippets {
           }
         }
       }));
+    } else {
+      // No conversation manifest found – fall back to collating all text.
+      sb.append(collateTextForWavelet(wavelet));
     }
     if (sb.length() > maxSnippetLength) {
       return sb.substring(0, maxSnippetLength);

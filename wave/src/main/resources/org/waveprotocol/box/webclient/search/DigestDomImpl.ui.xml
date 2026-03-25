@@ -38,7 +38,7 @@
         <div ui:field='time'/>
         <div ui:field='msgs'/>
       </div>
-      <span ui:field='title'/>
+      <span ui:field='title' class='{css.title}'/>
       &mdash;
       <span ui:field='snippet'/>
     </div>

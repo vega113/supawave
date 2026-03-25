@@ -61,6 +61,8 @@ public final class DigestDomImpl implements DigestView {
 
     String info();
 
+    String title();
+
     String unread();
 
     String unreadCount();

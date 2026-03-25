@@ -75,6 +75,10 @@
   -webkit-border-radius: 50%;
 }
 
+.title {
+  font-weight: bold;
+}
+
 .unread {
   font-weight: 600;
   color: #1a202c;

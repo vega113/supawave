@@ -29,7 +29,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.waveprotocol.box.search.query.QueryCondition;
 import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
@@ -50,13 +49,10 @@ import org.waveprotocol.wave.util.logging.Log;
 @Singleton
 public final class SearchesServlet extends HttpServlet {
 
+  // Default saved searches are empty — the icon buttons in the search widget
+  // already provide Inbox, Public, and Archive filters.  Users can add custom
+  // saved searches via the editor.
   private static final List<SearchesItem> DEFAULT_SEARCHES = new ArrayList<>();
-
-  static {
-    DEFAULT_SEARCHES.add(new SearchesItem("Inbox", QueryCondition.INBOX.toString()));
-    DEFAULT_SEARCHES.add(new SearchesItem("Archive", QueryCondition.ARCHIVE.toString()));
-    DEFAULT_SEARCHES.add(new SearchesItem("Public", QueryCondition.PUBLIC.toString()));
-  }
 
   private static final Log LOG = Log.get(SearchesServlet.class);
   private static final Gson GSON = new Gson();

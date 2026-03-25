@@ -82,7 +82,11 @@
   color: #4a5568;
 }
 
-.okButton {
+.cancelButton:hover {
+  background: #edf2f7;
+}
+
+.addButton {
   padding: 8px 20px;
   border-radius: 4px;
   font-size: 14px;
@@ -91,6 +95,10 @@
   border: none;
   color: white;
   font-weight: 600;
+}
+
+.addButton:hover {
+  background: #006399;
 }
 
 .removeButton {

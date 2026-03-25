@@ -40,8 +40,9 @@ import org.waveprotocol.wave.model.util.Pair;
 /**
  * Installs the add/remove tag controls.
  *
- * Uses styled modal popups ({@link TagInputWidget}) instead of browser-native
- * {@code Window.prompt/confirm} dialogs.
+ * Ported from Wiab.pro, adapted for Apache Wave (removed KeyComboManager
+ * dependency). Uses styled modal popups ({@link TagInputWidget}) instead of
+ * browser-native {@code Window.prompt/confirm} dialogs.
  */
 public final class TagController {
 
@@ -84,7 +85,7 @@ public final class TagController {
   }
 
   /**
-   * Shows a styled modal for adding tags.
+   * Shows an add-tag popup using {@link TagInputWidget}.
    */
   private void handleAddButtonClicked(final Element addButton) {
     TagInputWidget widget = new TagInputWidget(messages.addTagPrompt());
@@ -96,7 +97,7 @@ public final class TagController {
 
       @Override
       public void onCancel() {
-        // no-op
+        // no-op: user dismissed the dialog
       }
     });
   }

@@ -49,12 +49,15 @@ import org.waveprotocol.wave.client.widget.popup.PopupFactory;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 
 /**
- * A styled modal popup for adding tags, replacing the browser's
+ * A styled modal popup for entering tag names, replacing the browser's
  * native {@code Window.prompt()} dialog.
+ *
+ * <p>Supports comma-separated tag entry. The user can press Enter or
+ * click "Add" to submit, or press Escape / click "Cancel" to dismiss.
  */
 public final class TagInputWidget extends Composite {
 
-  /** Callback interface for when the user submits or cancels. */
+  /** Callback interface for when the user submits or cancels the dialog. */
   public interface Listener {
     /** Called when the user submits a non-empty tag value. */
     void onSubmit(String tagValue);
@@ -80,7 +83,7 @@ public final class TagInputWidget extends Composite {
     String hint();
     String buttonPanel();
     String cancelButton();
-    String okButton();
+    String addButton();
     String removeButton();
     String errorLabel();
   }
@@ -93,21 +96,21 @@ public final class TagInputWidget extends Composite {
 
   private final TextBox input;
   private final Label errorLabel;
-  private final Button okButton;
+  private final Button addButton;
   private final Button cancelButton;
   private UniversalPopup popup;
 
   /**
-   * Creates a new tag input widget for adding tags.
+   * Creates a new tag input widget.
    *
-   * @param promptText the prompt/title text
+   * @param titleText the title/prompt to display above the input
    */
-  public TagInputWidget(String promptText) {
+  public TagInputWidget(String titleText) {
     FlowPanel panel = new FlowPanel();
     panel.addStyleName(style.self());
 
     // Title
-    Label titleLabel = new Label(promptText);
+    Label titleLabel = new Label(titleText);
     titleLabel.addStyleName(style.title());
     panel.add(titleLabel);
 
@@ -121,6 +124,7 @@ public final class TagInputWidget extends Composite {
     Label hintLabel = new Label("Separate multiple tags with commas");
     hintLabel.addStyleName(style.hint());
     panel.add(hintLabel);
+
 
     // Focus/blur styling
     input.addFocusHandler(new FocusHandler() {
@@ -149,9 +153,9 @@ public final class TagInputWidget extends Composite {
     cancelButton.addStyleName(style.cancelButton());
     buttonPanel.add(cancelButton);
 
-    okButton = new Button("Add");
-    okButton.addStyleName(style.okButton());
-    buttonPanel.add(okButton);
+    addButton = new Button("Add");
+    addButton.addStyleName(style.addButton());
+    buttonPanel.add(addButton);
 
     panel.add(buttonPanel);
 
@@ -168,8 +172,10 @@ public final class TagInputWidget extends Composite {
     popup = PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
     popup.add(this);
 
+    // Track whether we already handled the result to avoid double-calling onCancel
     final boolean[] handled = {false};
 
+    // Register a listener for auto-hide (outside click) so onCancel is called
     popup.addPopupEventListener(new PopupEventListener() {
       @Override
       public void onShow(PopupEventSourcer source) {
@@ -196,8 +202,8 @@ public final class TagInputWidget extends Composite {
       }
     });
 
-    // Wire up OK button
-    okButton.addClickHandler(new ClickHandler() {
+    // Wire up Add button
+    addButton.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
         handled[0] = true;
@@ -231,6 +237,17 @@ public final class TagInputWidget extends Composite {
     });
   }
 
+  /**
+   * Shows an error message below the input field.
+   *
+   * @param message the error message to display
+   */
+  public void showError(String message) {
+    errorLabel.setText(message);
+    errorLabel.getElement().getStyle().setProperty("display", "block");
+  }
+
+
   /** Hides the popup. */
   public void hide() {
     if (popup != null) {
@@ -244,8 +261,7 @@ public final class TagInputWidget extends Composite {
       popup.hide();
       listener.onSubmit(value.trim());
     } else {
-      errorLabel.setText("Please enter at least one tag");
-      errorLabel.getElement().getStyle().setProperty("display", "block");
+      showError("Please enter a tag name");
       input.setFocus(true);
     }
   }

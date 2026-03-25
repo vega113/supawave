@@ -45,7 +45,7 @@ public class LinkerHelper {
    *
    * @param editor the wave editor
    */
-  public static void onCreateLink(EditorContext editor) {
+  public static void onCreateLink(final EditorContext editor) {
     FocusedRange range = editor.getSelectionHelper().getSelectionRange();
     if (range == null || range.isCollapsed()) {
       Window.alert(messages.selectSomeText());
@@ -59,19 +59,26 @@ public class LinkerHelper {
       String linkAnnotationValue = Link.normalizeLink(text);
       EditorAnnotationUtil.setAnnotationOverSelection(editor, AnnotationConstants.LINK_PREFIX, linkAnnotationValue);
     } catch (InvalidLinkException e) {
-      String rawLinkValue =
-          Window.prompt(messages.enterLink(), WaveRefConstants.WAVE_URI_PREFIX);
-      // user hit "ESC" or "cancel"
-      if (rawLinkValue == null) {
-        return;
-      }
-      try {
-        String linkAnnotationValue = Link.normalizeLink(rawLinkValue);
-        EditorAnnotationUtil.setAnnotationOverSelection(editor, AnnotationConstants.LINK_PREFIX, linkAnnotationValue);
-      } catch (InvalidLinkException e2) {
-        Window.alert(e2.getLocalizedMessage());
-      }
+      // Show a styled popup instead of the browser's native prompt dialog
+      LinkInputWidget linkInput = new LinkInputWidget(
+          messages.enterLink(), WaveRefConstants.WAVE_URI_PREFIX);
+      linkInput.showInPopup(new LinkInputWidget.Listener() {
+        @Override
+        public void onSubmit(String rawLinkValue) {
+          try {
+            String linkAnnotationValue = Link.normalizeLink(rawLinkValue);
+            EditorAnnotationUtil.setAnnotationOverSelection(
+                editor, AnnotationConstants.LINK_PREFIX, linkAnnotationValue);
+          } catch (InvalidLinkException e2) {
+            Window.alert(e2.getLocalizedMessage());
+          }
+        }
 
+        @Override
+        public void onCancel() {
+          // User cancelled -- do nothing
+        }
+      });
     }
 
   }

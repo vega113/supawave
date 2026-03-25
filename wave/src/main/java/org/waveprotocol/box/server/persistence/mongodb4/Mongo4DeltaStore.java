@@ -24,6 +24,8 @@ import com.mongodb.MongoException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.Indexes;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.waveprotocol.box.common.ExceptionalIterator;
@@ -61,6 +63,44 @@ public class Mongo4DeltaStore implements DeltaStore {
    */
   public Mongo4DeltaStore(MongoDatabase database) {
     this.database = database;
+    ensureIndexes();
+  }
+
+  /**
+   * Creates indexes on the deltas collection to support efficient queries.
+   * Index creation is idempotent -- MongoDB ignores the call if the index
+   * already exists.
+   */
+  private void ensureIndexes() {
+    try {
+      MongoCollection<Document> coll = getDeltaCollection();
+      IndexOptions bg = new IndexOptions().background(true);
+
+      // Compound index for wavelet lookups (lookup, delete, createWaveletFilter queries)
+      coll.createIndex(
+          Indexes.ascending(Mongo4DeltaStoreUtil.FIELD_WAVE_ID, Mongo4DeltaStoreUtil.FIELD_WAVELET_ID),
+          bg);
+
+      // Compound index for version-based delta retrieval
+      coll.createIndex(
+          Indexes.ascending(
+              Mongo4DeltaStoreUtil.FIELD_WAVE_ID,
+              Mongo4DeltaStoreUtil.FIELD_WAVELET_ID,
+              Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION),
+          bg);
+
+      // Compound index for end-version lookups
+      coll.createIndex(
+          Indexes.ascending(
+              Mongo4DeltaStoreUtil.FIELD_WAVE_ID,
+              Mongo4DeltaStoreUtil.FIELD_WAVELET_ID,
+              Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_RESULTINGVERSION_VERSION),
+          bg);
+
+      LOG.info("Mongo4DeltaStore: ensured indexes on deltas collection");
+    } catch (MongoException e) {
+      LOG.warning("Mongo4DeltaStore: failed to create indexes on deltas collection: " + e.getMessage());
+    }
   }
 
   @Override
@@ -86,24 +126,30 @@ public class Mongo4DeltaStore implements DeltaStore {
 
   @Override
   public ImmutableSet<WaveletId> lookup(WaveId waveId) throws PersistenceException {
-    Bson query = Filters.eq(
+    long startMs = System.currentTimeMillis();
+    Bson filter = Filters.eq(
         Mongo4DeltaStoreUtil.FIELD_WAVE_ID, waveId.serialise());
 
     try {
-      List<Document> documents = getDeltaCollection().find(query)
+      // Use distinct() to fetch only unique wavelet IDs instead of loading
+      // every delta document for this wave. This is O(unique wavelets)
+      // instead of O(total deltas).
+      List<String> waveletIds = getDeltaCollection()
+          .distinct(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID, filter, String.class)
           .into(new java.util.ArrayList<>());
 
-      if (documents == null || documents.isEmpty()) {
-        LOG.info("Mongo4DeltaStore.lookup(" + waveId.serialise() + "): found 0 wavelets");
+      if (waveletIds == null || waveletIds.isEmpty()) {
+        long elapsedMs = System.currentTimeMillis() - startMs;
+        LOG.info("Mongo4DeltaStore.lookup(" + waveId.serialise() + "): found 0 wavelets, took " + elapsedMs + " ms");
         return ImmutableSet.of();
       } else {
         ImmutableSet.Builder<WaveletId> builder = ImmutableSet.builder();
-        for (Document waveletIdDocument : documents) {
-          builder.add(WaveletId.deserialise((String) waveletIdDocument
-              .get(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID)));
+        for (String waveletIdStr : waveletIds) {
+          builder.add(WaveletId.deserialise(waveletIdStr));
         }
         ImmutableSet<WaveletId> result = builder.build();
-        LOG.info("Mongo4DeltaStore.lookup(" + waveId.serialise() + "): found " + result.size() + " wavelets");
+        long elapsedMs = System.currentTimeMillis() - startMs;
+        LOG.info("Mongo4DeltaStore.lookup(" + waveId.serialise() + "): found " + result.size() + " wavelets, took " + elapsedMs + " ms");
         return result;
       }
     } catch (MongoException e) {
@@ -115,6 +161,7 @@ public class Mongo4DeltaStore implements DeltaStore {
   public ExceptionalIterator<WaveId, PersistenceException> getWaveIdIterator()
       throws PersistenceException {
 
+    long startMs = System.currentTimeMillis();
     ImmutableSet.Builder<WaveId> builder = ImmutableSet.builder();
 
     try {
@@ -130,7 +177,8 @@ public class Mongo4DeltaStore implements DeltaStore {
     }
 
     ImmutableSet<WaveId> waveIds = builder.build();
-    LOG.info("Mongo4DeltaStore.getWaveIdIterator: found " + waveIds.size() + " waves in MongoDB");
+    long elapsedMs = System.currentTimeMillis() - startMs;
+    LOG.info("Mongo4DeltaStore.getWaveIdIterator: found " + waveIds.size() + " waves in MongoDB, took " + elapsedMs + " ms");
     return ExceptionalIterator.FromIterator.create(waveIds.iterator());
   }
 

@@ -21,49 +21,95 @@ package org.waveprotocol.box.server.robots.operations;
 
 import com.google.inject.Inject;
 import com.google.wave.api.ParticipantProfile;
-import com.typesafe.config.Config;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
+import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.robots.operations.FetchProfilesService.ProfilesFetcher;
+import org.waveprotocol.wave.model.wave.ParticipantId;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * A {@link ProfilesFetcher} implementation that assigns a Gravatar identicon
- * image URL for the user avatar. Users can change the avatar image by going to
- * gravatar.com and adding their wave address to the main profile. It is
- * impossible to create a main profile with wave address since gravatar requires
- * email address verification.
-*
+ * A {@link ProfilesFetcher} implementation that generates Gravatar avatar URLs.
+ *
+ * <p>Email resolution order:
+ * <ol>
+ *   <li>The user's registered email from {@link HumanAccountData#getEmail()}</li>
+ *   <li>Fallback: {@code sha256(address)@wave-avatar.invalid} (ensures every user
+ *       gets a unique identicon even without a registered email)</li>
+ * </ol>
+ *
+ * <p>Users can customize their avatar by registering at gravatar.com with the
+ * email address associated with their Wave account.
+ *
  * @author yurize@apache.org (Yuri Zelikov)
  */
 public class GravatarProfilesFetcher implements ProfilesFetcher {
 
-  private final static String SECURE_GRAVATAR_URL = "https://secure.gravatar.com/avatar/";
-  private final static String NON_SECURE_GRAVATAR_URL = "http://gravatar.com/avatar/";
+  private static final Logger LOG =
+      Logger.getLogger(GravatarProfilesFetcher.class.getCanonicalName());
 
-  private final String gravatarUrl;
+  private static final String GRAVATAR_URL = "https://www.gravatar.com/avatar/";
+  private static final String FALLBACK_DOMAIN = "wave-avatar.invalid";
+
+  private final AccountStore accountStore;
 
   @Inject
-  public GravatarProfilesFetcher(Config config) {
-    if (config.getBoolean("security.enable_ssl")) {
-      gravatarUrl = SECURE_GRAVATAR_URL;
-    } else {
-      gravatarUrl = NON_SECURE_GRAVATAR_URL;
-    }
+  public GravatarProfilesFetcher(AccountStore accountStore) {
+    this.accountStore = accountStore;
   }
 
   /**
-   * Returns the Gravatar identicon URL for the given email address.
+   * Resolves the email address to use for Gravatar hashing.
+   *
+   * <p>Looks up the user's registered email in the account store first.
+   * Falls back to {@code sha256(address)@wave-avatar.invalid} if no email is registered.
+   *
+   * @param address the wave address (e.g. {@code user@example.com})
+   * @return the email to hash for Gravatar
    */
-  public String getImageUrl(String email) {
-    // Hexadecimal MD5 hash of the requested user's lowercased email address
-    // with all whitespace trimmed.
+  String resolveEmail(String address) {
+    try {
+      ParticipantId participantId = ParticipantId.ofUnsafe(address);
+      AccountData account = accountStore.getAccount(participantId);
+      if (account != null && account.isHuman()) {
+        HumanAccountData human = account.asHuman();
+        String email = human.getEmail();
+        if (email != null && !email.isEmpty()) {
+          return email;
+        }
+      }
+    } catch (Exception e) {
+      LOG.log(Level.WARNING, "Failed to look up account for " + address, e);
+    }
+    // Fallback: hash the full address to avoid collisions between users with the
+    // same local part on different domains, and use a non-routable .invalid TLD
+    // so no real Gravatar account can override the identicon.
+    String syntheticLocalPart = DigestUtils.sha256Hex(address.trim());
+    return syntheticLocalPart + "@" + FALLBACK_DOMAIN;
+  }
+
+  /**
+   * Returns the Gravatar URL for the given wave address.
+   *
+   * <p>The email is resolved via {@link #resolveEmail(String)}, then hashed
+   * with MD5 per Gravatar's standard. Uses {@code identicon} as the default
+   * fallback so that users without a Gravatar still get a unique geometric
+   * pattern.
+   */
+  public String getImageUrl(String address) {
+    String email = resolveEmail(address);
+    // Gravatar spec: lowercase, trim, then MD5-hex.
     String emailHash = DigestUtils.md5Hex(email.toLowerCase().trim());
-    return gravatarUrl + emailHash + ".jpg?s=100&d=identicon";
+    return GRAVATAR_URL + emailHash + "?d=identicon&s=40";
   }
 
   @Override
-  public ParticipantProfile fetchProfile(String email) {
-    ParticipantProfile pTemp;
-    pTemp = ProfilesFetcher.SIMPLE_PROFILES_FETCHER.fetchProfile(email);
-    return new ParticipantProfile(email, pTemp.getName(), getImageUrl(email), pTemp.getProfileUrl());
+  public ParticipantProfile fetchProfile(String address) {
+    ParticipantProfile base = ProfilesFetcher.SIMPLE_PROFILES_FETCHER.fetchProfile(address);
+    return new ParticipantProfile(
+        address, base.getName(), getImageUrl(address), base.getProfileUrl());
   }
 }

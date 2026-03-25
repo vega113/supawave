@@ -188,8 +188,12 @@ public class PersistenceModule extends AbstractModule {
             + "does not support ContactStore. Set core.mongodb_driver to 'v4' or use "
             + "contact_store_type 'memory'.");
       }
-    } else {
+    } else if (contactStoreType.equalsIgnoreCase("memory")) {
       bind(ContactStore.class).to(MemoryStore.class).in(Singleton.class);
+    } else {
+      throw new IllegalStateException(
+          "Unknown contact_store_type: '" + contactStoreType
+          + "'. Supported values are 'memory' and 'mongodb'.");
     }
     bind(ContactManager.class).to(ContactManagerImpl.class).in(Singleton.class);
     bind(ContactsRecorder.class).in(Singleton.class);

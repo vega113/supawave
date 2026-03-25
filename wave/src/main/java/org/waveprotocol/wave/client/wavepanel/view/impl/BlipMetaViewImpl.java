@@ -196,4 +196,9 @@ public final class BlipMetaViewImpl<I extends IntrinsicBlipMetaView> // \u2620
   public void deselect(MenuOption option) {
     impl.deselect(option);
   }
+
+  @Override
+  public void setDraftActive(boolean active) {
+    impl.setDraftActive(active);
+  }
 }

@@ -90,6 +90,22 @@ public class FocusBlipSelector {
   }
 
   /**
+   * @return the last blip in the conversation's traversal order, or null if no blips exist.
+   */
+  public BlipView selectLast() {
+    Conversation conversation = wave.getRoot();
+    if (conversation == null) {
+      return null;
+    }
+    org.waveprotocol.wave.client.wavepanel.view.ConversationView convView =
+        views.getConversationView(conversation);
+    if (convView == null) {
+      return null;
+    }
+    return traverser.getLast(convView);
+  }
+
+  /**
    * @return the root blip of the currently displayed wave.
    */
   public BlipView getOrFindRootBlip() {

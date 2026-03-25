@@ -109,7 +109,54 @@ public class GravatarProfilesFetcher implements ProfilesFetcher {
   @Override
   public ParticipantProfile fetchProfile(String address) {
     ParticipantProfile base = ProfilesFetcher.SIMPLE_PROFILES_FETCHER.fetchProfile(address);
+    String imageUrl = getImageUrl(address);
+    String firstName = null;
+    String lastName = null;
+    String bio = null;
+    long lastSeenTime = 0;
+    String displayName = base.getName();
+
+    try {
+      ParticipantId participantId = ParticipantId.ofUnsafe(address);
+      AccountData account = accountStore.getAccount(participantId);
+      if (account != null && account.isHuman()) {
+        HumanAccountData human = account.asHuman();
+        firstName = human.getFirstName();
+        lastName = human.getLastName();
+        bio = human.getBio();
+
+        // Build display name from first/last name if available
+        if (firstName != null || lastName != null) {
+          StringBuilder nameBuilder = new StringBuilder();
+          if (firstName != null && !firstName.isEmpty()) {
+            nameBuilder.append(firstName);
+          }
+          if (lastName != null && !lastName.isEmpty()) {
+            if (nameBuilder.length() > 0) nameBuilder.append(' ');
+            nameBuilder.append(lastName);
+          }
+          if (nameBuilder.length() > 0) {
+            displayName = nameBuilder.toString();
+          }
+        }
+
+        // Custom profile image takes priority over Gravatar
+        String profileImageId = human.getProfileImageAttachmentId();
+        if (profileImageId != null && !profileImageId.isEmpty()) {
+          imageUrl = "/userprofile/image/" + profileImageId;
+        }
+
+        // Only expose last seen if user allows it
+        if (human.isShowLastSeen() && human.getLastActivityTime() != 0) {
+          lastSeenTime = human.getLastActivityTime();
+        }
+      }
+    } catch (Exception e) {
+      LOG.log(Level.WARNING, "Failed to look up extended profile for " + address, e);
+    }
+
     return new ParticipantProfile(
-        address, base.getName(), getImageUrl(address), base.getProfileUrl());
+        address, displayName, imageUrl, base.getProfileUrl(),
+        firstName, lastName, bio, lastSeenTime);
   }
 }

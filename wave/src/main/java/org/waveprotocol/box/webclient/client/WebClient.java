@@ -402,6 +402,33 @@ public class WebClient implements EntryPoint {
 
     History.fireCurrentHistoryState();
     LOG.info("SimpleWebClient.onModuleLoad() done");
+
+    // Export JSNI function for creating direct waves from profile card popup
+    exportCreateDirectWave();
+  }
+
+  /**
+   * Exports a {@code window.__createDirectWave(address)} function that creates
+   * a new wave with the specified participant (for the "Send Message" feature
+   * on profile cards).
+   */
+  private native void exportCreateDirectWave() /*-{
+    var self = this;
+    $wnd.__createDirectWave = function(address) {
+      self.@org.waveprotocol.box.webclient.client.WebClient::createDirectWave(Ljava/lang/String;)(address);
+    };
+  }-*/;
+
+  /**
+   * Creates a new wave with the specified participant for direct messaging.
+   */
+  private void createDirectWave(String address) {
+    if (channel == null) {
+      return;
+    }
+    java.util.Set<ParticipantId> participants = new java.util.HashSet<>();
+    participants.add(new ParticipantId(address));
+    openWave(WaveRef.of(idGenerator.newWaveId()), true, participants);
   }
 
   private void setupUi() {

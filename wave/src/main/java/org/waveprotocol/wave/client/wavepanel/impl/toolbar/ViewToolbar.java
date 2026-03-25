@@ -125,6 +125,18 @@ public final class ViewToolbar {
             focusFrame.moveDown();
           }
         });
+    new ToolbarButtonViewBuilder()
+        .setText(messages.last())
+        .setTooltip(messages.lastTooltip())
+        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            BlipView lastBlip = blipSelector.selectLast();
+            if (lastBlip != null) {
+              focusFrame.focus(lastBlip);
+            }
+          }
+        });
 
     // Archive / Inbox buttons
     if (waveId != null) {

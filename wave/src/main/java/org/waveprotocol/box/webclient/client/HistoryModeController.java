@@ -19,7 +19,6 @@
 
 package org.waveprotocol.box.webclient.client;
 
-import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 
 import java.util.ArrayList;

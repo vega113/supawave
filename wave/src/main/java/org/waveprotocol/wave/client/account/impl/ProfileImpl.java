@@ -43,6 +43,11 @@ public final class ProfileImpl implements Profile {
   private String firstName;
   private String fullName;
   private String imageUrl;
+  // Extended profile fields
+  private String profileFirstName;
+  private String profileLastName;
+  private String bio;
+  private long lastSeenTime;
 
   public ProfileImpl(AbstractProfileManager<ProfileImpl> manager, ParticipantId id) {
     this.manager = manager;
@@ -119,11 +124,43 @@ public final class ProfileImpl implements Profile {
    * arguments have no effect (i.e., they do not clear the existing field).
    */
   public void update(String firstName, String fullName, String imageUrl) {
+    update(firstName, fullName, imageUrl, null, null, null, 0);
+  }
+
+  /**
+   * Replaces this profile's fields including extended profile data.
+   */
+  public void update(String firstName, String fullName, String imageUrl,
+      String profileFirstName, String profileLastName, String bio, long lastSeenTime) {
     this.firstName = firstName != null ? firstName : this.firstName;
     this.fullName = fullName != null ? fullName : this.fullName;
     this.imageUrl = imageUrl != null ? imageUrl : this.imageUrl;
+    this.profileFirstName = profileFirstName;
+    this.profileLastName = profileLastName;
+    this.bio = bio;
+    this.lastSeenTime = lastSeenTime;
 
     manager.fireOnUpdated(this);
+  }
+
+  /** @return the user's profile first name, or null if not set. */
+  public String getProfileFirstName() {
+    return profileFirstName;
+  }
+
+  /** @return the user's profile last name, or null if not set. */
+  public String getProfileLastName() {
+    return profileLastName;
+  }
+
+  /** @return the user's bio, or null if not set. */
+  public String getBio() {
+    return bio;
+  }
+
+  /** @return epoch millis of last activity, or 0 if hidden/unknown. */
+  public long getLastSeenTime() {
+    return lastSeenTime;
   }
 
   @Override

@@ -213,66 +213,193 @@ public final class InlineDiffRenderer {
   // =========================================================================
 
   /**
-   * Computes a word-level diff between oldText and newText using the LCS
-   * (Longest Common Subsequence) algorithm and returns HTML with
-   * {@code <span class='diff-add'>} and {@code <span class='diff-del'>} markup.
+   * Computes a word-level diff between oldText and newText using a two-level
+   * approach: line-level LCS first, then word-level LCS within changed lines.
+   * This avoids quadratic explosion on large documents while still showing
+   * precise word-level changes.
    */
   private String computeWordDiffHtml(String oldText, String newText) {
-    String[] oldWords = splitWords(oldText);
-    String[] newWords = splitWords(newText);
+    if (oldText.equals(newText)) return escapeHtml(newText);
+    if (oldText.isEmpty()) return "<span class='diff-add'>" + escapeHtml(newText) + "</span>";
+    if (newText.isEmpty()) return "<span class='diff-del'>" + escapeHtml(oldText) + "</span>";
 
-    // Compute LCS table
-    int oldLen = oldWords.length;
-    int newLen = newWords.length;
+    // Split into lines and diff at line level first
+    String[] oldLines = oldText.split("\n", -1);
+    String[] newLines = newText.split("\n", -1);
 
-    // For very long texts, fall back to a simpler approach
-    if (oldLen * newLen > 1000000) {
-      return simpleDiffFallback(oldText, newText);
+    // Strip common prefix/suffix lines to reduce the DP matrix
+    int prefix = 0;
+    while (prefix < oldLines.length && prefix < newLines.length
+        && oldLines[prefix].equals(newLines[prefix])) {
+      prefix++;
+    }
+    int suffix = 0;
+    while (suffix < (oldLines.length - prefix) && suffix < (newLines.length - prefix)
+        && oldLines[oldLines.length - 1 - suffix].equals(newLines[newLines.length - 1 - suffix])) {
+      suffix++;
     }
 
-    int[][] lcs = new int[oldLen + 1][newLen + 1];
-    for (int i = oldLen - 1; i >= 0; i--) {
-      for (int j = newLen - 1; j >= 0; j--) {
-        if (oldWords[i].equals(newWords[j])) {
-          lcs[i][j] = lcs[i + 1][j + 1] + 1;
-        } else {
-          lcs[i][j] = Math.max(lcs[i + 1][j], lcs[i][j + 1]);
-        }
-      }
-    }
-
-    // Trace back to produce diff
     StringBuilder html = new StringBuilder();
-    int i = 0;
-    int j = 0;
-    while (i < oldLen || j < newLen) {
-      if (i < oldLen && j < newLen && oldWords[i].equals(newWords[j])) {
-        // Common word
-        html.append(escapeHtml(oldWords[i])).append(" ");
-        i++;
-        j++;
-      } else if (j < newLen && (i >= oldLen || lcs[i][j + 1] >= lcs[i + 1][j])) {
-        // Added word
-        html.append("<span class='diff-add'>").append(escapeHtml(newWords[j])).append("</span> ");
-        j++;
-      } else if (i < oldLen) {
-        // Deleted word
-        html.append("<span class='diff-del'>").append(escapeHtml(oldWords[i])).append("</span> ");
-        i++;
+
+    // Emit common prefix lines
+    for (int i = 0; i < prefix; i++) {
+      if (i > 0) html.append("\n");
+      html.append(escapeHtml(oldLines[i]));
+    }
+
+    // Core differing region
+    int oldCoreStart = prefix;
+    int oldCoreEnd = oldLines.length - suffix;
+    int newCoreStart = prefix;
+    int newCoreEnd = newLines.length - suffix;
+    int oldCoreLen = oldCoreEnd - oldCoreStart;
+    int newCoreLen = newCoreEnd - newCoreStart;
+
+    if (oldCoreLen > 0 || newCoreLen > 0) {
+      if (prefix > 0) html.append("\n");
+      if (oldCoreLen == 0) {
+        // All lines are insertions
+        for (int i = newCoreStart; i < newCoreEnd; i++) {
+          if (i > newCoreStart) html.append("\n");
+          html.append("<span class='diff-add'>").append(escapeHtml(newLines[i])).append("</span>");
+        }
+      } else if (newCoreLen == 0) {
+        // All lines are deletions
+        for (int i = oldCoreStart; i < oldCoreEnd; i++) {
+          if (i > oldCoreStart) html.append("\n");
+          html.append("<span class='diff-del'>").append(escapeHtml(oldLines[i])).append("</span>");
+        }
+      } else if ((long) oldCoreLen * newCoreLen > 50000000L) {
+        // Fallback for extremely large core: show as replace block
+        for (int i = oldCoreStart; i < oldCoreEnd; i++) {
+          if (i > oldCoreStart) html.append("\n");
+          html.append("<span class='diff-del'>").append(escapeHtml(oldLines[i])).append("</span>");
+        }
+        html.append("\n");
+        for (int i = newCoreStart; i < newCoreEnd; i++) {
+          if (i > newCoreStart) html.append("\n");
+          html.append("<span class='diff-add'>").append(escapeHtml(newLines[i])).append("</span>");
+        }
+      } else {
+        // LCS on core lines to find matching lines, then word-diff changed lines
+        appendLineLcsDiff(html, oldLines, oldCoreStart, oldCoreEnd,
+            newLines, newCoreStart, newCoreEnd);
       }
+    }
+
+    // Emit common suffix lines
+    for (int i = oldLines.length - suffix; i < oldLines.length; i++) {
+      html.append("\n").append(escapeHtml(oldLines[i]));
     }
 
     return html.toString();
   }
 
-  /** Simple fallback diff for very large texts: show entire old as deleted, new as added. */
-  private String simpleDiffFallback(String oldText, String newText) {
-    StringBuilder html = new StringBuilder();
-    if (oldText.length() > 0) {
-      html.append("<span class='diff-del'>").append(escapeHtml(oldText)).append("</span> ");
+  /**
+   * LCS-based diff on the core (non-matching prefix/suffix stripped) line arrays,
+   * with word-level diff within changed line pairs.
+   */
+  private void appendLineLcsDiff(StringBuilder html,
+      String[] oldLines, int oldStart, int oldEnd,
+      String[] newLines, int newStart, int newEnd) {
+    int m = oldEnd - oldStart;
+    int n = newEnd - newStart;
+    int[][] dp = new int[m + 1][n + 1];
+    for (int i = 1; i <= m; i++) {
+      for (int j = 1; j <= n; j++) {
+        if (oldLines[oldStart + i - 1].equals(newLines[newStart + j - 1])) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
     }
-    if (newText.length() > 0) {
-      html.append("<span class='diff-add'>").append(escapeHtml(newText)).append("</span>");
+
+    // Backtrack
+    List<int[]> ops = new ArrayList<int[]>();
+    int i = m, j = n;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && oldLines[oldStart + i - 1].equals(newLines[newStart + j - 1])) {
+        ops.add(new int[]{0, i - 1, j - 1}); // equal
+        i--; j--;
+      } else if (j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        ops.add(new int[]{1, -1, j - 1}); // insert
+        j--;
+      } else {
+        ops.add(new int[]{-1, i - 1, -1}); // delete
+        i--;
+      }
+    }
+
+    // Reverse to get forward order
+    boolean first = true;
+    for (int k = ops.size() - 1; k >= 0; k--) {
+      int[] op = ops.get(k);
+      if (!first) html.append("\n");
+      first = false;
+      if (op[0] == 0) {
+        html.append(escapeHtml(oldLines[oldStart + op[1]]));
+      } else if (op[0] == -1) {
+        // Check if next op is an insert (makes a replace pair for word-level diff)
+        if (k - 1 >= 0 && ops.get(k - 1)[0] == 1) {
+          int[] nextOp = ops.get(k - 1);
+          html.append(wordDiffInLine(oldLines[oldStart + op[1]], newLines[newStart + nextOp[2]]));
+          k--; // consume the insert op
+        } else {
+          html.append("<span class='diff-del'>").append(escapeHtml(oldLines[oldStart + op[1]])).append("</span>");
+        }
+      } else {
+        html.append("<span class='diff-add'>").append(escapeHtml(newLines[newStart + op[2]])).append("</span>");
+      }
+    }
+  }
+
+  /**
+   * Word-level diff within a single changed line pair.
+   */
+  private String wordDiffInLine(String oldLine, String newLine) {
+    String[] oldWords = splitWords(oldLine);
+    String[] newWords = splitWords(newLine);
+
+    int oldLen = oldWords.length;
+    int newLen = newWords.length;
+
+    // For very large single lines, fall back
+    if ((long) oldLen * newLen > 10000000L) {
+      StringBuilder sb = new StringBuilder();
+      if (oldLine.length() > 0) {
+        sb.append("<span class='diff-del'>").append(escapeHtml(oldLine)).append("</span> ");
+      }
+      if (newLine.length() > 0) {
+        sb.append("<span class='diff-add'>").append(escapeHtml(newLine)).append("</span>");
+      }
+      return sb.toString();
+    }
+
+    int[][] lcs = new int[oldLen + 1][newLen + 1];
+    for (int ii = oldLen - 1; ii >= 0; ii--) {
+      for (int jj = newLen - 1; jj >= 0; jj--) {
+        if (oldWords[ii].equals(newWords[jj])) {
+          lcs[ii][jj] = lcs[ii + 1][jj + 1] + 1;
+        } else {
+          lcs[ii][jj] = Math.max(lcs[ii + 1][jj], lcs[ii][jj + 1]);
+        }
+      }
+    }
+
+    StringBuilder html = new StringBuilder();
+    int ii = 0, jj = 0;
+    while (ii < oldLen || jj < newLen) {
+      if (ii < oldLen && jj < newLen && oldWords[ii].equals(newWords[jj])) {
+        html.append(escapeHtml(oldWords[ii])).append(" ");
+        ii++; jj++;
+      } else if (jj < newLen && (ii >= oldLen || lcs[ii][jj + 1] >= lcs[ii + 1][jj])) {
+        html.append("<span class='diff-add'>").append(escapeHtml(newWords[jj])).append("</span> ");
+        jj++;
+      } else if (ii < oldLen) {
+        html.append("<span class='diff-del'>").append(escapeHtml(oldWords[ii])).append("</span> ");
+        ii++;
+      }
     }
     return html.toString();
   }

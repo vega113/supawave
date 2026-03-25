@@ -576,6 +576,11 @@ public final class VersionHistoryServlet extends HttpServlet {
     // Diff styles
     sb.append(".diff-add { background: #c6f6d5; padding: 1px 2px; border-radius: 2px; }\n");
     sb.append(".diff-del { background: #fed7d7; text-decoration: line-through; color: #9b2c2c; padding: 1px 2px; border-radius: 2px; }\n");
+    sb.append(".diff-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.3px; }\n");
+    sb.append(".diff-badge-new { background: #c6f6d5; color: #276749; }\n");
+    sb.append(".diff-badge-mod { background: #fefcbf; color: #975a16; }\n");
+    sb.append(".diff-badge-del { background: #fed7d7; color: #9b2c2c; }\n");
+    sb.append(".diff-time { font-size: 11px; color: #a0aec0; margin-left: 6px; }\n");
 
     // Loading state
     sb.append(".vh-loading { display: flex; align-items: center; justify-content: center; height: 100%; color: #a0aec0; font-size: 14px; }\n");
@@ -833,22 +838,33 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("  return -1;\n");
     sb.append("}\n\n");
 
-    // Render diff
+    // Render diff between two snapshots, showing author + timestamp per blip
     sb.append("function renderDiff(oldSnap, newSnap, area) {\n");
     sb.append("  var oldDocs = buildDocMap(oldSnap);\n");
     sb.append("  var newDocs = buildDocMap(newSnap);\n");
-    sb.append("  var allIds = Object.keys(Object.assign({}, oldDocs, newDocs));\n");
+    sb.append("  var allIds = Object.keys(Object.assign({}, oldDocs.content, newDocs.content));\n");
     sb.append("  var html = '';\n");
     sb.append("  for (var i = 0; i < allIds.length; i++) {\n");
     sb.append("    var id = allIds[i];\n");
     sb.append("    // Skip non-blip docs\n");
     sb.append("    if (id.indexOf('b+') !== 0 && id !== 'main') continue;\n");
-    sb.append("    var oldText = oldDocs[id] || '';\n");
-    sb.append("    var newText = newDocs[id] || '';\n");
+    sb.append("    var oldText = oldDocs.content[id] || '';\n");
+    sb.append("    var newText = newDocs.content[id] || '';\n");
     sb.append("    if (oldText === newText) continue;\n");
     sb.append("    var diffHtml = wordDiff(oldText, newText);\n");
+    sb.append("    var isNew = !oldDocs.content.hasOwnProperty(id);\n");
+    sb.append("    var isDeleted = !newDocs.content.hasOwnProperty(id);\n");
+    sb.append("    var author = newDocs.author[id] || oldDocs.author[id] || '';\n");
+    sb.append("    var modTime = newDocs.modified[id] || 0;\n");
     sb.append("    html += '<div class=\"blip\">';\n");
-    sb.append("    html += '<div class=\"blip-header\">' + esc(id) + '</div>';\n");
+    sb.append("    html += '<div class=\"blip-header\">';\n");
+    sb.append("    html += '<strong>' + esc(shortAuthor(author)) + '</strong>';\n");
+    sb.append("    if (isNew) html += ' <span class=\"diff-badge diff-badge-new\">NEW</span>';\n");
+    sb.append("    else if (isDeleted) html += ' <span class=\"diff-badge diff-badge-del\">DELETED</span>';\n");
+    sb.append("    else html += ' <span class=\"diff-badge diff-badge-mod\">MODIFIED</span>';\n");
+    sb.append("    if (modTime) html += ' <span class=\"diff-time\">' + fmtTime(modTime) + '</span>';\n");
+    sb.append("    html += ' &middot; ' + esc(id);\n");
+    sb.append("    html += '</div>';\n");
     sb.append("    html += '<div class=\"blip-content\">' + diffHtml + '</div>';\n");
     sb.append("    html += '</div>';\n");
     sb.append("  }\n");
@@ -856,73 +872,215 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("  area.innerHTML = html;\n");
     sb.append("}\n\n");
 
-    // Build doc map from snapshot
+    // Build doc map from snapshot (returns {content, author, modified} maps)
     sb.append("function buildDocMap(snap) {\n");
-    sb.append("  var m = {};\n");
+    sb.append("  var c = {}, a = {}, m = {};\n");
     sb.append("  if (snap && snap.documents) {\n");
     sb.append("    for (var i = 0; i < snap.documents.length; i++) {\n");
-    sb.append("      m[snap.documents[i].id] = snap.documents[i].content || '';\n");
+    sb.append("      var doc = snap.documents[i];\n");
+    sb.append("      c[doc.id] = doc.content || '';\n");
+    sb.append("      a[doc.id] = doc.author || '';\n");
+    sb.append("      m[doc.id] = doc.lastModified || 0;\n");
     sb.append("    }\n");
     sb.append("  }\n");
-    sb.append("  return m;\n");
+    sb.append("  return { content: c, author: a, modified: m };\n");
     sb.append("}\n\n");
 
-    // Word-level diff using LCS
+    // ── Two-level diff: line-level first, then word-level within changed lines ──
+    // This avoids quadratic explosion on large documents by keeping the DP matrix small.
+
+    // Top-level entry: produces HTML diff between two texts
     sb.append("function wordDiff(oldText, newText) {\n");
-    sb.append("  var oldWords = tokenize(oldText);\n");
-    sb.append("  var newWords = tokenize(newText);\n");
-    sb.append("  var lcs = computeLCS(oldWords, newWords);\n");
+    sb.append("  if (oldText === newText) return esc(newText);\n");
+    sb.append("  if (!oldText) return '<span class=\"diff-add\">' + esc(newText) + '</span>';\n");
+    sb.append("  if (!newText) return '<span class=\"diff-del\">' + esc(oldText) + '</span>';\n");
+    sb.append("  // Split into lines and diff at line level first\n");
+    sb.append("  var oldLines = oldText.split('\\n');\n");
+    sb.append("  var newLines = newText.split('\\n');\n");
+    sb.append("  var lineDiff = diffArrays(oldLines, newLines);\n");
     sb.append("  var result = '';\n");
-    sb.append("  var oi = 0, ni = 0, li = 0;\n");
-    sb.append("  while (oi < oldWords.length || ni < newWords.length) {\n");
-    sb.append("    if (li < lcs.length && oi < oldWords.length && ni < newWords.length && oldWords[oi] === lcs[li] && newWords[ni] === lcs[li]) {\n");
-    sb.append("      result += esc(lcs[li]);\n");
-    sb.append("      oi++; ni++; li++;\n");
-    sb.append("    } else {\n");
-    sb.append("      // Emit deletions from old until we match LCS or exhaust old\n");
-    sb.append("      while (oi < oldWords.length && (li >= lcs.length || oldWords[oi] !== lcs[li])) {\n");
-    sb.append("        result += '<span class=\"diff-del\">' + esc(oldWords[oi]) + '</span>';\n");
-    sb.append("        oi++;\n");
-    sb.append("      }\n");
-    sb.append("      // Emit additions from new until we match LCS or exhaust new\n");
-    sb.append("      while (ni < newWords.length && (li >= lcs.length || newWords[ni] !== lcs[li])) {\n");
-    sb.append("        result += '<span class=\"diff-add\">' + esc(newWords[ni]) + '</span>';\n");
-    sb.append("        ni++;\n");
-    sb.append("      }\n");
+    sb.append("  for (var k = 0; k < lineDiff.length; k++) {\n");
+    sb.append("    var op = lineDiff[k];\n");
+    sb.append("    if (k > 0) result += '\\n';\n");
+    sb.append("    if (op.type === 'equal') {\n");
+    sb.append("      result += esc(op.value);\n");
+    sb.append("    } else if (op.type === 'delete') {\n");
+    sb.append("      result += '<span class=\"diff-del\">' + esc(op.value) + '</span>';\n");
+    sb.append("    } else if (op.type === 'insert') {\n");
+    sb.append("      result += '<span class=\"diff-add\">' + esc(op.value) + '</span>';\n");
+    sb.append("    } else if (op.type === 'replace') {\n");
+    sb.append("      // Changed line: do word-level diff within it\n");
+    sb.append("      result += wordDiffLine(op.oldValue, op.newValue);\n");
     sb.append("    }\n");
     sb.append("  }\n");
     sb.append("  return result;\n");
     sb.append("}\n\n");
 
-    // Tokenize into words (preserving whitespace as separate tokens)
+    // Word-level diff within a single changed line pair
+    sb.append("function wordDiffLine(oldLine, newLine) {\n");
+    sb.append("  var oldWords = tokenize(oldLine);\n");
+    sb.append("  var newWords = tokenize(newLine);\n");
+    sb.append("  var ops = diffArrays(oldWords, newWords);\n");
+    sb.append("  var result = '';\n");
+    sb.append("  for (var i = 0; i < ops.length; i++) {\n");
+    sb.append("    var op = ops[i];\n");
+    sb.append("    if (op.type === 'equal') result += esc(op.value);\n");
+    sb.append("    else if (op.type === 'delete') result += '<span class=\"diff-del\">' + esc(op.value) + '</span>';\n");
+    sb.append("    else if (op.type === 'insert') result += '<span class=\"diff-add\">' + esc(op.value) + '</span>';\n");
+    sb.append("    else if (op.type === 'replace') {\n");
+    sb.append("      result += '<span class=\"diff-del\">' + esc(op.oldValue) + '</span>';\n");
+    sb.append("      result += '<span class=\"diff-add\">' + esc(op.newValue) + '</span>';\n");
+    sb.append("    }\n");
+    sb.append("  }\n");
+    sb.append("  return result;\n");
+    sb.append("}\n\n");
+
+    // Tokenize a line into words, preserving whitespace as separate tokens
     sb.append("function tokenize(text) {\n");
     sb.append("  if (!text) return [];\n");
     sb.append("  return text.match(/\\S+|\\s+/g) || [];\n");
     sb.append("}\n\n");
 
-    // Compute LCS (longest common subsequence)
-    sb.append("function computeLCS(a, b) {\n");
+    // Generic array diff using LCS DP with space-optimized fallback.
+    // Returns an array of operations: {type:'equal'|'delete'|'insert'|'replace', value?, oldValue?, newValue?}
+    sb.append("function diffArrays(a, b) {\n");
     sb.append("  var m = a.length, n = b.length;\n");
-    sb.append("  // Guard on m*n product to avoid quadratic memory/time explosion\n");
-    sb.append("  var MAX_DP_CELLS = 5000000;\n");
-    sb.append("  if (m * n > MAX_DP_CELLS) return [];\n");
-    sb.append("  var dp = new Array(m + 1);\n");
-    sb.append("  for (var i = 0; i <= m; i++) {\n");
-    sb.append("    dp[i] = new Array(n + 1).fill(0);\n");
+    sb.append("  // Strip common prefix\n");
+    sb.append("  var prefix = 0;\n");
+    sb.append("  while (prefix < m && prefix < n && a[prefix] === b[prefix]) prefix++;\n");
+    sb.append("  // Strip common suffix\n");
+    sb.append("  var suffix = 0;\n");
+    sb.append("  while (suffix < (m - prefix) && suffix < (n - prefix) && a[m - 1 - suffix] === b[n - 1 - suffix]) suffix++;\n");
+    sb.append("  var ops = [];\n");
+    sb.append("  // Emit common prefix\n");
+    sb.append("  for (var i = 0; i < prefix; i++) ops.push({ type: 'equal', value: a[i] });\n");
+    sb.append("  // Core differing region\n");
+    sb.append("  var aCore = a.slice(prefix, m - suffix);\n");
+    sb.append("  var bCore = b.slice(prefix, n - suffix);\n");
+    sb.append("  if (aCore.length === 0 && bCore.length === 0) {\n");
+    sb.append("    // no core diff\n");
+    sb.append("  } else if (aCore.length === 0) {\n");
+    sb.append("    for (var i = 0; i < bCore.length; i++) ops.push({ type: 'insert', value: bCore[i] });\n");
+    sb.append("  } else if (bCore.length === 0) {\n");
+    sb.append("    for (var i = 0; i < aCore.length; i++) ops.push({ type: 'delete', value: aCore[i] });\n");
+    sb.append("  } else {\n");
+    sb.append("    var coreOps = lcsCoreDiff(aCore, bCore);\n");
+    sb.append("    for (var i = 0; i < coreOps.length; i++) ops.push(coreOps[i]);\n");
     sb.append("  }\n");
+    sb.append("  // Emit common suffix\n");
+    sb.append("  for (var i = m - suffix; i < m; i++) ops.push({ type: 'equal', value: a[i] });\n");
+    sb.append("  return ops;\n");
+    sb.append("}\n\n");
+
+    // LCS-based diff on the core (non-matching prefix/suffix stripped) arrays.
+    // Uses a higher cell limit since prefix/suffix stripping reduces the matrix significantly.
+    sb.append("function lcsCoreDiff(a, b) {\n");
+    sb.append("  var m = a.length, n = b.length;\n");
+    sb.append("  var MAX_CELLS = 50000000;\n");
+    sb.append("  if (m * n > MAX_CELLS) {\n");
+    sb.append("    // Fallback: show the whole region as a replace block\n");
+    sb.append("    return [{ type: 'replace', oldValue: a.join(''), newValue: b.join('') }];\n");
+    sb.append("  }\n");
+    sb.append("  // Build DP table (space-optimized: only two rows)\n");
+    sb.append("  // But we need backtracking, so use full table for smaller matrices,\n");
+    sb.append("  // and a divide-and-conquer Hirschberg approach for larger ones.\n");
+    sb.append("  if (m * n <= 2000000) {\n");
+    sb.append("    return lcsFullDiff(a, b, m, n);\n");
+    sb.append("  }\n");
+    sb.append("  return hirschbergDiff(a, b);\n");
+    sb.append("}\n\n");
+
+    // Full DP LCS diff (for moderate-size arrays)
+    sb.append("function lcsFullDiff(a, b, m, n) {\n");
+    sb.append("  var dp = new Array(m + 1);\n");
+    sb.append("  for (var i = 0; i <= m; i++) dp[i] = new Uint16Array(n + 1);\n");
     sb.append("  for (var i = 1; i <= m; i++) {\n");
     sb.append("    for (var j = 1; j <= n; j++) {\n");
     sb.append("      if (a[i-1] === b[j-1]) dp[i][j] = dp[i-1][j-1] + 1;\n");
-    sb.append("      else dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);\n");
+    sb.append("      else dp[i][j] = dp[i-1][j] > dp[i][j-1] ? dp[i-1][j] : dp[i][j-1];\n");
     sb.append("    }\n");
     sb.append("  }\n");
-    sb.append("  // Backtrack\n");
-    sb.append("  var result = [];\n");
+    sb.append("  // Backtrack to produce edit operations\n");
+    sb.append("  var ops = [];\n");
     sb.append("  var i = m, j = n;\n");
-    sb.append("  while (i > 0 && j > 0) {\n");
-    sb.append("    if (a[i-1] === b[j-1]) { result.unshift(a[i-1]); i--; j--; }\n");
-    sb.append("    else if (dp[i-1][j] > dp[i][j-1]) i--;\n");
-    sb.append("    else j--;\n");
+    sb.append("  while (i > 0 || j > 0) {\n");
+    sb.append("    if (i > 0 && j > 0 && a[i-1] === b[j-1]) {\n");
+    sb.append("      ops.push({ type: 'equal', value: a[i-1] }); i--; j--;\n");
+    sb.append("    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {\n");
+    sb.append("      ops.push({ type: 'insert', value: b[j-1] }); j--;\n");
+    sb.append("    } else {\n");
+    sb.append("      ops.push({ type: 'delete', value: a[i-1] }); i--;\n");
+    sb.append("    }\n");
+    sb.append("  }\n");
+    sb.append("  ops.reverse();\n");
+    sb.append("  // Merge adjacent delete+insert into replace ops\n");
+    sb.append("  return mergeOps(ops);\n");
+    sb.append("}\n\n");
+
+    // Hirschberg's algorithm: linear-space LCS diff for large arrays
+    sb.append("function hirschbergDiff(a, b) {\n");
+    sb.append("  var m = a.length, n = b.length;\n");
+    sb.append("  if (m === 0) { var r = []; for (var i = 0; i < n; i++) r.push({ type: 'insert', value: b[i] }); return r; }\n");
+    sb.append("  if (n === 0) { var r = []; for (var i = 0; i < m; i++) r.push({ type: 'delete', value: a[i] }); return r; }\n");
+    sb.append("  if (m === 1) {\n");
+    sb.append("    var found = -1;\n");
+    sb.append("    for (var j = 0; j < n; j++) { if (b[j] === a[0]) { found = j; break; } }\n");
+    sb.append("    var r = [];\n");
+    sb.append("    if (found < 0) { r.push({ type: 'delete', value: a[0] }); for (var j = 0; j < n; j++) r.push({ type: 'insert', value: b[j] }); }\n");
+    sb.append("    else { for (var j = 0; j < found; j++) r.push({ type: 'insert', value: b[j] }); r.push({ type: 'equal', value: a[0] }); for (var j = found+1; j < n; j++) r.push({ type: 'insert', value: b[j] }); }\n");
+    sb.append("    return r;\n");
+    sb.append("  }\n");
+    sb.append("  var mid = Math.floor(m / 2);\n");
+    sb.append("  var rowTop = lcsLastRow(a.slice(0, mid), b);\n");
+    sb.append("  var rowBot = lcsLastRow(a.slice(mid).reverse(), b.slice().reverse());\n");
+    sb.append("  // Find optimal split point in b\n");
+    sb.append("  var best = -1, bestJ = 0;\n");
+    sb.append("  for (var j = 0; j <= n; j++) {\n");
+    sb.append("    var score = rowTop[j] + rowBot[n - j];\n");
+    sb.append("    if (score > best) { best = score; bestJ = j; }\n");
+    sb.append("  }\n");
+    sb.append("  var left = hirschbergDiff(a.slice(0, mid), b.slice(0, bestJ));\n");
+    sb.append("  var right = hirschbergDiff(a.slice(mid), b.slice(bestJ));\n");
+    sb.append("  return left.concat(right);\n");
+    sb.append("}\n\n");
+
+    // Compute last row of LCS DP table (linear space)
+    sb.append("function lcsLastRow(a, b) {\n");
+    sb.append("  var m = a.length, n = b.length;\n");
+    sb.append("  var prev = new Uint16Array(n + 1);\n");
+    sb.append("  var curr = new Uint16Array(n + 1);\n");
+    sb.append("  for (var i = 1; i <= m; i++) {\n");
+    sb.append("    for (var j = 1; j <= n; j++) {\n");
+    sb.append("      if (a[i-1] === b[j-1]) curr[j] = prev[j-1] + 1;\n");
+    sb.append("      else curr[j] = prev[j] > curr[j-1] ? prev[j] : curr[j-1];\n");
+    sb.append("    }\n");
+    sb.append("    var tmp = prev; prev = curr; curr = tmp;\n");
+    sb.append("    curr.fill(0);\n");
+    sb.append("  }\n");
+    sb.append("  return prev;\n");
+    sb.append("}\n\n");
+
+    // Merge adjacent delete+insert ops into replace ops for cleaner display
+    sb.append("function mergeOps(ops) {\n");
+    sb.append("  var result = [];\n");
+    sb.append("  var i = 0;\n");
+    sb.append("  while (i < ops.length) {\n");
+    sb.append("    if (ops[i].type === 'delete') {\n");
+    sb.append("      var delBuf = ops[i].value;\n");
+    sb.append("      i++;\n");
+    sb.append("      while (i < ops.length && ops[i].type === 'delete') { delBuf += ops[i].value; i++; }\n");
+    sb.append("      if (i < ops.length && ops[i].type === 'insert') {\n");
+    sb.append("        var insBuf = ops[i].value;\n");
+    sb.append("        i++;\n");
+    sb.append("        while (i < ops.length && ops[i].type === 'insert') { insBuf += ops[i].value; i++; }\n");
+    sb.append("        result.push({ type: 'replace', oldValue: delBuf, newValue: insBuf });\n");
+    sb.append("      } else {\n");
+    sb.append("        result.push({ type: 'delete', value: delBuf });\n");
+    sb.append("      }\n");
+    sb.append("    } else {\n");
+    sb.append("      result.push(ops[i]);\n");
+    sb.append("      i++;\n");
+    sb.append("    }\n");
     sb.append("  }\n");
     sb.append("  return result;\n");
     sb.append("}\n\n");

@@ -26,22 +26,22 @@ import com.google.gwt.i18n.client.Messages;
  * @author akaplanov (Andrew Kaplanov)
  */
 public interface BlipMessages extends Messages {
-  @DefaultMessage("Edit")
+  @DefaultMessage("Edit (E)")
   String edit();
 
-  @DefaultMessage("Done")
+  @DefaultMessage("Done (Shift+Enter)")
   String done();
 
-  @DefaultMessage("Reply")
+  @DefaultMessage("Reply (R)")
   String reply();
 
-  @DefaultMessage("Delete")
+  @DefaultMessage("Delete (Del)")
   String delete();
 
-  @DefaultMessage("Link")
+  @DefaultMessage("Copy link (L)")
   String link();
 
-  @DefaultMessage("Draft")
+  @DefaultMessage("Toggle draft (D)")
   String draft();
 
   @DefaultMessage("Draft mode \u2014 changes are not visible to other participants")

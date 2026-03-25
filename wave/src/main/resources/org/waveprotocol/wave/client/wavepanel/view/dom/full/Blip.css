@@ -241,6 +241,20 @@
 /* Marker class to ensure CssResource maps 'deleted' */
 .deleted {}
 
+/* Edit-mode keyboard hint shown alongside menu icons.
+   @external prevents GWT CssResource from obfuscating this name,
+   since it is referenced as a literal class in BlipMetaViewBuilder. */
+@external .editHint;
+.editHint {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: #a0aec0;
+  padding: 0 6px;
+  white-space: nowrap;
+  font-style: italic;
+}
+
 /* ---- Draft-mode active indicator ---- */
 
 /* Marker class to ensure CssResource maps 'draftActive' */

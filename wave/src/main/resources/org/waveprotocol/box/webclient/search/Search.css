@@ -49,21 +49,22 @@
 }
 
 input.query {
-  height: 28px;
+  height: 31px;
   box-sizing: border-box;
   border: 1.5px solid #e2e8f0;
   border-radius: 20px;
   padding: 2px 14px;
   width: 100%;
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
-  background: #fff;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #f7fafc;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
 input.query:focus {
   border-color: #0077b6;
   box-shadow: 0 0 0 3px rgba(0,119,182,0.10);
+  background: #fff;
 }
 
 /* Icon button panel: compact flex row of action icons beside the search box. */
@@ -76,38 +77,30 @@ input.query:focus {
 
 /* Each filter/action button is a minimal icon circle with tooltip. */
 .searchButton {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  padding: 0;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
   border: 1.5px solid transparent;
   border-radius: 50%;
-  background: transparent;
+  background: none;
   color: #718096;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  position: relative;
+  font-size: 15px;
+  padding: 0;
+  transition: all 0.15s ease;
 }
 
 .searchButton:hover {
   border-color: #0077b6;
   color: #0077b6;
-  background: rgba(0,119,182,0.08);
+  background: rgba(0,119,182,0.06);
 }
 
-/* Active/pressed wave ripple effect */
-.searchButton:active {
-  background: rgba(0,119,182,0.18);
-  transform: scale(0.92);
-}
-
-/* The searchbox container now flexes to fill remaining space. */
+/* The search box container takes all remaining space via flex. */
 .searchboxContainer {
   flex: 1;
   min-width: 0;
-  height: 28px;
-  padding-right: 0;
+  height: 31px;
 }

@@ -112,9 +112,9 @@ jobs:
             }
 
             const latestCommitAt = latestCommit ? Date.parse(latestCommit.committedDate) : NaN;
-            const baselineAt = Number.isNaN(prUpdatedAt) ? latestCommitAt : prUpdatedAt;
+            const baselineAt = latestCommitAt;
             const commitAgeMs = Number.isNaN(baselineAt) ? Number.POSITIVE_INFINITY : Date.now() - baselineAt;
-            const reviewGracePeriodMs = 10 * 60 * 1000;
+            const reviewGracePeriodMs = 5 * 60 * 1000;
             const codeRabbitApproved = labels.includes("coderabbitai-reviewed") || codeRabbitPassed;
 
             if (!codeRabbitApproved) {
@@ -124,8 +124,8 @@ jobs:
 
             if (commitAgeMs < reviewGracePeriodMs) {
               const remainingMinutes = Math.ceil((reviewGracePeriodMs - commitAgeMs) / 60000);
-              core.setFailed("CodeRabbit is green, but the PR is still inside the 10 minute Codex-review window (" + remainingMinutes + " minute(s) remaining)");
+              core.setFailed("CodeRabbit is green, but the PR is still inside the 5 minute Codex-review window (" + remainingMinutes + " minute(s) remaining)");
               return;
             }
 
-            core.info("Review gate passed after the 10 minute Codex-review window using CodeRabbit");
+            core.info("Review gate passed after the 5 minute Codex-review window using CodeRabbit");

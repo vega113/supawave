@@ -119,6 +119,9 @@ public final class VersionScrubber extends Composite {
 
     initWidget(container);
 
+    // Start hidden; shown explicitly when history mode is entered.
+    setVisible(false);
+
     // Wire up event handlers
     wireEvents();
   }

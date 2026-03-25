@@ -1183,13 +1183,37 @@ public final class HtmlRenderer {
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
     sb.append("}\n");
     sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
-    sb.append(".online svg { color: #68d391; }\n");
-    sb.append(".connecting svg { color: #fbd38d; }\n");
-    sb.append(".offline svg { color: #fc8181; }\n");
+    // -- Status indicator dots (::after pseudo-element badges) --
+    sb.append(".topbar-icon::after {\n");
+    sb.append("  content: ''; position: absolute; bottom: 2px; right: 2px;\n");
+    sb.append("  width: 8px; height: 8px; border-radius: 50%;\n");
+    sb.append("  border: 1.5px solid rgba(0,50,100,0.6);\n");
+    sb.append("  display: none;\n");
+    sb.append("}\n");
+    sb.append(".lang-icon-btn::after { display: none !important; }\n");
+    // Saved state: small green dot
+    sb.append(".topbar-icon.saved::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    // Saving state: pulsing amber dot
+    sb.append(".topbar-icon.saving::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    // Online: small green dot
+    sb.append(".topbar-icon.online::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    // Connecting: pulsing amber dot
+    sb.append(".topbar-icon.connecting::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    // Offline: red dot
+    sb.append(".topbar-icon.offline::after { display: block; background: #fc8181; box-shadow: 0 0 4px #fc8181; }\n");
+    sb.append("@keyframes indicator-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }\n");
     // Info bar
     sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.9); }\n");
     sb.append(".info a { color: #fff; text-decoration: none; font-weight: 500; }\n");
     sb.append(".info a:hover { text-decoration: underline; }\n");
+    sb.append(".online svg { color: #3fb950; stroke: #3fb950; }\n");
+    sb.append(".connecting svg { color: #d29922; stroke: #d29922; }\n");
+    sb.append(".offline svg { color: #f85149; stroke: #f85149; }\n");
+    sb.append("@keyframes status-pulse {\n");
+    sb.append("  0%, 100% { opacity: 1; }\n");
+    sb.append("  50% { opacity: 0.5; }\n");
+    sb.append("}\n");
+    sb.append(".saving-pulse, .connecting-pulse { animation: status-pulse 1.5s ease-in-out infinite; }\n");
     // -- Avatar circle --
     sb.append(".user-avatar {\n");
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
@@ -1639,24 +1663,24 @@ public final class HtmlRenderer {
       + "<path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10\"/>"
       + "</svg>";
 
-  /** Cloud with checkmark icon for saved state. */
+  /** Cloud with checkmark icon for saved state — green #3fb950. */
   private static final String ICON_CLOUD_CHECK =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#3fb950\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
       + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
       + "</svg>";
-  /** WiFi/signal icon for connection status. */
+  /** WiFi/signal icon for connection status (white for contrast on dark topbar). */
   private static final String ICON_WIFI =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/>"
       + "<path d=\"M5.07 12.5a10 10 0 0 1 13.86 0\"/>"
       + "<path d=\"M8.72 16a6 6 0 0 1 6.56 0\"/>"
       + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
       + "</svg>";
 
-  /** WiFi-off icon for disconnected state. */
+  /** WiFi-off icon for disconnected state (white for contrast on dark topbar). */
   private static final String ICON_WIFI_OFF =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/>"
       + "<path d=\"M16.72 11.06A10.94 10.94 0 0 1 19 12.55\"/>"
       + "<path d=\"M5 12.55a10.94 10.94 0 0 1 5.17-2.39\"/>"

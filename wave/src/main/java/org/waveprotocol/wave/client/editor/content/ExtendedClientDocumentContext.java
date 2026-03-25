@@ -21,6 +21,7 @@ package org.waveprotocol.wave.client.editor.content;
 
 import com.google.gwt.dom.client.Text;
 import org.waveprotocol.wave.client.editor.EditorContext;
+import org.waveprotocol.wave.client.editor.EditorStaticDeps;
 import org.waveprotocol.wave.client.editor.content.SelectionMaintainer.TextNodeChangeType;
 import org.waveprotocol.wave.client.editor.extract.TypingExtractor;
 import org.waveprotocol.wave.client.editor.selection.content.SelectionHelper;
@@ -63,14 +64,19 @@ public interface ExtendedClientDocumentContext extends ClientDocumentContext {
         TextNodeChangeType changeType);
 
     /**
-     * Blank implementation. Getters throw exceptions (better than returning
-     * null and then subsequently having a null pointer exception), except for
-     * {@link #hasEditor()}. Void methods just do nothing.
+     * Defensive blank implementation. Getters return null and log a warning
+     * instead of throwing exceptions, to prevent editing crashes caused by
+     * race conditions where the STUB is accessed while editing is still
+     * logically active. Void methods just do nothing.
+     *
+     * Callers should check {@link #hasEditor()} before using returned values.
      */
     static final LowLevelEditingConcerns STUB = new LowLevelEditingConcerns() {
       @Override
       public TypingExtractor getTypingExtractor() {
-        throw new IllegalStateException("Not in an editing context");
+        EditorStaticDeps.logger.error().log(
+            "STUB: getTypingExtractor() called outside editing context");
+        return null;
       }
 
       @Override
@@ -81,12 +87,16 @@ public interface ExtendedClientDocumentContext extends ClientDocumentContext {
 
       @Override
       public SelectionHelper getSelectionHelper() {
-        throw new IllegalStateException("Not in an editing context");
+        EditorStaticDeps.logger.error().log(
+            "STUB: getSelectionHelper() called outside editing context");
+        return null;
       }
 
       @Override
       public SuggestionsManager getSuggestionsManager() {
-        throw new IllegalStateException("Not in an editing context");
+        EditorStaticDeps.logger.error().log(
+            "STUB: getSuggestionsManager() called outside editing context");
+        return null;
       }
 
       /** Returns false */
@@ -97,7 +107,9 @@ public interface ExtendedClientDocumentContext extends ClientDocumentContext {
 
       @Override
       public EditorContext editorContext() {
-        throw new IllegalStateException("Not in an editing context");
+        EditorStaticDeps.logger.error().log(
+            "STUB: editorContext() called outside editing context");
+        return null;
       }
     };
   }

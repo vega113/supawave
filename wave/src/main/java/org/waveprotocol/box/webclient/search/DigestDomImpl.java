@@ -67,6 +67,8 @@ public final class DigestDomImpl implements DigestView {
 
     String unreadCount();
 
+    String snippet();
+
     String selected();
   }
 

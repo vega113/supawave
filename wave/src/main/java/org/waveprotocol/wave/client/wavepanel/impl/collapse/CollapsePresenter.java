@@ -21,9 +21,18 @@
 package org.waveprotocol.wave.client.wavepanel.impl.collapse;
 
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
+import org.waveprotocol.wave.client.wavepanel.view.ThreadView;
+import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
+import org.waveprotocol.wave.model.conversation.ConversationThread;
+import org.waveprotocol.wave.model.conversation.ObservableConversationThread;
+import org.waveprotocol.wave.model.supplement.ObservableSupplementedWave;
+import org.waveprotocol.wave.model.supplement.SupplementedWave;
+import org.waveprotocol.wave.model.supplement.ThreadState;
 
 /**
- * Can collapse and expand thread views.
+ * Can collapse and expand thread views, and persists state to the user-data
+ * wavelet via the supplement when available.  Also listens for remote changes
+ * to thread state (e.g. from another tab) and applies them to the view.
  *
  */
 public final class CollapsePresenter {
@@ -35,15 +44,72 @@ public final class CollapsePresenter {
   // collapsed, and so that focus-frame movement skip collapsed threads.
   //
 
+  private SupplementedWave supplement;
+  private ModelAsViewProvider modelAsView;
+
+  /**
+   * Injects the supplement and model-view mapping so that collapse/expand
+   * actions are persisted to the user-data wavelet.  Also installs an event
+   * listener so that remote changes to thread state are reflected in the view.
+   *
+   * @param supplement  the user's supplement (read/write, observable)
+   * @param modelAsView maps view objects to model objects
+   */
+  public void init(ObservableSupplementedWave supplement, ModelAsViewProvider modelAsView) {
+    this.supplement = supplement;
+    this.modelAsView = modelAsView;
+    supplement.addListener(new ObservableSupplementedWave.ListenerImpl() {
+      @Override
+      public void onThreadStateChanged(ObservableConversationThread thread) {
+        applyThreadState(thread);
+      }
+    });
+  }
+
   public void collapse(InlineThreadView view) {
     view.setCollapsed(true);
+    persistState(view, true);
   }
 
   public void expand(InlineThreadView view) {
     view.setCollapsed(false);
+    persistState(view, false);
   }
 
   public void toggle(InlineThreadView view) {
-    view.setCollapsed(!view.isCollapsed());
+    boolean nowCollapsed = !view.isCollapsed();
+    view.setCollapsed(nowCollapsed);
+    persistState(view, nowCollapsed);
+  }
+
+  /**
+   * Applies persisted thread state from the supplement to the view.
+   */
+  private void applyThreadState(ConversationThread thread) {
+    if (modelAsView == null || supplement == null) {
+      return;
+    }
+    InlineThreadView view = modelAsView.getInlineThreadView(thread);
+    if (view != null) {
+      ThreadState state = supplement.getThreadState(thread);
+      if (state == ThreadState.COLLAPSED) {
+        view.setCollapsed(true);
+      } else if (state == ThreadState.EXPANDED) {
+        view.setCollapsed(false);
+      }
+    }
+  }
+
+  /**
+   * Persists the collapse/expand state to the supplement if available.
+   */
+  private void persistState(InlineThreadView view, boolean collapsed) {
+    if (supplement != null && modelAsView != null) {
+      ConversationThread thread = modelAsView.getThread((ThreadView) view);
+      if (thread != null) {
+        supplement.setThreadState(thread,
+            collapsed ? ThreadState.COLLAPSED : ThreadState.EXPANDED);
+      }
+    }
   }
 }

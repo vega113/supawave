@@ -764,7 +764,8 @@ public interface StageTwo {
 
             RenderingRules<UiBuilder> rules = new FullDomRenderer(
                     getBlipDetailer(), docRenderer, getProfileManager(),
-                    getViewIdMapper(), createViewFactories(), getThreadReadStateMonitor());
+                    getViewIdMapper(), createViewFactories(), getThreadReadStateMonitor(),
+                    getSupplement());
             return new HtmlDomRenderer(ReductionBasedRenderer.of(rules, getConversations()));
         }
 
@@ -1065,6 +1066,9 @@ public interface StageTwo {
             reader = Reader.install(getSupplement(), stageOne.getFocusFrame(),
                     getModelAsViewProvider(),
                     getDocumentRegistry());
+
+            // Wire collapse/expand persistence into the user-data wavelet.
+            stageOne.getCollapser().init(getSupplement(), getModelAsViewProvider());
         }
     }
 }

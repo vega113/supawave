@@ -20,6 +20,10 @@
 package org.waveprotocol.wave.client.wavepanel.impl.toolbar;
 
 import com.google.gwt.core.client.GWT;
+import org.waveprotocol.box.webclient.folder.FolderOperationBuilder;
+import org.waveprotocol.box.webclient.folder.FolderOperationBuilderImpl;
+import org.waveprotocol.box.webclient.folder.FolderOperationService;
+import org.waveprotocol.box.webclient.folder.FolderOperationServiceImpl;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusBlipSelector;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFramePresenter;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.ViewTraverser;
@@ -32,6 +36,7 @@ import org.waveprotocol.wave.client.widget.toolbar.ToolbarView;
 import org.waveprotocol.wave.client.widget.toolbar.ToplevelToolbarWidget;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
 import org.waveprotocol.wave.model.conversation.ConversationView;
+import org.waveprotocol.wave.model.id.WaveId;
 
 /**
  * Attaches actions that can be performed in a Wave's "view mode" to a toolbar.
@@ -45,21 +50,25 @@ public final class ViewToolbar {
   private final FocusFramePresenter focusFrame;
   private final FocusBlipSelector blipSelector;
   private final Reader reader;
+  private final WaveId waveId;
+  private final FolderOperationService folderService;
 
   /** Listener for the history toolbar button. */
   private ToolbarClickButton.Listener historyButtonListener;
 
   private ViewToolbar(ToplevelToolbarWidget toolbarUi, FocusFramePresenter focusFrame,
-      ModelAsViewProvider views, ConversationView wave, Reader reader) {
+      ModelAsViewProvider views, ConversationView wave, Reader reader, WaveId waveId) {
     this.toolbarUi = toolbarUi;
     this.focusFrame = focusFrame;
     this.reader = reader;
+    this.waveId = waveId;
+    this.folderService = new FolderOperationServiceImpl();
     blipSelector = FocusBlipSelector.create(wave, views, reader, new ViewTraverser());
   }
 
   public static ViewToolbar create(FocusFramePresenter focus,  ModelAsViewProvider views,
-  ConversationView wave, Reader reader) {
-    return new ViewToolbar(new ToplevelToolbarWidget(), focus, views, wave, reader);
+  ConversationView wave, Reader reader, WaveId waveId) {
+    return new ViewToolbar(new ToplevelToolbarWidget(), focus, views, wave, reader, waveId);
   }
 
   public void init() {
@@ -104,6 +113,26 @@ public final class ViewToolbar {
             focusFrame.moveDown();
           }
         });
+
+    // Archive / Inbox buttons
+    if (waveId != null) {
+      group = toolbarUi.addGroup();
+      new ToolbarButtonViewBuilder().setText(messages.toArchive()).applyTo(
+          group.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
+              moveToFolder(FolderOperationBuilder.FOLDER_ARCHIVE);
+            }
+          });
+      new ToolbarButtonViewBuilder().setText(messages.toInbox()).applyTo(
+          group.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
+              moveToFolder(FolderOperationBuilder.FOLDER_INBOX);
+            }
+          });
+    }
+
     // History button group
     ToolbarView historyGroup = toolbarUi.addGroup();
     new ToolbarButtonViewBuilder()
@@ -121,6 +150,28 @@ public final class ViewToolbar {
     // Fake group
     group = toolbarUi.addGroup();
     new ToolbarButtonViewBuilder().setText("").applyTo(group.addClickButton(), null);
+  }
+
+  /**
+   * Moves the currently open wave to the specified folder via the FolderServlet.
+   */
+  private void moveToFolder(String folder) {
+    String url = new FolderOperationBuilderImpl()
+        .addParameter(FolderOperationBuilder.PARAM_OPERATION, FolderOperationBuilder.OPERATION_MOVE)
+        .addParameter(FolderOperationBuilder.PARAM_FOLDER, folder)
+        .addParameter(FolderOperationBuilder.PARAM_WAVE_ID, waveId.serialise())
+        .getUrl();
+    folderService.execute(url, new FolderOperationService.Callback() {
+      @Override
+      public void onSuccess() {
+        // Operation succeeded silently.
+      }
+
+      @Override
+      public void onFailure(String message) {
+        // Log failure; nothing else to do in the toolbar.
+      }
+    });
   }
 
   /**

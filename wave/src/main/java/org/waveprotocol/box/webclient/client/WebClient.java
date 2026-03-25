@@ -313,13 +313,32 @@ public class WebClient implements EntryPoint {
           switch (event.getStatus()) {
             case CONNECTED:
             case RECONNECTED:
-              element.setInnerText(messages.online());
+              element.setInnerHTML(
+                  "<span style='display:inline-flex;align-items:center;gap:4px;'>"
+                  + "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' "
+                  + "fill='none' stroke='#3fb950' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+                  + "<path d='M5 13a10 10 0 0 1 14 0'/>"
+                  + "<path d='M8.5 16.5a5 5 0 0 1 7 0'/>"
+                  + "<path d='M2 8.82a15 15 0 0 1 20 0'/>"
+                  + "<line x1='12' y1='20' x2='12.01' y2='20'/>"
+                  + "</svg>"
+                  + "<span>" + messages.online() + "</span></span>");
               element.setClassName("online");
               isTurbulenceDetected = false;
               turbulencePopup.hide();
               break;
             case DISCONNECTED:
-              element.setInnerText(messages.offline());
+              element.setInnerHTML(
+                  "<span style='display:inline-flex;align-items:center;gap:4px;'>"
+                  + "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' "
+                  + "fill='none' stroke='#f85149' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+                  + "<path d='M2 8.82a15 15 0 0 1 20 0'/>"
+                  + "<path d='M5 13a10 10 0 0 1 14 0'/>"
+                  + "<path d='M8.5 16.5a5 5 0 0 1 7 0'/>"
+                  + "<line x1='12' y1='20' x2='12.01' y2='20'/>"
+                  + "<line x1='2' y1='2' x2='22' y2='22'/>"
+                  + "</svg>"
+                  + "<span>" + messages.offline() + "</span></span>");
               element.setClassName("offline");
               if (!isTurbulenceDetected) {
                 isTurbulenceDetected = true;
@@ -327,7 +346,16 @@ public class WebClient implements EntryPoint {
               }
               break;
             case RECONNECTING:
-              element.setInnerText(messages.connecting());
+              element.setInnerHTML(
+                  "<span style='display:inline-flex;align-items:center;gap:4px;' class='connecting-pulse'>"
+                  + "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' "
+                  + "fill='none' stroke='#d29922' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+                  + "<path d='M5 13a10 10 0 0 1 14 0'/>"
+                  + "<path d='M8.5 16.5a5 5 0 0 1 7 0'/>"
+                  + "<path d='M2 8.82a15 15 0 0 1 20 0'/>"
+                  + "<line x1='12' y1='20' x2='12.01' y2='20'/>"
+                  + "</svg>"
+                  + "<span>" + messages.connecting() + "</span></span>");
               element.setClassName("connecting");
               break;
           }

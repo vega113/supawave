@@ -1156,9 +1156,14 @@ public final class HtmlRenderer {
     sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4a5568; }\n");
     sb.append(".info a { color: ").append(WAVE_PRIMARY).append("; text-decoration: none; font-weight: 500; }\n");
     sb.append(".info a:hover { text-decoration: underline; }\n");
-    sb.append(".online { color: #38a169; }\n");
-    sb.append(".connecting { color: #dd6b20; font-weight: 600; }\n");
-    sb.append(".offline { color: #e53e3e; font-weight: 600; }\n");
+    sb.append(".online { color: #3fb950; }\n");
+    sb.append(".connecting { color: #d29922; font-weight: 600; }\n");
+    sb.append(".offline { color: #f85149; font-weight: 600; }\n");
+    sb.append("@keyframes status-pulse {\n");
+    sb.append("  0%, 100% { opacity: 1; }\n");
+    sb.append("  50% { opacity: 0.5; }\n");
+    sb.append("}\n");
+    sb.append(".saving-pulse, .connecting-pulse { animation: status-pulse 1.5s ease-in-out infinite; }\n");
     sb.append(".user-menu { position: relative; display: inline-block; cursor: pointer; }\n");
     sb.append(".user-menu-toggle { background: none; border: none; color: #4a5568; cursor: pointer; font: inherit; padding: 4px 10px; border-radius: 6px; transition: background 0.15s; }\n");
     sb.append(".user-menu-toggle:hover { background: #f0f4f8; }\n");
@@ -1546,8 +1551,25 @@ public final class HtmlRenderer {
       sb.append("    <a href=\"/auth/signin?r=/\">Sign In</a>\n");
     } else {
       sb.append("    <select id=\"lang\" class=\"lang\" size=\"1\"></select>\n");
-      sb.append("    <span id=\"unsavedStateContainer\" style=\"width:60px\">Saved</span>\n");
-      sb.append("    <span id=\"netstatus\" class=\"offline\">Offline</span>\n");
+      sb.append("    <span id=\"unsavedStateContainer\" style=\"min-width:60px\">"
+          + "<span style='display:inline-flex;align-items:center;gap:4px;color:#3fb950;'>"
+          + "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' "
+          + "fill='none' stroke='#3fb950' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+          + "<path d='M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242'/>"
+          + "<path d='m9 12 2 2 4-4'/>"
+          + "</svg>"
+          + "<span>Saved</span></span></span>\n");
+      sb.append("    <span id=\"netstatus\" class=\"offline\">"
+          + "<span style='display:inline-flex;align-items:center;gap:4px;'>"
+          + "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' "
+          + "fill='none' stroke='#f85149' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+          + "<path d='M2 8.82a15 15 0 0 1 20 0'/>"
+          + "<path d='M5 13a10 10 0 0 1 14 0'/>"
+          + "<path d='M8.5 16.5a5 5 0 0 1 7 0'/>"
+          + "<line x1='12' y1='20' x2='12.01' y2='20'/>"
+          + "<line x1='2' y1='2' x2='22' y2='22'/>"
+          + "</svg>"
+          + "<span>Offline</span></span></span>\n");
       sb.append("    <div class=\"user-menu\">\n");
       sb.append("      <button class=\"user-menu-toggle\">\n");
       sb.append("        ").append(escapeHtml(username));

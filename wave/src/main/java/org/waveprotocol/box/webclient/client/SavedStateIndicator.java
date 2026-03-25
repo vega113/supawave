@@ -64,12 +64,26 @@ public class SavedStateIndicator implements UnsavedDataListener {
   private SavedState visibleSavedState = SavedState.SAVED;
   private SavedState currentSavedState = null;
 
+  /** Cloud-upload SVG icon (16x16) for unsaved/saving state — amber #d29922 with pulse animation. */
   private static final String UNSAVED_HTML =
-      "<span style='color: red; text-align: center;'>" + SavedState.UNSAVED.message
-          + "</span>";
+      "<span style='display:inline-flex;align-items:center;gap:4px;color:#d29922;' class='saving-pulse'>"
+          + "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' "
+          + "fill='none' stroke='#d29922' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+          + "<path d='M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242'/>"
+          + "<path d='M12 12v9'/>"
+          + "<path d='m16 16-4-4-4 4'/>"
+          + "</svg>"
+          + "<span>" + SavedState.UNSAVED.message + "</span></span>";
+
+  /** Cloud-check SVG icon (16x16) for saved state — green #3fb950. */
   private static final String SAVED_HTML =
-      "<span style='color: green; text-align: center;'>" + SavedState.SAVED.message
-          + "</span>";
+      "<span style='display:inline-flex;align-items:center;gap:4px;color:#3fb950;'>"
+          + "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' "
+          + "fill='none' stroke='#3fb950' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+          + "<path d='M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242'/>"
+          + "<path d='m9 12 2 2 4-4'/>"
+          + "</svg>"
+          + "<span>" + SavedState.SAVED.message + "</span></span>";
 
   public SavedStateIndicator(Element element) {
     this.element = element;

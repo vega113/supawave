@@ -19,11 +19,9 @@
 
 package org.waveprotocol.box.webclient.client;
 
-import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.InputElement;
 import com.google.gwt.dom.client.Style;
-import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyCodes;
@@ -33,7 +31,6 @@ import com.google.gwt.user.client.EventListener;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HTML;
-import com.google.gwt.user.client.ui.InlineHTML;
 import com.google.gwt.user.client.ui.SimplePanel;
 
 import java.util.Date;
@@ -128,17 +125,14 @@ public final class VersionScrubber extends Composite {
 
   /** Wires up DOM event handlers for the range input and exit button. */
   private void wireEvents() {
-    // Range input change event (fires on mouse release)
-    DOM.sinkEvents(rangeInput, Event.ONCHANGE | Event.ONINPUT
+    // Range input: sink events that GWT supports natively
+    DOM.sinkEvents(rangeInput, Event.ONCHANGE
         | Event.ONKEYDOWN | Event.ONMOUSEMOVE | Event.ONMOUSEOUT);
     DOM.setEventListener(rangeInput, new EventListener() {
       public void onBrowserEvent(Event event) {
         int type = DOM.eventGetType(event);
-        if (type == Event.ONCHANGE || type == Event.ONINPUT) {
-          int val = Integer.parseInt(InputElement.as(rangeInput).getValue());
-          if (listener != null) {
-            listener.onScrubberMoved(val);
-          }
+        if (type == Event.ONCHANGE) {
+          fireSliderMoved();
         } else if (type == Event.ONKEYDOWN) {
           int keyCode = event.getKeyCode();
           if (keyCode == KeyCodes.KEY_LEFT) {
@@ -169,6 +163,11 @@ public final class VersionScrubber extends Composite {
       }
     });
 
+    // GWT 2.x does not support Event.ONINPUT. Use JSNI to attach the
+    // HTML5 'input' event, which fires continuously while the slider is
+    // being dragged (unlike 'change', which only fires on release).
+    attachInputEvent(rangeInput, this);
+
     // Exit button click
     exitButton.addClickHandler(new ClickHandler() {
       public void onClick(ClickEvent event) {
@@ -178,6 +177,24 @@ public final class VersionScrubber extends Composite {
       }
     });
   }
+
+  /** Fires the listener with the current slider value. */
+  private void fireSliderMoved() {
+    int val = Integer.parseInt(InputElement.as(rangeInput).getValue());
+    if (listener != null) {
+      listener.onScrubberMoved(val);
+    }
+  }
+
+  /**
+   * Attaches a native 'input' event listener to the given element via JSNI.
+   * This is necessary because GWT's Event class does not define ONINPUT.
+   */
+  private static native void attachInputEvent(Element el, VersionScrubber scrubber) /*-{
+    el.addEventListener('input', function() {
+      scrubber.@org.waveprotocol.box.webclient.client.VersionScrubber::fireSliderMoved()();
+    });
+  }-*/;
 
   /** Sets the listener for scrubber events. */
   public void setListener(Listener listener) {

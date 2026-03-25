@@ -316,11 +316,13 @@ public final class HtmlRenderer {
       + "#app [kind=\"m\"] {\n"
       + "  font-family: " + WAVE_FONT + ";\n"
       + "}\n"
-      // Blip avatar - round
+      // Blip avatar - round, compact
       + "#app [kind=\"m\"] img {\n"
       + "  border-radius: 50%;\n"
-      + "  border: 2px solid #fff;\n"
+      + "  border: 1.5px solid #fff;\n"
       + "  box-shadow: 0 1px 2px rgba(0,0,0,0.08);\n"
+      + "  width: 28px;\n"
+      + "  height: 28px;\n"
       + "}\n"
 
       // Metabar - override the green/gray scheme
@@ -328,6 +330,29 @@ public final class HtmlRenderer {
       + "#app [kind=\"m\"] > div:first-child + div {\n"
       + "  border-radius: 6px;\n"
       + "  transition: all 200ms ease;\n"
+      + "}\n"
+
+      // Blip content area - subtle border, compact padding
+      + "#app [kind=\"document\"] {\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 4px;\n"
+      + "  background: #f8fafc;\n"
+      + "  padding: 6px 8px;\n"
+      + "  min-height: 1.5em;\n"
+      + "  transition: border-color 200ms ease, background 200ms ease;\n"
+      + "}\n"
+      // Focus/editing state
+      + "#app [kind=\"document\"]:focus-within {\n"
+      + "  border-color: #90cdf4;\n"
+      + "  background: #fff;\n"
+      + "  outline: none;\n"
+      + "}\n"
+      // Placeholder for empty blip content
+      + "#app [kind=\"document\"]:empty::before {\n"
+      + "  content: 'Type your message here...';\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-style: italic;\n"
+      + "  pointer-events: none;\n"
       + "}\n"
 
       // --- Focus frame (selected blip border) ---

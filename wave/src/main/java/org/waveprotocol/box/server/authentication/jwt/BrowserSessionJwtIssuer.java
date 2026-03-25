@@ -29,6 +29,10 @@ public class BrowserSessionJwtIssuer {
     this.tokenLifetimeSeconds = config.hasPath("security.session_expiry_seconds")
         ? config.getLong("security.session_expiry_seconds")
         : DEFAULT_SESSION_EXPIRY_SECONDS;
+    if (this.tokenLifetimeSeconds <= 0) {
+      throw new IllegalArgumentException(
+          "security.session_expiry_seconds must be positive, got: " + this.tokenLifetimeSeconds);
+    }
   }
 
   /** Constructor for testing without Config. */

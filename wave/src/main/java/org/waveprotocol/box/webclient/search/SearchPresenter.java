@@ -372,6 +372,8 @@ public final class SearchPresenter
     // Re-render the existing view in-place instead of removing and re-inserting,
     // which avoids DOM destruction/reconstruction that causes visual blinking.
     searchUi.renderDigest(digestUi, digest);
+    // Refresh the digestUis map so it points at the updated Digest instance.
+    digestUis.put(digestUi, digest);
   }
 
   @Override

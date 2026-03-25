@@ -249,6 +249,10 @@ public class ServerMain {
       LOG.warning("Failed to configure fragments transport/endpoints; leaving /fragments disabled", e);
     }
 
+    server.addServlet("/terms", LegalServlet.class);
+    server.addServlet("/privacy", LegalServlet.class);
+    server.addServlet("/contact", LegalServlet.class);
+
     server.addServlet("/", WaveClientServlet.class);
   }
 

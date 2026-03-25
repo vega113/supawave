@@ -218,24 +218,39 @@
 
 .contentContainer, .replies, .privateReplies{word-wrap: break-word;}
 
-/* Quasi-deleted state (client-side visual only). */
+/* Quasi-deleted / soft-delete state (client-side visual only).
+ * When a blip is soft-deleted, the content collapses, the metabar turns
+ * red-ish, and text is struck through. An undo toast is shown separately. */
 .blip.deleted {
-  opacity: 0.7;
+  opacity: 0.55;
   cursor: not-allowed;
+  transition: opacity 300ms ease;
 }
-.blip.deleted .contentContainer,
-.blip.deleted .menu,
-.blip.deleted .replies,
-.blip.deleted .privateReplies {
+/* Collapse content, menu, and reply areas during soft-delete. */
+.blip.deleted .contentContainer {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 300ms ease, opacity 200ms ease;
   pointer-events: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
 }
+.blip.deleted .menu,
+.blip.deleted .replies,
+.blip.deleted .privateReplies {
+  display: none;
+}
 .blip.deleted .metabar {
   background-color: #fde8e8;
   color: #9b2c2c;
+  border-left: 3px solid #e53e3e;
+  margin-bottom: 0;
+}
+.blip.deleted .metaline {
+  text-decoration: line-through;
 }
 
 /* Marker class to ensure CssResource maps 'deleted' */

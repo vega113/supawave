@@ -171,7 +171,13 @@ public final class ActionsImpl implements Actions {
       }
     }
 
-    views.getBlip(blipUi).delete();
+    // When quasi-deletion UI is enabled, defer the actual delete and show an
+    // undo toast so the user can recover within the grace period.
+    if (UndoableDeleteHelper.isEnabled()) {
+      UndoableDeleteHelper.softDelete(blipUi, views);
+    } else {
+      views.getBlip(blipUi).delete();
+    }
   }
 
   @Override

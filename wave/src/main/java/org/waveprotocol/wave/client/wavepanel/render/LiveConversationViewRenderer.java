@@ -145,23 +145,38 @@ public class LiveConversationViewRenderer
     public void onBlipDeleted(ObservableConversationBlip blip) {
       BlipView blipView = views.getBlipView(blip);
       if (blipView != null) {
-        // When quasi-deletion UI is enabled, allow a short grace period for
-        // the UI to show a transient deleted state before removing the node.
+        // When quasi-deletion UI is enabled, check whether this blip was
+        // already visually marked as deleted by UndoableDeleteHelper (which
+        // defers the actual delete op by the dwell period).  If so, remove
+        // the DOM node immediately to avoid doubling the visible dwell time.
         if (Boolean.TRUE.equals(org.waveprotocol.wave.client.util.ClientFlags.get().enableQuasiDeletionUi())) {
           final BlipView toRemove = blipView;
-          int delayMs = 400;
-          try {
-            Integer dwell = org.waveprotocol.wave.client.util.ClientFlags.get().quasiDeletionDwellMs();
-            if (dwell != null && dwell >= 0) {
-              delayMs = dwell;
-            }
-          } catch (Throwable ignore) {}
-          try {
-            new com.google.gwt.user.client.Timer() {
-              @Override public void run() { toRemove.remove(); }
-            }.schedule(delayMs);
-          } catch (Throwable ignored) {
+          boolean alreadyMarked = false;
+          if (toRemove instanceof org.waveprotocol.wave.client.wavepanel.view.dom.DomView) {
+            com.google.gwt.dom.client.Element el =
+                ((org.waveprotocol.wave.client.wavepanel.view.dom.DomView) toRemove).getElement();
+            alreadyMarked = el != null && "true".equals(el.getAttribute("data-deleted"));
+          }
+          if (alreadyMarked) {
+            // The dwell period already elapsed in UndoableDeleteHelper;
+            // remove the node right away.
             toRemove.remove();
+          } else {
+            // Remote delete or non-quasi path — apply the standard dwell.
+            int delayMs = 5000;
+            try {
+              Integer dwell = org.waveprotocol.wave.client.util.ClientFlags.get().quasiDeletionDwellMs();
+              if (dwell != null && dwell >= 0) {
+                delayMs = dwell;
+              }
+            } catch (Throwable ignore) {}
+            try {
+              new com.google.gwt.user.client.Timer() {
+                @Override public void run() { toRemove.remove(); }
+              }.schedule(delayMs);
+            } catch (Throwable ignored) {
+              toRemove.remove();
+            }
           }
         } else {
           // TODO(user): Hide parent thread if it becomes empty.

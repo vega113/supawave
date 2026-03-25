@@ -1014,7 +1014,7 @@ public class ClientFlagsBase {
     dynamicScrollThrottleMs = helper.getInteger(FlagConstants.DYNAMIC_SCROLL_THROTTLE_MS, 50);
     dynamicSpeedBoostThresholdPx = helper.getInteger(FlagConstants.DYNAMIC_SPEED_BOOST_THRESHOLD_PX, 800);
     dynamicSpeedBoostFactor = helper.getDouble(FlagConstants.DYNAMIC_SPEED_BOOST_FACTOR, 1.8);
-    quasiDeletionDwellMs = helper.getInteger(FlagConstants.QUASI_DELETION_DWELL_MS, 400);
+    quasiDeletionDwellMs = helper.getInteger(FlagConstants.QUASI_DELETION_DWELL_MS, 5000);
     enableFragmentsApplier = helper.getBoolean(FlagConstants.ENABLE_FRAGMENTS_APPLIER, false);
     forceClientFragments = helper.getBoolean(FlagConstants.FORCE_CLIENT_FRAGMENTS, false);
     fragmentsApplierMaxRanges = helper.getInteger(FlagConstants.FRAGMENTS_APPLIER_MAX_RANGES, null);

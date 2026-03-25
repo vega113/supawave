@@ -1616,6 +1616,7 @@ public final class HtmlRenderer {
       sb.append("        <a href=\"/robot/register/create\">Robot Registration</a>\n");
       sb.append("        <a href=\"/robot/dataapi/token\">API Token</a>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
+      sb.append("        <a href=\"/admin\">Admin</a>\n");
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <a id=\"signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
       sb.append("      </div>\n");
@@ -2114,7 +2115,414 @@ public final class HtmlRenderer {
   }
 
   // =========================================================================
-  // 13. Analytics Fragment (private helper)
+  // 13. Admin Page
+  // =========================================================================
+
+  /**
+   * Renders the admin page with user management table.
+   *
+   * @param currentUser the logged-in admin's address
+   * @param domain      the wave server domain
+   * @param callerRole  the logged-in user's role ("owner" or "admin")
+   */
+  public static String renderAdminPage(String currentUser, String domain, String callerRole) {
+    StringBuilder sb = new StringBuilder(32768);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Admin - SupaWave</title>\n");
+
+    // Inline CSS — self-contained ocean theme
+    sb.append("<style>\n");
+    sb.append("*, *::before, *::after { box-sizing: border-box; }\n");
+    sb.append("body {\n");
+    sb.append("  margin: 0; padding: 0;\n");
+    sb.append("  font-family: ").append(WAVE_FONT).append(";\n");
+    sb.append("  background: ").append(WAVE_BG).append(";\n");
+    sb.append("  color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("  min-height: 100vh;\n");
+    sb.append("}\n");
+
+    // Header bar
+    sb.append(".admin-header {\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  color: #fff; padding: 16px 24px;\n");
+    sb.append("  display: flex; align-items: center; justify-content: space-between;\n");
+    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n");
+    sb.append("}\n");
+    sb.append(".admin-header .brand { display: flex; align-items: center; gap: 10px; }\n");
+    sb.append(".admin-header .brand span { font-size: 20px; font-weight: 700; }\n");
+    sb.append(".admin-header .user-info { font-size: 13px; opacity: 0.9; }\n");
+    sb.append(".admin-header a { color: #fff; text-decoration: none; margin-left: 16px; font-size: 13px; opacity: 0.85; }\n");
+    sb.append(".admin-header a:hover { opacity: 1; text-decoration: underline; }\n");
+
+    // Container
+    sb.append(".admin-container {\n");
+    sb.append("  max-width: 1400px; margin: 24px auto; padding: 0 24px;\n");
+    sb.append("}\n");
+
+    // Card
+    sb.append(".admin-card {\n");
+    sb.append("  background: #fff; border-radius: 12px;\n");
+    sb.append("  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);\n");
+    sb.append("  overflow: hidden;\n");
+    sb.append("}\n");
+    sb.append(".admin-card-header {\n");
+    sb.append("  padding: 20px 24px; border-bottom: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;\n");
+    sb.append("}\n");
+    sb.append(".admin-card-header h2 { margin: 0; font-size: 18px; font-weight: 600; }\n");
+
+    // Search
+    sb.append(".search-box {\n");
+    sb.append("  padding: 8px 14px; border: 1.5px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  border-radius: 8px; font-size: 13px; width: 280px; outline: none;\n");
+    sb.append("  transition: border-color 0.2s, box-shadow 0.2s; background: #fafbfc;\n");
+    sb.append("}\n");
+    sb.append(".search-box:focus {\n");
+    sb.append("  border-color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("  box-shadow: 0 0 0 3px rgba(0,119,182,0.12); background: #fff;\n");
+    sb.append("}\n");
+
+    // Table
+    sb.append(".admin-table-wrap { overflow-x: auto; }\n");
+    sb.append(".admin-table {\n");
+    sb.append("  width: 100%; border-collapse: collapse; font-size: 13px;\n");
+    sb.append("}\n");
+    sb.append(".admin-table th {\n");
+    sb.append("  text-align: left; padding: 12px 16px; font-weight: 600; font-size: 12px;\n");
+    sb.append("  text-transform: uppercase; letter-spacing: 0.5px;\n");
+    sb.append("  color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("  border-bottom: 2px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  cursor: pointer; user-select: none; white-space: nowrap;\n");
+    sb.append("}\n");
+    sb.append(".admin-table th:hover { color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".admin-table th .sort-arrow { font-size: 10px; margin-left: 4px; }\n");
+    sb.append(".admin-table td {\n");
+    sb.append("  padding: 10px 16px; border-bottom: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  vertical-align: middle;\n");
+    sb.append("}\n");
+    sb.append(".admin-table tr:hover td { background: rgba(0,119,182,0.02); }\n");
+
+    // Badges
+    sb.append(".badge {\n");
+    sb.append("  display: inline-block; padding: 2px 10px; border-radius: 12px;\n");
+    sb.append("  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;\n");
+    sb.append("}\n");
+    sb.append(".badge-owner { background: #fef3c7; color: #92400e; }\n");
+    sb.append(".badge-admin { background: #dbeafe; color: #1e40af; }\n");
+    sb.append(".badge-user { background: #f3f4f6; color: #6b7280; }\n");
+    sb.append(".badge-active { background: #d1fae5; color: #065f46; }\n");
+    sb.append(".badge-suspended { background: #fee2e2; color: #991b1b; }\n");
+    sb.append(".badge-banned { background: #fef3c7; color: #92400e; }\n");
+    sb.append(".badge-free { background: #ede9fe; color: #5b21b6; }\n");
+
+    // Action buttons
+    sb.append(".action-btn {\n");
+    sb.append("  padding: 4px 10px; border: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  border-radius: 6px; font-size: 11px; cursor: pointer;\n");
+    sb.append("  background: #fff; color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("  transition: all 0.15s; margin-right: 4px; margin-bottom: 2px;\n");
+    sb.append("}\n");
+    sb.append(".action-btn:hover { border-color: ").append(WAVE_PRIMARY).append("; color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".action-btn.danger { border-color: #fca5a5; color: #dc2626; }\n");
+    sb.append(".action-btn.danger:hover { background: #fef2f2; border-color: #dc2626; }\n");
+    sb.append(".action-btn.success { border-color: #86efac; color: #16a34a; }\n");
+    sb.append(".action-btn.success:hover { background: #f0fdf4; border-color: #16a34a; }\n");
+
+    // Loading / status
+    sb.append(".loading-row td { text-align: center; padding: 40px; color: ").append(WAVE_TEXT_MUTED).append("; }\n");
+    sb.append(".stats-bar { padding: 12px 24px; font-size: 12px; color: ").append(WAVE_TEXT_MUTED).append("; border-top: 1px solid ").append(WAVE_BORDER).append("; }\n");
+
+    // Toast notification
+    sb.append(".toast {\n");
+    sb.append("  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;\n");
+    sb.append("  border-radius: 8px; font-size: 13px; font-weight: 500;\n");
+    sb.append("  box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;\n");
+    sb.append("  transition: opacity 0.3s, transform 0.3s;\n");
+    sb.append("  opacity: 0; transform: translateY(10px); pointer-events: none;\n");
+    sb.append("}\n");
+    sb.append(".toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }\n");
+    sb.append(".toast.success { background: #d1fae5; color: #065f46; }\n");
+    sb.append(".toast.error { background: #fee2e2; color: #991b1b; }\n");
+
+    // Confirm dialog overlay
+    sb.append(".confirm-overlay {\n");
+    sb.append("  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999;\n");
+    sb.append("  display: flex; align-items: center; justify-content: center;\n");
+    sb.append("}\n");
+    sb.append(".confirm-dialog {\n");
+    sb.append("  background: #fff; border-radius: 12px; padding: 24px; max-width: 420px; width: 90%;\n");
+    sb.append("  box-shadow: 0 8px 32px rgba(0,0,0,0.2);\n");
+    sb.append("}\n");
+    sb.append(".confirm-dialog h3 { margin: 0 0 12px; font-size: 16px; }\n");
+    sb.append(".confirm-dialog p { margin: 0 0 20px; font-size: 14px; color: ").append(WAVE_TEXT_MUTED).append("; }\n");
+    sb.append(".confirm-dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; }\n");
+    sb.append(".confirm-dialog .btn {\n");
+    sb.append("  padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;\n");
+    sb.append("}\n");
+    sb.append(".confirm-dialog .btn-cancel { background: #f3f4f6; color: ").append(WAVE_TEXT).append("; }\n");
+    sb.append(".confirm-dialog .btn-cancel:hover { background: #e5e7eb; }\n");
+    sb.append(".confirm-dialog .btn-confirm { background: ").append(WAVE_PRIMARY).append("; color: #fff; }\n");
+    sb.append(".confirm-dialog .btn-confirm:hover { background: #005f8f; }\n");
+    sb.append(".confirm-dialog .btn-danger { background: #dc2626; color: #fff; }\n");
+    sb.append(".confirm-dialog .btn-danger:hover { background: #b91c1c; }\n");
+
+    sb.append("@media (max-width: 768px) {\n");
+    sb.append("  .admin-container { padding: 0 12px; }\n");
+    sb.append("  .admin-card-header { padding: 16px; }\n");
+    sb.append("  .search-box { width: 100%; }\n");
+    sb.append("  .admin-table td, .admin-table th { padding: 8px 10px; }\n");
+    sb.append("}\n");
+    sb.append("</style>\n");
+    sb.append("</head>\n<body>\n");
+
+    // Header
+    sb.append("<div class=\"admin-header\">\n");
+    sb.append("  <div class=\"brand\">").append(WAVE_LOGO_SVG_SMALL);
+    sb.append("<span>SupaWave Admin</span></div>\n");
+    sb.append("  <div class=\"user-info\">\n");
+    sb.append("    ").append(escapeHtml(currentUser)).append("\n");
+    sb.append("    <a href=\"/\">Back to Wave</a>\n");
+    sb.append("    <a href=\"/auth/signout?r=/admin\">Sign Out</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    // Main content
+    sb.append("<div class=\"admin-container\">\n");
+    sb.append("  <div class=\"admin-card\">\n");
+    sb.append("    <div class=\"admin-card-header\">\n");
+    sb.append("      <h2>Users</h2>\n");
+    sb.append("      <input type=\"text\" class=\"search-box\" id=\"searchBox\" placeholder=\"Search by username or email...\" autocomplete=\"off\">\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"admin-table-wrap\">\n");
+    sb.append("      <table class=\"admin-table\">\n");
+    sb.append("        <thead><tr>\n");
+    sb.append("          <th data-sort=\"username\">Username <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"email\">Email <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"registrationTime\">Registered <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"lastLoginTime\">Last Login <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"lastActivityTime\">Last Activity <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"role\">Role <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"tier\">Tier <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"status\">Status <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th>Actions</th>\n");
+    sb.append("        </tr></thead>\n");
+    sb.append("        <tbody id=\"userTableBody\">\n");
+    sb.append("          <tr class=\"loading-row\"><td colspan=\"9\">Loading...</td></tr>\n");
+    sb.append("        </tbody>\n");
+    sb.append("      </table>\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"stats-bar\" id=\"statsBar\"></div>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    // Toast
+    sb.append("<div class=\"toast\" id=\"toast\"></div>\n");
+    // Confirm overlay (hidden by default)
+    sb.append("<div class=\"confirm-overlay\" id=\"confirmOverlay\" style=\"display:none\"></div>\n");
+
+    // JavaScript
+    sb.append("<script>\n");
+    sb.append("(function() {\n");
+    sb.append("  'use strict';\n");
+    sb.append("  var callerRole = ").append(escapeJsonString(callerRole)).append(";\n");
+    sb.append("  var currentUser = ").append(escapeJsonString(currentUser)).append(";\n");
+    sb.append("  var state = { search: '', sortBy: 'username', sortDir: 'asc', page: 0, pageSize: 50, users: [], total: 0, loading: false };\n");
+    sb.append("  var tbody = document.getElementById('userTableBody');\n");
+    sb.append("  var statsBar = document.getElementById('statsBar');\n");
+    sb.append("  var searchBox = document.getElementById('searchBox');\n");
+    sb.append("  var toastEl = document.getElementById('toast');\n");
+    sb.append("  var confirmOverlay = document.getElementById('confirmOverlay');\n");
+    sb.append("  var searchTimer = null;\n");
+    sb.append("  var allLoaded = false;\n");
+
+    // Fetch users
+    sb.append("  function fetchUsers(append) {\n");
+    sb.append("    if (state.loading) return;\n");
+    sb.append("    state.loading = true;\n");
+    sb.append("    if (!append) { state.page = 0; state.users = []; allLoaded = false; }\n");
+    sb.append("    var url = '/admin/api/users?search=' + encodeURIComponent(state.search)\n");
+    sb.append("      + '&sortBy=' + state.sortBy + '&sortDir=' + state.sortDir\n");
+    sb.append("      + '&page=' + state.page + '&pageSize=' + state.pageSize;\n");
+    sb.append("    fetch(url).then(function(r) { return r.json(); }).then(function(data) {\n");
+    sb.append("      state.total = data.total;\n");
+    sb.append("      if (append) {\n");
+    sb.append("        state.users = state.users.concat(data.users);\n");
+    sb.append("      } else {\n");
+    sb.append("        state.users = data.users;\n");
+    sb.append("      }\n");
+    sb.append("      if (data.users.length < state.pageSize) allLoaded = true;\n");
+    sb.append("      render();\n");
+    sb.append("      state.loading = false;\n");
+    sb.append("    }).catch(function(e) {\n");
+    sb.append("      showToast('Failed to load users: ' + e.message, 'error');\n");
+    sb.append("      state.loading = false;\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+
+    // Format timestamp
+    sb.append("  function fmtTime(ts) {\n");
+    sb.append("    if (!ts || ts === 0) return '<span style=\"color:#aaa\">--</span>';\n");
+    sb.append("    var d = new Date(ts);\n");
+    sb.append("    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});\n");
+    sb.append("  }\n");
+
+    // Badge helper
+    sb.append("  function badge(text, cls) {\n");
+    sb.append("    return '<span class=\"badge badge-' + cls + '\">' + esc(text) + '</span>';\n");
+    sb.append("  }\n");
+
+    // Escape HTML
+    sb.append("  function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }\n");
+
+    // Render table
+    sb.append("  function render() {\n");
+    sb.append("    var html = '';\n");
+    sb.append("    if (state.users.length === 0) {\n");
+    sb.append("      html = '<tr class=\"loading-row\"><td colspan=\"9\">' + (state.loading ? 'Loading...' : 'No users found') + '</td></tr>';\n");
+    sb.append("    } else {\n");
+    sb.append("      for (var i = 0; i < state.users.length; i++) {\n");
+    sb.append("        var u = state.users[i];\n");
+    sb.append("        html += '<tr>';\n");
+    sb.append("        html += '<td>' + esc(u.username) + '</td>';\n");
+    sb.append("        html += '<td>' + (u.email ? esc(u.email) : '<span style=\"color:#aaa\">--</span>') + '</td>';\n");
+    sb.append("        html += '<td>' + fmtTime(u.registrationTime) + '</td>';\n");
+    sb.append("        html += '<td>' + fmtTime(u.lastLoginTime) + '</td>';\n");
+    sb.append("        html += '<td>' + fmtTime(u.lastActivityTime) + '</td>';\n");
+    sb.append("        html += '<td>' + badge(u.role, u.role) + '</td>';\n");
+    sb.append("        html += '<td>' + badge(u.tier, u.tier) + '</td>';\n");
+    sb.append("        html += '<td>' + badge(u.status, u.status) + '</td>';\n");
+    sb.append("        html += '<td>' + renderActions(u) + '</td>';\n");
+    sb.append("        html += '</tr>';\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    sb.append("    tbody.innerHTML = html;\n");
+    sb.append("    statsBar.textContent = 'Showing ' + state.users.length + ' of ' + state.total + ' users';\n");
+    // Update sort arrows
+    sb.append("    document.querySelectorAll('.admin-table th[data-sort]').forEach(function(th) {\n");
+    sb.append("      var arrow = th.querySelector('.sort-arrow');\n");
+    sb.append("      if (th.dataset.sort === state.sortBy) {\n");
+    sb.append("        arrow.textContent = state.sortDir === 'asc' ? '\\u25B2' : '\\u25BC';\n");
+    sb.append("      } else { arrow.textContent = ''; }\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+
+    // Render action buttons
+    sb.append("  function renderActions(u) {\n");
+    sb.append("    if (u.role === 'owner') return '<span style=\"color:#aaa;font-size:11px\">Owner</span>';\n");
+    sb.append("    var html = '';\n");
+    // Role actions (owner only)
+    sb.append("    if (callerRole === 'owner') {\n");
+    sb.append("      if (u.role === 'admin') {\n");
+    sb.append("        html += '<button class=\"action-btn\" onclick=\"adminAction(\\'role\\',\\'' + esc(u.username) + '\\',\\'user\\',\\'Remove admin role from ' + esc(u.username) + '?\\')\">");
+    sb.append("Remove Admin</button>';\n");
+    sb.append("      } else {\n");
+    sb.append("        html += '<button class=\"action-btn\" onclick=\"adminAction(\\'role\\',\\'' + esc(u.username) + '\\',\\'admin\\',\\'Make ' + esc(u.username) + ' an admin?\\')\">");
+    sb.append("Make Admin</button>';\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    // Status actions
+    sb.append("    if (u.status === 'active') {\n");
+    sb.append("      html += '<button class=\"action-btn danger\" onclick=\"adminAction(\\'status\\',\\'' + esc(u.username) + '\\',\\'suspended\\',\\'Suspend ' + esc(u.username) + '? They will be logged out.\\')\">");
+    sb.append("Suspend</button>';\n");
+    sb.append("      html += '<button class=\"action-btn danger\" onclick=\"adminAction(\\'status\\',\\'' + esc(u.username) + '\\',\\'banned\\',\\'Ban ' + esc(u.username) + '? They will be in read-only mode.\\')\">");
+    sb.append("Ban</button>';\n");
+    sb.append("    } else if (u.status === 'suspended') {\n");
+    sb.append("      html += '<button class=\"action-btn success\" onclick=\"adminAction(\\'status\\',\\'' + esc(u.username) + '\\',\\'active\\',\\'Unsuspend ' + esc(u.username) + '?\\')\">");
+    sb.append("Unsuspend</button>';\n");
+    sb.append("    } else if (u.status === 'banned') {\n");
+    sb.append("      html += '<button class=\"action-btn success\" onclick=\"adminAction(\\'status\\',\\'' + esc(u.username) + '\\',\\'active\\',\\'Unban ' + esc(u.username) + '?\\')\">");
+    sb.append("Unban</button>';\n");
+    sb.append("    }\n");
+    sb.append("    return html;\n");
+    sb.append("  }\n");
+
+    // Action handler with confirmation
+    sb.append("  window.adminAction = function(type, username, value, message) {\n");
+    sb.append("    confirmOverlay.style.display = 'flex';\n");
+    sb.append("    var isDanger = (value === 'suspended' || value === 'banned');\n");
+    sb.append("    confirmOverlay.innerHTML = '<div class=\"confirm-dialog\">' +\n");
+    sb.append("      '<h3>Confirm Action</h3>' +\n");
+    sb.append("      '<p>' + esc(message) + '</p>' +\n");
+    sb.append("      '<div class=\"buttons\">' +\n");
+    sb.append("        '<button class=\"btn btn-cancel\" id=\"confirmCancel\">Cancel</button>' +\n");
+    sb.append("        '<button class=\"btn ' + (isDanger ? 'btn-danger' : 'btn-confirm') + '\" id=\"confirmOk\">Confirm</button>' +\n");
+    sb.append("      '</div></div>';\n");
+    sb.append("    document.getElementById('confirmCancel').onclick = function() { confirmOverlay.style.display = 'none'; };\n");
+    sb.append("    document.getElementById('confirmOk').onclick = function() {\n");
+    sb.append("      confirmOverlay.style.display = 'none';\n");
+    sb.append("      doAction(type, username, value);\n");
+    sb.append("    };\n");
+    sb.append("  };\n");
+
+    // Execute action
+    sb.append("  function doAction(type, username, value) {\n");
+    sb.append("    var url = '/admin/api/users/' + encodeURIComponent(username) + '/' + type;\n");
+    sb.append("    var body = type === 'role' ? JSON.stringify({role: value}) : JSON.stringify({status: value});\n");
+    sb.append("    fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: body})\n");
+    sb.append("      .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })\n");
+    sb.append("      .then(function(res) {\n");
+    sb.append("        if (res.ok) {\n");
+    sb.append("          showToast('Updated ' + username + ' successfully', 'success');\n");
+    sb.append("          fetchUsers(false);\n");
+    sb.append("        } else {\n");
+    sb.append("          showToast(res.data.error || 'Action failed', 'error');\n");
+    sb.append("        }\n");
+    sb.append("      }).catch(function(e) { showToast('Network error: ' + e.message, 'error'); });\n");
+    sb.append("  }\n");
+
+    // Toast
+    sb.append("  function showToast(msg, type) {\n");
+    sb.append("    toastEl.textContent = msg;\n");
+    sb.append("    toastEl.className = 'toast show ' + type;\n");
+    sb.append("    setTimeout(function() { toastEl.className = 'toast'; }, 3000);\n");
+    sb.append("  }\n");
+
+    // Search handler
+    sb.append("  searchBox.addEventListener('input', function() {\n");
+    sb.append("    clearTimeout(searchTimer);\n");
+    sb.append("    searchTimer = setTimeout(function() {\n");
+    sb.append("      state.search = searchBox.value;\n");
+    sb.append("      fetchUsers(false);\n");
+    sb.append("    }, 300);\n");
+    sb.append("  });\n");
+
+    // Sort handler
+    sb.append("  document.querySelectorAll('.admin-table th[data-sort]').forEach(function(th) {\n");
+    sb.append("    th.addEventListener('click', function() {\n");
+    sb.append("      var col = th.dataset.sort;\n");
+    sb.append("      if (state.sortBy === col) {\n");
+    sb.append("        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';\n");
+    sb.append("      } else {\n");
+    sb.append("        state.sortBy = col;\n");
+    sb.append("        state.sortDir = 'asc';\n");
+    sb.append("      }\n");
+    sb.append("      fetchUsers(false);\n");
+    sb.append("    });\n");
+    sb.append("  });\n");
+
+    // Infinite scroll
+    sb.append("  window.addEventListener('scroll', function() {\n");
+    sb.append("    if (allLoaded || state.loading) return;\n");
+    sb.append("    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {\n");
+    sb.append("      state.page++;\n");
+    sb.append("      fetchUsers(true);\n");
+    sb.append("    }\n");
+    sb.append("  });\n");
+
+    // Initial load
+    sb.append("  fetchUsers(false);\n");
+    sb.append("})();\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
+  // 14. Analytics Fragment (private helper)
   // =========================================================================
 
   /**

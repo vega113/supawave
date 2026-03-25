@@ -26,6 +26,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.HttpRequestBasedCallbackHandler;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
@@ -169,6 +170,8 @@ public final class UserRegistrationServlet extends HttpServlet {
       if (!normalizedEmail.isEmpty()) {
         account.setEmail(normalizedEmail);
       }
+      account.setRegistrationTime(System.currentTimeMillis());
+      assignOwnerIfFirst(account);
       try {
         accountStore.putAccount(account);
       } catch (PersistenceException e) {
@@ -195,6 +198,8 @@ public final class UserRegistrationServlet extends HttpServlet {
       if (!normalizedEmail.isEmpty()) {
         account.setEmail(normalizedEmail);
       }
+      account.setRegistrationTime(System.currentTimeMillis());
+      assignOwnerIfFirst(account);
       try {
         accountStore.putAccount(account);
       } catch (PersistenceException e) {
@@ -236,6 +241,21 @@ public final class UserRegistrationServlet extends HttpServlet {
         + "<p>If you did not register, you can safely ignore this email.</p>"
         + "<p>This link will expire in 24 hours.</p>"
         + "</body></html>";
+  }
+
+  /**
+   * If no other accounts exist yet, promote this account to "owner".
+   */
+  private void assignOwnerIfFirst(HumanAccountDataImpl account) {
+    try {
+      long count = accountStore.getAccountCount();
+      if (count == 0) {
+        account.setRole(HumanAccountData.ROLE_OWNER);
+        LOG.info("First registration — assigning owner role to " + account.getId());
+      }
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to check account count for owner assignment", e);
+    }
   }
 
   private void writeRegistrationPage(String message, String responseType,

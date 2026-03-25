@@ -122,6 +122,43 @@ public class FileAccountStore implements AccountStore {
   }
 
   @Override
+  public java.util.List<AccountData> getAllAccounts() throws PersistenceException {
+    synchronized (accounts) {
+      // Ensure all on-disk accounts are loaded
+      File dir = new File(accountStoreBasePath);
+      File[] files = dir.listFiles((d, name) -> name.endsWith(ACCOUNT_FILE_EXTENSION));
+      if (files != null) {
+        for (File f : files) {
+          String fileName = f.getName();
+          String addr = fileName.substring(0, fileName.length() - ACCOUNT_FILE_EXTENSION.length());
+          ParticipantId pid;
+          try {
+            pid = ParticipantId.of(addr);
+          } catch (Exception e) {
+            continue;
+          }
+          if (!accounts.containsKey(pid)) {
+            AccountData account = readAccount(pid);
+            if (account != null) {
+              accounts.put(pid, account);
+            }
+          }
+        }
+      }
+      return new java.util.ArrayList<>(accounts.values());
+    }
+  }
+
+  @Override
+  public long getAccountCount() throws PersistenceException {
+    synchronized (accounts) {
+      File dir = new File(accountStoreBasePath);
+      File[] files = dir.listFiles((d, name) -> name.endsWith(ACCOUNT_FILE_EXTENSION));
+      return files != null ? files.length : 0;
+    }
+  }
+
+  @Override
   public void removeAccount(ParticipantId id) throws PersistenceException {
     synchronized (accounts) {
       File file = new File(participantIdToFileName(id));

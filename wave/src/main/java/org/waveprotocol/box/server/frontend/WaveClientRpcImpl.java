@@ -381,6 +381,27 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       channelId = null;
     }
     ParticipantId loggedInUser = asBoxController(controller).getLoggedInUser();
+
+    // Enforce read-only mode for banned users
+    if (loggedInUser != null) {
+      try {
+        org.waveprotocol.box.server.persistence.AccountStore store =
+            org.waveprotocol.box.server.authentication.AccountStoreHolder.getAccountStore();
+        org.waveprotocol.box.server.account.AccountData acct = store.getAccount(loggedInUser);
+        if (acct != null && acct.isHuman()
+            && "banned".equals(acct.asHuman().getStatus())) {
+          done.run(ProtocolSubmitResponse.newBuilder()
+              .setOperationsApplied(0)
+              .setErrorMessage("Your account is in read-only mode.")
+              .build());
+          return;
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check ban status for " + loggedInUser, e);
+        // Allow submission to proceed if ban check fails
+      }
+    }
+
     frontend.submitRequest(loggedInUser, waveletName, request.getDelta(), channelId,
         new SubmitRequestListener() {
           @Override

@@ -82,6 +82,19 @@ public class ProtoAccountDataSerializer {
       builder.setEmail(account.getEmail());
     }
     builder.setEmailConfirmed(account.isEmailConfirmed());
+    // Admin / role / status fields
+    builder.setRole(account.getRole());
+    builder.setStatus(account.getStatus());
+    builder.setTier(account.getTier());
+    if (account.getRegistrationTime() != 0) {
+      builder.setRegistrationTime(account.getRegistrationTime());
+    }
+    if (account.getLastLoginTime() != 0) {
+      builder.setLastLoginTime(account.getLastLoginTime());
+    }
+    if (account.getLastActivityTime() != 0) {
+      builder.setLastActivityTime(account.getLastActivityTime());
+    }
     return builder.build();
   }
 
@@ -160,6 +173,25 @@ public class ProtoAccountDataSerializer {
     }
     if (data.hasEmailConfirmed()) {
       account.setEmailConfirmed(data.getEmailConfirmed());
+    }
+    // Admin / role / status fields
+    if (data.hasRole()) {
+      account.setRole(data.getRole());
+    }
+    if (data.hasStatus()) {
+      account.setStatus(data.getStatus());
+    }
+    if (data.hasTier()) {
+      account.setTier(data.getTier());
+    }
+    if (data.hasRegistrationTime()) {
+      account.setRegistrationTime(data.getRegistrationTime());
+    }
+    if (data.hasLastLoginTime()) {
+      account.setLastLoginTime(data.getLastLoginTime());
+    }
+    if (data.hasLastActivityTime()) {
+      account.setLastActivityTime(data.getLastActivityTime());
     }
     return account;
   }

@@ -25,6 +25,7 @@ import com.google.gwt.user.client.Window;
 
 import org.waveprotocol.wave.client.common.util.WaveRefConstants;
 import org.waveprotocol.wave.client.editor.content.ContentDocument;
+import org.waveprotocol.wave.client.util.ClientFlags;
 import org.waveprotocol.wave.client.wave.InteractiveDocument;
 import org.waveprotocol.wave.client.wave.WaveDocuments;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.i18n.ActionMessages;
@@ -121,6 +122,17 @@ public final class ActionsImpl implements Actions {
     boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
     if (allowed) {
       ConversationBlip blip = views.getBlip(blipUi);
+
+      // Phase 0 guardrail: enforce maximum reply nesting depth.
+      Integer maxDepth = ClientFlags.get().maxReplyDepth();
+      if (maxDepth != null && maxDepth > 0) {
+        int currentDepth = computeBlipDepth(blip);
+        if (currentDepth >= maxDepth) {
+          Window.alert(messages.maxReplyDepthReached());
+          return;
+        }
+      }
+
       ContentDocument doc = documents.get(blip).getDocument();
       // Insert the reply at a good spot near the current selection, or use the
       // end of the document as a fallback.
@@ -132,6 +144,21 @@ public final class ActionsImpl implements Actions {
       blipQueue.flush();
       focusAndEdit(views.getBlipView(reply));
     }
+  }
+
+  /**
+   * Computes the nesting depth of a blip by walking up the thread/blip
+   * hierarchy. A blip in the root thread has depth 0.
+   */
+  private static int computeBlipDepth(ConversationBlip blip) {
+    int depth = 0;
+    ConversationThread thread = blip.getThread();
+    while (thread != null && thread.getParentBlip() != null) {
+      depth++;
+      ConversationBlip parent = thread.getParentBlip();
+      thread = parent.getThread();
+    }
+    return depth;
   }
 
   @Override

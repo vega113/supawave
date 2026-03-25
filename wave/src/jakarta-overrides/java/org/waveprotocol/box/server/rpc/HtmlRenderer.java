@@ -1062,6 +1062,31 @@ public final class HtmlRenderer {
       + "  opacity: 0.5;\n"
       + "}\n"
 
+      // --- Phase 1: Depth-clamped inline reply indentation ---
+      // Replace heavy per-level indentation with thin depth lines.
+      // data-depth is emitted on collapsible inline-thread containers.
+      + "[data-depth=\"0\"] > div > div { margin-left: 1em; }\n"
+      + "[data-depth=\"1\"] > div > div { margin-left: 0.8em; }\n"
+      + "[data-depth=\"2\"] > div > div { margin-left: 0.6em; }\n"
+      + "[data-depth=\"3\"] > div > div { margin-left: 0.4em; }\n"
+      + "[data-depth] > div > div {\n"
+      + "  border-left: 2px solid rgba(0,119,182,0.15);\n"
+      + "  padding-left: 8px;\n"
+      + "}\n"
+      // Depth >= 4: minimal indent to prevent runaway nesting
+      + "[data-depth=\"4\"] > div > div,\n"
+      + "[data-depth=\"5\"] > div > div {\n"
+      + "  margin-left: 0.2em;\n"
+      + "}\n"
+
+      // Mobile: zero indent, full-width blips
+      + "@media (max-width: 768px) {\n"
+      + "  [data-depth] > div > div {\n"
+      + "    margin-left: 0 !important;\n"
+      + "    padding-left: 4px;\n"
+      + "  }\n"
+      + "}\n"
+
       + "/* ===== End SupaWave Panel Theme ===== */\n";
 
   // =========================================================================

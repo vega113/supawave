@@ -1227,6 +1227,8 @@ public final class HtmlRenderer {
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
     sb.append("}\n");
     sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
+    // Icon color is always white; state is shown by a small colored dot via ::after
+    sb.append(".topbar-icon svg { stroke: white !important; color: white !important; }\n");
     // -- Status indicator dots (::after pseudo-element badges) --
     sb.append(".topbar-icon::after {\n");
     sb.append("  content: ''; position: absolute; bottom: 2px; right: 2px;\n");
@@ -1668,7 +1670,7 @@ public final class HtmlRenderer {
       sb.append("      <select id=\"lang\" size=\"1\"></select>\n");
       sb.append("    </div>\n");
       // -- Save status indicator: cloud-check icon, updated by GWT --
-      sb.append("    <span id=\"unsavedStateContainer\" class=\"topbar-icon\" title=\"All changes saved\">");
+      sb.append("    <span id=\"unsavedStateContainer\" class=\"topbar-icon saved\" title=\"All changes saved\">");
       sb.append(ICON_CLOUD_CHECK).append("</span>\n");
       // -- Connection status: wifi-off icon for initial offline state, updated by GWT --
       sb.append("    <span id=\"netstatus\" class=\"topbar-icon offline\" title=\"Offline\">");

@@ -1001,11 +1001,7 @@ public final class HtmlRenderer {
     // -- Navigation --
     sb.append("<nav class=\"nav\">\n");
     sb.append("  <div class=\"nav-brand\">\n");
-    sb.append("    <svg width=\"32\" height=\"32\" viewBox=\"0 0 48 48\" fill=\"none\">\n");
-    sb.append("      <circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"").append(WAVE_PRIMARY).append("\"/>\n");
-    sb.append("      <path d=\"M10 28 Q16 16 22 28 Q28 40 34 28 Q38 20 38 20\" ");
-    sb.append("stroke=\"white\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\"/>\n");
-    sb.append("    </svg>\n");
+    sb.append("    ").append(WAVE_LOGO_SVG_SMALL.replace("width=\"28\" height=\"28\"", "width=\"32\" height=\"32\""));
     sb.append("    <span class=\"nav-brand-name\">SupaWave</span>\n");
     sb.append("  </div>\n");
     sb.append("  <div class=\"nav-links\">\n");

@@ -1,0 +1,82 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ *
+ * CSS for thread slide navigation and breadcrumb bar.
+ */
+
+/* --- Breadcrumb bar --- */
+.breadcrumb {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  line-height: 28px;
+  z-index: 1000;
+  background-color: #0077b6;
+  color: white;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.breadcrumbSegment {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+
+.breadcrumbSegment:hover {
+  color: white;
+  text-decoration: underline;
+}
+
+.breadcrumbSeparator {
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 2px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.breadcrumbCurrent {
+  color: white;
+  font-weight: bold;
+}
+
+/* --- Slide transition --- */
+.slideNavActive {
+  transition: transform 220ms ease-out, opacity 220ms ease-out;
+  transform: translateX(0);
+  width: 100%;
+}
+
+.slideNavHidden {
+  display: none !important;
+}
+
+/* --- Respect prefers-reduced-motion --- */
+@media (prefers-reduced-motion: reduce) {
+  .slideNavActive {
+    transition: none;
+  }
+}

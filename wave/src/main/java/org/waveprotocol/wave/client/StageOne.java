@@ -31,6 +31,8 @@ import org.waveprotocol.wave.client.wavepanel.event.FocusManager;
 import org.waveprotocol.wave.client.wavepanel.impl.WavePanelImpl;
 import org.waveprotocol.wave.client.wavepanel.impl.collapse.CollapseBuilder;
 import org.waveprotocol.wave.client.wavepanel.impl.collapse.CollapsePresenter;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.ThreadNavigationBuilder;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.ThreadNavigationPresenter;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFrameBuilder;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFramePresenter;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
@@ -57,6 +59,9 @@ public interface StageOne {
   /** @return the collapse feature. */
   CollapsePresenter getCollapser();
 
+  /** @return the thread navigation feature for deeply nested replies. */
+  ThreadNavigationPresenter getThreadNavigator();
+
   /** @return the provider of view objects from DOM elements. */
   UpgradeableDomAsViewProvider getDomAsViewProvider();
 
@@ -70,6 +75,7 @@ public interface StageOne {
     private WavePanelImpl wavePanel;
     private FocusFramePresenter focus;
     private CollapsePresenter collapser;
+    private ThreadNavigationPresenter threadNavigator;
     private UpgradeableDomAsViewProvider views;
 
     public DefaultProvider(StageZero previous) {
@@ -107,6 +113,12 @@ public interface StageOne {
     @Override
     public final CollapsePresenter getCollapser() {
       return collapser == null ? collapser = createCollapsePresenter() : collapser;
+    }
+
+    @Override
+    public final ThreadNavigationPresenter getThreadNavigator() {
+      return threadNavigator == null
+          ? threadNavigator = createThreadNavigator() : threadNavigator;
     }
 
     @Override
@@ -152,6 +164,11 @@ public interface StageOne {
     protected CollapsePresenter createCollapsePresenter() {
       return CollapseBuilder.createAndInstallIn(getWavePanel());
     }
+
+    /** @return the thread navigation feature. Subclasses may override. */
+    protected ThreadNavigationPresenter createThreadNavigator() {
+      return ThreadNavigationBuilder.createAndInstallIn(getWavePanel(), getCollapser());
+    }
     
     /** @return the source of CSS rules to apply in views. */
     protected CssProvider createCssProvider() {
@@ -170,6 +187,7 @@ public interface StageOne {
       // Eagerly install some features.
       getFocusFrame();
       getCollapser();
+      getThreadNavigator();
 
       // Install wave panel into focus framework.
       FocusManager focus = FocusManager.getRoot();

@@ -208,8 +208,9 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     } else {
       ContinuationIndicatorViewBuilder indicatorBuilder = ContinuationIndicatorViewBuilder.create(
           replyIndicatorId);
+      int depth = computeThreadDepth(thread);
       InlineThreadViewBuilder inlineBuilder =
-          InlineThreadViewBuilder.create(threadId, blipsUi, indicatorBuilder);
+          InlineThreadViewBuilder.create(threadId, blipsUi, indicatorBuilder, depth);
       int read = readMonitor.getReadCount(thread);
       int unread = readMonitor.getUnreadCount(thread);
       inlineBuilder.setTotalBlipCount(read + unread);
@@ -284,5 +285,24 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
   public UiBuilder render(ConversationThread thread, UiBuilder threadR) {
     String id = EscapeUtils.htmlEscape(viewIdMapper.defaultAnchorOf(thread));
     return AnchorViewBuilder.create(id, threadR);
+  }
+
+  /**
+   * Computes the nesting depth of an inline thread by walking up the
+   * parent-blip / parent-thread chain. The root thread is depth 0, so
+   * the first inline reply thread is depth 1, its child is depth 2, etc.
+   */
+  private static int computeThreadDepth(ConversationThread thread) {
+    int depth = 0;
+    ConversationBlip parentBlip = thread.getParentBlip();
+    while (parentBlip != null) {
+      ConversationThread parentThread = parentBlip.getThread();
+      if (parentThread == null || parentThread == thread.getConversation().getRootThread()) {
+        break;
+      }
+      depth++;
+      parentBlip = parentThread.getParentBlip();
+    }
+    return depth;
   }
 }

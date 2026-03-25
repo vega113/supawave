@@ -74,6 +74,10 @@ final class ImageThumbnailNodeEventHandler extends NodeEventHandlerImpl {
           }
         }
       }
+      public void onRequestSetDisplaySize(String size) {
+        element.getMutableDoc().setElementAttribute(element,
+            ImageThumbnail.DISPLAY_SIZE_ATTR, size);
+      }
     });
   }
 

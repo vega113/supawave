@@ -37,6 +37,16 @@ public interface AttachmentPopupView {
     void onShow();
 
     void onDone(String waveId, String id, String fileName);
+
+    /**
+     * Called when upload completes with a display size selection.
+     *
+     * @param waveId the wave reference
+     * @param id the attachment id
+     * @param fileName the file name
+     * @param displaySize the selected display size: "small", "medium", or "large"
+     */
+    void onDoneWithSize(String waveId, String id, String fileName, String displaySize);
   }
 
   /**

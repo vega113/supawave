@@ -219,11 +219,25 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
 
   @Override
   public void clearDigests() {
+    removeSkeletonLoader();
     while (!digests.isEmpty()) {
       digests.getFirst().remove(); // onDigestRemoved removes it from digests.
     }
     assert digests.isEmpty();
   }
+
+  /**
+   * Removes the server-rendered skeleton loading placeholder from the DOM.
+   * The skeleton is shown instantly in the HTML page before GWT initializes
+   * to give users immediate visual feedback. Once the real search panel is
+   * ready, this method ensures it is cleaned up.
+   */
+  private static native void removeSkeletonLoader() /*-{
+    var skel = $doc.getElementById('wave-list-skeleton');
+    if (skel && skel.parentNode) {
+      skel.parentNode.removeChild(skel);
+    }
+  }-*/;
 
   @Override
   public void setShowMoreVisible(boolean visible) {

@@ -408,7 +408,7 @@ public class AttachmentServlet extends HttpServlet {
     } catch (Throwable t) {
       LOG.fine("Thumbnail selection encountered an error; generating fallback image", t);
     }
-    return generatedPatternPng();
+    return generateFileTypeThumbnail(contentType);
   }
 
   private static String safeFileNameForContentType(String contentType) {
@@ -427,15 +427,92 @@ public class AttachmentServlet extends HttpServlet {
   }
 
   private static AttachmentData generatedPatternPng() throws IOException {
+    return generateFileTypeThumbnail(null);
+  }
+
+  /**
+   * Generates a colored file-type thumbnail with a label based on the MIME type.
+   * This provides visual differentiation for non-image attachments (PDF, video, etc.).
+   */
+  private static AttachmentData generateFileTypeThumbnail(String contentType) throws IOException {
     int w = org.waveprotocol.box.server.attachment.AttachmentService.THUMBNAIL_PATTERN_WIDTH;
     int h = org.waveprotocol.box.server.attachment.AttachmentService.THUMBNAIL_PATTERN_HEIGHT;
     BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
     java.awt.Graphics2D g = img.createGraphics();
     try {
-      g.setColor(new Color(230,230,230));
-      g.fillRect(0,0,w,h);
-      g.setColor(new Color(200,200,200));
-      for (int y = 0; y < h; y += 6) { g.fillRect(0, y, w, 3); }
+      g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+          java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+      g.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
+          java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+      // Determine color and label based on content type
+      Color bgColor;
+      String label;
+      if (contentType == null) {
+        bgColor = new Color(117, 117, 117); // gray
+        label = "FILE";
+      } else {
+        String ct = contentType.toLowerCase();
+        if (ct.equals("application/pdf")) {
+          bgColor = new Color(229, 57, 53); // red
+          label = "PDF";
+        } else if (ct.startsWith("video/")) {
+          bgColor = new Color(123, 31, 162); // purple
+          label = "VIDEO";
+        } else if (ct.startsWith("audio/")) {
+          bgColor = new Color(0, 137, 123); // teal
+          label = "AUDIO";
+        } else if (ct.startsWith("text/") || ct.equals("application/json")
+            || ct.equals("application/xml")) {
+          bgColor = new Color(84, 110, 122); // blue-gray
+          label = "TEXT";
+        } else if (ct.contains("spreadsheet") || ct.contains("excel")) {
+          bgColor = new Color(46, 125, 50); // green
+          label = "XLS";
+        } else if (ct.contains("presentation") || ct.contains("powerpoint")) {
+          bgColor = new Color(230, 81, 0); // orange
+          label = "PPT";
+        } else if (ct.contains("document") || ct.contains("word") || ct.contains("rtf")) {
+          bgColor = new Color(21, 101, 192); // blue
+          label = "DOC";
+        } else if (ct.contains("zip") || ct.contains("tar") || ct.contains("compress")
+            || ct.contains("rar") || ct.contains("7z")) {
+          bgColor = new Color(121, 85, 72); // brown
+          label = "ZIP";
+        } else {
+          bgColor = new Color(117, 117, 117); // gray
+          label = "FILE";
+        }
+      }
+
+      // Draw rounded rect background
+      g.setColor(bgColor);
+      g.fillRoundRect(0, 0, w, h, 8, 8);
+
+      // Draw document icon shape (simplified)
+      g.setColor(new Color(255, 255, 255, 180));
+      int iconW = 24;
+      int iconH = 30;
+      int iconX = (w - iconW) / 2;
+      int iconY = (h - iconH) / 2 - 6;
+      g.fillRoundRect(iconX, iconY, iconW, iconH, 3, 3);
+      // Folded corner
+      g.setColor(bgColor);
+      int foldSize = 7;
+      int[] xPoints = {iconX + iconW - foldSize, iconX + iconW, iconX + iconW};
+      int[] yPoints = {iconY, iconY, iconY + foldSize};
+      g.fillPolygon(xPoints, yPoints, 3);
+      g.setColor(new Color(255, 255, 255, 120));
+      int[] xFold = {iconX + iconW - foldSize, iconX + iconW - foldSize, iconX + iconW};
+      int[] yFold = {iconY, iconY + foldSize, iconY + foldSize};
+      g.fillPolygon(xFold, yFold, 3);
+
+      // Draw label text
+      g.setColor(Color.WHITE);
+      g.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 10));
+      java.awt.FontMetrics fm = g.getFontMetrics();
+      int textW = fm.stringWidth(label);
+      g.drawString(label, (w - textW) / 2, h - 6);
     } finally { g.dispose(); }
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ImageIO.write(img, THUMBNAIL_PATTERN_FORMAT_NAME, baos);

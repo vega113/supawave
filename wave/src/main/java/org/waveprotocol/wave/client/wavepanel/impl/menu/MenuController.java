@@ -79,10 +79,8 @@ public final class MenuController implements WaveMouseDownHandler {
         actions.reply(item.getParent().getParent());
         break;
       case DELETE:
-        // We delete the blip without confirmation if shift key is pressed
-        if (event.getNativeEvent().getShiftKey() || Window.confirm(messages.confirmDeletion())) {
-          actions.delete(item.getParent().getParent());
-        }
+        // Soft delete with undo toast — no confirmation dialog needed
+        actions.delete(item.getParent().getParent());
         break;
       case LINK:
         actions.popupLink(item.getParent().getParent());

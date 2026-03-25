@@ -49,6 +49,13 @@ message ProtoHumanAccountData {
 	optional ProtoPasswordDigest password_digest = 1;
 	optional string email = 2;
 	optional bool email_confirmed = 3 [default = true];
+	// Admin / role / status fields (added for admin page)
+	optional string role = 4 [default = "user"];
+	optional string status = 5 [default = "active"];
+	optional string tier = 6 [default = "free"];
+	optional int64 registration_time = 7;
+	optional int64 last_login_time = 8;
+	optional int64 last_activity_time = 9;
 }
 
 // The values from a PAsswordDigest instance

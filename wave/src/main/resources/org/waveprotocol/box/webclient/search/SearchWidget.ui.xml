@@ -30,17 +30,27 @@
   <g:HTMLPanel styleName='{css.self}'>
    <div class='{css.search}'>
      <div class='{css.searchButtonsPanel}'>
-       <g:Button ui:field='searchButtonShared' title='Show shared waves'
+       <g:Button ui:field='searchButtonShared' title='Waves shared with me'
            styleName='{css.searchButton}'><ui:text from="{msg.shared}"/></g:Button>
-       <g:Button ui:field='searchButtonAll' title='Show all waves'
+       <g:Button ui:field='searchButtonAll' title='Public waves visible to everyone'
            styleName='{css.searchButton}'><ui:text from="{msg.all}"/></g:Button>
-       <g:Button ui:field='searchButtonInbox' title='Show waves in my inbox'
+       <g:Button ui:field='searchButtonInbox' title='My inbox'
            styleName='{css.searchButton}'><ui:text from="{msg.inbox}"/></g:Button>
-       <g:Button ui:field='searchButtonArchive' title='Show archived waves'
+       <g:Button ui:field='searchButtonArchive' title='My archived waves'
            styleName='{css.searchButton}'><ui:text from="{msg.archive}"/></g:Button>
      </div>
      <div class='{css.searchboxContainer}'>
        <g:TextBox ui:field='query' styleName='{css.query}'/>
+     </div>
+     <div class='{css.searchButtonsPanel}'>
+       <g:Button ui:field='searchButtonShared' title='Shared waves'
+           styleName='{css.searchButton}'>S</g:Button>
+       <g:Button ui:field='searchButtonAll' title='All waves'
+           styleName='{css.searchButton}'>A</g:Button>
+       <g:Button ui:field='searchButtonInbox' title='Inbox'
+           styleName='{css.searchButton}'>I</g:Button>
+       <g:Button ui:field='searchButtonArchive' title='Archive'
+           styleName='{css.searchButton}'>X</g:Button>
      </div>
    </div>
   </g:HTMLPanel>

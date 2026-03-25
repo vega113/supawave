@@ -102,26 +102,70 @@ public final class HtmlRenderer {
       + "  box-shadow: 0 0 0 3px rgba(0,119,182,0.10);\n"
       + "}\n"
 
-      // Filter buttons (Shared / All / Inbox) – scoped to search panel
-      // to avoid breaking fixed-dimension toolbars elsewhere
+      // Filter icon buttons (Shared / All / Inbox / Archive) – scoped
+      // to the search panel.  Now icon-only circles with SVG content.
       + "#app [kind=\"c\"] .gwt-Button {\n"
       + "  box-sizing: border-box;\n"
-      + "  border: 1.5px solid " + WAVE_BORDER + ";\n"
-      + "  border-radius: 16px;\n"
-      + "  background: #fff;\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  width: 32px;\n"
+      + "  height: 32px;\n"
+      + "  min-width: 32px;\n"
+      + "  padding: 0;\n"
+      + "  border: 1.5px solid transparent;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: transparent;\n"
       + "  color: " + WAVE_TEXT_MUTED + ";\n"
-      + "  font-family: " + WAVE_FONT + ";\n"
-      + "  font-size: 12px;\n"
-      + "  font-weight: 500;\n"
-      + "  padding: 4px 14px;\n"
+      + "  font-size: 0;\n"          // hide any remaining text
       + "  cursor: pointer;\n"
-      + "  transition: all 0.15s ease;\n"
-      + "  line-height: 1.4;\n"
+      + "  transition: all 0.18s ease;\n"
       + "}\n"
       + "#app [kind=\"c\"] .gwt-Button:hover {\n"
       + "  border-color: " + WAVE_PRIMARY + ";\n"
       + "  color: " + WAVE_PRIMARY + ";\n"
-      + "  background: rgba(0,119,182,0.04);\n"
+      + "  background: rgba(0,119,182,0.08);\n"
+      + "}\n"
+      + "#app [kind=\"c\"] .gwt-Button:active {\n"
+      + "  background: rgba(0,119,182,0.18);\n"
+      + "  transform: scale(0.92);\n"
+      + "}\n"
+      + "#app [kind=\"c\"] .gwt-Button svg {\n"
+      + "  display: block;\n"
+      + "}\n"
+
+      // Mobile: enlarge touch targets on narrow screens
+      + "@media (max-width: 480px) {\n"
+      + "  #app [kind=\"c\"] .gwt-Button {\n"
+      + "    width: 36px;\n"
+      + "    height: 36px;\n"
+      + "    min-width: 36px;\n"
+      + "  }\n"
+      + "}\n"
+
+      // --- Prominent "New Wave" toolbar button (pill-shaped, ocean gradient) ---
+      + "#app [data-action=\"new-wave\"] {\n"
+      + "  background: linear-gradient(135deg, " + WAVE_PRIMARY + ", #00b4d8) !important;\n"
+      + "  color: #fff !important;\n"
+      + "  border: none !important;\n"
+      + "  border-radius: 16px !important;\n"
+      + "  padding: 4px 14px !important;\n"
+      + "  font-weight: 600 !important;\n"
+      + "  font-size: 12px !important;\n"
+      + "  font-family: " + WAVE_FONT + " !important;\n"
+      + "  cursor: pointer;\n"
+      + "  box-shadow: 0 2px 8px rgba(0,119,182,0.25);\n"
+      + "  transition: all 0.2s ease;\n"
+      + "  letter-spacing: 0.02em;\n"
+      + "}\n"
+      + "#app [data-action=\"new-wave\"]:hover {\n"
+      + "  background: linear-gradient(135deg, #005f8f, #0096c7) !important;\n"
+      + "  box-shadow: 0 4px 14px rgba(0,119,182,0.35);\n"
+      + "  transform: translateY(-1px);\n"
+      + "}\n"
+      + "#app [data-action=\"new-wave\"]:active {\n"
+      + "  transform: translateY(0);\n"
+      + "  box-shadow: 0 1px 4px rgba(0,119,182,0.3);\n"
       + "}\n"
 
       // --- Digest list items (wave inbox) ---
@@ -194,8 +238,9 @@ public final class HtmlRenderer {
       + "  display: inline-flex !important;\n"
       + "  align-items: center;\n"
       + "  justify-content: center;\n"
-      + "  width: 32px !important;\n"
-      + "  height: 32px !important;\n"
+      + "  width: 26px !important;\n"
+      + "  height: 26px !important;\n"
+      + "  flex-shrink: 0;\n"
       + "  border-radius: 50% !important;\n"
       + "  background: linear-gradient(135deg, #48cae4, #00b4d8) !important;\n"
       + "  color: #fff !important;\n"
@@ -203,7 +248,7 @@ public final class HtmlRenderer {
       + "  box-shadow: 0 2px 6px rgba(0,180,216,0.3);\n"
       + "  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;\n"
       + "  vertical-align: middle;\n"
-      + "  margin: 4px 2px !important;\n"
+      + "  margin: 0 !important;\n"
       + "}\n"
       + "#app [kind=\"a\"]:hover {\n"
       + "  transform: scale(1.12);\n"
@@ -216,8 +261,9 @@ public final class HtmlRenderer {
       + "  display: inline-flex !important;\n"
       + "  align-items: center;\n"
       + "  justify-content: center;\n"
-      + "  width: 32px !important;\n"
-      + "  height: 32px !important;\n"
+      + "  width: 26px !important;\n"
+      + "  height: 26px !important;\n"
+      + "  flex-shrink: 0;\n"
       + "  border-radius: 50% !important;\n"
       + "  background: linear-gradient(135deg, #00b4d8, " + WAVE_PRIMARY + ") !important;\n"
       + "  color: #fff !important;\n"
@@ -226,7 +272,7 @@ public final class HtmlRenderer {
       + "  box-shadow: 0 2px 6px rgba(0,119,182,0.3);\n"
       + "  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;\n"
       + "  vertical-align: middle;\n"
-      + "  margin: 4px 0 4px 6px !important;\n"
+      + "  margin: 0 !important;\n"
       + "  padding: 0 !important;\n"
       + "  font-size: 0;\n"
       + "  line-height: 0;\n"
@@ -235,6 +281,29 @@ public final class HtmlRenderer {
       + "  transform: scale(1.12);\n"
       + "  box-shadow: 0 4px 12px rgba(0,119,182,0.4);\n"
       + "  background: linear-gradient(135deg, #0096c7, #005f8f) !important;\n"
+      + "}\n"
+
+      // --- Public/Private toggle button ---
+      + "#app [kind=\"tp\"] {\n"
+      + "  display: inline-flex !important;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  width: 24px !important;\n"
+      + "  height: 24px !important;\n"
+      + "  flex-shrink: 0;\n"
+      + "  border-radius: 50% !important;\n"
+      + "  background: #0077b6 !important;\n"
+      + "  color: #fff !important;\n"
+      + "  cursor: pointer;\n"
+      + "  box-shadow: 0 2px 6px rgba(0,119,182,0.3);\n"
+      + "  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;\n"
+      + "  vertical-align: middle;\n"
+      + "  margin: 0 !important;\n"
+      + "}\n"
+      + "#app [kind=\"tp\"]:hover {\n"
+      + "  transform: scale(1.12);\n"
+      + "  box-shadow: 0 4px 12px rgba(0,119,182,0.4);\n"
+      + "  background: #005f8a !important;\n"
       + "}\n"
 
       // --- Blips ---
@@ -247,11 +316,13 @@ public final class HtmlRenderer {
       + "#app [kind=\"m\"] {\n"
       + "  font-family: " + WAVE_FONT + ";\n"
       + "}\n"
-      // Blip avatar - round
+      // Blip avatar - round, compact
       + "#app [kind=\"m\"] img {\n"
       + "  border-radius: 50%;\n"
-      + "  border: 2px solid #fff;\n"
+      + "  border: 1.5px solid #fff;\n"
       + "  box-shadow: 0 1px 2px rgba(0,0,0,0.08);\n"
+      + "  width: 28px;\n"
+      + "  height: 28px;\n"
       + "}\n"
 
       // Metabar - override the green/gray scheme
@@ -259,6 +330,29 @@ public final class HtmlRenderer {
       + "#app [kind=\"m\"] > div:first-child + div {\n"
       + "  border-radius: 6px;\n"
       + "  transition: all 200ms ease;\n"
+      + "}\n"
+
+      // Blip content area - subtle border, compact padding
+      + "#app [kind=\"document\"] {\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 4px;\n"
+      + "  background: #f8fafc;\n"
+      + "  padding: 6px 8px;\n"
+      + "  min-height: 1.5em;\n"
+      + "  transition: border-color 200ms ease, background 200ms ease;\n"
+      + "}\n"
+      // Focus/editing state
+      + "#app [kind=\"document\"]:focus-within {\n"
+      + "  border-color: #90cdf4;\n"
+      + "  background: #fff;\n"
+      + "  outline: none;\n"
+      + "}\n"
+      // Placeholder for empty blip content
+      + "#app [kind=\"document\"]:empty::before {\n"
+      + "  content: 'Type your message here...';\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-style: italic;\n"
+      + "  pointer-events: none;\n"
       + "}\n"
 
       // --- Focus frame (selected blip border) ---
@@ -382,6 +476,235 @@ public final class HtmlRenderer {
       // --- Selection highlight ---
       + "#app ::selection {\n"
       + "  background: rgba(0,180,216,0.2);\n"
+      + "}\n"
+
+      // --- Version History Mode ---
+
+      // Scrubber bar: fixed at bottom of wave panel
+      + ".history-scrubber {\n"
+      + "  position: fixed;\n"
+      + "  bottom: 0;\n"
+      + "  left: 0;\n"
+      + "  right: 0;\n"
+      + "  z-index: 500;\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  gap: 12px;\n"
+      + "  padding: 8px 16px;\n"
+      + "  background: linear-gradient(135deg, rgba(0,119,182,0.95) 0%, rgba(0,180,216,0.95) 100%);\n"
+      + "  backdrop-filter: blur(8px);\n"
+      + "  -webkit-backdrop-filter: blur(8px);\n"
+      + "  border-top: 1px solid rgba(255,255,255,0.2);\n"
+      + "  box-shadow: 0 -2px 12px rgba(0,0,0,0.15);\n"
+      + "  color: #fff;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  font-size: 13px;\n"
+      + "}\n"
+
+      // Exit button
+      + ".history-scrubber-exit {\n"
+      + "  flex-shrink: 0;\n"
+      + "  background: rgba(255,255,255,0.15);\n"
+      + "  border: 1px solid rgba(255,255,255,0.3);\n"
+      + "  color: #fff;\n"
+      + "  border-radius: 6px;\n"
+      + "  padding: 4px 12px;\n"
+      + "  cursor: pointer;\n"
+      + "  font-size: 12px;\n"
+      + "  font-family: inherit;\n"
+      + "  transition: background 0.15s;\n"
+      + "  white-space: nowrap;\n"
+      + "}\n"
+      + ".history-scrubber-exit:hover {\n"
+      + "  background: rgba(255,255,255,0.3);\n"
+      + "}\n"
+
+      // Range input wrapper
+      + ".history-scrubber-range-wrapper {\n"
+      + "  flex: 1;\n"
+      + "  min-width: 100px;\n"
+      + "}\n"
+
+      // Range input styling
+      + ".history-scrubber-range {\n"
+      + "  width: 100%;\n"
+      + "  height: 6px;\n"
+      + "  -webkit-appearance: none;\n"
+      + "  appearance: none;\n"
+      + "  border-radius: 3px;\n"
+      + "  outline: none;\n"
+      + "  cursor: pointer;\n"
+      + "}\n"
+      + ".history-scrubber-range::-webkit-slider-thumb {\n"
+      + "  -webkit-appearance: none;\n"
+      + "  width: 18px;\n"
+      + "  height: 18px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: #fff;\n"
+      + "  box-shadow: 0 1px 4px rgba(0,0,0,0.3);\n"
+      + "  cursor: pointer;\n"
+      + "  border: 2px solid " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+      + ".history-scrubber-range::-moz-range-thumb {\n"
+      + "  width: 18px;\n"
+      + "  height: 18px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: #fff;\n"
+      + "  box-shadow: 0 1px 4px rgba(0,0,0,0.3);\n"
+      + "  cursor: pointer;\n"
+      + "  border: 2px solid " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+
+      // Info label
+      + ".history-scrubber-label {\n"
+      + "  flex-shrink: 0;\n"
+      + "  white-space: nowrap;\n"
+      + "  font-size: 12px;\n"
+      + "}\n"
+      + ".history-scrubber-author {\n"
+      + "  font-weight: 600;\n"
+      + "}\n"
+      + ".history-scrubber-sep {\n"
+      + "  opacity: 0.6;\n"
+      + "  margin: 0 2px;\n"
+      + "}\n"
+      + ".history-scrubber-date, .history-scrubber-changes {\n"
+      + "  opacity: 0.9;\n"
+      + "}\n"
+      + ".history-scrubber-version {\n"
+      + "  opacity: 0.6;\n"
+      + "  font-size: 11px;\n"
+      + "}\n"
+
+      // Tooltip
+      + ".history-scrubber-tooltip {\n"
+      + "  position: absolute;\n"
+      + "  bottom: 100%;\n"
+      + "  margin-bottom: 8px;\n"
+      + "  background: rgba(0,0,0,0.85);\n"
+      + "  color: #fff;\n"
+      + "  padding: 6px 10px;\n"
+      + "  border-radius: 6px;\n"
+      + "  font-size: 11px;\n"
+      + "  line-height: 1.4;\n"
+      + "  pointer-events: none;\n"
+      + "  white-space: nowrap;\n"
+      + "  transform: translateX(-50%);\n"
+      + "}\n"
+
+      // History header bar above diff content
+      + ".history-header {\n"
+      + "  padding: 10px 16px;\n"
+      + "  background: linear-gradient(135deg, " + WAVE_PRIMARY + " 0%, " + WAVE_ACCENT + " 100%);\n"
+      + "  color: #fff;\n"
+      + "  font-size: 13px;\n"
+      + "  border-radius: 8px;\n"
+      + "  margin: 8px 0 12px 0;\n"
+      + "}\n"
+      + ".history-header-label {\n"
+      + "  font-weight: 600;\n"
+      + "  text-transform: uppercase;\n"
+      + "  font-size: 11px;\n"
+      + "  letter-spacing: 0.5px;\n"
+      + "  opacity: 0.8;\n"
+      + "}\n"
+
+      // Diff container overlay
+      + ".history-diff-container {\n"
+      + "  padding: 0 8px 60px 8px;\n"
+      + "}\n"
+
+      // Blip containers in diff view
+      + ".history-blip {\n"
+      + "  margin: 8px 0;\n"
+      + "  padding: 12px 16px;\n"
+      + "  border-radius: 8px;\n"
+      + "  background: #fff;\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "}\n"
+      + ".history-blip-changed {\n"
+      + "  border-left: 3px solid " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+      + ".history-blip-deleted {\n"
+      + "  border-left: 3px solid #d62828;\n"
+      + "  opacity: 0.8;\n"
+      + "}\n"
+      + ".history-blip-unchanged {\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-size: 13px;\n"
+      + "}\n"
+
+      // Blip change header
+      + ".history-blip-header {\n"
+      + "  font-size: 12px;\n"
+      + "  margin-bottom: 8px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "}\n"
+      + ".history-blip-badge {\n"
+      + "  display: inline-block;\n"
+      + "  padding: 1px 6px;\n"
+      + "  border-radius: 4px;\n"
+      + "  font-size: 10px;\n"
+      + "  font-weight: 600;\n"
+      + "  text-transform: uppercase;\n"
+      + "  letter-spacing: 0.3px;\n"
+      + "}\n"
+      + ".history-blip-badge-new {\n"
+      + "  background: #d4edda;\n"
+      + "  color: #155724;\n"
+      + "}\n"
+      + ".history-blip-badge-modified {\n"
+      + "  background: #cce5ff;\n"
+      + "  color: #004085;\n"
+      + "}\n"
+      + ".history-blip-badge-deleted {\n"
+      + "  background: #f8d7da;\n"
+      + "  color: #721c24;\n"
+      + "}\n"
+      + ".history-blip-time {\n"
+      + "  margin-left: 4px;\n"
+      + "  font-size: 11px;\n"
+      + "  opacity: 0.7;\n"
+      + "}\n"
+      + ".history-blip-content {\n"
+      + "  font-size: 14px;\n"
+      + "  line-height: 1.6;\n"
+      + "  white-space: pre-wrap;\n"
+      + "  word-break: break-word;\n"
+      + "}\n"
+
+      // Diff highlighting: added text
+      + ".diff-add {\n"
+      + "  background: rgba(40,167,69,0.15);\n"
+      + "  color: #155724;\n"
+      + "  padding: 1px 2px;\n"
+      + "  border-radius: 2px;\n"
+      + "}\n"
+
+      // Diff highlighting: deleted text
+      + ".diff-del {\n"
+      + "  background: rgba(220,53,69,0.12);\n"
+      + "  color: #721c24;\n"
+      + "  text-decoration: line-through;\n"
+      + "  padding: 1px 2px;\n"
+      + "  border-radius: 2px;\n"
+      + "}\n"
+
+      // No changes indicator
+      + ".history-no-changes {\n"
+      + "  text-align: center;\n"
+      + "  padding: 24px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-style: italic;\n"
+      + "}\n"
+
+      // History mode: hide editing controls
+      + ".history-mode [kind='m'] {\n"
+      + "  display: none !important;\n"
+      + "}\n"
+      + ".history-mode [kind='e'] {\n"
+      + "  pointer-events: none;\n"
+      + "  opacity: 0.5;\n"
       + "}\n"
 
       + "/* ===== End SupaWave Panel Theme ===== */\n";
@@ -1183,13 +1506,39 @@ public final class HtmlRenderer {
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
     sb.append("}\n");
     sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
-    sb.append(".online svg { color: #68d391; }\n");
-    sb.append(".connecting svg { color: #fbd38d; }\n");
-    sb.append(".offline svg { color: #fc8181; }\n");
+    // Icon color is always white; state is shown by a small colored dot via ::after
+    sb.append(".topbar-icon svg { stroke: white !important; color: white !important; }\n");
+    // -- Status indicator dots (::after pseudo-element badges) --
+    sb.append(".topbar-icon::after {\n");
+    sb.append("  content: ''; position: absolute; bottom: 2px; right: 2px;\n");
+    sb.append("  width: 8px; height: 8px; border-radius: 50%;\n");
+    sb.append("  border: 1.5px solid rgba(0,50,100,0.6);\n");
+    sb.append("  display: none;\n");
+    sb.append("}\n");
+    sb.append(".lang-icon-btn::after { display: none !important; }\n");
+    // Saved state: small green dot
+    sb.append(".topbar-icon.saved::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    // Saving state: pulsing amber dot
+    sb.append(".topbar-icon.saving::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    // Online: small green dot
+    sb.append(".topbar-icon.online::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    // Connecting: pulsing amber dot
+    sb.append(".topbar-icon.connecting::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    // Offline: red dot
+    sb.append(".topbar-icon.offline::after { display: block; background: #fc8181; box-shadow: 0 0 4px #fc8181; }\n");
+    sb.append("@keyframes indicator-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }\n");
     // Info bar
     sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.9); }\n");
     sb.append(".info a { color: #fff; text-decoration: none; font-weight: 500; }\n");
     sb.append(".info a:hover { text-decoration: underline; }\n");
+    sb.append(".online svg { color: #3fb950; stroke: #3fb950; }\n");
+    sb.append(".connecting svg { color: #d29922; stroke: #d29922; }\n");
+    sb.append(".offline svg { color: #f85149; stroke: #f85149; }\n");
+    sb.append("@keyframes status-pulse {\n");
+    sb.append("  0%, 100% { opacity: 1; }\n");
+    sb.append("  50% { opacity: 0.5; }\n");
+    sb.append("}\n");
+    sb.append(".saving-pulse, .connecting-pulse { animation: status-pulse 1.5s ease-in-out infinite; }\n");
     // -- Avatar circle --
     sb.append(".user-avatar {\n");
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
@@ -1600,7 +1949,7 @@ public final class HtmlRenderer {
       sb.append("      <select id=\"lang\" size=\"1\"></select>\n");
       sb.append("    </div>\n");
       // -- Save status indicator: cloud-check icon, updated by GWT --
-      sb.append("    <span id=\"unsavedStateContainer\" class=\"topbar-icon\" title=\"All changes saved\">");
+      sb.append("    <span id=\"unsavedStateContainer\" class=\"topbar-icon saved\" title=\"All changes saved\">");
       sb.append(ICON_CLOUD_CHECK).append("</span>\n");
       // -- Connection status: wifi-off icon for initial offline state, updated by GWT --
       sb.append("    <span id=\"netstatus\" class=\"topbar-icon offline\" title=\"Offline\">");
@@ -1616,6 +1965,7 @@ public final class HtmlRenderer {
       sb.append("        <a href=\"/robot/register/create\">Robot Registration</a>\n");
       sb.append("        <a href=\"/robot/dataapi/token\">API Token</a>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
+      sb.append("        <a href=\"/admin\">Admin</a>\n");
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <a id=\"signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
       sb.append("      </div>\n");
@@ -1639,24 +1989,24 @@ public final class HtmlRenderer {
       + "<path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10\"/>"
       + "</svg>";
 
-  /** Cloud with checkmark icon for saved state. */
+  /** Cloud with checkmark icon for saved state — green #3fb950. */
   private static final String ICON_CLOUD_CHECK =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#3fb950\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
       + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
       + "</svg>";
-  /** WiFi/signal icon for connection status. */
+  /** WiFi/signal icon for connection status (white for contrast on dark topbar). */
   private static final String ICON_WIFI =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/>"
       + "<path d=\"M5.07 12.5a10 10 0 0 1 13.86 0\"/>"
       + "<path d=\"M8.72 16a6 6 0 0 1 6.56 0\"/>"
       + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
       + "</svg>";
 
-  /** WiFi-off icon for disconnected state. */
+  /** WiFi-off icon for disconnected state (white for contrast on dark topbar). */
   private static final String ICON_WIFI_OFF =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/>"
       + "<path d=\"M16.72 11.06A10.94 10.94 0 0 1 19 12.55\"/>"
       + "<path d=\"M5 12.55a10.94 10.94 0 0 1 5.17-2.39\"/>"
@@ -2114,7 +2464,414 @@ public final class HtmlRenderer {
   }
 
   // =========================================================================
-  // 13. Analytics Fragment (private helper)
+  // 13. Admin Page
+  // =========================================================================
+
+  /**
+   * Renders the admin page with user management table.
+   *
+   * @param currentUser the logged-in admin's address
+   * @param domain      the wave server domain
+   * @param callerRole  the logged-in user's role ("owner" or "admin")
+   */
+  public static String renderAdminPage(String currentUser, String domain, String callerRole) {
+    StringBuilder sb = new StringBuilder(32768);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Admin - SupaWave</title>\n");
+
+    // Inline CSS — self-contained ocean theme
+    sb.append("<style>\n");
+    sb.append("*, *::before, *::after { box-sizing: border-box; }\n");
+    sb.append("body {\n");
+    sb.append("  margin: 0; padding: 0;\n");
+    sb.append("  font-family: ").append(WAVE_FONT).append(";\n");
+    sb.append("  background: ").append(WAVE_BG).append(";\n");
+    sb.append("  color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("  min-height: 100vh;\n");
+    sb.append("}\n");
+
+    // Header bar
+    sb.append(".admin-header {\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  color: #fff; padding: 16px 24px;\n");
+    sb.append("  display: flex; align-items: center; justify-content: space-between;\n");
+    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n");
+    sb.append("}\n");
+    sb.append(".admin-header .brand { display: flex; align-items: center; gap: 10px; }\n");
+    sb.append(".admin-header .brand span { font-size: 20px; font-weight: 700; }\n");
+    sb.append(".admin-header .user-info { font-size: 13px; opacity: 0.9; }\n");
+    sb.append(".admin-header a { color: #fff; text-decoration: none; margin-left: 16px; font-size: 13px; opacity: 0.85; }\n");
+    sb.append(".admin-header a:hover { opacity: 1; text-decoration: underline; }\n");
+
+    // Container
+    sb.append(".admin-container {\n");
+    sb.append("  max-width: 1400px; margin: 24px auto; padding: 0 24px;\n");
+    sb.append("}\n");
+
+    // Card
+    sb.append(".admin-card {\n");
+    sb.append("  background: #fff; border-radius: 12px;\n");
+    sb.append("  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);\n");
+    sb.append("  overflow: hidden;\n");
+    sb.append("}\n");
+    sb.append(".admin-card-header {\n");
+    sb.append("  padding: 20px 24px; border-bottom: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;\n");
+    sb.append("}\n");
+    sb.append(".admin-card-header h2 { margin: 0; font-size: 18px; font-weight: 600; }\n");
+
+    // Search
+    sb.append(".search-box {\n");
+    sb.append("  padding: 8px 14px; border: 1.5px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  border-radius: 8px; font-size: 13px; width: 280px; outline: none;\n");
+    sb.append("  transition: border-color 0.2s, box-shadow 0.2s; background: #fafbfc;\n");
+    sb.append("}\n");
+    sb.append(".search-box:focus {\n");
+    sb.append("  border-color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("  box-shadow: 0 0 0 3px rgba(0,119,182,0.12); background: #fff;\n");
+    sb.append("}\n");
+
+    // Table
+    sb.append(".admin-table-wrap { overflow-x: auto; }\n");
+    sb.append(".admin-table {\n");
+    sb.append("  width: 100%; border-collapse: collapse; font-size: 13px;\n");
+    sb.append("}\n");
+    sb.append(".admin-table th {\n");
+    sb.append("  text-align: left; padding: 12px 16px; font-weight: 600; font-size: 12px;\n");
+    sb.append("  text-transform: uppercase; letter-spacing: 0.5px;\n");
+    sb.append("  color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("  border-bottom: 2px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  cursor: pointer; user-select: none; white-space: nowrap;\n");
+    sb.append("}\n");
+    sb.append(".admin-table th:hover { color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".admin-table th .sort-arrow { font-size: 10px; margin-left: 4px; }\n");
+    sb.append(".admin-table td {\n");
+    sb.append("  padding: 10px 16px; border-bottom: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  vertical-align: middle;\n");
+    sb.append("}\n");
+    sb.append(".admin-table tr:hover td { background: rgba(0,119,182,0.02); }\n");
+
+    // Badges
+    sb.append(".badge {\n");
+    sb.append("  display: inline-block; padding: 2px 10px; border-radius: 12px;\n");
+    sb.append("  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;\n");
+    sb.append("}\n");
+    sb.append(".badge-owner { background: #fef3c7; color: #92400e; }\n");
+    sb.append(".badge-admin { background: #dbeafe; color: #1e40af; }\n");
+    sb.append(".badge-user { background: #f3f4f6; color: #6b7280; }\n");
+    sb.append(".badge-active { background: #d1fae5; color: #065f46; }\n");
+    sb.append(".badge-suspended { background: #fee2e2; color: #991b1b; }\n");
+    sb.append(".badge-banned { background: #fef3c7; color: #92400e; }\n");
+    sb.append(".badge-free { background: #ede9fe; color: #5b21b6; }\n");
+
+    // Action buttons
+    sb.append(".action-btn {\n");
+    sb.append("  padding: 4px 10px; border: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  border-radius: 6px; font-size: 11px; cursor: pointer;\n");
+    sb.append("  background: #fff; color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("  transition: all 0.15s; margin-right: 4px; margin-bottom: 2px;\n");
+    sb.append("}\n");
+    sb.append(".action-btn:hover { border-color: ").append(WAVE_PRIMARY).append("; color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".action-btn.danger { border-color: #fca5a5; color: #dc2626; }\n");
+    sb.append(".action-btn.danger:hover { background: #fef2f2; border-color: #dc2626; }\n");
+    sb.append(".action-btn.success { border-color: #86efac; color: #16a34a; }\n");
+    sb.append(".action-btn.success:hover { background: #f0fdf4; border-color: #16a34a; }\n");
+
+    // Loading / status
+    sb.append(".loading-row td { text-align: center; padding: 40px; color: ").append(WAVE_TEXT_MUTED).append("; }\n");
+    sb.append(".stats-bar { padding: 12px 24px; font-size: 12px; color: ").append(WAVE_TEXT_MUTED).append("; border-top: 1px solid ").append(WAVE_BORDER).append("; }\n");
+
+    // Toast notification
+    sb.append(".toast {\n");
+    sb.append("  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;\n");
+    sb.append("  border-radius: 8px; font-size: 13px; font-weight: 500;\n");
+    sb.append("  box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;\n");
+    sb.append("  transition: opacity 0.3s, transform 0.3s;\n");
+    sb.append("  opacity: 0; transform: translateY(10px); pointer-events: none;\n");
+    sb.append("}\n");
+    sb.append(".toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }\n");
+    sb.append(".toast.success { background: #d1fae5; color: #065f46; }\n");
+    sb.append(".toast.error { background: #fee2e2; color: #991b1b; }\n");
+
+    // Confirm dialog overlay
+    sb.append(".confirm-overlay {\n");
+    sb.append("  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999;\n");
+    sb.append("  display: flex; align-items: center; justify-content: center;\n");
+    sb.append("}\n");
+    sb.append(".confirm-dialog {\n");
+    sb.append("  background: #fff; border-radius: 12px; padding: 24px; max-width: 420px; width: 90%;\n");
+    sb.append("  box-shadow: 0 8px 32px rgba(0,0,0,0.2);\n");
+    sb.append("}\n");
+    sb.append(".confirm-dialog h3 { margin: 0 0 12px; font-size: 16px; }\n");
+    sb.append(".confirm-dialog p { margin: 0 0 20px; font-size: 14px; color: ").append(WAVE_TEXT_MUTED).append("; }\n");
+    sb.append(".confirm-dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; }\n");
+    sb.append(".confirm-dialog .btn {\n");
+    sb.append("  padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;\n");
+    sb.append("}\n");
+    sb.append(".confirm-dialog .btn-cancel { background: #f3f4f6; color: ").append(WAVE_TEXT).append("; }\n");
+    sb.append(".confirm-dialog .btn-cancel:hover { background: #e5e7eb; }\n");
+    sb.append(".confirm-dialog .btn-confirm { background: ").append(WAVE_PRIMARY).append("; color: #fff; }\n");
+    sb.append(".confirm-dialog .btn-confirm:hover { background: #005f8f; }\n");
+    sb.append(".confirm-dialog .btn-danger { background: #dc2626; color: #fff; }\n");
+    sb.append(".confirm-dialog .btn-danger:hover { background: #b91c1c; }\n");
+
+    sb.append("@media (max-width: 768px) {\n");
+    sb.append("  .admin-container { padding: 0 12px; }\n");
+    sb.append("  .admin-card-header { padding: 16px; }\n");
+    sb.append("  .search-box { width: 100%; }\n");
+    sb.append("  .admin-table td, .admin-table th { padding: 8px 10px; }\n");
+    sb.append("}\n");
+    sb.append("</style>\n");
+    sb.append("</head>\n<body>\n");
+
+    // Header
+    sb.append("<div class=\"admin-header\">\n");
+    sb.append("  <div class=\"brand\">").append(WAVE_LOGO_SVG_SMALL);
+    sb.append("<span>SupaWave Admin</span></div>\n");
+    sb.append("  <div class=\"user-info\">\n");
+    sb.append("    ").append(escapeHtml(currentUser)).append("\n");
+    sb.append("    <a href=\"/\">Back to Wave</a>\n");
+    sb.append("    <a href=\"/auth/signout?r=/admin\">Sign Out</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    // Main content
+    sb.append("<div class=\"admin-container\">\n");
+    sb.append("  <div class=\"admin-card\">\n");
+    sb.append("    <div class=\"admin-card-header\">\n");
+    sb.append("      <h2>Users</h2>\n");
+    sb.append("      <input type=\"text\" class=\"search-box\" id=\"searchBox\" placeholder=\"Search by username or email...\" autocomplete=\"off\">\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"admin-table-wrap\">\n");
+    sb.append("      <table class=\"admin-table\">\n");
+    sb.append("        <thead><tr>\n");
+    sb.append("          <th data-sort=\"username\">Username <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"email\">Email <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"registrationTime\">Registered <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"lastLoginTime\">Last Login <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"lastActivityTime\">Last Activity <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"role\">Role <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"tier\">Tier <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th data-sort=\"status\">Status <span class=\"sort-arrow\"></span></th>\n");
+    sb.append("          <th>Actions</th>\n");
+    sb.append("        </tr></thead>\n");
+    sb.append("        <tbody id=\"userTableBody\">\n");
+    sb.append("          <tr class=\"loading-row\"><td colspan=\"9\">Loading...</td></tr>\n");
+    sb.append("        </tbody>\n");
+    sb.append("      </table>\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"stats-bar\" id=\"statsBar\"></div>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    // Toast
+    sb.append("<div class=\"toast\" id=\"toast\"></div>\n");
+    // Confirm overlay (hidden by default)
+    sb.append("<div class=\"confirm-overlay\" id=\"confirmOverlay\" style=\"display:none\"></div>\n");
+
+    // JavaScript
+    sb.append("<script>\n");
+    sb.append("(function() {\n");
+    sb.append("  'use strict';\n");
+    sb.append("  var callerRole = ").append(escapeJsonString(callerRole)).append(";\n");
+    sb.append("  var currentUser = ").append(escapeJsonString(currentUser)).append(";\n");
+    sb.append("  var state = { search: '', sortBy: 'username', sortDir: 'asc', page: 0, pageSize: 50, users: [], total: 0, loading: false };\n");
+    sb.append("  var tbody = document.getElementById('userTableBody');\n");
+    sb.append("  var statsBar = document.getElementById('statsBar');\n");
+    sb.append("  var searchBox = document.getElementById('searchBox');\n");
+    sb.append("  var toastEl = document.getElementById('toast');\n");
+    sb.append("  var confirmOverlay = document.getElementById('confirmOverlay');\n");
+    sb.append("  var searchTimer = null;\n");
+    sb.append("  var allLoaded = false;\n");
+
+    // Fetch users
+    sb.append("  function fetchUsers(append) {\n");
+    sb.append("    if (state.loading) return;\n");
+    sb.append("    state.loading = true;\n");
+    sb.append("    if (!append) { state.page = 0; state.users = []; allLoaded = false; }\n");
+    sb.append("    var url = '/admin/api/users?search=' + encodeURIComponent(state.search)\n");
+    sb.append("      + '&sortBy=' + state.sortBy + '&sortDir=' + state.sortDir\n");
+    sb.append("      + '&page=' + state.page + '&pageSize=' + state.pageSize;\n");
+    sb.append("    fetch(url).then(function(r) { return r.json(); }).then(function(data) {\n");
+    sb.append("      state.total = data.total;\n");
+    sb.append("      if (append) {\n");
+    sb.append("        state.users = state.users.concat(data.users);\n");
+    sb.append("      } else {\n");
+    sb.append("        state.users = data.users;\n");
+    sb.append("      }\n");
+    sb.append("      if (data.users.length < state.pageSize) allLoaded = true;\n");
+    sb.append("      render();\n");
+    sb.append("      state.loading = false;\n");
+    sb.append("    }).catch(function(e) {\n");
+    sb.append("      showToast('Failed to load users: ' + e.message, 'error');\n");
+    sb.append("      state.loading = false;\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+
+    // Format timestamp
+    sb.append("  function fmtTime(ts) {\n");
+    sb.append("    if (!ts || ts === 0) return '<span style=\"color:#aaa\">--</span>';\n");
+    sb.append("    var d = new Date(ts);\n");
+    sb.append("    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});\n");
+    sb.append("  }\n");
+
+    // Badge helper
+    sb.append("  function badge(text, cls) {\n");
+    sb.append("    return '<span class=\"badge badge-' + cls + '\">' + esc(text) + '</span>';\n");
+    sb.append("  }\n");
+
+    // Escape HTML
+    sb.append("  function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }\n");
+
+    // Render table
+    sb.append("  function render() {\n");
+    sb.append("    var html = '';\n");
+    sb.append("    if (state.users.length === 0) {\n");
+    sb.append("      html = '<tr class=\"loading-row\"><td colspan=\"9\">' + (state.loading ? 'Loading...' : 'No users found') + '</td></tr>';\n");
+    sb.append("    } else {\n");
+    sb.append("      for (var i = 0; i < state.users.length; i++) {\n");
+    sb.append("        var u = state.users[i];\n");
+    sb.append("        html += '<tr>';\n");
+    sb.append("        html += '<td>' + esc(u.username) + '</td>';\n");
+    sb.append("        html += '<td>' + (u.email ? esc(u.email) : '<span style=\"color:#aaa\">--</span>') + '</td>';\n");
+    sb.append("        html += '<td>' + fmtTime(u.registrationTime) + '</td>';\n");
+    sb.append("        html += '<td>' + fmtTime(u.lastLoginTime) + '</td>';\n");
+    sb.append("        html += '<td>' + fmtTime(u.lastActivityTime) + '</td>';\n");
+    sb.append("        html += '<td>' + badge(u.role, u.role) + '</td>';\n");
+    sb.append("        html += '<td>' + badge(u.tier, u.tier) + '</td>';\n");
+    sb.append("        html += '<td>' + badge(u.status, u.status) + '</td>';\n");
+    sb.append("        html += '<td>' + renderActions(u) + '</td>';\n");
+    sb.append("        html += '</tr>';\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    sb.append("    tbody.innerHTML = html;\n");
+    sb.append("    statsBar.textContent = 'Showing ' + state.users.length + ' of ' + state.total + ' users';\n");
+    // Update sort arrows
+    sb.append("    document.querySelectorAll('.admin-table th[data-sort]').forEach(function(th) {\n");
+    sb.append("      var arrow = th.querySelector('.sort-arrow');\n");
+    sb.append("      if (th.dataset.sort === state.sortBy) {\n");
+    sb.append("        arrow.textContent = state.sortDir === 'asc' ? '\\u25B2' : '\\u25BC';\n");
+    sb.append("      } else { arrow.textContent = ''; }\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+
+    // Render action buttons
+    sb.append("  function renderActions(u) {\n");
+    sb.append("    if (u.role === 'owner') return '<span style=\"color:#aaa;font-size:11px\">Owner</span>';\n");
+    sb.append("    var html = '';\n");
+    // Role actions (owner only)
+    sb.append("    if (callerRole === 'owner') {\n");
+    sb.append("      if (u.role === 'admin') {\n");
+    sb.append("        html += '<button class=\"action-btn\" onclick=\"adminAction(\\'role\\',\\'' + esc(u.username) + '\\',\\'user\\',\\'Remove admin role from ' + esc(u.username) + '?\\')\">");
+    sb.append("Remove Admin</button>';\n");
+    sb.append("      } else {\n");
+    sb.append("        html += '<button class=\"action-btn\" onclick=\"adminAction(\\'role\\',\\'' + esc(u.username) + '\\',\\'admin\\',\\'Make ' + esc(u.username) + ' an admin?\\')\">");
+    sb.append("Make Admin</button>';\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    // Status actions
+    sb.append("    if (u.status === 'active') {\n");
+    sb.append("      html += '<button class=\"action-btn danger\" onclick=\"adminAction(\\'status\\',\\'' + esc(u.username) + '\\',\\'suspended\\',\\'Suspend ' + esc(u.username) + '? They will be logged out.\\')\">");
+    sb.append("Suspend</button>';\n");
+    sb.append("      html += '<button class=\"action-btn danger\" onclick=\"adminAction(\\'status\\',\\'' + esc(u.username) + '\\',\\'banned\\',\\'Ban ' + esc(u.username) + '? They will be in read-only mode.\\')\">");
+    sb.append("Ban</button>';\n");
+    sb.append("    } else if (u.status === 'suspended') {\n");
+    sb.append("      html += '<button class=\"action-btn success\" onclick=\"adminAction(\\'status\\',\\'' + esc(u.username) + '\\',\\'active\\',\\'Unsuspend ' + esc(u.username) + '?\\')\">");
+    sb.append("Unsuspend</button>';\n");
+    sb.append("    } else if (u.status === 'banned') {\n");
+    sb.append("      html += '<button class=\"action-btn success\" onclick=\"adminAction(\\'status\\',\\'' + esc(u.username) + '\\',\\'active\\',\\'Unban ' + esc(u.username) + '?\\')\">");
+    sb.append("Unban</button>';\n");
+    sb.append("    }\n");
+    sb.append("    return html;\n");
+    sb.append("  }\n");
+
+    // Action handler with confirmation
+    sb.append("  window.adminAction = function(type, username, value, message) {\n");
+    sb.append("    confirmOverlay.style.display = 'flex';\n");
+    sb.append("    var isDanger = (value === 'suspended' || value === 'banned');\n");
+    sb.append("    confirmOverlay.innerHTML = '<div class=\"confirm-dialog\">' +\n");
+    sb.append("      '<h3>Confirm Action</h3>' +\n");
+    sb.append("      '<p>' + esc(message) + '</p>' +\n");
+    sb.append("      '<div class=\"buttons\">' +\n");
+    sb.append("        '<button class=\"btn btn-cancel\" id=\"confirmCancel\">Cancel</button>' +\n");
+    sb.append("        '<button class=\"btn ' + (isDanger ? 'btn-danger' : 'btn-confirm') + '\" id=\"confirmOk\">Confirm</button>' +\n");
+    sb.append("      '</div></div>';\n");
+    sb.append("    document.getElementById('confirmCancel').onclick = function() { confirmOverlay.style.display = 'none'; };\n");
+    sb.append("    document.getElementById('confirmOk').onclick = function() {\n");
+    sb.append("      confirmOverlay.style.display = 'none';\n");
+    sb.append("      doAction(type, username, value);\n");
+    sb.append("    };\n");
+    sb.append("  };\n");
+
+    // Execute action
+    sb.append("  function doAction(type, username, value) {\n");
+    sb.append("    var url = '/admin/api/users/' + encodeURIComponent(username) + '/' + type;\n");
+    sb.append("    var body = type === 'role' ? JSON.stringify({role: value}) : JSON.stringify({status: value});\n");
+    sb.append("    fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: body})\n");
+    sb.append("      .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })\n");
+    sb.append("      .then(function(res) {\n");
+    sb.append("        if (res.ok) {\n");
+    sb.append("          showToast('Updated ' + username + ' successfully', 'success');\n");
+    sb.append("          fetchUsers(false);\n");
+    sb.append("        } else {\n");
+    sb.append("          showToast(res.data.error || 'Action failed', 'error');\n");
+    sb.append("        }\n");
+    sb.append("      }).catch(function(e) { showToast('Network error: ' + e.message, 'error'); });\n");
+    sb.append("  }\n");
+
+    // Toast
+    sb.append("  function showToast(msg, type) {\n");
+    sb.append("    toastEl.textContent = msg;\n");
+    sb.append("    toastEl.className = 'toast show ' + type;\n");
+    sb.append("    setTimeout(function() { toastEl.className = 'toast'; }, 3000);\n");
+    sb.append("  }\n");
+
+    // Search handler
+    sb.append("  searchBox.addEventListener('input', function() {\n");
+    sb.append("    clearTimeout(searchTimer);\n");
+    sb.append("    searchTimer = setTimeout(function() {\n");
+    sb.append("      state.search = searchBox.value;\n");
+    sb.append("      fetchUsers(false);\n");
+    sb.append("    }, 300);\n");
+    sb.append("  });\n");
+
+    // Sort handler
+    sb.append("  document.querySelectorAll('.admin-table th[data-sort]').forEach(function(th) {\n");
+    sb.append("    th.addEventListener('click', function() {\n");
+    sb.append("      var col = th.dataset.sort;\n");
+    sb.append("      if (state.sortBy === col) {\n");
+    sb.append("        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';\n");
+    sb.append("      } else {\n");
+    sb.append("        state.sortBy = col;\n");
+    sb.append("        state.sortDir = 'asc';\n");
+    sb.append("      }\n");
+    sb.append("      fetchUsers(false);\n");
+    sb.append("    });\n");
+    sb.append("  });\n");
+
+    // Infinite scroll
+    sb.append("  window.addEventListener('scroll', function() {\n");
+    sb.append("    if (allLoaded || state.loading) return;\n");
+    sb.append("    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {\n");
+    sb.append("      state.page++;\n");
+    sb.append("      fetchUsers(true);\n");
+    sb.append("    }\n");
+    sb.append("  });\n");
+
+    // Initial load
+    sb.append("  fetchUsers(false);\n");
+    sb.append("})();\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
+  // 14. Analytics Fragment (private helper)
   // =========================================================================
 
   /**

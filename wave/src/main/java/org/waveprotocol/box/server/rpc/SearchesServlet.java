@@ -57,9 +57,9 @@ public final class SearchesServlet extends HttpServlet {
   private static final List<SearchesItem> DEFAULT_SEARCHES = new ArrayList<>();
 
   static {
-    DEFAULT_SEARCHES.add(new SearchesItem("", QueryCondition.INBOX.toString()));
-    DEFAULT_SEARCHES.add(new SearchesItem("", QueryCondition.ARCHIVE.toString()));
-    DEFAULT_SEARCHES.add(new SearchesItem("", QueryCondition.PUBLIC.toString()));
+    DEFAULT_SEARCHES.add(new SearchesItem("Inbox", QueryCondition.INBOX.toString()));
+    DEFAULT_SEARCHES.add(new SearchesItem("Archive", QueryCondition.ARCHIVE.toString()));
+    DEFAULT_SEARCHES.add(new SearchesItem("Public", QueryCondition.PUBLIC.toString()));
   }
 
   private static final Log LOG = Log.get(SearchesServlet.class);

@@ -116,6 +116,7 @@ jobs:
         id: deploy
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
         run: |
           set -euo pipefail
           remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
@@ -126,7 +127,7 @@ jobs:
             mkdir -p '$release_dir'
             tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C '$release_dir'
             chmod +x '$release_dir/deploy.sh'
-            DEPLOY_ROOT='$remote_root' WAVE_IMAGE='$IMAGE_REF' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' RESEND_API_KEY='$RESEND_API_KEY' bash '$release_dir/deploy.sh' deploy
+            DEPLOY_ROOT='$remote_root' WAVE_IMAGE='$IMAGE_REF' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' RESEND_API_KEY=\"$RESEND_API_KEY\" WAVE_EMAIL_FROM=\"$WAVE_EMAIL_FROM\" bash '$release_dir/deploy.sh' deploy
           "
 
       - name: Close deploy-failure issues on success

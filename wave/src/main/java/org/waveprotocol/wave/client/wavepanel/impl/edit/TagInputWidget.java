@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search;
+package org.waveprotocol.wave.client.wavepanel.impl.edit;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
@@ -36,11 +36,10 @@ import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
 
-import org.waveprotocol.box.searches.SearchesItem;
-import org.waveprotocol.box.webclient.search.i18n.SearchesItemEditorMessages;
 import org.waveprotocol.wave.client.widget.popup.CenterPopupPositioner;
 import org.waveprotocol.wave.client.widget.popup.PopupChrome;
 import org.waveprotocol.wave.client.widget.popup.PopupChromeFactory;
@@ -50,22 +49,23 @@ import org.waveprotocol.wave.client.widget.popup.PopupFactory;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 
 /**
- * Styled modal popup for editing the name and query of a single saved search.
- * Replaces the old native-looking dialog with the SupaWave themed design.
- *
- * @author akaplanov@gmail.com (Andrew Kaplanov)
+ * A styled modal popup for adding tags, replacing the browser's
+ * native {@code Window.prompt()} dialog.
  */
-public final class SearchesItemEditorPopup extends Composite {
+public final class TagInputWidget extends Composite {
 
+  /** Callback interface for when the user submits or cancels. */
   public interface Listener {
-    void onHide();
-    void onShow();
-    void onDone(SearchesItem searchesItem);
+    /** Called when the user submits a non-empty tag value. */
+    void onSubmit(String tagValue);
+
+    /** Called when the user cancels the dialog. */
+    void onCancel();
   }
 
   /** Resources used by this widget. */
   public interface Resources extends ClientBundle {
-    @Source("SearchesItemEditor.css")
+    @Source("TagInputWidget.css")
     Style style();
   }
 
@@ -73,17 +73,17 @@ public final class SearchesItemEditorPopup extends Composite {
   interface Style extends CssResource {
     String self();
     String title();
-    String fieldLabel();
+    String message();
+    String tagName();
     String input();
     String inputFocused();
+    String hint();
     String buttonPanel();
     String cancelButton();
     String okButton();
+    String removeButton();
     String errorLabel();
   }
-
-  private static final SearchesItemEditorMessages messages =
-      GWT.create(SearchesItemEditorMessages.class);
 
   private static final Style style = GWT.<Resources>create(Resources.class).style();
 
@@ -91,71 +91,48 @@ public final class SearchesItemEditorPopup extends Composite {
     StyleInjector.inject(style.getText(), true);
   }
 
-  private final Label titleLabel;
-  private final TextBox nameTextBox;
-  private final TextBox queryTextBox;
+  private final TextBox input;
   private final Label errorLabel;
   private final Button okButton;
   private final Button cancelButton;
-
   private UniversalPopup popup;
-  private Listener listener;
-  private boolean isAddMode;
 
-  public SearchesItemEditorPopup() {
+  /**
+   * Creates a new tag input widget for adding tags.
+   *
+   * @param promptText the prompt/title text
+   */
+  public TagInputWidget(String promptText) {
     FlowPanel panel = new FlowPanel();
     panel.addStyleName(style.self());
 
     // Title
-    titleLabel = new Label(messages.search());
+    Label titleLabel = new Label(promptText);
     titleLabel.addStyleName(style.title());
     panel.add(titleLabel);
 
-    // Name field
-    Label nameLabel = new Label(messages.name());
-    nameLabel.addStyleName(style.fieldLabel());
-    panel.add(nameLabel);
+    // Text input
+    input = new TextBox();
+    input.addStyleName(style.input());
+    input.getElement().setAttribute("placeholder", "Enter tag name...");
+    panel.add(input);
 
-    nameTextBox = new TextBox();
-    nameTextBox.addStyleName(style.input());
-    nameTextBox.getElement().setAttribute("placeholder", "Search name...");
-    panel.add(nameTextBox);
+    // Hint
+    Label hintLabel = new Label("Separate multiple tags with commas");
+    hintLabel.addStyleName(style.hint());
+    panel.add(hintLabel);
 
-    // Query field
-    Label queryLabel = new Label(messages.query());
-    queryLabel.addStyleName(style.fieldLabel());
-    panel.add(queryLabel);
-
-    queryTextBox = new TextBox();
-    queryTextBox.addStyleName(style.input());
-    queryTextBox.getElement().setAttribute("placeholder", "in:inbox, creator:me, etc.");
-    panel.add(queryTextBox);
-
-    // Focus/blur styling for name
-    nameTextBox.addFocusHandler(new FocusHandler() {
+    // Focus/blur styling
+    input.addFocusHandler(new FocusHandler() {
       @Override
       public void onFocus(FocusEvent event) {
-        nameTextBox.addStyleName(style.inputFocused());
+        input.addStyleName(style.inputFocused());
       }
     });
-    nameTextBox.addBlurHandler(new BlurHandler() {
+    input.addBlurHandler(new BlurHandler() {
       @Override
       public void onBlur(BlurEvent event) {
-        nameTextBox.removeStyleName(style.inputFocused());
-      }
-    });
-
-    // Focus/blur styling for query
-    queryTextBox.addFocusHandler(new FocusHandler() {
-      @Override
-      public void onFocus(FocusEvent event) {
-        queryTextBox.addStyleName(style.inputFocused());
-      }
-    });
-    queryTextBox.addBlurHandler(new BlurHandler() {
-      @Override
-      public void onBlur(BlurEvent event) {
-        queryTextBox.removeStyleName(style.inputFocused());
+        input.removeStyleName(style.inputFocused());
       }
     });
 
@@ -168,11 +145,11 @@ public final class SearchesItemEditorPopup extends Composite {
     FlowPanel buttonPanel = new FlowPanel();
     buttonPanel.addStyleName(style.buttonPanel());
 
-    cancelButton = new Button(messages.cancel());
+    cancelButton = new Button("Cancel");
     cancelButton.addStyleName(style.cancelButton());
     buttonPanel.add(cancelButton);
 
-    okButton = new Button(messages.add());
+    okButton = new Button("Add");
     okButton.addStyleName(style.okButton());
     buttonPanel.add(okButton);
 
@@ -181,25 +158,12 @@ public final class SearchesItemEditorPopup extends Composite {
     initWidget(panel);
   }
 
-  public void init(SearchesItem searchesItem, Listener listener) {
-    if (searchesItem == null) {
-      nameTextBox.setText("");
-      queryTextBox.setText("");
-      okButton.setText(messages.add());
-      titleLabel.setText("Add Search");
-      isAddMode = true;
-    } else {
-      nameTextBox.setText(searchesItem.getName());
-      queryTextBox.setText(searchesItem.getQuery());
-      okButton.setText(messages.modify());
-      titleLabel.setText("Edit Search");
-      isAddMode = false;
-    }
-    errorLabel.getElement().getStyle().setProperty("display", "none");
-    this.listener = listener;
-  }
-
-  public void show() {
+  /**
+   * Shows the tag input popup and notifies the listener when the user acts.
+   *
+   * @param listener callback for submit/cancel actions
+   */
+  public void showInPopup(final Listener listener) {
     PopupChrome chrome = PopupChromeFactory.createPopupChrome();
     popup = PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
     popup.add(this);
@@ -209,27 +173,26 @@ public final class SearchesItemEditorPopup extends Composite {
     popup.addPopupEventListener(new PopupEventListener() {
       @Override
       public void onShow(PopupEventSourcer source) {
-        if (listener != null) {
-          listener.onShow();
-        }
+        // no-op
       }
 
       @Override
       public void onHide(PopupEventSourcer source) {
-        if (listener != null) {
-          listener.onHide();
+        if (!handled[0]) {
+          handled[0] = true;
+          listener.onCancel();
         }
       }
     });
 
     popup.show();
 
-    // Focus the name input after the popup is shown
+    // Focus the input after the popup is shown
     Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
       @Override
       public void execute() {
-        nameTextBox.setFocus(true);
-        nameTextBox.selectAll();
+        input.setFocus(true);
+        input.selectAll();
       }
     });
 
@@ -238,7 +201,7 @@ public final class SearchesItemEditorPopup extends Composite {
       @Override
       public void onClick(ClickEvent event) {
         handled[0] = true;
-        submit();
+        submit(listener);
       }
     });
 
@@ -248,53 +211,106 @@ public final class SearchesItemEditorPopup extends Composite {
       public void onClick(ClickEvent event) {
         handled[0] = true;
         popup.hide();
+        listener.onCancel();
       }
     });
 
-    // Enter to submit from query field, Escape to cancel
-    KeyDownHandler keyHandler = new KeyDownHandler() {
-      @Override
-      public void onKeyDown(KeyDownEvent event) {
-        if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
-          handled[0] = true;
-          popup.hide();
-        }
-      }
-    };
-    nameTextBox.addKeyDownHandler(keyHandler);
-
-    queryTextBox.addKeyDownHandler(new KeyDownHandler() {
+    // Enter to submit, Escape to cancel
+    input.addKeyDownHandler(new KeyDownHandler() {
       @Override
       public void onKeyDown(KeyDownEvent event) {
         if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
           handled[0] = true;
-          submit();
+          submit(listener);
         } else if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
           handled[0] = true;
           popup.hide();
+          listener.onCancel();
         }
       }
     });
   }
 
+  /** Hides the popup. */
   public void hide() {
     if (popup != null) {
       popup.hide();
     }
   }
 
-  private void submit() {
-    String name = nameTextBox.getText();
-    if (name == null || name.trim().isEmpty()) {
-      errorLabel.setText("Please enter a search name");
+  private void submit(Listener listener) {
+    String value = input.getValue();
+    if (value != null && !value.trim().isEmpty()) {
+      popup.hide();
+      listener.onSubmit(value.trim());
+    } else {
+      errorLabel.setText("Please enter at least one tag");
       errorLabel.getElement().getStyle().setProperty("display", "block");
-      nameTextBox.setFocus(true);
-      return;
+      input.setFocus(true);
     }
-    SearchesItem item = new SearchesItem(name.trim(), queryTextBox.getText().trim());
-    popup.hide();
-    if (listener != null) {
-      listener.onDone(item);
-    }
+  }
+
+  /**
+   * Creates and shows a styled confirmation dialog for removing a tag.
+   *
+   * @param tagName the tag to remove
+   * @param onConfirm called when the user confirms removal
+   */
+  public static void showRemoveConfirm(String tagName, final Runnable onConfirm) {
+    FlowPanel panel = new FlowPanel();
+    panel.addStyleName(style.self());
+
+    // Title
+    Label titleLabel = new Label("Remove Tag");
+    titleLabel.addStyleName(style.title());
+    panel.add(titleLabel);
+
+    // Message with tag name highlighted
+    FlowPanel messagePanel = new FlowPanel();
+    messagePanel.addStyleName(style.message());
+    InlineLabel prefix = new InlineLabel("Do you want to remove tag ");
+    messagePanel.add(prefix);
+    InlineLabel tagLabel = new InlineLabel("\"" + tagName + "\"");
+    tagLabel.addStyleName(style.tagName());
+    messagePanel.add(tagLabel);
+    InlineLabel suffix = new InlineLabel("?");
+    messagePanel.add(suffix);
+    panel.add(messagePanel);
+
+    // Button panel
+    FlowPanel buttonPanel = new FlowPanel();
+    buttonPanel.addStyleName(style.buttonPanel());
+
+    final Button cancelBtn = new Button("Cancel");
+    cancelBtn.addStyleName(style.cancelButton());
+    buttonPanel.add(cancelBtn);
+
+    final Button removeBtn = new Button("Remove");
+    removeBtn.addStyleName(style.removeButton());
+    buttonPanel.add(removeBtn);
+
+    panel.add(buttonPanel);
+
+    PopupChrome chrome = PopupChromeFactory.createPopupChrome();
+    final UniversalPopup confirmPopup =
+        PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
+    confirmPopup.add(panel);
+
+    removeBtn.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        confirmPopup.hide();
+        onConfirm.run();
+      }
+    });
+
+    cancelBtn.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        confirmPopup.hide();
+      }
+    });
+
+    confirmPopup.show();
   }
 }

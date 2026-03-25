@@ -102,26 +102,45 @@ public final class HtmlRenderer {
       + "  box-shadow: 0 0 0 3px rgba(0,119,182,0.10);\n"
       + "}\n"
 
-      // Filter buttons (Shared / All / Inbox) – scoped to search panel
-      // to avoid breaking fixed-dimension toolbars elsewhere
+      // Filter icon buttons (Shared / All / Inbox / Archive) – scoped
+      // to the search panel.  Now icon-only circles with SVG content.
       + "#app [kind=\"c\"] .gwt-Button {\n"
       + "  box-sizing: border-box;\n"
-      + "  border: 1.5px solid " + WAVE_BORDER + ";\n"
-      + "  border-radius: 16px;\n"
-      + "  background: #fff;\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  width: 32px;\n"
+      + "  height: 32px;\n"
+      + "  min-width: 32px;\n"
+      + "  padding: 0;\n"
+      + "  border: 1.5px solid transparent;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: transparent;\n"
       + "  color: " + WAVE_TEXT_MUTED + ";\n"
-      + "  font-family: " + WAVE_FONT + ";\n"
-      + "  font-size: 12px;\n"
-      + "  font-weight: 500;\n"
-      + "  padding: 4px 14px;\n"
+      + "  font-size: 0;\n"          // hide any remaining text
       + "  cursor: pointer;\n"
-      + "  transition: all 0.15s ease;\n"
-      + "  line-height: 1.4;\n"
+      + "  transition: all 0.18s ease;\n"
       + "}\n"
       + "#app [kind=\"c\"] .gwt-Button:hover {\n"
       + "  border-color: " + WAVE_PRIMARY + ";\n"
       + "  color: " + WAVE_PRIMARY + ";\n"
-      + "  background: rgba(0,119,182,0.04);\n"
+      + "  background: rgba(0,119,182,0.08);\n"
+      + "}\n"
+      + "#app [kind=\"c\"] .gwt-Button:active {\n"
+      + "  background: rgba(0,119,182,0.18);\n"
+      + "  transform: scale(0.92);\n"
+      + "}\n"
+      + "#app [kind=\"c\"] .gwt-Button svg {\n"
+      + "  display: block;\n"
+      + "}\n"
+
+      // Mobile: enlarge touch targets on narrow screens
+      + "@media (max-width: 480px) {\n"
+      + "  #app [kind=\"c\"] .gwt-Button {\n"
+      + "    width: 36px;\n"
+      + "    height: 36px;\n"
+      + "    min-width: 36px;\n"
+      + "  }\n"
       + "}\n"
 
       // --- Prominent "New Wave" toolbar button (pill-shaped, ocean gradient) ---
@@ -219,8 +238,9 @@ public final class HtmlRenderer {
       + "  display: inline-flex !important;\n"
       + "  align-items: center;\n"
       + "  justify-content: center;\n"
-      + "  width: 32px !important;\n"
-      + "  height: 32px !important;\n"
+      + "  width: 26px !important;\n"
+      + "  height: 26px !important;\n"
+      + "  flex-shrink: 0;\n"
       + "  border-radius: 50% !important;\n"
       + "  background: linear-gradient(135deg, #48cae4, #00b4d8) !important;\n"
       + "  color: #fff !important;\n"
@@ -228,7 +248,7 @@ public final class HtmlRenderer {
       + "  box-shadow: 0 2px 6px rgba(0,180,216,0.3);\n"
       + "  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;\n"
       + "  vertical-align: middle;\n"
-      + "  margin: 4px 2px !important;\n"
+      + "  margin: 0 !important;\n"
       + "}\n"
       + "#app [kind=\"a\"]:hover {\n"
       + "  transform: scale(1.12);\n"
@@ -241,8 +261,9 @@ public final class HtmlRenderer {
       + "  display: inline-flex !important;\n"
       + "  align-items: center;\n"
       + "  justify-content: center;\n"
-      + "  width: 32px !important;\n"
-      + "  height: 32px !important;\n"
+      + "  width: 26px !important;\n"
+      + "  height: 26px !important;\n"
+      + "  flex-shrink: 0;\n"
       + "  border-radius: 50% !important;\n"
       + "  background: linear-gradient(135deg, #00b4d8, " + WAVE_PRIMARY + ") !important;\n"
       + "  color: #fff !important;\n"
@@ -251,7 +272,7 @@ public final class HtmlRenderer {
       + "  box-shadow: 0 2px 6px rgba(0,119,182,0.3);\n"
       + "  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;\n"
       + "  vertical-align: middle;\n"
-      + "  margin: 4px 0 4px 6px !important;\n"
+      + "  margin: 0 !important;\n"
       + "  padding: 0 !important;\n"
       + "  font-size: 0;\n"
       + "  line-height: 0;\n"
@@ -260,6 +281,29 @@ public final class HtmlRenderer {
       + "  transform: scale(1.12);\n"
       + "  box-shadow: 0 4px 12px rgba(0,119,182,0.4);\n"
       + "  background: linear-gradient(135deg, #0096c7, #005f8f) !important;\n"
+      + "}\n"
+
+      // --- Public/Private toggle button ---
+      + "#app [kind=\"tp\"] {\n"
+      + "  display: inline-flex !important;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  width: 24px !important;\n"
+      + "  height: 24px !important;\n"
+      + "  flex-shrink: 0;\n"
+      + "  border-radius: 50% !important;\n"
+      + "  background: #0077b6 !important;\n"
+      + "  color: #fff !important;\n"
+      + "  cursor: pointer;\n"
+      + "  box-shadow: 0 2px 6px rgba(0,119,182,0.3);\n"
+      + "  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;\n"
+      + "  vertical-align: middle;\n"
+      + "  margin: 0 !important;\n"
+      + "}\n"
+      + "#app [kind=\"tp\"]:hover {\n"
+      + "  transform: scale(1.12);\n"
+      + "  box-shadow: 0 4px 12px rgba(0,119,182,0.4);\n"
+      + "  background: #005f8a !important;\n"
       + "}\n"
 
       // --- Blips ---
@@ -407,6 +451,235 @@ public final class HtmlRenderer {
       // --- Selection highlight ---
       + "#app ::selection {\n"
       + "  background: rgba(0,180,216,0.2);\n"
+      + "}\n"
+
+      // --- Version History Mode ---
+
+      // Scrubber bar: fixed at bottom of wave panel
+      + ".history-scrubber {\n"
+      + "  position: fixed;\n"
+      + "  bottom: 0;\n"
+      + "  left: 0;\n"
+      + "  right: 0;\n"
+      + "  z-index: 500;\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  gap: 12px;\n"
+      + "  padding: 8px 16px;\n"
+      + "  background: linear-gradient(135deg, rgba(0,119,182,0.95) 0%, rgba(0,180,216,0.95) 100%);\n"
+      + "  backdrop-filter: blur(8px);\n"
+      + "  -webkit-backdrop-filter: blur(8px);\n"
+      + "  border-top: 1px solid rgba(255,255,255,0.2);\n"
+      + "  box-shadow: 0 -2px 12px rgba(0,0,0,0.15);\n"
+      + "  color: #fff;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  font-size: 13px;\n"
+      + "}\n"
+
+      // Exit button
+      + ".history-scrubber-exit {\n"
+      + "  flex-shrink: 0;\n"
+      + "  background: rgba(255,255,255,0.15);\n"
+      + "  border: 1px solid rgba(255,255,255,0.3);\n"
+      + "  color: #fff;\n"
+      + "  border-radius: 6px;\n"
+      + "  padding: 4px 12px;\n"
+      + "  cursor: pointer;\n"
+      + "  font-size: 12px;\n"
+      + "  font-family: inherit;\n"
+      + "  transition: background 0.15s;\n"
+      + "  white-space: nowrap;\n"
+      + "}\n"
+      + ".history-scrubber-exit:hover {\n"
+      + "  background: rgba(255,255,255,0.3);\n"
+      + "}\n"
+
+      // Range input wrapper
+      + ".history-scrubber-range-wrapper {\n"
+      + "  flex: 1;\n"
+      + "  min-width: 100px;\n"
+      + "}\n"
+
+      // Range input styling
+      + ".history-scrubber-range {\n"
+      + "  width: 100%;\n"
+      + "  height: 6px;\n"
+      + "  -webkit-appearance: none;\n"
+      + "  appearance: none;\n"
+      + "  border-radius: 3px;\n"
+      + "  outline: none;\n"
+      + "  cursor: pointer;\n"
+      + "}\n"
+      + ".history-scrubber-range::-webkit-slider-thumb {\n"
+      + "  -webkit-appearance: none;\n"
+      + "  width: 18px;\n"
+      + "  height: 18px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: #fff;\n"
+      + "  box-shadow: 0 1px 4px rgba(0,0,0,0.3);\n"
+      + "  cursor: pointer;\n"
+      + "  border: 2px solid " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+      + ".history-scrubber-range::-moz-range-thumb {\n"
+      + "  width: 18px;\n"
+      + "  height: 18px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: #fff;\n"
+      + "  box-shadow: 0 1px 4px rgba(0,0,0,0.3);\n"
+      + "  cursor: pointer;\n"
+      + "  border: 2px solid " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+
+      // Info label
+      + ".history-scrubber-label {\n"
+      + "  flex-shrink: 0;\n"
+      + "  white-space: nowrap;\n"
+      + "  font-size: 12px;\n"
+      + "}\n"
+      + ".history-scrubber-author {\n"
+      + "  font-weight: 600;\n"
+      + "}\n"
+      + ".history-scrubber-sep {\n"
+      + "  opacity: 0.6;\n"
+      + "  margin: 0 2px;\n"
+      + "}\n"
+      + ".history-scrubber-date, .history-scrubber-changes {\n"
+      + "  opacity: 0.9;\n"
+      + "}\n"
+      + ".history-scrubber-version {\n"
+      + "  opacity: 0.6;\n"
+      + "  font-size: 11px;\n"
+      + "}\n"
+
+      // Tooltip
+      + ".history-scrubber-tooltip {\n"
+      + "  position: absolute;\n"
+      + "  bottom: 100%;\n"
+      + "  margin-bottom: 8px;\n"
+      + "  background: rgba(0,0,0,0.85);\n"
+      + "  color: #fff;\n"
+      + "  padding: 6px 10px;\n"
+      + "  border-radius: 6px;\n"
+      + "  font-size: 11px;\n"
+      + "  line-height: 1.4;\n"
+      + "  pointer-events: none;\n"
+      + "  white-space: nowrap;\n"
+      + "  transform: translateX(-50%);\n"
+      + "}\n"
+
+      // History header bar above diff content
+      + ".history-header {\n"
+      + "  padding: 10px 16px;\n"
+      + "  background: linear-gradient(135deg, " + WAVE_PRIMARY + " 0%, " + WAVE_ACCENT + " 100%);\n"
+      + "  color: #fff;\n"
+      + "  font-size: 13px;\n"
+      + "  border-radius: 8px;\n"
+      + "  margin: 8px 0 12px 0;\n"
+      + "}\n"
+      + ".history-header-label {\n"
+      + "  font-weight: 600;\n"
+      + "  text-transform: uppercase;\n"
+      + "  font-size: 11px;\n"
+      + "  letter-spacing: 0.5px;\n"
+      + "  opacity: 0.8;\n"
+      + "}\n"
+
+      // Diff container overlay
+      + ".history-diff-container {\n"
+      + "  padding: 0 8px 60px 8px;\n"
+      + "}\n"
+
+      // Blip containers in diff view
+      + ".history-blip {\n"
+      + "  margin: 8px 0;\n"
+      + "  padding: 12px 16px;\n"
+      + "  border-radius: 8px;\n"
+      + "  background: #fff;\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "}\n"
+      + ".history-blip-changed {\n"
+      + "  border-left: 3px solid " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+      + ".history-blip-deleted {\n"
+      + "  border-left: 3px solid #d62828;\n"
+      + "  opacity: 0.8;\n"
+      + "}\n"
+      + ".history-blip-unchanged {\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-size: 13px;\n"
+      + "}\n"
+
+      // Blip change header
+      + ".history-blip-header {\n"
+      + "  font-size: 12px;\n"
+      + "  margin-bottom: 8px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "}\n"
+      + ".history-blip-badge {\n"
+      + "  display: inline-block;\n"
+      + "  padding: 1px 6px;\n"
+      + "  border-radius: 4px;\n"
+      + "  font-size: 10px;\n"
+      + "  font-weight: 600;\n"
+      + "  text-transform: uppercase;\n"
+      + "  letter-spacing: 0.3px;\n"
+      + "}\n"
+      + ".history-blip-badge-new {\n"
+      + "  background: #d4edda;\n"
+      + "  color: #155724;\n"
+      + "}\n"
+      + ".history-blip-badge-modified {\n"
+      + "  background: #cce5ff;\n"
+      + "  color: #004085;\n"
+      + "}\n"
+      + ".history-blip-badge-deleted {\n"
+      + "  background: #f8d7da;\n"
+      + "  color: #721c24;\n"
+      + "}\n"
+      + ".history-blip-time {\n"
+      + "  margin-left: 4px;\n"
+      + "  font-size: 11px;\n"
+      + "  opacity: 0.7;\n"
+      + "}\n"
+      + ".history-blip-content {\n"
+      + "  font-size: 14px;\n"
+      + "  line-height: 1.6;\n"
+      + "  white-space: pre-wrap;\n"
+      + "  word-break: break-word;\n"
+      + "}\n"
+
+      // Diff highlighting: added text
+      + ".diff-add {\n"
+      + "  background: rgba(40,167,69,0.15);\n"
+      + "  color: #155724;\n"
+      + "  padding: 1px 2px;\n"
+      + "  border-radius: 2px;\n"
+      + "}\n"
+
+      // Diff highlighting: deleted text
+      + ".diff-del {\n"
+      + "  background: rgba(220,53,69,0.12);\n"
+      + "  color: #721c24;\n"
+      + "  text-decoration: line-through;\n"
+      + "  padding: 1px 2px;\n"
+      + "  border-radius: 2px;\n"
+      + "}\n"
+
+      // No changes indicator
+      + ".history-no-changes {\n"
+      + "  text-align: center;\n"
+      + "  padding: 24px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-style: italic;\n"
+      + "}\n"
+
+      // History mode: hide editing controls
+      + ".history-mode [kind='m'] {\n"
+      + "  display: none !important;\n"
+      + "}\n"
+      + ".history-mode [kind='e'] {\n"
+      + "  pointer-events: none;\n"
+      + "  opacity: 0.5;\n"
       + "}\n"
 
       + "/* ===== End SupaWave Panel Theme ===== */\n";
@@ -1208,13 +1481,39 @@ public final class HtmlRenderer {
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
     sb.append("}\n");
     sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
-    sb.append(".online svg { color: #68d391; }\n");
-    sb.append(".connecting svg { color: #fbd38d; }\n");
-    sb.append(".offline svg { color: #fc8181; }\n");
+    // Icon color is always white; state is shown by a small colored dot via ::after
+    sb.append(".topbar-icon svg { stroke: white !important; color: white !important; }\n");
+    // -- Status indicator dots (::after pseudo-element badges) --
+    sb.append(".topbar-icon::after {\n");
+    sb.append("  content: ''; position: absolute; bottom: 2px; right: 2px;\n");
+    sb.append("  width: 8px; height: 8px; border-radius: 50%;\n");
+    sb.append("  border: 1.5px solid rgba(0,50,100,0.6);\n");
+    sb.append("  display: none;\n");
+    sb.append("}\n");
+    sb.append(".lang-icon-btn::after { display: none !important; }\n");
+    // Saved state: small green dot
+    sb.append(".topbar-icon.saved::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    // Saving state: pulsing amber dot
+    sb.append(".topbar-icon.saving::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    // Online: small green dot
+    sb.append(".topbar-icon.online::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    // Connecting: pulsing amber dot
+    sb.append(".topbar-icon.connecting::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    // Offline: red dot
+    sb.append(".topbar-icon.offline::after { display: block; background: #fc8181; box-shadow: 0 0 4px #fc8181; }\n");
+    sb.append("@keyframes indicator-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }\n");
     // Info bar
     sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.9); }\n");
     sb.append(".info a { color: #fff; text-decoration: none; font-weight: 500; }\n");
     sb.append(".info a:hover { text-decoration: underline; }\n");
+    sb.append(".online svg { color: #3fb950; stroke: #3fb950; }\n");
+    sb.append(".connecting svg { color: #d29922; stroke: #d29922; }\n");
+    sb.append(".offline svg { color: #f85149; stroke: #f85149; }\n");
+    sb.append("@keyframes status-pulse {\n");
+    sb.append("  0%, 100% { opacity: 1; }\n");
+    sb.append("  50% { opacity: 0.5; }\n");
+    sb.append("}\n");
+    sb.append(".saving-pulse, .connecting-pulse { animation: status-pulse 1.5s ease-in-out infinite; }\n");
     // -- Avatar circle --
     sb.append(".user-avatar {\n");
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
@@ -1625,7 +1924,7 @@ public final class HtmlRenderer {
       sb.append("      <select id=\"lang\" size=\"1\"></select>\n");
       sb.append("    </div>\n");
       // -- Save status indicator: cloud-check icon, updated by GWT --
-      sb.append("    <span id=\"unsavedStateContainer\" class=\"topbar-icon\" title=\"All changes saved\">");
+      sb.append("    <span id=\"unsavedStateContainer\" class=\"topbar-icon saved\" title=\"All changes saved\">");
       sb.append(ICON_CLOUD_CHECK).append("</span>\n");
       // -- Connection status: wifi-off icon for initial offline state, updated by GWT --
       sb.append("    <span id=\"netstatus\" class=\"topbar-icon offline\" title=\"Offline\">");
@@ -1664,24 +1963,24 @@ public final class HtmlRenderer {
       + "<path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10\"/>"
       + "</svg>";
 
-  /** Cloud with checkmark icon for saved state. */
+  /** Cloud with checkmark icon for saved state — green #3fb950. */
   private static final String ICON_CLOUD_CHECK =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#3fb950\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
       + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
       + "</svg>";
-  /** WiFi/signal icon for connection status. */
+  /** WiFi/signal icon for connection status (white for contrast on dark topbar). */
   private static final String ICON_WIFI =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/>"
       + "<path d=\"M5.07 12.5a10 10 0 0 1 13.86 0\"/>"
       + "<path d=\"M8.72 16a6 6 0 0 1 6.56 0\"/>"
       + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
       + "</svg>";
 
-  /** WiFi-off icon for disconnected state. */
+  /** WiFi-off icon for disconnected state (white for contrast on dark topbar). */
   private static final String ICON_WIFI_OFF =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/>"
       + "<path d=\"M16.72 11.06A10.94 10.94 0 0 1 19 12.55\"/>"
       + "<path d=\"M5 12.55a10.94 10.94 0 0 1 5.17-2.39\"/>"

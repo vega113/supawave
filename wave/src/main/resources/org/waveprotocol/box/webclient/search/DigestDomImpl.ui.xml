@@ -38,9 +38,8 @@
         <div ui:field='time'/>
         <div ui:field='msgs'/>
       </div>
-      <span ui:field='title' class='{css.title}'/>
-      &mdash;
-      <span ui:field='snippet'/>
+      <div ui:field='title' class='{css.title}'/>
+      <div ui:field='snippet' class='{css.snippet}'/>
     </div>
   </div>
 </ui:UiBinder>

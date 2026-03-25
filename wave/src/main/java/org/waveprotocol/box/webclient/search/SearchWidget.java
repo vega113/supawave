@@ -38,6 +38,9 @@ import org.waveprotocol.wave.client.common.util.QuirksConstants;
 
 /**
  * Widget implementation of the search area.
+ * <p>
+ * Filter buttons use inline SVG icons (Lucide, MIT licensed) instead of text
+ * labels so they stay visible in narrow panels and on mobile.
  *
  * @author hearnden@google.com (David Hearnden)
  */
@@ -69,6 +72,39 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   private final static String DEFAULT_QUERY = "";
 
+  // Inline SVG icons (Lucide icon set, MIT) rendered at 18x18 with stroke.
+  // Explicit close tags are used instead of self-closing tags for GWT compatibility.
+  private static final String SVG_OPEN =
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" "
+      + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
+      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
+
+  /** Shared: users icon (two people). */
+  private static final String ICON_SHARED = SVG_OPEN
+      + "<path d=\"M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2\"></path>"
+      + "<circle cx=\"9\" cy=\"7\" r=\"4\"></circle>"
+      + "<path d=\"M23 21v-2a4 4 0 00-3-3.87\"></path>"
+      + "<path d=\"M16 3.13a4 4 0 010 7.75\"></path></svg>";
+
+  /** All: grid/globe icon. */
+  private static final String ICON_ALL = SVG_OPEN
+      + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
+      + "<line x1=\"2\" y1=\"12\" x2=\"22\" y2=\"12\"></line>"
+      + "<path d=\"M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"
+      + " 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z\"></path></svg>";
+
+  /** Inbox: inbox tray icon. */
+  private static final String ICON_INBOX = SVG_OPEN
+      + "<polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"></polyline>"
+      + "<path d=\"M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89"
+      + "A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z\"></path></svg>";
+
+  /** Archive: archive box icon. */
+  private static final String ICON_ARCHIVE = SVG_OPEN
+      + "<polyline points=\"21 8 21 21 3 21 3 8\"></polyline>"
+      + "<rect x=\"1\" y=\"3\" width=\"22\" height=\"5\"></rect>"
+      + "<line x1=\"10\" y1=\"12\" x2=\"14\" y2=\"12\"></line></svg>";
+
   @UiField
   TextBox query;
   @UiField
@@ -93,6 +129,12 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       query.getElement().setAttribute("autosave", "QUERY_AUTO_SAVE");
     }
     query.addChangeHandler(this);
+
+    // Replace placeholder text with SVG icons.
+    searchButtonShared.getElement().setInnerHTML(ICON_SHARED);
+    searchButtonAll.getElement().setInnerHTML(ICON_ALL);
+    searchButtonInbox.getElement().setInnerHTML(ICON_INBOX);
+    searchButtonArchive.getElement().setInnerHTML(ICON_ARCHIVE);
   }
 
   @Override
@@ -140,7 +182,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   
   @UiHandler("searchButtonAll")
   public void onHandleAll(ClickEvent event) {
-    setQuery("");
+    setQuery("in:all");
     onQuery();
   }
   

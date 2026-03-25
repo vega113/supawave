@@ -73,9 +73,12 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       LOG.warning("Invalid Query. " + e1.getMessage());
       return digester.generateSearchResult(user, query, null);
     }
-    // Maybe should be changed in case other folders in addition to 'inbox' are
-    // added.
-    final boolean isAllQuery = !queryParams.containsKey(TokenQueryType.IN);
+    // The "all" query should include shared domain waves. It is triggered when:
+    // 1. No 'in:' filter is present (empty query), or
+    // 2. The explicit 'in:all' filter is used.
+    final Set<String> inValues = queryParams.get(TokenQueryType.IN);
+    final boolean isAllQuery = !queryParams.containsKey(TokenQueryType.IN)
+        || (inValues != null && inValues.contains("all"));
 
     final List<ParticipantId> withParticipantIds;
     final List<ParticipantId> creatorParticipantIds;

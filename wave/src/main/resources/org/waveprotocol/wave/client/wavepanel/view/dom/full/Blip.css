@@ -104,7 +104,6 @@
 .metabar {
   /* Flex layout aligns metaline, time and menu icons on one row. */
   display: flex;
-  direction: ltr;
   align-items: center;
   border-radius: 6px;
   -moz-border-radius: 6px;

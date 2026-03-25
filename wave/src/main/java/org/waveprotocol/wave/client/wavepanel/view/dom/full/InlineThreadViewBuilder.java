@@ -89,12 +89,26 @@ public final class InlineThreadViewBuilder implements IntrinsicInlineThreadView,
    */
   public static InlineThreadViewBuilder create(String id, HtmlClosure blips,
       UiBuilder continuationIndicator) {
+    return create(id, blips, continuationIndicator, -1);
+  }
+
+  /**
+   * Creates a UI builder for an inline thread with a nesting depth hint.
+   *
+   * @param depth nesting depth (0-based); -1 means unset (no data-depth attribute)
+   */
+  public static InlineThreadViewBuilder create(String id, HtmlClosure blips,
+      UiBuilder continuationIndicator, int depth) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
     Preconditions.checkArgument(!id.contains("\'"));
     InlineThreadStructure structure = InlineThreadStructure.create(blips, continuationIndicator);
-    return new InlineThreadViewBuilder(
-        id, CollapsibleBuilder.create(id, TypeCodes.kind(Type.INLINE_THREAD), structure));
+    CollapsibleBuilder collapsible =
+        CollapsibleBuilder.create(id, TypeCodes.kind(Type.INLINE_THREAD), structure);
+    if (depth >= 0) {
+      collapsible.setDepth(depth);
+    }
+    return new InlineThreadViewBuilder(id, collapsible);
   }
 
   @VisibleForTesting

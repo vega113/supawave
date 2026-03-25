@@ -104,73 +104,79 @@ public final class HtmlRenderer {
       + "  background: #fff;\n"
       + "}\n"
 
-      // Filter icon buttons (Inbox / Shared / All / Archive) – compact circles
-      + "#app [kind=\"c\"] .gwt-Button {\n"
-      + "  display: inline-flex;\n"
+      // --- Unified toolbar row: compact 32px action icons ---
+      // The toolbar sits directly below the search box. All action and filter
+      // icons live here in logical groups separated by thin vertical dividers.
+      + "#app [kind=\"c\"] + div {\n"
+      + "  height: 32px !important;\n"
+      + "  display: flex;\n"
       + "  align-items: center;\n"
-      + "  justify-content: center;\n"
+      + "}\n"
+
+      // Toolbar icon buttons — minimal icon circles
+      + "#app [data-action=\"new-wave\"],\n"
+      + "#app [kind=\"c\"] ~ div .gwt-PushButton {\n"
+      + "  display: inline-flex !important;\n"
+      + "  align-items: center !important;\n"
+      + "  justify-content: center !important;\n"
       + "  box-sizing: border-box;\n"
-      + "  width: 30px;\n"
-      + "  height: 30px;\n"
+      + "  width: 28px;\n"
+      + "  height: 28px;\n"
       + "  border: 1.5px solid transparent;\n"
       + "  border-radius: 50%;\n"
       + "  background: none;\n"
       + "  color: " + WAVE_TEXT_MUTED + ";\n"
-      + "  font-size: 15px;\n"
       + "  padding: 0;\n"
       + "  cursor: pointer;\n"
       + "  transition: all 0.15s ease;\n"
       + "  line-height: 1;\n"
       + "}\n"
-      + "#app [kind=\"c\"] .gwt-Button:hover {\n"
+      + "#app [data-action=\"new-wave\"]:hover,\n"
+      + "#app [kind=\"c\"] ~ div .gwt-PushButton:hover {\n"
       + "  border-color: " + WAVE_PRIMARY + ";\n"
       + "  color: " + WAVE_PRIMARY + ";\n"
       + "  background: rgba(0,119,182,0.06);\n"
       + "}\n"
-      + "#app [kind=\"c\"] .gwt-Button:active {\n"
+      + "#app [data-action=\"new-wave\"]:active,\n"
+      + "#app [kind=\"c\"] ~ div .gwt-PushButton:active {\n"
       + "  background: rgba(0,119,182,0.18);\n"
       + "  transform: scale(0.92);\n"
       + "}\n"
-      + "#app [kind=\"c\"] .gwt-Button svg {\n"
+      + "#app [kind=\"c\"] ~ div .gwt-PushButton svg,\n"
+      + "#app [data-action=\"new-wave\"] svg {\n"
       + "  display: block;\n"
+      + "}\n"
+
+      // --- New Wave icon: slightly wider, subtle ocean-blue tint ---
+      + "#app [data-action=\"new-wave\"] {\n"
+      + "  width: 34px !important;\n"
+      + "  height: 28px !important;\n"
+      + "  border-radius: 8px !important;\n"
+      + "  background: rgba(0,119,182,0.08) !important;\n"
+      + "  color: " + WAVE_PRIMARY + " !important;\n"
+      + "  border: 1.5px solid rgba(0,119,182,0.18) !important;\n"
+      + "}\n"
+      + "#app [data-action=\"new-wave\"]:hover {\n"
+      + "  background: rgba(0,119,182,0.15) !important;\n"
+      + "  border-color: " + WAVE_PRIMARY + " !important;\n"
+      + "  box-shadow: 0 1px 6px rgba(0,119,182,0.18);\n"
+      + "}\n"
+      + "#app [data-action=\"new-wave\"]:active {\n"
+      + "  background: rgba(0,119,182,0.22) !important;\n"
+      + "  transform: scale(0.95);\n"
       + "}\n"
 
       // Mobile: enlarge touch targets on narrow screens
       + "@media (max-width: 480px) {\n"
-      + "  #app [kind=\"c\"] .gwt-Button {\n"
-      + "    width: 36px;\n"
-      + "    height: 36px;\n"
-      + "    min-width: 36px;\n"
+      + "  #app [data-action=\"new-wave\"],\n"
+      + "  #app [kind=\"c\"] ~ div .gwt-PushButton {\n"
+      + "    width: 34px;\n"
+      + "    height: 34px;\n"
+      + "    min-width: 34px;\n"
       + "  }\n"
-      + "}\n"
-
-      // --- Prominent "New Wave" toolbar button (pill-shaped, ocean gradient) ---
-      + "#app [data-action=\"new-wave\"] {\n"
-      + "  background: linear-gradient(135deg, " + WAVE_PRIMARY + ", #00b4d8) !important;\n"
-      + "  color: #fff !important;\n"
-      + "  border: none !important;\n"
-      + "  border-radius: 12px !important;\n"
-      + "  padding: 2px 8px !important;\n"
-      + "  font-weight: 600 !important;\n"
-      + "  font-size: 11px !important;\n"
-      + "  font-family: " + WAVE_FONT + " !important;\n"
-      + "  cursor: pointer;\n"
-      + "  box-shadow: 0 1px 4px rgba(0,119,182,0.2);\n"
-      + "  transition: all 0.2s ease;\n"
-      + "  letter-spacing: 0;\n"
-      + "  white-space: nowrap;\n"
-      + "  max-width: 90px;\n"
-      + "  overflow: hidden;\n"
-      + "  text-overflow: ellipsis;\n"
-      + "}\n"
-      + "#app [data-action=\"new-wave\"]:hover {\n"
-      + "  background: linear-gradient(135deg, #005f8f, #0096c7) !important;\n"
-      + "  box-shadow: 0 4px 14px rgba(0,119,182,0.35);\n"
-      + "  transform: translateY(-1px);\n"
-      + "}\n"
-      + "#app [data-action=\"new-wave\"]:active {\n"
-      + "  transform: translateY(0);\n"
-      + "  box-shadow: 0 1px 4px rgba(0,119,182,0.3);\n"
+      + "  #app [data-action=\"new-wave\"] {\n"
+      + "    width: 40px !important;\n"
+      + "  }\n"
       + "}\n"
 
       // --- Digest list items (wave inbox) ---
@@ -833,6 +839,120 @@ public final class HtmlRenderer {
       + ".upload-status-modern.success { color: #188038; }\n"
       + ".upload-status-modern.error { color: #d93025; }\n"
 
+      // --- Display Size Selector ---
+      + ".display-size-panel {\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  gap: 6px;\n"
+      + "  margin-top: 12px;\n"
+      + "  padding: 8px 0;\n"
+      + "}\n"
+      + ".display-size-label {\n"
+      + "  font-size: 13px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  margin-right: 4px;\n"
+      + "}\n"
+      + ".size-btn {\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  width: 36px;\n"
+      + "  height: 32px;\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 6px;\n"
+      + "  background: #fff;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-size: 13px;\n"
+      + "  font-weight: 600;\n"
+      + "  cursor: pointer;\n"
+      + "  transition: all 0.15s ease;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  padding: 0;\n"
+      + "}\n"
+      + ".size-btn:hover {\n"
+      + "  border-color: " + WAVE_PRIMARY + ";\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "}\n"
+      + ".size-btn-active {\n"
+      + "  background: " + WAVE_PRIMARY + " !important;\n"
+      + "  color: #fff !important;\n"
+      + "  border-color: " + WAVE_PRIMARY + " !important;\n"
+      + "}\n"
+
+      // --- Image Compression Info ---
+      + ".compression-info-panel {\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  gap: 10px;\n"
+      + "  padding: 6px 12px;\n"
+      + "  margin-top: 8px;\n"
+      + "  background: #f0f6fa;\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 8px;\n"
+      + "  font-size: 12px;\n"
+      + "}\n"
+      + ".compression-label {\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-size: 12px;\n"
+      + "}\n"
+      + ".compress-toggle-btn {\n"
+      + "  font-size: 11px;\n"
+      + "  padding: 2px 8px;\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 4px;\n"
+      + "  background: #fff;\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "  cursor: pointer;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  margin-left: auto;\n"
+      + "}\n"
+      + ".compress-toggle-btn:hover {\n"
+      + "  background: #f0f6fa;\n"
+      + "}\n"
+
+      // --- File Type Icons in Thumbnails ---
+      + ".file-type-overlay {\n"
+      + "  position: absolute;\n"
+      + "  top: 50%;\n"
+      + "  left: 50%;\n"
+      + "  transform: translate(-50%, -50%);\n"
+      + "  z-index: 5;\n"
+      + "  text-align: center;\n"
+      + "  pointer-events: none;\n"
+      + "}\n"
+      + ".file-type-icon {\n"
+      + "  display: inline-flex;\n"
+      + "  flex-direction: column;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  width: 56px;\n"
+      + "  height: 64px;\n"
+      + "  border-radius: 6px;\n"
+      + "  padding: 4px;\n"
+      + "  box-shadow: 0 1px 3px rgba(0,0,0,0.15);\n"
+      + "}\n"
+      + ".file-type-label {\n"
+      + "  font-size: 9px;\n"
+      + "  font-weight: 700;\n"
+      + "  color: white;\n"
+      + "  letter-spacing: 0.5px;\n"
+      + "  margin-top: 2px;\n"
+      + "}\n"
+
+      // --- Display Size CSS classes on thumbnail container ---
+      + ".display-size-small .itimg {\n"
+      + "  max-width: 120px;\n"
+      + "  max-height: 80px;\n"
+      + "}\n"
+      + ".display-size-medium .itimg {\n"
+      + "  max-width: 300px;\n"
+      + "  max-height: 200px;\n"
+      + "}\n"
+      + ".display-size-large .itimg {\n"
+      + "  max-width: 600px;\n"
+      + "  max-height: 400px;\n"
+      + "}\n"
+
       // --- Version History Mode ---
 
       // Scrubber bar: fixed at bottom of wave panel
@@ -1060,6 +1180,31 @@ public final class HtmlRenderer {
       + ".history-mode [kind='e'] {\n"
       + "  pointer-events: none;\n"
       + "  opacity: 0.5;\n"
+      + "}\n"
+
+      // --- Phase 1: Depth-clamped inline reply indentation ---
+      // Replace heavy per-level indentation with thin depth lines.
+      // data-depth is emitted on collapsible inline-thread containers.
+      + "[data-depth=\"0\"] > div > div { margin-left: 1em; }\n"
+      + "[data-depth=\"1\"] > div > div { margin-left: 0.8em; }\n"
+      + "[data-depth=\"2\"] > div > div { margin-left: 0.6em; }\n"
+      + "[data-depth=\"3\"] > div > div { margin-left: 0.4em; }\n"
+      + "[data-depth] > div > div {\n"
+      + "  border-left: 2px solid rgba(0,119,182,0.15);\n"
+      + "  padding-left: 8px;\n"
+      + "}\n"
+      // Depth >= 4: minimal indent to prevent runaway nesting
+      + "[data-depth=\"4\"] > div > div,\n"
+      + "[data-depth=\"5\"] > div > div {\n"
+      + "  margin-left: 0.2em;\n"
+      + "}\n"
+
+      // Mobile: zero indent, full-width blips
+      + "@media (max-width: 768px) {\n"
+      + "  [data-depth] > div > div {\n"
+      + "    margin-left: 0 !important;\n"
+      + "    padding-left: 4px;\n"
+      + "  }\n"
       + "}\n"
 
       + "/* ===== End SupaWave Panel Theme ===== */\n";
@@ -1871,6 +2016,15 @@ public final class HtmlRenderer {
     sb.append("  display: none;\n");
     sb.append("}\n");
     sb.append(".lang-icon-btn::after { display: none !important; }\n");
+    // Language code badge next to globe icon
+    sb.append("#langCode {\n");
+    sb.append("  font-size: 10px; font-weight: 700; color: white;\n");
+    sb.append("  letter-spacing: 0.5px; line-height: 1;\n");
+    sb.append("  pointer-events: none; user-select: none;\n");
+    sb.append("  position: absolute; bottom: 1px; right: -2px;\n");
+    sb.append("  background: rgba(0,0,0,0.45); border-radius: 3px;\n");
+    sb.append("  padding: 1px 2px;\n");
+    sb.append("}\n");
     // Saved state: small green dot
     sb.append(".topbar-icon.saved::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
     // Saving state: pulsing amber dot
@@ -2501,6 +2655,7 @@ public final class HtmlRenderer {
       // -- Language selector: globe icon wrapping a transparent <select> --
       sb.append("    <div class=\"topbar-icon lang-icon-btn\" title=\"Language\">\n");
       sb.append("      ").append(ICON_GLOBE).append("\n");
+      sb.append("      <span id=\"langCode\"></span>\n");
       sb.append("      <select id=\"lang\" size=\"1\"></select>\n");
       sb.append("    </div>\n");
       // -- Save status indicator: cloud-check icon, updated by GWT --

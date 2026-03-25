@@ -24,6 +24,7 @@ import org.waveprotocol.box.webclient.folder.FolderOperationBuilder;
 import org.waveprotocol.box.webclient.folder.FolderOperationBuilderImpl;
 import org.waveprotocol.box.webclient.folder.FolderOperationService;
 import org.waveprotocol.box.webclient.folder.FolderOperationServiceImpl;
+import org.waveprotocol.wave.client.debug.logger.DomLogger;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusBlipSelector;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFramePresenter;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.ViewTraverser;
@@ -35,6 +36,7 @@ import org.waveprotocol.wave.client.widget.toolbar.ToolbarButtonViewBuilder;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarView;
 import org.waveprotocol.wave.client.widget.toolbar.ToplevelToolbarWidget;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
+import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.model.conversation.ConversationView;
 import org.waveprotocol.wave.model.id.WaveId;
 
@@ -44,7 +46,14 @@ import org.waveprotocol.wave.model.id.WaveId;
  * @author kalman@google.com (Benjamin Kalman)
  */
 public final class ViewToolbar {
+  private static final LoggerBundle LOG = new DomLogger("ViewToolbar");
   private final static ToolbarMessages messages = GWT.create(ToolbarMessages.class);
+
+  /** Listener notified when a folder move operation completes. */
+  public interface FolderActionListener {
+    /** Called after a wave has been successfully moved to the given folder. */
+    void onFolderActionCompleted(String folder);
+  }
 
   private final ToplevelToolbarWidget toolbarUi;
   private final FocusFramePresenter focusFrame;
@@ -55,6 +64,9 @@ public final class ViewToolbar {
 
   /** Listener for the history toolbar button. */
   private ToolbarClickButton.Listener historyButtonListener;
+
+  /** Listener for folder action completion. */
+  private FolderActionListener folderActionListener;
 
   private ViewToolbar(ToplevelToolbarWidget toolbarUi, FocusFramePresenter focusFrame,
       ModelAsViewProvider views, ConversationView wave, Reader reader, WaveId waveId) {
@@ -155,23 +167,35 @@ public final class ViewToolbar {
   /**
    * Moves the currently open wave to the specified folder via the FolderServlet.
    */
-  private void moveToFolder(String folder) {
+  private void moveToFolder(final String folder) {
     String url = new FolderOperationBuilderImpl()
         .addParameter(FolderOperationBuilder.PARAM_OPERATION, FolderOperationBuilder.OPERATION_MOVE)
         .addParameter(FolderOperationBuilder.PARAM_FOLDER, folder)
         .addParameter(FolderOperationBuilder.PARAM_WAVE_ID, waveId.serialise())
         .getUrl();
+    LOG.trace().log("Moving wave ", waveId.serialise(), " to folder: ", folder);
     folderService.execute(url, new FolderOperationService.Callback() {
       @Override
       public void onSuccess() {
-        // Operation succeeded silently.
+        LOG.trace().log("Successfully moved wave to folder: ", folder);
+        if (folderActionListener != null) {
+          folderActionListener.onFolderActionCompleted(folder);
+        }
       }
 
       @Override
       public void onFailure(String message) {
-        // Log failure; nothing else to do in the toolbar.
+        LOG.error().log("Failed to move wave to folder ", folder, ": ", message);
       }
     });
+  }
+
+  /**
+   * Sets a listener that is called when a folder move operation completes.
+   * The caller should use this to navigate back to the wave list or refresh the UI.
+   */
+  public void setFolderActionListener(FolderActionListener listener) {
+    this.folderActionListener = listener;
   }
 
   /**

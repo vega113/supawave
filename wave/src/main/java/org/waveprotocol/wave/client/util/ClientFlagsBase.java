@@ -505,6 +505,10 @@ public class ClientFlagsBase {
   private final Boolean forceClientFragments;
   private final Integer fragmentsApplierMaxRanges;
 
+  // Inline reply slide-navigation flags (Phase 0)
+  private final Boolean enableSlideNavigation;
+  private final Integer maxReplyDepth;
+
 
   /**
    * Returns debug information for flag values.
@@ -761,6 +765,10 @@ public class ClientFlagsBase {
         "dynamicScrollThrottleMs", dynamicScrollThrottleMs,
         "dynamicSpeedBoostThresholdPx", dynamicSpeedBoostThresholdPx,
         "dynamicSpeedBoostFactor", dynamicSpeedBoostFactor,
+
+        // Inline reply slide-navigation flags
+        "enableSlideNavigation", enableSlideNavigation,
+        "maxReplyDepth", maxReplyDepth,
 
     };
   }
@@ -1019,6 +1027,10 @@ public class ClientFlagsBase {
     forceClientFragments = helper.getBoolean(FlagConstants.FORCE_CLIENT_FRAGMENTS, false);
     fragmentsApplierMaxRanges = helper.getInteger(FlagConstants.FRAGMENTS_APPLIER_MAX_RANGES, null);
 
+    // Inline reply slide-navigation flags (Phase 0)
+    enableSlideNavigation = helper.getBoolean(FlagConstants.ENABLE_SLIDE_NAVIGATION, true);
+    maxReplyDepth = helper.getInteger(FlagConstants.MAX_REPLY_DEPTH, 5);
+
   }
 
   /** Conversation Renderer migration flags */
@@ -1043,6 +1055,10 @@ public class ClientFlagsBase {
   public Boolean forceClientFragments() { return forceClientFragments; }
   public Integer dynamicSpeedBoostThresholdPx() { return dynamicSpeedBoostThresholdPx; }
   public Double dynamicSpeedBoostFactor() { return dynamicSpeedBoostFactor; }
+
+  /** Inline reply slide-navigation flags */
+  public Boolean enableSlideNavigation() { return enableSlideNavigation; }
+  public Integer maxReplyDepth() { return maxReplyDepth; }
 
 
   /**

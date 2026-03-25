@@ -213,6 +213,7 @@ public class ServerMain {
     server.addServlet("/readyz", HealthServlet.class);
     server.addServlet("/version", VersionServlet.class);
     server.addServlet("/profile/*", FetchProfilesServlet.class);
+    server.addServlet("/userprofile/*", ProfileServlet.class);
     server.addServlet("/contacts", FetchContactsServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);

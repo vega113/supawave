@@ -152,6 +152,10 @@ public final class ProfileResponseJsoImpl extends org.waveprotocol.wave.communic
     private static final String keyName = "2";
     private static final String keyImageUrl = "3";
     private static final String keyProfileUrl = "4";
+    private static final String keyFirstName = "5";
+    private static final String keyLastName = "6";
+    private static final String keyBio = "7";
+    private static final String keyLastSeenTime = "8";
     protected FetchedProfileJsoImpl() {
     }
 
@@ -294,6 +298,170 @@ public final class ProfileResponseJsoImpl extends org.waveprotocol.wave.communic
     @Override
     public void setProfileUrl(String value) {
       setPropertyAsString(this, keyProfileUrl, value);
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+
+    @Override
+    public boolean hasFirstName() {
+      return hasProperty(this, keyFirstName);
+    }
+
+    @Override
+    public void clearFirstName() {
+      if (hasProperty(this, keyFirstName)) {
+        deleteProperty(this, keyFirstName);
+      }
+    }
+
+    @Override
+    public String getFirstName() {
+      return hasProperty(this, keyFirstName) ? getPropertyAsString(this, keyFirstName) : null;
+    }
+
+    @Override
+    public void setFirstName(String value) {
+      setPropertyAsString(this, keyFirstName, value);
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+
+    @Override
+    public boolean hasLastName() {
+      return hasProperty(this, keyLastName);
+    }
+
+    @Override
+    public void clearLastName() {
+      if (hasProperty(this, keyLastName)) {
+        deleteProperty(this, keyLastName);
+      }
+    }
+
+    @Override
+    public String getLastName() {
+      return hasProperty(this, keyLastName) ? getPropertyAsString(this, keyLastName) : null;
+    }
+
+    @Override
+    public void setLastName(String value) {
+      setPropertyAsString(this, keyLastName, value);
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+
+    @Override
+    public boolean hasBio() {
+      return hasProperty(this, keyBio);
+    }
+
+    @Override
+    public void clearBio() {
+      if (hasProperty(this, keyBio)) {
+        deleteProperty(this, keyBio);
+      }
+    }
+
+    @Override
+    public String getBio() {
+      return hasProperty(this, keyBio) ? getPropertyAsString(this, keyBio) : null;
+    }
+
+    @Override
+    public void setBio(String value) {
+      setPropertyAsString(this, keyBio, value);
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+
+    @Override
+    public boolean hasLastSeenTime() {
+      return hasProperty(this, keyLastSeenTime);
+    }
+
+    @Override
+    public void clearLastSeenTime() {
+      if (hasProperty(this, keyLastSeenTime)) {
+        deleteProperty(this, keyLastSeenTime);
+      }
+    }
+
+    @Override
+    public long getLastSeenTime() {
+      return hasProperty(this, keyLastSeenTime) ? getPropertyAsLong(this, keyLastSeenTime) : 0L;
+    }
+
+    @Override
+    public void setLastSeenTime(long value) {
+      setPropertyAsLong(this, keyLastSeenTime, value);
     }
 
     @Override

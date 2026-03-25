@@ -272,6 +272,102 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.box.prof
       } else {
         clearProfileUrl();
       }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (message.hasFirstName()) {
+        setFirstName(message.getFirstName());
+      } else {
+        clearFirstName();
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (message.hasLastName()) {
+        setLastName(message.getLastName());
+      } else {
+        clearLastName();
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (message.hasBio()) {
+        setBio(message.getBio());
+      } else {
+        clearBio();
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (message.hasLastSeenTime()) {
+        setLastSeenTime(message.getLastSeenTime());
+      } else {
+        clearLastSeenTime();
+      }
     }
 
     /**
@@ -410,6 +506,178 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.box.prof
       protoBuilder.setProfileUrl(value);
     }
 
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+
+    @Override
+    public boolean hasFirstName() {
+      switchToProto();
+      return proto.hasFirstName();
+    }
+
+    @Override
+    public void clearFirstName() {
+      switchToProtoBuilder();
+      protoBuilder.clearFirstName();
+    }
+
+    @Override
+    public String getFirstName() {
+      switchToProto();
+      return proto.getFirstName();
+    }
+
+    @Override
+    public void setFirstName(String value) {
+      switchToProtoBuilder();
+      protoBuilder.setFirstName(value);
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+
+    @Override
+    public boolean hasLastName() {
+      switchToProto();
+      return proto.hasLastName();
+    }
+
+    @Override
+    public void clearLastName() {
+      switchToProtoBuilder();
+      protoBuilder.clearLastName();
+    }
+
+    @Override
+    public String getLastName() {
+      switchToProto();
+      return proto.getLastName();
+    }
+
+    @Override
+    public void setLastName(String value) {
+      switchToProtoBuilder();
+      protoBuilder.setLastName(value);
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+
+    @Override
+    public boolean hasBio() {
+      switchToProto();
+      return proto.hasBio();
+    }
+
+    @Override
+    public void clearBio() {
+      switchToProtoBuilder();
+      protoBuilder.clearBio();
+    }
+
+    @Override
+    public String getBio() {
+      switchToProto();
+      return proto.getBio();
+    }
+
+    @Override
+    public void setBio(String value) {
+      switchToProtoBuilder();
+      protoBuilder.setBio(value);
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+
+    @Override
+    public boolean hasLastSeenTime() {
+      switchToProto();
+      return proto.hasLastSeenTime();
+    }
+
+    @Override
+    public void clearLastSeenTime() {
+      switchToProtoBuilder();
+      protoBuilder.clearLastSeenTime();
+    }
+
+    @Override
+    public long getLastSeenTime() {
+      switchToProto();
+      return proto.getLastSeenTime();
+    }
+
+    @Override
+    public void setLastSeenTime(long value) {
+      switchToProtoBuilder();
+      protoBuilder.setLastSeenTime(value);
+    }
+
     private void switchToProto() {
       if (proto == null) {
         proto = protoBuilder.build();
@@ -516,6 +784,94 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.box.prof
       if (hasProfileUrl()) {
         json.add("4", new JsonPrimitive(getProfileUrl()));
       }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (hasFirstName()) {
+        json.add("5", new JsonPrimitive(getFirstName()));
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (hasLastName()) {
+        json.add("6", new JsonPrimitive(getLastName()));
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (hasBio()) {
+        json.add("7", new JsonPrimitive(getBio()));
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (hasLastSeenTime()) {
+        json.add("8", GsonUtil.toJson(getLastSeenTime()));
+      }
       return json;
     }
 
@@ -618,6 +974,106 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.box.prof
         JsonElement elem = jsonObject.get("4");
         if (!elem.isJsonNull()) {
           setProfileUrl(elem.getAsString());
+        }
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (jsonObject.has("5")) {
+        JsonElement elem = jsonObject.get("5");
+        if (!elem.isJsonNull()) {
+          setFirstName(elem.getAsString());
+        }
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (jsonObject.has("6")) {
+        JsonElement elem = jsonObject.get("6");
+        if (!elem.isJsonNull()) {
+          setLastName(elem.getAsString());
+        }
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (jsonObject.has("7")) {
+        JsonElement elem = jsonObject.get("7");
+        if (!elem.isJsonNull()) {
+          setBio(elem.getAsString());
+        }
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (jsonObject.has("8")) {
+        JsonElement elem = jsonObject.get("8");
+        if (!elem.isJsonNull()) {
+          setLastSeenTime(GsonUtil.fromJson(elem));
         }
       }
     }

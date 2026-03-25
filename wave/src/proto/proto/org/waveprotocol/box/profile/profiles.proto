@@ -43,6 +43,14 @@ message ProfileResponse {
     required string imageUrl = 3;
     // The link to website.
     optional string profileUrl = 4;
+    // The user's first name.
+    optional string firstName = 5;
+    // The user's last name.
+    optional string lastName = 6;
+    // The user's bio.
+    optional string bio = 7;
+    // The user's last activity time (epoch millis), only set if showLastSeen is true.
+    optional int64 lastSeenTime = 8;
   }
   
   // The fetched profiles.

@@ -169,4 +169,41 @@ public interface HumanAccountData extends AccountData {
 
   /** Sets the last activity timestamp (epoch millis). */
   void setLastActivityTime(long lastActivityTime);
+
+  // =========================================================================
+  // Profile fields
+  // =========================================================================
+
+  /** Returns the user's first name, or null if not set. */
+  String getFirstName();
+
+  /** Sets the user's first name. */
+  void setFirstName(String firstName);
+
+  /** Returns the user's last name, or null if not set. */
+  String getLastName();
+
+  /** Sets the user's last name. */
+  void setLastName(String lastName);
+
+  /** Returns the user's bio (max 200 chars), or null if not set. */
+  String getBio();
+
+  /** Sets the user's bio. */
+  void setBio(String bio);
+
+  /** Returns the attachment ID of the user's custom profile image, or null. */
+  String getProfileImageAttachmentId();
+
+  /** Sets the attachment ID for the user's custom profile image. */
+  void setProfileImageAttachmentId(String attachmentId);
+
+  /**
+   * Returns whether this user's "last seen" time is visible to others.
+   * Defaults to true.
+   */
+  boolean isShowLastSeen();
+
+  /** Sets whether this user's "last seen" time is visible to others. */
+  void setShowLastSeen(boolean showLastSeen);
 }

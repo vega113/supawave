@@ -49,6 +49,13 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   private long lastLoginTime;
   private long lastActivityTime;
 
+  // Profile fields
+  private String firstName;
+  private String lastName;
+  private String bio;
+  private String profileImageAttachmentId;
+  private boolean showLastSeen = true;
+
   /**
    * Creates an {@link HumanAccountData} for the given username, with no
    * password.
@@ -208,6 +215,60 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   @Override
   public void setLastActivityTime(long lastActivityTime) {
     this.lastActivityTime = lastActivityTime;
+  }
+
+  // =========================================================================
+  // Profile fields
+  // =========================================================================
+
+  @Override
+  public String getFirstName() {
+    return firstName;
+  }
+
+  @Override
+  public void setFirstName(String firstName) {
+    this.firstName = firstName;
+  }
+
+  @Override
+  public String getLastName() {
+    return lastName;
+  }
+
+  @Override
+  public void setLastName(String lastName) {
+    this.lastName = lastName;
+  }
+
+  @Override
+  public String getBio() {
+    return bio;
+  }
+
+  @Override
+  public void setBio(String bio) {
+    this.bio = bio;
+  }
+
+  @Override
+  public String getProfileImageAttachmentId() {
+    return profileImageAttachmentId;
+  }
+
+  @Override
+  public void setProfileImageAttachmentId(String attachmentId) {
+    this.profileImageAttachmentId = attachmentId;
+  }
+
+  @Override
+  public boolean isShowLastSeen() {
+    return showLastSeen;
+  }
+
+  @Override
+  public void setShowLastSeen(boolean showLastSeen) {
+    this.showLastSeen = showLastSeen;
   }
 
   @Override

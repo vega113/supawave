@@ -82,13 +82,25 @@ public final class FetchProfilesServlet extends HttpServlet {
         continue;
       }
       ParticipantProfile profile = profilesFetcher.fetchProfile(trimmed);
-      builder.addProfiles(
+      ProfileResponse.FetchedProfile.Builder profileBuilder =
           ProfileResponse.FetchedProfile.newBuilder()
               .setAddress(profile.getAddress())
               .setName(profile.getName())
               .setImageUrl(profile.getImageUrl())
-              .setProfileUrl(profile.getProfileUrl())
-              .build());
+              .setProfileUrl(profile.getProfileUrl());
+      if (profile.getFirstName() != null) {
+        profileBuilder.setFirstName(profile.getFirstName());
+      }
+      if (profile.getLastName() != null) {
+        profileBuilder.setLastName(profile.getLastName());
+      }
+      if (profile.getBio() != null) {
+        profileBuilder.setBio(profile.getBio());
+      }
+      if (profile.getLastSeenTime() != 0) {
+        profileBuilder.setLastSeenTime(profile.getLastSeenTime());
+      }
+      builder.addProfiles(profileBuilder.build());
       hasProfiles = true;
     }
 

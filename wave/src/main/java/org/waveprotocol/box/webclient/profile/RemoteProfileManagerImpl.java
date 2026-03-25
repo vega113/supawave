@@ -58,8 +58,12 @@ public final class RemoteProfileManagerImpl extends AbstractProfileManager<Profi
     // Profiles already exist for all profiles that have been requested.
     assert profile != null;
     // Updates profiles - this also notifies listeners.
-    profile
-        .update(fetchedProfile.getName(), fetchedProfile.getName(), fetchedProfile.getImageUrl());
+    String firstName = fetchedProfile.hasFirstName() ? fetchedProfile.getFirstName() : null;
+    String lastName = fetchedProfile.hasLastName() ? fetchedProfile.getLastName() : null;
+    String bio = fetchedProfile.hasBio() ? fetchedProfile.getBio() : null;
+    long lastSeenTime = fetchedProfile.hasLastSeenTime() ? fetchedProfile.getLastSeenTime() : 0;
+    profile.update(fetchedProfile.getName(), fetchedProfile.getName(), fetchedProfile.getImageUrl(),
+        firstName, lastName, bio, lastSeenTime);
   }
 
   public RemoteProfileManagerImpl() {

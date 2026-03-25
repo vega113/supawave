@@ -325,6 +325,170 @@ public final class ProfileResponseGsonImpl extends ProfileResponseImpl
          */
         json.add("4", new JsonPrimitive(message.getProfileUrl()));
       }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (message.hasFirstName()) {
+
+        /**
+         * Licensed to the Apache Software Foundation (ASF) under one
+         * or more contributor license agreements. See the NOTICE file
+         * distributed with this work for additional information
+         * regarding copyright ownership. The ASF licenses this file
+         * to you under the Apache License, Version 2.0 (the
+         * "License"); you may not use this file except in compliance
+         * with the License. You may obtain a copy of the License at
+         *
+         * http://www.apache.org/licenses/LICENSE-2.0
+         *
+         * Unless required by applicable law or agreed to in writing,
+         * software distributed under the License is distributed on an
+         * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+         * KIND, either express or implied. See the License for the
+         * specific language governing permissions and limitations
+         * under the License.
+         */
+        json.add("5", new JsonPrimitive(message.getFirstName()));
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (message.hasLastName()) {
+
+        /**
+         * Licensed to the Apache Software Foundation (ASF) under one
+         * or more contributor license agreements. See the NOTICE file
+         * distributed with this work for additional information
+         * regarding copyright ownership. The ASF licenses this file
+         * to you under the Apache License, Version 2.0 (the
+         * "License"); you may not use this file except in compliance
+         * with the License. You may obtain a copy of the License at
+         *
+         * http://www.apache.org/licenses/LICENSE-2.0
+         *
+         * Unless required by applicable law or agreed to in writing,
+         * software distributed under the License is distributed on an
+         * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+         * KIND, either express or implied. See the License for the
+         * specific language governing permissions and limitations
+         * under the License.
+         */
+        json.add("6", new JsonPrimitive(message.getLastName()));
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (message.hasBio()) {
+
+        /**
+         * Licensed to the Apache Software Foundation (ASF) under one
+         * or more contributor license agreements. See the NOTICE file
+         * distributed with this work for additional information
+         * regarding copyright ownership. The ASF licenses this file
+         * to you under the Apache License, Version 2.0 (the
+         * "License"); you may not use this file except in compliance
+         * with the License. You may obtain a copy of the License at
+         *
+         * http://www.apache.org/licenses/LICENSE-2.0
+         *
+         * Unless required by applicable law or agreed to in writing,
+         * software distributed under the License is distributed on an
+         * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+         * KIND, either express or implied. See the License for the
+         * specific language governing permissions and limitations
+         * under the License.
+         */
+        json.add("7", new JsonPrimitive(message.getBio()));
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (message.hasLastSeenTime()) {
+
+        /**
+         * Licensed to the Apache Software Foundation (ASF) under one
+         * or more contributor license agreements. See the NOTICE file
+         * distributed with this work for additional information
+         * regarding copyright ownership. The ASF licenses this file
+         * to you under the Apache License, Version 2.0 (the
+         * "License"); you may not use this file except in compliance
+         * with the License. You may obtain a copy of the License at
+         *
+         * http://www.apache.org/licenses/LICENSE-2.0
+         *
+         * Unless required by applicable law or agreed to in writing,
+         * software distributed under the License is distributed on an
+         * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+         * KIND, either express or implied. See the License for the
+         * specific language governing permissions and limitations
+         * under the License.
+         */
+        json.add("8", GsonUtil.toJson(message.getLastSeenTime()));
+      }
       return json;
     }
 
@@ -499,6 +663,182 @@ public final class ProfileResponseGsonImpl extends ProfileResponseImpl
            * under the License.
            */
           setProfileUrl(elem.getAsString());
+        }
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (jsonObject.has("5")) {
+        JsonElement elem = jsonObject.get("5");
+        if (!elem.isJsonNull()) {
+
+          /**
+           * Licensed to the Apache Software Foundation (ASF) under one
+           * or more contributor license agreements. See the NOTICE file
+           * distributed with this work for additional information
+           * regarding copyright ownership. The ASF licenses this file
+           * to you under the Apache License, Version 2.0 (the
+           * "License"); you may not use this file except in compliance
+           * with the License. You may obtain a copy of the License at
+           *
+           * http://www.apache.org/licenses/LICENSE-2.0
+           *
+           * Unless required by applicable law or agreed to in writing,
+           * software distributed under the License is distributed on an
+           * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+           * KIND, either express or implied. See the License for the
+           * specific language governing permissions and limitations
+           * under the License.
+           */
+          setFirstName(elem.getAsString());
+        }
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (jsonObject.has("6")) {
+        JsonElement elem = jsonObject.get("6");
+        if (!elem.isJsonNull()) {
+
+          /**
+           * Licensed to the Apache Software Foundation (ASF) under one
+           * or more contributor license agreements. See the NOTICE file
+           * distributed with this work for additional information
+           * regarding copyright ownership. The ASF licenses this file
+           * to you under the Apache License, Version 2.0 (the
+           * "License"); you may not use this file except in compliance
+           * with the License. You may obtain a copy of the License at
+           *
+           * http://www.apache.org/licenses/LICENSE-2.0
+           *
+           * Unless required by applicable law or agreed to in writing,
+           * software distributed under the License is distributed on an
+           * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+           * KIND, either express or implied. See the License for the
+           * specific language governing permissions and limitations
+           * under the License.
+           */
+          setLastName(elem.getAsString());
+        }
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (jsonObject.has("7")) {
+        JsonElement elem = jsonObject.get("7");
+        if (!elem.isJsonNull()) {
+
+          /**
+           * Licensed to the Apache Software Foundation (ASF) under one
+           * or more contributor license agreements. See the NOTICE file
+           * distributed with this work for additional information
+           * regarding copyright ownership. The ASF licenses this file
+           * to you under the Apache License, Version 2.0 (the
+           * "License"); you may not use this file except in compliance
+           * with the License. You may obtain a copy of the License at
+           *
+           * http://www.apache.org/licenses/LICENSE-2.0
+           *
+           * Unless required by applicable law or agreed to in writing,
+           * software distributed under the License is distributed on an
+           * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+           * KIND, either express or implied. See the License for the
+           * specific language governing permissions and limitations
+           * under the License.
+           */
+          setBio(elem.getAsString());
+        }
+      }
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (jsonObject.has("8")) {
+        JsonElement elem = jsonObject.get("8");
+        if (!elem.isJsonNull()) {
+
+          /**
+           * Licensed to the Apache Software Foundation (ASF) under one
+           * or more contributor license agreements. See the NOTICE file
+           * distributed with this work for additional information
+           * regarding copyright ownership. The ASF licenses this file
+           * to you under the Apache License, Version 2.0 (the
+           * "License"); you may not use this file except in compliance
+           * with the License. You may obtain a copy of the License at
+           *
+           * http://www.apache.org/licenses/LICENSE-2.0
+           *
+           * Unless required by applicable law or agreed to in writing,
+           * software distributed under the License is distributed on an
+           * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+           * KIND, either express or implied. See the License for the
+           * specific language governing permissions and limitations
+           * under the License.
+           */
+          setLastSeenTime(GsonUtil.fromJson(elem));
         }
       }
     }

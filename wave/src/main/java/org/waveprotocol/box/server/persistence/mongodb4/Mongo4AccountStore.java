@@ -43,6 +43,11 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String HUMAN_REGISTRATION_TIME_FIELD = "registrationTime";
   private static final String HUMAN_LAST_LOGIN_TIME_FIELD = "lastLoginTime";
   private static final String HUMAN_LAST_ACTIVITY_TIME_FIELD = "lastActivityTime";
+  private static final String HUMAN_FIRST_NAME_FIELD = "firstName";
+  private static final String HUMAN_LAST_NAME_FIELD = "lastName";
+  private static final String HUMAN_BIO_FIELD = "bio";
+  private static final String HUMAN_PROFILE_IMAGE_FIELD = "profileImageAttachmentId";
+  private static final String HUMAN_SHOW_LAST_SEEN_FIELD = "showLastSeen";
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
 
@@ -177,6 +182,20 @@ final class Mongo4AccountStore implements AccountStore {
     if (account.getLastActivityTime() != 0) {
       doc.append(HUMAN_LAST_ACTIVITY_TIME_FIELD, account.getLastActivityTime());
     }
+    // Profile fields
+    if (account.getFirstName() != null) {
+      doc.append(HUMAN_FIRST_NAME_FIELD, account.getFirstName());
+    }
+    if (account.getLastName() != null) {
+      doc.append(HUMAN_LAST_NAME_FIELD, account.getLastName());
+    }
+    if (account.getBio() != null) {
+      doc.append(HUMAN_BIO_FIELD, account.getBio());
+    }
+    if (account.getProfileImageAttachmentId() != null) {
+      doc.append(HUMAN_PROFILE_IMAGE_FIELD, account.getProfileImageAttachmentId());
+    }
+    doc.append(HUMAN_SHOW_LAST_SEEN_FIELD, account.isShowLastSeen());
     return doc;
   }
 
@@ -221,6 +240,27 @@ final class Mongo4AccountStore implements AccountStore {
     Long lastActivityTime = doc.getLong(HUMAN_LAST_ACTIVITY_TIME_FIELD);
     if (lastActivityTime != null) {
       account.setLastActivityTime(lastActivityTime);
+    }
+    // Profile fields
+    String firstName = doc.getString(HUMAN_FIRST_NAME_FIELD);
+    if (firstName != null) {
+      account.setFirstName(firstName);
+    }
+    String lastName = doc.getString(HUMAN_LAST_NAME_FIELD);
+    if (lastName != null) {
+      account.setLastName(lastName);
+    }
+    String bio = doc.getString(HUMAN_BIO_FIELD);
+    if (bio != null) {
+      account.setBio(bio);
+    }
+    String profileImageId = doc.getString(HUMAN_PROFILE_IMAGE_FIELD);
+    if (profileImageId != null) {
+      account.setProfileImageAttachmentId(profileImageId);
+    }
+    Boolean showLastSeen = doc.getBoolean(HUMAN_SHOW_LAST_SEEN_FIELD);
+    if (showLastSeen != null) {
+      account.setShowLastSeen(showLastSeen);
     }
     return account;
   }

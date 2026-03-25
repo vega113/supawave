@@ -21,7 +21,10 @@ package org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment;
 
 import com.google.common.base.Preconditions;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.StyleInjector;
+import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.resources.client.ClientBundle;
@@ -29,7 +32,7 @@ import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.resources.client.ImageResource;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
-import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FileUpload;
@@ -40,6 +43,7 @@ import com.google.gwt.user.client.ui.HTMLPanel;
 import com.google.gwt.user.client.ui.Hidden;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
+import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.Label;
 
 import org.waveprotocol.wave.client.wavepanel.view.AttachmentPopupView;
@@ -53,7 +57,8 @@ import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 import org.waveprotocol.wave.media.model.AttachmentId;
 
 /**
- * Widget implementation of the {@link AttachmentPopupView}.
+ * Modern attachment upload popup with drag-and-drop support, file preview,
+ * and upload progress indication.
  *
  * @author yurize@apache.org (Yuri Zelikov)
  */
@@ -88,6 +93,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     String error();
 
     String done();
+
+    String hiddenFileInput();
   }
 
   private final static Binder BINDER = GWT.create(Binder.class);
@@ -98,12 +105,11 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   private static final String UPLOAD_ACTION_URL = "/attachment/";
 
   static {
-    // StyleInjector's default behaviour of deferred injection messes up
-    // popups, which do synchronous layout queries for positioning. Therefore,
-    // we force synchronous injection.
     StyleInjector.inject(style.getText(), true);
   }
 
+  @UiField
+  HTMLPanel dropZone;
   @UiField
   FileUpload fileUpload;
   @UiField
@@ -120,6 +126,16 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   Label status;
   @UiField
   Image spinnerImg;
+  @UiField
+  HTMLPanel filePreviewPanel;
+  @UiField
+  InlineLabel fileNameLabel;
+  @UiField
+  InlineLabel fileSizeLabel;
+  @UiField
+  HTMLPanel progressBarOuter;
+  @UiField
+  HTMLPanel progressBarFill;
 
   /** Popup containing this widget. */
   private final UniversalPopup popup;
@@ -130,53 +146,83 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   private AttachmentId attachmentId;
   private String waveRefStr;
 
+  /** Timer for simulating upload progress. */
+  private Timer progressTimer;
+  private double simulatedProgress;
+
   /**
-   * Creates link info popup.
+   * Creates the modern attachment upload popup.
    */
   public AttachmentPopupWidget() {
     initWidget(BINDER.createAndBindUi(this));
-    // Because we're going to add a FileUpload widget, we'll need to set the
-    // form to use the POST method, and multipart MIME encoding.
     form.setEncoding(FormPanel.ENCODING_MULTIPART);
     form.setMethod(FormPanel.METHOD_POST);
 
-    // Add an event handler to the form.
+    // Submit handler
     form.addSubmitHandler(new FormPanel.SubmitHandler() {
       @Override
       public void onSubmit(SubmitEvent event) {
-        // No implementation.
+        // Start progress animation
+        startProgressAnimation();
       }
     });
 
+    // Submit complete handler
     form.addSubmitCompleteHandler(new FormPanel.SubmitCompleteHandler() {
       @Override
       public void onSubmitComplete(SubmitCompleteEvent event) {
-        // When the form submission is successfully completed, this
-        // event is fired. Assuming the service returned a response of type
-        // text/html, we can get the result text here (see the FormPanel
-        // documentation for further explanation).
+        stopProgressAnimation();
         spinnerImg.setVisible(false);
         String results = event.getResults();
         if (results != null && results.contains("OK")) {
-          status.setText("Done!");
-          status.addStyleName(style.done());
+          // Set progress to 100%
+          setProgressWidth(100);
+          status.setText("Upload complete!");
+          status.addStyleName("success");
+          status.removeStyleName("error");
           listener.onDone(waveRefStr, attachmentId.getId(), fileUpload.getFilename());
-          hide();
+          // Auto-close after a brief delay
+          new Timer() {
+            @Override
+            public void run() {
+              hide();
+            }
+          }.schedule(800);
         } else {
-          status.setText("Error!");
-          status.addStyleName(style.error());
+          status.setText("Upload failed. Please try again.");
+          status.addStyleName("error");
+          status.removeStyleName("success");
+          uploadBtn.setEnabled(true);
         }
       }
     });
 
-    uploadBtn.addClickHandler(new ClickHandler() {
+    // Click on drop zone triggers file browser
+    dropZone.addDomHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        nativeClickFileInput(fileUpload.getElement());
+      }
+    }, ClickEvent.getType());
 
+    // File selection change handler
+    fileUpload.addChangeHandler(new ChangeHandler() {
+      @Override
+      public void onChange(ChangeEvent event) {
+        onFileSelected();
+      }
+    });
+
+    // Upload button handler
+    uploadBtn.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
         String filename = fileUpload.getFilename();
         if (filename.length() == 0) {
-          Window.alert("No file to upload!");
+          status.setText("Please select a file first.");
+          status.addStyleName("error");
         } else {
+          uploadBtn.setEnabled(false);
           spinnerPanel.setVisible(true);
           formAttachmentId.setValue(attachmentId.getId());
           formWaveRef.setValue(waveRefStr);
@@ -185,12 +231,124 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
       }
     });
 
-    // Wrap in a popup.
+    // Setup drag-and-drop on the drop zone via native events
+    setupDragDrop(dropZone.getElement(), fileUpload.getElement());
+
+    // Initially disable upload button
+    uploadBtn.setEnabled(false);
+
+    // Wrap in a popup
     PopupChrome chrome = PopupChromeFactory.createPopupChrome();
     popup = PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
     popup.add(this);
     popup.addPopupEventListener(this);
   }
+
+  /**
+   * Handles file selection - shows preview and enables upload.
+   */
+  private void onFileSelected() {
+    String filename = fileUpload.getFilename();
+    if (filename != null && !filename.isEmpty()) {
+      // Extract just the file name (strip path)
+      int lastSlash = filename.lastIndexOf('/');
+      int lastBackSlash = filename.lastIndexOf('\\');
+      String displayName = filename;
+      if (lastSlash >= 0) {
+        displayName = filename.substring(lastSlash + 1);
+      } else if (lastBackSlash >= 0) {
+        displayName = filename.substring(lastBackSlash + 1);
+      }
+      fileNameLabel.setText(displayName);
+      fileSizeLabel.setText(""); // File size not available via GWT FileUpload
+      filePreviewPanel.setVisible(true);
+      uploadBtn.setEnabled(true);
+      status.setText("");
+      status.removeStyleName("error");
+      status.removeStyleName("success");
+    }
+  }
+
+  /**
+   * Starts a simulated progress animation while waiting for the upload.
+   */
+  private void startProgressAnimation() {
+    simulatedProgress = 0;
+    progressBarOuter.addStyleName("active");
+    setProgressWidth(0);
+
+    progressTimer = new Timer() {
+      @Override
+      public void run() {
+        // Asymptotically approach 90% (never reach 100% until server responds)
+        simulatedProgress += (90 - simulatedProgress) * 0.08;
+        setProgressWidth(simulatedProgress);
+      }
+    };
+    progressTimer.scheduleRepeating(200);
+  }
+
+  /**
+   * Stops the progress animation.
+   */
+  private void stopProgressAnimation() {
+    if (progressTimer != null) {
+      progressTimer.cancel();
+      progressTimer = null;
+    }
+  }
+
+  /**
+   * Sets the progress bar width percentage.
+   */
+  private void setProgressWidth(double percent) {
+    if (progressBarFill != null) {
+      progressBarFill.getElement().getStyle().setProperty("width", Math.round(percent) + "%");
+    }
+  }
+
+  /**
+   * Programmatically clicks the hidden file input.
+   */
+  private static native void nativeClickFileInput(Element el) /*-{
+    el.click();
+  }-*/;
+
+  /**
+   * Sets up native drag-and-drop event handlers on the drop zone element.
+   * When a file is dropped, it is set on the file input element.
+   */
+  private native void setupDragDrop(Element dropZoneEl, Element fileInputEl) /*-{
+    var self = this;
+
+    dropZoneEl.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZoneEl.classList.add('dragover');
+    }, false);
+
+    dropZoneEl.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZoneEl.classList.remove('dragover');
+    }, false);
+
+    dropZoneEl.addEventListener('drop', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZoneEl.classList.remove('dragover');
+
+      var files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        // Set the dropped file on the file input
+        fileInputEl.files = files;
+        // Trigger change event so GWT picks it up
+        var evt = $doc.createEvent('HTMLEvents');
+        evt.initEvent('change', true, false);
+        fileInputEl.dispatchEvent(evt);
+      }
+    }, false);
+  }-*/;
 
   @Override
   public void init(Listener listener) {
@@ -210,11 +368,18 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     Preconditions.checkState(this.attachmentId != null);
     form.setAction(UPLOAD_ACTION_URL + attachmentId.getId());
     spinnerPanel.setVisible(false);
+    filePreviewPanel.setVisible(false);
+    progressBarOuter.removeStyleName("active");
+    uploadBtn.setEnabled(false);
+    status.setText("");
+    status.removeStyleName("error");
+    status.removeStyleName("success");
     popup.show();
   }
 
   @Override
   public void hide() {
+    stopProgressAnimation();
     popup.hide();
   }
 

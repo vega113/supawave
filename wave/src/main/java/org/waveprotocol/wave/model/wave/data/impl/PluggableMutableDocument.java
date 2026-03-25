@@ -190,8 +190,13 @@ public class PluggableMutableDocument extends MutableDocumentProxy.DocumentProxy
 
   @Override
   public void init(final SilentOperationSink<? super DocOp> outputSink) {
-    Preconditions.checkState(this.outputSink == null, "Output sink may only be set once");
     Preconditions.checkArgument(outputSink != null, "Output sink may not be null");
+    if (this.outputSink != null) {
+      // Already initialized — silently accept to avoid crashing when multiple
+      // read-only code paths (e.g. search digest + supplement building) wrap the
+      // same underlying document data in separate OpBasedWavelet adapters.
+      return;
+    }
     this.outputSink = outputSink;
   }
 

@@ -149,15 +149,19 @@ public final class HtmlRenderer {
       + "  background: linear-gradient(135deg, " + WAVE_PRIMARY + ", #00b4d8) !important;\n"
       + "  color: #fff !important;\n"
       + "  border: none !important;\n"
-      + "  border-radius: 16px !important;\n"
-      + "  padding: 4px 14px !important;\n"
+      + "  border-radius: 12px !important;\n"
+      + "  padding: 2px 8px !important;\n"
       + "  font-weight: 600 !important;\n"
-      + "  font-size: 12px !important;\n"
+      + "  font-size: 11px !important;\n"
       + "  font-family: " + WAVE_FONT + " !important;\n"
       + "  cursor: pointer;\n"
-      + "  box-shadow: 0 2px 8px rgba(0,119,182,0.25);\n"
+      + "  box-shadow: 0 1px 4px rgba(0,119,182,0.2);\n"
       + "  transition: all 0.2s ease;\n"
-      + "  letter-spacing: 0.02em;\n"
+      + "  letter-spacing: 0;\n"
+      + "  white-space: nowrap;\n"
+      + "  max-width: 90px;\n"
+      + "  overflow: hidden;\n"
+      + "  text-overflow: ellipsis;\n"
       + "}\n"
       + "#app [data-action=\"new-wave\"]:hover {\n"
       + "  background: linear-gradient(135deg, #005f8f, #0096c7) !important;\n"
@@ -478,6 +482,356 @@ public final class HtmlRenderer {
       + "#app ::selection {\n"
       + "  background: rgba(0,180,216,0.2);\n"
       + "}\n"
+
+      // --- Modern Attachment Thumbnails ---
+      // Override the old chrome-frame thumbnail style with clean modern cards
+      + "#app .imageThumbnail {\n"
+      + "  display: inline-block;\n"
+      + "  margin: 8px 4px;\n"
+      + "  border-radius: 10px;\n"
+      + "  overflow: hidden;\n"
+      + "  box-shadow: 0 2px 8px rgba(0,0,0,0.10);\n"
+      + "  background: #fff;\n"
+      + "  transition: box-shadow 0.2s ease, transform 0.15s ease;\n"
+      + "  max-width: 320px;\n"
+      + "  position: relative;\n"
+      + "}\n"
+      + "#app .imageThumbnail:hover {\n"
+      + "  box-shadow: 0 4px 16px rgba(0,119,182,0.18);\n"
+      + "  transform: translateY(-1px);\n"
+      + "}\n"
+      // Hide the old chrome frame borders
+      + "#app .imageThumbnail .chromeContainer,\n"
+      + "#app .imageThumbnail .itnw,\n"
+      + "#app .imageThumbnail .itnc,\n"
+      + "#app .imageThumbnail .itne,\n"
+      + "#app .imageThumbnail .itcw,\n"
+      + "#app .imageThumbnail .itce,\n"
+      + "#app .imageThumbnail .itsw,\n"
+      + "#app .imageThumbnail .itsc,\n"
+      + "#app .imageThumbnail .itse {\n"
+      + "  display: none !important;\n"
+      + "}\n"
+      // Clean image display
+      + "#app .imageThumbnail .itimg,\n"
+      + "#app .imageThumbnail img {\n"
+      + "  display: block;\n"
+      + "  max-width: 300px;\n"
+      + "  max-height: 240px;\n"
+      + "  width: auto;\n"
+      + "  height: auto;\n"
+      + "  object-fit: contain;\n"
+      + "  cursor: pointer;\n"
+      + "  border-radius: 8px 8px 0 0;\n"
+      + "  transition: filter 0.2s ease;\n"
+      + "}\n"
+      + "#app .imageThumbnail img:hover {\n"
+      + "  filter: brightness(0.95);\n"
+      + "}\n"
+      // Caption area
+      + "#app .imageThumbnail .w-caption {\n"
+      + "  text-align: left !important;\n"
+      + "  padding: 6px 10px !important;\n"
+      + "  font-size: 12px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  background: #fafbfc !important;\n"
+      + "  border-top: 1px solid " + WAVE_BORDER + ";\n"
+      + "  white-space: nowrap;\n"
+      + "  overflow: hidden;\n"
+      + "  text-overflow: ellipsis;\n"
+      + "}\n"
+      // Progress bar override
+      + "#app .imageThumbnail .progress {\n"
+      + "  position: absolute;\n"
+      + "  bottom: 0;\n"
+      + "  left: 0;\n"
+      + "  right: 0;\n"
+      + "  height: 4px;\n"
+      + "  background: " + WAVE_BG + ";\n"
+      + "  z-index: 5;\n"
+      + "}\n"
+      // Table layout fix for thumbnails
+      + "#app .imageThumbnail .ittt {\n"
+      + "  margin: 0 !important;\n"
+      + "  width: auto !important;\n"
+      + "}\n"
+      + "#app .imageThumbnail .itco {\n"
+      + "  background: none !important;\n"
+      + "}\n"
+      // Size button overlay
+      + "#app .imageThumbnail .buttonContainer {\n"
+      + "  top: 8px;\n"
+      + "  right: 8px;\n"
+      + "  left: auto;\n"
+      + "  z-index: 10;\n"
+      + "}\n"
+
+      // --- Lightbox Overlay ---
+      + "#wave-lightbox {\n"
+      + "  display: none;\n"
+      + "  position: fixed;\n"
+      + "  top: 0; left: 0; right: 0; bottom: 0;\n"
+      + "  z-index: 10000;\n"
+      + "  background: rgba(0,0,0,0.85);\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  cursor: zoom-out;\n"
+      + "  animation: wave-lb-fadein 0.2s ease;\n"
+      + "}\n"
+      + "#wave-lightbox.open {\n"
+      + "  display: flex;\n"
+      + "}\n"
+      + "@keyframes wave-lb-fadein {\n"
+      + "  from { opacity: 0; }\n"
+      + "  to { opacity: 1; }\n"
+      + "}\n"
+      + "#wave-lightbox img {\n"
+      + "  max-width: 90vw;\n"
+      + "  max-height: 85vh;\n"
+      + "  object-fit: contain;\n"
+      + "  border-radius: 6px;\n"
+      + "  box-shadow: 0 8px 40px rgba(0,0,0,0.4);\n"
+      + "  cursor: default;\n"
+      + "  animation: wave-lb-zoom 0.25s ease;\n"
+      + "}\n"
+      + "@keyframes wave-lb-zoom {\n"
+      + "  from { transform: scale(0.9); opacity: 0; }\n"
+      + "  to { transform: scale(1); opacity: 1; }\n"
+      + "}\n"
+      + "#wave-lightbox .lb-close {\n"
+      + "  position: absolute;\n"
+      + "  top: 16px; right: 20px;\n"
+      + "  width: 40px; height: 40px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: rgba(255,255,255,0.15);\n"
+      + "  border: none;\n"
+      + "  color: #fff;\n"
+      + "  font-size: 24px;\n"
+      + "  cursor: pointer;\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  transition: background 0.15s;\n"
+      + "}\n"
+      + "#wave-lightbox .lb-close:hover {\n"
+      + "  background: rgba(255,255,255,0.3);\n"
+      + "}\n"
+      + "#wave-lightbox .lb-nav {\n"
+      + "  position: absolute;\n"
+      + "  top: 50%;\n"
+      + "  transform: translateY(-50%);\n"
+      + "  width: 44px; height: 44px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: rgba(255,255,255,0.15);\n"
+      + "  border: none;\n"
+      + "  color: #fff;\n"
+      + "  font-size: 22px;\n"
+      + "  cursor: pointer;\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  transition: background 0.15s;\n"
+      + "}\n"
+      + "#wave-lightbox .lb-nav:hover {\n"
+      + "  background: rgba(255,255,255,0.3);\n"
+      + "}\n"
+      + "#wave-lightbox .lb-prev { left: 16px; }\n"
+      + "#wave-lightbox .lb-next { right: 16px; }\n"
+      + "#wave-lightbox .lb-caption {\n"
+      + "  position: absolute;\n"
+      + "  bottom: 20px;\n"
+      + "  left: 50%;\n"
+      + "  transform: translateX(-50%);\n"
+      + "  color: rgba(255,255,255,0.85);\n"
+      + "  font-size: 13px;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  background: rgba(0,0,0,0.5);\n"
+      + "  padding: 6px 16px;\n"
+      + "  border-radius: 20px;\n"
+      + "  white-space: nowrap;\n"
+      + "  max-width: 80vw;\n"
+      + "  overflow: hidden;\n"
+      + "  text-overflow: ellipsis;\n"
+      + "}\n"
+      + "#wave-lightbox .lb-counter {\n"
+      + "  position: absolute;\n"
+      + "  top: 20px;\n"
+      + "  left: 50%;\n"
+      + "  transform: translateX(-50%);\n"
+      + "  color: rgba(255,255,255,0.7);\n"
+      + "  font-size: 13px;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "}\n"
+
+      // --- File Card (non-image attachments) ---
+      + "#app .wave-file-card {\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  gap: 10px;\n"
+      + "  padding: 10px 14px;\n"
+      + "  margin: 6px 4px;\n"
+      + "  background: #f7f9fc;\n"
+      + "  border: 1.5px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 10px;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "  transition: border-color 0.15s, box-shadow 0.15s;\n"
+      + "  text-decoration: none;\n"
+      + "  color: " + WAVE_TEXT + ";\n"
+      + "  max-width: 320px;\n"
+      + "}\n"
+      + "#app .wave-file-card:hover {\n"
+      + "  border-color: " + WAVE_PRIMARY + ";\n"
+      + "  box-shadow: 0 2px 8px rgba(0,119,182,0.10);\n"
+      + "}\n"
+      + "#app .wave-file-card .fc-icon {\n"
+      + "  width: 36px; height: 36px;\n"
+      + "  border-radius: 8px;\n"
+      + "  background: " + WAVE_PRIMARY + ";\n"
+      + "  color: #fff;\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  font-size: 14px;\n"
+      + "  font-weight: 700;\n"
+      + "  flex-shrink: 0;\n"
+      + "  text-transform: uppercase;\n"
+      + "}\n"
+      + "#app .wave-file-card .fc-info {\n"
+      + "  flex: 1;\n"
+      + "  min-width: 0;\n"
+      + "}\n"
+      + "#app .wave-file-card .fc-name {\n"
+      + "  font-size: 13px;\n"
+      + "  font-weight: 500;\n"
+      + "  white-space: nowrap;\n"
+      + "  overflow: hidden;\n"
+      + "  text-overflow: ellipsis;\n"
+      + "}\n"
+      + "#app .wave-file-card .fc-meta {\n"
+      + "  font-size: 11px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  margin-top: 1px;\n"
+      + "}\n"
+      + "#app .wave-file-card .fc-download {\n"
+      + "  flex-shrink: 0;\n"
+      + "  width: 28px; height: 28px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: rgba(0,119,182,0.08);\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  transition: background 0.15s;\n"
+      + "}\n"
+      + "#app .wave-file-card:hover .fc-download {\n"
+      + "  background: rgba(0,119,182,0.15);\n"
+      + "}\n"
+
+      // --- Modern Upload Panel ---
+      // Style the GWT attachment popup with modern drag-and-drop appearance
+      + "body > .gwt-PopupPanel .attachment-popup-modern {\n"
+      + "  padding: 20px;\n"
+      + "  min-width: 380px;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "}\n"
+      + ".upload-dropzone {\n"
+      + "  border: 2px dashed " + WAVE_BORDER + ";\n"
+      + "  border-radius: 12px;\n"
+      + "  padding: 32px 20px;\n"
+      + "  text-align: center;\n"
+      + "  transition: all 0.2s ease;\n"
+      + "  background: #fafbfc;\n"
+      + "  cursor: pointer;\n"
+      + "}\n"
+      + ".upload-dropzone.dragover {\n"
+      + "  border-color: " + WAVE_PRIMARY + ";\n"
+      + "  background: rgba(0,119,182,0.04);\n"
+      + "}\n"
+      + ".upload-dropzone-icon {\n"
+      + "  font-size: 36px;\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "  margin-bottom: 8px;\n"
+      + "}\n"
+      + ".upload-dropzone-text {\n"
+      + "  font-size: 14px;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  margin-bottom: 4px;\n"
+      + "}\n"
+      + ".upload-dropzone-hint {\n"
+      + "  font-size: 12px;\n"
+      + "  color: #a0aec0;\n"
+      + "}\n"
+      + ".upload-progress-bar {\n"
+      + "  width: 100%;\n"
+      + "  height: 6px;\n"
+      + "  background: " + WAVE_BORDER + ";\n"
+      + "  border-radius: 3px;\n"
+      + "  overflow: hidden;\n"
+      + "  margin-top: 12px;\n"
+      + "  display: none;\n"
+      + "}\n"
+      + ".upload-progress-bar.active {\n"
+      + "  display: block;\n"
+      + "}\n"
+      + ".upload-progress-fill {\n"
+      + "  height: 100%;\n"
+      + "  background: " + WAVE_GRADIENT + ";\n"
+      + "  border-radius: 3px;\n"
+      + "  width: 0%;\n"
+      + "  transition: width 0.3s ease;\n"
+      + "}\n"
+      + ".upload-file-preview {\n"
+      + "  display: flex;\n"
+      + "  align-items: center;\n"
+      + "  gap: 10px;\n"
+      + "  padding: 8px 12px;\n"
+      + "  margin-top: 12px;\n"
+      + "  background: #f7f9fc;\n"
+      + "  border: 1px solid " + WAVE_BORDER + ";\n"
+      + "  border-radius: 8px;\n"
+      + "  font-size: 13px;\n"
+      + "}\n"
+      + ".upload-file-preview .file-name {\n"
+      + "  flex: 1;\n"
+      + "  white-space: nowrap;\n"
+      + "  overflow: hidden;\n"
+      + "  text-overflow: ellipsis;\n"
+      + "  color: " + WAVE_TEXT + ";\n"
+      + "}\n"
+      + ".upload-file-preview .file-size {\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-size: 12px;\n"
+      + "  flex-shrink: 0;\n"
+      + "}\n"
+      + ".upload-btn-modern {\n"
+      + "  display: block;\n"
+      + "  width: 100%;\n"
+      + "  margin-top: 12px;\n"
+      + "  padding: 10px 20px;\n"
+      + "  background: " + WAVE_PRIMARY + ";\n"
+      + "  color: #fff;\n"
+      + "  border: none;\n"
+      + "  border-radius: 8px;\n"
+      + "  font-size: 14px;\n"
+      + "  font-weight: 600;\n"
+      + "  cursor: pointer;\n"
+      + "  transition: background 0.2s, box-shadow 0.2s;\n"
+      + "  font-family: " + WAVE_FONT + ";\n"
+      + "}\n"
+      + ".upload-btn-modern:hover {\n"
+      + "  background: #005f8f;\n"
+      + "  box-shadow: 0 2px 8px rgba(0,119,182,0.25);\n"
+      + "}\n"
+      + ".upload-btn-modern:disabled {\n"
+      + "  background: #a0aec0;\n"
+      + "  cursor: not-allowed;\n"
+      + "}\n"
+      + ".upload-status-modern {\n"
+      + "  margin-top: 8px;\n"
+      + "  font-size: 13px;\n"
+      + "  text-align: center;\n"
+      + "}\n"
+      + ".upload-status-modern.success { color: #188038; }\n"
+      + ".upload-status-modern.error { color: #d93025; }\n"
 
       // --- Version History Mode ---
 
@@ -1852,10 +2206,115 @@ public final class HtmlRenderer {
     sb.append("  }\n");
     sb.append("})();\n");
     sb.append("</script>\n");
+    // -- Lightbox overlay for image attachments --
+    appendLightboxFragment(sb);
     // -- Version upgrade detection polling --
     appendVersionCheckScript(sb, serverVersion, serverBuildTime);
     sb.append("</body>\n</html>\n");
     return sb.toString();
+  }
+
+  /**
+   * Appends the lightbox overlay element and JavaScript for viewing image
+   * attachments full-size with navigation. The global {@code window.openWaveLightbox}
+   * function is called from GWT via JSNI when a user clicks an image thumbnail.
+   */
+  private static void appendLightboxFragment(StringBuilder sb) {
+    // Lightbox container (hidden by default)
+    sb.append("<div id=\"wave-lightbox\">\n");
+    sb.append("  <button class=\"lb-close\" aria-label=\"Close\">&times;</button>\n");
+    sb.append("  <button class=\"lb-nav lb-prev\" aria-label=\"Previous\">&lsaquo;</button>\n");
+    sb.append("  <button class=\"lb-nav lb-next\" aria-label=\"Next\">&rsaquo;</button>\n");
+    sb.append("  <img id=\"lb-image\" src=\"\" alt=\"\">\n");
+    sb.append("  <div class=\"lb-caption\" id=\"lb-caption\"></div>\n");
+    sb.append("  <div class=\"lb-counter\" id=\"lb-counter\"></div>\n");
+    sb.append("</div>\n");
+    sb.append("<script>\n");
+    sb.append("(function() {\n");
+    sb.append("  var lb = document.getElementById('wave-lightbox');\n");
+    sb.append("  var lbImg = document.getElementById('lb-image');\n");
+    sb.append("  var lbCaption = document.getElementById('lb-caption');\n");
+    sb.append("  var lbCounter = document.getElementById('lb-counter');\n");
+    sb.append("  var images = []; // {url, caption} objects\n");
+    sb.append("  var currentIdx = 0;\n");
+    // Collect all image attachment URLs from current page
+    sb.append("  function collectImages() {\n");
+    sb.append("    images = [];\n");
+    sb.append("    var thumbs = document.querySelectorAll('#app .imageThumbnail img.itimg, #app .imageThumbnail img');\n");
+    sb.append("    thumbs.forEach(function(img) {\n");
+    sb.append("      var src = img.src || '';\n");
+    sb.append("      if (!src || src.indexOf('/thumbnail/') < 0) return;\n");
+    sb.append("      var fullUrl = src.replace('/thumbnail/', '/attachment/');\n");
+    sb.append("      var caption = '';\n");
+    sb.append("      var card = img.closest('.imageThumbnail');\n");
+    sb.append("      if (card) {\n");
+    sb.append("        var cap = card.querySelector('.w-caption');\n");
+    sb.append("        if (cap) caption = cap.textContent || '';\n");
+    sb.append("      }\n");
+    sb.append("      images.push({url: fullUrl, thumbUrl: src, caption: caption.trim(), el: img});\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+    // Show image at index
+    sb.append("  function showImage(idx) {\n");
+    sb.append("    if (idx < 0 || idx >= images.length) return;\n");
+    sb.append("    currentIdx = idx;\n");
+    sb.append("    lbImg.src = images[idx].url;\n");
+    sb.append("    lbImg.alt = images[idx].caption || 'Attachment';\n");
+    sb.append("    lbCaption.textContent = images[idx].caption;\n");
+    sb.append("    lbCaption.style.display = images[idx].caption ? 'block' : 'none';\n");
+    sb.append("    lbCounter.textContent = images.length > 1 ? (idx + 1) + ' / ' + images.length : '';\n");
+    sb.append("    var prevBtn = lb.querySelector('.lb-prev');\n");
+    sb.append("    var nextBtn = lb.querySelector('.lb-next');\n");
+    sb.append("    prevBtn.style.display = images.length > 1 ? 'flex' : 'none';\n");
+    sb.append("    nextBtn.style.display = images.length > 1 ? 'flex' : 'none';\n");
+    sb.append("  }\n");
+    // Global open function called from GWT JSNI
+    sb.append("  window.openWaveLightbox = function(attachmentUrl, caption) {\n");
+    sb.append("    collectImages();\n");
+    sb.append("    var idx = -1;\n");
+    sb.append("    for (var i = 0; i < images.length; i++) {\n");
+    sb.append("      if (images[i].url === attachmentUrl || images[i].thumbUrl === attachmentUrl) {\n");
+    sb.append("        idx = i; break;\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    sb.append("    if (idx < 0) {\n");
+    sb.append("      images = [{url: attachmentUrl, thumbUrl: '', caption: caption || '', el: null}];\n");
+    sb.append("      idx = 0;\n");
+    sb.append("    }\n");
+    sb.append("    showImage(idx);\n");
+    sb.append("    lb.classList.add('open');\n");
+    sb.append("    document.body.style.overflow = 'hidden';\n");
+    sb.append("  };\n");
+    // Close
+    sb.append("  function closeLb() {\n");
+    sb.append("    lb.classList.remove('open');\n");
+    sb.append("    lbImg.src = '';\n");
+    sb.append("    document.body.style.overflow = '';\n");
+    sb.append("  }\n");
+    sb.append("  lb.querySelector('.lb-close').addEventListener('click', function(e) {\n");
+    sb.append("    e.stopPropagation(); closeLb();\n");
+    sb.append("  });\n");
+    sb.append("  lb.addEventListener('click', function(e) {\n");
+    sb.append("    if (e.target === lb) closeLb();\n");
+    sb.append("  });\n");
+    // Navigation
+    sb.append("  lb.querySelector('.lb-prev').addEventListener('click', function(e) {\n");
+    sb.append("    e.stopPropagation();\n");
+    sb.append("    showImage((currentIdx - 1 + images.length) % images.length);\n");
+    sb.append("  });\n");
+    sb.append("  lb.querySelector('.lb-next').addEventListener('click', function(e) {\n");
+    sb.append("    e.stopPropagation();\n");
+    sb.append("    showImage((currentIdx + 1) % images.length);\n");
+    sb.append("  });\n");
+    // Keyboard navigation
+    sb.append("  document.addEventListener('keydown', function(e) {\n");
+    sb.append("    if (!lb.classList.contains('open')) return;\n");
+    sb.append("    if (e.key === 'Escape') closeLb();\n");
+    sb.append("    if (e.key === 'ArrowLeft') showImage((currentIdx - 1 + images.length) % images.length);\n");
+    sb.append("    if (e.key === 'ArrowRight') showImage((currentIdx + 1) % images.length);\n");
+    sb.append("  });\n");
+    sb.append("})();\n");
+    sb.append("</script>\n");
   }
 
   /**
@@ -1925,8 +2384,9 @@ public final class HtmlRenderer {
    *
    * @param username user part of the address (before @), or null if not logged in
    * @param domain   the wave server domain
+   * @param userRole the user's role ("owner", "admin", "user"), or null
    */
-  public static String renderTopBar(String username, String domain) {
+  public static String renderTopBar(String username, String domain, String userRole) {
     StringBuilder sb = new StringBuilder(4096);
     String fullAddress = (username != null && domain != null)
         ? escapeHtml(username) + "@" + escapeHtml(domain) : "";
@@ -1966,7 +2426,9 @@ public final class HtmlRenderer {
       sb.append("        <a href=\"/robot/register/create\">Robot Registration</a>\n");
       sb.append("        <a href=\"/robot/dataapi/token\">API Token</a>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
-      sb.append("        <a href=\"/admin\">Admin</a>\n");
+      if ("owner".equals(userRole) || "admin".equals(userRole)) {
+        sb.append("        <a href=\"/admin\">Admin</a>\n");
+      }
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <a id=\"signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
       sb.append("      </div>\n");
@@ -2899,6 +3361,54 @@ public final class HtmlRenderer {
     sb.append("  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);\n");
     sb.append("})();\n");
     sb.append("</script>\n");
+  }
+
+  // =========================================================================
+  // Access Denied (403) Page
+  // =========================================================================
+
+  /**
+   * Renders a styled 403 "Access Restricted" page that matches the SupaWave
+   * ocean theme used on other auth pages.
+   */
+  public static String renderAccessDeniedPage() {
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Access Restricted - SupaWave</title>\n");
+    sb.append(AUTH_CSS);
+    sb.append("</head>\n<body>\n");
+
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
+    sb.append("  </div>\n");
+
+    sb.append("  <div class=\"card\" style=\"text-align:center;\">\n");
+
+    // Lock icon SVG
+    sb.append("    <svg width=\"64\" height=\"64\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"margin-bottom:16px;\">\n");
+    sb.append("      <rect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\" stroke=\"").append(WAVE_PRIMARY).append("\" stroke-width=\"1.5\" fill=\"none\"/>\n");
+    sb.append("      <path d=\"M7 11V7a5 5 0 1 1 10 0v4\" stroke=\"").append(WAVE_PRIMARY).append("\" stroke-width=\"1.5\" stroke-linecap=\"round\" fill=\"none\"/>\n");
+    sb.append("      <circle cx=\"12\" cy=\"16.5\" r=\"1.5\" fill=\"").append(WAVE_PRIMARY).append("\"/>\n");
+    sb.append("    </svg>\n");
+
+    sb.append("    <h1 style=\"color:#1a1a2e;\">Access Restricted</h1>\n");
+    sb.append("    <p style=\"color:#666; font-size:15px; margin:8px 0 24px; line-height:1.5;\">\n");
+    sb.append("      This page is only available to server administrators.\n");
+    sb.append("    </p>\n");
+    sb.append("    <a href=\"/\" class=\"btn-primary\" style=\"text-decoration:none; display:inline-block;\">Return to SupaWave</a>\n");
+
+    sb.append("  </div>\n"); // .card
+    sb.append("</div>\n"); // .page-wrapper
+
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
   }
 
   // =========================================================================

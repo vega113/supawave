@@ -1192,15 +1192,15 @@ public final class HtmlRenderer {
     sb.append("}\n");
     sb.append(".lang-icon-btn::after { display: none !important; }\n");
     // Saved state: small green dot
-    sb.append(".saved::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    sb.append(".topbar-icon.saved::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
     // Saving state: pulsing amber dot
-    sb.append(".saving::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    sb.append(".topbar-icon.saving::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
     // Online: small green dot
-    sb.append(".online::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    sb.append(".topbar-icon.online::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
     // Connecting: pulsing amber dot
-    sb.append(".connecting::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    sb.append(".topbar-icon.connecting::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
     // Offline: red dot
-    sb.append(".offline::after { display: block; background: #fc8181; box-shadow: 0 0 4px #fc8181; }\n");
+    sb.append(".topbar-icon.offline::after { display: block; background: #fc8181; box-shadow: 0 0 4px #fc8181; }\n");
     sb.append("@keyframes indicator-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }\n");
     // Info bar
     sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.9); }\n");

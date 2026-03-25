@@ -128,7 +128,8 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         {
           participantUis.outputHtml(output);
 
-          // Overflow-mode panel.
+          // Overflow-mode panel (toggle + add, but NO new-wave button to
+          // avoid duplication with the single-line panel).
           openSpan(output, null, css.extra(), null);
           {
             openSpanWith(output, null, css.toggleGroup(), null, "onclick=\"" + onClickJs() + "\"");
@@ -142,9 +143,6 @@ public final class ParticipantsViewBuilder implements UiBuilder {
             }
             closeSpan(output);
             appendSpan(output, null, css.addButton(), TypeCodes.kind(Type.ADD_PARTICIPANT));
-            newWaveIcon(output, css.newWaveWithParticipantsButton(),
-                TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
-                messages.newWaveWithParticipantsOfCurrentWave());
           }
           closeSpan(output);
 
@@ -181,8 +179,8 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + " role='button' tabindex='0'"
         + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
         + ">"
-        + "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
-        + "stroke='currentColor' stroke-width='2'>"
+        + "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' "
+        + "stroke='currentColor' stroke-width='2.5'>"
         + "<line x1='12' y1='5' x2='12' y2='19'/>"
         + "<line x1='5' y1='12' x2='19' y2='12'/>"
         + "</svg>"

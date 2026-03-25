@@ -81,6 +81,7 @@ public class ProtoAccountDataSerializer {
     if (account.getEmail() != null) {
       builder.setEmail(account.getEmail());
     }
+    builder.setEmailConfirmed(account.isEmailConfirmed());
     return builder.build();
   }
 
@@ -156,6 +157,9 @@ public class ProtoAccountDataSerializer {
     }
     if (data.hasEmail()) {
       account.setEmail(data.getEmail());
+    }
+    if (data.hasEmailConfirmed()) {
+      account.setEmailConfirmed(data.getEmailConfirmed());
     }
     return account;
   }

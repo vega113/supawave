@@ -48,6 +48,7 @@ jobs:
           ROOT_HOST=example.test \
           WWW_HOST=www.example.test \
           RESEND_API_KEY=test-dummy \
+          WAVE_EMAIL_FROM=test-dummy \
           docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
 
       - name: Compile PST and Wave

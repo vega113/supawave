@@ -161,7 +161,6 @@ public final class EditSession
     ContentDocument document = documents.get(views.getBlip(blipUi)).getDocument();
     blipUi.getMeta().enable(BlipMetaViewBuilder.ENABLED_WHILE_EDITING_MENU_OPTIONS_SET);
     blipUi.getMeta().disable(BlipMetaViewBuilder.DISABLED_WHILE_EDITING_MENU_OPTIONS_SET);
-    blipUi.getMeta().select(MenuOption.EDIT_DONE);
 
     // Create or re-use and editor for it.
     editor = Editors.attachTo(document);
@@ -206,7 +205,6 @@ public final class EditSession
       editor.reset();
       // TODO(user): this does not work if the view has been deleted and
       // detached.
-      editing.getMeta().deselect(MenuOption.EDIT_DONE);
       editing.getMeta().deselect(MenuOption.DRAFT);
       editing.getMeta().setDraftActive(false);
       editing.getMeta().enable(BlipMetaViewBuilder.DISABLED_WHILE_EDITING_MENU_OPTIONS_SET);

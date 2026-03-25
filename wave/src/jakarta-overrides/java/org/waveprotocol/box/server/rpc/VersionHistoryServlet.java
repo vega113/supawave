@@ -331,8 +331,13 @@ public final class VersionHistoryServlet extends HttpServlet {
       }
 
       // Replay deltas from 0 to targetVersion to reconstruct the state
-      HashedVersion startVer = HashedVersion.unsigned(0);
-      HashedVersion endVer = HashedVersion.unsigned(targetVersion);
+      HashedVersion startVer = waveletProvider.getHashedVersion(waveletName, 0);
+      HashedVersion endVer = waveletProvider.getHashedVersion(waveletName, targetVersion);
+      if (startVer == null || endVer == null) {
+        resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
+            "Invalid version: not at a delta boundary");
+        return;
+      }
       List<TransformedWaveletDelta> deltaList = new ArrayList<>();
 
       waveletProvider.getHistory(waveletName, startVer, endVer, new Receiver<TransformedWaveletDelta>() {

@@ -159,7 +159,7 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
   private String metaline;
   private String avatarUrl;
   private boolean read = true;
-  private final Set<MenuOption> options = MENU_OPTIONS_BEFORE_EDITING;
+  private final Set<MenuOption> options = EnumSet.copyOf(MENU_OPTIONS_BEFORE_EDITING);
   private final Set<MenuOption> selected = EnumSet.noneOf(MenuOption.class);
 
   //

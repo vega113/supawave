@@ -301,6 +301,29 @@ public class WebClient implements EntryPoint {
     });
   }
 
+  /** WiFi SVG icon for connected state. */
+  private static final String WIFI_ICON_SVG =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\""
+          + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
+          + "<path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/>"
+          + "<path d=\"M5.07 12.5a10 10 0 0 1 13.86 0\"/>"
+          + "<path d=\"M8.72 16a6 6 0 0 1 6.56 0\"/>"
+          + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
+          + "</svg>";
+
+  /** WiFi-off SVG icon for disconnected state. */
+  private static final String WIFI_OFF_ICON_SVG =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\""
+          + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
+          + "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/>"
+          + "<path d=\"M16.72 11.06A10.94 10.94 0 0 1 19 12.55\"/>"
+          + "<path d=\"M5 12.55a10.94 10.94 0 0 1 5.17-2.39\"/>"
+          + "<path d=\"M10.71 5.05A16 16 0 0 1 22.56 9\"/>"
+          + "<path d=\"M1.42 9a15.91 15.91 0 0 1 4.7-2.88\"/>"
+          + "<path d=\"M8.53 16.11a6 6 0 0 1 6.95 0\"/>"
+          + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
+          + "</svg>";
+
   private void setupConnectionIndicator() {
     ClientEvents.get().addNetworkStatusEventHandler(new NetworkStatusEventHandler() {
 
@@ -313,22 +336,25 @@ public class WebClient implements EntryPoint {
           switch (event.getStatus()) {
             case CONNECTED:
             case RECONNECTED:
-              element.setInnerText(messages.online());
-              element.setClassName("online");
+              element.setInnerHTML(WIFI_ICON_SVG);
+              element.setClassName("topbar-icon online");
+              element.setTitle(messages.online());
               isTurbulenceDetected = false;
               turbulencePopup.hide();
               break;
             case DISCONNECTED:
-              element.setInnerText(messages.offline());
-              element.setClassName("offline");
+              element.setInnerHTML(WIFI_OFF_ICON_SVG);
+              element.setClassName("topbar-icon offline");
+              element.setTitle(messages.offline());
               if (!isTurbulenceDetected) {
                 isTurbulenceDetected = true;
                 turbulencePopup.show();
               }
               break;
             case RECONNECTING:
-              element.setInnerText(messages.connecting());
-              element.setClassName("connecting");
+              element.setInnerHTML(WIFI_ICON_SVG);
+              element.setClassName("topbar-icon connecting");
+              element.setTitle(messages.connecting());
               break;
           }
         }

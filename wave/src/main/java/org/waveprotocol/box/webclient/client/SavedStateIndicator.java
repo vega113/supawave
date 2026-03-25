@@ -64,12 +64,24 @@ public class SavedStateIndicator implements UnsavedDataListener {
   private SavedState visibleSavedState = SavedState.SAVED;
   private SavedState currentSavedState = null;
 
-  private static final String UNSAVED_HTML =
-      "<span style='color: red; text-align: center;'>" + SavedState.UNSAVED.message
-          + "</span>";
-  private static final String SAVED_HTML =
-      "<span style='color: green; text-align: center;'>" + SavedState.SAVED.message
-          + "</span>";
+  /** Cloud-check SVG icon for saved state. */
+  private static final String SAVED_ICON_SVG =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\""
+          + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
+          + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
+          + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
+          + "</svg>";
+
+  /** Cloud-upload SVG icon for unsaved state. */
+  private static final String UNSAVED_ICON_SVG =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fbd38d\" stroke-width=\"1.8\""
+          + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
+          + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
+          + "<path d=\"M12 18v-6m-3 3l3-3 3 3\" stroke-width=\"2\"/>"
+          + "</svg>";
+
+  private static final String UNSAVED_HTML = UNSAVED_ICON_SVG;
+  private static final String SAVED_HTML = SAVED_ICON_SVG;
 
   public SavedStateIndicator(Element element) {
     this.element = element;
@@ -109,7 +121,10 @@ public class SavedStateIndicator implements UnsavedDataListener {
   private void updateDisplay() {
     visibleSavedState = currentSavedState;
     String innerHtml = visibleSavedState == SavedState.SAVED ? SAVED_HTML : UNSAVED_HTML;
+    String tooltip = visibleSavedState == SavedState.SAVED
+        ? messages.saved() : messages.unsaved();
     element.setInnerHTML(innerHtml);
+    element.setTitle(tooltip);
   }
 
   @Override

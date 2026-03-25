@@ -219,7 +219,7 @@ public final class SearchPresenter
 
     // "New Wave" action button.
     ToolbarClickButton newWaveButton = new ToolbarButtonViewBuilder()
-        .setText("\u2795 " + messages.newWave())
+        .setText("+ " + messages.newWave())
         .setTooltip(messages.newWaveHint())
         .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override

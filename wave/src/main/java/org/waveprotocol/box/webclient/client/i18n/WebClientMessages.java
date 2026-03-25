@@ -44,4 +44,42 @@ public interface WebClientMessages extends Messages {
 
   @DefaultMessage("Sign out")
   String signout();
+
+  // ---- Turbulence banner (ocean-themed redesign) ----
+
+  @DefaultMessage("Riding some waves...")
+  String turbulenceTitle();
+
+  @DefaultMessage("Connection lost")
+  String turbulenceElapsed();
+
+  @DefaultMessage("Possible reasons")
+  String turbulenceReasonsHeading();
+
+  @DefaultMessage("Your internet connection may be temporarily interrupted")
+  String turbulenceReasonInternet();
+
+  @DefaultMessage("The server might be restarting (usually takes ~30 seconds)")
+  String turbulenceReasonRestart();
+
+  @DefaultMessage("A new version may be deploying")
+  String turbulenceReasonDeploy();
+
+  @DefaultMessage("What you can do")
+  String turbulenceActionsHeading();
+
+  @DefaultMessage("Wait a moment \u2014 we will automatically reconnect")
+  String turbulenceActionWait();
+
+  @DefaultMessage("If this persists for more than 1 minute, try refreshing the page")
+  String turbulenceActionRefresh();
+
+  @DefaultMessage("Check your internet connection")
+  String turbulenceActionCheck();
+
+  @DefaultMessage("Attempting to reconnect...")
+  String turbulenceReconnecting();
+
+  @DefaultMessage("Back online!")
+  String turbulenceBackOnline();
 }

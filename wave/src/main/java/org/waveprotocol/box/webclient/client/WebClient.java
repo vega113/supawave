@@ -38,7 +38,6 @@ import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.Window.Location;
 import com.google.gwt.user.client.ui.DockLayoutPanel;
-import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.SplitLayoutPanel;
 import com.google.gwt.user.client.ui.UIObject;
@@ -75,11 +74,6 @@ import org.waveprotocol.wave.client.wavepanel.event.EventDispatcherPanel;
 import org.waveprotocol.wave.client.wavepanel.event.WaveChangeHandler;
 import org.waveprotocol.wave.client.wavepanel.event.FocusManager;
 import org.waveprotocol.wave.client.widget.common.ImplPanel;
-import org.waveprotocol.wave.client.widget.popup.CenterPopupPositioner;
-import org.waveprotocol.wave.client.widget.popup.PopupChrome;
-import org.waveprotocol.wave.client.widget.popup.PopupChromeFactory;
-import org.waveprotocol.wave.client.widget.popup.PopupFactory;
-import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 import org.waveprotocol.wave.model.id.IdGenerator;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -119,20 +113,211 @@ public class WebClient implements EntryPoint {
 
   private static final String DEFAULT_LOCALE = "default";
 
-  /** Creates a popup that warns about network disconnects. */
-  private static UniversalPopup createTurbulencePopup() {
-    PopupChrome chrome = PopupChromeFactory.createPopupChrome();
-    UniversalPopup popup =
-        PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
-    popup.add(new HTML("<div style='color: red; padding: 5px; text-align: center;'>"
-        + "<b>" + messages.turbulenceDetected() + "<br></br> "
-        + messages.saveAndReloadWave() + "</b></div>"));
-    return popup;
+  // ---- Turbulence banner (ocean-themed, non-blocking) ----
+
+  /** Injects the CSS keyframe animations for the turbulence banner once. */
+  private static boolean turbulenceCssInjected = false;
+  private static void injectTurbulenceCss() {
+    if (turbulenceCssInjected) return;
+    turbulenceCssInjected = true;
+    String css =
+        "@keyframes wave-drift {"
+      + "  0%   { background-position-x: 0; }"
+      + "  100% { background-position-x: 200px; }"
+      + "}"
+      + "@keyframes pulse-dot {"
+      + "  0%, 100% { opacity: 1; }"
+      + "  50%      { opacity: 0.3; }"
+      + "}"
+      + "@keyframes fade-in {"
+      + "  from { opacity: 0; transform: translateY(-20px); }"
+      + "  to   { opacity: 1; transform: translateY(0); }"
+      + "}"
+      + "@keyframes fade-out {"
+      + "  from { opacity: 1; transform: translateY(0); }"
+      + "  to   { opacity: 0; transform: translateY(-20px); }"
+      + "}"
+      + "@keyframes wave-motion {"
+      + "  0%   { transform: translateX(0); }"
+      + "  100% { transform: translateX(-50%); }"
+      + "}";
+    Element style = Document.get().createStyleElement();
+    style.setInnerHTML(css);
+    Document.get().getHead().appendChild(style);
+  }
+
+  /** Builds the full HTML for the turbulence banner. */
+  private static String buildTurbulenceBannerHtml() {
+    return
+        "<div id='turbulence-banner' style='"
+      + "position: fixed; top: 0; left: 0; right: 0; z-index: 100000;"
+      + "background: linear-gradient(135deg, #0d1b2a 0%, #1b3a5c 40%, #1a6fa0 100%);"
+      + "color: #e0f0ff; font-family: -apple-system, BlinkMacSystemFont, sans-serif;"
+      + "box-shadow: 0 4px 24px rgba(0,0,0,0.35); overflow: hidden;"
+      + "animation: fade-in 0.4s ease-out;"
+      + "'>"
+      // Wave decoration at the bottom of the banner
+      + "<div style='"
+      + "position: absolute; bottom: 0; left: 0; right: 0; height: 32px;"
+      + "overflow: hidden; pointer-events: none;"
+      + "'>"
+      + "<div style='"
+      + "position: absolute; bottom: -4px; left: 0; width: 200%; height: 32px;"
+      + "background: repeating-linear-gradient(90deg,"
+      + "  transparent 0px, transparent 30px,"
+      + "  rgba(255,255,255,0.06) 30px, rgba(255,255,255,0.06) 60px,"
+      + "  transparent 60px, transparent 100px,"
+      + "  rgba(255,255,255,0.04) 100px, rgba(255,255,255,0.04) 140px,"
+      + "  transparent 140px, transparent 200px);"
+      + "border-radius: 40% 40% 0 0;"
+      + "animation: wave-motion 6s linear infinite;"
+      + "'></div>"
+      + "</div>"
+      // Content container
+      + "<div style='position: relative; padding: 18px 28px 26px 28px; max-width: 620px; margin: 0 auto;'>"
+      // Title row
+      + "<div style='display: flex; align-items: center; gap: 10px; margin-bottom: 10px;'>"
+      + "<span style='font-size: 22px;'>&#x1F30A;</span>"
+      + "<span style='font-size: 17px; font-weight: 600; letter-spacing: 0.3px;'>"
+      + messages.turbulenceTitle()
+      + "</span>"
+      // Timer
+      + "<span id='turbulence-timer' style='"
+      + "margin-left: auto; font-size: 13px; opacity: 0.75;"
+      + "font-variant-numeric: tabular-nums;"
+      + "'></span>"
+      + "</div>"
+      // Possible reasons
+      + "<div style='font-size: 13px; line-height: 1.55; opacity: 0.88; margin-bottom: 8px;'>"
+      + "<div style='margin-bottom: 6px; font-weight: 500; opacity: 0.7; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;'>"
+      + messages.turbulenceReasonsHeading()
+      + "</div>"
+      + "<div style='padding-left: 6px;'>"
+      + "&#8226; " + messages.turbulenceReasonInternet() + "<br>"
+      + "&#8226; " + messages.turbulenceReasonRestart() + "<br>"
+      + "&#8226; " + messages.turbulenceReasonDeploy()
+      + "</div>"
+      + "</div>"
+      // What to do
+      + "<div style='font-size: 13px; line-height: 1.55; opacity: 0.88;'>"
+      + "<div style='margin-bottom: 6px; font-weight: 500; opacity: 0.7; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;'>"
+      + messages.turbulenceActionsHeading()
+      + "</div>"
+      + "<div style='padding-left: 6px;'>"
+      + "&#8226; " + messages.turbulenceActionWait() + "<br>"
+      + "&#8226; " + messages.turbulenceActionRefresh() + "<br>"
+      + "&#8226; " + messages.turbulenceActionCheck()
+      + "</div>"
+      + "</div>"
+      // Reconnecting indicator
+      + "<div style='display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; opacity: 0.7;'>"
+      + "<span style='"
+      + "display: inline-block; width: 8px; height: 8px; border-radius: 50%;"
+      + "background: #4fc3f7; animation: pulse-dot 1.4s ease-in-out infinite;"
+      + "'></span>"
+      + messages.turbulenceReconnecting()
+      + "</div>"
+      + "</div>"
+      + "</div>";
+  }
+
+  /** Builds the HTML for the brief "Back online" success banner. */
+  private static String buildBackOnlineBannerHtml() {
+    return
+        "<div id='back-online-banner' style='"
+      + "position: fixed; top: 0; left: 0; right: 0; z-index: 100000;"
+      + "background: linear-gradient(135deg, #0d3320 0%, #1a6b42 40%, #28a060 100%);"
+      + "color: #e0fff0; font-family: -apple-system, BlinkMacSystemFont, sans-serif;"
+      + "box-shadow: 0 4px 24px rgba(0,0,0,0.25);"
+      + "text-align: center; padding: 14px 28px;"
+      + "font-size: 15px; font-weight: 600;"
+      + "animation: fade-in 0.3s ease-out;"
+      + "'>"
+      + "&#x2705; " + messages.turbulenceBackOnline()
+      + "</div>";
+  }
+
+  /** Reference to the banner element currently in the DOM (null if hidden). */
+  private Element turbulenceBannerElement;
+
+  /** Timer that updates the elapsed-time display every second. */
+  private Timer turbulenceTimer;
+
+  /** Timer that delays showing the banner (3 seconds after disconnect). */
+  private Timer turbulenceDelayTimer;
+
+  /** Timestamp (ms) when turbulence was first detected in this episode. */
+  private double turbulenceStartTime;
+
+  /** Whether turbulence banner is logically active (even if delay hasn't elapsed). */
+  private boolean turbulencePending;
+
+  /** Show the turbulence banner (called after the delay). */
+  private void showTurbulenceBanner() {
+    injectTurbulenceCss();
+    if (turbulenceBannerElement != null) return; // already showing
+
+    Element wrapper = Document.get().createDivElement();
+    wrapper.setId("turbulence-banner-wrapper");
+    wrapper.setInnerHTML(buildTurbulenceBannerHtml());
+    Document.get().getBody().appendChild(wrapper);
+    turbulenceBannerElement = wrapper;
+
+    // Start the elapsed-time ticker
+    turbulenceTimer = new Timer() {
+      @Override
+      public void run() {
+        Element timerEl = Document.get().getElementById("turbulence-timer");
+        if (timerEl != null) {
+          int elapsed = (int) ((new Date().getTime() - turbulenceStartTime) / 1000);
+          int mins = elapsed / 60;
+          int secs = elapsed % 60;
+          String pad = secs < 10 ? "0" : "";
+          timerEl.setInnerText(messages.turbulenceElapsed() + " " + mins + ":" + pad + secs);
+        }
+      }
+    };
+    turbulenceTimer.scheduleRepeating(1000);
+    turbulenceTimer.run(); // immediate first tick
+  }
+
+  /** Hide the turbulence banner and optionally show a success flash. */
+  private void hideTurbulenceBanner(boolean showSuccess) {
+    turbulencePending = false;
+
+    // Cancel the delay timer if the banner hasn't appeared yet
+    if (turbulenceDelayTimer != null) {
+      turbulenceDelayTimer.cancel();
+      turbulenceDelayTimer = null;
+    }
+
+    if (turbulenceTimer != null) {
+      turbulenceTimer.cancel();
+      turbulenceTimer = null;
+    }
+    if (turbulenceBannerElement != null) {
+      turbulenceBannerElement.removeFromParent();
+      turbulenceBannerElement = null;
+
+      if (showSuccess) {
+        // Flash a brief "Back online!" banner
+        final Element successWrapper = Document.get().createDivElement();
+        successWrapper.setId("back-online-banner-wrapper");
+        successWrapper.setInnerHTML(buildBackOnlineBannerHtml());
+        Document.get().getBody().appendChild(successWrapper);
+
+        new Timer() {
+          @Override
+          public void run() {
+            successWrapper.removeFromParent();
+          }
+        }.schedule(2500);
+      }
+    }
   }
 
   private final ProfileManager profiles = new RemoteProfileManagerImpl();
   private final RemoteContactManagerImpl contactManager = new RemoteContactManagerImpl();
-  private final UniversalPopup turbulencePopup = createTurbulencePopup();
 
   @UiField
   SplitLayoutPanel splitPanel;
@@ -327,8 +512,6 @@ public class WebClient implements EntryPoint {
   private void setupConnectionIndicator() {
     ClientEvents.get().addNetworkStatusEventHandler(new NetworkStatusEventHandler() {
 
-      boolean isTurbulenceDetected = false;
-
       @Override
       public void onNetworkStatus(NetworkStatusEvent event) {
         Element element = Document.get().getElementById("netstatus");
@@ -339,16 +522,25 @@ public class WebClient implements EntryPoint {
               element.setInnerHTML(WIFI_ICON_SVG);
               element.setClassName("topbar-icon online");
               element.setTitle(messages.online());
-              isTurbulenceDetected = false;
-              turbulencePopup.hide();
+              hideTurbulenceBanner(true);
               break;
             case DISCONNECTED:
               element.setInnerHTML(WIFI_OFF_ICON_SVG);
               element.setClassName("topbar-icon offline");
               element.setTitle(messages.offline());
-              if (!isTurbulenceDetected) {
-                isTurbulenceDetected = true;
-                turbulencePopup.show();
+              if (!turbulencePending) {
+                turbulencePending = true;
+                turbulenceStartTime = new Date().getTime();
+                // Delay showing the banner by 3 seconds to ignore brief hiccups
+                turbulenceDelayTimer = new Timer() {
+                  @Override
+                  public void run() {
+                    if (turbulencePending) {
+                      showTurbulenceBanner();
+                    }
+                  }
+                };
+                turbulenceDelayTimer.schedule(3000);
               }
               break;
             case RECONNECTING:

@@ -136,6 +136,34 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     Map<WaveId, Wave> getWaves() {
       return loaded ? loadedWaves : ImmutableMap.of();
     }
+
+    @Override
+    public ImmutableSet<WaveletId> lookupWavelets(WaveId waveId) throws WaveletStateException {
+      Wave wave = loadedWaves.get(waveId);
+      if (wave == null) {
+        return ImmutableSet.of();
+      }
+      try {
+        return FutureUtil.getResultOrPropagateException(
+            wave.getLookedupWavelets(),
+            org.waveprotocol.box.server.persistence.PersistenceException.class);
+      } catch (Exception e) {
+        throw new WaveletStateException("Failed to look up wave " + waveId, e);
+      }
+    }
+
+    @Override
+    public WaveletContainer getWavelet(WaveletName waveletName) throws WaveletStateException {
+      Wave wave = loadedWaves.get(waveletName.waveId);
+      if (wave == null) {
+        return null;
+      }
+      WaveletContainer c = wave.getLocalWavelet(waveletName.waveletId);
+      if (c == null) {
+        c = wave.getRemoteWavelet(waveletName.waveletId);
+      }
+      return c;
+    }
   }
 
   private static final class FakeLocalWavelet implements LocalWaveletContainer {

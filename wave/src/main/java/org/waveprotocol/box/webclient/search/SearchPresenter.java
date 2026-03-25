@@ -219,7 +219,7 @@ public final class SearchPresenter
 
     // "New Wave" action button.
     ToolbarClickButton newWaveButton = new ToolbarButtonViewBuilder()
-        .setText("\u2795 " + messages.newWave())
+        .setText("+ " + messages.newWave())
         .setTooltip(messages.newWaveHint())
         .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
@@ -239,7 +239,7 @@ public final class SearchPresenter
 
     // "Saved Searches" button (opens the searches editor).
     new ToolbarButtonViewBuilder()
-        .setTooltip(messages.modify())
+        .setTooltip(messages.savedSearches())
         .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {

@@ -22,20 +22,21 @@
  */
 
 .self {
-	margin: 0px 2px 0px 2px;
+	margin: 0px;
 	line-height: 1.5;
-	overflow: hidden; /* Expand to include floated content. */
+	overflow: hidden;
 }
 
 .title {
 	font-size: 15px;
 	whitespace: nowrap;
-	color: #5a99df;
+	color: #0077b6;
 	margin-left: 5px;
 }
 
 .spinnerPanel {
-	margin-left: 15px;
+	margin-top: 8px;
+	text-align: center;
 }
 
 .spinner {
@@ -43,15 +44,24 @@
 }
 
 .status {
-	font-size: 15px;
+	font-size: 13px;
 	whitespace: nowrap;
 	margin-top: 0;
 }
 
 .error {
-	color: red;
+	color: #d93025;
 }
 
 .done {
-	color: green;
+	color: #188038;
+}
+
+.hiddenFileInput {
+	position: absolute;
+	left: -9999px;
+	top: -9999px;
+	opacity: 0;
+	width: 0;
+	height: 0;
 }

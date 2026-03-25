@@ -80,11 +80,14 @@ public final class SearchPresenter
       + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
       + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
 
-  /** New Wave: plus-circle icon. */
-  private static final String ICON_NEW_WAVE = SVG_OPEN
-      + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
-      + "<line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"16\"></line>"
-      + "<line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"></line></svg>";
+  /** New Wave: pencil-square / compose icon (14px, white stroke). */
+  private static final String ICON_NEW_WAVE =
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" "
+      + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" "
+      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      + "<path d=\"M12 20h9\"></path>"
+      + "<path d=\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\"></path>"
+      + "</svg>";
 
   /** Manage Searches: settings/sliders icon. */
   private static final String ICON_MODIFY = SVG_OPEN
@@ -228,6 +231,20 @@ public final class SearchPresenter
   }
 
   /**
+   * Creates a composite icon+text element for the New Wave toolbar button.
+   * The wrapper span uses inline-flex layout so the SVG and label sit side by side.
+   */
+  private static Element createNewWaveVisual(String svgHtml, String label) {
+    Element wrapper = DOM.createSpan();
+    wrapper.setAttribute("style",
+        "display:inline-flex;align-items:center;gap:5px;pointer-events:none;");
+    wrapper.setInnerHTML(svgHtml
+        + "<span style=\"font-size:12px;font-weight:400;color:#fff;white-space:nowrap;\">"
+        + label + "</span>");
+    return wrapper;
+  }
+
+  /**
    * Adds action and filter buttons to the unified toolbar row.
    * <p>
    * Layout: [New Wave] | [Saved Searches] | [Inbox] [Public] [Archive]
@@ -239,8 +256,9 @@ public final class SearchPresenter
 
     // --- Group 1: New Wave ---
     ToolbarView newWaveGroup = toolbarUi.addGroup();
+    // "New Wave" action button — compact dark icon+text compose button.
     ToolbarClickButton newWaveButton = new ToolbarButtonViewBuilder()
-        .setTooltip(messages.newWaveHint())
+        .setTooltip(messages.newWaveHint() + " (Shift+Ctrl/Cmd+O)")
         .applyTo(newWaveGroup.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
@@ -254,8 +272,9 @@ public final class SearchPresenter
             scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
           }
         });
-    newWaveButton.setVisualElement(createSvgIcon(ICON_NEW_WAVE));
-    // Mark the New Wave button so CSS can style it with a subtle accent.
+    newWaveButton.setVisualElement(
+        createNewWaveVisual(ICON_NEW_WAVE, messages.newWave()));
+    // Mark the New Wave button so CSS can style it prominently.
     newWaveButton.hackGetWidget().getElement().setAttribute("data-action", "new-wave");
 
     // --- Group 2: Saved Searches ---

@@ -27,11 +27,11 @@ import com.google.gwt.i18n.client.Messages.DefaultMessage;
  * @author akaplanov (Andrew Kaplanov)
  */
 public interface SearchWidgetMessages extends Messages {
-  @DefaultMessage("Shared with me")
-  String shared();
-
   @DefaultMessage("Public")
-  public String all();
+  public String pub();
+
+  @DefaultMessage("Public waves")
+  public String pubHint();
 
   @DefaultMessage("Inbox")
   public String inbox();
@@ -44,10 +44,4 @@ public interface SearchWidgetMessages extends Messages {
 
   @DefaultMessage("My archive")
   public String archiveHint();
-
-  @DefaultMessage("Public")
-  public String pub();
-
-  @DefaultMessage("Public waves")
-  public String pubHint();
 }

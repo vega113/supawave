@@ -42,6 +42,13 @@ public interface ImageThumbnailView {
      * The user clicked on the image.
      */
     public void onClickImage();
+
+    /**
+     * The user requested a change to display size.
+     *
+     * @param size one of "small", "medium", "large"
+     */
+    void onRequestSetDisplaySize(String size);
   }
 
   /**
@@ -108,4 +115,20 @@ public interface ImageThumbnailView {
    * @param listener
    */
   void setListener(ImageThumbnailViewListener listener);
+
+  /**
+   * Sets the display size mode for the attachment.
+   *
+   * @param size one of "small", "medium", "large"
+   */
+  void setDisplaySize(String size);
+
+  /**
+   * Sets the file type category for rendering an appropriate icon/preview.
+   * Used for non-image attachments to display a file-type-specific thumbnail.
+   *
+   * @param mimeType the MIME type of the attachment
+   * @param fileName the file name of the attachment
+   */
+  void setFileTypeInfo(String mimeType, String fileName);
 }

@@ -29,19 +29,7 @@
     field="msg" type="org.waveprotocol.box.webclient.search.i18n.SearchWidgetMessages" />
   <g:HTMLPanel styleName='{css.self}'>
    <div class='{css.search}'>
-     <div class='{css.searchboxContainer}'>
-       <g:TextBox ui:field='query' styleName='{css.query}'/>
-     </div>
-     <div class='{css.searchButtonsPanel}'>
-       <g:Button ui:field='searchButtonInbox' title='Inbox'
-           styleName='{css.searchButton}'>&#x1F4E5;</g:Button>
-       <g:Button ui:field='searchButtonShared' title='Shared waves'
-           styleName='{css.searchButton}'>&#x1F465;</g:Button>
-       <g:Button ui:field='searchButtonAll' title='All waves'
-           styleName='{css.searchButton}'>&#x1F310;</g:Button>
-       <g:Button ui:field='searchButtonArchive' title='Archive'
-           styleName='{css.searchButton}'>&#x1F4E6;</g:Button>
-     </div>
+     <g:TextBox ui:field='query' styleName='{css.query}'/>
    </div>
   </g:HTMLPanel>
 </ui:UiBinder>

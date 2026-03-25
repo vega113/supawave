@@ -54,6 +54,19 @@
       <g:InlineLabel ui:field="fileNameLabel" styleName="file-name"/>
       <g:InlineLabel ui:field="fileSizeLabel" styleName="file-size"/>
     </g:HTMLPanel>
+    <!-- Display size selector -->
+    <g:HTMLPanel ui:field="displaySizePanel" styleName="display-size-panel">
+      <div class="display-size-label">Display size:</div>
+      <g:Button ui:field="sizeBtnSmall" styleName="size-btn size-btn-active">S</g:Button>
+      <g:Button ui:field="sizeBtnMedium" styleName="size-btn">M</g:Button>
+      <g:Button ui:field="sizeBtnLarge" styleName="size-btn">L</g:Button>
+    </g:HTMLPanel>
+    <!-- Image compression info -->
+    <g:HTMLPanel ui:field="compressionInfoPanel" styleName="compression-info-panel" visible="false">
+      <g:InlineLabel ui:field="originalSizeLabel" styleName="compression-label"/>
+      <g:InlineLabel ui:field="compressedSizeLabel" styleName="compression-label"/>
+      <g:Button ui:field="compressToggleBtn" styleName="compress-toggle-btn">Compress: ON</g:Button>
+    </g:HTMLPanel>
     <!-- Progress bar -->
     <g:HTMLPanel ui:field="progressBarOuter" styleName="upload-progress-bar">
       <g:HTMLPanel ui:field="progressBarFill" styleName="upload-progress-fill"/>

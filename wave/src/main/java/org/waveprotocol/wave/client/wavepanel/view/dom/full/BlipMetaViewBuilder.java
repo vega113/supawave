@@ -236,6 +236,12 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
     this.selected.remove(option);
   }
 
+  @Override
+  public void setDraftActive(boolean active) {
+    // Draft mode is only activated client-side during editing, so the
+    // initial HTML render never needs to include the draft-active indicator.
+  }
+
   //
   // DomImpl nature.
   //

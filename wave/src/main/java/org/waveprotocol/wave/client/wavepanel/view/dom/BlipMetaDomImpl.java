@@ -160,6 +160,15 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
     }
   }
 
+  @Override
+  public void setDraftActive(boolean active) {
+    if (active) {
+      self.addClassName(css.draftActive());
+    } else {
+      self.removeClassName(css.draftActive());
+    }
+  }
+
   /**
    * Scrapes the menu state from the DOM. The menu state describes what options
    * exist, and which, if any, are currently selected.

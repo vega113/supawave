@@ -234,3 +234,47 @@
 
 /* Marker class to ensure CssResource maps 'deleted' */
 .deleted {}
+
+/* ---- Draft-mode active indicator ---- */
+
+/* Marker class to ensure CssResource maps 'draftActive' */
+.draftActive {}
+
+/* Notification banner shown below the metabar when draft mode is on. */
+.meta.draftActive::after {
+  content: "Draft mode \2014  changes are not visible to other participants";
+  display: block;
+  margin: 0.3em 0 0.5em 0;
+  padding: 0.35em 0.6em;
+  font-size: 0.8em;
+  line-height: 1.4;
+  color: #92400e;
+  background-color: #fef3c7;
+  border: 1px dashed #f59e0b;
+  border-radius: 4px;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+}
+
+/* Dashed amber border on the metabar while in draft mode. */
+.meta.draftActive .metabar {
+  border: 1px dashed #f59e0b;
+  background-color: #fffbeb;
+}
+
+/* Small DRAFT badge next to the time element. */
+.meta.draftActive .time::before {
+  content: "DRAFT";
+  display: inline-block;
+  margin-right: 0.4em;
+  padding: 0 0.4em;
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #92400e;
+  background-color: #fde68a;
+  border-radius: 3px;
+  -moz-border-radius: 3px;
+  -webkit-border-radius: 3px;
+  vertical-align: middle;
+}

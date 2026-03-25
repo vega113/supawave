@@ -98,17 +98,19 @@
 .addButton {
   display: block;
   cursor: pointer;
-  width: 16px;
-  height: 16px;
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMklEQVQ4y2NgoAH4z8DAoECi/n8MDAwMDAwMCkiakQ2gGBiYICKUYKI9F4waMGoAHQAADM4JFfj1gKoAAAAASUVORK5CYII=) no-repeat center;
+  width: 22px;
+  height: 22px;
+  /* White plus on ocean-blue circle -- high contrast SVG icon */
+  background: url(data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2722%27%20height%3D%2722%27%3E%3Ccircle%20cx%3D%2711%27%20cy%3D%2711%27%20r%3D%2711%27%20fill%3D%27%230077b6%27%2F%3E%3Cpath%20d%3D%27M11%205v12M5%2011h12%27%20stroke%3D%27%23fff%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E) no-repeat center;
 }
 
 .addButtonPressed {
   display: block;
   cursor: pointer;
-  width: 16px;
-  height: 16px;
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAANElEQVQ4y2NgoAH4z8DA4ECi/n8MDAwMDAwMCiQYgKyfYgMI+Yn2BowaMGrAqAHUMAAADLcJFQVhvN8AAAAASUVORK5CYII=) no-repeat center;
+  width: 22px;
+  height: 22px;
+  /* White plus on darker ocean-blue circle -- pressed state */
+  background: url(data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2722%27%20height%3D%2722%27%3E%3Ccircle%20cx%3D%2711%27%20cy%3D%2711%27%20r%3D%2711%27%20fill%3D%27%23005f8a%27%2F%3E%3Cpath%20d%3D%27M11%205v12M5%2011h12%27%20stroke%3D%27%23fff%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E) no-repeat center;
 }
 
 .deleteButton {

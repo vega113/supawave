@@ -1,0 +1,120 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ *
+ * CSS Stylesheet for the tag input/confirm modals.
+ */
+
+.self {
+  padding: 24px;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.message {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.tagName {
+  font-weight: 600;
+  color: #0077b6;
+}
+
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.inputFocused {
+  border-color: #0077b6;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.2);
+}
+
+.hint {
+  margin: -12px 0 16px;
+  font-size: 12px;
+  color: #718096;
+}
+
+.buttonPanel {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.cancelButton {
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  color: #4a5568;
+}
+
+.cancelButton:hover {
+  background: #edf2f7;
+}
+
+.addButton {
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #0077b6;
+  border: none;
+  color: white;
+  font-weight: 600;
+}
+
+.addButton:hover {
+  background: #006399;
+}
+
+.removeButton {
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #e53e3e;
+  border: none;
+  color: white;
+  font-weight: 600;
+}
+
+.errorLabel {
+  color: #e53e3e;
+  font-size: 12px;
+  margin-bottom: 8px;
+  display: none;
+}

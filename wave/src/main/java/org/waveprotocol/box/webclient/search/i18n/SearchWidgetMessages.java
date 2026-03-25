@@ -27,10 +27,10 @@ import com.google.gwt.i18n.client.Messages.DefaultMessage;
  * @author akaplanov (Andrew Kaplanov)
  */
 public interface SearchWidgetMessages extends Messages {
-  @DefaultMessage("Shared")
+  @DefaultMessage("Shared with me")
   String shared();
 
-  @DefaultMessage("All")
+  @DefaultMessage("Public")
   public String all();
 
   @DefaultMessage("Inbox")

@@ -224,36 +224,35 @@ public final class ParticipantController {
 
   /**
    * Updates the toggle-public button's SVG icon and tooltip to reflect the
-   * current public/private state.
+   * current public/private state. Uses lock/unlock icons (not globe) to
+   * avoid confusion with the globe icon used in search panel filters.
    *
    * @param buttonElement the toggle button DOM element
    * @param isPublic true if the wave is now public, false if private
    */
   private void updateTogglePublicIcon(Element buttonElement, boolean isPublic) {
     if (isPublic) {
-      // Globe icon for public state
+      // Open-lock icon for public state (unlocked = everyone can see)
       buttonElement.setInnerHTML(
-          "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+          "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' "
           + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
           + "stroke-linejoin='round'>"
-          + "<circle cx='12' cy='12' r='10'/>"
-          + "<line x1='2' y1='12' x2='22' y2='12'/>"
-          + "<path d='M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"
-          + " 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'/>"
+          + "<rect x='3' y='11' width='18' height='11' rx='2' ry='2'/>"
+          + "<path d='M7 11V7a5 5 0 0 1 9.9-1'/>"
           + "</svg>");
-      buttonElement.setTitle(messages.makeWavePrivate());
-      buttonElement.setAttribute("aria-label", messages.makeWavePrivate());
+      buttonElement.setTitle(messages.waveIsPublicClickToMakePrivate());
+      buttonElement.setAttribute("aria-label", messages.waveIsPublicClickToMakePrivate());
     } else {
-      // Lock icon for private state
+      // Closed-lock icon for private state (locked = only participants)
       buttonElement.setInnerHTML(
-          "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+          "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' "
           + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
           + "stroke-linejoin='round'>"
           + "<rect x='3' y='11' width='18' height='11' rx='2' ry='2'/>"
           + "<path d='M7 11V7a5 5 0 0 1 10 0v4'/>"
           + "</svg>");
-      buttonElement.setTitle(messages.makeWavePublic());
-      buttonElement.setAttribute("aria-label", messages.makeWavePublic());
+      buttonElement.setTitle(messages.waveIsPrivateClickToMakePublic());
+      buttonElement.setAttribute("aria-label", messages.waveIsPrivateClickToMakePublic());
     }
   }
 

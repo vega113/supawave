@@ -941,6 +941,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
     return asParticipants(e);
   }
 
+
   private AnchorView asAnchor(View v) {
     Preconditions.checkArgument(v == null || v.getType() == Type.ANCHOR);
     return (AnchorView) v;

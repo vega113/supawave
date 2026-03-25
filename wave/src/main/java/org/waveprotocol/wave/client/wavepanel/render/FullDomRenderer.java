@@ -28,6 +28,7 @@ import org.waveprotocol.wave.client.state.ThreadReadStateMonitor;
 import org.waveprotocol.wave.client.uibuilder.HtmlClosure;
 import org.waveprotocol.wave.client.uibuilder.HtmlClosureCollection;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
+import org.waveprotocol.wave.client.wavepanel.view.IntrinsicTagView;
 import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.AnchorViewBuilder;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipMetaViewBuilder;
@@ -141,7 +142,8 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     HtmlClosureCollection tagUis = new HtmlClosureCollection();
     if (tags != null) {
       for (String tag : tags) {
-        tagUis.add(TagViewBuilder.create(tagsId + "." + tag, tag));
+        tagUis.add(TagViewBuilder.create(
+            tagsId + "." + tag, tag, IntrinsicTagView.TagState.NORMAL, null));
       }
     }
     return TagsViewBuilder.create(tagsId, tagUis);

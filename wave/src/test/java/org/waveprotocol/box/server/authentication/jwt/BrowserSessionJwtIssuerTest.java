@@ -25,7 +25,8 @@ public final class BrowserSessionJwtIssuerTest {
         new JwtKeyMaterial("alpha", keyPair())));
 
     BrowserSessionJwtIssuer issuer =
-        new BrowserSessionJwtIssuer(keyRing, clock, "https://auth.example");
+        new BrowserSessionJwtIssuer(keyRing, clock, "https://auth.example",
+            BrowserSessionJwtIssuer.DEFAULT_SESSION_EXPIRY_SECONDS);
 
     String token = issuer.issue(ParticipantId.ofUnsafe("user@example.com"));
     JwtTokenContext context = keyRing.validator(clock).validate(token, new JwtRevocationState(0L, 0L));

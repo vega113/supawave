@@ -22,13 +22,13 @@
  */
 
 /*
- * Layout model:
+ * Layout model (two-line digest):
  *     ____________.digest______________________________________________
  *    |  __________.inner______________4px___________________________   |
- *    | |       | |       | |     | Lorem ipsum - blah |     | time  |  |
- *    |4| 32x32 |4| 32x32 |4| 1em |____________________| 1em |_______|10|
- *    | | avatar| | avatar| |     | blah blah blah     |     | msgs  |  |
- *    | |_______|_|_______|_|_____|____________________|_____|_______|  |
+ *    | |       | |       | |     | Wave title (root blip) |  | time  | |
+ *    |4| 32x32 |4| 32x32 |4| 1em |________________________| 1em|_____|10|
+ *    | | avatar| | avatar| |     | Latest reply snippet.. |  | msgs  | |
+ *    | |_______|_|_______|_|_____|________________________|__|_______|  |
  *    |________________________________4px______________________________|
  *    |=============(border)============================================|
  */
@@ -77,6 +77,21 @@
 
 .title {
   font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.snippet {
+  color: #718096;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected .snippet {
+  color: rgba(255,255,255,0.7);
 }
 
 .unread {

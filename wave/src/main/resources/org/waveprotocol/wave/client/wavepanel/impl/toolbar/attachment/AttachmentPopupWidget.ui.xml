@@ -28,25 +28,44 @@
     type='org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget.Resources' />
   <ui:with field='msg'
     type='org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.i18n.AttachmentMessages' />
-  <g:HTMLPanel styleName="{res.style.self}">
-    <g:HorizontalPanel>
-      <g:HorizontalPanel horizontalAlignment="ALIGN_LEFT" width="150px;">
-        <g:Label styleName="{res.style.title}"><ui:text from="{msg.uploadAttachment}"/></g:Label>
-      </g:HorizontalPanel>
-      <g:HorizontalPanel horizontalAlignment="ALIGN_RIGHT" ui:field="spinnerPanel"
-        styleName="{res.style.spinnerPanel}">
-        <g:Image resource="{res.spinner}" title="Loading" styleName="{res.style.spinner}"
-          ui:field="spinnerImg" />
-        <g:Label ui:field="status" styleName="{res.style.status}"><ui:text from="{msg.loading}"/></g:Label>
-      </g:HorizontalPanel>
-    </g:HorizontalPanel>
+  <g:HTMLPanel styleName="attachment-popup-modern">
+    <!-- Drop zone area -->
+    <g:HTMLPanel ui:field="dropZone" styleName="upload-dropzone">
+      <div class="upload-dropzone-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <div class="upload-dropzone-text"><ui:text from="{msg.uploadAttachment}"/></div>
+      <div class="upload-dropzone-hint">or click to browse files</div>
+    </g:HTMLPanel>
+    <!-- Hidden form for actual upload -->
     <g:FormPanel ui:field="form">
-      <g:HorizontalPanel>
-        <g:FileUpload ui:field="fileUpload" name="uploadFormElement"></g:FileUpload>
-        <g:Button ui:field="uploadBtn"><ui:text from="{msg.uploadFile}"/></g:Button>
+      <g:FlowPanel>
+        <g:FileUpload ui:field="fileUpload" name="uploadFormElement" styleName="{res.style.hiddenFileInput}"></g:FileUpload>
         <g:Hidden ui:field="formAttachmentId" name="attachmentId"></g:Hidden>
         <g:Hidden ui:field="formWaveRef" name="waveRef"></g:Hidden>
-      </g:HorizontalPanel>
+      </g:FlowPanel>
     </g:FormPanel>
+    <!-- File preview (shown after file selection) -->
+    <g:HTMLPanel ui:field="filePreviewPanel" styleName="upload-file-preview" visible="false">
+      <g:InlineLabel ui:field="fileNameLabel" styleName="file-name"/>
+      <g:InlineLabel ui:field="fileSizeLabel" styleName="file-size"/>
+    </g:HTMLPanel>
+    <!-- Progress bar -->
+    <g:HTMLPanel ui:field="progressBarOuter" styleName="upload-progress-bar">
+      <g:HTMLPanel ui:field="progressBarFill" styleName="upload-progress-fill"/>
+    </g:HTMLPanel>
+    <!-- Upload button -->
+    <g:Button ui:field="uploadBtn" styleName="upload-btn-modern"><ui:text from="{msg.uploadFile}"/></g:Button>
+    <!-- Status area -->
+    <g:HorizontalPanel horizontalAlignment="ALIGN_RIGHT" ui:field="spinnerPanel"
+      styleName="{res.style.spinnerPanel}">
+      <g:Image resource="{res.spinner}" title="Loading" styleName="{res.style.spinner}"
+        ui:field="spinnerImg" />
+      <g:Label ui:field="status" styleName="upload-status-modern"><ui:text from="{msg.loading}"/></g:Label>
+    </g:HorizontalPanel>
   </g:HTMLPanel>
 </ui:UiBinder>

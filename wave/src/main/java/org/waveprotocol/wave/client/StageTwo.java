@@ -807,12 +807,50 @@ public interface StageTwo {
 
                                 @Override
                                 public boolean onClick(ImageThumbnailWrapper thumbnail) {
-                                    return false;
+                                    return handleThumbnailClick(thumbnail);
                                 }
                             });
                 }
             });
         }
+
+        /**
+         * Handles a click on an image thumbnail by opening it in the lightbox overlay
+         * (if the attachment is an image) or returning false to allow the default
+         * window-open behaviour for non-image attachments.
+         *
+         * @return true if the click was handled (lightbox opened), false otherwise.
+         */
+        private boolean handleThumbnailClick(ImageThumbnailWrapper thumbnail) {
+            if (thumbnail == null || thumbnail.getAttachment() == null) {
+                return false;
+            }
+            String url = thumbnail.getAttachment().getAttachmentUrl();
+            String mimeType = thumbnail.getAttachment().getMimeType();
+            String caption = thumbnail.getCaptionText();
+            if (url == null || url.isEmpty()) {
+                return false;
+            }
+            // Open lightbox for image types. Check MIME type first, then fall
+            // back to image metadata presence (covers cases where mime is null
+            // but the server already detected the attachment as an image).
+            boolean isImage = (mimeType != null && mimeType.startsWith("image/"))
+                    || thumbnail.getAttachment().getContentImageMetadata() != null;
+            if (isImage) {
+                nativeOpenLightbox(url, caption != null ? caption : "");
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Calls into the page-level lightbox JavaScript via JSNI.
+         */
+        private native void nativeOpenLightbox(String url, String caption) /*-{
+            if ($wnd.openWaveLightbox) {
+                $wnd.openWaveLightbox(url, caption);
+            }
+        }-*/;
 
         protected LinkAttributeAugmenter createLinkAttributeAugmenter() {
             return new LinkAttributeAugmenter() {

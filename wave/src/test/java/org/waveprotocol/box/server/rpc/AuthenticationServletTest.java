@@ -83,14 +83,16 @@ public class AuthenticationServletTest extends TestCase {
         new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
     store.putAccount(account);
 
-    Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
-      "administration.disable_registration", false,
-      "administration.analytics_account", "UA-someid",
-      "security.enable_clientauth", false,
-      "security.clientauth_cert_domain", "",
-      "administration.disable_loginpage", false)
+    Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+      .put("administration.disable_registration", false)
+      .put("administration.analytics_account", "UA-someid")
+      .put("security.enable_clientauth", false)
+      .put("security.clientauth_cert_domain", "")
+      .put("administration.disable_loginpage", false)
+      .put("security.enable_ssl", false)
+      .build()
     );
-    when(browserSessionJwtIssuer.tokenLifetimeSeconds()).thenReturn(900L);
+    when(browserSessionJwtIssuer.tokenLifetimeSeconds()).thenReturn(1209600L);
 
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
         manager, "examPLe.com", config, browserSessionJwtIssuer);
@@ -207,7 +209,7 @@ public class AuthenticationServletTest extends TestCase {
       assertTrue(cookie.contains("HttpOnly"));
       assertTrue(cookie.contains("SameSite=Lax"));
       assertTrue(cookie.contains("Secure"));
-      assertTrue(cookie.contains("Max-Age=900"));
+      assertTrue(cookie.contains("Max-Age=1209600"));
     }
   }
 }

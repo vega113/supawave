@@ -139,6 +139,26 @@ public final class FocusFramePresenter
   }
 
   /**
+   * Moves the focus frame to the last blip in the vertical ordering by
+   * traversing from the current blip. If there is no current blip or no
+   * further blips, this method does nothing.
+   */
+  public void moveLast() {
+    if (blip == null) {
+      return;
+    }
+    BlipView last = blip;
+    BlipView next = traverser.getNext(last);
+    while (next != null) {
+      last = next;
+      next = traverser.getNext(last);
+    }
+    if (last != blip) {
+      focus(last, true);
+    }
+  }
+
+  /**
    * Sets the blip that has the focus frame. If {@code blip} is null, the focus
    * frame is removed.
    */

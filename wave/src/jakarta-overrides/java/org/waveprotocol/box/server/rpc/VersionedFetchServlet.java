@@ -232,8 +232,13 @@ public final class VersionedFetchServlet extends HttpServlet {
 
     // Replay deltas from version 0 to targetVersion
     try {
-      HashedVersion startVersion = HashedVersion.unsigned(0);
-      HashedVersion endVersion = HashedVersion.unsigned(targetVersion);
+      HashedVersion startVersion = waveletProvider.getHashedVersion(waveletName, 0);
+      HashedVersion endVersion = waveletProvider.getHashedVersion(waveletName, targetVersion);
+      if (startVersion == null || endVersion == null) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+            "Invalid version: not at a delta boundary");
+        return;
+      }
       ListReceiver<TransformedWaveletDelta> receiver = new ListReceiver<>();
       waveletProvider.getHistory(waveletName, startVersion, endVersion, receiver);
 
@@ -336,8 +341,13 @@ public final class VersionedFetchServlet extends HttpServlet {
 
     // Fetch deltas in the range
     try {
-      HashedVersion startVersion = HashedVersion.unsigned(start);
-      HashedVersion endVersion = HashedVersion.unsigned(end);
+      HashedVersion startVersion = waveletProvider.getHashedVersion(waveletName, start);
+      HashedVersion endVersion = waveletProvider.getHashedVersion(waveletName, end);
+      if (startVersion == null || endVersion == null) {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+            "Invalid version range: start or end is not at a delta boundary");
+        return;
+      }
       ListReceiver<TransformedWaveletDelta> receiver = new ListReceiver<>();
       waveletProvider.getHistory(waveletName, startVersion, endVersion, receiver);
 

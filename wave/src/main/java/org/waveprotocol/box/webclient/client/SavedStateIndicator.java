@@ -64,17 +64,17 @@ public class SavedStateIndicator implements UnsavedDataListener {
   private SavedState visibleSavedState = SavedState.SAVED;
   private SavedState currentSavedState = null;
 
-  /** Cloud-check SVG icon for saved state. */
+  /** Cloud-check SVG icon for saved state (white for contrast on dark topbar). */
   private static final String SAVED_ICON_SVG =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\""
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#3fb950\" stroke-width=\"1.8\""
           + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
           + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
           + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
           + "</svg>";
 
-  /** Cloud-upload SVG icon for unsaved state. */
+  /** Cloud-upload SVG icon for unsaved/saving state (white for contrast on dark topbar). */
   private static final String UNSAVED_ICON_SVG =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fbd38d\" stroke-width=\"1.8\""
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\""
           + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
           + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
           + "<path d=\"M12 18v-6m-3 3l3-3 3 3\" stroke-width=\"2\"/>"
@@ -123,8 +123,10 @@ public class SavedStateIndicator implements UnsavedDataListener {
     String innerHtml = visibleSavedState == SavedState.SAVED ? SAVED_HTML : UNSAVED_HTML;
     String tooltip = visibleSavedState == SavedState.SAVED
         ? messages.saved() : messages.unsaved();
+    String stateClass = visibleSavedState == SavedState.SAVED ? "saved" : "saving";
     element.setInnerHTML(innerHtml);
     element.setTitle(tooltip);
+    element.setClassName("topbar-icon " + stateClass);
   }
 
   @Override

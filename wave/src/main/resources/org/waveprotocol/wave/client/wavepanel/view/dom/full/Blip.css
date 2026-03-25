@@ -275,6 +275,12 @@
 /* Marker class to ensure CssResource maps 'draftActive' */
 .draftActive {}
 
+/* These hyphenated classes are built by string concatenation in
+   BlipMetaDomImpl (css.draftActive() + "-notification"/"-badge"),
+   so they must stay un-obfuscated. */
+@external .draftActive-notification;
+@external .draftActive-badge;
+
 /* Notification banner shown below the metabar when draft mode is on. */
 .draftActive-notification {
   display: block;

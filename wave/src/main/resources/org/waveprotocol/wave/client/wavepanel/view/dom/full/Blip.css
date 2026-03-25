@@ -102,7 +102,9 @@
 }
 
 .metabar {
-  /* Add box around the whole thing. */
+  /* Flex layout aligns metaline, time and menu icons on one row. */
+  display: flex;
+  align-items: center;
   border-radius: 6px;
   -moz-border-radius: 6px;
   -webkit-border-radius: 6px;
@@ -128,19 +130,27 @@
   /*
    * Truncate long lines.  Note that overflow:hidden and white-space: nowrap
    * must be used for text-overflow to have effect.
+   *
+   * order:0 ensures metaline appears first visually even though the DOM
+   * order is menu, time, metaline (legacy float-right ordering).
    */
+  order: 0;
+  flex: 1;
+  min-width: 0;  /* Allow flex child to shrink below content size. */
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .time {
-  float: right;
+  order: 1;
+  flex-shrink: 0;
   margin: 0 0.3em;          /* Aesthetic space. */
 }
 
 .menu {
-  float: right;
+  order: 2;
+  flex-shrink: 0;
   cursor: default;
   display: inline-flex;
   align-items: center;

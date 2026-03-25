@@ -77,6 +77,21 @@ public class ImageThumbnail {
   public static final String STYLE_FULL = "full";
 
   /**
+   * Display size attribute: controls how large the attachment renders.
+   * Values: "small" (default), "medium", "large".
+   */
+  public static final String DISPLAY_SIZE_ATTR = "display-size";
+
+  /** Display size: compact thumbnail, ~80px tall */
+  public static final String DISPLAY_SIZE_SMALL = "small";
+
+  /** Display size: inline preview, ~200px tall */
+  public static final String DISPLAY_SIZE_MEDIUM = "medium";
+
+  /** Display size: full-width, like Telegram's large photo display */
+  public static final String DISPLAY_SIZE_LARGE = "large";
+
+  /**
    * Registers subclass with ContentElement
    *
    * @param actionHandler May be null. If not, allows external hooks into
@@ -127,6 +142,23 @@ public class ImageThumbnail {
     }
     return XmlStringBuilder.createText(xmlCaption).wrap(Caption.TAGNAME).wrap(
         TAGNAME, ATTACHMENT_ATTR, attachmentId, STYLE_ATTR, STYLE_FULL);
+  }
+
+  /**
+   * Constructs XML for an attachment with a specified display size.
+   *
+   * @param attachmentId the attachment id
+   * @param displaySize the display size: "small", "medium", or "large"
+   * @param xmlCaption caption text
+   * @return A content xml string containing an image thumbnail with display size
+   */
+  public static XmlStringBuilder constructXmlWithSize(
+      String attachmentId, String displaySize, String xmlCaption) {
+    if (displaySize == null || DISPLAY_SIZE_SMALL.equals(displaySize)) {
+      return constructXml(attachmentId, xmlCaption);
+    }
+    return XmlStringBuilder.createText(xmlCaption).wrap(Caption.TAGNAME).wrap(
+        TAGNAME, ATTACHMENT_ATTR, attachmentId, DISPLAY_SIZE_ATTR, displaySize);
   }
 
   private ImageThumbnail() {}

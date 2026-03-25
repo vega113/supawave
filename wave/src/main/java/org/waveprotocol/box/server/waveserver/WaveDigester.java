@@ -54,7 +54,9 @@ import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Generates digests for the search service.
@@ -117,20 +119,26 @@ public class WaveDigester {
       }
     }
     ObservableWaveletData udw = findViewerUserDataWavelet(participant, wave.getWavelets());
+    Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters =
+        new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>();
 
     ObservableWaveletData convWavelet = root != null ? root : other;
     SupplementedWave supplement = null;
     ObservableConversationView conversations = null;
     if (convWavelet != null) {
-      OpBasedWavelet wavelet = OpBasedWavelet.createReadOnly(convWavelet);
+      OpBasedWavelet wavelet = getOrCreateReadOnlyWavelet(convWavelet, waveletAdapters);
       if (WaveletBasedConversation.waveletHasConversation(wavelet)) {
         conversations = conversationUtil.buildConversation(wavelet);
-        supplement = buildSupplement(participant, conversations, udw, conversationalWavelets);
+        supplement =
+            buildSupplement(
+                participant, conversations, udw, conversationalWavelets, waveletAdapters);
       }
     }
     if (conversations != null) {
       // This is a conversational wave. Produce a conversational digest.
-      digest = generateDigest(conversations, supplement, convWavelet, conversationalWavelets);
+      digest =
+          generateDigest(
+              conversations, supplement, convWavelet, conversationalWavelets, waveletAdapters);
     } else {
       // It is unknown how to present this wave.
       digest = generateEmptyorUnknownDigest(wave);
@@ -166,6 +174,20 @@ public class WaveDigester {
    */
   Digest generateDigest(ObservableConversationView conversations, SupplementedWave supplement,
       WaveletData rawWaveletData, Iterable<? extends ObservableWaveletData> conversationalWavelets) {
+    return generateDigest(
+        conversations,
+        supplement,
+        rawWaveletData,
+        conversationalWavelets,
+        new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>());
+  }
+
+  private Digest generateDigest(
+      ObservableConversationView conversations,
+      SupplementedWave supplement,
+      WaveletData rawWaveletData,
+      Iterable<? extends ObservableWaveletData> conversationalWavelets,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
     ObservableConversation rootConversation = chooseDigestConversation(conversations);
     ObservableConversationBlip firstBlip = null;
     if ((rootConversation != null) && (rootConversation.getRootThread() != null)
@@ -180,14 +202,10 @@ public class WaveDigester {
       title = EMPTY_WAVELET_TITLE;
     }
 
-    // Snippet should show the latest reply text.  If there are no replies yet,
-    // fall back to the root blip body text with the title stripped.
-    String snippet = Snippets.renderSnippetFromLastBlip(rawWaveletData, DIGEST_SNIPPET_LENGTH).trim();
-    if (snippet.isEmpty()) {
-      snippet = Snippets.renderSnippet(rawWaveletData, DIGEST_SNIPPET_LENGTH).trim();
-      if (snippet.startsWith(title) && !title.isEmpty()) {
-        snippet = snippet.substring(title.length());
-      }
+    String snippet = Snippets.renderSnippet(rawWaveletData, DIGEST_SNIPPET_LENGTH).trim();
+    if (snippet.startsWith(title) && !title.isEmpty()) {
+      // Strip the title from the snippet if the snippet starts with the title.
+      snippet = snippet.substring(title.length()).trim();
     }
     String waveId = ApiIdSerializer.instance().serialiseWaveId(rawWaveletData.getWaveId());
     List<String> participants = CollectionUtils.newArrayList();
@@ -206,7 +224,7 @@ public class WaveDigester {
       if (conversationalWavelet == rawWaveletData) {
         conversation = rootConversation;
       } else {
-        OpBasedWavelet wavelet = OpBasedWavelet.createReadOnly(conversationalWavelet);
+        OpBasedWavelet wavelet = getOrCreateReadOnlyWavelet(conversationalWavelet, waveletAdapters);
         if (!WaveletBasedConversation.waveletHasConversation(wavelet)) {
           continue;
         }
@@ -298,10 +316,24 @@ public class WaveDigester {
   @VisibleForTesting
   SupplementedWave buildSupplement(ParticipantId viewer, ObservableConversationView conversations,
       ObservableWaveletData udw, List<ObservableWaveletData> conversationalWavelets) {
+    return buildSupplement(
+        viewer,
+        conversations,
+        udw,
+        conversationalWavelets,
+        new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>());
+  }
+
+  private SupplementedWave buildSupplement(
+      ParticipantId viewer,
+      ObservableConversationView conversations,
+      ObservableWaveletData udw,
+      List<ObservableWaveletData> conversationalWavelets,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
     // Use mock state if there is no UDW.
     PrimitiveSupplement udwState;
     if (udw != null) {
-      udwState = WaveletBasedSupplement.create(OpBasedWavelet.createReadOnly(udw));
+      udwState = WaveletBasedSupplement.create(getOrCreateReadOnlyWavelet(udw, waveletAdapters));
     } else {
       PrimitiveSupplementImpl emptyState = new PrimitiveSupplementImpl();
       // When the viewer has no UDW and is not an explicit participant (i.e., they
@@ -318,6 +350,17 @@ public class WaveDigester {
       udwState = emptyState;
     }
     return SupplementedWaveImpl.create(udwState, conversations, viewer, DefaultFollow.ALWAYS);
+  }
+
+  private OpBasedWavelet getOrCreateReadOnlyWavelet(
+      ObservableWaveletData waveletData,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+    OpBasedWavelet wavelet = waveletAdapters.get(waveletData);
+    if (wavelet == null) {
+      wavelet = OpBasedWavelet.createReadOnly(waveletData);
+      waveletAdapters.put(waveletData, wavelet);
+    }
+    return wavelet;
   }
 
   /**

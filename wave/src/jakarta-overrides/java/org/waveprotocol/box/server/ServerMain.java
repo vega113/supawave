@@ -197,6 +197,7 @@ public class ServerMain {
     server.addServlet(AttachmentServlet.ATTACHMENT_URL + "/*", AttachmentServlet.class);
     server.addServlet(AttachmentServlet.THUMBNAIL_URL + "/*", AttachmentServlet.class);
     server.addServlet(AttachmentInfoServlet.ATTACHMENTS_INFO_URL, AttachmentInfoServlet.class);
+    server.addServlet(UrlPreviewServlet.URL_PREVIEW_URL, UrlPreviewServlet.class);
     server.addServlet("/auth/signin", AuthenticationServlet.class);
     server.addServlet("/auth/signout", SignOutServlet.class);
     server.addServlet("/auth/register", UserRegistrationServlet.class);
@@ -330,12 +331,15 @@ public class ServerMain {
 
   private static void initializeSearch(Injector injector, WaveBus waveBus)
       throws WaveServerException {
+    long startMs = System.currentTimeMillis();
     PerUserWaveViewDistpatcher waveViewDistpatcher = injector.getInstance(PerUserWaveViewDistpatcher.class);
     PerUserWaveViewBus.Listener listener = injector.getInstance(PerUserWaveViewBus.Listener.class);
     waveViewDistpatcher.addListener(listener);
     waveBus.subscribe(waveViewDistpatcher);
     WaveIndexer waveIndexer = injector.getInstance(WaveIndexer.class);
     waveIndexer.remakeIndex();
+    long elapsedMs = System.currentTimeMillis() - startMs;
+    LOG.info("initializeSearch completed in " + elapsedMs + " ms");
   }
 
   private static void initializeShutdownHandler(final ServerRpcProvider server) {

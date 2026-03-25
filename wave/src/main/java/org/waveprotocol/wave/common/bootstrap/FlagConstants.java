@@ -274,6 +274,10 @@ public class FlagConstants {
   public static final String INITIAL_VIEWPORT_DIRECTION = "239";
   public static final String INITIAL_VIEWPORT_LIMIT = "240";
 
+  // Inline reply slide-navigation flags (Phase 0)
+  public static final String ENABLE_SLIDE_NAVIGATION = "250";
+  public static final String MAX_REPLY_DEPTH = "251";
+
 
   public static final String[] __NAME_MAPPING__ = new String[] {
     "addContactHelpUrl", "0",
@@ -531,6 +535,10 @@ public class FlagConstants {
     "initialViewportStartBlipId", "238",
     "initialViewportDirection", "239",
     "initialViewportLimit", "240",
+
+    // Inline reply slide-navigation flags (Phase 0)
+    "enableSlideNavigation", "250",
+    "maxReplyDepth", "251",
 
   };
 }

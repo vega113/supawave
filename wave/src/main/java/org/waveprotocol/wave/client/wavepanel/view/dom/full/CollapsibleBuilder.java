@@ -159,6 +159,9 @@ public final class CollapsibleBuilder implements UiBuilder {
   private final HtmlClosure content;
   private final String kind;
 
+  /** Nesting depth for inline threads (-1 means unset / no data-depth attribute). */
+  private int depth = -1;
+
   /**
    */
   public static CollapsibleBuilder create(String id, String kind, HtmlClosure contents) {
@@ -175,6 +178,11 @@ public final class CollapsibleBuilder implements UiBuilder {
     this.content = content;
     this.css = css;
     this.kind = kind;
+  }
+
+  /** Sets the nesting depth (emitted as a {@code data-depth} attribute). */
+  public void setDepth(int depth) {
+    this.depth = depth;
   }
 
   public void setCollapsed(boolean collapsed) {
@@ -218,7 +226,8 @@ public final class CollapsibleBuilder implements UiBuilder {
     String unselectable = UserAgent.isIE() ? "unselectable='on'" : null;
     String extra = " " + (collapsed ? COLLAPSED_ATTRIBUTE + "='" + COLLAPSED_VALUE + "'" : "") +
         " " + TOTAL_BLIPS_ATTRIBUTE + "='" + totalBlipCount + "'" +
-        " " + UNREAD_BLIPS_ATTRIBUTE + "='" + unreadBlipCount + "'";
+        " " + UNREAD_BLIPS_ATTRIBUTE + "='" + unreadBlipCount + "'" +
+        (depth >= 0 ? " data-depth='" + depth + "'" : "");
 
     openWith(output, id, css.collapsible(), kind, extra);
     {

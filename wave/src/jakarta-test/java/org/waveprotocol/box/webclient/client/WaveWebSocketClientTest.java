@@ -71,7 +71,7 @@ public final class WaveWebSocketClientTest {
     setConnectState(client, "CONNECTED");
     setConnectTry(client, 2L);
     Timer timer = client.createReconnectTimer();
-    timer.schedule(RECONNECT_DELAY_MS);
+    timer.schedule(5000);
     setReconnectTimer(client, timer);
     setReconnectScheduled(client, true);
 
@@ -94,7 +94,10 @@ public final class WaveWebSocketClientTest {
 
     assertEquals(0L, getConnectTry(client));
     assertTrue(isReconnectScheduled(client));
-    assertEquals(RECONNECT_DELAY_MS, timer.getDelayMillis());
+    // With exponential backoff at attempt 0: base delay is 1000ms (plus up to 20% jitter)
+    int delay = timer.getDelayMillis();
+    assertTrue("Delay should be >= 1000ms, was " + delay, delay >= 1000);
+    assertTrue("Delay should be <= 1200ms (1000 + 20% jitter), was " + delay, delay <= 1200);
 
     boolean keepScheduled = client.attemptReconnect();
 
@@ -122,20 +125,45 @@ public final class WaveWebSocketClientTest {
   }
 
   @Test
-  public void exhaustedBudgetStopsReconnectLoop() throws Exception {
+  public void reconnectsIndefinitelyWithExponentialBackoff() throws Exception {
     FakeWaveSocket socket = new FakeWaveSocket();
     WaveWebSocketClient client = createClient(socket);
 
+    // Even after many attempts, reconnection should keep going
     setConnectState(client, "DISCONNECTED");
-    setConnectTry(client, 3L);
+    setConnectTry(client, 20L);
     setReconnectScheduled(client, true);
 
     boolean keepScheduled = client.attemptReconnect();
 
-    assertFalse(keepScheduled);
-    assertEquals(3L, getConnectTry(client));
-    assertEquals(0, socket.connectCalls);
-    assertFalse(isReconnectScheduled(client));
+    assertTrue("Should keep trying to reconnect indefinitely", keepScheduled);
+    assertEquals(1, socket.connectCalls);
+    assertEquals(21L, getConnectTry(client));
+    assertEquals("CONNECTING", getConnectState(client));
+  }
+
+  @Test
+  public void exponentialBackoffIncreasesDelay() throws Exception {
+    FakeWaveSocket socket = new FakeWaveSocket();
+    WaveWebSocketClient client = createClient(socket);
+
+    // At attempt 0: delay should be ~1000ms
+    setConnectTry(client, 0L);
+    int delay0 = client.getReconnectDelay();
+    assertTrue("Attempt 0 delay should be >= 1000, was " + delay0, delay0 >= 1000);
+    assertTrue("Attempt 0 delay should be <= 1200, was " + delay0, delay0 <= 1200);
+
+    // At attempt 3: delay should be ~8000ms (1000 * 2^3)
+    setConnectTry(client, 3L);
+    int delay3 = client.getReconnectDelay();
+    assertTrue("Attempt 3 delay should be >= 8000, was " + delay3, delay3 >= 8000);
+    assertTrue("Attempt 3 delay should be <= 9600, was " + delay3, delay3 <= 9600);
+
+    // At attempt 10: delay should be capped at 30000ms
+    setConnectTry(client, 10L);
+    int delay10 = client.getReconnectDelay();
+    assertTrue("Attempt 10 delay should be >= 30000, was " + delay10, delay10 >= 30000);
+    assertTrue("Attempt 10 delay should be <= 36000, was " + delay10, delay10 <= 36000);
   }
 
   @Test
@@ -154,13 +182,19 @@ public final class WaveWebSocketClientTest {
     assertNotSame(oldTimer, newTimer);
     assertTrue(oldTimer.wasCancelled());
     assertTrue(isReconnectScheduled(client));
-    assertEquals(RECONNECT_DELAY_MS, newTimer.getDelayMillis());
+    // First attempt after fresh connect: delay ~1000ms (plus jitter)
+    int delay = newTimer.getDelayMillis();
+    assertTrue("Delay should be >= 1000ms, was " + delay, delay >= 1000);
+    assertTrue("Delay should be <= 1200ms, was " + delay, delay <= 1200);
   }
 
-  private static final int RECONNECT_DELAY_MS = 5000;
-
   private static WaveWebSocketClient createClient(FakeWaveSocket socket) throws Exception {
-    WaveWebSocketClient client = new WaveWebSocketClient(false, "");
+    WaveWebSocketClient client = new WaveWebSocketClient(false, "") {
+      @Override
+      WaveSocket createSocket() {
+        return socket;
+      }
+    };
     setField(client, "socket", socket);
     return client;
   }

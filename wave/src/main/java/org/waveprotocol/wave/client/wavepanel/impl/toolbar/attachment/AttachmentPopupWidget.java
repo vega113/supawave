@@ -36,6 +36,7 @@ import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FileUpload;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FormPanel;
 import com.google.gwt.user.client.ui.FormPanel.SubmitCompleteEvent;
 import com.google.gwt.user.client.ui.FormPanel.SubmitEvent;
@@ -136,6 +137,22 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   HTMLPanel progressBarOuter;
   @UiField
   HTMLPanel progressBarFill;
+  @UiField
+  HTMLPanel displaySizePanel;
+  @UiField
+  Button sizeBtnSmall;
+  @UiField
+  Button sizeBtnMedium;
+  @UiField
+  Button sizeBtnLarge;
+  @UiField
+  HTMLPanel compressionInfoPanel;
+  @UiField
+  InlineLabel originalSizeLabel;
+  @UiField
+  InlineLabel compressedSizeLabel;
+  @UiField
+  Button compressToggleBtn;
 
   /** Popup containing this widget. */
   private final UniversalPopup popup;
@@ -149,6 +166,12 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   /** Timer for simulating upload progress. */
   private Timer progressTimer;
   private double simulatedProgress;
+
+  /** Currently selected display size. */
+  private String selectedDisplaySize = "small";
+
+  /** Whether image compression is enabled. */
+  private boolean compressionEnabled = true;
 
   /**
    * Creates the modern attachment upload popup.
@@ -180,7 +203,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
           status.setText("Upload complete!");
           status.addStyleName("success");
           status.removeStyleName("error");
-          listener.onDone(waveRefStr, attachmentId.getId(), fileUpload.getFilename());
+          listener.onDoneWithSize(waveRefStr, attachmentId.getId(), fileUpload.getFilename(),
+              selectedDisplaySize);
           // Auto-close after a brief delay
           new Timer() {
             @Override
@@ -226,7 +250,18 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
           spinnerPanel.setVisible(true);
           formAttachmentId.setValue(attachmentId.getId());
           formWaveRef.setValue(waveRefStr);
-          form.submit();
+          // If compression is enabled and file is an image, compress first
+          if (compressionEnabled && isImageFile(filename)) {
+            int maxDim;
+            switch (selectedDisplaySize) {
+              case "medium": maxDim = 800; break;
+              case "large": maxDim = 1920; break;
+              default: maxDim = 200; break;
+            }
+            compressAndUploadImage(fileUpload.getElement(), maxDim, maxDim, 0.8);
+          } else {
+            form.submit();
+          }
         }
       }
     });
@@ -236,6 +271,40 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
 
     // Initially disable upload button
     uploadBtn.setEnabled(false);
+
+    // Display size selector buttons
+    sizeBtnSmall.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        selectDisplaySize("small");
+      }
+    });
+    sizeBtnMedium.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        selectDisplaySize("medium");
+      }
+    });
+    sizeBtnLarge.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        selectDisplaySize("large");
+      }
+    });
+    // Default selection
+    selectDisplaySize("small");
+
+    // Compression toggle
+    compressToggleBtn.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        compressionEnabled = !compressionEnabled;
+        compressToggleBtn.setText(compressionEnabled ? "Compress: ON" : "Compress: OFF");
+        compressToggleBtn.getElement().getStyle().setProperty("opacity",
+            compressionEnabled ? "1.0" : "0.6");
+      }
+    });
+    compressionInfoPanel.setVisible(false);
 
     // Wrap in a popup
     PopupChrome chrome = PopupChromeFactory.createPopupChrome();
@@ -266,6 +335,159 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
       status.setText("");
       status.removeStyleName("error");
       status.removeStyleName("success");
+
+      // Show compression panel for image files
+      boolean isImage = isImageFile(displayName);
+      compressionInfoPanel.setVisible(isImage);
+      if (isImage) {
+        // Try to read file size via native JS
+        readFileInfoNative(fileUpload.getElement());
+      }
+    }
+  }
+
+  /**
+   * Returns true if the filename looks like an image file.
+   */
+  private static boolean isImageFile(String filename) {
+    if (filename == null) return false;
+    String fn = filename.toLowerCase();
+    return fn.endsWith(".jpg") || fn.endsWith(".jpeg") || fn.endsWith(".png")
+        || fn.endsWith(".gif") || fn.endsWith(".webp") || fn.endsWith(".bmp");
+  }
+
+  /**
+   * Reads file size information from the native file input element via JSNI.
+   */
+  private native void readFileInfoNative(Element fileInput) /*-{
+    var self = this;
+    if (fileInput.files && fileInput.files.length > 0) {
+      var file = fileInput.files[0];
+      var sizeKB = Math.round(file.size / 1024);
+      var sizeStr = sizeKB > 1024 ? (Math.round(sizeKB / 1024 * 10) / 10) + " MB" : sizeKB + " KB";
+      self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::setOriginalSize(Ljava/lang/String;)(sizeStr);
+
+      // Estimate compressed size based on selected display size
+      var maxDim = 1920; // large
+      var quality = 0.8;
+      var selectedSize = self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::selectedDisplaySize;
+      if (selectedSize === "small") maxDim = 200;
+      else if (selectedSize === "medium") maxDim = 800;
+
+      // For images, try to read and estimate
+      if (file.type && file.type.match(/^image\//)) {
+        var estimatedRatio = (maxDim <= 200) ? 0.05 : (maxDim <= 800) ? 0.2 : 0.5;
+        var estimatedSize = Math.round(file.size * estimatedRatio / 1024);
+        var estStr = estimatedSize > 1024 ? (Math.round(estimatedSize / 1024 * 10) / 10) + " MB" : estimatedSize + " KB";
+        self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::setCompressedSize(Ljava/lang/String;)(estStr);
+      }
+    }
+  }-*/;
+
+  /**
+   * Called from JSNI to set the original file size label.
+   */
+  private void setOriginalSize(String sizeStr) {
+    originalSizeLabel.setText("Original: " + sizeStr);
+  }
+
+  /**
+   * Called from JSNI to set the estimated compressed size label.
+   */
+  private void setCompressedSize(String sizeStr) {
+    compressedSizeLabel.setText("Compressed: ~" + sizeStr);
+  }
+
+  /**
+   * Compresses an image file using Canvas API before upload. This is called
+   * via JSNI to leverage the browser's native canvas for resizing.
+   *
+   * @param fileInput the file input element
+   * @param maxWidth maximum width for the compressed image
+   * @param maxHeight maximum height for the compressed image
+   * @param quality JPEG quality (0.0 to 1.0)
+   */
+  private native void compressAndUploadImage(Element fileInput, int maxWidth, int maxHeight,
+      double quality) /*-{
+    var self = this;
+    if (!fileInput.files || fileInput.files.length === 0) return;
+    var file = fileInput.files[0];
+    if (!file.type.match(/^image\//)) {
+      // Not an image, submit form directly
+      self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::submitFormDirectly()();
+      return;
+    }
+
+    var reader = new $wnd.FileReader();
+    reader.onload = function(e) {
+      var img = new $wnd.Image();
+      img.onload = function() {
+        var w = img.width;
+        var h = img.height;
+        // Only compress if image exceeds max dimensions
+        if (w <= maxWidth && h <= maxHeight) {
+          self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::submitFormDirectly()();
+          return;
+        }
+        // Calculate new dimensions maintaining aspect ratio
+        var ratio = Math.min(maxWidth / w, maxHeight / h);
+        var newW = Math.round(w * ratio);
+        var newH = Math.round(h * ratio);
+
+        var canvas = $doc.createElement('canvas');
+        canvas.width = newW;
+        canvas.height = newH;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, newW, newH);
+
+        // Convert to blob and create a new File
+        canvas.toBlob(function(blob) {
+          if (blob) {
+            var compressedFile = new $wnd.File([blob], file.name, {type: 'image/jpeg'});
+            // Create a DataTransfer to replace the file input's files
+            var dt = new $wnd.DataTransfer();
+            dt.items.add(compressedFile);
+            fileInput.files = dt.files;
+
+            // Update the compressed size label
+            var sizeKB = Math.round(blob.size / 1024);
+            var sizeStr = sizeKB > 1024 ? (Math.round(sizeKB / 1024 * 10) / 10) + " MB" : sizeKB + " KB";
+            self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::setCompressedSize(Ljava/lang/String;)("Compressed: " + sizeStr);
+          }
+          // Submit the form with the compressed image
+          self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::submitFormDirectly()();
+        }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }-*/;
+
+  /**
+   * Submits the form directly (called after compression, or for non-image files).
+   */
+  private void submitFormDirectly() {
+    form.submit();
+  }
+
+  /**
+   * Updates the display size button styles to reflect the current selection.
+   */
+  private void selectDisplaySize(String size) {
+    selectedDisplaySize = size;
+    sizeBtnSmall.removeStyleName("size-btn-active");
+    sizeBtnMedium.removeStyleName("size-btn-active");
+    sizeBtnLarge.removeStyleName("size-btn-active");
+    switch (size) {
+      case "small":
+        sizeBtnSmall.addStyleName("size-btn-active");
+        break;
+      case "medium":
+        sizeBtnMedium.addStyleName("size-btn-active");
+        break;
+      case "large":
+        sizeBtnLarge.addStyleName("size-btn-active");
+        break;
     }
   }
 
@@ -369,11 +591,15 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     form.setAction(UPLOAD_ACTION_URL + attachmentId.getId());
     spinnerPanel.setVisible(false);
     filePreviewPanel.setVisible(false);
+    compressionInfoPanel.setVisible(false);
     progressBarOuter.removeStyleName("active");
     uploadBtn.setEnabled(false);
     status.setText("");
     status.removeStyleName("error");
     status.removeStyleName("success");
+    selectDisplaySize("small");
+    compressionEnabled = true;
+    compressToggleBtn.setText("Compress: ON");
     popup.show();
   }
 

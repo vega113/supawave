@@ -59,6 +59,7 @@ import com.google.gwt.user.client.ui.Widget;
 import org.waveprotocol.wave.client.common.util.DomHelper;
 import org.waveprotocol.wave.client.common.util.UserAgent;
 import org.waveprotocol.wave.client.common.webdriver.DebugClassHelper;
+import org.waveprotocol.wave.client.doodad.attachment.ImageThumbnail;
 import org.waveprotocol.wave.client.scheduler.ScheduleCommand;
 import org.waveprotocol.wave.client.scheduler.Scheduler;
 import org.waveprotocol.wave.client.widget.button.ButtonFactory;
@@ -441,6 +442,12 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
 
   private int attachmentWidth, attachmentHeight;
 
+  /** Current display size: "small", "medium", or "large". */
+  private String displaySize = ImageThumbnail.DISPLAY_SIZE_SMALL;
+
+  /** File type icon overlay element, used for non-image attachments. */
+  private Element fileTypeOverlay;
+
   private final Scheduler.Task clearButtonTask = new Scheduler.Task() {
     public void execute() {
       Style style = menuButtonContainer.getElement().getStyle();
@@ -568,6 +575,166 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
     //   in order to correctly center the caption.
     if (DO_FRAME_WIDTH_UPDATE) {
       captionPanel.getElement().getStyle().setWidth(width, Unit.PX);
+    }
+  }
+
+  @Override
+  public void setDisplaySize(String size) {
+    if (size == null) {
+      size = ImageThumbnail.DISPLAY_SIZE_SMALL;
+    }
+    this.displaySize = size;
+
+    // Remove previous display-size classes
+    getElement().removeClassName("display-size-small");
+    getElement().removeClassName("display-size-medium");
+    getElement().removeClassName("display-size-large");
+
+    // Apply new class
+    getElement().addClassName("display-size-" + size);
+
+    // Adjust dimensions based on display size
+    applyDisplaySizeDimensions();
+  }
+
+  @Override
+  public void setFileTypeInfo(String mimeType, String fileName) {
+    if (mimeType == null && fileName == null) {
+      return;
+    }
+    String category = getFileTypeCategory(mimeType, fileName);
+    String iconHtml = getFileTypeIconHtml(category, fileName);
+
+    // Create or update the file type overlay
+    if (fileTypeOverlay == null) {
+      fileTypeOverlay = com.google.gwt.dom.client.Document.get().createDivElement();
+      fileTypeOverlay.setClassName("file-type-overlay");
+      Element parent = image.getElement().getParentElement();
+      if (parent != null) {
+        parent.appendChild(fileTypeOverlay);
+      }
+    }
+    fileTypeOverlay.setInnerHTML(iconHtml);
+    fileTypeOverlay.getStyle().setDisplay(Display.BLOCK);
+  }
+
+  /**
+   * Categorizes file types from MIME type or filename extension.
+   */
+  private static String getFileTypeCategory(String mimeType, String fileName) {
+    if (mimeType != null) {
+      String mt = mimeType.toLowerCase();
+      if (mt.startsWith("image/")) return "image";
+      if (mt.startsWith("video/")) return "video";
+      if (mt.startsWith("audio/")) return "audio";
+      if (mt.equals("application/pdf")) return "pdf";
+      if (mt.startsWith("text/") || mt.equals("application/json")
+          || mt.equals("application/xml")) return "text";
+      if (mt.contains("spreadsheet") || mt.contains("excel") || mt.equals("text/csv"))
+        return "spreadsheet";
+      if (mt.contains("presentation") || mt.contains("powerpoint")) return "presentation";
+      if (mt.contains("document") || mt.contains("word") || mt.contains("rtf"))
+        return "document";
+      if (mt.contains("zip") || mt.contains("tar") || mt.contains("gzip")
+          || mt.contains("compress") || mt.contains("rar") || mt.contains("7z"))
+        return "archive";
+    }
+    if (fileName != null) {
+      String fn = fileName.toLowerCase();
+      if (fn.endsWith(".pdf")) return "pdf";
+      if (fn.endsWith(".mp4") || fn.endsWith(".webm") || fn.endsWith(".avi")
+          || fn.endsWith(".mov") || fn.endsWith(".mkv")) return "video";
+      if (fn.endsWith(".mp3") || fn.endsWith(".wav") || fn.endsWith(".ogg")
+          || fn.endsWith(".flac") || fn.endsWith(".aac")) return "audio";
+      if (fn.endsWith(".txt") || fn.endsWith(".md") || fn.endsWith(".log")
+          || fn.endsWith(".json") || fn.endsWith(".xml") || fn.endsWith(".csv")
+          || fn.endsWith(".java") || fn.endsWith(".py") || fn.endsWith(".js")
+          || fn.endsWith(".html") || fn.endsWith(".css")) return "text";
+      if (fn.endsWith(".xls") || fn.endsWith(".xlsx") || fn.endsWith(".ods"))
+        return "spreadsheet";
+      if (fn.endsWith(".ppt") || fn.endsWith(".pptx") || fn.endsWith(".odp"))
+        return "presentation";
+      if (fn.endsWith(".doc") || fn.endsWith(".docx") || fn.endsWith(".odt")
+          || fn.endsWith(".rtf")) return "document";
+      if (fn.endsWith(".zip") || fn.endsWith(".tar") || fn.endsWith(".gz")
+          || fn.endsWith(".rar") || fn.endsWith(".7z")) return "archive";
+      if (fn.endsWith(".jpg") || fn.endsWith(".jpeg") || fn.endsWith(".png")
+          || fn.endsWith(".gif") || fn.endsWith(".webp") || fn.endsWith(".svg")
+          || fn.endsWith(".bmp")) return "image";
+    }
+    return "generic";
+  }
+
+  /**
+   * Returns an SVG icon string for the given file type category.
+   */
+  private static String getFileTypeIconHtml(String category, String fileName) {
+    String ext = "";
+    if (fileName != null) {
+      int dot = fileName.lastIndexOf('.');
+      if (dot >= 0 && dot < fileName.length() - 1) {
+        ext = fileName.substring(dot + 1).toUpperCase();
+      }
+    }
+    String color;
+    String label;
+    switch (category) {
+      case "pdf":
+        color = "#E53935"; label = "PDF"; break;
+      case "video":
+        color = "#7B1FA2"; label = ext.isEmpty() ? "VIDEO" : ext; break;
+      case "audio":
+        color = "#00897B"; label = ext.isEmpty() ? "AUDIO" : ext; break;
+      case "text":
+        color = "#546E7A"; label = ext.isEmpty() ? "TXT" : ext; break;
+      case "spreadsheet":
+        color = "#2E7D32"; label = ext.isEmpty() ? "XLS" : ext; break;
+      case "presentation":
+        color = "#E65100"; label = ext.isEmpty() ? "PPT" : ext; break;
+      case "document":
+        color = "#1565C0"; label = ext.isEmpty() ? "DOC" : ext; break;
+      case "archive":
+        color = "#795548"; label = ext.isEmpty() ? "ZIP" : ext; break;
+      case "image":
+        color = "#0288D1"; label = ext.isEmpty() ? "IMG" : ext; break;
+      default:
+        color = "#757575"; label = ext.isEmpty() ? "FILE" : ext; break;
+    }
+    // Truncate label to 4 chars max
+    if (label.length() > 4) {
+      label = label.substring(0, 4);
+    }
+    return "<div class='file-type-icon' style='background-color:" + color + "'>"
+        + "<svg viewBox='0 0 24 24' width='24' height='24' fill='white'>"
+        + "<path d='M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z'/>"
+        + "<polyline points='14 2 14 8 20 8' fill='none' stroke='white' stroke-width='1'/>"
+        + "</svg>"
+        + "<span class='file-type-label'>" + label + "</span>"
+        + "</div>";
+  }
+
+  /**
+   * Applies dimensions based on the current display size setting.
+   */
+  private void applyDisplaySizeDimensions() {
+    int targetWidth;
+    int targetHeight;
+    switch (displaySize) {
+      case ImageThumbnail.DISPLAY_SIZE_MEDIUM:
+        targetWidth = 300;
+        targetHeight = 200;
+        break;
+      case ImageThumbnail.DISPLAY_SIZE_LARGE:
+        targetWidth = 600;
+        targetHeight = 400;
+        break;
+      default: // small
+        targetWidth = 120;
+        targetHeight = 80;
+        break;
+    }
+    if (!isFullSize) {
+      setThumbnailSize(targetWidth, targetHeight);
     }
   }
 

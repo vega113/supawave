@@ -20,6 +20,7 @@
 package org.waveprotocol.box.webclient.client;
 
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.user.client.History;
 
 import org.waveprotocol.box.webclient.search.WaveStore;
 import org.waveprotocol.box.webclient.widget.frame.FramedPanel;
@@ -37,6 +38,7 @@ import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusBlipSelector;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFramePresenter;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.ViewTraverser;
 import org.waveprotocol.wave.client.wavepanel.impl.reader.Reader;
+import org.waveprotocol.wave.client.wavepanel.impl.toolbar.ViewToolbar;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
@@ -45,6 +47,7 @@ import org.waveprotocol.wave.model.conversation.ConversationView;
 import org.waveprotocol.wave.model.document.WaveContext;
 import org.waveprotocol.wave.model.id.IdGenerator;
 import org.waveprotocol.wave.model.id.WaveId;
+import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 
@@ -189,9 +192,75 @@ public class StagesProvider extends Stages {
     wave = new WaveContext(
         two.getWave(), two.getConversations(), two.getSupplement(), two.getReadMonitor());
     waveStore.add(wave);
+    wireToolbarButtons(x);
     install();
     wireHistoryMode();
     whenReady.use(x);
+  }
+
+  /**
+   * Wires click listeners for the view toolbar buttons (archive, inbox, history)
+   * that need external dependencies not available inside ViewToolbar itself.
+   */
+  private void wireToolbarButtons(StageThree three) {
+    ViewToolbar viewToolbar = three.getViewToolbar();
+
+    // --- Archive / Inbox buttons: navigate back to wave list on success ---
+    viewToolbar.setFolderActionListener(new ViewToolbar.FolderActionListener() {
+      @Override
+      public void onFolderActionCompleted(String folder) {
+        // Navigate to the wave list by clearing the history token,
+        // which triggers WaveSelectionEvent in WebClient.
+        History.newItem("", true);
+      }
+    });
+
+    // --- History button: create and wire the HistoryModeController ---
+    WaveId waveId = two.getWave().getWaveId();
+    String waveDomain = waveId.getDomain();
+    String waveIdStr = waveId.getId();
+
+    // Derive the conversation root wavelet coordinates.
+    WaveletId rootWaveletId = idGenerator.buildConversationRootWaveletId(waveId);
+    String waveletDomain = rootWaveletId.getDomain();
+    String waveletIdStr = rootWaveletId.getId();
+
+    HistoryApiClient historyApiClient = new HistoryApiClient();
+    VersionScrubber scrubber = new VersionScrubber();
+    InlineDiffRenderer diffRenderer = new InlineDiffRenderer();
+    diffRenderer.setWavePanelElement(wavePanelElement);
+
+    // Attach the scrubber widget to the DOM and adopt it into the GWT widget tree.
+    // The scrubber starts hidden and is shown when history mode is entered.
+    wavePanelElement.appendChild(scrubber.getElement());
+    rootPanel.doAdopt(scrubber);
+
+    final HistoryModeController historyController =
+        new HistoryModeController(historyApiClient, scrubber, diffRenderer);
+    historyController.setWaveletCoordinates(
+        waveDomain, waveIdStr, waveletDomain, waveletIdStr);
+    historyController.setWavePanelElement(wavePanelElement);
+
+    // Connect scrubber movement events back to the controller.
+    scrubber.setListener(new VersionScrubber.Listener() {
+      @Override
+      public void onScrubberMoved(int groupIndex) {
+        historyController.onScrubberMove(groupIndex);
+      }
+
+      @Override
+      public void onExitClicked() {
+        historyController.exitHistoryMode();
+      }
+    });
+
+    // Wire the history button to toggle history mode.
+    viewToolbar.setHistoryButtonListener(new ToolbarClickButton.Listener() {
+      @Override
+      public void onClicked() {
+        historyController.toggleHistoryMode();
+      }
+    });
   }
 
   private void initNewWave(StageThree three) {

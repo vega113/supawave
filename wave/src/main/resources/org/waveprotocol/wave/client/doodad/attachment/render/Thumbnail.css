@@ -352,3 +352,67 @@ table.imageThumbnail table.inner {
   table-layout: auto;
   width: auto;
 }
+
+/* --- Display size classes --- */
+
+.display-size-small .itci {
+  max-width: 120px;
+  max-height: 80px;
+}
+
+.display-size-medium .itci {
+  max-width: 300px;
+  max-height: 200px;
+}
+
+.display-size-large .itci {
+  max-width: 600px;
+  max-height: 400px;
+}
+
+.display-size-small .itimg {
+  max-width: 120px;
+  max-height: 80px;
+}
+
+.display-size-medium .itimg {
+  max-width: 300px;
+  max-height: 200px;
+}
+
+.display-size-large .itimg {
+  max-width: 600px;
+  max-height: 400px;
+}
+
+/* --- File type overlay --- */
+
+.file-type-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  text-align: center;
+  pointer-events: none;
+}
+
+.file-type-icon {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 64px;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.file-type-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}

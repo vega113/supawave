@@ -52,10 +52,14 @@ import org.waveprotocol.box.stat.Timing;
  * Wrapper around WebSocket that handles the Wave client-server protocol.
  */
 public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
-  private static final int MAX_INITIAL_FAILURES = 2;
   private static final Log LOG = Log.get(WaveWebSocketClient.class);
-  private static final int RECONNECT_TIME_MS = 5000;
   private static final String JETTY_SESSION_TOKEN_NAME = "JSESSIONID";
+
+  /** Base delay for exponential backoff (1 second). */
+  private static final int RECONNECT_BASE_MS = 1000;
+
+  /** Maximum delay between reconnection attempts (30 seconds). */
+  private static final int RECONNECT_MAX_MS = 30000;
 
   /**
    * Envelope for delivering arbitrary messages. Each envelope has a sequence
@@ -147,6 +151,7 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
 
   @Override
   public void onConnect() {
+    boolean wasReconnection = connectedAtLeastOnce;
     resetReconnectStateAfterConnect();
 
     // Sends the session cookie to the server via an RPC to work around browser bugs.
@@ -163,7 +168,9 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
       send(messages.poll());
     }
 
-    ClientEvents.get().fireEvent(new NetworkStatusEvent(ConnectionStatus.CONNECTED));
+    ConnectionStatus status = wasReconnection
+        ? ConnectionStatus.RECONNECTED : ConnectionStatus.CONNECTED;
+    ClientEvents.get().fireEvent(new NetworkStatusEvent(status));
   }
 
   @Override
@@ -171,7 +178,18 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
     connected = ConnectState.DISCONNECTED;
     ClientEvents.get().fireEvent(new NetworkStatusEvent(ConnectionStatus.DISCONNECTED));
     cancelReconnectTimer();
+    // Create a fresh socket for the next reconnect attempt since browsers
+    // do not allow reusing a closed WebSocket object.
+    socket = createSocket();
     scheduleReconnect();
+  }
+
+  /**
+   * Creates a new {@link WaveSocket}. Extracted so tests can override via
+   * subclass or reflection to supply a fake.
+   */
+  WaveSocket createSocket() {
+    return WaveSocketFactory.create(urlBase, this);
   }
 
   @Override
@@ -233,9 +251,23 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   private void scheduleReconnect() {
     if (!reconnectScheduled) {
       reconnectScheduled = true;
+      int delayMs = getReconnectDelay();
+      LOG.info("Scheduling reconnect attempt " + connectTry + " in " + delayMs + "ms");
       reconnectTimer = createReconnectTimer();
-      reconnectTimer.schedule(RECONNECT_TIME_MS);
+      reconnectTimer.schedule(delayMs);
     }
+  }
+
+  /**
+   * Computes the reconnection delay using exponential backoff with jitter.
+   * Delay = min(BASE * 2^attempt, MAX) + random jitter (0-20% of delay).
+   */
+  int getReconnectDelay() {
+    double exponential = RECONNECT_BASE_MS * Math.pow(2, Math.min(connectTry, 14));
+    int delay = (int) Math.min(exponential, RECONNECT_MAX_MS);
+    // Add up to 20% jitter to prevent thundering herd on server restart
+    int jitter = (int) (delay * 0.2 * Math.random());
+    return delay + jitter;
   }
 
   void resetReconnectStateAfterConnect() {
@@ -251,15 +283,12 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
       cancelReconnectTimer();
       keepScheduled = false;
     } else if (connected == ConnectState.DISCONNECTED) {
-      if (connectTry > MAX_INITIAL_FAILURES) {
-        cancelReconnectTimer();
-        keepScheduled = false;
-      } else {
-        connectTry++;
-        LOG.info("Attempting to reconnect");
-        connected = ConnectState.CONNECTING;
-        socket.connect();
-      }
+      connectTry++;
+      LOG.info("Attempting to reconnect (attempt " + connectTry + ")");
+      connected = ConnectState.CONNECTING;
+      ClientEvents.get().fireEvent(
+          new NetworkStatusEvent(ConnectionStatus.RECONNECTING));
+      socket.connect();
     }
     return keepScheduled;
   }

@@ -44,7 +44,7 @@ public final class ScrollHandler implements KeySignalHandler {
   public static ScrollHandler install(WavePanel panel, ScrollPanel<?> scroller) {
     ScrollHandler c = new ScrollHandler(new ScrollController(scroller));
     panel.getKeyRouter().register(
-        EnumSet.of(KeyCombo.PAGE_UP, KeyCombo.PAGE_DOWN, KeyCombo.HOME, KeyCombo.END), c);
+        EnumSet.of(KeyCombo.PAGE_UP, KeyCombo.PAGE_DOWN, KeyCombo.HOME), c);
     return c;
   }
 
@@ -59,9 +59,6 @@ public final class ScrollHandler implements KeySignalHandler {
         return true;
       case HOME:
         controller.home();
-        return true;
-      case END:
-        controller.end();
         return true;
       default:
         throw new RuntimeException();

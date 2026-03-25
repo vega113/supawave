@@ -239,7 +239,7 @@ public final class SearchPresenter
 
     // "Saved Searches" button (opens the searches editor).
     new ToolbarButtonViewBuilder()
-        .setTooltip(messages.modify())
+        .setTooltip(messages.savedSearches())
         .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {

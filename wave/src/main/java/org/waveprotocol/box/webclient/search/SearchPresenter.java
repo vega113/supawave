@@ -20,6 +20,8 @@
 package org.waveprotocol.box.webclient.search;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Element;
+import com.google.gwt.user.client.DOM;
 import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.webclient.search.Search.State;
 import org.waveprotocol.box.webclient.search.i18n.SearchPresenterMessages;
@@ -69,6 +71,31 @@ public final class SearchPresenter
   private final static int POLLING_INTERVAL_MS = 15000; // 15s
   private final static String DEFAULT_SEARCH = "in:inbox";
   private final static int DEFAULT_PAGE_SIZE = 20;
+
+  // Inline SVG icons (Lucide icon set, MIT) for toolbar action buttons.
+  // Explicit close tags used for GWT HTML-parser compatibility.
+  private static final String SVG_OPEN =
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" "
+      + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
+      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
+
+  /** New Wave: plus-circle icon. */
+  private static final String ICON_NEW_WAVE = SVG_OPEN
+      + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
+      + "<line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"16\"></line>"
+      + "<line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"></line></svg>";
+
+  /** Manage Searches: settings/sliders icon. */
+  private static final String ICON_MODIFY = SVG_OPEN
+      + "<line x1=\"4\" y1=\"21\" x2=\"4\" y2=\"14\"></line>"
+      + "<line x1=\"4\" y1=\"10\" x2=\"4\" y2=\"3\"></line>"
+      + "<line x1=\"12\" y1=\"21\" x2=\"12\" y2=\"12\"></line>"
+      + "<line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"3\"></line>"
+      + "<line x1=\"20\" y1=\"21\" x2=\"20\" y2=\"16\"></line>"
+      + "<line x1=\"20\" y1=\"12\" x2=\"20\" y2=\"3\"></line>"
+      + "<line x1=\"1\" y1=\"14\" x2=\"7\" y2=\"14\"></line>"
+      + "<line x1=\"9\" y1=\"8\" x2=\"15\" y2=\"8\"></line>"
+      + "<line x1=\"17\" y1=\"16\" x2=\"23\" y2=\"16\"></line></svg>";
 
   // External references
   private final TimerService scheduler;
@@ -172,13 +199,25 @@ public final class SearchPresenter
   private ToolbarView savedSearchGroup;
 
   /**
+   * Creates an icon element from inline SVG markup for use in toolbar buttons.
+   */
+  private static Element createSvgIcon(String svgHtml) {
+    Element wrapper = DOM.createDiv();
+    wrapper.setInnerHTML(svgHtml);
+    return wrapper;
+  }
+
+  /**
    * Adds custom buttons to the toolbar.
+   * Uses compact SVG icons with tooltips instead of text labels so the
+   * toolbar fits in the narrow search panel on both desktop and mobile.
    */
   private void initToolbarMenu() {
     GroupingToolbar.View toolbarUi = searchUi.getToolbar();
     ToolbarView group = toolbarUi.addGroup();
-    new ToolbarButtonViewBuilder().setText(messages.newWave()).applyTo(
-        group.addClickButton(), new ToolbarClickButton.Listener() {
+    new ToolbarButtonViewBuilder()
+        .setTooltip(messages.newWaveHint())
+        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
             actionHandler.onCreateWave();
@@ -190,16 +229,17 @@ public final class SearchPresenter
             int delay = 500;
             scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
           }
-        });
+        }).setVisualElement(createSvgIcon(ICON_NEW_WAVE));
 
-    // Add "Manage Searches" button.
-    new ToolbarButtonViewBuilder().setText(messages.modify()).applyTo(
-        group.addClickButton(), new ToolbarClickButton.Listener() {
+    // Add "Manage Searches" button with sliders icon.
+    new ToolbarButtonViewBuilder()
+        .setTooltip(messages.modify())
+        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
             openSearchesEditor();
           }
-        });
+        }).setVisualElement(createSvgIcon(ICON_MODIFY));
 
     // Fake group with empty button - to force the separator be displayed.
     group = toolbarUi.addGroup();

@@ -102,26 +102,45 @@ public final class HtmlRenderer {
       + "  box-shadow: 0 0 0 3px rgba(0,119,182,0.10);\n"
       + "}\n"
 
-      // Filter buttons (Shared / All / Inbox) – scoped to search panel
-      // to avoid breaking fixed-dimension toolbars elsewhere
+      // Filter icon buttons (Shared / All / Inbox / Archive) – scoped
+      // to the search panel.  Now icon-only circles with SVG content.
       + "#app [kind=\"c\"] .gwt-Button {\n"
       + "  box-sizing: border-box;\n"
-      + "  border: 1.5px solid " + WAVE_BORDER + ";\n"
-      + "  border-radius: 16px;\n"
-      + "  background: #fff;\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  width: 32px;\n"
+      + "  height: 32px;\n"
+      + "  min-width: 32px;\n"
+      + "  padding: 0;\n"
+      + "  border: 1.5px solid transparent;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: transparent;\n"
       + "  color: " + WAVE_TEXT_MUTED + ";\n"
-      + "  font-family: " + WAVE_FONT + ";\n"
-      + "  font-size: 12px;\n"
-      + "  font-weight: 500;\n"
-      + "  padding: 4px 14px;\n"
+      + "  font-size: 0;\n"          // hide any remaining text
       + "  cursor: pointer;\n"
-      + "  transition: all 0.15s ease;\n"
-      + "  line-height: 1.4;\n"
+      + "  transition: all 0.18s ease;\n"
       + "}\n"
       + "#app [kind=\"c\"] .gwt-Button:hover {\n"
       + "  border-color: " + WAVE_PRIMARY + ";\n"
       + "  color: " + WAVE_PRIMARY + ";\n"
-      + "  background: rgba(0,119,182,0.04);\n"
+      + "  background: rgba(0,119,182,0.08);\n"
+      + "}\n"
+      + "#app [kind=\"c\"] .gwt-Button:active {\n"
+      + "  background: rgba(0,119,182,0.18);\n"
+      + "  transform: scale(0.92);\n"
+      + "}\n"
+      + "#app [kind=\"c\"] .gwt-Button svg {\n"
+      + "  display: block;\n"
+      + "}\n"
+
+      // Mobile: enlarge touch targets on narrow screens
+      + "@media (max-width: 480px) {\n"
+      + "  #app [kind=\"c\"] .gwt-Button {\n"
+      + "    width: 36px;\n"
+      + "    height: 36px;\n"
+      + "    min-width: 36px;\n"
+      + "  }\n"
       + "}\n"
 
       // --- Digest list items (wave inbox) ---

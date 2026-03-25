@@ -59,6 +59,8 @@ public class LinkerHelper {
       String linkAnnotationValue = Link.normalizeLink(text);
       EditorAnnotationUtil.setAnnotationOverSelection(editor, AnnotationConstants.LINK_PREFIX, linkAnnotationValue);
     } catch (InvalidLinkException e) {
+      // Capture range now before popup steals focus
+      final Range selectionRange = range.asRange();
       // Show a styled popup instead of the browser's native prompt dialog
       LinkInputWidget linkInput = new LinkInputWidget(
           messages.enterLink(), WaveRefConstants.WAVE_URI_PREFIX);
@@ -67,8 +69,10 @@ public class LinkerHelper {
         public void onSubmit(String rawLinkValue) {
           try {
             String linkAnnotationValue = Link.normalizeLink(rawLinkValue);
-            EditorAnnotationUtil.setAnnotationOverSelection(
-                editor, AnnotationConstants.LINK_PREFIX, linkAnnotationValue);
+            EditorAnnotationUtil.setAnnotationOverRange(
+                editor.getDocument(), editor.getCaretAnnotations(),
+                AnnotationConstants.LINK_PREFIX, linkAnnotationValue,
+                selectionRange.getStart(), selectionRange.getEnd());
           } catch (InvalidLinkException e2) {
             Window.alert(e2.getLocalizedMessage());
           }

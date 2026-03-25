@@ -42,6 +42,8 @@ import com.google.gwt.user.client.ui.TextBox;
 import org.waveprotocol.wave.client.widget.popup.CenterPopupPositioner;
 import org.waveprotocol.wave.client.widget.popup.PopupChrome;
 import org.waveprotocol.wave.client.widget.popup.PopupChromeFactory;
+import org.waveprotocol.wave.client.widget.popup.PopupEventListener;
+import org.waveprotocol.wave.client.widget.popup.PopupEventSourcer;
 import org.waveprotocol.wave.client.widget.popup.PopupFactory;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 
@@ -86,6 +88,8 @@ public final class LinkInputWidget extends Composite {
 
   private final TextBox input;
   private final Label errorLabel;
+  private final Button okButton;
+  private final Button cancelButton;
   private UniversalPopup popup;
 
   /**
@@ -132,11 +136,11 @@ public final class LinkInputWidget extends Composite {
     FlowPanel buttonPanel = new FlowPanel();
     buttonPanel.addStyleName(style.buttonPanel());
 
-    Button cancelButton = new Button("Cancel");
+    cancelButton = new Button("Cancel");
     cancelButton.addStyleName(style.cancelButton());
     buttonPanel.add(cancelButton);
 
-    Button okButton = new Button("OK");
+    okButton = new Button("OK");
     okButton.addStyleName(style.okButton());
     buttonPanel.add(okButton);
 
@@ -154,6 +158,26 @@ public final class LinkInputWidget extends Composite {
     PopupChrome chrome = PopupChromeFactory.createPopupChrome();
     popup = PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
     popup.add(this);
+
+    // Track whether we already handled the result to avoid double-calling onCancel
+    final boolean[] handled = {false};
+
+    // Register a listener for auto-hide (outside click) so onCancel is called
+    popup.addPopupEventListener(new PopupEventListener() {
+      @Override
+      public void onShow(PopupEventSourcer source) {
+        // no-op
+      }
+
+      @Override
+      public void onHide(PopupEventSourcer source) {
+        if (!handled[0]) {
+          handled[0] = true;
+          listener.onCancel();
+        }
+      }
+    });
+
     popup.show();
 
     // Focus the input after the popup is shown
@@ -166,19 +190,19 @@ public final class LinkInputWidget extends Composite {
     });
 
     // Wire up OK button
-    Button okButton = getOkButton();
     okButton.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
+        handled[0] = true;
         submit(listener);
       }
     });
 
     // Wire up Cancel button
-    Button cancelButton = getCancelButton();
     cancelButton.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
+        handled[0] = true;
         popup.hide();
         listener.onCancel();
       }
@@ -189,8 +213,10 @@ public final class LinkInputWidget extends Composite {
       @Override
       public void onKeyDown(KeyDownEvent event) {
         if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
+          handled[0] = true;
           submit(listener);
         } else if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
+          handled[0] = true;
           popup.hide();
           listener.onCancel();
         }
@@ -220,20 +246,9 @@ public final class LinkInputWidget extends Composite {
     if (value != null && !value.trim().isEmpty()) {
       popup.hide();
       listener.onSubmit(value.trim());
+    } else {
+      showError("Please enter a valid URL");
+      input.setFocus(true);
     }
-  }
-
-  /** Gets the OK button (second child of the button panel). */
-  private Button getOkButton() {
-    FlowPanel root = (FlowPanel) getWidget();
-    FlowPanel buttonPanel = (FlowPanel) root.getWidget(root.getWidgetCount() - 1);
-    return (Button) buttonPanel.getWidget(1);
-  }
-
-  /** Gets the Cancel button (first child of the button panel). */
-  private Button getCancelButton() {
-    FlowPanel root = (FlowPanel) getWidget();
-    FlowPanel buttonPanel = (FlowPanel) root.getWidget(root.getWidgetCount() - 1);
-    return (Button) buttonPanel.getWidget(0);
   }
 }

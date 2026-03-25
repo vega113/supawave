@@ -39,8 +39,8 @@ import org.waveprotocol.wave.client.common.util.QuirksConstants;
 /**
  * Widget implementation of the search area.
  * <p>
- * Filter buttons use inline SVG icons (Lucide, MIT licensed) instead of text
- * labels so they stay visible in narrow panels and on mobile.
+ * Three filter buttons (Inbox, Public, Archive) use inline SVG icons
+ * (Lucide, MIT licensed) so they stay visible in narrow panels and on mobile.
  *
  * @author hearnden@google.com (David Hearnden)
  */
@@ -79,15 +79,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
       + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
 
-  /** Shared: users icon (two people). */
-  private static final String ICON_SHARED = SVG_OPEN
-      + "<path d=\"M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2\"></path>"
-      + "<circle cx=\"9\" cy=\"7\" r=\"4\"></circle>"
-      + "<path d=\"M23 21v-2a4 4 0 00-3-3.87\"></path>"
-      + "<path d=\"M16 3.13a4 4 0 010 7.75\"></path></svg>";
-
-  /** All: grid/globe icon. */
-  private static final String ICON_ALL = SVG_OPEN
+  /** Public: globe icon. */
+  private static final String ICON_PUBLIC = SVG_OPEN
       + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
       + "<line x1=\"2\" y1=\"12\" x2=\"22\" y2=\"12\"></line>"
       + "<path d=\"M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"
@@ -108,9 +101,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   @UiField
   TextBox query;
   @UiField
-  Button searchButtonShared;
-  @UiField
-  Button searchButtonAll;
+  Button searchButtonPublic;
   @UiField
   Button searchButtonInbox;
   @UiField
@@ -131,8 +122,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     query.addChangeHandler(this);
 
     // Replace placeholder text with SVG icons.
-    searchButtonShared.getElement().setInnerHTML(ICON_SHARED);
-    searchButtonAll.getElement().setInnerHTML(ICON_ALL);
+    searchButtonPublic.getElement().setInnerHTML(ICON_PUBLIC);
     searchButtonInbox.getElement().setInnerHTML(ICON_INBOX);
     searchButtonArchive.getElement().setInnerHTML(ICON_ARCHIVE);
   }
@@ -174,18 +164,12 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     }
   }
   
-  @UiHandler("searchButtonShared")
-  public void onHandleShared(ClickEvent event) {
+  @UiHandler("searchButtonPublic")
+  public void onHandlePublic(ClickEvent event) {
     setQuery("with:@");
     onQuery();
   }
-  
-  @UiHandler("searchButtonAll")
-  public void onHandleAll(ClickEvent event) {
-    setQuery("in:all");
-    onQuery();
-  }
-  
+
   @UiHandler("searchButtonInbox")
   public void onHandleInbox(ClickEvent event) {
     setQuery("in:inbox");

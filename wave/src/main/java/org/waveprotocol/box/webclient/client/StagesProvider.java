@@ -86,6 +86,10 @@ public class StagesProvider extends Stages {
   private StageThree three;
   private WaveContext wave;
 
+  /** The history mode controller for this wave (created lazily on stage-three load). */
+  private HistoryModeController historyController;
+  private VersionScrubber versionScrubber;
+
   private Set<ParticipantId> participants;
 
   /**
@@ -190,6 +194,7 @@ public class StagesProvider extends Stages {
     waveStore.add(wave);
     wireToolbarButtons(x);
     install();
+    wireHistoryMode();
     whenReady.use(x);
   }
 
@@ -284,7 +289,78 @@ public class StagesProvider extends Stages {
     WindowTitleHandler.install(waveStore, waveFrame);
   }
 
+  /**
+   * Wires up the inline version history feature: creates the
+   * {@link HistoryModeController}, {@link VersionScrubber}, and
+   * {@link InlineDiffRenderer}, attaches the scrubber widget to the DOM,
+   * and connects the toolbar "History" button to toggle history mode.
+   */
+  private void wireHistoryMode() {
+    if (three == null || one == null || two == null) {
+      return;
+    }
+
+    // Determine the wave/wavelet coordinates for the history API.
+    WaveId wId = waveRef.getWaveId();
+    String waveDomain = wId.getDomain();
+    String waveIdStr = wId.getId();
+    // Use the conversation root wavelet (same domain, "conv+root").
+    String waveletDomain = waveDomain;
+    String waveletIdStr = "conv+root";
+
+    // Create the history subsystem components.
+    HistoryApiClient apiClient = new HistoryApiClient();
+    versionScrubber = new VersionScrubber();
+    InlineDiffRenderer diffRenderer = new InlineDiffRenderer();
+
+    // Configure the diff renderer with the wave panel element.
+    diffRenderer.setWavePanelElement(wavePanelElement);
+
+    // Create and configure the controller.
+    historyController = new HistoryModeController(apiClient, versionScrubber, diffRenderer);
+    historyController.setWaveletCoordinates(waveDomain, waveIdStr, waveletDomain, waveletIdStr);
+    historyController.setWavePanelElement(wavePanelElement);
+
+    // Wire the scrubber's listener to the controller.
+    versionScrubber.setListener(new VersionScrubber.Listener() {
+      @Override
+      public void onScrubberMoved(int groupIndex) {
+        historyController.onScrubberMove(groupIndex);
+      }
+
+      @Override
+      public void onExitClicked() {
+        historyController.exitHistoryMode();
+      }
+    });
+
+    // Attach the scrubber widget to the GWT widget tree so events fire.
+    // It starts hidden; HistoryModeController.enterHistoryMode() calls show().
+    versionScrubber.hide();
+    wavePanelElement.appendChild(versionScrubber.getElement());
+    one.getWavePanel().getGwtPanel().doAdopt(versionScrubber);
+
+    // Wire the toolbar "History" button to toggle history mode.
+    three.getViewToolbar().setHistoryButtonListener(new ToolbarClickButton.Listener() {
+      @Override
+      public void onClicked() {
+        historyController.toggleHistoryMode();
+      }
+    });
+
+    // Inject the CSS styles for the history UI (idempotent).
+    HistoryStyles.inject();
+  }
+
   public void destroy() {
+    if (historyController != null) {
+      historyController.exitHistoryMode();
+      historyController = null;
+    }
+    if (versionScrubber != null) {
+      versionScrubber.removeFromParent();
+      versionScrubber = null;
+    }
     if (wave != null) {
       waveStore.remove(wave);
       wave = null;

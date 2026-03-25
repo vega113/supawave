@@ -136,7 +136,7 @@ public class PluggableMutableDocument extends MutableDocumentProxy.DocumentProxy
    *  Substrate underlying this document, it is only initialized when needed.  Once it is created,
    *  the variable never changes.
    */
-  private IndexedDocument<Node, Element, Text> substrateDocument = null;
+  private volatile IndexedDocument<Node, Element, Text> substrateDocument = null;
 
   /**
    * The contented needed to create the underlying substrate.  Only used until substrateDocument is
@@ -144,7 +144,7 @@ public class PluggableMutableDocument extends MutableDocumentProxy.DocumentProxy
    */
   private DocumentCreationContext documentCreationContext;
 
-  private SilentOperationSink<? super DocOp> outputSink;
+  private volatile SilentOperationSink<? super DocOp> outputSink;
 
   /**
    * Creates a mutable document. This document will not be observable.
@@ -156,16 +156,23 @@ public class PluggableMutableDocument extends MutableDocumentProxy.DocumentProxy
   }
 
   private IndexedDocument<Node, Element, Text> getDocument() {
-    if (substrateDocument == null) {
-      try {
-        createSubstrateDocument();
-      } catch (OperationException e) {
-        throw new OperationRuntimeException(
-            "Document initialization failed when applying operation: " +
-            documentCreationContext.content, e);
+    IndexedDocument<Node, Element, Text> doc = substrateDocument;
+    if (doc == null) {
+      synchronized (this) {
+        doc = substrateDocument;
+        if (doc == null) {
+          try {
+            createSubstrateDocument();
+          } catch (OperationException e) {
+            throw new OperationRuntimeException(
+                "Document initialization failed when applying operation: " +
+                documentCreationContext.content, e);
+          }
+          doc = substrateDocument;
+        }
       }
     }
-    return substrateDocument;
+    return doc;
   }
 
   /**
@@ -189,12 +196,13 @@ public class PluggableMutableDocument extends MutableDocumentProxy.DocumentProxy
   }
 
   @Override
-  public void init(final SilentOperationSink<? super DocOp> outputSink) {
+  public synchronized void init(final SilentOperationSink<? super DocOp> outputSink) {
     Preconditions.checkArgument(outputSink != null, "Output sink may not be null");
     if (this.outputSink != null) {
       // Already initialized — silently accept to avoid crashing when multiple
-      // read-only code paths (e.g. search digest + supplement building) wrap the
-      // same underlying document data in separate OpBasedWavelet adapters.
+      // threads or read-only code paths (e.g. concurrent search digest building,
+      // supplement construction) wrap the same underlying document data in
+      // separate OpBasedWavelet adapters and call init() concurrently.
       return;
     }
     this.outputSink = outputSink;

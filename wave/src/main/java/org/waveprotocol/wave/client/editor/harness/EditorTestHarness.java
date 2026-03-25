@@ -20,7 +20,9 @@
 package org.waveprotocol.wave.client.editor.harness;
 
 import com.google.gwt.core.client.EntryPoint;
-import com.google.gwt.user.client.Window;
+
+import org.waveprotocol.wave.client.widget.dialog.ConfirmDialog;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
 // TODO(danilatos/schuck): Delete this and use DefaultHarness directly
 // (just need to update all the webdriver tests, go links, etc).
@@ -29,19 +31,36 @@ public class EditorTestHarness implements EntryPoint {
    * {@inheritDoc}
    */
   public void onModuleLoad() {
-    while (true) {
-      try {
-        new DefaultTestHarness().onModuleLoad();
-        break;
-      } catch (RuntimeException e) {
-        if (!Window.confirm("Exception on module load, try again?")) {
-          throw e;
-        }
-      } catch (Error e) {
-        if (!Window.confirm("Error on module load, try again?")) {
-          throw e;
-        }
-      }
+    try {
+      new DefaultTestHarness().onModuleLoad();
+    } catch (final RuntimeException e) {
+      ConfirmDialog.show("Module Load Error",
+          "Exception on module load, try again?", "Retry", "Abort",
+          new ConfirmDialog.Listener() {
+            @Override
+            public void onConfirm() {
+              onModuleLoad();
+            }
+
+            @Override
+            public void onCancel() {
+              ToastNotification.showWarning("Module load aborted: " + e.getMessage());
+            }
+          });
+    } catch (final Error e) {
+      ConfirmDialog.show("Module Load Error",
+          "Error on module load, try again?", "Retry", "Abort",
+          new ConfirmDialog.Listener() {
+            @Override
+            public void onConfirm() {
+              onModuleLoad();
+            }
+
+            @Override
+            public void onCancel() {
+              ToastNotification.showWarning("Module load aborted: " + e.getMessage());
+            }
+          });
     }
   }
 }

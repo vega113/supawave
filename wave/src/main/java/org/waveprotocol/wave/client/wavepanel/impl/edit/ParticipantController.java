@@ -49,6 +49,7 @@ import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 
 import java.util.Set;
 
@@ -134,6 +135,13 @@ public final class ParticipantController {
         return true;
       }
     });
+    handlers.registerClickHandler(TypeCodes.kind(Type.TOGGLE_PUBLIC), new WaveClickHandler() {
+      @Override
+      public boolean onClick(ClickEvent event, Element context) {
+        handleTogglePublicClicked(context);
+        return true;
+      }
+    });
   }
 
   /**
@@ -174,6 +182,79 @@ public final class ParticipantController {
       participants[i] = ParticipantId.of(address);
     }
     return participants;
+  }
+
+  /**
+   * Toggles a wave between public and private by adding or removing the shared
+   * domain participant. Only the wave creator (first participant) can perform
+   * this action. When public, the wave is visible to all users on the domain.
+   */
+  private void handleTogglePublicClicked(Element context) {
+    ParticipantsView participantsUi = views.fromTogglePublicButton(context);
+    Conversation conversation = models.getParticipants(participantsUi);
+    Set<ParticipantId> participants = conversation.getParticipantIds();
+
+    // The wave creator is the first participant in the ordered set.
+    ParticipantId creator = participants.iterator().next();
+    if (!user.equals(creator)) {
+      Window.alert(messages.onlyOwnerCanTogglePublic());
+      return;
+    }
+
+    // Guard against null/empty localDomain before building the shared domain participant.
+    if (localDomain == null || localDomain.isEmpty()) {
+      Window.alert(messages.publicToggleNotAvailable());
+      return;
+    }
+
+    // Build the shared domain participant (e.g., @example.com).
+    ParticipantId domainParticipant =
+        ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(localDomain);
+
+    boolean isCurrentlyPublic = participants.contains(domainParticipant);
+    if (isCurrentlyPublic) {
+      conversation.removeParticipant(domainParticipant);
+    } else {
+      conversation.addParticipant(domainParticipant);
+    }
+
+    // Update the toggle button icon and tooltip to reflect the new state.
+    updateTogglePublicIcon(context, !isCurrentlyPublic);
+  }
+
+  /**
+   * Updates the toggle-public button's SVG icon and tooltip to reflect the
+   * current public/private state.
+   *
+   * @param buttonElement the toggle button DOM element
+   * @param isPublic true if the wave is now public, false if private
+   */
+  private void updateTogglePublicIcon(Element buttonElement, boolean isPublic) {
+    if (isPublic) {
+      // Globe icon for public state
+      buttonElement.setInnerHTML(
+          "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+          + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+          + "stroke-linejoin='round'>"
+          + "<circle cx='12' cy='12' r='10'/>"
+          + "<line x1='2' y1='12' x2='22' y2='12'/>"
+          + "<path d='M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"
+          + " 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'/>"
+          + "</svg>");
+      buttonElement.setTitle(messages.makeWavePrivate());
+      buttonElement.setAttribute("aria-label", messages.makeWavePrivate());
+    } else {
+      // Lock icon for private state
+      buttonElement.setInnerHTML(
+          "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+          + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+          + "stroke-linejoin='round'>"
+          + "<rect x='3' y='11' width='18' height='11' rx='2' ry='2'/>"
+          + "<path d='M7 11V7a5 5 0 0 1 10 0v4'/>"
+          + "</svg>");
+      buttonElement.setTitle(messages.makeWavePublic());
+      buttonElement.setAttribute("aria-label", messages.makeWavePublic());
+    }
   }
 
   /**
@@ -290,6 +371,23 @@ public final class ParticipantController {
     profileUi.addControl(EscapeUtils.fromSafeConstant(messages.remove()), new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
+        // Enforce creator-only rule for removing the shared-domain participant
+        // (i.e., toggling wave visibility). This prevents non-creators from
+        // making a public wave private via the participant remove action.
+        if (localDomain != null && !localDomain.isEmpty()) {
+          ParticipantId domainParticipant =
+              ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(localDomain);
+          if (participation.second.equals(domainParticipant)) {
+            Set<ParticipantId> currentParticipants = participation.first.getParticipantIds();
+            ParticipantId creator = currentParticipants.iterator().next();
+            if (!user.equals(creator)) {
+              Window.alert(messages.onlyOwnerCanTogglePublic());
+              profileView.hide();
+              return;
+            }
+          }
+        }
+
         participation.first.removeParticipant(participation.second);
         // The presenter is configured to destroy itself on view hide.
         profileView.hide();

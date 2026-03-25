@@ -70,6 +70,7 @@ public interface View {
     TAGS,
     TAG,
     ADD_TAG,
+    TOGGLE_PUBLIC,
   }
 
   Type getType();

@@ -76,6 +76,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
     String collapseButton();
     String addButton();
     String newWaveWithParticipantsButton();
+    String publicToggleButton();
   }
 
   private final static ParticipantMessages messages = GWT.create(ParticipantMessages.class);
@@ -101,11 +102,14 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   private final Css css;
   private final HtmlClosureCollection participantUis;
   private final String id;
+  private final boolean isPublic;
   @VisibleForTesting
-  ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis) {
+  ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis,
+      boolean isPublic) {
     this.css = css;
     this.id = id;
     this.participantUis = participantUis;
+    this.isPublic = isPublic;
   }
 
   /**
@@ -115,7 +119,19 @@ public final class ParticipantsViewBuilder implements UiBuilder {
    */
   public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis) {
     return new ParticipantsViewBuilder(
-        WavePanelResourceLoader.getParticipants().css(), id, participantUis);
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, false);
+  }
+
+  /**
+   * Creates a new ParticipantsViewBuilder with public/private state.
+   *
+   * @param id attribute-HTML-safe encoding of the view's HTML id
+   * @param isPublic true if the wave is currently public (shared with domain)
+   */
+  public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis,
+      boolean isPublic) {
+    return new ParticipantsViewBuilder(
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic);
   }
 
   @Override
@@ -145,6 +161,13 @@ public final class ParticipantsViewBuilder implements UiBuilder {
             addParticipantIcon(output, css.addButton(),
                 TypeCodes.kind(Type.ADD_PARTICIPANT),
                 messages.addParticipantToThisWave());
+            newWaveIcon(output, css.newWaveWithParticipantsButton(),
+                TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
+                messages.newWaveWithParticipantsOfCurrentWave());
+            publicToggleIcon(output, css.publicToggleButton(),
+                TypeCodes.kind(Type.TOGGLE_PUBLIC),
+                isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
+                isPublic);
           }
           closeSpan(output);
 
@@ -157,6 +180,10 @@ public final class ParticipantsViewBuilder implements UiBuilder {
             newWaveIcon(output, css.newWaveWithParticipantsButton(),
                 TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
                 messages.newWaveWithParticipantsOfCurrentWave());
+            publicToggleIcon(output, css.publicToggleButton(),
+                TypeCodes.kind(Type.TOGGLE_PUBLIC),
+                isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
+                isPublic);
           }
           closeSpan(output);
         }
@@ -225,6 +252,49 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + "6-1.13s1.97.42 2.75 1.13c.78-.71 1.64-1.13 2.75-1.13.54 0 .89.13 1.23.24v-2.49c-.17-.12-.33-.24-.48-.3"
         + "8-.78.71-1.64 1.13-2.75 1.13z'/>"
         + "</svg>"
+        + "</span>");
+  }
+
+  /**
+   * Renders a compact circular icon button for toggling wave public/private visibility.
+   * Shows a globe icon when public and a lock icon when private.
+   */
+  private static void publicToggleIcon(SafeHtmlBuilder output, String clazz, String kind,
+      String title, boolean isPublic) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedKind = kind != null ? EscapeUtils.htmlEscape(kind) : null;
+    String escapedTitle = title != null ? EscapeUtils.htmlEscape(title) : null;
+
+    String svgIcon;
+    if (isPublic) {
+      // Globe icon for public state
+      svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+          + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+          + "stroke-linejoin='round'>"
+          + "<circle cx='12' cy='12' r='10'/>"
+          + "<line x1='2' y1='12' x2='22' y2='12'/>"
+          + "<path d='M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"
+          + " 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'/>"
+          + "</svg>";
+    } else {
+      // Lock icon for private state
+      svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+          + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+          + "stroke-linejoin='round'>"
+          + "<rect x='3' y='11' width='18' height='11' rx='2' ry='2'/>"
+          + "<path d='M7 11V7a5 5 0 0 1 10 0v4'/>"
+          + "</svg>";
+    }
+
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + (escapedKind != null ? " kind='" + escapedKind + "'" : "")
+        + (escapedTitle != null ? " title='" + escapedTitle + "'" : "")
+        + " role='button' tabindex='0'"
+        + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
+        + ">"
+        + svgIcon
         + "</span>");
   }
 

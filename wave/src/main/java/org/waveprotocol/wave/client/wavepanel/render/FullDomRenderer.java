@@ -51,6 +51,7 @@ import org.waveprotocol.wave.model.util.IdentityMap.ProcV;
 import org.waveprotocol.wave.model.util.IdentityMap.Reduce;
 import org.waveprotocol.wave.model.util.StringMap;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -149,11 +150,15 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
   @Override
   public UiBuilder render(Conversation conversation, StringMap<UiBuilder> participantUis) {
     HtmlClosureCollection participantsUi = new HtmlClosureCollection();
+    boolean isPublic = false;
     for (ParticipantId participant : conversation.getParticipantIds()) {
       participantsUi.add(participantUis.get(participant.getAddress()));
+      if (ParticipantIdUtil.isDomainAddress(participant.getAddress())) {
+        isPublic = true;
+      }
     }
     String id = viewIdMapper.participantsOf(conversation);
-    return ParticipantsViewBuilder.create(id, participantsUi);
+    return ParticipantsViewBuilder.create(id, participantsUi, isPublic);
   }
 
   @Override

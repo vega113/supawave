@@ -70,6 +70,7 @@ public final class TypeCodes {
     TYPES.put("ts", Type.TAGS);
     TYPES.put("tg", Type.TAG);
     TYPES.put("at", Type.ADD_TAG);
+    TYPES.put("tp", Type.TOGGLE_PUBLIC);
 
     TYPES.each(new ProcV<Type>() {
       @Override

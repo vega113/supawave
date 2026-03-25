@@ -67,6 +67,7 @@ public interface View {
     PARTICIPANTS,
     ADD_PARTICIPANT,
     NEW_WAVE_WITH_PARTICIPANTS,
+    TOGGLE_PUBLIC,
   }
 
   Type getType();

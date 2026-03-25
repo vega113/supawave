@@ -856,6 +856,15 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
     return asParticipants(e);
   }
 
+  @Override
+  public ParticipantsView fromTogglePublicButton(Element e) {
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE_PUBLIC);
+    while (e != null && !hasKnownType(e)) {
+      e = e.getParentElement();
+    }
+    return asParticipants(e);
+  }
+
   private AnchorView asAnchor(View v) {
     Preconditions.checkArgument(v == null || v.getType() == Type.ANCHOR);
     return (AnchorView) v;

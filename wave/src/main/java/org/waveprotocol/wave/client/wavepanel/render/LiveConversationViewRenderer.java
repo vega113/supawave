@@ -149,7 +149,7 @@ public class LiveConversationViewRenderer
         // the UI to show a transient deleted state before removing the node.
         if (Boolean.TRUE.equals(org.waveprotocol.wave.client.util.ClientFlags.get().enableQuasiDeletionUi())) {
           final BlipView toRemove = blipView;
-          int delayMs = 400;
+          int delayMs = 5000;
           try {
             Integer dwell = org.waveprotocol.wave.client.util.ClientFlags.get().quasiDeletionDwellMs();
             if (dwell != null && dwell >= 0) {

@@ -213,6 +213,11 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   }
 
   @Override
+  public void renderDigest(DigestView digestUi, Digest digest) {
+    renderer.render(digest, digestUi);
+  }
+
+  @Override
   public void clearDigests() {
     while (!digests.isEmpty()) {
       digests.getFirst().remove(); // onDigestRemoved removes it from digests.

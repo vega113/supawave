@@ -365,15 +365,15 @@ public final class SearchPresenter
       return;
     }
 
-    setSelected(null);
-    DigestView digestToRemove = findDigestView(digest);
-    if (digestToRemove == null) {
+    DigestView digestUi = findDigestView(digest);
+    if (digestUi == null) {
       return;
     }
-    DigestView insertRef = searchUi.getNext(digestToRemove);
-    digestToRemove.remove();
-    DigestView newDigestUi = insertDigest(insertRef, digest);
-    setSelected(newDigestUi);
+    // Re-render the existing view in-place instead of removing and re-inserting,
+    // which avoids DOM destruction/reconstruction that causes visual blinking.
+    searchUi.renderDigest(digestUi, digest);
+    // Refresh the digestUis map so it points at the updated Digest instance.
+    digestUis.put(digestUi, digest);
   }
 
   @Override

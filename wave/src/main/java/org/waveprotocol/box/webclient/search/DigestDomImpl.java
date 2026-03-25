@@ -129,17 +129,23 @@ public final class DigestDomImpl implements DigestView {
 
   @Override
   public void setTitleText(String title) {
-    this.title.setInnerText(title);
+    if (!title.equals(this.title.getInnerText())) {
+      this.title.setInnerText(title);
+    }
   }
 
   @Override
   public void setSnippet(String snippet) {
-    this.snippet.setInnerText(snippet);
+    if (!snippet.equals(this.snippet.getInnerText())) {
+      this.snippet.setInnerText(snippet);
+    }
   }
 
   @Override
   public void setTimestamp(String time) {
-    this.time.setInnerText(time);
+    if (!time.equals(this.time.getInnerText())) {
+      this.time.setInnerText(time);
+    }
   }
 
   @Override

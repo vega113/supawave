@@ -31,6 +31,8 @@ import org.waveprotocol.wave.model.id.WaveletName;
  */
 public abstract class AbstractWaveIndexer implements WaveIndexer {
 
+  private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(AbstractWaveIndexer.class.getName());
+
   protected final WaveMap waveMap;
   protected final WaveletProvider waveletProvider;
 
@@ -45,18 +47,26 @@ public abstract class AbstractWaveIndexer implements WaveIndexer {
   @Override
   public synchronized void remakeIndex() throws WaveletStateException, WaveServerException {
     waveMap.loadAllWavelets();
+    LOG.info("remakeIndex: loaded all wavelets from store");
+
+    int waveCount = 0;
+    int waveletCount = 0;
 
     ExceptionalIterator<WaveId, WaveServerException> witr = waveletProvider.getWaveIds();
     while (witr.hasNext()) {
       WaveId waveId = witr.next();
+      waveCount++;
       for (WaveletId waveletId : waveletProvider.getWaveletIds(waveId)) {
         WaveletName waveletName = WaveletName.of(waveId, waveletId);
+        waveletCount++;
 
         // Required to call this method to load the wavelet into memory.
         waveletProvider.getSnapshot(waveletName);
         processWavelet(waveletName);
       }
     }
+
+    LOG.info("remakeIndex: processed " + waveCount + " waves, " + waveletCount + " wavelets");
   }
 
   /**

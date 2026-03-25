@@ -121,13 +121,15 @@ jobs:
           set -euo pipefail
           remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
           release_dir="$remote_root/releases/$RELEASE_ID"
+          resend_api_key_q=$(printf '%q' "${RESEND_API_KEY:-}")
+          wave_email_from_q=$(printf '%q' "${WAVE_EMAIL_FROM:-}")
           ssh -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "
             set -euo pipefail
             rm -rf '$release_dir'
             mkdir -p '$release_dir'
             tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C '$release_dir'
             chmod +x '$release_dir/deploy.sh'
-            DEPLOY_ROOT='$remote_root' WAVE_IMAGE='$IMAGE_REF' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' RESEND_API_KEY=\"$RESEND_API_KEY\" WAVE_EMAIL_FROM=\"$WAVE_EMAIL_FROM\" bash '$release_dir/deploy.sh' deploy
+            DEPLOY_ROOT='$remote_root' WAVE_IMAGE='$IMAGE_REF' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' RESEND_API_KEY=$resend_api_key_q WAVE_EMAIL_FROM=$wave_email_from_q bash '$release_dir/deploy.sh' deploy
           "
 
       - name: Close deploy-failure issues on success

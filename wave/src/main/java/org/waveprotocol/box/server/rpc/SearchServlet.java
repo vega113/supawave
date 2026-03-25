@@ -146,7 +146,7 @@ public class SearchServlet extends AbstractSearchServlet {
         ", remote=" + String.valueOf(req.getRemoteAddr());
     serializeObjectToServlet(searchResponse, ctx, response);
     long elapsedMs = System.currentTimeMillis() - startMs;
-    LOG.info("SearchServlet.doGet: " + ctx + ", took " + elapsedMs + " ms");
+    LOG.info("SearchServlet.doGet: took " + elapsedMs + " ms");
   }
 
   private int computeTotalResultsNumberGuess(SearchRequest searchRequest, SearchResult searchResult) {

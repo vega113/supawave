@@ -113,7 +113,7 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
               }
             }
             long elapsedMs = System.currentTimeMillis() - startMs;
-            LOG.info("Initalized waves view for user: " + user.getAddress()
+            LOG.info("Initialized waves view for user: " + user.getAddress()
                 + ", number of waves in view: " + userView.size()
                 + ", took " + elapsedMs + " ms");
             return userView;

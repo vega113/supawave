@@ -444,11 +444,9 @@ public class WebClient implements EntryPoint {
     // Defer contacts fetch until after the first search response arrives
     // so the /contacts request does not compete with the critical /search
     // request for network bandwidth and server resources.
-    search.addListener(new Search.Listener() {
+    Search.Listener contactLoader = new Search.Listener() {
       private boolean fired = false;
-
-      @Override
-      public void onStateChanged() {
+      private void maybeLoad() {
         if (!fired && search.getState() == Search.State.READY) {
           fired = true;
           contactManager.update();
@@ -456,11 +454,18 @@ public class WebClient implements EntryPoint {
         }
       }
 
+      @Override
+      public void onStateChanged() {
+        maybeLoad();
+      }
+
       @Override public void onDigestAdded(int index, Search.Digest digest) {}
       @Override public void onDigestRemoved(int index, Search.Digest digest) {}
       @Override public void onDigestReady(int index, Search.Digest digest) {}
       @Override public void onTotalChanged(int total) {}
-    });
+    };
+    search.addListener(contactLoader);
+    contactLoader.onStateChanged();
   }
 
   private void setupWavePanel() {

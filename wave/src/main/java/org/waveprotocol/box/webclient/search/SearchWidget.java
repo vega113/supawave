@@ -140,7 +140,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   
   @UiHandler("searchButtonAll")
   public void onHandleAll(ClickEvent event) {
-    setQuery("");
+    setQuery("in:all");
     onQuery();
   }
   

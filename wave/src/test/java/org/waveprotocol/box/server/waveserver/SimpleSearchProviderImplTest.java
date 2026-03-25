@@ -262,6 +262,23 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(2, results.getNumResults());
   }
 
+  public void testSearchInAllReturnsWaveWithImplicitParticipant() throws Exception {
+    ParticipantId sharedDomainParticipantId =
+        ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(DOMAIN);
+    WaveletName waveletName =
+      WaveletName.of(WaveId.of(DOMAIN, String.valueOf(1)), WAVELET_ID);
+    // Implicit participant in this wave.
+    submitDeltaToNewWavelet(waveletName, USER1,
+        addParticipantToWavelet(sharedDomainParticipantId, waveletName));
+    waveletName = WaveletName.of(WaveId.of(DOMAIN, String.valueOf(2)), WAVELET_ID);
+    // Explicit participant in this wave.
+    submitDeltaToNewWavelet(waveletName, USER1, addParticipantToWavelet(USER2, waveletName));
+
+    // "in:all" should behave the same as empty query - return both waves.
+    SearchResult results = searchProvider.search(USER2, "in:all", 0, 20);
+    assertEquals(2, results.getNumResults());
+  }
+
   public void testSearchAllReturnsWavesOnlyWithSharedDomainUser() throws Exception {
     WaveletName waveletName =
       WaveletName.of(WaveId.of(DOMAIN, String.valueOf(1)), WAVELET_ID);

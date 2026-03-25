@@ -20,6 +20,7 @@
 package org.waveprotocol.box.webclient.search;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.ui.Widget;
 import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.webclient.search.Search.State;
 import org.waveprotocol.box.webclient.search.i18n.SearchPresenterMessages;
@@ -263,7 +264,10 @@ public final class SearchPresenter
 
     // Remove old buttons from the toolbar
     for (ToolbarClickButton button : savedSearchButtons) {
-      button.getElement().removeFromParent();
+      Widget w = button.hackGetWidget();
+      if (w != null) {
+        w.getElement().removeFromParent();
+      }
     }
     savedSearchButtons.clear();
 

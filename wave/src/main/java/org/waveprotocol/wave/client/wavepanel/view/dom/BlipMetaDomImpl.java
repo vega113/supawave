@@ -38,6 +38,7 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipViewBuilder;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.CollapsibleBuilder;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.WavePanelResourceLoader;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n.BlipMessages;
 import org.waveprotocol.wave.model.util.Pair;
 
 import java.util.EnumMap;
@@ -83,6 +84,12 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
   private Element draftModeControls;
 
   private StringSequence inlineLocators;
+
+  /** DOM element for draft mode notification banner. */
+  private Element draftNotificationBanner;
+
+  /** DOM element for draft badge. */
+  private Element draftBadge;
 
   BlipMetaDomImpl(Element self, String id, BlipViewBuilder.Css css) {
     this.self = self;
@@ -157,6 +164,56 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
     BlipMenuItemDomImpl item = getMenuState().first.get(option);
     if (item != null) {
       item.deselect();
+    }
+  }
+
+  @Override
+  public void setDraftActive(boolean active) {
+    if (active) {
+      self.addClassName(css.draftActive());
+      createDraftIndicators();
+    } else {
+      self.removeClassName(css.draftActive());
+      removeDraftIndicators();
+    }
+  }
+
+  /**
+   * Creates and inserts localized draft mode indicators.
+   */
+  private void createDraftIndicators() {
+    BlipMessages messages = WavePanelResourceLoader.getBlipMessages();
+
+    // Create and insert notification banner after metabar
+    draftNotificationBanner = Document.get().createDivElement();
+    draftNotificationBanner.setClassName(css.draftActive() + "-notification");
+    draftNotificationBanner.setInnerText(messages.draftModeNotification());
+    Element metabarParent = getMetabar().getParentElement();
+    Element nextSibling = getMetabar().getNextSiblingElement();
+    if (nextSibling != null) {
+      metabarParent.insertBefore(draftNotificationBanner, nextSibling);
+    } else {
+      metabarParent.appendChild(draftNotificationBanner);
+    }
+
+    // Create and insert draft badge before time text
+    draftBadge = Document.get().createSpanElement();
+    draftBadge.setClassName(css.draftActive() + "-badge");
+    draftBadge.setInnerText(messages.draftBadge());
+    getTime().insertBefore(draftBadge, getTime().getFirstChild());
+  }
+
+  /**
+   * Removes draft mode indicator elements.
+   */
+  private void removeDraftIndicators() {
+    if (draftNotificationBanner != null) {
+      draftNotificationBanner.removeFromParent();
+      draftNotificationBanner = null;
+    }
+    if (draftBadge != null) {
+      draftBadge.removeFromParent();
+      draftBadge = null;
     }
   }
 

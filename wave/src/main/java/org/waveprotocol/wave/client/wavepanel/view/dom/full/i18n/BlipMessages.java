@@ -43,4 +43,10 @@ public interface BlipMessages extends Messages {
 
   @DefaultMessage("Toggle draft (D)")
   String draft();
+
+  @DefaultMessage("Draft mode \u2014 changes are not visible to other participants")
+  String draftModeNotification();
+
+  @DefaultMessage("DRAFT")
+  String draftBadge();
 }

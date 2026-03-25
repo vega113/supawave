@@ -206,6 +206,7 @@ public final class EditSession
       // TODO(user): this does not work if the view has been deleted and
       // detached.
       editing.getMeta().deselect(MenuOption.DRAFT);
+      editing.getMeta().setDraftActive(false);
       editing.getMeta().enable(BlipMetaViewBuilder.DISABLED_WHILE_EDITING_MENU_OPTIONS_SET);
       editing.getMeta().disable(BlipMetaViewBuilder.ENABLED_WHILE_EDITING_MENU_OPTIONS_SET);
       Editor oldEditor = editor;
@@ -289,6 +290,7 @@ public final class EditSession
     if (isEditing()) {
       editor.enterDraftMode();
       editing.getMeta().select(MenuOption.DRAFT);
+      editing.getMeta().setDraftActive(true);
     }
   }
 
@@ -297,6 +299,7 @@ public final class EditSession
     if (isEditing()) {
       editor.leaveDraftMode(saveChanges);
       editing.getMeta().deselect(MenuOption.DRAFT);
+      editing.getMeta().setDraftActive(false);
     }
   }
 

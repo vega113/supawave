@@ -86,15 +86,15 @@
 }
 
 .meta {
-  padding: 1em 1em 0em 4.5em;
+  padding: 0.5em 0.75em 0em 3.75em;
 }
 
 .avatar {
-  height: 2.5em;
-  width: 2.5em;
+  height: 28px;
+  width: 28px;
   float: left;
-  margin-left: -3.5em;
-  border: 2px solid #fff;
+  margin-left: -3em;
+  border: 1.5px solid #fff;
   border-radius: 50%;
   -moz-border-radius: 50%;
   -webkit-border-radius: 50%;
@@ -109,9 +109,11 @@
   border-radius: 6px;
   -moz-border-radius: 6px;
   -webkit-border-radius: 6px;
-  padding: 0.3em;
+  padding: 2px 0.3em;
   margin-left: -0.3em;  /* Make the border not shift the content. */
-  margin-bottom: 0.7em; /* 2.5em - (1em + 0.3emx2) - (0.2em aesthetic) */
+  margin-bottom: 0.3em;
+  line-height: 1.3;
+  font-size: 13px;
   transition: all 200ms ease;
   -moz-transition: all 200ms ease;
   -webkit-transition: all 200ms ease;
@@ -162,8 +164,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   -moz-border-radius: 4px;
   -webkit-border-radius: 4px;
@@ -202,18 +204,43 @@
 }
 
 /*
- * Nice big paragraphs for blip content.
+ * Blip content area: subtle border to delineate the editable region.
+ * Note: contentContainer lives inside .meta which already has left indent.
  */
 .contentContainer {
   line-height: 1.35;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  background: #f8fafc;
+  min-height: 1.5em;
+  position: relative;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+
+/* When the content area receives focus (editing), show a stronger border. */
+.contentContainer:focus-within {
+  border-color: #90cdf4;
+  background: #fff;
+  outline: none;
+}
+
+/* Placeholder text for empty blips — uses :empty pseudo-class. */
+.contentContainer:empty::before {
+  content: 'Type your message here...';
+  color: #a0aec0;
+  font-style: italic;
+  pointer-events: none;
 }
 
 .replies {
-  margin: 0 1em 0 4.5em;
+  margin: 0 0.75em 0 3.75em;
 }
 
 .privateReplies {
-  margin: 0 1em 1em 4.5em;  
+  margin: 0 0.75em 0.5em 3.75em;
 }
 
 .contentContainer, .replies, .privateReplies{word-wrap: break-word;}
@@ -231,6 +258,8 @@
   max-height: 0;
   overflow: hidden;
   opacity: 0;
+  padding: 0;
+  border-color: transparent;
   transition: max-height 300ms ease, opacity 200ms ease;
   pointer-events: none;
   -webkit-user-select: none;
@@ -274,6 +303,12 @@
 
 /* Marker class to ensure CssResource maps 'draftActive' */
 .draftActive {}
+
+/* These hyphenated classes are built by string concatenation in
+   BlipMetaDomImpl (css.draftActive() + "-notification"/"-badge"),
+   so they must stay un-obfuscated. */
+@external .draftActive-notification;
+@external .draftActive-badge;
 
 /* Notification banner shown below the metabar when draft mode is on. */
 .draftActive-notification {

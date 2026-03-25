@@ -45,8 +45,11 @@ public interface SearchPresenterMessages extends Messages {
   @DefaultMessage("To Archive")
   String toArchive();
 
-  @DefaultMessage("Modify")
-  String modify();
+  @DefaultMessage("Saved Searches")
+  String savedSearches();
+
+  @DefaultMessage("Manage saved searches")
+  String savedSearchesHint();
 
   @DefaultMessage("Searching...")
   String searching();

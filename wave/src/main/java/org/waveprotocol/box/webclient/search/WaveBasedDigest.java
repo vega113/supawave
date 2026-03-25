@@ -254,11 +254,15 @@ public final class WaveBasedDigest
       if (!docsIds.contains("conversation")) {
         return;
       }
-      snippet = Snippets.renderSnippet(waveletData, Snippets.DIGEST_SNIPPET_LENGTH).trim();
-      String title = getTitle();
-      if (snippet.startsWith(title) && !title.isEmpty()) {
-        // Strip the title from the snippet if the snippet starts with the title.
-        snippet = snippet.substring(title.length());
+      // Snippet should show the latest reply text.  If there are no replies yet,
+      // fall back to the root blip body text with the title stripped.
+      snippet = Snippets.renderSnippetFromLastBlip(waveletData, Snippets.DIGEST_SNIPPET_LENGTH).trim();
+      if (snippet.isEmpty()) {
+        snippet = Snippets.renderSnippet(waveletData, Snippets.DIGEST_SNIPPET_LENGTH).trim();
+        String title = getTitle();
+        if (snippet.startsWith(title) && !title.isEmpty()) {
+          snippet = snippet.substring(title.length());
+        }
       }
     }
   }

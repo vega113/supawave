@@ -28,6 +28,7 @@ import org.waveprotocol.wave.client.state.ThreadReadStateMonitor;
 import org.waveprotocol.wave.client.uibuilder.HtmlClosure;
 import org.waveprotocol.wave.client.uibuilder.HtmlClosureCollection;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
+import org.waveprotocol.wave.client.wavepanel.view.IntrinsicTagView;
 import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.AnchorViewBuilder;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipMetaViewBuilder;
@@ -45,6 +46,8 @@ import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.ConversationView;
+import org.waveprotocol.wave.model.supplement.ReadableSupplementedWave;
+import org.waveprotocol.wave.model.supplement.ThreadState;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.IdentityMap;
 import org.waveprotocol.wave.model.util.IdentityMap.ProcV;
@@ -93,16 +96,24 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
   private final ViewFactory viewFactory;
   private final ProfileManager profileManager;
   private final ThreadReadStateMonitor readMonitor;
+  private final ReadableSupplementedWave supplement;
 
   public FullDomRenderer(ShallowBlipRenderer blipPopulator, DocRefRenderer docRenderer,
       ProfileManager profileManager, ViewIdMapper viewIdMapper, ViewFactory viewFactory,
       ThreadReadStateMonitor readMonitor) {
+    this(blipPopulator, docRenderer, profileManager, viewIdMapper, viewFactory, readMonitor, null);
+  }
+
+  public FullDomRenderer(ShallowBlipRenderer blipPopulator, DocRefRenderer docRenderer,
+      ProfileManager profileManager, ViewIdMapper viewIdMapper, ViewFactory viewFactory,
+      ThreadReadStateMonitor readMonitor, ReadableSupplementedWave supplement) {
     this.blipPopulator = blipPopulator;
     this.docRenderer = docRenderer;
     this.profileManager = profileManager;
     this.viewIdMapper = viewIdMapper;
     this.viewFactory = viewFactory;
     this.readMonitor = readMonitor;
+    this.supplement = supplement;
   }
 
   @Override
@@ -141,7 +152,8 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     HtmlClosureCollection tagUis = new HtmlClosureCollection();
     if (tags != null) {
       for (String tag : tags) {
-        tagUis.add(TagViewBuilder.create(tagsId + "." + tag, tag));
+        tagUis.add(TagViewBuilder.create(
+            tagsId + "." + tag, tag, IntrinsicTagView.TagState.NORMAL, null));
       }
     }
     return TagsViewBuilder.create(tagsId, tagUis);
@@ -202,6 +214,15 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
       int unread = readMonitor.getUnreadCount(thread);
       inlineBuilder.setTotalBlipCount(read + unread);
       inlineBuilder.setUnreadBlipCount(unread);
+      // Restore persisted collapse state from the user-data wavelet supplement.
+      if (supplement != null) {
+        ThreadState state = supplement.getThreadState(thread);
+        if (state == ThreadState.COLLAPSED) {
+          inlineBuilder.setCollapsed(true);
+        } else if (state == ThreadState.EXPANDED) {
+          inlineBuilder.setCollapsed(false);
+        }
+      }
       builder = inlineBuilder;
     }
     return builder;

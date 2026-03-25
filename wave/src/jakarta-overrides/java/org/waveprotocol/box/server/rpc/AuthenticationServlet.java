@@ -260,6 +260,32 @@ public class AuthenticationServlet extends HttpServlet {
       }
     }
 
+    // Check if user is suspended (reject login)
+    if (loggedInAddress != null) {
+      try {
+        org.waveprotocol.box.server.account.AccountData acct =
+            accountStore.getAccount(loggedInAddress);
+        if (acct != null && acct.isHuman()) {
+          org.waveprotocol.box.server.account.HumanAccountData human = acct.asHuman();
+          if (org.waveprotocol.box.server.account.HumanAccountData.STATUS_SUSPENDED
+              .equals(human.getStatus())) {
+            String message = "Your account has been suspended. Contact your administrator.";
+            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            resp.setContentType("text/html;charset=utf-8");
+            resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, message,
+                RESPONSE_STATUS_FAILED, isLoginPageDisabled, analyticsAccount,
+                passwordResetEnabled, magicLinkEnabled));
+            return;
+          }
+          // Track last login time
+          human.setLastLoginTime(System.currentTimeMillis());
+          accountStore.putAccount(acct);
+        }
+      } catch (org.waveprotocol.box.server.persistence.PersistenceException e) {
+        LOG.severe("Failed to check account status for " + loggedInAddress, e);
+      }
+    }
+
     WebSession session = WebSessions.from(req, true);
     sessionManager.setLoggedInUser(session, loggedInAddress);
     issueBrowserSessionJwtCookie(req, resp, loggedInAddress);

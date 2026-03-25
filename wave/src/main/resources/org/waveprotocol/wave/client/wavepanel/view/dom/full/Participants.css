@@ -91,10 +91,10 @@
 .flow {
   /* Expand to floated content – hidden prevents unwanted scrollbars. */
   overflow: hidden;
-  /* Positioned contained for add button. */
+  /* Positioned container for add button. */
   position: relative;
-  /* Room for absolutely positioned add and new-wave buttons. */
-  padding-right: 7em;
+  /* Room for absolutely positioned action buttons (add + new-wave + public toggle). */
+  padding-right: 110px;
 }
 
 .participant {
@@ -126,11 +126,11 @@ img.participant:hover {
 }
 
 .toggleGroup {
-  position: absolute;
-  top: 0;
   cursor: pointer;
   /* As narrow as possible. */
   line-height: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /*
@@ -147,43 +147,38 @@ img.participant:hover {
  */
 .simple {
   position: absolute;
-  /* Padding is used, so that background obscures the other one.
-   * It must stretch to the full height of this block.  Values are same
-   * as avatars, but offset by the height difference:
-   *   (4px 0 0 4px) + (8px 0 8px 0) + (2px 0 0 0)border
-   */
-  padding: 14px 0 8px 4px;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
   background: linear-gradient(180deg, #e8f4f8 0%, #fff 100%);
-  bottom: 0;
-  width: 6em;
+  padding: 2px 4px;
 }
 
 .extra {
   position: absolute;
-  width: 6em;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
   margin-left: 4px;
-
-  /* Note that, due to borders and padding being scaled separately, the
-   * theoretical 22px required here causes aliasing errors at some font
-   * sizes (scale(x) + scale(y) != scale(x + y) in general).
-   * Ideally, this value would sum to:
-   *   1px border + 20px space + 1px border
-   * (which is different from 2px border + 20px space).  21px regular
-   * space is about as close as we can get to that value.  If the value
-   * used here is too large, it causes some overflow errors (undesirabled
-   * scroll bars) due to 1px aliasing.
-   */
-  padding-top: 21px;
+  padding: 2px 4px;
 }
 
 .newWaveWithParticipantsButton {
-  margin-left: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: linear-gradient(135deg, #00b4d8, #0077b6);
   color: white;
@@ -220,8 +215,9 @@ img.participant:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: linear-gradient(135deg, #48cae4, #00b4d8);
   color: white;
@@ -238,23 +234,22 @@ img.participant:hover {
 }
 
 .publicToggleButton {
-  margin-left: 4px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: #0077b6;
   color: white;
   vertical-align: middle;
-  box-shadow: 0 2px 6px rgba(0, 119, 182, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+  transition: transform 0.15s ease, color 0.2s ease, background 0.2s ease;
 }
 
 .publicToggleButton:hover {
-  transform: scale(1.12);
-  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.4);
-  background: #005f8a;
+  transform: scale(1.15);
+  color: #005f8a;
+  background: rgba(0, 119, 182, 0.1);
 }

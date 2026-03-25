@@ -41,6 +41,14 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   private boolean emailConfirmed = true;
   private List<SearchesItem> searches;
 
+  // Admin / role / status fields
+  private String role = ROLE_USER;
+  private String status = STATUS_ACTIVE;
+  private String tier = TIER_FREE;
+  private long registrationTime;
+  private long lastLoginTime;
+  private long lastActivityTime;
+
   /**
    * Creates an {@link HumanAccountData} for the given username, with no
    * password.
@@ -136,6 +144,70 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   @Override
   public RobotAccountData asRobot() {
     throw new UnsupportedOperationException("Can't turn a HumanAccount into a RobotAccount");
+  }
+
+  // =========================================================================
+  // Admin / role / status
+  // =========================================================================
+
+  @Override
+  public String getRole() {
+    return role;
+  }
+
+  @Override
+  public void setRole(String role) {
+    this.role = (role == null) ? ROLE_USER : role;
+  }
+
+  @Override
+  public String getStatus() {
+    return status;
+  }
+
+  @Override
+  public void setStatus(String status) {
+    this.status = (status == null) ? STATUS_ACTIVE : status;
+  }
+
+  @Override
+  public String getTier() {
+    return tier;
+  }
+
+  @Override
+  public void setTier(String tier) {
+    this.tier = (tier == null) ? TIER_FREE : tier;
+  }
+
+  @Override
+  public long getRegistrationTime() {
+    return registrationTime;
+  }
+
+  @Override
+  public void setRegistrationTime(long registrationTime) {
+    this.registrationTime = registrationTime;
+  }
+
+  @Override
+  public long getLastLoginTime() {
+    return lastLoginTime;
+  }
+
+  @Override
+  public void setLastLoginTime(long lastLoginTime) {
+    this.lastLoginTime = lastLoginTime;
+  }
+
+  @Override
+  public long getLastActivityTime() {
+    return lastActivityTime;
+  }
+
+  @Override
+  public void setLastActivityTime(long lastActivityTime) {
+    this.lastActivityTime = lastActivityTime;
   }
 
   @Override

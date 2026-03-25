@@ -120,7 +120,7 @@ public class WaveDigester {
       OpBasedWavelet wavelet = OpBasedWavelet.createReadOnly(convWavelet);
       if (WaveletBasedConversation.waveletHasConversation(wavelet)) {
         conversations = conversationUtil.buildConversation(wavelet);
-        supplement = buildSupplement(participant, conversations, udw);
+        supplement = buildSupplement(participant, conversations, udw, conversationalWavelets);
       }
     }
     if (conversations != null) {
@@ -175,10 +175,14 @@ public class WaveDigester {
       title = EMPTY_WAVELET_TITLE;
     }
 
-    String snippet = Snippets.renderSnippet(rawWaveletData, DIGEST_SNIPPET_LENGTH).trim();
-    if (snippet.startsWith(title) && !title.isEmpty()) {
-      // Strip the title from the snippet if the snippet starts with the title.
-      snippet = snippet.substring(title.length());
+    // Snippet should show the latest reply text.  If there are no replies yet,
+    // fall back to the root blip body text with the title stripped.
+    String snippet = Snippets.renderSnippetFromLastBlip(rawWaveletData, DIGEST_SNIPPET_LENGTH).trim();
+    if (snippet.isEmpty()) {
+      snippet = Snippets.renderSnippet(rawWaveletData, DIGEST_SNIPPET_LENGTH).trim();
+      if (snippet.startsWith(title) && !title.isEmpty()) {
+        snippet = snippet.substring(title.length());
+      }
     }
     String waveId = ApiIdSerializer.instance().serialiseWaveId(rawWaveletData.getWaveId());
     List<String> participants = CollectionUtils.newArrayList();
@@ -283,15 +287,45 @@ public class WaveDigester {
    * @param viewer the participant for which the supplement is constructed.
    * @param conversations conversations in the wave
    * @param udw the user data wavelet for the logged user.
+   * @param conversationalWavelets the conversational wavelets in the wave.
    * @return the wave supplement.
    */
   @VisibleForTesting
   SupplementedWave buildSupplement(ParticipantId viewer, ObservableConversationView conversations,
-      ObservableWaveletData udw) {
+      ObservableWaveletData udw, List<ObservableWaveletData> conversationalWavelets) {
     // Use mock state if there is no UDW.
-    PrimitiveSupplement udwState =
-        udw != null ? WaveletBasedSupplement.create(OpBasedWavelet.createReadOnly(udw))
-            : new PrimitiveSupplementImpl();
-        return SupplementedWaveImpl.create(udwState, conversations, viewer, DefaultFollow.ALWAYS);
+    PrimitiveSupplement udwState;
+    if (udw != null) {
+      udwState = WaveletBasedSupplement.create(OpBasedWavelet.createReadOnly(udw));
+    } else {
+      PrimitiveSupplementImpl emptyState = new PrimitiveSupplementImpl();
+      // When the viewer has no UDW and is not an explicit participant (i.e., they
+      // can see the wave only via the shared domain participant), treat all blips
+      // as read. Without this, public/shared waves always show a stale unread badge
+      // because the empty supplement has no read state and every blip version
+      // comparison falls through to "unread".
+      if (!isExplicitParticipant(viewer, conversationalWavelets)) {
+        for (ObservableWaveletData waveletData : conversationalWavelets) {
+          emptyState.setLastReadWaveletVersion(waveletData.getWaveletId(),
+              (int) waveletData.getVersion());
+        }
+      }
+      udwState = emptyState;
+    }
+    return SupplementedWaveImpl.create(udwState, conversations, viewer, DefaultFollow.ALWAYS);
+  }
+
+  /**
+   * Checks whether the given participant is an explicit participant of any
+   * of the supplied conversational wavelets.
+   */
+  private static boolean isExplicitParticipant(ParticipantId participant,
+      List<ObservableWaveletData> conversationalWavelets) {
+    for (ObservableWaveletData waveletData : conversationalWavelets) {
+      if (waveletData.getParticipants().contains(participant)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

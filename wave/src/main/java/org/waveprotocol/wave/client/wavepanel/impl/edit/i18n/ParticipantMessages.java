@@ -41,4 +41,10 @@ public interface ParticipantMessages extends Messages {
 
   @DefaultMessage("Make wave private")
   String makeWavePrivate();
+
+  @DefaultMessage("This wave is public. Click to make private")
+  String waveIsPublicClickToMakePrivate();
+
+  @DefaultMessage("This wave is private. Click to make public")
+  String waveIsPrivateClickToMakePublic();
 }

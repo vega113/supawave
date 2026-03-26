@@ -2786,8 +2786,8 @@ public final class HtmlRenderer {
     sb.append("  pcMessage.addEventListener('click', function() {\n");
     sb.append("    if (!currentAddress) return;\n");
     sb.append("    overlay.style.display = 'none';\n");
-    sb.append("    // Search for existing 1:1 wave with this user\n");
-    sb.append("    fetch('/search/waves?query=with:' + encodeURIComponent(currentAddress) + '+is:dm&index=0&numResults=1')\n");
+    sb.append("    // Search for existing DM wave with this user (tagged with _dm)\n");
+    sb.append("    fetch('/search/waves?query=with:' + encodeURIComponent(currentAddress) + '+tag:_dm&index=0&numResults=1')\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
     sb.append("        if (data && data.digests && data.digests.length > 0) {\n");
@@ -2799,7 +2799,7 @@ public final class HtmlRenderer {
     sb.append("          if (window.__createDirectWave) {\n");
     sb.append("            window.__createDirectWave(currentAddress);\n");
     sb.append("          } else {\n");
-    sb.append("            alert('Direct messaging will open a new wave with ' + currentAddress);\n");
+    sb.append("            console.warn('__createDirectWave not available for ' + currentAddress);\n");
     sb.append("          }\n");
     sb.append("        }\n");
     sb.append("      })\n");

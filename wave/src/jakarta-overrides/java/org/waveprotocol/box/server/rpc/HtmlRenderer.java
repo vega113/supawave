@@ -4851,6 +4851,7 @@ public final class HtmlRenderer {
     sb.append("        <select id=\"contactSubject\">\n");
     sb.append("          <option value=\"General Inquiry\">General Inquiry</option>\n");
     sb.append("          <option value=\"Technical Support\">Technical Support</option>\n");
+    sb.append("          <option value=\"Bug Report\">Bug Report</option>\n");
     sb.append("          <option value=\"Feature Request\">Feature Request</option>\n");
     sb.append("          <option value=\"Privacy &amp; Data Request\">Privacy &amp; Data Request</option>\n");
     sb.append("          <option value=\"Legal\">Legal</option>\n");

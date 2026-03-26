@@ -436,6 +436,13 @@ public final class HistoryModeController {
             if (currentGroupIndex != groupIndex) {
               return;
             }
+            // Guard against stale callback: if showDiff was toggled off while
+            // the previous-snapshot request was in flight, render without diff.
+            if (!showDiff) {
+              previousSnapshot = null;
+              renderSnapshot(currentSnapshot, group, null);
+              return;
+            }
             previousSnapshot = prevSnap;
             renderSnapshot(currentSnapshot, group, prevSnap);
           }
@@ -759,27 +766,25 @@ public final class HistoryModeController {
       }
     }
 
-    // Walk the table to build diff
+    // Walk the table to build diff. Whitespace tokens are preserved as-is
+    // so that paragraphs, indentation, and repeated spaces are not lost.
     StringBuilder result = new StringBuilder();
     int i = 0;
     int j = 0;
     while (i < m || j < n) {
       if (i < m && j < n && oldWords[i].equals(newWords[j])) {
-        // Common word
-        if (result.length() > 0) result.append(" ");
+        // Common token
         result.append(escapeHtml(newWords[j]));
         i++;
         j++;
       } else if (j < n && (i >= m || dp[i][j + 1] >= dp[i + 1][j])) {
-        // Added word
-        if (result.length() > 0) result.append(" ");
+        // Added token
         result.append("<span class='history-diff-added'>");
         result.append(escapeHtml(newWords[j]));
         result.append("</span>");
         j++;
       } else if (i < m) {
-        // Removed word
-        if (result.length() > 0) result.append(" ");
+        // Removed token
         result.append("<span class='history-diff-removed'>");
         result.append(escapeHtml(oldWords[i]));
         result.append("</span>");
@@ -790,33 +795,32 @@ public final class HistoryModeController {
   }
 
   /**
-   * Splits text into word tokens, preserving whitespace as separate tokens
-   * for more accurate reconstruction.
+   * Splits text into alternating non-whitespace / whitespace tokens so that
+   * the original layout (paragraphs, indentation, repeated spaces) is
+   * preserved when reconstructing the diff output.
    */
   private static String[] splitWords(String text) {
     if (text == null || text.isEmpty()) {
       return new String[0];
     }
-    // Split on word boundaries but keep whitespace runs as tokens.
-    // This uses a simple approach: split on spaces, filter empties.
+    // Keep whitespace runs as tokens so rendering preserves layout.
     List<String> words = new ArrayList<String>();
     int len = text.length();
     int start = 0;
     while (start < len) {
-      if (text.charAt(start) == ' ' || text.charAt(start) == '\n'
-          || text.charAt(start) == '\t') {
-        start++;
-        continue;
-      }
+      boolean whitespace = isWhitespace(text.charAt(start));
       int end = start + 1;
-      while (end < len && text.charAt(end) != ' ' && text.charAt(end) != '\n'
-          && text.charAt(end) != '\t') {
+      while (end < len && isWhitespace(text.charAt(end)) == whitespace) {
         end++;
       }
       words.add(text.substring(start, end));
       start = end;
     }
     return words.toArray(new String[0]);
+  }
+
+  private static boolean isWhitespace(char c) {
+    return c == ' ' || c == '\n' || c == '\t' || c == '\r';
   }
 
   /** Navigates to the previous group (left arrow). */

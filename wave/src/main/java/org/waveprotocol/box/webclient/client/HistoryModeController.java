@@ -404,11 +404,10 @@ public final class HistoryModeController {
     String dateStr = formatTimestamp(group.getEndTimestamp());
 
     ConfirmDialog.show(
-        "Restore Version",
-        "Restore this wave to version " + targetVersion + " (" + dateStr + ")?\n"
-        + "All changes made after this version will be reverted.",
-        "Restore",
-        "Cancel",
+        "Restore version",
+        "Restore wave to version " + targetVersion + "?\n\n"
+            + "This will revert all changes made after this version.",
+        "Restore", "Cancel",
         new ConfirmDialog.Listener() {
           @Override
           public void onConfirm() {
@@ -417,13 +416,13 @@ public final class HistoryModeController {
 
           @Override
           public void onCancel() {
-            // User cancelled -- do nothing.
+            // User cancelled -- nothing to do.
           }
         });
   }
 
-  /** Actually sends the restore POST request. */
-  private void doRestore(final long targetVersion) {
+  /** Sends the POST request to restore a wave to the given version. */
+  private void doRestore(long targetVersion) {
     String url = "/history/" + enc(waveDomain) + "/" + enc(waveId) + "/"
         + enc(waveletDomain) + "/" + enc(waveletId)
         + "/api/restore?version=" + targetVersion;
@@ -439,9 +438,8 @@ public final class HistoryModeController {
           // Force a page reload to pick up the new wave state
           Window.Location.reload();
         } else {
-          ToastNotification.showWarning(
-              "Failed to restore: HTTP " + response.getStatusCode()
-              + " " + response.getStatusText());
+          ToastNotification.showWarning("Failed to restore version: HTTP "
+              + response.getStatusCode() + " " + response.getStatusText());
         }
       }
 

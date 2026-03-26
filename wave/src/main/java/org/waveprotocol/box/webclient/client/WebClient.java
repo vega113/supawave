@@ -706,6 +706,16 @@ public class WebClient implements EntryPoint {
     final org.waveprotocol.box.stat.Timer timer = Timing.startRequest("Open Wave");
     LOG.info("WebClient.openWave()");
 
+    // If the same wave is already open and the reference includes a blip ID,
+    // navigate to that blip without reopening the wave.
+    if (!isNewWave && wave != null && waveRef.hasDocumentId()
+        && wave.getWaveId().equals(waveRef.getWaveId())) {
+      LOG.info("Navigating to blip within same wave: " + waveRef.getDocumentId());
+      wave.focusBlip(waveRef);
+      Timing.stop(timer);
+      return;
+    }
+
     if (wave != null) {
       wave.destroy();
       wave = null;

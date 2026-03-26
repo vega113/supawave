@@ -466,6 +466,7 @@ public final class SearchPresenter
    */
   private void render() {
     renderTitle();
+    renderWaveCount();
     renderDigests();
     renderShowMore();
   }
@@ -483,6 +484,34 @@ public final class SearchPresenter
       totalStr = messages.ofUnknown();
     }
     searchUi.setTitleText(queryText + " (0-" + resultEnd + " of " + totalStr + ")");
+  }
+
+  /**
+   * Renders the wave count summary line (e.g. "23 waves, 5 unread").
+   * Counts total waves from the search result and tallies unread by
+   * checking each digest's unread count.
+   */
+  private void renderWaveCount() {
+    int total = search.getTotal();
+    if (total == Search.UNKNOWN_SIZE) {
+      total = search.getMinimumTotal();
+    }
+    int unread = 0;
+    for (int i = 0, size = search.getMinimumTotal(); i < size; i++) {
+      Digest digest = search.getDigest(i);
+      if (digest != null && digest.getUnreadCount() > 0) {
+        unread++;
+      }
+    }
+    String text;
+    if (total <= 0) {
+      text = "";
+    } else if (unread > 0) {
+      text = total + " waves \u00b7 " + unread + " unread";
+    } else {
+      text = total + " waves";
+    }
+    searchUi.setWaveCountText(text);
   }
 
   private void renderDigests() {
@@ -573,6 +602,7 @@ public final class SearchPresenter
     //
     if (search.getState() == State.READY) {
       renderTitle();
+      renderWaveCount();
       renderShowMore();
       // Deferred load: fetch saved searches after the first search result
       // arrives so the /searches request does not block wave list display.

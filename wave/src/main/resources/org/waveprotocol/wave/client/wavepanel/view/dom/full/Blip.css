@@ -250,6 +250,49 @@
 
 .contentContainer, .replies, .privateReplies{word-wrap: break-word;}
 
+/* ---- Links inside blip content ---- */
+.contentContainer a {
+  color: #0077b6;
+  text-decoration: none;
+  position: relative;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  -webkit-transition: color 0.2s ease;
+  -moz-transition: color 0.2s ease;
+}
+
+.contentContainer a::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #0077b6, #00b4d8);
+  transition: width 0.3s ease;
+  -webkit-transition: width 0.3s ease;
+  -moz-transition: width 0.3s ease;
+  border-radius: 1px;
+  -moz-border-radius: 1px;
+  -webkit-border-radius: 1px;
+}
+
+.contentContainer a:hover {
+  color: #00b4d8;
+}
+
+.contentContainer a:hover::after {
+  width: 100%;
+}
+
+.contentContainer a:visited {
+  color: #6b5b95;
+}
+
+.contentContainer a:visited::after {
+  background: linear-gradient(90deg, #6b5b95, #8b7db5);
+}
+
 /* Quasi-deleted / soft-delete state (client-side visual only).
  * When a blip is soft-deleted, the content collapses, the metabar turns
  * red-ish, and text is struck through. An undo toast is shown separately. */

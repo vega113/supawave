@@ -68,6 +68,8 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
 
     String toolbar();
 
+    String waveCount();
+
     String list();
 
     String showMore();
@@ -81,11 +83,15 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
     private static int TOOLBAR_HEIGHT_PX =
         SearchPanelResourceLoader.getPanel().emptyToolbar().getHeight();
     private static int TOOLBAR_TOP_PX = 0 + SEARCH_HEIGHT_PX;
-    private static int LIST_TOP_PX = TOOLBAR_TOP_PX + TOOLBAR_HEIGHT_PX;
+    /** Height of the wave count info bar (24px content + 1px border). */
+    private static int WAVE_COUNT_HEIGHT_PX = 25;
+    private static int WAVE_COUNT_TOP_PX = TOOLBAR_TOP_PX + TOOLBAR_HEIGHT_PX;
+    private static int LIST_TOP_PX = WAVE_COUNT_TOP_PX + WAVE_COUNT_HEIGHT_PX;
 
     // CSS constants exported to .css files
     static String SEARCH_HEIGHT = SEARCH_HEIGHT_PX + "px";
     static String TOOLBAR_TOP = TOOLBAR_TOP_PX + "px";
+    static String WAVE_COUNT_TOP = WAVE_COUNT_TOP_PX + "px";
     static String LIST_TOP = LIST_TOP_PX + "px";
   }
 
@@ -102,6 +108,8 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   SearchWidget search;
   @UiField
   ToplevelToolbarWidget toolbar;
+  @UiField
+  Element waveCount;
   @UiField
   Element list;
   @UiField
@@ -236,6 +244,17 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   @Override
   public void setTitleText(String text) {
     frame.setTitleText(text);
+  }
+
+  @Override
+  public void setWaveCountText(String text) {
+    if (text == null || text.isEmpty()) {
+      waveCount.setInnerText("");
+      waveCount.getStyle().setProperty("display", "none");
+    } else {
+      waveCount.setInnerText(text);
+      waveCount.getStyle().clearProperty("display");
+    }
   }
 
   @Override

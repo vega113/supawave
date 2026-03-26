@@ -21,6 +21,7 @@ package org.waveprotocol.box.webclient.search;
 
 import com.google.common.base.Preconditions;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.SpanElement;
 import com.google.gwt.event.dom.client.ChangeEvent;
@@ -126,8 +127,14 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   /**
    * Wires up the search-help "?" button, close button, and clickable examples.
+   * The help panel and backdrop are re-parented to document.body so they escape
+   * any stacking context created by GWT's SplitLayoutPanel or other containers.
    */
   private void initHelpPanel() {
+    // Move help panel and backdrop to document.body to avoid stacking context issues
+    Document.get().getBody().appendChild(helpBackdrop);
+    Document.get().getBody().appendChild(helpPanel);
+
     // Toggle help panel visibility on "?" button click
     Event.sinkEvents(helpButton, Event.ONCLICK);
     Event.setEventListener(helpButton, event -> {

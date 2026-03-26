@@ -398,6 +398,30 @@ public class StagesProvider extends Stages {
   }
 
   /**
+   * Returns the wave ID of the currently open wave.
+   */
+  public WaveId getWaveId() {
+    return waveRef.getWaveId();
+  }
+
+  /**
+   * Navigates to and focuses a specific blip within this already-open wave.
+   * This avoids the overhead of closing and reopening the wave.
+   *
+   * @param targetRef the wave reference containing the blip to focus on.
+   *        Must reference the same wave as this provider.
+   * @return true if the blip was found and focused, false otherwise.
+   */
+  public boolean focusBlip(WaveRef targetRef) {
+    if (one == null || two == null || closed) {
+      return false;
+    }
+    selectAndFocusOnBlip(two.getReader(), two.getModelAsViewProvider(), two.getConversations(),
+        one.getFocusFrame(), targetRef);
+    return true;
+  }
+
+  /**
    * @return a halting provider if this stage is closed. Otherwise, returns the
    *         given provider.
    */

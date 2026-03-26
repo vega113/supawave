@@ -157,3 +157,26 @@
 .chrome.collapsed  {
   display: none;
 }
+
+/* ---- Legacy deep thread indicator (Phase 5) ----
+ * Threads deeper than the max reply depth limit that existed before the limit
+ * was enforced. These are viewable (read-only traversal) but visually marked
+ * so users know no new replies are allowed at this depth.
+ */
+@external .legacyDepthBadge;
+.legacyDepthBadge {
+  display: inline-block;
+  margin-left: 0.4em;
+  padding: 0 0.4em;
+  font-size: 0.65em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #92400e;
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 3px;
+  -moz-border-radius: 3px;
+  -webkit-border-radius: 3px;
+  vertical-align: middle;
+  white-space: nowrap;
+}

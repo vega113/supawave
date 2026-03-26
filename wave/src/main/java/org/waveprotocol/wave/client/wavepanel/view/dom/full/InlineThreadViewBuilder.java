@@ -99,6 +99,19 @@ public final class InlineThreadViewBuilder implements IntrinsicInlineThreadView,
    */
   public static InlineThreadViewBuilder create(String id, HtmlClosure blips,
       UiBuilder continuationIndicator, int depth) {
+    return create(id, blips, continuationIndicator, depth, false);
+  }
+
+  /**
+   * Creates a UI builder for an inline thread with a nesting depth hint and
+   * optional legacy-deep-thread marker.
+   *
+   * @param depth nesting depth (0-based); -1 means unset (no data-depth attribute)
+   * @param legacyDeep true if this thread exceeds the current max reply depth
+   *     limit (pre-existing data created before the limit was enforced)
+   */
+  public static InlineThreadViewBuilder create(String id, HtmlClosure blips,
+      UiBuilder continuationIndicator, int depth, boolean legacyDeep) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
     Preconditions.checkArgument(!id.contains("\'"));
@@ -107,6 +120,9 @@ public final class InlineThreadViewBuilder implements IntrinsicInlineThreadView,
         CollapsibleBuilder.create(id, TypeCodes.kind(Type.INLINE_THREAD), structure);
     if (depth >= 0) {
       collapsible.setDepth(depth);
+    }
+    if (legacyDeep) {
+      collapsible.setLegacyDeep(true);
     }
     return new InlineThreadViewBuilder(id, collapsible);
   }

@@ -192,8 +192,12 @@ public final class PublicWaveFetchServlet extends HttpServlet {
     } else {
       dest.setStatus(HttpServletResponse.SC_OK);
       dest.setContentType("application/json");
-      // Allow CDN/browser caching for public waves (short-lived)
-      dest.setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
+      // Do not cache public wave data — when a wave is toggled to private the
+      // cached response would continue to serve the wave content. Use no-store
+      // to ensure every request hits the server and checks the current
+      // participant list.
+      dest.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      dest.setHeader("Pragma", "no-cache");
       try {
         dest.getWriter().append(serializer.toJson(message).toString());
       } catch (SerializationException e) {

@@ -166,7 +166,11 @@ public final class PublicWaveServlet extends HttpServlet {
 
     resp.setStatus(HttpServletResponse.SC_OK);
     resp.setContentType("text/html; charset=UTF-8");
-    resp.setHeader("Cache-Control", "public, max-age=300");
+    // Use no-cache so browsers revalidate on every request. This ensures that
+    // waves toggled to private immediately return 404 instead of serving stale
+    // cached content for up to 5 minutes.
+    resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    resp.setHeader("Pragma", "no-cache");
     resp.getWriter().write(html);
   }
 

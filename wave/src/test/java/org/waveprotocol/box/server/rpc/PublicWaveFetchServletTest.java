@@ -191,9 +191,10 @@ public class PublicWaveFetchServletTest extends TestCase {
   }
 
   /**
-   * Test that a public wave returns proper cache headers for CDN caching.
+   * Test that a public wave returns no-cache headers to prevent stale content
+   * after a wave is toggled from public to private.
    */
-  public void testPublicWaveHasCacheHeaders() throws Exception {
+  public void testPublicWaveHasNoCacheHeaders() throws Exception {
     WaveletData wavelet = waveletProvider.getHostedWavelet();
     wavelet.addParticipant(DOMAIN_PARTICIPANT);
 
@@ -207,6 +208,7 @@ public class PublicWaveFetchServletTest extends TestCase {
 
     servlet.doGet(request, response);
 
-    verify(response).setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
+    verify(response).setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    verify(response).setHeader("Pragma", "no-cache");
   }
 }

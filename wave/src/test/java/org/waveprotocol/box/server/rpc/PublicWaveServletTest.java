@@ -180,7 +180,8 @@ public class PublicWaveServletTest extends TestCase {
     verify(response).setContentType("text/html");
     verify(response).setCharacterEncoding("UTF-8");
     verify(response).setStatus(HttpServletResponse.SC_OK);
-    verify(response).setHeader("Cache-Control", "public, max-age=60");
+    verify(response).setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    verify(response).setHeader("Pragma", "no-cache");
 
     // Verify the response contains expected HTML elements
     String html = writer.toString();

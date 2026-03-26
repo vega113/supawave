@@ -112,7 +112,10 @@ public final class PublicDirectoryServlet extends HttpServlet {
 
     resp.setStatus(HttpServletResponse.SC_OK);
     resp.setContentType("text/html; charset=UTF-8");
-    resp.setHeader("Cache-Control", "public, max-age=120");
+    // Use no-cache so browsers revalidate on every request. This ensures that
+    // waves toggled to private are immediately removed from the directory.
+    resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    resp.setHeader("Pragma", "no-cache");
     resp.getWriter().write(html);
   }
 

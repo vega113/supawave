@@ -85,4 +85,7 @@ public interface WebClientMessages extends Messages {
 
   @DefaultMessage("You''re offline \u2014 changes will be saved when connection is restored")
   String offlineWhileEditing();
+
+  @DefaultMessage("Empty wave removed")
+  String emptyWaveRemoved();
 }

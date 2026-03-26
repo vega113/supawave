@@ -43,7 +43,11 @@ import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
+import org.waveprotocol.wave.model.conversation.Conversation;
+import org.waveprotocol.wave.model.conversation.ConversationBlip;
+import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.ConversationView;
+import org.waveprotocol.wave.model.document.Document;
 import org.waveprotocol.wave.model.document.WaveContext;
 import org.waveprotocol.wave.model.id.IdGenerator;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -379,6 +383,120 @@ public class StagesProvider extends Stages {
 
     // Inject the CSS styles for the history UI (idempotent).
     HistoryStyles.inject();
+  }
+
+  /**
+   * Returns {@code true} if this wave was created in the current session and
+   * is still "empty" -- meaning the root blip has no meaningful content, no
+   * replies were added, and no additional participants were invited.
+   *
+   * <p>An empty wave is one where:
+   * <ul>
+   *   <li>It was created by this client session ({@code isNewWave} was true).</li>
+   *   <li>The root conversation has exactly one participant (the creator).</li>
+   *   <li>The root thread contains only one blip (the initial root blip).</li>
+   *   <li>The root blip has no reply threads.</li>
+   *   <li>The root blip content is empty or whitespace-only.</li>
+   * </ul>
+   */
+  public boolean isEmptyWave() {
+    if (!isNewWave || closed || two == null) {
+      return false;
+    }
+    try {
+      ConversationView conversations = two.getConversations();
+      if (conversations == null) {
+        return false;
+      }
+      Conversation root = conversations.getRoot();
+      if (root == null) {
+        return false;
+      }
+
+      // Only auto-remove if the current user is the sole participant.
+      Set<ParticipantId> participantIds = root.getParticipantIds();
+      if (participantIds == null || participantIds.size() != 1) {
+        return false;
+      }
+
+      // Verify that the sole participant is the current user.
+      String currentUserAddress = Session.get().getAddress();
+      if (currentUserAddress == null) {
+        return false;
+      }
+      ParticipantId soleParticipant = participantIds.iterator().next();
+      if (!currentUserAddress.equals(soleParticipant.getAddress())) {
+        return false;
+      }
+
+      // Check the root thread: must have exactly one blip (the root blip).
+      ConversationThread rootThread = root.getRootThread();
+      if (rootThread == null) {
+        return false;
+      }
+      ConversationBlip firstBlip = rootThread.getFirstBlip();
+      if (firstBlip == null) {
+        return false;
+      }
+
+      // Ensure there is only one blip in the root thread.
+      int blipCount = 0;
+      for (ConversationBlip ignored : rootThread.getBlips()) {
+        blipCount++;
+        if (blipCount > 1) {
+          return false;
+        }
+      }
+
+      // Ensure the root blip has no reply threads.
+      for (ConversationThread ignored : firstBlip.getReplyThreads()) {
+        return false;
+      }
+
+      // Check that the blip content is empty or whitespace-only.
+      // An empty blip document looks like: <body><line/></body>
+      Document content = firstBlip.getContent();
+      if (content == null) {
+        return true;
+      }
+      String xmlContent = content.toXmlString();
+      if (xmlContent == null || xmlContent.isEmpty()) {
+        return true;
+      }
+      // Strip all XML tags and check if only whitespace remains.
+      String textOnly = xmlContent.replaceAll("<[^>]*>", "");
+      return textOnly.trim().isEmpty();
+    } catch (Exception e) {
+      // If anything goes wrong reading the model, do not auto-delete.
+      return false;
+    }
+  }
+
+  /**
+   * Removes the current user from the wave's participant list. This
+   * effectively makes the wave invisible in their search results, acting
+   * as a soft delete for empty waves.
+   */
+  public void removeCurrentUserFromWave() {
+    if (closed || two == null) {
+      return;
+    }
+    try {
+      ConversationView conversations = two.getConversations();
+      if (conversations == null) {
+        return;
+      }
+      Conversation root = conversations.getRoot();
+      if (root == null) {
+        return;
+      }
+      String currentUserAddress = Session.get().getAddress();
+      if (currentUserAddress != null) {
+        root.removeParticipant(new ParticipantId(currentUserAddress));
+      }
+    } catch (Exception e) {
+      // Best effort -- do not propagate errors from cleanup.
+    }
   }
 
   public void destroy() {

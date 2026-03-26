@@ -747,6 +747,13 @@ public class WebClient implements EntryPoint {
     }
 
     if (wave != null) {
+      // Auto-remove empty waves that were created in this session but never
+      // had any content, replies, or additional participants added.
+      if (wave.isEmptyWave()) {
+        LOG.info("Auto-removing empty wave on navigation away");
+        wave.removeCurrentUserFromWave();
+        ToastNotification.showInfo(messages.emptyWaveRemoved());
+      }
       wave.destroy();
       wave = null;
     }

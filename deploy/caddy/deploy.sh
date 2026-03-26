@@ -132,9 +132,9 @@ check_proxy() {
 }
 
 wait_for_ready() {
-  # compose_up --wait already blocks until the healthcheck passes, so this
-  # is a quick post-deploy sanity verification rather than a long poll.
-  for _ in $(seq 1 10); do
+  # Wait for the Wave server to start and pass health checks.
+  # Server needs ~20-30s to load all wavelets from MongoDB on startup.
+  for _ in $(seq 1 90); do
     if check_readyz; then
       return 0
     fi

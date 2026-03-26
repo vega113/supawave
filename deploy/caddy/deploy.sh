@@ -104,6 +104,10 @@ render_application_config() {
 }
 
 compose_up() {
+  # --wait blocks until every service with a healthcheck reports healthy.
+  # Combined with the wave service's deploy.update_config.order=start-first,
+  # Docker Compose will start the new container, wait for it to become healthy,
+  # and only then stop the old one — achieving zero-downtime rolling updates.
   DEPLOY_ROOT="$deploy_root" \
   WAVE_IMAGE="${WAVE_IMAGE:-supawave-wave:$(basename "$release_dir")}" \
   CANONICAL_HOST="$canonical_host" \
@@ -113,11 +117,12 @@ compose_up() {
   RESEND_API_KEY="${RESEND_API_KEY:-}" \
   WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-noreply@${canonical_host}}" \
   WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
-    docker compose --project-name "$project_name" -f "$release_dir/compose.yml" up -d --remove-orphans
+    docker compose --project-name "$project_name" -f "$release_dir/compose.yml" up -d --remove-orphans --wait --wait-timeout 180
 }
 
 check_readyz() {
-  docker run --rm --network host "$smoke_image" -fsSI --max-time 5 "http://127.0.0.1:${internal_port}/readyz" >/dev/null
+  # Wave no longer binds to a host port; reach it through the compose network.
+  docker run --rm --network "${project_name}_default" "$smoke_image" -fsSI --max-time 5 "http://wave:${internal_port}/readyz" >/dev/null
 }
 
 check_proxy() {
@@ -127,7 +132,9 @@ check_proxy() {
 }
 
 wait_for_ready() {
-  for _ in $(seq 1 60); do
+  # compose_up --wait already blocks until the healthcheck passes, so this
+  # is a quick post-deploy sanity verification rather than a long poll.
+  for _ in $(seq 1 10); do
     if check_readyz; then
       return 0
     fi
@@ -165,7 +172,7 @@ rollback_release() {
   RESEND_API_KEY="${RESEND_API_KEY:-}" \
   WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-noreply@${canonical_host}}" \
   WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
-    docker compose --project-name "$project_name" -f "$deploy_root/current/compose.yml" up -d --remove-orphans
+    docker compose --project-name "$project_name" -f "$deploy_root/current/compose.yml" up -d --remove-orphans --wait --wait-timeout 180
 
   wait_for_ready
   check_proxy

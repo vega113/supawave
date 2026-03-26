@@ -55,23 +55,22 @@ jobs:
 
       - name: Install sbt
         run: |
-          sudo install -d -m 0755 /etc/apt/keyrings
-          curl --fail --show-error --location --retry 5 \
-            "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" \
-            | sudo gpg --dearmor -o /etc/apt/keyrings/sbt-archive-keyring.gpg
-          echo "deb [signed-by=/etc/apt/keyrings/sbt-archive-keyring.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" \
-            | sudo tee /etc/apt/sources.list.d/sbt.list > /dev/null
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq sbt
+          SBT_VERSION=1.10.7
+          SBT_SHA256="${{ vars.SBT_1_10_7_SHA256 }}"
+          curl --fail --location --retry 3 --retry-all-errors -o /tmp/sbt.tgz \
+            "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz"
+          printf '%s  %s\n' "$SBT_SHA256" /tmp/sbt.tgz | sha256sum -c -
+          sudo tar xzf /tmp/sbt.tgz -C /usr/local
+          sudo ln -sf /usr/local/sbt/bin/sbt /usr/local/bin/sbt
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.CONTABO_SSH_KEY }}
 
-      - name: Verify build
-        timeout-minutes: 5
-        run: sbt --batch "pst/compile; wave/compile; Universal/stage"
+      - name: Build distribution
+        timeout-minutes: 10
+        run: sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage"
 
       - name: Log in to GitHub Container Registry
         run: |
@@ -81,7 +80,7 @@ jobs:
       - name: Build and push container image
         run: |
           set -euo pipefail
-          docker build --tag "$IMAGE_REF" .
+          docker build --tag "$IMAGE_REF" -f Dockerfile.prebuilt target/universal/stage
           docker push "$IMAGE_REF"
 
       - name: Assemble deployment bundle

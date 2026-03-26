@@ -21,12 +21,15 @@ package org.waveprotocol.box.webclient.search;
 
 import com.google.common.base.Preconditions;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.SpanElement;
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTMLPanel;
 import com.google.gwt.user.client.ui.TextBox;
@@ -54,6 +57,15 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     String self();
     String search();
     String query();
+    String helpButton();
+    String helpPanel();
+    String helpHeader();
+    String helpTitle();
+    String helpClose();
+    String helpTable();
+    String helpTableHeader();
+    String helpExample();
+    String helpTip();
   }
 
   @UiField(provided = true)
@@ -68,6 +80,28 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   @UiField
   TextBox query;
+  @UiField
+  Element helpButton;
+  @UiField
+  Element helpPanel;
+  @UiField
+  Element helpCloseButton;
+  @UiField
+  SpanElement exInbox;
+  @UiField
+  SpanElement exArchive;
+  @UiField
+  SpanElement exAll;
+  @UiField
+  SpanElement exWith;
+  @UiField
+  SpanElement exPublic;
+  @UiField
+  SpanElement exCreator;
+  @UiField
+  SpanElement exTag;
+  @UiField
+  SpanElement exFreeText;
 
   private Listener listener;
 
@@ -82,6 +116,54 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       query.getElement().setAttribute("autosave", "QUERY_AUTO_SAVE");
     }
     query.addChangeHandler(this);
+    initHelpPanel();
+  }
+
+  /**
+   * Wires up the search-help "?" button, close button, and clickable examples.
+   */
+  private void initHelpPanel() {
+    // Toggle help panel visibility on "?" button click
+    Event.sinkEvents(helpButton, Event.ONCLICK);
+    Event.setEventListener(helpButton, event -> {
+      if (Event.ONCLICK == event.getTypeInt()) {
+        boolean visible = !"none".equals(helpPanel.getStyle().getDisplay());
+        helpPanel.getStyle().setProperty("display", visible ? "none" : "block");
+      }
+    });
+
+    // "Got it" close button
+    Event.sinkEvents(helpCloseButton, Event.ONCLICK);
+    Event.setEventListener(helpCloseButton, event -> {
+      if (Event.ONCLICK == event.getTypeInt()) {
+        helpPanel.getStyle().setProperty("display", "none");
+      }
+    });
+
+    // Clickable examples: fill the search box and trigger search
+    wireExample(exInbox);
+    wireExample(exArchive);
+    wireExample(exAll);
+    wireExample(exWith);
+    wireExample(exPublic);
+    wireExample(exCreator);
+    wireExample(exTag);
+    wireExample(exFreeText);
+  }
+
+  /**
+   * Wires a clickable example span so clicking it fills the search box,
+   * closes the help panel, and fires a query.
+   */
+  private void wireExample(final Element example) {
+    Event.sinkEvents(example, Event.ONCLICK);
+    Event.setEventListener(example, event -> {
+      if (Event.ONCLICK == event.getTypeInt()) {
+        query.setValue(example.getInnerText());
+        helpPanel.getStyle().setProperty("display", "none");
+        onQuery();
+      }
+    });
   }
 
   @Override

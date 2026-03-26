@@ -55,6 +55,8 @@ import org.waveprotocol.wave.client.wavepanel.view.View.Type;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipLinkPopupWidget;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.DomRenderer;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.FocusFrame;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.TagsViewBuilder;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.WavePanelResourceLoader;
 import org.waveprotocol.wave.client.wavepanel.view.impl.AbstractConversationViewImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.AbstractStructuredView;
 import org.waveprotocol.wave.client.wavepanel.view.impl.AnchorViewImpl;
@@ -586,15 +588,33 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         public TagView append(TagsDomImpl impl, Conversation conv, String tag,
             org.waveprotocol.wave.model.operation.wave.WaveletOperationContext opContext,
             boolean showDiff) {
-          // Stub: full rendering integration deferred
-          return null;
+          TagsViewBuilder.Css tagsCss = WavePanelResourceLoader.getTags().css();
+          // Tag DOM id format matches FullDomRenderer: tagsId + "." + tag
+          String tagId = impl.getId() + "." + tag;
+          Element tagEl = Document.get().createDivElement();
+          tagEl.setId(tagId);
+          tagEl.setClassName(tagsCss.tag() + " " + tagsCss.normal());
+          tagEl.setAttribute(KIND_ATTRIBUTE, kind(Type.TAG));
+          tagEl.setInnerText(tag);
+          // Insert before the overflow-mode panel (extra span), which is the
+          // second-to-last child of the tag container.
+          DomViewHelper.attachBefore(
+              impl.getTagContainer(), impl.getSimpleMenu(), tagEl);
+          return asTag(tagEl);
         }
 
         @Override
         public TagView remove(TagsDomImpl impl, Conversation conv, String tag,
             org.waveprotocol.wave.model.operation.wave.WaveletOperationContext opContext,
             boolean showDiff) {
-          // Stub: full rendering integration deferred
+          // Tag DOM id format matches FullDomRenderer: tagsId + "." + tag
+          String tagId = impl.getId() + "." + tag;
+          Element tagEl = Document.get().getElementById(tagId);
+          if (tagEl != null) {
+            TagView view = asTag(tagEl);
+            tagEl.removeFromParent();
+            return view;
+          }
           return null;
         }
 

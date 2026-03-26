@@ -255,7 +255,6 @@ public class ServerMain {
 
     server.addServlet("/terms", LegalServlet.class);
     server.addServlet("/privacy", LegalServlet.class);
-    server.addServlet("/contact", LegalServlet.class);
 
     server.addServlet("/", WaveClientServlet.class);
   }

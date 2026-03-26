@@ -2256,6 +2256,10 @@ public final class HtmlRenderer {
     sb.append("    width: 90vw !important; max-width: none !important;\n");
     sb.append("  }\n");
     sb.append("}\n");
+    // -- Infinite scroll spinner animation --
+    sb.append("@keyframes wave-inf-spin {\n");
+    sb.append("  to { transform: rotate(360deg); }\n");
+    sb.append("}\n");
     // -- Skeleton loading placeholder for wave list (shown before GWT renders) --
     sb.append("@keyframes wave-skeleton-pulse {\n");
     sb.append("  0% { opacity: 0.4; }\n");
@@ -2267,6 +2271,11 @@ public final class HtmlRenderer {
     sb.append("  background: #fff; z-index: 1;\n");
     sb.append("  padding-top: 0;\n");
     sb.append("  font-family: ").append(WAVE_FONT).append(";\n");
+    sb.append("  transition: opacity 0.2s ease-out;\n");
+    sb.append("}\n");
+    sb.append("#wave-list-skeleton.fade-out {\n");
+    sb.append("  opacity: 0;\n");
+    sb.append("  pointer-events: none;\n");
     sb.append("}\n");
     sb.append("#wave-list-skeleton .skel-search {\n");
     sb.append("  height: 51px; display: flex; align-items: center; padding: 0 12px;\n");
@@ -2521,9 +2530,8 @@ public final class HtmlRenderer {
     sb.append("    if (searchPanel) searchPanel.setAttribute('data-mobile-role', 'search-panel');\n");
     sb.append("    draggerWrapper.setAttribute('data-mobile-role', 'split-dragger');\n");
     sb.append("    if (wavePanel) wavePanel.setAttribute('data-mobile-role', 'wave-panel');\n");
-    // Remove the skeleton loading placeholder now that the real UI is ready
-    sb.append("    var skel = document.getElementById('wave-list-skeleton');\n");
-    sb.append("    if (skel) skel.parentNode.removeChild(skel);\n");
+    // The skeleton loading placeholder is removed by GWT's SearchPanelWidget.clearDigests()
+    // when actual search results arrive, ensuring a smooth transition from skeleton to content.
     sb.append("    return true;\n");
     sb.append("  }\n");
     sb.append("  if (!markPanels()) {\n");

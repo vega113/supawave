@@ -40,6 +40,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 import org.waveprotocol.wave.util.logging.Log;
@@ -47,8 +48,13 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -156,8 +162,16 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     LinkedHashMap<WaveId, WaveViewData> results =
         createResults(user, isAllQuery, currentUserWavesView);
 
+    List<WaveViewData> resultsList = Lists.newArrayList(results.values());
+
+    // Solr does not index tags, so perform post-filtering for tag: queries.
+    Set<String> tagValues = extractTagValues(query);
+    if (!tagValues.isEmpty()) {
+      filterByTags(resultsList, tagValues);
+    }
+
     Collection<WaveViewData> searchResult =
-        computeSearchResult(user, startAt, numResults, Lists.newArrayList(results.values()));
+        computeSearchResult(user, startAt, numResults, resultsList);
     LOG.info("Search response to '" + query + "': " + searchResult.size() + " results, user: "
         + user);
 
@@ -232,6 +246,8 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     }
   }
 
+  private static final Pattern TAG_PATTERN = Pattern.compile("\\btag:(\\S+)");
+
   private static final Pattern IN_ALL_PATTERN = Pattern.compile("\\bin:all\\b");
 
   private static boolean isAllQuery(String query) {
@@ -241,7 +257,9 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {
-    return query.replaceAll(WORD_START + TokenQueryType.IN.getToken() + ":", IN + ":")
+    // Strip tag: tokens from the Solr query since they are handled by post-filtering.
+    String cleanedQuery = TAG_PATTERN.matcher(query).replaceAll("").trim();
+    return cleanedQuery.replaceAll(WORD_START + TokenQueryType.IN.getToken() + ":", IN + ":")
         .replaceAll(WORD_START + TokenQueryType.WITH.getToken() + ":@",
             WITH + ":" + sharedDomainParticipantId.getAddress())
         .replaceAll(WORD_START + TokenQueryType.WITH.getToken() + ":", WITH_FUZZY + ":")
@@ -260,9 +278,82 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
       fq = FILTER_QUERY_PREFIX + addressOfRequiredParticipant;
     }
     if (query.length() > 0) {
-
-      fq += " AND (" + buildUserQuery(query, sharedDomainParticipantId) + ")";
+      String userQuery = buildUserQuery(query, sharedDomainParticipantId);
+      if (!userQuery.isEmpty()) {
+        fq += " AND (" + userQuery + ")";
+      }
     }
     return fq;
+  }
+
+  /**
+   * Extracts tag filter values from the raw query string.
+   *
+   * @param query the raw search query
+   * @return a set of tag names, empty if none
+   */
+  private static Set<String> extractTagValues(String query) {
+    Set<String> tags = new HashSet<>();
+    java.util.regex.Matcher m = TAG_PATTERN.matcher(query);
+    while (m.find()) {
+      tags.add(m.group(1));
+    }
+    return tags;
+  }
+
+  /**
+   * Filters wave results by tags. Only waves whose conversation root wavelet
+   * contains all of the requested tags are kept. Uses case-insensitive matching.
+   *
+   * @param results the mutable list of wave views to filter in place.
+   * @param requiredTags the set of tag names that must all be present.
+   */
+  private void filterByTags(List<WaveViewData> results, Set<String> requiredTags) {
+    Iterator<WaveViewData> it = results.iterator();
+    while (it.hasNext()) {
+      WaveViewData wave = it.next();
+      try {
+        ObservableWaveletData convWavelet = null;
+        for (ObservableWaveletData wd : wave.getWavelets()) {
+          if (org.waveprotocol.wave.model.id.IdUtil.isConversationRootWaveletId(wd.getWaveletId())) {
+            convWavelet = wd;
+            break;
+          }
+        }
+        if (convWavelet == null) {
+          it.remove();
+          continue;
+        }
+        org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
+            org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
+        if (!org.waveprotocol.wave.model.conversation.WaveletBasedConversation
+            .waveletHasConversation(opWavelet)) {
+          it.remove();
+          continue;
+        }
+        org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
+            digester.getConversationUtil().buildConversation(opWavelet);
+        org.waveprotocol.wave.model.conversation.ObservableConversation rootConversation =
+            conversations.getRoot();
+        if (rootConversation == null) {
+          it.remove();
+          continue;
+        }
+        Set<String> waveTags = rootConversation.getTags();
+        Set<String> lowerCaseTags = new HashSet<>();
+        for (String wt : waveTags) {
+          lowerCaseTags.add(wt.toLowerCase(Locale.ROOT));
+        }
+        for (String requiredTag : requiredTags) {
+          if (!lowerCaseTags.contains(requiredTag.toLowerCase(Locale.ROOT))) {
+            it.remove();
+            break;
+          }
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check tags for wave " + wave.getWaveId(), e);
+        it.remove();
+      }
+    }
   }
 }

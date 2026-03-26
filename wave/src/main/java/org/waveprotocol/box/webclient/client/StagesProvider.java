@@ -320,13 +320,18 @@ public class StagesProvider extends Stages {
   }
 
   public void destroy() {
-    if (historyController != null) {
-      historyController.exitHistoryMode();
-      historyController = null;
-    }
+    // Detach the scrubber widget BEFORE exiting history mode, because
+    // exitHistoryMode() restores savedWavePanelHtml via setInnerHTML()
+    // which removes the scrubber DOM element from the tree.  If we call
+    // removeFromParent() after that, the element is already detached and
+    // GWT throws a removeChild-null error (#288).
     if (versionScrubber != null) {
       versionScrubber.removeFromParent();
       versionScrubber = null;
+    }
+    if (historyController != null) {
+      historyController.exitHistoryMode();
+      historyController = null;
     }
     if (wave != null) {
       waveStore.remove(wave);

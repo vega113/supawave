@@ -45,7 +45,7 @@ require_docker() {
 ensure_layout() {
   mkdir -p "$deploy_root"/incoming
   mkdir -p "$deploy_root"/releases
-  mkdir -p "$deploy_root"/shared/{accounts,attachments,caddy-config,caddy-data,certificates,deltas,indexes,mongo/db,sessions}
+  mkdir -p "$deploy_root"/shared/{accounts,attachments,caddy-config,caddy-data,certificates,deltas,indexes,logs,mongo/db,sessions}
 }
 
 load_deploy_env() {

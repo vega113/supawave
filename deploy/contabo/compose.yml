@@ -46,6 +46,7 @@ services:
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/indexes:/opt/wave/_indexes
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/sessions:/opt/wave/_sessions
       - ./application.conf:/opt/wave/config/application.conf:ro
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/logs:/opt/wave/logs
 
   caddy:
     image: caddy:2.8.4-alpine

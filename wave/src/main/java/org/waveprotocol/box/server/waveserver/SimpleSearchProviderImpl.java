@@ -257,19 +257,25 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
             udw = wd;
           }
         }
+        // Waves without a conversation root wavelet or without conversation
+        // structure cannot carry archive state. Treat them as inbox waves:
+        // keep them for inbox queries, remove them for archive queries.
         if (convWavelet == null) {
-          // Non-conversational wave - skip from folder-filtered results.
-          it.remove();
+          if (!wantInbox) {
+            it.remove();
+          }
           continue;
         }
-        // Build the supplement to determine inbox/archive state.
         org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
             org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
         if (!org.waveprotocol.wave.model.conversation.WaveletBasedConversation
             .waveletHasConversation(opWavelet)) {
-          it.remove();
+          if (!wantInbox) {
+            it.remove();
+          }
           continue;
         }
+        // Build the supplement to determine inbox/archive state.
         org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
             digester.getConversationUtil().buildConversation(opWavelet);
         SupplementedWave supplement = digester.buildSupplement(user, conversations, udw, conversationalWavelets);
@@ -326,8 +332,13 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           continue;
         }
         Set<String> waveTags = rootConversation.getTags();
+        // Build a lowercase set of the wave's tags for case-insensitive matching.
+        Set<String> lowerCaseTags = new java.util.HashSet<>();
+        for (String wt : waveTags) {
+          lowerCaseTags.add(wt.toLowerCase(java.util.Locale.ROOT));
+        }
         for (String requiredTag : requiredTags) {
-          if (!waveTags.contains(requiredTag)) {
+          if (!lowerCaseTags.contains(requiredTag.toLowerCase(java.util.Locale.ROOT))) {
             it.remove();
             break;
           }

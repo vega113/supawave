@@ -42,8 +42,7 @@ import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
 import org.waveprotocol.box.server.jakarta.ServerRpcProviderJakartaProvider;
 import org.waveprotocol.box.server.rpc.ProtoSerializer;
 import org.waveprotocol.box.server.rpc.ServerRpcProvider;
-import org.waveprotocol.box.server.robots.register.RobotRegistrar;
-import org.waveprotocol.box.server.robots.register.RobotRegistrarImpl;
+// RobotRegistrar binding is in JakartaRobotApiBindingsModule
 import org.waveprotocol.box.server.waveserver.WaveServerImpl;
 import org.waveprotocol.box.server.waveserver.WaveServerModule;
 import org.waveprotocol.wave.federation.FederationHostBridge;
@@ -82,7 +81,8 @@ public class ServerModule extends AbstractModule {
     // Bind via Provider to avoid Guice eagerly reflecting over ServerRpcProvider's methods
     // (which reference EE10 types) during injector creation.
     bind(ServerRpcProvider.class).toProvider(ServerRpcProviderJakartaProvider.class).in(Singleton.class);
-    bind(RobotRegistrar.class).to(RobotRegistrarImpl.class).in(Singleton.class);
+    // RobotRegistrar is bound by JakartaRobotApiBindingsModule; do NOT duplicate here
+    // or Guice will reject the child-injector with ChildBindingAlreadySet.
 
     // Explicit binding for WelcomeWaveCreator so that Guice can inject it
     // into UserRegistrationServlet.  Without this, JIT binding may fail when

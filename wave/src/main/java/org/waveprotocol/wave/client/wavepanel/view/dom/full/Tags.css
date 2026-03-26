@@ -9,13 +9,14 @@
   background-color: #C9E2FC;
   overflow: hidden;
   min-width: 50px;
-  bottom: -4px;
+  bottom: 0;
   position: absolute;
   right: 0;
   left: 0;
   height: 36px;
   border-bottom-left-radius: 5px;
   border-bottom-right-radius: 5px;
+  z-index: 1;
 }
 
 .flow {

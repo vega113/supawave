@@ -59,6 +59,39 @@ Check all monitored repos for open issues. Spawn background agents to fix action
 | tubescribes | `--squash` |
 | slides-lab | `--squash` |
 
+## Integration Safeguards
+
+### Deploy-broken gate
+- Before merging ANY PR, check if the latest deploy succeeded: `gh run list -R repo --workflow="deploy-contabo.yml" --limit 1 --json conclusion`
+- If deploys are failing, STOP merging new feature PRs. Only merge PRs that fix the deploy issue.
+- This prevents piling up untested changes on a broken deploy pipeline.
+
+### One-at-a-time merge with verification
+- Merge PRs ONE at a time, not in rapid succession
+- After each merge, wait for the CI build on main to pass before merging the next PR
+- This catches integration issues early instead of after 20 PRs have merged
+
+### Rebase before merge (not just update-branch)
+- Before merging, ensure the PR branch has been rebased on the LATEST main
+- The "update branch" API merges main into the PR, but this can mask conflicts
+- If a PR was created from an old main, it may silently reintroduce code that was already fixed
+
+### Agent worktree freshness
+- When spawning agents for issues, they should always clone from the latest main
+- If an agent takes >10 minutes and main has changed, the PR should be rebased before merge
+- Never auto-merge a PR whose base is >2 commits behind main without rebase
+
+### Conflict detection after merge
+- After merging a PR, check if the deploy workflow succeeds before merging the next one
+- If deploy fails after a merge, investigate immediately — don't continue merging other PRs
+- Check `gh run list --workflow="deploy-contabo.yml" --limit 1` after each merge
+
+### Duplicate resource detection
+- Before merging PRs that modify servlet registrations, route mappings, or Guice modules:
+  - Check for duplicate path registrations
+  - Search for conflicting @Singleton bindings
+  - Verify no two servlets map to the same URL path
+
 ## Improvement Roadmap
 1. Gate baseline uses commit SHA (not prUpdatedAt)
 2. Reduced grace period to 5 minutes

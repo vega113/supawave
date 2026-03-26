@@ -35,8 +35,12 @@ RUN sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage"
 # Runtime stage: slim JRE image
 FROM eclipse-temurin:17-jre
 ENV WAVE_HOME=/opt/wave
+RUN apt-get update -qq && \
+    apt-get install -y -qq curl && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR ${WAVE_HOME}
 COPY --from=build /workspace/target/universal/stage/ ${WAVE_HOME}/
+RUN mkdir -p ${WAVE_HOME}/logs
 
 EXPOSE 9898
 

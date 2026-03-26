@@ -166,6 +166,11 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
       return getDelegate().getInboxState();
     }
 
+    @Override
+    public boolean isPinned() {
+      return getDelegate().isPinned();
+    }
+
     //
     // Events.
     //

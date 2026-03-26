@@ -129,6 +129,16 @@ public final class TagsViewBuilder implements UiBuilder {
           output.appendPlainText(messages.tags());
           OutputHelper.close(output);
 
+          // Search tip for tags
+          output.appendHtmlConstant(
+              "<span class=\"" + css.title() + "\" style=\"font-size:10px;color:#64748b;"
+              + "font-style:italic;margin-left:4px;line-height:28px;float:left;"
+              + "font-weight:normal;\" title=\"Tags help you categorize waves. "
+              + "Use tag:name in search to find tagged waves.\">"
+              + "(<code style=\"background:#e6f0fa;padding:0 3px;border-radius:2px;"
+              + "font-size:10px;\">tag:name</code> in search)"
+              + "</span>");
+
           tagUis.outputHtml(output);
 
           // Overflow-mode panel.

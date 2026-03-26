@@ -36,6 +36,7 @@ import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarButtonViewBuilder;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarView;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
+import org.waveprotocol.wave.model.document.WaveContext;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.IdentityMap;
@@ -53,7 +54,8 @@ import java.util.List;
  * @author hearnden@google.com (David Hearnden)
  */
 public final class SearchPresenter
-    implements Search.Listener, SearchPanelView.Listener, SearchView.Listener, ProfileListener {
+    implements Search.Listener, SearchPanelView.Listener, SearchView.Listener, ProfileListener,
+    WaveStore.Listener {
 
   /**
    * Handles wave actions.
@@ -72,6 +74,12 @@ public final class SearchPresenter
   private final static int POLLING_INTERVAL_MS = 15000; // 15s
   private final static String DEFAULT_SEARCH = "in:inbox";
   private final static int DEFAULT_PAGE_SIZE = 20;
+  /**
+   * Delay before refreshing search results after a wave is closed (ms).
+   * This gives the server time to process any pending deltas (e.g., tag
+   * additions) before the search query is re-issued.
+   */
+  private final static int WAVE_CLOSED_REFRESH_DELAY_MS = 1500;
 
   // Inline SVG icons (Lucide icon set, MIT) for toolbar action buttons.
   // Explicit close tags used for GWT HTML-parser compatibility.
@@ -127,6 +135,7 @@ public final class SearchPresenter
   private final Search search;
   private final SearchPanelView searchUi;
   private final WaveActionHandler actionHandler;
+  private WaveStore waveStore;
 
   /** Debounce delay for digest-ready updates during editing (ms). */
   private static final int DIGEST_DEBOUNCE_MS = 1000;
@@ -161,6 +170,18 @@ public final class SearchPresenter
   };
   private int pendingDigestIndex = -1;
   private Digest pendingDigest;
+
+  /**
+   * Task that refreshes search results after a wave is closed. Scheduled
+   * with a short delay to allow the server to process any outstanding
+   * deltas (e.g., tag add/remove) before the search query is re-issued.
+   */
+  private final Task waveClosedRefreshTask = new Task() {
+    @Override
+    public void execute() {
+      doSearch();
+    }
+  };
 
   private final Task renderer = new Task() {
     @Override
@@ -205,9 +226,29 @@ public final class SearchPresenter
   public static SearchPresenter create(
       Search model, SearchPanelView view, WaveActionHandler actionHandler,
       SourcesEvents<ProfileListener> profileEventsDispatcher) {
+    return create(model, view, actionHandler, profileEventsDispatcher, null);
+  }
+
+  /**
+   * Creates a search presenter that listens to wave open/close events for
+   * timely search refresh after in-wave changes (e.g., tag add/remove).
+   *
+   * @param model model to present
+   * @param view view to render into
+   * @param actionHandler handler for actions
+   * @param profileEventsDispatcher the dispatcher of profile events.
+   * @param waveStore optional wave store to listen for wave close events
+   */
+  public static SearchPresenter create(
+      Search model, SearchPanelView view, WaveActionHandler actionHandler,
+      SourcesEvents<ProfileListener> profileEventsDispatcher, WaveStore waveStore) {
     SearchPresenter presenter = new SearchPresenter(
         SchedulerInstance.getHighPriorityTimer(), model, view, actionHandler,
         profileEventsDispatcher);
+    if (waveStore != null) {
+      presenter.waveStore = waveStore;
+      waveStore.addListener(presenter);
+    }
     presenter.init();
     return presenter;
   }
@@ -235,10 +276,14 @@ public final class SearchPresenter
     scheduler.cancel(searchUpdater);
     scheduler.cancel(renderer);
     scheduler.cancel(digestDebounceTask);
+    scheduler.cancel(waveClosedRefreshTask);
     searchUi.getSearch().reset();
     searchUi.reset();
     search.removeListener(this);
     profiles.removeListener(this);
+    if (waveStore != null) {
+      waveStore.removeListener(this);
+    }
   }
 
   /** The current user's saved searches. */
@@ -729,5 +774,25 @@ public final class SearchPresenter
     // SearchPresenter, and make it stateful. Have it remember which digests
     // have used which profiles in their renderings.
     renderLater();
+  }
+
+  //
+  // WaveStore.Listener events. Used to refresh search results after a wave
+  // is closed so that in-wave changes (tags, participants, etc.) are
+  // reflected in the search panel without waiting for the next poll cycle.
+  //
+
+  @Override
+  public void onOpened(WaveContext wave) {
+    // No action needed when a wave is opened. The search continues polling
+    // in the background and will pick up any changes.
+  }
+
+  @Override
+  public void onClosed(WaveContext wave) {
+    // When a wave is closed, the user may have made changes (e.g., added or
+    // removed tags) that affect search results. Schedule a search refresh
+    // after a short delay to allow the server to process the outstanding delta.
+    scheduler.scheduleDelayed(waveClosedRefreshTask, WAVE_CLOSED_REFRESH_DELAY_MS);
   }
 }

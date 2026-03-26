@@ -129,7 +129,7 @@ public class WaveServerTest extends TestCase {
             remoteWaveletContainerFactory, "example.com", config, lookupExecutor);
     waveServer =
         new WaveServerImpl(MoreExecutors.directExecutor(), certificateManager,
-            federationRemote, waveMap);
+            federationRemote, waveMap, config);
     waveServer.initialize();
   }
 

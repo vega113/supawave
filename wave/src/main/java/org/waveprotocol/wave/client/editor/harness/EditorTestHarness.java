@@ -34,33 +34,26 @@ public class EditorTestHarness implements EntryPoint {
     try {
       new DefaultTestHarness().onModuleLoad();
     } catch (final RuntimeException e) {
-      ConfirmDialog.show("Module Load Error",
-          "Exception on module load, try again?", "Retry", "Abort",
-          new ConfirmDialog.Listener() {
-            @Override
-            public void onConfirm() {
-              onModuleLoad();
-            }
-
-            @Override
-            public void onCancel() {
-              ToastNotification.showWarning("Module load aborted: " + e.getMessage());
-            }
-          });
+      handleModuleLoadError(e);
     } catch (final Error e) {
-      ConfirmDialog.show("Module Load Error",
-          "Error on module load, try again?", "Retry", "Abort",
-          new ConfirmDialog.Listener() {
-            @Override
-            public void onConfirm() {
-              onModuleLoad();
-            }
-
-            @Override
-            public void onCancel() {
-              ToastNotification.showWarning("Module load aborted: " + e.getMessage());
-            }
-          });
+      handleModuleLoadError(e);
     }
+  }
+
+  private void handleModuleLoadError(final Throwable e) {
+    String typeLabel = (e instanceof Error) ? "Error" : "Exception";
+    ConfirmDialog.show("Module Load Error",
+        typeLabel + " on module load, try again?", "Retry", "Abort",
+        new ConfirmDialog.Listener() {
+          @Override
+          public void onConfirm() {
+            onModuleLoad();
+          }
+
+          @Override
+          public void onCancel() {
+            ToastNotification.showWarning("Module load aborted: " + e.getMessage());
+          }
+        });
   }
 }

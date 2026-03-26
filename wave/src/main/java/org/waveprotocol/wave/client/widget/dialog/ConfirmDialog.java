@@ -22,6 +22,9 @@ package org.waveprotocol.wave.client.widget.dialog;
 import com.google.gwt.dom.client.StyleInjector;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.KeyDownHandler;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
@@ -145,6 +148,17 @@ public final class ConfirmDialog {
         listener.onCancel();
       }
     });
+
+    panel.addDomHandler(new KeyDownHandler() {
+      @Override
+      public void onKeyDown(KeyDownEvent event) {
+        if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
+          handled[0] = true;
+          popup.hide();
+          listener.onCancel();
+        }
+      }
+    }, KeyDownEvent.getType());
 
     popup.show();
   }

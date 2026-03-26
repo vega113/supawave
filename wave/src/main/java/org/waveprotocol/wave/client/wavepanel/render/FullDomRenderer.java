@@ -46,6 +46,7 @@ import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.ConversationView;
+import org.waveprotocol.wave.model.conversation.WaveLockState;
 import org.waveprotocol.wave.model.supplement.ReadableSupplementedWave;
 import org.waveprotocol.wave.model.supplement.ThreadState;
 import org.waveprotocol.wave.model.util.CollectionUtils;
@@ -178,7 +179,8 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     }
     boolean isDm = !hasDomain && realCount == 2;
     String id = viewIdMapper.participantsOf(conversation);
-    return ParticipantsViewBuilder.create(id, participantsUi, isPublic, isDm);
+    WaveLockState lockState = conversation.getLockState();
+    return ParticipantsViewBuilder.create(id, participantsUi, isPublic, isDm, lockState);
   }
 
   @Override

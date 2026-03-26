@@ -460,6 +460,20 @@ public final class WaveletBasedConversation implements ObservableConversation {
   }
 
   @Override
+  public WaveLockState getLockState() {
+    ObservableDocument lockDoc = wavelet.getDocument(IdConstants.LOCK_DOC_ID);
+    return LockDocument.getLockState(lockDoc);
+  }
+
+  @Override
+  public void setLockState(WaveLockState state) {
+    checkIsUsable();
+    ObservableDocument lockDoc = wavelet.getDocument(IdConstants.LOCK_DOC_ID);
+    Preconditions.checkState(lockDoc != null, "Lock document is missing");
+    new LockDocument<>(lockDoc).setLockState(state);
+  }
+
+  @Override
   public void addListener(Listener listener) {
     listeners.add(listener);
   }

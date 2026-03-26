@@ -37,8 +37,10 @@ import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.ThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
+import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
+import org.waveprotocol.wave.model.conversation.WaveLockState;
 import org.waveprotocol.wave.model.id.DualIdSerialiser;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -90,6 +92,10 @@ public final class ActionsImpl implements Actions {
   public void startEditing(BlipView blipUi) {
     boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
     if (allowed) {
+      ConversationBlip blip = views.getBlip(blipUi);
+      if (blip != null && isBlipLockedForEditing(blip)) {
+        return;
+      }
       focusAndEdit(blipUi);
     }
   }
@@ -125,6 +131,16 @@ public final class ActionsImpl implements Actions {
     boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
     if (allowed) {
       ConversationBlip blip = views.getBlip(blipUi);
+
+      // Check if replies are blocked by wave lock.
+      if (blip != null) {
+        Conversation conv = blip.getConversation();
+        WaveLockState lockState = conv.getLockState();
+        if (lockState == WaveLockState.ALL_LOCKED) {
+          ToastNotification.showWarning(messages.waveIsLockedNoReply());
+          return;
+        }
+      }
 
       // Phase 5: enforce maximum reply nesting depth with "continue in
       // current thread" fallback. When depth is at or above the limit, the
@@ -178,6 +194,19 @@ public final class ActionsImpl implements Actions {
   @Override
   public void addContinuation(ThreadView threadUi) {
     ConversationThread thread = views.getThread(threadUi);
+
+    // Check if continuations are blocked by wave lock.
+    if (thread != null) {
+      ConversationBlip firstBlip = thread.getFirstBlip();
+      if (firstBlip != null) {
+        WaveLockState lockState = firstBlip.getConversation().getLockState();
+        if (lockState == WaveLockState.ALL_LOCKED) {
+          ToastNotification.showWarning(messages.waveIsLockedNoReply());
+          return;
+        }
+      }
+    }
+
     ConversationBlip continuation = thread.appendBlip();
     blipQueue.flush();
     focusAndEdit(views.getBlipView(continuation));
@@ -224,6 +253,28 @@ public final class ActionsImpl implements Actions {
   @Override
   public void delete(ThreadView threadUi) {
     views.getThread(threadUi).delete();
+  }
+
+  /**
+   * Checks whether a blip is locked for editing based on the wave lock state.
+   * Shows a toast notification and returns true if editing should be blocked.
+   */
+  private boolean isBlipLockedForEditing(ConversationBlip blip) {
+    Conversation conv = blip.getConversation();
+    WaveLockState lockState = conv.getLockState();
+    switch (lockState) {
+      case ALL_LOCKED:
+        ToastNotification.showWarning(messages.waveIsLocked());
+        return true;
+      case ROOT_LOCKED:
+        if (blip.isRoot()) {
+          ToastNotification.showWarning(messages.rootBlipIsLocked());
+          return true;
+        }
+        return false;
+      default:
+        return false;
+    }
   }
 
   /**

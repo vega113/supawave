@@ -19,6 +19,7 @@
 
 package org.waveprotocol.box.webclient.client;
 
+import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.InputElement;
 import com.google.gwt.dom.client.Style;
@@ -53,6 +54,9 @@ public final class VersionScrubber extends Composite {
 
     /** Called when the user clicks "Restore". */
     void onRestoreClicked();
+
+    /** Called when the "Show changes" toggle is changed. */
+    void onShowChangesToggled(boolean enabled);
   }
 
   private final FlowPanel container;
@@ -60,6 +64,8 @@ public final class VersionScrubber extends Composite {
   private final HTML infoLabel;
   private final HTML exitButton;
   private final HTML restoreButton;
+  private final Element showChangesCheckbox;
+  private final Element showChangesLabel;
 
   private List<HistoryApiClient.DeltaGroup> groups;
   private Listener listener;
@@ -91,6 +97,18 @@ public final class VersionScrubber extends Composite {
     infoLabel = new HTML("");
     infoLabel.setStyleName("history-scrubber-label");
     container.add(infoLabel);
+
+    // "Show changes" toggle
+    showChangesLabel = DOM.createLabel();
+    showChangesLabel.setClassName("history-scrubber-toggle");
+    showChangesCheckbox = DOM.createInputCheck();
+    showChangesCheckbox.setAttribute("type", "checkbox");
+    showChangesLabel.appendChild(showChangesCheckbox);
+    showChangesLabel.appendChild(
+        Document.get().createTextNode("Show changes"));
+    SimplePanel toggleWrapper = new SimplePanel();
+    toggleWrapper.getElement().appendChild(showChangesLabel);
+    container.add(toggleWrapper);
 
     // Restore button (initially hidden)
     restoreButton = new HTML(RESTORE_ICON_SVG + " Restore");
@@ -158,6 +176,19 @@ public final class VersionScrubber extends Composite {
       public void onClick(ClickEvent event) {
         if (listener != null) {
           listener.onRestoreClicked();
+        }
+      }
+    });
+
+    // Show changes checkbox
+    DOM.sinkEvents(showChangesCheckbox, Event.ONCHANGE);
+    DOM.setEventListener(showChangesCheckbox, new EventListener() {
+      public void onBrowserEvent(Event event) {
+        if (DOM.eventGetType(event) == Event.ONCHANGE) {
+          boolean checked = InputElement.as(showChangesCheckbox).isChecked();
+          if (listener != null) {
+            listener.onShowChangesToggled(checked);
+          }
         }
       }
     });
@@ -240,10 +271,12 @@ public final class VersionScrubber extends Composite {
     getElement().getStyle().setDisplay(Style.Display.BLOCK);
   }
 
-  /** Hides the scrubber bar. */
+  /** Hides the scrubber bar and resets the toggle state. */
   public void hide() {
     container.setVisible(false);
     getElement().getStyle().setDisplay(Style.Display.NONE);
+    // Reset the show-changes checkbox
+    InputElement.as(showChangesCheckbox).setChecked(false);
   }
 
   /** Formats a Unix timestamp (ms) into a readable date string. */

@@ -329,6 +329,11 @@ public class StagesProvider extends Stages {
       public void onRestoreClicked() {
         historyController.restoreCurrentVersion();
       }
+
+      @Override
+      public void onShowChangesToggled(boolean enabled) {
+        historyController.setShowDiff(enabled);
+      }
     });
 
     // Attach the scrubber widget to the GWT widget tree so events fire.

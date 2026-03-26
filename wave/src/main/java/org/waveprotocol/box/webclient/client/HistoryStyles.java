@@ -230,7 +230,58 @@ public final class HistoryStyles {
       // -- Wave panel adjustments when in history mode --
       + ".history-mode {"
       + "  position: relative;"
-      + "  padding: 16px 24px 80px 24px;"
+      + "  padding: 0;"
       + "  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;"
+      + "  overflow: hidden;"
+      + "  height: 100%;"
+      + "}"
+
+      // -- Scrollable container for snapshot content --
+      + ".history-scroll-container {"
+      + "  overflow-y: auto;"
+      + "  height: 100%;"
+      + "  padding: 16px 24px 80px 24px;"
+      + "  box-sizing: border-box;"
+      + "}"
+
+      // -- Diff highlighting: additions (green background) --
+      + ".history-diff-added {"
+      + "  background-color: #d4edda;"
+      + "  color: #155724;"
+      + "  padding: 1px 3px;"
+      + "  border-radius: 2px;"
+      + "}"
+
+      // -- Diff highlighting: removals (red strikethrough) --
+      + ".history-diff-removed {"
+      + "  background-color: #f8d7da;"
+      + "  color: #721c24;"
+      + "  text-decoration: line-through;"
+      + "  padding: 1px 3px;"
+      + "  border-radius: 2px;"
+      + "}"
+
+      // -- Blip card that was entirely removed --
+      + ".history-blip-removed {"
+      + "  opacity: 0.7;"
+      + "  border-color: #f5c6cb;"
+      + "  background: #fff5f5;"
+      + "}"
+
+      // -- Show-changes toggle in scrubber --
+      + ".history-scrubber-toggle {"
+      + "  display: flex;"
+      + "  align-items: center;"
+      + "  gap: 5px;"
+      + "  cursor: pointer;"
+      + "  white-space: nowrap;"
+      + "  font-size: 12px;"
+      + "  flex-shrink: 0;"
+      + "  user-select: none;"
+      + "  -webkit-user-select: none;"
+      + "}"
+      + ".history-scrubber-toggle input[type='checkbox'] {"
+      + "  cursor: pointer;"
+      + "  margin: 0;"
       + "}";
 }

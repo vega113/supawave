@@ -26,17 +26,21 @@ import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.http.client.URL;
-import com.google.gwt.user.client.Window;
+
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 /**
- * Simple controller for inline version history browsing. The user clicks
- * "History", a scrubber slider appears at the bottom, and moving the slider
- * replaces the wave panel content with a rendered snapshot of the wave at
- * that version. No diff highlighting -- just shows the wave as it was.
+ * Controller for inline version history browsing. The user clicks "History",
+ * a scrubber slider appears at the bottom, and moving the slider replaces
+ * the wave panel content with a rendered snapshot of the wave at that version.
+ *
+ * <p>When "Show changes" is enabled, word-level diff highlighting is shown
+ * between the previous and current version (green for additions, red
+ * strikethrough for removals).
  *
  * <p>States:
  * <ul>
@@ -87,6 +91,12 @@ public final class HistoryModeController {
 
   /** Whether history mode is active. */
   private boolean historyModeActive = false;
+
+  /** Whether diff highlighting is enabled. */
+  private boolean showDiff = false;
+
+  /** Cached snapshot for the previous version (used for diff). */
+  private HistoryApiClient.SnapshotData previousSnapshot;
 
   /** Registered listeners. */
   private final List<Listener> listeners = new ArrayList<Listener>();
@@ -210,6 +220,8 @@ public final class HistoryModeController {
     historyModeActive = false;
     currentGroupIndex = -1;
     groups = new ArrayList<HistoryApiClient.DeltaGroup>();
+    previousSnapshot = null;
+    showDiff = false;
 
     scrubber.hide();
 
@@ -236,9 +248,30 @@ public final class HistoryModeController {
     }
   }
 
+  /** Sets whether diff highlighting is enabled. Re-renders the current view. */
+  public void setShowDiff(boolean enabled) {
+    if (showDiff == enabled) {
+      return;
+    }
+    showDiff = enabled;
+    // Force a re-render at the current position
+    if (state == State.BROWSING && currentGroupIndex >= 0) {
+      int saved = currentGroupIndex;
+      currentGroupIndex = -1; // reset so onScrubberMove does not short-circuit
+      onScrubberMove(saved);
+    }
+  }
+
+  /** Returns whether diff highlighting is currently enabled. */
+  public boolean isShowDiff() {
+    return showDiff;
+  }
+
   /**
    * Called when the scrubber position changes. Fetches the snapshot at the
    * selected version and replaces the wave panel content with rendered HTML.
+   * When diff mode is enabled, also fetches the previous version's snapshot
+   * and renders word-level diff highlighting.
    */
   public void onScrubberMove(final int groupIndex) {
     if (state != State.BROWSING || groupIndex < 0 || groupIndex >= groups.size()) {
@@ -266,7 +299,13 @@ public final class HistoryModeController {
             if (currentGroupIndex != groupIndex) {
               return; // user has moved on
             }
-            renderSnapshot(snapshot, group);
+            if (showDiff && groupIndex > 0) {
+              // Need the previous version for diff
+              fetchPreviousAndRenderDiff(groupIndex, group, snapshot);
+            } else {
+              previousSnapshot = null;
+              renderSnapshot(snapshot, group, null);
+            }
           }
 
           public void onFailure(String error) {
@@ -275,16 +314,46 @@ public final class HistoryModeController {
             }
             if (wavePanelElement != null) {
               wavePanelElement.setInnerHTML(
-                  "<div class='history-error'>Failed to load version: "
-                  + escapeHtml(error) + "</div>");
+                  "<div class='history-scroll-container'>"
+                  + "<div class='history-error'>Failed to load version: "
+                  + escapeHtml(error) + "</div></div>");
             }
           }
         });
   }
 
   /**
-   * Restores the wave to the currently viewed historical version by sending
-   * a POST to the server.
+   * Fetches the previous version's snapshot and renders with diff highlighting.
+   */
+  private void fetchPreviousAndRenderDiff(final int groupIndex,
+      final HistoryApiClient.DeltaGroup group,
+      final HistoryApiClient.SnapshotData currentSnapshot) {
+    final HistoryApiClient.DeltaGroup prevGroup = groups.get(groupIndex - 1);
+    apiClient.fetchSnapshot(waveDomain, waveId, waveletDomain, waveletId,
+        prevGroup.getEndVersion(),
+        new HistoryApiClient.Callback<HistoryApiClient.SnapshotData>() {
+          public void onSuccess(HistoryApiClient.SnapshotData prevSnap) {
+            if (currentGroupIndex != groupIndex) {
+              return;
+            }
+            previousSnapshot = prevSnap;
+            renderSnapshot(currentSnapshot, group, prevSnap);
+          }
+
+          public void onFailure(String error) {
+            if (currentGroupIndex != groupIndex) {
+              return;
+            }
+            // Fall back to plain rendering
+            previousSnapshot = null;
+            renderSnapshot(currentSnapshot, group, null);
+          }
+        });
+  }
+
+  /**
+   * Initiates restoration. Called by VersionScrubber's confirm-restore flow.
+   * The caller is responsible for confirming with the user first.
    */
   public void restoreCurrentVersion() {
     if (state != State.BROWSING || currentGroupIndex < 0
@@ -297,15 +366,13 @@ public final class HistoryModeController {
       return;
     }
 
-    final long targetVersion = groups.get(currentGroupIndex).getEndVersion();
+    doRestore(groups.get(currentGroupIndex).getEndVersion());
+  }
 
-    boolean confirmed = Window.confirm(
-        "Restore wave to version " + targetVersion + "?\n\n"
-        + "This will revert all changes made after this version.");
-    if (!confirmed) {
-      return;
-    }
-
+  /**
+   * Sends the restore POST for the given version.
+   */
+  private void doRestore(final long targetVersion) {
     String url = "/history/" + enc(waveDomain) + "/" + enc(waveId) + "/"
         + enc(waveletDomain) + "/" + enc(waveletId)
         + "/api/restore?version=" + targetVersion;
@@ -314,39 +381,45 @@ public final class HistoryModeController {
     rb.setCallback(new RequestCallback() {
       public void onResponseReceived(Request request, Response response) {
         if (response.getStatusCode() == Response.SC_OK) {
-          // Exit history mode -- the wave will reload with the restored content
           exitHistoryMode();
-          // Force a page reload to pick up the new wave state
-          Window.Location.reload();
+          com.google.gwt.user.client.Window.Location.reload();
         } else {
-          Window.alert("Failed to restore version: HTTP "
+          ToastNotification.showWarning(
+              "Failed to restore version: HTTP "
               + response.getStatusCode() + " " + response.getStatusText());
         }
       }
 
       public void onError(Request request, Throwable exception) {
-        Window.alert("Failed to restore version: " + exception.getMessage());
+        ToastNotification.showWarning(
+            "Failed to restore version: " + exception.getMessage());
       }
     });
 
     try {
       rb.send();
     } catch (RequestException e) {
-      Window.alert("Failed to send restore request: " + e.getMessage());
+      ToastNotification.showWarning(
+          "Failed to send restore request: " + e.getMessage());
     }
   }
 
   /**
-   * Renders a snapshot as simple HTML blip cards and replaces the wave panel
-   * content with it. No diffs, no OT -- just the wave content as it was.
+   * Renders a snapshot as simple HTML blip cards inside a scrollable container
+   * and replaces the wave panel content with it. When {@code prevSnapshot} is
+   * non-null, word-level diff highlighting is applied to each blip.
    */
   private void renderSnapshot(HistoryApiClient.SnapshotData snapshot,
-      HistoryApiClient.DeltaGroup group) {
+      HistoryApiClient.DeltaGroup group,
+      HistoryApiClient.SnapshotData prevSnapshot) {
     if (wavePanelElement == null) {
       return;
     }
 
     StringBuilder html = new StringBuilder();
+
+    // Scrollable container wrapping all snapshot content
+    html.append("<div class='history-scroll-container'>");
 
     // Version info header
     String author = group.getAuthor();
@@ -368,13 +441,28 @@ public final class HistoryModeController {
     html.append("</span>");
     html.append("</div>");
 
+    // Build a map of blip-id -> content from the previous snapshot for diffing
+    java.util.HashMap<String, String> prevBlipContent =
+        new java.util.HashMap<String, String>();
+    if (prevSnapshot != null) {
+      List<HistoryApiClient.BlipData> prevDocs = prevSnapshot.getDocuments();
+      for (int i = 0; i < prevDocs.size(); i++) {
+        HistoryApiClient.BlipData pb = prevDocs.get(i);
+        if (pb.getId().startsWith("b+") && pb.getContent() != null) {
+          prevBlipContent.put(pb.getId(), pb.getContent());
+        }
+      }
+    }
+
     // Render each blip document as a simple card
     List<HistoryApiClient.BlipData> docs = snapshot.getDocuments();
     boolean hasBlips = false;
 
+    // Track which prev blip IDs were consumed (for detecting removals)
+    java.util.HashSet<String> renderedPrevIds = new java.util.HashSet<String>();
+
     for (int i = 0; i < docs.size(); i++) {
       HistoryApiClient.BlipData blip = docs.get(i);
-      // Only render actual blips (b+ prefix), skip metadata documents
       if (!blip.getId().startsWith("b+")) {
         continue;
       }
@@ -385,14 +473,17 @@ public final class HistoryModeController {
       }
 
       hasBlips = true;
+      renderedPrevIds.add(blip.getId());
 
       String blipAuthor = blip.getAuthor();
       int bAtIdx = blipAuthor.indexOf('@');
-      String blipDisplayName = (bAtIdx > 0) ? blipAuthor.substring(0, bAtIdx) : blipAuthor;
+      String blipDisplayName = (bAtIdx > 0)
+          ? blipAuthor.substring(0, bAtIdx) : blipAuthor;
 
       html.append("<div class='history-blip'>");
       html.append("<div class='history-blip-header'>");
-      html.append("<strong>").append(escapeHtml(blipDisplayName)).append("</strong>");
+      html.append("<strong>").append(escapeHtml(blipDisplayName))
+          .append("</strong>");
       if (blip.getLastModified() > 0) {
         html.append(" <span class='history-blip-time'>");
         html.append(formatTimestamp(blip.getLastModified()));
@@ -400,16 +491,183 @@ public final class HistoryModeController {
       }
       html.append("</div>");
       html.append("<div class='history-blip-content'>");
-      html.append(escapeHtml(content));
+
+      String prevContent = prevBlipContent.get(blip.getId());
+      if (prevSnapshot != null && prevContent != null) {
+        // Diff this blip against the previous version
+        html.append(computeWordDiffHtml(prevContent, content));
+      } else if (prevSnapshot != null && prevContent == null) {
+        // Entire blip is new
+        html.append("<span class='history-diff-added'>");
+        html.append(escapeHtml(content));
+        html.append("</span>");
+      } else {
+        html.append(escapeHtml(content));
+      }
+
       html.append("</div>");
       html.append("</div>");
+    }
+
+    // Show blips that existed in prevSnapshot but were removed
+    if (prevSnapshot != null) {
+      List<HistoryApiClient.BlipData> prevDocs = prevSnapshot.getDocuments();
+      for (int i = 0; i < prevDocs.size(); i++) {
+        HistoryApiClient.BlipData pb = prevDocs.get(i);
+        if (!pb.getId().startsWith("b+")) {
+          continue;
+        }
+        if (renderedPrevIds.contains(pb.getId())) {
+          continue;
+        }
+        String pc = pb.getContent();
+        if (pc == null || pc.trim().isEmpty()) {
+          continue;
+        }
+        hasBlips = true;
+
+        String blipAuthor = pb.getAuthor();
+        int bAtIdx = blipAuthor.indexOf('@');
+        String blipDisplayName = (bAtIdx > 0)
+            ? blipAuthor.substring(0, bAtIdx) : blipAuthor;
+
+        html.append("<div class='history-blip history-blip-removed'>");
+        html.append("<div class='history-blip-header'>");
+        html.append("<strong>").append(escapeHtml(blipDisplayName))
+            .append("</strong>");
+        html.append(" <span class='history-blip-time'>(removed)</span>");
+        html.append("</div>");
+        html.append("<div class='history-blip-content'>");
+        html.append("<span class='history-diff-removed'>");
+        html.append(escapeHtml(pc));
+        html.append("</span>");
+        html.append("</div>");
+        html.append("</div>");
+      }
     }
 
     if (!hasBlips) {
       html.append("<div class='history-empty'>No content at this version.</div>");
     }
 
+    // Close the scroll container
+    html.append("</div>");
+
     wavePanelElement.setInnerHTML(html.toString());
+  }
+
+  // =========================================================================
+  // Word-level diff engine
+  // =========================================================================
+
+  /**
+   * Computes a word-level diff between {@code oldText} and {@code newText}
+   * and returns HTML with additions highlighted green and removals shown in
+   * red strikethrough. Uses a simple LCS (longest common subsequence)
+   * algorithm on word tokens.
+   */
+  static String computeWordDiffHtml(String oldText, String newText) {
+    if (oldText == null) oldText = "";
+    if (newText == null) newText = "";
+
+    // Quick shortcut -- identical content
+    if (oldText.equals(newText)) {
+      return escapeHtml(newText);
+    }
+
+    String[] oldWords = splitWords(oldText);
+    String[] newWords = splitWords(newText);
+
+    // Build LCS table
+    int m = oldWords.length;
+    int n = newWords.length;
+
+    // To keep memory bounded for very large texts, fall back to a simple
+    // "all removed / all added" rendering when word count exceeds a threshold.
+    if ((long) m * n > 500000L) {
+      StringBuilder sb = new StringBuilder();
+      if (oldText.length() > 0) {
+        sb.append("<span class='history-diff-removed'>");
+        sb.append(escapeHtml(oldText));
+        sb.append("</span>");
+      }
+      if (newText.length() > 0) {
+        sb.append("<span class='history-diff-added'>");
+        sb.append(escapeHtml(newText));
+        sb.append("</span>");
+      }
+      return sb.toString();
+    }
+
+    int[][] dp = new int[m + 1][n + 1];
+    for (int i = m - 1; i >= 0; i--) {
+      for (int j = n - 1; j >= 0; j--) {
+        if (oldWords[i].equals(newWords[j])) {
+          dp[i][j] = dp[i + 1][j + 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+        }
+      }
+    }
+
+    // Walk the table to build diff
+    StringBuilder result = new StringBuilder();
+    int i = 0;
+    int j = 0;
+    while (i < m || j < n) {
+      if (i < m && j < n && oldWords[i].equals(newWords[j])) {
+        // Common word
+        if (result.length() > 0) result.append(" ");
+        result.append(escapeHtml(newWords[j]));
+        i++;
+        j++;
+      } else if (j < n && (i >= m || dp[i][j + 1] >= dp[i + 1][j])) {
+        // Added word
+        if (result.length() > 0) result.append(" ");
+        result.append("<span class='history-diff-added'>");
+        result.append(escapeHtml(newWords[j]));
+        result.append("</span>");
+        j++;
+      } else if (i < m) {
+        // Removed word
+        if (result.length() > 0) result.append(" ");
+        result.append("<span class='history-diff-removed'>");
+        result.append(escapeHtml(oldWords[i]));
+        result.append("</span>");
+        i++;
+      }
+    }
+    return result.toString();
+  }
+
+  /**
+   * Splits text into word tokens, preserving whitespace as separate tokens
+   * for more accurate reconstruction.
+   */
+  private static String[] splitWords(String text) {
+    if (text == null || text.isEmpty()) {
+      return new String[0];
+    }
+    // Split on word boundaries but keep whitespace runs as tokens.
+    // This uses a simple approach: split on spaces, filter empties.
+    List<String> words = new ArrayList<String>();
+    int len = text.length();
+    int start = 0;
+    while (start < len) {
+      if (text.charAt(start) == ' ' || text.charAt(start) == '\n'
+          || text.charAt(start) == '\t') {
+        start++;
+        continue;
+      }
+      int end = start + 1;
+      while (end < len && text.charAt(end) != ' ' && text.charAt(end) != '\n'
+          && text.charAt(end) != '\t') {
+        end++;
+      }
+      words.add(text.substring(start, end));
+      start = end;
+    }
+    return words.toArray(new String[0]);
   }
 
   /** Navigates to the previous group (left arrow). */

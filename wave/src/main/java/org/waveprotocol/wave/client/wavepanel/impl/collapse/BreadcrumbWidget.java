@@ -39,7 +39,8 @@ import java.util.List;
  * ancestor level in the thread hierarchy.
  *
  * <p>Styling: ocean blue background (#0077b6), white text, compact height
- * (28px), fixed at top of the wave content area.
+ * (28px on desktop, 44px on mobile for touch-friendly tap targets), fixed
+ * at the top of the wave content area.
  */
 public final class BreadcrumbWidget extends FlowPanel {
 
@@ -71,15 +72,23 @@ public final class BreadcrumbWidget extends FlowPanel {
    * Applies the core inline styles for the breadcrumb bar. This ensures
    * the styling works even before external CSS is loaded. Additional
    * styling is provided via the ThreadNavigation.css stylesheet.
+   *
+   * <p>On mobile ({@code <= 768px}), the bar height is increased to 44px
+   * to meet WCAG 2.5.5 touch-target guidance. The font size is also
+   * bumped to 15px for readability on small screens.
    */
   private void applyInlineStyles() {
+    boolean mobile = MobileDetector.isMobile();
+    int barHeight = mobile ? 44 : 28;
+    int fontSize = mobile ? 15 : 13;
+
     Style style = getElement().getStyle();
     style.setBackgroundColor("#0077b6");
     style.setColor("white");
-    style.setProperty("height", "28px");
-    style.setProperty("lineHeight", "28px");
-    style.setProperty("padding", "0 12px");
-    style.setFontSize(13, Style.Unit.PX);
+    style.setProperty("height", barHeight + "px");
+    style.setProperty("lineHeight", barHeight + "px");
+    style.setProperty("padding", mobile ? "0 16px" : "0 12px");
+    style.setFontSize(fontSize, Style.Unit.PX);
     style.setProperty("fontFamily", "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif");
     style.setOverflow(Style.Overflow.HIDDEN);
     style.setProperty("whiteSpace", "nowrap");
@@ -91,6 +100,9 @@ public final class BreadcrumbWidget extends FlowPanel {
     style.setZIndex(1000);
     style.setProperty("boxShadow", "0 1px 3px rgba(0,0,0,0.12)");
     style.setCursor(Style.Cursor.DEFAULT);
+    // Ensure touch-friendly tap area: min-height 44px (via CSS class;
+    // inline min-height as a fallback for pre-CSS rendering)
+    style.setProperty("minHeight", "44px");
   }
 
   /**
@@ -170,16 +182,30 @@ public final class BreadcrumbWidget extends FlowPanel {
   // -----------------------------------------------------------------------
 
   private void applySegmentStyle(Element el) {
+    boolean mobile = MobileDetector.isMobile();
     Style style = el.getStyle();
     style.setCursor(Style.Cursor.POINTER);
     style.setProperty("textDecoration", "none");
     style.setColor("rgba(255,255,255,0.85)");
+    // Touch-friendly: ensure minimum 44px tap target on mobile
+    if (mobile) {
+      style.setProperty("minHeight", "44px");
+      style.setProperty("lineHeight", "44px");
+      style.setProperty("display", "inline-block");
+      style.setProperty("padding", "0 6px");
+    }
   }
 
   private void applyCurrentSegmentStyle(Element el) {
+    boolean mobile = MobileDetector.isMobile();
     Style style = el.getStyle();
     style.setColor("white");
     style.setFontWeight(Style.FontWeight.BOLD);
+    if (mobile) {
+      style.setProperty("minHeight", "44px");
+      style.setProperty("lineHeight", "44px");
+      style.setProperty("display", "inline-block");
+    }
   }
 
   private void applySeparatorStyle(Element el) {

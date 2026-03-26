@@ -230,10 +230,13 @@ public class StagesProvider extends Stages {
   private void wireToolbarButtons(StageThree three) {
     ViewToolbar viewToolbar = three.getViewToolbar();
 
-    // --- Archive / Inbox buttons: navigate back to wave list on success ---
+    // --- Archive / Inbox buttons: refresh search and navigate back on success ---
     viewToolbar.setFolderActionListener(new ViewToolbar.FolderActionListener() {
       @Override
       public void onFolderActionCompleted(String folder) {
+        // Notify the wave store so listeners (SearchPresenter) can
+        // force-refresh the search results immediately.
+        waveStore.notifyFolderAction(folder);
         History.newItem("", true);
       }
     });

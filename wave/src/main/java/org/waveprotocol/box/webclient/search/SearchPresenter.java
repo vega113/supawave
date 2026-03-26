@@ -861,4 +861,15 @@ public final class SearchPresenter
     // after a short delay to allow the server to process the outstanding delta.
     scheduler.scheduleDelayed(waveClosedRefreshTask, WAVE_CLOSED_REFRESH_DELAY_MS);
   }
+
+  //
+  // WaveStore.Listener folder-action event. Fires when archive/inbox
+  // completes so the search panel refreshes immediately instead of
+  // waiting for the next 15-second polling cycle.
+  //
+
+  @Override
+  public void onFolderActionCompleted(String folder) {
+    forceRefresh();
+  }
 }

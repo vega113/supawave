@@ -61,8 +61,7 @@ public final class FocusFrameController implements WaveMouseDownHandler, KeySign
   private void install(EventHandlerRegistry handlers, KeySignalRouter keys) {
     handlers.registerMouseDownHandler(TypeCodes.kind(Type.BLIP), this);
     keys.register(
-        EnumSet.of(KeyCombo.UP, KeyCombo.DOWN, KeyCombo.SPACE, KeyCombo.SHIFT_SPACE,
-            KeyCombo.END), this);
+        EnumSet.of(KeyCombo.UP, KeyCombo.DOWN, KeyCombo.SPACE, KeyCombo.SHIFT_SPACE), this);
   }
 
   @Override
@@ -89,9 +88,6 @@ public final class FocusFrameController implements WaveMouseDownHandler, KeySign
         return true;
       case SHIFT_SPACE:
         focus.focusPrevious();
-        return true;
-      case END:
-        focus.moveLast();
         return true;
       default:
         return false;

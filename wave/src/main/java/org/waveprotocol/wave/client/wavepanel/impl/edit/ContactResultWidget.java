@@ -48,9 +48,9 @@ public class ContactResultWidget extends Composite {
     void onSelect(String address);
   }
 
-  private static final String BG_DEFAULT = "white";
-  private static final String BG_HOVER = "#f1f3f4";
-  private static final String BG_SELECTED = "#e8f0fe";
+  private static final String BG_DEFAULT = "#ffffff";
+  private static final String BG_HOVER = "#e0f2f1";
+  private static final String BG_SELECTED = "#b2dfdb";
 
   private final FlowPanel row;
   private final String address;
@@ -75,25 +75,27 @@ public class ContactResultWidget extends Composite {
     Style rowStyle = row.getElement().getStyle();
     rowStyle.setProperty("display", "flex");
     rowStyle.setProperty("alignItems", "center");
-    rowStyle.setProperty("padding", "6px 10px");
+    rowStyle.setProperty("padding", "10px 12px");
     rowStyle.setCursor(Style.Cursor.POINTER);
-    rowStyle.setProperty("borderBottom", "1px solid #eee");
+    rowStyle.setProperty("borderBottom", "1px solid #e0e0e0");
     rowStyle.setProperty("background", BG_DEFAULT);
+    rowStyle.setProperty("transition", "background 150ms ease");
 
     // Avatar (Gravatar identicon fallback -- use MD5 of email for identicons).
     String gravatarUrl = "https://www.gravatar.com/avatar/"
-        + "?d=identicon&s=32&default=identicon";
+        + "?d=identicon&s=40&default=identicon";
     String emailHash = md5Hex(address.trim().toLowerCase());
     if (emailHash != null && !emailHash.isEmpty()) {
       gravatarUrl = "https://www.gravatar.com/avatar/"
-          + emailHash + "?d=identicon&s=32";
+          + emailHash + "?d=identicon&s=40";
     }
     Image avatar = new Image(gravatarUrl);
-    avatar.setPixelSize(32, 32);
+    avatar.setPixelSize(40, 40);
     Style avatarStyle = avatar.getElement().getStyle();
     avatarStyle.setProperty("borderRadius", "50%");
-    avatarStyle.setProperty("marginRight", "10px");
+    avatarStyle.setProperty("marginRight", "12px");
     avatarStyle.setProperty("flexShrink", "0");
+    avatarStyle.setProperty("border", "2px solid #b2dfdb");
     avatar.getElement().setAttribute("loading", "lazy");
     row.add(avatar);
 
@@ -110,32 +112,36 @@ public class ContactResultWidget extends Composite {
       // Display name as primary line with bold prefix match
       HTML nameHtml = new HTML(formatText(displayName, prefix));
       Style nameStyle = nameHtml.getElement().getStyle();
-      nameStyle.setFontSize(13, Style.Unit.PX);
-      nameStyle.setColor("#202124");
+      nameStyle.setFontSize(14, Style.Unit.PX);
+      nameStyle.setColor("#263238");
       nameStyle.setProperty("whiteSpace", "nowrap");
       nameStyle.setProperty("overflow", "hidden");
       nameStyle.setProperty("textOverflow", "ellipsis");
-      nameStyle.setProperty("fontWeight", "500");
+      nameStyle.setProperty("fontWeight", "600");
+      nameStyle.setProperty("lineHeight", "1.4");
       centerCol.add(nameHtml);
 
       // Email as secondary line
       HTML emailHtml = new HTML(formatText(address, prefix));
       Style emailStyle = emailHtml.getElement().getStyle();
-      emailStyle.setFontSize(11, Style.Unit.PX);
-      emailStyle.setColor("#5f6368");
+      emailStyle.setFontSize(12, Style.Unit.PX);
+      emailStyle.setColor("#78909c");
       emailStyle.setProperty("whiteSpace", "nowrap");
       emailStyle.setProperty("overflow", "hidden");
       emailStyle.setProperty("textOverflow", "ellipsis");
+      emailStyle.setProperty("lineHeight", "1.3");
+      emailStyle.setProperty("marginTop", "1px");
       centerCol.add(emailHtml);
     } else {
       // No display name: email is the primary line
       HTML emailHtml = new HTML(formatText(address, prefix));
       Style emailStyle = emailHtml.getElement().getStyle();
-      emailStyle.setFontSize(13, Style.Unit.PX);
-      emailStyle.setColor("#202124");
+      emailStyle.setFontSize(14, Style.Unit.PX);
+      emailStyle.setColor("#263238");
       emailStyle.setProperty("whiteSpace", "nowrap");
       emailStyle.setProperty("overflow", "hidden");
       emailStyle.setProperty("textOverflow", "ellipsis");
+      emailStyle.setProperty("fontWeight", "500");
       centerCol.add(emailHtml);
     }
 
@@ -145,7 +151,9 @@ public class ContactResultWidget extends Composite {
       InlineLabel timeLabel = new InlineLabel(messages.lastContact(relativeTime));
       Style timeStyle = timeLabel.getElement().getStyle();
       timeStyle.setFontSize(11, Style.Unit.PX);
-      timeStyle.setColor("#5f6368");
+      timeStyle.setColor("#90a4ae");
+      timeStyle.setProperty("marginTop", "2px");
+      timeStyle.setProperty("display", "block");
       centerCol.add(timeLabel);
     }
 

@@ -20,15 +20,22 @@
 package org.waveprotocol.box.webclient.search;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.StyleInjector;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.event.dom.client.DoubleClickEvent;
+import com.google.gwt.event.dom.client.DoubleClickHandler;
+import com.google.gwt.event.dom.client.KeyUpEvent;
+import com.google.gwt.event.dom.client.KeyUpHandler;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.TextBox;
 
 import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.webclient.search.i18n.SearchesEditorMessages;
@@ -39,13 +46,15 @@ import org.waveprotocol.wave.client.widget.popup.PopupEventListener;
 import org.waveprotocol.wave.client.widget.popup.PopupEventSourcer;
 import org.waveprotocol.wave.client.widget.popup.PopupFactory;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Styled searches editor popup. Allows users to add, modify, remove, and
- * reorder saved searches using a modern modal design.
+ * Enhanced saved searches editor popup with search/filter, pin-to-toolbar
+ * toggle, and inline apply action. Users can add, modify, remove, reorder,
+ * pin/unpin, and apply saved searches directly from this modal.
  *
  * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
@@ -55,6 +64,8 @@ public final class SearchesEditorPopup extends Composite {
     void onShow();
     void onHide();
     void onDone(List<SearchesItem> searches);
+    /** Called when the user applies a saved search from the modal. */
+    void onApply(SearchesItem item);
   }
 
   /** Resources used by this widget. */
@@ -67,6 +78,7 @@ public final class SearchesEditorPopup extends Composite {
   interface Style extends CssResource {
     String self();
     String title();
+    String filterInput();
     String searchList();
     String searchRow();
     String searchRowSelected();
@@ -74,6 +86,7 @@ public final class SearchesEditorPopup extends Composite {
     String searchRowQuery();
     String searchRowActions();
     String iconButton();
+    String iconButtonPinned();
     String emptyMessage();
     String toolbar();
     String addButton();
@@ -91,6 +104,7 @@ public final class SearchesEditorPopup extends Composite {
   }
 
   private final FlowPanel mainPanel;
+  private final TextBox filterInput;
   private final FlowPanel searchListPanel;
   private final Label emptyLabel;
   private final Button addButton;
@@ -106,6 +120,8 @@ public final class SearchesEditorPopup extends Composite {
   private SearchesService searchesService = new RemoteSearchesService();
   private boolean modified = false;
   private int selectedIndex = -1;
+  /** Current filter text, lowercased. Empty string means no filter. */
+  private String filterText = "";
 
   public SearchesEditorPopup() {
     mainPanel = new FlowPanel();
@@ -116,13 +132,30 @@ public final class SearchesEditorPopup extends Composite {
     titleLabel.addStyleName(style.title());
     mainPanel.add(titleLabel);
 
+    // Filter input
+    filterInput = new TextBox();
+    filterInput.addStyleName(style.filterInput());
+    filterInput.getElement().setAttribute("placeholder", messages.filterPlaceholder());
+    mainPanel.add(filterInput);
+
+    filterInput.addKeyUpHandler(new KeyUpHandler() {
+      @Override
+      public void onKeyUp(KeyUpEvent event) {
+        String text = filterInput.getText();
+        filterText = (text != null) ? text.toLowerCase() : "";
+        // Reset selection when filter changes to avoid operating on hidden items.
+        selectedIndex = -1;
+        refreshList();
+      }
+    });
+
     // Search list panel (scrollable)
     searchListPanel = new FlowPanel();
     searchListPanel.addStyleName(style.searchList());
     mainPanel.add(searchListPanel);
 
     // Empty message
-    emptyLabel = new Label("No saved searches yet");
+    emptyLabel = new Label(messages.emptyMessage());
     emptyLabel.addStyleName(style.emptyMessage());
 
     // Toolbar
@@ -210,8 +243,9 @@ public final class SearchesEditorPopup extends Composite {
 
             @Override
             public void onDone(SearchesItem searchesItem) {
+              SearchesItem old = searches.get(index);
               searches.set(index, new SearchesItem(
-                  searchesItem.getName(), searchesItem.getQuery()));
+                  searchesItem.getName(), searchesItem.getQuery(), old.isPinned()));
               refreshList();
               modified = true;
             }
@@ -284,7 +318,7 @@ public final class SearchesEditorPopup extends Composite {
         searchesService.storeSearches(searches, new SearchesService.StoreCallback() {
           @Override
           public void onFailure(String message) {
-            // Keep popup open so user can retry or cancel explicitly.
+            ToastNotification.showWarning(messages.saveFailure());
           }
 
           @Override
@@ -302,11 +336,13 @@ public final class SearchesEditorPopup extends Composite {
   public void init(List<SearchesItem> sourceSearches, Listener listener) {
     searches.clear();
     for (SearchesItem search : sourceSearches) {
-      searches.add(new SearchesItem(search.getName(), search.getQuery()));
+      searches.add(new SearchesItem(search.getName(), search.getQuery(), search.isPinned()));
     }
     selectedIndex = -1;
     this.listener = listener;
     modified = false;
+    filterText = "";
+    filterInput.setText("");
     refreshList();
   }
 
@@ -332,6 +368,14 @@ public final class SearchesEditorPopup extends Composite {
     });
 
     popup.show();
+
+    // Focus the filter input after the popup is shown
+    Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+      @Override
+      public void execute() {
+        filterInput.setFocus(true);
+      }
+    });
   }
 
   public void hide() {
@@ -341,7 +385,26 @@ public final class SearchesEditorPopup extends Composite {
   }
 
   /**
-   * Rebuilds the visual list of searches from the data model.
+   * Returns whether a search item matches the current filter text.
+   */
+  private boolean matchesFilter(SearchesItem item) {
+    if (filterText.isEmpty()) {
+      return true;
+    }
+    String name = item.getName();
+    String query = item.getQuery();
+    if (name != null && name.toLowerCase().contains(filterText)) {
+      return true;
+    }
+    if (query != null && query.toLowerCase().contains(filterText)) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Rebuilds the visual list of searches from the data model,
+   * applying the current filter text.
    */
   private void refreshList() {
     searchListPanel.clear();
@@ -351,9 +414,15 @@ public final class SearchesEditorPopup extends Composite {
       return;
     }
 
+    boolean anyVisible = false;
     for (int i = 0; i < searches.size(); i++) {
       final int index = i;
       final SearchesItem item = searches.get(i);
+
+      if (!matchesFilter(item)) {
+        continue;
+      }
+      anyVisible = true;
 
       FlowPanel row = new FlowPanel();
       row.addStyleName(i == selectedIndex ? style.searchRowSelected() : style.searchRow());
@@ -366,6 +435,76 @@ public final class SearchesEditorPopup extends Composite {
       queryLabel.addStyleName(style.searchRowQuery());
       row.add(queryLabel);
 
+      // Action buttons panel
+      FlowPanel actions = new FlowPanel();
+      actions.addStyleName(style.searchRowActions());
+
+      // Pin/unpin toggle button
+      InlineLabel pinBtn = new InlineLabel(item.isPinned() ? "\u25C9" : "\u25CB");
+      pinBtn.addStyleName(item.isPinned() ? style.iconButtonPinned() : style.iconButton());
+      pinBtn.setTitle(item.isPinned() ? messages.unpinFromToolbar() : messages.pinToToolbar());
+      pinBtn.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          event.stopPropagation();
+          item.setPinned(!item.isPinned());
+          modified = true;
+          refreshList();
+        }
+      });
+      actions.add(pinBtn);
+
+      // Apply (play) button
+      InlineLabel applyBtn = new InlineLabel("\u25B6");
+      applyBtn.addStyleName(style.iconButton());
+      applyBtn.setTitle(messages.applySearch());
+      applyBtn.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          event.stopPropagation();
+          applySearch(item);
+        }
+      });
+      actions.add(applyBtn);
+
+      // Edit button
+      InlineLabel editBtn = new InlineLabel("\u270E");
+      editBtn.addStyleName(style.iconButton());
+      editBtn.setTitle(messages.edit());
+      editBtn.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          event.stopPropagation();
+          editSearch(index);
+        }
+      });
+      actions.add(editBtn);
+
+      // Delete button
+      InlineLabel deleteBtn = new InlineLabel("\u2715");
+      deleteBtn.addStyleName(style.iconButton());
+      deleteBtn.setTitle("Delete");
+      deleteBtn.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          event.stopPropagation();
+          searches.remove(index);
+          if (selectedIndex >= searches.size()) {
+            selectedIndex = searches.size() - 1;
+          } else if (selectedIndex == index) {
+            selectedIndex = -1;
+          } else if (selectedIndex > index) {
+            selectedIndex--;
+          }
+          modified = true;
+          refreshList();
+        }
+      });
+      actions.add(deleteBtn);
+
+      row.add(actions);
+
+      // Click to select
       row.addDomHandler(new ClickHandler() {
         @Override
         public void onClick(ClickEvent event) {
@@ -374,11 +513,85 @@ public final class SearchesEditorPopup extends Composite {
         }
       }, ClickEvent.getType());
 
+      // Double-click to apply
+      row.addDomHandler(new DoubleClickHandler() {
+        @Override
+        public void onDoubleClick(DoubleClickEvent event) {
+          applySearch(item);
+        }
+      }, DoubleClickEvent.getType());
+
       searchListPanel.add(row);
+    }
+
+    if (!anyVisible) {
+      Label noResults = new Label(messages.noFilterMatches(filterText));
+      noResults.addStyleName(style.emptyMessage());
+      searchListPanel.add(noResults);
     }
   }
 
+  /**
+   * Opens the item editor for an existing search at the given index.
+   */
+  private void editSearch(final int index) {
+    if (index < 0 || index >= searches.size()) {
+      return;
+    }
+    itemEditorPopup.init(searches.get(index), new SearchesItemEditorPopup.Listener() {
+      @Override
+      public void onHide() {
+      }
+
+      @Override
+      public void onShow() {
+      }
+
+      @Override
+      public void onDone(SearchesItem searchesItem) {
+        SearchesItem old = searches.get(index);
+        searches.set(index, new SearchesItem(
+            searchesItem.getName(), searchesItem.getQuery(), old.isPinned()));
+        refreshList();
+        modified = true;
+      }
+    });
+    itemEditorPopup.show();
+  }
+
+  /**
+   * Applies a saved search: saves any pending changes, closes the modal,
+   * and fires the apply callback.
+   */
+  private void applySearch(final SearchesItem item) {
+    if (!modified) {
+      popup.hide();
+      if (listener != null) {
+        listener.onDone(searches);
+        listener.onApply(item);
+      }
+      return;
+    }
+
+    // Save first, then apply.
+    searchesService.storeSearches(searches, new SearchesService.StoreCallback() {
+      @Override
+      public void onFailure(String message) {
+        ToastNotification.showWarning(messages.saveFailure());
+      }
+
+      @Override
+      public void onSuccess() {
+        popup.hide();
+        if (listener != null) {
+          listener.onDone(searches);
+          listener.onApply(item);
+        }
+      }
+    });
+  }
+
   private void addSearch(SearchesItem search) {
-    searches.add(new SearchesItem(search.getName(), search.getQuery()));
+    searches.add(new SearchesItem(search.getName(), search.getQuery(), search.isPinned()));
   }
 }

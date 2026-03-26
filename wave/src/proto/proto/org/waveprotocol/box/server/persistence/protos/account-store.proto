@@ -60,10 +60,11 @@ message ProtoHumanAccountData {
 	repeated ProtoSearchesItem saved_search = 10;
 }
 
-// A single saved search item (name + query)
+// A single saved search item (name + query + pinned)
 message ProtoSearchesItem {
 	required string name = 1;
 	required string query = 2;
+	optional bool pinned = 3 [default = false];
 }
 
 // The values from a PAsswordDigest instance

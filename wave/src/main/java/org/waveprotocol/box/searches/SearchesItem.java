@@ -25,13 +25,19 @@ public class SearchesItem {
 
   private String name;
   private String query;
+  private boolean pinned;
 
   public SearchesItem() {
   }
 
   public SearchesItem(String name, String query) {
+    this(name, query, false);
+  }
+
+  public SearchesItem(String name, String query, boolean pinned) {
     this.name = name;
     this.query = query;
+    this.pinned = pinned;
   }
 
   public String getName() {
@@ -50,11 +56,20 @@ public class SearchesItem {
     this.query = query;
   }
 
+  public boolean isPinned() {
+    return pinned;
+  }
+
+  public void setPinned(boolean pinned) {
+    this.pinned = pinned;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (!(o instanceof SearchesItem)) return false;
     SearchesItem that = (SearchesItem) o;
+    if (pinned != that.pinned) return false;
     if (name != null ? !name.equals(that.name) : that.name != null) return false;
     return query != null ? query.equals(that.query) : that.query == null;
   }
@@ -63,6 +78,7 @@ public class SearchesItem {
   public int hashCode() {
     int result = name != null ? name.hashCode() : 0;
     result = 31 * result + (query != null ? query.hashCode() : 0);
+    result = 31 * result + (pinned ? 1 : 0);
     return result;
   }
 }

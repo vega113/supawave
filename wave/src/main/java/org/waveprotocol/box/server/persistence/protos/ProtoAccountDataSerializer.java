@@ -104,6 +104,7 @@ public class ProtoAccountDataSerializer {
         builder.addSavedSearch(ProtoSearchesItem.newBuilder()
             .setName(item.getName() != null ? item.getName() : "")
             .setQuery(item.getQuery() != null ? item.getQuery() : "")
+            .setPinned(item.isPinned())
             .build());
       }
     }
@@ -209,7 +210,7 @@ public class ProtoAccountDataSerializer {
     if (data.getSavedSearchCount() > 0) {
       java.util.List<SearchesItem> searches = new java.util.ArrayList<>();
       for (ProtoSearchesItem item : data.getSavedSearchList()) {
-        searches.add(new SearchesItem(item.getName(), item.getQuery()));
+        searches.add(new SearchesItem(item.getName(), item.getQuery(), item.getPinned()));
       }
       account.setSearches(searches);
     }

@@ -52,6 +52,7 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String HUMAN_SEARCHES_FIELD = "searches";
   private static final String SEARCH_NAME_FIELD = "name";
   private static final String SEARCH_QUERY_FIELD = "query";
+  private static final String SEARCH_PINNED_FIELD = "pinned";
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
 
@@ -207,7 +208,8 @@ final class Mongo4AccountStore implements AccountStore {
       for (SearchesItem item : searches) {
         searchDocs.add(new Document()
             .append(SEARCH_NAME_FIELD, item.getName())
-            .append(SEARCH_QUERY_FIELD, item.getQuery()));
+            .append(SEARCH_QUERY_FIELD, item.getQuery())
+            .append(SEARCH_PINNED_FIELD, item.isPinned()));
       }
       doc.append(HUMAN_SEARCHES_FIELD, searchDocs);
     }
@@ -285,7 +287,10 @@ final class Mongo4AccountStore implements AccountStore {
         Document sDoc = (Document) obj;
         String sName = sDoc.getString(SEARCH_NAME_FIELD);
         String sQuery = sDoc.getString(SEARCH_QUERY_FIELD);
-        searches.add(new SearchesItem(sName != null ? sName : "", sQuery != null ? sQuery : ""));
+        Boolean sPinned = sDoc.getBoolean(SEARCH_PINNED_FIELD);
+        searches.add(new SearchesItem(
+            sName != null ? sName : "", sQuery != null ? sQuery : "",
+            sPinned != null && sPinned));
       }
       account.setSearches(searches);
     }

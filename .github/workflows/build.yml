@@ -26,16 +26,49 @@ jobs:
           java-version: '17'
           cache: 'sbt'
 
-      - name: Install sbt
+      - name: Set up sbt
+        id: setup_sbt
+        continue-on-error: true
+        uses: sbt/setup-sbt@v1
+
+      - name: Install sbt (fallback)
+        if: ${{ steps.setup_sbt.outcome != 'success' }}
         run: |
+          set -euo pipefail
+          fingerprint="2EE0EA64E40A89B84B2DF73499E82A75642AC823"
+          keyring="/etc/apt/keyrings/sbt-archive-keyring.gpg"
+          tmp_key="$(mktemp)"
+          trap 'rm -f "$tmp_key"' EXIT
+
           sudo install -d -m 0755 /etc/apt/keyrings
-          curl --fail --show-error --location --retry 5 \
-            "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" \
-            | sudo gpg --dearmor -o /etc/apt/keyrings/sbt-archive-keyring.gpg
-          echo "deb [signed-by=/etc/apt/keyrings/sbt-archive-keyring.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" \
+          for key_url in \
+            "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${fingerprint}" \
+            "https://keys.openpgp.org/vks/v1/by-fingerprint/${fingerprint}"
+          do
+            if curl --fail --show-error --location --retry 5 "$key_url" > "$tmp_key" \
+              && sudo gpg --batch --yes --dearmor -o "$keyring" "$tmp_key"; then
+              key_ready=1
+              break
+            fi
+          done
+
+          if [ "${key_ready:-0}" -ne 1 ]; then
+            echo "Failed to install sbt signing key" >&2
+            exit 1
+          fi
+
+          echo "deb [signed-by=$keyring] https://repo.scala-sbt.org/scalasbt/debian all main" \
             | sudo tee /etc/apt/sources.list.d/sbt.list > /dev/null
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq sbt
+
+          for attempt in 1 2 3; do
+            if sudo apt-get update -qq && sudo apt-get install -y -qq sbt; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+
+          echo "Failed to install sbt from apt fallback" >&2
+          exit 1
 
       - name: Validate canonical deployment assets
         run: |

@@ -103,8 +103,8 @@ public final class SearchPresenter
       + "<path d=\"M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89"
       + "A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z\"></path></svg>";
 
-  /** All/Public: globe icon. */
-  private static final String ICON_ALL = SVG_OPEN
+  /** Public waves: globe icon. */
+  private static final String ICON_PUBLIC = SVG_OPEN
       + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
       + "<line x1=\"2\" y1=\"12\" x2=\"22\" y2=\"12\"></line>"
       + "<path d=\"M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"
@@ -284,7 +284,7 @@ public final class SearchPresenter
           }
         }).setVisualElement(createSvgIcon(ICON_MODIFY));
 
-    // --- Group 3: Filter icons (Inbox, Public/All, Archive) ---
+    // --- Group 3: Filter icons (Inbox, Public, Archive) ---
     ToolbarView filterGroup = toolbarUi.addGroup();
 
     new ToolbarButtonViewBuilder()
@@ -298,14 +298,14 @@ public final class SearchPresenter
         }).setVisualElement(createSvgIcon(ICON_INBOX));
 
     new ToolbarButtonViewBuilder()
-        .setTooltip("All waves")
+        .setTooltip("Public waves")
         .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
-            searchUi.getSearch().setQuery("in:all");
+            searchUi.getSearch().setQuery("with:@");
             onQueryEntered();
           }
-        }).setVisualElement(createSvgIcon(ICON_ALL));
+        }).setVisualElement(createSvgIcon(ICON_PUBLIC));
 
     new ToolbarButtonViewBuilder()
         .setTooltip("Archive")

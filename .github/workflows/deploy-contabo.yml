@@ -62,11 +62,14 @@ jobs:
         if: ${{ steps.setup_sbt.outcome != 'success' }}
         run: |
           set -euo pipefail
-          sudo curl --fail --show-error --location --retry 5 \
-            https://raw.githubusercontent.com/dwijnand/sbt-extras/master/sbt \
-            --output /usr/local/bin/sbt
-          sudo chmod 0755 /usr/local/bin/sbt
-          sbt --script-version
+          sbt_version=1.12.8
+          sbt_archive="$RUNNER_TEMP/sbt-$sbt_version.tgz"
+          curl --fail --show-error --location --retry 5 \
+            "https://github.com/sbt/sbt/releases/download/v$sbt_version/sbt-$sbt_version.tgz" \
+            --output "$sbt_archive"
+          tar -xzf "$sbt_archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/sbt/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/sbt/bin/sbt" --script-version
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0

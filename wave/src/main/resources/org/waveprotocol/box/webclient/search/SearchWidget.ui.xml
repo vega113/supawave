@@ -30,6 +30,59 @@
   <g:HTMLPanel styleName='{css.self}'>
    <div class='{css.search}'>
      <g:TextBox ui:field='query' styleName='{css.query}'/>
+     <div ui:field='helpButton' class='{css.helpButton}' title='Search help'>?</div>
+   </div>
+   <div ui:field='helpPanel' class='{css.helpPanel}' style='display:none'>
+     <div class='{css.helpHeader}'>
+       <span class='{css.helpTitle}'>Search Help</span>
+       <div ui:field='helpCloseButton' class='{css.helpClose}'>Got it</div>
+     </div>
+     <table class='{css.helpTable}'>
+       <tr class='{css.helpTableHeader}'>
+         <th>Query</th><th>Description</th><th>Example</th>
+       </tr>
+       <tr>
+         <td><code>in:inbox</code></td>
+         <td>Waves in your inbox</td>
+         <td><span ui:field='exInbox' class='{css.helpExample}'>in:inbox</span></td>
+       </tr>
+       <tr>
+         <td><code>in:archive</code></td>
+         <td>Archived waves</td>
+         <td><span ui:field='exArchive' class='{css.helpExample}'>in:archive</span></td>
+       </tr>
+       <tr>
+         <td><code>in:all</code></td>
+         <td>All waves (including public)</td>
+         <td><span ui:field='exAll' class='{css.helpExample}'>in:all</span></td>
+       </tr>
+       <tr>
+         <td><code>with:user@domain</code></td>
+         <td>Waves shared with a specific user</td>
+         <td><span ui:field='exWith' class='{css.helpExample}'>with:test@supawave.ai</span></td>
+       </tr>
+       <tr>
+         <td><code>with:@</code></td>
+         <td>Public waves (shared with everyone)</td>
+         <td><span ui:field='exPublic' class='{css.helpExample}'>with:@</span></td>
+       </tr>
+       <tr>
+         <td><code>creator:user@domain</code></td>
+         <td>Waves created by a specific user</td>
+         <td><span ui:field='exCreator' class='{css.helpExample}'>creator:vega@supawave.ai</span></td>
+       </tr>
+       <tr>
+         <td><code>tag:tagname</code></td>
+         <td>Waves with a specific tag</td>
+         <td><span ui:field='exTag' class='{css.helpExample}'>tag:important</span></td>
+       </tr>
+       <tr>
+         <td><em>free text</em></td>
+         <td>Search in wave content</td>
+         <td><span ui:field='exFreeText' class='{css.helpExample}'>meeting notes</span></td>
+       </tr>
+     </table>
+     <div class='{css.helpTip}'>Click any example to fill the search box.</div>
    </div>
   </g:HTMLPanel>
 </ui:UiBinder>

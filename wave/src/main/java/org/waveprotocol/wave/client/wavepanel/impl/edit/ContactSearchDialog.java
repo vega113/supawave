@@ -21,7 +21,10 @@ package org.waveprotocol.wave.client.wavepanel.impl.edit;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Style;
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.dom.client.KeyDownHandler;
@@ -30,17 +33,16 @@ import com.google.gwt.event.dom.client.KeyUpHandler;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.InlineLabel;
+import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
 
 import org.waveprotocol.box.webclient.contact.ContactSearchService;
 import org.waveprotocol.box.webclient.contact.ContactSearchServiceImpl;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.i18n.ContactSearchMessages;
 import org.waveprotocol.wave.client.widget.popup.CenterPopupPositioner;
-import org.waveprotocol.wave.client.widget.popup.PopupChrome;
-import org.waveprotocol.wave.client.widget.popup.PopupChromeFactory;
 import org.waveprotocol.wave.client.widget.popup.PopupFactory;
-import org.waveprotocol.wave.client.widget.popup.TitleBar;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 
 import java.util.ArrayList;
@@ -64,6 +66,13 @@ public class ContactSearchDialog extends Composite {
     /** Called when the user cancels/closes the dialog. */
     void onCancel();
   }
+
+  // --- Ocean / teal theme constants ---
+  private static final String OCEAN_GRADIENT =
+      "linear-gradient(135deg, #00695c 0%, #00897b 40%, #0097a7 100%)";
+  private static final String TEAL_ACCENT = "#00897b";
+  private static final String TEAL_LIGHT = "#e0f2f1";
+  private static final String TEAL_FOCUS_GLOW = "0 0 0 3px rgba(0,137,123,0.18)";
 
   /** Debounce delay in milliseconds before issuing a search. */
   private static final int DEBOUNCE_MS = 250;
@@ -106,48 +115,177 @@ public class ContactSearchDialog extends Composite {
     this.localDomain = localDomain;
     this.messages = GWT.create(ContactSearchMessages.class);
 
+    // --- Outer container ---
     mainPanel = new FlowPanel();
     Style mainStyle = mainPanel.getElement().getStyle();
-    mainStyle.setProperty("minWidth", "400px");
-    mainStyle.setProperty("maxWidth", "500px");
-    mainStyle.setProperty("padding", "12px");
+    mainStyle.setProperty("width", "420px");
     mainStyle.setProperty("fontFamily", "'Google Sans', Roboto, Arial, sans-serif");
+    mainStyle.setProperty("borderRadius", "12px");
+    mainStyle.setProperty("overflow", "hidden");
+    mainStyle.setProperty("background", "#ffffff");
+    mainStyle.setProperty("boxShadow", "0 8px 32px rgba(0,0,0,0.12)");
 
-    // Text input
+    // --- Ocean gradient header ---
+    FlowPanel header = new FlowPanel();
+    Style headerStyle = header.getElement().getStyle();
+    headerStyle.setProperty("background", OCEAN_GRADIENT);
+    headerStyle.setProperty("padding", "16px 20px");
+    headerStyle.setProperty("display", "flex");
+    headerStyle.setProperty("alignItems", "center");
+    headerStyle.setProperty("justifyContent", "space-between");
+    headerStyle.setProperty("position", "relative");
+
+    Label titleLabel = new Label(messages.dialogTitle());
+    Style titleStyle = titleLabel.getElement().getStyle();
+    titleStyle.setColor("white");
+    titleStyle.setFontSize(16, Style.Unit.PX);
+    titleStyle.setProperty("fontWeight", "600");
+    titleStyle.setProperty("letterSpacing", "0.3px");
+    header.add(titleLabel);
+
+    // Close (X) button
+    HTML closeBtn = new HTML("&#10005;");
+    Style closeBtnStyle = closeBtn.getElement().getStyle();
+    closeBtnStyle.setColor("rgba(255,255,255,0.85)");
+    closeBtnStyle.setFontSize(18, Style.Unit.PX);
+    closeBtnStyle.setCursor(Style.Cursor.POINTER);
+    closeBtnStyle.setProperty("lineHeight", "1");
+    closeBtnStyle.setProperty("padding", "4px 6px");
+    closeBtnStyle.setProperty("borderRadius", "4px");
+    closeBtnStyle.setProperty("transition", "background 150ms ease");
+    closeBtn.addDomHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        if (listener != null) {
+          listener.onCancel();
+        }
+        hide();
+      }
+    }, ClickEvent.getType());
+    header.add(closeBtn);
+
+    mainPanel.add(header);
+
+    // --- Search input area ---
+    FlowPanel searchArea = new FlowPanel();
+    Style searchAreaStyle = searchArea.getElement().getStyle();
+    searchAreaStyle.setProperty("padding", "16px 16px 8px 16px");
+
+    FlowPanel inputWrapper = new FlowPanel();
+    Style wrapperStyle = inputWrapper.getElement().getStyle();
+    wrapperStyle.setProperty("position", "relative");
+    wrapperStyle.setProperty("display", "flex");
+    wrapperStyle.setProperty("alignItems", "center");
+
+    // Magnifying glass icon (Unicode)
+    HTML searchIcon = new HTML("&#128269;");
+    Style iconStyle = searchIcon.getElement().getStyle();
+    iconStyle.setProperty("position", "absolute");
+    iconStyle.setProperty("left", "12px");
+    iconStyle.setProperty("top", "50%");
+    iconStyle.setProperty("transform", "translateY(-50%)");
+    iconStyle.setFontSize(14, Style.Unit.PX);
+    iconStyle.setProperty("pointerEvents", "none");
+    iconStyle.setColor("#80cbc4");
+    iconStyle.setProperty("lineHeight", "1");
+    inputWrapper.add(searchIcon);
+
     inputBox = new TextBox();
     inputBox.getElement().setAttribute("placeholder", messages.searchPlaceholder());
     inputBox.setWidth("100%");
     Style inputStyle = inputBox.getElement().getStyle();
     inputStyle.setProperty("boxSizing", "border-box");
-    inputStyle.setProperty("padding", "8px 12px");
+    inputStyle.setProperty("padding", "12px 14px 12px 38px");
     inputStyle.setFontSize(14, Style.Unit.PX);
-    inputStyle.setProperty("border", "1px solid #dadce0");
-    inputStyle.setProperty("borderRadius", "4px");
+    inputStyle.setProperty("border", "1.5px solid #b2dfdb");
+    inputStyle.setProperty("borderRadius", "8px");
     inputStyle.setProperty("outline", "none");
-    mainPanel.add(inputBox);
+    inputStyle.setProperty("width", "100%");
+    inputStyle.setProperty("background", "#f5fffe");
+    inputStyle.setProperty("color", "#263238");
+    inputStyle.setProperty("transition", "border-color 200ms ease, box-shadow 200ms ease");
+    // Inject focus/blur style via onfocus/onblur attributes
+    inputBox.getElement().setAttribute("onfocus",
+        "this.style.borderColor='" + TEAL_ACCENT + "';"
+        + "this.style.boxShadow='" + TEAL_FOCUS_GLOW + "';"
+        + "this.style.background='#ffffff';");
+    inputBox.getElement().setAttribute("onblur",
+        "this.style.borderColor='#b2dfdb';"
+        + "this.style.boxShadow='none';"
+        + "this.style.background='#f5fffe';");
+    inputWrapper.add(inputBox);
 
-    // Status label (contacts load automatically on open)
+    searchArea.add(inputWrapper);
+    mainPanel.add(searchArea);
+
+    // --- Status label (styled as badge) ---
     statusLabel = new InlineLabel(messages.searching());
     Style statusStyle = statusLabel.getElement().getStyle();
-    statusStyle.setProperty("display", "block");
-    statusStyle.setProperty("padding", "8px 4px");
+    statusStyle.setProperty("display", "inline-block");
+    statusStyle.setProperty("margin", "0 16px 8px 16px");
+    statusStyle.setProperty("padding", "3px 10px");
     statusStyle.setFontSize(12, Style.Unit.PX);
-    statusStyle.setColor("#5f6368");
+    statusStyle.setColor(TEAL_ACCENT);
+    statusStyle.setProperty("background", TEAL_LIGHT);
+    statusStyle.setProperty("borderRadius", "12px");
+    statusStyle.setProperty("fontWeight", "500");
     mainPanel.add(statusLabel);
 
-    // Results panel
+    // --- Results panel with internal scrolling ---
     resultsPanel = new FlowPanel();
     Style resultsStyle = resultsPanel.getElement().getStyle();
-    resultsStyle.setProperty("maxHeight", "300px");
+    resultsStyle.setProperty("maxHeight", "360px");
     resultsStyle.setProperty("overflowY", "auto");
-    resultsStyle.setProperty("border", "1px solid #dadce0");
-    resultsStyle.setProperty("borderRadius", "0 0 4px 4px");
-    resultsStyle.setProperty("marginTop", "4px");
+    resultsStyle.setProperty("overflowX", "hidden");
+    resultsStyle.setProperty("margin", "0 8px");
+    resultsStyle.setProperty("borderRadius", "8px");
+    // Custom thin teal scrollbar
+    injectScrollbarStyles();
+    resultsPanel.getElement().addClassName("wave-contact-results");
     resultsPanel.setVisible(false);
     mainPanel.add(resultsPanel);
 
+    // --- Bottom hint area ---
+    FlowPanel bottomArea = new FlowPanel();
+    Style bottomStyle = bottomArea.getElement().getStyle();
+    bottomStyle.setProperty("padding", "10px 16px 14px 16px");
+    bottomStyle.setProperty("textAlign", "center");
+
+    InlineLabel hintLabel = new InlineLabel("Type to search or click to add");
+    Style hintStyle = hintLabel.getElement().getStyle();
+    hintStyle.setFontSize(11, Style.Unit.PX);
+    hintStyle.setColor("#90a4ae");
+    hintStyle.setProperty("fontStyle", "italic");
+    bottomArea.add(hintLabel);
+    mainPanel.add(bottomArea);
+
     setupEventHandlers();
     initWidget(mainPanel);
+  }
+
+  /**
+   * Injects global CSS for custom scrollbar styling on the results panel.
+   * This must be done via a style element since scrollbar pseudo-elements
+   * cannot be set with inline styles.
+   */
+  private static boolean scrollbarStylesInjected = false;
+
+  private static void injectScrollbarStyles() {
+    if (scrollbarStylesInjected) {
+      return;
+    }
+    scrollbarStylesInjected = true;
+    String css =
+        ".wave-contact-results::-webkit-scrollbar { width: 6px; }"
+        + ".wave-contact-results::-webkit-scrollbar-track {"
+        + "  background: #e0f2f1; border-radius: 3px; }"
+        + ".wave-contact-results::-webkit-scrollbar-thumb {"
+        + "  background: #80cbc4; border-radius: 3px; }"
+        + ".wave-contact-results::-webkit-scrollbar-thumb:hover {"
+        + "  background: #4db6ac; }"
+        + ".wave-contact-results { scrollbar-width: thin;"
+        + "  scrollbar-color: #80cbc4 #e0f2f1; }";
+    com.google.gwt.dom.client.StyleInjector.inject(css);
   }
 
   /**
@@ -165,19 +303,33 @@ public class ContactSearchDialog extends Composite {
 
   /**
    * Shows this dialog in a centered popup and returns the popup.
+   * Uses a chromeless popup so the ocean-themed header built inside
+   * this widget acts as the visual title bar.
    */
   public UniversalPopup showInPopup() {
-    PopupChrome chrome = PopupChromeFactory.createPopupChrome();
-    popup = PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
-    TitleBar titleBar = popup.getTitleBar();
-    titleBar.setTitleText(messages.dialogTitle());
+    // Use null chrome to skip the old desktop border images; our own
+    // container provides rounded corners, shadow, and header.
+    popup = PopupFactory.createPopup(null, new CenterPopupPositioner(), null, true);
     popup.add(this);
     popup.show();
 
-    // Focus the input after the popup renders
+    // Override the popup container styles so there is no extra background
+    // or border that conflicts with our design.
     Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
       @Override
       public void execute() {
+        // The popup is a DesktopUniversalPopup (FlowPanel) whose element
+        // already has position:absolute; z-index:1000; background:white
+        // from DesktopUniversalPopup.css — override to be transparent and
+        // let our inner mainPanel own the visual chrome.
+        Element popupEl = mainPanel.getElement().getParentElement();
+        if (popupEl != null) {
+          popupEl.getStyle().setProperty("background", "transparent");
+          popupEl.getStyle().setProperty("boxShadow", "none");
+          popupEl.getStyle().setProperty("borderRadius", "12px");
+          popupEl.getStyle().setProperty("overflow", "visible");
+          popupEl.getStyle().setProperty("padding", "0");
+        }
         inputBox.setFocus(true);
         // Show top contacts on open
         doSearch("");

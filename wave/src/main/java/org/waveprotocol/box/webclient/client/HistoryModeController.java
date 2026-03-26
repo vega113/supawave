@@ -635,6 +635,10 @@ public final class HistoryModeController {
         html.append(formatTimestamp(blip.getLastModified()));
         html.append("</span>");
       }
+      // Blip ID badge (history mode only)
+      html.append("<span class='history-blip-id'>");
+      html.append(escapeHtml(blip.getId()));
+      html.append("</span>");
       html.append("</div>");
       html.append("<div class='history-blip-content'>");
 
@@ -687,6 +691,10 @@ public final class HistoryModeController {
         html.append(escapeHtml(blipDisplayName));
         html.append("</span>");
         html.append(" <span class='history-blip-time'>(removed)</span>");
+        // Blip ID badge (history mode only)
+        html.append("<span class='history-blip-id'>");
+        html.append(escapeHtml(pb.getId()));
+        html.append("</span>");
         html.append("</div>");
         html.append("<div class='history-blip-content'>");
         html.append("<span class='history-diff-removed'>");

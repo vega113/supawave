@@ -21,18 +21,28 @@ package org.waveprotocol.box.server.rpc;
 import com.google.inject.Inject;
 import org.waveprotocol.box.common.Receiver;
 import org.waveprotocol.box.server.authentication.SessionManager;
-import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
-import org.waveprotocol.box.server.common.SnapshotSerializer;
+import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
+import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocOp;
+import org.waveprotocol.wave.model.document.operation.algorithm.Composer;
+import org.waveprotocol.wave.model.document.operation.algorithm.DocOpInverter;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.operation.OperationException;
+import org.waveprotocol.wave.model.operation.wave.BlipContentOperation;
 import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
+import org.waveprotocol.wave.model.operation.wave.WaveletBlipOperation;
+import org.waveprotocol.wave.model.operation.wave.WaveletDelta;
+import org.waveprotocol.wave.model.operation.wave.WaveletOperation;
+import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
@@ -45,8 +55,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Servlet that serves a version history UI for browsing and diffing
@@ -172,7 +187,7 @@ public final class VersionHistoryServlet extends HttpServlet {
 
     String apiPath = path.substring(path.indexOf("/api/") + 5);
     if (apiPath.startsWith("info")) {
-      handleInfoApi(waveletName, resp);
+      handleInfoApi(waveletName, resp, user);
     } else if (apiPath.startsWith("history")) {
       handleHistoryApi(waveletName, req, resp);
     } else if (apiPath.startsWith("snapshot")) {
@@ -182,8 +197,9 @@ public final class VersionHistoryServlet extends HttpServlet {
     }
   }
 
-  /** Returns current version info as JSON. */
-  private void handleInfoApi(WaveletName waveletName, HttpServletResponse resp) throws IOException {
+  /** Returns current version info as JSON, including whether the user can restore. */
+  private void handleInfoApi(WaveletName waveletName, HttpServletResponse resp,
+      ParticipantId user) throws IOException {
     try {
       CommittedWaveletSnapshot snapshot = waveletProvider.getSnapshot(waveletName);
       if (snapshot == null) {
@@ -192,6 +208,7 @@ public final class VersionHistoryServlet extends HttpServlet {
       }
       ReadableWaveletData data = snapshot.snapshot;
       long version = data.getHashedVersion().getVersion();
+      boolean canRestore = user.equals(data.getCreator());
 
       setJsonUtf8(resp);
       try (PrintWriter w = resp.getWriter()) {
@@ -199,6 +216,7 @@ public final class VersionHistoryServlet extends HttpServlet {
         w.append(",\"creator\":").append(jsonStr(data.getCreator().getAddress()));
         w.append(",\"creationTime\":").append(String.valueOf(data.getCreationTime()));
         w.append(",\"lastModifiedTime\":").append(String.valueOf(data.getLastModifiedTime()));
+        w.append(",\"canRestore\":").append(String.valueOf(canRestore));
         w.append("}");
         w.flush();
       }
@@ -517,6 +535,25 @@ public final class VersionHistoryServlet extends HttpServlet {
       return;
     }
 
+    // Check that the requesting user is the wave creator
+    CommittedWaveletSnapshot currentSnapshot;
+    try {
+      currentSnapshot = waveletProvider.getSnapshot(waveletName);
+      if (currentSnapshot == null) {
+        resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Wavelet not found");
+        return;
+      }
+      ParticipantId creator = currentSnapshot.snapshot.getCreator();
+      if (!user.equals(creator)) {
+        resp.sendError(HttpServletResponse.SC_FORBIDDEN,
+            "Only the wave creator can restore versions");
+        return;
+      }
+    } catch (WaveServerException e) {
+      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      return;
+    }
+
     String versionParam = req.getParameter("version");
     if (versionParam == null) {
       resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing version parameter");
@@ -530,18 +567,243 @@ public final class VersionHistoryServlet extends HttpServlet {
       return;
     }
 
-    // Version restoration requires constructing operational transform deltas
-    // to transform the current document state to match the historical state.
-    // This is a complex operation that depends on the wave protocol's delta
-    // submission pipeline and is not yet implemented.
-    resp.setStatus(HttpServletResponse.SC_NOT_IMPLEMENTED);
-    resp.setContentType("application/json; charset=UTF-8");
-    resp.setCharacterEncoding("UTF-8");
-    try (PrintWriter w = resp.getWriter()) {
-      w.append("{\"error\":\"Version restoration is not yet implemented. ")
-       .append("Target version: ").append(String.valueOf(targetVersion)).append("\"}");
-      w.flush();
+    try {
+      // Reuse currentSnapshot from creator check above
+      ReadableWaveletData currentState = currentSnapshot.snapshot;
+      long currentVersion = currentState.getHashedVersion().getVersion();
+
+      if (targetVersion < 0 || targetVersion >= currentVersion) {
+        resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
+            "Version must be in range [0, " + (currentVersion - 1) + "]");
+        return;
+      }
+
+      // 2. Build historical snapshot by replaying deltas from version 0 to targetVersion
+      ReadableWaveletData historicalState;
+      if (targetVersion == 0) {
+        // Version 0 is the empty state - create an empty wavelet
+        historicalState = WaveletDataUtil.createEmptyWavelet(
+            waveletName, currentState.getCreator(),
+            HashedVersion.unsigned(0), currentState.getCreationTime());
+      } else {
+        HashedVersion startVer = waveletProvider.getHashedVersion(waveletName, 0);
+        HashedVersion endVer = waveletProvider.getHashedVersion(waveletName, targetVersion);
+        if (startVer == null || endVer == null) {
+          resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
+              "Version " + targetVersion + " is not at a delta boundary");
+          return;
+        }
+        List<TransformedWaveletDelta> deltaList = new ArrayList<>();
+        waveletProvider.getHistory(waveletName, startVer, endVer,
+            new Receiver<TransformedWaveletDelta>() {
+              @Override
+              public boolean put(TransformedWaveletDelta delta) {
+                deltaList.add(delta);
+                return true;
+              }
+            });
+        if (deltaList.isEmpty()) {
+          resp.sendError(HttpServletResponse.SC_NOT_FOUND,
+              "No deltas found for version " + targetVersion);
+          return;
+        }
+        // Verify we landed on the exact version
+        TransformedWaveletDelta lastDelta = deltaList.get(deltaList.size() - 1);
+        if (lastDelta.getResultingVersion().getVersion() != targetVersion) {
+          resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
+              "Version " + targetVersion + " falls between delta boundaries");
+          return;
+        }
+        historicalState = WaveletDataUtil.buildWaveletFromDeltas(
+            waveletName, deltaList.iterator());
+      }
+
+      // 3. Build restore operations: for each document, replace current content
+      //    with historical content
+      // Note: this is a content-only restore — document text is restored to the
+      // historical version, but participant membership changes are not reverted.
+      List<WaveletOperation> ops = buildRestoreOps(currentState, historicalState, user);
+
+      if (ops.isEmpty()) {
+        // Nothing to change -- current document content already matches historical state
+        setJsonUtf8(resp);
+        try (PrintWriter w = resp.getWriter()) {
+          w.append("{\"ok\":true,\"restoredToVersion\":").append(String.valueOf(targetVersion));
+          w.append(",\"opsApplied\":0,\"message\":\"No content changes needed (membership not restored)\"}");
+          w.flush();
+        }
+        return;
+      }
+
+      // 4. Re-fetch snapshot to ensure we apply against the latest head version.
+      // This narrows the race window between building ops and submitting them.
+      CommittedWaveletSnapshot freshSnapshot = waveletProvider.getSnapshot(waveletName);
+      if (freshSnapshot == null) {
+        resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Wavelet not found");
+        return;
+      }
+      HashedVersion currentHashedVersion = freshSnapshot.snapshot.getHashedVersion();
+      if (currentHashedVersion.getVersion() != currentState.getHashedVersion().getVersion()) {
+        resp.sendError(HttpServletResponse.SC_CONFLICT,
+            "Wave was modified during restore. Please try again.");
+        return;
+      }
+      WaveletDelta delta = new WaveletDelta(user, currentHashedVersion, ops);
+      ProtocolWaveletDelta protocolDelta = CoreWaveletOperationSerializer.serialize(delta);
+
+      // Use a synchronous callback so we can return the result to the client
+      final CountDownLatch latch = new CountDownLatch(1);
+      final AtomicReference<String> errorRef = new AtomicReference<>();
+      final int[] appliedOps = new int[1];
+
+      waveletProvider.submitRequest(waveletName, protocolDelta,
+          new WaveletProvider.SubmitRequestListener() {
+            @Override
+            public void onSuccess(int operationsApplied,
+                HashedVersion hashedVersionAfterApplication, long applicationTimestamp) {
+              appliedOps[0] = operationsApplied;
+              latch.countDown();
+            }
+
+            @Override
+            public void onFailure(String errorMessage) {
+              errorRef.set(errorMessage);
+              latch.countDown();
+            }
+          });
+
+      // Wait for the submit to complete (with a reasonable timeout)
+      boolean completed = latch.await(30, TimeUnit.SECONDS);
+      if (!completed) {
+        resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+            "Restore operation timed out");
+        return;
+      }
+
+      String error = errorRef.get();
+      if (error != null) {
+        LOG.warning("Restore failed for " + waveletName + " to version " + targetVersion
+            + ": " + error);
+        resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+            "Restore failed. Check server logs for details.");
+        return;
+      }
+
+      // Return success response
+      LOG.info("Restored " + waveletName + " to version " + targetVersion
+          + " (" + appliedOps[0] + " ops applied) by " + user.getAddress());
+      setJsonUtf8(resp);
+      try (PrintWriter w = resp.getWriter()) {
+        w.append("{\"ok\":true,\"restoredToVersion\":").append(String.valueOf(targetVersion));
+        w.append(",\"opsApplied\":").append(String.valueOf(appliedOps[0])).append("}");
+        w.flush();
+      }
+
+    } catch (WaveServerException e) {
+      LOG.warning("Restore failed for " + waveletName, e);
+      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Server error during restore");
+    } catch (OperationException e) {
+      LOG.warning("Failed to build restore operations for " + waveletName, e);
+      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Failed to build restore operations. Check server logs for details.");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Restore was interrupted");
     }
+  }
+
+  /**
+   * Builds the list of wavelet operations needed to transform the current
+   * document content to match the historical state. This is a content-only
+   * restore: only document text is diffed and replaced. Participant membership
+   * changes are not reverted. For each document that differs, a
+   * {@link WaveletBlipOperation} containing a {@link BlipContentOperation}
+   * is created that replaces the document's content entirely.
+   *
+   * <p>The approach for each document is:
+   * <ol>
+   *   <li>Invert the current DocInitialization (produces delete-all ops)</li>
+   *   <li>Compose with the historical DocInitialization (produces insert-all ops)</li>
+   *   <li>The composed DocOp transforms current content to historical content</li>
+   * </ol>
+   *
+   * <p>Documents that exist in the current state but not the historical state
+   * are cleared (content deleted). Documents that exist in the historical state
+   * but not the current state are created with the historical content.
+   */
+  private List<WaveletOperation> buildRestoreOps(ReadableWaveletData currentState,
+      ReadableWaveletData historicalState, ParticipantId user) throws OperationException {
+    List<WaveletOperation> ops = new ArrayList<>();
+    WaveletOperationContext context = new WaveletOperationContext(user,
+        System.currentTimeMillis(), 1);
+
+    // Collect all document IDs from both states
+    Set<String> allDocIds = new HashSet<>();
+    allDocIds.addAll(currentState.getDocumentIds());
+    allDocIds.addAll(historicalState.getDocumentIds());
+
+    for (String docId : allDocIds) {
+      ReadableBlipData currentBlip = currentState.getDocument(docId);
+      ReadableBlipData historicalBlip = historicalState.getDocument(docId);
+
+      DocInitialization currentInit = (currentBlip != null)
+          ? currentBlip.getContent().asOperation() : null;
+      DocInitialization historicalInit = (historicalBlip != null)
+          ? historicalBlip.getContent().asOperation() : null;
+
+      DocOp restoreOp = buildDocumentRestoreOp(currentInit, historicalInit);
+      if (restoreOp == null) {
+        continue; // No change needed for this document
+      }
+
+      BlipContentOperation blipOp = new BlipContentOperation(context, restoreOp);
+      ops.add(new WaveletBlipOperation(docId, blipOp));
+    }
+
+    return ops;
+  }
+
+  /**
+   * Builds a single DocOp that transforms a document from its current content
+   * to the historical content. Returns null if no change is needed (both are
+   * null or have identical content).
+   *
+   * @param currentInit  the current document initialization (null if document doesn't exist)
+   * @param historicalInit the historical document initialization (null if document didn't exist)
+   * @return a DocOp that performs the transformation, or null if no change needed
+   */
+  private DocOp buildDocumentRestoreOp(DocInitialization currentInit,
+      DocInitialization historicalInit) throws OperationException {
+    if (currentInit == null && historicalInit == null) {
+      return null;
+    }
+
+    // If there is no current document, just insert the historical content.
+    // The WaveletBlipOperation will auto-create the blip.
+    if (currentInit == null) {
+      return historicalInit;
+    }
+
+    // If there is no historical document, we need to delete all current content.
+    // Invert the current init to produce delete operations.
+    if (historicalInit == null) {
+      return DocOpInverter.invert(currentInit);
+    }
+
+    // Check if the documents are identical by comparing their XML string form
+    String currentXml = DocOpUtil.toXmlString(currentInit);
+    String historicalXml = DocOpUtil.toXmlString(historicalInit);
+    if (currentXml.equals(historicalXml)) {
+      return null; // No change needed
+    }
+
+    // Compose: invert(currentInit) + historicalInit
+    // invert(currentInit) deletes all current content (transforms document to empty)
+    // historicalInit inserts all historical content (transforms empty to historical)
+    DocOp deleteAll = DocOpInverter.invert(currentInit);
+    return Composer.compose(deleteAll, historicalInit);
   }
 
   // =========================================================================
@@ -646,6 +908,17 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append(".vh-toolbar input[type=checkbox] { accent-color: var(--wave-primary); }\n");
     sb.append(".vh-spacer { flex: 1; }\n");
 
+    // Restore button
+    sb.append("#restore-btn { font-size: 13px; font-weight: 600; color: #fff; background: var(--wave-primary); border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; transition: background 0.15s, opacity 0.15s; display: none; }\n");
+    sb.append("#restore-btn:hover { background: var(--wave-primary-dark); }\n");
+    sb.append("#restore-btn:disabled { opacity: 0.5; cursor: not-allowed; }\n");
+    sb.append("#restore-btn.visible { display: inline-block; }\n");
+
+    // Restore status toast
+    sb.append(".vh-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #fff; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; }\n");
+    sb.append(".vh-toast-success { background: #276749; }\n");
+    sb.append(".vh-toast-error { background: #c53030; }\n");
+
     // Content area
     sb.append("#content-area { flex: 1; overflow-y: auto; padding: 24px; }\n");
     sb.append(".blip { background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }\n");
@@ -710,6 +983,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("      <span id=\"version-label\">Select a version</span>\n");
     sb.append("      <div class=\"vh-spacer\"></div>\n");
     sb.append("      <label><input type=\"checkbox\" id=\"diff-toggle\"> Show changes</label>\n");
+    sb.append("      <button id=\"restore-btn\" type=\"button\">Restore this version</button>\n");
     sb.append("    </div>\n");
     sb.append("    <div id=\"content-area\">\n");
     sb.append("      <div class=\"vh-empty\">\n");
@@ -731,6 +1005,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("var snapshotCache = {};\n");
     sb.append("var deltaList = [];\n");
     sb.append("var currentMaxVersion = 0;\n");
+    sb.append("var canRestore = false;\n");
     sb.append("var requestId = 0;\n\n");
 
     // Utility: escape HTML to prevent XSS from blip content
@@ -833,8 +1108,62 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("  for (var i = 0; i < entries.length; i++) {\n");
     sb.append("    entries[i].classList.toggle('selected', parseInt(entries[i].getAttribute('data-version')) === version);\n");
     sb.append("  }\n");
+    sb.append("  // Show restore button only for historical versions (not the current version)\n");
+    sb.append("  var restoreBtn = document.getElementById('restore-btn');\n");
+    sb.append("  if (canRestore && version < currentMaxVersion && version >= 0) {\n");
+    sb.append("    restoreBtn.classList.add('visible');\n");
+    sb.append("    restoreBtn.disabled = false;\n");
+    sb.append("    restoreBtn.textContent = 'Restore to v' + version;\n");
+    sb.append("  } else {\n");
+    sb.append("    restoreBtn.classList.remove('visible');\n");
+    sb.append("  }\n");
     sb.append("  loadVersion(version);\n");
     sb.append("};\n\n");
+
+    // Restore button handler
+    sb.append("document.getElementById('restore-btn').addEventListener('click', function() {\n");
+    sb.append("  if (selectedVersion === null || selectedVersion >= currentMaxVersion) return;\n");
+    sb.append("  var version = selectedVersion;\n");
+    sb.append("  var btn = this;\n");
+    sb.append("  btn.disabled = true;\n");
+    sb.append("  btn.textContent = 'Restoring...';\n");
+    sb.append("  fetch(BASE + '/api/restore?version=' + version, {\n");
+    sb.append("    method: 'POST',\n");
+    sb.append("    credentials: 'same-origin'\n");
+    sb.append("  }).then(function(r) {\n");
+    sb.append("    return r.text().then(function(text) {\n");
+    sb.append("      try { var data = JSON.parse(text); } catch(e) { data = { message: 'Restore failed (HTTP ' + r.status + ')' }; }\n");
+    sb.append("      return { ok: r.ok, status: r.status, data: data };\n");
+    sb.append("    });\n");
+    sb.append("  }).then(function(result) {\n");
+    sb.append("    if (result.ok && result.data.ok) {\n");
+    sb.append("      showToast('Restored to version ' + version + ' (' + (result.data.opsApplied || 0) + ' ops applied)', 'success');\n");
+    sb.append("      // Refresh the page data after a short delay\n");
+    sb.append("      setTimeout(function() { snapshotCache = {}; init(); }, 500);\n");
+    sb.append("    } else {\n");
+    sb.append("      var msg = result.data.error || result.data.message || ('HTTP ' + result.status);\n");
+    sb.append("      showToast('Restore failed: ' + msg, 'error');\n");
+    sb.append("      btn.disabled = false;\n");
+    sb.append("      btn.textContent = 'Restore to v' + version;\n");
+    sb.append("    }\n");
+    sb.append("  }).catch(function(e) {\n");
+    sb.append("    showToast('Restore failed: ' + e.message, 'error');\n");
+    sb.append("    btn.disabled = false;\n");
+    sb.append("    btn.textContent = 'Restore to v' + version;\n");
+    sb.append("  });\n");
+    sb.append("});\n\n");
+
+    // Toast notification helper
+    sb.append("function showToast(message, type) {\n");
+    sb.append("  var existing = document.querySelector('.vh-toast');\n");
+    sb.append("  if (existing) existing.remove();\n");
+    sb.append("  var toast = document.createElement('div');\n");
+    sb.append("  toast.className = 'vh-toast vh-toast-' + type;\n");
+    sb.append("  toast.textContent = message;\n");
+    sb.append("  document.body.appendChild(toast);\n");
+    sb.append("  setTimeout(function() { toast.style.opacity = '0'; }, 3000);\n");
+    sb.append("  setTimeout(function() { toast.remove(); }, 3500);\n");
+    sb.append("}\n\n");
 
     // Load version content
     sb.append("function loadVersion(version) {\n");
@@ -1176,6 +1505,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("  showLoading(tl);\n\n");
     sb.append("  apiFetch('info').then(function(info) {\n");
     sb.append("    currentMaxVersion = info.version;\n");
+    sb.append("    canRestore = !!info.canRestore;\n");
     sb.append("    infoEl.innerHTML = 'Current version: <span class=\"version-badge\">v' + info.version + '</span>';\n\n");
     sb.append("    return apiFetch('history', { start: 0, end: info.version });\n");
     sb.append("  }).then(function(history) {\n");

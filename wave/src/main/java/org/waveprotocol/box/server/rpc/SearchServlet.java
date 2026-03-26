@@ -150,12 +150,11 @@ public class SearchServlet extends AbstractSearchServlet {
   }
 
   private int computeTotalResultsNumberGuess(SearchRequest searchRequest, SearchResult searchResult) {
-    // The Data API does not return the total size of the search result, even
-    // though the searcher knows it. The only approximate knowledge that can be
-    // gleaned from the Data API is whether there are more search results beyond
-    // those returned. If the searcher returns as many (or more) results as
-    // requested, then assume that more results exist, but the total is unknown.
-    // Otherwise, the total has been reached.
+    // If the search provider set an exact total, use it directly.
+    if (searchResult.getTotalResults() >= 0) {
+      return searchResult.getTotalResults();
+    }
+    // Fallback: guess based on whether the result page is full.
     int totalGuess;
     if (searchResult.getNumResults() >= searchRequest.getNumResults()) {
       totalGuess = SearchService.UNKNOWN_SIZE;

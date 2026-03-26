@@ -53,7 +53,6 @@ import org.waveprotocol.wave.model.waveref.WaveRef;
 
 import java.util.Set;
 
-import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 
 /**
  * Stages for loading the undercurrent Wave Panel
@@ -79,6 +78,7 @@ public class StagesProvider extends Stages {
   private final ProfileManager profiles;
   private final WaveStore waveStore;
   private final boolean isNewWave;
+  private final boolean isDirectMessage;
   private final String localDomain;
   private final ContactManager contactManager;
 
@@ -113,6 +113,22 @@ public class StagesProvider extends Stages {
       LogicalPanel rootPanel, FramedPanel waveFrame, WaveRef waveRef, RemoteViewServiceMultiplexer channel,
       IdGenerator idGenerator, ProfileManager profiles, WaveStore store, boolean isNewWave,
       String localDomain, Set<ParticipantId> participants, ContactManager contactManager) {
+    this(wavePanelElement, unsavedIndicatorElement, rootPanel, waveFrame, waveRef, channel,
+        idGenerator, profiles, store, isNewWave, false, localDomain, participants, contactManager);
+  }
+
+  /**
+   * Full constructor including direct-message flag.
+   *
+   * @param isDirectMessage true if the wave is a direct message created via
+   *        the "Send Message" profile action. The DM tag will be added to
+   *        the conversation on creation.
+   */
+  public StagesProvider(Element wavePanelElement, Element unsavedIndicatorElement,
+      LogicalPanel rootPanel, FramedPanel waveFrame, WaveRef waveRef, RemoteViewServiceMultiplexer channel,
+      IdGenerator idGenerator, ProfileManager profiles, WaveStore store, boolean isNewWave,
+      boolean isDirectMessage, String localDomain, Set<ParticipantId> participants,
+      ContactManager contactManager) {
     this.wavePanelElement = wavePanelElement;
     this.unsavedIndicatorElement = unsavedIndicatorElement;
     this.waveFrame = waveFrame;
@@ -123,6 +139,7 @@ public class StagesProvider extends Stages {
     this.profiles = profiles;
     this.waveStore = store;
     this.isNewWave = isNewWave;
+    this.isDirectMessage = isDirectMessage;
     this.localDomain = localDomain;
     this.participants = participants;
     this.contactManager = contactManager;
@@ -151,7 +168,8 @@ public class StagesProvider extends Stages {
   @Override
   protected AsyncHolder<StageTwo> createStageTwoLoader(StageOne one) {
     return haltIfClosed(new StageTwoProvider(this.one = one, waveRef, channel, isNewWave,
-        idGenerator, profiles, new SavedStateIndicator(unsavedIndicatorElement), participants));
+        isDirectMessage, idGenerator, profiles, new SavedStateIndicator(unsavedIndicatorElement),
+        participants));
   }
 
   @Override
@@ -281,27 +299,16 @@ public class StagesProvider extends Stages {
       isCreator = true;
     }
 
-    // In a DM wave (exactly 2 real participants, no domain participant),
-    // both participants should see the History button.
+    // In a DM wave (tagged with Conversation.DM_TAG), both participants
+    // should see the History button.
     boolean isDmParticipant = false;
     if (!isCreator) {
-      Set<ParticipantId> waveletParticipants = rootWavelet.getParticipantIds();
-      boolean hasDomainParticipant = false;
-      boolean currentUserIsParticipant = false;
-      int realParticipantCount = 0;
-      for (ParticipantId pid : waveletParticipants) {
-        if (ParticipantIdUtil.isDomainAddress(pid.getAddress())) {
-          hasDomainParticipant = true;
-        } else {
-          realParticipantCount++;
-          if (currentUserAddress.equals(pid.getAddress())) {
-            currentUserIsParticipant = true;
-          }
-        }
+      ConversationView conversations = two.getConversations();
+      if (conversations != null && conversations.getRoot() != null) {
+        java.util.Set<String> tags = conversations.getRoot().getTags();
+        isDmParticipant = tags != null && tags.contains(
+            org.waveprotocol.wave.model.conversation.Conversation.DM_TAG);
       }
-      isDmParticipant = !hasDomainParticipant
-          && realParticipantCount == 2
-          && currentUserIsParticipant;
     }
 
     if (!isCreator && !isDmParticipant) {

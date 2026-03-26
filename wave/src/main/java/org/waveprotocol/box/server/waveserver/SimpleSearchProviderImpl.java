@@ -35,6 +35,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.supplement.SupplementedWave;
+import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
@@ -281,11 +282,16 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       sortedResults = promotePinnedWaves(sortedResults, user, supplementCache, waveletAdapters);
     }
 
+    // Capture the total count BEFORE pagination so the client knows the full result set size.
+    int totalBeforePagination = sortedResults.size();
+
     Collection<WaveViewData> searchResult =
         computeSearchResult(user, startAt, numResults, sortedResults);
-    LOG.info("Search response to '" + query + "': " + searchResult.size() + " results, user: "
-        + user);
-    return digester.generateSearchResult(user, query, searchResult);
+    LOG.info("Search response to '" + query + "': " + searchResult.size() + " results"
+        + " (total " + totalBeforePagination + "), user: " + user);
+    SearchResult result = digester.generateSearchResult(user, query, searchResult);
+    result.setTotalResults(totalBeforePagination);
+    return result;
   }
 
   private LinkedHashMultimap<WaveId, WaveletId> createWavesViewToFilter(final ParticipantId user,
@@ -414,6 +420,10 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * Promotes pinned waves to the top of the results list while preserving the
    * relative order within the pinned and non-pinned groups.
    *
+   * <p>Reads pin state directly from the UDW's folder document ({@code m/folder})
+   * via the DocOp representation, avoiding the fragile full conversation model
+   * and supplement construction chain.
+   *
    * @param results the sorted list of wave views.
    * @param user the participant whose supplement state to check.
    * @param supplementCache shared cache of supplement contexts across filter stages.
@@ -427,13 +437,19 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     List<WaveViewData> unpinned = new ArrayList<WaveViewData>();
     for (WaveViewData wave : results) {
       try {
-        WaveSupplementContext ctx = getOrBuildContext(wave, user, supplementCache, waveletAdapters);
-
-        if (ctx.supplement != null && ctx.supplement.isPinned()) {
-          pinned.add(wave);
-          continue;
+        ObservableWaveletData udw = null;
+        for (ObservableWaveletData wd : wave.getWavelets()) {
+          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(),
+              wd.getWaveletId())) {
+            udw = wd;
+            break;
+          }
         }
-        unpinned.add(wave);
+        if (udw != null && readPinnedStateFromUdw(udw)) {
+          pinned.add(wave);
+        } else {
+          unpinned.add(wave);
+        }
       } catch (Exception e) {
         LOG.fine("Failed to check pinned state during promotion for wave " + wave.getWaveId()
             + ": " + e.getMessage());
@@ -453,6 +469,11 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * Filters wave results by pinned state using the user's supplement data.
    * Only waves whose supplement indicates they are pinned are kept.
    *
+   * <p>Reads pin state directly from the UDW's folder document ({@code m/folder})
+   * via the DocOp representation, avoiding the fragile full conversation model
+   * and supplement construction chain that can fail silently for edge-case
+   * wavelets (missing manifest, uninitialised sinks, etc.).
+   *
    * @param results the mutable list of wave views to filter in place.
    * @param user the participant whose supplement state to check.
    * @param supplementCache shared cache of supplement contexts across filter stages.
@@ -465,13 +486,15 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     while (it.hasNext()) {
       WaveViewData wave = it.next();
       try {
-        WaveSupplementContext ctx = getOrBuildContext(wave, user, supplementCache, waveletAdapters);
-
-        if (ctx.supplement == null) {
-          it.remove();
-          continue;
+        ObservableWaveletData udw = null;
+        for (ObservableWaveletData wd : wave.getWavelets()) {
+          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(),
+              wd.getWaveletId())) {
+            udw = wd;
+            break;
+          }
         }
-        if (!ctx.supplement.isPinned()) {
+        if (udw == null || !readPinnedStateFromUdw(udw)) {
           it.remove();
         }
       } catch (Exception e) {
@@ -557,11 +580,17 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * <pre>{@code <tag>name1</tag><tag>name2</tag> ...}</pre>
    * In DocOp terms this is: elementStart("tag") + characters("name") + elementEnd("tag"),
    * repeated once per tag.
+   *
+   * <p>Note: annotation boundaries in the DocInitialization can split a single
+   * tag's text into multiple {@code characters()} calls, so we must accumulate
+   * text with a StringBuilder until the closing elementEnd().
    */
-  private static Set<String> readTagsFromWaveletData(ObservableWaveletData waveletData) {
+  private Set<String> readTagsFromWaveletData(ObservableWaveletData waveletData) {
     org.waveprotocol.wave.model.wave.data.ReadableBlipData tagsBlip =
         waveletData.getDocument(org.waveprotocol.wave.model.id.IdConstants.TAGS_DOC_ID);
     if (tagsBlip == null) {
+      LOG.info("readTagsFromWaveletData: wave " + waveletData.getWaveId()
+          + " has no tags document");
       return java.util.Collections.emptySet();
     }
     // The content of a BlipData is a DocumentOperationSink which implements
@@ -572,30 +601,95 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
     final Set<String> tags = new java.util.HashSet<>();
     final boolean[] insideTag = {false};
+    final StringBuilder tagText = new StringBuilder();
     docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
       @Override
       public void elementStart(String type, org.waveprotocol.wave.model.document.operation.Attributes attrs) {
-        insideTag[0] = "tag".equals(type);
+        if ("tag".equals(type)) {
+          insideTag[0] = true;
+          tagText.setLength(0);
+        }
       }
 
       @Override
       public void elementEnd() {
-        insideTag[0] = false;
+        if (insideTag[0]) {
+          String text = tagText.toString().trim();
+          if (!text.isEmpty()) {
+            tags.add(text);
+          }
+          insideTag[0] = false;
+        }
       }
 
       @Override
       public void characters(String chars) {
-        if (insideTag[0] && chars != null && !chars.isEmpty()) {
-          tags.add(chars);
+        if (insideTag[0] && chars != null) {
+          tagText.append(chars);
         }
       }
 
       @Override
       public void annotationBoundary(org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
+        // Annotation boundaries can appear between characters() calls within
+        // the same element. We simply ignore them and keep accumulating text.
+      }
+    });
+    LOG.info("readTagsFromWaveletData: wave " + waveletData.getWaveId()
+        + " tags = " + tags);
+    return tags;
+  }
+
+  /**
+   * Reads the pinned state from a user-data wavelet's folder document
+   * ({@code m/folder}) by walking the DocOp representation.  This avoids
+   * building a full conversation model and supplement chain — the same
+   * approach used by {@link #readTagsFromWaveletData}.
+   *
+   * <p>The folder document has the form:
+   * <pre>{@code <folder i="9"/><folder i="1"/> ...}</pre>
+   * A wave is pinned when the document contains a {@code <folder>} element
+   * whose {@code i} attribute equals {@code "9"} (the PINNED_FOLDER id).
+   */
+  private static boolean readPinnedStateFromUdw(ObservableWaveletData udwData) {
+    org.waveprotocol.wave.model.wave.data.ReadableBlipData folderDoc =
+        udwData.getDocument(
+            org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.FOLDERS_DOCUMENT);
+    if (folderDoc == null) {
+      return false;
+    }
+    org.waveprotocol.wave.model.document.operation.DocInitialization docOp =
+        folderDoc.getContent().asOperation();
+
+    final String pinFolderId =
+        String.valueOf(SupplementedWaveImpl.PINNED_FOLDER);
+    final boolean[] found = {false};
+    docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
+      @Override
+      public void elementStart(String type,
+          org.waveprotocol.wave.model.document.operation.Attributes attrs) {
+        if ("folder".equals(type) && attrs != null && pinFolderId.equals(attrs.get("i"))) {
+          found[0] = true;
+        }
+      }
+
+      @Override
+      public void elementEnd() {
+        // ignore
+      }
+
+      @Override
+      public void characters(String chars) {
+        // ignore
+      }
+
+      @Override
+      public void annotationBoundary(
+          org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
         // ignore
       }
     });
-    return tags;
+    return found[0];
   }
 
   private List<WaveViewData> sort(Map<TokenQueryType, Set<String>> queryParams,

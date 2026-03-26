@@ -2050,7 +2050,7 @@ public final class HtmlRenderer {
     sb.append("  position: relative; z-index: 1;\n");
     sb.append("  display: flex; align-items: center;\n");
     sb.append("}\n");
-    sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 8px; }\n");
+    sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 8px; cursor: pointer; }\n");
     sb.append(".topbar-brand svg { flex-shrink: 0; }\n");
     sb.append(".title {\n");
     sb.append("  font-size: 17px; font-weight: 700; color: #fff;\n");
@@ -2783,8 +2783,8 @@ public final class HtmlRenderer {
     sb.append("  pcMessage.addEventListener('click', function() {\n");
     sb.append("    if (!currentAddress) return;\n");
     sb.append("    overlay.style.display = 'none';\n");
-    sb.append("    // Search for existing 1:1 wave with this user\n");
-    sb.append("    fetch('/search/waves?query=with:' + encodeURIComponent(currentAddress) + '+is:dm&index=0&numResults=1')\n");
+    sb.append("    // Search for existing DM wave with this user (tagged with _dm)\n");
+    sb.append("    fetch('/search/waves?query=with:' + encodeURIComponent(currentAddress) + '+tag:_dm&index=0&numResults=1')\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
     sb.append("        if (data && data.digests && data.digests.length > 0) {\n");
@@ -2796,7 +2796,7 @@ public final class HtmlRenderer {
     sb.append("          if (window.__createDirectWave) {\n");
     sb.append("            window.__createDirectWave(currentAddress);\n");
     sb.append("          } else {\n");
-    sb.append("            alert('Direct messaging will open a new wave with ' + currentAddress);\n");
+    sb.append("            console.warn('__createDirectWave not available for ' + currentAddress);\n");
     sb.append("          }\n");
     sb.append("        }\n");
     sb.append("      })\n");
@@ -3012,7 +3012,7 @@ public final class HtmlRenderer {
     sb.append("<div class=\"topbar\">\n");
     sb.append("  <button class=\"mobile-hamburger\" id=\"mobileHamburger\" aria-label=\"Open navigation\">&#9776;</button>\n");
     sb.append("  <button class=\"mobile-back\" id=\"mobileBack\" aria-label=\"Back to inbox\">&#8592;</button>\n");
-    sb.append("  <a href=\"/\" class=\"topbar-brand\">").append(WAVE_LOGO_SVG_SMALL);
+    sb.append("  <a href=\"/?view=landing\" class=\"topbar-brand\" onclick=\"window.location.href='/?view=landing';return false;\">").append(WAVE_LOGO_SVG_SMALL);
     sb.append("<span class=\"title\">SupaWave</span></a>\n");
     sb.append("  <div class=\"banner\" id=\"banner\"></div>\n");
     sb.append("  <div class=\"info\">\n");

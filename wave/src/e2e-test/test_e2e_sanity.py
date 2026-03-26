@@ -54,6 +54,48 @@ def _run(coro):
     return loop.run_until_complete(coro)
 
 
+def _find_digest_by_wave_id(digests, modern_wave_id):
+    """Find the digest entry matching the target wave id."""
+    matched_digest = None
+    for digest in digests:
+        digest_wave_id = digest.get("3", "")
+        if modern_wave_id in digest_wave_id:
+            matched_digest = digest
+            break
+    return matched_digest
+
+
+def _wait_for_search_digest(
+    client,
+    jsessionid,
+    modern_wave_id,
+    timeout_seconds,
+    poll_interval_seconds,
+    min_blip_count,
+):
+    """Wait until search includes the target digest with the required blip count."""
+    import time
+
+    deadline = time.monotonic() + timeout_seconds
+    last_digests = []
+    target_digest = None
+    digest_ready = False
+
+    while time.monotonic() < deadline:
+        result = client.search(jsessionid, query="in:inbox")
+        digests = result.get("3", [])
+        last_digests = digests
+        target_digest = _find_digest_by_wave_id(digests, modern_wave_id)
+        if target_digest is not None:
+            blip_count = int(target_digest.get("6", 0))
+            if blip_count >= min_blip_count:
+                digest_ready = True
+                break
+        time.sleep(poll_interval_seconds)
+
+    return digest_ready, target_digest, last_digests
+
+
 # ---------------------------------------------------------------------------
 # Scenario 1 -- health check
 # ---------------------------------------------------------------------------
@@ -331,35 +373,23 @@ def test_12_user2_ws_connect(client, run_id):
 
 def test_13_user2_search(client, run_id):
     """Bob searches 'in:inbox' and finds the wave created by Alice."""
-    import time
     session = SESSION_INFO["bob"]
     modern_wave_id = SESSION_INFO["modern_wave_id"]
-
-    # Retry loop: search index may not be updated immediately after participant addition
-    # (eventually consistent). Retry up to 3 times with small delays.
-    max_retries = 3
-    for attempt in range(max_retries):
-        result = client.search(session["jsessionid"], query="in:inbox")
-
-        # The search response uses numeric keys:
-        # "1" = query, "2" = total_results, "3" = digests[]
-        # Each digest: "3" = wave_id (modern format), "5" = unread_count, etc.
-        digests = result.get("3", [])
-        wave_ids = []
-        for d in digests:
-            wid = d.get("3", "")
-            wave_ids.append(wid)
-
-        if any(modern_wave_id in wid for wid in wave_ids):
-            break
-
-        if attempt < max_retries - 1:
-            time.sleep(0.2)  # Brief delay before retry
-    else:
-        assert False, (
-            f"Wave {modern_wave_id} not found in Bob's search results after "
-            f"{max_retries} attempts: {wave_ids}"
-        )
+    found_digest, _, last_digests = _wait_for_search_digest(
+        client=client,
+        jsessionid=session["jsessionid"],
+        modern_wave_id=modern_wave_id,
+        timeout_seconds=20.0,
+        poll_interval_seconds=0.5,
+        min_blip_count=0,
+    )
+    wave_ids = []
+    for digest in last_digests:
+        wave_ids.append(digest.get("3", ""))
+    assert found_digest, (
+        f"Wave {modern_wave_id} not found in Bob's search results "
+        f"within timeout. Last wave ids: {wave_ids}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -385,33 +415,20 @@ def test_14_user2_opens_wave(client, run_id):
 
 def test_15_user2_unread_count(client, run_id):
     """Bob's search digest for the wave shows blip content."""
-    import time
     session = SESSION_INFO["bob"]
     modern_wave_id = SESSION_INFO["modern_wave_id"]
+    found_digest, target_digest, last_digests = _wait_for_search_digest(
+        client=client,
+        jsessionid=session["jsessionid"],
+        modern_wave_id=modern_wave_id,
+        timeout_seconds=20.0,
+        poll_interval_seconds=0.5,
+        min_blip_count=1,
+    )
 
-    # Retry loop: search index may not be updated immediately after participant addition
-    # (eventually consistent). Retry up to 3 times with small delays.
-    max_retries = 3
-    target_digest = None
-    for attempt in range(max_retries):
-        result = client.search(session["jsessionid"], query="in:inbox")
-        digests = result.get("3", [])
-
-        for d in digests:
-            wid = d.get("3", "")
-            if modern_wave_id in wid:
-                target_digest = d
-                break
-
-        if target_digest is not None:
-            break
-
-        if attempt < max_retries - 1:
-            time.sleep(0.2)  # Brief delay before retry
-
-    assert target_digest is not None, (
-        f"Wave {modern_wave_id} not found in Bob's search after {max_retries} attempts. "
-        f"Last digests: {digests}"
+    assert found_digest and target_digest is not None, (
+        f"Wave {modern_wave_id} with blip content did not appear in Bob's search "
+        f"within timeout. Last digests: {last_digests}"
     )
 
     # Blip count (key "6") should be > 0 to confirm blip content is visible.

@@ -231,4 +231,18 @@ public interface Conversation {
    * @return true, if the conversation is root
    */
   boolean isRoot();
+
+  /**
+   * Gets the current lock state of this conversation.
+   *
+   * @return the lock state, never null (defaults to {@link WaveLockState#UNLOCKED})
+   */
+  WaveLockState getLockState();
+
+  /**
+   * Sets the lock state of this conversation.
+   *
+   * @param state the new lock state
+   */
+  void setLockState(WaveLockState state);
 }

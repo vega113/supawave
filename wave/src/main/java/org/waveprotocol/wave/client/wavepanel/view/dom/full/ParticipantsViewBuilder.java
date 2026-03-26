@@ -39,6 +39,7 @@ import org.waveprotocol.wave.client.uibuilder.HtmlClosureCollection;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
 import org.waveprotocol.wave.client.wavepanel.view.View.Type;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n.ParticipantMessages;
+import org.waveprotocol.wave.model.conversation.WaveLockState;
 
 /**
  * UiBuilder for a collection of participants.
@@ -79,6 +80,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
     String publicToggleButton();
     String shareLinkButton();
     String dmLabel();
+    String lockToggleButton();
   }
 
   private final static ParticipantMessages messages = GWT.create(ParticipantMessages.class);
@@ -106,14 +108,22 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   private final String id;
   private final boolean isPublic;
   private final boolean isDm;
+  private final WaveLockState lockState;
   @VisibleForTesting
   ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis,
       boolean isPublic, boolean isDm) {
+    this(css, id, participantUis, isPublic, isDm, WaveLockState.UNLOCKED);
+  }
+
+  @VisibleForTesting
+  ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis,
+      boolean isPublic, boolean isDm, WaveLockState lockState) {
     this.css = css;
     this.id = id;
     this.participantUis = participantUis;
     this.isPublic = isPublic;
     this.isDm = isDm;
+    this.lockState = lockState != null ? lockState : WaveLockState.UNLOCKED;
   }
 
   /**
@@ -137,7 +147,18 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis,
       boolean isPublic, boolean isDm) {
     return new ParticipantsViewBuilder(
-        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic, isDm);
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic, isDm,
+        WaveLockState.UNLOCKED);
+  }
+
+  /**
+   * Creates a new ParticipantsViewBuilder with public/private, DM, and lock state.
+   */
+  public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis,
+      boolean isPublic, boolean isDm, WaveLockState lockState) {
+    return new ParticipantsViewBuilder(
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic, isDm,
+        lockState);
   }
 
   @Override
@@ -204,6 +225,9 @@ public final class ParticipantsViewBuilder implements UiBuilder {
                   TypeCodes.kind(Type.SHARE_LINK),
                   messages.sharePublicLink(),
                   isPublic);
+              lockToggleIcon(output, css.lockToggleButton(),
+                  TypeCodes.kind(Type.TOGGLE_LOCK),
+                  lockTooltip(lockState), lockState);
             }
             closeSpan(output);
 
@@ -224,6 +248,9 @@ public final class ParticipantsViewBuilder implements UiBuilder {
                   TypeCodes.kind(Type.SHARE_LINK),
                   messages.sharePublicLink(),
                   isPublic);
+              lockToggleIcon(output, css.lockToggleButton(),
+                  TypeCodes.kind(Type.TOGGLE_LOCK),
+                  lockTooltip(lockState), lockState);
             }
             closeSpan(output);
           }
@@ -388,6 +415,67 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + "</svg>"
         + escapedLabel
         + "</span>");
+  }
+
+  /**
+   * Renders a compact circular icon button for toggling wave lock state.
+   * Shows different icons depending on the current lock state:
+   * UNLOCKED: empty shield, ROOT_LOCKED: shield with line, ALL_LOCKED: filled shield.
+   */
+  private static void lockToggleIcon(SafeHtmlBuilder output, String clazz, String kind,
+      String title, WaveLockState lockState) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedKind = kind != null ? EscapeUtils.htmlEscape(kind) : null;
+    String escapedTitle = title != null ? EscapeUtils.htmlEscape(title) : null;
+
+    String svgIcon;
+    switch (lockState) {
+      case ROOT_LOCKED:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "<line x1='12' y1='8' x2='12' y2='16'/>"
+            + "</svg>";
+        break;
+      case ALL_LOCKED:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='currentColor' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "</svg>";
+        break;
+      default:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "</svg>";
+        break;
+    }
+
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + (escapedKind != null ? " kind='" + escapedKind + "'" : "")
+        + (escapedTitle != null ? " title='" + escapedTitle + "'" : "")
+        + " role='button' tabindex='0'"
+        + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
+        + ">"
+        + svgIcon
+        + "</span>");
+  }
+
+  /** Returns a tooltip string for the current lock state. */
+  private static String lockTooltip(WaveLockState lockState) {
+    switch (lockState) {
+      case ROOT_LOCKED:
+        return messages.waveRootLocked();
+      case ALL_LOCKED:
+        return messages.waveAllLocked();
+      default:
+        return messages.waveUnlocked();
+    }
   }
 
   // Rather than install a regular handler, this is an experiment at injecting

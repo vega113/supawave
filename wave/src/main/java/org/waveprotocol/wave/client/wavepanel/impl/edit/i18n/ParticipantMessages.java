@@ -53,4 +53,25 @@ public interface ParticipantMessages extends Messages {
 
   @DefaultMessage("Direct messages cannot be made public.")
   String cannotMakeDmPublic();
+
+  @DefaultMessage("Only the wave creator or an admin can change the lock state.")
+  String onlyOwnerCanToggleLock();
+
+  @DefaultMessage("Wave unlocked. All editing allowed.")
+  String waveLockUnlocked();
+
+  @DefaultMessage("Root blip locked. Replies are still allowed.")
+  String waveLockRoot();
+
+  @DefaultMessage("Wave fully locked. No editing or replies.")
+  String waveLockAll();
+
+  @DefaultMessage("This wave is locked. Editing is not allowed.")
+  String waveIsLocked();
+
+  @DefaultMessage("This wave is locked. Replies are not allowed.")
+  String waveIsLockedNoReply();
+
+  @DefaultMessage("The root blip is locked. Editing is not allowed here.")
+  String rootBlipIsLocked();
 }

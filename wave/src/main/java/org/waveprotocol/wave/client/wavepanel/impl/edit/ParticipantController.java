@@ -43,6 +43,7 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 import org.waveprotocol.wave.model.conversation.Conversation;
+import org.waveprotocol.wave.model.conversation.WaveLockState;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.util.Preconditions;
@@ -146,6 +147,13 @@ public final class ParticipantController {
       @Override
       public boolean onClick(ClickEvent event, Element context) {
         handleShareLinkClicked(context);
+        return true;
+      }
+    });
+    handlers.registerClickHandler(TypeCodes.kind(Type.TOGGLE_LOCK), new WaveClickHandler() {
+      @Override
+      public boolean onClick(ClickEvent event, Element context) {
+        handleToggleLockClicked(context);
         return true;
       }
     });
@@ -378,6 +386,82 @@ public final class ParticipantController {
       $doc.body.removeChild(ta);
     }
   }-*/;
+
+  /**
+   * Cycles the wave lock state: UNLOCKED -> ROOT_LOCKED -> ALL_LOCKED -> UNLOCKED.
+   * Only the wave creator or an admin can toggle the lock state.
+   */
+  private void handleToggleLockClicked(Element context) {
+    ParticipantsView participantsUi = views.fromToggleLockButton(context);
+    Conversation conversation = models.getParticipants(participantsUi);
+    Set<ParticipantId> participants = conversation.getParticipantIds();
+
+    // The wave creator is the first participant in the ordered set.
+    ParticipantId creator = participants.iterator().next();
+    if (!user.equals(creator) && !Session.get().isAdmin()) {
+      ToastNotification.showWarning(messages.onlyOwnerCanToggleLock());
+      return;
+    }
+
+    WaveLockState currentState = conversation.getLockState();
+    WaveLockState newState = currentState.next();
+    conversation.setLockState(newState);
+
+    // Update the button icon and tooltip.
+    updateToggleLockIcon(context, newState);
+
+    // Show confirmation toast.
+    switch (newState) {
+      case ROOT_LOCKED:
+        ToastNotification.showSuccess(messages.waveLockRoot());
+        break;
+      case ALL_LOCKED:
+        ToastNotification.showSuccess(messages.waveLockAll());
+        break;
+      default:
+        ToastNotification.showSuccess(messages.waveLockUnlocked());
+        break;
+    }
+  }
+
+  /**
+   * Updates the toggle-lock button's SVG icon and tooltip to reflect the
+   * current lock state.
+   */
+  private void updateToggleLockIcon(Element buttonElement, WaveLockState lockState) {
+    String svgIcon;
+    String tooltip;
+    switch (lockState) {
+      case ROOT_LOCKED:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "<line x1='12' y1='8' x2='12' y2='16'/>"
+            + "</svg>";
+        tooltip = messages.waveLockRoot();
+        break;
+      case ALL_LOCKED:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='currentColor' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "</svg>";
+        tooltip = messages.waveLockAll();
+        break;
+      default:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "</svg>";
+        tooltip = messages.waveLockUnlocked();
+        break;
+    }
+    buttonElement.setInnerHTML(svgIcon);
+    buttonElement.setTitle(tooltip);
+    buttonElement.setAttribute("aria-label", tooltip);
+  }
 
   /**
    * Creates a new wave with the participants of the current wave. Showing

@@ -72,6 +72,7 @@ public interface View {
     ADD_TAG,
     TOGGLE_PUBLIC,
     SHARE_LINK,
+    TOGGLE_LOCK,
   }
 
   Type getType();

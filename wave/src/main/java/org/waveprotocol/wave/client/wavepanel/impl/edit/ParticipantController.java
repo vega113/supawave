@@ -23,7 +23,9 @@ package org.waveprotocol.wave.client.wavepanel.impl.edit;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.user.client.Window;
+
+import org.waveprotocol.wave.client.widget.dialog.PromptDialog;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
 import org.waveprotocol.wave.client.account.ContactManager;
 import org.waveprotocol.wave.client.account.Profile;
@@ -197,13 +199,13 @@ public final class ParticipantController {
     // The wave creator is the first participant in the ordered set.
     ParticipantId creator = participants.iterator().next();
     if (!user.equals(creator)) {
-      Window.alert(messages.onlyOwnerCanTogglePublic());
+      ToastNotification.showWarning(messages.onlyOwnerCanTogglePublic());
       return;
     }
 
     // Guard against null/empty localDomain before building the shared domain participant.
     if (localDomain == null || localDomain.isEmpty()) {
-      Window.alert(messages.publicToggleNotAvailable());
+      ToastNotification.showWarning(messages.publicToggleNotAvailable());
       return;
     }
 
@@ -312,7 +314,7 @@ public final class ParticipantController {
         try {
           participants = buildParticipantList(localDomain, addressString);
         } catch (InvalidParticipantAddress e) {
-          Window.alert(e.getMessage());
+          ToastNotification.showWarning(e.getMessage());
           return;
         }
         for (ParticipantId participant : participants) {
@@ -331,28 +333,35 @@ public final class ParticipantController {
   }
 
   /**
-   * Legacy add-participant using a plain browser prompt (no autocomplete).
+   * Legacy add-participant using a styled prompt dialog (no autocomplete).
    */
-  private void handleAddButtonClickedLegacy(Element context) {
-    String addressString = Window.prompt("Add a participant(s) (separate with comma ','): ", "");
-    if (addressString == null) {
-      return;
-    }
+  private void handleAddButtonClickedLegacy(final Element context) {
+    PromptDialog.show("Add a participant(s) (separate with comma ','):", "",
+        new PromptDialog.Listener() {
+          @Override
+          public void onSubmit(String addressString) {
+            if (addressString == null || addressString.trim().isEmpty()) {
+              return;
+            }
+            ParticipantId[] participants;
+            try {
+              participants = buildParticipantList(localDomain, addressString);
+            } catch (InvalidParticipantAddress e) {
+              ToastNotification.showWarning(e.getMessage());
+              return;
+            }
+            ParticipantsView participantsUi = views.fromAddButton(context);
+            Conversation conversation = models.getParticipants(participantsUi);
+            for (ParticipantId participant : participants) {
+              conversation.addParticipant(participant);
+            }
+          }
 
-    ParticipantId[] participants;
-
-    try {
-      participants = buildParticipantList(localDomain, addressString);
-    } catch (InvalidParticipantAddress e) {
-      Window.alert(e.getMessage());
-      return;
-    }
-
-    ParticipantsView participantsUi = views.fromAddButton(context);
-    Conversation conversation = models.getParticipants(participantsUi);
-    for (ParticipantId participant : participants) {
-      conversation.addParticipant(participant);
-    }
+          @Override
+          public void onCancel() {
+            // User cancelled -- do nothing
+          }
+        });
   }
 
   /**
@@ -380,7 +389,7 @@ public final class ParticipantController {
             Set<ParticipantId> currentParticipants = participation.first.getParticipantIds();
             ParticipantId creator = currentParticipants.iterator().next();
             if (!user.equals(creator)) {
-              Window.alert(messages.onlyOwnerCanTogglePublic());
+              ToastNotification.showWarning(messages.onlyOwnerCanTogglePublic());
               profileView.hide();
               return;
             }

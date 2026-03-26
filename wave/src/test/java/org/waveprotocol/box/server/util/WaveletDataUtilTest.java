@@ -47,6 +47,7 @@ import java.util.Arrays;
 public class WaveletDataUtilTest extends TestCase {
   public static final ParticipantId CREATOR = new ParticipantId("creator@example.com");
   public static final ParticipantId JOE = new ParticipantId("joe@example.com");
+  public static final ParticipantId DOMAIN_PARTICIPANT = ParticipantId.ofUnsafe("@example.com");
   public static final WaveletName WAVELET_NAME =
       WaveletName.of(WaveId.of("example.com", "w+wave"), WaveletId.of("example.com", "wavelet"));
 
@@ -100,5 +101,62 @@ public class WaveletDataUtilTest extends TestCase {
     assertEquals(HashedVersion.unsigned(3), wavelet.getHashedVersion());
     assertEquals(ImmutableSet.of("blipid"), wavelet.getDocumentIds());
     assertEquals(ImmutableSet.of(CREATOR, JOE), wavelet.getParticipants());
+  }
+
+  // --- Public wave access tests ---
+
+  public void testIsPublicWavelet_withDomainParticipant() throws Exception {
+    WaveletData wavelet = build(
+        delta(addParticipant(CREATOR, 1093L, HashedVersion.unsigned(1))),
+        delta(addParticipant(DOMAIN_PARTICIPANT, 1094L, HashedVersion.unsigned(2)))
+    );
+    assertTrue(WaveletDataUtil.isPublicWavelet(wavelet, DOMAIN_PARTICIPANT));
+  }
+
+  public void testIsPublicWavelet_withoutDomainParticipant() throws Exception {
+    WaveletData wavelet = build(
+        delta(addParticipant(CREATOR, 1093L, HashedVersion.unsigned(1)))
+    );
+    assertFalse(WaveletDataUtil.isPublicWavelet(wavelet, DOMAIN_PARTICIPANT));
+  }
+
+  public void testIsPublicWavelet_nullSnapshot() {
+    assertFalse(WaveletDataUtil.isPublicWavelet(null, DOMAIN_PARTICIPANT));
+  }
+
+  public void testIsPublicWavelet_nullDomainParticipant() throws Exception {
+    WaveletData wavelet = build(
+        delta(addParticipant(CREATOR, 1093L, HashedVersion.unsigned(1)))
+    );
+    assertFalse(WaveletDataUtil.isPublicWavelet(wavelet, null));
+  }
+
+  public void testCheckReadAccess_authenticatedUserWithAccess() throws Exception {
+    WaveletData wavelet = build(
+        delta(addParticipant(CREATOR, 1093L, HashedVersion.unsigned(1)))
+    );
+    assertTrue(WaveletDataUtil.checkReadAccessPermission(wavelet, CREATOR, DOMAIN_PARTICIPANT));
+  }
+
+  public void testCheckReadAccess_authenticatedUserNoAccess() throws Exception {
+    WaveletData wavelet = build(
+        delta(addParticipant(CREATOR, 1093L, HashedVersion.unsigned(1)))
+    );
+    assertFalse(WaveletDataUtil.checkReadAccessPermission(wavelet, JOE, DOMAIN_PARTICIPANT));
+  }
+
+  public void testCheckReadAccess_anonymousOnPublicWave() throws Exception {
+    WaveletData wavelet = build(
+        delta(addParticipant(CREATOR, 1093L, HashedVersion.unsigned(1))),
+        delta(addParticipant(DOMAIN_PARTICIPANT, 1094L, HashedVersion.unsigned(2)))
+    );
+    assertTrue(WaveletDataUtil.checkReadAccessPermission(wavelet, null, DOMAIN_PARTICIPANT));
+  }
+
+  public void testCheckReadAccess_anonymousOnPrivateWave() throws Exception {
+    WaveletData wavelet = build(
+        delta(addParticipant(CREATOR, 1093L, HashedVersion.unsigned(1)))
+    );
+    assertFalse(WaveletDataUtil.checkReadAccessPermission(wavelet, null, DOMAIN_PARTICIPANT));
   }
 }

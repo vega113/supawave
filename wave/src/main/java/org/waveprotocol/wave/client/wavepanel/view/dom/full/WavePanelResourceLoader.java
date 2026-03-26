@@ -81,6 +81,10 @@ public final class WavePanelResourceLoader {
     StyleInjector.inject(participants.css().getText(), isSynchronous);
     StyleInjector.inject(tags.css().getText(), isSynchronous);
     StyleInjector.inject(dialog.css().getText(), isSynchronous);
+
+    // Load thread navigation CSS (slide transitions, breadcrumb, depth lines).
+    // Uses TextResource to avoid CssResource obfuscation of literal class names.
+    ThreadNavigationCssLoader.ensureInjected();
   }
 
   private WavePanelResourceLoader() {

@@ -23,6 +23,10 @@ import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Node;
 import com.google.gwt.dom.client.Style;
+import com.google.gwt.event.logical.shared.ValueChangeEvent;
+import com.google.gwt.event.logical.shared.ValueChangeHandler;
+import com.google.gwt.event.shared.HandlerRegistration;
+import com.google.gwt.user.client.History;
 
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
 
@@ -58,6 +62,9 @@ public final class ThreadNavigationPresenter {
   /** CSS class applied to hidden siblings during navigation. */
   private static final String SLIDE_HIDDEN_CLASS = "slide-nav-hidden";
 
+  /** CSS class applied to body when the breadcrumb bar is visible. */
+  private static final String BODY_BREADCRUMB_CLASS = "slide-nav-has-breadcrumb";
+
   /** The navigation stack: most recently entered thread is at the end. */
   private final List<NavigationEntry> navigationStack;
 
@@ -70,6 +77,25 @@ public final class ThreadNavigationPresenter {
   /** Listener for navigation events. */
   private NavigationListener listener;
 
+  /** Whether browser history integration is enabled. */
+  private boolean historyEnabled;
+
+  /**
+   * True while we are programmatically navigating in response to a browser
+   * back/forward event. When set, enterThread/exitThread/navigateToLevel
+   * skip pushing new history entries to avoid infinite loops.
+   */
+  private boolean handlingHistoryEvent;
+
+  /** Token prefix used for slide-nav history entries. */
+  private static final String HISTORY_TOKEN_PREFIX = "slide-nav-";
+
+  /** Handler registration for browser history events. */
+  private HandlerRegistration historyRegistration;
+
+  /** The original history token before any slide navigation occurred. */
+  private String originalHistoryToken;
+
   /**
    * Listener interface for navigation state changes.
    */
@@ -81,6 +107,115 @@ public final class ThreadNavigationPresenter {
   public ThreadNavigationPresenter() {
     this.navigationStack = new ArrayList<NavigationEntry>();
     this.depthThreshold = DEFAULT_DESKTOP_THRESHOLD;
+  }
+
+  /**
+   * Enables browser history integration. When enabled, entering and
+   * exiting slide navigation will push/pop browser history entries so
+   * that the browser Back button can be used to navigate back.
+   */
+  public void enableHistoryIntegration() {
+    if (historyEnabled) {
+      return;
+    }
+    historyEnabled = true;
+    historyRegistration = History.addValueChangeHandler(new ValueChangeHandler<String>() {
+      @Override
+      public void onValueChange(ValueChangeEvent<String> event) {
+        String token = event.getValue();
+        onHistoryTokenChanged(token);
+      }
+    });
+  }
+
+  /**
+   * Disables browser history integration and cleans up the handler.
+   */
+  public void disableHistoryIntegration() {
+    if (!historyEnabled) {
+      return;
+    }
+    historyEnabled = false;
+    if (historyRegistration != null) {
+      historyRegistration.removeHandler();
+      historyRegistration = null;
+    }
+  }
+
+  /**
+   * Handles a browser history token change. This is called when the user
+   * clicks the browser Back or Forward button.
+   */
+  private void onHistoryTokenChanged(String token) {
+    if (handlingHistoryEvent) {
+      return;
+    }
+
+    if (token != null && token.startsWith(HISTORY_TOKEN_PREFIX)) {
+      // Parse the target depth from the token.
+      String depthStr = token.substring(HISTORY_TOKEN_PREFIX.length());
+      try {
+        int targetDepth = Integer.parseInt(depthStr);
+        handlingHistoryEvent = true;
+        try {
+          navigateToLevel(targetDepth);
+        } finally {
+          handlingHistoryEvent = false;
+        }
+      } catch (NumberFormatException e) {
+        // Malformed token; ignore.
+      }
+    } else {
+      // The user navigated back past all slide-nav entries (back to root).
+      if (isNavigated()) {
+        handlingHistoryEvent = true;
+        try {
+          exitToRoot();
+        } finally {
+          handlingHistoryEvent = false;
+        }
+      }
+    }
+  }
+
+  /**
+   * Pushes a browser history entry for the current navigation depth.
+   * Only effective if history integration is enabled and we are not
+   * currently handling a history event.
+   */
+  private void pushHistoryState() {
+    if (!historyEnabled || handlingHistoryEvent) {
+      return;
+    }
+
+    // Save original token when entering the first level.
+    if (navigationStack.size() == 1) {
+      originalHistoryToken = History.getToken();
+    }
+
+    String token = HISTORY_TOKEN_PREFIX + navigationStack.size();
+    History.newItem(token, false);
+  }
+
+  /**
+   * Pops or replaces the browser history entry after exiting a thread.
+   * Only effective if history integration is enabled and we are not
+   * currently handling a history event.
+   */
+  private void popHistoryState() {
+    if (!historyEnabled || handlingHistoryEvent) {
+      return;
+    }
+
+    if (navigationStack.isEmpty()) {
+      // Restore the original token.
+      String token = originalHistoryToken != null ? originalHistoryToken : "";
+      History.newItem(token, false);
+      originalHistoryToken = null;
+    } else {
+      String token = HISTORY_TOKEN_PREFIX + navigationStack.size();
+      History.newItem(token, false);
+    }
   }
 
   /**
@@ -158,6 +293,9 @@ public final class ThreadNavigationPresenter {
     // Push to stack
     navigationStack.add(entry);
 
+    // Push browser history entry
+    pushHistoryState();
+
     // Update breadcrumb
     updateBreadcrumb();
 
@@ -190,6 +328,9 @@ public final class ThreadNavigationPresenter {
     if (threadElement != null) {
       threadElement.removeClassName(SLIDE_ACTIVE_CLASS);
     }
+
+    // Pop browser history entry
+    popHistoryState();
 
     // Update breadcrumb
     updateBreadcrumb();
@@ -227,6 +368,9 @@ public final class ThreadNavigationPresenter {
 
     navigationStack.clear();
 
+    // Pop browser history state back to root
+    popHistoryState();
+
     // Update breadcrumb (will hide it since stack is empty)
     updateBreadcrumb();
 
@@ -260,6 +404,9 @@ public final class ThreadNavigationPresenter {
         threadElement.removeClassName(SLIDE_ACTIVE_CLASS);
       }
     }
+
+    // Update browser history state
+    popHistoryState();
 
     // Update breadcrumb
     updateBreadcrumb();
@@ -450,7 +597,9 @@ public final class ThreadNavigationPresenter {
   }
 
   /**
-   * Updates the breadcrumb widget to reflect the current navigation stack.
+   * Updates the breadcrumb widget to reflect the current navigation stack,
+   * and toggles the body padding class to prevent content from hiding
+   * behind the fixed breadcrumb bar.
    */
   private void updateBreadcrumb() {
     if (breadcrumb == null) {
@@ -459,6 +608,7 @@ public final class ThreadNavigationPresenter {
 
     if (navigationStack.isEmpty()) {
       breadcrumb.hide();
+      Document.get().getBody().removeClassName(BODY_BREADCRUMB_CLASS);
     } else {
       List<String> labels = new ArrayList<String>();
       labels.add("Wave");
@@ -467,6 +617,7 @@ public final class ThreadNavigationPresenter {
       }
       breadcrumb.update(labels);
       breadcrumb.show();
+      Document.get().getBody().addClassName(BODY_BREADCRUMB_CLASS);
     }
   }
 

@@ -28,6 +28,7 @@ import com.google.wave.api.ProtocolVersion;
 import com.google.wave.api.event.EventType;
 import com.google.wave.api.robot.Capability;
 
+import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
@@ -41,6 +42,7 @@ import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.Prot
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoRobotAccountData;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoRobotCapabilities;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoRobotCapability;
+import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoSearchesItem;
 import org.waveprotocol.box.server.robots.RobotCapabilities;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
@@ -94,6 +96,16 @@ public class ProtoAccountDataSerializer {
     }
     if (account.getLastActivityTime() != 0) {
       builder.setLastActivityTime(account.getLastActivityTime());
+    }
+    // Saved searches
+    java.util.List<SearchesItem> searches = account.getSearches();
+    if (searches != null) {
+      for (SearchesItem item : searches) {
+        builder.addSavedSearch(ProtoSearchesItem.newBuilder()
+            .setName(item.getName() != null ? item.getName() : "")
+            .setQuery(item.getQuery() != null ? item.getQuery() : "")
+            .build());
+      }
     }
     return builder.build();
   }
@@ -192,6 +204,14 @@ public class ProtoAccountDataSerializer {
     }
     if (data.hasLastActivityTime()) {
       account.setLastActivityTime(data.getLastActivityTime());
+    }
+    // Saved searches
+    if (data.getSavedSearchCount() > 0) {
+      java.util.List<SearchesItem> searches = new java.util.ArrayList<>();
+      for (ProtoSearchesItem item : data.getSavedSearchList()) {
+        searches.add(new SearchesItem(item.getName(), item.getQuery()));
+      }
+      account.setSearches(searches);
     }
     return account;
   }

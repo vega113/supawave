@@ -26,6 +26,7 @@ import com.google.wave.api.robot.Capability;
 
 import junit.framework.TestCase;
 
+import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
@@ -37,7 +38,9 @@ import org.waveprotocol.box.server.robots.RobotCapabilities;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 /**
  * Testcases for {@link ProtoAccountDataSerializer}
@@ -56,6 +59,8 @@ public class ProtoAccountDataSerializerTest extends TestCase {
   private HumanAccountData humanAccount;
 
   private HumanAccountData humanAccountWithDigest;
+
+  private HumanAccountData humanAccountWithSearches;
 
   @Override
   protected void setUp() throws Exception {
@@ -80,6 +85,14 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     humanAccount = new HumanAccountDataImpl(HUMAN_ID);
     humanAccountWithDigest = new HumanAccountDataImpl(HUMAN_ID,
         new PasswordDigest("password".toCharArray()));
+
+    List<SearchesItem> searches = new ArrayList<>();
+    searches.add(new SearchesItem("Inbox", "in:inbox"));
+    searches.add(new SearchesItem("Flagged", "is:flagged"));
+    HumanAccountDataImpl withSearches = new HumanAccountDataImpl(HUMAN_ID,
+        new PasswordDigest("password".toCharArray()));
+    withSearches.setSearches(searches);
+    humanAccountWithSearches = withSearches;
   }
 
   private boolean compareCapability(Capability c1, Capability c2) {
@@ -136,6 +149,19 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccount);
     AccountData account = ProtoAccountDataSerializer.deserialize(data);
     assertEquals(robotAccount, account);
+  }
+
+  public final void testHumanAccountWithSearches() {
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(humanAccountWithSearches);
+    AccountData account = ProtoAccountDataSerializer.deserialize(data);
+    assertTrue(account.isHuman());
+    HumanAccountData human = account.asHuman();
+    assertNotNull(human.getSearches());
+    assertEquals(2, human.getSearches().size());
+    assertEquals("Inbox", human.getSearches().get(0).getName());
+    assertEquals("in:inbox", human.getSearches().get(0).getQuery());
+    assertEquals("Flagged", human.getSearches().get(1).getName());
+    assertEquals("is:flagged", human.getSearches().get(1).getQuery());
   }
 
   public final void testRobotAccountWithCapabilities() {

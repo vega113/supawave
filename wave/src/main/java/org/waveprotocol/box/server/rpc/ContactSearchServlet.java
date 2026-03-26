@@ -35,7 +35,6 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -50,27 +49,28 @@ import jakarta.servlet.http.HttpServletResponse;
  * <p>Request: {@code GET /contacts/search?q=<prefix>&limit=<n>}
  * <ul>
  *   <li>{@code q} -- address prefix to match (case-insensitive). Empty or absent returns all.</li>
- *   <li>{@code limit} -- maximum number of results (default 20, max 100).</li>
+ *   <li>{@code limit} -- maximum number of results (default 10, max 50).</li>
  * </ul>
  *
  * <p>Response (JSON):
  * <pre>{
- *   "contacts": [
- *     {"address": "alice@example.com", "score": 42.0},
+ *   "results": [
+ *     {"participant": "alice@example.com", "score": 42.0, "lastContact": 1234567890},
  *     ...
- *   ]
+ *   ],
+ *   "total": 5
  * }</pre>
  *
- * <p>Results are sorted by score descending (higher score = more interaction).
+ * <p>Results are sorted by score descending, then by address ascending.
  */
 @SuppressWarnings("serial")
 @Singleton
 public final class ContactSearchServlet extends HttpServlet {
 
   private static final Log LOG = Log.get(ContactSearchServlet.class);
-
-  private static final int DEFAULT_LIMIT = 20;
-  private static final int MAX_LIMIT = 100;
+  private static final int DEFAULT_LIMIT = 10;
+  private static final int MIN_LIMIT = 1;
+  private static final int MAX_LIMIT = 50;
 
   private final SessionManager sessionManager;
   private final ContactManager contactManager;
@@ -83,94 +83,128 @@ public final class ContactSearchServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
-    if (user == null) {
+    ParticipantId participant = sessionManager.getLoggedInUser(WebSessions.from(req, false));
+    if (participant == null) {
       resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
       return;
     }
 
-    String query = req.getParameter("q");
-    if (query == null) {
-      query = "";
-    }
-    String queryLower = query.toLowerCase(Locale.ENGLISH);
-
+    String prefix = normalizePrefix(req.getParameter("q"));
     int limit = parseLimit(req.getParameter("limit"));
 
-    long currentTime = Calendar.getInstance().getTimeInMillis();
-
-    List<Contact> allContacts;
+    List<Contact> contacts;
     try {
-      allContacts = contactManager.getContacts(user, 0);
+      contacts = contactManager.getContacts(participant, 0);
     } catch (PersistenceException ex) {
       LOG.severe("Contact search error", ex);
-      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to retrieve contacts");
+      sendErrorResponse(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Internal server error");
       return;
     }
 
-    // Filter by prefix and compute scores
-    List<ScoredContact> scored = new ArrayList<>();
-    for (Contact contact : allContacts) {
-      String address = contact.getParticipantId().getAddress();
-      if (queryLower.isEmpty() || address.toLowerCase(Locale.ENGLISH).startsWith(queryLower)) {
-        double score = contactManager.getScoreBonusAtTime(contact, currentTime);
-        scored.add(new ScoredContact(address, score));
-      }
-    }
+    long currentTime = Calendar.getInstance().getTimeInMillis();
+    List<ScoredContact> scored = filterAndScore(contacts, prefix, currentTime);
+    sortByScoreDescThenAddressAsc(scored);
+    int total = scored.size();
+    List<ScoredContact> truncated = truncateToLimit(scored, limit);
 
-    // Sort by score descending
-    Collections.sort(scored, new Comparator<ScoredContact>() {
-      @Override
-      public int compare(ScoredContact a, ScoredContact b) {
-        return Double.compare(b.score, a.score);
-      }
-    });
-
-    // Apply limit
-    if (scored.size() > limit) {
-      scored = scored.subList(0, limit);
-    }
-
-    // Build JSON response
     resp.setContentType("application/json; charset=utf-8");
     resp.setStatus(HttpServletResponse.SC_OK);
     resp.setHeader("Cache-Control", "no-store");
-
-    JsonObject json = new JsonObject();
-    JsonArray contactsArray = new JsonArray();
-    for (ScoredContact sc : scored) {
-      JsonObject c = new JsonObject();
-      c.addProperty("address", sc.address);
-      c.addProperty("score", sc.score);
-      contactsArray.add(c);
-    }
-    json.add("contacts", contactsArray);
-    resp.getWriter().append(json.toString());
+    resp.getWriter().append(buildResponseJson(truncated, total).toString());
   }
 
-  private static int parseLimit(String param) {
-    if (param == null || param.isEmpty()) {
+  private static String normalizePrefix(String raw) {
+    if (raw == null || raw.isEmpty()) {
+      return "";
+    }
+    return raw.trim().toLowerCase(Locale.ENGLISH);
+  }
+
+  private static int parseLimit(String raw) {
+    if (raw == null || raw.isEmpty()) {
       return DEFAULT_LIMIT;
     }
     try {
-      int value = Integer.parseInt(param);
-      if (value <= 0) {
-        return DEFAULT_LIMIT;
-      }
-      return Math.min(value, MAX_LIMIT);
+      int value = Integer.parseInt(raw);
+      return Math.max(MIN_LIMIT, Math.min(MAX_LIMIT, value));
     } catch (NumberFormatException e) {
       return DEFAULT_LIMIT;
     }
   }
 
-  /** Simple holder for a contact address and its computed score. */
-  static final class ScoredContact {
-    final String address;
-    final double score;
+  private List<ScoredContact> filterAndScore(List<Contact> contacts, String prefix,
+      long currentTime) {
+    List<ScoredContact> results = new ArrayList<>();
+    for (Contact contact : contacts) {
+      String address = contact.getParticipantId().getAddress();
+      if (prefix.isEmpty() || address.toLowerCase(Locale.ENGLISH).startsWith(prefix)) {
+        double score = currentTime + contactManager.getScoreBonusAtTime(contact, currentTime);
+        results.add(new ScoredContact(address, score, contact.getLastContactTime()));
+      }
+    }
+    return results;
+  }
 
-    ScoredContact(String address, double score) {
+  private static void sortByScoreDescThenAddressAsc(List<ScoredContact> scored) {
+    scored.sort(Comparator
+        .comparingDouble(ScoredContact::getScore).reversed()
+        .thenComparing(ScoredContact::getAddress));
+  }
+
+  private static List<ScoredContact> truncateToLimit(List<ScoredContact> scored, int limit) {
+    if (scored.size() <= limit) {
+      return scored;
+    }
+    return scored.subList(0, limit);
+  }
+
+  private static JsonObject buildResponseJson(List<ScoredContact> results, int total) {
+    JsonObject json = new JsonObject();
+    JsonArray arr = new JsonArray();
+    for (ScoredContact sc : results) {
+      JsonObject entry = new JsonObject();
+      entry.addProperty("participant", sc.getAddress());
+      entry.addProperty("score", sc.getScore());
+      entry.addProperty("lastContact", sc.getLastContact());
+      arr.add(entry);
+    }
+    json.add("results", arr);
+    json.addProperty("total", total);
+    return json;
+  }
+
+  private static void sendErrorResponse(HttpServletResponse resp, int status, String message)
+      throws IOException {
+    resp.setContentType("application/json; charset=utf-8");
+    resp.setStatus(status);
+    resp.setHeader("Cache-Control", "no-store");
+    JsonObject error = new JsonObject();
+    error.addProperty("error", message);
+    resp.getWriter().append(error.toString());
+  }
+
+  static final class ScoredContact {
+    private final String address;
+    private final double score;
+    private final long lastContact;
+
+    ScoredContact(String address, double score, long lastContact) {
       this.address = address;
       this.score = score;
+      this.lastContact = lastContact;
+    }
+
+    String getAddress() {
+      return address;
+    }
+
+    double getScore() {
+      return score;
+    }
+
+    long getLastContact() {
+      return lastContact;
     }
   }
 }

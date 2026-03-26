@@ -105,6 +105,11 @@ public final class HtmlRenderer {
       + "  background: #fff;\n"
       + "}\n"
 
+      // --- Search help panel overrides ---
+      // Ensure the search area container is positioned so the help panel
+      // can appear as an absolute-positioned dropdown below it.
+      + "#app [kind=\"c\"] { position: relative; overflow: visible !important; }\n"
+
       // --- Unified toolbar row: compact 32px action icons ---
       // The toolbar sits directly below the search box. All action and filter
       // icons live here in logical groups separated by thin vertical dividers.

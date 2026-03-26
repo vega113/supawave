@@ -147,16 +147,26 @@ public class ServerMain {
       ((SignerInfoStore)certPathStore).initializeSignerInfoStore();
     }
 
-    try {
-      org.waveprotocol.box.server.persistence.ContactMessageStore contactMessageStore =
-          injector.getInstance(org.waveprotocol.box.server.persistence.ContactMessageStore.class);
-      contactMessageStore.initializeContactMessageStore();
-    } catch (PersistenceException e) {
-      LOG.warning("Failed to initialize ContactMessageStore (contact form submissions may not work): " + e.getMessage());
-    }
+    // Initialize ContactMessageStore asynchronously to avoid blocking if MongoDB is unavailable
+    initializeContactMessageStoreAsync(injector);
 
     WaveletProvider waveServer = injector.getInstance(WaveletProvider.class);
     waveServer.initialize();
+  }
+
+  /** Initializes ContactMessageStore asynchronously to avoid blocking if MongoDB is unavailable. */
+  private static void initializeContactMessageStoreAsync(Injector injector) {
+    Thread initThread = new Thread(() -> {
+      try {
+        org.waveprotocol.box.server.persistence.ContactMessageStore contactMessageStore =
+            injector.getInstance(org.waveprotocol.box.server.persistence.ContactMessageStore.class);
+        contactMessageStore.initializeContactMessageStore();
+      } catch (Exception e) {
+        LOG.log(java.util.logging.Level.WARNING, "Failed to initialize ContactMessageStore (contact form submissions may not work)", e);
+      }
+    }, "ContactMessageStore-Initializer");
+    initThread.setDaemon(true);
+    initThread.start();
   }
 
   /**
@@ -224,6 +234,7 @@ public class ServerMain {
     server.addServlet("/userprofile/*", ProfileServlet.class);
     server.addServlet("/contacts", FetchContactsServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
+    server.addServlet("/wave/public/*", PublicWaveFetchServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
     server.addServlet("/history/*", VersionHistoryServlet.class);
     server.addServlet("/admin", AdminServlet.class);
@@ -257,6 +268,11 @@ public class ServerMain {
 
     server.addServlet("/terms", LegalServlet.class);
     server.addServlet("/privacy", LegalServlet.class);
+
+    // SEO endpoints
+    server.addServlet("/robots.txt", RobotsServlet.class);
+    server.addServlet("/sitemap.xml", SitemapServlet.class);
+    server.addServlet("/wave/*", PublicWaveServlet.class);
 
     server.addServlet("/", WaveClientServlet.class);
   }

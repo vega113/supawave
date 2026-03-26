@@ -97,6 +97,31 @@
     user-select: text;
   }
 
+  .reportModal {
+    display: none;
+    padding: 14px 22px 16px 22px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .reportTextArea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    font-family: sans-serif;
+    font-size: 13px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .reportActions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    justify-content: flex-end;
+  }
+
   </ui:style>
   <gwt:HTMLPanel>
     <div ui:field="overlay" class="{style.overlay}">
@@ -125,12 +150,32 @@
                       styleName="{style.btn}">
             <ui:text from="{msg.copyError}"/>
           </gwt:Anchor>
+          <gwt:Anchor href="javascript:;" ui:field="reportBugBtn" visible="false"
+                      styleName="{style.btn}">
+            <ui:text from="{msg.reportBug}"/>
+          </gwt:Anchor>
           <gwt:Anchor href="javascript:;" ui:field="dismissBtn"
                       styleName="{style.btn}">
             <ui:text from="{msg.dismiss}"/>
           </gwt:Anchor>
         </div>
       </div>
+
+      <!-- Bug report modal panel -->
+      <div ui:field="reportModal" class="{style.reportModal}">
+        <textarea ui:field="reportTextArea" class="{style.reportTextArea}"></textarea>
+        <div class="{style.reportActions}">
+          <gwt:Anchor href="javascript:;" ui:field="cancelReportBtn"
+                      styleName="{style.btn}">
+            <ui:text from="{msg.cancel}"/>
+          </gwt:Anchor>
+          <gwt:Anchor href="javascript:;" ui:field="sendReportBtn"
+                      styleName="{style.btn} {style.btnPrimary}">
+            <ui:text from="{msg.sendReport}"/>
+          </gwt:Anchor>
+        </div>
+      </div>
+
       <div ui:field="detail" class="{style.detail}">
         <h3 ui:field="stackHeader" style="margin: 0 0 8px 0; font-size: 12px; font-weight: 500;"></h3>
         <span ui:field="stack" class="{style.stack}"></span>

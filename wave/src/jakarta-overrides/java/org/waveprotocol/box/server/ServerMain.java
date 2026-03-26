@@ -127,7 +127,7 @@ public class ServerMain {
     initializeRobotAgents(injector);
     initializeContacts(injector, waveBus);
     initializeFrontend(injector, server, waveBus);
-    initializeSearch(injector, waveBus);
+    initializeSearch(injector, waveBus, config);
     initializeShutdownHandler(server);
 
     LOG.info("Starting server");
@@ -397,7 +397,7 @@ public class ServerMain {
     federationManager.startFederation();
   }
 
-  private static void initializeSearch(Injector injector, WaveBus waveBus)
+  private static void initializeSearch(Injector injector, WaveBus waveBus, Config config)
       throws WaveServerException {
     long startMs = System.currentTimeMillis();
     PerUserWaveViewDistpatcher waveViewDistpatcher = injector.getInstance(PerUserWaveViewDistpatcher.class);
@@ -406,6 +406,16 @@ public class ServerMain {
     waveBus.subscribe(waveViewDistpatcher);
     WaveIndexer waveIndexer = injector.getInstance(WaveIndexer.class);
     waveIndexer.remakeIndex();
+
+    // Register OT search wavelet updater AFTER PerUserWaveViewDistpatcher
+    // so that the per-user wave view index is current before search updates.
+    if (config.hasPath("search.ot_search_enabled") && config.getBoolean("search.ot_search_enabled")) {
+      org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater searchUpdater =
+          injector.getInstance(org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater.class);
+      waveBus.subscribe(searchUpdater);
+      LOG.info("SearchWaveletUpdater subscribed to WaveBus (ot-search enabled)");
+    }
+
     long elapsedMs = System.currentTimeMillis() - startMs;
     LOG.info("initializeSearch completed in " + elapsedMs + " ms");
   }

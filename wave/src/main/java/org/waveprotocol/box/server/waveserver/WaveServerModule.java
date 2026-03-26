@@ -99,6 +99,12 @@ public class WaveServerModule extends AbstractModule {
     bind(WaveletProvider.class).to(WaveServerImpl.class).asEagerSingleton();
     bind(ReadableWaveletDataProvider.class).to(WaveServerImpl.class).in(Singleton.class);
     bind(HashedVersionFactory.class).toInstance(HASH_FACTORY);
+
+    // OT search wavelet bindings (Phases 1-3)
+    bind(org.waveprotocol.box.server.waveserver.search.SearchWaveletManager.class).in(Singleton.class);
+    bind(org.waveprotocol.box.server.waveserver.search.SearchIndexer.class).in(Singleton.class);
+    bind(org.waveprotocol.box.server.waveserver.search.SearchWaveletDataProvider.class).in(Singleton.class);
+    bind(org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater.class).in(Singleton.class);
   }
 
   @Provides

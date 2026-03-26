@@ -631,12 +631,31 @@ public final class SearchPresenter
    * The existing DOM node is reused — only changed text/attributes are
    * written — so the browser does not tear down and rebuild the element,
    * which eliminates the visible flicker in the sidebar wave list.
+   *
+   * If the updated digest has a newer last-modified time than the first
+   * item in the list, the entire list is re-rendered so that the most
+   * recently modified wave appears at the top (matching the server's
+   * default descending-LMT sort order).
    */
   private void applyDigestReady(int index, Digest digest) {
     DigestView digestUi = findDigestView(digest);
     if (digestUi == null) {
       return;
     }
+
+    // Check whether the modified digest should move to the top.
+    DigestView firstUi = searchUi.getFirst();
+    if (firstUi != null && firstUi != digestUi) {
+      Digest firstDigest = digestUis.get(firstUi);
+      if (firstDigest != null && digest.getLastModifiedTime() > firstDigest.getLastModifiedTime()) {
+        // The updated digest is newer than the current first item — trigger
+        // a full re-render via the next polling cycle so the server provides
+        // the authoritative sort order.
+        doSearch();
+        return;
+      }
+    }
+
     searchUi.renderDigest(digestUi, digest);
   }
 

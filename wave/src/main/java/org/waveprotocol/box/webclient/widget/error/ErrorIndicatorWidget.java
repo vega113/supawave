@@ -57,6 +57,9 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
     String btnPrimary();
     String detail();
     String stack();
+    String reportModal();
+    String reportTextArea();
+    String reportActions();
   }
 
   private static final Binder BINDER = GWT.create(Binder.class);
@@ -73,6 +76,11 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
   @UiField Element overlay;
   @UiField Anchor copyBtn;
   @UiField Anchor dismissBtn;
+  @UiField Anchor reportBugBtn;
+  @UiField Element reportModal;
+  @UiField Element reportTextArea;
+  @UiField Anchor cancelReportBtn;
+  @UiField Anchor sendReportBtn;
   @UiField Element waveDecor;
   @UiField Element glowDot;
   @UiField Element titleText;
@@ -169,7 +177,18 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
     // Other buttons
     applyButtonStyle(showDetail.getElement(), false);
     applyButtonStyle(copyBtn.getElement(), false);
+    applyButtonStyle(reportBugBtn.getElement(), false);
     applyButtonStyle(dismissBtn.getElement(), false);
+
+    // Report modal styling
+    reportModal.getStyle().setProperty("background", "rgba(0,0,0,0.2)");
+    reportTextArea.getStyle().setProperty("background", "rgba(0,0,0,0.3)");
+    reportTextArea.getStyle().setProperty("color", "#e0f0ff");
+    reportTextArea.setAttribute("placeholder", MESSAGES.reportBugPlaceholder());
+
+    // Report modal action buttons
+    applyButtonStyle(cancelReportBtn.getElement(), false);
+    applyButtonStyle(sendReportBtn.getElement(), true);
 
     // Wave decoration at bottom of banner
     waveDecor.getStyle().setProperty("borderRadius", "0 0 14px 14px");
@@ -239,6 +258,109 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
         MESSAGES.copied(), MESSAGES.copyFailed());
   }
 
+  @UiHandler("reportBugBtn")
+  void handleReportBugClick(ClickEvent e) {
+    reportModal.getStyle().setProperty("display", "block");
+  }
+
+  @UiHandler("cancelReportBtn")
+  void handleCancelReportClick(ClickEvent e) {
+    reportModal.getStyle().setProperty("display", "none");
+  }
+
+  @UiHandler("sendReportBtn")
+  void handleSendReportClick(ClickEvent e) {
+    String userContext = getTextAreaValue(reportTextArea);
+    String stackText = stack.getInnerText();
+    sendReportBtn.setText(MESSAGES.sending());
+    sendBugReport(stackText, userContext, overlay, reportModal,
+        MESSAGES.reportSent(), MESSAGES.reportFailed());
+  }
+
+  /** Reads the value from a textarea element. */
+  private static native String getTextAreaValue(Element el) /*-{
+    return el.value || '';
+  }-*/;
+
+  /**
+   * Posts a bug report to /contact via XMLHttpRequest, then shows a toast.
+   */
+  private static native void sendBugReport(String stackTrace, String userContext,
+      Element overlayEl, Element modalEl,
+      String successMsg, String failMsg) /*-{
+    var ua = $wnd.navigator.userAgent || 'unknown';
+    var url = $wnd.location.href || 'unknown';
+    var ts = new Date().toISOString();
+    var message = 'Auto-reported error:\n' + stackTrace
+        + '\n\nUser context:\n' + (userContext || '(none provided)')
+        + '\n\nBrowser: ' + ua
+        + '\nURL: ' + url
+        + '\nTime: ' + ts;
+
+    // Escape for JSON
+    function esc(s) {
+      return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+              .replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+              .replace(/\t/g, '\\t');
+    }
+
+    var body = '{"name":"' + esc('Bug Reporter')
+        + '","email":""'
+        + ',"subject":"' + esc('Bug Report')
+        + '","message":"' + esc(message) + '"}';
+
+    var xhr = new $wnd.XMLHttpRequest();
+    xhr.open('POST', '/contact', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        @org.waveprotocol.box.webclient.widget.error.ErrorIndicatorWidget::showToast(Ljava/lang/String;Lcom/google/gwt/dom/client/Element;)(successMsg, overlayEl);
+      } else {
+        @org.waveprotocol.box.webclient.widget.error.ErrorIndicatorWidget::showToast(Ljava/lang/String;Lcom/google/gwt/dom/client/Element;)(failMsg, null);
+      }
+      modalEl.style.display = 'none';
+    };
+    xhr.send(body);
+  }-*/;
+
+  /**
+   * Shows a brief toast notification, then optionally dismisses the overlay.
+   */
+  private static void showToast(String message, Element overlayToDismiss) {
+    Element toast = Document.get().createDivElement();
+    toast.setInnerText(message);
+    com.google.gwt.dom.client.Style ts = toast.getStyle();
+    ts.setProperty("position", "fixed");
+    ts.setProperty("top", "16px");
+    ts.setProperty("left", "50%");
+    ts.setProperty("transform", "translateX(-50%)");
+    ts.setProperty("zIndex", "100000");
+    ts.setProperty("background", "#0d1b2a");
+    ts.setProperty("color", "#e0f0ff");
+    ts.setProperty("padding", "12px 24px");
+    ts.setProperty("borderRadius", "10px");
+    ts.setProperty("fontSize", "14px");
+    ts.setProperty("fontFamily", "sans-serif");
+    ts.setProperty("boxShadow", "0 4px 16px rgba(0,0,0,0.4)");
+    ts.setProperty("animation", "errorFadeIn 0.3s ease-out");
+    Document.get().getBody().appendChild(toast);
+    removeToastAfterDelay(toast, overlayToDismiss);
+  }
+
+  /** Removes the toast element after 2.5 seconds, and optionally dismisses the overlay. */
+  private static native void removeToastAfterDelay(Element toast, Element overlayEl) /*-{
+    $wnd.setTimeout(function() {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+      if (overlayEl) {
+        overlayEl.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+        overlayEl.style.opacity = '0';
+        overlayEl.style.transform = 'translateX(-50%) translateY(-24px)';
+        $wnd.setTimeout(function() { overlayEl.style.display = 'none'; }, 300);
+      }
+    }, 2500);
+  }-*/;
+
   @UiHandler("dismissBtn")
   void handleDismissClick(ClickEvent e) {
     dismissWithAnimation(overlay);
@@ -302,6 +424,7 @@ public final class ErrorIndicatorWidget extends Composite implements ErrorIndica
   public void showDetailLink() {
     showDetail.setVisible(true);
     copyBtn.setVisible(true);
+    reportBugBtn.setVisible(true);
   }
 
   @Override

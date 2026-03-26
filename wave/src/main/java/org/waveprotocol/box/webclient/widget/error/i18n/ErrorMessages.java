@@ -62,4 +62,25 @@ public interface ErrorMessages extends Messages {
 
   @DefaultMessage("Copy failed")
   String copyFailed();
+
+  @DefaultMessage("Report Bug")
+  String reportBug();
+
+  @DefaultMessage("What were you doing when this happened?")
+  String reportBugPlaceholder();
+
+  @DefaultMessage("Send Report")
+  String sendReport();
+
+  @DefaultMessage("Cancel")
+  String cancel();
+
+  @DefaultMessage("Bug report sent! Thank you.")
+  String reportSent();
+
+  @DefaultMessage("Could not send report. Please copy the error and email support.")
+  String reportFailed();
+
+  @DefaultMessage("Sending...")
+  String sending();
 }

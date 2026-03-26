@@ -84,6 +84,7 @@ import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.LogManager;
+import java.util.logging.Level;
 
 import org.waveprotocol.box.server.config.ConfigurationInitializationException;
 import org.waveprotocol.box.server.frontend.ManifestOrderCache;
@@ -362,12 +363,8 @@ public class ServerMain {
     accountStore.initializeAccountStore();
     AccountStoreHolder.init(accountStore, waveDomain);
 
-    try {
-      ContactStore contactStore = injector.getInstance(ContactStore.class);
-      contactStore.initializeContactStore();
-    } catch (PersistenceException e) {
-      LOG.warning("Failed to initialize ContactStore (contacts may not work): " + e.getMessage());
-    }
+    // Initialize ContactStore asynchronously to avoid blocking if MongoDB is unavailable
+    initializeContactStoreAsync(injector);
 
     initializeSignerInfoStore(injector);
     initializeWaveServer(injector);
@@ -385,6 +382,20 @@ public class ServerMain {
   private static void initializeWaveServer(Injector injector) throws PersistenceException, WaveServerException {
     WaveletProvider waveServer = injector.getInstance(WaveletProvider.class);
     waveServer.initialize();
+  }
+
+  /** Initializes ContactStore asynchronously to avoid blocking if MongoDB is unavailable. */
+  private static void initializeContactStoreAsync(Injector injector) {
+    Thread initThread = new Thread(() -> {
+      try {
+        ContactStore contactStore = injector.getInstance(ContactStore.class);
+        contactStore.initializeContactStore();
+      } catch (Exception e) {
+        LOG.log(Level.WARNING, "Failed to initialize ContactStore (contacts may not work)", e);
+      }
+    }, "ContactStore-Initializer");
+    initThread.setDaemon(true);
+    initThread.start();
   }
 
   private static void initializeServlets(ServerRpcProvider server, Config config) {
@@ -420,6 +431,7 @@ public class ServerMain {
     // Dev endpoint: client-side fragments applier stats (session-based)
     server.addServlet("/dev/client-applier-stats", ClientApplierStatsServlet.class);
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
+    server.addServlet("/wave/public/*", PublicWaveFetchServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
     // Note: this javax ServerMain is excluded from compilation (see mainExactExcludes in build.gradle).
     // The active registration lives in the jakarta-overrides variant of ServerMain.

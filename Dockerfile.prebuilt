@@ -1,5 +1,3 @@
-#
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,25 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-#
 
-everythingShiny = "Brez skrbi, kapitan. Vse je krasno!"
-errorHasOccurred = Pojavila se je napaka
-somethingWentWrong = Nekaj je \u0161lo narobe
-errorHelpText = Brez skrbi \u2014 va\u0161e delo je varno. Poskusite osve\u017eiti stran.
-please = Prosim
-refreshPage = Osve\u017ei stran
-showErrorDetail = Podrobnosti
-stackTrace = Izpis sklada:
-copyError = Kopiraj napako
-dismiss = Zapri
-copied = Kopirano!
-copyFailed = Kopiranje ni uspelo
-reportBug = Prijavi napako
-reportBugPlaceholder = Kaj ste po\u010deli, ko se je to zgodilo?
-sendReport = Po\u0161lji poro\u010dilo
-cancel = Prekli\u010di
-reportSent = Poro\u010dilo o napaki poslano! Hvala.
-reportFailed = Poro\u010dila ni bilo mogo\u010de poslati. Kopirajte napako in po\u0161ljite e-po\u0161to podpori.
-sending = Po\u0161iljanje...
+# Lightweight Dockerfile for CI: expects the distribution to be
+# pre-built on the runner via `sbt Universal/stage`.  This avoids
+# installing SBT and compiling inside Docker, cutting ~250 seconds
+# off the deploy pipeline.
+#
+# For local / standalone builds that compile from source, use the
+# multi-stage `Dockerfile` instead.
+
+FROM eclipse-temurin:17-jre
+ENV WAVE_HOME=/opt/wave
+RUN groupadd --system wave \
+    && useradd --system --gid wave --home-dir ${WAVE_HOME} --shell /usr/sbin/nologin wave
+WORKDIR ${WAVE_HOME}
+COPY --chown=wave:wave . ${WAVE_HOME}/
+USER wave
+
+EXPOSE 9898
+
+ENTRYPOINT ["/opt/wave/bin/wave"]

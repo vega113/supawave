@@ -68,6 +68,11 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     String helpTableHeader();
     String helpExample();
     String helpTip();
+    String helpColumns();
+    String helpColumn();
+    String helpSectionTitle();
+    String helpCombiningText();
+    String helpExamplesGrid();
   }
 
   @UiField(provided = true)
@@ -108,6 +113,16 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   SpanElement exTag;
   @UiField
   SpanElement exFreeText;
+  @UiField
+  SpanElement exInboxTag;
+  @UiField
+  SpanElement exAllOldest;
+  @UiField
+  SpanElement exWithTag;
+  @UiField
+  SpanElement exPinnedCreator;
+  @UiField
+  SpanElement exCreatorArchive;
 
   private Listener listener;
 
@@ -174,6 +189,11 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     wireExample(exCreator);
     wireExample(exTag);
     wireExample(exFreeText);
+    wireExample(exInboxTag);
+    wireExample(exAllOldest);
+    wireExample(exWithTag);
+    wireExample(exPinnedCreator);
+    wireExample(exCreatorArchive);
   }
 
   /**

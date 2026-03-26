@@ -210,6 +210,11 @@ public final class WaveBasedDigest
     return null; // Inbox state tracking not yet wired to live wave digests
   }
 
+  @Override
+  public boolean isPinned() {
+    return false; // Pin state tracking not yet wired to live wave digests
+  }
+
 
   //
   // Events sent by this digest.

@@ -116,6 +116,12 @@ public final class SearchPresenter
       + "<rect x=\"1\" y=\"3\" width=\"22\" height=\"5\"></rect>"
       + "<line x1=\"10\" y1=\"12\" x2=\"14\" y2=\"12\"></line></svg>";
 
+  /** Pinned: pin icon. */
+  private static final String ICON_PIN = SVG_OPEN
+      + "<line x1=\"12\" y1=\"17\" x2=\"12\" y2=\"22\"></line>"
+      + "<path d=\"M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8"
+      + "a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z\"></path></svg>";
+
   // External references
   private final TimerService scheduler;
   private final Search search;
@@ -340,6 +346,16 @@ public final class SearchPresenter
             onQueryEntered();
           }
         }).setVisualElement(createSvgIcon(ICON_ARCHIVE));
+
+    new ToolbarButtonViewBuilder()
+        .setTooltip("Pinned waves")
+        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            searchUi.getSearch().setQuery("in:pinned");
+            onQueryEntered();
+          }
+        }).setVisualElement(createSvgIcon(ICON_PIN));
 
     // Saved searches are loaded lazily after the first search result arrives
     // (see onStateChanged) to avoid competing with the critical /search request.

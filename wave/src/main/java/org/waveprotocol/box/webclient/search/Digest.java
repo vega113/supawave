@@ -60,4 +60,9 @@ public interface Digest {
    * @return the inbox state of this wave for the current user, or null if unknown.
    */
   InboxState getInboxState();
+
+  /**
+   * @return true if this wave is pinned by the current user.
+   */
+  boolean isPinned();
 }

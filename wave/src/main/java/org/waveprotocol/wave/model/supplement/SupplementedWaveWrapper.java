@@ -92,6 +92,21 @@ public abstract class SupplementedWaveWrapper<T extends SupplementedWave>
     return delegate.isTrashed();
   }
 
+  @Override
+  public boolean isPinned() {
+    return delegate.isPinned();
+  }
+
+  @Override
+  public void pin() {
+    delegate.pin();
+  }
+
+  @Override
+  public void unpin() {
+    delegate.unpin();
+  }
+
   //
   // Inbox and folders.
   //

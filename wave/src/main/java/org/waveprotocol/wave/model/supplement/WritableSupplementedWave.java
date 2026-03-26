@@ -117,6 +117,16 @@ public interface WritableSupplementedWave {
   void moveToFolder(int folderId);
 
   /**
+   * Pins this wave so it appears at the top of search results.
+   */
+  void pin();
+
+  /**
+   * Unpins this wave.
+   */
+  void unpin();
+
+  /**
    * Inserts a new evaluation, which will cause wanted evaluations to update.
    */
   void addWantedEvaluation(WantedEvaluation evaluation);

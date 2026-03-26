@@ -336,11 +336,12 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
       // Remove all digests.  Remove from last to first, so that remove is O(1).
       log.trace().log("handling changed search");
       for (int i = results.size() - 1; i >= 0; i--) {
-        DigestSnapshot oldSnapshot = results.get(i);
         DigestProxy oldDigest = getDigest(i);
         results.remove(i);
-        digests.remove(ModernIdSerialiser.INSTANCE.serialiseWaveId(oldDigest.getWaveId()));
-        oldDigest.destroy();
+        if (oldDigest != null) {
+          digests.remove(ModernIdSerialiser.INSTANCE.serialiseWaveId(oldDigest.getWaveId()));
+          oldDigest.destroy();
+        }
       }
       // Now grow from nothing up to the new result size.
       if (this.total != total) {
@@ -373,6 +374,9 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
   public DigestProxy getDigest(int index) {
     Preconditions.checkState(outstanding == null);
     DigestSnapshot result = results.get(index);
+    if (result == null) {
+      return null;  // unfetched placeholder
+    }
     WaveId waveId = result.getWaveId();
     String id = ModernIdSerialiser.INSTANCE.serialiseWaveId(waveId);
     DigestProxy proxy = digests.get(id);
@@ -398,7 +402,13 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
 
   @Override
   public int getMinimumTotal() {
-    return results.size();
+    int count = 0;
+    for (int i = 0; i < results.size(); i++) {
+      if (results.get(i) != null) {
+        count++;
+      }
+    }
+    return count;
   }
 
   //

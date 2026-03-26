@@ -33,10 +33,7 @@ import org.waveprotocol.box.server.robots.JakartaRobotApiBindingsModule;
 import org.waveprotocol.box.server.robots.RobotRegistrationServlet;
 import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
-import org.waveprotocol.box.server.robots.agent.passwd.PasswordRobot;
-import org.waveprotocol.box.server.robots.agent.passwd.PasswordAdminRobot;
 import org.waveprotocol.box.server.robots.agent.registration.RegistrationRobot;
-import org.waveprotocol.box.server.robots.agent.welcome.WelcomeRobot;
 import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiTokenServlet;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
@@ -358,29 +355,14 @@ public class ServerMain {
   }
 
   /**
-   * Initializes the built-in robot agents (welcome, password, password-admin,
-   * registration). These agents run in-JVM and use LocalOperationSubmitter
-   * to bypass HTTP/OAuth.
+   * Initializes the built-in robot agents (registration). These agents run
+   * in-JVM and use LocalOperationSubmitter to bypass HTTP/OAuth.
+   *
+   * <p>Password bots were removed because password reset is now handled via
+   * email. The welcome wave is injected directly by {@link
+   * org.waveprotocol.box.server.rpc.WelcomeWaveCreator}.
    */
   private static void initializeRobotAgents(Injector injector) {
-    try {
-      injector.getInstance(WelcomeRobot.class);
-      LOG.info("Initialized WelcomeRobot agent");
-    } catch (Exception e) {
-      LOG.warning("Failed to initialize WelcomeRobot", e);
-    }
-    try {
-      injector.getInstance(PasswordRobot.class);
-      LOG.info("Initialized PasswordRobot agent");
-    } catch (Exception e) {
-      LOG.warning("Failed to initialize PasswordRobot", e);
-    }
-    try {
-      injector.getInstance(PasswordAdminRobot.class);
-      LOG.info("Initialized PasswordAdminRobot agent");
-    } catch (Exception e) {
-      LOG.warning("Failed to initialize PasswordAdminRobot", e);
-    }
     try {
       injector.getInstance(RegistrationRobot.class);
       LOG.info("Initialized RegistrationRobot agent");

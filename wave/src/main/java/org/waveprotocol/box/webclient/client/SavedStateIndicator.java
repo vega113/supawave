@@ -67,17 +67,17 @@ public class SavedStateIndicator implements UnsavedDataListener {
   private SavedState visibleSavedState = SavedState.SAVED;
   private SavedState currentSavedState = SavedState.SAVED;
 
-  /** Cloud-check SVG icon for saved state (green for contrast on dark topbar). */
+  /** Cloud-check SVG icon for saved state (white on dark topbar; dot shows state). */
   private static final String SAVED_ICON_SVG =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#3fb950\" stroke-width=\"1.8\""
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\""
           + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
           + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
           + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
           + "</svg>";
 
-  /** Cloud-upload SVG icon for unsaved/saving state (amber for visibility on dark topbar). */
+  /** Cloud-upload SVG icon for unsaved/saving state (white on dark topbar; dot shows state). */
   private static final String UNSAVED_ICON_SVG =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#ecc94b\" stroke-width=\"1.8\""
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\""
           + " stroke-linecap=\"round\" stroke-linejoin=\"round\""
           + " style=\"width:20px;height:20px;\" class=\"saving-icon\">"
           + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"

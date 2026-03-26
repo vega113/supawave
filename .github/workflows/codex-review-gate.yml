@@ -23,7 +23,17 @@ on:
 jobs:
   codex-review-gate:
     name: Codex Review Gate
-    if: ${{ github.event.pull_request != null || github.event.issue.pull_request != null }}
+    if: >-
+      ${{
+        (github.event.pull_request != null || github.event.issue.pull_request != null) &&
+        (
+          github.event_name != 'issue_comment' ||
+          (
+            github.event.comment.user.login == github.repository_owner &&
+            contains(github.event.comment.body, '/codex-review-gate')
+          )
+        )
+      }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read

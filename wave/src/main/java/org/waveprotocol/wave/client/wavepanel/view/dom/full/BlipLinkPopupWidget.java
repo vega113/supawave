@@ -23,16 +23,21 @@ import com.google.common.base.Preconditions;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.StyleInjector;
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.Timer;
+import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTMLPanel;
 import com.google.gwt.user.client.ui.TextBox;
 
 import org.waveprotocol.wave.client.common.util.WaveRefConstants;
 import org.waveprotocol.wave.client.wavepanel.view.BlipLinkPopupView;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n.BlipLinkMessages;
 import org.waveprotocol.wave.client.widget.popup.AlignedPopupPositioner;
 import org.waveprotocol.wave.client.widget.popup.PopupChrome;
 import org.waveprotocol.wave.client.widget.popup.PopupChromeFactory;
@@ -65,6 +70,12 @@ public final class BlipLinkPopupWidget extends Composite
 
     String link();
 
+    String linkRow();
+
+    String copyButton();
+
+    String copied();
+
     String self();
 
     String title();
@@ -82,10 +93,19 @@ public final class BlipLinkPopupWidget extends Composite
     StyleInjector.inject(style.getText(), true);
   }
 
+  private static final BlipLinkMessages messages = GWT.create(BlipLinkMessages.class);
+
+  /** Duration in milliseconds to show "Copied!" feedback before reverting. */
+  private static final int COPIED_FEEDBACK_MS = 2000;
+
   @UiField
   TextBox linkInfoBox;
   @UiField
   TextBox waverefLink;
+  @UiField
+  Button copyLinkInfoButton;
+  @UiField
+  Button copyWaverefButton;
 
   /** Popup containing this widget. */
   private final UniversalPopup popup;
@@ -103,6 +123,20 @@ public final class BlipLinkPopupWidget extends Composite
     popup = PopupFactory.createPopup(relative, AlignedPopupPositioner.ABOVE_RIGHT, chrome, true);
     popup.add(this);
     popup.addPopupEventListener(this);
+
+    // Wire up copy-to-clipboard buttons.
+    copyLinkInfoButton.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        copyToClipboard(linkInfoBox.getText(), copyLinkInfoButton);
+      }
+    });
+    copyWaverefButton.addClickHandler(new ClickHandler() {
+      @Override
+      public void onClick(ClickEvent event) {
+        copyToClipboard(waverefLink.getText(), copyWaverefButton);
+      }
+    });
   }
 
   @Override
@@ -152,4 +186,43 @@ public final class BlipLinkPopupWidget extends Composite
       listener.onHide();
     }
   }
+
+  /**
+   * Copies the given text to the clipboard and shows brief "Copied!" feedback
+   * on the supplied button.
+   */
+  private void copyToClipboard(String text, final Button button) {
+    nativeCopyToClipboard(text);
+    final String originalText = button.getText();
+    button.setText(messages.copied());
+    button.addStyleName(style.copied());
+    new Timer() {
+      @Override
+      public void run() {
+        button.setText(originalText);
+        button.removeStyleName(style.copied());
+      }
+    }.schedule(COPIED_FEEDBACK_MS);
+  }
+
+  /**
+   * Uses the browser Clipboard API to write text. Falls back to
+   * {@code document.execCommand('copy')} via a temporary textarea for
+   * older browsers.
+   */
+  private static native void nativeCopyToClipboard(String text) /*-{
+    if ($wnd.navigator && $wnd.navigator.clipboard && $wnd.navigator.clipboard.writeText) {
+      $wnd.navigator.clipboard.writeText(text);
+    } else {
+      // Fallback: create a temporary textarea, select its content, and copy.
+      var ta = $doc.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      $doc.body.appendChild(ta);
+      ta.select();
+      $doc.execCommand('copy');
+      $doc.body.removeChild(ta);
+    }
+  }-*/;
 }

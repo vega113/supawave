@@ -53,14 +53,8 @@ jobs:
           java-version: '17'
           cache: sbt
 
-      - name: Install sbt
-        run: |
-          set -euo pipefail
-          curl --fail --show-error --location --retry 3 \
-            "https://github.com/sbt/sbt/releases/download/v1.10.7/sbt-1.10.7.tgz" \
-            --output /tmp/sbt.tgz
-          sudo tar xzf /tmp/sbt.tgz -C /usr/local
-          sudo ln -sf /usr/local/sbt/bin/sbt /usr/local/bin/sbt
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0

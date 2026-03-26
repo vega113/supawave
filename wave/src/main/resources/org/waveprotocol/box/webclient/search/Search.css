@@ -101,7 +101,7 @@ input.query:focus {
   transform: translate(-50%, -50%);
   width: 660px;
   max-width: 90vw;
-  z-index: 1001;
+  z-index: 99999;
   background: #f8fbff;
   border: 1.5px solid #b0c4d8;
   border-radius: 10px;
@@ -119,7 +119,7 @@ input.query:focus {
   right: 0;
   bottom: 0;
   background: rgba(0,0,0,0.25);
-  z-index: 1000;
+  z-index: 99998;
 }
 
 .helpHeader {

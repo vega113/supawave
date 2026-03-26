@@ -77,6 +77,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
     String addButton();
     String newWaveWithParticipantsButton();
     String publicToggleButton();
+    String dmLabel();
   }
 
   private final static ParticipantMessages messages = GWT.create(ParticipantMessages.class);
@@ -103,13 +104,15 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   private final HtmlClosureCollection participantUis;
   private final String id;
   private final boolean isPublic;
+  private final boolean isDm;
   @VisibleForTesting
   ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis,
-      boolean isPublic) {
+      boolean isPublic, boolean isDm) {
     this.css = css;
     this.id = id;
     this.participantUis = participantUis;
     this.isPublic = isPublic;
+    this.isDm = isDm;
   }
 
   /**
@@ -119,19 +122,21 @@ public final class ParticipantsViewBuilder implements UiBuilder {
    */
   public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis) {
     return new ParticipantsViewBuilder(
-        WavePanelResourceLoader.getParticipants().css(), id, participantUis, false);
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, false, false);
   }
 
   /**
-   * Creates a new ParticipantsViewBuilder with public/private state.
+   * Creates a new ParticipantsViewBuilder with public/private and DM state.
    *
    * @param id attribute-HTML-safe encoding of the view's HTML id
    * @param isPublic true if the wave is currently public (shared with domain)
+   * @param isDm true if this is a direct message (exactly 2 real participants,
+   *             no domain participant)
    */
   public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis,
-      boolean isPublic) {
+      boolean isPublic, boolean isDm) {
     return new ParticipantsViewBuilder(
-        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic);
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic, isDm);
   }
 
   @Override
@@ -144,48 +149,75 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         {
           participantUis.outputHtml(output);
 
-          // Overflow-mode panel (toggle + add, but NO new-wave button to
-          // avoid duplication with the single-line panel).
-          openSpan(output, null, css.extra(), null);
-          {
-            openSpanWith(output, null, css.toggleGroup(), null, "onclick=\"" + onClickJs() + "\"");
+          if (isDm) {
+            // DM wave: show only the "Direct Message" label, hide action buttons.
+            openSpan(output, null, css.extra(), null);
             {
-              appendSpan(output, null, css.expandButton(), null);
-              openSpan(output, null, null, null);
+              openSpanWith(output, null, css.toggleGroup(), null, "onclick=\"" + onClickJs() + "\"");
               {
-                output.appendPlainText(messages.more());
+                appendSpan(output, null, css.expandButton(), null);
+                openSpan(output, null, null, null);
+                {
+                  output.appendPlainText(messages.more());
+                }
+                closeSpan(output);
               }
               closeSpan(output);
+              dmLabel(output, css.dmLabel(), messages.directMessage());
             }
             closeSpan(output);
-            addParticipantIcon(output, css.addButton(),
-                TypeCodes.kind(Type.ADD_PARTICIPANT),
-                messages.addParticipantToThisWave());
-            newWaveIcon(output, css.newWaveWithParticipantsButton(),
-                TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
-                messages.newWaveWithParticipantsOfCurrentWave());
-            publicToggleIcon(output, css.publicToggleButton(),
-                TypeCodes.kind(Type.TOGGLE_PUBLIC),
-                isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
-                isPublic);
-          }
-          closeSpan(output);
 
-          // Single-line mode panel.
-          openSpan(output, null, css.simple(), null);
-          {
-            addParticipantIcon(output, css.addButton(),
-                TypeCodes.kind(Type.ADD_PARTICIPANT),
-                messages.addParticipantToThisWave());
-            newWaveIcon(output, css.newWaveWithParticipantsButton(),
-                TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
-                messages.newWaveWithParticipantsOfCurrentWave());
-            publicToggleIcon(output, css.publicToggleButton(),
-                TypeCodes.kind(Type.TOGGLE_PUBLIC),
-                isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
-                isPublic);
+            openSpan(output, null, css.simple(), null);
+            {
+              dmLabel(output, css.dmLabel(), messages.directMessage());
+            }
+            closeSpan(output);
+          } else {
+            // Normal wave: show action buttons.
+
+            // Overflow-mode panel (toggle + add, but NO new-wave button to
+            // avoid duplication with the single-line panel).
+            openSpan(output, null, css.extra(), null);
+            {
+              openSpanWith(output, null, css.toggleGroup(), null, "onclick=\"" + onClickJs() + "\"");
+              {
+                appendSpan(output, null, css.expandButton(), null);
+                openSpan(output, null, null, null);
+                {
+                  output.appendPlainText(messages.more());
+                }
+                closeSpan(output);
+              }
+              closeSpan(output);
+              addParticipantIcon(output, css.addButton(),
+                  TypeCodes.kind(Type.ADD_PARTICIPANT),
+                  messages.addParticipantToThisWave());
+              newWaveIcon(output, css.newWaveWithParticipantsButton(),
+                  TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
+                  messages.newWaveWithParticipantsOfCurrentWave());
+              publicToggleIcon(output, css.publicToggleButton(),
+                  TypeCodes.kind(Type.TOGGLE_PUBLIC),
+                  isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
+                  isPublic);
+            }
+            closeSpan(output);
+
+            // Single-line mode panel.
+            openSpan(output, null, css.simple(), null);
+            {
+              addParticipantIcon(output, css.addButton(),
+                  TypeCodes.kind(Type.ADD_PARTICIPANT),
+                  messages.addParticipantToThisWave());
+              newWaveIcon(output, css.newWaveWithParticipantsButton(),
+                  TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
+                  messages.newWaveWithParticipantsOfCurrentWave());
+              publicToggleIcon(output, css.publicToggleButton(),
+                  TypeCodes.kind(Type.TOGGLE_PUBLIC),
+                  isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
+                  isPublic);
+            }
+            closeSpan(output);
           }
-          closeSpan(output);
         }
         close(output);
       }
@@ -294,6 +326,27 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
         + ">"
         + svgIcon
+        + "</span>");
+  }
+
+  /**
+   * Renders a subtle "Direct Message" label for DM waves. Uses a small
+   * chat-bubble SVG icon followed by the label text.
+   */
+  private static void dmLabel(SafeHtmlBuilder output, String clazz, String label) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedLabel = label != null ? EscapeUtils.htmlEscape(label) : "";
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + " title='" + escapedLabel + "'"
+        + ">"
+        // Small chat-bubble icon
+        + "<svg width='12' height='12' viewBox='0 0 24 24' fill='currentColor' "
+        + "style='vertical-align: middle; margin-right: 3px;'>"
+        + "<path d='M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2z'/>"
+        + "</svg>"
+        + escapedLabel
         + "</span>");
   }
 

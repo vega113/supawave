@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Event;
 import org.waveprotocol.wave.client.debug.FragmentsDebugIndicator;
 
 import org.waveprotocol.wave.client.account.ProfileManager;
@@ -49,8 +50,12 @@ import org.waveprotocol.wave.client.doodad.link.LinkAnnotationHandler;
 import org.waveprotocol.wave.client.doodad.link.LinkAnnotationHandler.LinkAttributeAugmenter;
 import org.waveprotocol.wave.client.doodad.selection.SelectionAnnotationHandler;
 import org.waveprotocol.wave.client.doodad.title.TitleAnnotationHandler;
+import org.waveprotocol.wave.client.editor.content.ContentElement;
 import org.waveprotocol.wave.client.editor.content.Registries;
+import org.waveprotocol.wave.client.editor.content.misc.AnnotationPaint;
 import org.waveprotocol.wave.client.editor.content.misc.StyleAnnotationHandler;
+import org.waveprotocol.wave.client.events.ClientEvents;
+import org.waveprotocol.wave.client.events.WaveSelectionEvent;
 import org.waveprotocol.wave.client.gadget.Gadget;
 import org.waveprotocol.wave.client.render.ReductionBasedRenderer;
 import org.waveprotocol.wave.client.render.RenderingRules;
@@ -162,6 +167,9 @@ import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.model.wave.opbased.WaveViewImpl;
 import org.waveprotocol.wave.model.wave.opbased.WaveViewImpl.WaveletConfigurator;
 import org.waveprotocol.wave.model.wave.opbased.WaveViewImpl.WaveletFactory;
+
+import org.waveprotocol.wave.model.waveref.WaveRef;
+import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
 
 import java.util.Collections;
 import java.util.Map;
@@ -853,11 +861,80 @@ public interface StageTwo {
             }
         }-*/;
 
+        /**
+         * Key used to register the internal-link click handler in the
+         * {@link AnnotationPaint} event-handler registry.
+         */
+        private static final String INTERNAL_LINK_HANDLER_KEY = "internalLink";
+
+        /**
+         * True once the static internal-link event handler has been registered.
+         * Guarded by the class-level monitor since {@code installDoodads} can
+         * theoretically be called more than once.
+         */
+        private static boolean internalLinkHandlerRegistered = false;
+
+        /**
+         * Ensures the internal-link click handler is registered exactly once
+         * with {@link AnnotationPaint}.
+         */
+        private static void ensureInternalLinkHandlerRegistered() {
+            if (!internalLinkHandlerRegistered) {
+                AnnotationPaint.registerEventHandler(INTERNAL_LINK_HANDLER_KEY,
+                    new AnnotationPaint.EventHandler() {
+                        @Override
+                        public void onEvent(ContentElement node, Event event) {
+                            if (event.getTypeInt() != Event.ONCLICK) {
+                                return;
+                            }
+                            Element target = Element.as(event.getEventTarget());
+                            // Walk up to find the anchor element (the click may
+                            // be on an inner text node).
+                            while (target != null
+                                    && !"a".equalsIgnoreCase(target.getTagName())) {
+                                target = target.getParentElement();
+                            }
+                            if (target == null) {
+                                return;
+                            }
+                            String href = target.getAttribute("href");
+                            if (href == null || !href.startsWith("#")) {
+                                return;
+                            }
+                            // Prevent the browser from performing default anchor navigation.
+                            event.preventDefault();
+
+                            String encodedRef = href.substring(1);
+                            try {
+                                WaveRef ref = GwtWaverefEncoder.decodeWaveRefFromPath(encodedRef);
+                                ClientEvents.get().fireEvent(new WaveSelectionEvent(ref));
+                            } catch (Exception e) {
+                                // Malformed ref -- nothing we can do, just ignore.
+                            }
+                        }
+                    });
+                internalLinkHandlerRegistered = true;
+            }
+        }
+
         protected LinkAttributeAugmenter createLinkAttributeAugmenter() {
+            // Make sure the static click handler is available.
+            ensureInternalLinkHandlerRegistered();
+
             return new LinkAttributeAugmenter() {
                 @Override
                 public Map<String, String> augment(Map<String, Object> annotations, boolean isEditing,
                                                    Map<String, String> current) {
+                    String link = current.get(AnnotationPaint.LINK_ATTR);
+                    if (link != null && link.startsWith("#")) {
+                        // Internal link -- attach the click handler so that
+                        // navigation works even when the editor is in edit mode.
+                        java.util.HashMap<String, String> augmented =
+                            new java.util.HashMap<String, String>(current);
+                        augmented.put(AnnotationPaint.MOUSE_LISTENER_ATTR,
+                            INTERNAL_LINK_HANDLER_KEY);
+                        return augmented;
+                    }
                     return current;
                 }
             };

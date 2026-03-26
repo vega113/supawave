@@ -2089,10 +2089,8 @@ public final class HtmlRenderer {
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
     sb.append("}\n");
     sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
-    // Icon color is white by default; saving state uses amber for visibility
+    // All topbar icons are white; state is shown only by ::after dots
     sb.append(".topbar-icon svg { stroke: white; color: white; }\n");
-    sb.append(".topbar-icon.saving svg { stroke: #ecc94b !important; color: #ecc94b !important; }\n");
-    sb.append(".topbar-icon.saved svg { stroke: #3fb950 !important; color: #3fb950 !important; }\n");
     // -- Status indicator dots (::after pseudo-element badges) --
     sb.append(".topbar-icon::after {\n");
     sb.append("  content: ''; position: absolute; bottom: 2px; right: 2px;\n");
@@ -2125,9 +2123,8 @@ public final class HtmlRenderer {
     sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.9); }\n");
     sb.append(".info a { color: #fff; text-decoration: none; font-weight: 500; }\n");
     sb.append(".info a:hover { text-decoration: underline; }\n");
-    sb.append(".online svg { color: #3fb950; stroke: #3fb950; }\n");
-    sb.append(".connecting svg { color: #d29922; stroke: #d29922; }\n");
-    sb.append(".offline svg { color: #f85149; stroke: #f85149; }\n");
+    // Icon color stays white; state is conveyed by ::after dots only
+    sb.append(".online svg, .connecting svg, .offline svg { color: white; stroke: white; }\n");
     sb.append("@keyframes status-pulse {\n");
     sb.append("  0%, 100% { opacity: 1; }\n");
     sb.append("  50% { opacity: 0.5; }\n");
@@ -3078,9 +3075,9 @@ public final class HtmlRenderer {
       + "<path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10\"/>"
       + "</svg>";
 
-  /** Cloud with checkmark icon for saved state — green #3fb950. */
+  /** Cloud with checkmark icon for saved state — white on dark topbar. */
   private static final String ICON_CLOUD_CHECK =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#3fb950\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
       + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
       + "</svg>";

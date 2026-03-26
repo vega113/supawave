@@ -437,13 +437,16 @@ public class SupplementedWaveImpl implements SupplementedWave {
 
   @Override
   public void pin() {
-    // Pin is additive - it does not remove other folder assignments.
-    supplement.addFolder(PINNED_FOLDER);
+    if (!isPinned()) {
+      supplement.addFolder(PINNED_FOLDER);
+    }
   }
 
   @Override
   public void unpin() {
-    supplement.removeFolder(PINNED_FOLDER);
+    if (isPinned()) {
+      supplement.removeFolder(PINNED_FOLDER);
+    }
   }
 
   @Override

@@ -276,6 +276,7 @@ public class ServerMain {
     server.addServlet("/contact", ContactServlet.class);
     server.addServlet("/folder/*", FolderServlet.class);
     server.addServlet("/searches", SearchesServlet.class);
+    server.addServlet("/tags", TagsServlet.class);
     server.addServlet("/robot/register/*", RobotRegistrationServlet.class);
     server.addServlet("/robot/rpc", ActiveApiServlet.class);
     server.addServlet("/robot/dataapi", DataApiServlet.class);

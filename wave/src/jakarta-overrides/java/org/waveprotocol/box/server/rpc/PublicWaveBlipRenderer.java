@@ -185,6 +185,8 @@ public final class PublicWaveBlipRenderer {
    * Renders a single blip document's content to HTML. Handles:
    * <ul>
    *   <li>{@code <line/>} elements with {@code t} attribute for headings/lists</li>
+   *   <li>{@code <line t="li">} for unordered lists, {@code <line t="li" listyle="decimal">}
+   *       for ordered lists — consecutive list items are wrapped in {@code <ul>}/{@code <ol>}</li>
    *   <li>Annotation boundaries for bold, italic, and link formatting</li>
    *   <li>Proper text accumulation across split {@code characters()} calls</li>
    * </ul>
@@ -196,8 +198,10 @@ public final class PublicWaveBlipRenderer {
     final Map<String, String> activeAnnotations = new HashMap<>();
     // Track whether we are inside a body element.
     final boolean[] inBody = {false};
-    // Track whether we have an open paragraph/heading tag.
+    // Track whether we have an open paragraph/heading/li tag.
     final String[] currentTag = {null};
+    // Track open list wrapper: "ul", "ol", or null if not in a list.
+    final String[] currentListTag = {null};
     // Track open formatting spans so we can close/reopen them at annotation boundaries.
     final boolean[] inBold = {false};
     final boolean[] inItalic = {false};
@@ -290,10 +294,36 @@ public final class PublicWaveBlipRenderer {
           if (currentTag[0] != null) {
             html.append("</").append(currentTag[0]).append(">");
           }
-          // Determine the HTML tag for this line type.
+
+          // Determine line type and list style from attributes.
           String lineType = attrs != null ? attrs.get("t") : null;
-          currentTag[0] = mapLineType(lineType);
-          html.append("<").append(currentTag[0]).append(">");
+          String listStyle = attrs != null ? attrs.get("listyle") : null;
+          boolean isList = "li".equals(lineType);
+
+          if (isList) {
+            // Determine the list wrapper tag based on listyle attribute.
+            String neededListTag = "decimal".equals(listStyle) ? "ol" : "ul";
+
+            if (currentListTag[0] == null) {
+              // Not in a list yet — open one.
+              html.append("<").append(neededListTag).append(">");
+              currentListTag[0] = neededListTag;
+            } else if (!currentListTag[0].equals(neededListTag)) {
+              // Switching list type (e.g., ul -> ol) — close old, open new.
+              html.append("</").append(currentListTag[0]).append(">");
+              html.append("<").append(neededListTag).append(">");
+              currentListTag[0] = neededListTag;
+            }
+            // Emit <li> as the block tag.
+            currentTag[0] = "li";
+            html.append("<li>");
+          } else {
+            // Non-list line — close any open list wrapper first.
+            closeListIfOpen(html, currentListTag);
+            currentTag[0] = mapLineType(lineType);
+            html.append("<").append(currentTag[0]).append(">");
+          }
+
           // Reopen formatting spans in the new block.
           openFormattingSpans(html, inBold, inItalic, linkUrl);
           return;
@@ -319,6 +349,8 @@ public final class PublicWaveBlipRenderer {
             html.append("</").append(currentTag[0]).append(">");
             currentTag[0] = null;
           }
+          // Close any open list wrapper.
+          closeListIfOpen(html, currentListTag);
           inBody[0] = false;
         }
       }
@@ -328,7 +360,18 @@ public final class PublicWaveBlipRenderer {
   }
 
   /**
+   * Closes an open list wrapper ({@code <ul>} or {@code <ol>}) if one is active.
+   */
+  private static void closeListIfOpen(StringBuilder html, String[] currentListTag) {
+    if (currentListTag[0] != null) {
+      html.append("</").append(currentListTag[0]).append(">");
+      currentListTag[0] = null;
+    }
+  }
+
+  /**
    * Maps a wave line {@code t} attribute value to an HTML tag name.
+   * List items ({@code t="li"}) are handled separately in the caller.
    */
   private static String mapLineType(String lineType) {
     if (lineType == null) {
@@ -339,7 +382,6 @@ public final class PublicWaveBlipRenderer {
       case "h2": return "h3";
       case "h3": return "h4";
       case "h4": return "h5";
-      case "li": return "p";  // Render list items as paragraphs (no <ul> context)
       default: return "p";
     }
   }

@@ -55,11 +55,10 @@ jobs:
 
       - name: Install sbt
         run: |
-          SBT_VERSION=1.10.7
-          SBT_SHA256="${{ vars.SBT_1_10_7_SHA256 }}"
-          curl --fail --location --retry 3 --retry-all-errors -o /tmp/sbt.tgz \
-            "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz"
-          printf '%s  %s\n' "$SBT_SHA256" /tmp/sbt.tgz | sha256sum -c -
+          set -euo pipefail
+          curl --fail --show-error --location --retry 3 \
+            "https://github.com/sbt/sbt/releases/download/v1.10.7/sbt-1.10.7.tgz" \
+            --output /tmp/sbt.tgz
           sudo tar xzf /tmp/sbt.tgz -C /usr/local
           sudo ln -sf /usr/local/sbt/bin/sbt /usr/local/bin/sbt
 

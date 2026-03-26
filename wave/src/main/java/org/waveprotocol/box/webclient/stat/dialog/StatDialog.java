@@ -29,8 +29,9 @@ import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.Command;
-import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.HTMLPanel;
+
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.ScrollPanel;
 import org.waveprotocol.box.stat.StatService;
@@ -159,13 +160,13 @@ public class StatDialog {
 
       @Override
       public void onError(Request request, Throwable ex) {
-        Window.alert(ex.getMessage());
+        ToastNotification.showWarning(ex.getMessage());
       }
     });
     try {
       requestBuilder.send();
     } catch (RequestException ex) {
-      Window.alert(ex.getMessage());
+      ToastNotification.showWarning(ex.getMessage());
     }
   }
 

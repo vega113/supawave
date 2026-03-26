@@ -22,8 +22,9 @@ package org.waveprotocol.wave.client.editor.examples.img;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.user.client.Event;
-import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Widget;
+
+import org.waveprotocol.wave.client.widget.dialog.PromptDialog;
 
 import org.waveprotocol.wave.client.common.util.DomHelper;
 import org.waveprotocol.wave.client.common.util.DomHelper.JavaScriptEventListener;
@@ -142,12 +143,22 @@ public class MyDoodad {
     }
   }
 
-  static void promptNewRef(ContentElement element) {
-    String newRef = Window.prompt("New Ref", element.getAttribute(REF_ATTR));
-    if (newRef != null) {
-      // Get the document view for mutating the persistent state, then update it
-      element.getMutableDoc().setElementAttribute(element, REF_ATTR, newRef);
-    }
+  static void promptNewRef(final ContentElement element) {
+    PromptDialog.show("New Ref", element.getAttribute(REF_ATTR),
+        new PromptDialog.Listener() {
+          @Override
+          public void onSubmit(String newRef) {
+            if (newRef != null) {
+              // Get the document view for mutating the persistent state, then update it
+              element.getMutableDoc().setElementAttribute(element, REF_ATTR, newRef);
+            }
+          }
+
+          @Override
+          public void onCancel() {
+            // User cancelled -- do nothing
+          }
+        });
   }
 
   /**

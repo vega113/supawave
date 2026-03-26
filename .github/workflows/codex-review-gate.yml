@@ -23,7 +23,7 @@ on:
 jobs:
   codex-review-gate:
     name: Codex Review Gate
-    if: ${{ github.event.pull_request != null || (github.event.issue.pull_request != null && github.event.issue.state == 'open') }}
+    if: ${{ (github.event.pull_request != null || (github.event.issue.pull_request != null && github.event.issue.state == 'open')) && (github.event_name != 'issue_comment' || !endsWith(github.actor, '[bot]')) }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read

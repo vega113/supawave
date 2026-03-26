@@ -44,7 +44,8 @@ import java.util.List;
  *     {"participant": "alice@example.com", "score": 42.0, "lastContact": 1711234567890},
  *     ...
  *   ],
- *   "total": 42
+ *   "total": 42,
+ *   "hasMore": true
  * }</pre>
  */
 public class ContactSearchServiceImpl implements ContactSearchService {
@@ -59,10 +60,11 @@ public class ContactSearchServiceImpl implements ContactSearchService {
   }
 
   @Override
-  public void search(String prefix, int limit, final Callback callback) {
+  public void search(String prefix, int limit, int offset, final Callback callback) {
     String encodedPrefix = (prefix != null) ? URL.encodeQueryString(prefix) : "";
-    String url = SEARCH_URL_BASE + "?q=" + encodedPrefix + "&limit=" + limit;
-    LOG.trace().log("Searching contacts, limit=" + limit);
+    String url = SEARCH_URL_BASE + "?q=" + encodedPrefix + "&limit=" + limit
+        + "&offset=" + offset;
+    LOG.trace().log("Searching contacts, limit=" + limit + ", offset=" + offset);
 
     RequestBuilder requestBuilder = new RequestBuilder(RequestBuilder.GET, url);
     requestBuilder.setCallback(new RequestCallback() {
@@ -110,6 +112,7 @@ public class ContactSearchServiceImpl implements ContactSearchService {
   private void parseAndDeliver(String jsonText, Callback callback) {
     SearchResponseJso jso = parseJson(jsonText);
     int total = (int) jso.getTotal();
+    boolean hasMore = jso.getHasMore();
     JsArray<SearchResultJso> resultsArray = jso.getResults();
 
     List<SearchResult> results = new ArrayList<SearchResult>();
@@ -136,7 +139,7 @@ public class ContactSearchServiceImpl implements ContactSearchService {
             r.getScore(), (long) r.getLastContact()));
       }
     }
-    callback.onSuccess(results, total);
+    callback.onSuccess(results, total, hasMore);
   }
 
   /** Parses JSON text into a native JSO. */
@@ -155,6 +158,10 @@ public class ContactSearchServiceImpl implements ContactSearchService {
 
     public final native double getTotal() /*-{
       return this.total || 0;
+    }-*/;
+
+    public final native boolean getHasMore() /*-{
+      return !!this.hasMore;
     }-*/;
   }
 

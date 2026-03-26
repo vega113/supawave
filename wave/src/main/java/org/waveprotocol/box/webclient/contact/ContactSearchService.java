@@ -71,16 +71,19 @@ public interface ContactSearchService {
      *
      * @param results the list of matching contacts
      * @param total the total number of matching contacts (before limit)
+     * @param hasMore true if there are more results beyond this page
      */
-    void onSuccess(List<SearchResult> results, int total);
+    void onSuccess(List<SearchResult> results, int total, boolean hasMore);
   }
 
   /**
    * Searches contacts on the server by address prefix.
    *
-   * @param prefix the prefix to match (case-insensitive); empty string returns all
+   * @param prefix the prefix to match (case-insensitive); empty string returns
+   *     only recorded contacts (people you have waved with)
    * @param limit the maximum number of results to return
+   * @param offset the pagination offset (0-based)
    * @param callback the callback to receive results
    */
-  void search(String prefix, int limit, Callback callback);
+  void search(String prefix, int limit, int offset, Callback callback);
 }

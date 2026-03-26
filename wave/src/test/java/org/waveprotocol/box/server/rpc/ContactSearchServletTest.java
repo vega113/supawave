@@ -89,7 +89,7 @@ public class ContactSearchServletTest extends TestCase {
     org.mockito.Mockito.verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
   }
 
-  public void testEmptyPrefixReturnsAllContactsSortedByScore() throws Exception {
+  public void testEmptyPrefixReturnsOnlyContactsSortedByScore() throws Exception {
     when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(ALICE);
 
     ContactManager contactManager = new ContactManagerImpl(new MemoryStore(), executor);
@@ -100,6 +100,7 @@ public class ContactSearchServletTest extends TestCase {
     ContactSearchServlet servlet = new ContactSearchServlet(sessionManager, contactManager);
     when(req.getParameter("q")).thenReturn(null);
     when(req.getParameter("limit")).thenReturn(null);
+    when(req.getParameter("offset")).thenReturn(null);
 
     servlet.doGet(req, resp);
 
@@ -108,6 +109,7 @@ public class ContactSearchServletTest extends TestCase {
     JsonArray results = json.getAsJsonArray("results");
     assertEquals(2, results.size());
     assertEquals(2, json.get("total").getAsInt());
+    assertFalse(json.get("hasMore").getAsBoolean());
 
     String firstAddress = results.get(0).getAsJsonObject().get("participant").getAsString();
     String secondAddress = results.get(1).getAsJsonObject().get("participant").getAsString();
@@ -126,6 +128,7 @@ public class ContactSearchServletTest extends TestCase {
     ContactSearchServlet servlet = new ContactSearchServlet(sessionManager, contactManager);
     when(req.getParameter("q")).thenReturn("ali");
     when(req.getParameter("limit")).thenReturn(null);
+    when(req.getParameter("offset")).thenReturn(null);
 
     servlet.doGet(req, resp);
 
@@ -135,6 +138,7 @@ public class ContactSearchServletTest extends TestCase {
     assertEquals("alicia@example.com",
         results.get(0).getAsJsonObject().get("participant").getAsString());
     assertEquals(1, json.get("total").getAsInt());
+    assertFalse(json.get("hasMore").getAsBoolean());
   }
 
   public void testLimitCapsResultCount() throws Exception {
@@ -148,6 +152,7 @@ public class ContactSearchServletTest extends TestCase {
     ContactSearchServlet servlet = new ContactSearchServlet(sessionManager, contactManager);
     when(req.getParameter("q")).thenReturn("");
     when(req.getParameter("limit")).thenReturn("1");
+    when(req.getParameter("offset")).thenReturn(null);
 
     servlet.doGet(req, resp);
 
@@ -155,6 +160,34 @@ public class ContactSearchServletTest extends TestCase {
     JsonArray results = json.getAsJsonArray("results");
     assertEquals(1, results.size());
     assertEquals(2, json.get("total").getAsInt());
+    assertTrue(json.get("hasMore").getAsBoolean());
+  }
+
+  public void testOffsetPagination() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(ALICE);
+
+    ContactManager contactManager = new ContactManagerImpl(new MemoryStore(), executor);
+    long now = System.currentTimeMillis();
+    contactManager.newCall(ALICE, BOB, now - 1000, true);
+    contactManager.newCall(ALICE, ALICIA, now, true);
+
+    ContactSearchServlet servlet = new ContactSearchServlet(sessionManager, contactManager);
+    when(req.getParameter("q")).thenReturn("");
+    when(req.getParameter("limit")).thenReturn("1");
+    when(req.getParameter("offset")).thenReturn("1");
+
+    servlet.doGet(req, resp);
+
+    JsonObject json = JsonParser.parseString(responseBody.toString()).getAsJsonObject();
+    JsonArray results = json.getAsJsonArray("results");
+    assertEquals(1, results.size());
+    assertEquals(2, json.get("total").getAsInt());
+    // offset=1, limit=1, total=2 => 1+1 >= 2, so no more
+    assertFalse(json.get("hasMore").getAsBoolean());
+
+    // The second contact by score desc should be Bob (lower score)
+    String address = results.get(0).getAsJsonObject().get("participant").getAsString();
+    assertEquals("bob@example.com", address);
   }
 
   public void testEmptyContactsReturnsEmptyResults() throws Exception {
@@ -164,6 +197,7 @@ public class ContactSearchServletTest extends TestCase {
     ContactSearchServlet servlet = new ContactSearchServlet(sessionManager, contactManager);
     when(req.getParameter("q")).thenReturn("x");
     when(req.getParameter("limit")).thenReturn(null);
+    when(req.getParameter("offset")).thenReturn(null);
 
     servlet.doGet(req, resp);
 
@@ -171,6 +205,7 @@ public class ContactSearchServletTest extends TestCase {
     JsonArray results = json.getAsJsonArray("results");
     assertEquals(0, results.size());
     assertEquals(0, json.get("total").getAsInt());
+    assertFalse(json.get("hasMore").getAsBoolean());
   }
 
   public void testPersistenceExceptionReturns500() throws Exception {
@@ -183,11 +218,37 @@ public class ContactSearchServletTest extends TestCase {
     ContactSearchServlet servlet = new ContactSearchServlet(sessionManager, failingManager);
     when(req.getParameter("q")).thenReturn("a");
     when(req.getParameter("limit")).thenReturn(null);
+    when(req.getParameter("offset")).thenReturn(null);
 
     servlet.doGet(req, resp);
 
     org.mockito.Mockito.verify(resp).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     JsonObject json = JsonParser.parseString(responseBody.toString()).getAsJsonObject();
     assertEquals("Internal server error", json.get("error").getAsString());
+  }
+
+  public void testEmptyQueryDoesNotIncludeAllRegisteredUsers() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(ALICE);
+
+    ContactManager contactManager = new ContactManagerImpl(new MemoryStore(), executor);
+    long now = System.currentTimeMillis();
+    // Alice has only waved with Bob
+    contactManager.newCall(ALICE, BOB, now, true);
+
+    // Use 2-arg constructor (no account store) to verify that empty query
+    // returns only recorded contacts, not all registered users.
+    ContactSearchServlet servlet = new ContactSearchServlet(sessionManager, contactManager);
+    when(req.getParameter("q")).thenReturn("");
+    when(req.getParameter("limit")).thenReturn(null);
+    when(req.getParameter("offset")).thenReturn(null);
+
+    servlet.doGet(req, resp);
+
+    JsonObject json = JsonParser.parseString(responseBody.toString()).getAsJsonObject();
+    JsonArray results = json.getAsJsonArray("results");
+    // Only Bob should appear (no Alicia or other registered users)
+    assertEquals(1, results.size());
+    assertEquals("bob@example.com",
+        results.get(0).getAsJsonObject().get("participant").getAsString());
   }
 }

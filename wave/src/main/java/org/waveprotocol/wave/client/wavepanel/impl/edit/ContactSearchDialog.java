@@ -30,6 +30,8 @@ import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.dom.client.KeyDownHandler;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.event.dom.client.KeyUpHandler;
+import com.google.gwt.event.dom.client.ScrollEvent;
+import com.google.gwt.event.dom.client.ScrollHandler;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
@@ -52,7 +54,13 @@ import javax.annotation.Nullable;
 
 /**
  * A modal dialog for searching contacts with debounced server-side lookup,
- * keyboard navigation, Gravatar avatars, and recency display.
+ * keyboard navigation, Gravatar avatars, recency display, and infinite scroll.
+ *
+ * <p>On open (empty query), only recorded contacts (people the user has
+ * actually waved with) are shown. When the user types a search query, all
+ * registered users matching the query are included, with contacts ranked
+ * higher. Results are loaded 20 at a time with automatic pagination when
+ * the user scrolls near the bottom of the results panel.
  *
  * <p>Single-select: clicking a contact or pressing Enter on a highlighted
  * result fires the listener callback and closes the dialog.
@@ -77,8 +85,11 @@ public class ContactSearchDialog extends Composite {
   /** Debounce delay in milliseconds before issuing a search. */
   private static final int DEBOUNCE_MS = 250;
 
-  /** Maximum number of results to request. */
+  /** Maximum number of results to request per page. */
   private static final int SEARCH_LIMIT = 20;
+
+  /** Scroll threshold in pixels from the bottom to trigger loading more. */
+  private static final int SCROLL_THRESHOLD_PX = 50;
 
   private final ContactSearchMessages messages;
   private final ContactSearchService searchService;
@@ -89,9 +100,20 @@ public class ContactSearchDialog extends Composite {
   private final TextBox inputBox;
   private final FlowPanel resultsPanel;
   private final InlineLabel statusLabel;
+  private final InlineLabel loadingMoreLabel;
 
   private final List<ContactResultWidget> resultWidgets = new ArrayList<ContactResultWidget>();
   private int selectedIndex = -1;
+
+  // --- Pagination state ---
+  /** The current pagination offset (number of results already loaded). */
+  private int currentOffset;
+  /** The query string for the current result set. */
+  private String currentQuery = "";
+  /** Whether there are more results available on the server. */
+  private boolean hasMore;
+  /** Whether a "load more" request is currently in flight. */
+  private boolean isLoadingMore;
 
   @Nullable
   private Listener listener;
@@ -245,6 +267,19 @@ public class ContactSearchDialog extends Composite {
     resultsPanel.setVisible(false);
     mainPanel.add(resultsPanel);
 
+    // --- "Loading more..." indicator (hidden by default) ---
+    loadingMoreLabel = new InlineLabel(messages.loadingMore());
+    Style loadingStyle = loadingMoreLabel.getElement().getStyle();
+    loadingStyle.setProperty("display", "block");
+    loadingStyle.setProperty("textAlign", "center");
+    loadingStyle.setProperty("padding", "8px 0");
+    loadingStyle.setFontSize(12, Style.Unit.PX);
+    loadingStyle.setColor("#90a4ae");
+    loadingStyle.setProperty("fontStyle", "italic");
+    loadingMoreLabel.setVisible(false);
+    // The loading label is added inside the results panel so it scrolls
+    // with the results and appears at the very bottom.
+
     // --- Bottom hint area ---
     FlowPanel bottomArea = new FlowPanel();
     Style bottomStyle = bottomArea.getElement().getStyle();
@@ -331,7 +366,7 @@ public class ContactSearchDialog extends Composite {
           popupEl.getStyle().setProperty("padding", "0");
         }
         inputBox.setFocus(true);
-        // Show top contacts on open
+        // Show top contacts on open (empty query = contacts only)
         doSearch("");
       }
     });
@@ -421,6 +456,22 @@ public class ContactSearchDialog extends Composite {
         }
       }
     });
+
+    // Infinite scroll: detect when user scrolls near the bottom of the
+    // results panel and load the next page automatically.
+    resultsPanel.addDomHandler(new ScrollHandler() {
+      @Override
+      public void onScroll(ScrollEvent event) {
+        Element el = resultsPanel.getElement();
+        int scrollTop = el.getScrollTop();
+        int scrollHeight = el.getScrollHeight();
+        int clientHeight = el.getClientHeight();
+        if (hasMore && !isLoadingMore
+            && (scrollHeight - scrollTop - clientHeight) < SCROLL_THRESHOLD_PX) {
+          loadMore();
+        }
+      }
+    }, ScrollEvent.getType());
   }
 
   /**
@@ -446,23 +497,32 @@ public class ContactSearchDialog extends Composite {
   }
 
   /**
-   * Issues a search request to the server.
+   * Issues a fresh search request to the server, resetting pagination.
    *
    * @param prefix the search prefix
    */
   private void doSearch(String prefix) {
+    // Reset pagination state for the new query.
+    currentQuery = prefix;
+    currentOffset = 0;
+    hasMore = false;
+    isLoadingMore = false;
+
     final int seq = ++requestSeq;
     statusLabel.setText(messages.searching());
     statusLabel.setVisible(true);
 
-    searchService.search(prefix, SEARCH_LIMIT, new ContactSearchService.Callback() {
+    searchService.search(prefix, SEARCH_LIMIT, 0, new ContactSearchService.Callback() {
       @Override
-      public void onSuccess(List<ContactSearchService.SearchResult> results, int total) {
+      public void onSuccess(List<ContactSearchService.SearchResult> results, int total,
+          boolean more) {
         // Discard stale responses
         if (seq != requestSeq) {
           return;
         }
-        displayResults(results, inputBox.getText().trim());
+        hasMore = more;
+        currentOffset = results.size();
+        displayResults(results, total, inputBox.getText().trim());
       }
 
       @Override
@@ -477,14 +537,64 @@ public class ContactSearchDialog extends Composite {
         resultWidgets.clear();
         resultsPanel.setVisible(false);
         selectedIndex = -1;
+        hasMore = false;
       }
     });
   }
 
   /**
-   * Displays search results in the results panel.
+   * Loads the next page of results and appends them to the existing list.
    */
-  private void displayResults(List<ContactSearchService.SearchResult> results, String prefix) {
+  private void loadMore() {
+    if (!hasMore || isLoadingMore) {
+      return;
+    }
+    isLoadingMore = true;
+
+    // Show loading indicator at the bottom of the results panel.
+    loadingMoreLabel.setVisible(true);
+    resultsPanel.add(loadingMoreLabel);
+
+    final int seq = requestSeq; // Use the same sequence as the current search.
+    final String querySnapshot = currentQuery;
+
+    searchService.search(querySnapshot, SEARCH_LIMIT, currentOffset,
+        new ContactSearchService.Callback() {
+          @Override
+          public void onSuccess(List<ContactSearchService.SearchResult> results, int total,
+              boolean more) {
+            isLoadingMore = false;
+            // Discard if the user started a new search while we were loading.
+            if (seq != requestSeq) {
+              return;
+            }
+            // Remove the loading indicator.
+            loadingMoreLabel.setVisible(false);
+            resultsPanel.remove(loadingMoreLabel);
+
+            hasMore = more;
+            currentOffset += results.size();
+            appendResults(results, total, inputBox.getText().trim());
+          }
+
+          @Override
+          public void onFailure(String message) {
+            isLoadingMore = false;
+            if (seq != requestSeq) {
+              return;
+            }
+            loadingMoreLabel.setVisible(false);
+            resultsPanel.remove(loadingMoreLabel);
+          }
+        });
+  }
+
+  /**
+   * Displays search results in the results panel, replacing any existing
+   * results (used for fresh searches).
+   */
+  private void displayResults(List<ContactSearchService.SearchResult> results, int total,
+      String prefix) {
     resultsPanel.clear();
     resultWidgets.clear();
     selectedIndex = -1;
@@ -496,7 +606,7 @@ public class ContactSearchDialog extends Composite {
       return;
     }
 
-    statusLabel.setText(messages.resultsCount(results.size()));
+    statusLabel.setText(messages.resultsCount(total));
     statusLabel.setVisible(true);
 
     for (final ContactSearchService.SearchResult result : results) {
@@ -517,6 +627,36 @@ public class ContactSearchDialog extends Composite {
     }
 
     resultsPanel.setVisible(true);
+  }
+
+  /**
+   * Appends additional results to the existing results panel (used for
+   * infinite scroll pagination).
+   */
+  private void appendResults(List<ContactSearchService.SearchResult> results, int total,
+      String prefix) {
+    if (results.isEmpty()) {
+      return;
+    }
+
+    statusLabel.setText(messages.resultsCount(total));
+
+    for (final ContactSearchService.SearchResult result : results) {
+      ContactResultWidget widget = new ContactResultWidget(
+          result.getParticipant(),
+          result.getDisplayName(),
+          result.getLastContact(),
+          prefix,
+          messages,
+          new ContactResultWidget.Listener() {
+            @Override
+            public void onSelect(String address) {
+              selectContact(address);
+            }
+          });
+      resultWidgets.add(widget);
+      resultsPanel.add(widget);
+    }
   }
 
   /**

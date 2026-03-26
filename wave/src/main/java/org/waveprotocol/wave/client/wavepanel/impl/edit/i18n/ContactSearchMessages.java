@@ -61,4 +61,7 @@ public interface ContactSearchMessages extends Messages {
 
   @DefaultMessage("{0} contacts found")
   String resultsCount(int count);
+
+  @DefaultMessage("Loading more...")
+  String loadingMore();
 }

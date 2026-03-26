@@ -52,11 +52,13 @@ import jakarta.servlet.http.HttpServletResponse;
  * Servlet that searches the authenticated user's contacts and all registered
  * accounts by address or display name prefix.
  *
- * <p>Request: {@code GET /contacts/search?q=<prefix>&limit=<n>}
+ * <p>Request: {@code GET /contacts/search?q=<prefix>&limit=<n>&offset=<n>}
  * <ul>
  *   <li>{@code q} -- prefix to match against address or display name
- *       (case-insensitive). Empty or absent returns all.</li>
+ *       (case-insensitive). Empty or absent returns only recorded contacts
+ *       (people the user has actually waved with).</li>
  *   <li>{@code limit} -- maximum number of results (default 20, max 50).</li>
+ *   <li>{@code offset} -- pagination offset (default 0).</li>
  * </ul>
  *
  * <p>Response (JSON):
@@ -66,12 +68,15 @@ import jakarta.servlet.http.HttpServletResponse;
  *      "score": 42.0, "lastContact": 1234567890},
  *     ...
  *   ],
- *   "total": 5
+ *   "total": 5,
+ *   "hasMore": true
  * }</pre>
  *
- * <p>Results include both known contacts (scored by recency/frequency) and
- * all other registered accounts (with a base score of 0). Known contacts
- * appear first, sorted by score descending, then by address ascending.
+ * <p>When the query is non-empty, results include both known contacts
+ * (scored by recency/frequency) and all other registered accounts (with a
+ * base score of 0). Known contacts appear first, sorted by score descending,
+ * then by address ascending. When the query is empty, only recorded contacts
+ * are returned.
  */
 @SuppressWarnings("serial")
 @Singleton
@@ -94,6 +99,14 @@ public final class ContactSearchServlet extends HttpServlet {
     this.accountStore = accountStore;
   }
 
+  /**
+   * Convenience constructor for tests that don't need account-store lookup
+   * (e.g. empty-query path which only uses contacts).
+   */
+  ContactSearchServlet(SessionManager sessionManager, ContactManager contactManager) {
+    this(sessionManager, contactManager, null);
+  }
+
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     ParticipantId participant = sessionManager.getLoggedInUser(WebSessions.from(req, false));
@@ -104,6 +117,7 @@ public final class ContactSearchServlet extends HttpServlet {
 
     String prefix = normalizePrefix(req.getParameter("q"));
     int limit = parseLimit(req.getParameter("limit"));
+    int offset = parseOffset(req.getParameter("offset"));
 
     // 1. Load recorded contacts for the current user.
     List<Contact> contacts;
@@ -116,20 +130,36 @@ public final class ContactSearchServlet extends HttpServlet {
       return;
     }
 
-    // 2. Load all registered accounts to supplement contact data and resolve
-    //    display names.
-    List<AccountData> allAccounts;
-    try {
-      allAccounts = accountStore.getAllAccounts();
-    } catch (PersistenceException ex) {
-      LOG.warning("Failed to load accounts for contact search; proceeding with contacts only", ex);
-      allAccounts = new ArrayList<>();
-    }
-
-    // Build a lookup map: address -> AccountData for display name resolution.
+    // 2. Build the account lookup map only when we have a query (need to
+    //    search all registered users) — not for the empty-query path which
+    //    only returns recorded contacts.
     Map<String, AccountData> accountsByAddress = new HashMap<>();
-    for (AccountData acct : allAccounts) {
-      accountsByAddress.put(acct.getId().getAddress(), acct);
+    List<AccountData> allAccounts = new ArrayList<>();
+    if (!prefix.isEmpty()) {
+      if (accountStore != null) {
+        try {
+          allAccounts = accountStore.getAllAccounts();
+        } catch (PersistenceException ex) {
+          LOG.warning(
+              "Failed to load accounts for contact search; proceeding with contacts only", ex);
+        }
+      }
+      for (AccountData acct : allAccounts) {
+        accountsByAddress.put(acct.getId().getAddress(), acct);
+      }
+    } else {
+      // Even in contacts-only mode we try to resolve display names from
+      // the account store when it is available.
+      if (accountStore != null) {
+        try {
+          allAccounts = accountStore.getAllAccounts();
+        } catch (PersistenceException ex) {
+          LOG.warning("Failed to load accounts for display name resolution", ex);
+        }
+        for (AccountData acct : allAccounts) {
+          accountsByAddress.put(acct.getId().getAddress(), acct);
+        }
+      }
     }
 
     long currentTime = Calendar.getInstance().getTimeInMillis();
@@ -152,34 +182,40 @@ public final class ContactSearchServlet extends HttpServlet {
       }
     }
 
-    // 4. Add all registered human accounts that are not already in the result set.
-    //    These get a base score of 0 (appear after known contacts).
-    for (AccountData acct : allAccounts) {
-      if (!acct.isHuman()) {
-        continue;
-      }
-      String address = acct.getId().getAddress();
-      // Skip the requesting user, shared domain participants, and duplicates.
-      if (address.equals(participant.getAddress())
-          || address.startsWith("@")
-          || resultMap.containsKey(address)) {
-        continue;
-      }
-      String displayName = resolveDisplayName(acct);
-      if (matchesPrefix(address, displayName, prefix)) {
-        resultMap.put(address, new ScoredContact(address, displayName, 0, 0));
+    // 4. Only when the user typed a search query: add all registered human
+    //    accounts that are not already in the result set.  These get a base
+    //    score of 0 (appear after known contacts).
+    if (!prefix.isEmpty()) {
+      for (AccountData acct : allAccounts) {
+        if (!acct.isHuman()) {
+          continue;
+        }
+        String address = acct.getId().getAddress();
+        // Skip the requesting user, shared domain participants, and duplicates.
+        if (address.equals(participant.getAddress())
+            || address.startsWith("@")
+            || resultMap.containsKey(address)) {
+          continue;
+        }
+        String displayName = resolveDisplayName(acct);
+        if (matchesPrefix(address, displayName, prefix)) {
+          resultMap.put(address, new ScoredContact(address, displayName, 0, 0));
+        }
       }
     }
 
     List<ScoredContact> scored = new ArrayList<>(resultMap.values());
     sortByScoreDescThenAddressAsc(scored);
     int total = scored.size();
-    List<ScoredContact> truncated = truncateToLimit(scored, limit);
+
+    // Apply offset + limit pagination.
+    List<ScoredContact> page = paginate(scored, offset, limit);
+    boolean hasMore = (offset + limit) < total;
 
     resp.setContentType("application/json; charset=utf-8");
     resp.setStatus(HttpServletResponse.SC_OK);
     resp.setHeader("Cache-Control", "no-store");
-    resp.getWriter().append(buildResponseJson(truncated, total).toString());
+    resp.getWriter().append(buildResponseJson(page, total, hasMore).toString());
   }
 
   /**
@@ -244,20 +280,33 @@ public final class ContactSearchServlet extends HttpServlet {
     }
   }
 
+  private static int parseOffset(String raw) {
+    if (raw == null || raw.isEmpty()) {
+      return 0;
+    }
+    try {
+      return Math.max(0, Integer.parseInt(raw));
+    } catch (NumberFormatException e) {
+      return 0;
+    }
+  }
+
   private static void sortByScoreDescThenAddressAsc(List<ScoredContact> scored) {
     scored.sort(Comparator
         .comparingDouble(ScoredContact::getScore).reversed()
         .thenComparing(ScoredContact::getAddress));
   }
 
-  private static List<ScoredContact> truncateToLimit(List<ScoredContact> scored, int limit) {
-    if (scored.size() <= limit) {
-      return scored;
+  private static List<ScoredContact> paginate(List<ScoredContact> scored, int offset, int limit) {
+    if (offset >= scored.size()) {
+      return new ArrayList<>();
     }
-    return scored.subList(0, limit);
+    int end = Math.min(offset + limit, scored.size());
+    return scored.subList(offset, end);
   }
 
-  private static JsonObject buildResponseJson(List<ScoredContact> results, int total) {
+  private static JsonObject buildResponseJson(List<ScoredContact> results, int total,
+      boolean hasMore) {
     JsonObject json = new JsonObject();
     JsonArray arr = new JsonArray();
     for (ScoredContact sc : results) {
@@ -272,6 +321,7 @@ public final class ContactSearchServlet extends HttpServlet {
     }
     json.add("results", arr);
     json.addProperty("total", total);
+    json.addProperty("hasMore", hasMore);
     return json;
   }
 

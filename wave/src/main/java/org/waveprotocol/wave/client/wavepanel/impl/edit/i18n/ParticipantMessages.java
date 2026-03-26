@@ -30,7 +30,7 @@ public interface ParticipantMessages extends Messages {
   @DefaultMessage("Remove")
   String remove();
 
-  @DefaultMessage("Only the wave creator can change public/private visibility.")
+  @DefaultMessage("Only the wave creator or an admin can change public/private visibility.")
   String onlyOwnerCanTogglePublic();
 
   @DefaultMessage("Public/private toggle is not available (no local domain configured).")

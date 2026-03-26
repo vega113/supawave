@@ -2089,8 +2089,10 @@ public final class HtmlRenderer {
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
     sb.append("}\n");
     sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
-    // Icon color is always white; state is shown by a small colored dot via ::after
-    sb.append(".topbar-icon svg { stroke: white !important; color: white !important; }\n");
+    // Icon color is white by default; saving state uses amber for visibility
+    sb.append(".topbar-icon svg { stroke: white; color: white; }\n");
+    sb.append(".topbar-icon.saving svg { stroke: #ecc94b !important; color: #ecc94b !important; }\n");
+    sb.append(".topbar-icon.saved svg { stroke: #3fb950 !important; color: #3fb950 !important; }\n");
     // -- Status indicator dots (::after pseudo-element badges) --
     sb.append(".topbar-icon::after {\n");
     sb.append("  content: ''; position: absolute; bottom: 2px; right: 2px;\n");

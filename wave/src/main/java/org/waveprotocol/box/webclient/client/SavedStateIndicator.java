@@ -28,6 +28,8 @@ import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
 import org.waveprotocol.wave.client.scheduler.TimerService;
 import org.waveprotocol.wave.concurrencycontrol.common.UnsavedDataListener;
 
+import java.util.logging.Logger;
+
 /**
  * Simple saved state indicator.
  *
@@ -36,6 +38,7 @@ import org.waveprotocol.wave.concurrencycontrol.common.UnsavedDataListener;
  */
 public class SavedStateIndicator implements UnsavedDataListener {
 
+  private static final Logger LOG = Logger.getLogger(SavedStateIndicator.class.getName());
   private static final SavedStateMessages messages = GWT.create(SavedStateMessages.class);
 
   private enum SavedState {
@@ -62,9 +65,9 @@ public class SavedStateIndicator implements UnsavedDataListener {
   private final TimerService scheduler;
 
   private SavedState visibleSavedState = SavedState.SAVED;
-  private SavedState currentSavedState = null;
+  private SavedState currentSavedState = SavedState.SAVED;
 
-  /** Cloud-check SVG icon for saved state (white for contrast on dark topbar). */
+  /** Cloud-check SVG icon for saved state (green for contrast on dark topbar). */
   private static final String SAVED_ICON_SVG =
       "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#3fb950\" stroke-width=\"1.8\""
           + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
@@ -72,10 +75,11 @@ public class SavedStateIndicator implements UnsavedDataListener {
           + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
           + "</svg>";
 
-  /** Cloud-upload SVG icon for unsaved/saving state (white for contrast on dark topbar). */
+  /** Cloud-upload SVG icon for unsaved/saving state (amber for visibility on dark topbar). */
   private static final String UNSAVED_ICON_SVG =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\""
-          + " stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#ecc94b\" stroke-width=\"1.8\""
+          + " stroke-linecap=\"round\" stroke-linejoin=\"round\""
+          + " style=\"width:20px;height:20px;\" class=\"saving-icon\">"
           + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
           + "<path d=\"M12 18v-6m-3 3l3-3 3 3\" stroke-width=\"2\"/>"
           + "</svg>";
@@ -85,25 +89,25 @@ public class SavedStateIndicator implements UnsavedDataListener {
 
   public SavedStateIndicator(Element element) {
     this.element = element;
+    if (element == null) {
+      LOG.warning("SavedStateIndicator: element is null, indicator will not display");
+    }
     this.scheduler = SchedulerInstance.getLowPriorityTimer();
-    scheduler.schedule(updateTask);
-  }
-
-  public void saved() {
-    maybeUpdateDisplay();
-  }
-
-  public void unsaved() {
-    maybeUpdateDisplay();
+    // Initial display is already correct (SAVED), no need to schedule immediate update.
   }
 
   private void maybeUpdateDisplay() {
+    if (element == null) {
+      return;
+    }
     if (needsUpdating()) {
       switch (currentSavedState) {
         case SAVED:
           scheduler.scheduleDelayed(updateTask, UPDATE_DELAY_MS);
           break;
         case UNSAVED:
+          // Show unsaved state immediately so users see feedback.
+          scheduler.cancel(updateTask);
           updateDisplay();
           break;
         default:
@@ -119,6 +123,9 @@ public class SavedStateIndicator implements UnsavedDataListener {
   }
 
   private void updateDisplay() {
+    if (element == null) {
+      return;
+    }
     visibleSavedState = currentSavedState;
     String innerHtml = visibleSavedState == SavedState.SAVED ? SAVED_HTML : UNSAVED_HTML;
     String tooltip = visibleSavedState == SavedState.SAVED
@@ -133,19 +140,19 @@ public class SavedStateIndicator implements UnsavedDataListener {
   public void onUpdate(UnsavedDataInfo unsavedDataInfo) {
     if (unsavedDataInfo.estimateUnacknowledgedSize() != 0) {
       currentSavedState = SavedState.UNSAVED;
-      unsaved();
     } else {
       currentSavedState = SavedState.SAVED;
-      saved();
     }
+    maybeUpdateDisplay();
   }
 
   @Override
   public void onClose(boolean everythingCommitted) {
     if (everythingCommitted) {
-      saved();
+      currentSavedState = SavedState.SAVED;
     } else {
-      unsaved();
+      currentSavedState = SavedState.UNSAVED;
     }
+    maybeUpdateDisplay();
   }
 }

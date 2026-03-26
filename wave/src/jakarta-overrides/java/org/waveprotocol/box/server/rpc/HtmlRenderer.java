@@ -5624,6 +5624,14 @@ public final class HtmlRenderer {
     sb.append(".pw-blip-content a:hover { text-decoration: underline; }\n");
     sb.append(".pw-blip-content strong { font-weight: 700; }\n");
     sb.append(".pw-blip-content em { font-style: italic; }\n");
+    sb.append(".pw-blip-content ul, .pw-blip-content ol {\n");
+    sb.append("  margin: 4px 0 8px; padding-left: 28px;\n");
+    sb.append("}\n");
+    sb.append(".pw-blip-content ul { list-style-type: disc; }\n");
+    sb.append(".pw-blip-content ol { list-style-type: decimal; }\n");
+    sb.append(".pw-blip-content li {\n");
+    sb.append("  margin: 2px 0; padding-left: 4px;\n");
+    sb.append("}\n");
 
     // CTA section
     sb.append(".pw-cta {\n");

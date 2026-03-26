@@ -32,6 +32,7 @@
      <g:TextBox ui:field='query' styleName='{css.query}'/>
      <div ui:field='helpButton' class='{css.helpButton}' title='Search help'>?</div>
    </div>
+   <div ui:field='helpBackdrop' class='{css.helpBackdrop}' style='display:none'/>
    <div ui:field='helpPanel' class='{css.helpPanel}' style='display:none'>
      <div class='{css.helpHeader}'>
        <span class='{css.helpTitle}'>Search Help</span>
@@ -57,9 +58,14 @@
          <td><span ui:field='exAll' class='{css.helpExample}'>in:all</span></td>
        </tr>
        <tr>
-         <td><code>with:user@domain</code></td>
+         <td><code>in:pinned</code></td>
+         <td>Your pinned waves</td>
+         <td><span ui:field='exPinned' class='{css.helpExample}'>in:pinned</span></td>
+       </tr>
+       <tr>
+         <td><code>with:username</code></td>
          <td>Waves shared with a specific user</td>
-         <td><span ui:field='exWith' class='{css.helpExample}'>with:test@supawave.ai</span></td>
+         <td><span ui:field='exWith' class='{css.helpExample}'>with:test</span></td>
        </tr>
        <tr>
          <td><code>with:@</code></td>
@@ -67,9 +73,9 @@
          <td><span ui:field='exPublic' class='{css.helpExample}'>with:@</span></td>
        </tr>
        <tr>
-         <td><code>creator:user@domain</code></td>
-         <td>Waves created by a specific user</td>
-         <td><span ui:field='exCreator' class='{css.helpExample}'>creator:vega@supawave.ai</span></td>
+         <td><code>creator:username</code></td>
+         <td>Waves created by a user. Just the username is enough — domain is added automatically.</td>
+         <td><span ui:field='exCreator' class='{css.helpExample}'>creator:vega</span></td>
        </tr>
        <tr>
          <td><code>tag:tagname</code></td>

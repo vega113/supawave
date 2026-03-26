@@ -16,6 +16,10 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.waveprotocol.box.server.robots.active.ActiveApiOperationServiceRegistry;
 import org.waveprotocol.box.server.robots.agent.LocalOperationSubmitter;
+import org.waveprotocol.box.server.robots.agent.passwd.PasswordRobot;
+import org.waveprotocol.box.server.robots.agent.passwd.PasswordAdminRobot;
+import org.waveprotocol.box.server.robots.agent.registration.RegistrationRobot;
+import org.waveprotocol.box.server.robots.agent.welcome.WelcomeRobot;
 import org.waveprotocol.box.server.robots.dataapi.DataApiOperationServiceRegistry;
 import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
 import org.waveprotocol.box.server.robots.passive.RobotConnector;
@@ -36,6 +40,15 @@ public final class JakartaRobotApiBindingsModule extends AbstractModule {
     bind(RobotRegistrar.class).to(RobotRegistrarImpl.class).in(Singleton.class);
     bind(RobotCapabilityFetcher.class).to(RobotConnector.class);
     bind(LocalOperationSubmitter.class).in(Singleton.class);
+
+    // Explicitly bind robot agents so Guice does not promote JIT bindings to a
+    // parent injector.  Without these, ChildBindingAlreadySet errors occur
+    // because the agents depend on AccountStore / RobotRegistrar which are
+    // bound in sibling child modules.
+    bind(WelcomeRobot.class).in(Singleton.class);
+    bind(PasswordRobot.class).in(Singleton.class);
+    bind(PasswordAdminRobot.class).in(Singleton.class);
+    bind(RegistrationRobot.class).in(Singleton.class);
   }
 
   @Provides

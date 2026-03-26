@@ -50,4 +50,7 @@ public interface ParticipantMessages extends Messages {
 
   @DefaultMessage("This is a direct message. Create a new wave to include more participants.")
   String cannotAddParticipantToDm();
+
+  @DefaultMessage("Direct messages cannot be made public.")
+  String cannotMakeDmPublic();
 }

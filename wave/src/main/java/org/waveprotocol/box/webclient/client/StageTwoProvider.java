@@ -48,6 +48,7 @@ public class StageTwoProvider extends StageTwo.DefaultProvider {
   private final WaveRef waveRef;
   private final RemoteViewServiceMultiplexer channel;
   private final boolean isNewWave;
+  private final boolean isDirectMessage;
   // TODO: Remove this after WebClientBackend is deleted.
   private final IdGenerator idGenerator;
 
@@ -73,6 +74,21 @@ public class StageTwoProvider extends StageTwo.DefaultProvider {
   public StageTwoProvider(StageOne stageOne, WaveRef waveRef, RemoteViewServiceMultiplexer channel,
       boolean isNewWave, IdGenerator idGenerator, ProfileManager profiles,
       UnsavedDataListener unsavedDataListener, Set<ParticipantId> otherParticipants) {
+    this(stageOne, waveRef, channel, isNewWave, false, idGenerator, profiles,
+        unsavedDataListener, otherParticipants);
+  }
+
+  /**
+   * Full constructor including direct-message flag.
+   *
+   * @param isDirectMessage true if the wave is a DM created via the "Send
+   *        Message" profile action. When true, the {@code _dm} tag is applied
+   *        to the conversation on creation.
+   */
+  public StageTwoProvider(StageOne stageOne, WaveRef waveRef, RemoteViewServiceMultiplexer channel,
+      boolean isNewWave, boolean isDirectMessage, IdGenerator idGenerator,
+      ProfileManager profiles, UnsavedDataListener unsavedDataListener,
+      Set<ParticipantId> otherParticipants) {
     super(stageOne, unsavedDataListener);
     Preconditions.checkArgument(stageOne != null);
     Preconditions.checkArgument(waveRef != null);
@@ -80,6 +96,7 @@ public class StageTwoProvider extends StageTwo.DefaultProvider {
     this.waveRef = waveRef;
     this.channel = channel;
     this.isNewWave = isNewWave;
+    this.isDirectMessage = isDirectMessage;
     this.idGenerator = idGenerator;
     this.profiles = profiles;
     this.otherParticipants = otherParticipants;
@@ -121,6 +138,12 @@ public class StageTwoProvider extends StageTwo.DefaultProvider {
 
       // Adding any initial participant to the new wave
       getConversations().getRoot().addParticipantIds(otherParticipants);
+
+      // Tag the wave as a DM if it was created via the "Send Message" action.
+      if (isDirectMessage) {
+        getConversations().getRoot().addTag(
+            org.waveprotocol.wave.model.conversation.Conversation.DM_TAG);
+      }
       super.install();
       whenReady.use(StageTwoProvider.this);
     } else {

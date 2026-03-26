@@ -425,6 +425,9 @@ public class WebClient implements EntryPoint {
 
   /**
    * Creates a new wave with the specified participant for direct messaging.
+   * The wave is tagged with {@link org.waveprotocol.wave.model.conversation.Conversation#DM_TAG}
+   * so it can be distinguished from regular waves that happen to have two
+   * participants.
    */
   private void createDirectWave(String address) {
     if (channel == null) {
@@ -432,7 +435,7 @@ public class WebClient implements EntryPoint {
     }
     java.util.Set<ParticipantId> participants = new java.util.HashSet<>();
     participants.add(new ParticipantId(address));
-    openWave(WaveRef.of(idGenerator.newWaveId()), true, participants);
+    openWave(WaveRef.of(idGenerator.newWaveId()), true, true, participants);
   }
 
   private void setupUi() {
@@ -716,6 +719,20 @@ public class WebClient implements EntryPoint {
    *        {@code null} if only the creator should be added
    */
   private void openWave(WaveRef waveRef, boolean isNewWave, Set<ParticipantId> participants) {
+    openWave(waveRef, isNewWave, false, participants);
+  }
+
+  /**
+   * Shows a wave in a wave panel.
+   *
+   * @param waveRef wave id to open
+   * @param isNewWave whether the wave is being created by this client session.
+   * @param isDirectMessage true if the wave is a DM created via "Send Message".
+   * @param participants the participants to add to the newly created wave.
+   *        {@code null} if only the creator should be added
+   */
+  private void openWave(WaveRef waveRef, boolean isNewWave, boolean isDirectMessage,
+      Set<ParticipantId> participants) {
     final org.waveprotocol.box.stat.Timer timer = Timing.startRequest("Open Wave");
     LOG.info("WebClient.openWave()");
 
@@ -741,7 +758,8 @@ public class WebClient implements EntryPoint {
     Element unsavedIndicator = Document.get().getElementById("unsavedStateContainer");
     StagesProvider wave =
         new StagesProvider(holder, unsavedIndicator, waveHolder, waveFrame, waveRef, channel, idGenerator,
-            profiles, waveStore, isNewWave, Session.get().getDomain(), participants, contactManager);
+            profiles, waveStore, isNewWave, isDirectMessage, Session.get().getDomain(),
+            participants, contactManager);
     this.wave = wave;
     wave.load(new Command() {
       @Override

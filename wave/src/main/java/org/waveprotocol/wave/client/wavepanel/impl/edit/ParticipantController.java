@@ -189,6 +189,13 @@ public final class ParticipantController {
   private void handleTogglePublicClicked(Element context) {
     ParticipantsView participantsUi = views.fromTogglePublicButton(context);
     Conversation conversation = models.getParticipants(participantsUi);
+
+    // Block making DM waves public.
+    if (isDirectMessage(conversation)) {
+      ToastNotification.showWarning(messages.cannotMakeDmPublic());
+      return;
+    }
+
     Set<ParticipantId> participants = conversation.getParticipantIds();
 
     // The wave creator is the first participant in the ordered set.
@@ -282,20 +289,14 @@ public final class ParticipantController {
   }
 
   /**
-   * Returns true if the given conversation is a direct message (exactly 2 real
-   * participants and no shared-domain participant).
+   * Returns true if the given conversation is a direct message, identified by
+   * the presence of the {@link Conversation#DM_TAG} tag. Only waves explicitly
+   * created via the "Send Message" profile action carry this tag; regular waves
+   * with two participants are NOT considered DMs.
    */
   private static boolean isDirectMessage(Conversation conversation) {
-    Set<ParticipantId> participants = conversation.getParticipantIds();
-    int realCount = 0;
-    for (ParticipantId pid : participants) {
-      if (ParticipantIdUtil.isDomainAddress(pid.getAddress())) {
-        // Has a domain participant -- not a DM.
-        return false;
-      }
-      realCount++;
-    }
-    return realCount == 2;
+    Set<String> tags = conversation.getTags();
+    return tags != null && tags.contains(Conversation.DM_TAG);
   }
 
   /**

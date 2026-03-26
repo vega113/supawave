@@ -26,6 +26,7 @@ import com.google.gwt.user.client.ui.Widget;
 import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.webclient.search.Search.State;
 import org.waveprotocol.box.webclient.search.i18n.SearchPresenterMessages;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileListener;
 import org.waveprotocol.wave.client.scheduler.Scheduler.IncrementalTask;
@@ -73,7 +74,10 @@ public final class SearchPresenter
   /** How often to repeat the search query. */
   private final static int POLLING_INTERVAL_MS = 15000; // 15s
   private final static String DEFAULT_SEARCH = "in:inbox";
-  private final static int DEFAULT_PAGE_SIZE = 20;
+  /** Page size for desktop viewports (width > 768px). */
+  private final static int DESKTOP_PAGE_SIZE = 30;
+  /** Page size for mobile viewports (width <= 768px) -- smaller for faster initial load. */
+  private final static int MOBILE_PAGE_SIZE = 15;
   /**
    * Delay before refreshing search results after a wave is closed (ms).
    * This gives the server time to process any pending deltas (e.g., tag
@@ -198,7 +202,7 @@ public final class SearchPresenter
   /** Current search query. */
   private String queryText = DEFAULT_SEARCH;
   /** Number of results to query for. */
-  private int querySize = DEFAULT_PAGE_SIZE;
+  private int querySize = getPageSize();
   /** Current selected digest. */
   private DigestView selected;
 
@@ -251,6 +255,15 @@ public final class SearchPresenter
     }
     presenter.init();
     return presenter;
+  }
+
+  /**
+   * Returns the appropriate page size based on viewport width.
+   * Mobile viewports (at or below 768px) get a smaller page size
+   * for faster initial load over constrained connections.
+   */
+  private static int getPageSize() {
+    return MobileDetector.isMobile() ? MOBILE_PAGE_SIZE : DESKTOP_PAGE_SIZE;
   }
 
   /**
@@ -619,14 +632,14 @@ public final class SearchPresenter
   @Override
   public void onQueryEntered() {
     queryText = searchUi.getSearch().getQuery();
-    querySize = DEFAULT_PAGE_SIZE;
+    querySize = getPageSize();
     searchUi.setTitleText(messages.searching());
     doSearch();
   }
 
   @Override
   public void onShowMoreClicked() {
-    querySize += DEFAULT_PAGE_SIZE;
+    querySize += getPageSize();
     doSearch();
   }
 

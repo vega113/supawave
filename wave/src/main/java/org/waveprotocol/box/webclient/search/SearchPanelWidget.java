@@ -38,6 +38,7 @@ import com.google.gwt.user.client.ui.Composite;
 import org.waveprotocol.box.webclient.widget.frame.FramedPanel;
 import org.waveprotocol.wave.client.common.util.LinkedSequence;
 import org.waveprotocol.wave.client.uibuilder.BuilderHelper;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.widget.common.ImplPanel;
 import org.waveprotocol.wave.client.widget.toolbar.ToplevelToolbarWidget;
 import org.waveprotocol.wave.model.util.CollectionUtils;
@@ -134,8 +135,11 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   /** The spinner element shown at the bottom while loading more results. */
   private Element loadingSpinner;
 
-  /** Distance from the bottom of the scroll area to trigger loading more (px). */
-  private static final int SCROLL_THRESHOLD_PX = 200;
+  /** Distance from the bottom of the scroll area to trigger loading more (px).
+   *  Desktop uses 200px; mobile uses 300px (trigger earlier since momentum
+   *  scrolling covers distance faster on touch devices). */
+  private static final int DESKTOP_SCROLL_THRESHOLD_PX = 200;
+  private static final int MOBILE_SCROLL_THRESHOLD_PX = 300;
 
   public SearchPanelWidget(SearchPanelRenderer renderer) {
     initWidget(frame = BINDER.createAndBindUi(this));
@@ -180,7 +184,9 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
     int scrollTop = list.getScrollTop();
     int scrollHeight = list.getScrollHeight();
     int clientHeight = list.getClientHeight();
-    if (scrollTop + clientHeight >= scrollHeight - SCROLL_THRESHOLD_PX) {
+    int threshold = MobileDetector.isMobile()
+        ? MOBILE_SCROLL_THRESHOLD_PX : DESKTOP_SCROLL_THRESHOLD_PX;
+    if (scrollTop + clientHeight >= scrollHeight - threshold) {
       // Only trigger if more results are available. The showMore element's
       // visibility is set to "hidden" when there are no more results, and
       // cleared (visible) when more results exist.

@@ -643,7 +643,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    * A minimal {@link IdGenerator} that throws on any attempt to generate IDs.
    * Used when constructing a read-only conversation view for rendering.
    */
-  private static final class NoOpIdGenerator implements IdGenerator {
+  static final class NoOpIdGenerator implements IdGenerator {
     @Override public WaveId newWaveId() {
       throw new UnsupportedOperationException("Read-only: cannot generate wave IDs");
     }

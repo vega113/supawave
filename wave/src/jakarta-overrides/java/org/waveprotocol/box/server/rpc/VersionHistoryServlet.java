@@ -617,21 +617,34 @@ public final class VersionHistoryServlet extends HttpServlet {
 
       // 3. Build restore operations: for each document, replace current content
       //    with historical content
+      // Note: this is a content-only restore — document text is restored to the
+      // historical version, but participant membership changes are not reverted.
       List<WaveletOperation> ops = buildRestoreOps(currentState, historicalState, user);
 
       if (ops.isEmpty()) {
-        // Nothing to change -- current state already matches historical state
+        // Nothing to change -- current document content already matches historical state
         setJsonUtf8(resp);
         try (PrintWriter w = resp.getWriter()) {
           w.append("{\"ok\":true,\"restoredToVersion\":").append(String.valueOf(targetVersion));
-          w.append(",\"opsApplied\":0,\"message\":\"No changes needed\"}");
+          w.append(",\"opsApplied\":0,\"message\":\"No content changes needed (membership not restored)\"}");
           w.flush();
         }
         return;
       }
 
-      // 4. Serialize and submit the delta
-      HashedVersion currentHashedVersion = currentState.getHashedVersion();
+      // 4. Re-fetch snapshot to ensure we apply against the latest head version.
+      // This narrows the race window between building ops and submitting them.
+      CommittedWaveletSnapshot freshSnapshot = waveletProvider.getSnapshot(waveletName);
+      if (freshSnapshot == null) {
+        resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Wavelet not found");
+        return;
+      }
+      HashedVersion currentHashedVersion = freshSnapshot.snapshot.getHashedVersion();
+      if (currentHashedVersion.getVersion() != currentState.getHashedVersion().getVersion()) {
+        resp.sendError(HttpServletResponse.SC_CONFLICT,
+            "Wave was modified during restore. Please try again.");
+        return;
+      }
       WaveletDelta delta = new WaveletDelta(user, currentHashedVersion, ops);
       ProtocolWaveletDelta protocolDelta = CoreWaveletOperationSerializer.serialize(delta);
 
@@ -690,7 +703,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     } catch (OperationException e) {
       LOG.warning("Failed to build restore operations for " + waveletName, e);
       resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-          "Failed to build restore operations: " + e.getMessage());
+          "Failed to build restore operations. Check server logs for details.");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
@@ -700,10 +713,11 @@ public final class VersionHistoryServlet extends HttpServlet {
 
   /**
    * Builds the list of wavelet operations needed to transform the current
-   * document state to match the historical state. For each document that
-   * differs, a {@link WaveletBlipOperation} containing a
-   * {@link BlipContentOperation} is created that replaces the document's
-   * content entirely.
+   * document content to match the historical state. This is a content-only
+   * restore: only document text is diffed and replaced. Participant membership
+   * changes are not reverted. For each document that differs, a
+   * {@link WaveletBlipOperation} containing a {@link BlipContentOperation}
+   * is created that replaces the document's content entirely.
    *
    * <p>The approach for each document is:
    * <ol>

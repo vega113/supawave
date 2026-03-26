@@ -26,6 +26,7 @@ import com.google.gwt.event.dom.client.ClickEvent;
 import org.waveprotocol.wave.client.widget.dialog.PromptDialog;
 import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
+import org.waveprotocol.box.webclient.contact.ContactSearchServiceImpl;
 import org.waveprotocol.wave.client.account.ContactManager;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.events.ClientEvents;
@@ -300,8 +301,9 @@ public final class ParticipantController {
   }
 
   /**
-   * Shows an add-participant popup with contact autocomplete suggestions.
-   * If no contact manager is available, falls back to a plain browser prompt.
+   * Shows an add-participant popup. If a contact manager is available, uses
+   * the server-side {@link ContactSearchDialog} for autocomplete. Otherwise
+   * falls back to the legacy prompt dialog.
    */
   private void handleAddButtonClicked(final Element context) {
     if (contactManager == null) {
@@ -318,20 +320,19 @@ public final class ParticipantController {
       return;
     }
 
-    ParticipantAddWidget addWidget = new ParticipantAddWidget();
-    addWidget.setContactManager(contactManager);
-    addWidget.setLocalDomain(localDomain);
+    ContactSearchDialog dialog = new ContactSearchDialog(
+        ContactSearchServiceImpl.create(), localDomain);
 
     popup = null;
-    addWidget.setListener(new ParticipantAddWidget.Listener() {
+    dialog.setListener(new ContactSearchDialog.Listener() {
       @Override
-      public void onAdd(String addressString) {
+      public void onSelect(String address) {
         if (popup != null) {
           popup.hide();
         }
         ParticipantId[] participants;
         try {
-          participants = buildParticipantList(localDomain, addressString);
+          participants = buildParticipantList(localDomain, address);
         } catch (InvalidParticipantAddress e) {
           ToastNotification.showWarning(e.getMessage());
           return;
@@ -348,7 +349,7 @@ public final class ParticipantController {
         }
       }
     });
-    popup = addWidget.showInPopup();
+    popup = dialog.showInPopup();
   }
 
   /**

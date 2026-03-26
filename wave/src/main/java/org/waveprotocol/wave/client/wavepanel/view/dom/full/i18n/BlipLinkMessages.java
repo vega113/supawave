@@ -34,4 +34,10 @@ public interface BlipLinkMessages extends Messages {
 
   @DefaultMessage("Use this reference to link to this blip from the web")
   String webLinkExplanation();
+
+  @DefaultMessage("Copy")
+  String copy();
+
+  @DefaultMessage("Copied!")
+  String copied();
 }

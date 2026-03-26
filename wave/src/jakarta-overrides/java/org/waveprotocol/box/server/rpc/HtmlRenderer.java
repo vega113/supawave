@@ -4043,10 +4043,14 @@ public final class HtmlRenderer {
     sb.append("  var cStatsBar = document.getElementById('contactsStatsBar');\n");
     sb.append("  var contactBadge = document.getElementById('contactBadge');\n");
 
-    // Fetch unread count for badge
-    sb.append("  fetch('/admin/api/contacts?status=new&limit=0').then(function(r){return r.json();}).then(function(data){\n");
-    sb.append("    if(data.total>0){contactBadge.textContent=data.total;contactBadge.classList.remove('hidden');}\n");
-    sb.append("  }).catch(function(){});\n");
+    // Refresh unread count badge
+    sb.append("  function refreshContactBadge() {\n");
+    sb.append("    fetch('/admin/api/contacts?status=new&limit=0').then(function(r){return r.json();}).then(function(data){\n");
+    sb.append("      if(data.total>0){contactBadge.textContent=data.total;contactBadge.classList.remove('hidden');}\n");
+    sb.append("      else{contactBadge.textContent='0';contactBadge.classList.add('hidden');}\n");
+    sb.append("    }).catch(function(){});\n");
+    sb.append("  }\n");
+    sb.append("  refreshContactBadge();\n");
 
     // Fetch contacts
     sb.append("  function fetchContacts() {\n");
@@ -4126,7 +4130,7 @@ public final class HtmlRenderer {
     sb.append("      method: 'POST', headers: {'Content-Type':'application/json'},\n");
     sb.append("      body: JSON.stringify({status: newStatus})\n");
     sb.append("    }).then(function(r){return r.json();}).then(function(data){\n");
-    sb.append("      if(data.ok) { showToast('Status updated', 'success'); fetchContacts(); }\n");
+    sb.append("      if(data.ok) { showToast('Status updated', 'success'); fetchContacts(); refreshContactBadge(); }\n");
     sb.append("      else showToast(data.error || 'Failed', 'error');\n");
     sb.append("    }).catch(function(e){ showToast('Error: '+e.message,'error'); });\n");
     sb.append("  };\n");
@@ -4139,7 +4143,7 @@ public final class HtmlRenderer {
     sb.append("      method: 'POST', headers: {'Content-Type':'application/json'},\n");
     sb.append("      body: JSON.stringify({body: ta.value.trim()})\n");
     sb.append("    }).then(function(r){return r.json();}).then(function(data){\n");
-    sb.append("      if(data.ok) { showToast('Reply sent', 'success'); fetchContacts(); }\n");
+    sb.append("      if(data.ok) { showToast('Reply sent', 'success'); fetchContacts(); refreshContactBadge(); }\n");
     sb.append("      else showToast(data.error || 'Failed to send reply', 'error');\n");
     sb.append("    }).catch(function(e){ showToast('Error: '+e.message,'error'); });\n");
     sb.append("  };\n");

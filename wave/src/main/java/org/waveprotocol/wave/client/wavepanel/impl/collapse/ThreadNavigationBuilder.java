@@ -19,6 +19,10 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.collapse;
 
+import org.waveprotocol.wave.client.wavepanel.impl.edit.EditSession;
+import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
+import org.waveprotocol.wave.model.conversation.ObservableConversation;
+
 /**
  * Builds and installs the thread slide navigation feature alongside the
  * existing collapse/expand feature.
@@ -33,6 +37,12 @@ package org.waveprotocol.wave.client.wavepanel.impl.collapse;
  * (which checks the navigator before performing a standard toggle),
  * avoiding the need for a separate mouse-down handler registration that
  * would conflict with the existing collapse handler.
+ *
+ * <h3>Phase 6 hardening</h3>
+ * <p>The builder now optionally accepts an {@link EditSession} (to end
+ * active editing on navigation transitions) and a
+ * {@link ViewIdMapper} + {@link ObservableConversation} pair (to install
+ * the {@link ThreadDeletionHandler} for auto-pop on thread deletion).
  */
 public final class ThreadNavigationBuilder {
   private ThreadNavigationBuilder() {
@@ -73,6 +83,42 @@ public final class ThreadNavigationBuilder {
       CollapsePresenter collapser, int depthThreshold) {
     ThreadNavigationPresenter navigator = createAndInstallIn(collapser);
     navigator.setDepthThreshold(depthThreshold);
+    return navigator;
+  }
+
+  /**
+   * Builds and installs the thread navigation feature with Phase 6
+   * hardening: edit session integration for safe navigation transitions,
+   * and thread deletion monitoring.
+   *
+   * @param collapser      the existing collapse presenter
+   * @param depthThreshold the depth threshold for slide navigation
+   * @param editSession    the edit session to end before transitions, or null
+   * @param viewIdMapper   maps model threads to DOM ids, or null to skip
+   *                       deletion handling
+   * @param conversation   the conversation to monitor for deletions, or null
+   *                       to skip deletion handling
+   * @return the thread navigation presenter
+   */
+  public static ThreadNavigationPresenter createAndInstallIn(
+      CollapsePresenter collapser, int depthThreshold,
+      EditSession editSession,
+      ViewIdMapper viewIdMapper,
+      ObservableConversation conversation) {
+    ThreadNavigationPresenter navigator = createAndInstallIn(collapser, depthThreshold);
+
+    // Phase 6: wire in edit session for safe transitions
+    if (editSession != null) {
+      navigator.setEditSession(editSession);
+    }
+
+    // Phase 6: install thread deletion handler
+    if (viewIdMapper != null && conversation != null) {
+      ThreadDeletionHandler deletionHandler =
+          new ThreadDeletionHandler(navigator, viewIdMapper);
+      deletionHandler.install(conversation);
+    }
+
     return navigator;
   }
 }

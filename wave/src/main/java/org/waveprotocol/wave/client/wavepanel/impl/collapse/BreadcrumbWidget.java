@@ -40,6 +40,14 @@ import java.util.List;
  *
  * <p>Styling: ocean blue background (#0077b6), white text, compact height
  * (28px), fixed at top of the wave content area.
+ *
+ * <h3>Phase 6 accessibility</h3>
+ * <ul>
+ *   <li>{@code role="navigation"} and {@code aria-label="Thread navigation"}
+ *       on the breadcrumb container.</li>
+ *   <li>Unread notification badges on individual breadcrumb segments.</li>
+ *   <li>"New replies above" indicator bar below the breadcrumb.</li>
+ * </ul>
  */
 public final class BreadcrumbWidget extends FlowPanel {
 
@@ -55,16 +63,27 @@ public final class BreadcrumbWidget extends FlowPanel {
   /** CSS class name for the last (current) segment. */
   private static final String CURRENT_CLASS = "thread-nav-breadcrumb-current";
 
+  /** CSS class name for the unread badge. */
+  private static final String BADGE_CLASS = "thread-nav-breadcrumb-badge";
+
+  /** CSS class name for the new-replies indicator bar. */
+  private static final String NEW_REPLIES_CLASS = "thread-nav-new-replies";
+
   /** The presenter that handles navigation actions. */
   private ThreadNavigationPresenter presenter;
 
+  /** The "new replies above" indicator element, created lazily. */
+  private InlineLabel newRepliesIndicator;
+
   /**
    * Creates a new breadcrumb widget. The widget is initially hidden.
+   * Phase 6: ARIA attributes are applied for accessibility.
    */
   public BreadcrumbWidget() {
     getElement().addClassName(BREADCRUMB_CLASS);
     setVisible(false);
     applyInlineStyles();
+    applyAriaAttributes();
   }
 
   /**
@@ -94,6 +113,16 @@ public final class BreadcrumbWidget extends FlowPanel {
   }
 
   /**
+   * Applies ARIA attributes for accessibility. The breadcrumb bar is
+   * marked as a navigation landmark with an appropriate label.
+   */
+  private void applyAriaAttributes() {
+    Element el = getElement();
+    el.setAttribute("role", "navigation");
+    el.setAttribute("aria-label", "Thread navigation");
+  }
+
+  /**
    * Sets the presenter that handles navigation when breadcrumb segments
    * are clicked.
    *
@@ -111,17 +140,42 @@ public final class BreadcrumbWidget extends FlowPanel {
    * @param labels the ordered list of breadcrumb labels
    */
   public void update(List<String> labels) {
+    // Delegate to updateWithBadges with zero badges
+    java.util.List<Integer> zeroBadges = new java.util.ArrayList<Integer>();
+    for (int i = 0; i < labels.size(); i++) {
+      zeroBadges.add(0);
+    }
+    updateWithBadges(labels, zeroBadges);
+  }
+
+  /**
+   * Updates the breadcrumb bar with labels and per-segment unread badges.
+   * Segments with a badge count > 0 display a small notification circle.
+   *
+   * @param labels the ordered list of breadcrumb labels
+   * @param badges the unread counts for each label (same size as labels)
+   */
+  public void updateWithBadges(List<String> labels, List<Integer> badges) {
+    // Preserve the new-replies indicator if it exists
+    boolean hadNewReplies = newRepliesIndicator != null && newRepliesIndicator.isVisible();
+
     clear();
+    newRepliesIndicator = null;
 
     for (int i = 0; i < labels.size(); i++) {
       final int level = i;
       boolean isLast = (i == labels.size() - 1);
+      int badgeCount = (i < badges.size()) ? badges.get(i) : 0;
 
       // Create the clickable segment
-      InlineLabel segment = new InlineLabel(labels.get(i));
+      String labelText = labels.get(i);
+      InlineLabel segment = new InlineLabel(labelText);
+
+      // Phase 6 accessibility: add aria-current to the current segment
       if (isLast) {
         segment.addStyleName(CURRENT_CLASS);
         applyCurrentSegmentStyle(segment.getElement());
+        segment.getElement().setAttribute("aria-current", "location");
       } else {
         segment.addStyleName(SEGMENT_CLASS);
         applySegmentStyle(segment.getElement());
@@ -136,13 +190,30 @@ public final class BreadcrumbWidget extends FlowPanel {
       }
       add(segment);
 
+      // Phase 6: Add unread badge if count > 0
+      if (badgeCount > 0) {
+        InlineLabel badge = new InlineLabel(String.valueOf(badgeCount));
+        badge.addStyleName(BADGE_CLASS);
+        applyBadgeStyle(badge.getElement());
+        badge.getElement().setAttribute("aria-label", badgeCount + " unread");
+        add(badge);
+      }
+
       // Add separator unless this is the last item
       if (!isLast) {
         InlineLabel separator = new InlineLabel(" > ");
         separator.addStyleName(SEPARATOR_CLASS);
         applySeparatorStyle(separator.getElement());
+        // Mark separator as decorative for screen readers
+        separator.getElement().setAttribute("aria-hidden", "true");
         add(separator);
       }
+    }
+
+    // Re-add the new-replies indicator if it was showing
+    if (hadNewReplies) {
+      ensureNewRepliesIndicator();
+      newRepliesIndicator.setVisible(true);
     }
   }
 
@@ -166,6 +237,46 @@ public final class BreadcrumbWidget extends FlowPanel {
   }
 
   // -----------------------------------------------------------------------
+  // Phase 6: "New replies above" indicator
+  // -----------------------------------------------------------------------
+
+  /**
+   * Shows a "New replies above" indicator bar just below the breadcrumb.
+   * This is displayed when new replies arrive in a parent or sibling
+   * thread that the user has navigated past.
+   */
+  public void showNewRepliesIndicator() {
+    ensureNewRepliesIndicator();
+    newRepliesIndicator.setVisible(true);
+  }
+
+  /**
+   * Hides the "new replies above" indicator bar.
+   */
+  public void hideNewRepliesIndicator() {
+    if (newRepliesIndicator != null) {
+      newRepliesIndicator.setVisible(false);
+    }
+  }
+
+  /**
+   * Creates the new-replies indicator widget if it does not yet exist,
+   * and adds it to this panel.
+   */
+  private void ensureNewRepliesIndicator() {
+    if (newRepliesIndicator == null) {
+      newRepliesIndicator = new InlineLabel("New replies above");
+      newRepliesIndicator.addStyleName(NEW_REPLIES_CLASS);
+      applyNewRepliesStyle(newRepliesIndicator.getElement());
+      newRepliesIndicator.setVisible(false);
+      // Accessibility: announce to screen readers
+      newRepliesIndicator.getElement().setAttribute("role", "status");
+      newRepliesIndicator.getElement().setAttribute("aria-live", "polite");
+      add(newRepliesIndicator);
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // Style helpers
   // -----------------------------------------------------------------------
 
@@ -186,5 +297,39 @@ public final class BreadcrumbWidget extends FlowPanel {
     Style style = el.getStyle();
     style.setColor("rgba(255,255,255,0.6)");
     style.setProperty("margin", "0 2px");
+  }
+
+  /**
+   * Applies inline styles to an unread badge element. The badge is a small
+   * pill-shaped element with a contrasting background.
+   */
+  private void applyBadgeStyle(Element el) {
+    Style style = el.getStyle();
+    style.setBackgroundColor("#ff6b6b");
+    style.setColor("white");
+    style.setFontSize(10, Style.Unit.PX);
+    style.setProperty("fontWeight", "700");
+    style.setProperty("borderRadius", "8px");
+    style.setProperty("padding", "1px 5px");
+    style.setProperty("marginLeft", "3px");
+    style.setProperty("verticalAlign", "middle");
+    style.setProperty("lineHeight", "14px");
+    style.setDisplay(Style.Display.INLINE_BLOCK);
+  }
+
+  /**
+   * Applies inline styles to the "new replies above" indicator element.
+   * This is a subtle bar that appears as a block element at the end of
+   * the breadcrumb flow.
+   */
+  private void applyNewRepliesStyle(Element el) {
+    Style style = el.getStyle();
+    style.setDisplay(Style.Display.BLOCK);
+    style.setBackgroundColor("rgba(255,255,255,0.15)");
+    style.setColor("rgba(255,255,255,0.9)");
+    style.setFontSize(11, Style.Unit.PX);
+    style.setProperty("padding", "2px 12px");
+    style.setProperty("textAlign", "center");
+    style.setProperty("borderTop", "1px solid rgba(255,255,255,0.2)");
   }
 }

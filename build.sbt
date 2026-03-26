@@ -413,7 +413,8 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
   p.endsWith("/org/waveprotocol/box/expimp/DeltaParserTest.java") ||
   // Additional render/concurrencycontrol/migration exclusions (keep SSR tests)
   (p.contains("/org/waveprotocol/box/server/rpc/render/") &&
-    !p.endsWith("/ServerHtmlRendererTest.java")) ||
+    !p.endsWith("/ServerHtmlRendererTest.java") &&
+    !p.endsWith("/WaveContentRendererTest.java")) ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/migration/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/model/document/util/") ||

@@ -603,6 +603,22 @@ public class ServerRpcProvider {
                 org.eclipse.jetty.ee10.servlet.FilterHolder cacheNo = new org.eclipse.jetty.ee10.servlet.FilterHolder(new NoCacheFilter());
                 context.addFilter(cacheNo, "/webclient/*", java.util.EnumSet.allOf(DispatcherType.class));
 
+                // JWT session restoration: when the HTTP session is lost (e.g. after a deploy)
+                // but the browser still has a valid wave-session-jwt cookie, this filter
+                // re-establishes the HTTP session so the user stays logged in.
+                try {
+                    org.waveprotocol.box.server.authentication.jwt.JwtKeyRing keyRing =
+                            injector.getInstance(org.waveprotocol.box.server.authentication.jwt.JwtKeyRing.class);
+                    org.eclipse.jetty.ee10.servlet.FilterHolder jwtRestore =
+                            new org.eclipse.jetty.ee10.servlet.FilterHolder(
+                                    new org.waveprotocol.box.server.authentication.jwt.JwtSessionRestorationFilter(
+                                            sessionManager, keyRing));
+                    context.addFilter(jwtRestore, "/*", java.util.EnumSet.allOf(DispatcherType.class));
+                } catch (Exception jwtEx) {
+                    LOG.warning("Failed to register JWT session restoration filter; "
+                            + "sessions will not auto-restore after deploys", jwtEx);
+                }
+
                 // Request scope captures session context for Timing/Statusz compatibility.
                 org.eclipse.jetty.ee10.servlet.FilterHolder scopeHolder =
                         new org.eclipse.jetty.ee10.servlet.FilterHolder(new RequestScopeFilter(sessionManager));

@@ -97,7 +97,9 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/security/NoCacheFilter.java",
     "org/waveprotocol/box/server/security/StaticCacheFilter.java",
     // Versioned fetch servlet with Jakarta override
-    "org/waveprotocol/box/server/rpc/VersionedFetchServlet.java"
+    "org/waveprotocol/box/server/rpc/VersionedFetchServlet.java",
+    // Public wave fetch servlet with Jakarta override
+    "org/waveprotocol/box/server/rpc/PublicWaveFetchServlet.java"
   )
 
   // --- Directory-level excludes under src/main/java (Gradle lines 334-337) ---

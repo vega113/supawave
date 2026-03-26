@@ -431,6 +431,7 @@ public class ServerMain {
     // Dev endpoint: client-side fragments applier stats (session-based)
     server.addServlet("/dev/client-applier-stats", ClientApplierStatsServlet.class);
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
+    server.addServlet("/wave/public/*", PublicWaveFetchServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
     // Note: this javax ServerMain is excluded from compilation (see mainExactExcludes in build.gradle).
     // The active registration lives in the jakarta-overrides variant of ServerMain.

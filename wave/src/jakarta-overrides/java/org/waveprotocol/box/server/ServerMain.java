@@ -234,6 +234,7 @@ public class ServerMain {
     server.addServlet("/userprofile/*", ProfileServlet.class);
     server.addServlet("/contacts", FetchContactsServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
+    server.addServlet("/wave/public/*", PublicWaveFetchServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
     server.addServlet("/history/*", VersionHistoryServlet.class);
     server.addServlet("/admin", AdminServlet.class);

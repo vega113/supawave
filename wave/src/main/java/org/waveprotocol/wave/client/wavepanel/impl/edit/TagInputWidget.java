@@ -131,7 +131,6 @@ public final class TagInputWidget extends Composite {
     hintLabel.addStyleName(style.hint());
     panel.add(hintLabel);
 
-
     // Focus/blur styling
     input.addFocusHandler(new FocusHandler() {
       @Override

@@ -29,7 +29,7 @@ import com.google.gwt.i18n.client.Messages;
  * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
 public interface TagMessages extends Messages {
-  @DefaultMessage("Add tag(s) (separate with comma '',''): ")
+  @DefaultMessage("Add Tags")
   String addTagPrompt();
 
   @DefaultMessage("Do you want to remove tag \"{0}\"?")

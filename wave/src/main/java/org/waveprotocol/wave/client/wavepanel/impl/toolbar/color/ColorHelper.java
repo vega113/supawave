@@ -19,9 +19,8 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.toolbar.color;
 
-import com.google.gwt.user.client.Window;
-
 import org.waveprotocol.wave.client.editor.EditorContext;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 import org.waveprotocol.wave.client.editor.content.misc.StyleAnnotationHandler;
 import org.waveprotocol.wave.client.editor.util.EditorAnnotationUtil;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
@@ -73,7 +72,7 @@ public class ColorHelper {
     }
     focusedRange = editor.getSelectionHelper().getSelectionRange();
     if (focusedRange == null) {
-      Window.alert(ComplexColorPicker.messages.selectSomeText());
+      ToastNotification.showInfo(ComplexColorPicker.messages.selectSomeText());
       return;
     }
     final Range range = focusedRange.asRange();

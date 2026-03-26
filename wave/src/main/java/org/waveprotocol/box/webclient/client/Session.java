@@ -20,10 +20,10 @@
 package org.waveprotocol.box.webclient.client;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.user.client.Window;
 
 import org.waveprotocol.box.common.SessionConstants;
 import org.waveprotocol.box.webclient.client.i18n.SessionMessages;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
 /**
  * Session data for the web client.
@@ -41,7 +41,7 @@ public abstract class Session implements SessionConstants {
     if (JsSession.isAvailable()) {
       INSTANCE = new JsSession();
     } else {
-      Window.alert(messages.sessionDataNotAvailable());
+      ToastNotification.showWarning(messages.sessionDataNotAvailable());
       INSTANCE = new StubSession();
     }
   }

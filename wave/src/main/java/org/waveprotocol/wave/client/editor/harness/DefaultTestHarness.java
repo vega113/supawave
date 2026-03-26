@@ -23,8 +23,9 @@ import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.dom.client.Style.Display;
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
-import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.FlowPanel;
+
+import org.waveprotocol.wave.client.widget.dialog.PromptDialog;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.RootPanel;
 
@@ -73,21 +74,27 @@ public class DefaultTestHarness implements EntryPoint {
         ImageThumbnail.register(registries.getElementHandlerRegistry(), attachmentManager,
             new ThumbnailActionHandler() {
           @Override
-          public boolean onClick(ImageThumbnailWrapper thumbnail) {
-            ContentElement e = thumbnail.getElement();
-            String newId = Window.prompt("New attachment id, or 'remove' to remove the attribute",
-                e.getAttribute(ImageThumbnail.ATTACHMENT_ATTR));
+          public boolean onClick(final ImageThumbnailWrapper thumbnail) {
+            final ContentElement e = thumbnail.getElement();
+            PromptDialog.show(
+                "New attachment id, or 'remove' to remove the attribute",
+                e.getAttribute(ImageThumbnail.ATTACHMENT_ATTR),
+                new PromptDialog.Listener() {
+                  @Override
+                  public void onSubmit(String newId) {
+                    String valueToSet = newId;
+                    if ("remove".equals(valueToSet)) {
+                      valueToSet = null;
+                    }
+                    e.getMutableDoc().setElementAttribute(
+                        e, ImageThumbnail.ATTACHMENT_ATTR, valueToSet);
+                  }
 
-            if (newId == null) {
-              // They hit escape
-              return true;
-            }
-
-            if ("remove".equals(newId)) {
-              newId = null;
-            }
-
-            e.getMutableDoc().setElementAttribute(e, ImageThumbnail.ATTACHMENT_ATTR, newId);
+                  @Override
+                  public void onCancel() {
+                    // User hit escape -- do nothing
+                  }
+                });
             return true;
           }
         });

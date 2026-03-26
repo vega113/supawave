@@ -21,7 +21,8 @@
 package org.waveprotocol.wave.client.wavepanel.impl.edit;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.user.client.Window;
+
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
 import org.waveprotocol.wave.client.common.util.WaveRefConstants;
 import org.waveprotocol.wave.client.editor.content.ContentDocument;
@@ -128,7 +129,7 @@ public final class ActionsImpl implements Actions {
       if (maxDepth != null && maxDepth > 0) {
         int currentDepth = computeBlipDepth(blip);
         if (currentDepth >= maxDepth) {
-          Window.alert(messages.maxReplyDepthReached());
+          ToastNotification.showWarning(messages.maxReplyDepthReached());
           return;
         }
       }
@@ -244,7 +245,7 @@ public final class ActionsImpl implements Actions {
     try {
       waveletId = DualIdSerialiser.MODERN.deserialiseWaveletId(blip.getConversation().getId());
     } catch (InvalidIdException e) {
-      Window.alert(messages.invalidWaveletId(blip.getConversation().getId()));
+      ToastNotification.showWarning(messages.invalidWaveletId(blip.getConversation().getId()));
       return;
     }
     WaveRef waveRef = WaveRef.of(waveId, waveletId, blip.getId());

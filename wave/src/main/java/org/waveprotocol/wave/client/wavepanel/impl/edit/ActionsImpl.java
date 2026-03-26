@@ -45,7 +45,8 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
-import org.waveprotocol.wave.util.logging.Log;
+
+import java.util.logging.Logger;
 
 /**
  * Defines the UI actions that can be performed as part of the editing feature.
@@ -53,7 +54,7 @@ import org.waveprotocol.wave.util.logging.Log;
  *
  */
 public final class ActionsImpl implements Actions {
-  private static final Log LOG = Log.get(ActionsImpl.class);
+  private static final Logger LOG = Logger.getLogger(ActionsImpl.class.getName());
   private static final ActionMessages messages = GWT.create(ActionMessages.class);
 
   private final ModelAsViewProvider views;

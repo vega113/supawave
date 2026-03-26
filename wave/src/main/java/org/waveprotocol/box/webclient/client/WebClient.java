@@ -512,7 +512,7 @@ public class WebClient implements EntryPoint {
           }
         };
     Search search = SimpleSearch.create(RemoteSearchService.create(), waveStore);
-    SearchPresenter.create(search, searchPanel, actionHandler, profiles);
+    SearchPresenter.create(search, searchPanel, actionHandler, profiles, waveStore);
 
     // Defer contacts fetch until after the first search response arrives
     // so the /contacts request does not compete with the critical /search
@@ -705,6 +705,16 @@ public class WebClient implements EntryPoint {
   private void openWave(WaveRef waveRef, boolean isNewWave, Set<ParticipantId> participants) {
     final org.waveprotocol.box.stat.Timer timer = Timing.startRequest("Open Wave");
     LOG.info("WebClient.openWave()");
+
+    // If the same wave is already open and the reference includes a blip ID,
+    // navigate to that blip without reopening the wave.
+    if (!isNewWave && wave != null && waveRef.hasDocumentId()
+        && wave.getWaveId().equals(waveRef.getWaveId())) {
+      LOG.info("Navigating to blip within same wave: " + waveRef.getDocumentId());
+      wave.focusBlip(waveRef);
+      Timing.stop(timer);
+      return;
+    }
 
     if (wave != null) {
       wave.destroy();

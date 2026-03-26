@@ -517,24 +517,6 @@ public final class VersionHistoryServlet extends HttpServlet {
       return;
     }
 
-    // Check that the requesting user is the wave creator
-    try {
-      CommittedWaveletSnapshot currentSnapshot = waveletProvider.getSnapshot(waveletName);
-      if (currentSnapshot == null) {
-        resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Wavelet not found");
-        return;
-      }
-      ParticipantId creator = currentSnapshot.snapshot.getCreator();
-      if (!user.equals(creator)) {
-        resp.sendError(HttpServletResponse.SC_FORBIDDEN,
-            "Only the wave creator can restore versions");
-        return;
-      }
-    } catch (WaveServerException e) {
-      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-      return;
-    }
-
     String versionParam = req.getParameter("version");
     if (versionParam == null) {
       resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing version parameter");

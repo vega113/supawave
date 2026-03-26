@@ -409,7 +409,7 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
   p.endsWith("/org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServletTest.java") ||
   p.endsWith("/org/waveprotocol/box/server/robots/dataapi/DataApiServletTest.java") ||
   p.endsWith("/org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainerTest.java") ||
-  // PublicWaveServlet constructor changed (Config param added) — test not yet updated
+  // Constructor signature changed after PublicWaveServlet Jakarta migration
   p.endsWith("/org/waveprotocol/box/server/rpc/PublicWaveServletTest.java") ||
   p.endsWith("/org/waveprotocol/box/expimp/DomainConverterTest.java") ||
   p.endsWith("/org/waveprotocol/box/expimp/DeltaParserTest.java") ||

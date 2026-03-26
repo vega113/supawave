@@ -145,7 +145,10 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
     // Filter by tags when the query specifies tag: filters.
     if (!tagValues.isEmpty()) {
+      LOG.info("Tag filter active: required tags = " + tagValues
+          + ", candidates before filter = " + results.size());
       filterByTags(results, tagValues);
+      LOG.info("After tag filter: " + results.size() + " results remain");
     }
 
     List<WaveViewData> sortedResults = sort(queryParams, results);
@@ -424,6 +427,12 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * @param requiredTags the set of tag names that must all be present.
    */
   private void filterByTags(List<WaveViewData> results, Set<String> requiredTags) {
+    // Build a lowercase set of the required tags for case-insensitive matching.
+    Set<String> lowerRequiredTags = new java.util.HashSet<>();
+    for (String tag : requiredTags) {
+      lowerRequiredTags.add(tag.toLowerCase(java.util.Locale.ROOT));
+    }
+
     Iterator<WaveViewData> it = results.iterator();
     while (it.hasNext()) {
       WaveViewData wave = it.next();
@@ -436,36 +445,36 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           }
         }
         if (convWavelet == null) {
-          // Non-conversational wave cannot have tags.
+          LOG.fine("filterByTags: wave " + wave.getWaveId()
+              + " has no conversation root wavelet, removing");
           it.remove();
           continue;
         }
-        org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
-            org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
-        if (!org.waveprotocol.wave.model.conversation.WaveletBasedConversation
-            .waveletHasConversation(opWavelet)) {
-          it.remove();
-          continue;
+
+        // Read tags directly from the wavelet data's tags document using the
+        // DocOp representation. This avoids building a full conversation model
+        // (which can fail if the manifest document is invalid) and avoids the
+        // OpBasedWavelet.createBlip side-effect for non-existent documents.
+        Set<String> waveTags = readTagsFromWaveletData(convWavelet);
+
+        if (LOG.isFineLoggable()) {
+          LOG.fine("filterByTags: wave " + wave.getWaveId() + " has tags: " + waveTags);
         }
-        org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
-            digester.getConversationUtil().buildConversation(opWavelet);
-        org.waveprotocol.wave.model.conversation.ObservableConversation rootConversation =
-            conversations.getRoot();
-        if (rootConversation == null) {
-          it.remove();
-          continue;
-        }
-        Set<String> waveTags = rootConversation.getTags();
-        // Build a lowercase set of the wave's tags for case-insensitive matching.
-        Set<String> lowerCaseTags = new java.util.HashSet<>();
+
+        // Check that all required tags are present (case-insensitive).
+        Set<String> lowerWaveTags = new java.util.HashSet<>();
         for (String wt : waveTags) {
-          lowerCaseTags.add(wt.toLowerCase(java.util.Locale.ROOT));
+          lowerWaveTags.add(wt.toLowerCase(java.util.Locale.ROOT));
         }
-        for (String requiredTag : requiredTags) {
-          if (!lowerCaseTags.contains(requiredTag.toLowerCase(java.util.Locale.ROOT))) {
-            it.remove();
+        boolean matches = true;
+        for (String requiredTag : lowerRequiredTags) {
+          if (!lowerWaveTags.contains(requiredTag)) {
+            matches = false;
             break;
           }
+        }
+        if (!matches) {
+          it.remove();
         }
       } catch (Exception e) {
         LOG.warning("Failed to check tags for wave " + wave.getWaveId(), e);
@@ -473,6 +482,57 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         it.remove();
       }
     }
+  }
+
+  /**
+   * Reads tag names from a wavelet's tags data document by walking the DocOp
+   * representation. This avoids the need to build a conversation model or
+   * initialise the document's mutable view — both of which can fail for
+   * edge-case wavelets (missing manifest, uninitialised sinks, etc.).
+   *
+   * <p>The tags document has the form:
+   * <pre>{@code <tag>name1</tag><tag>name2</tag> ...}</pre>
+   * In DocOp terms this is: elementStart("tag") + characters("name") + elementEnd("tag"),
+   * repeated once per tag.
+   */
+  private static Set<String> readTagsFromWaveletData(ObservableWaveletData waveletData) {
+    org.waveprotocol.wave.model.wave.data.ReadableBlipData tagsBlip =
+        waveletData.getDocument(org.waveprotocol.wave.model.id.IdConstants.TAGS_DOC_ID);
+    if (tagsBlip == null) {
+      return java.util.Collections.emptySet();
+    }
+    // The content of a BlipData is a DocumentOperationSink which implements
+    // DocOp.IsDocOp — its asOperation() yields the DocInitialization that
+    // describes the full document content.
+    org.waveprotocol.wave.model.document.operation.DocInitialization docOp =
+        tagsBlip.getContent().asOperation();
+
+    final Set<String> tags = new java.util.HashSet<>();
+    final boolean[] insideTag = {false};
+    docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
+      @Override
+      public void elementStart(String type, org.waveprotocol.wave.model.document.operation.Attributes attrs) {
+        insideTag[0] = "tag".equals(type);
+      }
+
+      @Override
+      public void elementEnd() {
+        insideTag[0] = false;
+      }
+
+      @Override
+      public void characters(String chars) {
+        if (insideTag[0] && chars != null && !chars.isEmpty()) {
+          tags.add(chars);
+        }
+      }
+
+      @Override
+      public void annotationBoundary(org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
+        // ignore
+      }
+    });
+    return tags;
   }
 
   private List<WaveViewData> sort(Map<TokenQueryType, Set<String>> queryParams,

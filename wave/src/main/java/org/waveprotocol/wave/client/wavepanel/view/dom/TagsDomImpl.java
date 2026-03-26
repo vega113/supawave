@@ -20,6 +20,7 @@
 package org.waveprotocol.wave.client.wavepanel.view.dom;
 
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.Node;
 
 import org.waveprotocol.wave.client.wavepanel.view.IntrinsicTagsView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TagsViewBuilder.Components;
@@ -73,14 +74,31 @@ public final class TagsDomImpl implements DomView, IntrinsicTagsView {
 
   Element getTagsCaption() {
     if (tagsCaption == null) {
-      tagsCaption = getTagContainer().getFirstChild().cast();
+      // Find the first element child, skipping any text nodes.
+      for (Node n = getTagContainer().getFirstChild(); n != null; n = n.getNextSibling()) {
+        if (n.getNodeType() == Node.ELEMENT_NODE) {
+          tagsCaption = n.cast();
+          break;
+        }
+      }
     }
     return tagsCaption;
   }
 
   Element getSimpleMenu() {
     if (simpleMenu == null) {
-      simpleMenu = getTagContainer().getLastChild().getPreviousSibling().cast();
+      // Navigate backwards through container children to find the second-to-last
+      // element node (the "extra" overflow-mode panel), skipping any text nodes.
+      Element container = getTagContainer();
+      Element lastElement = null;
+      Element secondToLastElement = null;
+      for (Node n = container.getFirstChild(); n != null; n = n.getNextSibling()) {
+        if (n.getNodeType() == Node.ELEMENT_NODE) {
+          secondToLastElement = lastElement;
+          lastElement = n.cast();
+        }
+      }
+      simpleMenu = secondToLastElement;
     }
     return simpleMenu;
   }

@@ -326,8 +326,13 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           continue;
         }
         Set<String> waveTags = rootConversation.getTags();
+        // Build a lowercase set of the wave's tags for case-insensitive matching.
+        Set<String> lowerCaseTags = new java.util.HashSet<>();
+        for (String wt : waveTags) {
+          lowerCaseTags.add(wt.toLowerCase(java.util.Locale.ROOT));
+        }
         for (String requiredTag : requiredTags) {
-          if (!waveTags.contains(requiredTag)) {
+          if (!lowerCaseTags.contains(requiredTag.toLowerCase(java.util.Locale.ROOT))) {
             it.remove();
             break;
           }

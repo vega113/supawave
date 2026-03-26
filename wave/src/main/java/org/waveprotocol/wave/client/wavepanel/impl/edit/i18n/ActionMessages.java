@@ -32,4 +32,7 @@ public interface ActionMessages extends Messages {
 
   @DefaultMessage("Maximum reply depth reached. Try replying to a parent message instead.")
   String maxReplyDepthReached();
+
+  @DefaultMessage("Maximum reply depth reached. Your reply will be added to the current thread.")
+  String maxReplyDepthContinueInThread();
 }

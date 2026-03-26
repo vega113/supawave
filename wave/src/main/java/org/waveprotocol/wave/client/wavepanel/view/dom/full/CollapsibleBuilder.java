@@ -162,6 +162,9 @@ public final class CollapsibleBuilder implements UiBuilder {
   /** Nesting depth for inline threads (-1 means unset / no data-depth attribute). */
   private int depth = -1;
 
+  /** True if this thread exceeds the max depth limit (legacy pre-existing data). */
+  private boolean legacyDeep = false;
+
   /**
    */
   public static CollapsibleBuilder create(String id, String kind, HtmlClosure contents) {
@@ -183,6 +186,11 @@ public final class CollapsibleBuilder implements UiBuilder {
   /** Sets the nesting depth (emitted as a {@code data-depth} attribute). */
   public void setDepth(int depth) {
     this.depth = depth;
+  }
+
+  /** Marks this thread as a legacy deep thread that exceeds the current depth limit. */
+  public void setLegacyDeep(boolean legacyDeep) {
+    this.legacyDeep = legacyDeep;
   }
 
   public void setCollapsed(boolean collapsed) {
@@ -227,7 +235,8 @@ public final class CollapsibleBuilder implements UiBuilder {
     String extra = " " + (collapsed ? COLLAPSED_ATTRIBUTE + "='" + COLLAPSED_VALUE + "'" : "") +
         " " + TOTAL_BLIPS_ATTRIBUTE + "='" + totalBlipCount + "'" +
         " " + UNREAD_BLIPS_ATTRIBUTE + "='" + unreadBlipCount + "'" +
-        (depth >= 0 ? " data-depth='" + depth + "'" : "");
+        (depth >= 0 ? " data-depth='" + depth + "'" : "") +
+        (legacyDeep ? " data-legacy-depth='true'" : "");
 
     openWith(output, id, css.collapsible(), kind, extra);
     {
@@ -252,6 +261,12 @@ public final class CollapsibleBuilder implements UiBuilder {
           closeSpan(output);
         }
         closeSpan(output);
+        // Phase 5: legacy deep thread badge visible in the toggle bar.
+        if (legacyDeep) {
+          openSpanWith(output, null, "legacyDepthBadge", null, null);
+          output.appendEscaped("LEGACY");
+          closeSpan(output);
+        }
       }
       close(output);
       openWith(output, Components.CHROME.getDomId(id), css.chrome() + collapsedStateCss, null,

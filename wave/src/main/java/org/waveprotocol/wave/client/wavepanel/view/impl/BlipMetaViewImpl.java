@@ -168,6 +168,11 @@ public final class BlipMetaViewImpl<I extends IntrinsicBlipMetaView> // \u2620
   }
 
   @Override
+  public void setAuthorAddress(String address) {
+    impl.setAuthorAddress(address);
+  }
+
+  @Override
   public void setMetaline(String metaline) {
     impl.setMetaline(metaline);
   }

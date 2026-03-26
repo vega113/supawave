@@ -158,6 +158,7 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
   private String timeTooltip;
   private String metaline;
   private String avatarUrl;
+  private String authorAddress;
   private boolean read = true;
   private final Set<MenuOption> options = EnumSet.copyOf(MENU_OPTIONS_BEFORE_EDITING);
   private final Set<MenuOption> selected = EnumSet.noneOf(MenuOption.class);
@@ -193,6 +194,11 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
   @Override
   public void setAvatar(String avatarUrl) {
     this.avatarUrl = avatarUrl;
+  }
+
+  @Override
+  public void setAuthorAddress(String address) {
+    this.authorAddress = address;
   }
 
   @Override
@@ -254,9 +260,23 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
 
     open(output, id, css.meta(), TypeCodes.kind(Type.META));
     {
-      // Author avatar.
-      image(output, Components.AVATAR.getDomId(id), css.avatar(), EscapeUtils.fromString(avatarUrl),
-          EscapeUtils.fromPlainText("author"), null);
+      // Author avatar — includes data-address for the profile card popup.
+      {
+        String avatarId = Components.AVATAR.getDomId(id);
+        String safeUrl = avatarUrl != null ? EscapeUtils.sanitizeUri(avatarUrl) : null;
+        StringBuilder img = new StringBuilder("<img ");
+        img.append("id='").append(avatarId).append("' ");
+        img.append("class='").append(css.avatar()).append("' ");
+        if (safeUrl != null) {
+          img.append("src='").append(safeUrl).append("' ");
+        }
+        img.append("alt='author' ");
+        if (authorAddress != null) {
+          img.append("data-address='").append(EscapeUtils.htmlEscape(authorAddress)).append("' ");
+        }
+        img.append("></img>");
+        output.append(EscapeUtils.fromSafeConstant(img.toString()));
+      }
 
       // Metabar.
       open(output, Components.METABAR.getDomId(id),

@@ -59,6 +59,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     String query();
     String helpButton();
     String helpPanel();
+    String helpBackdrop();
     String helpHeader();
     String helpTitle();
     String helpClose();
@@ -76,7 +77,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   private final static Binder BINDER = GWT.create(Binder.class);
 
-  private final static String DEFAULT_QUERY = "";
+  private final static String DEFAULT_QUERY = "in:inbox";
 
   @UiField
   TextBox query;
@@ -85,6 +86,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   @UiField
   Element helpPanel;
   @UiField
+  Element helpBackdrop;
+  @UiField
   Element helpCloseButton;
   @UiField
   SpanElement exInbox;
@@ -92,6 +95,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   SpanElement exArchive;
   @UiField
   SpanElement exAll;
+  @UiField
+  SpanElement exPinned;
   @UiField
   SpanElement exWith;
   @UiField
@@ -128,7 +133,9 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     Event.setEventListener(helpButton, event -> {
       if (Event.ONCLICK == event.getTypeInt()) {
         boolean visible = !"none".equals(helpPanel.getStyle().getDisplay());
-        helpPanel.getStyle().setProperty("display", visible ? "none" : "block");
+        String display = visible ? "none" : "block";
+        helpPanel.getStyle().setProperty("display", display);
+        helpBackdrop.getStyle().setProperty("display", display);
       }
     });
 
@@ -137,6 +144,16 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     Event.setEventListener(helpCloseButton, event -> {
       if (Event.ONCLICK == event.getTypeInt()) {
         helpPanel.getStyle().setProperty("display", "none");
+        helpBackdrop.getStyle().setProperty("display", "none");
+      }
+    });
+
+    // Clicking backdrop closes the panel
+    Event.sinkEvents(helpBackdrop, Event.ONCLICK);
+    Event.setEventListener(helpBackdrop, event -> {
+      if (Event.ONCLICK == event.getTypeInt()) {
+        helpPanel.getStyle().setProperty("display", "none");
+        helpBackdrop.getStyle().setProperty("display", "none");
       }
     });
 
@@ -144,6 +161,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     wireExample(exInbox);
     wireExample(exArchive);
     wireExample(exAll);
+    wireExample(exPinned);
     wireExample(exWith);
     wireExample(exPublic);
     wireExample(exCreator);
@@ -161,6 +179,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       if (Event.ONCLICK == event.getTypeInt()) {
         query.setValue(example.getInnerText());
         helpPanel.getStyle().setProperty("display", "none");
+        helpBackdrop.getStyle().setProperty("display", "none");
         onQuery();
       }
     });
@@ -191,8 +210,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   @Override
   public void onChange(ChangeEvent event) {
-    if (query.getValue() == null || query.getValue().isEmpty()) {
-      query.setText(DEFAULT_QUERY);
+    if (query.getValue() == null || query.getValue().trim().isEmpty()) {
+      query.setValue(DEFAULT_QUERY);
     }
     onQuery();
   }

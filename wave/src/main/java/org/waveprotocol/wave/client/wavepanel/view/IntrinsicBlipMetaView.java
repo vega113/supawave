@@ -50,6 +50,15 @@ public interface IntrinsicBlipMetaView {
   void setAvatar(String imageUrl);
 
   /**
+   * Stores the primary author's wave address (e.g. "user@example.com") as a
+   * {@code data-address} attribute on the avatar element so that page-level
+   * JavaScript (profile card popup) can show the profile on click.
+   */
+  default void setAuthorAddress(String address) {
+    // no-op by default; DOM-backed implementations override
+  }
+
+  /**
    * Sets the last modified time.
    */
   void setTime(String time);

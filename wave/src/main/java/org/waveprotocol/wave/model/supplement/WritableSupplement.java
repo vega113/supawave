@@ -114,6 +114,20 @@ public interface WritableSupplement {
    */
   void removeAllFolders();
 
+  /**
+   * Adds a single folder allocation without removing existing ones.
+   *
+   * @param id  folder id to add
+   */
+  void addFolder(int id);
+
+  /**
+   * Removes a single folder allocation.
+   *
+   * @param id  folder id to remove
+   */
+  void removeFolder(int id);
+
   //
   // Inboxing concerns.
   //

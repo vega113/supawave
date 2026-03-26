@@ -20,9 +20,11 @@
 package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
-import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
+import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
@@ -40,6 +42,7 @@ public final class ParticipantNameViewBuilder implements IntrinsicParticipantVie
   private final String id;
 
   private String name;
+  private String address;
 
   @VisibleForTesting
   ParticipantNameViewBuilder(String id, Css css) {
@@ -67,8 +70,15 @@ public final class ParticipantNameViewBuilder implements IntrinsicParticipantVie
   }
 
   @Override
+  public void setAddress(String address) {
+    this.address = address;
+  }
+
+  @Override
   public void outputHtml(SafeHtmlBuilder output) {
-    open(output, id, css.participant(), TypeCodes.kind(Type.PARTICIPANT));
+    String extra = address != null
+        ? "data-address='" + EscapeUtils.htmlEscape(address) + "'" : null;
+    openWith(output, id, css.participant(), TypeCodes.kind(Type.PARTICIPANT), extra);
     output.appendEscaped(name);
     close(output);
   }

@@ -157,7 +157,6 @@ public final class WaveBasedDigest
     }
   }
 
-  @SuppressWarnings("unused")
   private void invalidateLmt() {
     lastModified = NO_TIME;
   }
@@ -209,6 +208,11 @@ public final class WaveBasedDigest
   @Override
   public InboxState getInboxState() {
     return null; // Inbox state tracking not yet wired to live wave digests
+  }
+
+  @Override
+  public boolean isPinned() {
+    return false; // Pin state tracking not yet wired to live wave digests
   }
 
 
@@ -270,6 +274,7 @@ public final class WaveBasedDigest
   @Override
   public void onLastModifiedTimeChanged(ObservableWavelet wavelet, long oldTime, long newTime) {
     if (newTime != oldTime) {
+      invalidateLmt();
       fireOnChanged();
     }
   }

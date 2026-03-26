@@ -81,19 +81,23 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     // The "all" query should include shared domain waves. It is triggered when:
     // 1. No 'in:' filter is present (empty query), or
     // 2. The explicit 'in:all' filter is used.
+    // 3. The 'in:pinned' filter is used (pinned waves can be in any state).
     final Set<String> inValues = queryParams.get(TokenQueryType.IN);
     final boolean isAllQuery = !queryParams.containsKey(TokenQueryType.IN)
-        || (inValues != null && inValues.contains("all"));
+        || (inValues != null && (inValues.contains("all") || inValues.contains("pinned")));
 
-    // Determine whether we need to filter by inbox or archive state.
+    // Determine whether we need to filter by inbox, archive, or pinned state.
     final boolean isInboxQuery;
     final boolean isArchiveQuery;
+    final boolean isPinnedQuery;
     if (inValues != null) {
       isInboxQuery = inValues.contains("inbox");
       isArchiveQuery = inValues.contains("archive");
+      isPinnedQuery = inValues.contains("pinned");
     } else {
       isInboxQuery = false;
       isArchiveQuery = false;
+      isPinnedQuery = false;
     }
 
     final List<ParticipantId> withParticipantIds;
@@ -134,12 +138,23 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       filterByFolderState(results, user, isInboxQuery);
     }
 
+    // Filter by pinned state when the query specifies in:pinned.
+    if (isPinnedQuery) {
+      filterByPinnedState(results, user);
+    }
+
     // Filter by tags when the query specifies tag: filters.
     if (!tagValues.isEmpty()) {
       filterByTags(results, tagValues);
     }
 
     List<WaveViewData> sortedResults = sort(queryParams, results);
+
+    // Promote pinned waves to the top of results (unless the query is specifically
+    // for pinned waves, in which case all results are already pinned).
+    if (!isPinnedQuery) {
+      sortedResults = promotePinnedWaves(sortedResults, user);
+    }
 
     Collection<WaveViewData> searchResult =
         computeSearchResult(user, startAt, numResults, sortedResults);
@@ -257,19 +272,25 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
             udw = wd;
           }
         }
+        // Waves without a conversation root wavelet or without conversation
+        // structure cannot carry archive state. Treat them as inbox waves:
+        // keep them for inbox queries, remove them for archive queries.
         if (convWavelet == null) {
-          // Non-conversational wave - skip from folder-filtered results.
-          it.remove();
+          if (!wantInbox) {
+            it.remove();
+          }
           continue;
         }
-        // Build the supplement to determine inbox/archive state.
         org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
             org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
         if (!org.waveprotocol.wave.model.conversation.WaveletBasedConversation
             .waveletHasConversation(opWavelet)) {
-          it.remove();
+          if (!wantInbox) {
+            it.remove();
+          }
           continue;
         }
+        // Build the supplement to determine inbox/archive state.
         org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
             digester.getConversationUtil().buildConversation(opWavelet);
         SupplementedWave supplement = digester.buildSupplement(user, conversations, udw, conversationalWavelets);
@@ -282,6 +303,115 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       } catch (Exception e) {
         LOG.warning("Failed to check folder state for wave " + wave.getWaveId(), e);
         // If we can't determine the state, keep the result for safety.
+      }
+    }
+  }
+
+  /**
+   * Promotes pinned waves to the top of the results list while preserving the
+   * relative order within the pinned and non-pinned groups.
+   *
+   * @param results the sorted list of wave views.
+   * @param user the participant whose supplement state to check.
+   * @return a new list with pinned waves first, followed by non-pinned waves.
+   */
+  private List<WaveViewData> promotePinnedWaves(List<WaveViewData> results, ParticipantId user) {
+    List<WaveViewData> pinned = new ArrayList<WaveViewData>();
+    List<WaveViewData> unpinned = new ArrayList<WaveViewData>();
+    for (WaveViewData wave : results) {
+      try {
+        ObservableWaveletData convWavelet = null;
+        ObservableWaveletData udw = null;
+        List<ObservableWaveletData> conversationalWavelets = new ArrayList<ObservableWaveletData>();
+        for (ObservableWaveletData wd : wave.getWavelets()) {
+          WaveletId wid = wd.getWaveletId();
+          if (org.waveprotocol.wave.model.id.IdUtil.isConversationRootWaveletId(wid)) {
+            convWavelet = wd;
+            conversationalWavelets.add(wd);
+          } else if (org.waveprotocol.wave.model.id.IdUtil.isConversationalId(wid)) {
+            conversationalWavelets.add(wd);
+          }
+          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(), wid)) {
+            udw = wd;
+          }
+        }
+        if (convWavelet != null && udw != null) {
+          org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
+              org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
+          if (org.waveprotocol.wave.model.conversation.WaveletBasedConversation
+              .waveletHasConversation(opWavelet)) {
+            org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
+                digester.getConversationUtil().buildConversation(opWavelet);
+            SupplementedWave supplement = digester.buildSupplement(
+                user, conversations, udw, conversationalWavelets);
+            if (supplement.isPinned()) {
+              pinned.add(wave);
+              continue;
+            }
+          }
+        }
+        unpinned.add(wave);
+      } catch (Exception e) {
+        LOG.fine("Failed to check pinned state during promotion for wave " + wave.getWaveId());
+        unpinned.add(wave);
+      }
+    }
+    if (pinned.isEmpty()) {
+      return results; // No pinned waves, return original list.
+    }
+    List<WaveViewData> promoted = new ArrayList<WaveViewData>(pinned.size() + unpinned.size());
+    promoted.addAll(pinned);
+    promoted.addAll(unpinned);
+    return promoted;
+  }
+
+  /**
+   * Filters wave results by pinned state using the user's supplement data.
+   * Only waves whose supplement indicates they are pinned are kept.
+   *
+   * @param results the mutable list of wave views to filter in place.
+   * @param user the participant whose supplement state to check.
+   */
+  private void filterByPinnedState(List<WaveViewData> results, ParticipantId user) {
+    Iterator<WaveViewData> it = results.iterator();
+    while (it.hasNext()) {
+      WaveViewData wave = it.next();
+      try {
+        ObservableWaveletData convWavelet = null;
+        ObservableWaveletData udw = null;
+        List<ObservableWaveletData> conversationalWavelets = new ArrayList<ObservableWaveletData>();
+        for (ObservableWaveletData wd : wave.getWavelets()) {
+          WaveletId wid = wd.getWaveletId();
+          if (org.waveprotocol.wave.model.id.IdUtil.isConversationRootWaveletId(wid)) {
+            convWavelet = wd;
+            conversationalWavelets.add(wd);
+          } else if (org.waveprotocol.wave.model.id.IdUtil.isConversationalId(wid)) {
+            conversationalWavelets.add(wd);
+          }
+          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(), wid)) {
+            udw = wd;
+          }
+        }
+        if (convWavelet == null) {
+          it.remove();
+          continue;
+        }
+        org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
+            org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
+        if (!org.waveprotocol.wave.model.conversation.WaveletBasedConversation
+            .waveletHasConversation(opWavelet)) {
+          it.remove();
+          continue;
+        }
+        org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
+            digester.getConversationUtil().buildConversation(opWavelet);
+        SupplementedWave supplement = digester.buildSupplement(user, conversations, udw, conversationalWavelets);
+        if (!supplement.isPinned()) {
+          it.remove();
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check pinned state for wave " + wave.getWaveId(), e);
+        it.remove();
       }
     }
   }
@@ -326,8 +456,13 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           continue;
         }
         Set<String> waveTags = rootConversation.getTags();
+        // Build a lowercase set of the wave's tags for case-insensitive matching.
+        Set<String> lowerCaseTags = new java.util.HashSet<>();
+        for (String wt : waveTags) {
+          lowerCaseTags.add(wt.toLowerCase(java.util.Locale.ROOT));
+        }
         for (String requiredTag : requiredTags) {
-          if (!waveTags.contains(requiredTag)) {
+          if (!lowerCaseTags.contains(requiredTag.toLowerCase(java.util.Locale.ROOT))) {
             it.remove();
             break;
           }

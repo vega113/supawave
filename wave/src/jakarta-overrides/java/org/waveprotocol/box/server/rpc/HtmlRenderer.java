@@ -3757,6 +3757,14 @@ public final class HtmlRenderer {
     sb.append(".msg-detail .reply-item { padding: 8px 12px; background: #e8f4f8; border-radius: 6px; margin-bottom: 6px; font-size: 12px; }\n");
     sb.append(".msg-detail .reply-item .meta { color: ").append(WAVE_TEXT_MUTED).append("; font-size: 11px; margin-bottom: 4px; }\n");
 
+    // Toggle switch
+    sb.append(".toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }\n");
+    sb.append(".toggle-switch input { opacity: 0; width: 0; height: 0; }\n");
+    sb.append(".toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #cbd5e0; border-radius: 24px; transition: 0.2s; }\n");
+    sb.append(".toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }\n");
+    sb.append(".toggle-switch input:checked + .toggle-slider { background: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }\n");
+
     sb.append("@media (max-width: 768px) {\n");
     sb.append("  .admin-container { padding: 0 12px; }\n");
     sb.append("  .admin-card-header { padding: 16px; }\n");
@@ -3784,6 +3792,7 @@ public final class HtmlRenderer {
     sb.append("  <div class=\"admin-tabs\">\n");
     sb.append("    <button class=\"admin-tab active\" data-tab=\"users\">Users</button>\n");
     sb.append("    <button class=\"admin-tab\" data-tab=\"contacts\">Contact Messages <span class=\"tab-badge hidden\" id=\"contactBadge\">0</span></button>\n");
+    sb.append("    <button class=\"admin-tab\" data-tab=\"flags\">Feature Flags</button>\n");
     sb.append("  </div>\n");
 
     // Users tab panel
@@ -3847,6 +3856,60 @@ public final class HtmlRenderer {
     sb.append("    <div class=\"stats-bar\" id=\"contactsStatsBar\"></div>\n");
     sb.append("  </div>\n");
     sb.append("  </div>\n"); // end panel-contacts
+
+    // Feature Flags tab panel
+    sb.append("  <div class=\"tab-panel\" id=\"panel-flags\">\n");
+    sb.append("  <div class=\"admin-card\">\n");
+    sb.append("    <div class=\"admin-card-header\">\n");
+    sb.append("      <h2>Feature Flags</h2>\n");
+    sb.append("      <button class=\"action-btn success\" id=\"addFlagBtn\">+ Add Flag</button>\n");
+    sb.append("    </div>\n");
+    // Add/Edit form (hidden by default)
+    sb.append("    <div id=\"flagForm\" style=\"display:none; padding: 16px 24px; border-bottom: 1px solid ").append(WAVE_BORDER).append(";\">\n");
+    sb.append("      <div style=\"display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;\">\n");
+    sb.append("        <div style=\"flex: 1; min-width: 160px;\">\n");
+    sb.append("          <label style=\"display:block; font-size:12px; font-weight:600; color:").append(WAVE_TEXT_MUTED).append("; margin-bottom:4px;\">Flag Name</label>\n");
+    sb.append("          <input type=\"text\" id=\"flagName\" class=\"search-box\" style=\"width:100%;\" placeholder=\"e.g. new-editor\" autocomplete=\"off\">\n");
+    sb.append("        </div>\n");
+    sb.append("        <div style=\"flex: 2; min-width: 200px;\">\n");
+    sb.append("          <label style=\"display:block; font-size:12px; font-weight:600; color:").append(WAVE_TEXT_MUTED).append("; margin-bottom:4px;\">Description</label>\n");
+    sb.append("          <input type=\"text\" id=\"flagDesc\" class=\"search-box\" style=\"width:100%;\" placeholder=\"What does this flag control?\" autocomplete=\"off\">\n");
+    sb.append("        </div>\n");
+    sb.append("        <div style=\"min-width: 80px;\">\n");
+    sb.append("          <label style=\"display:block; font-size:12px; font-weight:600; color:").append(WAVE_TEXT_MUTED).append("; margin-bottom:4px;\">Global</label>\n");
+    sb.append("          <label class=\"toggle-switch\">\n");
+    sb.append("            <input type=\"checkbox\" id=\"flagEnabled\">\n");
+    sb.append("            <span class=\"toggle-slider\"></span>\n");
+    sb.append("          </label>\n");
+    sb.append("        </div>\n");
+    sb.append("        <div style=\"flex: 2; min-width: 200px;\">\n");
+    sb.append("          <label style=\"display:block; font-size:12px; font-weight:600; color:").append(WAVE_TEXT_MUTED).append("; margin-bottom:4px;\">Allowed Users (comma-separated)</label>\n");
+    sb.append("          <input type=\"text\" id=\"flagUsers\" class=\"search-box\" style=\"width:100%;\" placeholder=\"user1@example.com, user2@example.com\" autocomplete=\"off\">\n");
+    sb.append("        </div>\n");
+    sb.append("        <div style=\"display: flex; gap: 8px;\">\n");
+    sb.append("          <button class=\"action-btn success\" id=\"flagSaveBtn\">Save</button>\n");
+    sb.append("          <button class=\"action-btn\" id=\"flagCancelBtn\">Cancel</button>\n");
+    sb.append("        </div>\n");
+    sb.append("      </div>\n");
+    sb.append("    </div>\n");
+    // Flags table
+    sb.append("    <div class=\"admin-table-wrap\">\n");
+    sb.append("      <table class=\"admin-table\" id=\"flagsTable\">\n");
+    sb.append("        <thead><tr>\n");
+    sb.append("          <th>Flag Name</th>\n");
+    sb.append("          <th>Description</th>\n");
+    sb.append("          <th>Global</th>\n");
+    sb.append("          <th>Allowed Users</th>\n");
+    sb.append("          <th>Actions</th>\n");
+    sb.append("        </tr></thead>\n");
+    sb.append("        <tbody id=\"flagsTableBody\">\n");
+    sb.append("          <tr class=\"loading-row\"><td colspan=\"5\">Loading...</td></tr>\n");
+    sb.append("        </tbody>\n");
+    sb.append("      </table>\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"stats-bar\" id=\"flagsStatsBar\"></div>\n");
+    sb.append("  </div>\n");
+    sb.append("  </div>\n"); // end panel-flags
 
     sb.append("</div>\n");
 
@@ -4057,6 +4120,7 @@ public final class HtmlRenderer {
     sb.append("      tab.classList.add('active');\n");
     sb.append("      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');\n");
     sb.append("      if (tab.dataset.tab === 'contacts' && !contactsLoaded) { fetchContacts(); }\n");
+    sb.append("      if (tab.dataset.tab === 'flags' && !flagsLoaded) { fetchFlags(); }\n");
     sb.append("    });\n");
     sb.append("  });\n");
 
@@ -4182,6 +4246,146 @@ public final class HtmlRenderer {
     sb.append("      fetchContacts();\n");
     sb.append("    });\n");
     sb.append("  });\n");
+
+    // ---- Feature Flags tab logic ----
+    sb.append("  var flagsLoaded = false;\n");
+    sb.append("  var flagsData = [];\n");
+    sb.append("  var fTbody = document.getElementById('flagsTableBody');\n");
+    sb.append("  var fStatsBar = document.getElementById('flagsStatsBar');\n");
+    sb.append("  var flagForm = document.getElementById('flagForm');\n");
+    sb.append("  var flagNameInput = document.getElementById('flagName');\n");
+    sb.append("  var flagDescInput = document.getElementById('flagDesc');\n");
+    sb.append("  var flagEnabledInput = document.getElementById('flagEnabled');\n");
+    sb.append("  var flagUsersInput = document.getElementById('flagUsers');\n");
+    sb.append("  var flagEditingName = null;\n");
+
+    // Fetch flags
+    sb.append("  function fetchFlags() {\n");
+    sb.append("    flagsLoaded = true;\n");
+    sb.append("    fetch('/admin/flags').then(function(r){return r.json();}).then(function(data){\n");
+    sb.append("      flagsData = data.flags || [];\n");
+    sb.append("      renderFlags();\n");
+    sb.append("    }).catch(function(e){\n");
+    sb.append("      showToast('Failed to load flags: ' + e.message, 'error');\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+
+    // Render flags table
+    sb.append("  function renderFlags() {\n");
+    sb.append("    var html = '';\n");
+    sb.append("    if (flagsData.length === 0) {\n");
+    sb.append("      html = '<tr class=\"loading-row\"><td colspan=\"5\">No feature flags defined</td></tr>';\n");
+    sb.append("    } else {\n");
+    sb.append("      for (var i = 0; i < flagsData.length; i++) {\n");
+    sb.append("        var f = flagsData[i];\n");
+    sb.append("        var enabledBadge = f.enabled\n");
+    sb.append("          ? '<span class=\"badge badge-active\">Enabled</span>'\n");
+    sb.append("          : '<span class=\"badge badge-user\">Disabled</span>';\n");
+    sb.append("        html += '<tr>';\n");
+    sb.append("        html += '<td><strong>' + esc(f.name) + '</strong></td>';\n");
+    sb.append("        html += '<td>' + esc(f.description) + '</td>';\n");
+    sb.append("        html += '<td>' + enabledBadge + '</td>';\n");
+    sb.append("        html += '<td style=\"max-width:260px;word-break:break-all;font-size:12px;\">' + esc(f.allowedUsers || '') + '</td>';\n");
+    sb.append("        html += '<td>';\n");
+    sb.append("        html += '<button class=\"action-btn\" onclick=\"editFlag(' + i + ')\">Edit</button>';\n");
+    sb.append("        html += '<button class=\"action-btn\" onclick=\"toggleFlag(' + i + ')\">' + (f.enabled ? 'Disable' : 'Enable') + '</button>';\n");
+    sb.append("        html += '<button class=\"action-btn danger\" onclick=\"deleteFlag(\\'' + esc(f.name) + '\\')\"'>Delete</button>';\n");
+    sb.append("        html += '</td></tr>';\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    sb.append("    fTbody.innerHTML = html;\n");
+    sb.append("    fStatsBar.textContent = flagsData.length + ' flag(s)';\n");
+    sb.append("  }\n");
+
+    // Show add form
+    sb.append("  document.getElementById('addFlagBtn').addEventListener('click', function() {\n");
+    sb.append("    flagEditingName = null;\n");
+    sb.append("    flagNameInput.value = '';\n");
+    sb.append("    flagNameInput.disabled = false;\n");
+    sb.append("    flagDescInput.value = '';\n");
+    sb.append("    flagEnabledInput.checked = false;\n");
+    sb.append("    flagUsersInput.value = '';\n");
+    sb.append("    flagForm.style.display = 'block';\n");
+    sb.append("  });\n");
+
+    // Cancel form
+    sb.append("  document.getElementById('flagCancelBtn').addEventListener('click', function() {\n");
+    sb.append("    flagForm.style.display = 'none';\n");
+    sb.append("  });\n");
+
+    // Save flag
+    sb.append("  document.getElementById('flagSaveBtn').addEventListener('click', function() {\n");
+    sb.append("    var name = flagNameInput.value.trim();\n");
+    sb.append("    if (!name) { showToast('Flag name is required', 'error'); return; }\n");
+    sb.append("    if (!/^[a-zA-Z0-9._-]+$/.test(name)) { showToast('Flag name may only contain letters, digits, dots, hyphens, and underscores', 'error'); return; }\n");
+    sb.append("    var payload = JSON.stringify({\n");
+    sb.append("      name: name,\n");
+    sb.append("      description: flagDescInput.value.trim(),\n");
+    sb.append("      enabled: flagEnabledInput.checked ? 'true' : 'false',\n");
+    sb.append("      allowedUsers: flagUsersInput.value.trim()\n");
+    sb.append("    });\n");
+    sb.append("    fetch('/admin/flags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: payload })\n");
+    sb.append("      .then(function(r){return r.json();})\n");
+    sb.append("      .then(function(data){\n");
+    sb.append("        if (data.error) { showToast(data.error, 'error'); return; }\n");
+    sb.append("        showToast('Flag saved successfully', 'success');\n");
+    sb.append("        flagForm.style.display = 'none';\n");
+    sb.append("        fetchFlags();\n");
+    sb.append("      }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
+    sb.append("  });\n");
+
+    // Edit flag (global function for onclick)
+    sb.append("  window.editFlag = function(idx) {\n");
+    sb.append("    var f = flagsData[idx];\n");
+    sb.append("    flagEditingName = f.name;\n");
+    sb.append("    flagNameInput.value = f.name;\n");
+    sb.append("    flagNameInput.disabled = true;\n");
+    sb.append("    flagDescInput.value = f.description || '';\n");
+    sb.append("    flagEnabledInput.checked = f.enabled;\n");
+    sb.append("    flagUsersInput.value = f.allowedUsers || '';\n");
+    sb.append("    flagForm.style.display = 'block';\n");
+    sb.append("  };\n");
+
+    // Toggle flag
+    sb.append("  window.toggleFlag = function(idx) {\n");
+    sb.append("    var f = flagsData[idx];\n");
+    sb.append("    var payload = JSON.stringify({\n");
+    sb.append("      name: f.name,\n");
+    sb.append("      description: f.description || '',\n");
+    sb.append("      enabled: f.enabled ? 'false' : 'true',\n");
+    sb.append("      allowedUsers: f.allowedUsers || ''\n");
+    sb.append("    });\n");
+    sb.append("    fetch('/admin/flags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: payload })\n");
+    sb.append("      .then(function(r){return r.json();})\n");
+    sb.append("      .then(function(data){\n");
+    sb.append("        if (data.error) { showToast(data.error, 'error'); return; }\n");
+    sb.append("        showToast('Flag toggled', 'success');\n");
+    sb.append("        fetchFlags();\n");
+    sb.append("      }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
+    sb.append("  };\n");
+
+    // Delete flag
+    sb.append("  window.deleteFlag = function(name) {\n");
+    sb.append("    confirmOverlay.style.display = 'flex';\n");
+    sb.append("    confirmOverlay.innerHTML = '<div class=\"confirm-dialog\">' +\n");
+    sb.append("      '<h3>Delete Flag</h3>' +\n");
+    sb.append("      '<p>Are you sure you want to delete flag \"' + esc(name) + '\"?</p>' +\n");
+    sb.append("      '<div class=\"buttons\">' +\n");
+    sb.append("        '<button class=\"btn btn-cancel\" id=\"confirmCancel\">Cancel</button>' +\n");
+    sb.append("        '<button class=\"btn btn-danger\" id=\"confirmOk\">Delete</button>' +\n");
+    sb.append("      '</div></div>';\n");
+    sb.append("    document.getElementById('confirmCancel').onclick = function() { confirmOverlay.style.display = 'none'; };\n");
+    sb.append("    document.getElementById('confirmOk').onclick = function() {\n");
+    sb.append("      confirmOverlay.style.display = 'none';\n");
+    sb.append("      fetch('/admin/flags?name=' + encodeURIComponent(name), { method: 'DELETE' })\n");
+    sb.append("        .then(function(r){return r.json();})\n");
+    sb.append("        .then(function(data){\n");
+    sb.append("          if (data.error) { showToast(data.error, 'error'); return; }\n");
+    sb.append("          showToast('Flag deleted', 'success');\n");
+    sb.append("          fetchFlags();\n");
+    sb.append("        }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
+    sb.append("    };\n");
+    sb.append("  };\n");
 
     sb.append("})();\n");
     sb.append("</script>\n");

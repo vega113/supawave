@@ -273,6 +273,8 @@ public class ServerMain {
     server.addServlet("/public", PublicDirectoryServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
     server.addServlet("/history/*", VersionHistoryServlet.class);
+    server.addServlet("/admin/flags", FeatureFlagServlet.class);
+    server.addServlet("/admin/flags/*", FeatureFlagServlet.class);
     server.addServlet("/admin", AdminServlet.class);
     server.addServlet("/admin/*", AdminServlet.class);
     server.addServlet("/contact", ContactServlet.class);

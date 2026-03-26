@@ -91,6 +91,14 @@ public abstract class Session implements SessionConstants {
     return "admin".equals(role) || "owner".equals(role);
   }
 
+  /**
+   * Checks whether the given feature flag is enabled for the current user.
+   *
+   * @param name the feature flag name
+   * @return true if the feature is enabled for this session
+   */
+  public abstract boolean hasFeature(String name);
+
 
   /**
    * A {@link Session} which gets its data from the __session JS variable.
@@ -124,6 +132,16 @@ public abstract class Session implements SessionConstants {
       return role != null ? role : "user";
     }
 
+    @Override
+    public native boolean hasFeature(String name) /*-{
+      var features = $wnd.__session["features"];
+      if (!features || !features.length) return false;
+      for (var i = 0; i < features.length; i++) {
+        if (features[i] === name) return true;
+      }
+      return false;
+    }-*/;
+
     private native String getFieldAsString(String s) /*-{
       return $wnd.__session[s];
     }-*/;
@@ -151,6 +169,11 @@ public abstract class Session implements SessionConstants {
     @Override
     public String getRole() {
       return "user";
+    }
+
+    @Override
+    public boolean hasFeature(String name) {
+      return false;
     }
   }
 }

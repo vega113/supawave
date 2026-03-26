@@ -33,6 +33,7 @@ import org.waveprotocol.box.server.persistence.file.FileSignerInfoStore;
 import org.waveprotocol.box.server.persistence.file.FileSnapshotStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryContactMessageStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
+import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
 import org.waveprotocol.box.server.persistence.memory.MemorySnapshotStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.box.server.persistence.mongodb.MongoDbProvider;
@@ -121,6 +122,7 @@ public class PersistenceModule extends AbstractModule {
     bindSnapshotStore();
     bindContactStore();
     bindContactMessageStore();
+    bindFeatureFlagStore();
   }
 
   /**
@@ -252,5 +254,20 @@ public class PersistenceModule extends AbstractModule {
       bind(ContactMessageStore.class)
           .to(MemoryContactMessageStore.class).in(Singleton.class);
     }
+  }
+
+  /**
+   * Binds the FeatureFlagStore for feature flag management.
+   * Uses the same backend type as the account store (mongodb or memory).
+   */
+  private void bindFeatureFlagStore() {
+    if (accountStoreType.equalsIgnoreCase("mongodb") && "v4".equalsIgnoreCase(mongoDriver)) {
+      bind(FeatureFlagStore.class)
+          .toInstance(getMongo4Provider().provideMongoDbFeatureFlagStore());
+    } else {
+      bind(FeatureFlagStore.class)
+          .to(MemoryFeatureFlagStore.class).in(Singleton.class);
+    }
+    bind(FeatureFlagService.class).in(Singleton.class);
   }
 }

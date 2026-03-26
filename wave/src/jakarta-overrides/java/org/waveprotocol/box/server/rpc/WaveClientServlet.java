@@ -34,6 +34,7 @@ import java.util.List;
 import javax.inject.Singleton;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.waveprotocol.box.common.SessionConstants;
 import org.waveprotocol.box.server.CoreSettingsNames;
@@ -43,6 +44,7 @@ import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
 import org.waveprotocol.box.server.util.UrlParameters;
@@ -75,6 +77,7 @@ public class WaveClientServlet extends HttpServlet {
   private final long serverBuildTime;
   private final boolean prerenderingEnabled;
   private final WavePreRenderer wavePreRenderer;
+  private final FeatureFlagService featureFlagService;
 
   @Inject
   public WaveClientServlet(
@@ -83,7 +86,8 @@ public class WaveClientServlet extends HttpServlet {
       SessionManager sessionManager,
       AccountStore accountStore,
       VersionServlet versionServlet,
-      WavePreRenderer wavePreRenderer) {
+      WavePreRenderer wavePreRenderer,
+      FeatureFlagService featureFlagService) {
     List<String> httpAddresses = config.getStringList("core.http_frontend_addresses");
     String websocketAddress = config.getString("core.http_websocket_public_address");
     String configuredWebsocketPresentedAddress =
@@ -107,6 +111,7 @@ public class WaveClientServlet extends HttpServlet {
     this.prerenderingEnabled = config.hasPath("core.enable_prerendering")
         && config.getBoolean("core.enable_prerendering");
     this.wavePreRenderer = wavePreRenderer;
+    this.featureFlagService = featureFlagService;
   }
 
   @Override
@@ -402,11 +407,17 @@ public class WaveClientServlet extends HttpServlet {
         }
       }
 
-      return new JSONObject()
+      JSONObject json = new JSONObject()
           .put(SessionConstants.DOMAIN, domain)
           .putOpt(SessionConstants.ADDRESS, address)
           .putOpt(SessionConstants.ID_SEED, sessionId)
           .put(SessionConstants.ROLE, userRole);
+      // Add enabled feature flags for this user
+      if (address != null) {
+        List<String> enabledFlags = featureFlagService.getEnabledFlagNames(address);
+        json.put("features", new JSONArray(enabledFlags));
+      }
+      return json;
     } catch (JSONException e) {
       LOG.severe("Failed to create session JSON");
       return new JSONObject();

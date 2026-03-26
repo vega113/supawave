@@ -11,6 +11,7 @@ import org.waveprotocol.box.server.persistence.AttachmentStore;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.ContactMessageStore;
 import org.waveprotocol.box.server.persistence.ContactStore;
+import org.waveprotocol.box.server.persistence.FeatureFlagStore;
 import org.waveprotocol.box.server.persistence.SnapshotStore;
 import org.waveprotocol.box.server.waveserver.DeltaStore;
 import org.waveprotocol.wave.crypto.CertPathStore;
@@ -92,4 +93,6 @@ public class Mongo4DbProvider implements AutoCloseable {
   public ContactStore provideMongoDbContactStore() { ensure(); return new Mongo4ContactStore(db); }
 
   public ContactMessageStore provideMongoDbContactMessageStore() { ensure(); return new Mongo4ContactMessageStore(db); }
+
+  public FeatureFlagStore provideMongoDbFeatureFlagStore() { ensure(); return new Mongo4FeatureFlagStore(db); }
 }

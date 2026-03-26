@@ -234,9 +234,23 @@ public final class WaveletBasedConversation implements ObservableConversation {
 
   /**
    * Checks whether a wavelet has conversation structure.
+   *
+   * <p>Returns false (rather than throwing) if the manifest document cannot be
+   * obtained or inspected. This allows callers such as search/digest to skip
+   * problematic wavelets gracefully instead of crashing the whole request.
    */
   public static boolean waveletHasConversation(Wavelet wavelet) {
-    return DocumentBasedManifest.documentHasManifest(getManifestDocument(wavelet));
+    if (wavelet == null) {
+      return false;
+    }
+    try {
+      return DocumentBasedManifest.documentHasManifest(getManifestDocument(wavelet));
+    } catch (RuntimeException e) {
+      // getManifestDocument -> wavelet.getDocument() can fail if the underlying
+      // document data is corrupt or its PluggableMutableDocument substrate cannot
+      // be initialised. Treat as "no conversation" rather than propagating.
+      return false;
+    }
   }
 
   /**

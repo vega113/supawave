@@ -86,12 +86,32 @@ public final class DocumentBasedManifest implements ObservableManifest {
 
   /**
    * Checks whether a manifest could be created on a document.
+   *
+   * <p>Returns false (rather than throwing) when the document is null, empty,
+   * or cannot be traversed -- e.g. because the underlying
+   * {@code PluggableMutableDocument} substrate fails to initialise. This
+   * prevents a single corrupt or edge-case wavelet from crashing the entire
+   * search pipeline.
    */
   public static boolean documentHasManifest(Document doc) {
-    // True if the document has a top-level <MANIFEST_TOP_TAG> element.
-    // The schema implies this is the only possible top element.
-    Doc.E top = DocHelper.getFirstChildElement(doc, doc.getDocumentElement());
-    return (top != null) && doc.getTagName(top).equals(MANIFEST_TOP_TAG);
+    if (doc == null) {
+      return false;
+    }
+    try {
+      // True if the document has a top-level <MANIFEST_TOP_TAG> element.
+      // The schema implies this is the only possible top element.
+      Doc.E docElement = doc.getDocumentElement();
+      if (docElement == null) {
+        return false;
+      }
+      Doc.E top = DocHelper.getFirstChildElement(doc, docElement);
+      return (top != null) && doc.getTagName(top).equals(MANIFEST_TOP_TAG);
+    } catch (RuntimeException e) {
+      // Document initialisation or traversal failed (e.g. corrupt DocOp,
+      // OperationRuntimeException from PluggableMutableDocument.getDocument()).
+      // Treat as "no manifest" rather than propagating.
+      return false;
+    }
   }
 
   /**

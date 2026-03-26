@@ -29,6 +29,8 @@ import com.google.wave.api.SearchResult;
 
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
+import org.waveprotocol.wave.model.conversation.ObservableConversationView;
+import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -39,11 +41,14 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
+import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +70,108 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       WaveDigester digester, final WaveMap waveMap, PerUserWaveViewProvider userWaveViewProvider) {
     super(waveDomain, digester, waveMap);
     this.waveViewProvider = userWaveViewProvider;
+  }
+
+  /**
+   * Per-wave cached supplement context. Avoids creating duplicate OpBasedWavelet
+   * adapters and conversation models when multiple filter stages (inbox/archive,
+   * pinned, promotion) need the same supplement for the same wave.
+   *
+   * <p>Each wave's context is computed at most once and cached for the duration
+   * of a single search request.
+   */
+  private static class WaveSupplementContext {
+    final ObservableWaveletData convWavelet;
+    final ObservableWaveletData udw;
+    final List<ObservableWaveletData> conversationalWavelets;
+    /** Null if the wave has no conversation structure. */
+    final SupplementedWave supplement;
+    /** Null if the wave has no conversation structure. */
+    final ObservableConversationView conversations;
+
+    WaveSupplementContext(ObservableWaveletData convWavelet, ObservableWaveletData udw,
+        List<ObservableWaveletData> conversationalWavelets,
+        SupplementedWave supplement, ObservableConversationView conversations) {
+      this.convWavelet = convWavelet;
+      this.udw = udw;
+      this.conversationalWavelets = conversationalWavelets;
+      this.supplement = supplement;
+      this.conversations = conversations;
+    }
+  }
+
+  /**
+   * Builds or retrieves the cached supplement context for a wave.
+   * Returns null if the wave has no conversation root wavelet.
+   */
+  private WaveSupplementContext getOrBuildContext(
+      WaveViewData wave, ParticipantId user,
+      Map<WaveId, WaveSupplementContext> cache,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+    WaveSupplementContext cached = cache.get(wave.getWaveId());
+    if (cached != null) {
+      return cached;
+    }
+
+    ObservableWaveletData convWavelet = null;
+    ObservableWaveletData udw = null;
+    List<ObservableWaveletData> conversationalWavelets = new ArrayList<ObservableWaveletData>();
+    for (ObservableWaveletData wd : wave.getWavelets()) {
+      WaveletId wid = wd.getWaveletId();
+      if (org.waveprotocol.wave.model.id.IdUtil.isConversationRootWaveletId(wid)) {
+        convWavelet = wd;
+        conversationalWavelets.add(wd);
+      } else if (org.waveprotocol.wave.model.id.IdUtil.isConversationalId(wid)) {
+        conversationalWavelets.add(wd);
+      }
+      if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(), wid)) {
+        udw = wd;
+      }
+    }
+
+    if (convWavelet == null) {
+      // No conversation root -- cache a null-supplement context.
+      WaveSupplementContext ctx = new WaveSupplementContext(
+          null, udw, conversationalWavelets, null, null);
+      cache.put(wave.getWaveId(), ctx);
+      return ctx;
+    }
+
+    OpBasedWavelet opWavelet = getOrCreateReadOnlyWavelet(convWavelet, waveletAdapters);
+    if (!WaveletBasedConversation.waveletHasConversation(opWavelet)) {
+      LOG.fine("Wave " + wave.getWaveId()
+          + " conversation root wavelet lacks manifest structure");
+      WaveSupplementContext ctx = new WaveSupplementContext(
+          convWavelet, udw, conversationalWavelets, null, null);
+      cache.put(wave.getWaveId(), ctx);
+      return ctx;
+    }
+
+    ObservableConversationView conversations =
+        digester.getConversationUtil().buildConversation(opWavelet);
+    SupplementedWave supplement = digester.buildSupplement(
+        user, conversations, udw, conversationalWavelets);
+
+    WaveSupplementContext ctx = new WaveSupplementContext(
+        convWavelet, udw, conversationalWavelets, supplement, conversations);
+    cache.put(wave.getWaveId(), ctx);
+    return ctx;
+  }
+
+  /**
+   * Gets or creates a read-only OpBasedWavelet adapter, caching by identity to
+   * avoid wrapping the same ObservableWaveletData more than once (which would
+   * trigger duplicate PluggableMutableDocument.init() calls).
+   */
+  private static OpBasedWavelet getOrCreateReadOnlyWavelet(
+      ObservableWaveletData waveletData,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+    OpBasedWavelet wavelet = waveletAdapters.get(waveletData);
+    if (wavelet == null) {
+      wavelet = OpBasedWavelet.createReadOnly(waveletData);
+      waveletAdapters.put(waveletData, wavelet);
+    }
+    return wavelet;
   }
 
   @Override
@@ -134,14 +241,24 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         Lists.newArrayList(filterWavesViewBySearchCriteria(filterWaveletsFunction,
             currentUserWavesView).values());
 
+    // Shared caches for supplement-building across all filter stages.
+    // This prevents creating duplicate OpBasedWavelet adapters for the same
+    // underlying data, which was the root cause of duplicate init() calls and
+    // silent failures in the conversation model chain.
+    boolean needsSupplementFiltering = isInboxQuery || isArchiveQuery || isPinnedQuery;
+    Map<WaveId, WaveSupplementContext> supplementCache =
+        needsSupplementFiltering ? new HashMap<WaveId, WaveSupplementContext>() : null;
+    Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters =
+        needsSupplementFiltering ? new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>() : null;
+
     // Filter by inbox/archive supplement state when the query specifies a folder.
     if (isInboxQuery || isArchiveQuery) {
-      filterByFolderState(results, user, isInboxQuery);
+      filterByFolderState(results, user, isInboxQuery, supplementCache, waveletAdapters);
     }
 
     // Filter by pinned state when the query specifies in:pinned.
     if (isPinnedQuery) {
-      filterByPinnedState(results, user);
+      filterByPinnedState(results, user, supplementCache, waveletAdapters);
     }
 
     // Filter by tags when the query specifies tag: filters.
@@ -157,7 +274,12 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     // Promote pinned waves to the top of results (unless the query is specifically
     // for pinned waves, in which case all results are already pinned).
     if (!isPinnedQuery) {
-      sortedResults = promotePinnedWaves(sortedResults, user);
+      // Reuse supplement cache from filter stages if available, otherwise create fresh ones.
+      if (supplementCache == null) {
+        supplementCache = new HashMap<WaveId, WaveSupplementContext>();
+        waveletAdapters = new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>();
+      }
+      sortedResults = promotePinnedWaves(sortedResults, user, supplementCache, waveletAdapters);
     }
 
     // Capture the total count BEFORE pagination so the client knows the full result set size.
@@ -258,59 +380,37 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * @param results the mutable list of wave views to filter in place.
    * @param user the participant whose supplement state to check.
    * @param wantInbox if true, keep only inbox waves; if false, keep only archived waves.
+   * @param supplementCache shared cache of supplement contexts across filter stages.
+   * @param waveletAdapters shared cache of OpBasedWavelet adapters.
    */
   private void filterByFolderState(List<WaveViewData> results, ParticipantId user,
-      boolean wantInbox) {
+      boolean wantInbox, Map<WaveId, WaveSupplementContext> supplementCache,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
     Iterator<WaveViewData> it = results.iterator();
     while (it.hasNext()) {
       WaveViewData wave = it.next();
       try {
-        // Find the conversational wavelet, the user data wavelet, and all conversational wavelets.
-        ObservableWaveletData convWavelet = null;
-        ObservableWaveletData udw = null;
-        List<ObservableWaveletData> conversationalWavelets = new ArrayList<ObservableWaveletData>();
-        for (ObservableWaveletData wd : wave.getWavelets()) {
-          WaveletId wid = wd.getWaveletId();
-          if (org.waveprotocol.wave.model.id.IdUtil.isConversationRootWaveletId(wid)) {
-            convWavelet = wd;
-            conversationalWavelets.add(wd);
-          } else if (org.waveprotocol.wave.model.id.IdUtil.isConversationalId(wid)) {
-            conversationalWavelets.add(wd);
-          }
-          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(), wid)) {
-            udw = wd;
-          }
-        }
+        WaveSupplementContext ctx = getOrBuildContext(wave, user, supplementCache, waveletAdapters);
+
         // Waves without a conversation root wavelet or without conversation
         // structure cannot carry archive state. Treat them as inbox waves:
         // keep them for inbox queries, remove them for archive queries.
-        if (convWavelet == null) {
+        if (ctx.supplement == null) {
           if (!wantInbox) {
             it.remove();
           }
           continue;
         }
-        org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
-            org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
-        if (!org.waveprotocol.wave.model.conversation.WaveletBasedConversation
-            .waveletHasConversation(opWavelet)) {
-          if (!wantInbox) {
-            it.remove();
-          }
-          continue;
-        }
-        // Build the supplement to determine inbox/archive state.
-        org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
-            digester.getConversationUtil().buildConversation(opWavelet);
-        SupplementedWave supplement = digester.buildSupplement(user, conversations, udw, conversationalWavelets);
-        boolean isInbox = supplement.isInbox();
+
+        boolean isInbox = ctx.supplement.isInbox();
         if (wantInbox && !isInbox) {
           it.remove();
         } else if (!wantInbox && isInbox) {
           it.remove();
         }
       } catch (Exception e) {
-        LOG.warning("Failed to check folder state for wave " + wave.getWaveId(), e);
+        LOG.warning("Failed to check folder state for wave " + wave.getWaveId()
+            + ": " + e.getMessage(), e);
         // If we can't determine the state, keep the result for safety.
       }
     }
@@ -326,9 +426,13 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    *
    * @param results the sorted list of wave views.
    * @param user the participant whose supplement state to check.
+   * @param supplementCache shared cache of supplement contexts across filter stages.
+   * @param waveletAdapters shared cache of OpBasedWavelet adapters.
    * @return a new list with pinned waves first, followed by non-pinned waves.
    */
-  private List<WaveViewData> promotePinnedWaves(List<WaveViewData> results, ParticipantId user) {
+  private List<WaveViewData> promotePinnedWaves(List<WaveViewData> results, ParticipantId user,
+      Map<WaveId, WaveSupplementContext> supplementCache,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
     List<WaveViewData> pinned = new ArrayList<WaveViewData>();
     List<WaveViewData> unpinned = new ArrayList<WaveViewData>();
     for (WaveViewData wave : results) {
@@ -347,7 +451,8 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           unpinned.add(wave);
         }
       } catch (Exception e) {
-        LOG.fine("Failed to check pinned state during promotion for wave " + wave.getWaveId());
+        LOG.fine("Failed to check pinned state during promotion for wave " + wave.getWaveId()
+            + ": " + e.getMessage());
         unpinned.add(wave);
       }
     }
@@ -371,8 +476,12 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    *
    * @param results the mutable list of wave views to filter in place.
    * @param user the participant whose supplement state to check.
+   * @param supplementCache shared cache of supplement contexts across filter stages.
+   * @param waveletAdapters shared cache of OpBasedWavelet adapters.
    */
-  private void filterByPinnedState(List<WaveViewData> results, ParticipantId user) {
+  private void filterByPinnedState(List<WaveViewData> results, ParticipantId user,
+      Map<WaveId, WaveSupplementContext> supplementCache,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
     Iterator<WaveViewData> it = results.iterator();
     while (it.hasNext()) {
       WaveViewData wave = it.next();
@@ -389,7 +498,8 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           it.remove();
         }
       } catch (Exception e) {
-        LOG.warning("Failed to check pinned state for wave " + wave.getWaveId(), e);
+        LOG.warning("Failed to check pinned state for wave " + wave.getWaveId()
+            + ": " + e.getMessage(), e);
         it.remove();
       }
     }
@@ -463,7 +573,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
   /**
    * Reads tag names from a wavelet's tags data document by walking the DocOp
    * representation. This avoids the need to build a conversation model or
-   * initialise the document's mutable view — both of which can fail for
+   * initialise the document's mutable view -- both of which can fail for
    * edge-case wavelets (missing manifest, uninitialised sinks, etc.).
    *
    * <p>The tags document has the form:
@@ -484,7 +594,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       return java.util.Collections.emptySet();
     }
     // The content of a BlipData is a DocumentOperationSink which implements
-    // DocOp.IsDocOp — its asOperation() yields the DocInitialization that
+    // DocOp.IsDocOp -- its asOperation() yields the DocInitialization that
     // describes the full document content.
     org.waveprotocol.wave.model.document.operation.DocInitialization docOp =
         tagsBlip.getContent().asOperation();

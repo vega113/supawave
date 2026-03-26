@@ -316,7 +316,12 @@ abstract class WaveletContainerImpl implements WaveletContainer {
     acquireReadLock();
     try {
       checkStateOk();
-      return new CommittedWaveletSnapshot(waveletState.getSnapshot(),
+      ReadableWaveletData snapshot = waveletState.getSnapshot();
+      if (snapshot == null) {
+        // New wavelet at version 0 with no deltas applied yet.
+        return null;
+      }
+      return new CommittedWaveletSnapshot(snapshot,
           waveletState.getLastPersistedVersion());
     } finally {
       releaseReadLock();

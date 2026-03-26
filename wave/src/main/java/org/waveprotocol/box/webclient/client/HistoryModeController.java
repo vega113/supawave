@@ -28,15 +28,21 @@ import com.google.gwt.http.client.Response;
 import com.google.gwt.http.client.URL;
 import com.google.gwt.user.client.Window;
 
+import org.waveprotocol.wave.client.widget.dialog.ConfirmDialog;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 /**
- * Simple controller for inline version history browsing. The user clicks
+ * Controller for inline version history browsing. The user clicks
  * "History", a scrubber slider appears at the bottom, and moving the slider
  * replaces the wave panel content with a rendered snapshot of the wave at
  * that version. No diff highlighting -- just shows the wave as it was.
+ *
+ * <p>The scrubber is attached to the document body (not the wave panel
+ * element), so innerHTML replacement of the wave panel does not destroy it.
  *
  * <p>States:
  * <ul>
@@ -78,15 +84,22 @@ public final class HistoryModeController {
   /** Saved innerHTML of the wave panel before entering history mode. */
   private String savedWavePanelHtml;
 
-  /** The loaded delta groups (used to map slider positions to versions). */
-  private List<HistoryApiClient.DeltaGroup> groups =
+  /** All loaded delta groups (unfiltered). */
+  private List<HistoryApiClient.DeltaGroup> allGroups =
       new ArrayList<HistoryApiClient.DeltaGroup>();
 
-  /** The currently displayed group index. */
+  /** Currently active groups (may be filtered). */
+  private List<HistoryApiClient.DeltaGroup> activeGroups =
+      new ArrayList<HistoryApiClient.DeltaGroup>();
+
+  /** The currently displayed group index (within activeGroups). */
   private int currentGroupIndex = -1;
 
   /** Whether history mode is active. */
   private boolean historyModeActive = false;
+
+  /** Whether text-only filter is enabled. */
+  private boolean filterTextOnly = false;
 
   /** Registered listeners. */
   private final List<Listener> listeners = new ArrayList<Listener>();
@@ -149,6 +162,11 @@ public final class HistoryModeController {
     if (wavePanelElement != null) {
       savedWavePanelHtml = wavePanelElement.getInnerHTML();
       wavePanelElement.addClassName("history-mode");
+      wavePanelElement.setInnerHTML(
+          "<div class='history-loading'>"
+          + "<div class='history-loading-spinner'></div>"
+          + "<div class='history-loading-text'>Loading version history...</div>"
+          + "</div>");
     }
 
     for (int i = 0; i < listeners.size(); i++) {
@@ -161,21 +179,22 @@ public final class HistoryModeController {
             if (state != State.LOADING) {
               return; // cancelled while loading
             }
-            groups = result;
-            if (groups.isEmpty()) {
+            allGroups = result;
+            if (allGroups.isEmpty()) {
               exitHistoryMode();
               for (int i = 0; i < listeners.size(); i++) {
                 listeners.get(i).onLoadingFailed("No history available");
               }
+              ToastNotification.showWarning("No version history available for this wave.");
               return;
             }
 
             state = State.BROWSING;
-            scrubber.configure(groups);
+            applyFilter();
             scrubber.show();
 
             // Position at the last group (current version)
-            int lastIndex = groups.size() - 1;
+            int lastIndex = activeGroups.size() - 1;
             scrubber.setGroupIndex(lastIndex);
             onScrubberMove(lastIndex);
 
@@ -189,10 +208,15 @@ public final class HistoryModeController {
             historyModeActive = false;
             if (wavePanelElement != null) {
               wavePanelElement.removeClassName("history-mode");
+              if (savedWavePanelHtml != null) {
+                wavePanelElement.setInnerHTML(savedWavePanelHtml);
+                savedWavePanelHtml = null;
+              }
             }
             for (int i = 0; i < listeners.size(); i++) {
               listeners.get(i).onLoadingFailed(error);
             }
+            ToastNotification.showWarning("Failed to load history: " + error);
           }
         });
   }
@@ -209,7 +233,8 @@ public final class HistoryModeController {
     state = State.INACTIVE;
     historyModeActive = false;
     currentGroupIndex = -1;
-    groups = new ArrayList<HistoryApiClient.DeltaGroup>();
+    allGroups = new ArrayList<HistoryApiClient.DeltaGroup>();
+    activeGroups = new ArrayList<HistoryApiClient.DeltaGroup>();
 
     scrubber.hide();
 
@@ -237,11 +262,73 @@ public final class HistoryModeController {
   }
 
   /**
+   * Applies or re-applies the text-only filter. When filtering, groups with
+   * zero text ops are excluded. The scrubber is reconfigured with the
+   * filtered list.
+   */
+  private void applyFilter() {
+    if (filterTextOnly) {
+      activeGroups = new ArrayList<HistoryApiClient.DeltaGroup>();
+      for (int i = 0; i < allGroups.size(); i++) {
+        HistoryApiClient.DeltaGroup g = allGroups.get(i);
+        // Keep groups with more than 2 ops (heuristic: tiny op counts are
+        // usually metadata-only changes like participant adds)
+        if (g.getTotalOps() > 2) {
+          activeGroups.add(g);
+        }
+      }
+      // Always include the last group (current version) so user can see it
+      if (!activeGroups.isEmpty()) {
+        HistoryApiClient.DeltaGroup last = allGroups.get(allGroups.size() - 1);
+        if (activeGroups.get(activeGroups.size() - 1) != last) {
+          activeGroups.add(last);
+        }
+      }
+      if (activeGroups.isEmpty()) {
+        // Fallback: if filtering removed everything, show all
+        activeGroups = new ArrayList<HistoryApiClient.DeltaGroup>(allGroups);
+      }
+    } else {
+      activeGroups = new ArrayList<HistoryApiClient.DeltaGroup>(allGroups);
+    }
+    scrubber.configure(activeGroups);
+  }
+
+  /**
+   * Called when the filter toggle changes in the scrubber.
+   */
+  public void onFilterChanged(boolean textChangesOnly) {
+    if (state != State.BROWSING) return;
+    filterTextOnly = textChangesOnly;
+    int prevGroupIndex = currentGroupIndex;
+    HistoryApiClient.DeltaGroup prevGroup =
+        (prevGroupIndex >= 0 && prevGroupIndex < activeGroups.size())
+            ? activeGroups.get(prevGroupIndex) : null;
+
+    applyFilter();
+
+    // Try to keep the same group selected after filtering
+    int newIndex = activeGroups.size() - 1;
+    if (prevGroup != null) {
+      for (int i = 0; i < activeGroups.size(); i++) {
+        if (activeGroups.get(i).getEndVersion() == prevGroup.getEndVersion()) {
+          newIndex = i;
+          break;
+        }
+      }
+    }
+
+    currentGroupIndex = -1; // force re-fetch
+    scrubber.setGroupIndex(newIndex);
+    onScrubberMove(newIndex);
+  }
+
+  /**
    * Called when the scrubber position changes. Fetches the snapshot at the
    * selected version and replaces the wave panel content with rendered HTML.
    */
   public void onScrubberMove(final int groupIndex) {
-    if (state != State.BROWSING || groupIndex < 0 || groupIndex >= groups.size()) {
+    if (state != State.BROWSING || groupIndex < 0 || groupIndex >= activeGroups.size()) {
       return;
     }
     if (groupIndex == currentGroupIndex) {
@@ -249,14 +336,24 @@ public final class HistoryModeController {
     }
 
     currentGroupIndex = groupIndex;
-    final HistoryApiClient.DeltaGroup group = groups.get(groupIndex);
+    final HistoryApiClient.DeltaGroup group = activeGroups.get(groupIndex);
 
     // Update scrubber label immediately
     scrubber.updateLabel(group);
 
     // Show "Restore" button only if not at the latest version
-    boolean isLatest = (groupIndex == groups.size() - 1);
+    boolean isLatest = (group.getEndVersion()
+        == allGroups.get(allGroups.size() - 1).getEndVersion());
     scrubber.setRestoreVisible(!isLatest);
+
+    // Show a brief loading indicator in the panel
+    if (wavePanelElement != null) {
+      wavePanelElement.setInnerHTML(
+          "<div class='history-loading'>"
+          + "<div class='history-loading-spinner'></div>"
+          + "<div class='history-loading-text'>Loading version "
+          + group.getEndVersion() + "...</div></div>");
+    }
 
     // Fetch the snapshot at this version and render it
     apiClient.fetchSnapshotDebounced(waveDomain, waveId, waveletDomain, waveletId,
@@ -275,8 +372,11 @@ public final class HistoryModeController {
             }
             if (wavePanelElement != null) {
               wavePanelElement.setInnerHTML(
-                  "<div class='history-error'>Failed to load version: "
-                  + escapeHtml(error) + "</div>");
+                  "<div class='history-error'>"
+                  + "<div class='history-error-icon'>" + ERROR_ICON_SVG + "</div>"
+                  + "<div>Failed to load version " + group.getEndVersion()
+                  + "</div><div class='history-error-detail'>"
+                  + escapeHtml(error) + "</div></div>");
             }
           }
         });
@@ -284,28 +384,45 @@ public final class HistoryModeController {
 
   /**
    * Restores the wave to the currently viewed historical version by sending
-   * a POST to the server.
+   * a POST to the server. Uses ConfirmDialog instead of Window.confirm.
    */
   public void restoreCurrentVersion() {
     if (state != State.BROWSING || currentGroupIndex < 0
-        || currentGroupIndex >= groups.size()) {
+        || currentGroupIndex >= activeGroups.size()) {
       return;
     }
+
+    final HistoryApiClient.DeltaGroup group = activeGroups.get(currentGroupIndex);
 
     // Don't restore if already at latest
-    if (currentGroupIndex == groups.size() - 1) {
+    if (group.getEndVersion()
+        == allGroups.get(allGroups.size() - 1).getEndVersion()) {
       return;
     }
 
-    final long targetVersion = groups.get(currentGroupIndex).getEndVersion();
+    final long targetVersion = group.getEndVersion();
+    String dateStr = formatTimestamp(group.getEndTimestamp());
 
-    boolean confirmed = Window.confirm(
+    ConfirmDialog.show(
+        "Restore version",
         "Restore wave to version " + targetVersion + "?\n\n"
-        + "This will revert all changes made after this version.");
-    if (!confirmed) {
-      return;
-    }
+            + "This will revert all changes made after this version.",
+        "Restore", "Cancel",
+        new ConfirmDialog.Listener() {
+          @Override
+          public void onConfirm() {
+            doRestore(targetVersion);
+          }
 
+          @Override
+          public void onCancel() {
+            // User cancelled -- nothing to do.
+          }
+        });
+  }
+
+  /** Sends the POST request to restore a wave to the given version. */
+  private void doRestore(long targetVersion) {
     String url = "/history/" + enc(waveDomain) + "/" + enc(waveId) + "/"
         + enc(waveletDomain) + "/" + enc(waveletId)
         + "/api/restore?version=" + targetVersion;
@@ -314,31 +431,35 @@ public final class HistoryModeController {
     rb.setCallback(new RequestCallback() {
       public void onResponseReceived(Request request, Response response) {
         if (response.getStatusCode() == Response.SC_OK) {
+          ToastNotification.showInfo(
+              "Wave restored to version " + targetVersion + ". Reloading...");
           // Exit history mode -- the wave will reload with the restored content
           exitHistoryMode();
           // Force a page reload to pick up the new wave state
           Window.Location.reload();
         } else {
-          Window.alert("Failed to restore version: HTTP "
+          ToastNotification.showWarning("Failed to restore version: HTTP "
               + response.getStatusCode() + " " + response.getStatusText());
         }
       }
 
       public void onError(Request request, Throwable exception) {
-        Window.alert("Failed to restore version: " + exception.getMessage());
+        ToastNotification.showWarning(
+            "Failed to restore version: " + exception.getMessage());
       }
     });
 
     try {
       rb.send();
     } catch (RequestException e) {
-      Window.alert("Failed to send restore request: " + e.getMessage());
+      ToastNotification.showWarning(
+          "Failed to send restore request: " + e.getMessage());
     }
   }
 
   /**
-   * Renders a snapshot as simple HTML blip cards and replaces the wave panel
-   * content with it. No diffs, no OT -- just the wave content as it was.
+   * Renders a snapshot as styled blip cards and replaces the wave panel
+   * content with it.
    */
   private void renderSnapshot(HistoryApiClient.SnapshotData snapshot,
       HistoryApiClient.DeltaGroup group) {
@@ -355,20 +476,35 @@ public final class HistoryModeController {
     String dateStr = formatTimestamp(group.getEndTimestamp());
 
     html.append("<div class='history-snapshot-header'>");
+    html.append("<div class='history-snapshot-header-top'>");
     html.append("<span class='history-snapshot-version'>Version ");
     html.append(group.getEndVersion());
     html.append("</span>");
-    html.append(" <span class='history-snapshot-sep'>&mdash;</span> ");
-    html.append("<span class='history-snapshot-author'>by ");
+    html.append("<span class='history-snapshot-sep'>&bull;</span>");
+    html.append("<span class='history-snapshot-author'>");
     html.append(escapeHtml(displayName));
     html.append("</span>");
-    html.append(" <span class='history-snapshot-sep'>&mdash;</span> ");
+    html.append("<span class='history-snapshot-sep'>&bull;</span>");
     html.append("<span class='history-snapshot-date'>");
     html.append(escapeHtml(dateStr));
     html.append("</span>");
     html.append("</div>");
+    // Participant list
+    List<String> participants = snapshot.getParticipants();
+    if (participants != null && !participants.isEmpty()) {
+      html.append("<div class='history-snapshot-participants'>");
+      for (int i = 0; i < participants.size(); i++) {
+        String p = participants.get(i);
+        int pAt = p.indexOf('@');
+        String pName = (pAt > 0) ? p.substring(0, pAt) : p;
+        if (i > 0) html.append(", ");
+        html.append(escapeHtml(pName));
+      }
+      html.append("</div>");
+    }
+    html.append("</div>");
 
-    // Render each blip document as a simple card
+    // Render each blip document as a styled card
     List<HistoryApiClient.BlipData> docs = snapshot.getDocuments();
     boolean hasBlips = false;
 
@@ -392,7 +528,13 @@ public final class HistoryModeController {
 
       html.append("<div class='history-blip'>");
       html.append("<div class='history-blip-header'>");
-      html.append("<strong>").append(escapeHtml(blipDisplayName)).append("</strong>");
+      html.append("<span class='history-blip-avatar'>");
+      html.append(escapeHtml(blipDisplayName.length() > 0
+          ? blipDisplayName.substring(0, 1).toUpperCase() : "?"));
+      html.append("</span>");
+      html.append("<span class='history-blip-author'>");
+      html.append(escapeHtml(blipDisplayName));
+      html.append("</span>");
       if (blip.getLastModified() > 0) {
         html.append(" <span class='history-blip-time'>");
         html.append(formatTimestamp(blip.getLastModified()));
@@ -406,7 +548,10 @@ public final class HistoryModeController {
     }
 
     if (!hasBlips) {
-      html.append("<div class='history-empty'>No content at this version.</div>");
+      html.append("<div class='history-empty'>");
+      html.append("<div class='history-empty-icon'>" + EMPTY_ICON_SVG + "</div>");
+      html.append("<div>No content at this version</div>");
+      html.append("</div>");
     }
 
     wavePanelElement.setInnerHTML(html.toString());
@@ -423,7 +568,7 @@ public final class HistoryModeController {
 
   /** Navigates to the next group (right arrow). */
   public void moveNext() {
-    if (state == State.BROWSING && currentGroupIndex < groups.size() - 1) {
+    if (state == State.BROWSING && currentGroupIndex < activeGroups.size() - 1) {
       int newIndex = currentGroupIndex + 1;
       scrubber.setGroupIndex(newIndex);
       onScrubberMove(newIndex);
@@ -437,13 +582,14 @@ public final class HistoryModeController {
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
     String month = monthNames[date.getMonth()];
     int day = date.getDate();
+    int year = 1900 + date.getYear();
     int hours = date.getHours();
     int mins = date.getMinutes();
     String ampm = hours >= 12 ? "PM" : "AM";
     int displayHours = hours % 12;
     if (displayHours == 0) displayHours = 12;
     String minStr = (mins < 10) ? "0" + mins : "" + mins;
-    return month + " " + day + ", " + displayHours + ":" + minStr + " " + ampm;
+    return month + " " + day + " " + year + ", " + displayHours + ":" + minStr + " " + ampm;
   }
 
   /** Basic HTML escaping. */
@@ -459,4 +605,23 @@ public final class HistoryModeController {
   private static String enc(String s) {
     return URL.encodePathSegment(s);
   }
+
+  /** SVG icon for error state. */
+  private static final String ERROR_ICON_SVG =
+      "<svg viewBox='0 0 24 24' fill='none' stroke='#c53030' stroke-width='2'"
+      + " stroke-linecap='round' stroke-linejoin='round'"
+      + " style='width:32px;height:32px;margin-bottom:8px;'>"
+      + "<circle cx='12' cy='12' r='10'/>"
+      + "<line x1='12' y1='8' x2='12' y2='12'/>"
+      + "<line x1='12' y1='16' x2='12.01' y2='16'/>"
+      + "</svg>";
+
+  /** SVG icon for empty state. */
+  private static final String EMPTY_ICON_SVG =
+      "<svg viewBox='0 0 24 24' fill='none' stroke='#999' stroke-width='1.5'"
+      + " stroke-linecap='round' stroke-linejoin='round'"
+      + " style='width:40px;height:40px;margin-bottom:8px;'>"
+      + "<path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/>"
+      + "<polyline points='14 2 14 8 20 8'/>"
+      + "</svg>";
 }

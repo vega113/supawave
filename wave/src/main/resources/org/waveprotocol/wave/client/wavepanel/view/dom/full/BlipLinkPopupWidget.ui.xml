@@ -33,10 +33,20 @@
   <g:HTMLPanel styleName="{style.self}">
     <div class="{style.title}"><ui:text from="{msg.title}"/></div>
     <div class="{style.explanation}"><ui:text from="{msg.linkExplanation}"/></div>
-    <g:TextBox ui:field="linkInfoBox" styleName="{style.link}"
-      readOnly="true"></g:TextBox>
+    <div class="{style.linkRow}">
+      <g:TextBox ui:field="linkInfoBox" styleName="{style.link}"
+        readOnly="true"></g:TextBox>
+      <g:Button ui:field="copyLinkInfoButton" styleName="{style.copyButton}">
+        <ui:text from="{msg.copy}"/>
+      </g:Button>
+    </div>
     <div class="{style.explanation}"><ui:text from="{msg.webLinkExplanation}"/></div>
-    <g:TextBox ui:field="waverefLink" styleName="{style.link}"
-      readOnly="true"></g:TextBox>
+    <div class="{style.linkRow}">
+      <g:TextBox ui:field="waverefLink" styleName="{style.link}"
+        readOnly="true"></g:TextBox>
+      <g:Button ui:field="copyWaverefButton" styleName="{style.copyButton}">
+        <ui:text from="{msg.copy}"/>
+      </g:Button>
+    </div>
   </g:HTMLPanel>
 </ui:UiBinder>

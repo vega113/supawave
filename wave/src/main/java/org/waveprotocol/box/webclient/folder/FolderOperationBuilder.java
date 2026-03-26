@@ -33,6 +33,8 @@ public interface FolderOperationBuilder {
   public static final String PARAM_WAVE_ID = "waveId";
 
   public static final String OPERATION_MOVE = "move";
+  public static final String OPERATION_PIN = "pin";
+  public static final String OPERATION_UNPIN = "unpin";
 
   public static final String FOLDER_INBOX = "inbox";
   public static final String FOLDER_ARCHIVE = "archive";

@@ -253,3 +253,16 @@ img.participant:hover {
   color: #005f8a;
   background: rgba(0, 119, 182, 0.1);
 }
+
+.dmLabel {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.08);
+}

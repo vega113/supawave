@@ -42,3 +42,33 @@
   overflow: hidden;
   width: 32em;
 }
+
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.copyButton {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #f5f5f5;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.copyButton:hover {
+  background: #e0f0ff;
+  border-color: #0077b6;
+  color: #0077b6;
+}
+
+.copied {
+  background: #e8f5e9;
+  border-color: #4caf50;
+  color: #388e3c;
+}

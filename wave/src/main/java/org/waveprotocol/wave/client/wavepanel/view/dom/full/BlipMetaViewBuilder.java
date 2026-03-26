@@ -297,6 +297,23 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
         }
         close(output);
 
+        // Blip ID (for debugging / internal links).
+        // The meta DOM id is "{blipId}M", so strip the trailing suffix to recover the model id.
+        {
+          String displayId = id.endsWith("M") ? id.substring(0, id.length() - 1) : id;
+          String escaped = EscapeUtils.htmlEscape(displayId);
+          output.appendHtmlConstant(
+              "<span class='blipId' title='Click to copy blip ID'"
+              + " onclick=\"(function(el,e){e.stopPropagation();e.preventDefault();"
+              + "var t=el.textContent||el.innerText;"
+              + "if(navigator.clipboard){navigator.clipboard.writeText(t)"
+              + ".then(function(){el.dataset.orig=el.textContent;el.textContent='Copied!';"
+              + "setTimeout(function(){el.textContent=el.dataset.orig;},1200);});}"
+              + "})(this,event)\">"
+              + escaped
+              + "</span>");
+        }
+
         // Metaline.
         open(output, Components.METALINE.getDomId(id), css.metaline(), null);
         if (metaline != null) {

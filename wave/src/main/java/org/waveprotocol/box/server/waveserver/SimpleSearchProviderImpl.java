@@ -33,6 +33,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.supplement.SupplementedWave;
+import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
@@ -314,6 +315,10 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * Promotes pinned waves to the top of the results list while preserving the
    * relative order within the pinned and non-pinned groups.
    *
+   * <p>Reads pin state directly from the UDW's folder document ({@code m/folder})
+   * via the DocOp representation, avoiding the fragile full conversation model
+   * and supplement construction chain.
+   *
    * @param results the sorted list of wave views.
    * @param user the participant whose supplement state to check.
    * @return a new list with pinned waves first, followed by non-pinned waves.
@@ -323,37 +328,19 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     List<WaveViewData> unpinned = new ArrayList<WaveViewData>();
     for (WaveViewData wave : results) {
       try {
-        ObservableWaveletData convWavelet = null;
         ObservableWaveletData udw = null;
-        List<ObservableWaveletData> conversationalWavelets = new ArrayList<ObservableWaveletData>();
         for (ObservableWaveletData wd : wave.getWavelets()) {
-          WaveletId wid = wd.getWaveletId();
-          if (org.waveprotocol.wave.model.id.IdUtil.isConversationRootWaveletId(wid)) {
-            convWavelet = wd;
-            conversationalWavelets.add(wd);
-          } else if (org.waveprotocol.wave.model.id.IdUtil.isConversationalId(wid)) {
-            conversationalWavelets.add(wd);
-          }
-          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(), wid)) {
+          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(),
+              wd.getWaveletId())) {
             udw = wd;
+            break;
           }
         }
-        if (convWavelet != null && udw != null) {
-          org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
-              org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
-          if (org.waveprotocol.wave.model.conversation.WaveletBasedConversation
-              .waveletHasConversation(opWavelet)) {
-            org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
-                digester.getConversationUtil().buildConversation(opWavelet);
-            SupplementedWave supplement = digester.buildSupplement(
-                user, conversations, udw, conversationalWavelets);
-            if (supplement.isPinned()) {
-              pinned.add(wave);
-              continue;
-            }
-          }
+        if (udw != null && readPinnedStateFromUdw(udw)) {
+          pinned.add(wave);
+        } else {
+          unpinned.add(wave);
         }
-        unpinned.add(wave);
       } catch (Exception e) {
         LOG.fine("Failed to check pinned state during promotion for wave " + wave.getWaveId());
         unpinned.add(wave);
@@ -372,6 +359,11 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * Filters wave results by pinned state using the user's supplement data.
    * Only waves whose supplement indicates they are pinned are kept.
    *
+   * <p>Reads pin state directly from the UDW's folder document ({@code m/folder})
+   * via the DocOp representation, avoiding the fragile full conversation model
+   * and supplement construction chain that can fail silently for edge-case
+   * wavelets (missing manifest, uninitialised sinks, etc.).
+   *
    * @param results the mutable list of wave views to filter in place.
    * @param user the participant whose supplement state to check.
    */
@@ -380,36 +372,15 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     while (it.hasNext()) {
       WaveViewData wave = it.next();
       try {
-        ObservableWaveletData convWavelet = null;
         ObservableWaveletData udw = null;
-        List<ObservableWaveletData> conversationalWavelets = new ArrayList<ObservableWaveletData>();
         for (ObservableWaveletData wd : wave.getWavelets()) {
-          WaveletId wid = wd.getWaveletId();
-          if (org.waveprotocol.wave.model.id.IdUtil.isConversationRootWaveletId(wid)) {
-            convWavelet = wd;
-            conversationalWavelets.add(wd);
-          } else if (org.waveprotocol.wave.model.id.IdUtil.isConversationalId(wid)) {
-            conversationalWavelets.add(wd);
-          }
-          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(), wid)) {
+          if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(),
+              wd.getWaveletId())) {
             udw = wd;
+            break;
           }
         }
-        if (convWavelet == null) {
-          it.remove();
-          continue;
-        }
-        org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
-            org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
-        if (!org.waveprotocol.wave.model.conversation.WaveletBasedConversation
-            .waveletHasConversation(opWavelet)) {
-          it.remove();
-          continue;
-        }
-        org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
-            digester.getConversationUtil().buildConversation(opWavelet);
-        SupplementedWave supplement = digester.buildSupplement(user, conversations, udw, conversationalWavelets);
-        if (!supplement.isPinned()) {
+        if (udw == null || !readPinnedStateFromUdw(udw)) {
           it.remove();
         }
       } catch (Exception e) {
@@ -533,6 +504,58 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       }
     });
     return tags;
+  }
+
+  /**
+   * Reads the pinned state from a user-data wavelet's folder document
+   * ({@code m/folder}) by walking the DocOp representation.  This avoids
+   * building a full conversation model and supplement chain — the same
+   * approach used by {@link #readTagsFromWaveletData}.
+   *
+   * <p>The folder document has the form:
+   * <pre>{@code <folder i="9"/><folder i="1"/> ...}</pre>
+   * A wave is pinned when the document contains a {@code <folder>} element
+   * whose {@code i} attribute equals {@code "9"} (the PINNED_FOLDER id).
+   */
+  private static boolean readPinnedStateFromUdw(ObservableWaveletData udwData) {
+    org.waveprotocol.wave.model.wave.data.ReadableBlipData folderDoc =
+        udwData.getDocument(
+            org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.FOLDERS_DOCUMENT);
+    if (folderDoc == null) {
+      return false;
+    }
+    org.waveprotocol.wave.model.document.operation.DocInitialization docOp =
+        folderDoc.getContent().asOperation();
+
+    final String pinFolderId =
+        String.valueOf(SupplementedWaveImpl.PINNED_FOLDER);
+    final boolean[] found = {false};
+    docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
+      @Override
+      public void elementStart(String type,
+          org.waveprotocol.wave.model.document.operation.Attributes attrs) {
+        if ("folder".equals(type) && attrs != null && pinFolderId.equals(attrs.get("i"))) {
+          found[0] = true;
+        }
+      }
+
+      @Override
+      public void elementEnd() {
+        // ignore
+      }
+
+      @Override
+      public void characters(String chars) {
+        // ignore
+      }
+
+      @Override
+      public void annotationBoundary(
+          org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
+        // ignore
+      }
+    });
+    return found[0];
   }
 
   private List<WaveViewData> sort(Map<TokenQueryType, Set<String>> queryParams,

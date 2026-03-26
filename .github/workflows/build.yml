@@ -69,18 +69,29 @@ jobs:
         timeout-minutes: 2
         run: |
           cd target/universal/stage
-          ./bin/wave &
+          SERVER_LOG=/tmp/wave-startup.log
+          ./bin/wave > "$SERVER_LOG" 2>&1 &
           SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:9898/healthz > /dev/null 2>&1; then
+            STATUS_CODE="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9898/healthz || true)"
+            if [ "$STATUS_CODE" = "200" ]; then
               echo "Server started successfully"
-              kill $SERVER_PID
               exit 0
+            fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "Server process exited before becoming healthy"
+              tail -n 200 "$SERVER_LOG" || true
+              exit 1
             fi
             sleep 2
           done
           echo "Server failed to start within 60 seconds"
-          kill $SERVER_PID 2>/dev/null
+          tail -n 200 "$SERVER_LOG" || true
           exit 1
 
       - name: Guard experimental flags for release (tags/releases/release branches)

@@ -42,7 +42,9 @@
   border-bottom: 1px solid #e2e8f0;
   border-left: none;
   background-color: #fff;
-  overflow: hidden;
+  /* overflow must be visible so the search help panel dropdown (#289)
+     can appear below the search bar without being clipped. */
+  overflow: visible;
 }
 
 @sprite .toolbar {

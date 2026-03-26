@@ -115,7 +115,7 @@ public interface ReadableSupplementedWave {
   /**
    * Tests whether the wave is pinned.
    *
-   * @return true if the wave is pinned (folder 9), false otherwise.
+   * @return true if the wave is pinned by the user.
    */
   boolean isPinned();
 

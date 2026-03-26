@@ -191,6 +191,7 @@ final class LiveProfileRenderer implements ProfileListener {
           if (participantUi != null) {
             participantUi.setAvatar(profile.getImageUrl());
             participantUi.setName(profile.getFullName());
+            participantUi.setAddress(profile.getAddress());
           }
         }
       });

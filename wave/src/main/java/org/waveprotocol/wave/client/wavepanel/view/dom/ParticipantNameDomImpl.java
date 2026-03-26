@@ -47,6 +47,11 @@ public final class ParticipantNameDomImpl implements DomView, IntrinsicParticipa
     self.setInnerText(name);
   }
 
+  @Override
+  public void setAddress(String address) {
+    self.setAttribute("data-address", address);
+  }
+
   //
   // Structure.
   //

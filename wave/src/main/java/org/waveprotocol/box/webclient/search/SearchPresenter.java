@@ -116,6 +116,12 @@ public final class SearchPresenter
       + "<rect x=\"1\" y=\"3\" width=\"22\" height=\"5\"></rect>"
       + "<line x1=\"10\" y1=\"12\" x2=\"14\" y2=\"12\"></line></svg>";
 
+  /** Pinned: pin icon. */
+  private static final String ICON_PIN = SVG_OPEN
+      + "<line x1=\"12\" y1=\"17\" x2=\"12\" y2=\"22\"></line>"
+      + "<path d=\"M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8"
+      + "a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z\"></path></svg>";
+
   // External references
   private final TimerService scheduler;
   private final Search search;
@@ -341,6 +347,16 @@ public final class SearchPresenter
           }
         }).setVisualElement(createSvgIcon(ICON_ARCHIVE));
 
+    new ToolbarButtonViewBuilder()
+        .setTooltip("Pinned waves")
+        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            searchUi.getSearch().setQuery("in:pinned");
+            onQueryEntered();
+          }
+        }).setVisualElement(createSvgIcon(ICON_PIN));
+
     // Saved searches are loaded lazily after the first search result arrives
     // (see onStateChanged) to avoid competing with the critical /search request.
   }
@@ -491,8 +507,12 @@ public final class SearchPresenter
   }
 
   private void renderShowMore() {
-    searchUi.setShowMoreVisible(
-        search.getTotal() == Search.UNKNOWN_SIZE || querySize < search.getTotal());
+    boolean hasMore = search.getTotal() == Search.UNKNOWN_SIZE || querySize < search.getTotal();
+    searchUi.setShowMoreVisible(hasMore);
+    // Notify the view that loading-more is complete so infinite scroll resets.
+    if (searchUi instanceof SearchPanelWidget) {
+      ((SearchPanelWidget) searchUi).onLoadMoreComplete();
+    }
   }
 
   //
@@ -553,6 +573,7 @@ public final class SearchPresenter
     //
     if (search.getState() == State.READY) {
       renderTitle();
+      renderShowMore();
       // Deferred load: fetch saved searches after the first search result
       // arrives so the /searches request does not block wave list display.
       if (!savedSearchesLoaded) {
@@ -631,12 +652,31 @@ public final class SearchPresenter
    * The existing DOM node is reused — only changed text/attributes are
    * written — so the browser does not tear down and rebuild the element,
    * which eliminates the visible flicker in the sidebar wave list.
+   *
+   * If the updated digest has a newer last-modified time than the first
+   * item in the list, the entire list is re-rendered so that the most
+   * recently modified wave appears at the top (matching the server's
+   * default descending-LMT sort order).
    */
   private void applyDigestReady(int index, Digest digest) {
     DigestView digestUi = findDigestView(digest);
     if (digestUi == null) {
       return;
     }
+
+    // Check whether the modified digest should move to the top.
+    DigestView firstUi = searchUi.getFirst();
+    if (firstUi != null && firstUi != digestUi) {
+      Digest firstDigest = digestUis.get(firstUi);
+      if (firstDigest != null && digest.getLastModifiedTime() > firstDigest.getLastModifiedTime()) {
+        // The updated digest is newer than the current first item — trigger
+        // a full re-render via the next polling cycle so the server provides
+        // the authoritative sort order.
+        doSearch();
+        return;
+      }
+    }
+
     searchUi.renderDigest(digestUi, digest);
   }
 

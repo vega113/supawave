@@ -106,21 +106,21 @@ public final class HtmlRenderer {
       + "}\n"
 
       // --- Search help panel overrides ---
-      // Ensure the search area container is positioned so the help panel
-      // can appear as an absolute-positioned dropdown below it.
-      + "#app [kind=\"c\"] { position: relative; overflow: visible !important; }\n"
+      // The search widget (.self in Search.css) already has position:relative,
+      // so the help panel's absolute positioning works out of the box.
+      // NOTE: Do NOT add position:relative to [kind="c"] here -- that selector
+      // matches the ROOT_CONVERSATION element (.fixedSelf) and overriding its
+      // position:absolute collapses the wave panel (#285).
+      // Ensure the root conversation container allows the tags panel (which has
+      // bottom:-4px) to overflow visually.
+      + "#app [kind=\"c\"] { overflow: visible; }\n"
 
       // --- Unified toolbar row: compact 32px action icons ---
-      // The toolbar sits directly below the search box. All action and filter
-      // icons live here in logical groups separated by thin vertical dividers.
-      + "#app [kind=\"c\"] + div {\n"
-      + "  height: 32px !important;\n"
-      + "  display: flex;\n"
-      + "  align-items: center;\n"
-      + "}\n"
-
-      // Toolbar icon buttons — minimal icon circles
-      + "#app [kind=\"c\"] ~ div .gwt-PushButton {\n"
+      // The toolbar sits directly below the search box inside the search
+      // panel (left sidebar).  We use [data-mobile-role="search-panel"] as
+      // a stable anchor because [kind="c"] matches the ROOT_CONVERSATION
+      // element in the wave panel, not the search area (#290).
+      + "[data-mobile-role=\"search-panel\"] .gwt-PushButton {\n"
       + "  display: inline-flex !important;\n"
       + "  align-items: center !important;\n"
       + "  justify-content: center !important;\n"
@@ -136,22 +136,22 @@ public final class HtmlRenderer {
       + "  transition: all 0.15s ease;\n"
       + "  line-height: 1;\n"
       + "}\n"
-      + "#app [kind=\"c\"] ~ div .gwt-PushButton:hover {\n"
+      + "[data-mobile-role=\"search-panel\"] .gwt-PushButton:hover {\n"
       + "  border-color: " + WAVE_PRIMARY + ";\n"
       + "  color: " + WAVE_PRIMARY + ";\n"
       + "  background: rgba(0,119,182,0.06);\n"
       + "}\n"
-      + "#app [kind=\"c\"] ~ div .gwt-PushButton:active {\n"
+      + "[data-mobile-role=\"search-panel\"] .gwt-PushButton:active {\n"
       + "  background: rgba(0,119,182,0.18);\n"
       + "  transform: scale(0.92);\n"
       + "}\n"
-      + "#app [kind=\"c\"] ~ div .gwt-PushButton svg {\n"
+      + "[data-mobile-role=\"search-panel\"] .gwt-PushButton svg {\n"
       + "  display: block;\n"
       + "}\n"
 
       // Mobile: enlarge touch targets on narrow screens
       + "@media (max-width: 480px) {\n"
-      + "  #app [kind=\"c\"] ~ div .gwt-PushButton {\n"
+      + "  [data-mobile-role=\"search-panel\"] .gwt-PushButton {\n"
       + "    width: 34px;\n"
       + "    height: 34px;\n"
       + "    min-width: 34px;\n"
@@ -1982,7 +1982,7 @@ public final class HtmlRenderer {
     sb.append("        </svg>\n");
     sb.append("      </div>\n");
     sb.append("      <h3>Open &amp; Federated</h3>\n");
-    sb.append("      <p>Built on the open Apache Wave protocol. Self-host your own server and communicate across federated Wave instances.</p>\n");
+    sb.append("      <p>Built on an open protocol. Self-host your own server and communicate across federated SupaWave instances.</p>\n");
     sb.append("    </div>\n");
 
     sb.append("  </div>\n");
@@ -1995,7 +1995,7 @@ public final class HtmlRenderer {
     sb.append("<a href=\"/privacy\">Privacy</a> &middot; ");
     sb.append("<a href=\"/contact\">Contact</a>\n");
     sb.append("  </div>\n");
-    sb.append("  Powered by <a href=\"https://incubator.apache.org/projects/wave.html\">Apache Wave</a>\n");
+    sb.append("  Powered by <a href=\"https://supawave.ai\">SupaWave</a>\n");
     sb.append("  &middot; @").append(escapeHtml(domain)).append("\n");
     sb.append("</footer>\n");
 
@@ -2050,7 +2050,7 @@ public final class HtmlRenderer {
     sb.append("  position: relative; z-index: 1;\n");
     sb.append("  display: flex; align-items: center;\n");
     sb.append("}\n");
-    sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; gap: 8px; }\n");
+    sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 8px; }\n");
     sb.append(".topbar-brand svg { flex-shrink: 0; }\n");
     sb.append(".title {\n");
     sb.append("  font-size: 17px; font-weight: 700; color: #fff;\n");
@@ -2089,8 +2089,10 @@ public final class HtmlRenderer {
     sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
     sb.append("}\n");
     sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
-    // Icon color is always white; state is shown by a small colored dot via ::after
-    sb.append(".topbar-icon svg { stroke: white !important; color: white !important; }\n");
+    // Icon color is white by default; saving state uses amber for visibility
+    sb.append(".topbar-icon svg { stroke: white; color: white; }\n");
+    sb.append(".topbar-icon.saving svg { stroke: #ecc94b !important; color: #ecc94b !important; }\n");
+    sb.append(".topbar-icon.saved svg { stroke: #3fb950 !important; color: #3fb950 !important; }\n");
     // -- Status indicator dots (::after pseudo-element badges) --
     sb.append(".topbar-icon::after {\n");
     sb.append("  content: ''; position: absolute; bottom: 2px; right: 2px;\n");
@@ -2254,6 +2256,10 @@ public final class HtmlRenderer {
     sb.append("    width: 90vw !important; max-width: none !important;\n");
     sb.append("  }\n");
     sb.append("}\n");
+    // -- Infinite scroll spinner animation --
+    sb.append("@keyframes wave-inf-spin {\n");
+    sb.append("  to { transform: rotate(360deg); }\n");
+    sb.append("}\n");
     // -- Skeleton loading placeholder for wave list (shown before GWT renders) --
     sb.append("@keyframes wave-skeleton-pulse {\n");
     sb.append("  0% { opacity: 0.4; }\n");
@@ -2265,6 +2271,11 @@ public final class HtmlRenderer {
     sb.append("  background: #fff; z-index: 1;\n");
     sb.append("  padding-top: 0;\n");
     sb.append("  font-family: ").append(WAVE_FONT).append(";\n");
+    sb.append("  transition: opacity 0.2s ease-out;\n");
+    sb.append("}\n");
+    sb.append("#wave-list-skeleton.fade-out {\n");
+    sb.append("  opacity: 0;\n");
+    sb.append("  pointer-events: none;\n");
     sb.append("}\n");
     sb.append("#wave-list-skeleton .skel-search {\n");
     sb.append("  height: 51px; display: flex; align-items: center; padding: 0 12px;\n");
@@ -2519,9 +2530,8 @@ public final class HtmlRenderer {
     sb.append("    if (searchPanel) searchPanel.setAttribute('data-mobile-role', 'search-panel');\n");
     sb.append("    draggerWrapper.setAttribute('data-mobile-role', 'split-dragger');\n");
     sb.append("    if (wavePanel) wavePanel.setAttribute('data-mobile-role', 'wave-panel');\n");
-    // Remove the skeleton loading placeholder now that the real UI is ready
-    sb.append("    var skel = document.getElementById('wave-list-skeleton');\n");
-    sb.append("    if (skel) skel.parentNode.removeChild(skel);\n");
+    // The skeleton loading placeholder is removed by GWT's SearchPanelWidget.clearDigests()
+    // when actual search results arrive, ensuring a smooth transition from skeleton to content.
     sb.append("    return true;\n");
     sb.append("  }\n");
     sb.append("  if (!markPanels()) {\n");
@@ -2711,11 +2721,18 @@ public final class HtmlRenderer {
     sb.append("    if (!epochMs || epochMs <= 0) return '';\n");
     sb.append("    var now = Date.now();\n");
     sb.append("    var diff = now - epochMs;\n");
-    sb.append("    if (diff < 60000) return 'Last seen just now';\n");
+    sb.append("    if (diff < 120000) return '\\ud83d\\udfe2 Online';\n");
     sb.append("    if (diff < 3600000) return 'Last seen ' + Math.floor(diff/60000) + ' min ago';\n");
     sb.append("    if (diff < 86400000) return 'Last seen ' + Math.floor(diff/3600000) + ' hours ago';\n");
     sb.append("    if (diff < 172800000) return 'Last seen yesterday';\n");
     sb.append("    return 'Last seen ' + Math.floor(diff/86400000) + ' days ago';\n");
+    sb.append("  }\n\n");
+    sb.append("  function formatMemberSince(epochMs) {\n");
+    sb.append("    if (!epochMs || epochMs <= 0) return '';\n");
+    sb.append("    var d = new Date(epochMs);\n");
+    sb.append("    var months = ['January','February','March','April','May','June',\n");
+    sb.append("      'July','August','September','October','November','December'];\n");
+    sb.append("    return 'Member since ' + months[d.getMonth()] + ' ' + d.getFullYear();\n");
     sb.append("  }\n\n");
 
     // Show profile card
@@ -2738,8 +2755,12 @@ public final class HtmlRenderer {
     sb.append("        pcBio.textContent = data.bio || '';\n");
     sb.append("        pcBio.style.display = data.bio ? 'block' : 'none';\n");
     sb.append("        var ls = formatLastSeen(data.lastSeenTime);\n");
-    sb.append("        pcLastSeen.textContent = ls;\n");
-    sb.append("        pcLastSeen.style.display = ls ? 'block' : 'none';\n");
+    sb.append("        var ms = formatMemberSince(data.registrationTime);\n");
+    sb.append("        var parts = [];\n");
+    sb.append("        if (ls) parts.push('<div>' + ls + '</div>');\n");
+    sb.append("        if (ms) parts.push('<div>' + ms + '</div>');\n");
+    sb.append("        pcLastSeen.innerHTML = parts.join('');\n");
+    sb.append("        pcLastSeen.style.display = parts.length ? 'block' : 'none';\n");
     sb.append("        // Show edit button only for own profile\n");
     sb.append("        var loggedInUser = document.querySelector('.user-info');\n");
     sb.append("        var isOwnProfile = loggedInUser && loggedInUser.textContent.trim() === address;\n");
@@ -2790,16 +2811,16 @@ public final class HtmlRenderer {
     sb.append("      });\n");
     sb.append("  });\n\n");
 
-    // Listen for clicks on participant avatars in the wave panel
+    // Listen for clicks on blip author avatars (the small avatar next to each
+    // blip).  Participant-bar avatars are handled by the GWT ParticipantController
+    // which calls window.showProfileCard() via JSNI.  Blip author avatars have
+    // no GWT click handler, so we catch them here using the data-address attribute.
     sb.append("  document.addEventListener('click', function(e) {\n");
-    sb.append("    // Check if clicked on a participant avatar in the wave\n");
     sb.append("    var target = e.target;\n");
-    sb.append("    // GWT participant elements have kind='participant' attribute\n");
-    sb.append("    var participantEl = target.closest ? target.closest('[kind=\"participant\"]') : null;\n");
-    sb.append("    if (participantEl) {\n");
-    sb.append("      // Extract the participant address from the element\n");
-    sb.append("      // GWT stores the address in the inner text or title of the avatar\n");
-    sb.append("      var address = participantEl.getAttribute('p') || participantEl.title || '';\n");
+    sb.append("    // Blip author avatars carry data-address but no kind='p' attribute.\n");
+    sb.append("    // Participant-bar avatars (kind='p') are handled by GWT first.\n");
+    sb.append("    if (target && target.getAttribute && target.getAttribute('data-address')) {\n");
+    sb.append("      var address = target.getAttribute('data-address');\n");
     sb.append("      if (address && address.indexOf('@') > 0) {\n");
     sb.append("        e.preventDefault();\n");
     sb.append("        e.stopPropagation();\n");
@@ -3023,6 +3044,7 @@ public final class HtmlRenderer {
       sb.append("      <div class=\"user-menu-dropdown\">\n");
       sb.append("        <div class=\"user-info\">").append(fullAddress).append("</div>\n");
       sb.append("        <a href=\"/userprofile/edit\">Edit Profile</a>\n");
+      sb.append("        <a href=\"/account/settings\">Account Settings</a>\n");
       sb.append("        <a href=\"/robot/register/create\">Robot Registration</a>\n");
       sb.append("        <a href=\"/robot/dataapi/token\">API Token</a>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
@@ -4043,10 +4065,14 @@ public final class HtmlRenderer {
     sb.append("  var cStatsBar = document.getElementById('contactsStatsBar');\n");
     sb.append("  var contactBadge = document.getElementById('contactBadge');\n");
 
-    // Fetch unread count for badge
-    sb.append("  fetch('/admin/api/contacts?status=new&limit=0').then(function(r){return r.json();}).then(function(data){\n");
-    sb.append("    if(data.total>0){contactBadge.textContent=data.total;contactBadge.classList.remove('hidden');}\n");
-    sb.append("  }).catch(function(){});\n");
+    // Refresh unread count badge
+    sb.append("  function refreshContactBadge() {\n");
+    sb.append("    fetch('/admin/api/contacts?status=new&limit=0').then(function(r){return r.json();}).then(function(data){\n");
+    sb.append("      if(data.total>0){contactBadge.textContent=data.total;contactBadge.classList.remove('hidden');}\n");
+    sb.append("      else{contactBadge.textContent='0';contactBadge.classList.add('hidden');}\n");
+    sb.append("    }).catch(function(){});\n");
+    sb.append("  }\n");
+    sb.append("  refreshContactBadge();\n");
 
     // Fetch contacts
     sb.append("  function fetchContacts() {\n");
@@ -4126,7 +4152,7 @@ public final class HtmlRenderer {
     sb.append("      method: 'POST', headers: {'Content-Type':'application/json'},\n");
     sb.append("      body: JSON.stringify({status: newStatus})\n");
     sb.append("    }).then(function(r){return r.json();}).then(function(data){\n");
-    sb.append("      if(data.ok) { showToast('Status updated', 'success'); fetchContacts(); }\n");
+    sb.append("      if(data.ok) { showToast('Status updated', 'success'); fetchContacts(); refreshContactBadge(); }\n");
     sb.append("      else showToast(data.error || 'Failed', 'error');\n");
     sb.append("    }).catch(function(e){ showToast('Error: '+e.message,'error'); });\n");
     sb.append("  };\n");
@@ -4139,7 +4165,7 @@ public final class HtmlRenderer {
     sb.append("      method: 'POST', headers: {'Content-Type':'application/json'},\n");
     sb.append("      body: JSON.stringify({body: ta.value.trim()})\n");
     sb.append("    }).then(function(r){return r.json();}).then(function(data){\n");
-    sb.append("      if(data.ok) { showToast('Reply sent', 'success'); fetchContacts(); }\n");
+    sb.append("      if(data.ok) { showToast('Reply sent', 'success'); fetchContacts(); refreshContactBadge(); }\n");
     sb.append("      else showToast(data.error || 'Failed to send reply', 'error');\n");
     sb.append("    }).catch(function(e){ showToast('Error: '+e.message,'error'); });\n");
     sb.append("  };\n");
@@ -4376,7 +4402,7 @@ public final class HtmlRenderer {
     sb.append("    <a href=\"/privacy\">Privacy Policy</a>\n");
     sb.append("    <a href=\"/contact\">Contact</a>\n");
     sb.append("  </div>\n");
-    sb.append("  <div>&copy; 2025 WavelyLabs. Powered by <a href=\"https://incubator.apache.org/projects/wave.html\">Apache Wave</a>.</div>\n");
+    sb.append("  <div>&copy; 2025 SupaWave. Powered by <a href=\"https://supawave.ai\">SupaWave</a>.</div>\n");
     sb.append("</footer>\n");
   }
 
@@ -4423,7 +4449,7 @@ public final class HtmlRenderer {
 
     // 1. Introduction
     sb.append("<h2 id=\"introduction\">1. Introduction</h2>\n");
-    sb.append("<p>Welcome to SupaWave, a real-time collaborative messaging platform operated by WavelyLabs ");
+    sb.append("<p>Welcome to SupaWave, a real-time collaborative messaging platform operated by SupaWave ");
     sb.append("(\"we,\" \"us,\" or \"our\"). SupaWave enables users to create, share, and collaborate on ");
     sb.append("rich conversations called \"waves\" with live editing, threaded replies, and multimedia attachments.</p>\n");
     sb.append("<p>These Terms of Service (\"Terms\") govern your access to and use of the SupaWave platform, ");
@@ -4464,7 +4490,7 @@ public final class HtmlRenderer {
     // 5. User Content
     sb.append("<h2 id=\"user-content\">5. User Content</h2>\n");
     sb.append("<p>You retain ownership of all content you create, post, or share on SupaWave (\"User Content\"). ");
-    sb.append("By posting User Content, you grant WavelyLabs a non-exclusive, worldwide, royalty-free license to ");
+    sb.append("By posting User Content, you grant SupaWave a non-exclusive, worldwide, royalty-free license to ");
     sb.append("display, distribute, and store your content solely for the purpose of operating and providing the SupaWave platform.</p>\n");
     sb.append("<p>You represent that you have the right to share any content you post and that your content does not ");
     sb.append("infringe upon the intellectual property rights of any third party.</p>\n");
@@ -4502,9 +4528,8 @@ public final class HtmlRenderer {
 
     // 9. Intellectual Property
     sb.append("<h2 id=\"ip\">9. Intellectual Property</h2>\n");
-    sb.append("<p>The SupaWave platform, including its design, logos, and proprietary features, is owned by WavelyLabs. ");
-    sb.append("SupaWave is built on the open-source Apache Wave protocol, which is licensed under the Apache License 2.0. ");
-    sb.append("Nothing in these Terms grants you rights to use the SupaWave or WavelyLabs trademarks without prior ");
+    sb.append("<p>The SupaWave platform, including its design, logos, and proprietary features, is owned by SupaWave. ");
+    sb.append("Nothing in these Terms grants you rights to use the SupaWave trademarks without prior ");
     sb.append("written permission.</p>\n");
 
     // 10. Termination & Suspension
@@ -4524,7 +4549,7 @@ public final class HtmlRenderer {
     sb.append("<p>SupaWave is provided \"as is\" and \"as available\" without warranties of any kind, ");
     sb.append("either express or implied, including but not limited to warranties of merchantability, ");
     sb.append("fitness for a particular purpose, or non-infringement.</p>\n");
-    sb.append("<p>To the fullest extent permitted by law, WavelyLabs shall not be liable for any indirect, ");
+    sb.append("<p>To the fullest extent permitted by law, SupaWave shall not be liable for any indirect, ");
     sb.append("incidental, special, consequential, or punitive damages, or any loss of data, use, or profits, ");
     sb.append("arising from your use of or inability to use the platform.</p>\n");
 
@@ -4544,8 +4569,8 @@ public final class HtmlRenderer {
     sb.append("<h2 id=\"contact\">14. Contact Information</h2>\n");
     sb.append("<p>If you have questions about these Terms, please contact us:</p>\n");
     sb.append("<div class=\"contact-box\">\n");
-    sb.append("  <h3>WavelyLabs</h3>\n");
-    sb.append("  <p>Email: <a href=\"mailto:support@supawa.ve\">support@supawa.ve</a></p>\n");
+    sb.append("  <h3>SupaWave</h3>\n");
+    sb.append("  <p>Email: <a href=\"mailto:support@supawave.ai\">support@supawave.ai</a></p>\n");
     sb.append("  <p>Visit our <a href=\"/contact\">Contact page</a> for additional ways to reach us.</p>\n");
     sb.append("</div>\n");
 
@@ -4598,7 +4623,7 @@ public final class HtmlRenderer {
 
     // 1. Introduction
     sb.append("<h2 id=\"introduction\">1. Introduction</h2>\n");
-    sb.append("<p>WavelyLabs (\"we,\" \"us,\" or \"our\") operates SupaWave, a real-time collaborative messaging platform. ");
+    sb.append("<p>SupaWave (\"we,\" \"us,\" or \"our\") operates the SupaWave real-time collaborative messaging platform. ");
     sb.append("This Privacy Policy explains how we collect, use, store, and protect your personal information ");
     sb.append("when you use our platform.</p>\n");
     sb.append("<p>By using SupaWave, you agree to the collection and use of information in accordance with this policy.</p>\n");
@@ -4691,7 +4716,7 @@ public final class HtmlRenderer {
     sb.append("  <li><strong>Export</strong> &#8212; request an export of your wave data in a portable format</li>\n");
     sb.append("</ul>\n");
     sb.append("<p>To exercise any of these rights, please contact us at ");
-    sb.append("<a href=\"mailto:support@supawa.ve\">support@supawa.ve</a>.</p>\n");
+    sb.append("<a href=\"mailto:support@supawave.ai\">support@supawave.ai</a>.</p>\n");
 
     // 10. Data Retention
     sb.append("<h2 id=\"retention\">10. Data Retention</h2>\n");
@@ -4717,11 +4742,11 @@ public final class HtmlRenderer {
 
     // 13. Operator & Contact
     sb.append("<h2 id=\"contact\">13. Operator &amp; Contact</h2>\n");
-    sb.append("<p>SupaWave is operated by WavelyLabs. If you have questions or concerns about this Privacy Policy ");
+    sb.append("<p>SupaWave is operated by SupaWave. If you have questions or concerns about this Privacy Policy ");
     sb.append("or our data practices, please contact us:</p>\n");
     sb.append("<div class=\"contact-box\">\n");
-    sb.append("  <h3>WavelyLabs</h3>\n");
-    sb.append("  <p>Email: <a href=\"mailto:support@supawa.ve\">support@supawa.ve</a></p>\n");
+    sb.append("  <h3>SupaWave</h3>\n");
+    sb.append("  <p>Email: <a href=\"mailto:support@supawave.ai\">support@supawave.ai</a></p>\n");
     sb.append("  <p>Visit our <a href=\"/contact\">Contact page</a> for additional ways to reach us.</p>\n");
     sb.append("</div>\n");
 
@@ -4759,13 +4784,13 @@ public final class HtmlRenderer {
     sb.append("<div class=\"contact-box\">\n");
     sb.append("  <h3>General Support</h3>\n");
     sb.append("  <p>For questions, account help, or general inquiries:</p>\n");
-    sb.append("  <p>Email: <a href=\"mailto:support@supawa.ve\">support@supawa.ve</a></p>\n");
+    sb.append("  <p>Email: <a href=\"mailto:support@supawave.ai\">support@supawave.ai</a></p>\n");
     sb.append("</div>\n");
 
     sb.append("<div class=\"contact-box\">\n");
     sb.append("  <h3>Report Abuse or Security Issues</h3>\n");
     sb.append("  <p>To report abusive content, harassment, or security vulnerabilities:</p>\n");
-    sb.append("  <p>Email: <a href=\"mailto:abuse@supawa.ve\">abuse@supawa.ve</a></p>\n");
+    sb.append("  <p>Email: <a href=\"mailto:abuse@supawave.ai\">abuse@supawave.ai</a></p>\n");
     sb.append("  <p>We take all reports seriously and will respond as quickly as possible.</p>\n");
     sb.append("</div>\n");
 
@@ -4773,19 +4798,19 @@ public final class HtmlRenderer {
     sb.append("  <h3>Privacy Requests</h3>\n");
     sb.append("  <p>For data access, deletion, or export requests under our ");
     sb.append("<a href=\"/privacy\">Privacy Policy</a>:</p>\n");
-    sb.append("  <p>Email: <a href=\"mailto:privacy@supawa.ve\">privacy@supawa.ve</a></p>\n");
+    sb.append("  <p>Email: <a href=\"mailto:privacy@supawave.ai\">privacy@supawave.ai</a></p>\n");
     sb.append("</div>\n");
 
     sb.append("<div class=\"contact-box\">\n");
     sb.append("  <h3>Open Source &amp; Development</h3>\n");
-    sb.append("  <p>SupaWave is built on the open-source Apache Wave protocol. ");
+    sb.append("  <p>SupaWave is open source. ");
     sb.append("For technical discussions, bug reports, or contributions:</p>\n");
     sb.append("  <p>GitHub: <a href=\"https://github.com/nicksellen/incubator-wave\" target=\"_blank\" rel=\"noopener\">incubator-wave on GitHub</a></p>\n");
     sb.append("</div>\n");
 
-    sb.append("<h2 style=\"border-top: none;\">About WavelyLabs</h2>\n");
-    sb.append("<p>WavelyLabs develops and operates SupaWave, continuing the vision of real-time collaborative ");
-    sb.append("communication pioneered by the Apache Wave project. We believe in open protocols, user ownership ");
+    sb.append("<h2 style=\"border-top: none;\">About SupaWave</h2>\n");
+    sb.append("<p>SupaWave is a real-time collaborative communication platform. ");
+    sb.append("We believe in open protocols, user ownership ");
     sb.append("of data, and building tools that bring people together.</p>\n");
 
     sb.append("</main>\n");
@@ -5412,6 +5437,323 @@ public final class HtmlRenderer {
   }
 
   // =========================================================================
+  // Account Settings Page
+  // =========================================================================
+
+  /**
+   * Renders the account settings page with the SupaWave ocean theme.
+   * Allows users to update their email, request password reset, and view
+   * read-only account information.
+   */
+  public static String renderAccountSettingsPage(String currentUser, String domain,
+      HumanAccountData account, boolean passwordResetEnabled) {
+    StringBuilder sb = new StringBuilder(16384);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Account Settings - SupaWave</title>\n");
+
+    // Inline CSS (reuse profile edit page styles)
+    sb.append("<style>\n");
+    sb.append("*, *::before, *::after { box-sizing: border-box; }\n");
+    sb.append("body {\n");
+    sb.append("  margin: 0; padding: 0;\n");
+    sb.append("  font-family: ").append(WAVE_FONT).append(";\n");
+    sb.append("  background: ").append(WAVE_BG).append(";\n");
+    sb.append("  color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("  min-height: 100vh;\n");
+    sb.append("}\n");
+
+    // Header bar
+    sb.append(".settings-header {\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  color: #fff; padding: 16px 24px;\n");
+    sb.append("  display: flex; align-items: center; justify-content: space-between;\n");
+    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n");
+    sb.append("}\n");
+    sb.append(".settings-header .brand { display: flex; align-items: center; gap: 10px; }\n");
+    sb.append(".settings-header .brand span { font-size: 20px; font-weight: 700; }\n");
+    sb.append(".settings-header a { color: #fff; text-decoration: none; margin-left: 16px; font-size: 13px; opacity: 0.85; }\n");
+    sb.append(".settings-header a:hover { opacity: 1; text-decoration: underline; }\n");
+
+    // Container
+    sb.append(".settings-container {\n");
+    sb.append("  max-width: 640px; margin: 32px auto; padding: 0 24px;\n");
+    sb.append("}\n");
+
+    // Card
+    sb.append(".settings-card {\n");
+    sb.append("  background: #fff; border-radius: 12px;\n");
+    sb.append("  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);\n");
+    sb.append("  padding: 32px; margin-bottom: 24px;\n");
+    sb.append("}\n");
+    sb.append(".settings-card h2 { margin: 0 0 20px; font-size: 18px; font-weight: 600; }\n");
+
+    // Info rows
+    sb.append(".info-row {\n");
+    sb.append("  display: flex; justify-content: space-between; align-items: center;\n");
+    sb.append("  padding: 12px 0; border-bottom: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("}\n");
+    sb.append(".info-row:last-child { border-bottom: none; }\n");
+    sb.append(".info-label { font-size: 13px; font-weight: 600; color: ").append(WAVE_TEXT_MUTED).append("; }\n");
+    sb.append(".info-value { font-size: 14px; color: ").append(WAVE_TEXT).append("; }\n");
+
+    // Form fields
+    sb.append(".form-group {\n");
+    sb.append("  margin-bottom: 20px;\n");
+    sb.append("}\n");
+    sb.append(".form-group label {\n");
+    sb.append("  display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;\n");
+    sb.append("  color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("}\n");
+    sb.append(".form-group .hint {\n");
+    sb.append("  font-size: 12px; color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("  margin-top: 4px;\n");
+    sb.append("}\n");
+    sb.append(".form-input {\n");
+    sb.append("  width: 100%; padding: 10px 14px;\n");
+    sb.append("  border: 1.5px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  border-radius: 8px; font-size: 14px;\n");
+    sb.append("  outline: none; transition: border-color 0.2s, box-shadow 0.2s;\n");
+    sb.append("  font-family: inherit; background: #fafbfc;\n");
+    sb.append("}\n");
+    sb.append(".form-input:focus {\n");
+    sb.append("  border-color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("  box-shadow: 0 0 0 3px rgba(0,119,182,0.12); background: #fff;\n");
+    sb.append("}\n");
+
+    // Buttons
+    sb.append(".btn-primary {\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  color: #fff; border: none; padding: 10px 24px;\n");
+    sb.append("  border-radius: 8px; font-size: 14px; font-weight: 600;\n");
+    sb.append("  cursor: pointer; transition: opacity 0.2s, transform 0.1s;\n");
+    sb.append("}\n");
+    sb.append(".btn-primary:hover { opacity: 0.9; }\n");
+    sb.append(".btn-primary:active { transform: scale(0.98); }\n");
+    sb.append(".btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }\n");
+
+    sb.append(".btn-secondary {\n");
+    sb.append("  background: #fff; color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("  border: 1.5px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  padding: 10px 24px; border-radius: 8px;\n");
+    sb.append("  font-size: 14px; font-weight: 600; cursor: pointer;\n");
+    sb.append("  transition: all 0.15s;\n");
+    sb.append("}\n");
+    sb.append(".btn-secondary:hover {\n");
+    sb.append("  border-color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("  color: ").append(WAVE_PRIMARY).append(";\n");
+    sb.append("}\n");
+    sb.append(".btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }\n");
+
+    // Status badge
+    sb.append(".status-badge {\n");
+    sb.append("  display: inline-block; padding: 2px 10px; border-radius: 12px;\n");
+    sb.append("  font-size: 12px; font-weight: 600; text-transform: capitalize;\n");
+    sb.append("}\n");
+    sb.append(".status-confirmed { background: #c6f6d5; color: #276749; }\n");
+    sb.append(".status-unconfirmed { background: #fefcbf; color: #975a16; }\n");
+
+    // Toast notification
+    sb.append(".toast {\n");
+    sb.append("  position: fixed; bottom: 24px; right: 24px;\n");
+    sb.append("  padding: 12px 24px; border-radius: 8px;\n");
+    sb.append("  color: #fff; font-size: 14px; font-weight: 500;\n");
+    sb.append("  box-shadow: 0 4px 12px rgba(0,0,0,0.15);\n");
+    sb.append("  transform: translateY(100px); opacity: 0;\n");
+    sb.append("  transition: all 0.3s ease;\n");
+    sb.append("  z-index: 9999;\n");
+    sb.append("}\n");
+    sb.append(".toast.show { transform: translateY(0); opacity: 1; }\n");
+    sb.append(".toast-success { background: #38a169; }\n");
+    sb.append(".toast-error { background: #e53e3e; }\n");
+
+    // Password section description
+    sb.append(".section-desc {\n");
+    sb.append("  font-size: 13px; color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("  margin-bottom: 16px; line-height: 1.5;\n");
+    sb.append("}\n");
+
+    sb.append("</style>\n");
+    sb.append("</head>\n<body>\n");
+
+    // Header
+    sb.append("<div class=\"settings-header\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    <span>SupaWave</span>\n");
+    sb.append("  </div>\n");
+    sb.append("  <div>\n");
+    sb.append("    <span style=\"font-size:13px; opacity:0.9;\">").append(escapeHtml(currentUser)).append("</span>\n");
+    sb.append("    <a href=\"/userprofile/edit\">Edit Profile</a>\n");
+    sb.append("    <a href=\"/\">Back to Wave</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+
+    // Content
+    sb.append("<div class=\"settings-container\">\n");
+
+    // ==== Account Info Card ====
+    sb.append("  <div class=\"settings-card\">\n");
+    sb.append("    <h2>Account Information</h2>\n");
+
+    // Username
+    sb.append("    <div class=\"info-row\">\n");
+    sb.append("      <span class=\"info-label\">Username</span>\n");
+    sb.append("      <span class=\"info-value\">").append(escapeHtml(account.getId().getAddress())).append("</span>\n");
+    sb.append("    </div>\n");
+
+    // Role
+    String role = account.getRole();
+    if (role == null || role.isEmpty()) role = "user";
+    sb.append("    <div class=\"info-row\">\n");
+    sb.append("      <span class=\"info-label\">Role</span>\n");
+    sb.append("      <span class=\"info-value\" style=\"text-transform:capitalize;\">").append(escapeHtml(role)).append("</span>\n");
+    sb.append("    </div>\n");
+
+    // Registration date
+    long regTime = account.getRegistrationTime();
+    String regDisplay = regTime > 0
+        ? new java.text.SimpleDateFormat("MMMM d, yyyy").format(new java.util.Date(regTime))
+        : "Unknown";
+    sb.append("    <div class=\"info-row\">\n");
+    sb.append("      <span class=\"info-label\">Registered</span>\n");
+    sb.append("      <span class=\"info-value\">").append(escapeHtml(regDisplay)).append("</span>\n");
+    sb.append("    </div>\n");
+
+    sb.append("  </div>\n"); // .settings-card
+
+    // ==== Email Card ====
+    sb.append("  <div class=\"settings-card\">\n");
+    sb.append("    <h2>Email Address</h2>\n");
+
+    String currentEmail = account.getEmail();
+    boolean emailConfirmed = account.isEmailConfirmed();
+
+    // Current email display
+    if (currentEmail != null && !currentEmail.isEmpty()) {
+      sb.append("    <div style=\"margin-bottom:16px;\">\n");
+      sb.append("      <span style=\"font-size:14px;\">").append(escapeHtml(currentEmail)).append("</span>\n");
+      sb.append("      <span class=\"status-badge ").append(emailConfirmed ? "status-confirmed" : "status-unconfirmed").append("\">");
+      sb.append(emailConfirmed ? "Confirmed" : "Unconfirmed");
+      sb.append("</span>\n");
+      sb.append("    </div>\n");
+    }
+
+    sb.append("    <div class=\"form-group\">\n");
+    sb.append("      <label for=\"emailInput\">").append(currentEmail != null && !currentEmail.isEmpty() ? "New Email" : "Email Address").append("</label>\n");
+    sb.append("      <input type=\"email\" id=\"emailInput\" class=\"form-input\" placeholder=\"you@example.com\" value=\"")
+        .append(escapeHtml(currentEmail)).append("\">\n");
+    sb.append("      <div class=\"hint\">Used for password resets and notifications</div>\n");
+    sb.append("    </div>\n");
+
+    sb.append("    <button type=\"button\" class=\"btn-primary\" id=\"saveEmailBtn\">Save Email</button>\n");
+
+    sb.append("  </div>\n"); // .settings-card
+
+    // ==== Password Card ====
+    sb.append("  <div class=\"settings-card\">\n");
+    sb.append("    <h2>Password</h2>\n");
+
+    if (passwordResetEnabled) {
+      if (currentEmail != null && !currentEmail.isEmpty() && emailConfirmed) {
+        sb.append("    <div class=\"section-desc\">Click the button below to receive a password reset link at your email address.</div>\n");
+        sb.append("    <button type=\"button\" class=\"btn-secondary\" id=\"resetPasswordBtn\">Send Password Reset Email</button>\n");
+      } else if (currentEmail != null && !currentEmail.isEmpty() && !emailConfirmed) {
+        sb.append("    <div class=\"section-desc\">Please confirm your email address before requesting a password reset.</div>\n");
+        sb.append("    <button type=\"button\" class=\"btn-secondary\" disabled>Send Password Reset Email</button>\n");
+      } else {
+        sb.append("    <div class=\"section-desc\">Add an email address first to enable password reset.</div>\n");
+        sb.append("    <button type=\"button\" class=\"btn-secondary\" disabled>Send Password Reset Email</button>\n");
+      }
+    } else {
+      sb.append("    <div class=\"section-desc\">Password reset is currently disabled by the server administrator.</div>\n");
+    }
+
+    sb.append("  </div>\n"); // .settings-card
+
+    sb.append("</div>\n"); // .settings-container
+
+    // Toast
+    sb.append("<div id=\"toast\" class=\"toast\"></div>\n");
+
+    // JavaScript
+    sb.append("<script>\n");
+    sb.append("(function() {\n");
+    sb.append("  var toast = document.getElementById('toast');\n");
+    sb.append("  function showToast(msg, type) {\n");
+    sb.append("    toast.textContent = msg;\n");
+    sb.append("    toast.className = 'toast toast-' + type + ' show';\n");
+    sb.append("    setTimeout(function() { toast.className = 'toast'; }, 4000);\n");
+    sb.append("  }\n\n");
+
+    // Save email
+    sb.append("  var saveEmailBtn = document.getElementById('saveEmailBtn');\n");
+    sb.append("  if (saveEmailBtn) {\n");
+    sb.append("    saveEmailBtn.addEventListener('click', function() {\n");
+    sb.append("      var btn = this;\n");
+    sb.append("      btn.disabled = true;\n");
+    sb.append("      var email = document.getElementById('emailInput').value.trim();\n");
+    sb.append("      fetch('/account/settings/email', {\n");
+    sb.append("        method: 'POST',\n");
+    sb.append("        headers: { 'Content-Type': 'application/json' },\n");
+    sb.append("        body: JSON.stringify({ email: email || null })\n");
+    sb.append("      })\n");
+    sb.append("      .then(function(r) { return r.json(); })\n");
+    sb.append("      .then(function(d) {\n");
+    sb.append("        if (d.ok) {\n");
+    sb.append("          showToast(d.message || 'Email updated', 'success');\n");
+    sb.append("          setTimeout(function() { location.reload(); }, 1500);\n");
+    sb.append("        } else {\n");
+    sb.append("          showToast(d.error || 'Failed to update email', 'error');\n");
+    sb.append("        }\n");
+    sb.append("        btn.disabled = false;\n");
+    sb.append("      })\n");
+    sb.append("      .catch(function() { showToast('Failed to update email', 'error'); btn.disabled = false; });\n");
+    sb.append("    });\n");
+    sb.append("  }\n\n");
+
+    // Request password reset
+    sb.append("  var resetBtn = document.getElementById('resetPasswordBtn');\n");
+    sb.append("  if (resetBtn) {\n");
+    sb.append("    resetBtn.addEventListener('click', function() {\n");
+    sb.append("      var btn = this;\n");
+    sb.append("      btn.disabled = true;\n");
+    sb.append("      btn.textContent = 'Sending...';\n");
+    sb.append("      fetch('/account/settings/request-password-reset', {\n");
+    sb.append("        method: 'POST',\n");
+    sb.append("        headers: { 'Content-Type': 'application/json' },\n");
+    sb.append("        body: '{}'\n");
+    sb.append("      })\n");
+    sb.append("      .then(function(r) { return r.json(); })\n");
+    sb.append("      .then(function(d) {\n");
+    sb.append("        if (d.ok) {\n");
+    sb.append("          showToast(d.message || 'Reset email sent', 'success');\n");
+    sb.append("          btn.textContent = 'Email Sent';\n");
+    sb.append("          setTimeout(function() { btn.textContent = 'Send Password Reset Email'; btn.disabled = false; }, 5000);\n");
+    sb.append("        } else {\n");
+    sb.append("          showToast(d.error || 'Failed to send reset email', 'error');\n");
+    sb.append("          btn.textContent = 'Send Password Reset Email';\n");
+    sb.append("          btn.disabled = false;\n");
+    sb.append("        }\n");
+    sb.append("      })\n");
+    sb.append("      .catch(function() {\n");
+    sb.append("        showToast('Failed to send reset email', 'error');\n");
+    sb.append("        btn.textContent = 'Send Password Reset Email';\n");
+    sb.append("        btn.disabled = false;\n");
+    sb.append("      });\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+
+    sb.append("})();\n");
+    sb.append("</script>\n");
+
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
   // Profile Edit Page
   // =========================================================================
 
@@ -5623,7 +5965,7 @@ public final class HtmlRenderer {
     sb.append("      <label>Email</label>\n");
     sb.append("      <input type=\"email\" class=\"form-input\" value=\"")
         .append(escapeHtml(account.getEmail())).append("\" disabled style=\"opacity:0.7;\">\n");
-    sb.append("      <div class=\"hint\">Email is managed through account settings</div>\n");
+    sb.append("      <div class=\"hint\"><a href=\"/account/settings\" style=\"color:").append(WAVE_PRIMARY).append(";text-decoration:none;\">Edit in Account Settings</a></div>\n");
     sb.append("    </div>\n");
 
     // Bio

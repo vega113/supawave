@@ -72,7 +72,9 @@ public final class UndercurrentShallowBlipRenderer implements ShallowBlipRendere
   public void renderContributors(ConversationBlip blip, IntrinsicBlipMetaView meta) {
     Set<ParticipantId> contributors = blip.getContributorIds();
     if (!contributors.isEmpty()) {
-      meta.setAvatar(avatarOf(contributors.iterator().next()));
+      ParticipantId primaryAuthor = contributors.iterator().next();
+      meta.setAvatar(avatarOf(primaryAuthor));
+      meta.setAuthorAddress(primaryAuthor.getAddress());
       meta.setMetaline(buildNames(contributors));
     } else {
       // Blips are never meant to have no contributors.  The wave state is broken.

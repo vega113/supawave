@@ -182,6 +182,7 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     ParticipantAvatarViewBuilder participantUi = ParticipantAvatarViewBuilder.create(id);
     participantUi.setAvatar(profile.getImageUrl());
     participantUi.setName(profile.getFullName());
+    participantUi.setAddress(participant.getAddress());
     return participantUi;
   }
 

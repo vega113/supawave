@@ -28,4 +28,13 @@ public interface IntrinsicParticipantView {
 
   void setAvatar(String url);
   void setName(String name);
+
+  /**
+   * Stores the participant's wave address (e.g. "user@example.com") as a
+   * {@code data-address} attribute on the DOM element so that page-level
+   * JavaScript (profile card popup) can read it.
+   */
+  default void setAddress(String address) {
+    // no-op by default; DOM-backed implementations override
+  }
 }

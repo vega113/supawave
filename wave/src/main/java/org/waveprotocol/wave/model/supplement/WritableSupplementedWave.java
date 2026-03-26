@@ -117,12 +117,12 @@ public interface WritableSupplementedWave {
   void moveToFolder(int folderId);
 
   /**
-   * Pins this wave (adds to folder 9 without clearing other folders).
+   * Pins this wave so it appears at the top of search results.
    */
   void pin();
 
   /**
-   * Unpins this wave (removes from folder 9).
+   * Unpins this wave.
    */
   void unpin();
 

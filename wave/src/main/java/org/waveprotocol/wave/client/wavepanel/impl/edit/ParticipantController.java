@@ -22,15 +22,12 @@ package org.waveprotocol.wave.client.wavepanel.impl.edit;
 
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 
 import org.waveprotocol.wave.client.widget.dialog.PromptDialog;
 import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
 import org.waveprotocol.wave.client.account.ContactManager;
-import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileManager;
-import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.WaveCreationEvent;
 import org.waveprotocol.wave.client.wavepanel.WavePanel;
@@ -44,8 +41,6 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.DomAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
-import org.waveprotocol.wave.client.widget.profile.ProfilePopupPresenter;
-import org.waveprotocol.wave.client.widget.profile.ProfilePopupView;
 import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.util.Preconditions;
@@ -287,6 +282,23 @@ public final class ParticipantController {
   }
 
   /**
+   * Returns true if the given conversation is a direct message (exactly 2 real
+   * participants and no shared-domain participant).
+   */
+  private static boolean isDirectMessage(Conversation conversation) {
+    Set<ParticipantId> participants = conversation.getParticipantIds();
+    int realCount = 0;
+    for (ParticipantId pid : participants) {
+      if (ParticipantIdUtil.isDomainAddress(pid.getAddress())) {
+        // Has a domain participant -- not a DM.
+        return false;
+      }
+      realCount++;
+    }
+    return realCount == 2;
+  }
+
+  /**
    * Shows an add-participant popup with contact autocomplete suggestions.
    * If no contact manager is available, falls back to a plain browser prompt.
    */
@@ -298,6 +310,12 @@ public final class ParticipantController {
 
     final ParticipantsView participantsUi = views.fromAddButton(context);
     final Conversation conversation = models.getParticipants(participantsUi);
+
+    // Block adding participants to DM waves.
+    if (isDirectMessage(conversation)) {
+      ToastNotification.showWarning(messages.cannotAddParticipantToDm());
+      return;
+    }
 
     ParticipantAddWidget addWidget = new ParticipantAddWidget();
     addWidget.setContactManager(contactManager);
@@ -336,6 +354,14 @@ public final class ParticipantController {
    * Legacy add-participant using a styled prompt dialog (no autocomplete).
    */
   private void handleAddButtonClickedLegacy(final Element context) {
+    // Block adding participants to DM waves.
+    ParticipantsView dmCheckUi = views.fromAddButton(context);
+    Conversation dmCheckConv = models.getParticipants(dmCheckUi);
+    if (isDirectMessage(dmCheckConv)) {
+      ToastNotification.showWarning(messages.cannotAddParticipantToDm());
+      return;
+    }
+
     PromptDialog.show("Add a participant(s) (separate with comma ','):", "",
         new PromptDialog.Listener() {
           @Override
@@ -365,42 +391,24 @@ public final class ParticipantController {
   }
 
   /**
-   * Shows a participation popup for the clicked participant.
+   * Shows the profile card popup for the clicked participant.
+   * Delegates to the page-level {@code window.showProfileCard(address)} function
+   * injected by HtmlRenderer, which fetches and displays the full profile card.
    */
   private void handleParticipantClicked(Element context) {
     ParticipantView participantView = views.asParticipant(context);
     final Pair<Conversation, ParticipantId> participation = models.getParticipant(participantView);
-    Profile profile = profiles.getProfile(participation.second);
-
-    // Summon a popup view from a participant, and attach profile-popup logic to
-    // it.
-    final ProfilePopupView profileView = participantView.showParticipation();
-    ProfilePopupPresenter profileUi = ProfilePopupPresenter.create(profile, profileView, profiles);
-    profileUi.addControl(EscapeUtils.fromSafeConstant(messages.remove()), new ClickHandler() {
-      @Override
-      public void onClick(ClickEvent event) {
-        // Enforce creator-only rule for removing the shared-domain participant
-        // (i.e., toggling wave visibility). This prevents non-creators from
-        // making a public wave private via the participant remove action.
-        if (localDomain != null && !localDomain.isEmpty()) {
-          ParticipantId domainParticipant =
-              ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(localDomain);
-          if (participation.second.equals(domainParticipant)) {
-            Set<ParticipantId> currentParticipants = participation.first.getParticipantIds();
-            ParticipantId creator = currentParticipants.iterator().next();
-            if (!user.equals(creator)) {
-              ToastNotification.showWarning(messages.onlyOwnerCanTogglePublic());
-              profileView.hide();
-              return;
-            }
-          }
-        }
-
-        participation.first.removeParticipant(participation.second);
-        // The presenter is configured to destroy itself on view hide.
-        profileView.hide();
-      }
-    });
-    profileUi.show();
+    String address = participation.second.getAddress();
+    nativeShowProfileCard(address);
   }
+
+  /**
+   * Calls the page-level {@code window.showProfileCard(address)} JS function
+   * that is injected by HtmlRenderer's profile card fragment.
+   */
+  private static native void nativeShowProfileCard(String address) /*-{
+    if ($wnd.showProfileCard) {
+      $wnd.showProfileCard(address);
+    }
+  }-*/;
 }

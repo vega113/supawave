@@ -75,6 +75,11 @@ public final class ParticipantViewImpl<I extends IntrinsicParticipantView> // \u
   }
 
   @Override
+  public void setAddress(String address) {
+    impl.setAddress(address);
+  }
+
+  @Override
   public ProfilePopupView showParticipation() {
     return helper.showParticipation(impl);
   }

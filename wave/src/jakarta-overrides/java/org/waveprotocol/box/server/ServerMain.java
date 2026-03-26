@@ -53,6 +53,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
+import java.util.List;
 
 public class ServerMain {
   private static final Log LOG = Log.get(ServerMain.class);
@@ -121,6 +122,7 @@ public class ServerMain {
 
     initializeServer(injector, domain);
     bootstrapOwner(injector.getInstance(AccountStore.class), config, domain);
+    backfillRegistrationTimes(injector.getInstance(AccountStore.class));
     initializeServlets(server, config);
     initializeRobots(injector, waveBus);
     initializeRobotAgents(injector);
@@ -210,6 +212,36 @@ public class ServerMain {
     }
   }
 
+  /**
+   * Backfills {@code registrationTime} for accounts created before the field
+   * was introduced (PR #183). Any human account with {@code registrationTime == 0}
+   * gets stamped with the current time so the admin dashboard no longer shows "--".
+   * This is a one-time migration: once the value is set and persisted it will be
+   * read back on subsequent startups and this method becomes a no-op.
+   */
+  private static void backfillRegistrationTimes(AccountStore accountStore) {
+    try {
+      List<AccountData> allAccounts = accountStore.getAllAccounts();
+      long now = System.currentTimeMillis();
+      int backfilled = 0;
+      for (AccountData acct : allAccounts) {
+        if (!acct.isHuman()) continue;
+        HumanAccountData human = acct.asHuman();
+        if (human.getRegistrationTime() == 0) {
+          human.setRegistrationTime(now);
+          accountStore.putAccount(acct);
+          backfilled++;
+        }
+      }
+      if (backfilled > 0) {
+        LOG.info("Backfilled registrationTime for " + backfilled
+            + " legacy account(s) (set to current time)");
+      }
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to backfill registration times — legacy accounts will still show '--'", e);
+    }
+  }
+
   private static void initializeServlets(ServerRpcProvider server, Config config) {
     server.addServlet("/gadget/gadgetlist", GadgetProviderServlet.class);
     server.addServlet(AttachmentServlet.ATTACHMENT_URL + "/*", AttachmentServlet.class);
@@ -232,6 +264,8 @@ public class ServerMain {
     server.addServlet("/version", VersionServlet.class);
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/userprofile/*", ProfileServlet.class);
+    server.addServlet("/account/settings", AccountSettingsServlet.class);
+    server.addServlet("/account/settings/*", AccountSettingsServlet.class);
     server.addServlet("/contacts", FetchContactsServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/wave/public/*", PublicWaveFetchServlet.class);

@@ -95,13 +95,19 @@ public final class FolderServlet extends HttpServlet {
         return;
       }
       if (waves != null) {
+        boolean anyFailure = false;
         for (String wave : waves) {
           try {
             WaveId waveId = WaveId.deserialise(StringEscapeUtils.unescapeHtml4(wave));
             moveToFolder(waveId, folder, user);
           } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Move to " + folder + " error ", ex);
+            anyFailure = true;
           }
+        }
+        if (anyFailure) {
+          response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to move wave(s)");
+          return;
         }
       }
       response.setStatus(HttpServletResponse.SC_OK);

@@ -57,6 +57,9 @@ jobs:
       - name: Compile PST and Wave
         run: sbt --batch pst/compile wave/compile
 
+      - name: GWT compilation check
+        run: sbt --batch compileGwt
+
       - name: Stage distribution
         run: sbt --batch Universal/stage
 
@@ -64,6 +67,35 @@ jobs:
         continue-on-error: true
         timeout-minutes: 3
         run: sbt --batch smokeInstalled
+
+      - name: Startup smoke test
+        timeout-minutes: 2
+        run: |
+          cd target/universal/stage
+          SERVER_LOG=/tmp/wave-startup.log
+          ./bin/wave > "$SERVER_LOG" 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in $(seq 1 30); do
+            STATUS_CODE="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9898/healthz || true)"
+            if [ "$STATUS_CODE" = "200" ]; then
+              echo "Server started successfully"
+              exit 0
+            fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "Server process exited before becoming healthy"
+              tail -n 200 "$SERVER_LOG" || true
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Server failed to start within 60 seconds"
+          tail -n 200 "$SERVER_LOG" || true
+          exit 1
 
       - name: Guard experimental flags for release (tags/releases/release branches)
         if: ${{ github.ref_type == 'tag' || (github.event_name == 'release' && github.event.action == 'published') || (github.ref_type == 'branch' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))) }}

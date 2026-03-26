@@ -36,23 +36,22 @@ import java.util.List;
 
 /**
  * Searches contacts via the server's {@code GET /contacts/search?q=<prefix>&limit=<n>}
- * endpoint and parses the JSON response using JSNI overlay types.
+ * endpoint and parses the JSON response.
  *
  * <p>The response format is:
  * <pre>{
- *   "contacts": [
- *     {"address": "alice@example.com", "score": 42.0},
+ *   "results": [
+ *     {"participant": "alice@example.com", "score": 42.0, "lastContact": 1711234567890},
  *     ...
- *   ]
+ *   ],
+ *   "total": 42
  * }</pre>
- *
- * <p>Follows the same patterns as {@link FetchContactsServiceImpl}.
  */
 public class ContactSearchServiceImpl implements ContactSearchService {
 
   private static final LoggerBundle LOG = new DomLogger("ContactSearchService");
 
-  /** The contact search endpoint URL. */
+  /** The search endpoint URL base. */
   private static final String SEARCH_URL_BASE = "/contacts/search";
 
   public static ContactSearchServiceImpl create() {
@@ -60,8 +59,9 @@ public class ContactSearchServiceImpl implements ContactSearchService {
   }
 
   @Override
-  public void search(String query, int limit, final Callback callback) {
-    String url = SEARCH_URL_BASE + "?q=" + URL.encodeQueryString(query) + "&limit=" + limit;
+  public void search(String prefix, int limit, final Callback callback) {
+    String encodedPrefix = (prefix != null) ? URL.encodeQueryString(prefix) : "";
+    String url = SEARCH_URL_BASE + "?q=" + encodedPrefix + "&limit=" + limit;
     LOG.trace().log("Searching contacts, limit=" + limit);
 
     RequestBuilder requestBuilder = new RequestBuilder(RequestBuilder.GET, url);
@@ -98,7 +98,9 @@ public class ContactSearchServiceImpl implements ContactSearchService {
       requestBuilder.send();
     } catch (RequestException e) {
       LOG.error().log("Failed to send contact search request: " + e.getMessage());
-      callback.onFailure(e.getMessage());
+      String msg = (e.getMessage() == null || e.getMessage().isEmpty())
+          ? e.getClass().getName() : e.getMessage();
+      callback.onFailure(msg);
     }
   }
 
@@ -107,27 +109,28 @@ public class ContactSearchServiceImpl implements ContactSearchService {
    */
   private void parseAndDeliver(String jsonText, Callback callback) {
     SearchResponseJso jso = parseJson(jsonText);
-    JsArray<SearchResultJso> contactsArray = jso.getContacts();
+    int total = (int) jso.getTotal();
+    JsArray<SearchResultJso> resultsArray = jso.getResults();
 
-    List<ContactSearchResult> results = new ArrayList<ContactSearchResult>();
-    if (contactsArray != null) {
-      for (int i = 0; i < contactsArray.length(); i++) {
-        SearchResultJso c = contactsArray.get(i);
+    List<SearchResult> results = new ArrayList<SearchResult>();
+    if (resultsArray != null) {
+      for (int i = 0; i < resultsArray.length(); i++) {
+        SearchResultJso r = resultsArray.get(i);
         // Use String.valueOf() to coerce JSNI return values that may not be
         // true JS strings (e.g. if the server returns an unexpected type for
-        // the "address" field).  Without this, calling indexOf() on a
+        // the "participant" field).  Without this, calling indexOf() on a
         // non-string produces "b.indexOf is not a function" in GWT-compiled JS.
-        String raw = c.getAddress();
-        String address = raw == null ? null : String.valueOf((Object) raw);
-        if (address == null || address.isEmpty()
-            || "undefined".equals(address) || "null".equals(address)) {
-          LOG.trace().log("Skipping search result with missing address");
+        String raw = r.getParticipant();
+        String participant = raw == null ? null : String.valueOf((Object) raw);
+        if (participant == null || participant.isEmpty()
+            || "undefined".equals(participant) || "null".equals(participant)) {
+          LOG.trace().log("Skipping search result with missing participant");
           continue;
         }
-        results.add(new ContactSearchResult(address, c.getScore()));
+        results.add(new SearchResult(participant, r.getScore(), (long) r.getLastContact()));
       }
     }
-    callback.onSuccess(results);
+    callback.onSuccess(results, total);
   }
 
   /** Parses JSON text into a native JSO. */
@@ -140,8 +143,12 @@ public class ContactSearchServiceImpl implements ContactSearchService {
     protected SearchResponseJso() {
     }
 
-    public final native JsArray<SearchResultJso> getContacts() /*-{
-      return this.contacts || [];
+    public final native JsArray<SearchResultJso> getResults() /*-{
+      return this.results || [];
+    }-*/;
+
+    public final native double getTotal() /*-{
+      return this.total || 0;
     }-*/;
   }
 
@@ -150,12 +157,16 @@ public class ContactSearchServiceImpl implements ContactSearchService {
     protected SearchResultJso() {
     }
 
-    public final native String getAddress() /*-{
-      return this.address;
+    public final native String getParticipant() /*-{
+      return this.participant;
     }-*/;
 
     public final native double getScore() /*-{
       return this.score || 0;
+    }-*/;
+
+    public final native double getLastContact() /*-{
+      return this.lastContact || 0;
     }-*/;
   }
 }

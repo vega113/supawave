@@ -30,22 +30,28 @@ import java.util.List;
  */
 public interface ContactSearchService {
 
-  /** Holds a single search result with address and score. */
-  public static class ContactSearchResult {
-    private final String address;
+  /** Holds a single search result. */
+  public static class SearchResult {
+    private final String participant;
     private final double score;
+    private final long lastContact;
 
-    public ContactSearchResult(String address, double score) {
-      this.address = address;
+    public SearchResult(String participant, double score, long lastContact) {
+      this.participant = participant;
       this.score = score;
+      this.lastContact = lastContact;
     }
 
-    public String getAddress() {
-      return address;
+    public String getParticipant() {
+      return participant;
     }
 
     public double getScore() {
       return score;
+    }
+
+    public long getLastContact() {
+      return lastContact;
     }
   }
 
@@ -56,17 +62,18 @@ public interface ContactSearchService {
     /**
      * Notifies this callback of a successful search.
      *
-     * @param results the list of matching contacts with their scores
+     * @param results the list of matching contacts
+     * @param total the total number of matching contacts (before limit)
      */
-    void onSuccess(List<ContactSearchResult> results);
+    void onSuccess(List<SearchResult> results, int total);
   }
 
   /**
    * Searches contacts on the server by address prefix.
    *
-   * @param query the prefix to match (case-insensitive); empty string returns all
+   * @param prefix the prefix to match (case-insensitive); empty string returns all
    * @param limit the maximum number of results to return
    * @param callback the callback to receive results
    */
-  void search(String query, int limit, Callback callback);
+  void search(String prefix, int limit, Callback callback);
 }

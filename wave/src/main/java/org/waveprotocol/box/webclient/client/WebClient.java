@@ -77,6 +77,7 @@ import org.waveprotocol.wave.client.wavepanel.event.EventDispatcherPanel;
 import org.waveprotocol.wave.client.wavepanel.event.WaveChangeHandler;
 import org.waveprotocol.wave.client.wavepanel.event.FocusManager;
 import org.waveprotocol.wave.client.widget.common.ImplPanel;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 import org.waveprotocol.wave.model.id.IdGenerator;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -254,6 +255,9 @@ public class WebClient implements EntryPoint {
 
   /** Whether turbulence banner is logically active (even if delay hasn't elapsed). */
   private boolean turbulencePending;
+
+  /** Persistent-toast id for the offline-while-editing warning. */
+  private static final String OFFLINE_EDITING_TOAST_ID = "offline-editing";
 
   /** Show the turbulence banner (called after the delay). */
   private void showTurbulenceBanner() {
@@ -640,11 +644,20 @@ public class WebClient implements EntryPoint {
               element.setClassName("topbar-icon online");
               element.setTitle(messages.online());
               hideTurbulenceBanner(true);
+              // Dismiss the offline-while-editing toast when back online.
+              ToastNotification.dismissPersistent(OFFLINE_EDITING_TOAST_ID);
               break;
             case DISCONNECTED:
               element.setInnerHTML(WIFI_OFF_ICON_SVG);
               element.setClassName("topbar-icon offline");
               element.setTitle(messages.offline());
+              // If a wave is open (user may be editing), show an immediate warning.
+              if (wave != null) {
+                ToastNotification.showPersistent(
+                    OFFLINE_EDITING_TOAST_ID,
+                    messages.offlineWhileEditing(),
+                    ToastNotification.Level.WARNING);
+              }
               if (!turbulencePending) {
                 turbulencePending = true;
                 turbulenceStartTime = new Date().getTime();

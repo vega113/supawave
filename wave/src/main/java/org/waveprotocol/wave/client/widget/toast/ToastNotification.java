@@ -24,6 +24,10 @@ import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Style;
 import com.google.gwt.user.client.Timer;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Lightweight, non-blocking toast notification that replaces native
  * {@code Window.alert()} calls. Toasts appear at the bottom center of the
@@ -37,6 +41,10 @@ import com.google.gwt.user.client.Timer;
  *
  * <p>Only one toast is shown at a time; showing a new toast replaces the
  * current one immediately.
+ *
+ * <p>Persistent toasts (via {@link #showPersistent}) remain visible until
+ * explicitly dismissed with {@link #dismissPersistent}. They feature a subtle
+ * ocean wave gradient animation.
  */
 public final class ToastNotification {
 
@@ -54,6 +62,16 @@ public final class ToastNotification {
   /** Timer controlling auto-dismiss of the current toast. */
   private static Timer currentDismissTimer;
 
+  /** Persistent toasts keyed by caller-provided id. */
+  private static final Map<String, Element> persistentToasts = new LinkedHashMap<>();
+  /** Fade-out timers for persistent toasts pending DOM removal. */
+  private static final Map<String, Timer> persistentDismissTimers = new HashMap<>();
+  /** Persistent toasts currently fading out before removal. */
+  private static final Map<String, Element> dismissingPersistentToasts = new HashMap<>();
+
+  /** Whether the wave-animation CSS keyframes have been injected. */
+  private static boolean waveCssInjected;
+
   private ToastNotification() {}
 
   // ---- Public API ----
@@ -66,6 +84,118 @@ public final class ToastNotification {
   /** Shows a warning toast with the default duration. */
   public static void showWarning(String message) {
     show(message, Level.WARNING, DEFAULT_DURATION_MS);
+  }
+
+  /**
+   * Shows a persistent toast that remains visible until {@link #dismissPersistent}
+   * is called with the same {@code id}. If a persistent toast with a different id
+   * is already showing, it is replaced. Persistent toasts include a subtle wave
+   * gradient animation.
+   *
+   * @param id a caller-chosen identifier so the correct toast can be dismissed
+   * @param message text to display
+   * @param level severity / color theme
+   */
+  public static void showPersistent(String id, String message, Level level) {
+    if (id == null) {
+      return;
+    }
+
+    if (persistentToasts.containsKey(id)) {
+      return;
+    }
+
+    clearPendingPersistentDismiss(id);
+    injectWaveCss();
+
+    final Element toast = Document.get().createDivElement();
+    Style ts = toast.getStyle();
+
+    // Positioning: fixed, bottom center, stacked above the auto-dismiss toast area
+    ts.setProperty("position", "fixed");
+    ts.setProperty("left", "50%");
+    ts.setProperty("transform", "translateX(-50%)");
+    ts.setProperty("zIndex", "2147483646");
+    ts.setProperty("maxWidth", "520px");
+    ts.setProperty("minWidth", "220px");
+    ts.setProperty("textAlign", "center");
+    ts.setProperty("overflow", "hidden");
+
+    // Theme with animated gradient
+    if (level == Level.WARNING) {
+      ts.setProperty("background",
+          "linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)");
+      ts.setProperty("backgroundSize", "200% 200%");
+      ts.setProperty("animation", "toast-wave-gradient 4s ease infinite");
+      ts.setProperty("color", "#fff");
+    } else {
+      ts.setProperty("background",
+          "linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%)");
+      ts.setProperty("backgroundSize", "200% 200%");
+      ts.setProperty("animation", "toast-wave-gradient 4s ease infinite");
+      ts.setProperty("color", "#fff");
+    }
+
+    // Typography and spacing
+    ts.setProperty("padding", "10px 20px");
+    ts.setProperty("fontSize", "13px");
+    ts.setProperty("lineHeight", "20px");
+    ts.setProperty("fontFamily",
+        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif");
+    ts.setProperty("fontWeight", "500");
+    ts.setProperty("borderRadius", "8px");
+    ts.setProperty("boxShadow", "0 4px 12px rgba(0,0,0,0.25)");
+
+    // Fade-in animation
+    ts.setProperty("opacity", "0");
+    ts.setProperty("transition", "opacity 300ms ease");
+
+    toast.setInnerText(message);
+    Document.get().getBody().appendChild(toast);
+    persistentToasts.put(id, toast);
+    updatePersistentToastPositions();
+
+    // Trigger fade-in on next frame.
+    new Timer() {
+      @Override
+      public void run() {
+        toast.getStyle().setProperty("opacity", "1");
+      }
+    }.schedule(20);
+  }
+
+  /**
+   * Dismisses a persistent toast if the given {@code id} matches the one that
+   * is currently showing. If the ids do not match (or no persistent toast is
+   * visible), this is a no-op.
+   */
+  public static void dismissPersistent(String id) {
+    if (id == null) {
+      return;
+    }
+
+    final Element toast = persistentToasts.remove(id);
+    if (toast != null) {
+      toast.getStyle().setProperty("opacity", "0");
+      updatePersistentToastPositions();
+      dismissingPersistentToasts.put(id, toast);
+
+      Timer dismissTimer = new Timer() {
+        @Override
+        public void run() {
+          try {
+            toast.removeFromParent();
+          } catch (Throwable ignored) {
+            // Best effort.
+          } finally {
+            dismissingPersistentToasts.remove(id);
+            persistentDismissTimers.remove(id);
+          }
+        }
+      };
+      persistentDismissTimers.put(id, dismissTimer);
+      dismissTimer.schedule(350);
+    }
   }
 
   /** Shows a toast with the given message, level, and duration. */
@@ -144,7 +274,24 @@ public final class ToastNotification {
 
   // ---- Internal ----
 
-  /** Removes the current toast from the DOM, if present. */
+  /** Injects the CSS keyframe animation for the wave gradient effect (once). */
+  private static void injectWaveCss() {
+    if (waveCssInjected) {
+      return;
+    }
+    waveCssInjected = true;
+    String css =
+        "@keyframes toast-wave-gradient {"
+      + "  0%   { background-position: 0% 50%; }"
+      + "  50%  { background-position: 100% 50%; }"
+      + "  100% { background-position: 0% 50%; }"
+      + "}";
+    Element style = Document.get().createStyleElement();
+    style.setInnerHTML(css);
+    Document.get().getHead().appendChild(style);
+  }
+
+  /** Removes the current auto-dismiss toast from the DOM, if present. */
   private static void removeCurrentToast() {
     if (currentDismissTimer != null) {
       currentDismissTimer.cancel();
@@ -157,6 +304,33 @@ public final class ToastNotification {
         // Best effort.
       }
       currentToast = null;
+    }
+  }
+
+  /** Cancels/removes any pending fade-out toast for the given id. */
+  private static void clearPendingPersistentDismiss(String id) {
+    Timer dismissTimer = persistentDismissTimers.remove(id);
+    if (dismissTimer != null) {
+      dismissTimer.cancel();
+    }
+
+    Element dismissingToast = dismissingPersistentToasts.remove(id);
+    if (dismissingToast != null) {
+      try {
+        dismissingToast.removeFromParent();
+      } catch (Throwable ignored) {
+        // Best effort.
+      }
+    }
+  }
+
+  /** Updates bottom offsets so visible persistent toasts do not overlap. */
+  private static void updatePersistentToastPositions() {
+    int index = 0;
+    for (Element toast : persistentToasts.values()) {
+      int bottomPx = 72 + (index * 56);
+      toast.getStyle().setProperty("bottom", bottomPx + "px");
+      index++;
     }
   }
 }

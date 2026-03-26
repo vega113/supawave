@@ -293,7 +293,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    * We translate {@code <line>} elements into {@code <p>} paragraphs and
    * preserve known formatting attributes.
    */
-  static String renderDocument(Document doc) {
+  public static String renderDocument(Document doc) {
     Doc.E docElement = doc.getDocumentElement();
     if (docElement == null) {
       return "";

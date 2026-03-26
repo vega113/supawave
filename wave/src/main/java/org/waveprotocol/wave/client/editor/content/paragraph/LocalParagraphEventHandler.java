@@ -105,7 +105,7 @@ public class LocalParagraphEventHandler extends NodeEventHandlerImpl {
       selectionHelper.setCaret(
           Point.start(element.getRenderedContentView(), newLocalParagraph));
     } else {
-      EditorStaticDeps.logger.error().log(
+      EditorStaticDeps.logger.warning().log(
           "handleEnter: selectionHelper is null, cannot move caret to new paragraph");
     }
 
@@ -174,7 +174,7 @@ public class LocalParagraphEventHandler extends NodeEventHandlerImpl {
               Point.<ContentNode, ContentElement>start(doc, prevParagraph));
         }
       } else {
-        EditorStaticDeps.logger.error().log(
+        EditorStaticDeps.logger.warning().log(
             "maybeRemove: selectionHelper is null, cannot reposition caret after line merge");
       }
     }

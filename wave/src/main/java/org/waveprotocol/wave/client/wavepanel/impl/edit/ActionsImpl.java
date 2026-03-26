@@ -45,6 +45,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
+import org.waveprotocol.wave.util.logging.Log;
 
 /**
  * Defines the UI actions that can be performed as part of the editing feature.
@@ -52,6 +53,7 @@ import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
  *
  */
 public final class ActionsImpl implements Actions {
+  private static final Log LOG = Log.get(ActionsImpl.class);
   private static final ActionMessages messages = GWT.create(ActionMessages.class);
 
   private final ModelAsViewProvider views;
@@ -124,12 +126,23 @@ public final class ActionsImpl implements Actions {
     if (allowed) {
       ConversationBlip blip = views.getBlip(blipUi);
 
-      // Phase 0 guardrail: enforce maximum reply nesting depth.
+      // Phase 5: enforce maximum reply nesting depth with "continue in
+      // current thread" fallback. When depth is at or above the limit, the
+      // reply is appended as a continuation of the blip's parent thread
+      // instead of creating a deeper nesting level.
       Integer maxDepth = ClientFlags.get().maxReplyDepth();
       if (maxDepth != null && maxDepth > 0) {
         int currentDepth = computeBlipDepth(blip);
         if (currentDepth >= maxDepth) {
-          ToastNotification.showWarning(messages.maxReplyDepthReached());
+          LOG.info("Max reply depth reached (depth=" + currentDepth
+              + ", limit=" + maxDepth + "); continuing in current thread.");
+          DepthLimitToast.show(messages.maxReplyDepthContinueInThread());
+          // Add a continuation blip in the blip's own thread rather than
+          // creating a deeper child thread.
+          ConversationThread parentThread = blip.getThread();
+          ConversationBlip continuation = parentThread.appendBlip();
+          blipQueue.flush();
+          focusAndEdit(views.getBlipView(continuation));
           return;
         }
       }

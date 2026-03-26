@@ -28,6 +28,7 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.typesafe.config.Config;
 
 import org.waveprotocol.box.common.ExceptionalIterator;
 import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
@@ -55,6 +56,7 @@ import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.OperationException;
 import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
+import org.waveprotocol.wave.model.operation.wave.WaveletDelta;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -82,6 +84,7 @@ public class WaveServerImpl implements WaveletProvider, ReadableWaveletDataProvi
   private final CertificateManager certificateManager;
   private final WaveletFederationProvider federationRemote;
   private final WaveMap waveMap;
+  private final int maxReplyDepth;
   private boolean initialized = false;
 
   //
@@ -422,14 +425,20 @@ public class WaveServerImpl implements WaveletProvider, ReadableWaveletDataProvi
   @Inject
   WaveServerImpl(@ListenerExecutor Executor listenerExecutor,
       CertificateManager certificateManager,
-      @FederationRemoteBridge WaveletFederationProvider federationRemote, WaveMap waveMap) {
+      @FederationRemoteBridge WaveletFederationProvider federationRemote, WaveMap waveMap,
+      Config config) {
     this.listenerExecutor = listenerExecutor;
     this.certificateManager = certificateManager;
     this.federationRemote = federationRemote;
     this.waveMap = waveMap;
+    this.maxReplyDepth = config.hasPath("server.maxReplyDepth")
+        ? config.getInt("server.maxReplyDepth") : 0;
 
     LOG.info("Wave Server configured to host local domains: "
         + certificateManager.getLocalDomains());
+    if (maxReplyDepth > 0) {
+      LOG.info("Server-side reply depth limit: " + maxReplyDepth);
+    }
 
     // Preemptively add our own signer info to the certificate manager
     SignerInfo signerInfo = certificateManager.getLocalSigner().getSignerInfo();
@@ -590,6 +599,28 @@ public class WaveServerImpl implements WaveletProvider, ReadableWaveletDataProvi
       } catch (WaveServerException e) {
         resultListener.onFailure(FederationErrors.internalServerError(e.getMessage()));
         return;
+      }
+
+      // Phase 5: server-side reply depth enforcement. If the delta contains
+      // operations that would create thread elements in the conversation
+      // manifest, verify the resulting depth would not exceed the limit.
+      if (maxReplyDepth > 0 && IdUtil.isConversationalId(waveletName.waveletId)) {
+        try {
+          WaveletDelta deserialized =
+              CoreWaveletOperationSerializer.deserialize(delta);
+          CommittedWaveletSnapshot snap = wavelet.getSnapshot();
+          ReadableWaveletData snapData = (snap != null) ? snap.snapshot : null;
+          String depthError = ReplyDepthValidator.validate(
+              snapData, deserialized, maxReplyDepth);
+          if (depthError != null) {
+            resultListener.onFailure(FederationErrors.badRequest(depthError));
+            return;
+          }
+        } catch (WaveletStateException e) {
+          // Best-effort: if we can't read the snapshot, skip the check and
+          // let the submit proceed normally.
+          LOG.warning("Could not perform reply depth check: " + e.getMessage());
+        }
       }
 
       try {

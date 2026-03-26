@@ -56,6 +56,8 @@ import org.waveprotocol.wave.model.util.StringMap;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 
+import org.waveprotocol.wave.client.util.ClientFlags;
+
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -209,8 +211,20 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
       ContinuationIndicatorViewBuilder indicatorBuilder = ContinuationIndicatorViewBuilder.create(
           replyIndicatorId);
       int depth = computeThreadDepth(thread);
+      // Phase 5: detect legacy deep threads that exceed the current max
+      // reply depth. These are viewable but marked as legacy so the UI can
+      // show a visual indicator and prevent new replies.
+      boolean isLegacyDeep = false;
+      try {
+        Integer maxDepth = ClientFlags.get().maxReplyDepth();
+        if (maxDepth != null && maxDepth > 0 && depth > maxDepth) {
+          isLegacyDeep = true;
+        }
+      } catch (Throwable ignored) {
+        // ClientFlags may not be available in all rendering contexts.
+      }
       InlineThreadViewBuilder inlineBuilder =
-          InlineThreadViewBuilder.create(threadId, blipsUi, indicatorBuilder, depth);
+          InlineThreadViewBuilder.create(threadId, blipsUi, indicatorBuilder, depth, isLegacyDeep);
       int read = readMonitor.getReadCount(thread);
       int unread = readMonitor.getUnreadCount(thread);
       inlineBuilder.setTotalBlipCount(read + unread);

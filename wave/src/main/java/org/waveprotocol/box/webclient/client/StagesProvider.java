@@ -53,6 +53,8 @@ import org.waveprotocol.wave.model.waveref.WaveRef;
 
 import java.util.Set;
 
+import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+
 /**
  * Stages for loading the undercurrent Wave Panel
  *
@@ -249,7 +251,7 @@ public class StagesProvider extends Stages {
       return;
     }
 
-    // --- Owner check: only the wave creator sees the History button ---
+    // --- Owner / DM-participant check: decide who sees the History button ---
     String currentUserAddress = Session.get().getAddress();
     Wavelet rootWavelet = two.getWave().getRoot();
     if (rootWavelet == null || currentUserAddress == null) {
@@ -258,14 +260,42 @@ public class StagesProvider extends Stages {
       return;
     }
 
+    boolean isCreator = false;
     ParticipantId creator = rootWavelet.getCreatorId();
-    if (creator == null || !currentUserAddress.equals(creator.getAddress())) {
-      // Not the owner -- hide the history button.
+    if (creator != null && currentUserAddress.equals(creator.getAddress())) {
+      isCreator = true;
+    }
+
+    // In a DM wave (exactly 2 real participants, no domain participant),
+    // both participants should see the History button.
+    boolean isDmParticipant = false;
+    if (!isCreator) {
+      Set<ParticipantId> waveletParticipants = rootWavelet.getParticipantIds();
+      boolean hasDomainParticipant = false;
+      boolean currentUserIsParticipant = false;
+      int realParticipantCount = 0;
+      for (ParticipantId pid : waveletParticipants) {
+        if (ParticipantIdUtil.isDomainAddress(pid.getAddress())) {
+          hasDomainParticipant = true;
+        } else {
+          realParticipantCount++;
+          if (currentUserAddress.equals(pid.getAddress())) {
+            currentUserIsParticipant = true;
+          }
+        }
+      }
+      isDmParticipant = !hasDomainParticipant
+          && realParticipantCount == 2
+          && currentUserIsParticipant;
+    }
+
+    if (!isCreator && !isDmParticipant) {
+      // Not the owner and not a DM participant -- hide the history button.
       three.getViewToolbar().setHistoryButtonVisible(false);
       return;
     }
 
-    // --- Owner confirmed: wire up history mode ---
+    // --- Authorized: wire up history mode ---
 
     // Determine the wave/wavelet coordinates for the history API.
     WaveId wId = waveRef.getWaveId();

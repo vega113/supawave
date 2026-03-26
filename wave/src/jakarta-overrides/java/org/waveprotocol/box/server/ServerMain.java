@@ -264,6 +264,8 @@ public class ServerMain {
       LOG.warning("Failed to configure fragments transport/endpoints; leaving /fragments disabled", e);
     }
 
+    server.addServlet("/wave/*", PublicWaveServlet.class);
+
     server.addServlet("/terms", LegalServlet.class);
     server.addServlet("/privacy", LegalServlet.class);
 

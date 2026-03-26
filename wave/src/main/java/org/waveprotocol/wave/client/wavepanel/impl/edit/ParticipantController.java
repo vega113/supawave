@@ -282,6 +282,23 @@ public final class ParticipantController {
   }
 
   /**
+   * Returns true if the given conversation is a direct message (exactly 2 real
+   * participants and no shared-domain participant).
+   */
+  private static boolean isDirectMessage(Conversation conversation) {
+    Set<ParticipantId> participants = conversation.getParticipantIds();
+    int realCount = 0;
+    for (ParticipantId pid : participants) {
+      if (ParticipantIdUtil.isDomainAddress(pid.getAddress())) {
+        // Has a domain participant -- not a DM.
+        return false;
+      }
+      realCount++;
+    }
+    return realCount == 2;
+  }
+
+  /**
    * Shows an add-participant popup with contact autocomplete suggestions.
    * If no contact manager is available, falls back to a plain browser prompt.
    */
@@ -293,6 +310,12 @@ public final class ParticipantController {
 
     final ParticipantsView participantsUi = views.fromAddButton(context);
     final Conversation conversation = models.getParticipants(participantsUi);
+
+    // Block adding participants to DM waves.
+    if (isDirectMessage(conversation)) {
+      ToastNotification.showWarning(messages.cannotAddParticipantToDm());
+      return;
+    }
 
     ParticipantAddWidget addWidget = new ParticipantAddWidget();
     addWidget.setContactManager(contactManager);
@@ -331,6 +354,14 @@ public final class ParticipantController {
    * Legacy add-participant using a styled prompt dialog (no autocomplete).
    */
   private void handleAddButtonClickedLegacy(final Element context) {
+    // Block adding participants to DM waves.
+    ParticipantsView dmCheckUi = views.fromAddButton(context);
+    Conversation dmCheckConv = models.getParticipants(dmCheckUi);
+    if (isDirectMessage(dmCheckConv)) {
+      ToastNotification.showWarning(messages.cannotAddParticipantToDm());
+      return;
+    }
+
     PromptDialog.show("Add a participant(s) (separate with comma ','):", "",
         new PromptDialog.Listener() {
           @Override

@@ -465,11 +465,17 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * <pre>{@code <tag>name1</tag><tag>name2</tag> ...}</pre>
    * In DocOp terms this is: elementStart("tag") + characters("name") + elementEnd("tag"),
    * repeated once per tag.
+   *
+   * <p>Note: annotation boundaries in the DocInitialization can split a single
+   * tag's text into multiple {@code characters()} calls, so we must accumulate
+   * text with a StringBuilder until the closing elementEnd().
    */
-  private static Set<String> readTagsFromWaveletData(ObservableWaveletData waveletData) {
+  private Set<String> readTagsFromWaveletData(ObservableWaveletData waveletData) {
     org.waveprotocol.wave.model.wave.data.ReadableBlipData tagsBlip =
         waveletData.getDocument(org.waveprotocol.wave.model.id.IdConstants.TAGS_DOC_ID);
     if (tagsBlip == null) {
+      LOG.info("readTagsFromWaveletData: wave " + waveletData.getWaveId()
+          + " has no tags document");
       return java.util.Collections.emptySet();
     }
     // The content of a BlipData is a DocumentOperationSink which implements
@@ -480,29 +486,42 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
     final Set<String> tags = new java.util.HashSet<>();
     final boolean[] insideTag = {false};
+    final StringBuilder tagText = new StringBuilder();
     docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
       @Override
       public void elementStart(String type, org.waveprotocol.wave.model.document.operation.Attributes attrs) {
-        insideTag[0] = "tag".equals(type);
+        if ("tag".equals(type)) {
+          insideTag[0] = true;
+          tagText.setLength(0);
+        }
       }
 
       @Override
       public void elementEnd() {
-        insideTag[0] = false;
+        if (insideTag[0]) {
+          String text = tagText.toString().trim();
+          if (!text.isEmpty()) {
+            tags.add(text);
+          }
+          insideTag[0] = false;
+        }
       }
 
       @Override
       public void characters(String chars) {
-        if (insideTag[0] && chars != null && !chars.isEmpty()) {
-          tags.add(chars);
+        if (insideTag[0] && chars != null) {
+          tagText.append(chars);
         }
       }
 
       @Override
       public void annotationBoundary(org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
-        // ignore
+        // Annotation boundaries can appear between characters() calls within
+        // the same element. We simply ignore them and keep accumulating text.
       }
     });
+    LOG.info("readTagsFromWaveletData: wave " + waveletData.getWaveId()
+        + " tags = " + tags);
     return tags;
   }
 

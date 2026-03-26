@@ -507,8 +507,12 @@ public class OperationChannelMultiplexerImpl implements OperationChannelMultiple
           try {
             Stacklet stacklet = channels.get(waveletId);
             if (stacklet == null) {
-              //TODO(user): Figure out the right exception to throw here.
-              throw new IllegalStateException("Received deltas with no stacklet present!");
+              // A delta arrived for a wavelet that has no active operation channel.
+              // This can happen when the server sends deltas for wavelets the client
+              // hasn't fully opened yet (e.g. lock-state documents, public access
+              // participant changes). Log and drop rather than crashing the client.
+              logger.trace().log("Mux dropping delta for wavelet with no stacklet: " + waveletId);
+              return;
             }
             stacklet.onWaveletUpdate(deltas, lastCommittedVersion, currentVersion);
           } catch (ChannelException e) {

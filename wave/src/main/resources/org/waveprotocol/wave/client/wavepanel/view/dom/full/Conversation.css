@@ -43,12 +43,10 @@
   top: threadTop;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* Stop the scroll area above the tags panel (height 36px in Tags.css). */
+  bottom: 36px;
   /* Layout under siblings (participant panel etc). */
   z-index: -1;
-  /* Reserve space so the last blip / "Click here to reply" is not hidden
-   * behind the absolutely-positioned tags panel (height 36px + bottom -4px). */
-  padding-bottom: 40px;
 }
 
 @sprite .toolbar {

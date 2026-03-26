@@ -432,6 +432,8 @@ public final class ProfileServlet extends HttpServlet {
     if (includeSensitive || h.isShowLastSeen()) {
       w.append(",\"lastSeenTime\":").append(String.valueOf(h.getLastActivityTime()));
     }
+    // Registration time is always public
+    w.append(",\"registrationTime\":").append(String.valueOf(h.getRegistrationTime()));
     w.append('}');
   }
 

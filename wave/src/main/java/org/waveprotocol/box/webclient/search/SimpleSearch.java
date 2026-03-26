@@ -402,13 +402,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
 
   @Override
   public int getMinimumTotal() {
-    int count = 0;
-    for (int i = 0; i < results.size(); i++) {
-      if (results.get(i) != null) {
-        count++;
-      }
-    }
-    return count;
+    return results.size();
   }
 
   //

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  *
- * CSS for thread slide navigation and breadcrumb bar.
+ * CSS for thread slide navigation, breadcrumb bar, and mobile gestures.
  */
 
 /* --- Breadcrumb bar --- */
@@ -74,9 +74,85 @@
   display: none !important;
 }
 
-/* --- Respect prefers-reduced-motion --- */
+/* --- Swipe-back visual indicator --- */
+/* When a swipe-back gesture is in progress, show a translucent arrow
+   overlay at the left edge of the screen to provide visual feedback. */
+.swipe-back-active::before {
+  content: '\2190'; /* leftward arrow */
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  text-align: center;
+  font-size: 20px;
+  color: white;
+  background: rgba(0, 119, 182, 0.6);
+  border-radius: 0 50% 50% 0;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+/* =====================================================================
+   MOBILE: Touch-friendly sizing (viewport <= 768px)
+   ===================================================================== */
+@media (max-width: 768px) {
+  /* Breadcrumb bar: taller for 44px touch targets */
+  .breadcrumb {
+    height: 44px;
+    line-height: 44px;
+    font-size: 15px;
+    padding: 0 16px;
+    min-height: 44px;
+  }
+
+  /* Each breadcrumb segment must be at least 44px tall for touch */
+  .breadcrumbSegment,
+  .breadcrumbCurrent {
+    min-height: 44px;
+    line-height: 44px;
+    display: inline-block;
+    padding: 0 6px;
+  }
+
+  /* Thread toggle buttons: 44px tap target */
+  [kind="t"] [kind="x"],
+  [kind="t"] .toggle,
+  .thread-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Blip action icons: ensure 44px tappable area via padding */
+  [kind="b"] .action,
+  [kind="b"] [data-action] {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px 8px;
+    box-sizing: border-box;
+  }
+}
+
+/* =====================================================================
+   RESPECT prefers-reduced-motion
+   Disable all slide/swipe animations for users who prefer reduced motion.
+   ===================================================================== */
 @media (prefers-reduced-motion: reduce) {
   .slideNavActive {
+    transition: none;
+  }
+
+  .swipe-back-active::before {
+    display: none;
+  }
+
+  /* Also suppress breadcrumb segment hover transitions */
+  .breadcrumbSegment {
     transition: none;
   }
 }

@@ -19,6 +19,8 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.collapse;
 
+import com.google.gwt.user.client.Window;
+
 /**
  * Builds and installs the thread slide navigation feature alongside the
  * existing collapse/expand feature.
@@ -28,6 +30,15 @@ package org.waveprotocol.wave.client.wavepanel.impl.collapse;
  * navigator with the {@link CollapsePresenter} so that toggle events on
  * deeply nested threads use slide navigation instead of normal
  * collapse/expand.
+ *
+ * <p>On mobile devices (viewport &le; 768px), the depth threshold is
+ * automatically set to 0 so that all inline threads use slide navigation
+ * (no indentation), and a {@link SwipeGestureHandler} is installed so
+ * that swiping right from the left edge navigates back one level.
+ *
+ * <p>A window resize listener re-evaluates the mobile/desktop threshold
+ * so that switching between device mode and desktop in DevTools (or
+ * rotating a tablet) behaves correctly.
  *
  * <p>The navigation logic is handled inside {@link CollapseController}
  * (which checks the navigator before performing a standard toggle),
@@ -40,6 +51,11 @@ public final class ThreadNavigationBuilder {
 
   /**
    * Builds and installs the thread navigation feature.
+   *
+   * <p>The depth threshold is chosen automatically: on mobile viewports
+   * ({@code <= 768px}) it is set to 0 (all threads slide), and on
+   * desktop it defaults to {@link ThreadNavigationPresenter#DEFAULT_DESKTOP_THRESHOLD}.
+   * On mobile/touch devices a swipe-back gesture handler is also installed.
    *
    * @param collapser the existing collapse presenter (which also owns
    *                  the single TOGGLE mouse-down handler)
@@ -54,16 +70,26 @@ public final class ThreadNavigationBuilder {
     breadcrumb.setPresenter(navigator);
     navigator.setBreadcrumb(breadcrumb);
 
+    // Auto-detect mobile and set appropriate threshold
+    applyResponsiveThreshold(navigator);
+
     // Wire the navigator into the collapse presenter so that
     // CollapseController can delegate to it for deep threads.
     collapser.setNavigator(navigator);
+
+    // Install swipe-back gesture on touch devices
+    installSwipeGestureIfNeeded(navigator);
+
+    // Re-evaluate on resize (e.g. device rotation, DevTools toggle)
+    installResizeListener(navigator);
 
     return navigator;
   }
 
   /**
    * Builds and installs the thread navigation feature with a custom
-   * depth threshold.
+   * depth threshold. The swipe gesture handler is still installed on
+   * mobile/touch devices but the threshold is not auto-detected.
    *
    * @param collapser      the existing collapse presenter
    * @param depthThreshold the depth threshold for slide navigation
@@ -74,5 +100,44 @@ public final class ThreadNavigationBuilder {
     ThreadNavigationPresenter navigator = createAndInstallIn(collapser);
     navigator.setDepthThreshold(depthThreshold);
     return navigator;
+  }
+
+  // -----------------------------------------------------------------------
+  // Mobile / responsive helpers
+  // -----------------------------------------------------------------------
+
+  /**
+   * Sets the depth threshold based on the current viewport width.
+   */
+  private static void applyResponsiveThreshold(ThreadNavigationPresenter navigator) {
+    if (MobileDetector.isMobile()) {
+      navigator.setDepthThreshold(ThreadNavigationPresenter.DEFAULT_MOBILE_THRESHOLD);
+    } else {
+      navigator.setDepthThreshold(ThreadNavigationPresenter.DEFAULT_DESKTOP_THRESHOLD);
+    }
+  }
+
+  /**
+   * Installs a swipe-back gesture handler if the device supports touch.
+   */
+  private static void installSwipeGestureIfNeeded(
+      ThreadNavigationPresenter navigator) {
+    if (MobileDetector.isTouchDevice()) {
+      SwipeGestureHandler swipeHandler = new SwipeGestureHandler(navigator);
+      swipeHandler.install();
+    }
+  }
+
+  /**
+   * Installs a window resize handler that re-evaluates the mobile threshold.
+   */
+  private static void installResizeListener(
+      final ThreadNavigationPresenter navigator) {
+    Window.addResizeHandler(new com.google.gwt.event.logical.shared.ResizeHandler() {
+      @Override
+      public void onResize(com.google.gwt.event.logical.shared.ResizeEvent event) {
+        applyResponsiveThreshold(navigator);
+      }
+    });
   }
 }

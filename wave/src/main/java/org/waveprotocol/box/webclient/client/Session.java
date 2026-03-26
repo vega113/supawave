@@ -171,6 +171,7 @@ public abstract class Session implements SessionConstants {
       return "user";
     }
 
+    @Override
     public boolean hasFeature(String name) {
       return false;
     }

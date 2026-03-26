@@ -122,6 +122,9 @@ public final class SearchPresenter
   private final SearchPanelView searchUi;
   private final WaveActionHandler actionHandler;
 
+  /** Debounce delay for digest-ready updates during editing (ms). */
+  private static final int DIGEST_DEBOUNCE_MS = 1000;
+
   // Internal state
   private final IdentityMap<DigestView, Digest> digestUis = CollectionUtils.createIdentityMap();
   private final List<ToolbarClickButton> savedSearchButtons = new ArrayList<>();
@@ -132,6 +135,26 @@ public final class SearchPresenter
       return true;
     }
   };
+
+  /**
+   * Debounce task for digest-ready updates. When a wave is being actively
+   * edited, the server fires onDigestReady on every keystroke. Rather than
+   * re-rendering the sidebar on each event (which causes visible flicker),
+   * we delay the render and restart the timer on each new event so that at
+   * most one render happens per {@link #DIGEST_DEBOUNCE_MS} quiet period.
+   */
+  private final Task digestDebounceTask = new Task() {
+    @Override
+    public void execute() {
+      if (pendingDigestIndex >= 0 && pendingDigest != null) {
+        applyDigestReady(pendingDigestIndex, pendingDigest);
+      }
+      pendingDigestIndex = -1;
+      pendingDigest = null;
+    }
+  };
+  private int pendingDigestIndex = -1;
+  private Digest pendingDigest;
 
   private final Task renderer = new Task() {
     @Override
@@ -205,6 +228,7 @@ public final class SearchPresenter
   public void destroy() {
     scheduler.cancel(searchUpdater);
     scheduler.cancel(renderer);
+    scheduler.cancel(digestDebounceTask);
     searchUi.getSearch().reset();
     searchUi.reset();
     search.removeListener(this);
@@ -593,15 +617,27 @@ public final class SearchPresenter
       return;
     }
 
-    setSelected(null);
-    DigestView digestToRemove = findDigestView(digest);
-    if (digestToRemove == null) {
+    // Store the latest pending update and (re)start the debounce timer.
+    // This collapses rapid-fire updates (e.g. one per keystroke) into a
+    // single DOM write after the user pauses.
+    pendingDigestIndex = index;
+    pendingDigest = digest;
+    scheduler.cancel(digestDebounceTask);
+    scheduler.scheduleDelayed(digestDebounceTask, DIGEST_DEBOUNCE_MS);
+  }
+
+  /**
+   * Applies a debounced digest-ready update using in-place re-rendering.
+   * The existing DOM node is reused — only changed text/attributes are
+   * written — so the browser does not tear down and rebuild the element,
+   * which eliminates the visible flicker in the sidebar wave list.
+   */
+  private void applyDigestReady(int index, Digest digest) {
+    DigestView digestUi = findDigestView(digest);
+    if (digestUi == null) {
       return;
     }
-    DigestView insertRef = searchUi.getNext(digestToRemove);
-    digestToRemove.remove();
-    DigestView newDigestUi = insertDigest(insertRef, digest);
-    setSelected(newDigestUi);
+    searchUi.renderDigest(digestUi, digest);
   }
 
   @Override

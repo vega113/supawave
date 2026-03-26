@@ -61,6 +61,20 @@ public class SignOutServletJakartaIT {
   }
 
   @Test
+  public void signout_clearsJwtCookie() throws Exception {
+    URL url = new URL("http://localhost:" + port + "/auth/signout");
+    HttpURLConnection c = TestSupport.openConnection(url);
+    assertEquals(200, c.getResponseCode());
+    // Verify the Set-Cookie header clears wave-session-jwt with Max-Age=0
+    String setCookie = c.getHeaderField("Set-Cookie");
+    assertNotNull("Expected Set-Cookie header to clear JWT cookie", setCookie);
+    assertTrue("Set-Cookie should reference wave-session-jwt",
+        setCookie.contains("wave-session-jwt"));
+    assertTrue("Set-Cookie should set Max-Age=0",
+        setCookie.contains("Max-Age=0"));
+  }
+
+  @Test
   public void rejectsAbsoluteUrlOrSchemeRelativeOrTraversal() throws Exception {
     // Absolute URL -> no redirect, simple 200 HTML
     URL u1 = new URL("http://localhost:" + port + "/auth/signout?r=http%3A%2F%2Fevil.example%2Fout");

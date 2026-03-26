@@ -24,10 +24,12 @@ import com.google.inject.Singleton;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwt;
 
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.io.IOException;
@@ -49,8 +51,24 @@ public class SignOutServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    // 1. Remove the logged-in user from the session attributes.
     WebSession session = WebSessions.from(req, false);
     sessionManager.logout(session);
+
+    // 2. Clear the JWT session cookie so the JwtSessionRestorationFilter
+    //    does not immediately re-establish the session on the next request.
+    resp.addHeader("Set-Cookie",
+        BrowserSessionJwt.COOKIE_NAME + "=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
+
+    // 3. Invalidate the underlying HTTP session to discard all server-side state.
+    HttpSession httpSession = req.getSession(false);
+    if (httpSession != null) {
+      try {
+        httpSession.invalidate();
+      } catch (IllegalStateException ignored) {
+        // Already invalidated — safe to ignore.
+      }
+    }
 
     String redirectUrl = req.getParameter("r");
     if (isSafeLocalRedirect(redirectUrl)) {

@@ -116,6 +116,7 @@ public final class FolderServlet extends HttpServlet {
       }
       response.setStatus(HttpServletResponse.SC_OK);
     } else if ("pin".equals(operation) || "unpin".equals(operation)) {
+      boolean operationFailed = false;
       if (waves != null) {
         for (String wave : waves) {
           try {
@@ -123,10 +124,16 @@ public final class FolderServlet extends HttpServlet {
             setPinState(waveId, "pin".equals(operation), user);
           } catch (Exception ex) {
             LOG.log(Level.SEVERE, operation + " error ", ex);
+            operationFailed = true;
           }
         }
       }
-      response.setStatus(HttpServletResponse.SC_OK);
+      if (operationFailed) {
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+            "Failed to " + operation + " one or more waves");
+      } else {
+        response.setStatus(HttpServletResponse.SC_OK);
+      }
     } else {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unknown operation");
     }

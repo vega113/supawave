@@ -26,7 +26,8 @@ import java.io.IOException;
 
 /**
  * Jakarta servlet serving server-rendered legal/informational pages:
- * Terms of Service (/terms), Privacy Policy (/privacy), and Contact (/contact).
+ * Terms of Service (/terms) and Privacy Policy (/privacy).
+ * The /contact path is served by {@link ContactServlet}.
  */
 @Singleton
 public final class LegalServlet extends HttpServlet {
@@ -40,9 +41,6 @@ public final class LegalServlet extends HttpServlet {
         break;
       case "/privacy":
         html = HtmlRenderer.renderPrivacyPage();
-        break;
-      case "/contact":
-        html = HtmlRenderer.renderContactPage();
         break;
       default:
         resp.sendError(HttpServletResponse.SC_NOT_FOUND);

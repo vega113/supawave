@@ -147,9 +147,13 @@ public class ServerMain {
       ((SignerInfoStore)certPathStore).initializeSignerInfoStore();
     }
 
-    org.waveprotocol.box.server.persistence.ContactMessageStore contactMessageStore =
-        injector.getInstance(org.waveprotocol.box.server.persistence.ContactMessageStore.class);
-    contactMessageStore.initializeContactMessageStore();
+    try {
+      org.waveprotocol.box.server.persistence.ContactMessageStore contactMessageStore =
+          injector.getInstance(org.waveprotocol.box.server.persistence.ContactMessageStore.class);
+      contactMessageStore.initializeContactMessageStore();
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to initialize ContactMessageStore (contact form submissions may not work): " + e.getMessage());
+    }
 
     WaveletProvider waveServer = injector.getInstance(WaveletProvider.class);
     waveServer.initialize();
@@ -251,7 +255,6 @@ public class ServerMain {
 
     server.addServlet("/terms", LegalServlet.class);
     server.addServlet("/privacy", LegalServlet.class);
-    server.addServlet("/contact", LegalServlet.class);
 
     server.addServlet("/", WaveClientServlet.class);
   }

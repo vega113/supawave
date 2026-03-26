@@ -20,7 +20,8 @@
 package org.waveprotocol.wave.client.wavepanel.impl.toolbar;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.user.client.Window;
+
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
 import org.waveprotocol.wave.client.common.util.WaveRefConstants;
 import org.waveprotocol.wave.client.doodad.link.Link;
@@ -48,7 +49,7 @@ public class LinkerHelper {
   public static void onCreateLink(final EditorContext editor) {
     FocusedRange range = editor.getSelectionHelper().getSelectionRange();
     if (range == null || range.isCollapsed()) {
-      Window.alert(messages.selectSomeText());
+      ToastNotification.showInfo(messages.selectSomeText());
       return;
     }
     try {
@@ -74,7 +75,7 @@ public class LinkerHelper {
                 AnnotationConstants.LINK_PREFIX, linkAnnotationValue,
                 selectionRange.getStart(), selectionRange.getEnd());
           } catch (InvalidLinkException e2) {
-            Window.alert(e2.getLocalizedMessage());
+            ToastNotification.showWarning(e2.getLocalizedMessage());
           }
         }
 

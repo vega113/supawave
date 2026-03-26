@@ -235,7 +235,11 @@ public final class ParticipantController {
     }
 
     // Update the toggle button icon and tooltip to reflect the new state.
-    updateTogglePublicIcon(context, !isCurrentlyPublic);
+    boolean isNowPublic = !isCurrentlyPublic;
+    updateTogglePublicIcon(context, isNowPublic);
+
+    // Show or hide all share-link buttons within the participants panel.
+    updateShareLinkVisibility(context, isNowPublic);
   }
 
   /**
@@ -269,6 +273,56 @@ public final class ParticipantController {
           + "</svg>");
       buttonElement.setTitle(messages.waveIsPrivateClickToMakePublic());
       buttonElement.setAttribute("aria-label", messages.waveIsPrivateClickToMakePublic());
+    }
+  }
+
+  /**
+   * Shows or hides all share-link buttons inside the participants panel that
+   * contains the given toggle button. Both the {@code .simple} and
+   * {@code .extra} panels contain a share-link button, so this method walks
+   * up to the {@code PARTICIPANTS} container and toggles every descendant
+   * share-link element it finds.
+   *
+   * @param toggleButton the toggle-public button that was clicked
+   * @param visible true to show, false to hide
+   */
+  private void updateShareLinkVisibility(Element toggleButton, boolean visible) {
+    // Walk up from the toggle button to the PARTICIPANTS container.
+    ParticipantsView participantsUi = views.fromTogglePublicButton(toggleButton);
+    if (participantsUi == null) {
+      return;
+    }
+    // The participants panel root element contains both .simple and .extra spans
+    // which each hold a share-link button identified by the SHARE_LINK kind attribute.
+    Element panelElement = toggleButton.getParentElement();
+    while (panelElement != null) {
+      String kind = panelElement.getAttribute("kind");
+      if (kind != null && kind.equals(TypeCodes.kind(Type.PARTICIPANTS))) {
+        break;
+      }
+      panelElement = panelElement.getParentElement();
+    }
+    if (panelElement == null) {
+      return;
+    }
+    String shareLinkKind = TypeCodes.kind(Type.SHARE_LINK);
+    setVisibilityByKind(panelElement, shareLinkKind, visible);
+  }
+
+  /**
+   * Recursively finds all descendant elements with the given {@code kind}
+   * attribute and sets their display style.
+   */
+  private static void setVisibilityByKind(Element root, String kind, boolean visible) {
+    Element child = root.getFirstChildElement();
+    while (child != null) {
+      String childKind = child.getAttribute("kind");
+      if (childKind != null && childKind.equals(kind)) {
+        child.getStyle().setProperty("display", visible ? "" : "none");
+      } else {
+        setVisibilityByKind(child, kind, visible);
+      }
+      child = child.getNextSiblingElement();
     }
   }
 

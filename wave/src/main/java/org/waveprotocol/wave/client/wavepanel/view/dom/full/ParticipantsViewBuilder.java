@@ -200,11 +200,10 @@ public final class ParticipantsViewBuilder implements UiBuilder {
                   TypeCodes.kind(Type.TOGGLE_PUBLIC),
                   isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
                   isPublic);
-              if (isPublic) {
-                shareLinkIcon(output, css.shareLinkButton(),
-                    TypeCodes.kind(Type.SHARE_LINK),
-                    messages.sharePublicLink());
-              }
+              shareLinkIcon(output, css.shareLinkButton(),
+                  TypeCodes.kind(Type.SHARE_LINK),
+                  messages.sharePublicLink(),
+                  isPublic);
             }
             closeSpan(output);
 
@@ -221,11 +220,10 @@ public final class ParticipantsViewBuilder implements UiBuilder {
                   TypeCodes.kind(Type.TOGGLE_PUBLIC),
                   isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
                   isPublic);
-              if (isPublic) {
-                shareLinkIcon(output, css.shareLinkButton(),
-                    TypeCodes.kind(Type.SHARE_LINK),
-                    messages.sharePublicLink());
-              }
+              shareLinkIcon(output, css.shareLinkButton(),
+                  TypeCodes.kind(Type.SHARE_LINK),
+                  messages.sharePublicLink(),
+                  isPublic);
             }
             closeSpan(output);
           }
@@ -345,7 +343,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
    * Uses a link/chain SVG icon with a green gradient background.
    */
   private static void shareLinkIcon(SafeHtmlBuilder output, String clazz, String kind,
-      String title) {
+      String title, boolean visible) {
     String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
     String escapedKind = kind != null ? EscapeUtils.htmlEscape(kind) : null;
     String escapedTitle = title != null ? EscapeUtils.htmlEscape(title) : null;
@@ -365,6 +363,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + (escapedTitle != null ? " title='" + escapedTitle + "'" : "")
         + " role='button' tabindex='0'"
         + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
+        + (visible ? "" : " style='display:none'")
         + ">"
         + svgIcon
         + "</span>");

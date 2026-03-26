@@ -432,6 +432,11 @@ public class WebClient implements EntryPoint {
   }
 
   private void setupUi() {
+    // SSR Phase 5 shell swap: remove pre-rendered wave snapshot now that GWT
+    // is ready to render the real UI. The pre-rendered content gave the user
+    // instant visual feedback while GWT was booting.
+    removePrerenderedSnapshot();
+
     // Set up UI
     DockLayoutPanel self = BINDER.createAndBindUi(this);
     RootPanel.get("app").add(self);
@@ -453,6 +458,19 @@ public class WebClient implements EntryPoint {
 
     FocusManager.init();
     setupGlobalShortcuts();
+  }
+
+  /**
+   * SSR Phase 5: Removes the server-side pre-rendered wave snapshot from the
+   * DOM. This is called once during GWT init to perform a "shell swap" --
+   * replacing the static preview with the live, interactive GWT-rendered wave.
+   */
+  private void removePrerenderedSnapshot() {
+    Element prerender = Document.get().getElementById("wave-prerender");
+    if (prerender != null) {
+      LOG.info("Removing pre-rendered snapshot (shell swap)");
+      prerender.removeFromParent();
+    }
   }
 
   /**

@@ -43,6 +43,7 @@ import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
 import org.waveprotocol.box.server.util.UrlParameters;
 import org.waveprotocol.wave.common.bootstrap.FlagConstants;
@@ -72,6 +73,8 @@ public class WaveClientServlet extends HttpServlet {
   private final Config config;
   private final String serverVersion;
   private final long serverBuildTime;
+  private final boolean prerenderingEnabled;
+  private final WavePreRenderer wavePreRenderer;
 
   @Inject
   public WaveClientServlet(
@@ -79,7 +82,8 @@ public class WaveClientServlet extends HttpServlet {
       Config config,
       SessionManager sessionManager,
       AccountStore accountStore,
-      VersionServlet versionServlet) {
+      VersionServlet versionServlet,
+      WavePreRenderer wavePreRenderer) {
     List<String> httpAddresses = config.getStringList("core.http_frontend_addresses");
     String websocketAddress = config.getString("core.http_websocket_public_address");
     String configuredWebsocketPresentedAddress =
@@ -100,6 +104,9 @@ public class WaveClientServlet extends HttpServlet {
     this.serverVersion = config.hasPath("core.server_version")
         ? config.getString("core.server_version") : "dev";
     this.serverBuildTime = versionServlet.getBuildTime();
+    this.prerenderingEnabled = config.hasPath("core.enable_prerendering")
+        && config.getBoolean("core.enable_prerendering");
+    this.wavePreRenderer = wavePreRenderer;
   }
 
   @Override
@@ -142,6 +149,16 @@ public class WaveClientServlet extends HttpServlet {
     } catch (Exception e) {
       LOG.warning("Failed to look up role for " + id.getAddress(), e);
     }
+    // SSR Phase 5: pre-render the user's most recent wave snapshot
+    String prerenderedHtml = null;
+    if (prerenderingEnabled) {
+      try {
+        prerenderedHtml = wavePreRenderer.prerenderForUser(id);
+      } catch (Exception e) {
+        LOG.warning("Pre-rendering failed, falling back to skeleton", e);
+      }
+    }
+
     response.setContentType("text/html");
     response.setCharacterEncoding("UTF-8");
     response.setStatus(HttpServletResponse.SC_OK);
@@ -159,7 +176,8 @@ public class WaveClientServlet extends HttpServlet {
           topBarHtml,
           analyticsAccount,
           serverVersion,
-          serverBuildTime));
+          serverBuildTime,
+          prerenderedHtml));
     } catch (IOException e) {
       LOG.warning("Failed to render WaveClient page", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

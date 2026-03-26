@@ -1953,10 +1953,13 @@ public final class HtmlRenderer {
    * @param websocketAddress the websocket host:port for the client to connect to
    * @param topBarHtml       pre-rendered top-bar HTML fragment
    * @param analyticsAccount Google Analytics account ID (may be null/empty)
+   * @param serverVersion    server version string
+   * @param serverBuildTime  server build timestamp
+   * @param prerenderedHtml  SSR Phase 5: pre-rendered wave snapshot HTML, or null
    */
   public static String renderWaveClientPage(JSONObject sessionJson, JSONObject clientFlags,
       String websocketAddress, String topBarHtml, String analyticsAccount,
-      String serverVersion, long serverBuildTime) {
+      String serverVersion, long serverBuildTime, String prerenderedHtml) {
     StringBuilder sb = new StringBuilder(4096);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n");
@@ -2258,6 +2261,53 @@ public final class HtmlRenderer {
     sb.append("@media (min-width: 768px) and (max-width: 1023px) {\n");
     sb.append("  #wave-list-skeleton { width: 280px; }\n");
     sb.append("}\n");
+    // SSR Phase 5: pre-rendered wave snapshot styles
+    sb.append("#wave-prerender {\n");
+    sb.append("  max-width: 900px;\n");
+    sb.append("  margin: 16px auto;\n");
+    sb.append("  padding: 0 16px;\n");
+    sb.append("  font-family: ").append(WAVE_FONT).append(";\n");
+    sb.append("  color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("  animation: prerender-fade-in 0.3s ease-out;\n");
+    sb.append("}\n");
+    sb.append("#wave-prerender .conversation {\n");
+    sb.append("  background: #fff;\n");
+    sb.append("  border-radius: 8px;\n");
+    sb.append("  box-shadow: 0 1px 3px rgba(0,0,0,0.12);\n");
+    sb.append("  padding: 16px;\n");
+    sb.append("}\n");
+    sb.append("#wave-prerender .participants {\n");
+    sb.append("  display: flex; flex-wrap: wrap; gap: 8px;\n");
+    sb.append("  padding: 8px 0; border-bottom: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  margin-bottom: 16px;\n");
+    sb.append("}\n");
+    sb.append("#wave-prerender .participant {\n");
+    sb.append("  display: inline-flex; align-items: center; gap: 4px;\n");
+    sb.append("  font-size: 0.85em; color: #4a5568;\n");
+    sb.append("}\n");
+    sb.append("#wave-prerender .participant-avatar {\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  width: 24px; height: 24px; border-radius: 50%;\n");
+    sb.append("  background: ").append(WAVE_PRIMARY).append("; color: #fff;\n");
+    sb.append("  font-size: 0.75em; font-weight: bold;\n");
+    sb.append("}\n");
+    sb.append("#wave-prerender .blip {\n");
+    sb.append("  margin-bottom: 12px; padding: 8px 0;\n");
+    sb.append("  border-bottom: 1px solid #edf2f7;\n");
+    sb.append("}\n");
+    sb.append("#wave-prerender .blip:last-child { border-bottom: none; }\n");
+    sb.append("#wave-prerender .blip-meta {\n");
+    sb.append("  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;\n");
+    sb.append("}\n");
+    sb.append("#wave-prerender .blip-author { font-weight: 600; color: ").append(WAVE_PRIMARY).append("; font-size: 0.9em; }\n");
+    sb.append("#wave-prerender .blip-time { font-size: 0.8em; color: #a0aec0; }\n");
+    sb.append("#wave-prerender .blip-content { line-height: 1.6; }\n");
+    sb.append("#wave-prerender .blip-content p { margin: 0.25em 0; }\n");
+    sb.append("#wave-prerender .blip-replies { margin-left: 24px; padding-left: 12px; border-left: 2px solid ").append(WAVE_BORDER).append("; }\n");
+    sb.append("#wave-prerender .inline-thread { margin-left: 24px; padding-left: 12px; border-left: 2px solid #90e0ef; }\n");
+    sb.append("@keyframes prerender-fade-in {\n");
+    sb.append("  from { opacity: 0; } to { opacity: 1; }\n");
+    sb.append("}\n");
     sb.append("</style>\n");
     // GWT stats + nocache JS
     sb.append("<script type=\"text/javascript\">\n");
@@ -2300,6 +2350,12 @@ public final class HtmlRenderer {
       sb.append("</div>\n");
     }
     sb.append("</div>\n");
+    // SSR Phase 5: inline pre-rendered wave snapshot for instant visual feedback
+    if (prerenderedHtml != null && !prerenderedHtml.isEmpty()) {
+      sb.append("<div id=\"wave-prerender\" data-prerendered=\"true\">\n");
+      sb.append(prerenderedHtml);
+      sb.append("\n</div>\n");
+    }
     sb.append("</div>\n");
     // Mobile backdrop overlay (for closing slide panel)
     sb.append("<div class=\"mobile-backdrop\" id=\"mobileBackdrop\" role=\"button\" tabindex=\"0\" aria-label=\"Close navigation\"></div>\n");

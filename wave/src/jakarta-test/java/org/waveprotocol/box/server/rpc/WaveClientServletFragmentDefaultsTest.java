@@ -36,6 +36,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.wave.common.bootstrap.FlagConstants;
 
 public final class WaveClientServletFragmentDefaultsTest {
@@ -126,7 +128,9 @@ public final class WaveClientServletFragmentDefaultsTest {
         "administration.analytics_account=\"\"\n");
 
     WaveClientServlet servlet = new WaveClientServlet(
-        "example.com", config, mock(SessionManager.class));
+        "example.com", config, mock(SessionManager.class),
+        mock(AccountStore.class), mockVersionServlet(),
+        mock(WavePreRenderer.class));
     HttpServletRequest request = mock(HttpServletRequest.class);
     Enumeration<String> names = new Vector<>(java.util.List.of(
         "forceClientFragments",
@@ -146,10 +150,16 @@ public final class WaveClientServletFragmentDefaultsTest {
 
   private static JSONObject getClientFlags(Config config) throws Exception {
     WaveClientServlet servlet = new WaveClientServlet(
-        "example.com", config, mock(SessionManager.class));
+        "example.com", config, mock(SessionManager.class),
+        mock(AccountStore.class), mockVersionServlet(),
+        mock(WavePreRenderer.class));
     HttpServletRequest request = mock(HttpServletRequest.class);
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
 
     return servlet.getClientFlags(request);
+  }
+
+  private static VersionServlet mockVersionServlet() {
+    return new VersionServlet("test", 0L);
   }
 }

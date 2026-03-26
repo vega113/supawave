@@ -113,7 +113,11 @@ public class WaveClientServlet extends HttpServlet {
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     ParticipantId id = sessionManager.getLoggedInUser(WebSessions.from(request, false));
-    if (id == null) {
+
+    // Show the landing page for unauthenticated visitors, or when an
+    // authenticated user explicitly requests it via ?view=landing (e.g.
+    // clicking the logo in the top bar).
+    if (id == null || "landing".equals(request.getParameter("view"))) {
       response.setContentType("text/html");
       response.setCharacterEncoding("UTF-8");
       response.setStatus(HttpServletResponse.SC_OK);

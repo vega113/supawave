@@ -388,10 +388,25 @@ public class WaveClientServlet extends HttpServlet {
       ParticipantId user = sessionManager.getLoggedInUser(session);
       String address = (user != null) ? user.getAddress() : null;
       String sessionId = (new RandomBase64Generator()).next(10);
+
+      // Look up the user's role so the client knows if this is an admin
+      String userRole = HumanAccountData.ROLE_USER;
+      if (user != null) {
+        try {
+          AccountData acctData = accountStore.getAccount(user);
+          if (acctData != null && acctData.isHuman()) {
+            userRole = acctData.asHuman().getRole();
+          }
+        } catch (Exception e) {
+          LOG.warning("Failed to look up role for session JSON: " + address, e);
+        }
+      }
+
       return new JSONObject()
           .put(SessionConstants.DOMAIN, domain)
           .putOpt(SessionConstants.ADDRESS, address)
-          .putOpt(SessionConstants.ID_SEED, sessionId);
+          .putOpt(SessionConstants.ID_SEED, sessionId)
+          .put(SessionConstants.ROLE, userRole);
     } catch (JSONException e) {
       LOG.severe("Failed to create session JSON");
       return new JSONObject();

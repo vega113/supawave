@@ -49,6 +49,7 @@ import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.box.webclient.client.Session;
 
 import java.util.Set;
 
@@ -192,8 +193,9 @@ public final class ParticipantController {
 
   /**
    * Toggles a wave between public and private by adding or removing the shared
-   * domain participant. Only the wave creator (first participant) can perform
-   * this action. When public, the wave is visible to all users on the domain.
+   * domain participant. Only the wave creator (first participant) or a server
+   * admin can perform this action. When public, the wave is visible to all
+   * users on the domain.
    */
   private void handleTogglePublicClicked(Element context) {
     ParticipantsView participantsUi = views.fromTogglePublicButton(context);
@@ -208,8 +210,9 @@ public final class ParticipantController {
     Set<ParticipantId> participants = conversation.getParticipantIds();
 
     // The wave creator is the first participant in the ordered set.
+    // Both the creator and server admins may toggle public/private.
     ParticipantId creator = participants.iterator().next();
-    if (!user.equals(creator)) {
+    if (!user.equals(creator) && !Session.get().isAdmin()) {
       ToastNotification.showWarning(messages.onlyOwnerCanTogglePublic());
       return;
     }

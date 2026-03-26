@@ -72,11 +72,24 @@ public abstract class Session implements SessionConstants {
   public boolean isLoggedIn() {
     return getAddress() != null;
   }
-  
+
   /**
    * @return the id seed that's going to be used for generating ids for the session
    */
   public abstract String getIdSeed();
+
+  /**
+   * @return the user's role: "owner", "admin", or "user". Defaults to "user".
+   */
+  public abstract String getRole();
+
+  /**
+   * @return true if the current user has admin or owner privileges.
+   */
+  public boolean isAdmin() {
+    String role = getRole();
+    return "admin".equals(role) || "owner".equals(role);
+  }
 
 
   /**
@@ -105,6 +118,12 @@ public abstract class Session implements SessionConstants {
       return getFieldAsString(ID_SEED);
     }
 
+    @Override
+    public String getRole() {
+      String role = getFieldAsString(ROLE);
+      return role != null ? role : "user";
+    }
+
     private native String getFieldAsString(String s) /*-{
       return $wnd.__session[s];
     }-*/;
@@ -127,6 +146,11 @@ public abstract class Session implements SessionConstants {
     @Override
     public String getIdSeed() {
       return ID_SEED;
+    }
+
+    @Override
+    public String getRole() {
+      return "user";
     }
   }
 }

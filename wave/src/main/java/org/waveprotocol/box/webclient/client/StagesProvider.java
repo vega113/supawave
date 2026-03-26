@@ -277,7 +277,7 @@ public class StagesProvider extends Stages {
 
   /**
    * Wires up the inline version history feature. Only shows the History
-   * button if the current user is the wave creator (owner).
+   * button if the current user is the wave creator (owner) or a server admin.
    */
   private void wireHistoryMode() {
     if (three == null || one == null || two == null) {
@@ -311,8 +311,9 @@ public class StagesProvider extends Stages {
       }
     }
 
-    if (!isCreator && !isDmParticipant) {
-      // Not the owner and not a DM participant -- hide the history button.
+    boolean isAdmin = Session.get().isAdmin();
+    if (!isCreator && !isDmParticipant && !isAdmin) {
+      // Not the owner, not a DM participant, and not an admin -- hide the history button.
       three.getViewToolbar().setHistoryButtonVisible(false);
       return;
     }

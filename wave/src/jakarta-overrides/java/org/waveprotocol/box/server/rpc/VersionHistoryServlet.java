@@ -20,8 +20,11 @@ package org.waveprotocol.box.server.rpc;
 
 import com.google.inject.Inject;
 import org.waveprotocol.box.common.Receiver;
+import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
@@ -82,11 +85,30 @@ public final class VersionHistoryServlet extends HttpServlet {
 
   private final WaveletProvider waveletProvider;
   private final SessionManager sessionManager;
+  private final AccountStore accountStore;
 
   @Inject
-  public VersionHistoryServlet(WaveletProvider waveletProvider, SessionManager sessionManager) {
+  public VersionHistoryServlet(WaveletProvider waveletProvider, SessionManager sessionManager,
+      AccountStore accountStore) {
     this.waveletProvider = waveletProvider;
     this.sessionManager = sessionManager;
+    this.accountStore = accountStore;
+  }
+
+  /**
+   * Returns true if the given user has the "admin" or "owner" account role.
+   */
+  private boolean isAdminUser(ParticipantId user) {
+    try {
+      AccountData acct = accountStore.getAccount(user);
+      if (acct != null && acct.isHuman()) {
+        String role = acct.asHuman().getRole();
+        return HumanAccountData.ROLE_ADMIN.equals(role) || HumanAccountData.ROLE_OWNER.equals(role);
+      }
+    } catch (Exception e) {
+      LOG.warning("Failed to look up admin role for " + user.getAddress(), e);
+    }
+    return false;
   }
 
   @Override
@@ -208,7 +230,7 @@ public final class VersionHistoryServlet extends HttpServlet {
       }
       ReadableWaveletData data = snapshot.snapshot;
       long version = data.getHashedVersion().getVersion();
-      boolean canRestore = user.equals(data.getCreator());
+      boolean canRestore = user.equals(data.getCreator()) || isAdminUser(user);
 
       setJsonUtf8(resp);
       try (PrintWriter w = resp.getWriter()) {
@@ -515,7 +537,7 @@ public final class VersionHistoryServlet extends HttpServlet {
    * extracting each document's content, and submitting document-replacement
    * deltas against the current version.
    *
-   * <p>Only the wave creator (owner) is allowed to restore.
+   * <p>Only the wave creator (owner) or a server admin is allowed to restore.
    */
   private void handleRestoreApi(String path, HttpServletRequest req,
       HttpServletResponse resp, ParticipantId user) throws IOException {
@@ -535,7 +557,7 @@ public final class VersionHistoryServlet extends HttpServlet {
       return;
     }
 
-    // Check that the requesting user is the wave creator
+    // Check that the requesting user is the wave creator or an admin
     CommittedWaveletSnapshot currentSnapshot;
     try {
       currentSnapshot = waveletProvider.getSnapshot(waveletName);
@@ -544,9 +566,9 @@ public final class VersionHistoryServlet extends HttpServlet {
         return;
       }
       ParticipantId creator = currentSnapshot.snapshot.getCreator();
-      if (!user.equals(creator)) {
+      if (!user.equals(creator) && !isAdminUser(user)) {
         resp.sendError(HttpServletResponse.SC_FORBIDDEN,
-            "Only the wave creator can restore versions");
+            "Only the wave creator or an admin can restore versions");
         return;
       }
     } catch (WaveServerException e) {

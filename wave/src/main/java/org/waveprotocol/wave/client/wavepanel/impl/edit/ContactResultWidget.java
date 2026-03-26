@@ -60,12 +60,13 @@ public class ContactResultWidget extends Composite {
    * Creates a new contact result widget.
    *
    * @param address the contact's email address
+   * @param displayName the human-readable display name, or null if unavailable
    * @param lastContactMs the timestamp (millis) of last contact, or 0 if unknown
    * @param prefix the search prefix for bold highlighting
    * @param messages i18n messages
    * @param listener callback for selection
    */
-  public ContactResultWidget(String address, long lastContactMs, String prefix,
+  public ContactResultWidget(String address, String displayName, long lastContactMs, String prefix,
       ContactSearchMessages messages, final Listener listener) {
     this.address = address;
     this.highlighted = false;
@@ -79,11 +80,9 @@ public class ContactResultWidget extends Composite {
     rowStyle.setProperty("borderBottom", "1px solid #eee");
     rowStyle.setProperty("background", BG_DEFAULT);
 
-    // Avatar (Gravatar identicon fallback — skip MD5, use email directly
-    // with d=identicon which gracefully returns an identicon for any input).
+    // Avatar (Gravatar identicon fallback -- use MD5 of email for identicons).
     String gravatarUrl = "https://www.gravatar.com/avatar/"
         + "?d=identicon&s=32&default=identicon";
-    // Use a simple hash of the email for some variation in identicons.
     String emailHash = md5Hex(address.trim().toLowerCase());
     if (emailHash != null && !emailHash.isEmpty()) {
       gravatarUrl = "https://www.gravatar.com/avatar/"
@@ -98,22 +97,47 @@ public class ContactResultWidget extends Composite {
     avatar.getElement().setAttribute("loading", "lazy");
     row.add(avatar);
 
-    // Center column: email + last contact time
+    // Center column: display name (primary) + email (secondary) + last contact
     FlowPanel centerCol = new FlowPanel();
     Style centerStyle = centerCol.getElement().getStyle();
     centerStyle.setProperty("flex", "1");
     centerStyle.setProperty("minWidth", "0");
     centerStyle.setProperty("overflow", "hidden");
 
-    // Email with bold prefix match
-    HTML emailHtml = new HTML(formatAddress(address, prefix));
-    Style emailStyle = emailHtml.getElement().getStyle();
-    emailStyle.setFontSize(13, Style.Unit.PX);
-    emailStyle.setColor("#202124");
-    emailStyle.setProperty("whiteSpace", "nowrap");
-    emailStyle.setProperty("overflow", "hidden");
-    emailStyle.setProperty("textOverflow", "ellipsis");
-    centerCol.add(emailHtml);
+    boolean hasDisplayName = displayName != null && !displayName.isEmpty();
+
+    if (hasDisplayName) {
+      // Display name as primary line with bold prefix match
+      HTML nameHtml = new HTML(formatText(displayName, prefix));
+      Style nameStyle = nameHtml.getElement().getStyle();
+      nameStyle.setFontSize(13, Style.Unit.PX);
+      nameStyle.setColor("#202124");
+      nameStyle.setProperty("whiteSpace", "nowrap");
+      nameStyle.setProperty("overflow", "hidden");
+      nameStyle.setProperty("textOverflow", "ellipsis");
+      nameStyle.setProperty("fontWeight", "500");
+      centerCol.add(nameHtml);
+
+      // Email as secondary line
+      HTML emailHtml = new HTML(formatText(address, prefix));
+      Style emailStyle = emailHtml.getElement().getStyle();
+      emailStyle.setFontSize(11, Style.Unit.PX);
+      emailStyle.setColor("#5f6368");
+      emailStyle.setProperty("whiteSpace", "nowrap");
+      emailStyle.setProperty("overflow", "hidden");
+      emailStyle.setProperty("textOverflow", "ellipsis");
+      centerCol.add(emailHtml);
+    } else {
+      // No display name: email is the primary line
+      HTML emailHtml = new HTML(formatText(address, prefix));
+      Style emailStyle = emailHtml.getElement().getStyle();
+      emailStyle.setFontSize(13, Style.Unit.PX);
+      emailStyle.setColor("#202124");
+      emailStyle.setProperty("whiteSpace", "nowrap");
+      emailStyle.setProperty("overflow", "hidden");
+      emailStyle.setProperty("textOverflow", "ellipsis");
+      centerCol.add(emailHtml);
+    }
 
     // Last contact relative time
     if (lastContactMs > 0) {
@@ -175,21 +199,21 @@ public class ContactResultWidget extends Composite {
   }
 
   /**
-   * Formats the address with the matching prefix in bold.
+   * Formats text with the matching prefix substring in bold.
    */
-  private static String formatAddress(String address, String prefix) {
+  private static String formatText(String text, String prefix) {
     if (prefix == null || prefix.isEmpty()) {
-      return escapeHtml(address);
+      return escapeHtml(text);
     }
-    String lowerAddr = address.toLowerCase();
+    String lowerText = text.toLowerCase();
     String lowerPrefix = prefix.toLowerCase();
-    int idx = lowerAddr.indexOf(lowerPrefix);
+    int idx = lowerText.indexOf(lowerPrefix);
     if (idx < 0) {
-      return escapeHtml(address);
+      return escapeHtml(text);
     }
-    String before = address.substring(0, idx);
-    String match = address.substring(idx, idx + prefix.length());
-    String after = address.substring(idx + prefix.length());
+    String before = text.substring(0, idx);
+    String match = text.substring(idx, idx + prefix.length());
+    String after = text.substring(idx + prefix.length());
     return escapeHtml(before) + "<b>" + escapeHtml(match) + "</b>" + escapeHtml(after);
   }
 

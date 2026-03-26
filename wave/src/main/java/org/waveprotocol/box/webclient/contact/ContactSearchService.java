@@ -33,17 +33,24 @@ public interface ContactSearchService {
   /** Holds a single search result. */
   public static class SearchResult {
     private final String participant;
+    private final String displayName;
     private final double score;
     private final long lastContact;
 
-    public SearchResult(String participant, double score, long lastContact) {
+    public SearchResult(String participant, String displayName, double score, long lastContact) {
       this.participant = participant;
+      this.displayName = displayName;
       this.score = score;
       this.lastContact = lastContact;
     }
 
     public String getParticipant() {
       return participant;
+    }
+
+    /** Returns the human-readable display name, or null if not available. */
+    public String getDisplayName() {
+      return displayName;
     }
 
     public double getScore() {

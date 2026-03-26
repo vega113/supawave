@@ -127,7 +127,13 @@ public class ContactSearchServiceImpl implements ContactSearchService {
           LOG.trace().log("Skipping search result with missing participant");
           continue;
         }
-        results.add(new SearchResult(participant, r.getScore(), (long) r.getLastContact()));
+        String rawDisplayName = r.getDisplayName();
+        String displayName = rawDisplayName == null ? null : String.valueOf((Object) rawDisplayName);
+        if ("undefined".equals(displayName) || "null".equals(displayName)) {
+          displayName = null;
+        }
+        results.add(new SearchResult(participant, displayName,
+            r.getScore(), (long) r.getLastContact()));
       }
     }
     callback.onSuccess(results, total);
@@ -159,6 +165,10 @@ public class ContactSearchServiceImpl implements ContactSearchService {
 
     public final native String getParticipant() /*-{
       return this.participant;
+    }-*/;
+
+    public final native String getDisplayName() /*-{
+      return this.displayName || null;
     }-*/;
 
     public final native double getScore() /*-{

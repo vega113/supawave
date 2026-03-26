@@ -36,6 +36,8 @@ import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
 import org.waveprotocol.box.server.robots.agent.registration.RegistrationRobot;
 import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiTokenServlet;
+import org.waveprotocol.box.server.contact.ContactsRecorder;
+import org.waveprotocol.box.server.persistence.ContactStore;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
 import org.waveprotocol.box.server.shutdown.Shutdownable;
@@ -123,6 +125,7 @@ public class ServerMain {
     initializeServlets(server, config);
     initializeRobots(injector, waveBus);
     initializeRobotAgents(injector);
+    initializeContacts(injector, waveBus);
     initializeFrontend(injector, server, waveBus);
     initializeSearch(injector, waveBus);
     initializeShutdownHandler(server);
@@ -344,6 +347,19 @@ public class ServerMain {
   private static void initializeRobots(Injector injector, WaveBus waveBus) {
     RobotsGateway robotsGateway = injector.getInstance(RobotsGateway.class);
     waveBus.subscribe(robotsGateway);
+  }
+
+  /** Subscribes the contacts recorder to the wave bus so contact relationships are tracked. */
+  private static void initializeContacts(Injector injector, WaveBus waveBus) {
+    try {
+      ContactStore contactStore = injector.getInstance(ContactStore.class);
+      contactStore.initializeContactStore();
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to initialize ContactStore; contact recording may not persist", e);
+    }
+    ContactsRecorder contactsRecorder = injector.getInstance(ContactsRecorder.class);
+    waveBus.subscribe(contactsRecorder);
+    LOG.info("ContactsRecorder subscribed to WaveBus");
   }
 
   private static void initializeFrontend(Injector injector, ServerRpcProvider server,

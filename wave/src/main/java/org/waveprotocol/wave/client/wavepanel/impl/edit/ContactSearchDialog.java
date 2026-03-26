@@ -69,7 +69,7 @@ public class ContactSearchDialog extends Composite {
   private static final int DEBOUNCE_MS = 250;
 
   /** Maximum number of results to request. */
-  private static final int SEARCH_LIMIT = 10;
+  private static final int SEARCH_LIMIT = 20;
 
   private final ContactSearchMessages messages;
   private final ContactSearchService searchService;
@@ -126,8 +126,8 @@ public class ContactSearchDialog extends Composite {
     inputStyle.setProperty("outline", "none");
     mainPanel.add(inputBox);
 
-    // Status label
-    statusLabel = new InlineLabel(messages.typeToSearch());
+    // Status label (contacts load automatically on open)
+    statusLabel = new InlineLabel(messages.searching());
     Style statusStyle = statusLabel.getElement().getStyle();
     statusStyle.setProperty("display", "block");
     statusStyle.setProperty("padding", "8px 4px");
@@ -350,6 +350,7 @@ public class ContactSearchDialog extends Composite {
     for (final ContactSearchService.SearchResult result : results) {
       ContactResultWidget widget = new ContactResultWidget(
           result.getParticipant(),
+          result.getDisplayName(),
           result.getLastContact(),
           prefix,
           messages,

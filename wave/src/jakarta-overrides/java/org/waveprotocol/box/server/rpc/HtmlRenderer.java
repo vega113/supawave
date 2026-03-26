@@ -4226,7 +4226,7 @@ public final class HtmlRenderer {
     // Send reply
     sb.append("  window.sendReply = function(id) {\n");
     sb.append("    var ta = document.getElementById('reply-' + id);\n");
-    sb.append("    if (!ta || !ta.value.trim()) { alert('Please enter a reply'); return; }\n");
+    sb.append("    if (!ta || !ta.value.trim()) { showToast('Please enter a reply', 'error'); return; }\n");
     sb.append("    fetch('/admin/api/contacts/' + id + '/reply', {\n");
     sb.append("      method: 'POST', headers: {'Content-Type':'application/json'},\n");
     sb.append("      body: JSON.stringify({body: ta.value.trim()})\n");
@@ -4289,7 +4289,7 @@ public final class HtmlRenderer {
     sb.append("        html += '<td>';\n");
     sb.append("        html += '<button class=\"action-btn\" onclick=\"editFlag(' + i + ')\">Edit</button>';\n");
     sb.append("        html += '<button class=\"action-btn\" onclick=\"toggleFlag(' + i + ')\">' + (f.enabled ? 'Disable' : 'Enable') + '</button>';\n");
-    sb.append("        html += '<button class=\"action-btn danger\" onclick=\"deleteFlag(\\'' + esc(f.name) + '\\')\"'>Delete</button>';\n");
+    sb.append("        html += '<button class=\"action-btn danger\" onclick=\"deleteFlag(\\'' + esc(f.name) + '\\')\">Delete</button>';\n");
     sb.append("        html += '</td></tr>';\n");
     sb.append("      }\n");
     sb.append("    }\n");

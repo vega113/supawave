@@ -220,7 +220,7 @@ public final class WaveletDataUtil {
   
   /**
    * Checks if the user has access to the wavelet.
-   * 
+   *
    * @param snapshot the wavelet data.
    * @param user the user that wants to access the wavelet.
    * @param sharedDomainParticipantId the shared domain participant id.
@@ -233,5 +233,46 @@ public final class WaveletDataUtil {
         || snapshot.getParticipants().contains(user)
         || (sharedDomainParticipantId != null
             && snapshot.getParticipants().contains(sharedDomainParticipantId)));
+  }
+
+  /**
+   * Checks if a wavelet is public (has the domain participant in its participant list).
+   *
+   * <p>A wave is considered public when the domain participant ({@code @domain.com})
+   * is in the participant list. This allows anonymous read-only access.
+   *
+   * @param snapshot the wavelet data.
+   * @param sharedDomainParticipantId the shared domain participant id (e.g. {@code @example.com}).
+   * @return true if the wavelet is public.
+   */
+  public static boolean isPublicWavelet(@Nullable ReadableWaveletData snapshot,
+      @Nullable ParticipantId sharedDomainParticipantId) {
+    if (snapshot == null || sharedDomainParticipantId == null) {
+      return false;
+    }
+    return snapshot.getParticipants().contains(sharedDomainParticipantId);
+  }
+
+  /**
+   * Checks if the user has read access to the wavelet, including anonymous access
+   * for public waves.
+   *
+   * <p>This extends {@link #checkAccessPermission} with support for anonymous (null) users:
+   * if the user is null, access is granted only when the wavelet is public (has the
+   * domain participant). Authenticated users fall through to the standard access check.
+   *
+   * @param snapshot the wavelet data.
+   * @param user the user that wants to access the wavelet, or null for anonymous access.
+   * @param sharedDomainParticipantId the shared domain participant id.
+   * @return true if the user has read access to the wavelet.
+   */
+  public static boolean checkReadAccessPermission(@Nullable ReadableWaveletData snapshot,
+      @Nullable ParticipantId user, @Nullable ParticipantId sharedDomainParticipantId) {
+    // Authenticated users: standard access check
+    if (user != null) {
+      return checkAccessPermission(snapshot, user, sharedDomainParticipantId);
+    }
+    // Anonymous users: only allowed for public wavelets
+    return isPublicWavelet(snapshot, sharedDomainParticipantId);
   }
 }

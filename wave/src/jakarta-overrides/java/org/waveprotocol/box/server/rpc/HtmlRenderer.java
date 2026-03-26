@@ -1207,11 +1207,68 @@ public final class HtmlRenderer {
       + "  margin-left: 0.2em;\n"
       + "}\n"
 
-      // Mobile: zero indent, full-width blips
+      // Mobile: zero indent, full-width blips + touch-friendly thread nav
       + "@media (max-width: 768px) {\n"
       + "  [data-depth] > div > div {\n"
       + "    margin-left: 0 !important;\n"
       + "    padding-left: 4px;\n"
+      + "  }\n"
+      // Thread toggle buttons: 44px minimum tap target
+      + "  [kind='t'] [kind='x'],\n"
+      + "  [kind='t'] .toggle,\n"
+      + "  .thread-toggle {\n"
+      + "    min-width: 44px;\n"
+      + "    min-height: 44px;\n"
+      + "    display: inline-flex;\n"
+      + "    align-items: center;\n"
+      + "    justify-content: center;\n"
+      + "  }\n"
+      // Blip action icons: ensure 44px tappable area via padding
+      + "  [kind='b'] .action,\n"
+      + "  [kind='b'] [data-action] {\n"
+      + "    min-width: 44px;\n"
+      + "    min-height: 44px;\n"
+      + "    padding: 10px 8px;\n"
+      + "    box-sizing: border-box;\n"
+      + "  }\n"
+      // Breadcrumb bar: taller for 44px touch targets on mobile
+      + "  .thread-nav-breadcrumb {\n"
+      + "    height: 44px;\n"
+      + "    line-height: 44px;\n"
+      + "    font-size: 15px;\n"
+      + "    padding: 0 16px;\n"
+      + "    min-height: 44px;\n"
+      + "  }\n"
+      + "  .thread-nav-breadcrumb-segment,\n"
+      + "  .thread-nav-breadcrumb-current {\n"
+      + "    min-height: 44px;\n"
+      + "    line-height: 44px;\n"
+      + "    display: inline-block;\n"
+      + "    padding: 0 6px;\n"
+      + "  }\n"
+      + "}\n"
+      // Swipe-back visual indicator (arrow overlay at left edge)
+      + ".swipe-back-active::before {\n"
+      + "  content: '\\2190';\n"
+      + "  position: fixed;\n"
+      + "  left: 0;\n"
+      + "  top: 50%;\n"
+      + "  transform: translateY(-50%);\n"
+      + "  width: 36px;\n"
+      + "  height: 36px;\n"
+      + "  line-height: 36px;\n"
+      + "  text-align: center;\n"
+      + "  font-size: 20px;\n"
+      + "  color: white;\n"
+      + "  background: rgba(0,119,182,0.6);\n"
+      + "  border-radius: 0 50% 50% 0;\n"
+      + "  z-index: 10000;\n"
+      + "  pointer-events: none;\n"
+      + "}\n"
+      // Reduced motion: suppress swipe indicator animation
+      + "@media (prefers-reduced-motion: reduce) {\n"
+      + "  .swipe-back-active::before {\n"
+      + "    display: none;\n"
       + "  }\n"
       + "}\n"
 
@@ -4856,6 +4913,7 @@ public final class HtmlRenderer {
     sb.append("        <select id=\"contactSubject\">\n");
     sb.append("          <option value=\"General Inquiry\">General Inquiry</option>\n");
     sb.append("          <option value=\"Technical Support\">Technical Support</option>\n");
+    sb.append("          <option value=\"Bug Report\">Bug Report</option>\n");
     sb.append("          <option value=\"Feature Request\">Feature Request</option>\n");
     sb.append("          <option value=\"Privacy &amp; Data Request\">Privacy &amp; Data Request</option>\n");
     sb.append("          <option value=\"Legal\">Legal</option>\n");
@@ -5005,6 +5063,234 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  // =========================================================================
+  // Public Wave Page (SEO / Social Sharing)
+  // =========================================================================
+
+  /**
+   * Renders a public wave page with Open Graph, Twitter Card, and JSON-LD
+   * structured data meta tags for SEO and social sharing.
+   *
+   * @param title         the wave title (from the root blip)
+   * @param description   first ~200 chars of wave content
+   * @param canonicalUrl  the canonical URL for this wave page
+   * @param siteUrl       the base site URL (e.g. https://supawave.ai)
+   * @param waveId        the serialised wave ID
+   * @param author        the wave creator's address
+   * @param datePublished ISO 8601 date when the wave was created (may be null)
+   * @param dateModified  ISO 8601 date of last modification (may be null)
+   * @param bodyText      the full snippet text for the page body
+   * @param domain        the wave server domain
+   * @return complete HTML page as a string
+   */
+  public static String renderPublicWavePage(String title, String description,
+      String canonicalUrl, String siteUrl, String waveId,
+      String author, String datePublished, String dateModified,
+      String bodyText, String domain) {
+    StringBuilder sb = new StringBuilder(8192);
+    String eTitle = escapeHtml(title);
+    String eDesc = escapeHtml(description);
+    String eCanonical = escapeHtml(canonicalUrl);
+    String eSiteUrl = escapeHtml(siteUrl);
+    String eWaveId = escapeHtml(waveId);
+    String eAuthor = escapeHtml(author);
+    String ogImageUrl = eSiteUrl + "/static/og-image.png";
+
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\" lang=\"en\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+
+    // Title and description
+    sb.append("<title>").append(eTitle).append(" - SupaWave</title>\n");
+    sb.append("<meta name=\"description\" content=\"").append(eDesc).append("\">\n");
+
+    // Canonical URL
+    sb.append("<link rel=\"canonical\" href=\"").append(eCanonical).append("\">\n");
+
+    // Favicons
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+
+    // Open Graph meta tags
+    sb.append("<meta property=\"og:title\" content=\"").append(eTitle).append("\">\n");
+    sb.append("<meta property=\"og:description\" content=\"").append(eDesc).append("\">\n");
+    sb.append("<meta property=\"og:type\" content=\"article\">\n");
+    sb.append("<meta property=\"og:url\" content=\"").append(eCanonical).append("\">\n");
+    sb.append("<meta property=\"og:site_name\" content=\"SupaWave\">\n");
+    sb.append("<meta property=\"og:image\" content=\"").append(ogImageUrl).append("\">\n");
+    if (datePublished != null) {
+      sb.append("<meta property=\"article:published_time\" content=\"")
+          .append(escapeHtml(datePublished)).append("\">\n");
+    }
+    if (dateModified != null) {
+      sb.append("<meta property=\"article:modified_time\" content=\"")
+          .append(escapeHtml(dateModified)).append("\">\n");
+    }
+
+    // Twitter Card meta tags
+    sb.append("<meta name=\"twitter:card\" content=\"summary\">\n");
+    sb.append("<meta name=\"twitter:title\" content=\"").append(eTitle).append("\">\n");
+    sb.append("<meta name=\"twitter:description\" content=\"").append(eDesc).append("\">\n");
+    sb.append("<meta name=\"twitter:image\" content=\"").append(ogImageUrl).append("\">\n");
+
+    // JSON-LD structured data
+    sb.append("<script type=\"application/ld+json\">\n");
+    sb.append("{\n");
+    sb.append("  \"@context\": \"https://schema.org\",\n");
+    sb.append("  \"@type\": \"DiscussionForumPosting\",\n");
+    sb.append("  \"headline\": ").append(escapeJsonString(title)).append(",\n");
+    sb.append("  \"description\": ").append(escapeJsonString(description)).append(",\n");
+    sb.append("  \"url\": ").append(escapeJsonString(canonicalUrl)).append(",\n");
+    sb.append("  \"author\": {\n");
+    sb.append("    \"@type\": \"Person\",\n");
+    sb.append("    \"name\": ").append(escapeJsonString(author)).append("\n");
+    sb.append("  },\n");
+    sb.append("  \"publisher\": {\n");
+    sb.append("    \"@type\": \"Organization\",\n");
+    sb.append("    \"name\": \"SupaWave\",\n");
+    sb.append("    \"url\": ").append(escapeJsonString(siteUrl)).append("\n");
+    sb.append("  }");
+    if (datePublished != null) {
+      sb.append(",\n  \"datePublished\": ").append(escapeJsonString(datePublished));
+    }
+    if (dateModified != null) {
+      sb.append(",\n  \"dateModified\": ").append(escapeJsonString(dateModified));
+    }
+    sb.append("\n}\n");
+    sb.append("</script>\n");
+
+    // Styles
+    sb.append("<style>\n");
+    sb.append("*, *::before, *::after { box-sizing: border-box; }\n");
+    sb.append("body {\n");
+    sb.append("  margin: 0; padding: 0;\n");
+    sb.append("  font-family: ").append(WAVE_FONT).append(";\n");
+    sb.append("  color: ").append(WAVE_TEXT).append("; background: ").append(WAVE_BG).append(";\n");
+    sb.append("}\n");
+    sb.append("a { color: ").append(WAVE_PRIMARY).append("; text-decoration: none; }\n");
+    sb.append("a:hover { text-decoration: underline; }\n");
+
+    // Header
+    sb.append(".pw-header {\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  padding: 16px 32px; display: flex; align-items: center;\n");
+    sb.append("  justify-content: space-between;\n");
+    sb.append("}\n");
+    sb.append(".pw-brand { color: #fff; font-size: 20px; font-weight: 700; text-decoration: none; }\n");
+    sb.append(".pw-brand:hover { text-decoration: none; }\n");
+    sb.append(".pw-header-actions { display: flex; gap: 12px; }\n");
+    sb.append(".pw-btn {\n");
+    sb.append("  padding: 8px 20px; font-size: 14px; font-weight: 600;\n");
+    sb.append("  border-radius: 8px; text-decoration: none;\n");
+    sb.append("  transition: all 0.2s;\n");
+    sb.append("}\n");
+    sb.append(".pw-btn-signin {\n");
+    sb.append("  color: #fff; border: 1.5px solid rgba(255,255,255,0.6);\n");
+    sb.append("  background: transparent;\n");
+    sb.append("}\n");
+    sb.append(".pw-btn-signin:hover { background: rgba(255,255,255,0.15); text-decoration: none; }\n");
+    sb.append(".pw-btn-register {\n");
+    sb.append("  color: ").append(WAVE_PRIMARY).append("; background: #fff;\n");
+    sb.append("}\n");
+    sb.append(".pw-btn-register:hover { background: #f0f8ff; text-decoration: none; }\n");
+
+    // Content area
+    sb.append(".pw-content {\n");
+    sb.append("  max-width: 800px; margin: 32px auto; padding: 0 24px;\n");
+    sb.append("}\n");
+    sb.append(".pw-card {\n");
+    sb.append("  background: #fff; border-radius: 12px; padding: 32px;\n");
+    sb.append("  border: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.06);\n");
+    sb.append("}\n");
+    sb.append(".pw-title {\n");
+    sb.append("  font-size: 28px; font-weight: 700; margin: 0 0 8px;\n");
+    sb.append("  color: ").append(WAVE_TEXT).append("; line-height: 1.3;\n");
+    sb.append("}\n");
+    sb.append(".pw-meta {\n");
+    sb.append("  color: ").append(WAVE_TEXT_MUTED).append("; font-size: 14px;\n");
+    sb.append("  margin-bottom: 20px; padding-bottom: 16px;\n");
+    sb.append("  border-bottom: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("}\n");
+    sb.append(".pw-body {\n");
+    sb.append("  font-size: 16px; line-height: 1.7;\n");
+    sb.append("  color: ").append(WAVE_TEXT).append(";\n");
+    sb.append("  white-space: pre-wrap; word-wrap: break-word;\n");
+    sb.append("}\n");
+    sb.append(".pw-cta {\n");
+    sb.append("  margin-top: 24px; padding-top: 20px;\n");
+    sb.append("  border-top: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  text-align: center;\n");
+    sb.append("}\n");
+    sb.append(".pw-cta-btn {\n");
+    sb.append("  display: inline-block; padding: 12px 32px;\n");
+    sb.append("  background: ").append(WAVE_PRIMARY).append("; color: #fff;\n");
+    sb.append("  border-radius: 8px; font-size: 15px; font-weight: 600;\n");
+    sb.append("  text-decoration: none; transition: all 0.2s;\n");
+    sb.append("}\n");
+    sb.append(".pw-cta-btn:hover {\n");
+    sb.append("  background: #005f8f; text-decoration: none;\n");
+    sb.append("  box-shadow: 0 4px 12px rgba(0,119,182,0.3);\n");
+    sb.append("}\n");
+
+    // Footer
+    sb.append(".pw-footer {\n");
+    sb.append("  text-align: center; padding: 24px; font-size: 13px;\n");
+    sb.append("  color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("}\n");
+    sb.append(".pw-footer a { color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append("</style>\n");
+
+    sb.append("</head>\n<body>\n");
+
+    // Header
+    sb.append("<header class=\"pw-header\">\n");
+    sb.append("  <a href=\"/\" class=\"pw-brand\">SupaWave</a>\n");
+    sb.append("  <div class=\"pw-header-actions\">\n");
+    sb.append("    <a href=\"/auth/signin\" class=\"pw-btn pw-btn-signin\">Sign In</a>\n");
+    sb.append("    <a href=\"/auth/register\" class=\"pw-btn pw-btn-register\">Register</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</header>\n");
+
+    // Content
+    sb.append("<main class=\"pw-content\">\n");
+    sb.append("  <article class=\"pw-card\">\n");
+    sb.append("    <h1 class=\"pw-title\">").append(eTitle).append("</h1>\n");
+    sb.append("    <div class=\"pw-meta\">\n");
+    if (author != null && !author.isEmpty()) {
+      sb.append("      By <strong>").append(eAuthor).append("</strong>");
+    }
+    if (datePublished != null) {
+      String displayDate = datePublished.length() >= 10
+          ? escapeHtml(datePublished.substring(0, 10)) : escapeHtml(datePublished);
+      if (author != null && !author.isEmpty()) {
+        sb.append(" &middot; ");
+      }
+      sb.append("Published ").append(displayDate);
+    }
+    sb.append("\n    </div>\n");
+    sb.append("    <div class=\"pw-body\">\n");
+    sb.append("      ").append(escapeHtml(bodyText)).append("\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"pw-cta\">\n");
+    sb.append("      <p>Join the conversation on SupaWave</p>\n");
+    sb.append("      <a href=\"/auth/signin?r=/#").append(eWaveId)
+        .append("\" class=\"pw-cta-btn\">Open in SupaWave</a>\n");
+    sb.append("    </div>\n");
+    sb.append("  </article>\n");
+    sb.append("</main>\n");
+
+    // Footer
+    sb.append("<footer class=\"pw-footer\">\n");
+    sb.append("  <p>Powered by <a href=\"/\">SupaWave</a> &middot; ");
+    sb.append("<a href=\"/terms\">Terms</a> &middot; ");
+    sb.append("<a href=\"/privacy\">Privacy</a></p>\n");
+    sb.append("</footer>\n");
+
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }

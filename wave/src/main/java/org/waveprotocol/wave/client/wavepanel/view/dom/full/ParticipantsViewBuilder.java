@@ -77,6 +77,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
     String addButton();
     String newWaveWithParticipantsButton();
     String publicToggleButton();
+    String shareLinkButton();
     String dmLabel();
   }
 
@@ -199,6 +200,11 @@ public final class ParticipantsViewBuilder implements UiBuilder {
                   TypeCodes.kind(Type.TOGGLE_PUBLIC),
                   isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
                   isPublic);
+              if (isPublic) {
+                shareLinkIcon(output, css.shareLinkButton(),
+                    TypeCodes.kind(Type.SHARE_LINK),
+                    messages.sharePublicLink());
+              }
             }
             closeSpan(output);
 
@@ -215,6 +221,11 @@ public final class ParticipantsViewBuilder implements UiBuilder {
                   TypeCodes.kind(Type.TOGGLE_PUBLIC),
                   isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
                   isPublic);
+              if (isPublic) {
+                shareLinkIcon(output, css.shareLinkButton(),
+                    TypeCodes.kind(Type.SHARE_LINK),
+                    messages.sharePublicLink());
+              }
             }
             closeSpan(output);
           }
@@ -316,6 +327,36 @@ public final class ParticipantsViewBuilder implements UiBuilder {
           + "<path d='M7 11V7a5 5 0 0 1 10 0v4'/>"
           + "</svg>";
     }
+
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + (escapedKind != null ? " kind='" + escapedKind + "'" : "")
+        + (escapedTitle != null ? " title='" + escapedTitle + "'" : "")
+        + " role='button' tabindex='0'"
+        + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
+        + ">"
+        + svgIcon
+        + "</span>");
+  }
+
+  /**
+   * Renders a compact circular icon button for sharing the public wave link.
+   * Uses a link/chain SVG icon with a green gradient background.
+   */
+  private static void shareLinkIcon(SafeHtmlBuilder output, String clazz, String kind,
+      String title) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedKind = kind != null ? EscapeUtils.htmlEscape(kind) : null;
+    String escapedTitle = title != null ? EscapeUtils.htmlEscape(title) : null;
+
+    // Link/chain icon for sharing
+    String svgIcon = "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' "
+        + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+        + "stroke-linejoin='round'>"
+        + "<path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/>"
+        + "<path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>"
+        + "</svg>";
 
     output.appendHtmlConstant(
         "<span"

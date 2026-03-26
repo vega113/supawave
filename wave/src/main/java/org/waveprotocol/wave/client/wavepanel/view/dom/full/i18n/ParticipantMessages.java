@@ -49,4 +49,7 @@ public interface ParticipantMessages extends Messages {
 
   @DefaultMessage("Direct Message")
   String directMessage();
+
+  @DefaultMessage("Copy public link to clipboard")
+  String sharePublicLink();
  }

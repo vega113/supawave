@@ -43,6 +43,7 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 import org.waveprotocol.wave.model.conversation.Conversation;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
@@ -137,6 +138,13 @@ public final class ParticipantController {
       @Override
       public boolean onClick(ClickEvent event, Element context) {
         handleTogglePublicClicked(context);
+        return true;
+      }
+    });
+    handlers.registerClickHandler(TypeCodes.kind(Type.SHARE_LINK), new WaveClickHandler() {
+      @Override
+      public boolean onClick(ClickEvent event, Element context) {
+        handleShareLinkClicked(context);
         return true;
       }
     });
@@ -260,6 +268,59 @@ public final class ParticipantController {
       buttonElement.setAttribute("aria-label", messages.waveIsPrivateClickToMakePublic());
     }
   }
+
+  /**
+   * Copies the public URL for this wave to the clipboard. The URL is
+   * constructed from the current origin and the wave ID extracted from
+   * the conversation model.
+   */
+  private void handleShareLinkClicked(Element context) {
+    ParticipantsView participantsUi = views.fromShareLinkButton(context);
+    Conversation conversation = models.getParticipants(participantsUi);
+
+    // Extract wave ID from the first blip's raw wavelet
+    WaveId waveId = null;
+    if (conversation.getRootThread() != null
+        && conversation.getRootThread().getFirstBlip() != null) {
+      waveId = conversation.getRootThread().getFirstBlip()
+          .hackGetRaw().getWavelet().getWaveId();
+    }
+
+    if (waveId == null) {
+      ToastNotification.showWarning("Unable to determine wave ID.");
+      return;
+    }
+
+    String publicUrl = nativeGetOrigin() + "/wave/" + waveId.serialise();
+    nativeCopyToClipboard(publicUrl);
+    ToastNotification.showSuccess("Public link copied!");
+  }
+
+  /**
+   * Returns the current page origin via native JS ({@code window.location.origin}).
+   */
+  private static native String nativeGetOrigin() /*-{
+    return $wnd.location.origin;
+  }-*/;
+
+  /**
+   * Copies the given text to the clipboard using the modern Clipboard API,
+   * falling back to a hidden textarea + execCommand approach.
+   */
+  private static native void nativeCopyToClipboard(String text) /*-{
+    if ($wnd.navigator && $wnd.navigator.clipboard && $wnd.navigator.clipboard.writeText) {
+      $wnd.navigator.clipboard.writeText(text);
+    } else {
+      var ta = $doc.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      $doc.body.appendChild(ta);
+      ta.select();
+      try { $doc.execCommand('copy'); } catch (e) {}
+      $doc.body.removeChild(ta);
+    }
+  }-*/;
 
   /**
    * Creates a new wave with the participants of the current wave. Showing

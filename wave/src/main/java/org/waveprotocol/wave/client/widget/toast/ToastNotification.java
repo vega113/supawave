@@ -51,7 +51,8 @@ public final class ToastNotification {
   /** Toast severity level, controlling background color. */
   public enum Level {
     INFO,
-    WARNING
+    WARNING,
+    SUCCESS
   }
 
   /** Default auto-dismiss duration in milliseconds. */
@@ -84,6 +85,11 @@ public final class ToastNotification {
   /** Shows a warning toast with the default duration. */
   public static void showWarning(String message) {
     show(message, Level.WARNING, DEFAULT_DURATION_MS);
+  }
+
+  /** Shows a success toast with the default duration. */
+  public static void showSuccess(String message) {
+    show(message, Level.SUCCESS, DEFAULT_DURATION_MS);
   }
 
   /**
@@ -218,6 +224,9 @@ public final class ToastNotification {
     // Theme
     if (level == Level.WARNING) {
       ts.setProperty("background", "linear-gradient(135deg, #f59e0b, #d97706)");
+      ts.setProperty("color", "#fff");
+    } else if (level == Level.SUCCESS) {
+      ts.setProperty("background", "linear-gradient(135deg, #10b981, #059669)");
       ts.setProperty("color", "#fff");
     } else {
       ts.setProperty("background", "linear-gradient(135deg, #0ea5e9, #0284c7)");

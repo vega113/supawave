@@ -968,6 +968,15 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
     return asParticipants(e);
   }
 
+  @Override
+  public ParticipantsView fromShareLinkButton(Element e) {
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.SHARE_LINK);
+    while (e != null && !hasKnownType(e)) {
+      e = e.getParentElement();
+    }
+    return asParticipants(e);
+  }
+
 
   private AnchorView asAnchor(View v) {
     Preconditions.checkArgument(v == null || v.getType() == Type.ANCHOR);

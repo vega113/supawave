@@ -18,6 +18,8 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import com.google.wave.api.SearchResult;
+import java.util.List;
 import org.json.JSONObject;
 import org.waveprotocol.box.server.account.HumanAccountData;
 
@@ -1934,6 +1936,7 @@ public final class HtmlRenderer {
     sb.append("    <div class=\"hero-buttons\">\n");
     sb.append("      <a href=\"/auth/register\" class=\"hero-btn hero-btn-primary\">Get Started</a>\n");
     sb.append("      <a href=\"/auth/signin\" class=\"hero-btn hero-btn-secondary\">Sign In</a>\n");
+    sb.append("      <a href=\"/public\" class=\"hero-btn hero-btn-secondary\">Explore Public Waves</a>\n");
     sb.append("    </div>\n");
     sb.append("  </div>\n");
     // Hero bottom wave divider
@@ -5369,8 +5372,401 @@ public final class HtmlRenderer {
     sb.append("<a href=\"/privacy\">Privacy</a></p>\n");
     sb.append("</footer>\n");
 
+    // Auto-refresh script: fetches updated content every 30 seconds
+    // via the /wave/public/{waveRef} JSON API and updates in place.
+    sb.append("<div id=\"pw-last-updated\" style=\"text-align:center;font-size:12px;color:");
+    sb.append(WAVE_TEXT_MUTED).append(";padding:8px 0;\">Content loaded just now</div>\n");
+    sb.append("<script>\n");
+    sb.append("(function() {\n");
+    sb.append("  var waveId = '").append(eWaveId.replace("'", "\\'")).append("';\n");
+    sb.append("  var bodyEl = document.querySelector('.pw-body');\n");
+    sb.append("  var titleEl = document.querySelector('.pw-title');\n");
+    sb.append("  var updatedEl = document.getElementById('pw-last-updated');\n");
+    sb.append("  var lastRefresh = Date.now();\n");
+    sb.append("  function updateTimestamp() {\n");
+    sb.append("    if (!updatedEl) return;\n");
+    sb.append("    var secs = Math.floor((Date.now() - lastRefresh) / 1000);\n");
+    sb.append("    if (secs < 5) updatedEl.textContent = 'Content loaded just now';\n");
+    sb.append("    else if (secs < 60) updatedEl.textContent = 'Last updated ' + secs + ' seconds ago';\n");
+    sb.append("    else updatedEl.textContent = 'Last updated ' + Math.floor(secs / 60) + ' minute(s) ago';\n");
+    sb.append("  }\n");
+    sb.append("  setInterval(updateTimestamp, 5000);\n");
+    sb.append("  setInterval(function() {\n");
+    sb.append("    fetch('/wave/' + waveId)\n");
+    sb.append("      .then(function(r) { return r.ok ? r.text() : null; })\n");
+    sb.append("      .then(function(html) {\n");
+    sb.append("        if (!html) return;\n");
+    sb.append("        var parser = new DOMParser();\n");
+    sb.append("        var doc = parser.parseFromString(html, 'text/html');\n");
+    sb.append("        var newBody = doc.querySelector('.pw-body');\n");
+    sb.append("        var newTitle = doc.querySelector('.pw-title');\n");
+    sb.append("        if (newBody && bodyEl) bodyEl.innerHTML = newBody.innerHTML;\n");
+    sb.append("        if (newTitle && titleEl) titleEl.innerHTML = newTitle.innerHTML;\n");
+    sb.append("        lastRefresh = Date.now();\n");
+    sb.append("        updateTimestamp();\n");
+    sb.append("      })\n");
+    sb.append("      .catch(function() {});\n");
+    sb.append("  }, 30000);\n");
+    sb.append("})();\n");
+    sb.append("</script>\n");
+
     sb.append("</body>\n</html>\n");
     return sb.toString();
+  }
+
+  // =========================================================================
+  // Public Directory Page
+  // =========================================================================
+
+  /**
+   * Renders the public waves directory page listing all public waves
+   * in a responsive card grid with ocean/light theme.
+   *
+   * @param domain      the wave server domain
+   * @param digests     the list of wave digests to display
+   * @param page        the current page number (1-based)
+   * @param hasNextPage true if there are more results after this page
+   * @param hasPrevPage true if there are results before this page
+   * @param totalResults total number of matching waves, or -1 if unknown
+   * @return complete HTML page as a string
+   */
+  public static String renderPublicDirectoryPage(
+      String domain, List<SearchResult.Digest> digests,
+      int page, boolean hasNextPage, boolean hasPrevPage, int totalResults) {
+    StringBuilder sb = new StringBuilder(16384);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\" lang=\"en\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Public Waves - SupaWave</title>\n");
+    sb.append("<meta name=\"description\" content=\"Browse public waves on SupaWave. ");
+    sb.append("Discover real-time collaborative conversations shared by the community.\">\n");
+
+    // Styles
+    sb.append("<style>\n");
+    sb.append("*, *::before, *::after { box-sizing: border-box; }\n");
+    sb.append("body {\n");
+    sb.append("  margin: 0; padding: 0;\n");
+    sb.append("  font-family: ").append(WAVE_FONT).append(";\n");
+    sb.append("  color: ").append(WAVE_TEXT).append("; background: ").append(WAVE_BG).append(";\n");
+    sb.append("  min-height: 100vh;\n");
+    sb.append("}\n");
+    sb.append("a { color: ").append(WAVE_PRIMARY).append("; text-decoration: none; }\n");
+    sb.append("a:hover { text-decoration: underline; }\n");
+
+    // Header
+    sb.append(".pd-header {\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  padding: 16px 32px; display: flex; align-items: center;\n");
+    sb.append("  justify-content: space-between;\n");
+    sb.append("}\n");
+    sb.append(".pd-brand { display: flex; align-items: center; gap: 10px; ");
+    sb.append("color: #fff; font-size: 20px; font-weight: 700; text-decoration: none; }\n");
+    sb.append(".pd-brand:hover { text-decoration: none; }\n");
+    sb.append(".pd-header-actions { display: flex; gap: 12px; }\n");
+    sb.append(".pd-btn {\n");
+    sb.append("  padding: 8px 20px; font-size: 14px; font-weight: 600;\n");
+    sb.append("  border-radius: 8px; text-decoration: none; transition: all 0.2s;\n");
+    sb.append("}\n");
+    sb.append(".pd-btn-signin { color: #fff; border: 1.5px solid rgba(255,255,255,0.6); background: transparent; }\n");
+    sb.append(".pd-btn-signin:hover { background: rgba(255,255,255,0.15); text-decoration: none; }\n");
+    sb.append(".pd-btn-register { color: ").append(WAVE_PRIMARY).append("; background: #fff; }\n");
+    sb.append(".pd-btn-register:hover { background: #f0f8ff; text-decoration: none; }\n");
+
+    // Hero banner
+    sb.append(".pd-hero {\n");
+    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
+    sb.append("  padding: 40px 32px 48px; text-align: center; color: #fff;\n");
+    sb.append("}\n");
+    sb.append(".pd-hero h1 { font-size: 36px; font-weight: 800; margin: 0 0 8px; }\n");
+    sb.append(".pd-hero p { font-size: 16px; opacity: 0.9; margin: 0; }\n");
+
+    // Content
+    sb.append(".pd-content {\n");
+    sb.append("  max-width: 1100px; margin: -24px auto 0; padding: 0 24px 48px;\n");
+    sb.append("  position: relative; z-index: 1;\n");
+    sb.append("}\n");
+
+    // Wave cards grid
+    sb.append(".pd-grid {\n");
+    sb.append("  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));\n");
+    sb.append("  gap: 20px; margin-bottom: 32px;\n");
+    sb.append("}\n");
+    sb.append(".pd-card {\n");
+    sb.append("  background: #fff; border-radius: 12px; padding: 24px;\n");
+    sb.append("  border: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.06);\n");
+    sb.append("  transition: transform 0.2s, box-shadow 0.2s;\n");
+    sb.append("  display: flex; flex-direction: column;\n");
+    sb.append("}\n");
+    sb.append(".pd-card:hover {\n");
+    sb.append("  transform: translateY(-3px);\n");
+    sb.append("  box-shadow: 0 8px 24px rgba(0,119,182,0.12);\n");
+    sb.append("}\n");
+    sb.append(".pd-card-title {\n");
+    sb.append("  font-size: 17px; font-weight: 700; margin: 0 0 8px;\n");
+    sb.append("  color: ").append(WAVE_TEXT).append("; line-height: 1.3;\n");
+    sb.append("}\n");
+    sb.append(".pd-card-title a { color: ").append(WAVE_TEXT).append("; }\n");
+    sb.append(".pd-card-title a:hover { color: ").append(WAVE_PRIMARY).append("; text-decoration: none; }\n");
+    sb.append(".pd-card-snippet {\n");
+    sb.append("  font-size: 14px; color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("  line-height: 1.5; margin-bottom: 12px; flex: 1;\n");
+    sb.append("  overflow: hidden; display: -webkit-box;\n");
+    sb.append("  -webkit-line-clamp: 3; -webkit-box-orient: vertical;\n");
+    sb.append("}\n");
+    sb.append(".pd-card-meta {\n");
+    sb.append("  display: flex; align-items: center; gap: 10px;\n");
+    sb.append("  font-size: 12px; color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("  border-top: 1px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  padding-top: 12px; margin-top: 4px;\n");
+    sb.append("}\n");
+    sb.append(".pd-avatar {\n");
+    sb.append("  width: 28px; height: 28px; border-radius: 50%;\n");
+    sb.append("  background: ").append(WAVE_BG).append(";\n");
+    sb.append("}\n");
+    sb.append(".pd-meta-text { flex: 1; }\n");
+    sb.append(".pd-participants {\n");
+    sb.append("  display: inline-flex; align-items: center; gap: 2px;\n");
+    sb.append("  color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("}\n");
+
+    // Pagination
+    sb.append(".pd-pagination {\n");
+    sb.append("  display: flex; justify-content: center; gap: 12px;\n");
+    sb.append("  align-items: center;\n");
+    sb.append("}\n");
+    sb.append(".pd-page-btn {\n");
+    sb.append("  display: inline-block; padding: 10px 24px;\n");
+    sb.append("  background: ").append(WAVE_PRIMARY).append("; color: #fff;\n");
+    sb.append("  border-radius: 8px; font-size: 14px; font-weight: 600;\n");
+    sb.append("  text-decoration: none; transition: all 0.2s;\n");
+    sb.append("}\n");
+    sb.append(".pd-page-btn:hover { background: #005f8f; text-decoration: none; }\n");
+    sb.append(".pd-page-btn-disabled {\n");
+    sb.append("  background: #cbd5e0; pointer-events: none; color: #fff;\n");
+    sb.append("}\n");
+    sb.append(".pd-page-info { font-size: 14px; color: ").append(WAVE_TEXT_MUTED).append("; }\n");
+
+    // Empty state
+    sb.append(".pd-empty {\n");
+    sb.append("  text-align: center; padding: 64px 24px;\n");
+    sb.append("  color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("}\n");
+    sb.append(".pd-empty h2 { font-size: 24px; margin: 0 0 8px; color: ").append(WAVE_TEXT).append("; }\n");
+    sb.append(".pd-empty p { font-size: 16px; }\n");
+
+    // Footer
+    sb.append(".pd-footer {\n");
+    sb.append("  text-align: center; padding: 24px; font-size: 13px;\n");
+    sb.append("  color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("}\n");
+    sb.append(".pd-footer a { color: ").append(WAVE_PRIMARY).append("; }\n");
+
+    // Responsive
+    sb.append("@media (max-width: 640px) {\n");
+    sb.append("  .pd-header { padding: 12px 16px; }\n");
+    sb.append("  .pd-hero { padding: 28px 16px 36px; }\n");
+    sb.append("  .pd-hero h1 { font-size: 26px; }\n");
+    sb.append("  .pd-content { padding: 0 12px 32px; }\n");
+    sb.append("  .pd-grid { grid-template-columns: 1fr; }\n");
+    sb.append("}\n");
+    sb.append("</style>\n");
+    sb.append("</head>\n<body>\n");
+
+    // Header
+    sb.append("<header class=\"pd-header\">\n");
+    sb.append("  <a href=\"/\" class=\"pd-brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG_SMALL.replace("width=\"28\" height=\"28\"", "width=\"28\" height=\"28\""));
+    sb.append("    <span>SupaWave</span>\n");
+    sb.append("  </a>\n");
+    sb.append("  <div class=\"pd-header-actions\">\n");
+    sb.append("    <a href=\"/auth/signin\" class=\"pd-btn pd-btn-signin\">Sign In</a>\n");
+    sb.append("    <a href=\"/auth/register\" class=\"pd-btn pd-btn-register\">Register</a>\n");
+    sb.append("  </div>\n");
+    sb.append("</header>\n");
+
+    // Hero
+    sb.append("<section class=\"pd-hero\">\n");
+    sb.append("  <h1>Public Waves</h1>\n");
+    sb.append("  <p>Discover conversations shared by the SupaWave community</p>\n");
+    sb.append("</section>\n");
+
+    // Content
+    sb.append("<main class=\"pd-content\">\n");
+
+    if (digests.isEmpty()) {
+      sb.append("  <div class=\"pd-empty\">\n");
+      sb.append("    <h2>No public waves yet</h2>\n");
+      sb.append("    <p>Be the first to create a public wave! Sign in and toggle a wave to public.</p>\n");
+      sb.append("  </div>\n");
+    } else {
+      sb.append("  <div class=\"pd-grid\">\n");
+      for (SearchResult.Digest digest : digests) {
+        renderWaveCard(sb, digest, domain);
+      }
+      sb.append("  </div>\n");
+
+      // Pagination
+      sb.append("  <div class=\"pd-pagination\">\n");
+      if (hasPrevPage) {
+        sb.append("    <a href=\"/public?page=").append(page - 1)
+            .append("\" class=\"pd-page-btn\">Previous</a>\n");
+      } else {
+        sb.append("    <span class=\"pd-page-btn pd-page-btn-disabled\">Previous</span>\n");
+      }
+      sb.append("    <span class=\"pd-page-info\">Page ").append(page);
+      if (totalResults >= 0) {
+        int totalPages = Math.max(1, (totalResults + 19) / 20);
+        sb.append(" of ").append(totalPages);
+      }
+      sb.append("</span>\n");
+      if (hasNextPage) {
+        sb.append("    <a href=\"/public?page=").append(page + 1)
+            .append("\" class=\"pd-page-btn\">Next</a>\n");
+      } else {
+        sb.append("    <span class=\"pd-page-btn pd-page-btn-disabled\">Next</span>\n");
+      }
+      sb.append("  </div>\n");
+    }
+
+    sb.append("</main>\n");
+
+    // Footer
+    sb.append("<footer class=\"pd-footer\">\n");
+    sb.append("  <p>Powered by <a href=\"/\">SupaWave</a> &middot; ");
+    sb.append("<a href=\"/terms\">Terms</a> &middot; ");
+    sb.append("<a href=\"/privacy\">Privacy</a></p>\n");
+    sb.append("</footer>\n");
+
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  /**
+   * Renders a single wave card for the public directory grid.
+   */
+  private static void renderWaveCard(StringBuilder sb, SearchResult.Digest digest, String domain) {
+    String title = digest.getTitle();
+    if (title == null || title.trim().isEmpty()) {
+      title = "Untitled Wave";
+    }
+    String snippet = digest.getSnippet();
+    if (snippet == null) {
+      snippet = "";
+    }
+    String waveId = digest.getWaveId();
+    String eTitle = escapeHtml(title);
+    String eSnippet = escapeHtml(snippet);
+    String eWaveId = escapeHtml(waveId);
+
+    // Get the author (first non-domain participant)
+    String author = "";
+    List<String> participants = digest.getParticipants();
+    String domainParticipant = "@" + domain;
+    for (String p : participants) {
+      if (!p.equals(domainParticipant)) {
+        author = p;
+        break;
+      }
+    }
+    String eAuthor = escapeHtml(author);
+
+    // Count non-domain participants
+    int participantCount = 0;
+    for (String p : participants) {
+      if (!p.equals(domainParticipant)) {
+        participantCount++;
+      }
+    }
+
+    // Format last modified
+    long lastModified = digest.getLastModified();
+    String timeAgo = formatTimeAgo(lastModified);
+
+    // Gravatar URL for author
+    String gravatarUrl = "";
+    if (!author.isEmpty()) {
+      String emailHash = md5Hex(author.trim().toLowerCase());
+      gravatarUrl = "https://www.gravatar.com/avatar/" + emailHash + "?d=identicon&s=56";
+    }
+
+    sb.append("    <article class=\"pd-card\">\n");
+    sb.append("      <h3 class=\"pd-card-title\"><a href=\"/wave/")
+        .append(eWaveId).append("\">").append(eTitle).append("</a></h3>\n");
+    if (!eSnippet.isEmpty()) {
+      sb.append("      <p class=\"pd-card-snippet\">").append(eSnippet).append("</p>\n");
+    }
+    sb.append("      <div class=\"pd-card-meta\">\n");
+    if (!gravatarUrl.isEmpty()) {
+      sb.append("        <img class=\"pd-avatar\" src=\"").append(escapeHtml(gravatarUrl))
+          .append("\" alt=\"\" loading=\"lazy\">\n");
+    }
+    sb.append("        <span class=\"pd-meta-text\">");
+    if (!eAuthor.isEmpty()) {
+      // Strip the domain part for display
+      String displayName = eAuthor;
+      int atIdx = displayName.indexOf('@');
+      if (atIdx > 0) {
+        displayName = displayName.substring(0, atIdx);
+      }
+      sb.append(displayName);
+    }
+    sb.append("</span>\n");
+    sb.append("        <span class=\"pd-participants\">\n");
+    sb.append("          <svg width='12' height='12' viewBox='0 0 24 24' fill='currentColor'>");
+    sb.append("<path d='M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 ");
+    sb.append("0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 ");
+    sb.append("3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 ");
+    sb.append("1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z'/>");
+    sb.append("</svg>\n");
+    sb.append("          ").append(participantCount);
+    sb.append("</span>\n");
+    sb.append("        <span>").append(escapeHtml(timeAgo)).append("</span>\n");
+    sb.append("      </div>\n");
+    sb.append("    </article>\n");
+  }
+
+  /**
+   * Formats a timestamp as a human-readable relative time string.
+   */
+  private static String formatTimeAgo(long timestampMs) {
+    if (timestampMs <= 0) return "";
+    long now = System.currentTimeMillis();
+    long diffMs = now - timestampMs;
+    if (diffMs < 0) return "just now";
+
+    long seconds = diffMs / 1000;
+    if (seconds < 60) return "just now";
+    long minutes = seconds / 60;
+    if (minutes < 60) return minutes + "m ago";
+    long hours = minutes / 60;
+    if (hours < 24) return hours + "h ago";
+    long days = hours / 24;
+    if (days < 30) return days + "d ago";
+    long months = days / 30;
+    if (months < 12) return months + "mo ago";
+    long years = days / 365;
+    return years + "y ago";
+  }
+
+  /**
+   * Computes a simple MD5 hex digest of the given string for Gravatar URLs.
+   * Falls back to "00000000000000000000000000000000" on error.
+   */
+  private static String md5Hex(String input) {
+    try {
+      java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+      byte[] digest = md.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      StringBuilder hex = new StringBuilder(32);
+      for (byte b : digest) {
+        hex.append(String.format("%02x", b & 0xff));
+      }
+      return hex.toString();
+    } catch (java.security.NoSuchAlgorithmException e) {
+      return "00000000000000000000000000000000";
+    }
   }
 
   // =========================================================================

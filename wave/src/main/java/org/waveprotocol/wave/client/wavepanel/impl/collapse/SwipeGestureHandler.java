@@ -96,6 +96,8 @@ public final class SwipeGestureHandler {
       return;
     }
     installed = false;
+    tracking = false;
+    removeSwipeActiveClass();
     unbindTouchListeners(Document.get().getBody());
   }
 
@@ -186,16 +188,28 @@ public final class SwipeGestureHandler {
   private static native void bindTouchListeners(Element el,
       SwipeGestureHandler handler) /*-{
     var tsHandler = function(e) {
+      if (!e.touches || e.touches.length !== 1) {
+        handler.@org.waveprotocol.wave.client.wavepanel.impl.collapse.SwipeGestureHandler::onTouchCancel()();
+        return;
+      }
       var t = e.touches[0];
       handler.@org.waveprotocol.wave.client.wavepanel.impl.collapse.SwipeGestureHandler::onTouchStart(II)(
           t.clientX | 0, t.clientY | 0);
     };
     var tmHandler = function(e) {
+      if (!e.touches || e.touches.length !== 1) {
+        handler.@org.waveprotocol.wave.client.wavepanel.impl.collapse.SwipeGestureHandler::onTouchCancel()();
+        return;
+      }
       var t = e.touches[0];
       handler.@org.waveprotocol.wave.client.wavepanel.impl.collapse.SwipeGestureHandler::onTouchMove(II)(
           t.clientX | 0, t.clientY | 0);
     };
     var teHandler = function(e) {
+      if (!e.changedTouches || e.changedTouches.length === 0) {
+        handler.@org.waveprotocol.wave.client.wavepanel.impl.collapse.SwipeGestureHandler::onTouchCancel()();
+        return;
+      }
       var t = e.changedTouches[0];
       handler.@org.waveprotocol.wave.client.wavepanel.impl.collapse.SwipeGestureHandler::onTouchEnd(II)(
           t.clientX | 0, t.clientY | 0);

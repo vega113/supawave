@@ -23,6 +23,7 @@ import static org.waveprotocol.wave.client.editor.content.paragraph.ParagraphEve
 import static org.waveprotocol.wave.client.editor.content.paragraph.ParagraphEventHandler.getBehaviour;
 import static org.waveprotocol.wave.client.editor.content.paragraph.ParagraphEventHandler.indent;
 
+import org.waveprotocol.wave.client.editor.EditorStaticDeps;
 import org.waveprotocol.wave.client.editor.NodeEventHandlerImpl;
 import org.waveprotocol.wave.client.editor.content.CMutableDocument;
 import org.waveprotocol.wave.client.editor.content.ContentElement;
@@ -31,6 +32,7 @@ import org.waveprotocol.wave.client.editor.content.ContentPoint;
 import org.waveprotocol.wave.client.editor.content.ContentTextNode;
 import org.waveprotocol.wave.client.editor.content.FullContentView;
 import org.waveprotocol.wave.client.editor.event.EditorEvent;
+import org.waveprotocol.wave.client.editor.selection.content.SelectionHelper;
 import org.waveprotocol.wave.model.document.MutableDocument;
 import org.waveprotocol.wave.model.document.operation.Attributes;
 import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
@@ -94,12 +96,17 @@ public class LocalParagraphEventHandler extends NodeEventHandlerImpl {
 
     ContentElement newLocalParagraph = Line.fromLineElement(newLineElement).getParagraph();
 
-    // Guard against the editing context being lost (e.g. if the edit session
-    // was ended by a concurrent event during the createElement operation).
-    // Without this check, getSelectionHelper() throws "Not in an editing context".
-    if (element.getContext().editing().hasEditor()) {
-      element.getSelectionHelper().setCaret(
+    // Always move the caret to the new paragraph. The getSelectionHelper()
+    // call may return null if the editing context has been torn down by a
+    // concurrent event (STUB returns null instead of throwing since PR #163).
+    // In that case we log a warning but do not crash.
+    SelectionHelper selectionHelper = element.getSelectionHelper();
+    if (selectionHelper != null) {
+      selectionHelper.setCaret(
           Point.start(element.getRenderedContentView(), newLocalParagraph));
+    } else {
+      EditorStaticDeps.logger.trace().log(
+          "handleEnter: selectionHelper is null, cannot move caret to new paragraph");
     }
 
     return true;
@@ -154,12 +161,21 @@ public class LocalParagraphEventHandler extends NodeEventHandlerImpl {
       boolean needsAdjusting = prevParagraph.getFirstChild() == null;
       doc.deleteNode(lineElement);
 
-      if (!needsAdjusting) {
-        lineElement.getSelectionHelper().setCaret(doc.locate(at));
+      // The getSelectionHelper() call may return null if the editing context
+      // was torn down (STUB returns null). Guard against NPE.
+      SelectionHelper selectionHelper = lineElement.getSelectionHelper();
+      if (selectionHelper != null) {
+        if (!needsAdjusting) {
+          selectionHelper.setCaret(doc.locate(at));
+        } else {
+          // NOTE(patcoleman): a special case for empty local paragraphs,
+          // these are skipped by locate
+          selectionHelper.setCaret(
+              Point.<ContentNode, ContentElement>start(doc, prevParagraph));
+        }
       } else {
-        // NOTE(patcoleman): a special case for empty local paragraphs, these are skipped by locate
-        lineElement.getSelectionHelper().setCaret(
-            Point.<ContentNode, ContentElement>start(doc, prevParagraph));
+        EditorStaticDeps.logger.trace().log(
+            "maybeRemove: selectionHelper is null, cannot reposition caret after line merge");
       }
     }
   }

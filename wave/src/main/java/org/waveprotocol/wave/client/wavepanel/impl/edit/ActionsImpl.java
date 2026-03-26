@@ -45,7 +45,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
-import java.util.logging.Logger;
+import org.waveprotocol.wave.client.editor.EditorStaticDeps;
 
 /**
  * Defines the UI actions that can be performed as part of the editing feature.
@@ -53,7 +53,7 @@ import java.util.logging.Logger;
  *
  */
 public final class ActionsImpl implements Actions {
-  private static final Logger LOG = Logger.getLogger(ActionsImpl.class.getName());
+  // Use GWT-safe EditorStaticDeps logger instead of server-side Log
   private static final ActionMessages messages = GWT.create(ActionMessages.class);
 
   private final ModelAsViewProvider views;
@@ -134,7 +134,7 @@ public final class ActionsImpl implements Actions {
       if (maxDepth != null && maxDepth > 0) {
         int currentDepth = computeBlipDepth(blip);
         if (currentDepth >= maxDepth) {
-          LOG.info("Max reply depth reached (depth=" + currentDepth
+          EditorStaticDeps.logger.trace().log("Max reply depth reached (depth=" + currentDepth
               + ", limit=" + maxDepth + "); continuing in current thread.");
           DepthLimitToast.show(messages.maxReplyDepthContinueInThread());
           // Add a continuation blip in the blip's own thread rather than

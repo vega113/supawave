@@ -428,7 +428,7 @@ public class ServerMain {
     }
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/contacts", FetchContactsServlet.class);
-    server.addServlet("/contacts/search", ContactSearchServlet.class);
+    server.addServlet("/contacts/search/*", ContactSearchServlet.class);
     // Dev endpoint: client-side fragments applier stats (session-based)
     server.addServlet("/dev/client-applier-stats", ClientApplierStatsServlet.class);
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);

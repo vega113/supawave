@@ -672,6 +672,7 @@ public final class SearchPresenter
     searchUi.setTitleText(messages.searching());
     search.cancel();
     doSearch();
+    scheduler.cancel(searchUpdater);
     scheduler.scheduleRepeating(searchUpdater, POLLING_INTERVAL_MS, POLLING_INTERVAL_MS);
   }
 

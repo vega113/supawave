@@ -264,7 +264,7 @@ public class ServerMain {
     server.addServlet("/account/settings", AccountSettingsServlet.class);
     server.addServlet("/account/settings/*", AccountSettingsServlet.class);
     server.addServlet("/contacts", FetchContactsServlet.class);
-    server.addServlet("/contacts/search", ContactSearchServlet.class);
+    server.addServlet("/contacts/search/*", ContactSearchServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/wave/public/*", PublicWaveFetchServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);

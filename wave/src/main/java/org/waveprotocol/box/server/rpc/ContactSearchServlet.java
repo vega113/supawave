@@ -37,11 +37,32 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+/**
+ * Servlet that searches the authenticated user's contacts by address prefix.
+ *
+ * <p>Request: {@code GET /contacts/search?q=<prefix>&limit=<n>}
+ * <ul>
+ *   <li>{@code q} -- address prefix to match (case-insensitive). Empty or absent returns all.</li>
+ *   <li>{@code limit} -- maximum number of results (default 10, max 50).</li>
+ * </ul>
+ *
+ * <p>Response (JSON):
+ * <pre>{
+ *   "results": [
+ *     {"participant": "alice@example.com", "score": 42.0, "lastContact": 1234567890},
+ *     ...
+ *   ],
+ *   "total": 5
+ * }</pre>
+ *
+ * <p>Results are sorted by score descending, then by address ascending.
+ */
 @SuppressWarnings("serial")
 @Singleton
 public final class ContactSearchServlet extends HttpServlet {
@@ -97,7 +118,7 @@ public final class ContactSearchServlet extends HttpServlet {
     if (raw == null || raw.isEmpty()) {
       return "";
     }
-    return raw.trim().toLowerCase();
+    return raw.trim().toLowerCase(Locale.ENGLISH);
   }
 
   private static int parseLimit(String raw) {
@@ -117,7 +138,7 @@ public final class ContactSearchServlet extends HttpServlet {
     List<ScoredContact> results = new ArrayList<>();
     for (Contact contact : contacts) {
       String address = contact.getParticipantId().getAddress();
-      if (prefix.isEmpty() || address.toLowerCase().startsWith(prefix)) {
+      if (prefix.isEmpty() || address.toLowerCase(Locale.ENGLISH).startsWith(prefix)) {
         double score = currentTime + contactManager.getScoreBonusAtTime(contact, currentTime);
         results.add(new ScoredContact(address, score, contact.getLastContactTime()));
       }
@@ -163,7 +184,7 @@ public final class ContactSearchServlet extends HttpServlet {
     resp.getWriter().append(error.toString());
   }
 
-  private static final class ScoredContact {
+  static final class ScoredContact {
     private final String address;
     private final double score;
     private final long lastContact;

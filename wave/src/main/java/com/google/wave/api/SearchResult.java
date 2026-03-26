@@ -88,6 +88,7 @@ public class SearchResult {
 
   private final String query;
   private int numResults;
+  private int totalResults = -1; // -1 means unknown
   private final List<Digest> digests = new ArrayList<Digest>(10);
 
   public SearchResult(String query) {
@@ -116,6 +117,21 @@ public class SearchResult {
    */
   public int getNumResults() {
     return numResults;
+  }
+
+  /**
+   * @returns the total number of matching results (before pagination), or -1 if unknown.
+   */
+  public int getTotalResults() {
+    return totalResults;
+  }
+
+  /**
+   * Sets the total number of matching results (before pagination).
+   * @param totalResults the exact total, or -1 if unknown.
+   */
+  public void setTotalResults(int totalResults) {
+    this.totalResults = totalResults;
   }
 
   /**

@@ -159,11 +159,16 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       sortedResults = promotePinnedWaves(sortedResults, user);
     }
 
+    // Capture the total count BEFORE pagination so the client knows the full result set size.
+    int totalBeforePagination = sortedResults.size();
+
     Collection<WaveViewData> searchResult =
         computeSearchResult(user, startAt, numResults, sortedResults);
-    LOG.info("Search response to '" + query + "': " + searchResult.size() + " results, user: "
-        + user);
-    return digester.generateSearchResult(user, query, searchResult);
+    LOG.info("Search response to '" + query + "': " + searchResult.size() + " results"
+        + " (total " + totalBeforePagination + "), user: " + user);
+    SearchResult result = digester.generateSearchResult(user, query, searchResult);
+    result.setTotalResults(totalBeforePagination);
+    return result;
   }
 
   private LinkedHashMultimap<WaveId, WaveletId> createWavesViewToFilter(final ParticipantId user,

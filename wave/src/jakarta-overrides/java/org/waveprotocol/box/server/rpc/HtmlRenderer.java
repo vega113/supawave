@@ -2050,7 +2050,7 @@ public final class HtmlRenderer {
     sb.append("  position: relative; z-index: 1;\n");
     sb.append("  display: flex; align-items: center;\n");
     sb.append("}\n");
-    sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; gap: 8px; }\n");
+    sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 8px; }\n");
     sb.append(".topbar-brand svg { flex-shrink: 0; }\n");
     sb.append(".title {\n");
     sb.append("  font-size: 17px; font-weight: 700; color: #fff;\n");

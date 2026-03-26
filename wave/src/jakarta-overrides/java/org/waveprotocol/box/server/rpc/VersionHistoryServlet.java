@@ -187,7 +187,7 @@ public final class VersionHistoryServlet extends HttpServlet {
 
     String apiPath = path.substring(path.indexOf("/api/") + 5);
     if (apiPath.startsWith("info")) {
-      handleInfoApi(waveletName, resp);
+      handleInfoApi(waveletName, resp, user);
     } else if (apiPath.startsWith("history")) {
       handleHistoryApi(waveletName, req, resp);
     } else if (apiPath.startsWith("snapshot")) {
@@ -197,8 +197,9 @@ public final class VersionHistoryServlet extends HttpServlet {
     }
   }
 
-  /** Returns current version info as JSON. */
-  private void handleInfoApi(WaveletName waveletName, HttpServletResponse resp) throws IOException {
+  /** Returns current version info as JSON, including whether the user can restore. */
+  private void handleInfoApi(WaveletName waveletName, HttpServletResponse resp,
+      ParticipantId user) throws IOException {
     try {
       CommittedWaveletSnapshot snapshot = waveletProvider.getSnapshot(waveletName);
       if (snapshot == null) {
@@ -207,6 +208,7 @@ public final class VersionHistoryServlet extends HttpServlet {
       }
       ReadableWaveletData data = snapshot.snapshot;
       long version = data.getHashedVersion().getVersion();
+      boolean canRestore = user.equals(data.getCreator());
 
       setJsonUtf8(resp);
       try (PrintWriter w = resp.getWriter()) {
@@ -214,6 +216,7 @@ public final class VersionHistoryServlet extends HttpServlet {
         w.append(",\"creator\":").append(jsonStr(data.getCreator().getAddress()));
         w.append(",\"creationTime\":").append(String.valueOf(data.getCreationTime()));
         w.append(",\"lastModifiedTime\":").append(String.valueOf(data.getLastModifiedTime()));
+        w.append(",\"canRestore\":").append(String.valueOf(canRestore));
         w.append("}");
         w.flush();
       }
@@ -1002,6 +1005,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("var snapshotCache = {};\n");
     sb.append("var deltaList = [];\n");
     sb.append("var currentMaxVersion = 0;\n");
+    sb.append("var canRestore = false;\n");
     sb.append("var requestId = 0;\n\n");
 
     // Utility: escape HTML to prevent XSS from blip content
@@ -1106,7 +1110,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("  }\n");
     sb.append("  // Show restore button only for historical versions (not the current version)\n");
     sb.append("  var restoreBtn = document.getElementById('restore-btn');\n");
-    sb.append("  if (version < currentMaxVersion && version >= 0) {\n");
+    sb.append("  if (canRestore && version < currentMaxVersion && version >= 0) {\n");
     sb.append("    restoreBtn.classList.add('visible');\n");
     sb.append("    restoreBtn.disabled = false;\n");
     sb.append("    restoreBtn.textContent = 'Restore to v' + version;\n");
@@ -1128,7 +1132,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("    credentials: 'same-origin'\n");
     sb.append("  }).then(function(r) {\n");
     sb.append("    return r.text().then(function(text) {\n");
-    sb.append("      try { var data = JSON.parse(text); } catch(e) { data = { message: text || ('HTTP ' + r.status) }; }\n");
+    sb.append("      try { var data = JSON.parse(text); } catch(e) { data = { message: 'Restore failed (HTTP ' + r.status + ')' }; }\n");
     sb.append("      return { ok: r.ok, status: r.status, data: data };\n");
     sb.append("    });\n");
     sb.append("  }).then(function(result) {\n");
@@ -1501,6 +1505,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     sb.append("  showLoading(tl);\n\n");
     sb.append("  apiFetch('info').then(function(info) {\n");
     sb.append("    currentMaxVersion = info.version;\n");
+    sb.append("    canRestore = !!info.canRestore;\n");
     sb.append("    infoEl.innerHTML = 'Current version: <span class=\"version-badge\">v' + info.version + '</span>';\n\n");
     sb.append("    return apiFetch('history', { start: 0, end: info.version });\n");
     sb.append("  }).then(function(history) {\n");

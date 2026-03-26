@@ -1106,9 +1106,7 @@ ThisBuild / compileGwt := {
 
       val gwtArgs = Seq(
         "-war", warDir,
-        "-style", "OBFUSCATED",
-        "-XdisableClassMetadata",
-        "-XdisableCastChecking",
+        "-style", "PRETTY",
         "-localWorkers", "4",
         "org.waveprotocol.box.webclient.WebClientProd"
       )

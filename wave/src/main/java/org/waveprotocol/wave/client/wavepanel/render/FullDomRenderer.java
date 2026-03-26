@@ -165,14 +165,20 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
   public UiBuilder render(Conversation conversation, StringMap<UiBuilder> participantUis) {
     HtmlClosureCollection participantsUi = new HtmlClosureCollection();
     boolean isPublic = false;
+    int realCount = 0;
+    boolean hasDomain = false;
     for (ParticipantId participant : conversation.getParticipantIds()) {
       participantsUi.add(participantUis.get(participant.getAddress()));
       if (ParticipantIdUtil.isDomainAddress(participant.getAddress())) {
         isPublic = true;
+        hasDomain = true;
+      } else {
+        realCount++;
       }
     }
+    boolean isDm = !hasDomain && realCount == 2;
     String id = viewIdMapper.participantsOf(conversation);
-    return ParticipantsViewBuilder.create(id, participantsUi, isPublic);
+    return ParticipantsViewBuilder.create(id, participantsUi, isPublic, isDm);
   }
 
   @Override

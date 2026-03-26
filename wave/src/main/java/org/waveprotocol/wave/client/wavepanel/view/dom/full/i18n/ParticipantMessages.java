@@ -46,4 +46,7 @@ public interface ParticipantMessages extends Messages {
 
   @DefaultMessage("Add participant to this wave")
   String addParticipantToThisWave();
+
+  @DefaultMessage("Direct Message")
+  String directMessage();
  }

@@ -52,6 +52,9 @@ public interface SearchPanelView {
   /** Sets the title bar text. */
   void setTitleText(String text);
 
+  /** Sets the wave count summary text (e.g. "23 waves, 5 unread"). */
+  void setWaveCountText(String text);
+
   /** @return the search area. */
   SearchView getSearch();
 

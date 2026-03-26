@@ -42,6 +42,7 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -112,6 +113,11 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       return digester.generateSearchResult(user, query, null);
     }
 
+    // Extract tag filter values (e.g., "tag:nice").
+    final Set<String> tagValues = queryParams.containsKey(TokenQueryType.TAG)
+        ? queryParams.get(TokenQueryType.TAG)
+        : Collections.<String>emptySet();
+
     LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView =
         createWavesViewToFilter(user, isAllQuery);
     Function<ReadableWaveletData, Boolean> filterWaveletsFunction =
@@ -126,6 +132,11 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     // Filter by inbox/archive supplement state when the query specifies a folder.
     if (isInboxQuery || isArchiveQuery) {
       filterByFolderState(results, user, isInboxQuery);
+    }
+
+    // Filter by tags when the query specifies tag: filters.
+    if (!tagValues.isEmpty()) {
+      filterByTags(results, tagValues);
     }
 
     List<WaveViewData> sortedResults = sort(queryParams, results);
@@ -271,6 +282,60 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       } catch (Exception e) {
         LOG.warning("Failed to check folder state for wave " + wave.getWaveId(), e);
         // If we can't determine the state, keep the result for safety.
+      }
+    }
+  }
+
+  /**
+   * Filters wave results by tags. Only waves whose conversation root wavelet
+   * contains all of the requested tags are kept.
+   *
+   * @param results the mutable list of wave views to filter in place.
+   * @param requiredTags the set of tag names that must all be present.
+   */
+  private void filterByTags(List<WaveViewData> results, Set<String> requiredTags) {
+    Iterator<WaveViewData> it = results.iterator();
+    while (it.hasNext()) {
+      WaveViewData wave = it.next();
+      try {
+        ObservableWaveletData convWavelet = null;
+        for (ObservableWaveletData wd : wave.getWavelets()) {
+          if (org.waveprotocol.wave.model.id.IdUtil.isConversationRootWaveletId(wd.getWaveletId())) {
+            convWavelet = wd;
+            break;
+          }
+        }
+        if (convWavelet == null) {
+          // Non-conversational wave cannot have tags.
+          it.remove();
+          continue;
+        }
+        org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet opWavelet =
+            org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet.createReadOnly(convWavelet);
+        if (!org.waveprotocol.wave.model.conversation.WaveletBasedConversation
+            .waveletHasConversation(opWavelet)) {
+          it.remove();
+          continue;
+        }
+        org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
+            digester.getConversationUtil().buildConversation(opWavelet);
+        org.waveprotocol.wave.model.conversation.ObservableConversation rootConversation =
+            conversations.getRoot();
+        if (rootConversation == null) {
+          it.remove();
+          continue;
+        }
+        Set<String> waveTags = rootConversation.getTags();
+        for (String requiredTag : requiredTags) {
+          if (!waveTags.contains(requiredTag)) {
+            it.remove();
+            break;
+          }
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check tags for wave " + wave.getWaveId(), e);
+        // If we can't determine tags, exclude the result to avoid false matches.
+        it.remove();
       }
     }
   }

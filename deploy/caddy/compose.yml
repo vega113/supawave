@@ -45,12 +45,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
-      start_period: 30s
-    # No host port binding — Caddy reaches wave via Docker network (wave:9898).
-    # This avoids port conflicts during start-first rolling updates when both
-    # old and new containers run simultaneously.
-    expose:
-      - "9898"
+      start_period: 60s
+    ports:
+      - "127.0.0.1:9898:9898"
     volumes:
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/accounts:/opt/wave/_accounts
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/attachments:/opt/wave/_attachments

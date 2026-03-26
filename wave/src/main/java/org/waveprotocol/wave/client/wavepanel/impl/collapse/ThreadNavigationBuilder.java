@@ -31,6 +31,11 @@ import com.google.gwt.user.client.Window;
  * deeply nested threads use slide navigation instead of normal
  * collapse/expand.
  *
+ * <p>Phase 3 additions: installs a {@link SlideNavigationKeyHandler} for
+ * Esc / Alt+Left keyboard shortcuts (using {@code NativePreviewHandler}
+ * to avoid KeySignalRouter conflicts), and enables browser history
+ * integration so the browser Back button works with slide navigation.
+ *
  * <p>On mobile devices (viewport &le; 768px), the depth threshold is
  * automatically set to 0 so that all inline threads use slide navigation
  * (no indentation), and a {@link SwipeGestureHandler} is installed so
@@ -51,6 +56,14 @@ public final class ThreadNavigationBuilder {
 
   /**
    * Builds and installs the thread navigation feature.
+   *
+   * <p>This installs:
+   * <ul>
+   *   <li>The breadcrumb widget for visual navigation</li>
+   *   <li>The navigator wired into the collapse presenter</li>
+   *   <li>Keyboard shortcuts (Esc, Alt+Left) via NativePreviewHandler</li>
+   *   <li>Browser history integration for the Back button</li>
+   * </ul>
    *
    * <p>The depth threshold is chosen automatically: on mobile viewports
    * ({@code <= 768px}) it is set to 0 (all threads slide), and on
@@ -76,6 +89,17 @@ public final class ThreadNavigationBuilder {
     // Wire the navigator into the collapse presenter so that
     // CollapseController can delegate to it for deep threads.
     collapser.setNavigator(navigator);
+
+    // Install keyboard shortcuts (Esc, Alt+Left) via NativePreviewHandler.
+    // We use NativePreviewHandler instead of KeySignalRouter.register() to
+    // avoid "Feature conflict" errors, since ESC is already handled by
+    // EditSession when in editing mode.
+    SlideNavigationKeyHandler keyHandler = new SlideNavigationKeyHandler(navigator);
+    keyHandler.install();
+
+    // Enable browser history integration so the browser Back button
+    // can be used to navigate back through slide navigation levels.
+    navigator.enableHistoryIntegration();
 
     // Install swipe-back gesture on touch devices
     installSwipeGestureIfNeeded(navigator);

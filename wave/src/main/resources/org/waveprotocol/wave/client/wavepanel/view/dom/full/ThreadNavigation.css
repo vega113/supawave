@@ -16,62 +16,75 @@
  * specific language governing permissions and limitations
  * under the License.
  *
- * CSS for thread slide navigation, breadcrumb bar, and mobile gestures.
+ * CSS for thread slide navigation, breadcrumb bar, depth indicators, and mobile gestures.
+ *
+ * These class names are applied as literal strings by the Java presenters
+ * (not via GWT CssResource), so they must not be obfuscated.
  */
 
-/* --- Breadcrumb bar --- */
-.breadcrumb {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 28px;
-  line-height: 28px;
-  z-index: 1000;
-  background-color: #0077b6;
-  color: white;
-  font-size: 13px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  padding: 0 12px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.breadcrumbSegment {
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.85);
-  text-decoration: none;
-  transition: color 120ms ease;
-}
-
-.breadcrumbSegment:hover {
-  color: white;
+/* --- Breadcrumb bar hover effects ---
+ * The BreadcrumbWidget applies most styles inline, but these rules
+ * provide hover effects that inline styles cannot express. */
+.thread-nav-breadcrumb-segment:hover {
+  color: white !important;
   text-decoration: underline;
 }
 
-.breadcrumbSeparator {
-  color: rgba(255, 255, 255, 0.6);
-  margin: 0 2px;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.breadcrumbCurrent {
-  color: white;
-  font-weight: bold;
-}
-
-/* --- Slide transition --- */
-.slideNavActive {
+/* --- Slide transition ---
+ * Applied by ThreadNavigationPresenter when drilling into a deep thread. */
+.slide-nav-active {
   transition: transform 220ms ease-out, opacity 220ms ease-out;
   transform: translateX(0);
   width: 100%;
 }
 
-.slideNavHidden {
+.slide-nav-hidden {
   display: none !important;
+}
+
+/* --- Thin vertical depth indicator lines ---
+ * Blip.css .replies already provides a 2px left border for inline threads.
+ * These rules add depth-level color variation via the data-depth attribute
+ * emitted by CollapsibleBuilder on each inline thread container. */
+
+/* Depth 0: root-level inline threads. Slightly more visible blue. */
+[data-depth="0"] {
+  border-left: 2px solid rgba(0, 119, 182, 0.22);
+}
+
+/* Depth 1. */
+[data-depth="1"] {
+  border-left: 2px solid rgba(0, 119, 182, 0.18);
+}
+
+/* Depth 2: last inline level before slide navigation kicks in. */
+[data-depth="2"] {
+  border-left: 2px solid rgba(0, 119, 182, 0.14);
+}
+
+/* Depth 3+: these threads trigger slide navigation on desktop.
+ * When they appear collapsed (showing just the toggle), give them
+ * a minimal depth line. When expanded via slide-nav, the line is
+ * removed below. */
+[data-depth="3"],
+[data-depth="4"],
+[data-depth="5"],
+[data-depth="6"],
+[data-depth="7"],
+[data-depth="8"] {
+  border-left: 2px solid rgba(0, 119, 182, 0.10);
+}
+
+/* When a thread is in slide-nav-active mode, remove the depth line
+ * entirely since the thread occupies the full width. */
+.slide-nav-active {
+  border-left: none !important;
+}
+
+/* Add padding to the body area to make room for the fixed breadcrumb
+ * bar when slide navigation is active. The breadcrumb bar is 28px tall. */
+body.slide-nav-has-breadcrumb {
+  padding-top: 32px;
 }
 
 /* --- Swipe-back visual indicator --- */
@@ -143,7 +156,7 @@
    Disable all slide/swipe animations for users who prefer reduced motion.
    ===================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  .slideNavActive {
+  .slide-nav-active {
     transition: none;
   }
 

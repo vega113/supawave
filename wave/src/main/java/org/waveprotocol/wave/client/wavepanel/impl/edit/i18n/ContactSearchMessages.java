@@ -26,16 +26,16 @@ import com.google.gwt.i18n.client.Messages;
  */
 public interface ContactSearchMessages extends Messages {
 
-  @DefaultMessage("Search contacts")
+  @DefaultMessage("Add participant")
   String dialogTitle();
 
-  @DefaultMessage("Type a name or email to search...")
+  @DefaultMessage("Search by name or email...")
   String searchPlaceholder();
 
   @DefaultMessage("Searching...")
   String searching();
 
-  @DefaultMessage("No contacts found")
+  @DefaultMessage("No matching users found")
   String noResults();
 
   @DefaultMessage("Type to search your contacts")

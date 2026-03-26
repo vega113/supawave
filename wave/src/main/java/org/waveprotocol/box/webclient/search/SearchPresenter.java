@@ -456,6 +456,12 @@ public final class SearchPresenter
         // Rebuild toolbar to reflect changes.
         rebuildSavedSearchButtons();
       }
+
+      @Override
+      public void onApply(SearchesItem item) {
+        searchUi.getSearch().setQuery(item.getQuery());
+        onQueryEntered();
+      }
     });
     searchesEditorPopup.show();
   }
@@ -480,7 +486,8 @@ public final class SearchPresenter
   }
 
   /**
-   * Adds saved search quick-access buttons to the toolbar.
+   * Adds pinned saved search quick-access buttons to the toolbar.
+   * Only saved searches with {@code pinned == true} are shown.
    */
   private void rebuildSavedSearchButtons() {
     GroupingToolbar.View toolbarUi = searchUi.getToolbar();
@@ -494,14 +501,24 @@ public final class SearchPresenter
     }
     savedSearchButtons.clear();
 
+    // Collect only pinned searches.
+    List<SearchesItem> pinned = new ArrayList<>();
+    for (SearchesItem item : savedSearches) {
+      if (item.isPinned()) {
+        pinned.add(item);
+      }
+    }
+
     // Create the saved search group lazily on first use.
-    if (savedSearchGroup == null && !savedSearches.isEmpty()) {
+    // Once created, we keep the group alive (even when empty) to avoid
+    // leaking invisible stub items when addGroup() is called repeatedly.
+    if (savedSearchGroup == null && !pinned.isEmpty()) {
       savedSearchGroup = toolbarUi.addGroup();
     }
 
-    // Recreate buttons if group exists and there are searches.
-    if (savedSearchGroup != null && !savedSearches.isEmpty()) {
-      for (final SearchesItem item : savedSearches) {
+    // Recreate buttons for pinned searches only.
+    if (savedSearchGroup != null) {
+      for (final SearchesItem item : pinned) {
         ToolbarClickButton button = savedSearchGroup.addClickButton();
         savedSearchButtons.add(button);
         new ToolbarButtonViewBuilder().setText(item.getName()).applyTo(
@@ -513,9 +530,6 @@ public final class SearchPresenter
               }
             });
       }
-    } else if (savedSearchGroup != null && savedSearches.isEmpty()) {
-      // Clear the group reference if there are no searches
-      savedSearchGroup = null;
     }
   }
 

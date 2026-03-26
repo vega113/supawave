@@ -26,17 +26,30 @@
 }
 
 .title {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   font-size: 16px;
   font-weight: 600;
   color: #1a202c;
+}
+
+.filterInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #2d3748;
+  background: #fff;
+  outline: none;
 }
 
 .searchList {
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   overflow-y: auto;
-  max-height: 280px;
+  max-height: 320px;
   min-height: 80px;
   margin-bottom: 16px;
   background: #f7fafc;
@@ -44,6 +57,7 @@
 
 .searchRow {
   display: flex;
+  align-items: center;
   padding: 8px 12px;
   border-bottom: 1px solid #edf2f7;
   cursor: pointer;
@@ -53,6 +67,7 @@
 
 .searchRowSelected {
   display: flex;
+  align-items: center;
   padding: 8px 12px;
   border-bottom: 1px solid #edf2f7;
   cursor: pointer;
@@ -67,6 +82,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .searchRowQuery {
@@ -76,12 +92,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-left: 8px;
+  min-width: 0;
 }
 
 .searchRowActions {
   display: flex;
   gap: 4px;
   margin-left: 8px;
+  flex-shrink: 0;
 }
 
 .iconButton {
@@ -96,6 +114,22 @@
   text-align: center;
   color: #4a5568;
   padding: 0;
+  display: inline-block;
+}
+
+.iconButtonPinned {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #0077b6;
+  border-radius: 4px;
+  background: #e8f4fd;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 24px;
+  text-align: center;
+  color: #0077b6;
+  padding: 0;
+  display: inline-block;
 }
 
 .emptyMessage {

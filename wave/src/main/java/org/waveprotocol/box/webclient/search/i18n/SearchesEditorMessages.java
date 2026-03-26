@@ -53,4 +53,31 @@ public interface SearchesEditorMessages extends Messages {
 
   @DefaultMessage("Ok")
   String ok();
+
+  @DefaultMessage("Filter saved searches...")
+  String filterPlaceholder();
+
+  @DefaultMessage("No saved searches yet")
+  String emptyMessage();
+
+  @DefaultMessage("No matches for \"{0}\"")
+  String noFilterMatches(String filter);
+
+  @DefaultMessage("Pin to toolbar")
+  String pinToToolbar();
+
+  @DefaultMessage("Unpin from toolbar")
+  String unpinFromToolbar();
+
+  @DefaultMessage("Apply this search")
+  String applySearch();
+
+  @DefaultMessage("Edit")
+  String edit();
+
+  @DefaultMessage("Delete")
+  String delete();
+
+  @DefaultMessage("Failed to save searches")
+  String saveFailure();
 }

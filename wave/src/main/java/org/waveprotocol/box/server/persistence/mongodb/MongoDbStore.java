@@ -91,6 +91,7 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   private static final String HUMAN_SEARCHES_FIELD = "searches";
   private static final String SEARCH_NAME_FIELD = "name";
   private static final String SEARCH_QUERY_FIELD = "query";
+  private static final String SEARCH_PINNED_FIELD = "pinned";
 
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
@@ -354,6 +355,7 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
         DBObject sObj = new BasicDBObject();
         sObj.put(SEARCH_NAME_FIELD, item.getName());
         sObj.put(SEARCH_QUERY_FIELD, item.getQuery());
+        sObj.put(SEARCH_PINNED_FIELD, item.isPinned());
         searchList.add(sObj);
       }
       object.put(HUMAN_SEARCHES_FIELD, searchList);
@@ -382,7 +384,10 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
       for (DBObject sObj : searchList) {
         String sName = (String) sObj.get(SEARCH_NAME_FIELD);
         String sQuery = (String) sObj.get(SEARCH_QUERY_FIELD);
-        searches.add(new SearchesItem(sName != null ? sName : "", sQuery != null ? sQuery : ""));
+        Object sPinnedObj = sObj.get(SEARCH_PINNED_FIELD);
+        boolean sPinned = sPinnedObj instanceof Boolean && (Boolean) sPinnedObj;
+        searches.add(new SearchesItem(
+            sName != null ? sName : "", sQuery != null ? sQuery : "", sPinned));
       }
       account.setSearches(searches);
     }

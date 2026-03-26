@@ -26,6 +26,9 @@
 FROM eclipse-temurin:17-jre
 ENV WAVE_HOME=/opt/wave
 RUN groupadd --system wave \
+    && apt-get update -qq \
+    && apt-get install -y -qq curl \
+    && rm -rf /var/lib/apt/lists/* \
     && useradd --system --gid wave --home-dir ${WAVE_HOME} --shell /usr/sbin/nologin wave
 WORKDIR ${WAVE_HOME}
 COPY --chown=wave:wave . ${WAVE_HOME}/

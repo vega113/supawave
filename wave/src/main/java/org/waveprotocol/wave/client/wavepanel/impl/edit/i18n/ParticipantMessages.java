@@ -30,7 +30,7 @@ public interface ParticipantMessages extends Messages {
   @DefaultMessage("Remove")
   String remove();
 
-  @DefaultMessage("Only the wave creator can change public/private visibility.")
+  @DefaultMessage("Only the wave creator or an admin can change public/private visibility.")
   String onlyOwnerCanTogglePublic();
 
   @DefaultMessage("Public/private toggle is not available (no local domain configured).")
@@ -47,4 +47,31 @@ public interface ParticipantMessages extends Messages {
 
   @DefaultMessage("This wave is private. Click to make public")
   String waveIsPrivateClickToMakePublic();
+
+  @DefaultMessage("This is a direct message. Create a new wave to include more participants.")
+  String cannotAddParticipantToDm();
+
+  @DefaultMessage("Direct messages cannot be made public.")
+  String cannotMakeDmPublic();
+
+  @DefaultMessage("Only the wave creator or an admin can change the lock state.")
+  String onlyOwnerCanToggleLock();
+
+  @DefaultMessage("Wave unlocked. All editing allowed.")
+  String waveLockUnlocked();
+
+  @DefaultMessage("Root blip locked. Replies are still allowed.")
+  String waveLockRoot();
+
+  @DefaultMessage("Wave fully locked. No editing or replies.")
+  String waveLockAll();
+
+  @DefaultMessage("This wave is locked. Editing is not allowed.")
+  String waveIsLocked();
+
+  @DefaultMessage("This wave is locked. Replies are not allowed.")
+  String waveIsLockedNoReply();
+
+  @DefaultMessage("The root blip is locked. Editing is not allowed here.")
+  String rootBlipIsLocked();
 }

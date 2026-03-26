@@ -95,13 +95,39 @@ public final class FolderServlet extends HttpServlet {
         return;
       }
       if (waves != null) {
+        boolean anyFailure = false;
         for (String wave : waves) {
           try {
             WaveId waveId = WaveId.deserialise(StringEscapeUtils.unescapeHtml4(wave));
             moveToFolder(waveId, folder, user);
           } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Move to " + folder + " error ", ex);
+            anyFailure = true;
           }
+        }
+        if (anyFailure) {
+          response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to move wave(s)");
+          return;
+        }
+      }
+      response.setStatus(HttpServletResponse.SC_OK);
+    } else if ("pin".equals(operation) || "unpin".equals(operation)) {
+      boolean pinning = "pin".equals(operation);
+      if (waves != null) {
+        boolean anyFailure = false;
+        for (String wave : waves) {
+          try {
+            WaveId waveId = WaveId.deserialise(StringEscapeUtils.unescapeHtml4(wave));
+            setPinState(waveId, pinning, user);
+          } catch (Exception ex) {
+            LOG.log(Level.SEVERE, (pinning ? "Pin" : "Unpin") + " error ", ex);
+            anyFailure = true;
+          }
+        }
+        if (anyFailure) {
+          response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+              "Failed to " + (pinning ? "pin" : "unpin") + " wave(s)");
+          return;
         }
       }
       response.setStatus(HttpServletResponse.SC_OK);
@@ -136,6 +162,35 @@ public final class FolderServlet extends HttpServlet {
       supplement.archive();
     } else if ("inbox".equals(folder)) {
       supplement.inbox();
+    }
+    OperationUtil.submitDeltas(context, waveletProvider, LOGGING_REQUEST_LISTENER);
+  }
+
+  /**
+   * Pins or unpins a wave for a given participant by writing directly to the
+   * UDW folder document. This avoids building the conversation model, which
+   * can fail for waves with malformed manifest documents.
+   */
+  public void setPinState(WaveId waveId, boolean pin, ParticipantId participant)
+      throws InvalidRequestException, OperationException, InterruptedException, ExecutionException {
+
+    OperationContextImpl context = new OperationContextImpl(waveletProvider,
+        converterManager.getEventDataConverter(ProtocolVersion.DEFAULT), conversationUtil);
+
+    WaveletId udwId =
+        WaveletId.of(waveId.getDomain(),
+            IdUtil.join(IdConstants.USER_DATA_WAVELET_PREFIX, participant.getAddress()));
+    OpBasedWavelet udw = context.openWavelet(waveId, udwId, participant);
+
+    PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
+    if (pin) {
+      if (!udwState.isInFolder(SupplementedWaveImpl.PINNED_FOLDER)) {
+        udwState.addFolder(SupplementedWaveImpl.PINNED_FOLDER);
+      }
+    } else {
+      if (udwState.isInFolder(SupplementedWaveImpl.PINNED_FOLDER)) {
+        udwState.removeFolder(SupplementedWaveImpl.PINNED_FOLDER);
+      }
     }
     OperationUtil.submitDeltas(context, waveletProvider, LOGGING_REQUEST_LISTENER);
   }

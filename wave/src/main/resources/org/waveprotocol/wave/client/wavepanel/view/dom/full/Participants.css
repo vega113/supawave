@@ -93,8 +93,8 @@
   overflow: hidden;
   /* Positioned container for add button. */
   position: relative;
-  /* Room for absolutely positioned action buttons (add + new-wave + public toggle). */
-  padding-right: 110px;
+  /* Room for absolutely positioned action buttons (add + new-wave + public toggle + share + lock). */
+  padding-right: 170px;
 }
 
 .participant {
@@ -252,4 +252,59 @@ img.participant:hover {
   transform: scale(1.15);
   color: #005f8a;
   background: rgba(0, 119, 182, 0.1);
+}
+
+.shareLinkButton {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  vertical-align: middle;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+.shareLinkButton:hover {
+  transform: scale(1.15);
+  box-shadow: 0 3px 8px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.lockToggleButton {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #6c757d;
+  color: white;
+  vertical-align: middle;
+  transition: transform 0.15s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.lockToggleButton:hover {
+  transform: scale(1.15);
+  background: rgba(108, 117, 125, 0.15);
+  color: #495057;
+}
+
+.dmLabel {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.08);
 }

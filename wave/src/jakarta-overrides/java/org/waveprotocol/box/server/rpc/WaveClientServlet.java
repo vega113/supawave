@@ -118,7 +118,11 @@ public class WaveClientServlet extends HttpServlet {
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     ParticipantId id = sessionManager.getLoggedInUser(WebSessions.from(request, false));
-    if (id == null) {
+
+    // Show the landing page for unauthenticated visitors, or when an
+    // authenticated user explicitly requests it via ?view=landing (e.g.
+    // clicking the logo in the top bar).
+    if (id == null || "landing".equals(request.getParameter("view"))) {
       response.setContentType("text/html");
       response.setCharacterEncoding("UTF-8");
       response.setStatus(HttpServletResponse.SC_OK);
@@ -389,10 +393,25 @@ public class WaveClientServlet extends HttpServlet {
       ParticipantId user = sessionManager.getLoggedInUser(session);
       String address = (user != null) ? user.getAddress() : null;
       String sessionId = (new RandomBase64Generator()).next(10);
+
+      // Look up the user's role so the client knows if this is an admin
+      String userRole = HumanAccountData.ROLE_USER;
+      if (user != null) {
+        try {
+          AccountData acctData = accountStore.getAccount(user);
+          if (acctData != null && acctData.isHuman()) {
+            userRole = acctData.asHuman().getRole();
+          }
+        } catch (Exception e) {
+          LOG.warning("Failed to look up role for session JSON: " + address, e);
+        }
+      }
+
       JSONObject json = new JSONObject()
           .put(SessionConstants.DOMAIN, domain)
           .putOpt(SessionConstants.ADDRESS, address)
-          .putOpt(SessionConstants.ID_SEED, sessionId);
+          .putOpt(SessionConstants.ID_SEED, sessionId)
+          .put(SessionConstants.ROLE, userRole);
       // Add enabled feature flags for this user
       if (address != null) {
         List<String> enabledFlags = featureFlagService.getEnabledFlagNames(address);

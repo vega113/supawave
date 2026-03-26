@@ -111,6 +111,11 @@ public interface ReadableSupplement {
   Set<Integer> getFolders();
 
   /**
+   * @return true if this wave is pinned.
+   */
+  boolean isPinned();
+
+  /**
    * @return whether the wavelet is archived at the given version.
    */
   boolean isArchived(WaveletId waveletId, int version);

@@ -37,6 +37,7 @@ import com.mongodb.gridfs.GridFSInputFile;
 import org.bson.types.BasicBSONList;
 import org.waveprotocol.box.attachment.AttachmentMetadata;
 import org.waveprotocol.box.attachment.AttachmentProto;
+import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.attachment.proto.AttachmentMetadataProtoImpl;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
@@ -59,6 +60,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -86,6 +88,10 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   private static final String ACCOUNT_ROBOT_DATA_FIELD = "robot";
 
   private static final String HUMAN_PASSWORD_FIELD = "passwordDigest";
+  private static final String HUMAN_SEARCHES_FIELD = "searches";
+  private static final String SEARCH_NAME_FIELD = "name";
+  private static final String SEARCH_QUERY_FIELD = "query";
+  private static final String SEARCH_PINNED_FIELD = "pinned";
 
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
@@ -340,6 +346,21 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
       object.put(HUMAN_PASSWORD_FIELD, digestObj);
     }
 
+    // Saved searches
+    List<SearchesItem> searches = account.getSearches();
+    if (searches != null && !searches.isEmpty()) {
+      BasicBSONList searchList = new BasicBSONList();
+      for (int i = 0; i < searches.size(); i++) {
+        SearchesItem item = searches.get(i);
+        DBObject sObj = new BasicDBObject();
+        sObj.put(SEARCH_NAME_FIELD, item.getName());
+        sObj.put(SEARCH_QUERY_FIELD, item.getQuery());
+        sObj.put(SEARCH_PINNED_FIELD, item.isPinned());
+        searchList.add(sObj);
+      }
+      object.put(HUMAN_SEARCHES_FIELD, searchList);
+    }
+
     return object;
   }
 
@@ -353,7 +374,25 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
       passwordDigest = PasswordDigest.from(salt, digest);
     }
 
-    return new HumanAccountDataImpl(id, passwordDigest);
+    HumanAccountDataImpl account = new HumanAccountDataImpl(id, passwordDigest);
+
+    // Saved searches
+    @SuppressWarnings("unchecked")
+    List<DBObject> searchList = (List<DBObject>) object.get(HUMAN_SEARCHES_FIELD);
+    if (searchList != null && !searchList.isEmpty()) {
+      List<SearchesItem> searches = new ArrayList<>();
+      for (DBObject sObj : searchList) {
+        String sName = (String) sObj.get(SEARCH_NAME_FIELD);
+        String sQuery = (String) sObj.get(SEARCH_QUERY_FIELD);
+        Object sPinnedObj = sObj.get(SEARCH_PINNED_FIELD);
+        boolean sPinned = sPinnedObj instanceof Boolean && (Boolean) sPinnedObj;
+        searches.add(new SearchesItem(
+            sName != null ? sName : "", sQuery != null ? sQuery : "", sPinned));
+      }
+      account.setSearches(searches);
+    }
+
+    return account;
   }
 
   // ****** RobotAccountData serialization

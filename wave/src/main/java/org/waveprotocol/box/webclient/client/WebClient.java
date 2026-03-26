@@ -77,6 +77,7 @@ import org.waveprotocol.wave.client.wavepanel.event.EventDispatcherPanel;
 import org.waveprotocol.wave.client.wavepanel.event.WaveChangeHandler;
 import org.waveprotocol.wave.client.wavepanel.event.FocusManager;
 import org.waveprotocol.wave.client.widget.common.ImplPanel;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 import org.waveprotocol.wave.model.id.IdGenerator;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -255,6 +256,9 @@ public class WebClient implements EntryPoint {
   /** Whether turbulence banner is logically active (even if delay hasn't elapsed). */
   private boolean turbulencePending;
 
+  /** Persistent-toast id for the offline-while-editing warning. */
+  private static final String OFFLINE_EDITING_TOAST_ID = "offline-editing";
+
   /** Show the turbulence banner (called after the delay). */
   private void showTurbulenceBanner() {
     injectTurbulenceCss();
@@ -421,6 +425,9 @@ public class WebClient implements EntryPoint {
 
   /**
    * Creates a new wave with the specified participant for direct messaging.
+   * The wave is tagged with {@link org.waveprotocol.wave.model.conversation.Conversation#DM_TAG}
+   * so it can be distinguished from regular waves that happen to have two
+   * participants.
    */
   private void createDirectWave(String address) {
     if (channel == null) {
@@ -428,7 +435,7 @@ public class WebClient implements EntryPoint {
     }
     java.util.Set<ParticipantId> participants = new java.util.HashSet<>();
     participants.add(new ParticipantId(address));
-    openWave(WaveRef.of(idGenerator.newWaveId()), true, participants);
+    openWave(WaveRef.of(idGenerator.newWaveId()), true, true, participants);
   }
 
   private void setupUi() {
@@ -512,7 +519,7 @@ public class WebClient implements EntryPoint {
           }
         };
     Search search = SimpleSearch.create(RemoteSearchService.create(), waveStore);
-    SearchPresenter.create(search, searchPanel, actionHandler, profiles);
+    SearchPresenter.create(search, searchPanel, actionHandler, profiles, waveStore);
 
     // Defer contacts fetch until after the first search response arrives
     // so the /contacts request does not compete with the critical /search
@@ -640,11 +647,20 @@ public class WebClient implements EntryPoint {
               element.setClassName("topbar-icon online");
               element.setTitle(messages.online());
               hideTurbulenceBanner(true);
+              // Dismiss the offline-while-editing toast when back online.
+              ToastNotification.dismissPersistent(OFFLINE_EDITING_TOAST_ID);
               break;
             case DISCONNECTED:
               element.setInnerHTML(WIFI_OFF_ICON_SVG);
               element.setClassName("topbar-icon offline");
               element.setTitle(messages.offline());
+              // If a wave is open (user may be editing), show an immediate warning.
+              if (wave != null) {
+                ToastNotification.showPersistent(
+                    OFFLINE_EDITING_TOAST_ID,
+                    messages.offlineWhileEditing(),
+                    ToastNotification.Level.WARNING);
+              }
               if (!turbulencePending) {
                 turbulencePending = true;
                 turbulenceStartTime = new Date().getTime();
@@ -703,10 +719,41 @@ public class WebClient implements EntryPoint {
    *        {@code null} if only the creator should be added
    */
   private void openWave(WaveRef waveRef, boolean isNewWave, Set<ParticipantId> participants) {
+    openWave(waveRef, isNewWave, false, participants);
+  }
+
+  /**
+   * Shows a wave in a wave panel.
+   *
+   * @param waveRef wave id to open
+   * @param isNewWave whether the wave is being created by this client session.
+   * @param isDirectMessage true if the wave is a DM created via "Send Message".
+   * @param participants the participants to add to the newly created wave.
+   *        {@code null} if only the creator should be added
+   */
+  private void openWave(WaveRef waveRef, boolean isNewWave, boolean isDirectMessage,
+      Set<ParticipantId> participants) {
     final org.waveprotocol.box.stat.Timer timer = Timing.startRequest("Open Wave");
     LOG.info("WebClient.openWave()");
 
+    // If the same wave is already open and the reference includes a blip ID,
+    // navigate to that blip without reopening the wave.
+    if (!isNewWave && wave != null && waveRef.hasDocumentId()
+        && wave.getWaveId().equals(waveRef.getWaveId())) {
+      LOG.info("Navigating to blip within same wave: " + waveRef.getDocumentId());
+      wave.focusBlip(waveRef);
+      Timing.stop(timer);
+      return;
+    }
+
     if (wave != null) {
+      // Auto-remove empty waves that were created in this session but never
+      // had any content, replies, or additional participants added.
+      if (wave.isEmptyWave()) {
+        LOG.info("Auto-removing empty wave on navigation away");
+        wave.removeCurrentUserFromWave();
+        ToastNotification.showInfo(messages.emptyWaveRemoved());
+      }
       wave.destroy();
       wave = null;
     }
@@ -718,7 +765,8 @@ public class WebClient implements EntryPoint {
     Element unsavedIndicator = Document.get().getElementById("unsavedStateContainer");
     StagesProvider wave =
         new StagesProvider(holder, unsavedIndicator, waveHolder, waveFrame, waveRef, channel, idGenerator,
-            profiles, waveStore, isNewWave, Session.get().getDomain(), participants, contactManager);
+            profiles, waveStore, isNewWave, isDirectMessage, Session.get().getDomain(),
+            participants, contactManager);
     this.wave = wave;
     wave.load(new Command() {
       @Override

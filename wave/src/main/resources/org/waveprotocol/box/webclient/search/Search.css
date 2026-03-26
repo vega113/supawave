@@ -95,19 +95,33 @@ input.query:focus {
 }
 
 .helpPanel {
-  position: absolute;
-  top: 100%;
-  left: 4px;
-  right: 4px;
-  z-index: 100;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 740px;
+  max-width: 92vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  z-index: 99999;
   background: #f8fbff;
   border: 1.5px solid #b0c4d8;
   border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0,60,120,0.12);
-  padding: 10px 12px 8px;
-  font-size: 12px;
+  box-shadow: 0 8px 32px rgba(0,60,120,0.18);
+  padding: 16px 20px 14px;
+  font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #1a3a52;
+}
+
+.helpBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.25);
+  z-index: 99998;
 }
 
 .helpHeader {
@@ -173,16 +187,65 @@ input.query:focus {
 }
 
 .helpExample {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #e6f0fa;
+  border: 1px solid #b0c4d8;
+  border-radius: 4px;
   color: #0077b6;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 11px;
   cursor: pointer;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  transition: color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
 
 .helpExample:hover {
-  color: #005f8a;
-  text-decoration-style: solid;
+  background: #0077b6;
+  color: #fff;
+  border-color: #0077b6;
+}
+
+.helpColumns {
+  display: flex;
+  gap: 16px;
+}
+
+.helpColumn {
+  flex: 1;
+  min-width: 0;
+}
+
+.helpSectionTitle {
+  font-weight: 700;
+  font-size: 11px;
+  color: #0077b6;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.helpCombiningText {
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.helpCombiningText code {
+  background: #e6f0fa;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 11px;
+  color: #0a3d62;
+}
+
+.helpExamplesGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .helpTip {
@@ -190,4 +253,12 @@ input.query:focus {
   color: #64748b;
   text-align: center;
   font-style: italic;
+}
+
+/* Responsive: stack columns on narrow screens */
+@media (max-width: 600px) {
+  .helpColumns {
+    flex-direction: column;
+    gap: 8px;
+  }
 }

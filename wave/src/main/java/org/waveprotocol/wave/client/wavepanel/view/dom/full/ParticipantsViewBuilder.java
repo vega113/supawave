@@ -39,6 +39,7 @@ import org.waveprotocol.wave.client.uibuilder.HtmlClosureCollection;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
 import org.waveprotocol.wave.client.wavepanel.view.View.Type;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n.ParticipantMessages;
+import org.waveprotocol.wave.model.conversation.WaveLockState;
 
 /**
  * UiBuilder for a collection of participants.
@@ -77,6 +78,9 @@ public final class ParticipantsViewBuilder implements UiBuilder {
     String addButton();
     String newWaveWithParticipantsButton();
     String publicToggleButton();
+    String shareLinkButton();
+    String dmLabel();
+    String lockToggleButton();
   }
 
   private final static ParticipantMessages messages = GWT.create(ParticipantMessages.class);
@@ -103,13 +107,23 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   private final HtmlClosureCollection participantUis;
   private final String id;
   private final boolean isPublic;
+  private final boolean isDm;
+  private final WaveLockState lockState;
   @VisibleForTesting
   ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis,
-      boolean isPublic) {
+      boolean isPublic, boolean isDm) {
+    this(css, id, participantUis, isPublic, isDm, WaveLockState.UNLOCKED);
+  }
+
+  @VisibleForTesting
+  ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis,
+      boolean isPublic, boolean isDm, WaveLockState lockState) {
     this.css = css;
     this.id = id;
     this.participantUis = participantUis;
     this.isPublic = isPublic;
+    this.isDm = isDm;
+    this.lockState = lockState != null ? lockState : WaveLockState.UNLOCKED;
   }
 
   /**
@@ -119,19 +133,32 @@ public final class ParticipantsViewBuilder implements UiBuilder {
    */
   public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis) {
     return new ParticipantsViewBuilder(
-        WavePanelResourceLoader.getParticipants().css(), id, participantUis, false);
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, false, false);
   }
 
   /**
-   * Creates a new ParticipantsViewBuilder with public/private state.
+   * Creates a new ParticipantsViewBuilder with public/private and DM state.
    *
    * @param id attribute-HTML-safe encoding of the view's HTML id
    * @param isPublic true if the wave is currently public (shared with domain)
+   * @param isDm true if this is a direct message (exactly 2 real participants,
+   *             no domain participant)
    */
   public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis,
-      boolean isPublic) {
+      boolean isPublic, boolean isDm) {
     return new ParticipantsViewBuilder(
-        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic);
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic, isDm,
+        WaveLockState.UNLOCKED);
+  }
+
+  /**
+   * Creates a new ParticipantsViewBuilder with public/private, DM, and lock state.
+   */
+  public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis,
+      boolean isPublic, boolean isDm, WaveLockState lockState) {
+    return new ParticipantsViewBuilder(
+        WavePanelResourceLoader.getParticipants().css(), id, participantUis, isPublic, isDm,
+        lockState);
   }
 
   @Override
@@ -144,48 +171,89 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         {
           participantUis.outputHtml(output);
 
-          // Overflow-mode panel (toggle + add, but NO new-wave button to
-          // avoid duplication with the single-line panel).
-          openSpan(output, null, css.extra(), null);
-          {
-            openSpanWith(output, null, css.toggleGroup(), null, "onclick=\"" + onClickJs() + "\"");
+          if (isDm) {
+            // DM wave: show only the "Direct Message" label, hide action buttons.
+            openSpan(output, null, css.extra(), null);
             {
-              appendSpan(output, null, css.expandButton(), null);
-              openSpan(output, null, null, null);
+              openSpanWith(output, null, css.toggleGroup(), null, "onclick=\"" + onClickJs() + "\"");
               {
-                output.appendPlainText(messages.more());
+                appendSpan(output, null, css.expandButton(), null);
+                openSpan(output, null, null, null);
+                {
+                  output.appendPlainText(messages.more());
+                }
+                closeSpan(output);
               }
               closeSpan(output);
+              dmLabel(output, css.dmLabel(), messages.directMessage());
             }
             closeSpan(output);
-            addParticipantIcon(output, css.addButton(),
-                TypeCodes.kind(Type.ADD_PARTICIPANT),
-                messages.addParticipantToThisWave());
-            newWaveIcon(output, css.newWaveWithParticipantsButton(),
-                TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
-                messages.newWaveWithParticipantsOfCurrentWave());
-            publicToggleIcon(output, css.publicToggleButton(),
-                TypeCodes.kind(Type.TOGGLE_PUBLIC),
-                isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
-                isPublic);
-          }
-          closeSpan(output);
 
-          // Single-line mode panel.
-          openSpan(output, null, css.simple(), null);
-          {
-            addParticipantIcon(output, css.addButton(),
-                TypeCodes.kind(Type.ADD_PARTICIPANT),
-                messages.addParticipantToThisWave());
-            newWaveIcon(output, css.newWaveWithParticipantsButton(),
-                TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
-                messages.newWaveWithParticipantsOfCurrentWave());
-            publicToggleIcon(output, css.publicToggleButton(),
-                TypeCodes.kind(Type.TOGGLE_PUBLIC),
-                isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
-                isPublic);
+            openSpan(output, null, css.simple(), null);
+            {
+              dmLabel(output, css.dmLabel(), messages.directMessage());
+            }
+            closeSpan(output);
+          } else {
+            // Normal wave: show action buttons.
+
+            // Overflow-mode panel (toggle + add, but NO new-wave button to
+            // avoid duplication with the single-line panel).
+            openSpan(output, null, css.extra(), null);
+            {
+              openSpanWith(output, null, css.toggleGroup(), null, "onclick=\"" + onClickJs() + "\"");
+              {
+                appendSpan(output, null, css.expandButton(), null);
+                openSpan(output, null, null, null);
+                {
+                  output.appendPlainText(messages.more());
+                }
+                closeSpan(output);
+              }
+              closeSpan(output);
+              addParticipantIcon(output, css.addButton(),
+                  TypeCodes.kind(Type.ADD_PARTICIPANT),
+                  messages.addParticipantToThisWave());
+              newWaveIcon(output, css.newWaveWithParticipantsButton(),
+                  TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
+                  messages.newWaveWithParticipantsOfCurrentWave());
+              publicToggleIcon(output, css.publicToggleButton(),
+                  TypeCodes.kind(Type.TOGGLE_PUBLIC),
+                  isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
+                  isPublic);
+              shareLinkIcon(output, css.shareLinkButton(),
+                  TypeCodes.kind(Type.SHARE_LINK),
+                  messages.sharePublicLink(),
+                  isPublic);
+              lockToggleIcon(output, css.lockToggleButton(),
+                  TypeCodes.kind(Type.TOGGLE_LOCK),
+                  lockTooltip(lockState), lockState);
+            }
+            closeSpan(output);
+
+            // Single-line mode panel.
+            openSpan(output, null, css.simple(), null);
+            {
+              addParticipantIcon(output, css.addButton(),
+                  TypeCodes.kind(Type.ADD_PARTICIPANT),
+                  messages.addParticipantToThisWave());
+              newWaveIcon(output, css.newWaveWithParticipantsButton(),
+                  TypeCodes.kind(Type.NEW_WAVE_WITH_PARTICIPANTS),
+                  messages.newWaveWithParticipantsOfCurrentWave());
+              publicToggleIcon(output, css.publicToggleButton(),
+                  TypeCodes.kind(Type.TOGGLE_PUBLIC),
+                  isPublic ? messages.makeWavePrivate() : messages.makeWavePublic(),
+                  isPublic);
+              shareLinkIcon(output, css.shareLinkButton(),
+                  TypeCodes.kind(Type.SHARE_LINK),
+                  messages.sharePublicLink(),
+                  isPublic);
+              lockToggleIcon(output, css.lockToggleButton(),
+                  TypeCodes.kind(Type.TOGGLE_LOCK),
+                  lockTooltip(lockState), lockState);
+            }
+            closeSpan(output);
           }
-          closeSpan(output);
         }
         close(output);
       }
@@ -295,6 +363,119 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + ">"
         + svgIcon
         + "</span>");
+  }
+
+  /**
+   * Renders a compact circular icon button for sharing the public wave link.
+   * Uses a link/chain SVG icon with a green gradient background.
+   */
+  private static void shareLinkIcon(SafeHtmlBuilder output, String clazz, String kind,
+      String title, boolean visible) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedKind = kind != null ? EscapeUtils.htmlEscape(kind) : null;
+    String escapedTitle = title != null ? EscapeUtils.htmlEscape(title) : null;
+
+    // Link/chain icon for sharing
+    String svgIcon = "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' "
+        + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+        + "stroke-linejoin='round'>"
+        + "<path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/>"
+        + "<path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>"
+        + "</svg>";
+
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + (escapedKind != null ? " kind='" + escapedKind + "'" : "")
+        + (escapedTitle != null ? " title='" + escapedTitle + "'" : "")
+        + " role='button' tabindex='0'"
+        + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
+        + (visible ? "" : " style='display:none'")
+        + ">"
+        + svgIcon
+        + "</span>");
+  }
+
+  /**
+   * Renders a subtle "Direct Message" label for DM waves. Uses a small
+   * chat-bubble SVG icon followed by the label text.
+   */
+  private static void dmLabel(SafeHtmlBuilder output, String clazz, String label) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedLabel = label != null ? EscapeUtils.htmlEscape(label) : "";
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + " title='" + escapedLabel + "'"
+        + ">"
+        // Small chat-bubble icon
+        + "<svg width='12' height='12' viewBox='0 0 24 24' fill='currentColor' "
+        + "style='vertical-align: middle; margin-right: 3px;'>"
+        + "<path d='M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2z'/>"
+        + "</svg>"
+        + escapedLabel
+        + "</span>");
+  }
+
+  /**
+   * Renders a compact circular icon button for toggling wave lock state.
+   * Shows different icons depending on the current lock state:
+   * UNLOCKED: empty shield, ROOT_LOCKED: shield with line, ALL_LOCKED: filled shield.
+   */
+  private static void lockToggleIcon(SafeHtmlBuilder output, String clazz, String kind,
+      String title, WaveLockState lockState) {
+    String escapedClazz = clazz != null ? EscapeUtils.htmlEscape(clazz) : null;
+    String escapedKind = kind != null ? EscapeUtils.htmlEscape(kind) : null;
+    String escapedTitle = title != null ? EscapeUtils.htmlEscape(title) : null;
+
+    String svgIcon;
+    switch (lockState) {
+      case ROOT_LOCKED:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "<line x1='12' y1='8' x2='12' y2='16'/>"
+            + "</svg>";
+        break;
+      case ALL_LOCKED:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='currentColor' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "</svg>";
+        break;
+      default:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "</svg>";
+        break;
+    }
+
+    output.appendHtmlConstant(
+        "<span"
+        + (escapedClazz != null ? " class='" + escapedClazz + "'" : "")
+        + (escapedKind != null ? " kind='" + escapedKind + "'" : "")
+        + (escapedTitle != null ? " title='" + escapedTitle + "'" : "")
+        + " role='button' tabindex='0'"
+        + (escapedTitle != null ? " aria-label='" + escapedTitle + "'" : "")
+        + ">"
+        + svgIcon
+        + "</span>");
+  }
+
+  /** Returns a tooltip string for the current lock state. */
+  private static String lockTooltip(WaveLockState lockState) {
+    switch (lockState) {
+      case ROOT_LOCKED:
+        return messages.waveRootLocked();
+      case ALL_LOCKED:
+        return messages.waveAllLocked();
+      default:
+        return messages.waveUnlocked();
+    }
   }
 
   // Rather than install a regular handler, this is an experiment at injecting

@@ -35,4 +35,16 @@ public interface ActionMessages extends Messages {
 
   @DefaultMessage("Maximum reply depth reached. Your reply will be added to the current thread.")
   String maxReplyDepthContinueInThread();
+
+  @DefaultMessage("This wave is locked. Editing is not allowed.")
+  String waveIsLocked();
+
+  @DefaultMessage("This wave is locked. Replies are not allowed.")
+  String waveIsLockedNoReply();
+
+  @DefaultMessage("The root blip is locked. Editing is not allowed here.")
+  String rootBlipIsLocked();
+
+  @DefaultMessage("Cannot reply \u2014 this wave has no content.")
+  String cannotReplyEmptyWave();
 }

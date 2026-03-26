@@ -28,10 +28,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.TimeZone;
 import org.waveprotocol.box.common.Snippets;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
+import org.waveprotocol.box.server.rpc.PublicWaveBlipRenderer.BlipInfo;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -127,7 +129,7 @@ public final class PublicWaveServlet extends HttpServlet {
 
     ReadableWaveletData snapshot = committedSnapshot.snapshot;
 
-    // Extract title and description from the wave content
+    // Extract title and description from the wave content (for SEO meta tags)
     String snippet = Snippets.renderSnippet(snapshot, MAX_DESCRIPTION_LENGTH + 200).trim();
     String title;
     String description;
@@ -154,14 +156,21 @@ public final class PublicWaveServlet extends HttpServlet {
 
     String canonicalUrl = siteUrl + "/wave/" + waveIdStr;
 
+    // Render full blip content with author and thread structure
+    List<BlipInfo> blips = PublicWaveBlipRenderer.renderBlips(snapshot);
+
     // Render the page
-    String html = HtmlRenderer.renderPublicWavePage(
+    String html = HtmlRenderer.renderPublicWavePageWithBlips(
         title, description, canonicalUrl, siteUrl, waveIdStr,
-        author, datePublished, dateModified, snippet, waveDomain);
+        author, datePublished, dateModified, blips, waveDomain);
 
     resp.setStatus(HttpServletResponse.SC_OK);
     resp.setContentType("text/html; charset=UTF-8");
-    resp.setHeader("Cache-Control", "public, max-age=300");
+    // Use no-cache so browsers revalidate on every request. This ensures that
+    // waves toggled to private immediately return 404 instead of serving stale
+    // cached content for up to 5 minutes.
+    resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    resp.setHeader("Pragma", "no-cache");
     resp.getWriter().write(html);
   }
 

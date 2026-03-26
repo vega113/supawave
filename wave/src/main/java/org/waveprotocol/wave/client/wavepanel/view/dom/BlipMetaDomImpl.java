@@ -117,6 +117,13 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
   }
 
   @Override
+  public void setAuthorAddress(String address) {
+    if (address != null) {
+      getAvatar().setAttribute("data-address", address);
+    }
+  }
+
+  @Override
   public void setMetaline(String metaline) {
     getMetaline().setInnerText(metaline);
   }

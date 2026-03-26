@@ -46,4 +46,19 @@ public interface ParticipantMessages extends Messages {
 
   @DefaultMessage("Add participant to this wave")
   String addParticipantToThisWave();
+
+  @DefaultMessage("Direct Message")
+  String directMessage();
+
+  @DefaultMessage("Copy public link to clipboard")
+  String sharePublicLink();
+
+  @DefaultMessage("Wave is unlocked. Click to lock root blip.")
+  String waveUnlocked();
+
+  @DefaultMessage("Root blip locked. Click to lock entire wave.")
+  String waveRootLocked();
+
+  @DefaultMessage("Wave is fully locked. Click to unlock.")
+  String waveAllLocked();
  }

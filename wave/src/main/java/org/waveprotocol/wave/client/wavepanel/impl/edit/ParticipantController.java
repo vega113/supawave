@@ -22,15 +22,13 @@ package org.waveprotocol.wave.client.wavepanel.impl.edit;
 
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 
 import org.waveprotocol.wave.client.widget.dialog.PromptDialog;
 import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 
+import org.waveprotocol.box.webclient.contact.ContactSearchServiceImpl;
 import org.waveprotocol.wave.client.account.ContactManager;
-import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileManager;
-import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.WaveCreationEvent;
 import org.waveprotocol.wave.client.wavepanel.WavePanel;
@@ -44,14 +42,15 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.DomAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
-import org.waveprotocol.wave.client.widget.profile.ProfilePopupPresenter;
-import org.waveprotocol.wave.client.widget.profile.ProfilePopupView;
 import org.waveprotocol.wave.model.conversation.Conversation;
+import org.waveprotocol.wave.model.conversation.WaveLockState;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.box.webclient.client.Session;
 
 import java.util.Set;
 
@@ -144,6 +143,20 @@ public final class ParticipantController {
         return true;
       }
     });
+    handlers.registerClickHandler(TypeCodes.kind(Type.SHARE_LINK), new WaveClickHandler() {
+      @Override
+      public boolean onClick(ClickEvent event, Element context) {
+        handleShareLinkClicked(context);
+        return true;
+      }
+    });
+    handlers.registerClickHandler(TypeCodes.kind(Type.TOGGLE_LOCK), new WaveClickHandler() {
+      @Override
+      public boolean onClick(ClickEvent event, Element context) {
+        handleToggleLockClicked(context);
+        return true;
+      }
+    });
   }
 
   /**
@@ -188,17 +201,26 @@ public final class ParticipantController {
 
   /**
    * Toggles a wave between public and private by adding or removing the shared
-   * domain participant. Only the wave creator (first participant) can perform
-   * this action. When public, the wave is visible to all users on the domain.
+   * domain participant. Only the wave creator (first participant) or a server
+   * admin can perform this action. When public, the wave is visible to all
+   * users on the domain.
    */
   private void handleTogglePublicClicked(Element context) {
     ParticipantsView participantsUi = views.fromTogglePublicButton(context);
     Conversation conversation = models.getParticipants(participantsUi);
+
+    // Block making DM waves public.
+    if (isDirectMessage(conversation)) {
+      ToastNotification.showWarning(messages.cannotMakeDmPublic());
+      return;
+    }
+
     Set<ParticipantId> participants = conversation.getParticipantIds();
 
     // The wave creator is the first participant in the ordered set.
+    // Both the creator and server admins may toggle public/private.
     ParticipantId creator = participants.iterator().next();
-    if (!user.equals(creator)) {
+    if (!user.equals(creator) && !Session.get().isAdmin()) {
       ToastNotification.showWarning(messages.onlyOwnerCanTogglePublic());
       return;
     }
@@ -221,7 +243,11 @@ public final class ParticipantController {
     }
 
     // Update the toggle button icon and tooltip to reflect the new state.
-    updateTogglePublicIcon(context, !isCurrentlyPublic);
+    boolean isNowPublic = !isCurrentlyPublic;
+    updateTogglePublicIcon(context, isNowPublic);
+
+    // Show or hide all share-link buttons within the participants panel.
+    updateShareLinkVisibility(context, isNowPublic);
   }
 
   /**
@@ -259,6 +285,185 @@ public final class ParticipantController {
   }
 
   /**
+   * Shows or hides all share-link buttons inside the participants panel that
+   * contains the given toggle button. Both the {@code .simple} and
+   * {@code .extra} panels contain a share-link button, so this method walks
+   * up to the {@code PARTICIPANTS} container and toggles every descendant
+   * share-link element it finds.
+   *
+   * @param toggleButton the toggle-public button that was clicked
+   * @param visible true to show, false to hide
+   */
+  private void updateShareLinkVisibility(Element toggleButton, boolean visible) {
+    // Walk up from the toggle button to the PARTICIPANTS container.
+    ParticipantsView participantsUi = views.fromTogglePublicButton(toggleButton);
+    if (participantsUi == null) {
+      return;
+    }
+    // The participants panel root element contains both .simple and .extra spans
+    // which each hold a share-link button identified by the SHARE_LINK kind attribute.
+    Element panelElement = toggleButton.getParentElement();
+    while (panelElement != null) {
+      String kind = panelElement.getAttribute("kind");
+      if (kind != null && kind.equals(TypeCodes.kind(Type.PARTICIPANTS))) {
+        break;
+      }
+      panelElement = panelElement.getParentElement();
+    }
+    if (panelElement == null) {
+      return;
+    }
+    String shareLinkKind = TypeCodes.kind(Type.SHARE_LINK);
+    setVisibilityByKind(panelElement, shareLinkKind, visible);
+  }
+
+  /**
+   * Recursively finds all descendant elements with the given {@code kind}
+   * attribute and sets their display style.
+   */
+  private static void setVisibilityByKind(Element root, String kind, boolean visible) {
+    Element child = root.getFirstChildElement();
+    while (child != null) {
+      String childKind = child.getAttribute("kind");
+      if (childKind != null && childKind.equals(kind)) {
+        child.getStyle().setProperty("display", visible ? "" : "none");
+      } else {
+        setVisibilityByKind(child, kind, visible);
+      }
+      child = child.getNextSiblingElement();
+    }
+  }
+
+  /**
+   * Copies the public URL for this wave to the clipboard. The URL is
+   * constructed from the current origin and the wave ID extracted from
+   * the conversation model.
+   */
+  private void handleShareLinkClicked(Element context) {
+    ParticipantsView participantsUi = views.fromShareLinkButton(context);
+    Conversation conversation = models.getParticipants(participantsUi);
+
+    // Extract wave ID from the first blip's raw wavelet
+    WaveId waveId = null;
+    if (conversation.getRootThread() != null
+        && conversation.getRootThread().getFirstBlip() != null) {
+      waveId = conversation.getRootThread().getFirstBlip()
+          .hackGetRaw().getWavelet().getWaveId();
+    }
+
+    if (waveId == null) {
+      ToastNotification.showWarning("Unable to determine wave ID.");
+      return;
+    }
+
+    String publicUrl = nativeGetOrigin() + "/wave/" + waveId.serialise();
+    nativeCopyToClipboard(publicUrl);
+    ToastNotification.showSuccess("Public link copied!");
+  }
+
+  /**
+   * Returns the current page origin via native JS ({@code window.location.origin}).
+   */
+  private static native String nativeGetOrigin() /*-{
+    return $wnd.location.origin;
+  }-*/;
+
+  /**
+   * Copies the given text to the clipboard using the modern Clipboard API,
+   * falling back to a hidden textarea + execCommand approach.
+   */
+  private static native void nativeCopyToClipboard(String text) /*-{
+    if ($wnd.navigator && $wnd.navigator.clipboard && $wnd.navigator.clipboard.writeText) {
+      $wnd.navigator.clipboard.writeText(text);
+    } else {
+      var ta = $doc.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      $doc.body.appendChild(ta);
+      ta.select();
+      try { $doc.execCommand('copy'); } catch (e) {}
+      $doc.body.removeChild(ta);
+    }
+  }-*/;
+
+  /**
+   * Cycles the wave lock state: UNLOCKED -> ROOT_LOCKED -> ALL_LOCKED -> UNLOCKED.
+   * Only the wave creator or an admin can toggle the lock state.
+   */
+  private void handleToggleLockClicked(Element context) {
+    ParticipantsView participantsUi = views.fromToggleLockButton(context);
+    Conversation conversation = models.getParticipants(participantsUi);
+    Set<ParticipantId> participants = conversation.getParticipantIds();
+
+    // The wave creator is the first participant in the ordered set.
+    ParticipantId creator = participants.iterator().next();
+    if (!user.equals(creator) && !Session.get().isAdmin()) {
+      ToastNotification.showWarning(messages.onlyOwnerCanToggleLock());
+      return;
+    }
+
+    WaveLockState currentState = conversation.getLockState();
+    WaveLockState newState = currentState.next();
+    conversation.setLockState(newState);
+
+    // Update the button icon and tooltip.
+    updateToggleLockIcon(context, newState);
+
+    // Show confirmation toast.
+    switch (newState) {
+      case ROOT_LOCKED:
+        ToastNotification.showSuccess(messages.waveLockRoot());
+        break;
+      case ALL_LOCKED:
+        ToastNotification.showSuccess(messages.waveLockAll());
+        break;
+      default:
+        ToastNotification.showSuccess(messages.waveLockUnlocked());
+        break;
+    }
+  }
+
+  /**
+   * Updates the toggle-lock button's SVG icon and tooltip to reflect the
+   * current lock state.
+   */
+  private void updateToggleLockIcon(Element buttonElement, WaveLockState lockState) {
+    String svgIcon;
+    String tooltip;
+    switch (lockState) {
+      case ROOT_LOCKED:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "<line x1='12' y1='8' x2='12' y2='16'/>"
+            + "</svg>";
+        tooltip = messages.waveLockRoot();
+        break;
+      case ALL_LOCKED:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='currentColor' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "</svg>";
+        tooltip = messages.waveLockAll();
+        break;
+      default:
+        svgIcon = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' "
+            + "stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+            + "stroke-linejoin='round'>"
+            + "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>"
+            + "</svg>";
+        tooltip = messages.waveLockUnlocked();
+        break;
+    }
+    buttonElement.setInnerHTML(svgIcon);
+    buttonElement.setTitle(tooltip);
+    buttonElement.setAttribute("aria-label", tooltip);
+  }
+
+  /**
    * Creates a new wave with the participants of the current wave. Showing
    * a popup dialog where the user can chose to deselect users that should not
    * be participants in the new wave
@@ -287,8 +492,20 @@ public final class ParticipantController {
   }
 
   /**
-   * Shows an add-participant popup with contact autocomplete suggestions.
-   * If no contact manager is available, falls back to a plain browser prompt.
+   * Returns true if the given conversation is a direct message, identified by
+   * the presence of the {@link Conversation#DM_TAG} tag. Only waves explicitly
+   * created via the "Send Message" profile action carry this tag; regular waves
+   * with two participants are NOT considered DMs.
+   */
+  private static boolean isDirectMessage(Conversation conversation) {
+    Set<String> tags = conversation.getTags();
+    return tags != null && tags.contains(Conversation.DM_TAG);
+  }
+
+  /**
+   * Shows an add-participant popup. If a contact manager is available, uses
+   * the server-side {@link ContactSearchDialog} for autocomplete. Otherwise
+   * falls back to the legacy prompt dialog.
    */
   private void handleAddButtonClicked(final Element context) {
     if (contactManager == null) {
@@ -299,20 +516,25 @@ public final class ParticipantController {
     final ParticipantsView participantsUi = views.fromAddButton(context);
     final Conversation conversation = models.getParticipants(participantsUi);
 
-    ParticipantAddWidget addWidget = new ParticipantAddWidget();
-    addWidget.setContactManager(contactManager);
-    addWidget.setLocalDomain(localDomain);
+    // Block adding participants to DM waves.
+    if (isDirectMessage(conversation)) {
+      ToastNotification.showWarning(messages.cannotAddParticipantToDm());
+      return;
+    }
+
+    ContactSearchDialog dialog = new ContactSearchDialog(
+        ContactSearchServiceImpl.create(), localDomain);
 
     popup = null;
-    addWidget.setListener(new ParticipantAddWidget.Listener() {
+    dialog.setListener(new ContactSearchDialog.Listener() {
       @Override
-      public void onAdd(String addressString) {
+      public void onSelect(String address) {
         if (popup != null) {
           popup.hide();
         }
         ParticipantId[] participants;
         try {
-          participants = buildParticipantList(localDomain, addressString);
+          participants = buildParticipantList(localDomain, address);
         } catch (InvalidParticipantAddress e) {
           ToastNotification.showWarning(e.getMessage());
           return;
@@ -329,13 +551,21 @@ public final class ParticipantController {
         }
       }
     });
-    popup = addWidget.showInPopup();
+    popup = dialog.showInPopup();
   }
 
   /**
    * Legacy add-participant using a styled prompt dialog (no autocomplete).
    */
   private void handleAddButtonClickedLegacy(final Element context) {
+    // Block adding participants to DM waves.
+    ParticipantsView dmCheckUi = views.fromAddButton(context);
+    Conversation dmCheckConv = models.getParticipants(dmCheckUi);
+    if (isDirectMessage(dmCheckConv)) {
+      ToastNotification.showWarning(messages.cannotAddParticipantToDm());
+      return;
+    }
+
     PromptDialog.show("Add a participant(s) (separate with comma ','):", "",
         new PromptDialog.Listener() {
           @Override
@@ -365,42 +595,24 @@ public final class ParticipantController {
   }
 
   /**
-   * Shows a participation popup for the clicked participant.
+   * Shows the profile card popup for the clicked participant.
+   * Delegates to the page-level {@code window.showProfileCard(address)} function
+   * injected by HtmlRenderer, which fetches and displays the full profile card.
    */
   private void handleParticipantClicked(Element context) {
     ParticipantView participantView = views.asParticipant(context);
     final Pair<Conversation, ParticipantId> participation = models.getParticipant(participantView);
-    Profile profile = profiles.getProfile(participation.second);
-
-    // Summon a popup view from a participant, and attach profile-popup logic to
-    // it.
-    final ProfilePopupView profileView = participantView.showParticipation();
-    ProfilePopupPresenter profileUi = ProfilePopupPresenter.create(profile, profileView, profiles);
-    profileUi.addControl(EscapeUtils.fromSafeConstant(messages.remove()), new ClickHandler() {
-      @Override
-      public void onClick(ClickEvent event) {
-        // Enforce creator-only rule for removing the shared-domain participant
-        // (i.e., toggling wave visibility). This prevents non-creators from
-        // making a public wave private via the participant remove action.
-        if (localDomain != null && !localDomain.isEmpty()) {
-          ParticipantId domainParticipant =
-              ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(localDomain);
-          if (participation.second.equals(domainParticipant)) {
-            Set<ParticipantId> currentParticipants = participation.first.getParticipantIds();
-            ParticipantId creator = currentParticipants.iterator().next();
-            if (!user.equals(creator)) {
-              ToastNotification.showWarning(messages.onlyOwnerCanTogglePublic());
-              profileView.hide();
-              return;
-            }
-          }
-        }
-
-        participation.first.removeParticipant(participation.second);
-        // The presenter is configured to destroy itself on view hide.
-        profileView.hide();
-      }
-    });
-    profileUi.show();
+    String address = participation.second.getAddress();
+    nativeShowProfileCard(address);
   }
+
+  /**
+   * Calls the page-level {@code window.showProfileCard(address)} JS function
+   * that is injected by HtmlRenderer's profile card fragment.
+   */
+  private static native void nativeShowProfileCard(String address) /*-{
+    if ($wnd.showProfileCard) {
+      $wnd.showProfileCard(address);
+    }
+  }-*/;
 }

@@ -101,6 +101,16 @@ public class MemoryStore implements SignerInfoStore, AccountStore, ContactStore 
     accountStore.remove(id);
   }
 
+  @Override
+  public List<AccountData> getAllAccounts() {
+    return new ArrayList<AccountData>(accountStore.values());
+  }
+
+  @Override
+  public long getAccountCount() {
+    return accountStore.size();
+  }
+
   /*
    *  ContactStore
    */

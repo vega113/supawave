@@ -4,6 +4,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 import org.bson.types.Binary;
+import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
@@ -48,6 +49,10 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String HUMAN_BIO_FIELD = "bio";
   private static final String HUMAN_PROFILE_IMAGE_FIELD = "profileImageAttachmentId";
   private static final String HUMAN_SHOW_LAST_SEEN_FIELD = "showLastSeen";
+  private static final String HUMAN_SEARCHES_FIELD = "searches";
+  private static final String SEARCH_NAME_FIELD = "name";
+  private static final String SEARCH_QUERY_FIELD = "query";
+  private static final String SEARCH_PINNED_FIELD = "pinned";
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
 
@@ -196,6 +201,18 @@ final class Mongo4AccountStore implements AccountStore {
       doc.append(HUMAN_PROFILE_IMAGE_FIELD, account.getProfileImageAttachmentId());
     }
     doc.append(HUMAN_SHOW_LAST_SEEN_FIELD, account.isShowLastSeen());
+    // Saved searches
+    List<SearchesItem> searches = account.getSearches();
+    if (searches != null && !searches.isEmpty()) {
+      List<Document> searchDocs = new ArrayList<>();
+      for (SearchesItem item : searches) {
+        searchDocs.add(new Document()
+            .append(SEARCH_NAME_FIELD, item.getName())
+            .append(SEARCH_QUERY_FIELD, item.getQuery())
+            .append(SEARCH_PINNED_FIELD, item.isPinned()));
+      }
+      doc.append(HUMAN_SEARCHES_FIELD, searchDocs);
+    }
     return doc;
   }
 
@@ -261,6 +278,21 @@ final class Mongo4AccountStore implements AccountStore {
     Boolean showLastSeen = doc.getBoolean(HUMAN_SHOW_LAST_SEEN_FIELD);
     if (showLastSeen != null) {
       account.setShowLastSeen(showLastSeen);
+    }
+    // Saved searches
+    List<?> searchList = (List<?>) doc.get(HUMAN_SEARCHES_FIELD);
+    if (searchList != null && !searchList.isEmpty()) {
+      List<SearchesItem> searches = new ArrayList<>();
+      for (Object obj : searchList) {
+        Document sDoc = (Document) obj;
+        String sName = sDoc.getString(SEARCH_NAME_FIELD);
+        String sQuery = sDoc.getString(SEARCH_QUERY_FIELD);
+        Boolean sPinned = sDoc.getBoolean(SEARCH_PINNED_FIELD);
+        searches.add(new SearchesItem(
+            sName != null ? sName : "", sQuery != null ? sQuery : "",
+            sPinned != null && sPinned));
+      }
+      account.setSearches(searches);
     }
     return account;
   }

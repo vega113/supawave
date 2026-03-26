@@ -37,6 +37,18 @@ import java.util.Set;
  * @author anorth@google.com (Alex North)
  */
 public interface Conversation {
+
+  /**
+   * Tag applied to direct-message waves. A DM wave is created exclusively via
+   * the "Send Message" action on a user's profile card. Regular waves that
+   * happen to have exactly two participants are NOT DMs.
+   *
+   * <p>This tag is stored in the conversation's tags document and is used by
+   * both the client (to gate add-participant and toggle-public actions) and
+   * the server (to support {@code tag:_dm} search queries).
+   */
+  String DM_TAG = "_dm";
+
   /**
    * An anchor point inside a conversation.
    */
@@ -219,4 +231,18 @@ public interface Conversation {
    * @return true, if the conversation is root
    */
   boolean isRoot();
+
+  /**
+   * Gets the current lock state of this conversation.
+   *
+   * @return the lock state, never null (defaults to {@link WaveLockState#UNLOCKED})
+   */
+  WaveLockState getLockState();
+
+  /**
+   * Sets the lock state of this conversation.
+   *
+   * @param state the new lock state
+   */
+  void setLockState(WaveLockState state);
 }

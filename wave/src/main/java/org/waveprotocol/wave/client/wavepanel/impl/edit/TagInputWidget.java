@@ -78,6 +78,7 @@ public final class TagInputWidget extends Composite {
     String title();
     String message();
     String tagName();
+    String inputWrapper();
     String input();
     String inputFocused();
     String hint();
@@ -86,6 +87,11 @@ public final class TagInputWidget extends Composite {
     String addButton();
     String removeButton();
     String errorLabel();
+    String suggestionsDropdown();
+    String suggestionItem();
+    String suggestionItemSelected();
+    String suggestionMatch();
+    String suggestionCount();
   }
 
   private static final Style style = GWT.<Resources>create(Resources.class).style();
@@ -124,7 +130,6 @@ public final class TagInputWidget extends Composite {
     Label hintLabel = new Label("Separate multiple tags with commas");
     hintLabel.addStyleName(style.hint());
     panel.add(hintLabel);
-
 
     // Focus/blur styling
     input.addFocusHandler(new FocusHandler() {

@@ -71,6 +71,8 @@ public final class TypeCodes {
     TYPES.put("tg", Type.TAG);
     TYPES.put("at", Type.ADD_TAG);
     TYPES.put("tp", Type.TOGGLE_PUBLIC);
+    TYPES.put("sl", Type.SHARE_LINK);
+    TYPES.put("tl", Type.TOGGLE_LOCK);
 
     TYPES.each(new ProcV<Type>() {
       @Override

@@ -42,4 +42,9 @@ public interface SessionConstants {
    * is not guaranteed to be cryptographically strong.
    */
   public final static String ID_SEED = "id";
+
+  /**
+   * The user's role: "owner", "admin", or "user".
+   */
+  public final static String ROLE = "role";
 }

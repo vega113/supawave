@@ -37,15 +37,17 @@ import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.ThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
+import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
+import org.waveprotocol.wave.model.conversation.WaveLockState;
 import org.waveprotocol.wave.model.id.DualIdSerialiser;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
-import java.util.logging.Logger;
+import org.waveprotocol.wave.client.editor.EditorStaticDeps;
 
 /**
  * Defines the UI actions that can be performed as part of the editing feature.
@@ -53,7 +55,7 @@ import java.util.logging.Logger;
  *
  */
 public final class ActionsImpl implements Actions {
-  private static final Logger LOG = Logger.getLogger(ActionsImpl.class.getName());
+  // Use GWT-safe EditorStaticDeps logger instead of server-side Log
   private static final ActionMessages messages = GWT.create(ActionMessages.class);
 
   private final ModelAsViewProvider views;
@@ -90,6 +92,10 @@ public final class ActionsImpl implements Actions {
   public void startEditing(BlipView blipUi) {
     boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
     if (allowed) {
+      ConversationBlip blip = views.getBlip(blipUi);
+      if (blip != null && isBlipLockedForEditing(blip)) {
+        return;
+      }
       focusAndEdit(blipUi);
     }
   }
@@ -126,6 +132,16 @@ public final class ActionsImpl implements Actions {
     if (allowed) {
       ConversationBlip blip = views.getBlip(blipUi);
 
+      // Check if replies are blocked by wave lock.
+      if (blip != null) {
+        Conversation conv = blip.getConversation();
+        WaveLockState lockState = conv.getLockState();
+        if (lockState == WaveLockState.ALL_LOCKED) {
+          ToastNotification.showWarning(messages.waveIsLockedNoReply());
+          return;
+        }
+      }
+
       // Phase 5: enforce maximum reply nesting depth with "continue in
       // current thread" fallback. When depth is at or above the limit, the
       // reply is appended as a continuation of the blip's parent thread
@@ -134,7 +150,7 @@ public final class ActionsImpl implements Actions {
       if (maxDepth != null && maxDepth > 0) {
         int currentDepth = computeBlipDepth(blip);
         if (currentDepth >= maxDepth) {
-          LOG.info("Max reply depth reached (depth=" + currentDepth
+          EditorStaticDeps.logger.trace().log("Max reply depth reached (depth=" + currentDepth
               + ", limit=" + maxDepth + "); continuing in current thread.");
           DepthLimitToast.show(messages.maxReplyDepthContinueInThread());
           // Add a continuation blip in the blip's own thread rather than
@@ -178,9 +194,33 @@ public final class ActionsImpl implements Actions {
   @Override
   public void addContinuation(ThreadView threadUi) {
     ConversationThread thread = views.getThread(threadUi);
+
+    if (thread == null) {
+      EditorStaticDeps.logger.trace().log("addContinuation: thread is null, ignoring.");
+      ToastNotification.showWarning(messages.cannotReplyEmptyWave());
+      return;
+    }
+
+    // Check if continuations are blocked by wave lock.
+    ConversationBlip firstBlip = thread.getFirstBlip();
+    if (firstBlip != null) {
+      WaveLockState lockState = firstBlip.getConversation().getLockState();
+      if (lockState == WaveLockState.ALL_LOCKED) {
+        ToastNotification.showWarning(messages.waveIsLockedNoReply());
+        return;
+      }
+    }
+
     ConversationBlip continuation = thread.appendBlip();
     blipQueue.flush();
-    focusAndEdit(views.getBlipView(continuation));
+    BlipView continuationUi = views.getBlipView(continuation);
+    if (continuationUi == null) {
+      EditorStaticDeps.logger.trace().log(
+          "addContinuation: blip view not available after flush, ignoring.");
+      ToastNotification.showWarning(messages.cannotReplyEmptyWave());
+      return;
+    }
+    focusAndEdit(continuationUi);
   }
 
   @Override
@@ -227,6 +267,28 @@ public final class ActionsImpl implements Actions {
   }
 
   /**
+   * Checks whether a blip is locked for editing based on the wave lock state.
+   * Shows a toast notification and returns true if editing should be blocked.
+   */
+  private boolean isBlipLockedForEditing(ConversationBlip blip) {
+    Conversation conv = blip.getConversation();
+    WaveLockState lockState = conv.getLockState();
+    switch (lockState) {
+      case ALL_LOCKED:
+        ToastNotification.showWarning(messages.waveIsLocked());
+        return true;
+      case ROOT_LOCKED:
+        if (blip.isRoot()) {
+          ToastNotification.showWarning(messages.rootBlipIsLocked());
+          return true;
+        }
+        return false;
+      default:
+        return false;
+    }
+  }
+
+  /**
    * Moves focus to a blip, and starts editing it.
    * If already editing the target blip and the editor is confirmed to be
    * in editing mode with a document attached, this is a no-op to avoid
@@ -235,6 +297,9 @@ public final class ActionsImpl implements Actions {
    * or document), the session is restarted.
    */
   private void focusAndEdit(BlipView blipUi) {
+    if (blipUi == null) {
+      return;
+    }
     boolean allowed = !BlipUiUtil.isQuasiDeleted(blipUi);
     if (allowed) {
       if (edit.isEditing() && blipUi.equals(edit.getBlip())

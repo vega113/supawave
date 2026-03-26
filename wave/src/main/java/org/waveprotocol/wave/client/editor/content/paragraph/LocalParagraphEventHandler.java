@@ -23,6 +23,10 @@ import static org.waveprotocol.wave.client.editor.content.paragraph.ParagraphEve
 import static org.waveprotocol.wave.client.editor.content.paragraph.ParagraphEventHandler.getBehaviour;
 import static org.waveprotocol.wave.client.editor.content.paragraph.ParagraphEventHandler.indent;
 
+import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.Node;
+
+import org.waveprotocol.wave.client.editor.EditorStaticDeps;
 import org.waveprotocol.wave.client.editor.NodeEventHandlerImpl;
 import org.waveprotocol.wave.client.editor.content.CMutableDocument;
 import org.waveprotocol.wave.client.editor.content.ContentElement;
@@ -31,6 +35,8 @@ import org.waveprotocol.wave.client.editor.content.ContentPoint;
 import org.waveprotocol.wave.client.editor.content.ContentTextNode;
 import org.waveprotocol.wave.client.editor.content.FullContentView;
 import org.waveprotocol.wave.client.editor.event.EditorEvent;
+import org.waveprotocol.wave.client.editor.selection.content.SelectionHelper;
+import org.waveprotocol.wave.client.editor.selection.html.NativeSelectionUtil;
 import org.waveprotocol.wave.model.document.MutableDocument;
 import org.waveprotocol.wave.model.document.operation.Attributes;
 import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
@@ -94,12 +100,18 @@ public class LocalParagraphEventHandler extends NodeEventHandlerImpl {
 
     ContentElement newLocalParagraph = Line.fromLineElement(newLineElement).getParagraph();
 
-    // Guard against the editing context being lost (e.g. if the edit session
-    // was ended by a concurrent event during the createElement operation).
-    // Without this check, getSelectionHelper() throws "Not in an editing context".
-    if (element.getContext().editing().hasEditor()) {
-      element.getSelectionHelper().setCaret(
+    // Move the caret to the new paragraph via the SelectionHelper, which
+    // handles finding a valid selection point and saving the selection state.
+    // If the SelectionHelper is unavailable (e.g. the editing context STUB is
+    // still active during the first edit of a new wave's root blip), fall back
+    // to setting the native browser selection directly on the new paragraph's
+    // DOM element. This ensures the caret always moves to the new line.
+    SelectionHelper selectionHelper = element.getSelectionHelper();
+    if (selectionHelper != null) {
+      selectionHelper.setCaret(
           Point.start(element.getRenderedContentView(), newLocalParagraph));
+    } else {
+      setCaretViaNativeSelection(newLocalParagraph);
     }
 
     return true;
@@ -154,13 +166,41 @@ public class LocalParagraphEventHandler extends NodeEventHandlerImpl {
       boolean needsAdjusting = prevParagraph.getFirstChild() == null;
       doc.deleteNode(lineElement);
 
-      if (!needsAdjusting) {
-        lineElement.getSelectionHelper().setCaret(doc.locate(at));
+      // Move the caret to the merged position. Fall back to native selection
+      // if the SelectionHelper is unavailable (same STUB scenario as handleEnter).
+      SelectionHelper selectionHelper = lineElement.getSelectionHelper();
+      if (selectionHelper != null) {
+        if (!needsAdjusting) {
+          selectionHelper.setCaret(doc.locate(at));
+        } else {
+          // NOTE(patcoleman): a special case for empty local paragraphs,
+          // these are skipped by locate
+          selectionHelper.setCaret(
+              Point.<ContentNode, ContentElement>start(doc, prevParagraph));
+        }
       } else {
-        // NOTE(patcoleman): a special case for empty local paragraphs, these are skipped by locate
-        lineElement.getSelectionHelper().setCaret(
-            Point.<ContentNode, ContentElement>start(doc, prevParagraph));
+        setCaretViaNativeSelection(prevParagraph);
       }
+    }
+  }
+
+  /**
+   * Sets the caret at the start of a paragraph by manipulating the native
+   * browser selection directly. This bypasses the SelectionHelper / editing
+   * context machinery and is used as a fallback when the editing context's
+   * STUB is still in place (e.g. during the first edit of a newly created
+   * wave's root blip).
+   *
+   * @param paragraph the paragraph element to place the caret into
+   */
+  private void setCaretViaNativeSelection(ContentElement paragraph) {
+    Element container = paragraph.getContainerNodelet();
+    if (container != null) {
+      NativeSelectionUtil.setCaret(
+          Point.<Node>inElement(container, container.getFirstChild()));
+    } else {
+      EditorStaticDeps.logger.trace().log(
+          "setCaretViaNativeSelection: paragraph has no container nodelet");
     }
   }
 }

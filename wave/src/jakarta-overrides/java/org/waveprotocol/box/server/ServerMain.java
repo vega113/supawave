@@ -33,12 +33,11 @@ import org.waveprotocol.box.server.robots.JakartaRobotApiBindingsModule;
 import org.waveprotocol.box.server.robots.RobotRegistrationServlet;
 import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
-import org.waveprotocol.box.server.robots.agent.passwd.PasswordRobot;
-import org.waveprotocol.box.server.robots.agent.passwd.PasswordAdminRobot;
 import org.waveprotocol.box.server.robots.agent.registration.RegistrationRobot;
-import org.waveprotocol.box.server.robots.agent.welcome.WelcomeRobot;
 import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiTokenServlet;
+import org.waveprotocol.box.server.contact.ContactsRecorder;
+import org.waveprotocol.box.server.persistence.ContactStore;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
 import org.waveprotocol.box.server.shutdown.Shutdownable;
@@ -53,6 +52,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
+import java.util.List;
 
 public class ServerMain {
   private static final Log LOG = Log.get(ServerMain.class);
@@ -121,9 +121,11 @@ public class ServerMain {
 
     initializeServer(injector, domain);
     bootstrapOwner(injector.getInstance(AccountStore.class), config, domain);
+    backfillRegistrationTimes(injector.getInstance(AccountStore.class));
     initializeServlets(server, config);
     initializeRobots(injector, waveBus);
     initializeRobotAgents(injector);
+    initializeContacts(injector, waveBus);
     initializeFrontend(injector, server, waveBus);
     initializeSearch(injector, waveBus);
     initializeShutdownHandler(server);
@@ -210,6 +212,36 @@ public class ServerMain {
     }
   }
 
+  /**
+   * Backfills {@code registrationTime} for accounts created before the field
+   * was introduced (PR #183). Any human account with {@code registrationTime == 0}
+   * gets stamped with the current time so the admin dashboard no longer shows "--".
+   * This is a one-time migration: once the value is set and persisted it will be
+   * read back on subsequent startups and this method becomes a no-op.
+   */
+  private static void backfillRegistrationTimes(AccountStore accountStore) {
+    try {
+      List<AccountData> allAccounts = accountStore.getAllAccounts();
+      long now = System.currentTimeMillis();
+      int backfilled = 0;
+      for (AccountData acct : allAccounts) {
+        if (!acct.isHuman()) continue;
+        HumanAccountData human = acct.asHuman();
+        if (human.getRegistrationTime() == 0) {
+          human.setRegistrationTime(now);
+          accountStore.putAccount(acct);
+          backfilled++;
+        }
+      }
+      if (backfilled > 0) {
+        LOG.info("Backfilled registrationTime for " + backfilled
+            + " legacy account(s) (set to current time)");
+      }
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to backfill registration times — legacy accounts will still show '--'", e);
+    }
+  }
+
   private static void initializeServlets(ServerRpcProvider server, Config config) {
     server.addServlet("/gadget/gadgetlist", GadgetProviderServlet.class);
     server.addServlet(AttachmentServlet.ATTACHMENT_URL + "/*", AttachmentServlet.class);
@@ -232,9 +264,13 @@ public class ServerMain {
     server.addServlet("/version", VersionServlet.class);
     server.addServlet("/profile/*", FetchProfilesServlet.class);
     server.addServlet("/userprofile/*", ProfileServlet.class);
+    server.addServlet("/account/settings", AccountSettingsServlet.class);
+    server.addServlet("/account/settings/*", AccountSettingsServlet.class);
     server.addServlet("/contacts", FetchContactsServlet.class);
+    server.addServlet("/contacts/search/*", ContactSearchServlet.class);
     server.addServlet("/iniavatars/*", org.apache.wave.box.server.rpc.InitialsAvatarsServlet.class);
     server.addServlet("/wave/public/*", PublicWaveFetchServlet.class);
+    server.addServlet("/public", PublicDirectoryServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
     server.addServlet("/history/*", VersionHistoryServlet.class);
     server.addServlet("/admin/flags", FeatureFlagServlet.class);
@@ -244,6 +280,7 @@ public class ServerMain {
     server.addServlet("/contact", ContactServlet.class);
     server.addServlet("/folder/*", FolderServlet.class);
     server.addServlet("/searches", SearchesServlet.class);
+    server.addServlet("/tags", TagsServlet.class);
     server.addServlet("/robot/register/*", RobotRegistrationServlet.class);
     server.addServlet("/robot/rpc", ActiveApiServlet.class);
     server.addServlet("/robot/dataapi", DataApiServlet.class);
@@ -314,6 +351,19 @@ public class ServerMain {
     waveBus.subscribe(robotsGateway);
   }
 
+  /** Subscribes the contacts recorder to the wave bus so contact relationships are tracked. */
+  private static void initializeContacts(Injector injector, WaveBus waveBus) {
+    try {
+      ContactStore contactStore = injector.getInstance(ContactStore.class);
+      contactStore.initializeContactStore();
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to initialize ContactStore; contact recording may not persist", e);
+    }
+    ContactsRecorder contactsRecorder = injector.getInstance(ContactsRecorder.class);
+    waveBus.subscribe(contactsRecorder);
+    LOG.info("ContactsRecorder subscribed to WaveBus");
+  }
+
   private static void initializeFrontend(Injector injector, ServerRpcProvider server,
       WaveBus waveBus) throws WaveServerException {
     HashedVersionFactory hashFactory = injector.getInstance(HashedVersionFactory.class);
@@ -326,29 +376,14 @@ public class ServerMain {
   }
 
   /**
-   * Initializes the built-in robot agents (welcome, password, password-admin,
-   * registration). These agents run in-JVM and use LocalOperationSubmitter
-   * to bypass HTTP/OAuth.
+   * Initializes the built-in robot agents (registration). These agents run
+   * in-JVM and use LocalOperationSubmitter to bypass HTTP/OAuth.
+   *
+   * <p>Password bots were removed because password reset is now handled via
+   * email. The welcome wave is injected directly by {@link
+   * org.waveprotocol.box.server.rpc.WelcomeWaveCreator}.
    */
   private static void initializeRobotAgents(Injector injector) {
-    try {
-      injector.getInstance(WelcomeRobot.class);
-      LOG.info("Initialized WelcomeRobot agent");
-    } catch (Exception e) {
-      LOG.warning("Failed to initialize WelcomeRobot", e);
-    }
-    try {
-      injector.getInstance(PasswordRobot.class);
-      LOG.info("Initialized PasswordRobot agent");
-    } catch (Exception e) {
-      LOG.warning("Failed to initialize PasswordRobot", e);
-    }
-    try {
-      injector.getInstance(PasswordAdminRobot.class);
-      LOG.info("Initialized PasswordAdminRobot agent");
-    } catch (Exception e) {
-      LOG.warning("Failed to initialize PasswordAdminRobot", e);
-    }
     try {
       injector.getInstance(RegistrationRobot.class);
       LOG.info("Initialized RegistrationRobot agent");

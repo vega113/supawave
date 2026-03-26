@@ -591,13 +591,20 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
           TagsViewBuilder.Css tagsCss = WavePanelResourceLoader.getTags().css();
           // Tag DOM id format matches FullDomRenderer: tagsId + "." + tag
           String tagId = impl.getId() + "." + tag;
+          // Avoid creating a duplicate DOM element if the tag is already rendered.
+          Element existingEl = Document.get().getElementById(tagId);
+          if (existingEl != null) {
+            return asTag(existingEl);
+          }
           Element tagEl = Document.get().createDivElement();
           tagEl.setId(tagId);
           tagEl.setClassName(tagsCss.tag() + " " + tagsCss.normal());
           tagEl.setAttribute(KIND_ATTRIBUTE, kind(Type.TAG));
           tagEl.setInnerText(tag);
           // Insert before the overflow-mode panel (extra span), which is the
-          // second-to-last child of the tag container.
+          // second-to-last child of the tag container.  getSimpleMenu() may
+          // return null if the container structure is unexpected; in that case
+          // attachBefore falls back to appendChild.
           DomViewHelper.attachBefore(
               impl.getTagContainer(), impl.getSimpleMenu(), tagEl);
           return asTag(tagEl);
@@ -955,6 +962,24 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
   @Override
   public ParticipantsView fromTogglePublicButton(Element e) {
     Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE_PUBLIC);
+    while (e != null && !hasKnownType(e)) {
+      e = e.getParentElement();
+    }
+    return asParticipants(e);
+  }
+
+  @Override
+  public ParticipantsView fromShareLinkButton(Element e) {
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.SHARE_LINK);
+    while (e != null && !hasKnownType(e)) {
+      e = e.getParentElement();
+    }
+    return asParticipants(e);
+  }
+
+  @Override
+  public ParticipantsView fromToggleLockButton(Element e) {
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE_LOCK);
     while (e != null && !hasKnownType(e)) {
       e = e.getParentElement();
     }

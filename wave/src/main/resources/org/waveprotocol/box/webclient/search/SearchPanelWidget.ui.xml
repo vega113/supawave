@@ -35,9 +35,9 @@
     <w:ImplPanel ui:field='self' styleName='{css.self}'>
       <s:SearchWidget ui:field='search' addStyleNames='{css.search}'/>
       <t:ToplevelToolbarWidget ui:field='toolbar' addStyleNames='{css.toolbar}'/>
+      <div ui:field='waveCount' class='{css.waveCount}'/>
       <div ui:field='list' class='{css.list}'>
         <div ui:field='showMore' class='{css.showMore}' style='visibility:hidden'>
-          Show more results
         </div>
       </div>
     </w:ImplPanel>

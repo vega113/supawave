@@ -69,11 +69,13 @@ public final class Reader implements FocusFramePresenter.Listener, FocusOrder {
   public void onFocusMoved(BlipView oldUi, BlipView newUi) {
     if (oldUi != null) {
       ConversationBlip oldBlip = models.getBlip(oldUi);
-      InteractiveDocument document = documents.get(oldBlip);
       if (oldBlip != null) {
-        supplement.stopReading(oldBlip);
-        document.stopDiffRetention();
-        document.clearDiffs();
+        InteractiveDocument document = documents.get(oldBlip);
+        if (document != null) {
+          supplement.stopReading(oldBlip);
+          document.stopDiffRetention();
+          document.clearDiffs();
+        }
       }
     }
 
@@ -81,10 +83,12 @@ public final class Reader implements FocusFramePresenter.Listener, FocusOrder {
       // UI hack: normally, becoming read triggers diff clearing, except when
       // the cause of becoming read is focus-frame placement.
       ConversationBlip newBlip = models.getBlip(newUi);
-      InteractiveDocument document = documents.get(newBlip);
       if (newBlip != null) {
-        document.startDiffRetention();
-        supplement.startReading(newBlip);
+        InteractiveDocument document = documents.get(newBlip);
+        if (document != null) {
+          document.startDiffRetention();
+          supplement.startReading(newBlip);
+        }
       }
     }
   }

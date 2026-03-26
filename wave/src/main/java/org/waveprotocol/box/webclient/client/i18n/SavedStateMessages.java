@@ -31,4 +31,7 @@ public interface SavedStateMessages extends Messages {
 
   @DefaultMessage("Unsaved...")
   String unsaved();
+
+  @DefaultMessage("Changes are taking longer than usual to save...")
+  String unsavedWarning();
 }

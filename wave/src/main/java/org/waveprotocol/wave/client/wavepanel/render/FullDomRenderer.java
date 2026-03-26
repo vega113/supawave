@@ -46,6 +46,7 @@ import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.ConversationView;
+import org.waveprotocol.wave.model.conversation.WaveLockState;
 import org.waveprotocol.wave.model.supplement.ReadableSupplementedWave;
 import org.waveprotocol.wave.model.supplement.ThreadState;
 import org.waveprotocol.wave.model.util.CollectionUtils;
@@ -165,14 +166,21 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
   public UiBuilder render(Conversation conversation, StringMap<UiBuilder> participantUis) {
     HtmlClosureCollection participantsUi = new HtmlClosureCollection();
     boolean isPublic = false;
+    int realCount = 0;
+    boolean hasDomain = false;
     for (ParticipantId participant : conversation.getParticipantIds()) {
       participantsUi.add(participantUis.get(participant.getAddress()));
       if (ParticipantIdUtil.isDomainAddress(participant.getAddress())) {
         isPublic = true;
+        hasDomain = true;
+      } else {
+        realCount++;
       }
     }
+    boolean isDm = !hasDomain && realCount == 2;
     String id = viewIdMapper.participantsOf(conversation);
-    return ParticipantsViewBuilder.create(id, participantsUi, isPublic);
+    WaveLockState lockState = conversation.getLockState();
+    return ParticipantsViewBuilder.create(id, participantsUi, isPublic, isDm, lockState);
   }
 
   @Override
@@ -182,6 +190,7 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     ParticipantAvatarViewBuilder participantUi = ParticipantAvatarViewBuilder.create(id);
     participantUi.setAvatar(profile.getImageUrl());
     participantUi.setName(profile.getFullName());
+    participantUi.setAddress(participant.getAddress());
     return participantUi;
   }
 

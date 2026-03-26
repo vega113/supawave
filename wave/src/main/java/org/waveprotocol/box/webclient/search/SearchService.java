@@ -121,6 +121,11 @@ public interface SearchService {
     }
 
     @Override
+    public boolean isPinned() {
+      return false; // Pin state determined server-side for ordering
+    }
+
+    @Override
     public int hashCode() {
       final int prime = 31;
       int result = 1;

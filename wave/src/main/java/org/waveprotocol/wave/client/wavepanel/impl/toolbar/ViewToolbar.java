@@ -72,19 +72,36 @@ public final class ViewToolbar {
   /** Reference to the history button for visibility control. */
   private ToolbarClickButton historyButton;
 
+  /** Reference to the pin button for label toggling. */
+  private ToolbarClickButton pinButton;
+
+  /** Whether the currently open wave is pinned. */
+  private boolean pinned = false;
+
   private ViewToolbar(ToplevelToolbarWidget toolbarUi, FocusFramePresenter focusFrame,
-      ModelAsViewProvider views, ConversationView wave, Reader reader, WaveId waveId) {
+      ModelAsViewProvider views, ConversationView wave, Reader reader, WaveId waveId,
+      boolean initiallyPinned) {
     this.toolbarUi = toolbarUi;
     this.focusFrame = focusFrame;
     this.reader = reader;
     this.waveId = waveId;
     this.folderService = new FolderOperationServiceImpl();
+    this.pinned = initiallyPinned;
     blipSelector = FocusBlipSelector.create(wave, views, reader, new ViewTraverser());
   }
 
   public static ViewToolbar create(FocusFramePresenter focus,  ModelAsViewProvider views,
+  ConversationView wave, Reader reader, WaveId waveId, boolean isPinned) {
+    return new ViewToolbar(new ToplevelToolbarWidget(), focus, views, wave, reader, waveId,
+        isPinned);
+  }
+
+  /**
+   * Overload for backward compatibility (assumes not pinned).
+   */
+  public static ViewToolbar create(FocusFramePresenter focus,  ModelAsViewProvider views,
   ConversationView wave, Reader reader, WaveId waveId) {
-    return new ViewToolbar(new ToplevelToolbarWidget(), focus, views, wave, reader, waveId);
+    return create(focus, views, wave, reader, waveId, false);
   }
 
   public void init() {
@@ -142,7 +159,7 @@ public final class ViewToolbar {
           }
         });
 
-    // Archive / Inbox buttons
+    // Archive / Inbox / Pin buttons
     if (waveId != null) {
       group = toolbarUi.addGroup();
       new ToolbarButtonViewBuilder().setText(messages.toArchive()).applyTo(
@@ -157,6 +174,14 @@ public final class ViewToolbar {
             @Override
             public void onClicked() {
               moveToFolder(FolderOperationBuilder.FOLDER_INBOX);
+            }
+          });
+      pinButton = new ToolbarButtonViewBuilder()
+          .setText(pinned ? messages.unpin() : messages.pin())
+          .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
+              togglePin();
             }
           });
     }
@@ -204,6 +229,55 @@ public final class ViewToolbar {
         LOG.error().log("Failed to move wave to folder ", folder, ": ", message);
       }
     });
+  }
+
+  /**
+   * Toggles the pin state of the currently open wave via the FolderServlet.
+   */
+  private void togglePin() {
+    final boolean newPinState = !pinned;
+    String operation = newPinState
+        ? FolderOperationBuilder.OPERATION_PIN
+        : FolderOperationBuilder.OPERATION_UNPIN;
+    String url = new FolderOperationBuilderImpl()
+        .addParameter(FolderOperationBuilder.PARAM_OPERATION, operation)
+        .addParameter(FolderOperationBuilder.PARAM_WAVE_ID, waveId.serialise())
+        .getUrl();
+    LOG.trace().log(newPinState ? "Pinning" : "Unpinning", " wave ", waveId.serialise());
+    pinButton.setState(ToolbarButtonView.State.DISABLED);
+    folderService.execute(url, new FolderOperationService.Callback() {
+      @Override
+      public void onSuccess() {
+        pinned = newPinState;
+        updatePinButtonLabel();
+        pinButton.setState(ToolbarButtonView.State.ENABLED);
+        LOG.trace().log("Successfully ", pinned ? "pinned" : "unpinned", " wave");
+      }
+
+      @Override
+      public void onFailure(String message) {
+        pinButton.setState(ToolbarButtonView.State.ENABLED);
+        LOG.error().log("Failed to toggle pin: ", message);
+      }
+    });
+  }
+
+  /**
+   * Updates the pin button text to reflect the current pin state.
+   */
+  private void updatePinButtonLabel() {
+    if (pinButton != null) {
+      pinButton.setText(pinned ? messages.unpin() : messages.pin());
+    }
+  }
+
+  /**
+   * Sets the pin state of the currently displayed wave. Called from
+   * StagesProvider after the wave is loaded so the button label is correct.
+   */
+  public void setPinned(boolean pinned) {
+    this.pinned = pinned;
+    updatePinButtonLabel();
   }
 
   /**

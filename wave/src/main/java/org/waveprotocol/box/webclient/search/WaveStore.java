@@ -35,6 +35,16 @@ public interface WaveStore extends SourcesEvents<WaveStore.Listener> {
   interface Listener {
     void onOpened(WaveContext wave);
     void onClosed(WaveContext wave);
+
+    /**
+     * Called when a folder action (archive, inbox) completes for a wave.
+     * Listeners can use this to refresh search results immediately.
+     *
+     * @param folder the folder the wave was moved to (e.g. "archive", "inbox")
+     */
+    default void onFolderActionCompleted(String folder) {
+      // Default no-op so existing implementations are not forced to override.
+    }
   }
 
   /**
@@ -51,4 +61,11 @@ public interface WaveStore extends SourcesEvents<WaveStore.Listener> {
    * @return the collection of currently open waves.
    */
   Map<WaveId, WaveContext> getOpenWaves();
+
+  /**
+   * Notifies listeners that a folder action (archive, inbox) completed.
+   *
+   * @param folder the target folder name (e.g. "archive", "inbox")
+   */
+  void notifyFolderAction(String folder);
 }

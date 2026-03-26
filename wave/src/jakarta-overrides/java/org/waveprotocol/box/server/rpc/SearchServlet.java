@@ -154,7 +154,11 @@ public class SearchServlet extends HttpServlet {
   }
 
   private static int computeTotalResultsNumberGuess(SearchRequest req, SearchResult res) {
-    // Use -1 to denote unknown size (avoids depending on client constants)
+    // If the search provider set an exact total, use it directly.
+    if (res.getTotalResults() >= 0) {
+      return res.getTotalResults();
+    }
+    // Fallback: guess based on whether the result page is full.
     return (res.getNumResults() >= req.getNumResults()) ? -1 : req.getIndex() + res.getNumResults();
   }
 

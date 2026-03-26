@@ -21,6 +21,7 @@ package org.waveprotocol.box.webclient.search;
 
 import com.google.common.base.Preconditions;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Style.Visibility;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -37,6 +38,7 @@ import com.google.gwt.user.client.ui.Composite;
 import org.waveprotocol.box.webclient.widget.frame.FramedPanel;
 import org.waveprotocol.wave.client.common.util.LinkedSequence;
 import org.waveprotocol.wave.client.uibuilder.BuilderHelper;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.widget.common.ImplPanel;
 import org.waveprotocol.wave.client.widget.toolbar.ToplevelToolbarWidget;
 import org.waveprotocol.wave.model.util.CollectionUtils;
@@ -67,6 +69,8 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
 
     String toolbar();
 
+    String waveCount();
+
     String list();
 
     String showMore();
@@ -80,11 +84,15 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
     private static int TOOLBAR_HEIGHT_PX =
         SearchPanelResourceLoader.getPanel().emptyToolbar().getHeight();
     private static int TOOLBAR_TOP_PX = 0 + SEARCH_HEIGHT_PX;
-    private static int LIST_TOP_PX = TOOLBAR_TOP_PX + TOOLBAR_HEIGHT_PX;
+    /** Height of the wave count info bar (24px content + 1px border). */
+    private static int WAVE_COUNT_HEIGHT_PX = 25;
+    private static int WAVE_COUNT_TOP_PX = TOOLBAR_TOP_PX + TOOLBAR_HEIGHT_PX;
+    private static int LIST_TOP_PX = WAVE_COUNT_TOP_PX + WAVE_COUNT_HEIGHT_PX;
 
     // CSS constants exported to .css files
     static String SEARCH_HEIGHT = SEARCH_HEIGHT_PX + "px";
     static String TOOLBAR_TOP = TOOLBAR_TOP_PX + "px";
+    static String WAVE_COUNT_TOP = WAVE_COUNT_TOP_PX + "px";
     static String LIST_TOP = LIST_TOP_PX + "px";
   }
 
@@ -101,6 +109,8 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   SearchWidget search;
   @UiField
   ToplevelToolbarWidget toolbar;
+  @UiField
+  Element waveCount;
   @UiField
   Element list;
   @UiField
@@ -119,9 +129,96 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
       }, 20);
   private Listener listener;
 
+  /** Whether an infinite-scroll load-more request is in progress. */
+  private boolean isLoadingMore = false;
+
+  /** The spinner element shown at the bottom while loading more results. */
+  private Element loadingSpinner;
+
+  /** Distance from the bottom of the scroll area to trigger loading more (px).
+   *  Desktop uses 200px; mobile uses 300px (trigger earlier since momentum
+   *  scrolling covers distance faster on touch devices). */
+  private static final int DESKTOP_SCROLL_THRESHOLD_PX = 200;
+  private static final int MOBILE_SCROLL_THRESHOLD_PX = 300;
+
   public SearchPanelWidget(SearchPanelRenderer renderer) {
     initWidget(frame = BINDER.createAndBindUi(this));
     this.renderer = renderer;
+    createLoadingSpinner();
+  }
+
+  /**
+   * Creates a small CSS spinner element to show at the bottom of the list
+   * while loading more results via infinite scroll.
+   */
+  private void createLoadingSpinner() {
+    loadingSpinner = Document.get().createDivElement();
+    loadingSpinner.setAttribute("style",
+        "display:none;text-align:center;padding:12px 0;"
+        + "margin-bottom:20%");
+    loadingSpinner.setInnerHTML(
+        "<div style=\"display:inline-block;width:20px;height:20px;"
+        + "border:2px solid #e2e8f0;border-top-color:#0077b6;"
+        + "border-radius:50%;animation:wave-inf-spin 0.6s linear infinite\"></div>");
+  }
+
+  /**
+   * Attaches the scroll listener to the list element. Must be called after the
+   * widget is attached and the list element is live in the DOM.
+   */
+  private native void attachScrollListener(Element listEl) /*-{
+    var self = this;
+    listEl.addEventListener('scroll', function() {
+      self.@org.waveprotocol.box.webclient.search.SearchPanelWidget::onListScroll()();
+    });
+  }-*/;
+
+  /**
+   * Called when the list element is scrolled. Checks if the user is near the
+   * bottom and triggers loading more results if needed.
+   */
+  private void onListScroll() {
+    if (isLoadingMore || listener == null) {
+      return;
+    }
+    int scrollTop = list.getScrollTop();
+    int scrollHeight = list.getScrollHeight();
+    int clientHeight = list.getClientHeight();
+    int threshold = MobileDetector.isMobile()
+        ? MOBILE_SCROLL_THRESHOLD_PX : DESKTOP_SCROLL_THRESHOLD_PX;
+    if (scrollTop + clientHeight >= scrollHeight - threshold) {
+      // Only trigger if more results are available. The showMore element's
+      // visibility is set to "hidden" when there are no more results, and
+      // cleared (visible) when more results exist.
+      String vis = showMore.getStyle().getVisibility();
+      boolean moreAvailable = vis == null || vis.isEmpty() || !vis.equals("hidden");
+      if (moreAvailable) {
+        isLoadingMore = true;
+        showLoadingSpinner(true);
+        listener.onShowMoreClicked();
+      }
+    }
+  }
+
+  /**
+   * Shows or hides the loading spinner at the bottom of the list.
+   */
+  private void showLoadingSpinner(boolean show) {
+    if (show) {
+      loadingSpinner.getStyle().setProperty("display", "block");
+    } else {
+      loadingSpinner.getStyle().setProperty("display", "none");
+    }
+  }
+
+  /**
+   * Called by the presenter after more results have been loaded (or when there
+   * are no more results). Resets the loading state so infinite scroll can
+   * trigger again.
+   */
+  public void onLoadMoreComplete() {
+    isLoadingMore = false;
+    showLoadingSpinner(false);
   }
 
   @Override
@@ -129,6 +226,10 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
     Preconditions.checkState(this.listener == null);
     Preconditions.checkArgument(listener != null);
     this.listener = listener;
+    // Attach the scroll listener for infinite scroll
+    attachScrollListener(list);
+    // Insert the loading spinner before the showMore element
+    list.insertBefore(loadingSpinner, showMore);
   }
 
   @Override
@@ -149,6 +250,17 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   @Override
   public void setTitleText(String text) {
     frame.setTitleText(text);
+  }
+
+  @Override
+  public void setWaveCountText(String text) {
+    if (text == null || text.isEmpty()) {
+      waveCount.setInnerText("");
+      waveCount.getStyle().setProperty("display", "none");
+    } else {
+      waveCount.setInnerText(text);
+      waveCount.getStyle().clearProperty("display");
+    }
   }
 
   @Override
@@ -186,7 +298,11 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
     renderer.render(digest, digestUi);
 
     DigestDomImpl refDomImpl = narrow(ref);
-    Element refElement = refDomImpl != null ? refDomImpl.getElement() : showMore;
+    // Insert before the loading spinner (which sits before showMore) when
+    // appending at the end, so digests always appear above the spinner.
+    // Fall back to showMore if the spinner hasn't been inserted yet.
+    Element sentinel = loadingSpinner.getParentElement() != null ? loadingSpinner : showMore;
+    Element refElement = refDomImpl != null ? refDomImpl.getElement() : sentinel;
     byId.put(digestUi.getId(), digestUi);
     digests.insertBefore(refDomImpl, digestUi);
     list.insertBefore(digestUi.getElement(), refElement);
@@ -200,14 +316,15 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
     renderer.render(digest, digestUi);
 
     DigestDomImpl refDomImpl = narrow(ref);
-    Element refElement = refDomImpl != null ? refDomImpl.getElement() : showMore;
+    Element sentinel = loadingSpinner.getParentElement() != null ? loadingSpinner : showMore;
+    Element refElement = refDomImpl != null ? refDomImpl.getElement() : sentinel;
     byId.put(digestUi.getId(), digestUi);
-    if (refElement != showMore) {
+    if (refDomImpl != null) {
       digests.insertAfter(refDomImpl, digestUi);
       list.insertAfter(digestUi.getElement(), refElement);
     } else {
-      digests.insertBefore(refDomImpl, digestUi);
-      list.insertBefore(digestUi.getElement(), refElement);
+      digests.insertBefore(null, digestUi);
+      list.insertBefore(digestUi.getElement(), sentinel);
     }
     return digestUi;
   }
@@ -227,27 +344,38 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   }
 
   /**
-   * Removes the server-rendered skeleton loading placeholder from the DOM.
-   * The skeleton is shown instantly in the HTML page before GWT initializes
-   * to give users immediate visual feedback. Once the real search panel is
-   * ready, this method ensures it is cleaned up.
+   * Removes the server-rendered skeleton loading placeholder from the DOM
+   * with a smooth fade-out transition. The skeleton is shown instantly in
+   * the HTML page before GWT initializes to give users immediate visual
+   * feedback. Once the real search results are ready, this method fades it
+   * out and then removes it from the DOM.
    */
   private static native void removeSkeletonLoader() /*-{
     var skel = $doc.getElementById('wave-list-skeleton');
     if (skel && skel.parentNode) {
-      skel.parentNode.removeChild(skel);
+      skel.classList.add('fade-out');
+      var parent = skel.parentNode;
+      $wnd.setTimeout(function() {
+        if (skel.parentNode) {
+          parent.removeChild(skel);
+        }
+      }, 250);
     }
   }-*/;
 
   @Override
   public void setShowMoreVisible(boolean visible) {
-    // In order to keep the padding effect, the button always need to be present
-    // in order to affect layout.  Just make it invisible and non-clickable.
+    // The showMore element is kept in the DOM for layout padding purposes,
+    // but the text is hidden. Infinite scroll handles loading more results.
+    // We track the visibility state so the scroll listener knows whether
+    // more results are available.
     if (visible) {
       showMore.getStyle().clearVisibility();
     } else {
       showMore.getStyle().setVisibility(Visibility.HIDDEN);
     }
+    // Hide the text content -- infinite scroll replaces the click interaction
+    showMore.setInnerText("");
   }
 
   @UiHandler("self")
@@ -259,8 +387,6 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
         handleClick(byId.get(target.getAttribute(DigestDomImpl.DIGEST_ID_ATTRIBUTE)));
         e.stopPropagation();
         return;
-      } else if (showMore.equals(target)) {
-        handleShowMoreClicked();
       }
       target = target.getParentElement();
     }
@@ -275,12 +401,6 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
       if (listener != null) {
         listener.onClicked(digestUi);
       }
-    }
-  }
-
-  private void handleShowMoreClicked() {
-    if (listener != null) {
-      listener.onShowMoreClicked();
     }
   }
 

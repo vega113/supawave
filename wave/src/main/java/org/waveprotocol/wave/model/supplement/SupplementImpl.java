@@ -162,6 +162,11 @@ public final class SupplementImpl implements Supplement {
   }
 
   @Override
+  public boolean isPinned() {
+    return primitive.isInFolder(SupplementedWaveImpl.PINNED_FOLDER);
+  }
+
+  @Override
   public void moveToFolder(int id) {
     primitive.removeAllFolders();
     primitive.addFolder(id);
@@ -170,6 +175,16 @@ public final class SupplementImpl implements Supplement {
   @Override
   public void removeAllFolders() {
     primitive.removeAllFolders();
+  }
+
+  @Override
+  public void addFolder(int id) {
+    primitive.addFolder(id);
+  }
+
+  @Override
+  public void removeFolder(int id) {
+    primitive.removeFolder(id);
   }
 
   @Override

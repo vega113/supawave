@@ -385,7 +385,8 @@ public class WaveClientServlet extends HttpServlet {
       return new JSONObject()
           .put(SessionConstants.DOMAIN, domain)
           .putOpt(SessionConstants.ADDRESS, address)
-          .putOpt(SessionConstants.ID_SEED, sessionId);
+          .putOpt(SessionConstants.ID_SEED, sessionId)
+          .put(SessionConstants.ROLE, "user");
     } catch (JSONException e) {
       LOG.severe("Failed to create session JSON");
       return new JSONObject();

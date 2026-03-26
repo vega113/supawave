@@ -97,6 +97,11 @@ public class SupplementedWaveImpl implements SupplementedWave {
   public static final int TRASH_FOLDER = 8;
 
   /**
+   * The "Pinned" folder. Pinned waves appear at the top of search results.
+   */
+  public static final int PINNED_FOLDER = 9;
+
+  /**
    * Adapts a wave-model wave view to the {@link SupplementedWave} interface.
    */
   static class WaveViewAdapter implements SupplementWaveView {
@@ -334,6 +339,8 @@ public class SupplementedWaveImpl implements SupplementedWave {
 
   @Override
   public void moveToFolder(int folderId) {
+    // Preserve pinned state across folder moves.
+    boolean wasPinned = isPinned();
     switch (folderId) {
       case INBOX_FOLDER:
         inbox();
@@ -347,15 +354,22 @@ public class SupplementedWaveImpl implements SupplementedWave {
         supplement.moveToFolder(folderId);
         break;
     }
+    if (wasPinned) {
+      supplement.addFolder(PINNED_FOLDER);
+    }
   }
 
   @Override
   public void inbox() {
     // TODO(user): remove follow() after mute behaviour is no longer being
     // emulated, and replace with preconditions check.
+    boolean wasPinned = isPinned();
     follow();
     supplement.removeAllFolders();
     supplement.clearArchive();
+    if (wasPinned) {
+      supplement.addFolder(PINNED_FOLDER);
+    }
   }
 
   @Override
@@ -414,6 +428,25 @@ public class SupplementedWaveImpl implements SupplementedWave {
   @Override
   public boolean isTrashed() {
     return supplement.getFolders().contains(TRASH_FOLDER);
+  }
+
+  @Override
+  public boolean isPinned() {
+    return supplement.getFolders().contains(PINNED_FOLDER);
+  }
+
+  @Override
+  public void pin() {
+    if (!isPinned()) {
+      supplement.addFolder(PINNED_FOLDER);
+    }
+  }
+
+  @Override
+  public void unpin() {
+    if (isPinned()) {
+      supplement.removeFolder(PINNED_FOLDER);
+    }
   }
 
   @Override

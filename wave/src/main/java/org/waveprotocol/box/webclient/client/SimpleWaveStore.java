@@ -93,4 +93,11 @@ public final class SimpleWaveStore implements WaveStore {
       listener.onClosed(wave);
     }
   }
+
+  @Override
+  public void notifyFolderAction(String folder) {
+    for (Listener listener : listeners) {
+      listener.onFolderActionCompleted(folder);
+    }
+  }
 }

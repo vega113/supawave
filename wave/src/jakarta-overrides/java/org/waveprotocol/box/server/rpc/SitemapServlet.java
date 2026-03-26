@@ -54,8 +54,9 @@ import org.waveprotocol.wave.util.logging.Log;
 public final class SitemapServlet extends HttpServlet {
 
   private static final Log LOG = Log.get(SitemapServlet.class);
-  /** Cache the generated sitemap for 10 minutes to reduce load. */
-  private static final long CACHE_TTL_MS = 10 * 60 * 1000;
+  /** Cache the generated sitemap for 60 seconds to reduce load while keeping
+   *  it fresh enough that waves toggled to private disappear promptly. */
+  private static final long CACHE_TTL_MS = 60 * 1000;
 
   private final String siteUrl;
   private final String waveDomain;
@@ -86,7 +87,8 @@ public final class SitemapServlet extends HttpServlet {
     String sitemap = getCachedOrGenerate();
     resp.setStatus(HttpServletResponse.SC_OK);
     resp.setContentType("application/xml; charset=UTF-8");
-    resp.setHeader("Cache-Control", "public, max-age=600");
+    // Short cache TTL so that waves toggled to private are removed promptly.
+    resp.setHeader("Cache-Control", "public, max-age=60");
     resp.getWriter().write(sitemap);
   }
 

@@ -50,6 +50,11 @@ public final class ParticipantAvatarDomImpl implements DomView, IntrinsicPartici
     self.setAlt(name);
   }
 
+  @Override
+  public void setAddress(String address) {
+    self.setAttribute("data-address", address);
+  }
+
   //
   // Structure.
   //

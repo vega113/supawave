@@ -26,6 +26,7 @@ import com.google.gwt.user.client.ui.Widget;
 import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.webclient.search.Search.State;
 import org.waveprotocol.box.webclient.search.i18n.SearchPresenterMessages;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileListener;
 import org.waveprotocol.wave.client.scheduler.Scheduler.IncrementalTask;
@@ -36,6 +37,7 @@ import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarButtonViewBuilder;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarView;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
+import org.waveprotocol.wave.model.document.WaveContext;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.IdentityMap;
@@ -53,7 +55,8 @@ import java.util.List;
  * @author hearnden@google.com (David Hearnden)
  */
 public final class SearchPresenter
-    implements Search.Listener, SearchPanelView.Listener, SearchView.Listener, ProfileListener {
+    implements Search.Listener, SearchPanelView.Listener, SearchView.Listener, ProfileListener,
+    WaveStore.Listener {
 
   /**
    * Handles wave actions.
@@ -71,7 +74,16 @@ public final class SearchPresenter
   /** How often to repeat the search query. */
   private final static int POLLING_INTERVAL_MS = 15000; // 15s
   private final static String DEFAULT_SEARCH = "in:inbox";
-  private final static int DEFAULT_PAGE_SIZE = 20;
+  /** Page size for desktop viewports (width > 768px). */
+  private final static int DESKTOP_PAGE_SIZE = 30;
+  /** Page size for mobile viewports (width <= 768px) -- smaller for faster initial load. */
+  private final static int MOBILE_PAGE_SIZE = 15;
+  /**
+   * Delay before refreshing search results after a wave is closed (ms).
+   * This gives the server time to process any pending deltas (e.g., tag
+   * additions) before the search query is re-issued.
+   */
+  private final static int WAVE_CLOSED_REFRESH_DELAY_MS = 1500;
 
   // Inline SVG icons (Lucide icon set, MIT) for toolbar action buttons.
   // Explicit close tags used for GWT HTML-parser compatibility.
@@ -116,11 +128,23 @@ public final class SearchPresenter
       + "<rect x=\"1\" y=\"3\" width=\"22\" height=\"5\"></rect>"
       + "<line x1=\"10\" y1=\"12\" x2=\"14\" y2=\"12\"></line></svg>";
 
+  /** Pinned: pin icon. */
+  private static final String ICON_PIN = SVG_OPEN
+      + "<line x1=\"12\" y1=\"17\" x2=\"12\" y2=\"22\"></line>"
+      + "<path d=\"M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8"
+      + "a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z\"></path></svg>";
+
+  /** Refresh: rotate-cw icon. */
+  private static final String ICON_REFRESH = SVG_OPEN
+      + "<polyline points=\"23 4 23 10 17 10\"></polyline>"
+      + "<path d=\"M20.49 15a9 9 0 11-2.12-9.36L23 10\"></path></svg>";
+
   // External references
   private final TimerService scheduler;
   private final Search search;
   private final SearchPanelView searchUi;
   private final WaveActionHandler actionHandler;
+  private WaveStore waveStore;
 
   /** Debounce delay for digest-ready updates during editing (ms). */
   private static final int DIGEST_DEBOUNCE_MS = 1000;
@@ -156,6 +180,18 @@ public final class SearchPresenter
   private int pendingDigestIndex = -1;
   private Digest pendingDigest;
 
+  /**
+   * Task that refreshes search results after a wave is closed. Scheduled
+   * with a short delay to allow the server to process any outstanding
+   * deltas (e.g., tag add/remove) before the search query is re-issued.
+   */
+  private final Task waveClosedRefreshTask = new Task() {
+    @Override
+    public void execute() {
+      doSearch();
+    }
+  };
+
   private final Task renderer = new Task() {
     @Override
     public void execute() {
@@ -171,7 +207,7 @@ public final class SearchPresenter
   /** Current search query. */
   private String queryText = DEFAULT_SEARCH;
   /** Number of results to query for. */
-  private int querySize = DEFAULT_PAGE_SIZE;
+  private int querySize = getPageSize();
   /** Current selected digest. */
   private DigestView selected;
 
@@ -199,11 +235,40 @@ public final class SearchPresenter
   public static SearchPresenter create(
       Search model, SearchPanelView view, WaveActionHandler actionHandler,
       SourcesEvents<ProfileListener> profileEventsDispatcher) {
+    return create(model, view, actionHandler, profileEventsDispatcher, null);
+  }
+
+  /**
+   * Creates a search presenter that listens to wave open/close events for
+   * timely search refresh after in-wave changes (e.g., tag add/remove).
+   *
+   * @param model model to present
+   * @param view view to render into
+   * @param actionHandler handler for actions
+   * @param profileEventsDispatcher the dispatcher of profile events.
+   * @param waveStore optional wave store to listen for wave close events
+   */
+  public static SearchPresenter create(
+      Search model, SearchPanelView view, WaveActionHandler actionHandler,
+      SourcesEvents<ProfileListener> profileEventsDispatcher, WaveStore waveStore) {
     SearchPresenter presenter = new SearchPresenter(
         SchedulerInstance.getHighPriorityTimer(), model, view, actionHandler,
         profileEventsDispatcher);
+    if (waveStore != null) {
+      presenter.waveStore = waveStore;
+      waveStore.addListener(presenter);
+    }
     presenter.init();
     return presenter;
+  }
+
+  /**
+   * Returns the appropriate page size based on viewport width.
+   * Mobile viewports (at or below 768px) get a smaller page size
+   * for faster initial load over constrained connections.
+   */
+  private static int getPageSize() {
+    return MobileDetector.isMobile() ? MOBILE_PAGE_SIZE : DESKTOP_PAGE_SIZE;
   }
 
   /**
@@ -229,10 +294,14 @@ public final class SearchPresenter
     scheduler.cancel(searchUpdater);
     scheduler.cancel(renderer);
     scheduler.cancel(digestDebounceTask);
+    scheduler.cancel(waveClosedRefreshTask);
     searchUi.getSearch().reset();
     searchUi.reset();
     search.removeListener(this);
     profiles.removeListener(this);
+    if (waveStore != null) {
+      waveStore.removeListener(this);
+    }
   }
 
   /** The current user's saved searches. */
@@ -341,6 +410,25 @@ public final class SearchPresenter
           }
         }).setVisualElement(createSvgIcon(ICON_ARCHIVE));
 
+    new ToolbarButtonViewBuilder()
+        .setTooltip("Pinned waves")
+        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            searchUi.getSearch().setQuery("in:pinned");
+            onQueryEntered();
+          }
+        }).setVisualElement(createSvgIcon(ICON_PIN));
+
+    new ToolbarButtonViewBuilder()
+        .setTooltip("Refresh search results")
+        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            forceRefresh();
+          }
+        }).setVisualElement(createSvgIcon(ICON_REFRESH));
+
     // Saved searches are loaded lazily after the first search result arrives
     // (see onStateChanged) to avoid competing with the critical /search request.
   }
@@ -368,6 +456,12 @@ public final class SearchPresenter
         // Rebuild toolbar to reflect changes.
         rebuildSavedSearchButtons();
       }
+
+      @Override
+      public void onApply(SearchesItem item) {
+        searchUi.getSearch().setQuery(item.getQuery());
+        onQueryEntered();
+      }
     });
     searchesEditorPopup.show();
   }
@@ -392,7 +486,8 @@ public final class SearchPresenter
   }
 
   /**
-   * Adds saved search quick-access buttons to the toolbar.
+   * Adds pinned saved search quick-access buttons to the toolbar.
+   * Only saved searches with {@code pinned == true} are shown.
    */
   private void rebuildSavedSearchButtons() {
     GroupingToolbar.View toolbarUi = searchUi.getToolbar();
@@ -406,14 +501,24 @@ public final class SearchPresenter
     }
     savedSearchButtons.clear();
 
+    // Collect only pinned searches.
+    List<SearchesItem> pinned = new ArrayList<>();
+    for (SearchesItem item : savedSearches) {
+      if (item.isPinned()) {
+        pinned.add(item);
+      }
+    }
+
     // Create the saved search group lazily on first use.
-    if (savedSearchGroup == null && !savedSearches.isEmpty()) {
+    // Once created, we keep the group alive (even when empty) to avoid
+    // leaking invisible stub items when addGroup() is called repeatedly.
+    if (savedSearchGroup == null && !pinned.isEmpty()) {
       savedSearchGroup = toolbarUi.addGroup();
     }
 
-    // Recreate buttons if group exists and there are searches.
-    if (savedSearchGroup != null && !savedSearches.isEmpty()) {
-      for (final SearchesItem item : savedSearches) {
+    // Recreate buttons for pinned searches only.
+    if (savedSearchGroup != null) {
+      for (final SearchesItem item : pinned) {
         ToolbarClickButton button = savedSearchGroup.addClickButton();
         savedSearchButtons.add(button);
         new ToolbarButtonViewBuilder().setText(item.getName()).applyTo(
@@ -425,9 +530,6 @@ public final class SearchPresenter
               }
             });
       }
-    } else if (savedSearchGroup != null && savedSearches.isEmpty()) {
-      // Clear the group reference if there are no searches
-      savedSearchGroup = null;
     }
   }
 
@@ -450,6 +552,7 @@ public final class SearchPresenter
    */
   private void render() {
     renderTitle();
+    renderWaveCount();
     renderDigests();
     renderShowMore();
   }
@@ -467,6 +570,47 @@ public final class SearchPresenter
       totalStr = messages.ofUnknown();
     }
     searchUi.setTitleText(queryText + " (0-" + resultEnd + " of " + totalStr + ")");
+  }
+
+  /**
+   * Renders the wave count summary line (e.g. "23 waves, 5 unread").
+   * Counts total waves from the search result and tallies unread by
+   * checking each digest's unread count.
+   */
+  private void renderWaveCount() {
+    int total = search.getTotal();
+    boolean totalKnown = total != Search.UNKNOWN_SIZE;
+    int loaded = search.getMinimumTotal();
+    int unread = 0;
+    for (int i = 0; i < loaded; i++) {
+      Digest digest = search.getDigest(i);
+      if (digest != null && digest.getUnreadCount() > 0) {
+        unread++;
+      }
+    }
+    String text;
+    if (totalKnown && total <= 0) {
+      text = "";
+    } else if (totalKnown && loaded < total) {
+      // Showing a partial page of a known total: "5 of 28 waves"
+      text = loaded + " of " + total + " waves";
+      if (unread > 0) {
+        text += " \u00b7 " + unread + " unread";
+      }
+    } else if (totalKnown) {
+      // All results loaded
+      text = total + " waves";
+      if (unread > 0) {
+        text += " \u00b7 " + unread + " unread";
+      }
+    } else {
+      // Total unknown, show loaded count
+      text = loaded + " waves";
+      if (unread > 0) {
+        text += " \u00b7 " + unread + " unread";
+      }
+    }
+    searchUi.setWaveCountText(text);
   }
 
   private void renderDigests() {
@@ -491,8 +635,12 @@ public final class SearchPresenter
   }
 
   private void renderShowMore() {
-    searchUi.setShowMoreVisible(
-        search.getTotal() == Search.UNKNOWN_SIZE || querySize < search.getTotal());
+    boolean hasMore = search.getTotal() == Search.UNKNOWN_SIZE || querySize < search.getTotal();
+    searchUi.setShowMoreVisible(hasMore);
+    // Notify the view that loading-more is complete so infinite scroll resets.
+    if (searchUi instanceof SearchPanelWidget) {
+      ((SearchPanelWidget) searchUi).onLoadMoreComplete();
+    }
   }
 
   //
@@ -525,14 +673,26 @@ public final class SearchPresenter
   @Override
   public void onQueryEntered() {
     queryText = searchUi.getSearch().getQuery();
-    querySize = DEFAULT_PAGE_SIZE;
+    forceRefresh();
+  }
+
+  /**
+   * Forces an immediate search refresh and resets the polling timer so the
+   * user sees updated results right away (e.g. after pin/unpin or Enter on
+   * the same query).
+   */
+  private void forceRefresh() {
+    querySize = getPageSize();
     searchUi.setTitleText(messages.searching());
+    search.cancel();
     doSearch();
+    scheduler.cancel(searchUpdater);
+    scheduler.scheduleRepeating(searchUpdater, POLLING_INTERVAL_MS, POLLING_INTERVAL_MS);
   }
 
   @Override
   public void onShowMoreClicked() {
-    querySize += DEFAULT_PAGE_SIZE;
+    querySize += getPageSize();
     doSearch();
   }
 
@@ -553,6 +713,8 @@ public final class SearchPresenter
     //
     if (search.getState() == State.READY) {
       renderTitle();
+      renderWaveCount();
+      renderShowMore();
       // Deferred load: fetch saved searches after the first search result
       // arrives so the /searches request does not block wave list display.
       if (!savedSearchesLoaded) {
@@ -631,12 +793,31 @@ public final class SearchPresenter
    * The existing DOM node is reused — only changed text/attributes are
    * written — so the browser does not tear down and rebuild the element,
    * which eliminates the visible flicker in the sidebar wave list.
+   *
+   * If the updated digest has a newer last-modified time than the first
+   * item in the list, the entire list is re-rendered so that the most
+   * recently modified wave appears at the top (matching the server's
+   * default descending-LMT sort order).
    */
   private void applyDigestReady(int index, Digest digest) {
     DigestView digestUi = findDigestView(digest);
     if (digestUi == null) {
       return;
     }
+
+    // Check whether the modified digest should move to the top.
+    DigestView firstUi = searchUi.getFirst();
+    if (firstUi != null && firstUi != digestUi) {
+      Digest firstDigest = digestUis.get(firstUi);
+      if (firstDigest != null && digest.getLastModifiedTime() > firstDigest.getLastModifiedTime()) {
+        // The updated digest is newer than the current first item — trigger
+        // a full re-render via the next polling cycle so the server provides
+        // the authoritative sort order.
+        doSearch();
+        return;
+      }
+    }
+
     searchUi.renderDigest(digestUi, digest);
   }
 
@@ -659,5 +840,36 @@ public final class SearchPresenter
     // SearchPresenter, and make it stateful. Have it remember which digests
     // have used which profiles in their renderings.
     renderLater();
+  }
+
+  //
+  // WaveStore.Listener events. Used to refresh search results after a wave
+  // is closed so that in-wave changes (tags, participants, etc.) are
+  // reflected in the search panel without waiting for the next poll cycle.
+  //
+
+  @Override
+  public void onOpened(WaveContext wave) {
+    // No action needed when a wave is opened. The search continues polling
+    // in the background and will pick up any changes.
+  }
+
+  @Override
+  public void onClosed(WaveContext wave) {
+    // When a wave is closed, the user may have made changes (e.g., added or
+    // removed tags) that affect search results. Schedule a search refresh
+    // after a short delay to allow the server to process the outstanding delta.
+    scheduler.scheduleDelayed(waveClosedRefreshTask, WAVE_CLOSED_REFRESH_DELAY_MS);
+  }
+
+  //
+  // WaveStore.Listener folder-action event. Fires when archive/inbox
+  // completes so the search panel refreshes immediately instead of
+  // waiting for the next 15-second polling cycle.
+  //
+
+  @Override
+  public void onFolderActionCompleted(String folder) {
+    forceRefresh();
   }
 }

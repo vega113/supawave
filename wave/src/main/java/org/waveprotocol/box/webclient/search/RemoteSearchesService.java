@@ -25,6 +25,7 @@ import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.json.client.JSONArray;
+import com.google.gwt.json.client.JSONBoolean;
 import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
@@ -133,6 +134,7 @@ public final class RemoteSearchesService implements SearchesService {
       JSONObject obj = new JSONObject();
       obj.put("name", new JSONString(item.getName() != null ? item.getName() : ""));
       obj.put("query", new JSONString(item.getQuery() != null ? item.getQuery() : ""));
+      obj.put("pinned", JSONBoolean.getInstance(item.isPinned()));
       array.set(i, obj);
     }
     return array.toString();
@@ -148,7 +150,8 @@ public final class RemoteSearchesService implements SearchesService {
         if (itemObj != null) {
           String name = getStringField(itemObj, "name");
           String query = getStringField(itemObj, "query");
-          searches.add(new SearchesItem(name, query));
+          boolean pinned = getBooleanField(itemObj, "pinned");
+          searches.add(new SearchesItem(name, query, pinned));
         }
       }
     }
@@ -164,5 +167,16 @@ public final class RemoteSearchesService implements SearchesService {
       }
     }
     return "";
+  }
+
+  private static boolean getBooleanField(JSONObject obj, String field) {
+    JSONValue val = obj.get(field);
+    if (val != null) {
+      JSONBoolean bool = val.isBoolean();
+      if (bool != null) {
+        return bool.booleanValue();
+      }
+    }
+    return false;
   }
 }

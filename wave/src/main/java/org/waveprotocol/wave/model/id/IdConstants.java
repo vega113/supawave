@@ -79,4 +79,7 @@ public interface IdConstants {
   
   /** Document id for wavelet-level indexability assignments. */
   public static final String INDEXABILITY_DATA_DOC_ID = "listing";
+
+  /** Document id for wave lock state. */
+  public static final String LOCK_DOC_ID = "m/lock";
 }

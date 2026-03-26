@@ -41,6 +41,7 @@ public final class ParticipantAvatarViewBuilder implements IntrinsicParticipantV
 
   private String avatarUrl;
   private String name;
+  private String address;
 
   @VisibleForTesting
   ParticipantAvatarViewBuilder(String id, Css css) {
@@ -68,12 +69,33 @@ public final class ParticipantAvatarViewBuilder implements IntrinsicParticipantV
   }
 
   @Override
+  public void setAddress(String address) {
+    this.address = address;
+  }
+
+  @Override
   public void outputHtml(SafeHtmlBuilder output) {
-    image(output,
-        id,
-        css.participant(),
-        EscapeUtils.fromString(avatarUrl),
-        EscapeUtils.fromString(name),
-        TypeCodes.kind(Type.PARTICIPANT));
+    // Render the avatar image with a data-address attribute so that
+    // the page-level profile card JavaScript can extract the participant
+    // address on click.
+    String safeUrl = avatarUrl != null
+        ? EscapeUtils.sanitizeUri(avatarUrl) : null;
+    String escapedName = name != null
+        ? EscapeUtils.htmlEscape(name) : "";
+    String kind = TypeCodes.kind(Type.PARTICIPANT);
+    StringBuilder sb = new StringBuilder("<img ");
+    sb.append("id='").append(id).append("' ");
+    sb.append("class='").append(css.participant()).append("' ");
+    if (safeUrl != null) {
+      sb.append("src='").append(safeUrl).append("' ");
+    }
+    sb.append("alt='").append(escapedName).append("' ");
+    sb.append("title='").append(escapedName).append("' ");
+    sb.append("kind='").append(kind).append("' ");
+    if (address != null) {
+      sb.append("data-address='").append(EscapeUtils.htmlEscape(address)).append("' ");
+    }
+    sb.append("></img>");
+    output.append(EscapeUtils.fromSafeConstant(sb.toString()));
   }
 }

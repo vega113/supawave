@@ -97,6 +97,12 @@ public class SupplementedWaveImpl implements SupplementedWave {
   public static final int TRASH_FOLDER = 8;
 
   /**
+   * The "Pinned" folder. Pinned waves are highlighted in the wave list.
+   */
+  /* VisibleForTesting */
+  public static final int PIN_FOLDER = 9;
+
+  /**
    * Adapts a wave-model wave view to the {@link SupplementedWave} interface.
    */
   static class WaveViewAdapter implements SupplementWaveView {
@@ -414,6 +420,25 @@ public class SupplementedWaveImpl implements SupplementedWave {
   @Override
   public boolean isTrashed() {
     return supplement.getFolders().contains(TRASH_FOLDER);
+  }
+
+  @Override
+  public boolean isPinned() {
+    return supplement.getFolders().contains(PIN_FOLDER);
+  }
+
+  @Override
+  public void pin() {
+    if (!isPinned()) {
+      supplement.addFolder(PIN_FOLDER);
+    }
+  }
+
+  @Override
+  public void unpin() {
+    if (isPinned()) {
+      supplement.removeFolder(PIN_FOLDER);
+    }
   }
 
   @Override

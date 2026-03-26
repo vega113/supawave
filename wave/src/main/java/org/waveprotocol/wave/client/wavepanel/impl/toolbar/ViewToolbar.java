@@ -20,6 +20,7 @@
 package org.waveprotocol.wave.client.wavepanel.impl.toolbar;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Window;
 import org.waveprotocol.box.webclient.folder.FolderOperationBuilder;
 import org.waveprotocol.box.webclient.folder.FolderOperationBuilderImpl;
 import org.waveprotocol.box.webclient.folder.FolderOperationService;
@@ -72,19 +73,36 @@ public final class ViewToolbar {
   /** Reference to the history button for visibility control. */
   private ToolbarClickButton historyButton;
 
+  /** Reference to the pin/unpin button for text toggling. */
+  private ToolbarClickButton pinButton;
+
+  /** Tracks the current pinned state on the client side. */
+  private boolean pinned;
+
   private ViewToolbar(ToplevelToolbarWidget toolbarUi, FocusFramePresenter focusFrame,
-      ModelAsViewProvider views, ConversationView wave, Reader reader, WaveId waveId) {
+      ModelAsViewProvider views, ConversationView wave, Reader reader, WaveId waveId,
+      boolean initiallyPinned) {
     this.toolbarUi = toolbarUi;
     this.focusFrame = focusFrame;
     this.reader = reader;
     this.waveId = waveId;
     this.folderService = new FolderOperationServiceImpl();
+    this.pinned = initiallyPinned;
     blipSelector = FocusBlipSelector.create(wave, views, reader, new ViewTraverser());
   }
 
   public static ViewToolbar create(FocusFramePresenter focus,  ModelAsViewProvider views,
+  ConversationView wave, Reader reader, WaveId waveId, boolean isPinned) {
+    return new ViewToolbar(new ToplevelToolbarWidget(), focus, views, wave, reader, waveId,
+        isPinned);
+  }
+
+  /**
+   * Overload for backward compatibility (assumes not pinned).
+   */
+  public static ViewToolbar create(FocusFramePresenter focus,  ModelAsViewProvider views,
   ConversationView wave, Reader reader, WaveId waveId) {
-    return new ViewToolbar(new ToplevelToolbarWidget(), focus, views, wave, reader, waveId);
+    return create(focus, views, wave, reader, waveId, false);
   }
 
   public void init() {
@@ -142,7 +160,7 @@ public final class ViewToolbar {
           }
         });
 
-    // Archive / Inbox buttons
+    // Archive / Inbox / Pin buttons
     if (waveId != null) {
       group = toolbarUi.addGroup();
       new ToolbarButtonViewBuilder().setText(messages.toArchive()).applyTo(
@@ -157,6 +175,14 @@ public final class ViewToolbar {
             @Override
             public void onClicked() {
               moveToFolder(FolderOperationBuilder.FOLDER_INBOX);
+            }
+          });
+      pinButton = new ToolbarButtonViewBuilder()
+          .setText(pinned ? messages.unpin() : messages.pin())
+          .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
+              togglePin();
             }
           });
     }
@@ -202,6 +228,37 @@ public final class ViewToolbar {
       @Override
       public void onFailure(String message) {
         LOG.error().log("Failed to move wave to folder ", folder, ": ", message);
+      }
+    });
+  }
+
+  /**
+   * Toggles the pin state of the currently open wave via the FolderServlet.
+   */
+  private void togglePin() {
+    final String operation = pinned
+        ? FolderOperationBuilder.OPERATION_UNPIN
+        : FolderOperationBuilder.OPERATION_PIN;
+    String url = new FolderOperationBuilderImpl()
+        .addParameter(FolderOperationBuilder.PARAM_OPERATION, operation)
+        .addParameter(FolderOperationBuilder.PARAM_WAVE_ID, waveId.serialise())
+        .getUrl();
+    LOG.trace().log("Toggling pin for wave ", waveId.serialise(), ", operation: ", operation);
+    pinButton.setState(ToolbarButtonView.State.DISABLED);
+    folderService.execute(url, new FolderOperationService.Callback() {
+      @Override
+      public void onSuccess() {
+        pinned = !pinned;
+        pinButton.setText(pinned ? messages.unpin() : messages.pin());
+        pinButton.setState(ToolbarButtonView.State.ENABLED);
+        Window.alert(pinned ? messages.pinConfirmation() : messages.unpinConfirmation());
+        LOG.trace().log("Successfully toggled pin state to: ", pinned);
+      }
+
+      @Override
+      public void onFailure(String message) {
+        pinButton.setState(ToolbarButtonView.State.ENABLED);
+        LOG.error().log("Failed to toggle pin: ", message);
       }
     });
   }

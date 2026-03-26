@@ -113,6 +113,13 @@ public interface ReadableSupplementedWave {
   boolean isTrashed();
 
   /**
+   * Tests whether the wave is pinned.
+   *
+   * @return true if the wave is pinned (folder 9), false otherwise.
+   */
+  boolean isPinned();
+
+  /**
    * @return the version and hash of the wavelet the last time
    *   this wavelet was opened (and sighted by the user).
    */

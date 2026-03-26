@@ -117,6 +117,16 @@ public interface WritableSupplementedWave {
   void moveToFolder(int folderId);
 
   /**
+   * Pins this wave (adds to folder 9 without clearing other folders).
+   */
+  void pin();
+
+  /**
+   * Unpins this wave (removes from folder 9).
+   */
+  void unpin();
+
+  /**
    * Inserts a new evaluation, which will cause wanted evaluations to update.
    */
   void addWantedEvaluation(WantedEvaluation evaluation);

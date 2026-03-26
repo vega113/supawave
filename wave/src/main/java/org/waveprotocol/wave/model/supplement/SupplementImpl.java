@@ -173,6 +173,16 @@ public final class SupplementImpl implements Supplement {
   }
 
   @Override
+  public void addFolder(int id) {
+    primitive.addFolder(id);
+  }
+
+  @Override
+  public void removeFolder(int id) {
+    primitive.removeFolder(id);
+  }
+
+  @Override
   public boolean isArchived(WaveletId waveletId, int version) {
     return (primitive.getArchiveWaveletVersion(waveletId) >= version);
   }

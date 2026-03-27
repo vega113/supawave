@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.google.wave.api.SearchResult;
-import com.google.wave.api.SearchResult.Digest;
 
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
@@ -83,7 +82,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * <p>Each wave's context is computed at most once and cached for the duration
    * of a single search request.
    */
-  private static class WaveSupplementContext {
+  static class WaveSupplementContext {
     final ObservableWaveletData convWavelet;
     final ObservableWaveletData udw;
     final List<ObservableWaveletData> conversationalWavelets;
@@ -250,7 +249,8 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     // This prevents creating duplicate OpBasedWavelet adapters for the same
     // underlying data, which was the root cause of duplicate init() calls and
     // silent failures in the conversation model chain.
-    boolean needsSupplementFiltering = isInboxQuery || isArchiveQuery || isPinnedQuery;
+    boolean needsSupplementFiltering = isInboxQuery || isArchiveQuery || isPinnedQuery
+        || isUnreadOnlyQuery;
     Map<WaveId, WaveSupplementContext> supplementCache =
         needsSupplementFiltering ? new HashMap<WaveId, WaveSupplementContext>() : null;
     Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters =
@@ -300,11 +300,9 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       LOG.info("After content filter: " + results.size() + " results remain");
     }
 
-    Map<WaveId, Digest> unreadDigestCache = null;
     if (isUnreadOnlyQuery) {
-      unreadDigestCache = new HashMap<WaveId, Digest>();
       LOG.info("Unread filter active: candidates before filter = " + results.size());
-      filterByUnreadState(results, user, unreadDigestCache);
+      filterByUnreadState(results, user, supplementCache, waveletAdapters);
       LOG.info("After unread filter: " + results.size() + " results remain");
     }
 
@@ -328,9 +326,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         computeSearchResult(user, startAt, numResults, sortedResults);
     LOG.info("Search response to '" + query + "': " + searchResult.size() + " results"
         + " (total " + totalBeforePagination + "), user: " + user);
-    SearchResult result = unreadDigestCache == null
-        ? digester.generateSearchResult(user, query, searchResult)
-        : digester.generateSearchResult(user, query, searchResult, unreadDigestCache);
+    SearchResult result = digester.generateSearchResult(user, query, searchResult);
     result.setTotalResults(totalBeforePagination);
     return result;
   }
@@ -587,6 +583,35 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       } catch (Exception e) {
         LOG.warning("Failed to check pinned state for wave " + wave.getWaveId()
             + ": " + e.getMessage(), e);
+        it.remove();
+      }
+    }
+  }
+
+  /**
+   * Filters wave results by unread state. Only waves with at least one unread blip are kept.
+   *
+   * <p>Reuses the existing supplement cache so unread checks do not rebuild conversation state
+   * independently of inbox/archive/pinned filtering.
+   *
+   * @param results the mutable list of wave views to filter in place.
+   * @param user the participant whose unread state to check.
+   * @param supplementCache shared cache of supplement contexts across filter stages.
+   * @param waveletAdapters shared cache of OpBasedWavelet adapters.
+   */
+  private void filterByUnreadState(List<WaveViewData> results, ParticipantId user,
+      Map<WaveId, WaveSupplementContext> supplementCache,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+    Iterator<WaveViewData> it = results.iterator();
+    while (it.hasNext()) {
+      WaveViewData wave = it.next();
+      try {
+        WaveSupplementContext ctx = getOrBuildContext(wave, user, supplementCache, waveletAdapters);
+        if (digester.getUnreadCount(ctx, waveletAdapters) <= 0) {
+          it.remove();
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check unread state for wave " + wave.getWaveId(), e);
         it.remove();
       }
     }

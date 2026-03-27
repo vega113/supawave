@@ -1,5 +1,7 @@
 # Unread-Only Search Filter Implementation Plan
 
+> **Completed:** 2026-03-27 in PR #403. Implemented `SearchWidget.ui.xml`/`SearchWidget.java`, `SimpleSearchProviderImpl` and its tests, `Lucene9QueryParser`/`Lucene9QueryCompiler`, `SearchWaveletUpdater`, and `wave/config/changelog.json`.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a query filter that returns only waves with unread blips, with consistent behavior for legacy search, Lucene-backed search, OT search wavelets, and the search-help UI.
@@ -18,10 +20,10 @@
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/waveserver/TokenQueryType.java`
 - Test: `wave/src/test/java/org/waveprotocol/box/server/waveserver/QueryHelperTest.java`
 
-- [ ] Add a new token enum entry for the unread-only filter.
-- [ ] Decide the user-facing syntax and keep it short and predictable.
-- [ ] Add parser coverage so the new token is recognized as a structured filter rather than plain text.
-- [ ] Verify existing query parsing still treats unknown tokens as content text.
+- [x] Add a new token enum entry for the unread-only filter.
+- [x] Decide the user-facing syntax and keep it short and predictable.
+- [x] Add parser coverage so the new token is recognized as a structured filter rather than plain text.
+- [x] Verify existing query parsing still treats unknown tokens as content text.
 
 ### Task 2: Update search help and examples
 
@@ -29,9 +31,9 @@
 - Modify: `wave/src/main/resources/org/waveprotocol/box/webclient/search/SearchWidget.ui.xml`
 - Maybe modify: `wave/src/main/java/org/waveprotocol/box/webclient/search/SearchWidget.java`
 
-- [ ] Add the unread-only filter to the help table.
-- [ ] Add at least one clickable example using the new filter.
-- [ ] Update any explanatory copy about combining filters so the new token is discoverable.
+- [x] Add the unread-only filter to the help table.
+- [x] Add at least one clickable example using the new filter.
+- [x] Update any explanatory copy about combining filters so the new token is discoverable.
 
 ## Chunk 2: Legacy Search Provider
 
@@ -41,11 +43,11 @@
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/waveserver/SimpleSearchProviderImpl.java`
 - Test: `wave/src/test/java/org/waveprotocol/box/server/waveserver/SimpleSearchProviderImplTest.java`
 
-- [ ] Parse the unread-only filter out of `queryParams`.
-- [ ] Add a focused filter stage that keeps only waves whose digests/reporting data indicate unread blips.
-- [ ] Place the filter in the search pipeline where it composes cleanly with inbox/archive/pinned/tag/title/content filters.
-- [ ] Add regression coverage proving the unread-only filter excludes fully read waves and keeps unread waves.
-- [ ] Add at least one combined-filter regression, such as unread plus inbox or unread plus tag.
+- [x] Parse the unread-only filter out of `queryParams`.
+- [x] Add a focused filter stage that keeps only waves whose digests/reporting data indicate unread blips.
+- [x] Place the filter in the search pipeline where it composes cleanly with inbox/archive/pinned/tag/title/content filters.
+- [x] Add regression coverage proving the unread-only filter excludes fully read waves and keeps unread waves.
+- [x] Add at least one combined-filter regression, such as unread plus inbox or unread plus tag.
 
 ## Chunk 3: Lucene-Backed Search And OT Consistency
 
@@ -56,9 +58,9 @@
 - Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/waveserver/lucene9/Lucene9QueryCompiler.java`
 - Maybe add: a focused Lucene query/compiler test if there is a practical existing test seam
 
-- [ ] Ensure the unread-only token is accepted by the Lucene parser path.
-- [ ] Compile the unread-only filter to the right Lucene field/constraint, using the existing indexed unread metadata if available.
-- [ ] Keep behavior aligned with the legacy provider so switching implementations does not change semantics.
+- [x] Ensure the unread-only token is accepted by the Lucene parser path.
+- [x] Compile the unread-only filter to the right Lucene field/constraint, using the existing indexed unread metadata if available.
+- [x] Keep behavior aligned with the legacy provider so switching implementations does not change semantics.
 
 ### Task 5: Verify OT search inherits the same semantics
 
@@ -67,9 +69,9 @@
 - Inspect/Test: `wave/src/test/java/org/waveprotocol/box/server/waveserver/search/SearchWaveletUpdaterTest.java`
 - Inspect/Test: `wave/src/test/java/org/waveprotocol/box/server/waveserver/search/SearchWaveletDataProviderTest.java`
 
-- [ ] Confirm that OT search wavelet updates come from `SearchProvider.search(...)` and therefore inherit the new server-side filter automatically.
-- [ ] Add coverage only if there is a practical test seam showing unread counts propagate through the OT search update path.
-- [ ] Avoid adding client-side OT-only filter logic unless server-side inheritance proves insufficient.
+- [x] Confirm that OT search wavelet updates come from `SearchProvider.search(...)` and therefore inherit the new server-side filter automatically.
+- [x] Add coverage only if there is a practical test seam showing unread counts propagate through the OT search update path.
+- [x] Avoid adding client-side OT-only filter logic unless server-side inheritance proves insufficient.
 
 ## Chunk 4: Release Hygiene And Verification
 
@@ -78,24 +80,24 @@
 **Files:**
 - Modify: `wave/config/changelog.json`
 
-- [ ] Add a new top-of-file changelog entry for the unread-only filter if the feature lands.
-- [ ] Keep the entry specific to the new search capability and help update.
+- [x] Add a new top-of-file changelog entry for the unread-only filter if the feature lands.
+- [x] Keep the entry specific to the new search capability and help update.
 
 ### Task 7: Verify, QA, and prepare for PR
 
 **Files:**
 - Review: all modified files above
 
-- [ ] Run `sbt "testOnly org.waveprotocol.box.server.waveserver.QueryHelperTest"`
-- [ ] Run `sbt "testOnly org.waveprotocol.box.server.waveserver.SimpleSearchProviderImplTest"`
-- [ ] Run any practical Lucene/search-wavelet test seam if added.
-- [ ] Run `sbt wave/compile`
-- [ ] Run `sbt compileGwt`
-- [ ] Run local QA against a real server if feasible:
+- [x] Run `sbt "testOnly org.waveprotocol.box.server.waveserver.QueryHelperTest"`
+- [x] Run `sbt "testOnly org.waveprotocol.box.server.waveserver.SimpleSearchProviderImplTest"`
+- [x] Run any practical Lucene/search-wavelet test seam if added.
+- [x] Run `sbt wave/compile`
+- [x] Run `sbt compileGwt`
+- [x] Run local QA against a real server if feasible:
   - verify unread-only search returns waves with unread blips
   - verify fully read waves are excluded
   - verify combined filters still behave correctly
   - verify search help shows the new syntax and example
-- [ ] Commit the final implementation with a clear message.
-- [ ] Perform an internal Codex review pass on the diff before push/PR.
-- [ ] Push and create the PR only after the review loop is clean.
+- [x] Commit the final implementation with a clear message.
+- [x] Perform an internal Codex review pass on the diff before push/PR.
+- [x] Push and create the PR only after the review loop is clean.

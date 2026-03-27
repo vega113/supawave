@@ -561,26 +561,8 @@ public class SimpleSearchProviderImplTest extends TestCase {
     submitDeltaToNewWavelet(readWave, USER1, addParticipantToWavelet(USER1, readWave));
     appendBlipToWavelet(readWave, USER1, "b+read", "project update");
 
-    SearchProvider unreadFilterProvider = new SimpleSearchProviderImpl(
-        DOMAIN,
-        new WaveDigester(new ConversationUtil(idGenerator)) {
-          @Override
-          public Digest build(ParticipantId participant, WaveViewData wave) {
-            Digest original = super.build(participant, wave);
-            int unreadCount = "read".equals(wave.getWaveId().getId()) ? 0 : 2;
-            return new Digest(
-                original.getTitle(),
-                original.getSnippet(),
-                original.getWaveId(),
-                original.getParticipants(),
-                original.getLastModified(),
-                original.getCreated(),
-                unreadCount,
-                original.getBlipCount());
-          }
-        },
-        waveMap,
-        waveViewProvider);
+    SearchProvider unreadFilterProvider =
+        newUnreadAwareSearchProvider(ImmutableMap.of("read", 0, "unread", 2));
 
     SearchResult results = unreadFilterProvider.search(USER1, "in:inbox unread:true", 0, 10);
 
@@ -601,26 +583,8 @@ public class SimpleSearchProviderImplTest extends TestCase {
     submitDeltaToNewWavelet(unreadLater, USER1, addParticipantToWavelet(USER1, unreadLater));
     appendBlipToWavelet(unreadLater, USER1, "b+unread-later", "project update");
 
-    SearchProvider unreadFilterProvider = new SimpleSearchProviderImpl(
-        DOMAIN,
-        new WaveDigester(new ConversationUtil(idGenerator)) {
-          @Override
-          public Digest build(ParticipantId participant, WaveViewData wave) {
-            Digest original = super.build(participant, wave);
-            int unreadCount = "read-first".equals(wave.getWaveId().getId()) ? 0 : 2;
-            return new Digest(
-                original.getTitle(),
-                original.getSnippet(),
-                original.getWaveId(),
-                original.getParticipants(),
-                original.getLastModified(),
-                original.getCreated(),
-                unreadCount,
-                original.getBlipCount());
-          }
-        },
-        waveMap,
-        waveViewProvider);
+    SearchProvider unreadFilterProvider =
+        newUnreadAwareSearchProvider(ImmutableMap.of("read-first", 0, "unread-later", 2));
 
     SearchResult firstPage = unreadFilterProvider.search(
         USER1, "in:inbox unread:true orderby:createdasc", 0, 1);
@@ -645,26 +609,8 @@ public class SimpleSearchProviderImplTest extends TestCase {
     submitDeltaToNewWavelet(readWave, USER1, addParticipantToWavelet(USER1, readWave));
     appendBlipToWavelet(readWave, USER1, "b+read", "sprint retro");
 
-    SearchProvider unreadFilterProvider = new SimpleSearchProviderImpl(
-        DOMAIN,
-        new WaveDigester(new ConversationUtil(idGenerator)) {
-          @Override
-          public Digest build(ParticipantId participant, WaveViewData wave) {
-            Digest original = super.build(participant, wave);
-            int unreadCount = wave.getWaveId().getId().startsWith("read-") ? 0 : 1;
-            return new Digest(
-                original.getTitle(),
-                original.getSnippet(),
-                original.getWaveId(),
-                original.getParticipants(),
-                original.getLastModified(),
-                original.getCreated(),
-                unreadCount,
-                original.getBlipCount());
-          }
-        },
-        waveMap,
-        waveViewProvider);
+    SearchProvider unreadFilterProvider =
+        newUnreadAwareSearchProvider(ImmutableMap.of("read-match", 0, "unread-match", 1));
 
     SearchResult results =
         unreadFilterProvider.search(USER1, "in:inbox unread:true sprint", 0, 10);
@@ -675,6 +621,31 @@ public class SimpleSearchProviderImplTest extends TestCase {
   }
 
   // *** Helpers
+
+  private SearchProvider newUnreadAwareSearchProvider(final Map<String, Integer> unreadCounts) {
+    ConversationUtil conversationUtil = new ConversationUtil(idGenerator);
+    WaveDigester digester = new WaveDigester(conversationUtil) {
+      @Override
+      public Digest build(ParticipantId participant, WaveViewData wave) {
+        Digest original = super.build(participant, wave);
+        String waveId = WaveId.deserialise(original.getWaveId()).getId();
+        Integer unreadCount = unreadCounts.get(waveId);
+        if (unreadCount == null) {
+          unreadCount = Integer.valueOf(original.getUnreadCount());
+        }
+        return new Digest(
+            original.getTitle(),
+            original.getSnippet(),
+            original.getWaveId(),
+            original.getParticipants(),
+            original.getLastModified(),
+            original.getCreated(),
+            unreadCount.intValue(),
+            original.getBlipCount());
+      }
+    };
+    return new SimpleSearchProviderImpl(DOMAIN, digester, waveMap, waveViewProvider);
+  }
 
   private void submitDeltaToNewWavelet(WaveletName name, ParticipantId user,
       WaveletOperation... ops) throws Exception {

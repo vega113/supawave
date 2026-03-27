@@ -254,7 +254,7 @@ public final class FeatureFlagServlet extends HttpServlet {
     json.put("name", flag.getName());
     json.put("description", flag.getDescription());
     json.put("enabled", flag.isEnabled());
-    json.put("allowedUsers", toAllowedUsersJson(flag.getAllowedUsers()));
+    json.put("allowedUsers", String.join(",", FeatureFlag.toStoredAllowedUsers(flag.getAllowedUsers())));
     w.append(json.toString());
   }
 

@@ -4366,6 +4366,10 @@ public final class HtmlRenderer {
     sb.append("    renderFlagUsersEditor();\n");
     sb.append("  }\n");
 
+    sb.append("  function resetFlagEditingState() {\n");
+    sb.append("    flagEditingName = null;\n");
+    sb.append("  }\n");
+
     sb.append("  function renderFlagUsersCell(users, flagIndex) {\n");
     sb.append("    var normalized = normalizeAllowedUsers(users);\n");
     sb.append("    if (!normalized.length) {\n");
@@ -4433,6 +4437,7 @@ public final class HtmlRenderer {
     sb.append("        if (options.closeForm !== false) {\n");
     sb.append("          flagForm.style.display = 'none';\n");
     sb.append("        }\n");
+    sb.append("        resetFlagEditingState();\n");
     sb.append("        fetchFlags();\n");
     sb.append("      }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
     sb.append("  }\n");
@@ -4477,7 +4482,7 @@ public final class HtmlRenderer {
 
     // Show add form
     sb.append("  document.getElementById('addFlagBtn').addEventListener('click', function() {\n");
-    sb.append("    flagEditingName = null;\n");
+    sb.append("    resetFlagEditingState();\n");
     sb.append("    flagNameInput.value = '';\n");
     sb.append("    flagNameInput.disabled = false;\n");
     sb.append("    flagDescInput.value = '';\n");
@@ -4489,6 +4494,7 @@ public final class HtmlRenderer {
 
     // Cancel form
     sb.append("  document.getElementById('flagCancelBtn').addEventListener('click', function() {\n");
+    sb.append("    resetFlagEditingState();\n");
     sb.append("    flagForm.style.display = 'none';\n");
     sb.append("  });\n");
 

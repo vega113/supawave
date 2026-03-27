@@ -157,7 +157,7 @@ public final class FeatureFlagServletTest {
   }
 
   @Test
-  public void listReturnsStructuredAllowedUsers() throws Exception {
+  public void listReturnsLegacyAllowedUsersString() throws Exception {
     store.save(new FeatureFlag("new-ui", "New UI", false, allowedUsers()));
     StringWriter body = new StringWriter();
     String[] contentType = new String[1];
@@ -166,13 +166,10 @@ public final class FeatureFlagServletTest {
 
     JSONObject payload = new JSONObject(body.toString());
     JSONArray flags = payload.getJSONArray("flags");
-    JSONArray allowedUsers = flags.getJSONObject(0).getJSONArray("allowedUsers");
-
     assertEquals("application/json", contentType[0]);
-    assertEquals("vega@supawave.ai", allowedUsers.getJSONObject(0).getString("email"));
-    assertTrue(allowedUsers.getJSONObject(0).getBoolean("enabled"));
-    assertEquals("ops@supawave.ai", allowedUsers.getJSONObject(1).getString("email"));
-    assertFalse(allowedUsers.getJSONObject(1).getBoolean("enabled"));
+    assertEquals(
+        "vega@supawave.ai:enabled,ops@supawave.ai:disabled",
+        flags.getJSONObject(0).getString("allowedUsers"));
   }
 
   private static HttpServletRequest request(String body, String pathInfo) {

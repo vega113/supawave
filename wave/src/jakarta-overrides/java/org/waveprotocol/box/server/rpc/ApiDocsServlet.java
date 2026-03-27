@@ -629,17 +629,13 @@ public final class ApiDocsServlet extends HttpServlet {
         "RobotDataApiTokenRequest",
         orderedMap(
             "type", "object",
-            "description", "Supports two modes: (1) POST body with grant_type, client_id, client_secret; "
-                + "(2) HTTP Basic auth header with grant_type only in the body.",
-            "required", list("grant_type"),
+            "required", list("grant_type", "client_id", "client_secret"),
             "properties",
                 orderedMap(
                     "grant_type",
                         orderedMap("type", "string", "enum", list("client_credentials")),
-                    "client_id", orderedMap("type", "string",
-                        "description", "Required unless using HTTP Basic auth header"),
-                    "client_secret", orderedMap("type", "string",
-                        "description", "Required unless using HTTP Basic auth header"),
+                    "client_id", orderedMap("type", "string"),
+                    "client_secret", orderedMap("type", "string"),
                     "expiry", orderedMap("type", "integer", "format", "int64", "example", 3600))));
     for (OperationDoc operation : OPERATIONS) {
       schemas.put(operation.requestSchemaName, requestSchema(operation));

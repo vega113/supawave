@@ -89,7 +89,11 @@ public class SearchModule extends AbstractModule {
     }
     if ("solr".equals(searchType)) {
       bind(SearchProvider.class).to(SolrSearchProviderImpl.class).in(Singleton.class);
+      bind(PerUserWaveViewProvider.class).to(MemoryPerUserWaveViewHandlerImpl.class)
+          .in(Singleton.class);
       bind(PerUserWaveViewBus.Listener.class).to(SolrWaveIndexerImpl.class).in(Singleton.class);
+      bind(PerUserWaveViewHandler.class).to(MemoryPerUserWaveViewHandlerImpl.class)
+          .in(Singleton.class);
       bind(WaveIndexer.class).to(SolrWaveIndexerImpl.class).in(Singleton.class);
       return;
     }

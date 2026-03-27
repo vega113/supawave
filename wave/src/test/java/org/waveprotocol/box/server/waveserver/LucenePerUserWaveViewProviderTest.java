@@ -97,9 +97,11 @@ public class LucenePerUserWaveViewProviderTest extends PerUserWaveViewProviderTe
     assertTrue(handler.retrievePerUserWaveView(OTHER_PARTICIPANT).containsEntry(WAVE_ID,
         secondWaveletId));
 
+    when(waveletData.getParticipants()).thenReturn(ImmutableSet.of(OTHER_PARTICIPANT));
     handler.onParticipantRemoved(WAVELET_NAME, PARTICIPANT).get();
     postUpdateHook();
 
+    assertFalse(handler.retrievePerUserWaveView(PARTICIPANT).containsEntry(WAVE_ID, WAVELET_ID));
     assertTrue(handler.retrievePerUserWaveView(OTHER_PARTICIPANT).containsEntry(WAVE_ID,
         secondWaveletId));
   }

@@ -101,7 +101,9 @@ public class WaveDocumentBuilder {
     }
     float[] vector = embedding.get();
     if (vector.length != vectorDimensions) {
-      return;
+      throw new IllegalArgumentException(
+          "Embedding dimension " + vector.length
+              + " does not match configured dimension " + vectorDimensions);
     }
     document.add(new KnnFloatVectorField(Lucene9FieldNames.EMBEDDING, vector,
         similarityFunction));
@@ -116,6 +118,7 @@ public class WaveDocumentBuilder {
     if ("cosine".equalsIgnoreCase(similarity)) {
       return VectorSimilarityFunction.COSINE;
     }
-    return VectorSimilarityFunction.DOT_PRODUCT;
+    throw new IllegalArgumentException(
+        "Unsupported core.lucene9_vector_similarity: " + similarity);
   }
 }

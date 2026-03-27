@@ -35,16 +35,21 @@ public class Lucene9QueryParser {
       if (index >= query.length()) {
         break;
       }
+      int nextSpace = findNextWhitespace(query, index);
       int colonIndex = query.indexOf(':', index);
-      if (colonIndex <= index) {
-        throw new InvalidQueryException("Invalid query token near: " + query.substring(index));
+      if (colonIndex < 0 || colonIndex >= nextSpace) {
+        // Unqualified text segment: treat as content search
+        String word = query.substring(index, nextSpace);
+        tokens.add(new Lucene9QueryModel.Token(TokenQueryType.CONTENT, word));
+        index = nextSpace;
+        continue;
       }
       String tokenName = query.substring(index, colonIndex);
       if (!TokenQueryType.hasToken(tokenName)) {
         throw new InvalidQueryException("Illegal query param: " + tokenName);
       }
       TokenQueryType type = TokenQueryType.fromToken(tokenName);
-      int valueStart = colonIndex + 1;
+      int valueStart = skipWhitespace(query, colonIndex + 1);
       if (valueStart >= query.length()) {
         throw new InvalidQueryException("Missing value for token: " + tokenName);
       }
@@ -65,6 +70,9 @@ public class Lucene9QueryParser {
         value = query.substring(valueStart, valueEnd);
         nextIndex = valueEnd;
       }
+      if (value.isEmpty()) {
+        throw new InvalidQueryException("Missing value for token: " + tokenName);
+      }
       tokens.add(new Lucene9QueryModel.Token(type, value));
       index = nextIndex;
     }
@@ -74,6 +82,14 @@ public class Lucene9QueryParser {
   private static int skipWhitespace(String query, int index) {
     int current = index;
     while (current < query.length() && Character.isWhitespace(query.charAt(current))) {
+      current++;
+    }
+    return current;
+  }
+
+  private static int findNextWhitespace(String query, int index) {
+    int current = index;
+    while (current < query.length() && !Character.isWhitespace(query.charAt(current))) {
       current++;
     }
     return current;

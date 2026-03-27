@@ -22,6 +22,7 @@ import com.google.common.base.Function;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -58,7 +59,7 @@ import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 
 @Singleton
-public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber {
+public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, Closeable {
 
   private static final Logger LOG = Logger.getLogger(Lucene9WaveIndexerImpl.class.getName());
   private static final Function<ReadableWaveletData, Boolean> MATCH_ALL =
@@ -96,20 +97,29 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber {
   }
 
   @Override
+  public void close() throws IOException {
+    searcherManager.close();
+    indexWriter.close();
+  }
+
+  @Override
   public synchronized void remakeIndex() throws WaveletStateException, WaveServerException {
     try {
       if (rebuildOnStartup) {
         indexWriter.deleteAll();
       }
       waveMap.loadAllWavelets();
-      org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
-          waveletProvider.getWaveIds();
-      while (waveIds.hasNext()) {
-        upsertWave(waveIds.next());
+      try {
+        org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
+            waveletProvider.getWaveIds();
+        while (waveIds.hasNext()) {
+          upsertWave(waveIds.next());
+        }
+        indexWriter.commit();
+        searcherManager.maybeRefreshBlocking();
+      } finally {
+        waveMap.unloadAllWavelets();
       }
-      indexWriter.commit();
-      searcherManager.maybeRefreshBlocking();
-      waveMap.unloadAllWavelets();
     } catch (IOException e) {
       throw new IndexException(e);
     }

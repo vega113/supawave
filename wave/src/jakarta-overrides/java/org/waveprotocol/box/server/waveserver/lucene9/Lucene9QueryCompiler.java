@@ -69,7 +69,7 @@ public class Lucene9QueryCompiler {
     return builder.build();
   }
 
-  public Sort compileSort(Lucene9QueryModel model) {
+  public Sort compileSort(Lucene9QueryModel model) throws InvalidQueryException {
     List<String> orderByValues = model.values(TokenQueryType.ORDERBY);
     if (orderByValues.isEmpty()) {
       return new Sort(new SortField(Lucene9FieldNames.LAST_MODIFIED_SORT,
@@ -77,14 +77,20 @@ public class Lucene9QueryCompiler {
     }
     SortField[] sortFields = new SortField[orderByValues.size()];
     for (int i = 0; i < orderByValues.size(); i++) {
-      sortFields[i] = toSortField(OrderByValueType.fromToken(orderByValues.get(i)));
+      try {
+        sortFields[i] = toSortField(OrderByValueType.fromToken(orderByValues.get(i)));
+      } catch (IllegalArgumentException e) {
+        throw new InvalidQueryException(e.getMessage());
+      }
     }
     return new Sort(sortFields);
   }
 
   private Query accessQuery(Lucene9QueryModel model, ParticipantId user) {
     List<String> inValues = model.values(TokenQueryType.IN);
-    boolean explicitOnly = inValues.contains("inbox") || inValues.contains("archive");
+    boolean hasPersonalFolder = inValues.contains("inbox") || inValues.contains("archive");
+    boolean hasSharedFolder = inValues.contains("all") || inValues.contains("pinned");
+    boolean explicitOnly = hasPersonalFolder && !hasSharedFolder;
     BooleanQuery.Builder builder = new BooleanQuery.Builder();
     builder.add(new TermQuery(new Term(Lucene9FieldNames.PARTICIPANT,
         user.getAddress())), Occur.SHOULD);

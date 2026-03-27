@@ -37,7 +37,43 @@ public class CompositeWaveIndexer implements WaveIndexer {
 
   @Override
   public void remakeIndex() throws WaveletStateException, WaveServerException {
-    legacyWaveIndexer.remakeIndex();
-    lucene9WaveIndexer.remakeIndex();
+    Exception legacyFailure = null;
+    try {
+      legacyWaveIndexer.remakeIndex();
+    } catch (WaveletStateException | WaveServerException | RuntimeException e) {
+      legacyFailure = e;
+    }
+    Exception lucene9Failure = null;
+    try {
+      lucene9WaveIndexer.remakeIndex();
+    } catch (WaveletStateException | WaveServerException | RuntimeException e) {
+      lucene9Failure = e;
+    }
+    if (legacyFailure != null && lucene9Failure != null) {
+      WaveServerException aggregated = new WaveServerException(
+          "Both legacy and lucene9 index rebuilds failed", legacyFailure);
+      aggregated.addSuppressed(lucene9Failure);
+      throw aggregated;
+    }
+    if (legacyFailure != null) {
+      throwAppropriate(legacyFailure);
+    }
+    if (lucene9Failure != null) {
+      throwAppropriate(lucene9Failure);
+    }
+  }
+
+  private static void throwAppropriate(Exception e)
+      throws WaveletStateException, WaveServerException {
+    if (e instanceof WaveletStateException) {
+      throw (WaveletStateException) e;
+    }
+    if (e instanceof WaveServerException) {
+      throw (WaveServerException) e;
+    }
+    if (e instanceof RuntimeException) {
+      throw (RuntimeException) e;
+    }
+    throw new WaveServerException(e);
   }
 }

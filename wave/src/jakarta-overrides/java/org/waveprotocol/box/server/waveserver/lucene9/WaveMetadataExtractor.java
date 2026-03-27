@@ -102,7 +102,11 @@ public class WaveMetadataExtractor {
       return "";
     }
     OpBasedWavelet opBasedWavelet = OpBasedWavelet.createReadOnly(wavelet);
-    return TitleHelper.extractTitle(opBasedWavelet.getBlip(rootBlipId).getContent()).trim();
+    var blip = opBasedWavelet.getBlip(rootBlipId);
+    if (blip == null) {
+      return "";
+    }
+    return TitleHelper.extractTitle(blip.getContent()).trim();
   }
 
   private static String findRootBlipId(ObservableWaveletData wavelet) {

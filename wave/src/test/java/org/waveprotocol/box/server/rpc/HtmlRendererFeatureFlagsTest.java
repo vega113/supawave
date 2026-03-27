@@ -37,6 +37,12 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("flagEnabledInput.checked = payload.enabled;"));
     assertTrue(html.contains("closeForm: false"));
     assertTrue(html.contains("resetFlagEditingState()"));
+    assertTrue(
+        html.contains(
+            "if (options.closeForm !== false) {\n"
+                + "          flagForm.style.display = 'none';\n"
+                + "          resetFlagEditingState();\n"
+                + "        }"));
     assertTrue(html.contains("resetFlagEditingState();\n    flagForm.style.display = 'none';"));
     assertTrue(html.contains("resetFlagEditingState();\n        fetchFlags();"));
     assertTrue(html.contains("return legacyUser ? { email: legacyUser, enabled: legacyEnabled } : null;"));

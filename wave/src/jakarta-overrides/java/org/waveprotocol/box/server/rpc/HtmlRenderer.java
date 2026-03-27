@@ -4437,8 +4437,8 @@ public final class HtmlRenderer {
     sb.append("        showToast(successMessage, 'success');\n");
     sb.append("        if (options.closeForm !== false) {\n");
     sb.append("          flagForm.style.display = 'none';\n");
+    sb.append("          resetFlagEditingState();\n");
     sb.append("        }\n");
-    sb.append("        resetFlagEditingState();\n");
     sb.append("        fetchFlags();\n");
     sb.append("      }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
     sb.append("  }\n");

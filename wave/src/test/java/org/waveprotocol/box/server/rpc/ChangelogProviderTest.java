@@ -75,22 +75,34 @@ public final class ChangelogProviderTest {
   public void configPathLoadsEntriesWithoutDependingOnWorkingDirectory() throws Exception {
     Path tempDir = Files.createTempDirectory("changelog-provider-config");
     Path changelogFile = tempDir.resolve("custom-changelog.json");
+    Path configFile = tempDir.resolve("application.conf");
     Files.writeString(
         changelogFile,
         "[{\"version\":\"2026-03-27\",\"date\":\"2026-03-27\",\"title\":\"Changelog System\","
             + "\"summary\":\"You can now see what's new after each deploy.\","
             + "\"sections\":[{\"type\":\"feature\",\"items\":[\"New /changelog page\"]}]}]",
         StandardCharsets.UTF_8);
+    Files.writeString(configFile, "core.changelog_path=\"custom-changelog.json\"", StandardCharsets.UTF_8);
 
-    Config config = ConfigFactory.parseMap(
-        java.util.Map.of("core.changelog_path", changelogFile.toString()));
+    String previousConfigPath = System.getProperty("wave.server.config");
+    System.setProperty("wave.server.config", configFile.toString());
+    try {
+      Config config = ConfigFactory.parseMap(
+          java.util.Map.of("core.changelog_path", "custom-changelog.json"));
 
-    ChangelogProvider provider = new ChangelogProvider(config);
+      ChangelogProvider provider = new ChangelogProvider(config);
 
-    assertEquals(1, provider.getEntries().length());
-    assertEquals("2026-03-27", provider.getLatestVersion());
-    assertEquals("Changelog System", provider.getLatestTitle());
-    assertEquals("You can now see what's new after each deploy.", provider.getLatestSummary());
+      assertEquals(1, provider.getEntries().length());
+      assertEquals("2026-03-27", provider.getLatestVersion());
+      assertEquals("Changelog System", provider.getLatestTitle());
+      assertEquals("You can now see what's new after each deploy.", provider.getLatestSummary());
+    } finally {
+      if (previousConfigPath == null) {
+        System.clearProperty("wave.server.config");
+      } else {
+        System.setProperty("wave.server.config", previousConfigPath);
+      }
+    }
   }
 
   @Test

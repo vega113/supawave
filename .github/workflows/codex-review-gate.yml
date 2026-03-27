@@ -19,25 +19,167 @@ on:
     types:
       - created
       - edited
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to evaluate
+        required: false
+        type: string
+  schedule:
+    - cron: "*/5 * * * *"
 
 jobs:
+  redispatch-codex-review-gate:
+    name: Re-dispatch Codex Review Gate
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      checks: read
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Re-dispatch eligible PR gates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const workflowId = "codex-review-gate.yml";
+            const reviewGracePeriodMs = 5 * 60 * 1000;
+            const codeRabbitNames = new Set(["CodeRabbit", "CodeRabbit - Review completed"]);
+            const codexReactionLogins = new Set([
+              "chatgpt-codex-connector",
+              "chatgpt-codex-connector[bot]",
+              "codex",
+              "codex[bot]",
+              "openai-codex",
+              "openai-codex[bot]"
+            ]);
+
+            const isCodexReactionLogin = (login) => {
+              const normalized = (login ?? "").toLowerCase();
+              return codexReactionLogins.has(normalized) || normalized.includes("codex");
+            };
+
+            const latestCodeRabbitCompletion = (checkRuns) => {
+              return checkRuns
+                .filter((run) => codeRabbitNames.has(run.name) && run.conclusion === "success" && run.completed_at)
+                .sort((left, right) => Date.parse(right.completed_at) - Date.parse(left.completed_at))[0] ?? null;
+            };
+
+            const openPulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "open",
+              base: "main",
+              per_page: 100
+            });
+
+            for (const pullRequest of openPulls) {
+              if (pullRequest.draft) {
+                core.info(`Skipping draft PR #${pullRequest.number}`);
+                continue;
+              }
+
+              if (pullRequest.head.repo?.full_name !== `${owner}/${repo}`) {
+                core.info(`Skipping fork PR #${pullRequest.number}; workflow dispatch cannot target fork refs safely`);
+                continue;
+              }
+
+              const labels = (pullRequest.labels ?? []).map((label) => label.name);
+              if (labels.includes("codex-reviewed")) {
+                core.info(`Skipping PR #${pullRequest.number}; already approved via codex-reviewed label`);
+                continue;
+              }
+
+              const checkRuns = await github.paginate(github.rest.checks.listForRef, {
+                owner,
+                repo,
+                ref: pullRequest.head.sha,
+                per_page: 100
+              }, (response) => response.data.check_runs);
+
+              const codeRabbitCompletion = latestCodeRabbitCompletion(checkRuns);
+              if (!codeRabbitCompletion) {
+                core.info(`Skipping PR #${pullRequest.number}; no successful current-head CodeRabbit completion yet`);
+                continue;
+              }
+
+              const codeRabbitCompletedAt = Date.parse(codeRabbitCompletion.completed_at);
+              const reactions = await github.paginate(github.rest.reactions.listForIssue, {
+                owner,
+                repo,
+                issue_number: pullRequest.number,
+                per_page: 100
+              });
+
+              const hasCodexThumbsUp = reactions.some((reaction) => {
+                return reaction.content === "+1" &&
+                  isCodexReactionLogin(reaction.user?.login) &&
+                  Date.parse(reaction.created_at) >= codeRabbitCompletedAt;
+              });
+
+              if (hasCodexThumbsUp) {
+                core.info(`Skipping PR #${pullRequest.number}; Codex thumbs-up already recorded`);
+                continue;
+              }
+
+              const gateAlreadyPassed = checkRuns.some((run) => {
+                return run.name === "Codex Review Gate" &&
+                  run.conclusion === "success" &&
+                  run.completed_at &&
+                  Date.parse(run.completed_at) >= codeRabbitCompletedAt;
+              });
+
+              if (gateAlreadyPassed) {
+                core.info(`Skipping PR #${pullRequest.number}; gate already passed after the latest CodeRabbit completion`);
+                continue;
+              }
+
+              if (Date.now() - codeRabbitCompletedAt < reviewGracePeriodMs) {
+                core.info(`Skipping PR #${pullRequest.number}; still inside the 5 minute grace window`);
+                continue;
+              }
+
+              await github.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id: workflowId,
+                ref: pullRequest.head.ref,
+                inputs: {
+                  pr_number: String(pullRequest.number)
+                }
+              });
+
+              core.info(`Dispatched Codex Review Gate for PR #${pullRequest.number} on ${pullRequest.head.ref}`);
+            }
+
   codex-review-gate:
     name: Codex Review Gate
     if: >-
       ${{
-        (github.event.pull_request != null || github.event.issue.pull_request != null) &&
         (
-          github.event_name != 'issue_comment' ||
+          github.event_name == 'workflow_dispatch' &&
+          inputs.pr_number != ''
+        ) || (
+          (github.event.pull_request != null || github.event.issue.pull_request != null) &&
           (
-            github.event.comment.user.login == github.repository_owner &&
-            contains(github.event.comment.body, '/codex-review-gate')
+            github.event_name != 'issue_comment' ||
+            (
+              github.event.comment.user.login == github.repository_owner &&
+              contains(github.event.comment.body, '/codex-review-gate')
+            )
           )
         )
       }}
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      checks: read
       contents: read
+      issues: read
+      pull-requests: read
     steps:
       - name: Evaluate review gate
         uses: actions/github-script@v7
@@ -46,15 +188,33 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const prNumber =
+              context.payload.inputs?.pr_number ??
               context.payload.pull_request?.number ??
               context.payload.issue?.number ??
               context.payload.review_thread?.pull_request?.number;
+            const reviewGracePeriodMs = 5 * 60 * 1000;
+            const codeRabbitNames = new Set(["CodeRabbit", "CodeRabbit - Review completed"]);
+            const codexReactionLogins = new Set([
+              "chatgpt-codex-connector",
+              "chatgpt-codex-connector[bot]",
+              "codex",
+              "codex[bot]",
+              "openai-codex",
+              "openai-codex[bot]"
+            ]);
+
+            const isCodexReactionLogin = (login) => {
+              const normalized = (login ?? "").toLowerCase();
+              return codexReactionLogins.has(normalized) || normalized.includes("codex");
+            };
 
             const query = `
               query($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
                   pullRequest(number: $number) {
                     isDraft
+                    headRefName
+                    headRefOid
                     labels(first: 100) {
                       nodes { name }
                     }
@@ -74,6 +234,7 @@ jobs:
                                   name
                                   conclusion
                                   status
+                                  completedAt
                                 }
                               }
                             }
@@ -100,42 +261,70 @@ jobs:
 
             const labels = pullRequest.labels.nodes.map((label) => label.name);
             const latestCommit = pullRequest.commits.nodes[0]?.commit ?? null;
-            const prUpdatedAt = Date.parse(context.payload.pull_request?.updated_at ?? "");
             const statusNodes =
               latestCommit?.statusCheckRollup?.contexts?.nodes ?? [];
-            const codeRabbitPassed = statusNodes.some((node) => {
+            const codeRabbitPassedViaStatus = statusNodes.some((node) => {
               if (node.__typename === "StatusContext") {
                 return node.context === "CodeRabbit" && node.state === "SUCCESS";
               }
               if (node.__typename === "CheckRun") {
-                return node.name === "CodeRabbit" && node.conclusion === "SUCCESS";
+                return codeRabbitNames.has(node.name) && node.conclusion === "SUCCESS";
               }
               return false;
             });
-
-            const approvedByReviewBot =
-              labels.includes("codex-reviewed");
-
-            if (approvedByReviewBot) {
+            if (labels.includes("codex-reviewed")) {
               core.info("Review gate passed via `codex-reviewed` label");
               return;
             }
 
-            const latestCommitAt = latestCommit ? Date.parse(latestCommit.committedDate) : NaN;
-            const baselineAt = latestCommitAt;
-            const commitAgeMs = Number.isNaN(baselineAt) ? Number.POSITIVE_INFINITY : Date.now() - baselineAt;
-            const reviewGracePeriodMs = 5 * 60 * 1000;
-            const codeRabbitApproved = labels.includes("coderabbitai-reviewed") || codeRabbitPassed;
-
-            if (!codeRabbitApproved) {
-              core.setFailed("Missing required review signal: `codex-reviewed`, `coderabbitai-reviewed`, or successful CodeRabbit status");
+            if (!pullRequest.headRefOid) {
+              core.setFailed(`Pull request #${prNumber} is missing a current head SHA`);
               return;
             }
 
-            if (commitAgeMs < reviewGracePeriodMs) {
-              const remainingMinutes = Math.ceil((reviewGracePeriodMs - commitAgeMs) / 60000);
-              core.setFailed("CodeRabbit is green, but the PR is still inside the 5 minute Codex-review window (" + remainingMinutes + " minute(s) remaining)");
+            const checkRuns = await github.paginate(github.rest.checks.listForRef, {
+              owner,
+              repo,
+              ref: pullRequest.headRefOid,
+              per_page: 100
+            }, (response) => response.data.check_runs);
+
+            const latestCodeRabbitRun = checkRuns
+              .filter((run) => codeRabbitNames.has(run.name) && run.conclusion === "success" && run.completed_at)
+              .sort((left, right) => Date.parse(right.completed_at) - Date.parse(left.completed_at))[0] ?? null;
+
+            const codeRabbitCompletedAt = latestCodeRabbitRun
+              ? Date.parse(latestCodeRabbitRun.completed_at)
+              : (codeRabbitPassedViaStatus && latestCommit ? Date.parse(latestCommit.committedDate) : NaN);
+
+            if (Number.isNaN(codeRabbitCompletedAt)) {
+              core.setFailed("Missing required review signal: successful current-head CodeRabbit completion");
               return;
             }
 
-            core.info("Review gate passed after the 5 minute Codex-review window using CodeRabbit");
+            const reactions = await github.paginate(github.rest.reactions.listForIssue, {
+              owner,
+              repo,
+              issue_number: Number(prNumber),
+              per_page: 100
+            });
+
+            const hasCodexThumbsUp = reactions.some((reaction) => {
+              return reaction.content === "+1" &&
+                isCodexReactionLogin(reaction.user?.login) &&
+                Date.parse(reaction.created_at) >= codeRabbitCompletedAt;
+            });
+
+            if (hasCodexThumbsUp) {
+              core.info("Review gate passed via Codex PR-level +1 reaction after CodeRabbit completion");
+              return;
+            }
+
+            const elapsedMs = Date.now() - codeRabbitCompletedAt;
+            if (elapsedMs < reviewGracePeriodMs) {
+              const remainingMinutes = Math.ceil((reviewGracePeriodMs - elapsedMs) / 60000);
+              core.setFailed("CodeRabbit completed on the current head, but the PR is still inside the 5 minute Codex thumbs-up window (" + remainingMinutes + " minute(s) remaining)");
+              return;
+            }
+
+            core.info("Review gate passed after 5 minutes of Codex inactivity following current-head CodeRabbit completion");

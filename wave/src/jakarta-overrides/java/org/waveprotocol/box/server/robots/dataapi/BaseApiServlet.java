@@ -97,13 +97,14 @@ public abstract class BaseApiServlet extends HttpServlet {
       throw e;
     }
 
-    LOG.info("Received the following Json: " + apiRequest);
+    LOG.info("Received data API request (" + apiRequest.length() + " chars)");
     try {
       operations = robotSerializer.deserializeOperations(apiRequest);
     } catch (InvalidRequestException e) {
-      LOG.info("Unable to parse Json to list of OperationRequests: " + apiRequest);
+      LOG.info("Unable to parse Json to list of OperationRequests (length="
+          + apiRequest.length() + ")");
       resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
-          "Unable to parse Json to list of OperationRequests: " + apiRequest);
+          "Unable to parse Json to list of OperationRequests");
       return;
     }
 

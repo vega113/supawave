@@ -110,6 +110,7 @@ compose_up() {
   # and only then stop the old one — achieving zero-downtime rolling updates.
   DEPLOY_ROOT="$deploy_root" \
   WAVE_IMAGE="${WAVE_IMAGE:-supawave-wave:$(basename "$release_dir")}" \
+  WAVE_SERVER_VERSION="${WAVE_SERVER_VERSION:-$(basename "$release_dir")}" \
   CANONICAL_HOST="$canonical_host" \
   ROOT_HOST="$root_host" \
   WWW_HOST="$www_host" \
@@ -165,6 +166,7 @@ rollback_release() {
   ln -sfn "$previous_release" "$deploy_root/current"
   DEPLOY_ROOT="$deploy_root" \
   WAVE_IMAGE="$rollback_image" \
+  WAVE_SERVER_VERSION="${WAVE_SERVER_VERSION:-$(basename "$previous_release")}" \
   CANONICAL_HOST="$canonical_host" \
   ROOT_HOST="$root_host" \
   WWW_HOST="$www_host" \

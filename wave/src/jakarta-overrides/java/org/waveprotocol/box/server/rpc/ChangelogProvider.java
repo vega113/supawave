@@ -27,15 +27,25 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Set;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.waveprotocol.wave.util.logging.Log;
 
 @Singleton
 public final class ChangelogProvider {
+  public static final String STATUS_EXACT = "exact";
+  public static final String STATUS_PARTIAL = "partial";
+  public static final String STATUS_CURRENT_ONLY = "current_only";
+  public static final String STATUS_SAME_RELEASE = "same_release";
+  public static final String STATUS_NON_FORWARD = "non_forward";
+  public static final String STATUS_UNMAPPED = "unmapped";
+
   private static final Log LOG = Log.get(ChangelogProvider.class);
 
   private final JSONArray entries;
+  private final String currentReleaseId;
   private final String latestVersion;
   private final String latestTitle;
   private final String latestSummary;
@@ -53,9 +63,10 @@ public final class ChangelogProvider {
     this(loadDefaultEntries(null));
   }
 
-  ChangelogProvider(JSONArray entries) {
-    this.entries = new JSONArray(entries.toString());
+  public ChangelogProvider(JSONArray entries) {
+    this.entries = sanitizeEntries(entries);
     JSONObject latestEntry = this.entries.length() > 0 ? this.entries.optJSONObject(0) : null;
+    this.currentReleaseId = latestEntry != null ? latestEntry.optString("releaseId", null) : null;
     this.latestVersion = latestEntry != null ? latestEntry.optString("version", null) : null;
     this.latestTitle = latestEntry != null ? latestEntry.optString("title", null) : null;
     this.latestSummary = latestEntry != null ? latestEntry.optString("summary", null) : null;
@@ -70,6 +81,14 @@ public final class ChangelogProvider {
     return latestEntry != null ? new JSONObject(latestEntry.toString()) : null;
   }
 
+  public JSONObject getCurrentReleaseEntry() {
+    return getLatestEntry();
+  }
+
+  public String getCurrentReleaseId() {
+    return currentReleaseId;
+  }
+
   public String getLatestVersion() {
     return latestVersion;
   }
@@ -80,6 +99,63 @@ public final class ChangelogProvider {
 
   public String getLatestSummary() {
     return latestSummary;
+  }
+
+  public JSONObject getReleaseEntry(String releaseId) {
+    int releaseIndex = indexOfReleaseId(releaseId);
+    if (releaseIndex < 0) {
+      return null;
+    }
+    JSONObject entry = entries.optJSONObject(releaseIndex);
+    return entry != null ? new JSONObject(entry.toString()) : null;
+  }
+
+  public ReleaseRange getReleaseRange(String sinceReleaseId, String targetReleaseId) {
+    if (targetReleaseId == null || targetReleaseId.isBlank()) {
+      return new ReleaseRange(STATUS_UNMAPPED, new JSONArray());
+    }
+    int targetIndex = indexOfReleaseId(targetReleaseId);
+    if (targetIndex < 0) {
+      return new ReleaseRange(STATUS_UNMAPPED, new JSONArray());
+    }
+    if (sinceReleaseId == null || sinceReleaseId.isBlank()) {
+      return new ReleaseRange(STATUS_CURRENT_ONLY, copyEntries(targetIndex, targetIndex + 1));
+    }
+    int sinceIndex = indexOfReleaseId(sinceReleaseId);
+    if (sinceIndex < 0) {
+      return new ReleaseRange(STATUS_PARTIAL, copyEntries(targetIndex, targetIndex + 1));
+    }
+    if (sinceIndex == targetIndex) {
+      return new ReleaseRange(STATUS_SAME_RELEASE, new JSONArray());
+    }
+    if (sinceIndex < targetIndex) {
+      return new ReleaseRange(STATUS_NON_FORWARD, new JSONArray());
+    }
+    return new ReleaseRange(STATUS_EXACT, copyEntries(targetIndex, sinceIndex));
+  }
+
+  private int indexOfReleaseId(String releaseId) {
+    if (releaseId == null || releaseId.isBlank()) {
+      return -1;
+    }
+    for (int i = 0; i < entries.length(); i++) {
+      JSONObject entry = entries.optJSONObject(i);
+      if (entry != null && releaseId.equals(entry.optString("releaseId"))) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private JSONArray copyEntries(int fromInclusive, int toExclusive) {
+    JSONArray copy = new JSONArray();
+    for (int i = fromInclusive; i < toExclusive && i < entries.length(); i++) {
+      JSONObject entry = entries.optJSONObject(i);
+      if (entry != null) {
+        copy.put(new JSONObject(entry.toString()));
+      }
+    }
+    return copy;
   }
 
   private static JSONArray loadDefaultEntries(Config config) {
@@ -117,7 +193,7 @@ public final class ChangelogProvider {
         ChangelogProvider.class.getClassLoader().getResourceAsStream(resourceName)) {
       if (inputStream != null) {
         String json = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        loadedEntries = new JSONArray(json);
+        loadedEntries = sanitizeEntries(new JSONArray(json));
       } else {
         LOG.warning("Changelog resource not found at " + resourceName);
       }
@@ -132,7 +208,7 @@ public final class ChangelogProvider {
     if (Files.exists(changelogPath)) {
       try {
         String json = Files.readString(changelogPath, StandardCharsets.UTF_8);
-        loadedEntries = new JSONArray(json);
+        loadedEntries = sanitizeEntries(new JSONArray(json));
       } catch (IOException | RuntimeException e) {
         LOG.warning("Failed to load changelog from " + changelogPath.toAbsolutePath(), e);
       }
@@ -140,5 +216,54 @@ public final class ChangelogProvider {
       LOG.warning("Changelog file not found at " + changelogPath.toAbsolutePath());
     }
     return loadedEntries;
+  }
+
+  private static JSONArray sanitizeEntries(JSONArray rawEntries) {
+    JSONArray sanitizedEntries = new JSONArray();
+    Set<String> seenReleaseIds = new HashSet<>();
+    for (int i = 0; i < rawEntries.length(); i++) {
+      JSONObject rawEntry = rawEntries.optJSONObject(i);
+      if (rawEntry == null || !isValidEntry(rawEntry, seenReleaseIds)) {
+        return new JSONArray();
+      }
+      sanitizedEntries.put(new JSONObject(rawEntry.toString()));
+    }
+    return sanitizedEntries;
+  }
+
+  private static boolean isValidEntry(JSONObject entry, Set<String> seenReleaseIds) {
+    String releaseId = entry.optString("releaseId", "").trim();
+    String date = entry.optString("date", "").trim();
+    String title = entry.optString("title", "").trim();
+    String summary = entry.optString("summary", "").trim();
+    JSONArray sections = entry.optJSONArray("sections");
+    if (releaseId.isEmpty() || date.isEmpty() || title.isEmpty() || summary.isEmpty()
+        || sections == null) {
+      LOG.warning("Changelog entry is missing required fields: " + entry);
+      return false;
+    }
+    if (!seenReleaseIds.add(releaseId)) {
+      LOG.warning("Duplicate changelog releaseId " + releaseId);
+      return false;
+    }
+    return true;
+  }
+
+  public static final class ReleaseRange {
+    private final String status;
+    private final JSONArray entries;
+
+    ReleaseRange(String status, JSONArray entries) {
+      this.status = status;
+      this.entries = new JSONArray(entries.toString());
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public JSONArray getEntries() {
+      return new JSONArray(entries.toString());
+    }
   }
 }

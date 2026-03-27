@@ -24,7 +24,8 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.json.JSONObject;
+import org.json.JSONArray;
+import org.waveprotocol.box.server.rpc.ChangelogProvider;
 import org.waveprotocol.box.server.rpc.VersionServlet;
 
 import java.net.HttpURLConnection;
@@ -58,10 +59,18 @@ public final class VersionServletJakartaIT {
             new VersionServlet(
                 "abc123",
                 1700000000000L,
-                new JSONObject()
-                    .put("version", "2026-03-27")
-                    .put("title", "Changelog System")
-                    .put("summary", "You can now see what's new after each deploy."))),
+                new ChangelogProvider(
+                    new JSONArray(
+                        "[{\"releaseId\":\"2026-03-27-unread-only-search-filter\","
+                            + "\"version\":\"2026-03-27.403\",\"date\":\"2026-03-27\","
+                            + "\"title\":\"Unread-Only Search Filter\","
+                            + "\"summary\":\"Unread-only search is now available.\","
+                            + "\"sections\":[{\"type\":\"feature\",\"items\":[\"Added unread:true\"]}]},"
+                            + "{\"releaseId\":\"2026-03-27-changelog-system\","
+                            + "\"version\":\"2026-03-27.383\",\"date\":\"2026-03-27\","
+                            + "\"title\":\"Changelog System\","
+                            + "\"summary\":\"You can now see what's new after each deploy.\","
+                            + "\"sections\":[{\"type\":\"feature\",\"items\":[\"New /changelog page\"]}]}]"))),
         "/version");
     server.setHandler(context);
     server.start();
@@ -80,11 +89,36 @@ public final class VersionServletJakartaIT {
     assertEquals(200, conn.getResponseCode());
     String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     assertTrue("Should contain version field", body.contains("\"version\":\"abc123\""));
+    assertTrue("Should contain buildCommit field", body.contains("\"buildCommit\":\"abc123\""));
     assertTrue("Should contain buildTime field", body.contains("\"buildTime\":1700000000000"));
     assertTrue(
-        "Should contain changelog version",
-        body.contains("\"changelog\":{\"version\":\"2026-03-27\""));
-    assertTrue("Should contain changelog title", body.contains("\"title\":\"Changelog System\""));
+        "Should contain current release id",
+        body.contains("\"releaseId\":\"2026-03-27-unread-only-search-filter\""));
+    assertTrue(
+        "Should contain current-only releaseNotesStatus",
+        body.contains("\"releaseNotesStatus\":\"current_only\""));
+  }
+
+  @Test
+  public void returnsExactReleaseNotesRangeWhenSinceIsOlder() throws Exception {
+    HttpURLConnection conn = TestSupport.openConnection(
+        new URL("http://localhost:" + port + "/version?since=2026-03-27-changelog-system"));
+    assertEquals(200, conn.getResponseCode());
+    String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+    assertTrue(body.contains("\"releaseNotesStatus\":\"exact\""));
+    assertTrue(body.contains("\"releaseNotes\":["));
+    assertTrue(body.contains("\"releaseId\":\"2026-03-27-unread-only-search-filter\""));
+  }
+
+  @Test
+  public void returnsPartialStatusWhenSinceIsUnknown() throws Exception {
+    HttpURLConnection conn = TestSupport.openConnection(
+        new URL("http://localhost:" + port + "/version?since=2026-03-28-future"));
+    assertEquals(200, conn.getResponseCode());
+    String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+    assertTrue(body.contains("\"releaseNotesStatus\":\"partial\""));
   }
 
   @Test

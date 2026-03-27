@@ -2026,13 +2026,14 @@ public final class HtmlRenderer {
    * @param websocketAddress the websocket host:port for the client to connect to
    * @param topBarHtml       pre-rendered top-bar HTML fragment
    * @param analyticsAccount Google Analytics account ID (may be null/empty)
-   * @param serverVersion    server version string
+   * @param buildCommit      deployed build commit
    * @param serverBuildTime  server build timestamp
+   * @param currentReleaseId current changelog release key
    * @param prerenderedHtml  SSR Phase 5: pre-rendered wave snapshot HTML, or null
    */
   public static String renderWaveClientPage(JSONObject sessionJson, JSONObject clientFlags,
       String websocketAddress, String topBarHtml, String analyticsAccount,
-      String serverVersion, long serverBuildTime, String prerenderedHtml) {
+      String buildCommit, long serverBuildTime, String currentReleaseId, String prerenderedHtml) {
     StringBuilder sb = new StringBuilder(4096);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n");
@@ -2613,7 +2614,7 @@ public final class HtmlRenderer {
     // -- Lightbox overlay for image attachments --
     appendLightboxFragment(sb);
     // -- Version upgrade detection polling --
-    appendVersionCheckScript(sb, serverVersion, serverBuildTime);
+    appendVersionCheckScript(sb, buildCommit, serverBuildTime, currentReleaseId);
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -2950,26 +2951,28 @@ public final class HtmlRenderer {
    * (i.e. the server has been upgraded while the client page is still open).
    */
   private static void appendVersionCheckScript(StringBuilder sb,
-      String serverVersion, long serverBuildTime) {
+      String buildCommit, long serverBuildTime, String currentReleaseId) {
     sb.append("<script>\n");
     sb.append("(function() {\n");
-    sb.append("  var currentVersion = ").append(escapeJsonString(serverVersion)).append(";\n");
+    sb.append("  var currentBuildCommit = ").append(escapeJsonString(buildCommit)).append(";\n");
     sb.append("  var currentBuildTime = ").append(serverBuildTime).append(";\n");
+    sb.append("  var currentReleaseId = ")
+        .append(escapeJsonString(currentReleaseId)).append(";\n");
     sb.append("  var pollInFlight = false;\n");
     sb.append("  function checkVersion() {\n");
     sb.append("    if (pollInFlight) return;\n");
     sb.append("    pollInFlight = true;\n");
-    sb.append("    fetch('/version', {cache: 'no-store'})\n");
+    sb.append("    fetch('/version?since=' + encodeURIComponent(currentReleaseId || ''), {cache: 'no-store'})\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
-    sb.append("        if (data.version !== currentVersion || data.buildTime !== currentBuildTime) {\n");
-    sb.append("          showUpgradeBanner(data.changelog || null);\n");
+    sb.append("        if (data.buildCommit !== currentBuildCommit || data.buildTime !== currentBuildTime) {\n");
+    sb.append("          showUpgradeBanner(data.releaseNotesStatus, data.releaseNotes || []);\n");
     sb.append("        }\n");
     sb.append("      })\n");
     sb.append("      .catch(function() {})\n");
     sb.append("      .then(function() { pollInFlight = false; });\n");
     sb.append("  }\n");
-    sb.append("  function showUpgradeBanner(entry) {\n");
+    sb.append("  function showUpgradeBanner(status, releaseNotes) {\n");
     sb.append("    if (document.getElementById('upgrade-banner')) return;\n");
     sb.append("    var banner = document.createElement('div');\n");
     sb.append("    banner.id = 'upgrade-banner';\n");
@@ -2995,12 +2998,24 @@ public final class HtmlRenderer {
     sb.append("    banner.appendChild(header);\n");
     sb.append("    var summary = document.createElement('div');\n");
     sb.append("    summary.style.cssText = 'font-size:13px;line-height:1.5;opacity:0.92;margin-bottom:10px;';\n");
-    sb.append("    if (entry && entry.summary) {\n");
-    sb.append("      summary.textContent = entry.title ? entry.title + ': ' + entry.summary : entry.summary;\n");
+    sb.append("    if (status === 'exact' && releaseNotes.length > 0) {\n");
+    sb.append("      var firstRelease = releaseNotes[0];\n");
+    sb.append("      summary.textContent = firstRelease.title ? firstRelease.title + ': ' + firstRelease.summary : firstRelease.summary;\n");
     sb.append("    } else {\n");
     sb.append("      summary.textContent = 'A new version of SupaWave is available.';\n");
     sb.append("    }\n");
     sb.append("    banner.appendChild(summary);\n");
+    sb.append("    if (status === 'exact' && releaseNotes.length > 1) {\n");
+    sb.append("      var extraReleases = document.createElement('ul');\n");
+    sb.append("      extraReleases.style.cssText = 'margin:0 0 10px 18px;padding:0;font-size:13px;line-height:1.5;';\n");
+    sb.append("      for (var i = 1; i < releaseNotes.length; i++) {\n");
+    sb.append("        var release = releaseNotes[i];\n");
+    sb.append("        var item = document.createElement('li');\n");
+    sb.append("        item.textContent = release.title || 'Recent SupaWave update';\n");
+    sb.append("        extraReleases.appendChild(item);\n");
+    sb.append("      }\n");
+    sb.append("      banner.appendChild(extraReleases);\n");
+    sb.append("    }\n");
     sb.append("    var actions = document.createElement('div');\n");
     sb.append("    actions.style.cssText = 'display:flex;gap:14px;align-items:center;flex-wrap:wrap;';\n");
     sb.append("    actions.appendChild(reload);\n");
@@ -4896,7 +4911,12 @@ public final class HtmlRenderer {
   }
 
   private static void appendChangelogEntry(StringBuilder sb, JSONObject entry) {
-    sb.append("<article class=\"changelog-card\">\n");
+    sb.append("<article class=\"changelog-card\"");
+    String releaseId = entry.optString("releaseId", "");
+    if (!releaseId.isBlank()) {
+      sb.append(" id=\"release-").append(escapeHtml(releaseId)).append("\"");
+    }
+    sb.append(">\n");
     sb.append("  <div class=\"changelog-date\">").append(escapeHtml(formatChangelogDate(entry.optString("date")))).append("</div>\n");
     sb.append("  <h2>").append(escapeHtml(entry.optString("title", "Untitled release"))).append("</h2>\n");
     sb.append("  <p class=\"changelog-summary\">").append(escapeHtml(entry.optString("summary", ""))).append("</p>\n");

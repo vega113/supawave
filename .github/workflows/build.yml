@@ -18,6 +18,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate changelog history
+        run: |
+          python3 scripts/validate-changelog.py \
+            --changelog wave/config/changelog.json \
+            --base-ref "${{ github.base_ref || github.ref_name }}"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4

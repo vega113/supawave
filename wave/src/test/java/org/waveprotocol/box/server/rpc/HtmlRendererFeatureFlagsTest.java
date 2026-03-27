@@ -32,6 +32,12 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("legacyUser = legacyUser.trim();"));
     assertTrue(html.contains("var email = (user.email || '').trim();"));
     assertTrue(html.contains("if (flagEditingName === flag.name && flagForm.style.display !== 'none') {"));
+    assertTrue(
+        html.contains(
+            "document.getElementById('flagCancelBtn').addEventListener('click', function() {\n"
+                + "    resetFlagEditingState();\n"
+                + "    flagForm.style.display = 'none';\n"
+                + "  });"));
     assertTrue(html.contains("var flag = buildFlagPayload(flagsData[flagIndex]);"));
     assertTrue(html.contains("var payload = buildFlagPayload(flagsData[idx]);"));
     assertTrue(html.contains("this.checked"));

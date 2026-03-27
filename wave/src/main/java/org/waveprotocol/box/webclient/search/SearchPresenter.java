@@ -268,8 +268,8 @@ public final class SearchPresenter
   private final Task waveClosedRefreshTask = new Task() {
     @Override
     public void execute() {
-      if (useOtSearch) {
-        subscribeToSearchWavelet(queryText);
+      if (otSearchEnabled) {
+        bootstrapOtSearch();
       } else {
         doSearch();
       }
@@ -364,6 +364,17 @@ public final class SearchPresenter
     return MobileDetector.isMobile() ? MOBILE_PAGE_SIZE : DESKTOP_PAGE_SIZE;
   }
 
+  static boolean shouldUsePolling(boolean otSearchEnabled, boolean otSearchReady) {
+    return !otSearchEnabled || !otSearchReady;
+  }
+
+  void bootstrapOtSearch() {
+    subscribeToSearchWavelet(queryText);
+    doSearch();
+    scheduler.cancel(searchUpdater);
+    scheduler.scheduleRepeating(searchUpdater, POLLING_INTERVAL_MS, POLLING_INTERVAL_MS);
+  }
+
   /**
    * Performs initial presentation, and attaches listeners to live objects.
    */
@@ -377,10 +388,10 @@ public final class SearchPresenter
     searchUi.getSearch().init(this);
     otSearchEnabled = Session.get().hasFeature("ot-search") && channel != null;
     if (otSearchEnabled) {
-      useOtSearch = true;
+      useOtSearch = false;
       networkStatusHandlerRegistration =
           ClientEvents.get().addNetworkStatusEventHandler(otSearchNetworkStatusHandler);
-      subscribeToSearchWavelet(queryText);
+      bootstrapOtSearch();
     } else {
       startPolling();
     }
@@ -470,7 +481,7 @@ public final class SearchPresenter
               scheduler.scheduleDelayed(new Task() {
                 @Override
                 public void execute() {
-                  subscribeToSearchWavelet(queryText);
+                  bootstrapOtSearch();
                 }
               }, delay);
             } else {
@@ -655,6 +666,7 @@ public final class SearchPresenter
   }
 
   private void startPolling() {
+    scheduler.cancel(searchUpdater);
     scheduler.scheduleRepeating(searchUpdater, 0, POLLING_INTERVAL_MS);
   }
 
@@ -803,8 +815,8 @@ public final class SearchPresenter
     querySize = getPageSize();
     searchUi.setTitleText(messages.searching());
     search.cancel();
-    if (useOtSearch) {
-      subscribeToSearchWavelet(queryText);
+    if (otSearchEnabled) {
+      bootstrapOtSearch();
     } else {
       doSearch();
       scheduler.cancel(searchUpdater);
@@ -815,10 +827,10 @@ public final class SearchPresenter
   @Override
   public void onShowMoreClicked() {
     querySize += getPageSize();
-    if (useOtSearch) {
-      applyOtSearchResults();
-    } else {
+    if (shouldUsePolling(otSearchEnabled, useOtSearch)) {
       doSearch();
+    } else {
+      applyOtSearchResults();
     }
   }
 
@@ -939,8 +951,8 @@ public final class SearchPresenter
         // The updated digest is newer than the current first item — trigger
         // a full re-render via the next polling cycle so the server provides
         // the authoritative sort order.
-        if (useOtSearch) {
-          subscribeToSearchWavelet(queryText);
+        if (otSearchEnabled) {
+          bootstrapOtSearch();
         } else {
           doSearch();
         }
@@ -1014,7 +1026,7 @@ public final class SearchPresenter
       otSearchSnapshot = OtSearchSnapshot.empty();
       otSearchReceivedData = false;
       otSearchWaveletName = computeSearchWaveletName(Session.get().getAddress(), query);
-      useOtSearch = true;
+      useOtSearch = false;
       Collection<WaveletId> ids = Collections.singleton(otSearchWaveletName.waveletId);
       channel.open(otSearchWaveletName.waveId, IdFilter.of(ids, Collections.<String>emptyList()),
           otSearchUpdateHandler);
@@ -1039,7 +1051,7 @@ public final class SearchPresenter
   }
 
   private void handleOtSearchUpdate(ProtocolWaveletUpdate update) {
-    if (!useOtSearch) {
+    if (!otSearchEnabled || otSearchWaveletName == null) {
       return;
     }
     try {
@@ -1062,6 +1074,8 @@ public final class SearchPresenter
         otSearchReceivedData = true;
         scheduler.cancel(otSearchTimeoutTask);
         otSearchSnapshot = parseOtSearchSnapshot(otSearchDocument);
+        useOtSearch = true;
+        scheduler.cancel(searchUpdater);
         applyOtSearchResults();
       }
     } catch (RuntimeException e) {
@@ -1110,7 +1124,7 @@ public final class SearchPresenter
         && useOtSearch) {
       fallbackToPolling("OT search connection dropped for query '" + queryText + "'", null);
     } else if (status == ConnectionStatus.RECONNECTED && otSearchEnabled && !useOtSearch) {
-      subscribeToSearchWavelet(queryText);
+      bootstrapOtSearch();
     }
   }
 

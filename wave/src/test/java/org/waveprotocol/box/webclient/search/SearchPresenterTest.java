@@ -25,9 +25,27 @@ import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
 import org.waveprotocol.wave.model.document.util.DocProviders;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.client.scheduler.testing.FakeTimerService;
+import org.waveprotocol.wave.client.account.ProfileListener;
+import org.waveprotocol.wave.model.wave.SourcesEvents;
+import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
+
+import java.lang.reflect.Field;
 
 public final class SearchPresenterTest extends TestCase {
+
+  private static final SearchPresenter.WaveActionHandler NO_OP_ACTION_HANDLER =
+      new SearchPresenter.WaveActionHandler() {
+        @Override
+        public void onCreateWave() {
+        }
+
+        @Override
+        public void onWaveSelected(WaveId id) {
+        }
+      };
 
   public void testComputeSearchWaveletNameMatchesServerScheme() {
     WaveletName waveletName =
@@ -96,5 +114,213 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(5, snapshot.getDigests().get(0).getUnreadCount());
     assertEquals(8, snapshot.getDigests().get(0).getBlipCount());
     assertEquals(0, snapshot.getDigests().get(0).getParticipantsSnippet().size());
+  }
+
+  public void testShouldUsePollingWhenOtSearchIsDisabled() {
+    assertTrue(SearchPresenter.shouldUsePolling(false, false));
+  }
+
+  public void testShouldUsePollingWhenOtSearchHasNotDeliveredUsableDataYet() {
+    assertTrue(SearchPresenter.shouldUsePolling(true, false));
+  }
+
+  public void testShouldUseOtSearchOnlyAfterUsableOtDataArrives() {
+    assertFalse(SearchPresenter.shouldUsePolling(true, true));
+  }
+
+  public void testBootstrapOtSearchUsesImmediateDirectSearchAndKeepsPollingSafety()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        null);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+
+    presenter.bootstrapOtSearch();
+
+    assertEquals(1, search.findCalls);
+    assertEquals("in:inbox", search.lastQuery);
+    assertEquals(30, search.lastSize);
+    assertEquals(1, scheduler.countTasksScheduled());
+  }
+
+  public void testOnFolderActionCompletedUsesImmediateDirectSearchWhenOtSearchIsEnabled()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        null);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "useOtSearch", true);
+
+    presenter.onFolderActionCompleted("archive");
+
+    assertEquals(1, search.cancelCalls);
+    assertEquals(1, search.findCalls);
+    assertEquals("in:inbox", search.lastQuery);
+    assertEquals(30, search.lastSize);
+    assertEquals(1, scheduler.countTasksScheduled());
+  }
+
+  private static void setBooleanField(SearchPresenter presenter, String fieldName, boolean value)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.setBoolean(presenter, value);
+  }
+
+  private static final class FakeSearch implements Search {
+    private int findCalls;
+    private int cancelCalls;
+    private String lastQuery;
+    private int lastSize;
+
+    @Override
+    public State getState() {
+      return State.READY;
+    }
+
+    @Override
+    public void find(String query, int size) {
+      findCalls++;
+      lastQuery = query;
+      lastSize = size;
+    }
+
+    @Override
+    public void cancel() {
+      cancelCalls++;
+    }
+
+    @Override
+    public int getTotal() {
+      return 0;
+    }
+
+    @Override
+    public int getMinimumTotal() {
+      return 0;
+    }
+
+    @Override
+    public Digest getDigest(int index) {
+      return null;
+    }
+
+    @Override
+    public void addListener(Listener listener) {
+    }
+
+    @Override
+    public void removeListener(Listener listener) {
+    }
+  }
+
+  private static final class FakeProfiles implements SourcesEvents<ProfileListener> {
+    @Override
+    public void addListener(ProfileListener listener) {
+    }
+
+    @Override
+    public void removeListener(ProfileListener listener) {
+    }
+  }
+
+  private static final class FakeSearchPanelView implements SearchPanelView {
+    private final FakeSearchView searchView = new FakeSearchView();
+
+    @Override
+    public void init(Listener listener) {
+    }
+
+    @Override
+    public void reset() {
+    }
+
+    @Override
+    public void setTitleText(String text) {
+    }
+
+    @Override
+    public void setWaveCountText(String text) {
+    }
+
+    @Override
+    public SearchView getSearch() {
+      return searchView;
+    }
+
+    @Override
+    public GroupingToolbar.View getToolbar() {
+      return null;
+    }
+
+    @Override
+    public DigestView getFirst() {
+      return null;
+    }
+
+    @Override
+    public DigestView getLast() {
+      return null;
+    }
+
+    @Override
+    public DigestView getNext(DigestView ref) {
+      return null;
+    }
+
+    @Override
+    public DigestView getPrevious(DigestView ref) {
+      return null;
+    }
+
+    @Override
+    public DigestView insertBefore(DigestView ref, Digest digest) {
+      return null;
+    }
+
+    @Override
+    public DigestView insertAfter(DigestView ref, Digest digest) {
+      return null;
+    }
+
+    @Override
+    public void renderDigest(DigestView digestUi, Digest digest) {
+    }
+
+    @Override
+    public void clearDigests() {
+    }
+
+    @Override
+    public void setShowMoreVisible(boolean visible) {
+    }
+  }
+
+  private static final class FakeSearchView implements SearchView {
+    private String query = "in:inbox";
+
+    @Override
+    public void init(Listener listener) {
+    }
+
+    @Override
+    public void reset() {
+    }
+
+    @Override
+    public void setQuery(String text) {
+      query = text;
+    }
+
+    @Override
+    public String getQuery() {
+      return query;
+    }
   }
 }

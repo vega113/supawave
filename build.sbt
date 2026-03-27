@@ -45,6 +45,7 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/rpc/ServerRpcProvider.java",
     "org/waveprotocol/box/server/ServerModule.java",
     "org/waveprotocol/box/server/StatModule.java",
+    "org/waveprotocol/box/server/SearchModule.java",
     "org/waveprotocol/box/server/ServerMain.java",
     "org/waveprotocol/box/server/authentication/SessionManager.java",
     "org/waveprotocol/box/server/robots/RobotApiModule.java",
@@ -221,6 +222,7 @@ lazy val ProtobufV       = "3.25.3"
 lazy val Slf4jV          = "2.0.13"
 lazy val LogbackV        = "1.5.6"
 lazy val MongoV4         = "4.11.1"
+lazy val LuceneV         = "9.12.1"
 
 libraryDependencies ++= Seq(
   // --- Test ---
@@ -283,7 +285,9 @@ libraryDependencies ++= Seq(
   "org.apache.velocity"            % "velocity"                   % "1.7",
 
   // --- Search ---
-  "org.apache.lucene"              % "lucene-core"                % "3.5.0",
+  "org.apache.lucene"              % "lucene-core"                % LuceneV,
+  "org.apache.lucene"              % "lucene-analysis-common"     % LuceneV,
+  "org.apache.lucene"              % "lucene-queryparser"         % LuceneV,
 
   // --- OAuth (net.oauth.core) ---
   "net.oauth.core"                 % "oauth"                      % "20090825",

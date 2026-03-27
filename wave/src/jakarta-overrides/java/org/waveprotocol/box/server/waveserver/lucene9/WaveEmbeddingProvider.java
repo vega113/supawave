@@ -16,23 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.waveprotocol.box.server.persistence.lucene;
+package org.waveprotocol.box.server.waveserver.lucene9;
 
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.ByteBuffersDirectory;
-import org.waveprotocol.box.server.waveserver.IndexException;
+import java.util.Optional;
+import org.waveprotocol.wave.model.id.WaveId;
+import org.waveprotocol.wave.model.wave.data.WaveViewData;
 
-/**
- * RAM based {@link IndexDirectory}.
- *
- * @author A. Kaplanov
- */
-public class RAMIndexDirectory implements IndexDirectory {
+public interface WaveEmbeddingProvider {
 
-  private final Directory directory = new ByteBuffersDirectory();
+  Optional<float[]> embeddingForWave(WaveId waveId, WaveViewData wave);
 
-  @Override
-  public Directory getDirectory() throws IndexException {
-    return directory;
+  default String modelName() {
+    return getClass().getSimpleName();
   }
 }

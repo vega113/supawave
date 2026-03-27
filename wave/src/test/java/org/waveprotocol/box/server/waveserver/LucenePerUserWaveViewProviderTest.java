@@ -24,8 +24,11 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableSet;
 
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.waveprotocol.box.server.persistence.lucene.IndexDirectory;
 import org.waveprotocol.box.server.persistence.lucene.RAMIndexDirectory;
+import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 
 import java.io.IOException;
@@ -70,5 +73,36 @@ public class LucenePerUserWaveViewProviderTest extends PerUserWaveViewProviderTe
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public void testOnParticipantRemovedKeepsSiblingWaveletsInSameWave() throws Exception {
+    WaveletId secondWaveletId = WaveletId.of(DOMAIN, "second");
+    ReadableWaveletData secondWaveletData = Mockito.mock(ReadableWaveletData.class);
+
+    when(waveletData.getParticipants())
+        .thenReturn(ImmutableSet.of(PARTICIPANT, OTHER_PARTICIPANT));
+    when(secondWaveletData.getWaveId()).thenReturn(WAVE_ID);
+    when(secondWaveletData.getWaveletId()).thenReturn(secondWaveletId);
+    when(secondWaveletData.getCreator()).thenReturn(PARTICIPANT);
+    when(secondWaveletData.getParticipants())
+        .thenReturn(ImmutableSet.of(PARTICIPANT, OTHER_PARTICIPANT));
+    when(secondWaveletData.getDocumentIds()).thenReturn(ImmutableSet.of("b+second"));
+    when(waveletProvider.getReadableWaveletData(WaveletName.of(WAVE_ID, secondWaveletId)))
+        .thenReturn(secondWaveletData);
+
+    handler.onParticipantAdded(WAVELET_NAME, PARTICIPANT).get();
+    handler.onParticipantAdded(WaveletName.of(WAVE_ID, secondWaveletId), OTHER_PARTICIPANT).get();
+    postUpdateHook();
+
+    assertTrue(handler.retrievePerUserWaveView(OTHER_PARTICIPANT).containsEntry(WAVE_ID,
+        secondWaveletId));
+
+    when(waveletData.getParticipants()).thenReturn(ImmutableSet.of(OTHER_PARTICIPANT));
+    handler.onParticipantRemoved(WAVELET_NAME, PARTICIPANT).get();
+    postUpdateHook();
+
+    assertFalse(handler.retrievePerUserWaveView(PARTICIPANT).containsEntry(WAVE_ID, WAVELET_ID));
+    assertTrue(handler.retrievePerUserWaveView(OTHER_PARTICIPANT).containsEntry(WAVE_ID,
+        secondWaveletId));
   }
 }

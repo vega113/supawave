@@ -38,6 +38,7 @@ import org.waveprotocol.wave.model.util.StringMap;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * A simple implementation of the search model, using a search service.
@@ -333,33 +334,80 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
       // Assume no change, but notify listeners that the search is complete.
       fireOnStateChanged();
     } else {
-      // For an incremental search, the result must be changed in steps that can
-      // be communicated in the event language of the listener. Since the search
-      // service is not incremental, computing a minimal diff is complicated.
-      // Since the intent is eventually to make the search service itself
-      // incremental, a brute force re-rendering here is a stop-gap.
-
-      // Remove all digests.  Remove from last to first, so that remove is O(1).
       log.trace().log("handling changed search");
-      for (int i = results.size() - 1; i >= 0; i--) {
-        DigestProxy oldDigest = getDigest(i);
-        results.remove(i);
-        if (oldDigest != null) {
-          digests.remove(ModernIdSerialiser.INSTANCE.serialiseWaveId(oldDigest.getWaveId()));
-          oldDigest.destroy();
-        }
-      }
-      // Now grow from nothing up to the new result size.
-      if (this.total != total) {
-        this.total = total;
-      }
-      ensureMinimumSize(total == Search.UNKNOWN_SIZE ? from + newDigests.size() : total);
-      for (int to = from + newDigests.size(), i = from; i < to; i++) {
-        results.set(i, newDigests.get(i - from));
-      }
+      replaceResultSnapshots(total, from, newDigests);
+      refreshActiveDigests();
       fireOnTotalChanged(total);
       fireOnStateChanged();
     }
+  }
+
+  private void replaceResultSnapshots(int total, int from, List<DigestSnapshot> newDigests) {
+    List<DigestSnapshot> updatedResults = CollectionUtils.newArrayList(results);
+    int minimumSize = total == Search.UNKNOWN_SIZE ? from + newDigests.size() : total;
+    ensureMinimumSize(updatedResults, minimumSize);
+    for (int to = from + newDigests.size(), i = from; i < to; i++) {
+      updatedResults.set(i, newDigests.get(i - from));
+    }
+    trimResults(updatedResults, minimumSize);
+    removeMissingDigests(updatedResults);
+    results.clear();
+    results.addAll(updatedResults);
+    if (this.total != total) {
+      this.total = total;
+    }
+  }
+
+  private void refreshActiveDigests() {
+    for (DigestSnapshot snapshot : results) {
+      if (snapshot != null) {
+        DigestProxy proxy = digests.get(digestId(snapshot.getWaveId()));
+        if (proxy != null) {
+          proxy.update(snapshot);
+        }
+      }
+    }
+  }
+
+  private void removeMissingDigests(List<DigestSnapshot> updatedResults) {
+    Set<String> retainedIds = CollectionUtils.newHashSet();
+    for (DigestSnapshot snapshot : updatedResults) {
+      if (snapshot != null) {
+        retainedIds.add(digestId(snapshot.getWaveId()));
+      }
+    }
+    List<String> staleIds = CollectionUtils.newArrayList();
+    digests.each(new ProcV<DigestProxy>() {
+      @Override
+      public void apply(String key, DigestProxy value) {
+        if (!retainedIds.contains(key)) {
+          staleIds.add(key);
+        }
+      }
+    });
+    for (String staleId : staleIds) {
+      DigestProxy staleDigest = digests.get(staleId);
+      digests.remove(staleId);
+      if (staleDigest != null) {
+        staleDigest.destroy();
+      }
+    }
+  }
+
+  private static void ensureMinimumSize(List<DigestSnapshot> target, int total) {
+    while (target.size() < total) {
+      target.add(null);
+    }
+  }
+
+  private static void trimResults(List<DigestSnapshot> target, int total) {
+    while (target.size() > total) {
+      target.remove(target.size() - 1);
+    }
+  }
+
+  private static String digestId(WaveId waveId) {
+    return ModernIdSerialiser.INSTANCE.serialiseWaveId(waveId);
   }
 
   /**
@@ -384,7 +432,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
       return null;  // unfetched placeholder
     }
     WaveId waveId = result.getWaveId();
-    String id = ModernIdSerialiser.INSTANCE.serialiseWaveId(waveId);
+    String id = digestId(waveId);
     DigestProxy proxy = digests.get(id);
     if (proxy == null) {
       proxy = new DigestProxy(result);
@@ -420,7 +468,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
    */
   @Override
   public void onOpened(WaveContext wave) {
-    String id = ModernIdSerialiser.INSTANCE.serialiseWaveId(wave.getWave().getWaveId());
+    String id = digestId(wave.getWave().getWaveId());
     DigestProxy digest = digests.get(id);
     if (digest != null) {
       log.trace().log("switching to active digest for: ", id);
@@ -430,7 +478,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
 
   @Override
   public void onClosed(WaveContext wave) {
-    String id = ModernIdSerialiser.INSTANCE.serialiseWaveId(wave.getWave().getWaveId());
+    String id = digestId(wave.getWave().getWaveId());
     DigestProxy digest = digests.get(id);
     if (digest != null) {
       log.trace().log("switching to passive digest for: ", id);

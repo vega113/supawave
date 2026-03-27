@@ -1015,6 +1015,10 @@ public final class SearchPresenter
       return;
     }
     try {
+      if (!RemoteViewServiceMultiplexer.deserialize(update.getWaveletName())
+          .equals(otSearchWaveletName)) {
+        return;
+      }
       boolean changed = false;
       if (update.hasSnapshot()) {
         otSearchDocument = extractSearchDocument(update.getSnapshot());
@@ -1167,8 +1171,7 @@ public final class SearchPresenter
       String creator = attrs.get("creator");
       ParticipantId author =
           creator != null && !creator.isEmpty() ? ParticipantId.ofUnsafe(creator) : null;
-      List<ParticipantId> participants = syntheticParticipants(author, waveId,
-          parseInt(attrs.get("participants"), 1));
+      List<ParticipantId> participants = syntheticParticipants();
       return new SearchService.DigestSnapshot(
           stringValue(attrs.get("title")),
           stringValue(attrs.get("snippet")),
@@ -1184,15 +1187,8 @@ public final class SearchPresenter
     }
   }
 
-  private static List<ParticipantId> syntheticParticipants(ParticipantId author, WaveId waveId,
-      int participantCount) {
-    int others = Math.max(0, participantCount - (author != null ? 1 : 0));
-    List<ParticipantId> participants = new ArrayList<>(others);
-    String domain = waveId.getDomain();
-    for (int i = 0; i < others; i++) {
-      participants.add(ParticipantId.ofUnsafe("search-participant-" + i + "@" + domain));
-    }
-    return participants;
+  private static List<ParticipantId> syntheticParticipants() {
+    return Collections.emptyList();
   }
 
   private static DocInitialization extractSearchDocument(WaveletSnapshot snapshot) {

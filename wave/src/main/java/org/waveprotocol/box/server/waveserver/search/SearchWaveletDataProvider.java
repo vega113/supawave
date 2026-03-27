@@ -153,8 +153,18 @@ public class SearchWaveletDataProvider {
    * Cache of current search results per search wavelet. Keyed by
    * WaveletName serialisation.
    */
-  private final ConcurrentHashMap<String, List<SearchResultEntry>> resultCache =
+  private final ConcurrentHashMap<String, SearchWaveletState> resultCache =
       new ConcurrentHashMap<>();
+
+  private static final class SearchWaveletState {
+    private final List<SearchResultEntry> results;
+    private final int totalCount;
+
+    private SearchWaveletState(List<SearchResultEntry> results, int totalCount) {
+      this.results = new ArrayList<>(results);
+      this.totalCount = totalCount;
+    }
+  }
 
   @Inject
   public SearchWaveletDataProvider() {
@@ -168,8 +178,20 @@ public class SearchWaveletDataProvider {
    */
   public List<SearchResultEntry> getCurrentResults(WaveletName waveletName) {
     String key = waveletNameKey(waveletName);
-    List<SearchResultEntry> results = resultCache.get(key);
-    return results != null ? new ArrayList<>(results) : new ArrayList<>();
+    SearchWaveletState state = resultCache.get(key);
+    return state != null ? new ArrayList<>(state.results) : new ArrayList<>();
+  }
+
+  /**
+   * Returns the cached total result count for a search wavelet.
+   *
+   * @param waveletName the search wavelet
+   * @return the cached total count, or -1 if not cached
+   */
+  public int getCurrentTotal(WaveletName waveletName) {
+    String key = waveletNameKey(waveletName);
+    SearchWaveletState state = resultCache.get(key);
+    return state != null ? state.totalCount : -1;
   }
 
   /**
@@ -179,8 +201,20 @@ public class SearchWaveletDataProvider {
    * @param results the new result list
    */
   public void updateCurrentResults(WaveletName waveletName, List<SearchResultEntry> results) {
+    updateCurrentResults(waveletName, results, results.size());
+  }
+
+  /**
+   * Updates the cached results and total count for a search wavelet.
+   *
+   * @param waveletName the search wavelet
+   * @param results the new result list
+   * @param totalCount the total matching result count
+   */
+  public void updateCurrentResults(WaveletName waveletName, List<SearchResultEntry> results,
+      int totalCount) {
     String key = waveletNameKey(waveletName);
-    resultCache.put(key, new ArrayList<>(results));
+    resultCache.put(key, new SearchWaveletState(results, totalCount));
   }
 
   /**
@@ -199,9 +233,31 @@ public class SearchWaveletDataProvider {
    */
   public SearchDiff computeDiff(List<SearchResultEntry> oldResults,
       List<SearchResultEntry> newResults) {
+    return computeDiff(oldResults, oldResults != null ? oldResults.size() : 0, newResults,
+        newResults != null ? newResults.size() : 0);
+  }
+
+  /**
+   * Computes the diff between old and new search results and total counts.
+   *
+   * @param oldResults the current result list in the search wavelet
+   * @param oldTotalCount the current total result count
+   * @param newResults the desired result list
+   * @param newTotalCount the desired total result count
+   * @return a SearchDiff describing the changes, or null if no changes
+   */
+  public SearchDiff computeDiff(List<SearchResultEntry> oldResults, int oldTotalCount,
+      List<SearchResultEntry> newResults, int newTotalCount) {
     if (oldResults == null) {
       oldResults = Collections.emptyList();
     }
+    if (newResults == null) {
+      newResults = Collections.emptyList();
+    }
+
+    int normalizedOldTotal = normalizeTotalCount(oldResults, oldTotalCount);
+    int normalizedNewTotal = normalizeTotalCount(newResults, newTotalCount);
+    boolean totalChanged = normalizedOldTotal != normalizedNewTotal;
 
     // Build maps keyed by waveId
     Map<String, SearchResultEntry> oldMap = new HashMap<>();
@@ -253,7 +309,8 @@ public class SearchWaveletDataProvider {
     }
 
     // No changes at all
-    if (added.isEmpty() && removed.isEmpty() && modified.isEmpty() && !positionsChanged) {
+    if (added.isEmpty() && removed.isEmpty() && modified.isEmpty() && !positionsChanged
+        && !totalChanged) {
       return null;
     }
 
@@ -261,7 +318,8 @@ public class SearchWaveletDataProvider {
     // For simplicity, when there are structural changes (adds, removes, reorders),
     // we rebuild the entire document. For attribute-only changes (modified),
     // we generate targeted replaceAttributes ops.
-    DocOp docOp = buildDocOp(oldResults, newResults, added, removed, modified, positionsChanged);
+    DocOp docOp = buildDocOp(oldResults, newResults, added, removed, modified, positionsChanged,
+        totalChanged, normalizedNewTotal);
 
     return new SearchDiff(added, removed, modified, docOp);
   }
@@ -286,16 +344,16 @@ public class SearchWaveletDataProvider {
   private DocOp buildDocOp(List<SearchResultEntry> oldResults,
       List<SearchResultEntry> newResults,
       List<SearchResultEntry> added, List<SearchResultEntry> removed,
-      List<SearchResultEntry> modified, boolean positionsChanged) {
+      List<SearchResultEntry> modified, boolean positionsChanged, boolean totalChanged,
+      int newTotalCount) {
 
     // For structural changes, we use a full rebuild strategy:
     // delete all old content, insert new content.
     // This is simpler and safer than computing positional retains
     // for the initial implementation. It can be optimised later
     // to emit minimal positional ops.
-
-    if (!added.isEmpty() || !removed.isEmpty() || positionsChanged) {
-      return buildFullRebuildDocOp(newResults);
+    if (!added.isEmpty() || !removed.isEmpty() || positionsChanged || totalChanged) {
+      return buildFullRebuildDocOp(newResults, newTotalCount);
     }
 
     // Attribute-only changes: emit replaceAttributes for each modified entry.
@@ -307,6 +365,14 @@ public class SearchWaveletDataProvider {
    * document from scratch. Used for initial creation and full rebuilds.
    */
   DocOp buildFullRebuildDocOp(List<SearchResultEntry> results) {
+    return buildFullRebuildDocOp(results, results.size());
+  }
+
+  /**
+   * Builds a DocInitialization that represents the complete search wavelet
+   * document from scratch. Used for initial creation and full rebuilds.
+   */
+  DocOp buildFullRebuildDocOp(List<SearchResultEntry> results, int totalCount) {
     DocOpBuilder builder = new DocOpBuilder();
 
     // <body>
@@ -316,7 +382,7 @@ public class SearchWaveletDataProvider {
     long now = System.currentTimeMillis();
     builder.elementStart("metadata", new AttributesImpl(
         "query", "",  // query is filled in by the caller context
-        "total", String.valueOf(results.size()),
+        "total", String.valueOf(totalCount),
         "updated", String.valueOf(now)));
     builder.elementEnd(); // </metadata>
 
@@ -332,6 +398,10 @@ public class SearchWaveletDataProvider {
     builder.elementEnd(); // </body>
 
     return builder.buildUnchecked();
+  }
+
+  private static int normalizeTotalCount(List<SearchResultEntry> results, int totalCount) {
+    return totalCount >= 0 ? totalCount : results.size();
   }
 
   /**

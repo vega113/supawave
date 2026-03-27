@@ -63,7 +63,7 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(2, snapshot.getDigests().get(0).getUnreadCount());
     assertEquals(7, snapshot.getDigests().get(0).getBlipCount());
     assertEquals("bob@example.com", snapshot.getDigests().get(0).getAuthor().getAddress());
-    assertEquals(2, snapshot.getDigests().get(0).getParticipantsSnippet().size());
+    assertEquals(0, snapshot.getDigests().get(0).getParticipantsSnippet().size());
   }
 
   public void testApplyOtSearchDiffUpdatesCurrentDocumentState() {
@@ -95,6 +95,6 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals("Fresh update", snapshot.getDigests().get(0).getSnippet());
     assertEquals(5, snapshot.getDigests().get(0).getUnreadCount());
     assertEquals(8, snapshot.getDigests().get(0).getBlipCount());
-    assertEquals(3, snapshot.getDigests().get(0).getParticipantsSnippet().size());
+    assertEquals(0, snapshot.getDigests().get(0).getParticipantsSnippet().size());
   }
 }

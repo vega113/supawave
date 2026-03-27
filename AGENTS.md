@@ -17,6 +17,14 @@ git worktrees.
   alternative workflow in the middle of task execution.
 - Favor tool use over guesswork. Keep calls minimal, scoped, and purposeful.
 
+## Session Memory
+- At the start of every session, read `MEMORY.md` (the index) from the Claude
+  project memory directory (`.claude/projects/` under the repo or user config root).
+- After reading the index, read only the memory files that are relevant to the
+  current task — do not read every linked file unconditionally.
+- Memory contains: workflow rules, coding patterns, model selection, drill procedure, and project-specific lessons.
+- This memory persists across sessions — always check it before starting work.
+
 ## Agent Roles
 
 ### Lead

@@ -539,8 +539,7 @@ public class StagesProvider extends Stages {
       ConversationView wave, FocusFramePresenter focusFrame, WaveRef waveRef) {
     FocusBlipSelector blipSelector =
         FocusBlipSelector.create(wave, views, reader, new ViewTraverser());
-    BlipView blipUi = blipSelector.selectBlipByWaveRef(waveRef);
-    // Focus on the selected blip.
+    BlipView blipUi = blipSelector.selectInitialBlip(waveRef);
     if (blipUi != null) {
       focusFrame.focus(blipUi);
     }

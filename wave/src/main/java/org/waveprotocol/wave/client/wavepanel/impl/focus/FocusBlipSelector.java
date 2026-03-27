@@ -45,6 +45,9 @@ public class FocusBlipSelector {
   /** The model with views. */
   private final ModelAsViewProvider views;
 
+  /** The read-aware traversal. */
+  private final Reader reader;
+
   /** The blip ordering. */
   private final  ViewTraverser traverser;
 
@@ -69,6 +72,7 @@ public class FocusBlipSelector {
       ModelAsViewProvider models, Reader reader, ViewTraverser traverser) {
     this.wave = wave;
     this.views = models;
+    this.reader = reader;
     this.traverser = traverser;
   }
 
@@ -160,6 +164,38 @@ public class FocusBlipSelector {
       }
       return null;
     }
+  }
+
+  public BlipView selectInitialBlip(WaveRef waveRef) {
+    if (waveRef != null && waveRef.hasDocumentId()) {
+      return selectBlipByWaveRef(waveRef);
+    }
+
+    BlipView unreadBlip = selectLastUnread();
+    if (unreadBlip != null) {
+      return unreadBlip;
+    }
+
+    BlipView lastBlip = selectLast();
+    if (lastBlip != null) {
+      return lastBlip;
+    }
+    return selectBlipByWaveRef(waveRef);
+  }
+
+  private BlipView selectLastUnread() {
+    BlipView candidate = reader == null ? null : getOrFindRootBlip();
+    while (candidate != null && reader.isRead(candidate)) {
+      candidate = reader.getNext(candidate);
+    }
+    if (candidate == null) {
+      return null;
+    }
+    for (BlipView nextUnread = reader.getNext(candidate); nextUnread != null;
+        nextUnread = reader.getNext(candidate)) {
+      candidate = nextUnread;
+    }
+    return candidate;
   }
 
   private BlipView findMostRecentlyModified(BlipView start) {

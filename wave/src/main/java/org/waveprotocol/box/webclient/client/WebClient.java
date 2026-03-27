@@ -30,6 +30,7 @@ import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.http.client.UrlBuilder;
 import com.google.gwt.i18n.client.LocaleInfo;
 import com.google.gwt.resources.client.CssResource;
+import com.google.gwt.storage.client.Storage;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Command;
@@ -116,6 +117,7 @@ public class WebClient implements EntryPoint {
   private static final Logger REMOTE_LOG = Logger.getLogger("REMOTE_LOG");
 
   private static final String DEFAULT_LOCALE = "default";
+  private static final String LAST_WAVE_STORAGE_KEY = "supawave.lastWaveId";
 
   // ---- Turbulence banner (ocean-themed, non-blocking) ----
 
@@ -404,6 +406,7 @@ public class WebClient implements EntryPoint {
     setupUi();
     setupStatistics();
 
+    restoreLastWaveFromStorage();
     History.fireCurrentHistoryState();
     LOG.info("SimpleWebClient.onModuleLoad() done");
 
@@ -710,6 +713,49 @@ public class WebClient implements EntryPoint {
     channel = new RemoteViewServiceMultiplexer(websocket, loggedInUser.getAddress());
   }
 
+  private void restoreLastWaveFromStorage() {
+    String historyToken = History.getToken();
+    String storageKey = getLastWaveStorageKey();
+    Storage storage = Storage.getLocalStorageIfSupported();
+    if (Session.get().isLoggedIn() == false || channel == null || storage == null) {
+      return;
+    }
+    if (historyToken == null || historyToken.isEmpty()) {
+      String savedToken = storage.getItem(storageKey);
+      if (savedToken == null || savedToken.isEmpty()) {
+        return;
+      }
+
+      try {
+        GwtWaverefEncoder.decodeWaveRefFromPath(savedToken);
+        History.newItem(savedToken, false);
+      } catch (InvalidWaveRefException e) {
+        LOG.info("Saved last-wave token contains invalid path: " + savedToken);
+        storage.removeItem(storageKey);
+      }
+    }
+  }
+
+  private void persistLastOpenedWave(WaveRef waveRef) {
+    String storageKey = getLastWaveStorageKey();
+    Storage storage = Storage.getLocalStorageIfSupported();
+    if (waveRef == null || waveRef.getWaveId() == null || storage == null) {
+      return;
+    }
+
+    String encodedWaveToken =
+        GwtWaverefEncoder.encodeToUriPathSegment(WaveRef.of(waveRef.getWaveId()));
+    storage.setItem(storageKey, encodedWaveToken);
+  }
+
+  private String getLastWaveStorageKey() {
+    String address = Session.get().getAddress();
+    if (address == null || address.isEmpty()) {
+      return LAST_WAVE_STORAGE_KEY;
+    }
+    return LAST_WAVE_STORAGE_KEY + "." + address;
+  }
+
   /**
    * Shows a wave in a wave panel.
    *
@@ -757,6 +803,8 @@ public class WebClient implements EntryPoint {
       wave.destroy();
       wave = null;
     }
+
+    persistLastOpenedWave(waveRef);
 
     // Release the display:none.
     UIObject.setVisible(waveFrame.getElement(), true);

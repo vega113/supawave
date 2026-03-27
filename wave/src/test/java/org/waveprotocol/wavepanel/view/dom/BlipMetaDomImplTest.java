@@ -19,13 +19,14 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.dom;
 
+import java.util.List;
 import junit.framework.TestCase;
 import org.waveprotocol.wave.client.common.util.StringSequence;
 
 public final class BlipMetaDomImplTest extends TestCase {
 
   public void testResolveInlineLocatorReferenceKeepsKnownReference() {
-    StringSequence inlineLocators = StringSequence.of(java.util.List.of("inline-1", "inline-2"));
+    StringSequence inlineLocators = StringSequence.of(List.of("inline-1", "inline-2"));
 
     assertEquals(
         "inline-2",
@@ -33,7 +34,7 @@ public final class BlipMetaDomImplTest extends TestCase {
   }
 
   public void testResolveInlineLocatorReferenceFallsBackWhenMissing() {
-    StringSequence inlineLocators = StringSequence.of(java.util.List.of("inline-1", "inline-2"));
+    StringSequence inlineLocators = StringSequence.of(List.of("inline-1", "inline-2"));
 
     assertNull(BlipMetaDomImpl.resolveInlineLocatorReference(inlineLocators, "missing-inline"));
   }
@@ -43,8 +44,17 @@ public final class BlipMetaDomImplTest extends TestCase {
   }
 
   public void testResolveInlineLocatorReferenceReturnsNullWhenReferenceNull() {
-    StringSequence inlineLocators = StringSequence.of(java.util.List.of("inline-1", "inline-2"));
+    StringSequence inlineLocators = StringSequence.of(List.of("inline-1", "inline-2"));
 
     assertNull(BlipMetaDomImpl.resolveInlineLocatorReference(inlineLocators, null));
+  }
+
+  public void testResolveInlineLocatorReferenceHandlesPrefixAndEncodedIds() {
+    StringSequence inlineLocators = StringSequence.of(List.of("a", "ab", "a/b"));
+
+    assertEquals("a", BlipMetaDomImpl.resolveInlineLocatorReference(inlineLocators, "a"));
+    assertEquals("ab", BlipMetaDomImpl.resolveInlineLocatorReference(inlineLocators, "ab"));
+    assertEquals("a/b", BlipMetaDomImpl.resolveInlineLocatorReference(inlineLocators, "a/b"));
+    assertNull(BlipMetaDomImpl.resolveInlineLocatorReference(inlineLocators, "abc"));
   }
 }

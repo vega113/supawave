@@ -296,6 +296,8 @@ public final class FeatureFlagServletTest {
 
     assertEquals("application/json", contentType[0]);
     assertEquals("vega@supawave.ai:enabled,ops@supawave.ai:disabled", allowedUsers);
+    assertTrue(!allowedUsers.contains("["));
+    assertTrue(!allowedUsers.contains("{"));
   }
 
   @Test

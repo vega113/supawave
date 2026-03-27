@@ -70,4 +70,13 @@ public final class HtmlRendererChangelogTest {
     assertTrue(topBar.contains("href=\"/changelog\""));
     assertTrue(landing.contains("href=\"/changelog\">What's New</a>"));
   }
+
+  @Test
+  public void topBarAndLandingPageExposeApiDocsLink() {
+    String topBar = HtmlRenderer.renderTopBar("alice", "example.com", "user");
+    String landing = HtmlRenderer.renderLandingPage("example.com", "");
+
+    assertTrue(topBar.contains("href=\"/api-docs\""));
+    assertTrue(landing.contains("href=\"/api-docs\""));
+  }
 }

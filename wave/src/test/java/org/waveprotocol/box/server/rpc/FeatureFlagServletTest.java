@@ -156,6 +156,28 @@ public final class FeatureFlagServletTest {
   }
 
   @Test
+  public void postSaveDefaultsNullAllowedUserEnabledStateToTrue() throws Exception {
+    StringWriter body = new StringWriter();
+    String[] contentType = new String[1];
+    JSONObject payload =
+        new JSONObject()
+            .put("name", "new-ui")
+            .put("description", "New UI")
+            .put("enabled", false)
+            .put(
+                "allowedUsers",
+                new JSONArray()
+                    .put(new JSONObject().put("email", "vega@supawave.ai").put("enabled", JSONObject.NULL)));
+
+    servlet.doPost(request(payload.toString(), null), response(body, contentType));
+
+    FeatureFlag flag = store.get("new-ui");
+    assertEquals(Boolean.TRUE, flag.getAllowedUsers().get("vega@supawave.ai"));
+    assertEquals("application/json", contentType[0]);
+    assertTrue(body.toString().contains("\"ok\":true"));
+  }
+
+  @Test
   public void postSaveRejectsNumericAllowedUserEnabledValues() throws Exception {
     StringWriter body = new StringWriter();
     String[] contentType = new String[1];

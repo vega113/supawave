@@ -26,6 +26,8 @@ import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.SpanElement;
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
+import com.google.gwt.event.dom.client.KeyUpEvent;
+import com.google.gwt.event.dom.client.KeyUpHandler;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -45,7 +47,7 @@ import org.waveprotocol.wave.client.common.util.QuirksConstants;
  *
  * @author hearnden@google.com (David Hearnden)
  */
-public class SearchWidget extends Composite implements SearchView, ChangeHandler {
+public class SearchWidget extends Composite implements SearchView, ChangeHandler, KeyUpHandler {
 
   /** Resources used by this widget. */
   interface Resources extends ClientBundle {
@@ -83,7 +85,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   private final static Binder BINDER = GWT.create(Binder.class);
 
-  private final static String DEFAULT_QUERY = "in:inbox";
+  private boolean suppressNextChange;
 
   @UiField
   TextBox query;
@@ -141,6 +143,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       query.getElement().setAttribute("autosave", "QUERY_AUTO_SAVE");
     }
     query.addChangeHandler(this);
+    query.addKeyUpHandler(this);
     initHelpPanel();
   }
 
@@ -238,21 +241,34 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   @Override
   public void setQuery(String text) {
-    query.setValue(text);
+    query.setValue(SearchPresenter.normalizeSearchQuery(text));
   }
 
   @Override
   public void onChange(ChangeEvent event) {
-    if (query.getValue() == null || query.getValue().trim().isEmpty()) {
-      query.setValue(DEFAULT_QUERY);
+    if (suppressNextChange && SearchPresenter.DEFAULT_SEARCH.equals(query.getValue())) {
+      suppressNextChange = false;
+      return;
     }
+    if (query.getValue() == null || query.getValue().trim().isEmpty()) {
+      query.setValue(SearchPresenter.DEFAULT_SEARCH);
+    }
+    suppressNextChange = false;
     onQuery();
   }
-  
+
+  @Override
+  public void onKeyUp(KeyUpEvent event) {
+    if (query.getValue() == null || query.getValue().trim().isEmpty()) {
+      query.setValue(SearchPresenter.DEFAULT_SEARCH);
+      suppressNextChange = true;
+      onQuery();
+    }
+  }
+
   private void onQuery() {
     if (listener != null) {
       listener.onQueryEntered();
     }
   }
-  
 }

@@ -304,7 +304,6 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     this.waveId = waveId;
     this.mux = mux;
     this.docFactory = docFactory;
-    ensureNetworkHandlerRegistration();
   }
 
   //

@@ -140,7 +140,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     if (numResults > 0) {
 
-      int start = startAt;
+      int start = isUnreadOnlyQuery ? 0 : startAt;
       int rows = Math.max(numResults, ROWS);
 
       /*-
@@ -268,7 +268,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   }
 
   private static final Pattern TAG_PATTERN = Pattern.compile("\\btag:(\\S+)");
-  private static final Pattern UNREAD_PATTERN = Pattern.compile("\bunread:(\S+)");
+  private static final Pattern UNREAD_PATTERN = Pattern.compile("\\bunread:(\\S+)");
 
   private static final Pattern IN_ALL_PATTERN = Pattern.compile("\\bin:all\\b");
 

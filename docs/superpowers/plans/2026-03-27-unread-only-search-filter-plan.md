@@ -1,7 +1,6 @@
 # Unread-Only Search Filter Implementation Plan
 
 > **Completed:** 2026-03-27 in PR #403. Implemented `SearchWidget.ui.xml`/`SearchWidget.java`, `SimpleSearchProviderImpl` and its tests, `Lucene9QueryParser`/`Lucene9QueryCompiler`, `SearchWaveletUpdater`, and `wave/config/changelog.json`.
-
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a query filter that returns only waves with unread blips, with consistent behavior for legacy search, Lucene-backed search, OT search wavelets, and the search-help UI.

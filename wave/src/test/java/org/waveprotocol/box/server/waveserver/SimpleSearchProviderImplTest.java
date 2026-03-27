@@ -41,6 +41,7 @@ import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
+import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl.WaveSupplementContext;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignedDelta;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
@@ -58,8 +59,10 @@ import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionZeroFactoryImpl;
+import org.waveprotocol.wave.model.wave.OpBasedWavelet;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 
@@ -626,22 +629,14 @@ public class SimpleSearchProviderImplTest extends TestCase {
     ConversationUtil conversationUtil = new ConversationUtil(idGenerator);
     WaveDigester digester = new WaveDigester(conversationUtil) {
       @Override
-      public Digest build(ParticipantId participant, WaveViewData wave) {
-        Digest original = super.build(participant, wave);
-        String waveId = WaveId.deserialise(original.getWaveId()).getId();
+      int getUnreadCount(WaveSupplementContext context,
+          Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+        String waveId = context.convWavelet.getWaveId().getId();
         Integer unreadCount = unreadCounts.get(waveId);
         if (unreadCount == null) {
-          unreadCount = Integer.valueOf(original.getUnreadCount());
+          return super.getUnreadCount(context, waveletAdapters);
         }
-        return new Digest(
-            original.getTitle(),
-            original.getSnippet(),
-            original.getWaveId(),
-            original.getParticipants(),
-            original.getLastModified(),
-            original.getCreated(),
-            unreadCount.intValue(),
-            original.getBlipCount());
+        return unreadCount.intValue();
       }
     };
     return new SimpleSearchProviderImpl(DOMAIN, digester, waveMap, waveViewProvider);

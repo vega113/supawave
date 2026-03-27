@@ -110,7 +110,7 @@ public final class SearchPresenter
 
   /** How often to repeat the search query. */
   private final static int POLLING_INTERVAL_MS = 15000; // 15s
-  private final static String DEFAULT_SEARCH = "in:inbox";
+  static final String DEFAULT_SEARCH = "in:inbox";
   /** Page size for desktop viewports (width > 768px). */
   private final static int DESKTOP_PAGE_SIZE = 30;
   /** Page size for mobile viewports (width <= 768px) -- smaller for faster initial load. */
@@ -802,8 +802,16 @@ public final class SearchPresenter
 
   @Override
   public void onQueryEntered() {
-    queryText = searchUi.getSearch().getQuery();
+    queryText = normalizeSearchQuery(searchUi.getSearch().getQuery());
+    searchUi.getSearch().setQuery(queryText);
     forceRefresh();
+  }
+
+  static String normalizeSearchQuery(String queryText) {
+    if (queryText == null || queryText.trim().isEmpty()) {
+      return DEFAULT_SEARCH;
+    }
+    return queryText;
   }
 
   /**

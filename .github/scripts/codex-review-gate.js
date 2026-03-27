@@ -14,7 +14,13 @@ const isCodexReactionLogin = (login) => {
 
 const latestCodeRabbitCompletion = (checkRuns) => {
   return checkRuns
-    .filter((run) => codeRabbitNames.has(run.name) && run.conclusion === "success" && run.completed_at)
+    .filter((run) => {
+      return run != null &&
+        typeof run === "object" &&
+        codeRabbitNames.has(run.name) &&
+        run.conclusion === "success" &&
+        run.completed_at;
+    })
     .sort((left, right) => Date.parse(right.completed_at) - Date.parse(left.completed_at))[0] ?? null;
 };
 

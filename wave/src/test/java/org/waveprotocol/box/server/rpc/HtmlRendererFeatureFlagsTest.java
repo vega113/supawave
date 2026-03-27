@@ -44,6 +44,7 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("var payload = buildFlagPayload(rowFlag);"));
     assertTrue(html.contains("var payloadUserFound = false;"));
     assertTrue(html.contains("payload.allowedUsers.push({ email: rowUserEmail, enabled: nextEnabled });"));
+    assertFalse(html.contains("flagsData[flagIndex] ="));
     assertTrue(html.contains("var rowFlag = normalizeFlag(flagsData[idx]);"));
     assertTrue(html.contains("var payload = buildFlagPayload(rowFlag);"));
     assertTrue(html.contains("payload.enabled = !rowFlag.enabled;"));

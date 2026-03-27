@@ -121,6 +121,13 @@ public final class SearchPresenter
    * additions) before the search query is re-issued.
    */
   private final static int WAVE_CLOSED_REFRESH_DELAY_MS = 1500;
+  /**
+   * Timeout (ms) after subscribing to an OT search wavelet. If no snapshot
+   * or delta arrives within this window the client falls back to polling,
+   * preventing a permanently blank search panel when the server does not
+   * serve search wavelets (e.g. the server-side bridge is not yet wired).
+   */
+  private final static int OT_SEARCH_TIMEOUT_MS = 5000;
 
   // Inline SVG icons (Lucide icon set, MIT) for toolbar action buttons.
   // Explicit close tags used for GWT HTML-parser compatibility.
@@ -185,6 +192,8 @@ public final class SearchPresenter
   private WaveStore waveStore;
   private boolean otSearchEnabled;
   private boolean useOtSearch;
+  /** Set to true once the first snapshot or delta arrives for the OT search wavelet. */
+  private boolean otSearchReceivedData;
   private DocInitialization otSearchDocument;
   private OtSearchSnapshot otSearchSnapshot = OtSearchSnapshot.empty();
   private WaveletName otSearchWaveletName;
@@ -202,6 +211,20 @@ public final class SearchPresenter
           handleOtSearchNetworkStatus(event);
         }
       };
+  /**
+   * Timeout task: fires after {@link #OT_SEARCH_TIMEOUT_MS} if no search
+   * wavelet data has arrived, triggering a fallback to polling.
+   */
+  private final Task otSearchTimeoutTask = new Task() {
+    @Override
+    public void execute() {
+      if (useOtSearch && !otSearchReceivedData) {
+        fallbackToPolling(
+            "OT search timed out after " + OT_SEARCH_TIMEOUT_MS
+                + "ms with no data for query '" + queryText + "'", null);
+      }
+    }
+  };
 
   /** Debounce delay for digest-ready updates during editing (ms). */
   private static final int DIGEST_DEBOUNCE_MS = 1000;
@@ -371,6 +394,7 @@ public final class SearchPresenter
     scheduler.cancel(renderer);
     scheduler.cancel(digestDebounceTask);
     scheduler.cancel(waveClosedRefreshTask);
+    scheduler.cancel(otSearchTimeoutTask);
     searchUi.getSearch().reset();
     searchUi.reset();
     search.removeListener(this);
@@ -984,14 +1008,18 @@ public final class SearchPresenter
     }
     try {
       scheduler.cancel(searchUpdater);
+      scheduler.cancel(otSearchTimeoutTask);
       unsubscribeFromSearchWavelet();
       otSearchDocument = null;
       otSearchSnapshot = OtSearchSnapshot.empty();
+      otSearchReceivedData = false;
       otSearchWaveletName = computeSearchWaveletName(Session.get().getAddress(), query);
       useOtSearch = true;
       Collection<WaveletId> ids = Collections.singleton(otSearchWaveletName.waveletId);
       channel.open(otSearchWaveletName.waveId, IdFilter.of(ids, Collections.<String>emptyList()),
           otSearchUpdateHandler);
+      // Schedule a timeout: if no data arrives, fall back to polling.
+      scheduler.scheduleDelayed(otSearchTimeoutTask, OT_SEARCH_TIMEOUT_MS);
     } catch (RuntimeException e) {
       fallbackToPolling("Failed to subscribe to OT search wavelet for query '" + query + "'", e);
     }
@@ -1030,6 +1058,9 @@ public final class SearchPresenter
         changed = applyOtSearchDeltas(deltas) || changed;
       }
       if (changed) {
+        // Data arrived -- cancel the timeout and mark as received.
+        otSearchReceivedData = true;
+        scheduler.cancel(otSearchTimeoutTask);
         otSearchSnapshot = parseOtSearchSnapshot(otSearchDocument);
         applyOtSearchResults();
       }
@@ -1093,6 +1124,8 @@ public final class SearchPresenter
     unsubscribeFromSearchWavelet();
     otSearchDocument = null;
     otSearchSnapshot = OtSearchSnapshot.empty();
+    otSearchReceivedData = false;
+    scheduler.cancel(otSearchTimeoutTask);
     scheduler.cancel(searchUpdater);
     startPolling();
   }

@@ -42,6 +42,7 @@ import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
 import org.waveprotocol.box.server.shutdown.Shutdownable;
 import org.waveprotocol.box.server.waveserver.*;
+import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
 import org.waveprotocol.wave.crypto.CertPathStore;
 import org.waveprotocol.wave.federation.FederationTransport;
 import org.waveprotocol.wave.federation.noop.NoOpFederationModule;
@@ -408,6 +409,9 @@ public class ServerMain {
     waveBus.subscribe(waveViewDistpatcher);
     WaveIndexer waveIndexer = injector.getInstance(WaveIndexer.class);
     waveIndexer.remakeIndex();
+    if ("lucene".equals(config.getString("core.search_type"))) {
+      waveBus.subscribe(injector.getInstance(Lucene9WaveIndexerImpl.class));
+    }
 
     // Register OT search wavelet updater AFTER PerUserWaveViewDistpatcher
     // so that the per-user wave view index is current before search updates.

@@ -16,23 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.waveprotocol.box.server.persistence.lucene;
+package org.waveprotocol.box.server.waveserver;
 
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.ByteBuffersDirectory;
-import org.waveprotocol.box.server.waveserver.IndexException;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 
-/**
- * RAM based {@link IndexDirectory}.
- *
- * @author A. Kaplanov
- */
-public class RAMIndexDirectory implements IndexDirectory {
+@Singleton
+public class CompositeWaveIndexer implements WaveIndexer {
 
-  private final Directory directory = new ByteBuffersDirectory();
+  private final WaveIndexer legacyWaveIndexer;
+  private final WaveIndexer lucene9WaveIndexer;
+
+  @Inject
+  public CompositeWaveIndexer(@Named("legacyWaveIndexer") WaveIndexer legacyWaveIndexer,
+      @Named("lucene9WaveIndexer") WaveIndexer lucene9WaveIndexer) {
+    this.legacyWaveIndexer = legacyWaveIndexer;
+    this.lucene9WaveIndexer = lucene9WaveIndexer;
+  }
 
   @Override
-  public Directory getDirectory() throws IndexException {
-    return directory;
+  public void remakeIndex() throws WaveletStateException, WaveServerException {
+    legacyWaveIndexer.remakeIndex();
+    lucene9WaveIndexer.remakeIndex();
   }
 }

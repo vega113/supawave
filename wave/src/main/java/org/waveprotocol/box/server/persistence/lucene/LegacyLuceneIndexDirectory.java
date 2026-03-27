@@ -18,21 +18,13 @@
  */
 package org.waveprotocol.box.server.persistence.lucene;
 
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.ByteBuffersDirectory;
-import org.waveprotocol.box.server.waveserver.IndexException;
+import com.google.inject.Inject;
+import com.typesafe.config.Config;
 
-/**
- * RAM based {@link IndexDirectory}.
- *
- * @author A. Kaplanov
- */
-public class RAMIndexDirectory implements IndexDirectory {
+public class LegacyLuceneIndexDirectory extends FSIndexDirectory {
 
-  private final Directory directory = new ByteBuffersDirectory();
-
-  @Override
-  public Directory getDirectory() throws IndexException {
-    return directory;
+  @Inject
+  public LegacyLuceneIndexDirectory(Config config) {
+    super(config, "core.legacy_index_directory");
   }
 }

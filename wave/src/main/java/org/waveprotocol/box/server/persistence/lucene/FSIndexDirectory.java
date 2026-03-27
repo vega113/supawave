@@ -26,8 +26,8 @@ import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.file.FileUtils;
 import org.waveprotocol.box.server.waveserver.IndexException;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * File system based {@link IndexDirectory}.
@@ -36,23 +36,28 @@ import java.io.IOException;
  */
 public class FSIndexDirectory implements IndexDirectory {
 
-  private Directory directory;
+  private final Directory directory;
 
   @Inject
   public FSIndexDirectory(Config config) {
-    String directoryName = config.getString("core.index_directory");
-    if (directory == null) {
-      File file;
-      try {
-        file = FileUtils.createDirIfNotExists(directoryName, "");
-      } catch (PersistenceException e) {
-        throw new IndexException("Cannot create index directory " + directoryName, e);
-      }
-      try {
-        directory = FSDirectory.open(file);
-      } catch (IOException e) {
-        throw new IndexException("Cannot open index directory " + directoryName, e);
-      }
+    this(config, "core.index_directory");
+  }
+
+  protected FSIndexDirectory(Config config, String configPath) {
+    this.directory = openDirectory(config.getString(configPath));
+  }
+
+  private static Directory openDirectory(String directoryName) {
+    Path path;
+    try {
+      path = FileUtils.createDirIfNotExists(directoryName, "").toPath();
+    } catch (PersistenceException e) {
+      throw new IndexException("Cannot create index directory " + directoryName, e);
+    }
+    try {
+      return FSDirectory.open(path);
+    } catch (IOException e) {
+      throw new IndexException("Cannot open index directory " + directoryName, e);
     }
   }
 

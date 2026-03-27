@@ -246,6 +246,10 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   @Override
   public void setQuery(String text) {
     if (!shouldDeferDefaultQueryUpdate(text)) {
+      if (SearchWidgetQueryState.shouldClearDeferredDefaultQueryUpdate(
+          suppressNextChange, text)) {
+        suppressNextChange = false;
+      }
       query.setValue(text);
     }
   }

@@ -251,6 +251,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
         suppressNextChange = false;
       }
       query.setValue(text);
+      suppressNextChange = false;
     }
   }
 

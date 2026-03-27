@@ -70,6 +70,9 @@ public final class ApiDocsServlet extends HttpServlet {
       scheme = request.getScheme();
     }
     String host = request.getHeader("X-Forwarded-Host");
+    if (host != null && host.contains(",")) {
+      host = host.substring(0, host.indexOf(',')).trim();
+    }
     if (host == null || host.isEmpty()) {
       host = request.getHeader("Host");
     }

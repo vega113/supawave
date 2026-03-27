@@ -92,6 +92,9 @@ public abstract class BaseApiServlet extends HttpServlet {
     try {
       BufferedReader reader = req.getReader();
       apiRequest = reader.lines().collect(Collectors.joining("\n"));
+    } catch (java.io.UncheckedIOException e) {
+      LOG.warning("Unable to read the incoming request", e);
+      throw e.getCause();
     } catch (IOException e) {
       LOG.warning("Unable to read the incoming request", e);
       throw e;

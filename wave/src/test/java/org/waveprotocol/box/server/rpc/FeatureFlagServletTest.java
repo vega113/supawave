@@ -199,6 +199,28 @@ public final class FeatureFlagServletTest {
   }
 
   @Test
+  public void postSaveRejectsObjectAllowedUserEnabledValues() throws Exception {
+    StringWriter body = new StringWriter();
+    String[] contentType = new String[1];
+    int[] status = new int[1];
+    JSONObject payload =
+        new JSONObject()
+            .put("name", "new-ui")
+            .put("description", "New UI")
+            .put("enabled", false)
+            .put(
+                "allowedUsers",
+                new JSONArray()
+                    .put(new JSONObject().put("email", "vega").put("enabled", new JSONObject().put("raw", true))));
+
+    servlet.doPost(request(payload.toString(), null), response(body, contentType, status));
+
+    assertEquals(HttpServletResponse.SC_BAD_REQUEST, status[0]);
+    assertEquals("application/json", contentType[0]);
+    assertTrue(body.toString().contains("allowedUsers.enabled must be a boolean"));
+  }
+
+  @Test
   public void postSaveAcceptsLegacyCommaSeparatedAllowedUsers() throws Exception {
     StringWriter body = new StringWriter();
     String[] contentType = new String[1];

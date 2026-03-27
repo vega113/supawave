@@ -4430,7 +4430,7 @@ public final class HtmlRenderer {
 
     sb.append("  function buildFlagPayload(baseFlag) {\n");
     sb.append("    var flag = normalizeFlag(baseFlag);\n");
-    sb.append("    if (flagEditingName === flag.name) {\n");
+    sb.append("    if (flagEditingName === flag.name && flagForm.style.display !== 'none') {\n");
     sb.append("      addPendingFlagUsers();\n");
     sb.append("      flag.description = flagDescInput.value.trim();\n");
     sb.append("      flag.enabled = flagEnabledInput.checked;\n");

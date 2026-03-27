@@ -31,6 +31,7 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("toggleAllowedUser("));
     assertTrue(html.contains("normalizeAllowedUserEmail(legacyUser)"));
     assertTrue(html.contains("normalizeAllowedUserEmail(user.email)"));
+    assertTrue(html.contains("if (flagEditingName === flag.name && flagForm.style.display !== 'none') {"));
     assertTrue(html.contains("var flag = buildFlagPayload(flagsData[flagIndex]);"));
     assertTrue(html.contains("var payload = buildFlagPayload(flagsData[idx]);"));
     assertTrue(html.contains("this.checked"));

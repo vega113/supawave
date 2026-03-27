@@ -30,42 +30,27 @@ on:
 
 jobs:
   redispatch-codex-review-gate:
-    name: Re-dispatch Codex Review Gate
+    name: Requeue Codex Review Gate
     if: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     permissions:
-      actions: write
       checks: read
       contents: read
-      issues: read
+      issues: write
       pull-requests: read
     steps:
-      - name: Re-dispatch eligible PR gates
+      - name: Requeue eligible PR gates
         uses: actions/github-script@v7
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const workflowId = "codex-review-gate.yml";
-            const reviewGracePeriodMs = 5 * 60 * 1000;
-            const codeRabbitNames = new Set(["CodeRabbit", "CodeRabbit - Review completed"]);
-            const codexReactionLogins = new Set([
-              "chatgpt-codex-connector",
-              "chatgpt-codex-connector[bot]",
-              "openai-codex",
-              "openai-codex[bot]"
-            ].map((login) => login.toLowerCase()));
-
-            const isCodexReactionLogin = (login) => {
-              const normalized = (login ?? "").toLowerCase();
-              return codexReactionLogins.has(normalized);
-            };
-
-            const latestCodeRabbitCompletion = (checkRuns) => {
-              return checkRuns
-                .filter((run) => codeRabbitNames.has(run.name) && run.conclusion === "success" && run.completed_at)
-                .sort((left, right) => Date.parse(right.completed_at) - Date.parse(left.completed_at))[0] ?? null;
-            };
+            const {
+              isCodexReactionLogin,
+              latestCodeRabbitCompletion,
+              resolveCodeRabbitCompletedAt,
+              reviewGracePeriodMs
+            } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
 
             const openPulls = await github.paginate(github.rest.pulls.list, {
               owner,
@@ -95,12 +80,49 @@ jobs:
               }, (response) => response.data.check_runs);
 
               const codeRabbitCompletion = latestCodeRabbitCompletion(checkRuns);
+              let latestCommit = null;
               if (!codeRabbitCompletion) {
+                const latestCommitResult = await github.graphql(
+                  `
+                    query($owner: String!, $repo: String!, $number: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        pullRequest(number: $number) {
+                          commits(last: 1) {
+                            nodes {
+                              commit {
+                                committedDate
+                                statusCheckRollup {
+                                  contexts(first: 100) {
+                                    nodes {
+                                      __typename
+                                      ... on CheckRun {
+                                        name
+                                        conclusion
+                                        status
+                                        completedAt
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  `,
+                  { owner, repo, number: pullRequest.number }
+                );
+
+                latestCommit = latestCommitResult.repository.pullRequest.commits.nodes[0]?.commit ?? null;
+              }
+
+              const codeRabbitCompletedAt = resolveCodeRabbitCompletedAt(checkRuns, latestCommit);
+              if (Number.isNaN(codeRabbitCompletedAt)) {
                 core.info(`Skipping PR #${pullRequest.number}; no successful current-head CodeRabbit completion yet`);
                 continue;
               }
 
-              const codeRabbitCompletedAt = Date.parse(codeRabbitCompletion.completed_at);
               const reactions = await github.paginate(github.rest.reactions.listForIssue, {
                 owner,
                 repo,
@@ -136,19 +158,14 @@ jobs:
                 continue;
               }
 
-              const workflowRef = pullRequest.head.ref;
-
-              await github.rest.actions.createWorkflowDispatch({
+              await github.rest.issues.createComment({
                 owner,
                 repo,
-                workflow_id: workflowId,
-                ref: workflowRef,
-                inputs: {
-                  pr_number: String(pullRequest.number)
-                }
+                issue_number: pullRequest.number,
+                body: "/codex-review-gate\n\nScheduled reevaluation after the 5 minute CodeRabbit grace window."
               });
 
-              core.info(`Workflow-dispatch Codex Review Gate reevaluation for PR #${pullRequest.number}`);
+              core.info(`Comment-triggered Codex Review Gate reevaluation for PR #${pullRequest.number}`);
             }
 
   codex-review-gate:
@@ -191,19 +208,11 @@ jobs:
               context.payload.issue?.number ??
               context.payload.review_thread?.pull_request?.number;
             const prNumber = Number(prNumberInput);
-            const reviewGracePeriodMs = 5 * 60 * 1000;
-            const codeRabbitNames = new Set(["CodeRabbit", "CodeRabbit - Review completed"]);
-            const codexReactionLogins = new Set([
-              "chatgpt-codex-connector",
-              "chatgpt-codex-connector[bot]",
-              "openai-codex",
-              "openai-codex[bot]"
-            ].map((login) => login.toLowerCase()));
-
-            const isCodexReactionLogin = (login) => {
-              const normalized = (login ?? "").toLowerCase();
-              return codexReactionLogins.has(normalized);
-            };
+            const {
+              isCodexReactionLogin,
+              resolveCodeRabbitCompletedAt,
+              reviewGracePeriodMs
+            } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
 
             const query = `
               query($owner: String!, $repo: String!, $number: Int!) {
@@ -263,8 +272,6 @@ jobs:
 
             const labels = pullRequest.labels.nodes.map((label) => label.name);
             const latestCommit = pullRequest.commits.nodes[0]?.commit ?? null;
-            const statusNodes =
-              latestCommit?.statusCheckRollup?.contexts?.nodes ?? [];
             if (labels.includes("codex-reviewed")) {
               core.info("Review gate passed via `codex-reviewed` label");
               return;
@@ -282,27 +289,7 @@ jobs:
               per_page: 100
             }, (response) => response.data.check_runs);
 
-            const latestCodeRabbitRun = checkRuns
-              .filter((run) => codeRabbitNames.has(run.name) && run.conclusion === "success" && run.completed_at)
-              .sort((left, right) => Date.parse(right.completed_at) - Date.parse(left.completed_at))[0] ?? null;
-
-            const graphQlCodeRabbitCompletedAt = statusNodes
-              .flatMap((node) => {
-                if (node.__typename !== "CheckRun") {
-                  return [];
-                }
-
-                if (!codeRabbitNames.has(node.name) || node.conclusion !== "SUCCESS" || !node.completedAt) {
-                  return [];
-                }
-
-                return [Date.parse(node.completedAt)];
-              })
-              .sort((left, right) => right - left)[0] ?? NaN;
-
-            const codeRabbitCompletedAt = latestCodeRabbitRun
-              ? Date.parse(latestCodeRabbitRun.completed_at)
-              : graphQlCodeRabbitCompletedAt;
+            const codeRabbitCompletedAt = resolveCodeRabbitCompletedAt(checkRuns, latestCommit);
 
             if (Number.isNaN(codeRabbitCompletedAt)) {
               core.setFailed("Missing required review signal: successful current-head CodeRabbit completion");

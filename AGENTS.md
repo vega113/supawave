@@ -17,6 +17,12 @@ git worktrees.
   alternative workflow in the middle of task execution.
 - Favor tool use over guesswork. Keep calls minimal, scoped, and purposeful.
 
+## Session Memory
+- At the start of every session, read all files in /Users/vega/.claude/projects/-Users-vega-devroot-incubator-wave/memory/
+- Start with MEMORY.md (the index), then read any relevant memory files for the current task
+- Memory contains: workflow rules, coding patterns, model selection, drill procedure, and project-specific lessons
+- This memory persists across sessions — always check it before starting work
+
 ## Agent Roles
 
 ### Lead

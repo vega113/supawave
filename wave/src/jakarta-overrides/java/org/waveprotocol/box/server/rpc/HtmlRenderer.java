@@ -3913,7 +3913,8 @@ public final class HtmlRenderer {
     sb.append("        </div>\n");
     sb.append("        <div style=\"flex: 2; min-width: 200px;\">\n");
     sb.append("          <label style=\"display:block; font-size:12px; font-weight:600; color:").append(WAVE_TEXT_MUTED).append("; margin-bottom:4px;\">Allowed Users (comma-separated)</label>\n");
-    sb.append("          <input type=\"text\" id=\"flagUsers\" class=\"search-box\" style=\"width:100%;\" placeholder=\"user1@example.com, user2@example.com\" autocomplete=\"off\">\n");
+    sb.append("          <input type=\"text\" id=\"flagUsers\" class=\"search-box\" style=\"width:100%;\" placeholder=\"e.g. vega (will become vega@").append(escapeHtml(domain)).append(")\" autocomplete=\"off\">\n");
+    sb.append("          <div id=\"flagUsersEditor\" style=\"margin-top:12px;\"></div>\n");
     sb.append("        </div>\n");
     sb.append("        <div style=\"display: flex; gap: 8px;\">\n");
     sb.append("          <button class=\"action-btn success\" id=\"flagSaveBtn\">Save</button>\n");
@@ -3953,6 +3954,7 @@ public final class HtmlRenderer {
     sb.append("  'use strict';\n");
     sb.append("  var callerRole = ").append(escapeJsonString(callerRole)).append(";\n");
     sb.append("  var currentUser = ").append(escapeJsonString(currentUser)).append(";\n");
+    sb.append("  var flagUserDomain = ").append(escapeJsonString(domain)).append(";\n");
     sb.append("  var state = { search: '', sortBy: 'username', sortDir: 'asc', page: 0, pageSize: 50, users: [], total: 0, loading: false };\n");
     sb.append("  var tbody = document.getElementById('userTableBody');\n");
     sb.append("  var statsBar = document.getElementById('statsBar');\n");
@@ -4286,13 +4288,147 @@ public final class HtmlRenderer {
     sb.append("  var flagDescInput = document.getElementById('flagDesc');\n");
     sb.append("  var flagEnabledInput = document.getElementById('flagEnabled');\n");
     sb.append("  var flagUsersInput = document.getElementById('flagUsers');\n");
+    sb.append("  var flagUsersEditor = document.getElementById('flagUsersEditor');\n");
     sb.append("  var flagEditingName = null;\n");
+    sb.append("  var flagUsersModel = [];\n");
+
+    sb.append("  function normalizeAllowedUserEmail(email) {\n");
+    sb.append("    var trimmed = (email || '').trim();\n");
+    sb.append("    if (!trimmed) { return ''; }\n");
+    sb.append("    if (trimmed.indexOf('@') === -1) { return trimmed + '@' + flagUserDomain; }\n");
+    sb.append("    return trimmed;\n");
+    sb.append("  }\n");
+
+    sb.append("  function normalizeAllowedUserEntry(user) {\n");
+    sb.append("    if (!user) { return null; }\n");
+    sb.append("    if (typeof user === 'string') {\n");
+    sb.append("      var legacyUser = user.trim();\n");
+    sb.append("      var legacyEnabled = true;\n");
+    sb.append("      if (legacyUser.slice(-9) === ':disabled') {\n");
+    sb.append("        legacyUser = legacyUser.slice(0, -9);\n");
+    sb.append("        legacyEnabled = false;\n");
+    sb.append("      } else if (legacyUser.slice(-8) === ':enabled') {\n");
+    sb.append("        legacyUser = legacyUser.slice(0, -8);\n");
+    sb.append("      }\n");
+    sb.append("      var legacyEmail = normalizeAllowedUserEmail(legacyUser);\n");
+    sb.append("      return legacyEmail ? { email: legacyEmail, enabled: legacyEnabled } : null;\n");
+    sb.append("    }\n");
+    sb.append("    var email = normalizeAllowedUserEmail(user.email || '');\n");
+    sb.append("    if (!email) { return null; }\n");
+    sb.append("    return { email: email, enabled: user.enabled !== false };\n");
+    sb.append("  }\n");
+
+    sb.append("  function normalizeAllowedUsers(users) {\n");
+    sb.append("    var normalized = [];\n");
+    sb.append("    if (Array.isArray(users)) {\n");
+    sb.append("      for (var i = 0; i < users.length; i++) {\n");
+    sb.append("        var entry = normalizeAllowedUserEntry(users[i]);\n");
+    sb.append("        if (entry) { normalized.push(entry); }\n");
+    sb.append("      }\n");
+    sb.append("      return normalized;\n");
+    sb.append("    }\n");
+    sb.append("    if (typeof users === 'string' && users.trim()) {\n");
+    sb.append("      var parts = users.split(',');\n");
+    sb.append("      for (var j = 0; j < parts.length; j++) {\n");
+    sb.append("        var legacy = normalizeAllowedUserEntry(parts[j]);\n");
+    sb.append("        if (legacy) { normalized.push(legacy); }\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    sb.append("    return normalized;\n");
+    sb.append("  }\n");
+
+    sb.append("  function cloneAllowedUsers(users) {\n");
+    sb.append("    return normalizeAllowedUsers(users).map(function(user) {\n");
+    sb.append("      return { email: user.email, enabled: user.enabled !== false };\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+
+    sb.append("  function normalizeFlag(flag) {\n");
+    sb.append("    return {\n");
+    sb.append("      name: flag.name || '',\n");
+    sb.append("      description: flag.description || '',\n");
+    sb.append("      enabled: !!flag.enabled,\n");
+    sb.append("      allowedUsers: cloneAllowedUsers(flag.allowedUsers || [])\n");
+    sb.append("    };\n");
+    sb.append("  }\n");
+
+    sb.append("  function upsertAllowedUser(email, enabled) {\n");
+    sb.append("    for (var i = 0; i < flagUsersModel.length; i++) {\n");
+    sb.append("      if (flagUsersModel[i].email === email) {\n");
+    sb.append("        flagUsersModel[i].enabled = enabled;\n");
+    sb.append("        return;\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    sb.append("    flagUsersModel.push({ email: email, enabled: enabled });\n");
+    sb.append("  }\n");
+
+    sb.append("  function setFlagUsersModel(users) {\n");
+    sb.append("    flagUsersModel = cloneAllowedUsers(users);\n");
+    sb.append("    renderFlagUsersEditor();\n");
+    sb.append("  }\n");
+
+    sb.append("  function renderFlagUsersCell(users, flagIndex) {\n");
+    sb.append("    var normalized = normalizeAllowedUsers(users);\n");
+    sb.append("    if (!normalized.length) {\n");
+    sb.append("      return '<span style=\"font-size:12px;opacity:.7;\">No user overrides</span>';\n");
+    sb.append("    }\n");
+    sb.append("    var html = '';\n");
+    sb.append("    for (var i = 0; i < normalized.length; i++) {\n");
+    sb.append("      var user = normalized[i];\n");
+    sb.append("      html += '<div style=\"display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;\">';\n");
+    sb.append("      html += '<span style=\"font-size:12px;word-break:break-all;\">' + esc(user.email) + '</span>';\n");
+    sb.append("      html += '<label style=\"font-size:12px;white-space:nowrap;\"><input type=\"checkbox\" onchange=\"toggleAllowedUser(' + flagIndex + ',' + i + ')\"' + (user.enabled ? ' checked' : '') + '> enabled</label>';\n");
+    sb.append("      html += '</div>';\n");
+    sb.append("    }\n");
+    sb.append("    return html;\n");
+    sb.append("  }\n");
+
+    sb.append("  function renderFlagUsersEditor() {\n");
+    sb.append("    var html = '';\n");
+    sb.append("    if (!flagUsersModel.length) {\n");
+    sb.append("      html = '<div style=\"font-size:12px;opacity:.7;\">No users added yet</div>';\n");
+    sb.append("    } else {\n");
+    sb.append("      for (var i = 0; i < flagUsersModel.length; i++) {\n");
+    sb.append("        var user = flagUsersModel[i];\n");
+    sb.append("        html += '<div style=\"display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding:8px 10px;border:1px solid rgba(0,0,0,.08);border-radius:10px;\">';\n");
+    sb.append("        html += '<span style=\"font-size:12px;word-break:break-all;\">' + esc(user.email) + '</span>';\n");
+    sb.append("        html += '<div style=\"display:flex;align-items:center;gap:8px;\">';\n");
+    sb.append("        html += '<label style=\"font-size:12px;white-space:nowrap;\"><input type=\"checkbox\" onchange=\"toggleEditingAllowedUser(' + i + ')\"' + (user.enabled ? ' checked' : '') + '> enabled</label>';\n");
+    sb.append("        html += '<button type=\"button\" class=\"action-btn danger\" onclick=\"removeEditingAllowedUser(' + i + ')\">Remove</button>';\n");
+    sb.append("        html += '</div></div>';\n");
+    sb.append("      }\n");
+    sb.append("    }\n");
+    sb.append("    flagUsersEditor.innerHTML = html;\n");
+    sb.append("  }\n");
+
+    sb.append("  function addPendingFlagUsers() {\n");
+    sb.append("    var raw = flagUsersInput.value.trim();\n");
+    sb.append("    if (!raw) { return; }\n");
+    sb.append("    var parts = raw.split(',');\n");
+    sb.append("    for (var i = 0; i < parts.length; i++) {\n");
+    sb.append("      var email = normalizeAllowedUserEmail(parts[i]);\n");
+    sb.append("      if (email) { upsertAllowedUser(email, true); }\n");
+    sb.append("    }\n");
+    sb.append("    flagUsersInput.value = '';\n");
+    sb.append("    renderFlagUsersEditor();\n");
+    sb.append("  }\n");
+
+    sb.append("  function saveFlag(payload, successMessage) {\n");
+    sb.append("    fetch('/admin/flags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })\n");
+    sb.append("      .then(function(r){return r.json();})\n");
+    sb.append("      .then(function(data){\n");
+    sb.append("        if (data.error) { showToast(data.error, 'error'); return; }\n");
+    sb.append("        showToast(successMessage, 'success');\n");
+    sb.append("        flagForm.style.display = 'none';\n");
+    sb.append("        fetchFlags();\n");
+    sb.append("      }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
+    sb.append("  }\n");
 
     // Fetch flags
     sb.append("  function fetchFlags() {\n");
     sb.append("    flagsLoaded = true;\n");
     sb.append("    fetch('/admin/flags').then(function(r){return r.json();}).then(function(data){\n");
-    sb.append("      flagsData = data.flags || [];\n");
+    sb.append("      flagsData = (data.flags || []).map(normalizeFlag);\n");
     sb.append("      renderFlags();\n");
     sb.append("    }).catch(function(e){\n");
     sb.append("      showToast('Failed to load flags: ' + e.message, 'error');\n");
@@ -4314,7 +4450,7 @@ public final class HtmlRenderer {
     sb.append("        html += '<td><strong>' + esc(f.name) + '</strong></td>';\n");
     sb.append("        html += '<td>' + esc(f.description) + '</td>';\n");
     sb.append("        html += '<td>' + enabledBadge + '</td>';\n");
-    sb.append("        html += '<td style=\"max-width:260px;word-break:break-all;font-size:12px;\">' + esc(f.allowedUsers || '') + '</td>';\n");
+    sb.append("        html += '<td style=\"max-width:280px;\">' + renderFlagUsersCell(f.allowedUsers, i) + '</td>';\n");
     sb.append("        html += '<td>';\n");
     sb.append("        html += '<button class=\"action-btn\" onclick=\"editFlag(' + i + ')\">Edit</button>';\n");
     sb.append("        html += '<button class=\"action-btn\" onclick=\"toggleFlag(' + i + ')\">' + (f.enabled ? 'Disable' : 'Enable') + '</button>';\n");
@@ -4334,6 +4470,7 @@ public final class HtmlRenderer {
     sb.append("    flagDescInput.value = '';\n");
     sb.append("    flagEnabledInput.checked = false;\n");
     sb.append("    flagUsersInput.value = '';\n");
+    sb.append("    setFlagUsersModel([]);\n");
     sb.append("    flagForm.style.display = 'block';\n");
     sb.append("  });\n");
 
@@ -4347,20 +4484,14 @@ public final class HtmlRenderer {
     sb.append("    var name = flagNameInput.value.trim();\n");
     sb.append("    if (!name) { showToast('Flag name is required', 'error'); return; }\n");
     sb.append("    if (!/^[a-zA-Z0-9._-]+$/.test(name)) { showToast('Flag name may only contain letters, digits, dots, hyphens, and underscores', 'error'); return; }\n");
-    sb.append("    var payload = JSON.stringify({\n");
+    sb.append("    addPendingFlagUsers();\n");
+    sb.append("    var payload = {\n");
     sb.append("      name: name,\n");
     sb.append("      description: flagDescInput.value.trim(),\n");
-    sb.append("      enabled: flagEnabledInput.checked ? 'true' : 'false',\n");
-    sb.append("      allowedUsers: flagUsersInput.value.trim()\n");
-    sb.append("    });\n");
-    sb.append("    fetch('/admin/flags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: payload })\n");
-    sb.append("      .then(function(r){return r.json();})\n");
-    sb.append("      .then(function(data){\n");
-    sb.append("        if (data.error) { showToast(data.error, 'error'); return; }\n");
-    sb.append("        showToast('Flag saved successfully', 'success');\n");
-    sb.append("        flagForm.style.display = 'none';\n");
-    sb.append("        fetchFlags();\n");
-    sb.append("      }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
+    sb.append("      enabled: flagEnabledInput.checked,\n");
+    sb.append("      allowedUsers: cloneAllowedUsers(flagUsersModel)\n");
+    sb.append("    };\n");
+    sb.append("    saveFlag(payload, 'Flag saved successfully');\n");
     sb.append("  });\n");
 
     // Edit flag (global function for onclick)
@@ -4371,26 +4502,42 @@ public final class HtmlRenderer {
     sb.append("    flagNameInput.disabled = true;\n");
     sb.append("    flagDescInput.value = f.description || '';\n");
     sb.append("    flagEnabledInput.checked = f.enabled;\n");
-    sb.append("    flagUsersInput.value = f.allowedUsers || '';\n");
+    sb.append("    flagUsersInput.value = '';\n");
+    sb.append("    setFlagUsersModel(f.allowedUsers || []);\n");
     sb.append("    flagForm.style.display = 'block';\n");
+    sb.append("  };\n");
+
+    sb.append("  window.toggleEditingAllowedUser = function(userIndex) {\n");
+    sb.append("    flagUsersModel[userIndex].enabled = !flagUsersModel[userIndex].enabled;\n");
+    sb.append("    renderFlagUsersEditor();\n");
+    sb.append("  };\n");
+
+    sb.append("  window.removeEditingAllowedUser = function(userIndex) {\n");
+    sb.append("    flagUsersModel.splice(userIndex, 1);\n");
+    sb.append("    renderFlagUsersEditor();\n");
+    sb.append("  };\n");
+
+    sb.append("  window.toggleAllowedUser = function(flagIndex, userIndex) {\n");
+    sb.append("    var flag = normalizeFlag(flagsData[flagIndex]);\n");
+    sb.append("    flag.allowedUsers[userIndex].enabled = !flag.allowedUsers[userIndex].enabled;\n");
+    sb.append("    saveFlag({\n");
+    sb.append("      name: flag.name,\n");
+    sb.append("      description: flag.description || '',\n");
+    sb.append("      enabled: flag.enabled,\n");
+    sb.append("      allowedUsers: cloneAllowedUsers(flag.allowedUsers)\n");
+    sb.append("    }, 'User access updated');\n");
     sb.append("  };\n");
 
     // Toggle flag
     sb.append("  window.toggleFlag = function(idx) {\n");
     sb.append("    var f = flagsData[idx];\n");
-    sb.append("    var payload = JSON.stringify({\n");
+    sb.append("    var payload = {\n");
     sb.append("      name: f.name,\n");
     sb.append("      description: f.description || '',\n");
-    sb.append("      enabled: f.enabled ? 'false' : 'true',\n");
-    sb.append("      allowedUsers: f.allowedUsers || ''\n");
-    sb.append("    });\n");
-    sb.append("    fetch('/admin/flags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: payload })\n");
-    sb.append("      .then(function(r){return r.json();})\n");
-    sb.append("      .then(function(data){\n");
-    sb.append("        if (data.error) { showToast(data.error, 'error'); return; }\n");
-    sb.append("        showToast('Flag toggled', 'success');\n");
-    sb.append("        fetchFlags();\n");
-    sb.append("      }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
+    sb.append("      enabled: !f.enabled,\n");
+    sb.append("      allowedUsers: cloneAllowedUsers(f.allowedUsers)\n");
+    sb.append("    };\n");
+    sb.append("    saveFlag(payload, 'Flag toggled');\n");
     sb.append("  };\n");
 
     // Delete flag

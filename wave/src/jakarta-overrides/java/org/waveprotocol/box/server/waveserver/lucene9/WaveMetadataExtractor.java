@@ -52,11 +52,11 @@ public class WaveMetadataExtractor {
     String rootWaveletId = "";
     String creatorSort = UNKNOWN_CREATOR;
     StringBuilder content = new StringBuilder();
-    long createdSort = -1L;
+    long createdSort = Long.MAX_VALUE;
     long lastModifiedSort = -1L;
 
     for (ObservableWaveletData wavelet : wave.getWavelets()) {
-      createdSort = Math.max(createdSort, wavelet.getCreationTime());
+      createdSort = Math.min(createdSort, wavelet.getCreationTime());
       for (ParticipantId participant : wavelet.getParticipants()) {
         participants.add(participant.getAddress());
       }
@@ -76,6 +76,9 @@ public class WaveMetadataExtractor {
       }
     }
 
+    if (createdSort == Long.MAX_VALUE) {
+      createdSort = -1L;
+    }
     String contentText = content.toString().trim();
     String allText = (title + " " + contentText).trim();
     return new WaveMetadata(wave.getWaveId(), rootWaveletId, participants, creatorFilters,

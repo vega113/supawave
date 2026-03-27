@@ -22,7 +22,9 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.wave.api.SearchResult;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
 import org.waveprotocol.box.server.waveserver.SearchProvider;
@@ -77,9 +79,14 @@ public class Lucene9SearchProviderImpl implements SearchProvider {
       return new SearchResult(query);
     }
 
-    List<SearchResult.Digest> filteredDigests = new ArrayList<>();
+    Map<WaveId, SearchResult.Digest> legacyDigestMap = new LinkedHashMap<>();
     for (SearchResult.Digest digest : legacyResult.getDigests()) {
-      if (candidateWaveIds.contains(WaveId.deserialise(digest.getWaveId()))) {
+      legacyDigestMap.put(WaveId.deserialise(digest.getWaveId()), digest);
+    }
+    List<SearchResult.Digest> filteredDigests = new ArrayList<>();
+    for (WaveId waveId : candidateWaveIds) {
+      SearchResult.Digest digest = legacyDigestMap.get(waveId);
+      if (digest != null) {
         filteredDigests.add(digest);
       }
     }
@@ -90,8 +97,10 @@ public class Lucene9SearchProviderImpl implements SearchProvider {
       int numResults) {
     SearchResult result = new SearchResult(query);
     int total = digests.size();
-    int start = Math.min(startAt, total);
-    int end = Math.min(start + numResults, total);
+    int safeStartAt = Math.max(0, startAt);
+    int safeNumResults = Math.max(0, numResults);
+    int start = Math.min(safeStartAt, total);
+    int end = (int) Math.min((long) total, (long) start + safeNumResults);
     for (int i = start; i < end; i++) {
       result.addDigest(digests.get(i));
     }

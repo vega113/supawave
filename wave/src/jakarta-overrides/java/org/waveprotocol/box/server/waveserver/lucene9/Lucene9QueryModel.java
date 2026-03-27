@@ -86,9 +86,15 @@ public final class Lucene9QueryModel {
       if (builder.length() > 0) {
         builder.append(' ');
       }
+      String value = token.getValue();
+      boolean needsQuoting = value.indexOf(' ') >= 0 || value.indexOf('\t') >= 0;
       builder.append(token.getType().name().toLowerCase(Locale.ROOT))
-          .append(':')
-          .append(token.getValue());
+          .append(':');
+      if (needsQuoting) {
+        builder.append('"').append(value).append('"');
+      } else {
+        builder.append(value);
+      }
     }
     return builder.toString();
   }

@@ -40,13 +40,13 @@ public class CompositeWaveIndexer implements WaveIndexer {
     Exception legacyFailure = null;
     try {
       legacyWaveIndexer.remakeIndex();
-    } catch (WaveletStateException | WaveServerException | RuntimeException e) {
+    } catch (WaveServerException | RuntimeException e) {
       legacyFailure = e;
     }
     Exception lucene9Failure = null;
     try {
       lucene9WaveIndexer.remakeIndex();
-    } catch (WaveletStateException | WaveServerException | RuntimeException e) {
+    } catch (WaveServerException | RuntimeException e) {
       lucene9Failure = e;
     }
     if (legacyFailure != null && lucene9Failure != null) {

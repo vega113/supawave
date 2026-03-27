@@ -136,7 +136,7 @@ jobs:
                 continue;
               }
 
-              const workflowRef = context.ref.replace(/^refs\/heads\//, "");
+              const workflowRef = pullRequest.head.ref;
 
               await github.rest.actions.createWorkflowDispatch({
                 owner,
@@ -265,15 +265,6 @@ jobs:
             const latestCommit = pullRequest.commits.nodes[0]?.commit ?? null;
             const statusNodes =
               latestCommit?.statusCheckRollup?.contexts?.nodes ?? [];
-            const codeRabbitPassedViaStatus = statusNodes.some((node) => {
-              if (node.__typename === "StatusContext") {
-                return node.context === "CodeRabbit" && node.state === "SUCCESS";
-              }
-              if (node.__typename === "CheckRun") {
-                return codeRabbitNames.has(node.name) && node.conclusion === "SUCCESS";
-              }
-              return false;
-            });
             if (labels.includes("codex-reviewed")) {
               core.info("Review gate passed via `codex-reviewed` label");
               return;
@@ -295,9 +286,23 @@ jobs:
               .filter((run) => codeRabbitNames.has(run.name) && run.conclusion === "success" && run.completed_at)
               .sort((left, right) => Date.parse(right.completed_at) - Date.parse(left.completed_at))[0] ?? null;
 
+            const graphQlCodeRabbitCompletedAt = statusNodes
+              .flatMap((node) => {
+                if (node.__typename !== "CheckRun") {
+                  return [];
+                }
+
+                if (!codeRabbitNames.has(node.name) || node.conclusion !== "SUCCESS" || !node.completedAt) {
+                  return [];
+                }
+
+                return [Date.parse(node.completedAt)];
+              })
+              .sort((left, right) => right - left)[0] ?? NaN;
+
             const codeRabbitCompletedAt = latestCodeRabbitRun
               ? Date.parse(latestCodeRabbitRun.completed_at)
-              : (codeRabbitPassedViaStatus && latestCommit ? Date.parse(latestCommit.committedDate) : NaN);
+              : graphQlCodeRabbitCompletedAt;
 
             if (Number.isNaN(codeRabbitCompletedAt)) {
               core.setFailed("Missing required review signal: successful current-head CodeRabbit completion");

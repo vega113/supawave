@@ -119,10 +119,11 @@ git worktrees.
   the work.
 
 ## Changelog
-- Every PR that changes user-facing behavior MUST update `wave/config/changelog.json`
-  before merging.
-- Add a new entry at the top of the array (newest first) with `version` (date),
-  `title`, `summary`, and `sections` (`feature` / `fix`).
+- Every PR that changes user-facing behavior MUST update `wave/src/main/resources/config/changelog.json`
+  before merging, and keep `wave/config/changelog.json` aligned for staged runtime config.
+- Add a new entry at the top of the array (newest first) with `version`, `date`
+  (ISO `YYYY-MM-DD`, usually matching `version`), `title`, `summary`, and
+  `sections` (`feature` / `fix`).
 - The changelog is displayed at `/changelog` and in the deploy upgrade banner.
 - Keep entries concise: a 1-2 sentence summary and short bullet-style change
   lists.

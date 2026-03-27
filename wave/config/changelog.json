@@ -71,7 +71,7 @@
     "summary": "A round of polish cleaned up common wave-management edge cases so search, sharing, and cleanup flows behave more predictably.",
     "sections": [
       {
-        "type": "feature",
+        "type": "fix",
         "items": [
           "Empty waves are automatically removed when you navigate away"
         ]

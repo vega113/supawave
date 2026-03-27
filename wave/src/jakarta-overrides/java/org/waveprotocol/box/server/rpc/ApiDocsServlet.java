@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 @SuppressWarnings("serial")
 public final class ApiDocsServlet extends HttpServlet {
   private static final String DOCS_VERSION = "2026-03-27";
-  private static final String LOCAL_BASE_URL = "http://127.0.0.1:9898";
+  private static final String DEFAULT_BASE_URL = "http://127.0.0.1:9898";
   private static final String CANONICAL_RPC_PATH = "/robot/dataapi/rpc";
   private static final String RPC_ALIAS_PATH = "/robot/dataapi";
   private static final String TOKEN_PATH = "/robot/dataapi/token";
@@ -46,8 +46,10 @@ public final class ApiDocsServlet extends HttpServlet {
       servletPath = request.getRequestURI();
     }
 
+    String baseUrl = deriveBaseUrl(request);
+
     if ("/api-docs".equals(servletPath)) {
-      writeResponse(response, "text/html;charset=utf-8", renderHtml());
+      writeResponse(response, "text/html;charset=utf-8", renderHtml(baseUrl));
       return;
     }
     if ("/api/openapi.json".equals(servletPath)) {
@@ -55,11 +57,26 @@ public final class ApiDocsServlet extends HttpServlet {
       return;
     }
     if ("/api/llm.txt".equals(servletPath)) {
-      writeResponse(response, "text/plain;charset=utf-8", renderLlmText());
+      writeResponse(response, "text/plain;charset=utf-8", renderLlmText(baseUrl));
       return;
     }
 
     response.sendError(HttpServletResponse.SC_NOT_FOUND);
+  }
+
+  private static String deriveBaseUrl(HttpServletRequest request) {
+    String scheme = request.getHeader("X-Forwarded-Proto");
+    if (scheme == null || scheme.isEmpty()) {
+      scheme = request.getScheme();
+    }
+    String host = request.getHeader("X-Forwarded-Host");
+    if (host == null || host.isEmpty()) {
+      host = request.getHeader("Host");
+    }
+    if (host == null || host.isEmpty()) {
+      return DEFAULT_BASE_URL;
+    }
+    return scheme + "://" + host;
   }
 
   private static void writeResponse(HttpServletResponse response, String contentType, String body)
@@ -74,7 +91,7 @@ public final class ApiDocsServlet extends HttpServlet {
     }
   }
 
-  private static String renderHtml() {
+  private static String renderHtml(String baseUrl) {
     StringBuilder html = new StringBuilder(128000);
     html.append("<!DOCTYPE html>\n");
     html.append("<html lang=\"en\">\n");
@@ -459,7 +476,7 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("        <h3>Browser/session flow</h3>\n");
     html.append("        <ul>\n");
     html.append("          <li>Open <code>")
-        .append(escape(LOCAL_BASE_URL))
+        .append(escape(baseUrl))
         .append(TOKEN_PATH)
         .append("</code> while logged in.</li>\n");
     html.append("          <li>Select a short-lived expiry such as <code>3600</code> seconds.</li>\n");
@@ -468,7 +485,7 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("        <h3>Robot client_credentials flow</h3>\n");
     html.append("        <p class=\"tiny\">This is the curl example to use when you need a token from a robot account. The docs intentionally avoid <code>expiry=0</code> or any never-expiring example.</p>\n");
     html.append("        <pre>")
-        .append(escape(tokenCurlExample()))
+        .append(escape(tokenCurlExample(baseUrl)))
         .append("</pre>\n");
     html.append("        <div class=\"warning\"><strong>Use short-lived tokens.</strong> The live token endpoint still supports effectively long-lived tokens when <code>expiry &lt;= 0</code> or when a robot account is configured with a zero lifetime. That behavior is high-risk and not shown in any example here.</div>\n");
     html.append("      </section>\n");
@@ -477,16 +494,16 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("        <p>The quickest safe path for a new integration is: get a short-lived token, create a wave, append a root-thread blip, and add a participant. These are separate calls so you can inspect the IDs returned by each step.</p>\n");
     html.append("        <div class=\"code-grid\">\n");
     html.append("          <div class=\"grid-card\"><h3>1. Get token</h3><pre>")
-        .append(escape(tokenCurlExample()))
+        .append(escape(tokenCurlExample(baseUrl)))
         .append("</pre></div>\n");
     html.append("          <div class=\"grid-card\"><h3>2. Create wave</h3><pre>")
-        .append(escape(curlForOperation(findOperation("robot.createWavelet"))))
+        .append(escape(curlForOperation(baseUrl, findOperation("robot.createWavelet"))))
         .append("</pre></div>\n");
     html.append("          <div class=\"grid-card\"><h3>3. Append blip</h3><pre>")
-        .append(escape(curlForOperation(findOperation("wavelet.appendBlip"))))
+        .append(escape(curlForOperation(baseUrl, findOperation("wavelet.appendBlip"))))
         .append("</pre></div>\n");
     html.append("          <div class=\"grid-card\"><h3>4. Add participant</h3><pre>")
-        .append(escape(curlForOperation(findOperation("wavelet.addParticipant"))))
+        .append(escape(curlForOperation(baseUrl, findOperation("wavelet.addParticipant"))))
         .append("</pre></div>\n");
     html.append("        </div>\n");
     html.append("      </section>\n");
@@ -498,7 +515,7 @@ public final class ApiDocsServlet extends HttpServlet {
       html.append("        <h3>").append(escape(group)).append("</h3>\n");
       html.append("        <div class=\"operation-group\">\n");
       for (OperationDoc operation : operationsForGroup(group)) {
-        html.append(renderOperationCard(operation));
+        html.append(renderOperationCard(baseUrl, operation));
       }
       html.append("        </div>\n");
     }
@@ -542,7 +559,7 @@ public final class ApiDocsServlet extends HttpServlet {
     return html.toString();
   }
 
-  private static String renderOperationCard(OperationDoc operation) {
+  private static String renderOperationCard(String baseUrl, OperationDoc operation) {
     StringBuilder html = new StringBuilder(8192);
     html.append("          <article class=\"operation-card\" id=\"")
         .append(operationAnchor(operation.method))
@@ -582,7 +599,7 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("            </div>\n");
     html.append("            <p class=\"pre-title\">curl example</p>\n");
     html.append("            <pre>")
-        .append(escape(curlForOperation(operation)))
+        .append(escape(curlForOperation(baseUrl, operation)))
         .append("</pre>\n");
     if (!operation.notes.isEmpty()) {
       html.append("            <div class=\"note\"><strong>Notes:</strong> ")
@@ -906,7 +923,7 @@ public final class ApiDocsServlet extends HttpServlet {
     return schema;
   }
 
-  private static String renderLlmText() {
+  private static String renderLlmText(String baseUrl) {
     StringBuilder text = new StringBuilder(72000);
     text.append("SupaWave Data API LLM Index\n");
     text.append("Docs version: ").append(DOCS_VERSION).append('\n');
@@ -917,7 +934,7 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("Transport: HTTP POST JSON-RPC. Request body can be one object or an array. Response body is always an array in request order.\n\n");
 
     text.append("Token acquisition (client_credentials, short-lived example)\n");
-    text.append(tokenCurlExample()).append("\n\n");
+    text.append(tokenCurlExample(baseUrl)).append("\n\n");
 
     text.append("Request envelope\n");
     text.append(json(singleRequestTemplate())).append("\n\n");
@@ -994,10 +1011,10 @@ public final class ApiDocsServlet extends HttpServlet {
     return methods;
   }
 
-  private static String tokenCurlExample() {
+  private static String tokenCurlExample(String baseUrl) {
     return "curl -sS \\\n"
         + "  -X POST "
-        + LOCAL_BASE_URL
+        + baseUrl
         + TOKEN_PATH
         + " \\\n"
         + "  -H 'Content-Type: application/x-www-form-urlencoded' \\\n"
@@ -1007,10 +1024,10 @@ public final class ApiDocsServlet extends HttpServlet {
         + "  --data-urlencode 'expiry=3600'";
   }
 
-  private static String curlForOperation(OperationDoc operation) {
+  private static String curlForOperation(String baseUrl, OperationDoc operation) {
     return "curl -sS \\\n"
         + "  -X POST "
-        + LOCAL_BASE_URL
+        + baseUrl
         + CANONICAL_RPC_PATH
         + " \\\n"
         + "  -H 'Authorization: Bearer $TOKEN' \\\n"

@@ -268,9 +268,14 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   }
 
   private static final Pattern TAG_PATTERN = Pattern.compile("\\btag:(\\S+)");
-  private static final Pattern UNREAD_PATTERN = Pattern.compile("\\bunread:(\\S+)");
+  private static final Pattern UNREAD_PATTERN = Pattern.compile("(^|\\s)unread:\\S+(?=\\s|$)");
 
   private static final Pattern IN_ALL_PATTERN = Pattern.compile("\\bin:all\\b");
+
+  static String stripUnreadFilterTokens(String query) {
+    String cleanedQuery = UNREAD_PATTERN.matcher(query).replaceAll("$1");
+    return cleanedQuery.replaceAll("\\s{2,}", " ").trim();
+  }
 
   private static boolean isAllQuery(String query) {
     // The query is an "all" query if there is no 'in:' filter, or if
@@ -281,7 +286,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {
     // Strip tag: tokens from the Solr query since they are handled by post-filtering.
     String cleanedQuery = TAG_PATTERN.matcher(query).replaceAll("").trim();
-    cleanedQuery = UNREAD_PATTERN.matcher(cleanedQuery).replaceAll("").trim();
+    cleanedQuery = stripUnreadFilterTokens(cleanedQuery);
     return cleanedQuery.replaceAll(WORD_START + TokenQueryType.IN.getToken() + ":", IN + ":")
         .replaceAll(WORD_START + TokenQueryType.WITH.getToken() + ":@",
             WITH + ":" + sharedDomainParticipantId.getAddress())

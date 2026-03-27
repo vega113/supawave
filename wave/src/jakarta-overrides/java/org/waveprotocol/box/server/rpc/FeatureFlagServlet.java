@@ -173,9 +173,9 @@ public final class FeatureFlagServlet extends HttpServlet {
       return;
     }
     String description = body.optString("description", "");
-    boolean enabled = readBoolean(body.opt("enabled"));
 
     try {
+      boolean enabled = readBoolean(body.opt("enabled"), false);
       Map<String, Boolean> allowedUsers = parseAllowedUsers(body.opt("allowedUsers"));
       FeatureFlag flag = new FeatureFlag(name, description.trim(), enabled, allowedUsers);
       store.save(flag);
@@ -257,7 +257,9 @@ public final class FeatureFlagServlet extends HttpServlet {
     json.put("name", flag.getName());
     json.put("description", flag.getDescription());
     json.put("enabled", flag.isEnabled());
-    json.put("allowedUsers", toAllowedUsersJson(flag.getAllowedUsers()));
+    json.put(
+        "allowedUsers",
+        String.join(",", FeatureFlag.toStoredAllowedUsers(flag.getAllowedUsers())));
     w.append(json.toString());
   }
 
@@ -330,9 +332,15 @@ public final class FeatureFlagServlet extends HttpServlet {
       return booleanValue;
     }
     if (rawValue instanceof String stringValue) {
-      return "true".equalsIgnoreCase(stringValue.trim());
+      String normalized = stringValue.trim();
+      if ("true".equalsIgnoreCase(normalized)) {
+        return true;
+      }
+      if ("false".equalsIgnoreCase(normalized)) {
+        return false;
+      }
     }
-    return defaultValue;
+    throw new IllegalArgumentException("enabled must be a boolean");
   }
 
   private static IllegalArgumentException unexpectedAllowedUsersElement(int index, Object value) {
@@ -350,17 +358,6 @@ public final class FeatureFlagServlet extends HttpServlet {
     return new IllegalArgumentException(message);
   }
 
-  private static JSONArray toAllowedUsersJson(Map<String, Boolean> allowedUsers) {
-    JSONArray json = new JSONArray();
-    for (Map.Entry<String, Boolean> entry : allowedUsers.entrySet()) {
-      JSONObject user = new JSONObject();
-      user.put("email", entry.getKey());
-      user.put("enabled", entry.getValue());
-      json.put(user);
-    }
-    return json;
-  }
-
   private void addAllowedUserString(Map<String, Boolean> allowedUsers, String rawUser) {
     if (rawUser == null) {
       return;
@@ -369,14 +366,16 @@ public final class FeatureFlagServlet extends HttpServlet {
     if (trimmed.isEmpty()) {
       return;
     }
-    if (trimmed.endsWith(":enabled")) {
+    int atIndex = trimmed.lastIndexOf('@');
+    int suffixIndex = trimmed.lastIndexOf(':');
+    if (suffixIndex > atIndex && trimmed.endsWith(":enabled")) {
       putAllowedUser(
           allowedUsers,
           normalizeAllowedUserEmail(trimmed.substring(0, trimmed.length() - ":enabled".length())),
           true);
       return;
     }
-    if (trimmed.endsWith(":disabled")) {
+    if (suffixIndex > atIndex && trimmed.endsWith(":disabled")) {
       putAllowedUser(
           allowedUsers,
           normalizeAllowedUserEmail(trimmed.substring(0, trimmed.length() - ":disabled".length())),

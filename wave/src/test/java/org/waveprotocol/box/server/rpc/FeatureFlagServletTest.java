@@ -19,7 +19,6 @@
 package org.waveprotocol.box.server.rpc;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -164,7 +163,7 @@ public final class FeatureFlagServletTest {
         new JSONObject()
             .put("name", "new-ui")
             .put("description", "New UI")
-            .put("enabled", true)
+            .put("enabled", "true")
             .put("allowedUsers", "vega@supawave.ai,ops@supawave.ai:disabled");
 
     servlet.doPost(request(payload.toString(), null), response(body, contentType));
@@ -241,7 +240,7 @@ public final class FeatureFlagServletTest {
   }
 
   @Test
-  public void listReturnsStructuredAllowedUsers() throws Exception {
+  public void listReturnsLegacyAllowedUsersString() throws Exception {
     store.save(new FeatureFlag("new-ui", "New UI", false, allowedUsers()));
     StringWriter body = new StringWriter();
     String[] contentType = new String[1];
@@ -250,13 +249,31 @@ public final class FeatureFlagServletTest {
 
     JSONObject payload = new JSONObject(body.toString());
     JSONArray flags = payload.getJSONArray("flags");
-    JSONArray allowedUsers = flags.getJSONObject(0).getJSONArray("allowedUsers");
+    String allowedUsers = flags.getJSONObject(0).getString("allowedUsers");
 
     assertEquals("application/json", contentType[0]);
-    assertEquals("vega@supawave.ai", allowedUsers.getJSONObject(0).getString("email"));
-    assertTrue(allowedUsers.getJSONObject(0).getBoolean("enabled"));
-    assertEquals("ops@supawave.ai", allowedUsers.getJSONObject(1).getString("email"));
-    assertFalse(allowedUsers.getJSONObject(1).getBoolean("enabled"));
+    assertEquals("vega@supawave.ai:enabled,ops@supawave.ai:disabled", allowedUsers);
+  }
+
+  @Test
+  public void postSaveRejectsInvalidAllowedUserEnabledValue() throws Exception {
+    StringWriter body = new StringWriter();
+    String[] contentType = new String[1];
+    int[] status = new int[1];
+    JSONObject payload =
+        new JSONObject()
+            .put("name", "new-ui")
+            .put("description", "New UI")
+            .put("enabled", false)
+            .put(
+                "allowedUsers",
+                new JSONArray().put(new JSONObject().put("email", "vega@supawave.ai").put("enabled", 0)));
+
+    servlet.doPost(request(payload.toString(), null), response(body, contentType, status));
+
+    assertEquals(HttpServletResponse.SC_BAD_REQUEST, status[0]);
+    assertEquals("application/json", contentType[0]);
+    assertTrue(body.toString().contains("enabled must be a boolean"));
   }
 
   private static HttpServletRequest request(String body, String pathInfo) {

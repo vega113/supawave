@@ -1906,7 +1906,9 @@ public final class HtmlRenderer {
 
     // Responsive
     sb.append("@media (max-width: 640px) {\n");
-    sb.append("  .nav { padding: 12px 16px; }\n");
+    sb.append("  .nav { padding: 12px 16px; flex-wrap: wrap; gap: 12px; }\n");
+    sb.append("  .nav-links { width: 100%; flex-wrap: wrap; justify-content: flex-start; }\n");
+    sb.append("  .nav-link { text-align: center; }\n");
     sb.append("  .hero { padding: 48px 20px 120px; }\n");
     sb.append("  .hero h1 { font-size: 32px; }\n");
     sb.append("  .hero .tagline { font-size: 18px; }\n");

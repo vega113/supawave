@@ -79,4 +79,12 @@ public final class HtmlRendererChangelogTest {
     assertTrue(topBar.contains("href=\"/api-docs\""));
     assertTrue(landing.contains("href=\"/api-docs\""));
   }
+
+  @Test
+  public void landingPageNavWrapsControlsOnMobile() {
+    String landing = HtmlRenderer.renderLandingPage("example.com", "");
+
+    assertTrue(landing.contains(".nav { padding: 12px 16px; flex-wrap: wrap; gap: 12px; }"));
+    assertTrue(landing.contains(".nav-links { width: 100%; flex-wrap: wrap; justify-content: flex-start; }"));
+  }
 }

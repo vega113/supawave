@@ -304,18 +304,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     this.waveId = waveId;
     this.mux = mux;
     this.docFactory = docFactory;
-    networkHandlerRegistration = ClientEvents.get().addNetworkStatusEventHandler(
-        new NetworkStatusEventHandler() {
-          @Override
-          public void onNetworkStatus(NetworkStatusEvent event) {
-            ConnectionStatus status = event.getStatus();
-            if (status == ConnectionStatus.DISCONNECTED
-                || status == ConnectionStatus.NEVER_CONNECTED) {
-              stopOpenContext();
-              disconnectTracker.onSocketDisconnected();
-            }
-          }
-        });
+    ensureNetworkHandlerRegistration();
   }
 
   //
@@ -326,6 +315,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
   public void viewOpen(final IdFilter filter,
       final Map<WaveletId, List<HashedVersion>> knownWavelets, final OpenCallback callback) {
     LOG.info("viewOpen called on " + waveId + " with " + filter);
+    ensureNetworkHandlerRegistration();
 
     // Some legacy hack. Important updates are sent to a "dummy+root" wavelet.
     // TODO: remove this once Issue 125 is fixed.
@@ -399,12 +389,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     LOG.info("closing channel " + waveId);
     stopOpenContext();
     disconnectTracker.onStreamClosed();
-    // Remove the per-wave network handler to avoid leaking this service on the
-    // global event bus after the view is closed.
-    if (networkHandlerRegistration != null) {
-      networkHandlerRegistration.removeHandler();
-      networkHandlerRegistration = null;
-    }
+    removeNetworkHandlerRegistration();
     callback.onSuccess();
     mux.close(waveId, this);
   }
@@ -456,6 +441,30 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     if (openContext != null) {
       openContext.stop();
       openContext = null;
+    }
+  }
+
+  private void ensureNetworkHandlerRegistration() {
+    if (networkHandlerRegistration == null) {
+      networkHandlerRegistration = ClientEvents.get().addNetworkStatusEventHandler(
+          new NetworkStatusEventHandler() {
+            @Override
+            public void onNetworkStatus(NetworkStatusEvent event) {
+              ConnectionStatus status = event.getStatus();
+              if (status == ConnectionStatus.DISCONNECTED
+                  || status == ConnectionStatus.NEVER_CONNECTED) {
+                stopOpenContext();
+                disconnectTracker.onSocketDisconnected();
+              }
+            }
+          });
+    }
+  }
+
+  private void removeNetworkHandlerRegistration() {
+    if (networkHandlerRegistration != null) {
+      networkHandlerRegistration.removeHandler();
+      networkHandlerRegistration = null;
     }
   }
 

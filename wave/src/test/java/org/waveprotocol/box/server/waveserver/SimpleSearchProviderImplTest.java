@@ -42,13 +42,16 @@ import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignedDelta;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
+import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
 import org.waveprotocol.wave.model.id.IdGenerator;
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.wave.AddParticipant;
+import org.waveprotocol.wave.model.operation.wave.BlipContentOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletDelta;
+import org.waveprotocol.wave.model.operation.wave.WaveletBlipOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
 import org.waveprotocol.wave.model.version.HashedVersion;
@@ -348,6 +351,58 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertTrue(descOrdering.isOrdered(results.getDigests()));
   }
 
+  public void testSearchOrderByDateUsesLatestBlipActivity() throws Exception {
+    WaveletName olderWave = WaveletName.of(WaveId.of(DOMAIN, "older"), WAVELET_ID);
+    WaveletName newerWave = WaveletName.of(WaveId.of(DOMAIN, "newer"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(olderWave, USER1, addParticipantToWavelet(USER1, olderWave));
+    appendBlipToWavelet(olderWave, USER1, "b+older-1", "older wave");
+
+    waitForDistinctTimestamp();
+
+    submitDeltaToNewWavelet(newerWave, USER1, addParticipantToWavelet(USER1, newerWave));
+    appendBlipToWavelet(newerWave, USER1, "b+newer-1", "newer wave");
+
+    waitForDistinctTimestamp();
+
+    appendBlipToWavelet(olderWave, USER1, "b+older-2", "latest activity on older wave");
+
+    SearchResult descResults = searchProvider.search(USER1, "in:inbox orderby:datedesc", 0, 10);
+    assertEquals("older",
+        WaveId.deserialise(descResults.getDigests().get(0).getWaveId()).getId());
+
+    SearchResult ascResults = searchProvider.search(USER1, "in:inbox orderby:dateasc", 0, 10);
+    assertEquals("newer", WaveId.deserialise(ascResults.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchOrderByDateUsesLatestConversationalWaveletActivity() throws Exception {
+    WaveletName olderRoot = WaveletName.of(WaveId.of(DOMAIN, "older-conv"), WAVELET_ID);
+    WaveletName newerRoot = WaveletName.of(WaveId.of(DOMAIN, "newer-conv"), WAVELET_ID);
+    WaveletName olderReply =
+        WaveletName.of(olderRoot.waveId, WaveletId.of(DOMAIN, "conv+reply"));
+
+    submitDeltaToNewWavelet(olderRoot, USER1, addParticipantToWavelet(USER1, olderRoot));
+    appendBlipToWavelet(olderRoot, USER1, "b+older-root", "older root");
+
+    waitForDistinctTimestamp();
+
+    submitDeltaToNewWavelet(newerRoot, USER1, addParticipantToWavelet(USER1, newerRoot));
+    appendBlipToWavelet(newerRoot, USER1, "b+newer-root", "newer root");
+
+    waitForDistinctTimestamp();
+
+    submitDeltaToNewWaveletWithoutView(olderReply, USER1, new AddParticipant(CONTEXT, USER1));
+    appendBlipToWavelet(olderReply, USER1, "b+older-reply", "latest reply activity");
+
+    SearchResult descResults = searchProvider.search(USER1, "in:inbox orderby:datedesc", 0, 10);
+    assertEquals("older-conv",
+        WaveId.deserialise(descResults.getDigests().get(0).getWaveId()).getId());
+
+    SearchResult ascResults = searchProvider.search(USER1, "in:inbox orderby:dateasc", 0, 10);
+    assertEquals("newer-conv",
+        WaveId.deserialise(ascResults.getDigests().get(0).getWaveId()).getId());
+  }
+
   public void testSearchOrderByCreatedAscWorks() throws Exception {
     for (int i = 0; i < 10; i++) {
       WaveletName name = WaveletName.of(WaveId.of(DOMAIN, String.valueOf(i)), WAVELET_ID);
@@ -483,9 +538,26 @@ public class SimpleSearchProviderImplTest extends TestCase {
       WaveletOperation... ops) throws Exception {
 
     HashedVersion version = V0_HASH_FACTORY.createVersionZero(name);
-    WaveletDelta delta = new WaveletDelta(user, version, Arrays.asList(ops));
     addWaveletToUserView(name, user);
+    submitDelta(name, user, version, ops);
+  }
 
+  private void submitDeltaToExistingWavelet(WaveletName name, ParticipantId user,
+      WaveletOperation... ops) throws Exception {
+    LocalWaveletContainer wavelet = waveMap.getOrCreateLocalWavelet(name);
+    HashedVersion version = wavelet.copyWaveletData().getHashedVersion();
+    submitDelta(name, user, version, ops);
+  }
+
+  private void submitDeltaToNewWaveletWithoutView(WaveletName name, ParticipantId user,
+      WaveletOperation... ops) throws Exception {
+    HashedVersion version = V0_HASH_FACTORY.createVersionZero(name);
+    submitDelta(name, user, version, ops);
+  }
+
+  private void submitDelta(WaveletName name, ParticipantId user, HashedVersion version,
+      WaveletOperation... ops) throws Exception {
+    WaveletDelta delta = new WaveletDelta(user, version, Arrays.asList(ops));
 
     ProtocolWaveletDelta protoDelta = CoreWaveletOperationSerializer.serialize(delta);
 
@@ -496,6 +568,19 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
     LocalWaveletContainer wavelet = waveMap.getOrCreateLocalWavelet(name);
     wavelet.submitRequest(name, signedProtoDelta);
+  }
+
+  private void appendBlipToWavelet(WaveletName name, ParticipantId user, String blipId, String text)
+      throws Exception {
+    WaveletOperationContext context = new WaveletOperationContext(user, 0, 1);
+    WaveletOperation appendOp =
+        new WaveletBlipOperation(blipId, new BlipContentOperation(context,
+            new DocOpBuilder().characters(text).build()));
+    submitDeltaToExistingWavelet(name, user, appendOp);
+  }
+
+  private void waitForDistinctTimestamp() throws InterruptedException {
+    Thread.sleep(5L);
   }
 
   private void addWaveletToUserView(WaveletName name, ParticipantId user) {

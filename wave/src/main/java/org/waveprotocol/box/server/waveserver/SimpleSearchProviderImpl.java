@@ -31,6 +31,7 @@ import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -53,6 +54,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
 
 /**
  * Search provider that reads user specific info from user data wavelet.
@@ -240,6 +242,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     List<WaveViewData> results =
         Lists.newArrayList(filterWavesViewBySearchCriteria(filterWaveletsFunction,
             currentUserWavesView).values());
+    expandConversationalWavelets(results, filterWaveletsFunction);
 
     // Shared caches for supplement-building across all filter stages.
     // This prevents creating duplicate OpBasedWavelet adapters for the same
@@ -362,6 +365,52 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       }
     };
     return matchesFunction;
+  }
+
+  private void expandConversationalWavelets(List<WaveViewData> results,
+      Function<ReadableWaveletData, Boolean> matchesFunction) {
+    Map<WaveId, Wave> loadedWaves = waveMap.getWaves();
+    for (WaveViewData wave : results) {
+      Set<WaveletId> visibleWaveletIds = new HashSet<WaveletId>();
+      for (ObservableWaveletData waveletData : wave.getWavelets()) {
+        visibleWaveletIds.add(waveletData.getWaveletId());
+      }
+
+      Set<WaveletId> conversationalWaveletIds = new HashSet<WaveletId>();
+      try {
+        Set<WaveletId> storedWaveletIds = waveMap.lookupWavelets(wave.getWaveId());
+        if (storedWaveletIds != null) {
+          conversationalWaveletIds.addAll(storedWaveletIds);
+        }
+      } catch (WaveletStateException e) {
+        LOG.warning("Failed to look up stored wavelets for " + wave.getWaveId(), e);
+      }
+
+      Wave loadedWave = loadedWaves.get(wave.getWaveId());
+      if (loadedWave != null) {
+        for (WaveletContainer container : loadedWave) {
+          conversationalWaveletIds.add(container.getWaveletName().waveletId);
+        }
+      }
+
+      for (WaveletId waveletId : conversationalWaveletIds) {
+        if (visibleWaveletIds.contains(waveletId) || !IdUtil.isConversationalId(waveletId)) {
+          continue;
+        }
+
+        WaveletName waveletName = WaveletName.of(wave.getWaveId(), waveletId);
+        try {
+          WaveletContainer container = waveMap.getWavelet(waveletName);
+          if (container == null || !container.applyFunction(matchesFunction)) {
+            continue;
+          }
+          wave.addWavelet(container.copyWaveletData());
+          visibleWaveletIds.add(waveletId);
+        } catch (WaveletStateException e) {
+          LOG.warning("Failed to expand wavelet " + waveletName, e);
+        }
+      }
+    }
   }
 
   /**

@@ -54,7 +54,7 @@ public abstract class AbstractSearchProviderImpl implements SearchProvider {
 
   protected final WaveDigester digester;
   protected final ParticipantId sharedDomainParticipantId;
-  private final WaveMap waveMap;
+  protected final WaveMap waveMap;
 
   public AbstractSearchProviderImpl(final String waveDomain, WaveDigester digester, WaveMap waveMap) {
     this.digester = digester;

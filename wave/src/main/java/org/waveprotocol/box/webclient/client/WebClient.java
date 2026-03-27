@@ -519,7 +519,7 @@ public class WebClient implements EntryPoint {
           }
         };
     Search search = SimpleSearch.create(RemoteSearchService.create(), waveStore);
-    SearchPresenter.create(search, searchPanel, actionHandler, profiles, waveStore);
+    SearchPresenter.create(search, searchPanel, actionHandler, profiles, waveStore, channel);
 
     // Defer contacts fetch until after the first search response arrives
     // so the /contacts request does not compete with the critical /search

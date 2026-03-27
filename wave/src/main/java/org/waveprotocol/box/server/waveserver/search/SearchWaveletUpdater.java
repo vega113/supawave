@@ -229,6 +229,9 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       // Convert SearchResult digests to our SearchResultEntry list
       List<SearchWaveletDataProvider.SearchResultEntry> newResults =
           convertSearchResult(searchResult);
+      int newTotalCount = searchResult.getTotalResults() >= 0
+          ? searchResult.getTotalResults()
+          : newResults.size();
 
       // Get or create the search wavelet
       WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, rawQuery);
@@ -236,10 +239,11 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       // Compute current results stored in the search wavelet (get from data provider cache)
       List<SearchWaveletDataProvider.SearchResultEntry> oldResults =
           dataProvider.getCurrentResults(searchWaveletName);
+      int oldTotalCount = dataProvider.getCurrentTotal(searchWaveletName);
 
       // Compute the diff
       SearchWaveletDataProvider.SearchDiff diff =
-          dataProvider.computeDiff(oldResults, newResults);
+          dataProvider.computeDiff(oldResults, oldTotalCount, newResults, newTotalCount);
 
       if (diff == null) {
         // No changes needed
@@ -247,7 +251,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       }
 
       // Update the data provider's cached state
-      dataProvider.updateCurrentResults(searchWaveletName, newResults);
+      dataProvider.updateCurrentResults(searchWaveletName, newResults, newTotalCount);
 
       // Update the indexer's wave set for this subscription
       Set<WaveId> newWaveIds = new HashSet<>();

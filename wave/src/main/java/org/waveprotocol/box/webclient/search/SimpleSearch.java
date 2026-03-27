@@ -307,6 +307,12 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
     handleFailure("cancelled by user");
   }
 
+  void replaceResults(int total, List<DigestSnapshot> snapshots) {
+    outstanding = null;
+    previousRequest = null;
+    handleSuccess(total, 0, snapshots);
+  }
+
   /**
    * Logs an error.  Destroys the current results.
    */

@@ -21,11 +21,25 @@ package org.waveprotocol.box.webclient.search;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.ui.Widget;
+import org.waveprotocol.box.common.comms.DocumentSnapshot;
+import org.waveprotocol.box.common.comms.ProtocolWaveletUpdate;
+import org.waveprotocol.box.common.comms.WaveletSnapshot;
+import org.waveprotocol.wave.federation.ProtocolHashedVersion;
+import org.waveprotocol.wave.federation.ProtocolWaveletDelta;
+import org.waveprotocol.box.webclient.client.RemoteViewServiceMultiplexer;
+import org.waveprotocol.box.webclient.client.Session;
+import org.waveprotocol.box.webclient.client.WaveWebSocketCallback;
+import org.waveprotocol.box.webclient.common.WaveletOperationSerializer;
 import org.waveprotocol.box.searches.SearchesItem;
 import org.waveprotocol.box.webclient.search.Search.State;
 import org.waveprotocol.box.webclient.search.i18n.SearchPresenterMessages;
+import org.waveprotocol.wave.client.events.ClientEvents;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent.ConnectionStatus;
+import org.waveprotocol.wave.client.events.NetworkStatusEventHandler;
 import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileListener;
@@ -33,18 +47,37 @@ import org.waveprotocol.wave.client.scheduler.Scheduler.IncrementalTask;
 import org.waveprotocol.wave.client.scheduler.Scheduler.Task;
 import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
 import org.waveprotocol.wave.client.scheduler.TimerService;
+import org.waveprotocol.wave.client.wave.SimpleDiffDoc;
 import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarButtonViewBuilder;
 import org.waveprotocol.wave.client.widget.toolbar.ToolbarView;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
+import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
+import org.waveprotocol.wave.model.document.operation.Attributes;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
+import org.waveprotocol.wave.model.document.operation.DocOp;
+import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
+import org.waveprotocol.wave.model.document.operation.impl.DocOpUtil;
 import org.waveprotocol.wave.model.document.WaveContext;
+import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.WaveId;
+import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.operation.wave.BlipContentOperation;
+import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
+import org.waveprotocol.wave.model.operation.wave.WaveletBlipOperation;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.IdentityMap;
 import org.waveprotocol.wave.model.wave.SourcesEvents;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Presents a search model into a search view.
@@ -70,6 +103,10 @@ public final class SearchPresenter
   }
 
   private static final SearchPresenterMessages messages = GWT.create(SearchPresenterMessages.class);
+  private static final Logger OT_SEARCH_LOG = Logger.getLogger(SearchPresenter.class.getName());
+  private static final String SEARCH_WAVE_PREFIX = "search~";
+  private static final String SEARCH_WAVELET_PREFIX = "search+";
+  private static final String SEARCH_DOCUMENT_ID = "main";
 
   /** How often to repeat the search query. */
   private final static int POLLING_INTERVAL_MS = 15000; // 15s
@@ -144,7 +181,27 @@ public final class SearchPresenter
   private final Search search;
   private final SearchPanelView searchUi;
   private final WaveActionHandler actionHandler;
+  private final RemoteViewServiceMultiplexer channel;
   private WaveStore waveStore;
+  private boolean otSearchEnabled;
+  private boolean useOtSearch;
+  private DocInitialization otSearchDocument;
+  private OtSearchSnapshot otSearchSnapshot = OtSearchSnapshot.empty();
+  private WaveletName otSearchWaveletName;
+  private HandlerRegistration networkStatusHandlerRegistration;
+  private final WaveWebSocketCallback otSearchUpdateHandler = new WaveWebSocketCallback() {
+    @Override
+    public void onWaveletUpdate(ProtocolWaveletUpdate message) {
+      handleOtSearchUpdate(message);
+    }
+  };
+  private final NetworkStatusEventHandler otSearchNetworkStatusHandler =
+      new NetworkStatusEventHandler() {
+        @Override
+        public void onNetworkStatus(NetworkStatusEvent event) {
+          handleOtSearchNetworkStatus(event);
+        }
+      };
 
   /** Debounce delay for digest-ready updates during editing (ms). */
   private static final int DIGEST_DEBOUNCE_MS = 1000;
@@ -188,7 +245,11 @@ public final class SearchPresenter
   private final Task waveClosedRefreshTask = new Task() {
     @Override
     public void execute() {
-      doSearch();
+      if (useOtSearch) {
+        subscribeToSearchWavelet(queryText);
+      } else {
+        doSearch();
+      }
     }
   };
 
@@ -216,12 +277,14 @@ public final class SearchPresenter
   private boolean isRenderingInProgress = false;
 
   SearchPresenter(TimerService scheduler, Search search, SearchPanelView searchUi,
-      WaveActionHandler actionHandler, SourcesEvents<ProfileListener> profiles) {
+      WaveActionHandler actionHandler, SourcesEvents<ProfileListener> profiles,
+      RemoteViewServiceMultiplexer channel) {
     this.search = search;
     this.searchUi = searchUi;
     this.scheduler = scheduler;
     this.actionHandler = actionHandler;
     this.profiles = profiles;
+    this.channel = channel;
   }
 
   /**
@@ -235,7 +298,7 @@ public final class SearchPresenter
   public static SearchPresenter create(
       Search model, SearchPanelView view, WaveActionHandler actionHandler,
       SourcesEvents<ProfileListener> profileEventsDispatcher) {
-    return create(model, view, actionHandler, profileEventsDispatcher, null);
+    return create(model, view, actionHandler, profileEventsDispatcher, null, null);
   }
 
   /**
@@ -251,9 +314,16 @@ public final class SearchPresenter
   public static SearchPresenter create(
       Search model, SearchPanelView view, WaveActionHandler actionHandler,
       SourcesEvents<ProfileListener> profileEventsDispatcher, WaveStore waveStore) {
+    return create(model, view, actionHandler, profileEventsDispatcher, waveStore, null);
+  }
+
+  public static SearchPresenter create(
+      Search model, SearchPanelView view, WaveActionHandler actionHandler,
+      SourcesEvents<ProfileListener> profileEventsDispatcher, WaveStore waveStore,
+      RemoteViewServiceMultiplexer channel) {
     SearchPresenter presenter = new SearchPresenter(
         SchedulerInstance.getHighPriorityTimer(), model, view, actionHandler,
-        profileEventsDispatcher);
+        profileEventsDispatcher, channel);
     if (waveStore != null) {
       presenter.waveStore = waveStore;
       waveStore.addListener(presenter);
@@ -282,9 +352,15 @@ public final class SearchPresenter
     profiles.addListener(this);
     searchUi.init(this);
     searchUi.getSearch().init(this);
-
-    // Fire a polling search.
-    scheduler.scheduleRepeating(searchUpdater, 0, POLLING_INTERVAL_MS);
+    otSearchEnabled = Session.get().hasFeature("ot-search") && channel != null;
+    if (otSearchEnabled) {
+      useOtSearch = true;
+      networkStatusHandlerRegistration =
+          ClientEvents.get().addNetworkStatusEventHandler(otSearchNetworkStatusHandler);
+      subscribeToSearchWavelet(queryText);
+    } else {
+      startPolling();
+    }
   }
 
   /**
@@ -302,6 +378,11 @@ public final class SearchPresenter
     if (waveStore != null) {
       waveStore.removeListener(this);
     }
+    if (networkStatusHandlerRegistration != null) {
+      networkStatusHandlerRegistration.removeHandler();
+      networkStatusHandlerRegistration = null;
+    }
+    unsubscribeFromSearchWavelet();
   }
 
   /** The current user's saved searches. */
@@ -361,7 +442,16 @@ public final class SearchPresenter
             // with a real live search implementation. The delay is to give
             // enough time for the wave state to propagate to the server.
             int delay = 500;
-            scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
+            if (useOtSearch) {
+              scheduler.scheduleDelayed(new Task() {
+                @Override
+                public void execute() {
+                  subscribeToSearchWavelet(queryText);
+                }
+              }, delay);
+            } else {
+              scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
+            }
           }
         });
     newWaveButton.setVisualElement(createSvgIcon(ICON_NEW_WAVE));
@@ -540,6 +630,10 @@ public final class SearchPresenter
     searchUi.getSearch().setQuery(queryText);
   }
 
+  private void startPolling() {
+    scheduler.scheduleRepeating(searchUpdater, 0, POLLING_INTERVAL_MS);
+  }
+
   /**
    * Executes the current search.
    */
@@ -561,7 +655,7 @@ public final class SearchPresenter
    * Renders the paging information into the title bar.
    */
   private void renderTitle() {
-    int resultEnd = querySize;
+    int resultEnd = Math.min(querySize, search.getMinimumTotal());
     String totalStr;
     if (search.getTotal() != Search.UNKNOWN_SIZE) {
       resultEnd = Math.min(resultEnd, search.getTotal());
@@ -685,15 +779,23 @@ public final class SearchPresenter
     querySize = getPageSize();
     searchUi.setTitleText(messages.searching());
     search.cancel();
-    doSearch();
-    scheduler.cancel(searchUpdater);
-    scheduler.scheduleRepeating(searchUpdater, POLLING_INTERVAL_MS, POLLING_INTERVAL_MS);
+    if (useOtSearch) {
+      subscribeToSearchWavelet(queryText);
+    } else {
+      doSearch();
+      scheduler.cancel(searchUpdater);
+      scheduler.scheduleRepeating(searchUpdater, POLLING_INTERVAL_MS, POLLING_INTERVAL_MS);
+    }
   }
 
   @Override
   public void onShowMoreClicked() {
     querySize += getPageSize();
-    doSearch();
+    if (useOtSearch) {
+      applyOtSearchResults();
+    } else {
+      doSearch();
+    }
   }
 
   //
@@ -813,7 +915,11 @@ public final class SearchPresenter
         // The updated digest is newer than the current first item — trigger
         // a full re-render via the next polling cycle so the server provides
         // the authoritative sort order.
-        doSearch();
+        if (useOtSearch) {
+          subscribeToSearchWavelet(queryText);
+        } else {
+          doSearch();
+        }
         return;
       }
     }
@@ -856,9 +962,6 @@ public final class SearchPresenter
 
   @Override
   public void onClosed(WaveContext wave) {
-    // When a wave is closed, the user may have made changes (e.g., added or
-    // removed tags) that affect search results. Schedule a search refresh
-    // after a short delay to allow the server to process the outstanding delta.
     scheduler.scheduleDelayed(waveClosedRefreshTask, WAVE_CLOSED_REFRESH_DELAY_MS);
   }
 
@@ -871,5 +974,416 @@ public final class SearchPresenter
   @Override
   public void onFolderActionCompleted(String folder) {
     forceRefresh();
+  }
+
+  private void subscribeToSearchWavelet(String query) {
+    if (!otSearchEnabled || channel == null) {
+      useOtSearch = false;
+      startPolling();
+      return;
+    }
+    try {
+      scheduler.cancel(searchUpdater);
+      unsubscribeFromSearchWavelet();
+      otSearchDocument = null;
+      otSearchSnapshot = OtSearchSnapshot.empty();
+      otSearchWaveletName = computeSearchWaveletName(Session.get().getAddress(), query);
+      useOtSearch = true;
+      Collection<WaveletId> ids = Collections.singleton(otSearchWaveletName.waveletId);
+      channel.open(otSearchWaveletName.waveId, IdFilter.of(ids, Collections.<String>emptyList()),
+          otSearchUpdateHandler);
+    } catch (RuntimeException e) {
+      fallbackToPolling("Failed to subscribe to OT search wavelet for query '" + query + "'", e);
+    }
+  }
+
+  private void unsubscribeFromSearchWavelet() {
+    if (channel == null || otSearchWaveletName == null) {
+      otSearchWaveletName = null;
+      return;
+    }
+    try {
+      channel.close(otSearchWaveletName.waveId, otSearchUpdateHandler);
+    } catch (RuntimeException e) {
+      OT_SEARCH_LOG.log(Level.WARNING, "Failed to close OT search wavelet subscription", e);
+    }
+    otSearchWaveletName = null;
+  }
+
+  private void handleOtSearchUpdate(ProtocolWaveletUpdate update) {
+    if (!useOtSearch) {
+      return;
+    }
+    try {
+      if (!RemoteViewServiceMultiplexer.deserialize(update.getWaveletName())
+          .equals(otSearchWaveletName)) {
+        return;
+      }
+      boolean changed = false;
+      if (update.hasSnapshot()) {
+        otSearchDocument = extractSearchDocument(update.getSnapshot());
+        changed = otSearchDocument != null;
+      }
+      if (update.getAppliedDeltaSize() > 0 && otSearchDocument != null) {
+        List<TransformedWaveletDelta> deltas =
+            deserializeAppliedDeltas(update.getAppliedDelta(), update.getResultingVersion());
+        changed = applyOtSearchDeltas(deltas) || changed;
+      }
+      if (changed) {
+        otSearchSnapshot = parseOtSearchSnapshot(otSearchDocument);
+        applyOtSearchResults();
+      }
+    } catch (RuntimeException e) {
+      fallbackToPolling("Failed to process OT search update for query '" + queryText + "'", e);
+    }
+  }
+
+  private boolean applyOtSearchDeltas(List<TransformedWaveletDelta> deltas) {
+    boolean changed = false;
+    for (TransformedWaveletDelta delta : deltas) {
+      for (int i = 0; i < delta.size(); i++) {
+        if (!(delta.get(i) instanceof WaveletBlipOperation)) {
+          continue;
+        }
+        WaveletBlipOperation waveletOp = (WaveletBlipOperation) delta.get(i);
+        if (!SEARCH_DOCUMENT_ID.equals(waveletOp.getBlipId())) {
+          continue;
+        }
+        if (!(waveletOp.getBlipOp() instanceof BlipContentOperation)) {
+          continue;
+        }
+        BlipContentOperation contentOperation = (BlipContentOperation) waveletOp.getBlipOp();
+        otSearchDocument = applyOtSearchDiff(otSearchDocument, contentOperation.getContentOp());
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  private void applyOtSearchResults() {
+    if (!(search instanceof SimpleSearch)) {
+      fallbackToPolling("OT search requires SimpleSearch results projection", null);
+      return;
+    }
+    int visible = Math.min(querySize, otSearchSnapshot.getDigests().size());
+    List<SearchService.DigestSnapshot> digests = new ArrayList<>(visible);
+    for (int i = 0; i < visible; i++) {
+      digests.add(otSearchSnapshot.getDigests().get(i));
+    }
+    ((SimpleSearch) search).replaceResults(otSearchSnapshot.getTotal(), digests);
+  }
+
+  private void handleOtSearchNetworkStatus(NetworkStatusEvent event) {
+    ConnectionStatus status = event.getStatus();
+    if ((status == ConnectionStatus.DISCONNECTED || status == ConnectionStatus.NEVER_CONNECTED)
+        && useOtSearch) {
+      fallbackToPolling("OT search connection dropped for query '" + queryText + "'", null);
+    } else if (status == ConnectionStatus.RECONNECTED && otSearchEnabled && !useOtSearch) {
+      subscribeToSearchWavelet(queryText);
+    }
+  }
+
+  private void fallbackToPolling(String message, Throwable cause) {
+    if (cause == null) {
+      OT_SEARCH_LOG.warning(message + "; falling back to polling");
+    } else {
+      OT_SEARCH_LOG.log(Level.WARNING, message + "; falling back to polling", cause);
+    }
+    useOtSearch = false;
+    unsubscribeFromSearchWavelet();
+    otSearchDocument = null;
+    otSearchSnapshot = OtSearchSnapshot.empty();
+    scheduler.cancel(searchUpdater);
+    startPolling();
+  }
+
+  static WaveletName computeSearchWaveletName(String address, String query) {
+    int atIndex = address.indexOf('@');
+    String localPart = atIndex >= 0 ? address.substring(0, atIndex) : address;
+    String domain = atIndex >= 0 ? address.substring(atIndex + 1) : Session.get().getDomain();
+    WaveId waveId = WaveId.of(domain, SEARCH_WAVE_PREFIX + localPart);
+    WaveletId waveletId = WaveletId.of(domain, SEARCH_WAVELET_PREFIX + md5Hex(query));
+    return WaveletName.of(waveId, waveletId);
+  }
+
+  static OtSearchSnapshot parseOtSearchSnapshot(DocInitialization document) {
+    if (document == null) {
+      return OtSearchSnapshot.empty();
+    }
+    final List<SearchService.DigestSnapshot> digests = new ArrayList<>();
+    final int[] total = {0};
+    document.apply(new DocInitializationCursor() {
+      @Override
+      public void annotationBoundary(AnnotationBoundaryMap map) {
+      }
+
+      @Override
+      public void characters(String chars) {
+      }
+
+      @Override
+      public void elementStart(String type, Attributes attrs) {
+        if ("metadata".equals(type)) {
+          total[0] = parseInt(attrs.get("total"), 0);
+          return;
+        }
+        if ("result".equals(type)) {
+          SearchService.DigestSnapshot digest = parseDigest(attrs);
+          if (digest != null) {
+            digests.add(digest);
+          }
+        }
+      }
+
+      @Override
+      public void elementEnd() {
+      }
+    });
+    if (total[0] == 0 && !digests.isEmpty()) {
+      total[0] = digests.size();
+    }
+    return new OtSearchSnapshot(total[0], digests);
+  }
+
+  static DocInitialization applyOtSearchDiff(DocInitialization document, DocOp diff) {
+    if (document == null) {
+      return DocOpUtil.asInitialization(diff);
+    }
+    return SimpleDiffDoc.create(document, diff).asOperation();
+  }
+
+  static AttributesImpl resultAttributesForTesting(String waveId, String title, String snippet,
+      long modified, String creator, int participants, int unread, int blips) {
+    return new AttributesImpl(
+        "blips", String.valueOf(blips),
+        "creator", creator,
+        "id", waveId,
+        "modified", String.valueOf(modified),
+        "participants", String.valueOf(participants),
+        "snippet", snippet,
+        "title", title,
+        "unread", String.valueOf(unread));
+  }
+
+  private static SearchService.DigestSnapshot parseDigest(Attributes attrs) {
+    try {
+      WaveId waveId = WaveId.deserialise(attrs.get("id"));
+      String creator = attrs.get("creator");
+      ParticipantId author =
+          creator != null && !creator.isEmpty() ? ParticipantId.ofUnsafe(creator) : null;
+      List<ParticipantId> participants = syntheticParticipants();
+      return new SearchService.DigestSnapshot(
+          stringValue(attrs.get("title")),
+          stringValue(attrs.get("snippet")),
+          waveId,
+          author,
+          participants,
+          parseLong(attrs.get("modified")),
+          parseInt(attrs.get("unread"), 0),
+          parseInt(attrs.get("blips"), 0));
+    } catch (RuntimeException e) {
+      OT_SEARCH_LOG.log(Level.WARNING, "Failed to parse OT search digest", e);
+      return null;
+    }
+  }
+
+  private static List<ParticipantId> syntheticParticipants() {
+    return Collections.emptyList();
+  }
+
+  private static DocInitialization extractSearchDocument(WaveletSnapshot snapshot) {
+    for (DocumentSnapshot document : snapshot.getDocument()) {
+      if (SEARCH_DOCUMENT_ID.equals(document.getDocumentId())) {
+        return DocOpUtil.asInitialization(
+            WaveletOperationSerializer.deserialize(document.getDocumentOperation()));
+      }
+    }
+    return null;
+  }
+
+  private static List<TransformedWaveletDelta> deserializeAppliedDeltas(
+      List<? extends ProtocolWaveletDelta> deltas, ProtocolHashedVersion end) {
+    if (deltas == null) {
+      return Collections.emptyList();
+    }
+    List<TransformedWaveletDelta> parsed = new ArrayList<TransformedWaveletDelta>();
+    for (int i = 0; i < deltas.size(); i++) {
+      ProtocolHashedVersion thisEnd =
+          i < deltas.size() - 1 ? deltas.get(i + 1).getHashedVersion() : end;
+      parsed.add(WaveletOperationSerializer.deserialize(deltas.get(i),
+          WaveletOperationSerializer.deserialize(thisEnd)));
+    }
+    return parsed;
+  }
+
+  private static int parseInt(String value, int defaultValue) {
+    if (value == null || value.isEmpty()) {
+      return defaultValue;
+    }
+    return Integer.parseInt(value);
+  }
+
+  private static long parseLong(String value) {
+    if (value == null || value.isEmpty()) {
+      return 0L;
+    }
+    return Long.parseLong(value);
+  }
+
+  private static String stringValue(String value) {
+    return value != null ? value : "";
+  }
+
+  private static String md5Hex(String input) {
+    byte[] message = toUtf8Bytes(input != null ? input : "");
+    int[] s = {
+        7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+        5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+        4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+        6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21
+    };
+    int[] k = new int[64];
+    for (int i = 0; i < 64; i++) {
+      k[i] = (int) (long) ((long) Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296.0));
+    }
+    int originalLength = message.length;
+    int newLength = originalLength + 1;
+    while (newLength % 64 != 56) {
+      newLength++;
+    }
+    byte[] padded = new byte[newLength + 8];
+    for (int i = 0; i < originalLength; i++) {
+      padded[i] = message[i];
+    }
+    padded[originalLength] = (byte) 0x80;
+    long bitLength = (long) originalLength * 8;
+    for (int i = 0; i < 8; i++) {
+      padded[newLength + i] = (byte) (bitLength >>> (8 * i));
+    }
+    int a0 = 0x67452301;
+    int b0 = 0xefcdab89;
+    int c0 = 0x98badcfe;
+    int d0 = 0x10325476;
+    for (int offset = 0; offset < padded.length; offset += 64) {
+      int[] m = new int[16];
+      for (int j = 0; j < 16; j++) {
+        m[j] = (padded[offset + j * 4] & 0xFF)
+            | ((padded[offset + j * 4 + 1] & 0xFF) << 8)
+            | ((padded[offset + j * 4 + 2] & 0xFF) << 16)
+            | ((padded[offset + j * 4 + 3] & 0xFF) << 24);
+      }
+      int a = a0;
+      int b = b0;
+      int c = c0;
+      int d = d0;
+      for (int i = 0; i < 64; i++) {
+        int f;
+        int g;
+        if (i < 16) {
+          f = (b & c) | (~b & d);
+          g = i;
+        } else if (i < 32) {
+          f = (d & b) | (~d & c);
+          g = (5 * i + 1) % 16;
+        } else if (i < 48) {
+          f = b ^ c ^ d;
+          g = (3 * i + 5) % 16;
+        } else {
+          f = c ^ (b | ~d);
+          g = (7 * i) % 16;
+        }
+        int temp = d;
+        d = c;
+        c = b;
+        b = b + Integer.rotateLeft(a + f + k[i] + m[g], s[i]);
+        a = temp;
+      }
+      a0 += a;
+      b0 += b;
+      c0 += c;
+      d0 += d;
+    }
+    return intToHex(a0) + intToHex(b0) + intToHex(c0) + intToHex(d0);
+  }
+
+  private static String intToHex(int value) {
+    StringBuilder builder = new StringBuilder(8);
+    for (int i = 0; i < 4; i++) {
+      int b = (value >>> (8 * i)) & 0xFF;
+      String hex = Integer.toHexString(b);
+      if (hex.length() == 1) {
+        builder.append('0');
+      }
+      builder.append(hex);
+    }
+    return builder.toString();
+  }
+
+  private static byte[] toUtf8Bytes(String value) {
+    byte[] bytes = new byte[utf8Length(value)];
+    int offset = 0;
+    for (int i = 0; i < value.length(); ) {
+      int codePoint = value.codePointAt(i);
+      if (codePoint <= 0x7F) {
+        bytes[offset++] = (byte) codePoint;
+      } else if (codePoint <= 0x7FF) {
+        bytes[offset++] = (byte) (0xC0 | (codePoint >>> 6));
+        bytes[offset++] = (byte) (0x80 | (codePoint & 0x3F));
+      } else if (codePoint <= 0xFFFF) {
+        bytes[offset++] = (byte) (0xE0 | (codePoint >>> 12));
+        bytes[offset++] = (byte) (0x80 | ((codePoint >>> 6) & 0x3F));
+        bytes[offset++] = (byte) (0x80 | (codePoint & 0x3F));
+      } else {
+        bytes[offset++] = (byte) (0xF0 | (codePoint >>> 18));
+        bytes[offset++] = (byte) (0x80 | ((codePoint >>> 12) & 0x3F));
+        bytes[offset++] = (byte) (0x80 | ((codePoint >>> 6) & 0x3F));
+        bytes[offset++] = (byte) (0x80 | (codePoint & 0x3F));
+      }
+      i += Character.charCount(codePoint);
+    }
+    return bytes;
+  }
+
+  private static int utf8Length(String value) {
+    int length = 0;
+    for (int i = 0; i < value.length(); ) {
+      int codePoint = value.codePointAt(i);
+      if (codePoint <= 0x7F) {
+        length += 1;
+      } else if (codePoint <= 0x7FF) {
+        length += 2;
+      } else if (codePoint <= 0xFFFF) {
+        length += 3;
+      } else {
+        length += 4;
+      }
+      i += Character.charCount(codePoint);
+    }
+    return length;
+  }
+
+  static final class OtSearchSnapshot {
+    private static final OtSearchSnapshot EMPTY =
+        new OtSearchSnapshot(0, Collections.<SearchService.DigestSnapshot>emptyList());
+
+    private final int total;
+    private final List<SearchService.DigestSnapshot> digests;
+
+    static OtSearchSnapshot empty() {
+      return EMPTY;
+    }
+
+    OtSearchSnapshot(int total, List<SearchService.DigestSnapshot> digests) {
+      this.total = total;
+      this.digests = Collections.unmodifiableList(new ArrayList<>(digests));
+    }
+
+    int getTotal() {
+      return total;
+    }
+
+    List<SearchService.DigestSnapshot> getDigests() {
+      return digests;
+    }
   }
 }

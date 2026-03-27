@@ -34,6 +34,7 @@ public enum TokenQueryType {
   CREATOR("creator"),
   ID("id"),
   TAG("tag"),
+  UNREAD("unread"),
   CONTENT("content"),
   TITLE("title"),
   ;

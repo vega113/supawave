@@ -21,6 +21,7 @@ package org.waveprotocol.wave.client.wavepanel.impl.focus;
 import junit.framework.TestCase;
 
 import org.mockito.Mockito;
+import org.waveprotocol.wave.client.wavepanel.impl.reader.Reader;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.model.conversation.Conversation;
@@ -73,5 +74,62 @@ public final class FocusBlipSelectorTest extends TestCase {
     BlipView selected = selector.selectBlipByWaveRef(WaveRef.of(waveId, waveletId, "b+1"));
 
     assertSame(blipView, selected);
+  }
+
+  public void testSelectInitialBlipPrefersLastUnreadBlipForPlainWaveRef() {
+    ConversationView wave = Mockito.mock(ConversationView.class);
+    ModelAsViewProvider views = Mockito.mock(ModelAsViewProvider.class);
+    Reader reader = Mockito.mock(Reader.class);
+    ViewTraverser traverser = Mockito.mock(ViewTraverser.class);
+    Conversation conversation = Mockito.mock(Conversation.class);
+    ConversationThread rootThread = Mockito.mock(ConversationThread.class);
+    ConversationBlip rootBlip = Mockito.mock(ConversationBlip.class);
+    BlipView rootBlipView = Mockito.mock(BlipView.class);
+    BlipView unreadOne = Mockito.mock(BlipView.class);
+    BlipView unreadTwo = Mockito.mock(BlipView.class);
+
+    Mockito.when(wave.getRoot()).thenReturn(conversation);
+    Mockito.when(conversation.getRootThread()).thenReturn(rootThread);
+    Mockito.when(rootThread.getFirstBlip()).thenReturn(rootBlip);
+    Mockito.when(views.getBlipView(rootBlip)).thenReturn(rootBlipView);
+    Mockito.when(reader.isRead(rootBlipView)).thenReturn(true);
+    Mockito.when(reader.getNext(rootBlipView)).thenReturn(unreadOne);
+    Mockito.when(reader.getNext(unreadOne)).thenReturn(unreadTwo);
+    Mockito.when(reader.getNext(unreadTwo)).thenReturn(null);
+
+    FocusBlipSelector selector = FocusBlipSelector.create(wave, views, reader, traverser);
+
+    BlipView selected = selector.selectInitialBlip(WaveRef.of(WaveId.of("local.net", "w+abc")));
+
+    assertSame(unreadTwo, selected);
+  }
+
+  public void testSelectInitialBlipFallsBackToLastBlipWhenNoUnreadExists() {
+    ConversationView wave = Mockito.mock(ConversationView.class);
+    ModelAsViewProvider views = Mockito.mock(ModelAsViewProvider.class);
+    Reader reader = Mockito.mock(Reader.class);
+    ViewTraverser traverser = Mockito.mock(ViewTraverser.class);
+    Conversation conversation = Mockito.mock(Conversation.class);
+    ConversationThread rootThread = Mockito.mock(ConversationThread.class);
+    ConversationBlip rootBlip = Mockito.mock(ConversationBlip.class);
+    BlipView rootBlipView = Mockito.mock(BlipView.class);
+    org.waveprotocol.wave.client.wavepanel.view.ConversationView conversationView =
+        Mockito.mock(org.waveprotocol.wave.client.wavepanel.view.ConversationView.class);
+    BlipView lastBlipView = Mockito.mock(BlipView.class);
+
+    Mockito.when(wave.getRoot()).thenReturn(conversation);
+    Mockito.when(conversation.getRootThread()).thenReturn(rootThread);
+    Mockito.when(rootThread.getFirstBlip()).thenReturn(rootBlip);
+    Mockito.when(views.getBlipView(rootBlip)).thenReturn(rootBlipView);
+    Mockito.when(reader.isRead(rootBlipView)).thenReturn(true);
+    Mockito.when(reader.getNext(rootBlipView)).thenReturn(null);
+    Mockito.when(views.getConversationView(conversation)).thenReturn(conversationView);
+    Mockito.when(traverser.getLast(conversationView)).thenReturn(lastBlipView);
+
+    FocusBlipSelector selector = FocusBlipSelector.create(wave, views, reader, traverser);
+
+    BlipView selected = selector.selectInitialBlip(WaveRef.of(WaveId.of("local.net", "w+abc")));
+
+    assertSame(lastBlipView, selected);
   }
 }

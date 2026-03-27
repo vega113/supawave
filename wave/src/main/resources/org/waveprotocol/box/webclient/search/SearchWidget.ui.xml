@@ -79,6 +79,10 @@
              <td>Waves with a specific tag</td>
            </tr>
            <tr>
+             <td><code>unread:true</code></td>
+             <td>Only waves with unread blips</td>
+           </tr>
+           <tr>
              <td><code>title:text</code></td>
              <td>Waves whose title contains text</td>
            </tr>
@@ -88,7 +92,7 @@
            </tr>
            <tr>
              <td><em>free text</em></td>
-             <td>Search in wave content</td>
+             <td>Implicit <code>content:</code> search in wave content</td>
            </tr>
          </table>
        </div>
@@ -126,7 +130,7 @@
          </table>
          <div class='{css.helpSectionTitle}' style='margin-top:10px'>Combining</div>
          <div class='{css.helpCombiningText}'>
-           Filters can be combined freely. The default sort is <code>orderby:datedesc</code> (newest first).
+           Filters can be combined freely. Plain text searches content: <code>hello world</code> finds waves containing those words. The default sort is <code>orderby:datedesc</code> (newest first).
          </div>
        </div>
      </div>
@@ -141,6 +145,7 @@
        <span ui:field='exPublic' class='{css.helpExample}'>with:@</span>
        <span ui:field='exCreator' class='{css.helpExample}'>creator:bob</span>
        <span ui:field='exTag' class='{css.helpExample}'>tag:important</span>
+       <span ui:field='exUnread' class='{css.helpExample}'>unread:true</span>
        <span ui:field='exFreeText' class='{css.helpExample}'>meeting notes</span>
        <span ui:field='exInboxTag' class='{css.helpExample}'>in:inbox tag:important</span>
        <span ui:field='exAllOldest' class='{css.helpExample}'>in:all orderby:createdasc</span>

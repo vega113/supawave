@@ -26,10 +26,14 @@ import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.SpanElement;
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyUpEvent;
+import com.google.gwt.event.dom.client.KeyUpHandler;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTMLPanel;
@@ -45,7 +49,7 @@ import org.waveprotocol.wave.client.common.util.QuirksConstants;
  *
  * @author hearnden@google.com (David Hearnden)
  */
-public class SearchWidget extends Composite implements SearchView, ChangeHandler {
+public class SearchWidget extends Composite implements SearchView, ChangeHandler, KeyUpHandler {
 
   /** Resources used by this widget. */
   interface Resources extends ClientBundle {
@@ -83,10 +87,11 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   private final static Binder BINDER = GWT.create(Binder.class);
 
-  private final static String DEFAULT_QUERY = "in:inbox";
+  private String lastSubmittedQuery;
+  private boolean suppressNextChange;
 
-  @UiField
-  TextBox query;
+  @UiField(provided = true)
+  final InputAwareTextBox query = new InputAwareTextBox();
   @UiField
   Element helpButton;
   @UiField
@@ -111,6 +116,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   SpanElement exCreator;
   @UiField
   SpanElement exTag;
+  @UiField
+  SpanElement exUnread;
   @UiField
   SpanElement exFreeText;
   @UiField
@@ -141,6 +148,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       query.getElement().setAttribute("autosave", "QUERY_AUTO_SAVE");
     }
     query.addChangeHandler(this);
+    query.addKeyUpHandler(this);
+    query.sinkBitlessEvent("input");
     initHelpPanel();
   }
 
@@ -192,6 +201,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     wireExample(exPublic);
     wireExample(exCreator);
     wireExample(exTag);
+    wireExample(exUnread);
     wireExample(exFreeText);
     wireExample(exInboxTag);
     wireExample(exAllOldest);
@@ -213,7 +223,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
         query.setValue(example.getInnerText());
         helpPanel.getStyle().setProperty("display", "none");
         helpBackdrop.getStyle().setProperty("display", "none");
-        onQuery();
+        submitQuery(query.getValue());
       }
     });
   }
@@ -238,21 +248,102 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   @Override
   public void setQuery(String text) {
-    query.setValue(text);
+    if (!shouldDeferDefaultQueryUpdate(text)) {
+      if (SearchWidgetQueryState.shouldClearDeferredDefaultQueryUpdate(
+          suppressNextChange, text)) {
+        lastSubmittedQuery = null;
+        suppressNextChange = false;
+      }
+      query.setValue(text);
+    }
   }
 
   @Override
   public void onChange(ChangeEvent event) {
-    if (query.getValue() == null || query.getValue().trim().isEmpty()) {
-      query.setValue(DEFAULT_QUERY);
+    String currentQuery = query.getValue();
+    if (shouldCommitDeferredDefault(currentQuery)) {
+      return;
     }
+    if (shouldSubmitQuery(currentQuery)) {
+      submitQuery(currentQuery);
+    }
+  }
+
+  @Override
+  public void onKeyUp(KeyUpEvent event) {
+    if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
+      String currentQuery = SearchPresenter.normalizeSearchQuery(query.getValue());
+      if (shouldSubmitQuery(currentQuery)) {
+        submitQuery(currentQuery);
+      }
+    }
+  }
+
+  private void submitQuery(String rawQuery) {
+    String submittedQuery = SearchPresenter.normalizeSearchQuery(rawQuery);
+    lastSubmittedQuery = submittedQuery;
+    suppressNextChange = SearchPresenter.DEFAULT_SEARCH.equals(submittedQuery);
     onQuery();
   }
-  
+
+  private void handleInputEvent() {
+    String currentQuery = query.getValue();
+    if (isBlank(currentQuery)) {
+      String normalizedQuery = SearchPresenter.normalizeSearchQuery(currentQuery);
+      if (shouldSubmitQuery(normalizedQuery)) {
+        submitQuery(normalizedQuery);
+      }
+    } else {
+      suppressNextChange = false;
+      lastSubmittedQuery = null;
+    }
+  }
+
+  private boolean isBlank(String text) {
+    return text == null || text.trim().isEmpty();
+  }
+
+  static boolean shouldSubmitQuery(
+      String queryText, boolean suppressNextChange, String lastSubmittedQuery) {
+    String normalizedQuery = SearchPresenter.normalizeSearchQuery(queryText);
+    boolean sameAsLastSubmission = normalizedQuery.equals(lastSubmittedQuery);
+    boolean deferredDefaultSubmission =
+        suppressNextChange && SearchPresenter.DEFAULT_SEARCH.equals(normalizedQuery);
+    return !sameAsLastSubmission && !deferredDefaultSubmission;
+  }
+
+  private boolean shouldSubmitQuery(String queryText) {
+    return shouldSubmitQuery(queryText, suppressNextChange, lastSubmittedQuery);
+  }
+
+  private boolean shouldCommitDeferredDefault(String queryText) {
+    boolean commitDeferredDefault = suppressNextChange && isBlank(queryText);
+    if (commitDeferredDefault) {
+      query.setValue(SearchPresenter.DEFAULT_SEARCH);
+      suppressNextChange = false;
+      lastSubmittedQuery = null;
+    }
+    return commitDeferredDefault;
+  }
+
+  private boolean shouldDeferDefaultQueryUpdate(String text) {
+    return suppressNextChange && SearchPresenter.DEFAULT_SEARCH.equals(text);
+  }
+
   private void onQuery() {
     if (listener != null) {
       listener.onQueryEntered();
     }
   }
-  
+
+  private final class InputAwareTextBox extends TextBox {
+
+    @Override
+    public void onBrowserEvent(Event event) {
+      super.onBrowserEvent(event);
+      if ("input".equals(DOM.eventGetTypeString(event))) {
+        handleInputEvent();
+      }
+    }
+  }
 }

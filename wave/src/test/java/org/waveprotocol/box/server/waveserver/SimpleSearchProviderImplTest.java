@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.collect.Maps;
 import com.google.wave.api.SearchResult;
+import com.google.wave.api.SearchResult.Digest;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -40,6 +41,7 @@ import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
+import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl.WaveSupplementContext;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignedDelta;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
@@ -59,6 +61,9 @@ import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionZeroFactoryImpl;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
+import org.waveprotocol.wave.model.wave.data.WaveViewData;
+import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 
 import java.util.Arrays;
@@ -532,7 +537,110 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(0, results.getNumResults());
   }
 
+  public void testSearchFilterByImplicitContentWorks() throws Exception {
+    WaveletName matchingWave = WaveletName.of(WaveId.of(DOMAIN, "matching"), WAVELET_ID);
+    WaveletName partialWave = WaveletName.of(WaveId.of(DOMAIN, "partial"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(matchingWave, USER1, addParticipantToWavelet(USER1, matchingWave));
+    appendBlipToWavelet(matchingWave, USER1, "b+matching", "meeting notes and action items");
+
+    submitDeltaToNewWavelet(partialWave, USER1, addParticipantToWavelet(USER1, partialWave));
+    appendBlipToWavelet(partialWave, USER1, "b+partial", "meeting recap only");
+
+    SearchResult results = searchProvider.search(USER1, "in:inbox meeting notes", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("matching",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchFilterByUnreadWorks() throws Exception {
+    WaveletName unreadWave = WaveletName.of(WaveId.of(DOMAIN, "unread"), WAVELET_ID);
+    WaveletName readWave = WaveletName.of(WaveId.of(DOMAIN, "read"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(unreadWave, USER1, addParticipantToWavelet(USER1, unreadWave));
+    appendBlipToWavelet(unreadWave, USER1, "b+unread", "project update");
+
+    submitDeltaToNewWavelet(readWave, USER1, addParticipantToWavelet(USER1, readWave));
+    appendBlipToWavelet(readWave, USER1, "b+read", "project update");
+
+    SearchProvider unreadFilterProvider =
+        newUnreadAwareSearchProvider(ImmutableMap.of("read", 0, "unread", 2));
+
+    SearchResult results = unreadFilterProvider.search(USER1, "in:inbox unread:true", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("unread",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchFilterByUnreadAppliesBeforePagination() throws Exception {
+    WaveletName readFirst = WaveletName.of(WaveId.of(DOMAIN, "read-first"), WAVELET_ID);
+    WaveletName unreadLater = WaveletName.of(WaveId.of(DOMAIN, "unread-later"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(readFirst, USER1, addParticipantToWavelet(USER1, readFirst));
+    appendBlipToWavelet(readFirst, USER1, "b+read-first", "project update");
+
+    waitForDistinctTimestamp();
+
+    submitDeltaToNewWavelet(unreadLater, USER1, addParticipantToWavelet(USER1, unreadLater));
+    appendBlipToWavelet(unreadLater, USER1, "b+unread-later", "project update");
+
+    SearchProvider unreadFilterProvider =
+        newUnreadAwareSearchProvider(ImmutableMap.of("read-first", 0, "unread-later", 2));
+
+    SearchResult firstPage = unreadFilterProvider.search(
+        USER1, "in:inbox unread:true orderby:createdasc", 0, 1);
+    assertEquals(1, firstPage.getNumResults());
+    assertEquals("unread-later",
+        WaveId.deserialise(firstPage.getDigests().get(0).getWaveId()).getId());
+    assertEquals(1, firstPage.getTotalResults());
+
+    SearchResult secondPage = unreadFilterProvider.search(
+        USER1, "in:inbox unread:true orderby:createdasc", 1, 1);
+    assertEquals(0, secondPage.getNumResults());
+    assertEquals(1, secondPage.getTotalResults());
+  }
+
+  public void testSearchFilterByUnreadCombinesWithContent() throws Exception {
+    WaveletName unreadWave = WaveletName.of(WaveId.of(DOMAIN, "unread-match"), WAVELET_ID);
+    WaveletName readWave = WaveletName.of(WaveId.of(DOMAIN, "read-match"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(unreadWave, USER1, addParticipantToWavelet(USER1, unreadWave));
+    appendBlipToWavelet(unreadWave, USER1, "b+unread", "sprint retro");
+
+    submitDeltaToNewWavelet(readWave, USER1, addParticipantToWavelet(USER1, readWave));
+    appendBlipToWavelet(readWave, USER1, "b+read", "sprint retro");
+
+    SearchProvider unreadFilterProvider =
+        newUnreadAwareSearchProvider(ImmutableMap.of("read-match", 0, "unread-match", 1));
+
+    SearchResult results =
+        unreadFilterProvider.search(USER1, "in:inbox unread:true sprint", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("unread-match",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
   // *** Helpers
+
+  private SearchProvider newUnreadAwareSearchProvider(final Map<String, Integer> unreadCounts) {
+    ConversationUtil conversationUtil = new ConversationUtil(idGenerator);
+    WaveDigester digester = new WaveDigester(conversationUtil) {
+      @Override
+      int getUnreadCount(WaveSupplementContext context,
+          Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+        String waveId = context.convWavelet.getWaveId().getId();
+        Integer unreadCount = unreadCounts.get(waveId);
+        if (unreadCount == null) {
+          return super.getUnreadCount(context, waveletAdapters);
+        }
+        return unreadCount.intValue();
+      }
+    };
+    return new SimpleSearchProviderImpl(DOMAIN, digester, waveMap, waveViewProvider);
+  }
 
   private void submitDeltaToNewWavelet(WaveletName name, ParticipantId user,
       WaveletOperation... ops) throws Exception {

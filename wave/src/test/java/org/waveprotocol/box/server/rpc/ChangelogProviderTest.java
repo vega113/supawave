@@ -123,7 +123,7 @@ public final class ChangelogProviderTest {
 
     assertEquals(0, exitCode);
     assertTrue(output, output.contains("2026-03-27"));
-    assertTrue(output, output.contains("Changelog System"));
+    assertTrue(output, output.contains("Search and Discovery"));
   }
 
   private static String javaBinary() {

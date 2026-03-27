@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.wave.api.SearchResult.Digest;
 
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.wave.model.id.IdConstants;
@@ -40,8 +41,10 @@ import org.waveprotocol.wave.model.wave.data.impl.WaveViewDataImpl;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -174,6 +177,25 @@ public abstract class AbstractSearchProviderImpl implements SearchProvider {
     for (WaveId waveId : waveIds) {
       Set<WaveletId> waveletIds = currentUserWavesView.get(waveId);
       waveletIds.add(udw);
+    }
+  }
+
+  protected void filterByUnreadState(List<WaveViewData> results, ParticipantId user,
+      Map<WaveId, Digest> digestCache) {
+    Iterator<WaveViewData> it = results.iterator();
+    while (it.hasNext()) {
+      WaveViewData wave = it.next();
+      try {
+        Digest digest = digester.build(user, wave);
+        if (digest.getUnreadCount() <= 0) {
+          it.remove();
+        } else if (digestCache != null) {
+          digestCache.put(wave.getWaveId(), digest);
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check unread state for wave " + wave.getWaveId(), e);
+        it.remove();
+      }
     }
   }
 }

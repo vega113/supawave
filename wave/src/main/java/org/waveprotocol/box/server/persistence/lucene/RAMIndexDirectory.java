@@ -19,7 +19,7 @@
 package org.waveprotocol.box.server.persistence.lucene;
 
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.waveprotocol.box.server.waveserver.IndexException;
 
 /**
@@ -29,7 +29,7 @@ import org.waveprotocol.box.server.waveserver.IndexException;
  */
 public class RAMIndexDirectory implements IndexDirectory {
 
-  private final Directory directory =  new RAMDirectory();
+  private final Directory directory = new ByteBuffersDirectory();
 
   @Override
   public Directory getDirectory() throws IndexException {

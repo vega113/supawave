@@ -22,6 +22,7 @@ package org.waveprotocol.box.server.waveserver;
 import com.google.common.base.Function;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
+import com.google.wave.api.SearchResult.Digest;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -48,6 +49,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -121,15 +123,24 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     LOG.fine("Search query '" + query + "' from user: " + user + " [" + startAt + ", "
         + ((startAt + numResults) - 1) + "]");
 
+    Map<TokenQueryType, Set<String>> queryParams;
+    try {
+      queryParams = QueryHelper.parseQuery(query);
+    } catch (QueryHelper.InvalidQueryException e) {
+      LOG.warning("Invalid Query. " + e.getMessage());
+      return digester.generateSearchResult(user, query, null);
+    }
+
     // Maybe should be changed in case other folders in addition to 'inbox' are
     // added.
     final boolean isAllQuery = isAllQuery(query);
+    final boolean isUnreadOnlyQuery = queryParams.containsKey(TokenQueryType.UNREAD);
 
     LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView = LinkedHashMultimap.create();
 
     if (numResults > 0) {
 
-      int start = startAt;
+      int start = isUnreadOnlyQuery ? 0 : startAt;
       int rows = Math.max(numResults, ROWS);
 
       /*-
@@ -165,9 +176,17 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     List<WaveViewData> resultsList = Lists.newArrayList(results.values());
 
     // Solr does not index tags, so perform post-filtering for tag: queries.
-    Set<String> tagValues = extractTagValues(query);
+    Set<String> tagValues = queryParams.containsKey(TokenQueryType.TAG)
+        ? queryParams.get(TokenQueryType.TAG)
+        : Collections.<String>emptySet();
     if (!tagValues.isEmpty()) {
       filterByTags(resultsList, tagValues);
+    }
+
+    Map<WaveId, Digest> unreadDigestCache = null;
+    if (isUnreadOnlyQuery) {
+      unreadDigestCache = new LinkedHashMap<WaveId, Digest>();
+      filterByUnreadState(resultsList, user, unreadDigestCache);
     }
 
     Collection<WaveViewData> searchResult =
@@ -175,7 +194,9 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     LOG.info("Search response to '" + query + "': " + searchResult.size() + " results, user: "
         + user);
 
-    return digester.generateSearchResult(user, query, searchResult);
+    return unreadDigestCache == null
+        ? digester.generateSearchResult(user, query, searchResult)
+        : digester.generateSearchResult(user, query, searchResult, unreadDigestCache);
   }
 
   private LinkedHashMap<WaveId, WaveViewData> createResults(final ParticipantId user,
@@ -247,8 +268,14 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   }
 
   private static final Pattern TAG_PATTERN = Pattern.compile("\\btag:(\\S+)");
+  private static final Pattern UNREAD_PATTERN = Pattern.compile("(^|\\s)unread:\\S+(?=\\s|$)");
 
   private static final Pattern IN_ALL_PATTERN = Pattern.compile("\\bin:all\\b");
+
+  static String stripUnreadFilterTokens(String query) {
+    String cleanedQuery = UNREAD_PATTERN.matcher(query).replaceAll("$1");
+    return cleanedQuery.replaceAll("\\s{2,}", " ").trim();
+  }
 
   private static boolean isAllQuery(String query) {
     // The query is an "all" query if there is no 'in:' filter, or if
@@ -259,6 +286,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {
     // Strip tag: tokens from the Solr query since they are handled by post-filtering.
     String cleanedQuery = TAG_PATTERN.matcher(query).replaceAll("").trim();
+    cleanedQuery = stripUnreadFilterTokens(cleanedQuery);
     return cleanedQuery.replaceAll(WORD_START + TokenQueryType.IN.getToken() + ":", IN + ":")
         .replaceAll(WORD_START + TokenQueryType.WITH.getToken() + ":@",
             WITH + ":" + sharedDomainParticipantId.getAddress())
@@ -284,21 +312,6 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
       }
     }
     return fq;
-  }
-
-  /**
-   * Extracts tag filter values from the raw query string.
-   *
-   * @param query the raw search query
-   * @return a set of tag names, empty if none
-   */
-  private static Set<String> extractTagValues(String query) {
-    Set<String> tags = new HashSet<>();
-    java.util.regex.Matcher m = TAG_PATTERN.matcher(query);
-    while (m.find()) {
-      tags.add(m.group(1));
-    }
-    return tags;
   }
 
   /**

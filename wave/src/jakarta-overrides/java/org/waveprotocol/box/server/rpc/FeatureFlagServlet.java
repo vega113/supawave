@@ -19,10 +19,14 @@
 package org.waveprotocol.box.server.rpc;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
@@ -38,9 +42,9 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * REST API servlet for feature flag management.
@@ -56,21 +60,25 @@ import java.util.Set;
 @SuppressWarnings("serial")
 public final class FeatureFlagServlet extends HttpServlet {
   private static final Log LOG = Log.get(FeatureFlagServlet.class);
+  private static final int MAX_REQUEST_BODY_CHARS = 4096;
 
   private final FeatureFlagStore store;
   private final FeatureFlagService service;
   private final SessionManager sessionManager;
   private final AccountStore accountStore;
+  private final String waveDomain;
 
   @Inject
   public FeatureFlagServlet(FeatureFlagStore store,
                             FeatureFlagService service,
                             SessionManager sessionManager,
-                            AccountStore accountStore) {
+                            AccountStore accountStore,
+                            @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String waveDomain) {
     this.store = store;
     this.service = service;
     this.sessionManager = sessionManager;
     this.accountStore = accountStore;
+    this.waveDomain = waveDomain;
   }
 
   @Override
@@ -150,31 +158,32 @@ public final class FeatureFlagServlet extends HttpServlet {
   // =========================================================================
 
   private void handleSave(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    String body = readBody(req);
-    String name = extractJsonField(body, "name");
-    if (name == null || name.trim().isEmpty()) {
+    JSONObject body = parseJsonBody(req, resp);
+    if (body == null) {
+      return;
+    }
+    String name = body.optString("name", "").trim();
+    if (name.isEmpty()) {
       sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Flag name is required");
       return;
     }
-    name = name.trim();
-    // Validate flag name: alphanumeric, dots, hyphens, underscores only
     if (!name.matches("[a-zA-Z0-9._-]+")) {
       sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST,
           "Flag name may only contain letters, digits, dots, hyphens, and underscores");
       return;
     }
-    String description = extractJsonField(body, "description");
-    if (description == null) description = "";
-    boolean enabled = "true".equals(extractJsonField(body, "enabled"));
-    String allowedUsersStr = extractJsonField(body, "allowedUsers");
-    Set<String> allowedUsers = parseAllowedUsers(allowedUsersStr);
+    String description = body.optString("description", "");
 
     try {
+      boolean enabled = readBoolean(body.opt("enabled"), false, "enabled");
+      Map<String, Boolean> allowedUsers = parseAllowedUsers(body.opt("allowedUsers"));
       FeatureFlag flag = new FeatureFlag(name, description.trim(), enabled, allowedUsers);
       store.save(flag);
       service.refreshCache();
       setJsonUtf8(resp);
       resp.getWriter().write("{\"ok\":true}");
+    } catch (IllegalArgumentException e) {
+      sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
     } catch (PersistenceException e) {
       LOG.severe("Failed to save feature flag: " + name, e);
       sendJsonError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
@@ -243,24 +252,15 @@ public final class FeatureFlagServlet extends HttpServlet {
   // Helpers
   // =========================================================================
 
-  private static Set<String> parseAllowedUsers(String csv) {
-    Set<String> result = new LinkedHashSet<>();
-    if (csv == null || csv.trim().isEmpty()) return result;
-    for (String part : csv.split(",")) {
-      String trimmed = part.trim();
-      if (!trimmed.isEmpty()) {
-        result.add(trimmed);
-      }
-    }
-    return result;
-  }
-
   private static void writeFlagJson(PrintWriter w, FeatureFlag flag) {
-    w.append("{\"name\":").append(jsonStr(flag.getName()));
-    w.append(",\"description\":").append(jsonStr(flag.getDescription()));
-    w.append(",\"enabled\":").append(String.valueOf(flag.isEnabled()));
-    w.append(",\"allowedUsers\":").append(jsonStr(String.join(",", flag.getAllowedUsers())));
-    w.append('}');
+    JSONObject json = new JSONObject();
+    json.put("name", flag.getName());
+    json.put("description", flag.getDescription());
+    json.put("enabled", flag.isEnabled());
+    json.put(
+        "allowedUsers",
+        String.join(",", FeatureFlag.toStoredAllowedUsers(flag.getAllowedUsers())));
+    w.append(json.toString());
   }
 
   private static String readBody(HttpServletRequest req) throws IOException {
@@ -270,35 +270,148 @@ public final class FeatureFlagServlet extends HttpServlet {
     BufferedReader reader = req.getReader();
     while ((n = reader.read(buf)) != -1) {
       sb.append(buf, 0, n);
-      if (sb.length() > 4096) break;
+      if (sb.length() > MAX_REQUEST_BODY_CHARS) {
+        throw new RequestBodyTooLargeException();
+      }
     }
     return sb.toString();
   }
 
   /**
-   * Crude JSON field extractor for simple {"key":"value"} bodies.
+   * Parses a JSON request body and reports invalid JSON as a 400 response.
    */
-  private static String extractJsonField(String json, String field) {
-    if (json == null) return null;
-    String key = "\"" + field + "\"";
-    int idx = json.indexOf(key);
-    if (idx < 0) return null;
-    int colon = json.indexOf(':', idx + key.length());
-    if (colon < 0) return null;
-    // Skip whitespace after colon
-    int pos = colon + 1;
-    while (pos < json.length() && json.charAt(pos) == ' ') pos++;
-    if (pos >= json.length()) return null;
-    char ch = json.charAt(pos);
-    // Handle boolean / non-string values
-    if (ch == 't') return "true";
-    if (ch == 'f') return "false";
-    if (ch == 'n') return null;
-    // Handle string values
-    if (ch != '"') return null;
-    int qEnd = json.indexOf('"', pos + 1);
-    if (qEnd < 0) return null;
-    return json.substring(pos + 1, qEnd);
+  private JSONObject parseJsonBody(HttpServletRequest req, HttpServletResponse resp)
+      throws IOException {
+    try {
+      return new JSONObject(readBody(req));
+    } catch (RequestBodyTooLargeException e) {
+      sendJsonError(resp, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+          "Request body too large");
+      return null;
+    } catch (RuntimeException e) {
+      sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body");
+      return null;
+    }
+  }
+
+  private Map<String, Boolean> parseAllowedUsers(Object rawAllowedUsers) {
+    Map<String, Boolean> allowedUsers = new LinkedHashMap<>();
+    if (rawAllowedUsers == null || JSONObject.NULL.equals(rawAllowedUsers)) {
+      return allowedUsers;
+    }
+    if (rawAllowedUsers instanceof JSONArray array) {
+      for (int i = 0; i < array.length(); i++) {
+        Object value = array.opt(i);
+        if (value instanceof JSONObject userJson) {
+          putAllowedUser(
+              allowedUsers,
+              normalizeAllowedUserEmail(userJson.optString("email", null)),
+              readAllowedUserEnabled(userJson));
+        } else if (value instanceof String userString) {
+          addAllowedUserString(allowedUsers, userString);
+        } else {
+          throw unexpectedAllowedUsersElement(i, value);
+        }
+      }
+      return allowedUsers;
+    }
+    if (rawAllowedUsers instanceof String csv) {
+      for (String part : csv.split(",")) {
+        addAllowedUserString(allowedUsers, part);
+      }
+      return allowedUsers;
+    }
+    throw new IllegalArgumentException("allowedUsers must be a JSONArray or CSV string");
+  }
+
+  private static boolean readBoolean(Object rawValue, boolean defaultValue, String fieldName) {
+    if (rawValue == null || rawValue == JSONObject.NULL) {
+      return defaultValue;
+    }
+    if (rawValue instanceof Boolean booleanValue) {
+      return booleanValue;
+    }
+    if (rawValue instanceof String stringValue) {
+      String normalized = stringValue.trim();
+      if ("true".equalsIgnoreCase(normalized)) {
+        return true;
+      }
+      if ("false".equalsIgnoreCase(normalized)) {
+        return false;
+      }
+    }
+    throw new IllegalArgumentException(fieldName + " must be a boolean");
+  }
+
+  private static boolean readAllowedUserEnabled(JSONObject userJson) {
+    return readBoolean(userJson.opt("enabled"), true, "allowedUsers.enabled");
+  }
+
+  private static IllegalArgumentException unexpectedAllowedUsersElement(int index, Object value) {
+    String type = value == null
+        ? "null"
+        : value == JSONObject.NULL
+            ? "JSONObject.NULL"
+            : value.getClass().getName();
+    String message =
+        "FeatureFlagServlet allowedUsers parsing: unexpected element at index "
+            + index
+            + " of type "
+            + type;
+    LOG.warning(message);
+    return new IllegalArgumentException(message);
+  }
+
+  private void addAllowedUserString(Map<String, Boolean> allowedUsers, String rawUser) {
+    if (rawUser == null) {
+      return;
+    }
+    String trimmed = rawUser.trim();
+    if (trimmed.isEmpty()) {
+      return;
+    }
+    int atIndex = trimmed.lastIndexOf('@');
+    int suffixIndex = trimmed.lastIndexOf(':');
+    if (suffixIndex > atIndex && trimmed.endsWith(":enabled")) {
+      putAllowedUser(
+          allowedUsers,
+          normalizeAllowedUserEmail(trimmed.substring(0, trimmed.length() - ":enabled".length())),
+          true);
+      return;
+    }
+    if (suffixIndex > atIndex && trimmed.endsWith(":disabled")) {
+      putAllowedUser(
+          allowedUsers,
+          normalizeAllowedUserEmail(trimmed.substring(0, trimmed.length() - ":disabled".length())),
+          false);
+      return;
+    }
+    putAllowedUser(allowedUsers, normalizeAllowedUserEmail(trimmed), true);
+  }
+
+  private String normalizeAllowedUserEmail(String rawUser) {
+    if (rawUser == null) {
+      return null;
+    }
+    String trimmed = rawUser.trim();
+    if (trimmed.isEmpty()) {
+      return null;
+    }
+    if (trimmed.contains("@")) {
+      return trimmed;
+    }
+    return trimmed + "@" + waveDomain;
+  }
+
+  private static void putAllowedUser(
+      Map<String, Boolean> allowedUsers, String email, boolean enabled) {
+    if (email == null || email.isEmpty()) {
+      return;
+    }
+    allowedUsers.put(email, enabled);
+  }
+
+  private static final class RequestBodyTooLargeException extends IOException {
   }
 
   private static void setJsonUtf8(HttpServletResponse resp) {

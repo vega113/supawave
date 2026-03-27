@@ -24,7 +24,6 @@ import com.google.inject.Singleton;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,7 +40,8 @@ import java.util.logging.Logger;
  * for a given participant. A flag is considered enabled for a user if:
  * <ol>
  *   <li>The flag's {@code enabled} field is {@code true} (global toggle), OR</li>
- *   <li>The user's participant address is in the flag's {@code allowedUsers} set.</li>
+ *   <li>The user's participant address is in the flag's {@code allowedUsers} map with a
+ *       {@code true} value.</li>
  * </ol>
  */
 @Singleton
@@ -78,13 +78,14 @@ public final class FeatureFlagService {
    *
    * @param flagName      the feature flag name
    * @param participantId the participant address (e.g. "user@example.com")
-   * @return true if the flag is globally enabled or the participant is in the allowed set
+   * @return true if the flag is globally enabled or the participant has an enabled override
    */
   public boolean isEnabled(String flagName, String participantId) {
     FeatureFlag flag = cache.get(flagName);
     if (flag == null) return false;
     if (flag.isEnabled()) return true;
-    return participantId != null && flag.getAllowedUsers().contains(participantId);
+    return participantId != null
+        && Boolean.TRUE.equals(flag.getAllowedUsers().get(participantId));
   }
 
   /**
@@ -94,7 +95,8 @@ public final class FeatureFlagService {
     List<String> result = new ArrayList<>();
     for (FeatureFlag flag : cache.values()) {
       if (flag.isEnabled()
-          || (participantId != null && flag.getAllowedUsers().contains(participantId))) {
+          || (participantId != null
+              && Boolean.TRUE.equals(flag.getAllowedUsers().get(participantId)))) {
         result.add(flag.getName());
       }
     }

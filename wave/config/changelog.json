@@ -1,21 +1,106 @@
 [
   {
-    "version": "2026-03-27",
+    "version": "2026-03-27.1",
     "date": "2026-03-27",
-    "title": "Changelog System",
-    "summary": "You can now see what's new after each deploy.",
+    "title": "Unread-Only Search Filter",
+    "summary": "You can now filter the wave list down to waves with unread blips only.",
     "sections": [
       {
         "type": "feature",
         "items": [
-          "New /changelog page showing release history",
-          "Version upgrade banner now shows the latest release summary"
+          "Added the unread:true search filter for inbox, archive, pinned, and combined queries"
         ]
       },
       {
         "type": "improvement",
         "items": [
-          "Added What's New links to the app menu and landing page"
+          "Updated the search help popup with unread-only filter guidance and examples"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "2026-03-27",
+    "date": "2026-03-27",
+    "title": "Search and Discovery",
+    "summary": "Search is broader and easier to refine, with better saved-search workflows and two new experimental backends behind feature flags.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added free-text search with `title:` and `content:` filters plus latest-activity sorting",
+          "Saved searches can be pinned to the toolbar or applied from a searchable modal",
+          "Pinned waves stay at the top of search results",
+          "OT-powered realtime search over search wavelets is available behind the `ot-search` flag",
+          "Lucene 9 BM25 full-text search is available behind the `lucene9` flag"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "2026-03-27",
+    "date": "2026-03-27",
+    "title": "Admin, Docs, and Release Notes",
+    "summary": "Operators now have better rollout controls, and the app ships with built-in documentation for both users and API consumers.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added an admin feature-flags tab with per-user flag management via `scripts/feature-flag.sh`",
+          "Published `/api-docs`, `/api/openapi.json`, and `/api/llm.txt`",
+          "Added `/changelog` with deploy upgrade banner integration"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "2026-03-27",
+    "date": "2026-03-27",
+    "title": "Sharing and Public Waves",
+    "summary": "Public sharing is now a first-class flow, with a dedicated directory and richer public rendering for shared waves.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added a `/public` directory with share-link actions and auto-refresh",
+          "Public wave pages now render rich SSR blip cards that match the internal view"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "2026-03-27",
+    "date": "2026-03-27",
+    "title": "Participants and Wave Controls",
+    "summary": "Managing collaborators and permissions is smoother, from faster participant lookup to clearer wave-locking controls.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Adding participants now opens an autocomplete dialog that loads direct contacts first and supports infinite scroll",
+          "Toolbar lock controls can lock only the root blip, lock the whole wave, or unlock",
+          "Admins can now perform all owner-level wave actions"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "2026-03-27",
+    "date": "2026-03-27",
+    "title": "Workflow Fixes",
+    "summary": "A round of polish cleaned up common wave-management edge cases so search, sharing, and cleanup flows behave more predictably.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Empty waves are automatically removed when you navigate away"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Archive actions and unread counts now refresh correctly in search and folder flows",
+          "Fixed public-wave cache leakage and share-link visibility after toggling a wave public"
         ]
       }
     ]

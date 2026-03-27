@@ -27,6 +27,7 @@ import com.google.wave.api.SearchResult.Digest;
 
 import org.waveprotocol.box.common.Snippets;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
+import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl.WaveSupplementContext;
 import org.waveprotocol.wave.model.conversation.BlipIterators;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ObservableConversation;
@@ -37,6 +38,7 @@ import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.document.Document;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.supplement.PrimitiveSupplement;
 import org.waveprotocol.wave.model.supplement.PrimitiveSupplementImpl;
@@ -97,6 +99,32 @@ public class WaveDigester {
 
     assert result.getDigests().size() == results.size();
     return result;
+  }
+
+  public SearchResult generateSearchResult(ParticipantId participant, String query,
+      Collection<WaveViewData> results, Map<WaveId, Digest> digestCache) {
+    SearchResult result = new SearchResult(query);
+    if (results == null) {
+      return result;
+    }
+    for (WaveViewData wave : results) {
+      Digest digest = digestCache != null ? digestCache.get(wave.getWaveId()) : null;
+      if (digest == null) {
+        digest = build(participant, wave);
+      }
+      result.addDigest(digest);
+    }
+    assert result.getDigests().size() == results.size();
+    return result;
+  }
+
+  int getUnreadCount(WaveSupplementContext context,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+    if (context == null || context.supplement == null || context.conversations == null) {
+      return 0;
+    }
+    return countUnread(context.convWavelet, context.conversationalWavelets, context.supplement,
+        context.conversations, waveletAdapters);
   }
 
   public Digest build(ParticipantId participant, WaveViewData wave) {
@@ -216,9 +244,10 @@ public class WaveDigester {
         break;
       }
     }
-    int unreadCount = 0;
     int blipCount = 0;
     long lastModified = -1;
+    int unreadCount = countUnread(rawWaveletData, conversationalWavelets, supplement, conversations,
+        waveletAdapters);
     for (ObservableWaveletData conversationalWavelet : conversationalWavelets) {
       ObservableConversation conversation;
       if (conversationalWavelet == rawWaveletData) {
@@ -234,15 +263,45 @@ public class WaveDigester {
         continue;
       }
       for (ConversationBlip blip : BlipIterators.breadthFirst(conversation)) {
-        if (supplement.isUnread(blip)) {
-          unreadCount++;
-        }
         lastModified = Math.max(blip.getLastModifiedTime(), lastModified);
         blipCount++;
       }
     }
     return new Digest(title, snippet, waveId, participants, lastModified,
         rawWaveletData.getCreationTime(), unreadCount, blipCount);
+  }
+
+  private int countUnread(WaveletData convWavelet,
+      Iterable<? extends ObservableWaveletData> conversationalWavelets,
+      SupplementedWave supplement, ObservableConversationView conversations,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+    if (convWavelet == null || supplement == null || conversations == null) {
+      return 0;
+    }
+
+    int unreadCount = 0;
+    ObservableConversation rootConversation = chooseDigestConversation(conversations);
+    for (ObservableWaveletData conversationalWavelet : conversationalWavelets) {
+      ObservableConversation conversation;
+      if (conversationalWavelet == convWavelet) {
+        conversation = rootConversation;
+      } else {
+        OpBasedWavelet wavelet = getOrCreateReadOnlyWavelet(conversationalWavelet, waveletAdapters);
+        if (!WaveletBasedConversation.waveletHasConversation(wavelet)) {
+          continue;
+        }
+        conversation = chooseDigestConversation(conversationUtil.buildConversation(wavelet));
+      }
+      if (conversation == null) {
+        continue;
+      }
+      for (ConversationBlip blip : BlipIterators.breadthFirst(conversation)) {
+        if (supplement.isUnread(blip)) {
+          unreadCount++;
+        }
+      }
+    }
+    return unreadCount;
   }
 
   private ObservableConversation chooseDigestConversation(ObservableConversationView conversations) {

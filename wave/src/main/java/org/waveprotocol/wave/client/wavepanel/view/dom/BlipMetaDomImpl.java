@@ -390,9 +390,17 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
     return Document.get().getElementById(nextId);
   }
 
+  static String resolveInlineLocatorReference(StringSequence inlineLocators, String refId) {
+    if (refId == null || inlineLocators == null || !inlineLocators.contains(refId)) {
+      return null;
+    }
+    return refId;
+  }
+
   void insertInlineLocatorBefore(Element ref, Element x) {
-    String id = ref != null ? ref.getId() : null;
-    getInlineLocators().insertBefore(id, x.getId());
+    StringSequence locators = getInlineLocators();
+    String refId = ref != null ? ref.getId() : null;
+    locators.insertBefore(resolveInlineLocatorReference(locators, refId), x.getId());
   }
 
   void removeInlineLocator(Element x) {

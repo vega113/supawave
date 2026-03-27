@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -320,13 +321,21 @@ public class QueryHelper {
     String[] tokens = query.split("\\s+");
     Map<TokenQueryType, Set<String>> tokensMap = Maps.newEnumMap(TokenQueryType.class);
     for (String token : tokens) {
-      String[] pair = token.split(":");
-      if (pair.length != 2 || !TokenQueryType.hasToken(pair[0])) {
-        String msg = "Invalid query param: " + token;
-        throw new InvalidQueryException(msg);
+      int separatorIndex = token.indexOf(':');
+      TokenQueryType tokenType;
+      String tokenValue;
+      String tokenName = separatorIndex < 0 ? null : token.substring(0, separatorIndex);
+      if (separatorIndex < 0 || separatorIndex == 0 || !TokenQueryType.hasToken(tokenName)) {
+        tokenType = TokenQueryType.CONTENT;
+        tokenValue = token;
+      } else {
+        if (separatorIndex == token.length() - 1) {
+          String msg = "Invalid query param: " + token;
+          throw new InvalidQueryException(msg);
+        }
+        tokenType = TokenQueryType.fromToken(tokenName);
+        tokenValue = token.substring(separatorIndex + 1);
       }
-      String tokenValue = pair[1];
-      TokenQueryType tokenType = TokenQueryType.fromToken(pair[0]);
       // Verify the orderby param.
       if (tokenType.equals(TokenQueryType.ORDERBY)) {
         try {
@@ -336,6 +345,10 @@ public class QueryHelper {
           throw new InvalidQueryException(msg);
         }
       }
+      if (tokenType.equals(TokenQueryType.UNREAD) && !isUnreadTokenValue(tokenValue)) {
+        String msg = "Invalid unread query value: " + tokenValue;
+        throw new InvalidQueryException(msg);
+      }
       Set<String> valuesPerToken = tokensMap.get(tokenType);
       if (valuesPerToken == null) {
         valuesPerToken = Sets.newLinkedHashSet();
@@ -344,6 +357,14 @@ public class QueryHelper {
       valuesPerToken.add(tokenValue);
     }
     return tokensMap;
+  }
+
+  static boolean isUnreadTokenValue(String tokenValue) {
+    String normalized = tokenValue.toLowerCase(Locale.ROOT);
+    return normalized.equals("true")
+        || normalized.equals("yes")
+        || normalized.equals("1")
+        || normalized.equals("only");
   }
 
   /** Private constructor to prevent instantiation. */

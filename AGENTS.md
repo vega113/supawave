@@ -17,6 +17,14 @@ git worktrees.
   alternative workflow in the middle of task execution.
 - Favor tool use over guesswork. Keep calls minimal, scoped, and purposeful.
 
+## Session Memory
+- At the start of every session, read `MEMORY.md` (the index) from the Claude
+  project memory directory (`.claude/projects/` under the repo or user config root).
+- After reading the index, read only the memory files that are relevant to the
+  current task — do not read every linked file unconditionally.
+- Memory contains: workflow rules, coding patterns, model selection, drill procedure, and project-specific lessons.
+- This memory persists across sessions — always check it before starting work.
+
 ## Agent Roles
 
 ### Lead
@@ -109,6 +117,16 @@ git worktrees.
 - Before opening a pull request, the task comments should reflect the final
   implementation summary, the review outcome, and the commit list that landed
   the work.
+
+## Changelog
+- Every PR that changes user-facing behavior MUST update `wave/src/main/resources/config/changelog.json`
+  before merging, and keep `wave/config/changelog.json` aligned for staged runtime config.
+- Add a new entry at the top of the array (newest first) with `version`, `date`
+  (ISO `YYYY-MM-DD`, usually matching `version`), `title`, `summary`, and
+  `sections` (`feature` / `fix`).
+- The changelog is displayed at `/changelog` and in the deploy upgrade banner.
+- Keep entries concise: a 1-2 sentence summary and short bullet-style change
+  lists.
 
 ## Tool Usage Rules
 - Prefer MCP tools over free-form browsing when available.

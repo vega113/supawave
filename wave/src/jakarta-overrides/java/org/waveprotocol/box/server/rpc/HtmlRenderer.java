@@ -4444,7 +4444,11 @@ public final class HtmlRenderer {
     sb.append("    fetch('/admin/flags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })\n");
     sb.append("      .then(function(r){return r.json();})\n");
     sb.append("      .then(function(data){\n");
-    sb.append("        if (data.error) { showToast(data.error, 'error'); return; }\n");
+    sb.append("        if (data.error) {\n");
+    sb.append("          showToast(data.error, 'error');\n");
+    sb.append("          if (options.closeForm === false) { fetchFlags(); }\n");
+    sb.append("          return;\n");
+    sb.append("        }\n");
     sb.append("        showToast(successMessage, 'success');\n");
     sb.append("        if (options.closeForm !== false) {\n");
     sb.append("          flagForm.style.display = 'none';\n");
@@ -4453,7 +4457,10 @@ public final class HtmlRenderer {
     sb.append("          syncEditingFlag(payload);\n");
     sb.append("        }\n");
     sb.append("        fetchFlags();\n");
-    sb.append("      }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
+    sb.append("      }).catch(function(e){\n");
+    sb.append("        showToast('Failed: ' + e.message, 'error');\n");
+    sb.append("        if (options.closeForm === false) { fetchFlags(); }\n");
+    sb.append("      });\n");
     sb.append("  }\n");
 
     // Fetch flags
@@ -4551,7 +4558,7 @@ public final class HtmlRenderer {
     sb.append("  };\n");
 
     sb.append("  window.toggleAllowedUser = function(flagIndex, userIndex, nextEnabled) {\n");
-    sb.append("    var flag = normalizeFlag(flagsData[flagIndex]);\n");
+    sb.append("    var flag = buildFlagPayload(flagsData[flagIndex]);\n");
     sb.append("    if (!flag.allowedUsers[userIndex]) { return; }\n");
     sb.append("    flag.allowedUsers[userIndex].enabled = nextEnabled;\n");
     sb.append("    saveFlag({\n");
@@ -4564,13 +4571,8 @@ public final class HtmlRenderer {
 
     // Toggle flag
     sb.append("  window.toggleFlag = function(idx) {\n");
-    sb.append("    var f = normalizeFlag(flagsData[idx]);\n");
-    sb.append("    var payload = {\n");
-    sb.append("      name: f.name,\n");
-    sb.append("      description: f.description || '',\n");
-    sb.append("      enabled: !f.enabled,\n");
-    sb.append("      allowedUsers: cloneAllowedUsers(f.allowedUsers)\n");
-    sb.append("    };\n");
+    sb.append("    var payload = buildFlagPayload(flagsData[idx]);\n");
+    sb.append("    payload.enabled = !payload.enabled;\n");
     sb.append("    saveFlag(payload, 'Flag toggled', { closeForm: false });\n");
     sb.append("  };\n");
 
@@ -4591,6 +4593,8 @@ public final class HtmlRenderer {
     sb.append("        .then(function(r){return r.json();})\n");
     sb.append("        .then(function(data){\n");
     sb.append("          if (data.error) { showToast(data.error, 'error'); return; }\n");
+    sb.append("          resetFlagEditingState();\n");
+    sb.append("          flagForm.style.display = 'none';\n");
     sb.append("          showToast('Flag deleted', 'success');\n");
     sb.append("          fetchFlags();\n");
     sb.append("        }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");

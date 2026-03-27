@@ -175,7 +175,7 @@ public final class FeatureFlagServlet extends HttpServlet {
     String description = body.optString("description", "");
 
     try {
-      boolean enabled = readBoolean(body.opt("enabled"), false);
+      boolean enabled = readBoolean(body.opt("enabled"), false, "enabled");
       Map<String, Boolean> allowedUsers = parseAllowedUsers(body.opt("allowedUsers"));
       FeatureFlag flag = new FeatureFlag(name, description.trim(), enabled, allowedUsers);
       store.save(flag);
@@ -324,7 +324,7 @@ public final class FeatureFlagServlet extends HttpServlet {
     throw new IllegalArgumentException("allowedUsers must be a JSONArray or CSV string");
   }
 
-  private static boolean readBoolean(Object rawValue, boolean defaultValue) {
+  private static boolean readBoolean(Object rawValue, boolean defaultValue, String fieldName) {
     if (rawValue == null || rawValue == JSONObject.NULL) {
       return defaultValue;
     }
@@ -340,27 +340,11 @@ public final class FeatureFlagServlet extends HttpServlet {
         return false;
       }
     }
-    throw new IllegalArgumentException("enabled must be a boolean");
+    throw new IllegalArgumentException(fieldName + " must be a boolean");
   }
 
   private static boolean readAllowedUserEnabled(JSONObject userJson) {
-    Object rawValue = userJson.opt("enabled");
-    if (rawValue == null || rawValue == JSONObject.NULL) {
-      return true;
-    }
-    if (rawValue instanceof Boolean booleanValue) {
-      return booleanValue;
-    }
-    if (rawValue instanceof String stringValue) {
-      String normalized = stringValue.trim();
-      if ("true".equalsIgnoreCase(normalized)) {
-        return true;
-      }
-      if ("false".equalsIgnoreCase(normalized)) {
-        return false;
-      }
-    }
-    throw new IllegalArgumentException("allowedUsers.enabled must be a boolean");
+    return readBoolean(userJson.opt("enabled"), true, "allowedUsers.enabled");
   }
 
   private static IllegalArgumentException unexpectedAllowedUsersElement(int index, Object value) {

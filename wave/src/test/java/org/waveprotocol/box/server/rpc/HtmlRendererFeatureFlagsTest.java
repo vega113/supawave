@@ -31,12 +31,25 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("toggleAllowedUser("));
     assertTrue(html.contains("normalizeAllowedUserEmail(legacyUser)"));
     assertTrue(html.contains("normalizeAllowedUserEmail(user.email)"));
-    assertTrue(html.contains("var flag = normalizeFlag(flagsData[flagIndex]);"));
-    assertTrue(html.contains("var f = normalizeFlag(flagsData[idx]);"));
+    assertTrue(html.contains("var flag = buildFlagPayload(flagsData[flagIndex]);"));
+    assertTrue(html.contains("var payload = buildFlagPayload(flagsData[idx]);"));
     assertTrue(html.contains("this.checked"));
     assertTrue(html.contains("syncEditingFlag(payload);"));
     assertTrue(html.contains("closeForm: false"));
     assertTrue(html.contains("resetFlagEditingState()"));
+    assertTrue(
+        html.contains(
+            "if (data.error) {\n"
+                + "          showToast(data.error, 'error');\n"
+                + "          if (options.closeForm === false) { fetchFlags(); }\n"
+                + "          return;\n"
+                + "        }"));
+    assertTrue(
+        html.contains(
+            "}).catch(function(e){\n"
+                + "        showToast('Failed: ' + e.message, 'error');\n"
+                + "        if (options.closeForm === false) { fetchFlags(); }\n"
+                + "      });"));
     assertTrue(
         html.contains(
             "if (options.closeForm !== false) {\n"
@@ -46,6 +59,12 @@ public final class HtmlRendererFeatureFlagsTest {
                 + "          syncEditingFlag(payload);\n"
                 + "        }"));
     assertTrue(html.contains("resetFlagEditingState();\n    flagForm.style.display = 'none';"));
+    assertTrue(
+        html.contains(
+            "          resetFlagEditingState();\n"
+                + "          flagForm.style.display = 'none';\n"
+                + "          showToast('Flag deleted', 'success');\n"
+                + "          fetchFlags();"));
     assertTrue(html.contains("flagNameInput.value = flag.name;"));
     assertTrue(html.contains("return legacyUser ? { email: legacyUser, enabled: legacyEnabled } : null;"));
   }

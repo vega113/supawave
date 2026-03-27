@@ -6,11 +6,11 @@
 
 **Architecture:** Keep the fix in the client transport layer instead of the saved-state widget. On websocket disconnect, explicitly fail the active view-open callback so the existing `ViewChannelImpl` and `OperationChannelMultiplexerImpl` reconnect path reissues `viewOpen`. When the stream reopens, clear stale per-wave channel-id filtering so the new resync stream is not rejected.
 
-**Tech Stack:** Java, GWT client, Wave concurrency-control stack, SBT, JUnit 3 style tests
+**Tech Stack:** Java, GWT client, Wave concurrency-control stack, SBT, JUnit 3-style tests
 
 ---
 
-### Task 1: Add Focused Reconnect-Bridge and Channel-Reset Regressions
+## Task 1: Add Focused Reconnect-Bridge and Channel-Reset Regressions
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/webclient/client/RemoteViewServiceMultiplexer.java`
@@ -60,7 +60,7 @@ git add wave/src/main/java/org/waveprotocol/box/webclient/client/RemoteViewServi
 git commit -m "fix: clear stale wave channel ids on reconnect"
 ```
 
-### Task 2: Verify the Narrow Client Save/Resync Path
+## Task 2: Verify the Narrow Client Save/Resync Path
 
 **Files:**
 - Modify: `.beads/issues.jsonl`

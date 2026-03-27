@@ -62,6 +62,8 @@ import org.waveprotocol.wave.model.wave.data.DocumentFactory;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.impl.WaveletDataImpl;
 
+import com.google.gwt.event.shared.HandlerRegistration;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -287,6 +289,9 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
 
   private AsyncCallContext openContext;
 
+  /** Registration for the per-wave network handler; removed on {@link #viewClose}. */
+  private HandlerRegistration networkHandlerRegistration;
+
   /**
    * Creates a service.
    *
@@ -299,16 +304,18 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     this.waveId = waveId;
     this.mux = mux;
     this.docFactory = docFactory;
-    ClientEvents.get().addNetworkStatusEventHandler(new NetworkStatusEventHandler() {
-      @Override
-      public void onNetworkStatus(NetworkStatusEvent event) {
-        ConnectionStatus status = event.getStatus();
-        if (status == ConnectionStatus.DISCONNECTED || status == ConnectionStatus.NEVER_CONNECTED) {
-          stopOpenContext();
-          disconnectTracker.onSocketDisconnected();
-        }
-      }
-    });
+    networkHandlerRegistration = ClientEvents.get().addNetworkStatusEventHandler(
+        new NetworkStatusEventHandler() {
+          @Override
+          public void onNetworkStatus(NetworkStatusEvent event) {
+            ConnectionStatus status = event.getStatus();
+            if (status == ConnectionStatus.DISCONNECTED
+                || status == ConnectionStatus.NEVER_CONNECTED) {
+              stopOpenContext();
+              disconnectTracker.onSocketDisconnected();
+            }
+          }
+        });
   }
 
   //
@@ -392,6 +399,12 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     LOG.info("closing channel " + waveId);
     stopOpenContext();
     disconnectTracker.onStreamClosed();
+    // Remove the per-wave network handler to avoid leaking this service on the
+    // global event bus after the view is closed.
+    if (networkHandlerRegistration != null) {
+      networkHandlerRegistration.removeHandler();
+      networkHandlerRegistration = null;
+    }
     callback.onSuccess();
     mux.close(waveId, this);
   }

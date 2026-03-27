@@ -80,44 +80,7 @@ jobs:
               }, (response) => response.data.check_runs);
 
               const codeRabbitCompletion = latestCodeRabbitCompletion(checkRuns);
-              let latestCommit = null;
-              if (!codeRabbitCompletion) {
-                const latestCommitResult = await github.graphql(
-                  `
-                    query($owner: String!, $repo: String!, $number: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        pullRequest(number: $number) {
-                          commits(last: 1) {
-                            nodes {
-                              commit {
-                                committedDate
-                                statusCheckRollup {
-                                  contexts(first: 100) {
-                                    nodes {
-                                      __typename
-                                      ... on CheckRun {
-                                        name
-                                        conclusion
-                                        status
-                                        completedAt
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  `,
-                  { owner, repo, number: pullRequest.number }
-                );
-
-                latestCommit = latestCommitResult.repository.pullRequest.commits.nodes[0]?.commit ?? null;
-              }
-
-              const codeRabbitCompletedAt = resolveCodeRabbitCompletedAt(checkRuns, latestCommit);
+              const codeRabbitCompletedAt = resolveCodeRabbitCompletedAt(checkRuns);
               if (Number.isNaN(codeRabbitCompletedAt)) {
                 core.info(`Skipping PR #${pullRequest.number}; no successful current-head CodeRabbit completion yet`);
                 continue;
@@ -224,30 +187,6 @@ jobs:
                     labels(first: 100) {
                       nodes { name }
                     }
-                    commits(last: 1) {
-                      nodes {
-                        commit {
-                          committedDate
-                          statusCheckRollup {
-                            contexts(first: 100) {
-                              nodes {
-                                __typename
-                                ... on StatusContext {
-                                  context
-                                  state
-                                }
-                                ... on CheckRun {
-                                  name
-                                  conclusion
-                                  status
-                                  completedAt
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
                   }
                 }
               }
@@ -271,7 +210,6 @@ jobs:
             }
 
             const labels = pullRequest.labels.nodes.map((label) => label.name);
-            const latestCommit = pullRequest.commits.nodes[0]?.commit ?? null;
             if (labels.includes("codex-reviewed")) {
               core.info("Review gate passed via `codex-reviewed` label");
               return;
@@ -289,7 +227,7 @@ jobs:
               per_page: 100
             }, (response) => response.data.check_runs);
 
-            const codeRabbitCompletedAt = resolveCodeRabbitCompletedAt(checkRuns, latestCommit);
+            const codeRabbitCompletedAt = resolveCodeRabbitCompletedAt(checkRuns);
 
             if (Number.isNaN(codeRabbitCompletedAt)) {
               core.setFailed("Missing required review signal: successful current-head CodeRabbit completion");

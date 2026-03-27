@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * The base {@link HttpServlet} for {@link DataApiServlet} and
@@ -90,7 +91,7 @@ public abstract class BaseApiServlet extends HttpServlet {
     String apiRequest;
     try {
       BufferedReader reader = req.getReader();
-      apiRequest = reader.readLine();
+      apiRequest = reader.lines().collect(Collectors.joining("\n"));
     } catch (IOException e) {
       LOG.warning("Unable to read the incoming request", e);
       throw e;

@@ -311,6 +311,11 @@ public class ServerMain {
     server.addServlet("/changelog", ChangelogServlet.class);
     server.addServlet("/changelog/*", ChangelogServlet.class);
 
+    // API documentation
+    server.addServlet("/api-docs", ApiDocsServlet.class);
+    server.addServlet("/api/openapi.json", ApiDocsServlet.class);
+    server.addServlet("/api/llm.txt", ApiDocsServlet.class);
+
     // SEO endpoints
     server.addServlet("/robots.txt", RobotsServlet.class);
     server.addServlet("/sitemap.xml", SitemapServlet.class);

@@ -236,7 +236,10 @@ sbt run                        # Run dev server on :9898
 - Agents work in isolated git worktrees
 - Symlink file-store state via `scripts/worktree-file-store.sh`
 - Local server sanity check before PR (boot + health/auth endpoint)
-- PR requires one of: `codex-reviewed` or `coderabbitai-reviewed` label
+- PR review gate accepts either:
+  - `codex-reviewed` label
+  - Codex PR-level `+1` reaction after the latest successful current-head CodeRabbit completion
+  - automatic pass 5 minutes after the latest successful current-head CodeRabbit completion if Codex stays silent and no newer commit exists
 - Commits reference Beads task IDs
 
 ## Critical Decisions Already Made
@@ -272,7 +275,7 @@ sbt run                        # Run dev server on :9898
   - `Codex Review Gate`
   - `CodeRabbit`
   - resolved review conversations
-- The review gate was adjusted so it auto-reevaluates correctly after thread resolution
+- The review gate auto-reevaluates on PR/review/comment events and on a 5-minute schedule fallback that posts the same `/codex-review-gate` trigger comment from the default-branch workflow
 - For current policy, one valid review signal is enough, not both bots
 
 ## Known Fragile Areas

@@ -19,6 +19,7 @@
 package org.waveprotocol.box.server.rpc;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 import org.junit.Test;
 
@@ -46,6 +47,7 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("var rowFlag = normalizeFlag(flagsData[idx]);"));
     assertTrue(html.contains("var payload = buildFlagPayload(rowFlag);"));
     assertTrue(html.contains("payload.enabled = !rowFlag.enabled;"));
+    assertFalse(html.contains("flagsData[idx] ="));
     assertTrue(html.contains("this.checked"));
     assertTrue(html.contains("syncEditingFlag(payload);"));
     assertTrue(html.contains("closeForm: false"));

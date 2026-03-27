@@ -218,7 +218,7 @@ public final class SearchPresenter
   private final Task otSearchTimeoutTask = new Task() {
     @Override
     public void execute() {
-      if (useOtSearch && !otSearchReceivedData) {
+      if (otSearchEnabled && otSearchWaveletName != null && !otSearchReceivedData) {
         fallbackToPolling(
             "OT search timed out after " + OT_SEARCH_TIMEOUT_MS
                 + "ms with no data for query '" + queryText + "'", null);

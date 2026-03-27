@@ -242,7 +242,15 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     List<WaveViewData> results =
         Lists.newArrayList(filterWavesViewBySearchCriteria(filterWaveletsFunction,
             currentUserWavesView).values());
-    expandConversationalWavelets(results, filterWaveletsFunction);
+    // Only expand conversational wavelets for date-based ordering (dateasc/datedesc).
+    // For created-based ordering (createdasc/createddesc), the sort should use the
+    // root wavelet's creation time, not the max across all reply wavelets.
+    Set<String> orderBySet = queryParams.get(TokenQueryType.ORDERBY);
+    boolean isDateSort = orderBySet == null  // default sort is date-based
+        || orderBySet.contains("dateasc") || orderBySet.contains("datedesc");
+    if (isDateSort) {
+      expandConversationalWavelets(results, filterWaveletsFunction);
+    }
 
     // Shared caches for supplement-building across all filter stages.
     // This prevents creating duplicate OpBasedWavelet adapters for the same

@@ -231,6 +231,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     final Set<String> tagValues = queryParams.containsKey(TokenQueryType.TAG)
         ? queryParams.get(TokenQueryType.TAG)
         : Collections.<String>emptySet();
+    final boolean isUnreadOnlyQuery = queryParams.containsKey(TokenQueryType.UNREAD);
 
     LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView =
         createWavesViewToFilter(user, isAllQuery);
@@ -296,6 +297,12 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           + ", candidates before filter = " + results.size());
       filterByContent(results, contentValues);
       LOG.info("After content filter: " + results.size() + " results remain");
+    }
+
+    if (isUnreadOnlyQuery) {
+      LOG.info("Unread filter active: candidates before filter = " + results.size());
+      filterByUnreadState(results, user);
+      LOG.info("After unread filter: " + results.size() + " results remain");
     }
 
     List<WaveViewData> sortedResults = sort(queryParams, results);
@@ -776,6 +783,28 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         }
       } catch (Exception e) {
         LOG.warning("Failed to check content for wave " + wave.getWaveId(), e);
+        it.remove();
+      }
+    }
+  }
+
+  /**
+   * Filters wave results by unread state. Only waves whose digests report one or more unread
+   * blips for the current participant are kept.
+   *
+   * @param results the mutable list of wave views to filter in place.
+   * @param user the participant whose unread state should be evaluated.
+   */
+  private void filterByUnreadState(List<WaveViewData> results, ParticipantId user) {
+    Iterator<WaveViewData> it = results.iterator();
+    while (it.hasNext()) {
+      WaveViewData wave = it.next();
+      try {
+        if (digester.build(user, wave).getUnreadCount() <= 0) {
+          it.remove();
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check unread state for wave " + wave.getWaveId(), e);
         it.remove();
       }
     }

@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.collect.Maps;
 import com.google.wave.api.SearchResult;
+import com.google.wave.api.SearchResult.Digest;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -59,6 +60,7 @@ import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionZeroFactoryImpl;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.wave.model.wave.data.WaveViewData;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 
 import java.util.Arrays;
@@ -546,6 +548,83 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
     assertEquals(1, results.getNumResults());
     assertEquals("matching",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchFilterByUnreadWorks() throws Exception {
+    WaveletName unreadWave = WaveletName.of(WaveId.of(DOMAIN, "unread"), WAVELET_ID);
+    WaveletName readWave = WaveletName.of(WaveId.of(DOMAIN, "read"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(unreadWave, USER1, addParticipantToWavelet(USER1, unreadWave));
+    appendBlipToWavelet(unreadWave, USER1, "b+unread", "project update");
+
+    submitDeltaToNewWavelet(readWave, USER1, addParticipantToWavelet(USER1, readWave));
+    appendBlipToWavelet(readWave, USER1, "b+read", "project update");
+
+    SearchProvider unreadFilterProvider = new SimpleSearchProviderImpl(
+        DOMAIN,
+        new WaveDigester(new ConversationUtil(idGenerator)) {
+          @Override
+          public Digest build(ParticipantId participant, WaveViewData wave) {
+            Digest original = super.build(participant, wave);
+            int unreadCount = "read".equals(wave.getWaveId().getId()) ? 0 : 2;
+            return new Digest(
+                original.getTitle(),
+                original.getSnippet(),
+                original.getWaveId(),
+                original.getParticipants(),
+                original.getLastModified(),
+                original.getCreated(),
+                unreadCount,
+                original.getBlipCount());
+          }
+        },
+        waveMap,
+        waveViewProvider);
+
+    SearchResult results = unreadFilterProvider.search(USER1, "in:inbox unread:true", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("unread",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchFilterByUnreadCombinesWithContent() throws Exception {
+    WaveletName unreadWave = WaveletName.of(WaveId.of(DOMAIN, "unread-match"), WAVELET_ID);
+    WaveletName readWave = WaveletName.of(WaveId.of(DOMAIN, "read-match"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(unreadWave, USER1, addParticipantToWavelet(USER1, unreadWave));
+    appendBlipToWavelet(unreadWave, USER1, "b+unread", "sprint retro");
+
+    submitDeltaToNewWavelet(readWave, USER1, addParticipantToWavelet(USER1, readWave));
+    appendBlipToWavelet(readWave, USER1, "b+read", "sprint retro");
+
+    SearchProvider unreadFilterProvider = new SimpleSearchProviderImpl(
+        DOMAIN,
+        new WaveDigester(new ConversationUtil(idGenerator)) {
+          @Override
+          public Digest build(ParticipantId participant, WaveViewData wave) {
+            Digest original = super.build(participant, wave);
+            int unreadCount = wave.getWaveId().getId().startsWith("read-") ? 0 : 1;
+            return new Digest(
+                original.getTitle(),
+                original.getSnippet(),
+                original.getWaveId(),
+                original.getParticipants(),
+                original.getLastModified(),
+                original.getCreated(),
+                unreadCount,
+                original.getBlipCount());
+          }
+        },
+        waveMap,
+        waveViewProvider);
+
+    SearchResult results =
+        unreadFilterProvider.search(USER1, "in:inbox unread:true sprint", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("unread-match",
         WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
   }
 

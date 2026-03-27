@@ -1,5 +1,25 @@
 [
   {
+    "version": "2026-03-27.1",
+    "date": "2026-03-27",
+    "title": "Unread-Only Search Filter",
+    "summary": "You can now filter the wave list down to waves with unread blips only.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added the unread:true search filter for inbox, archive, pinned, and combined queries"
+        ]
+      },
+      {
+        "type": "improvement",
+        "items": [
+          "Updated the search help popup with unread-only filter guidance and examples"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026-03-27",
     "date": "2026-03-27",
     "title": "Changelog System",

@@ -20,6 +20,7 @@
 package org.waveprotocol.box.server.waveserver.search;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.wave.api.SearchResult;
@@ -86,6 +87,40 @@ public final class SearchWaveletUpdaterTest extends TestCase {
       executeUpdate.invoke(updater, key, key.toString());
 
       assertEquals(5, dataProvider.getCurrentTotal(searchWaveletName));
+    } finally {
+      updater.shutdown();
+    }
+  }
+
+  public void testExecuteUpdatePreservesUnreadFilterQuery() throws Exception {
+    SearchWaveletManager waveletManager = mock(SearchWaveletManager.class);
+    SearchIndexer indexer = mock(SearchIndexer.class);
+    SearchProvider searchProvider = mock(SearchProvider.class);
+    SearchWaveletDataProvider dataProvider = new SearchWaveletDataProvider();
+    SearchWaveletUpdater updater =
+        new SearchWaveletUpdater(waveletManager, indexer, searchProvider, dataProvider);
+
+    ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
+    String query = "in:inbox unread:true";
+    String queryHash = SearchWaveletManager.md5Hex(query);
+    SearchIndexer.SubscriptionKey key = new SearchIndexer.SubscriptionKey(user, queryHash);
+    WaveletName searchWaveletName = WaveletName.of(
+        WaveId.of("example.com", "search~alice"),
+        WaveletId.of("example.com", "search+" + queryHash));
+    SearchResult searchResult = new SearchResult(query);
+    searchResult.setTotalResults(0);
+
+    when(indexer.getRawQuery(key)).thenReturn(query);
+    when(searchProvider.search(user, query, 0, 50)).thenReturn(searchResult);
+    when(waveletManager.getOrCreateSearchWavelet(user, query)).thenReturn(searchWaveletName);
+
+    try {
+      Method executeUpdate = SearchWaveletUpdater.class.getDeclaredMethod(
+          "executeUpdate", SearchIndexer.SubscriptionKey.class, String.class);
+      executeUpdate.setAccessible(true);
+      executeUpdate.invoke(updater, key, key.toString());
+
+      verify(searchProvider).search(user, query, 0, 50);
     } finally {
       updater.shutdown();
     }

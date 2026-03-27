@@ -112,6 +112,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   @UiField
   SpanElement exTag;
   @UiField
+  SpanElement exUnread;
+  @UiField
   SpanElement exFreeText;
   @UiField
   SpanElement exInboxTag;
@@ -192,6 +194,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     wireExample(exPublic);
     wireExample(exCreator);
     wireExample(exTag);
+    wireExample(exUnread);
     wireExample(exFreeText);
     wireExample(exInboxTag);
     wireExample(exAllOldest);

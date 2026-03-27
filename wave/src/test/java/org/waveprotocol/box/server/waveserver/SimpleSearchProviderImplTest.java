@@ -532,6 +532,23 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(0, results.getNumResults());
   }
 
+  public void testSearchFilterByImplicitContentWorks() throws Exception {
+    WaveletName matchingWave = WaveletName.of(WaveId.of(DOMAIN, "matching"), WAVELET_ID);
+    WaveletName partialWave = WaveletName.of(WaveId.of(DOMAIN, "partial"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(matchingWave, USER1, addParticipantToWavelet(USER1, matchingWave));
+    appendBlipToWavelet(matchingWave, USER1, "b+matching", "meeting notes and action items");
+
+    submitDeltaToNewWavelet(partialWave, USER1, addParticipantToWavelet(USER1, partialWave));
+    appendBlipToWavelet(partialWave, USER1, "b+partial", "meeting recap only");
+
+    SearchResult results = searchProvider.search(USER1, "in:inbox meeting notes", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("matching",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
   // *** Helpers
 
   private void submitDeltaToNewWavelet(WaveletName name, ParticipantId user,

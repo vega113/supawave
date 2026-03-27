@@ -88,7 +88,7 @@
            </tr>
            <tr>
              <td><em>free text</em></td>
-             <td>Search in wave content</td>
+             <td>Implicit <code>content:</code> search in wave content</td>
            </tr>
          </table>
        </div>
@@ -126,7 +126,7 @@
          </table>
          <div class='{css.helpSectionTitle}' style='margin-top:10px'>Combining</div>
          <div class='{css.helpCombiningText}'>
-           Filters can be combined freely. The default sort is <code>orderby:datedesc</code> (newest first).
+           Filters can be combined freely. Plain text searches content: <code>hello world</code> finds waves containing those words. The default sort is <code>orderby:datedesc</code> (newest first).
          </div>
        </div>
      </div>

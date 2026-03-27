@@ -320,13 +320,21 @@ public class QueryHelper {
     String[] tokens = query.split("\\s+");
     Map<TokenQueryType, Set<String>> tokensMap = Maps.newEnumMap(TokenQueryType.class);
     for (String token : tokens) {
-      String[] pair = token.split(":");
-      if (pair.length != 2 || !TokenQueryType.hasToken(pair[0])) {
-        String msg = "Invalid query param: " + token;
-        throw new InvalidQueryException(msg);
+      int separatorIndex = token.indexOf(':');
+      TokenQueryType tokenType;
+      String tokenValue;
+      String tokenName = separatorIndex < 0 ? null : token.substring(0, separatorIndex);
+      if (separatorIndex < 0 || separatorIndex == 0 || !TokenQueryType.hasToken(tokenName)) {
+        tokenType = TokenQueryType.CONTENT;
+        tokenValue = token;
+      } else {
+        if (separatorIndex == token.length() - 1) {
+          String msg = "Invalid query param: " + token;
+          throw new InvalidQueryException(msg);
+        }
+        tokenType = TokenQueryType.fromToken(tokenName);
+        tokenValue = token.substring(separatorIndex + 1);
       }
-      String tokenValue = pair[1];
-      TokenQueryType tokenType = TokenQueryType.fromToken(pair[0]);
       // Verify the orderby param.
       if (tokenType.equals(TokenQueryType.ORDERBY)) {
         try {

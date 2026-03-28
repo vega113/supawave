@@ -52,4 +52,17 @@ public final class WaveStreamChannelTrackerTest {
     assertFalse(tracker.shouldDropUpdate(waveId, null));
     assertFalse(tracker.shouldDropUpdate(waveId, "channel-2"));
   }
+
+  @Test
+  public void acceptsNewChannelIdAfterTrackerClearsAllKnownChannels() {
+    WaveStreamChannelTracker tracker = new WaveStreamChannelTracker();
+    WaveId waveId = WaveId.of("example.com", "w+saved-state");
+
+    assertFalse(tracker.shouldDropUpdate(waveId, "channel-1"));
+    assertTrue(tracker.shouldDropUpdate(waveId, "channel-2"));
+
+    tracker.clear();
+
+    assertFalse(tracker.shouldDropUpdate(waveId, "channel-2"));
+  }
 }

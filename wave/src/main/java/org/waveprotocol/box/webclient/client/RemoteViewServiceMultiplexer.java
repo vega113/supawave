@@ -20,6 +20,10 @@
 package org.waveprotocol.box.webclient.client;
 
 import org.waveprotocol.box.common.comms.ProtocolWaveletUpdate;
+import org.waveprotocol.wave.client.events.ClientEvents;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent.ConnectionStatus;
+import org.waveprotocol.wave.client.events.NetworkStatusEventHandler;
 import org.waveprotocol.box.common.comms.jso.ProtocolOpenRequestJsoImpl;
 import org.waveprotocol.box.common.comms.jso.ProtocolSubmitRequestJsoImpl;
 import org.waveprotocol.wave.model.id.IdFilter;
@@ -70,12 +74,29 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
   public RemoteViewServiceMultiplexer(WaveWebSocketClient socket, String userId) {
     this.socket = socket;
     this.userId = userId;
+    ClientEvents.get().addNetworkStatusEventHandler(new NetworkStatusEventHandler() {
+      @Override
+      public void onNetworkStatus(NetworkStatusEvent event) {
+        handleConnectionStatus(event.getStatus());
+      }
+    });
 
     // Note: Currently, the client's communication stack (websocket) is opened
     // too early, before an identity is established. Once that is fixed, this
     // object will be registered as a callback when the websocket is opened,
     // rather than afterwards here.
     socket.attachHandler(this);
+  }
+
+  void handleConnectionStatus(ConnectionStatus status) {
+    if (status == ConnectionStatus.DISCONNECTED
+        || status == ConnectionStatus.NEVER_CONNECTED) {
+      resetKnownChannels();
+    }
+  }
+
+  void resetKnownChannels() {
+    channelTracker.clear();
   }
 
   /** Dispatches an update to the appropriate wave stream. */

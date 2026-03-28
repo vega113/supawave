@@ -1,7 +1,7 @@
 [
   {
     "releaseId": "2026-03-28-robot-dashboard-management",
-    "version": "PR #452",
+    "version": "PR #455",
     "date": "2026-03-28",
     "title": "Robot Dashboard Management",
     "summary": "Added a new authenticated robot management dashboard to manage API tokens and callback URLs.",

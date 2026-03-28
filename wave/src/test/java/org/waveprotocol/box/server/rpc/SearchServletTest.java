@@ -147,7 +147,7 @@ public final class SearchServletTest extends TestCase {
 
   public void testDoGetTreatsLiveBootstrapPublishFailureAsBestEffort() throws Exception {
     TestSearchServlet servlet = createServlet(createSnapshotPublisher());
-    servlet.failLiveBootstrapPublish();
+    servlet.enableLiveBootstrapPublishFailure();
     HttpServletRequest request = requestWithParams(Map.of(
         "query", "tag:work",
         "index", "5",
@@ -231,7 +231,7 @@ public final class SearchServletTest extends TestCase {
     private final List<SearchRequest> performedRequests = new ArrayList<>();
     private boolean failCanonicalBootstrapSearch;
     private boolean attemptedCanonicalBootstrapSearch;
-    private boolean failLiveBootstrapPublish;
+    private boolean liveBootstrapPublishFailureEnabled;
 
     private TestSearchServlet(
         SessionManager sessionManager,
@@ -276,10 +276,10 @@ public final class SearchServletTest extends TestCase {
 
     @Override
     protected void publishLiveBootstrap(
-        SearchRequest searchRequest,
-        SearchResult searchResult,
-        ParticipantId user) {
-      if (failLiveBootstrapPublish) {
+      SearchRequest searchRequest,
+      SearchResult searchResult,
+      ParticipantId user) {
+      if (liveBootstrapPublishFailureEnabled) {
         throw new RuntimeException("live bootstrap publish failed");
       }
       super.publishLiveBootstrap(searchRequest, searchResult, user);
@@ -297,8 +297,8 @@ public final class SearchServletTest extends TestCase {
       return attemptedCanonicalBootstrapSearch;
     }
 
-    private void failLiveBootstrapPublish() {
-      failLiveBootstrapPublish = true;
+    private void enableLiveBootstrapPublishFailure() {
+      liveBootstrapPublishFailureEnabled = true;
     }
   }
 }

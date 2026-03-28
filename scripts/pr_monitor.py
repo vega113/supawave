@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 import pathlib
 import shlex
 import subprocess
@@ -35,6 +34,7 @@ class LauncherConfig:
     log_path: pathlib.Path
     runner_path: pathlib.Path
     pane_title: str
+    pr_head_oid: str
     session_name: str = DEFAULT_SESSION
     window_name: str = DEFAULT_WINDOW
     codex_bin: str = DEFAULT_CODEX_BIN
@@ -46,6 +46,10 @@ class LauncherConfig:
 def build_pane_title(pr_number: int, pr_title: str) -> str:
     normalized_title = " ".join(pr_title.split())
     return f"PR #{pr_number} {normalized_title}"
+
+
+def build_live_head_branch_name(pr_number: int) -> str:
+    return f"pr{pr_number}-live-head"
 
 
 def build_monitor_paths(shared_root: pathlib.Path, monitor_name: str) -> MonitorPaths:
@@ -106,9 +110,8 @@ def build_codex_command(
 
 
 def build_runner_script(config: LauncherConfig) -> str:
-    codex_command = (
-        f"{shlex.join(build_codex_command(config.codex_bin, config.model, config.reasoning_effort))} "
-        "\"$(cat \\\"$PROMPT_PATH\\\")\""
+    codex_command = shlex.join(
+        build_codex_command(config.codex_bin, config.model, config.reasoning_effort)
     )
     worktree = shlex.quote(str(config.worktree_path))
     repo = shlex.quote(config.repo)
@@ -151,8 +154,9 @@ while true; do
 
   attempt=$((attempt + 1))
   printf '[%s] Starting Codex monitor attempt %s for PR #%s\\n' "$(print_timestamp)" "$attempt" "$PR_NUMBER"
+  PROMPT="$(cat "$PROMPT_PATH")"
   set +e
-  {codex_command}
+  {codex_command} "$PROMPT"
   exit_code=$?
   set -e
 
@@ -270,24 +274,63 @@ def allocate_monitor_pane(session_name: str, window_name: str, pr_number: int) -
 
 
 def fetch_pr_title(repo: str, pr_number: int) -> str:
+    metadata = fetch_pr_metadata(repo, pr_number)
+    return metadata["title"]
+
+
+def fetch_pr_metadata(repo: str, pr_number: int) -> dict[str, str]:
     result = subprocess.run(
         [
             "gh",
             "pr",
             "view",
-            str(pr_number),
-            "--repo",
-            repo,
-            "--json",
-            "title",
-            "--jq",
-            ".title",
-        ],
+        str(pr_number),
+        "--repo",
+        repo,
+        "--json",
+        "title,headRefOid",
+        "--jq",
+        "[.title,.headRefOid] | @tsv",
+    ],
         check=True,
         text=True,
         capture_output=True,
     )
-    return result.stdout.strip()
+    title, head_ref_oid = result.stdout.strip().split("\t")
+    return {"title": title, "headRefOid": head_ref_oid}
+
+
+def run_git(worktree_path: pathlib.Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(worktree_path), *args],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+
+def ensure_clean_worktree(worktree_path: pathlib.Path) -> None:
+    status_output = run_git(worktree_path, "status", "--porcelain").stdout.strip()
+    if status_output:
+        raise RuntimeError(f"Worktree is dirty: {worktree_path}")
+
+
+def ensure_worktree_matches_pr_head(config: LauncherConfig) -> None:
+    if not config.worktree_path.is_dir():
+        raise RuntimeError(f"Worktree does not exist: {config.worktree_path}")
+    ensure_clean_worktree(config.worktree_path)
+    run_git(config.worktree_path, "fetch", "origin", f"pull/{config.pr_number}/head")
+    expected_branch = build_live_head_branch_name(config.pr_number)
+    current_branch = run_git(config.worktree_path, "branch", "--show-current").stdout.strip()
+    current_head = run_git(config.worktree_path, "rev-parse", "HEAD").stdout.strip()
+    if current_branch != expected_branch or current_head != config.pr_head_oid:
+        run_git(
+            config.worktree_path,
+            "checkout",
+            "-B",
+            expected_branch,
+            config.pr_head_oid,
+        )
 
 
 def build_monitor_name(worktree_path: pathlib.Path) -> str:
@@ -317,7 +360,8 @@ def build_launcher_config(args: argparse.Namespace) -> LauncherConfig:
     shared_root = pathlib.Path(args.shared_root).resolve()
     monitor_name = args.monitor_name or build_monitor_name(worktree_path)
     paths = build_monitor_paths(shared_root, monitor_name)
-    pr_title = args.pr_title or fetch_pr_title(args.repo, args.pr_number)
+    metadata = fetch_pr_metadata(args.repo, args.pr_number)
+    pr_title = args.pr_title or metadata["title"]
     pane_title = build_pane_title(args.pr_number, pr_title)
     return LauncherConfig(
         repo=args.repo,
@@ -328,6 +372,7 @@ def build_launcher_config(args: argparse.Namespace) -> LauncherConfig:
         log_path=paths.log_path,
         runner_path=paths.runner_path,
         pane_title=pane_title,
+        pr_head_oid=metadata["headRefOid"],
         session_name=args.session_name,
         window_name=args.window_name,
         codex_bin=args.codex_bin,
@@ -338,6 +383,7 @@ def build_launcher_config(args: argparse.Namespace) -> LauncherConfig:
 
 
 def launch_monitor(config: LauncherConfig) -> str:
+    ensure_worktree_matches_pr_head(config)
     write_launcher_artifacts(config)
     ensure_tmux_window(config.session_name, config.window_name)
     pane_id = allocate_monitor_pane(config.session_name, config.window_name, config.pr_number)

@@ -6,6 +6,7 @@ from scripts.pr_monitor import build_codex_command
 from scripts.pr_monitor import build_monitor_paths
 from scripts.pr_monitor import build_pane_title
 from scripts.pr_monitor import build_runner_script
+from scripts.pr_monitor import build_live_head_branch_name
 from scripts.pr_monitor import render_prompt
 
 
@@ -61,12 +62,14 @@ class PrMonitorTest(unittest.TestCase):
             log_path=pathlib.Path("/tmp/pr-monitors/logs/pr405-live-monitor.log"),
             runner_path=pathlib.Path("/tmp/pr-monitors/runners/pr405-live-monitor.sh"),
             pane_title="PR #405 Fix monitor reliability",
+            pr_head_oid="deadbeef",
         )
 
         script = build_runner_script(config)
 
         self.assertIn("while true; do", script)
         self.assertIn("gh pr view \"$PR_NUMBER\"", script)
+        self.assertIn("PROMPT=\"$(cat \"$PROMPT_PATH\")\"", script)
         self.assertIn("PR is still open", script)
         self.assertIn("sleep \"$RESTART_DELAY_SECONDS\"", script)
         self.assertIn("PR merged at", script)
@@ -77,6 +80,9 @@ class PrMonitorTest(unittest.TestCase):
             "PR #405 Fix monitor reliability",
             build_pane_title(405, "Fix monitor reliability"),
         )
+
+    def test_build_live_head_branch_name_uses_pr_number(self) -> None:
+        self.assertEqual("pr405-live-head", build_live_head_branch_name(405))
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ Search for open PRs authored by me and PRs where review is requested, across all
 - GraphQL resolve: `mutation { resolveReviewThread(input: {threadId: "ID"}) { thread { isResolved } } }`
 
 ### c. Merge readiness
-- All checks pass + no conflicts + no unresolved threads + updatedAt > 5min → merge
+- All checks pass + no conflicts + no unresolved threads + latest commit age > 5min → merge
 - incubator-wave: `--merge`, tube2web/tubescribes/slides-lab: `--squash`
 - Enable auto-merge: `gh pr merge NUM -R repo --merge --auto`
 

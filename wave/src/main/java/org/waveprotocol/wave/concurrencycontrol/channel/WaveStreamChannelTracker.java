@@ -28,6 +28,10 @@ public final class WaveStreamChannelTracker {
 
   private final Map<WaveId, String> knownChannels = CollectionUtils.newHashMap();
 
+  public void clear() {
+    knownChannels.clear();
+  }
+
   public void onStreamOpened(WaveId waveId) {
     knownChannels.remove(waveId);
   }

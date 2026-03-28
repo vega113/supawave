@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +15,7 @@ import junit.framework.TestCase;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.box.server.authentication.SessionManager;
@@ -138,5 +140,37 @@ public class MagicLinkServletTest extends TestCase {
     verify(sessionManager).setLoggedInUser(any(WebSession.class), eq(USER));
     verify(resp).sendRedirect("/");
     verify(resp).addHeader(eq("Set-Cookie"), contains(BrowserSessionJwt.COOKIE_NAME + "=browser-jwt"));
+  }
+
+  public void testMagicLinkLoginRejectsSuspendedAccount() throws Exception {
+    HumanAccountDataImpl account =
+        new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
+    account.setEmail("frodo@example.com");
+    account.setEmailConfirmed(false);
+    account.setStatus(HumanAccountData.STATUS_SUSPENDED);
+    when(accountStore.getAccount(USER)).thenReturn(account);
+    when(req.getParameter("token")).thenReturn("magic-token");
+    when(emailTokenIssuer.validateToken("magic-token", JwtTokenType.MAGIC_LINK))
+        .thenReturn(new JwtClaims(
+            JwtTokenType.MAGIC_LINK,
+            "example.com",
+            USER.getAddress(),
+            "token-id",
+            "key-id",
+            EnumSet.of(JwtAudience.EMAIL),
+            Set.of(),
+            1L,
+            1L,
+            600L,
+            0L));
+    PrintWriter writer = mock(PrintWriter.class);
+    when(resp.getWriter()).thenReturn(writer);
+
+    servlet.doGet(req, resp);
+
+    assertFalse(account.isEmailConfirmed());
+    verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(sessionManager, never()).setLoggedInUser(any(WebSession.class), eq(USER));
+    verify(resp, never()).sendRedirect("/");
   }
 }

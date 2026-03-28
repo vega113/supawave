@@ -27,6 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.authentication.email.AuthEmailService;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
@@ -180,9 +181,18 @@ public final class MagicLinkServlet extends HttpServlet {
         return;
       }
 
-      if (!account.asHuman().isEmailConfirmed()) {
-        authEmailService.confirmEmailOwnership(account.asHuman());
+      HumanAccountData humanAccount = account.asHuman();
+      if (HumanAccountData.STATUS_SUSPENDED.equals(humanAccount.getStatus())) {
+        writeRequestPage(resp, "Your account has been suspended. Contact your administrator.",
+            AuthenticationServlet.RESPONSE_STATUS_FAILED, HttpServletResponse.SC_FORBIDDEN);
+        return;
       }
+
+      if (!humanAccount.isEmailConfirmed()) {
+        authEmailService.confirmEmailOwnership(humanAccount);
+      }
+      humanAccount.setLastLoginTime(System.currentTimeMillis());
+      accountStore.putAccount(account);
 
       WebSession session = WebSessions.from(req, true);
       sessionManager.setLoggedInUser(session, participantId);

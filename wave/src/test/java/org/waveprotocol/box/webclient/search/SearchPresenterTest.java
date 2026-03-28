@@ -32,10 +32,12 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.client.scheduler.testing.FakeTimerService;
 import org.waveprotocol.wave.client.account.ProfileListener;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent;
 import org.waveprotocol.wave.model.wave.SourcesEvents;
 import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -222,6 +224,24 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, scheduler.countTasksScheduled());
   }
 
+  public void testReconnectKeepsVisibleDigestsInsteadOfShowingSkeleton() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    FakeSearchPanelView view = new FakeSearchPanelView();
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, view, NO_OP_ACTION_HANDLER, new FakeProfiles(), null);
+
+    view.setHasVisibleDigests(true);
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "useOtSearch", false);
+    setBooleanField(presenter, "otSearchTimedOut", false);
+
+    invokeNetworkStatus(presenter, NetworkStatusEvent.ConnectionStatus.RECONNECTED);
+
+    assertEquals(1, search.findCalls);
+    assertFalse(getBooleanField(presenter, "allowLoadingSkeletonDuringSearch"));
+  }
+
   private static void setBooleanField(SearchPresenter presenter, String fieldName, boolean value)
       throws Exception {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
@@ -248,6 +268,14 @@ public final class SearchPresenterTest extends TestCase {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.set(presenter, value);
+  }
+
+  private static void invokeNetworkStatus(
+      SearchPresenter presenter, NetworkStatusEvent.ConnectionStatus status) throws Exception {
+    Method method = SearchPresenter.class.getDeclaredMethod(
+        "handleOtSearchNetworkStatus", NetworkStatusEvent.class);
+    method.setAccessible(true);
+    method.invoke(presenter, new NetworkStatusEvent(status));
   }
 
   private static List<SearchService.DigestSnapshot> createDigestSnapshots(int count) {
@@ -332,6 +360,7 @@ public final class SearchPresenterTest extends TestCase {
 
   private static final class FakeSearchPanelView implements SearchPanelView {
     private final FakeSearchView searchView = new FakeSearchView();
+    private DigestView firstDigest;
 
     @Override
     public void init(Listener listener) {
@@ -361,7 +390,7 @@ public final class SearchPresenterTest extends TestCase {
 
     @Override
     public DigestView getFirst() {
-      return null;
+      return firstDigest;
     }
 
     @Override
@@ -395,10 +424,54 @@ public final class SearchPresenterTest extends TestCase {
 
     @Override
     public void clearDigests() {
+      firstDigest = null;
+    }
+
+    @Override
+    public void showLoadingSkeleton() {
+      firstDigest = null;
     }
 
     @Override
     public void setShowMoreVisible(boolean visible) {
+    }
+
+    private void setHasVisibleDigests(boolean hasVisibleDigests) {
+      firstDigest = hasVisibleDigests ? new FakeDigestView() : null;
+    }
+  }
+
+  private static final class FakeDigestView implements DigestView {
+    @Override
+    public void remove() {
+    }
+
+    @Override
+    public void setAvatars(Iterable<org.waveprotocol.wave.client.account.Profile> urls) {
+    }
+
+    @Override
+    public void setTimestamp(String time) {
+    }
+
+    @Override
+    public void setTitleText(String text) {
+    }
+
+    @Override
+    public void setSnippet(String snippet) {
+    }
+
+    @Override
+    public void setMessageCounts(int unread, int total) {
+    }
+
+    @Override
+    public void select() {
+    }
+
+    @Override
+    public void deselect() {
     }
   }
 

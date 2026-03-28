@@ -29,6 +29,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.util.CollectionUtils;
+import org.waveprotocol.wave.concurrencycontrol.channel.WaveStreamChannelTracker;
 
 import java.util.Map;
 
@@ -47,13 +48,12 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
   //
   // Filtering logic is as follows. Since not every update has a channel id, but
   // all updates have a wavelet name, wave ids remain the primary key. This
-  // map's domain is a subset of streams' domain, and is monotonically set with
+  // tracker's domain is a subset of streams' domain, and is monotonically set with
   // the first channel id observed for an open wave. Only updates that have no
   // channel id, or an equal channel id, are passed through to the stream.
-  // Closing the stream removes any known channel id from this map (this follows
-  // from the contraint that this maps's domain is a subset of streams' domain).
+  // Closing or reopening the stream removes any known channel id from the tracker.
   //
-  private final Map<WaveId, String> knownChannels = CollectionUtils.newHashMap();
+  private final WaveStreamChannelTracker channelTracker = new WaveStreamChannelTracker();
 
   /** Underlying socket. */
   private final WaveWebSocketClient socket;
@@ -86,18 +86,7 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
     // Route to the appropriate stream handler.
     WaveWebSocketCallback stream = streams.get(wavelet.waveId);
     if (stream != null) {
-      boolean drop;
-
-      String knownChannelId = knownChannels.get(wavelet.waveId);
-      if (knownChannelId != null) {
-      // Drop updates with known mismatched channel ids.
-        drop = message.hasChannelId() && !message.getChannelId().equals(knownChannelId);
-      } else {
-        if (message.hasChannelId()) {
-          knownChannels.put(wavelet.waveId, message.getChannelId());
-        }
-        drop = false;
-      }
+      boolean drop = shouldDropUpdate(wavelet.waveId, message);
 
       if (!drop) {
         stream.onWaveletUpdate(message);
@@ -117,7 +106,7 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
    */
   public void open(WaveId id, IdFilter filter, WaveWebSocketCallback stream) {
     // Prepare to receive updates for the new stream.
-    streams.put(id, stream);
+    registerStream(id, stream);
 
     // Request those updates.
     ProtocolOpenRequestJsoImpl request = ProtocolOpenRequestJsoImpl.create();
@@ -156,7 +145,7 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
    */
   public void open(WaveId id, IdFilter filter, WaveWebSocketCallback stream,
                    String viewportStartBlipId, String viewportDirection, int viewportLimit) {
-    streams.put(id, stream);
+    registerStream(id, stream);
     ProtocolOpenRequestJsoImpl request = ProtocolOpenRequestJsoImpl.create();
     request.setWaveId(ModernIdSerialiser.INSTANCE.serialiseWaveId(id));
     request.setParticipantId(userId);
@@ -186,8 +175,7 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
    */
   public void close(WaveId id, WaveWebSocketCallback stream) {
     if (streams.get(id) == stream) {
-      streams.remove(id);
-      knownChannels.remove(id);
+      unregisterStream(id);
     }
 
     // Issue 117: the client server protocol does not support closing a wave stream.
@@ -214,5 +202,20 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
 
   public static String serialize(WaveletName name) {
     return ModernIdSerialiser.INSTANCE.serialiseWaveletName(name);
+  }
+
+  private void registerStream(WaveId id, WaveWebSocketCallback stream) {
+    channelTracker.onStreamOpened(id);
+    streams.put(id, stream);
+  }
+
+  private void unregisterStream(WaveId id) {
+    streams.remove(id);
+    channelTracker.onStreamClosed(id);
+  }
+
+  private boolean shouldDropUpdate(WaveId waveId, ProtocolWaveletUpdate message) {
+    String channelId = message.hasChannelId() ? message.getChannelId() : null;
+    return channelTracker.shouldDropUpdate(waveId, channelId);
   }
 }

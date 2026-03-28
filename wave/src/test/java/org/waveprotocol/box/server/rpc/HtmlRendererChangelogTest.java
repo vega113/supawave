@@ -18,6 +18,7 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.json.JSONArray;
@@ -33,18 +34,29 @@ public final class HtmlRendererChangelogTest {
         "localhost:9898",
         HtmlRenderer.renderTopBar("alice", "example.com", "user"),
         "",
-        "abc123",
+        "abc123build",
         1700000000000L,
+        "2026-03-27-unread-only-search-filter",
         null);
 
-    assertTrue(html.contains("showUpgradeBanner(data.changelog || null);"));
+    assertTrue(html.contains("var currentBuildCommit = \"abc123build\";"));
+    assertTrue(html.contains("var currentReleaseId = \"2026-03-27-unread-only-search-filter\";"));
+    assertTrue(html.contains("fetch('/version?since=' + encodeURIComponent(currentReleaseId || '')"));
+    assertTrue(html.contains("data.releaseNotesStatus"));
+    assertTrue(html.contains("data.releaseNotes || []"));
+    assertTrue(!html.contains("data.changelog || null"));
+    assertTrue(html.contains("'/changelog#' + encodeURIComponent(releaseNotes[0].releaseId)"));
     assertTrue(html.contains("What's New"));
+    assertTrue(
+        html.contains(
+            "whatsNew.href = '/changelog#release-' + encodeURIComponent(releaseNotes[0].releaseId);"));
   }
 
   @Test
   public void changelogPageRendersEntriesAndFallback() {
     JSONArray entries = new JSONArray(
-        "[{\"version\":\"2026-03-27\",\"date\":\"2026-03-27\","
+        "[{\"releaseId\":\"2026-03-27-changelog-system\",\"version\":\"2026-03-27\","
+            + "\"date\":\"2026-03-27\","
             + "\"title\":\"Changelog System\","
             + "\"summary\":\"You can now see what's new after each deploy.\","
             + "\"sections\":[{\"type\":\"feature\",\"items\":[\"New /changelog page\"]},"
@@ -59,6 +71,7 @@ public final class HtmlRendererChangelogTest {
         html.contains("You can now see what&#39;s new after each deploy."));
     assertTrue("missing feature item", html.contains("New /changelog page"));
     assertTrue("missing fix item", html.contains("Sharper upgrade banner"));
+    assertTrue("missing release anchor", html.contains("id=\"release-2026-03-27-changelog-system\""));
     assertTrue("missing empty-state message", emptyHtml.contains("No releases yet"));
   }
 
@@ -67,7 +80,31 @@ public final class HtmlRendererChangelogTest {
     String topBar = HtmlRenderer.renderTopBar("alice", "example.com", "user");
     String landing = HtmlRenderer.renderLandingPage("example.com", "");
 
-    assertTrue(topBar.contains("href=\"/changelog\""));
+    assertTrue(topBar.contains("href=\"/changelog\" target=\"_blank\" rel=\"noopener noreferrer\""));
     assertTrue(landing.contains("href=\"/changelog\">What's New</a>"));
+    assertFalse(topBar.contains("target=\"_blank\">"));
+  }
+
+  @Test
+  public void topBarAndLandingPageExposeApiDocsLink() {
+    String topBar = HtmlRenderer.renderTopBar("alice", "example.com", "user");
+    String landing = HtmlRenderer.renderLandingPage("example.com", "");
+
+    assertTrue(topBar.contains("href=\"/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\""));
+    assertTrue(landing.contains("href=\"/api-docs\""));
+  }
+
+  @Test
+  public void landingPageNavWrapsControlsOnMobile() {
+    String landing = HtmlRenderer.renderLandingPage("example.com", "");
+
+    assertTrue(landing.contains("@media (max-width: 640px)"));
+    assertTrue(landing.contains(".nav {"));
+    assertTrue(landing.contains("padding: 12px 16px;"));
+    assertTrue(landing.contains("flex-wrap: wrap;"));
+    assertTrue(landing.contains("gap: 12px;"));
+    assertTrue(landing.contains(".nav-links {"));
+    assertTrue(landing.contains("width: 100%;"));
+    assertTrue(landing.contains("justify-content: flex-start;"));
   }
 }

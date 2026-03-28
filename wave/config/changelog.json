@@ -1,6 +1,7 @@
 [
   {
-    "version": "2026-03-28",
+    "releaseId": "2026-03-28-direct-messages-stay-explicit",
+    "version": "PR #422",
     "date": "2026-03-28",
     "title": "Direct Messages Stay Explicit",
     "summary": "Two-person waves no longer turn into direct messages unless you start them from Send Message.",
@@ -15,22 +16,350 @@
     ]
   },
   {
-    "version": "2026-03-27",
-    "date": "2026-03-27",
-    "title": "Changelog System",
-    "summary": "You can now see what's new after each deploy.",
+    "releaseId": "2026-03-28-save-recovery",
+    "version": "PR #419",
+    "date": "2026-03-28",
+    "title": "Save Recovery",
+    "summary": "Wave tabs recover cleanly after websocket reconnects instead of getting stuck in a long-saving state.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Reopened wave streams now accept the new websocket channel id instead of filtering against a stale one",
+          "Active wave views now fail fast on websocket disconnect so the client reconnect flow can resubscribe and clear stuck saving indicators"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-shared-wave-pinning",
+    "version": "PR #417",
+    "date": "2026-03-28",
+    "title": "Shared Wave Pinning",
+    "summary": "Pinning and unpinning now works for waves you can access even when you are not the wave owner.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Fixed shared-wave pin and unpin requests so they update your per-user state without requiring wave ownership"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-search-bootstrap-loading-ux",
+    "version": "PR #414",
+    "date": "2026-03-28",
+    "title": "Search Bootstrap Loading UX",
+    "summary": "The search panel now shows loading skeletons only for blank OT bootstrap loads and keeps direct-search results visible while OT overlay state times out cleanly.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "The search panel now renders loading skeleton rows only when an OT-enabled bootstrap starts from an empty result set",
+          "Refreshing search results keeps the current result rows visible instead of blanking the panel while the next direct-search request is in flight",
+          "If OT overlay data never arrives, the client now clears that waiting state without blanking direct-search results or retrying OT reconnect forever"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-api-docs-discovery",
+    "version": "PR #406",
+    "date": "2026-03-28",
+    "title": "API Docs Discovery",
+    "summary": "API consumers and LLM agents can now discover the SupaWave docs from dedicated llms entrypoints and direct links across the product.",
     "sections": [
       {
         "type": "feature",
         "items": [
-          "New /changelog page showing release history",
-          "Version upgrade banner now shows the latest release summary"
+          "Published `/llms.txt` and `/llms-full.txt` as LLM-friendly API docs entrypoints",
+          "Added direct `/api-docs` links in the landing-page navigation bar, hero section, footer, and signed-in app menu"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-unread-search-read-state-fix",
+    "version": "PR #412",
+    "date": "2026-03-28",
+    "title": "Unread Search Read-State Fix",
+    "summary": "Unread-only searches now evaluate persisted read state so read waves stop leaking into unread results.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Unread-only searches now use wavelet read-state data instead of relying on the conversation-model supplement path",
+          "Read waves no longer remain in `unread:true` results when every matching wave has already been opened"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-search-panel-unread-accuracy",
+    "version": "PR #411",
+    "date": "2026-03-28",
+    "title": "Search Panel Unread Accuracy",
+    "summary": "Opened waves now keep the correct unread state in the polling search panel.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Stopped opened search results from dropping back to a stale local read state before the polling digest catches up",
+          "Kept higher live unread and message counts when the open wave has newer local state than the last search snapshot"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-realtime-search-stability",
+    "version": "2026-03-28",
+    "date": "2026-03-28",
+    "title": "Realtime Search Stability",
+    "summary": "Experimental OT-backed search now degrades more safely when the live snapshot cannot satisfy the requested result window, and the server only tracks live search state for active subscribers.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Expanded OT search result lists now fall back to polling instead of getting stuck behind a 50-result live snapshot",
+          "Search wavelet bootstrap registration now skips inactive listeners and re-evaluates participant subscriptions conservatively to avoid stale live results"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-release-aware-upgrade-notes",
+    "version": "PR #405",
+    "date": "2026-03-27",
+    "title": "Release-Aware Upgrade Notes",
+    "summary": "Upgrade banners now map to the deployed release notes instead of always showing the newest changelog entry.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "The upgrade banner now links to the exact deployed release notes when the release mapping is known",
+          "Deploy metadata now keeps changelog release mapping aligned across upgrades and rollbacks"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-unread-only-search-filter",
+    "version": "PR #403",
+    "date": "2026-03-27",
+    "title": "Unread-Only Search Filter",
+    "summary": "You can now narrow SupaWave search results to waves with unread blips only.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added the unread:true search filter for inbox, archive, pinned, and combined searches"
         ]
       },
       {
-        "type": "improvement",
+        "type": "fix",
         "items": [
-          "Added What's New links to the app menu and landing page"
+          "Updated the search help popup with unread-only examples"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-inline-anchor-stability",
+    "version": "PR #402",
+    "date": "2026-03-27",
+    "title": "Inline Reply Stability",
+    "summary": "Inline replies no longer crash when SupaWave encounters a stale inline anchor reference.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Missing inline anchor references now fall back safely instead of throwing an Item not found client error"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-search-bootstrap-recovery",
+    "version": "PR #398",
+    "date": "2026-03-27",
+    "title": "Search Bootstrap Recovery",
+    "summary": "The left search panel now restores itself reliably even when OT search is enabled.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Search now performs an immediate direct bootstrap before depending on OT updates",
+          "Archive and inbox actions refresh search results correctly again"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-live-unread-digests",
+    "version": "PR #397",
+    "date": "2026-03-27",
+    "title": "Live Unread Digests",
+    "summary": "Unread counts stay accurate during polling and OT-driven search refreshes.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Search refreshes now preserve live unread digest proxies instead of replacing them with stale snapshots"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-restore-last-wave",
+    "version": "PR #394",
+    "date": "2026-03-27",
+    "title": "Restore Your Last Wave",
+    "summary": "SupaWave can reopen your last active wave after login or refresh and focus the next unread blip.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "When no URL fragment is present, SupaWave restores the last opened wave from local storage",
+          "Wave opens now focus the last unread blip before falling back to the last blip"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-implicit-content-search",
+    "version": "PR #392",
+    "date": "2026-03-27",
+    "title": "Implicit Content Search",
+    "summary": "Bare words in the search box now behave like content filters automatically.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Plain search terms such as hello or meeting notes now search wave content without requiring content:"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-search-reset-inbox",
+    "version": "PR #390",
+    "date": "2026-03-27",
+    "title": "Smarter Empty Search Reset",
+    "summary": "Clearing the search box now returns you to the inbox instead of leaving the app in an empty-query state.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Empty or whitespace-only searches now normalize back to in:inbox"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-lucene9-search-rollout",
+    "version": "PR #389",
+    "date": "2026-03-27",
+    "title": "Lucene 9 Search Rollout",
+    "summary": "A new Lucene 9 BM25 search backend is available behind the lucene9 feature flag.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added Lucene 9 full-text search with richer parsing and BM25 ranking behind the lucene9 flag"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-ot-search-fallback",
+    "version": "PR #388",
+    "date": "2026-03-27",
+    "title": "OT Search Fallback",
+    "summary": "Experimental OT search now falls back automatically when realtime search data does not arrive in time.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "The search panel no longer stays blank when OT search is enabled but no search-wavelet data arrives"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-api-docs",
+    "version": "PR #387",
+    "date": "2026-03-27",
+    "title": "Built-In API Docs",
+    "summary": "SupaWave now ships human and LLM-friendly API documentation directly inside the app.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added /api-docs, /api/openapi.json, and /api/llm.txt for the Data and Robot APIs"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-latest-activity-sort",
+    "version": "PR #386",
+    "date": "2026-03-27",
+    "title": "More Accurate Latest-Activity Sorting",
+    "summary": "Date-based sorting now reflects the most recent conversational activity across the whole wave.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Wave search ordering now uses the latest conversational wavelet activity instead of only the root wavelet"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-ot-search-live-updates",
+    "version": "PR #384",
+    "date": "2026-03-27",
+    "title": "Realtime OT Search",
+    "summary": "SupaWave can subscribe to realtime search wavelets when the ot-search feature flag is enabled.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added OT-powered realtime search subscriptions behind the ot-search flag"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-changelog-system",
+    "version": "PR #383",
+    "date": "2026-03-27",
+    "title": "Changelog System",
+    "summary": "You can now review recent SupaWave releases from the app and see what changed after a deploy.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added the /changelog page with release history",
+          "Added What's New links in the app menu and landing page"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-27-title-content-search",
+    "version": "PR #381",
+    "date": "2026-03-27",
+    "title": "Title and Content Search Filters",
+    "summary": "Search can now target wave titles or any blip content explicitly.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added title: search for root blip titles",
+          "Added content: search across conversational blips",
+          "Updated search help with clickable examples for the new filters"
         ]
       }
     ]

@@ -19,7 +19,7 @@
 
 package org.waveprotocol.box.server.rpc;
 
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -44,6 +44,9 @@ import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwt;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtIssuer;
+import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
+import org.waveprotocol.box.server.authentication.email.AuthEmailService;
+import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -54,6 +57,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringReader;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Locale;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -73,6 +79,8 @@ public class AuthenticationServletTest extends TestCase {
   @Mock private HttpSession session;
   @Mock private SessionManager manager;
   @Mock private BrowserSessionJwtIssuer browserSessionJwtIssuer;
+  @Mock private EmailTokenIssuer emailTokenIssuer;
+  @Mock private MailProvider mailProvider;
 
   @Override
   protected void setUp() throws Exception {
@@ -90,12 +98,23 @@ public class AuthenticationServletTest extends TestCase {
       .put("security.clientauth_cert_domain", "")
       .put("administration.disable_loginpage", false)
       .put("security.enable_ssl", false)
+      .put("core.email_confirmation_enabled", false)
+      .put("core.auth_email_send_cooldown_seconds", 300)
+      .put("core.auth_email_send_max_per_address_per_hour", 5)
+      .put("core.auth_email_send_max_per_ip_per_hour", 20)
+      .put("core.public_url", "https://wave.example.com")
       .build()
     );
     when(browserSessionJwtIssuer.tokenLifetimeSeconds()).thenReturn(1209600L);
+    AuthEmailService authEmailService = new AuthEmailService(
+        store,
+        emailTokenIssuer,
+        mailProvider,
+        Clock.fixed(Instant.parse("2026-03-28T08:00:00Z"), ZoneOffset.UTC),
+        config);
 
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
-        manager, "examPLe.com", config, browserSessionJwtIssuer);
+        manager, "examPLe.com", config, browserSessionJwtIssuer, authEmailService);
     AccountStoreHolder.init(store, "eXaMple.com");
   }
 
@@ -164,6 +183,110 @@ public class AuthenticationServletTest extends TestCase {
     verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
     verify(resp, never()).addCookie(Mockito.any());
     verify(manager, never()).setLoggedInUser(Mockito.any(), Mockito.any());
+  }
+
+  public void testValidLoginForUnconfirmedAccountResendsActivationEmail() throws Exception {
+    AccountStore store = new MemoryStore();
+    HumanAccountDataImpl account =
+        new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
+    account.setEmail("frodo@example.com");
+    account.setEmailConfirmed(false);
+    store.putAccount(account);
+
+    Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put("administration.disable_registration", false)
+        .put("administration.analytics_account", "UA-someid")
+        .put("security.enable_clientauth", false)
+        .put("security.clientauth_cert_domain", "")
+        .put("administration.disable_loginpage", false)
+        .put("security.enable_ssl", false)
+        .put("core.email_confirmation_enabled", true)
+        .put("core.auth_email_send_cooldown_seconds", 300)
+        .put("core.auth_email_send_max_per_address_per_hour", 5)
+        .put("core.auth_email_send_max_per_ip_per_hour", 20)
+        .put("core.public_url", "https://wave.example.com")
+        .build());
+    AuthEmailService authEmailService = new AuthEmailService(
+        store,
+        emailTokenIssuer,
+        mailProvider,
+        Clock.fixed(Instant.parse("2026-03-28T08:00:00Z"), ZoneOffset.UTC),
+        config);
+    servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
+        manager, "example.com", config, browserSessionJwtIssuer, authEmailService);
+    when(emailTokenIssuer.issueEmailConfirmToken(USER)).thenReturn("confirm-token");
+
+    PercentEscaper escaper = new PercentEscaper(PercentEscaper.SAFECHARS_URLENCODER, true);
+    String data = "address=" + escaper.escape("frodo@example.com")
+        + "&password=" + escaper.escape("password");
+
+    Reader reader = new StringReader(data);
+    when(req.getReader()).thenReturn(new BufferedReader(reader));
+    when(req.getLocale()).thenReturn(Locale.ENGLISH);
+    when(req.getScheme()).thenReturn("https");
+    when(req.getServerName()).thenReturn("wave.example.com");
+    when(req.getServerPort()).thenReturn(443);
+    when(req.getRemoteAddr()).thenReturn("198.51.100.7");
+    PrintWriter writer = mock(PrintWriter.class);
+    when(resp.getWriter()).thenReturn(writer);
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(mailProvider).sendEmail(eq("frodo@example.com"),
+        eq("Confirm your Wave account"), contains("confirm-token"));
+    verify(manager, never()).setLoggedInUser(Mockito.any(), Mockito.any());
+    verify(resp, never()).sendRedirect(Mockito.anyString());
+  }
+
+  public void testSuspendedUnconfirmedAccountDoesNotResendActivationEmail() throws Exception {
+    AccountStore store = new MemoryStore();
+    HumanAccountDataImpl account =
+        new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
+    account.setEmail("frodo@example.com");
+    account.setEmailConfirmed(false);
+    account.setStatus(HumanAccountData.STATUS_SUSPENDED);
+    store.putAccount(account);
+
+    Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put("administration.disable_registration", false)
+        .put("administration.analytics_account", "UA-someid")
+        .put("security.enable_clientauth", false)
+        .put("security.clientauth_cert_domain", "")
+        .put("administration.disable_loginpage", false)
+        .put("security.enable_ssl", false)
+        .put("core.email_confirmation_enabled", true)
+        .put("core.auth_email_send_cooldown_seconds", 300)
+        .put("core.auth_email_send_max_per_address_per_hour", 5)
+        .put("core.auth_email_send_max_per_ip_per_hour", 20)
+        .put("core.public_url", "https://wave.example.com")
+        .build());
+    AuthEmailService authEmailService = new AuthEmailService(
+        store,
+        emailTokenIssuer,
+        mailProvider,
+        Clock.fixed(Instant.parse("2026-03-28T08:00:00Z"), ZoneOffset.UTC),
+        config);
+    servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
+        manager, "example.com", config, browserSessionJwtIssuer, authEmailService);
+
+    PercentEscaper escaper = new PercentEscaper(PercentEscaper.SAFECHARS_URLENCODER, true);
+    String data = "address=" + escaper.escape("frodo@example.com")
+        + "&password=" + escaper.escape("password");
+
+    Reader reader = new StringReader(data);
+    when(req.getReader()).thenReturn(new BufferedReader(reader));
+    when(req.getLocale()).thenReturn(Locale.ENGLISH);
+    PrintWriter writer = mock(PrintWriter.class);
+    when(resp.getWriter()).thenReturn(writer);
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(writer).write(contains("Your account has been suspended"));
+    verify(mailProvider, never()).sendEmail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+    verify(manager, never()).setLoggedInUser(Mockito.any(), Mockito.any());
+    verify(resp, never()).sendRedirect(Mockito.anyString());
   }
 
   // *** Utility methods

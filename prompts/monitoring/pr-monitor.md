@@ -1,14 +1,15 @@
 # PR and Issue Monitor — Recurring Prompt
 
-> Use with: `/loop 5m <this prompt>` or as a GitHub Actions workflow trigger
+> Use with: `/loop 3m <this prompt>` or as a GitHub Actions workflow trigger
 
 ## Quick-exit guard (smart polling)
 
 Before doing anything, check if there's any work:
 ```
 count=$(gh search prs --author=@me --state=open --json number --jq length 2>/dev/null)
+reviews=$(gh search prs --review-requested=@me --state=open --json number --jq length 2>/dev/null)
 issues=$(for repo in vega113/incubator-wave vega113/tube2web vega113/tubescribes vega113/slides-lab; do gh issue list -R "$repo" --state open --json number --jq length 2>/dev/null; done | paste -sd+ | bc)
-if [ "${count:-0}" -eq 0 ] && [ "${issues:-0}" -eq 0 ]; then echo "All clean"; exit 0; fi
+if [ "${count:-0}" -eq 0 ] && [ "${reviews:-0}" -eq 0 ] && [ "${issues:-0}" -eq 0 ]; then echo "All clean"; exit 0; fi
 ```
 
 ## 1. Discover open PRs
@@ -27,23 +28,32 @@ Search for open PRs authored by me and PRs where review is requested, across all
 - GraphQL resolve: `mutation { resolveReviewThread(input: {threadId: "ID"}) { thread { isResolved } } }`
 
 ### c. Merge readiness
-- All checks pass + no conflicts + no unresolved threads + updatedAt > 5min → merge
+- All checks pass + no conflicts + no unresolved threads + latest commit age > 5 min → merge
 - incubator-wave: `--merge`, tube2web/tubescribes/slides-lab: `--squash`
 - Enable auto-merge: `gh pr merge NUM -R repo --merge --auto`
 
 ### d. Immediate cascade on merge
 When ANY PR merges, immediately update ALL other BEHIND PRs. Don't wait for next cycle.
 
+### e. Completion rule
+- Do not stop at merge-ready
+- Do not stop when auto-merge is armed
+- Keep polling until GitHub reports the PR actually merged, or until the PR is truly blocked or closed without merge
+
 ## 3. Discover and fix open issues
 
 Check all monitored repos for open issues. Spawn background agents to fix actionable ones.
 
 ## 4. Codex Review Gate handling
-- Gate checks CodeRabbit status + grace period window
-- Gate uses latest **commit timestamp** as baseline (not prUpdatedAt)
-- 5-minute grace period after latest commit push
-- Comments/thread resolutions do NOT restart the timer
-- Re-run failed gates after window expires
+- Monitor PRs every ~3 minutes so review-state changes are noticed quickly even though the Actions schedule fallback only runs every 5 minutes.
+- Gate baseline is the latest qualifying **CodeRabbit completion on the current head**, not `prUpdatedAt` and not the latest commit timestamp alone.
+- After CodeRabbit completes on the current head:
+  - if no further code changes are needed, add a PR-level `+1` reaction from Codex immediately
+  - then re-run the gate via a PR comment containing `/codex-review-gate`
+- If Codex does not add that PR-level `+1`, the gate auto-passes after 5 minutes of silence, as long as no newer commit exists.
+- New commits invalidate the previous CodeRabbit completion and require a fresh current-head CodeRabbit success.
+- Comments/thread resolutions do NOT restart the 5-minute CodeRabbit-completion window.
+- Re-run failed gates once the 5-minute grace period has elapsed if no thumbs-up was added; scheduled fallback uses the same PR comment trigger so it does not depend on the PR branch carrying the latest workflow file.
 
 ## Monitored repos
 - vega113/incubator-wave
@@ -93,8 +103,8 @@ Check all monitored repos for open issues. Spawn background agents to fix action
   - Verify no two servlets map to the same URL path
 
 ## Improvement Roadmap
-1. Gate baseline uses commit SHA (not prUpdatedAt)
-2. Reduced grace period to 5 minutes
+1. Gate baseline uses the latest qualifying current-head CodeRabbit completion
+2. Keep the 5-minute Codex thumbs-up grace period aligned with the workflow
 3. TODO: Enable GitHub merge queue to eliminate BEHIND cascade
 4. TODO: Configure chatgpt-codex-connector to skip merge commits
 5. TODO: Auto-resolve P2/informational threads that don't need code changes

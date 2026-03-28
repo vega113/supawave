@@ -10,5 +10,6 @@ Read in this order:
 3. `caddy.md` if you want the recommended reverse-proxy deployment
 4. `../../deploy/mongo/README.md` for Mongo auth, backup, restore, and durability guidance
 5. optional overlays such as `contabo.md` and `cloudflare-supawave.md` only after reading the generic docs
+6. `email-deliverability-supawave.md` if you are diagnosing Resend or DNS-related inbox-placement issues for `supawave.ai`
 
 Provider-specific notes are overlays, not the canonical deployment story.

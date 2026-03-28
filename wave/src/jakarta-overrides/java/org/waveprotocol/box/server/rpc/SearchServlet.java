@@ -36,6 +36,7 @@ import org.waveprotocol.box.server.robots.OperationContextImpl;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.robots.util.OperationUtil;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletSnapshotPublisher;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.box.server.authentication.WebSession;
@@ -62,17 +63,20 @@ public class SearchServlet extends HttpServlet {
   private final WaveletProvider waveletProvider;
   private final ConversationUtil conversationUtil;
   private final ProtoSerializer serializer;
+  private final SearchWaveletSnapshotPublisher snapshotPublisher;
 
   @Inject
   public SearchServlet(SessionManager sessionManager, EventDataConverterManager converterManager,
                        @Named("DataApiRegistry") OperationServiceRegistry operationRegistry, WaveletProvider waveletProvider,
-                       ConversationUtil conversationUtil, ProtoSerializer serializer) {
+                       ConversationUtil conversationUtil, ProtoSerializer serializer,
+                       SearchWaveletSnapshotPublisher snapshotPublisher) {
     this.sessionManager = sessionManager;
     this.converterManager = converterManager;
     this.operationRegistry = operationRegistry;
     this.waveletProvider = waveletProvider;
     this.conversationUtil = conversationUtil;
     this.serializer = serializer;
+    this.snapshotPublisher = snapshotPublisher;
   }
 
   @Override
@@ -96,6 +100,16 @@ public class SearchServlet extends HttpServlet {
       return;
     }
     SearchResult searchResult = performSearch(searchRequest, user);
+    if (snapshotPublisher != null) {
+      boolean hasLiveSubscription =
+          snapshotPublisher.hasLiveSubscription(user, searchRequest.getQuery());
+      if (hasLiveSubscription) {
+        SearchRequest bootstrapRequest = canonicalLiveSearchRequest(searchRequest);
+        SearchResult bootstrapResult = canonicalBootstrapSearchResult(
+            searchRequest, bootstrapRequest, searchResult, user);
+        snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
+      }
+    }
     int totalGuess = computeTotalResultsNumberGuess(searchRequest, searchResult);
     SearchResponse searchResponse = serializeSearchResult(searchResult, totalGuess);
     String ctx = "user=" + user.getAddress() + ", query=\"" + searchRequest.getQuery() +
@@ -151,6 +165,30 @@ public class SearchServlet extends HttpServlet {
     OperationUtil.executeOperation(operationRequest, operationRegistry, context, user);
     JsonRpcResponse jsonRpcResponse = context.getResponses().get(opId);
     return (SearchResult) jsonRpcResponse.getData().get(ParamsProperty.SEARCH_RESULTS);
+  }
+
+  private SearchResult canonicalBootstrapSearchResult(
+      SearchRequest searchRequest,
+      SearchRequest canonicalRequest,
+      SearchResult searchResult,
+      ParticipantId user) {
+    if (isCanonicalLiveSearchRequest(searchRequest)) {
+      return searchResult;
+    }
+    return performSearch(canonicalRequest, user);
+  }
+
+  private static SearchRequest canonicalLiveSearchRequest(SearchRequest searchRequest) {
+    return SearchRequest.newBuilder()
+        .setQuery(searchRequest.getQuery())
+        .setIndex(0)
+        .setNumResults(SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS)
+        .build();
+  }
+
+  private static boolean isCanonicalLiveSearchRequest(SearchRequest searchRequest) {
+    return searchRequest.getIndex() == 0
+        && searchRequest.getNumResults() == SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS;
   }
 
   private static int computeTotalResultsNumberGuess(SearchRequest req, SearchResult res) {

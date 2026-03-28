@@ -51,6 +51,12 @@ public final class ChangelogServlet extends HttpServlet {
       resp.setContentType("application/json; charset=UTF-8");
       resp.setHeader("Cache-Control", "public, max-age=300");
       resp.getWriter().write(entries.toString());
+    } else if (isCurrentPath(pathInfo)) {
+      JSONObject currentEntry = changelogProvider.getCurrentReleaseEntry();
+      resp.setStatus(HttpServletResponse.SC_OK);
+      resp.setContentType("application/json; charset=UTF-8");
+      resp.setHeader("Cache-Control", "no-cache");
+      resp.getWriter().write(currentEntry != null ? currentEntry.toString() : "{}");
     } else if (isHtmlPath(pathInfo)) {
       resp.setStatus(HttpServletResponse.SC_OK);
       resp.setContentType("text/html; charset=UTF-8");
@@ -66,6 +72,10 @@ public final class ChangelogServlet extends HttpServlet {
 
   private static boolean isApiPath(String pathInfo) {
     return "/api".equals(pathInfo);
+  }
+
+  private static boolean isCurrentPath(String pathInfo) {
+    return "/current".equals(pathInfo);
   }
 
   private static boolean isHtmlPath(String pathInfo) {

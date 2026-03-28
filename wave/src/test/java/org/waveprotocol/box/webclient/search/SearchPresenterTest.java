@@ -19,20 +19,28 @@
 
 package org.waveprotocol.box.webclient.search;
 
+import com.google.gwt.http.client.Request;
+
 import junit.framework.TestCase;
 
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
 import org.waveprotocol.wave.model.document.util.DocProviders;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.client.scheduler.testing.FakeTimerService;
 import org.waveprotocol.wave.client.account.ProfileListener;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent;
 import org.waveprotocol.wave.model.wave.SourcesEvents;
 import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class SearchPresenterTest extends TestCase {
 
@@ -55,6 +63,34 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals("example.com", waveletName.waveId.getDomain());
     assertEquals("search+30ae99f507d4f206af60f6470b4de013", waveletName.waveletId.getId());
     assertEquals("example.com", waveletName.waveletId.getDomain());
+  }
+
+  public void testNormalizeSearchQueryFallsBackToInbox() {
+    assertEquals("in:inbox", SearchPresenter.normalizeSearchQuery(null));
+    assertEquals("in:inbox", SearchPresenter.normalizeSearchQuery(""));
+    assertEquals("in:inbox", SearchPresenter.normalizeSearchQuery("   "));
+    assertEquals("creator:bob", SearchPresenter.normalizeSearchQuery("creator:bob"));
+  }
+
+  public void testShouldSubmitQueryRejectsRepeatedDefaultSubmission() {
+    assertFalse(SearchWidget.shouldSubmitQuery(
+        "",
+        false,
+        SearchPresenter.DEFAULT_SEARCH));
+  }
+
+  public void testShouldSubmitQueryRejectsDeferredDefaultSubmission() {
+    assertFalse(SearchWidget.shouldSubmitQuery(
+        "",
+        true,
+        null));
+  }
+
+  public void testShouldSubmitQueryAllowsNewProgrammaticQueryAfterDeferredDefault() {
+    assertTrue(SearchWidget.shouldSubmitQuery(
+        "creator:bob",
+        true,
+        SearchPresenter.DEFAULT_SEARCH));
   }
 
   public void testParseOtSearchDocumentExtractsDigestsAndMetadata() {
@@ -166,11 +202,96 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, scheduler.countTasksScheduled());
   }
 
+  public void testOnShowMoreFallsBackToPollingWhenOtSnapshotCannotGrowWindow()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    SimpleSearch search = new SimpleSearch(new FakeSearchService(), null);
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        null);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "useOtSearch", true);
+    setIntField(presenter, "querySize", 45);
+    setField(
+        presenter,
+        "otSearchSnapshot",
+        new SearchPresenter.OtSearchSnapshot(80, createDigestSnapshots(50)));
+
+    presenter.onShowMoreClicked();
+
+    assertFalse(getBooleanField(presenter, "useOtSearch"));
+    assertEquals(1, scheduler.countTasksScheduled());
+  }
+
+  public void testReconnectKeepsVisibleDigestsInsteadOfShowingSkeleton() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    FakeSearchPanelView view = new FakeSearchPanelView();
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, view, NO_OP_ACTION_HANDLER, new FakeProfiles(), null);
+
+    view.setHasVisibleDigests(true);
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "useOtSearch", false);
+    setBooleanField(presenter, "otSearchTimedOut", false);
+
+    invokeNetworkStatus(presenter, NetworkStatusEvent.ConnectionStatus.RECONNECTED);
+
+    assertEquals(1, search.findCalls);
+    assertFalse(getBooleanField(presenter, "allowLoadingSkeletonDuringSearch"));
+  }
+
   private static void setBooleanField(SearchPresenter presenter, String fieldName, boolean value)
       throws Exception {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.setBoolean(presenter, value);
+  }
+
+  private static boolean getBooleanField(SearchPresenter presenter, String fieldName)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    return field.getBoolean(presenter);
+  }
+
+  private static void setIntField(SearchPresenter presenter, String fieldName, int value)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.setInt(presenter, value);
+  }
+
+  private static void setField(SearchPresenter presenter, String fieldName, Object value)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.set(presenter, value);
+  }
+
+  private static void invokeNetworkStatus(
+      SearchPresenter presenter, NetworkStatusEvent.ConnectionStatus status) throws Exception {
+    Method method = SearchPresenter.class.getDeclaredMethod(
+        "handleOtSearchNetworkStatus", NetworkStatusEvent.class);
+    method.setAccessible(true);
+    method.invoke(presenter, new NetworkStatusEvent(status));
+  }
+
+  private static List<SearchService.DigestSnapshot> createDigestSnapshots(int count) {
+    List<SearchService.DigestSnapshot> digests = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      digests.add(new SearchService.DigestSnapshot(
+          "Title " + i,
+          "Snippet " + i,
+          WaveId.of("example.com", "w+" + i),
+          ParticipantId.ofUnsafe("author@example.com"),
+          Collections.<ParticipantId>emptyList(),
+          i,
+          0,
+          1));
+    }
+    return digests;
   }
 
   private static final class FakeSearch implements Search {
@@ -230,8 +351,16 @@ public final class SearchPresenterTest extends TestCase {
     }
   }
 
+  private static final class FakeSearchService implements SearchService {
+    @Override
+    public Request search(String query, int index, int numResults, Callback callback) {
+      return null;
+    }
+  }
+
   private static final class FakeSearchPanelView implements SearchPanelView {
     private final FakeSearchView searchView = new FakeSearchView();
+    private DigestView firstDigest;
 
     @Override
     public void init(Listener listener) {
@@ -261,7 +390,7 @@ public final class SearchPresenterTest extends TestCase {
 
     @Override
     public DigestView getFirst() {
-      return null;
+      return firstDigest;
     }
 
     @Override
@@ -295,10 +424,54 @@ public final class SearchPresenterTest extends TestCase {
 
     @Override
     public void clearDigests() {
+      firstDigest = null;
+    }
+
+    @Override
+    public void showLoadingSkeleton() {
+      firstDigest = null;
     }
 
     @Override
     public void setShowMoreVisible(boolean visible) {
+    }
+
+    private void setHasVisibleDigests(boolean hasVisibleDigests) {
+      firstDigest = hasVisibleDigests ? new FakeDigestView() : null;
+    }
+  }
+
+  private static final class FakeDigestView implements DigestView {
+    @Override
+    public void remove() {
+    }
+
+    @Override
+    public void setAvatars(Iterable<org.waveprotocol.wave.client.account.Profile> urls) {
+    }
+
+    @Override
+    public void setTimestamp(String time) {
+    }
+
+    @Override
+    public void setTitleText(String text) {
+    }
+
+    @Override
+    public void setSnippet(String snippet) {
+    }
+
+    @Override
+    public void setMessageCounts(int unread, int total) {
+    }
+
+    @Override
+    public void select() {
+    }
+
+    @Override
+    public void deselect() {
     }
   }
 

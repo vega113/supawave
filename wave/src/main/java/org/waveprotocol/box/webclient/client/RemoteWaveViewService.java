@@ -30,7 +30,12 @@ import org.waveprotocol.box.common.comms.jso.ProtocolSubmitRequestJsoImpl;
 import org.waveprotocol.box.common.comms.jso.ProtocolWaveletUpdateJsoImpl;
 import org.waveprotocol.box.webclient.common.WaveletOperationSerializer;
 import org.waveprotocol.wave.client.common.util.ClientPercentEncoderDecoder;
+import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.Log;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent.ConnectionStatus;
+import org.waveprotocol.wave.client.events.NetworkStatusEventHandler;
+import org.waveprotocol.wave.concurrencycontrol.channel.WaveViewDisconnectTracker;
 import org.waveprotocol.wave.concurrencycontrol.channel.WaveViewService;
 import org.waveprotocol.wave.concurrencycontrol.common.ResponseCode;
 import org.waveprotocol.wave.federation.ProtocolHashedVersion;
@@ -56,6 +61,8 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.DocumentFactory;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.impl.WaveletDataImpl;
+
+import com.google.gwt.event.shared.HandlerRegistration;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -270,6 +277,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
   private final RemoteViewServiceMultiplexer mux;
   private final DocumentFactory<?> docFactory;
   private final VersionSignatureManager versions = new VersionSignatureManager();
+  private final WaveViewDisconnectTracker disconnectTracker = new WaveViewDisconnectTracker();
 
   /** Filter for client-side filtering. */
   // TODO: remove after Issue 124 is addressed.
@@ -280,6 +288,9 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
   private OpenCallback callback;
 
   private AsyncCallContext openContext;
+
+  /** Registration for the per-wave network handler; removed on {@link #viewClose}. */
+  private HandlerRegistration networkHandlerRegistration;
 
   /**
    * Creates a service.
@@ -303,6 +314,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
   public void viewOpen(final IdFilter filter,
       final Map<WaveletId, List<HashedVersion>> knownWavelets, final OpenCallback callback) {
     LOG.info("viewOpen called on " + waveId + " with " + filter);
+    ensureNetworkHandlerRegistration();
 
     // Some legacy hack. Important updates are sent to a "dummy+root" wavelet.
     // TODO: remove this once Issue 125 is fixed.
@@ -311,6 +323,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     newPrefixes.add("dummy");
     this.filter = IdFilter.of(filter.getIds(), newPrefixes);
     this.callback = callback;
+    disconnectTracker.onStreamOpened(callback);
 
     openContext = AsyncCallContext.start("ProtocolOpenRequest");
     // Optional initial viewport hints from flags
@@ -373,6 +386,9 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
   public void viewClose(final WaveId waveId, final String channelId, final CloseCallback callback) {
     Preconditions.checkArgument(this.waveId.equals(waveId));
     LOG.info("closing channel " + waveId);
+    stopOpenContext();
+    disconnectTracker.onStreamClosed();
+    removeNetworkHandlerRegistration();
     callback.onSuccess();
     mux.close(waveId, this);
   }
@@ -409,7 +425,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
         callback.onUpdate(deserialize(update));
       } else {
         if (update.hasMarker()) {
-          openContext.stop();
+          stopOpenContext();
         }
         callback.onUpdate(deserialize(update));
       }
@@ -418,6 +434,37 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
 
   private WaveViewServiceUpdateImpl deserialize(ProtocolWaveletUpdate update) {
     return new WaveViewServiceUpdateImpl(update);
+  }
+
+  private void stopOpenContext() {
+    if (openContext != null) {
+      openContext.stop();
+      openContext = null;
+    }
+  }
+
+  private void ensureNetworkHandlerRegistration() {
+    if (networkHandlerRegistration == null) {
+      networkHandlerRegistration = ClientEvents.get().addNetworkStatusEventHandler(
+          new NetworkStatusEventHandler() {
+            @Override
+            public void onNetworkStatus(NetworkStatusEvent event) {
+              ConnectionStatus status = event.getStatus();
+              if (status == ConnectionStatus.DISCONNECTED
+                  || status == ConnectionStatus.NEVER_CONNECTED) {
+                stopOpenContext();
+                disconnectTracker.onSocketDisconnected();
+              }
+            }
+          });
+    }
+  }
+
+  private void removeNetworkHandlerRegistration() {
+    if (networkHandlerRegistration != null) {
+      networkHandlerRegistration.removeHandler();
+      networkHandlerRegistration = null;
+    }
   }
 
   /** @return the target wavelet of an update. */

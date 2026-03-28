@@ -30,9 +30,7 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.HttpRequestBasedCallbackHandler;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
-import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
-import org.waveprotocol.box.server.mail.MailException;
-import org.waveprotocol.box.server.mail.MailProvider;
+import org.waveprotocol.box.server.authentication.email.AuthEmailService;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.util.RegistrationSupport;
@@ -63,16 +61,14 @@ public final class UserRegistrationServlet extends HttpServlet {
   private final String analyticsAccount;
   private final boolean emailConfirmationEnabled;
   private final boolean emailRequired;
-  private final EmailTokenIssuer emailTokenIssuer;
-  private final MailProvider mailProvider;
+  private final AuthEmailService authEmailService;
   private final WelcomeWaveCreator welcomeWaveCreator;
 
   @Inject
   public UserRegistrationServlet(AccountStore accountStore,
                                  @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
                                  Config config,
-                                 EmailTokenIssuer emailTokenIssuer,
-                                 MailProvider mailProvider,
+                                 AuthEmailService authEmailService,
                                  WelcomeWaveCreator welcomeWaveCreator) {
     this.accountStore = accountStore;
     this.domain = domain;
@@ -86,8 +82,7 @@ public final class UserRegistrationServlet extends HttpServlet {
         && config.getBoolean("core.email_required_for_registration");
     // Email is always required when email confirmation is enabled.
     this.emailRequired = this.emailConfirmationEnabled || configEmailRequired;
-    this.emailTokenIssuer = emailTokenIssuer;
-    this.mailProvider = mailProvider;
+    this.authEmailService = authEmailService;
     this.welcomeWaveCreator = welcomeWaveCreator;
   }
 
@@ -180,16 +175,7 @@ public final class UserRegistrationServlet extends HttpServlet {
       }
 
       // Send confirmation email to the provided email address
-      String sendTo = !normalizedEmail.isEmpty() ? normalizedEmail : id.getAddress();
-      try {
-        String token = emailTokenIssuer.issueEmailConfirmToken(id);
-        String confirmUrl = buildConfirmUrl(req, token);
-        String emailBody = renderConfirmEmail(id.getAddress(), confirmUrl);
-        mailProvider.sendEmail(sendTo, "Confirm your Wave account", emailBody);
-        LOG.info("Confirmation email sent for user " + id.getAddress());
-      } catch (MailException e) {
-        LOG.severe("Failed to send confirmation email for user " + id.getAddress(), e);
-      }
+      authEmailService.sendConfirmationEmail(req, account);
 
       return "CONFIRM_PENDING:Registration successful! Please check your email to confirm your account.";
     } else {
@@ -215,32 +201,6 @@ public final class UserRegistrationServlet extends HttpServlet {
 
       return null;
     }
-  }
-
-  private String buildConfirmUrl(HttpServletRequest req, String token) {
-    String scheme = req.getScheme();
-    String serverName = req.getServerName();
-    int serverPort = req.getServerPort();
-    StringBuilder url = new StringBuilder();
-    url.append(scheme).append("://").append(serverName);
-    if (("http".equals(scheme) && serverPort != 80)
-        || ("https".equals(scheme) && serverPort != 443)) {
-      url.append(":").append(serverPort);
-    }
-    url.append("/auth/confirm-email?token=").append(token);
-    return url.toString();
-  }
-
-  private String renderConfirmEmail(String address, String confirmUrl) {
-    return "<html><body>"
-        + "<h2>Confirm Your Account</h2>"
-        + "<p>Welcome to Wave! Please confirm your account: <b>"
-        + HtmlRenderer.escapeHtml(address) + "</b></p>"
-        + "<p>Click the link below to activate your account:</p>"
-        + "<p><a href=\"" + HtmlRenderer.escapeHtml(confirmUrl) + "\">Confirm Email</a></p>"
-        + "<p>If you did not register, you can safely ignore this email.</p>"
-        + "<p>This link will expire in 24 hours.</p>"
-        + "</body></html>";
   }
 
   /**

@@ -32,10 +32,15 @@ import org.waveprotocol.box.server.authentication.ParticipantPrincipal;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.authentication.email.AuthEmailService;
+import org.waveprotocol.box.server.authentication.email.AuthEmailService.DispatchResult;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwt;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtCookie;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtIssuer;
+import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.util.RegistrationSupport;
 import org.waveprotocol.wave.model.id.WaveIdentifiers;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
@@ -91,6 +96,7 @@ public class AuthenticationServlet extends HttpServlet {
   private final Configuration configuration;
   private final SessionManager sessionManager;
   private final BrowserSessionJwtIssuer browserSessionJwtIssuer;
+  private final AuthEmailService authEmailService;
   private final String domain;
   private final boolean isClientAuthEnabled;
   private final String clientAuthCertDomain;
@@ -109,7 +115,8 @@ public class AuthenticationServlet extends HttpServlet {
                                SessionManager sessionManager,
                                @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
                                Config config,
-                               BrowserSessionJwtIssuer browserSessionJwtIssuer) {
+                               BrowserSessionJwtIssuer browserSessionJwtIssuer,
+                               AuthEmailService authEmailService) {
     Preconditions.checkNotNull(accountStore, "AccountStore is null");
     Preconditions.checkNotNull(configuration, "Configuration is null");
     Preconditions.checkNotNull(sessionManager, "Session manager is null");
@@ -118,6 +125,7 @@ public class AuthenticationServlet extends HttpServlet {
     this.configuration = configuration;
     this.sessionManager = sessionManager;
     this.browserSessionJwtIssuer = browserSessionJwtIssuer;
+    this.authEmailService = authEmailService;
     this.domain = domain.toLowerCase();
     this.isClientAuthEnabled = config.getBoolean("security.enable_clientauth");
     this.clientAuthCertDomain = config.getString("security.clientauth_cert_domain").toLowerCase();
@@ -244,32 +252,16 @@ public class AuthenticationServlet extends HttpServlet {
     // Check email confirmation if enabled
     if (emailConfirmationEnabled && loggedInAddress != null) {
       try {
-        org.waveprotocol.box.server.account.AccountData acct =
-            accountStore.getAccount(loggedInAddress);
-        if (acct != null && acct.isHuman() && !acct.asHuman().isEmailConfirmed()) {
-          String message = "Your email has not been confirmed. Please check your inbox.";
-          resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-          resp.setContentType("text/html;charset=utf-8");
-          resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, message,
-              RESPONSE_STATUS_FAILED, isLoginPageDisabled, analyticsAccount,
-              passwordResetEnabled, magicLinkEnabled));
-          return;
-        }
-      } catch (org.waveprotocol.box.server.persistence.PersistenceException e) {
-        LOG.severe("Failed to check email confirmation for " + loggedInAddress, e);
-      }
-    }
-
-    // Check if user is suspended (reject login)
-    if (loggedInAddress != null) {
-      try {
-        org.waveprotocol.box.server.account.AccountData acct =
-            accountStore.getAccount(loggedInAddress);
+        AccountData acct = accountStore.getAccount(loggedInAddress);
         if (acct != null && acct.isHuman()) {
-          org.waveprotocol.box.server.account.HumanAccountData human = acct.asHuman();
-          if (org.waveprotocol.box.server.account.HumanAccountData.STATUS_SUSPENDED
-              .equals(human.getStatus())) {
-            String message = "Your account has been suspended. Contact your administrator.";
+          HumanAccountData human = acct.asHuman();
+          if (HumanAccountData.STATUS_SUSPENDED.equals(human.getStatus())) {
+            renderSuspendedAccountMessage(resp);
+            return;
+          }
+          if (!human.isEmailConfirmed()) {
+            String message = buildUnconfirmedEmailMessage(
+                authEmailService.sendConfirmationEmail(req, human));
             resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
             resp.setContentType("text/html;charset=utf-8");
             resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, message,
@@ -277,11 +269,27 @@ public class AuthenticationServlet extends HttpServlet {
                 passwordResetEnabled, magicLinkEnabled));
             return;
           }
+        }
+      } catch (PersistenceException e) {
+        LOG.severe("Failed to check email confirmation for " + loggedInAddress, e);
+      }
+    }
+
+    // Check if user is suspended (reject login)
+    if (loggedInAddress != null) {
+      try {
+        AccountData acct = accountStore.getAccount(loggedInAddress);
+        if (acct != null && acct.isHuman()) {
+          HumanAccountData human = acct.asHuman();
+          if (HumanAccountData.STATUS_SUSPENDED.equals(human.getStatus())) {
+            renderSuspendedAccountMessage(resp);
+            return;
+          }
           // Track last login time
           human.setLastLoginTime(System.currentTimeMillis());
           accountStore.putAccount(acct);
         }
-      } catch (org.waveprotocol.box.server.persistence.PersistenceException e) {
+      } catch (PersistenceException e) {
         LOG.severe("Failed to check account status for " + loggedInAddress, e);
       }
     }
@@ -303,6 +311,23 @@ public class AuthenticationServlet extends HttpServlet {
         secureCookiesByDefault);
     resp.addHeader("Set-Cookie",
         BrowserSessionJwtCookie.headerValue(token, browserSessionJwtIssuer.tokenLifetimeSeconds(), secureCookie));
+  }
+
+  private String buildUnconfirmedEmailMessage(DispatchResult dispatchResult) {
+    return switch (dispatchResult) {
+      case SENT -> "Your email has not been confirmed. We sent a fresh activation email.";
+      case THROTTLED, FAILED ->
+          "Your email has not been confirmed. Check your inbox or try again in a few minutes.";
+    };
+  }
+
+  private void renderSuspendedAccountMessage(HttpServletResponse resp) throws IOException {
+    String message = "Your account has been suspended. Contact your administrator.";
+    resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+    resp.setContentType("text/html;charset=utf-8");
+    resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, message,
+        RESPONSE_STATUS_FAILED, isLoginPageDisabled, analyticsAccount,
+        passwordResetEnabled, magicLinkEnabled));
   }
 
   private ParticipantId getLoggedInUser(Subject subject) throws InvalidParticipantAddress {

@@ -79,6 +79,10 @@
              <td>Waves with a specific tag</td>
            </tr>
            <tr>
+             <td><code>unread:true</code></td>
+             <td>Only waves with unread blips</td>
+           </tr>
+           <tr>
              <td><code>title:text</code></td>
              <td>Waves whose title contains text</td>
            </tr>
@@ -141,6 +145,7 @@
        <span ui:field='exPublic' class='{css.helpExample}'>with:@</span>
        <span ui:field='exCreator' class='{css.helpExample}'>creator:bob</span>
        <span ui:field='exTag' class='{css.helpExample}'>tag:important</span>
+       <span ui:field='exUnread' class='{css.helpExample}'>unread:true</span>
        <span ui:field='exFreeText' class='{css.helpExample}'>meeting notes</span>
        <span ui:field='exInboxTag' class='{css.helpExample}'>in:inbox tag:important</span>
        <span ui:field='exAllOldest' class='{css.helpExample}'>in:all orderby:createdasc</span>

@@ -20,6 +20,7 @@ package org.waveprotocol.box.server.rpc.jakarta;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.websocket.OnClose;
+import jakarta.websocket.OnError;
 import jakarta.websocket.OnMessage;
 import jakarta.websocket.OnOpen;
 import jakarta.websocket.Session;
@@ -29,6 +30,8 @@ import org.waveprotocol.box.server.rpc.ServerRpcProvider;
 import org.waveprotocol.box.server.rpc.ServerRpcProvider.WebSocketConnection;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
+
+import java.nio.channels.ClosedChannelException;
 
 /**
  * Jakarta EE WebSocket endpoint that bridges Jetty 12 websocket sessions to
@@ -89,14 +92,45 @@ public class WaveWebSocketEndpoint {
 
   @OnClose
   public void onClose(Session session) {
-    WebSocketConnection connection =
-        (WebSocketConnection) session.getUserProperties().remove(CONNECTION_KEY);
-    if (connection != null) {
-      connection.detachSession();
-    }
+    detachConnection(session);
     if (LOG.isFineLoggable()) {
       LOG.fine("WebSocket closed: id=" + (session != null ? session.getId() : "null"));
     }
+  }
+
+  @OnError
+  public void onError(Session session, Throwable error) {
+    detachConnection(session);
+    if (isClosedChannelError(error)) {
+      if (LOG.isFineLoggable()) {
+        LOG.fine("WebSocket closed during transport handling: id="
+            + (session != null ? session.getId() : "null"));
+      }
+    } else {
+      LOG.warning("WebSocket transport error", error);
+    }
+    closeQuietly(session);
+  }
+
+  private static void detachConnection(Session session) {
+    WebSocketConnection connection = null;
+    if (session != null) {
+      connection =
+          (WebSocketConnection) session.getUserProperties().remove(CONNECTION_KEY);
+    }
+    if (connection != null) {
+      connection.detachSession();
+    }
+  }
+
+  private static boolean isClosedChannelError(Throwable error) {
+    boolean closedChannelError = false;
+    Throwable current = error;
+    while (current != null && !closedChannelError) {
+      closedChannelError = current instanceof ClosedChannelException;
+      current = current.getCause();
+    }
+    return closedChannelError;
   }
 
   private static void closeQuietly(Session session) {

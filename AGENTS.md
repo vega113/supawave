@@ -118,6 +118,16 @@ git worktrees.
   implementation summary, the review outcome, and the commit list that landed
   the work.
 
+## Changelog Guidelines
+- Every PR that changes user-facing behavior MUST update `wave/src/main/resources/config/changelog.json`
+  before merging, and keep `wave/config/changelog.json` aligned for staged runtime config.
+- Add a new entry at the top of the array (newest first) with `version`, `date`
+  (ISO `YYYY-MM-DD`, usually matching `version`), `title`, `summary`, and
+  `sections` (`feature` / `fix`).
+- The changelog is displayed at `/changelog` and in the deploy upgrade banner.
+- Keep entries concise: a 1-2 sentence summary and short bullet-style change
+  lists.
+
 ## Tool Usage Rules
 - Prefer MCP tools over free-form browsing when available.
 - Discover tool schema before use:
@@ -178,6 +188,19 @@ Below are practical, action-focused rules for each MCP server defined in `~/.cod
 - Commit changes you intend to keep with a clear, concise message.
 - Group unrelated changes into separate commits when that improves traceability.
 - Revert changes you do not want to keep.
+
+## Changelog
+- User-facing releases should prepend a new entry to
+  `wave/config/changelog.json` and keep
+  `wave/src/main/resources/config/changelog.json` aligned with the same data.
+- Every changelog entry must keep a stable `releaseId` slug, plus `date`,
+  `title`, `summary`, and `sections`.
+- Do not rewrite, regroup, or delete older release entries in a feature PR.
+- If a PR needs to revise its own pending release note, only edit the newly
+  added top entry for that PR and leave older history untouched.
+- Treat `scripts/validate-changelog.py` as mandatory before merge or deploy,
+  and run it against both changelog file paths before landing user-facing
+  changes.
 
 ## Code Guidelines
 - Do not use FQN in your code, instead import from the appropriate module.

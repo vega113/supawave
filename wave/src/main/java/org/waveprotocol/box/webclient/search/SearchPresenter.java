@@ -27,6 +27,7 @@ import com.google.gwt.user.client.ui.Widget;
 import org.waveprotocol.box.common.comms.DocumentSnapshot;
 import org.waveprotocol.box.common.comms.ProtocolWaveletUpdate;
 import org.waveprotocol.box.common.comms.WaveletSnapshot;
+import org.waveprotocol.box.search.SearchBootstrapUiState;
 import org.waveprotocol.wave.federation.ProtocolHashedVersion;
 import org.waveprotocol.wave.federation.ProtocolWaveletDelta;
 import org.waveprotocol.box.webclient.client.RemoteViewServiceMultiplexer;
@@ -110,7 +111,7 @@ public final class SearchPresenter
 
   /** How often to repeat the search query. */
   private final static int POLLING_INTERVAL_MS = 15000; // 15s
-  private final static String DEFAULT_SEARCH = "in:inbox";
+  static final String DEFAULT_SEARCH = "in:inbox";
   /** Page size for desktop viewports (width > 768px). */
   private final static int DESKTOP_PAGE_SIZE = 30;
   /** Page size for mobile viewports (width <= 768px) -- smaller for faster initial load. */
@@ -194,6 +195,8 @@ public final class SearchPresenter
   private boolean useOtSearch;
   /** Set to true once the first snapshot or delta arrives for the OT search wavelet. */
   private boolean otSearchReceivedData;
+  private boolean allowLoadingSkeletonDuringSearch;
+  private boolean otSearchTimedOut;
   private DocInitialization otSearchDocument;
   private OtSearchSnapshot otSearchSnapshot = OtSearchSnapshot.empty();
   private WaveletName otSearchWaveletName;
@@ -218,11 +221,7 @@ public final class SearchPresenter
   private final Task otSearchTimeoutTask = new Task() {
     @Override
     public void execute() {
-      if (useOtSearch && !otSearchReceivedData) {
-        fallbackToPolling(
-            "OT search timed out after " + OT_SEARCH_TIMEOUT_MS
-                + "ms with no data for query '" + queryText + "'", null);
-      }
+      handleOtSearchTimeout();
     }
   };
 
@@ -269,7 +268,7 @@ public final class SearchPresenter
     @Override
     public void execute() {
       if (otSearchEnabled) {
-        bootstrapOtSearch();
+        bootstrapOtSearch(false);
       } else {
         doSearch();
       }
@@ -369,6 +368,14 @@ public final class SearchPresenter
   }
 
   void bootstrapOtSearch() {
+    bootstrapOtSearch(false);
+  }
+
+  void bootstrapOtSearch(boolean allowLoadingSkeleton) {
+    allowLoadingSkeletonDuringSearch = allowLoadingSkeleton
+        && SearchBootstrapUiState.allowLoadingSkeletonForSearchStart(search.getMinimumTotal());
+    otSearchTimedOut = false;
+    renderLoadingSkeletonIfEmpty();
     subscribeToSearchWavelet(queryText);
     doSearch();
     scheduler.cancel(searchUpdater);
@@ -391,7 +398,7 @@ public final class SearchPresenter
       useOtSearch = false;
       networkStatusHandlerRegistration =
           ClientEvents.get().addNetworkStatusEventHandler(otSearchNetworkStatusHandler);
-      bootstrapOtSearch();
+      bootstrapOtSearch(true);
     } else {
       startPolling();
     }
@@ -481,7 +488,7 @@ public final class SearchPresenter
               scheduler.scheduleDelayed(new Task() {
                 @Override
                 public void execute() {
-                  bootstrapOtSearch();
+                  bootstrapOtSearch(false);
                 }
               }, delay);
             } else {
@@ -550,7 +557,7 @@ public final class SearchPresenter
         .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
-            forceRefresh();
+            forceRefresh(false);
           }
         }).setVisualElement(createSvgIcon(ICON_REFRESH));
 
@@ -666,6 +673,7 @@ public final class SearchPresenter
   }
 
   private void startPolling() {
+    allowLoadingSkeletonDuringSearch = false;
     scheduler.cancel(searchUpdater);
     scheduler.scheduleRepeating(searchUpdater, 0, POLLING_INTERVAL_MS);
   }
@@ -681,6 +689,10 @@ public final class SearchPresenter
    * Renders the current state of the search result into the panel.
    */
   private void render() {
+    if (shouldShowLoadingSkeleton()) {
+      renderLoadingSkeleton();
+      return;
+    }
     renderTitle();
     renderWaveCount();
     renderDigests();
@@ -802,8 +814,18 @@ public final class SearchPresenter
 
   @Override
   public void onQueryEntered() {
-    queryText = searchUi.getSearch().getQuery();
-    forceRefresh();
+    String newQuery = normalizeSearchQuery(searchUi.getSearch().getQuery());
+    boolean queryChanged = !newQuery.equals(queryText);
+    queryText = newQuery;
+    searchUi.getSearch().setQuery(queryText);
+    forceRefresh(queryChanged);
+  }
+
+  static String normalizeSearchQuery(String queryText) {
+    if (queryText == null || queryText.trim().isEmpty()) {
+      return DEFAULT_SEARCH;
+    }
+    return queryText;
   }
 
   /**
@@ -811,12 +833,12 @@ public final class SearchPresenter
    * user sees updated results right away (e.g. after pin/unpin or Enter on
    * the same query).
    */
-  private void forceRefresh() {
+  private void forceRefresh(boolean allowLoadingSkeleton) {
     querySize = getPageSize();
     searchUi.setTitleText(messages.searching());
     search.cancel();
     if (otSearchEnabled) {
-      bootstrapOtSearch();
+      bootstrapOtSearch(allowLoadingSkeleton);
     } else {
       doSearch();
       scheduler.cancel(searchUpdater);
@@ -830,7 +852,13 @@ public final class SearchPresenter
     if (shouldUsePolling(otSearchEnabled, useOtSearch)) {
       doSearch();
     } else {
-      applyOtSearchResults();
+      if (canProjectOtSearchWindow(querySize, otSearchSnapshot)) {
+        applyOtSearchResults();
+      } else {
+        fallbackToPolling(
+            "OT search cannot serve query window " + querySize + " for query '" + queryText + "'",
+            null);
+      }
     }
   }
 
@@ -840,19 +868,21 @@ public final class SearchPresenter
 
   @Override
   public void onStateChanged() {
-    //
-    // If the state switches to searching, then do nothing. A manual title-bar
-    // update is performed in onQueryEntered(), and the title-bar should not be
-    // updated when a polling search fires.
-    //
-    // If the state switches to ready, then just update the title. Do not
-    // necessarily re-render, since that is only necessary if a change occurred,
-    // which would have fired one of the other methods below.
-    //
+    if (search.getState() == State.SEARCHING) {
+      if (shouldShowLoadingSkeleton()) {
+        render();
+      }
+      return;
+    }
     if (search.getState() == State.READY) {
-      renderTitle();
-      renderWaveCount();
-      renderShowMore();
+      if (allowLoadingSkeletonDuringSearch) {
+        allowLoadingSkeletonDuringSearch = false;
+        render();
+      } else {
+        renderTitle();
+        renderWaveCount();
+        renderShowMore();
+      }
       // Deferred load: fetch saved searches after the first search result
       // arrives so the /searches request does not block wave list display.
       if (!savedSearchesLoaded) {
@@ -952,7 +982,7 @@ public final class SearchPresenter
         // a full re-render via the next polling cycle so the server provides
         // the authoritative sort order.
         if (otSearchEnabled) {
-          bootstrapOtSearch();
+          bootstrapOtSearch(false);
         } else {
           doSearch();
         }
@@ -1009,7 +1039,7 @@ public final class SearchPresenter
 
   @Override
   public void onFolderActionCompleted(String folder) {
-    forceRefresh();
+    forceRefresh(false);
   }
 
   private void subscribeToSearchWavelet(String query) {
@@ -1072,11 +1102,19 @@ public final class SearchPresenter
       if (changed) {
         // Data arrived -- cancel the timeout and mark as received.
         otSearchReceivedData = true;
+        allowLoadingSkeletonDuringSearch = false;
+        otSearchTimedOut = false;
         scheduler.cancel(otSearchTimeoutTask);
         otSearchSnapshot = parseOtSearchSnapshot(otSearchDocument);
         useOtSearch = true;
         scheduler.cancel(searchUpdater);
-        applyOtSearchResults();
+        if (canProjectOtSearchWindow(querySize, otSearchSnapshot)) {
+          applyOtSearchResults();
+        } else {
+          fallbackToPolling(
+              "OT search snapshot is smaller than requested window for query '" + queryText + "'",
+              null);
+        }
       }
     } catch (RuntimeException e) {
       fallbackToPolling("Failed to process OT search update for query '" + queryText + "'", e);
@@ -1118,13 +1156,23 @@ public final class SearchPresenter
     ((SimpleSearch) search).replaceResults(otSearchSnapshot.getTotal(), digests);
   }
 
+  private static boolean canProjectOtSearchWindow(int requestedSize, OtSearchSnapshot snapshot) {
+    if (requestedSize <= snapshot.getDigests().size()) {
+      return true;
+    }
+    int total = snapshot.getTotal();
+    return total >= 0 && snapshot.getDigests().size() >= total;
+  }
+
   private void handleOtSearchNetworkStatus(NetworkStatusEvent event) {
     ConnectionStatus status = event.getStatus();
     if ((status == ConnectionStatus.DISCONNECTED || status == ConnectionStatus.NEVER_CONNECTED)
         && useOtSearch) {
       fallbackToPolling("OT search connection dropped for query '" + queryText + "'", null);
-    } else if (status == ConnectionStatus.RECONNECTED && otSearchEnabled && !useOtSearch) {
-      bootstrapOtSearch();
+    } else if (status == ConnectionStatus.RECONNECTED
+        && SearchBootstrapUiState.shouldRetryOtSubscriptionOnReconnect(
+            otSearchEnabled, useOtSearch, otSearchTimedOut)) {
+      bootstrapOtSearch(searchUi.getFirst() == null);
     }
   }
 
@@ -1135,6 +1183,8 @@ public final class SearchPresenter
       OT_SEARCH_LOG.log(Level.WARNING, message + "; falling back to polling", cause);
     }
     useOtSearch = false;
+    allowLoadingSkeletonDuringSearch = false;
+    otSearchTimedOut = false;
     unsubscribeFromSearchWavelet();
     otSearchDocument = null;
     otSearchSnapshot = OtSearchSnapshot.empty();
@@ -1142,6 +1192,41 @@ public final class SearchPresenter
     scheduler.cancel(otSearchTimeoutTask);
     scheduler.cancel(searchUpdater);
     startPolling();
+  }
+
+  private boolean shouldShowLoadingSkeleton() {
+    return SearchBootstrapUiState.shouldShowLoadingSkeleton(
+        allowLoadingSkeletonDuringSearch,
+        search.getState() == State.SEARCHING,
+        search.getMinimumTotal());
+  }
+
+  private void renderLoadingSkeletonIfEmpty() {
+    if (allowLoadingSkeletonDuringSearch && search.getMinimumTotal() == 0) {
+      renderLoadingSkeleton();
+    }
+  }
+
+  private void renderLoadingSkeleton() {
+    searchUi.setTitleText(messages.searching());
+    searchUi.setWaveCountText("");
+    searchUi.showLoadingSkeleton();
+    searchUi.setShowMoreVisible(false);
+    if (searchUi instanceof SearchPanelWidget) {
+      ((SearchPanelWidget) searchUi).onLoadMoreComplete();
+    }
+  }
+
+  private void handleOtSearchTimeout() {
+    if (useOtSearch || otSearchTimedOut || otSearchWaveletName == null) {
+      return;
+    }
+    otSearchTimedOut = true;
+    OT_SEARCH_LOG.warning(
+        "OT search timed out for query '" + queryText + "'; keeping direct-search results active");
+    unsubscribeFromSearchWavelet();
+    otSearchDocument = null;
+    otSearchSnapshot = OtSearchSnapshot.empty();
   }
 
   static WaveletName computeSearchWaveletName(String address, String query) {

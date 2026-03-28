@@ -20,9 +20,9 @@
 package org.waveprotocol.box.server.persistence;
 
 import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * Storage interface for feature flags.
@@ -63,24 +63,80 @@ public interface FeatureFlagStore {
    * Immutable data object representing a feature flag.
    */
   final class FeatureFlag {
+    private static final String ENABLED_SUFFIX = ":enabled";
+    private static final String DISABLED_SUFFIX = ":disabled";
+
     private final String name;
     private final String description;
     private final boolean enabled;
-    private final Set<String> allowedUsers;
+    private final Map<String, Boolean> allowedUsers;
 
     public FeatureFlag(String name, String description, boolean enabled,
-                       Set<String> allowedUsers) {
+                       Map<String, Boolean> allowedUsers) {
       this.name = name;
       this.description = description != null ? description : "";
       this.enabled = enabled;
-      this.allowedUsers = allowedUsers != null
-          ? Collections.unmodifiableSet(new LinkedHashSet<>(allowedUsers))
-          : Collections.emptySet();
+      this.allowedUsers = Collections.unmodifiableMap(copyAllowedUsers(allowedUsers));
     }
 
     public String getName() { return name; }
     public String getDescription() { return description; }
     public boolean isEnabled() { return enabled; }
-    public Set<String> getAllowedUsers() { return allowedUsers; }
+    public Map<String, Boolean> getAllowedUsers() { return allowedUsers; }
+
+    public static Map<String, Boolean> fromStoredAllowedUsers(Iterable<String> storedUsers) {
+      Map<String, Boolean> allowedUsers = new LinkedHashMap<>();
+      if (storedUsers == null) {
+        return allowedUsers;
+      }
+      for (String storedUser : storedUsers) {
+        if (storedUser == null) {
+          continue;
+        }
+        String trimmed = storedUser.trim();
+        if (trimmed.isEmpty()) {
+          continue;
+        }
+        if (trimmed.endsWith(ENABLED_SUFFIX)) {
+          allowedUsers.put(
+              trimmed.substring(0, trimmed.length() - ENABLED_SUFFIX.length()),
+              true);
+        } else if (trimmed.endsWith(DISABLED_SUFFIX)) {
+          allowedUsers.put(
+              trimmed.substring(0, trimmed.length() - DISABLED_SUFFIX.length()),
+              false);
+        } else {
+          allowedUsers.put(trimmed, true);
+        }
+      }
+      return allowedUsers;
+    }
+
+    public static List<String> toStoredAllowedUsers(Map<String, Boolean> allowedUsers) {
+      List<String> storedUsers = new java.util.ArrayList<>();
+      for (Map.Entry<String, Boolean> entry : copyAllowedUsers(allowedUsers).entrySet()) {
+        storedUsers.add(entry.getKey() + (entry.getValue() ? ENABLED_SUFFIX : DISABLED_SUFFIX));
+      }
+      return storedUsers;
+    }
+
+    private static Map<String, Boolean> copyAllowedUsers(Map<String, Boolean> allowedUsers) {
+      if (allowedUsers == null || allowedUsers.isEmpty()) {
+        return Collections.emptyMap();
+      }
+      Map<String, Boolean> copy = new LinkedHashMap<>();
+      for (Map.Entry<String, Boolean> entry : allowedUsers.entrySet()) {
+        String email = entry.getKey();
+        if (email == null) {
+          continue;
+        }
+        String trimmedEmail = email.trim();
+        if (trimmedEmail.isEmpty()) {
+          continue;
+        }
+        copy.put(trimmedEmail, !Boolean.FALSE.equals(entry.getValue()));
+      }
+      return copy;
+    }
   }
 }

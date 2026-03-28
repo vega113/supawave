@@ -85,6 +85,9 @@ public interface SearchPanelView {
   /** Removes all digest views. */
   void clearDigests();
 
+  /** Shows a loading skeleton while no real digest rows are available yet. */
+  void showLoadingSkeleton();
+
   /**
    * Sets whether the show-more button is visible.
    */

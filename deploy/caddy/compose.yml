@@ -61,6 +61,7 @@ services:
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - WAVE_EMAIL_FROM=${WAVE_EMAIL_FROM:-noreply@supawave.ai}
       - WAVE_MAIL_PROVIDER=${WAVE_MAIL_PROVIDER:-logging}
+      - WAVE_SERVER_VERSION=${WAVE_SERVER_VERSION:-dev}
 
   caddy:
     image: caddy:2.8.4-alpine

@@ -147,6 +147,17 @@ public class SearchIndexer {
     LOG.info("Registered subscription " + key + " covering " + waveIds.size() + " waves");
   }
 
+  public void registerOrUpdateSubscription(ParticipantId user, String query, String queryHash,
+      Set<WaveId> waveIds) {
+    SubscriptionKey key = new SubscriptionKey(user, queryHash);
+    String previousQuery = subscriptionRawQueries.put(key, query);
+    if (previousQuery == null) {
+      registerSubscription(user, query, queryHash, waveIds);
+      return;
+    }
+    updateSubscriptionWaves(user, queryHash, waveIds);
+  }
+
   /**
    * Unregisters a subscription. Must be wired to actual subscription close events.
    *
@@ -176,10 +187,10 @@ public class SearchIndexer {
   /**
    * Finds all subscriptions potentially affected by a change to the given wave.
    *
-   * <p>For known waves (in the forward index), this is O(1). For unknown waves
-   * (not in the forward index), returns all subscriptions for users who are
-   * participants of the wave. The caller ({@link SearchWaveletUpdater}) is
-   * responsible for bounded re-evaluation of those subscriptions.
+   * <p>Returns direct subscribers for the changed wave and also all
+   * subscriptions owned by participants of the wave. The caller
+   * ({@link SearchWaveletUpdater}) is responsible for bounded re-evaluation of
+   * those subscriptions.
    *
    * @param waveId the wave that changed
    * @param waveParticipants the participants of the changed wave (used for
@@ -188,23 +199,15 @@ public class SearchIndexer {
    */
   public Set<SubscriptionKey> getAffectedSubscriptions(WaveId waveId,
       Set<ParticipantId> waveParticipants) {
-    // Fast path: known wave in forward index
+    Set<SubscriptionKey> affected = ConcurrentHashMap.newKeySet();
     Set<SubscriptionKey> direct = waveToSubscriptions.get(waveId);
     if (direct != null && !direct.isEmpty()) {
-      return Collections.unmodifiableSet(direct);
+      affected.addAll(direct);
     }
 
-    // Slow path: unknown wave -- find subscriptions for affected users.
-    // Do NOT rely solely on Bloom filter. Instead, return all subscriptions
-    // for users who are participants, so the caller can do a bounded re-eval
-    // via SearchProvider.search().
-    Set<SubscriptionKey> affected = ConcurrentHashMap.newKeySet();
     for (ParticipantId participant : waveParticipants) {
       for (SubscriptionKey key : subscriptionToWaves.keySet()) {
         if (key.getUser().equals(participant)) {
-          // Use Bloom filter as a pre-filter hint: if the Bloom filter says
-          // "definitely not present", we still include it for re-eval because
-          // this is a new wave the filter hasn't seen.
           affected.add(key);
         }
       }

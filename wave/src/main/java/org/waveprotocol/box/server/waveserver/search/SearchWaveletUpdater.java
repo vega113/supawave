@@ -77,12 +77,11 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
   private static final int MAX_QUEUE_PER_USER = 100;
 
   /** Maximum number of search results to fetch per query. */
-  private static final int MAX_SEARCH_RESULTS = 50;
-
   private final SearchWaveletManager waveletManager;
   private final SearchIndexer indexer;
   private final SearchProvider searchProvider;
   private final SearchWaveletDataProvider dataProvider;
+  private final SearchWaveletSnapshotPublisher snapshotPublisher;
 
   /** Scheduled executor for debounced update tasks. */
   private final ScheduledExecutorService scheduler;
@@ -104,11 +103,13 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       SearchWaveletManager waveletManager,
       SearchIndexer indexer,
       SearchProvider searchProvider,
-      SearchWaveletDataProvider dataProvider) {
+      SearchWaveletDataProvider dataProvider,
+      SearchWaveletSnapshotPublisher snapshotPublisher) {
     this.waveletManager = waveletManager;
     this.indexer = indexer;
     this.searchProvider = searchProvider;
     this.dataProvider = dataProvider;
+    this.snapshotPublisher = snapshotPublisher;
     this.scheduler = Executors.newScheduledThreadPool(2, r -> {
       Thread t = new Thread(r, "SearchWaveletUpdater-scheduler");
       t.setDaemon(true);
@@ -224,7 +225,13 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       ParticipantId user = key.getUser();
 
       // Re-run the search to get current results
-      SearchResult searchResult = searchProvider.search(user, rawQuery, 0, MAX_SEARCH_RESULTS);
+      SearchResult searchResult = searchProvider.search(
+          user, rawQuery, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
+
+      if (snapshotPublisher != null) {
+        snapshotPublisher.publishUpdate(user, rawQuery, searchResult);
+        return;
+      }
 
       // Convert SearchResult digests to our SearchResultEntry list
       List<SearchWaveletDataProvider.SearchResultEntry> newResults =

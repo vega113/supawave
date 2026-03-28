@@ -80,17 +80,11 @@ public class FocusBlipSelector {
    * @return the most recently modified blip.
    */
   public BlipView selectMostRecentlyModified() {
-    Conversation conversation  = wave.getRoot();
-    if (conversation == null) {
+    BlipView rootBlipUi = getRootBlipView();
+    if (rootBlipUi == null) {
       return null;
-    } else {
-      ConversationBlip blip = wave.getRoot().getRootThread().getFirstBlip();
-      BlipView rootBlipUi = views.getBlipView(blip);
-      if (rootBlipUi == null) {
-        return null;
-      }
-      return findMostRecentlyModified(rootBlipUi);
     }
+    return findMostRecentlyModified(rootBlipUi);
   }
 
   /**
@@ -114,19 +108,28 @@ public class FocusBlipSelector {
    */
   public BlipView getOrFindRootBlip() {
     if (rootBlip == null) {
-      Conversation conversation  = wave.getRoot();
-      if (conversation == null) {
+      BlipView rootBlipUi = getRootBlipView();
+      if (rootBlipUi == null) {
         return null;
-      } else {
-        ConversationBlip blip = wave.getRoot().getRootThread().getFirstBlip();
-        BlipView rootBlipUi = views.getBlipView(blip);
-        if (rootBlipUi == null) {
-          return null;
-        }
-        rootBlip =  rootBlipUi;
       }
+      rootBlip = rootBlipUi;
     }
     return rootBlip;
+  }
+
+  private BlipView getRootBlipView() {
+    Conversation conversation = wave.getRoot();
+    if (conversation == null) {
+      return null;
+    }
+    if (conversation.getRootThread() == null) {
+      return null;
+    }
+    ConversationBlip blip = conversation.getRootThread().getFirstBlip();
+    if (blip == null) {
+      return null;
+    }
+    return views.getBlipView(blip);
   }
 
   /**

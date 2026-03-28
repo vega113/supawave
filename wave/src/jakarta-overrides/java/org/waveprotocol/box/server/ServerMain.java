@@ -17,6 +17,7 @@ import org.waveprotocol.box.server.authentication.AccountStoreHolder;
 import org.waveprotocol.box.server.executor.ExecutorsModule;
 import org.waveprotocol.box.server.frontend.ClientFrontend;
 import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
+import org.waveprotocol.box.server.frontend.SearchWaveletDispatcher;
 import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.dev.ClientApplierStatsJakartaServlet;
@@ -316,6 +317,8 @@ public class ServerMain {
     server.addServlet("/api-docs", ApiDocsServlet.class);
     server.addServlet("/api/openapi.json", ApiDocsServlet.class);
     server.addServlet("/api/llm.txt", ApiDocsServlet.class);
+    server.addServlet("/llms.txt", ApiDocsServlet.class);
+    server.addServlet("/llms-full.txt", ApiDocsServlet.class);
 
     // SEO endpoints
     server.addServlet("/robots.txt", RobotsServlet.class);
@@ -377,6 +380,7 @@ public class ServerMain {
     HashedVersionFactory hashFactory = injector.getInstance(HashedVersionFactory.class);
     WaveletProvider provider = injector.getInstance(WaveletProvider.class);
     WaveletInfo waveletInfo = WaveletInfo.create(hashFactory, provider);
+    injector.getInstance(SearchWaveletDispatcher.class).initialize(waveletInfo);
     ClientFrontend frontend = ClientFrontendImpl.create(provider, waveBus, waveletInfo);
     org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.Interface rpcImpl =
         WaveClientRpcImpl.create(frontend, false);

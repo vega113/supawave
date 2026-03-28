@@ -26,9 +26,8 @@ import org.waveprotocol.box.server.persistence.FeatureFlagStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import static com.mongodb.client.model.Filters.eq;
 
@@ -85,7 +84,7 @@ final class Mongo4FeatureFlagStore implements FeatureFlagStore {
       Document doc = new Document("_id", flag.getName())
           .append(DESCRIPTION_FIELD, flag.getDescription())
           .append(ENABLED_FIELD, flag.isEnabled())
-          .append(ALLOWED_USERS_FIELD, new ArrayList<>(flag.getAllowedUsers()));
+          .append(ALLOWED_USERS_FIELD, FeatureFlag.toStoredAllowedUsers(flag.getAllowedUsers()));
       col.replaceOne(eq("_id", flag.getName()), doc,
           new com.mongodb.client.model.ReplaceOptions().upsert(true));
     } catch (RuntimeException e) {
@@ -106,13 +105,16 @@ final class Mongo4FeatureFlagStore implements FeatureFlagStore {
     String name = doc.getString("_id");
     String description = doc.getString(DESCRIPTION_FIELD);
     boolean enabled = Boolean.TRUE.equals(doc.getBoolean(ENABLED_FIELD));
-    Set<String> allowedUsers = new LinkedHashSet<>();
+    List<String> storedUsers = new ArrayList<>();
     List<?> userList = (List<?>) doc.get(ALLOWED_USERS_FIELD);
     if (userList != null) {
       for (Object u : userList) {
-        allowedUsers.add(String.valueOf(u));
+        if (u != null) {
+          storedUsers.add(String.valueOf(u));
+        }
       }
     }
+    Map<String, Boolean> allowedUsers = FeatureFlag.fromStoredAllowedUsers(storedUsers);
     return new FeatureFlag(name, description, enabled, allowedUsers);
   }
 }

@@ -49,4 +49,21 @@ public class QueryHelperTest extends TestCase {
     assertEquals(ImmutableSet.of("meeting", "10:30", "https://example", "foo:bar:baz"),
         queryParams.get(TokenQueryType.CONTENT));
   }
+
+  public void testParseQueryRecognizesUnreadFilter() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("in:inbox unread:true");
+
+    assertEquals(ImmutableSet.of("inbox"), queryParams.get(TokenQueryType.IN));
+    assertEquals(ImmutableSet.of("true"), queryParams.get(TokenQueryType.UNREAD));
+  }
+
+  public void testParseQueryRejectsInvalidUnreadFilterValue() {
+    try {
+      QueryHelper.parseQuery("unread:maybe");
+      fail("Expected invalid unread token value");
+    } catch (QueryHelper.InvalidQueryException expected) {
+      assertTrue(expected.getMessage().contains("Invalid unread query value"));
+    }
+  }
 }

@@ -15,14 +15,21 @@ import org.waveprotocol.box.server.rpc.SearchServlet;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.box.server.waveserver.search.SearchIndexer;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletDataProvider;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletSnapshotPublisher;
 import com.google.wave.api.data.converter.EventDataConverterManager;
 import com.google.wave.api.SearchResult;
 import com.google.wave.api.SearchResult.Digest;
+import org.waveprotocol.box.server.frontend.SearchWaveletDispatcher;
 import com.google.gson.JsonElement;
 import org.waveprotocol.box.server.authentication.WebSession;
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import java.net.HttpURLConnection;
@@ -57,7 +64,7 @@ public class SearchServletJakartaIT {
     ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
     ctx.setContextPath("/");
     ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(
-        new TestSearchServlet(sm, conv, reg, wprov, convUtil, serializer)), "/search/*");
+        new TestSearchServlet(sm, conv, reg, wprov, convUtil, serializer, null)), "/search/*");
     server.setHandler(ctx);
     server.start();
     port = c.getLocalPort();
@@ -70,16 +77,25 @@ public class SearchServletJakartaIT {
 
   // Override performSearch to avoid deep Operation pipeline stubbing
   public static class TestSearchServlet extends SearchServlet {
+    private final List<org.waveprotocol.box.search.SearchProto.SearchRequest> performedRequests =
+        new ArrayList<>();
+
     public TestSearchServlet(SessionManager sm, EventDataConverterManager conv, OperationServiceRegistry reg,
-                             WaveletProvider wprov, ConversationUtil convUtil, ProtoSerializer serializer) {
-      super(sm, conv, reg, wprov, convUtil, serializer);
+                             WaveletProvider wprov, ConversationUtil convUtil, ProtoSerializer serializer,
+                             SearchWaveletSnapshotPublisher snapshotPublisher) {
+      super(sm, conv, reg, wprov, convUtil, serializer, snapshotPublisher);
     }
     @Override
     protected com.google.wave.api.SearchResult performSearch(org.waveprotocol.box.search.SearchProto.SearchRequest req,
                                                              org.waveprotocol.wave.model.wave.ParticipantId user) {
+      performedRequests.add(req);
       com.google.wave.api.SearchResult r = new com.google.wave.api.SearchResult(req.getQuery());
-      r.addDigest(new com.google.wave.api.SearchResult.Digest("t","s","wave://example/1", java.util.List.of("a@example.com"), 0L, 0L, 0, 1));
+      r.addDigest(new com.google.wave.api.SearchResult.Digest("t","s","example.com/w+1", java.util.List.of("a@example.com"), 0L, 0L, 0, 1));
       return r;
+    }
+
+    public List<org.waveprotocol.box.search.SearchProto.SearchRequest> getPerformedRequests() {
+      return performedRequests;
     }
   }
 
@@ -117,7 +133,7 @@ public class SearchServletJakartaIT {
     ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
     ctx.setContextPath("/");
     ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(
-        new TestSearchServlet(sm, conv, reg, wprov, convUtil, throwing)), "/search/*");
+        new TestSearchServlet(sm, conv, reg, wprov, convUtil, throwing, null)), "/search/*");
     srv.setHandler(ctx);
     srv.start();
     int p = cc.getLocalPort();
@@ -150,6 +166,80 @@ public class SearchServletJakartaIT {
     URL url = new URL("http://localhost:" + port + "/search/?query=in:all&index=-5&numResults=100000");
     HttpURLConnection c = TestSupport.openConnection(url);
     assertEquals(200, c.getResponseCode());
+  }
+
+  @Test
+  public void snapshotBootstrapSkipsCanonicalRequeryWithoutLiveSubscription() throws Exception {
+    var user = new org.waveprotocol.wave.model.wave.ParticipantId("user@example.com");
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.isNull(WebSession.class))).thenReturn(user);
+
+    TestSearchServlet servlet = new TestSearchServlet(
+        sm,
+        conv,
+        reg,
+        wprov,
+        convUtil,
+        serializer,
+        createSnapshotPublisher());
+
+    Server srv = new Server();
+    ServerConnector cc = new ServerConnector(srv);
+    cc.setPort(0);
+    srv.addConnector(cc);
+    ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
+    ctx.setContextPath("/");
+    ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(servlet), "/search/*");
+    srv.setHandler(ctx);
+    srv.start();
+
+    try {
+      URL url = new URL("http://localhost:" + cc.getLocalPort() + "/search/?query=in:inbox&index=5&numResults=3");
+      HttpURLConnection c = TestSupport.openConnection(url);
+      assertEquals(200, c.getResponseCode());
+      assertEquals(1, servlet.getPerformedRequests().size());
+      assertEquals(5, servlet.getPerformedRequests().get(0).getIndex());
+      assertEquals(3, servlet.getPerformedRequests().get(0).getNumResults());
+    } finally {
+      TestSupport.stopServerQuietly(srv);
+    }
+  }
+
+  @Test
+  public void snapshotBootstrapDoesNotDuplicateCanonicalLiveSearchRequest() throws Exception {
+    var user = new org.waveprotocol.wave.model.wave.ParticipantId("user@example.com");
+    Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
+    Mockito.when(sm.getLoggedInUser(Mockito.isNull(WebSession.class))).thenReturn(user);
+
+    TestSearchServlet servlet = new TestSearchServlet(
+        sm,
+        conv,
+        reg,
+        wprov,
+        convUtil,
+        serializer,
+        createSnapshotPublisher());
+
+    Server srv = new Server();
+    ServerConnector cc = new ServerConnector(srv);
+    cc.setPort(0);
+    srv.addConnector(cc);
+    ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
+    ctx.setContextPath("/");
+    ctx.addServlet(new org.eclipse.jetty.ee10.servlet.ServletHolder(servlet), "/search/*");
+    srv.setHandler(ctx);
+    srv.start();
+
+    try {
+      URL url = new URL("http://localhost:" + cc.getLocalPort() + "/search/?query=in:inbox&index=0&numResults=50");
+      HttpURLConnection c = TestSupport.openConnection(url);
+      assertEquals(200, c.getResponseCode());
+      assertEquals(1, servlet.getPerformedRequests().size());
+      assertEquals(0, servlet.getPerformedRequests().get(0).getIndex());
+      assertEquals(50, servlet.getPerformedRequests().get(0).getNumResults());
+    } finally {
+      TestSupport.stopServerQuietly(srv);
+    }
   }
 
   // ---- Unit-style validation of parser via reflection on private static method ----
@@ -218,5 +308,13 @@ public class SearchServletJakartaIT {
       return params.get(key);
     });
     return req;
+  }
+
+  private static SearchWaveletSnapshotPublisher createSnapshotPublisher() {
+    return new SearchWaveletSnapshotPublisher(
+        new SearchWaveletDispatcher(),
+        new SearchWaveletManager(),
+        new SearchIndexer(),
+        new SearchWaveletDataProvider());
   }
 }

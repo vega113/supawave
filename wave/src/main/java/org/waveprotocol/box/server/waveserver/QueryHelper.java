@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -344,6 +345,10 @@ public class QueryHelper {
           throw new InvalidQueryException(msg);
         }
       }
+      if (tokenType.equals(TokenQueryType.UNREAD) && !isUnreadTokenValue(tokenValue)) {
+        String msg = "Invalid unread query value: " + tokenValue;
+        throw new InvalidQueryException(msg);
+      }
       Set<String> valuesPerToken = tokensMap.get(tokenType);
       if (valuesPerToken == null) {
         valuesPerToken = Sets.newLinkedHashSet();
@@ -352,6 +357,14 @@ public class QueryHelper {
       valuesPerToken.add(tokenValue);
     }
     return tokensMap;
+  }
+
+  static boolean isUnreadTokenValue(String tokenValue) {
+    String normalized = tokenValue.toLowerCase(Locale.ROOT);
+    return normalized.equals("true")
+        || normalized.equals("yes")
+        || normalized.equals("1")
+        || normalized.equals("only");
   }
 
   /** Private constructor to prevent instantiation. */

@@ -27,6 +27,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
+import org.waveprotocol.box.server.authentication.email.AuthEmailService;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
@@ -36,8 +38,6 @@ import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
 import org.waveprotocol.box.server.authentication.jwt.JwtClaims;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
-import org.waveprotocol.box.server.mail.MailException;
-import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
@@ -65,9 +65,9 @@ public final class MagicLinkServlet extends HttpServlet {
 
   private final AccountStore accountStore;
   private final EmailTokenIssuer emailTokenIssuer;
-  private final MailProvider mailProvider;
   private final SessionManager sessionManager;
   private final BrowserSessionJwtIssuer browserSessionJwtIssuer;
+  private final AuthEmailService authEmailService;
   private final String domain;
   private final String analyticsAccount;
   private final boolean magicLinkEnabled;
@@ -76,16 +76,16 @@ public final class MagicLinkServlet extends HttpServlet {
   @Inject
   public MagicLinkServlet(AccountStore accountStore,
                            EmailTokenIssuer emailTokenIssuer,
-                           MailProvider mailProvider,
                            SessionManager sessionManager,
                            BrowserSessionJwtIssuer browserSessionJwtIssuer,
                            @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
-                           Config config) {
+                           Config config,
+                           AuthEmailService authEmailService) {
     this.accountStore = accountStore;
     this.emailTokenIssuer = emailTokenIssuer;
-    this.mailProvider = mailProvider;
     this.sessionManager = sessionManager;
     this.browserSessionJwtIssuer = browserSessionJwtIssuer;
+    this.authEmailService = authEmailService;
     this.domain = domain;
     this.analyticsAccount = config.hasPath("administration.analytics_account")
         ? config.getString("administration.analytics_account") : "";
@@ -155,27 +155,15 @@ public final class MagicLinkServlet extends HttpServlet {
       }
 
       if (account != null && account.isHuman()) {
-        // Check email confirmation if applicable
-        if (!account.asHuman().isEmailConfirmed()) {
-          LOG.info("Magic link requested for unconfirmed account: " + normalized);
-        } else {
-          // Send to stored email if available, otherwise fall back to wave address
-          org.waveprotocol.box.server.account.HumanAccountData human = account.asHuman();
-          String sendTo = (human.getEmail() != null && !human.getEmail().isEmpty())
-              ? human.getEmail() : account.getId().getAddress();
-          String jwtToken = emailTokenIssuer.issueMagicLinkToken(account.getId());
-          String loginUrl = buildLoginUrl(req, jwtToken);
-          String emailBody = renderMagicLinkEmail(account.getId().getAddress(), loginUrl);
-          mailProvider.sendEmail(sendTo, "Login Link - Wave", emailBody);
-          LOG.info("Magic link email sent for user " + account.getId().getAddress());
+        HumanAccountData humanAccount = account.asHuman();
+        if (!isSuspended(humanAccount)) {
+          authEmailService.sendMagicLinkEmail(req, humanAccount);
         }
       } else {
         LOG.info("Magic link requested for non-existent account: " + normalized);
       }
     } catch (PersistenceException e) {
       LOG.severe("Persistence error during magic link request", e);
-    } catch (MailException e) {
-      LOG.severe("Failed to send magic link email", e);
     }
 
     writeRequestPage(resp, successMessage,
@@ -196,13 +184,18 @@ public final class MagicLinkServlet extends HttpServlet {
         return;
       }
 
-      if (!account.asHuman().isEmailConfirmed()) {
-        writeRequestPage(resp, "Your email has not been confirmed yet.",
+      HumanAccountData humanAccount = account.asHuman();
+      if (HumanAccountData.STATUS_SUSPENDED.equals(humanAccount.getStatus())) {
+        writeRequestPage(resp, "Your account has been suspended. Contact your administrator.",
             AuthenticationServlet.RESPONSE_STATUS_FAILED, HttpServletResponse.SC_FORBIDDEN);
         return;
       }
 
-      // Create session -- same as normal login
+      if (!humanAccount.isEmailConfirmed()) {
+        authEmailService.confirmEmailOwnership(humanAccount);
+      }
+      persistLastLogin(account);
+
       WebSession session = WebSessions.from(req, true);
       sessionManager.setLoggedInUser(session, participantId);
 
@@ -230,32 +223,6 @@ public final class MagicLinkServlet extends HttpServlet {
     }
   }
 
-  private String buildLoginUrl(HttpServletRequest req, String token) {
-    String scheme = req.getScheme();
-    String serverName = req.getServerName();
-    int serverPort = req.getServerPort();
-    StringBuilder url = new StringBuilder();
-    url.append(scheme).append("://").append(serverName);
-    if (("http".equals(scheme) && serverPort != 80)
-        || ("https".equals(scheme) && serverPort != 443)) {
-      url.append(":").append(serverPort);
-    }
-    url.append("/auth/magic-link?token=").append(token);
-    return url.toString();
-  }
-
-  private String renderMagicLinkEmail(String address, String loginUrl) {
-    return "<html><body>"
-        + "<h2>Login Link</h2>"
-        + "<p>A login link was requested for your Wave account: <b>"
-        + HtmlRenderer.escapeHtml(address) + "</b></p>"
-        + "<p>Click the link below to sign in:</p>"
-        + "<p><a href=\"" + HtmlRenderer.escapeHtml(loginUrl) + "\">Sign In</a></p>"
-        + "<p>If you did not request this, you can safely ignore this email.</p>"
-        + "<p>This link will expire in 10 minutes.</p>"
-        + "</body></html>";
-  }
-
   private void writeRequestPage(HttpServletResponse resp, String message, String responseType,
                                  int statusCode) throws IOException {
     resp.setStatus(statusCode);
@@ -263,5 +230,18 @@ public final class MagicLinkServlet extends HttpServlet {
     resp.setContentType("text/html;charset=utf-8");
     resp.getWriter().write(
         HtmlRenderer.renderMagicLinkRequestPage(domain, message, responseType, analyticsAccount));
+  }
+
+  private boolean isSuspended(HumanAccountData humanAccount) {
+    return HumanAccountData.STATUS_SUSPENDED.equals(humanAccount.getStatus());
+  }
+
+  private void persistLastLogin(AccountData account) {
+    try {
+      account.asHuman().setLastLoginTime(System.currentTimeMillis());
+      accountStore.putAccount(account);
+    } catch (PersistenceException e) {
+      LOG.severe("Failed to persist last login time for " + account.getId().getAddress(), e);
+    }
   }
 }

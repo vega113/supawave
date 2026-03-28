@@ -11,8 +11,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.box.server.authentication.email.AuthEmailService;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtIssuer;
+import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
+import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.rpc.AuthenticationServlet;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -30,6 +33,8 @@ public class AuthenticationServletJakartaIT {
   private SessionManager sessionManager;
   private BrowserSessionJwtIssuer browserSessionJwtIssuer;
   private AccountStore accountStore;
+  private EmailTokenIssuer emailTokenIssuer;
+  private MailProvider mailProvider;
 
   @Before
   public void start() throws Exception {
@@ -37,6 +42,8 @@ public class AuthenticationServletJakartaIT {
     sessionManager = Mockito.mock(SessionManager.class);
     browserSessionJwtIssuer = Mockito.mock(BrowserSessionJwtIssuer.class);
     accountStore = Mockito.mock(AccountStore.class);
+    emailTokenIssuer = Mockito.mock(EmailTokenIssuer.class);
+    mailProvider = Mockito.mock(MailProvider.class);
 
     server = new Server();
     ServerConnector c = new ServerConnector(server);
@@ -53,13 +60,21 @@ public class AuthenticationServletJakartaIT {
         "administration.disable_registration=true\n" +
         "administration.disable_loginpage=false\n"
     );
+    AuthEmailService authEmailService = new AuthEmailService(
+        accountStore,
+        emailTokenIssuer,
+        mailProvider,
+        java.time.Clock.systemUTC(),
+        cfg
+    );
     AuthenticationServlet servlet = new AuthenticationServlet(
         accountStore,
         Configuration.getConfiguration(),
         sessionManager,
         "example.com",
         cfg,
-        browserSessionJwtIssuer
+        browserSessionJwtIssuer,
+        authEmailService
     );
 
     ctx.addServlet(new ServletHolder(servlet), "/auth/signin");

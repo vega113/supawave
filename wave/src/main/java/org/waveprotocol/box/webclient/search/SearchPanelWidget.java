@@ -140,6 +140,7 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
    *  scrolling covers distance faster on touch devices). */
   private static final int DESKTOP_SCROLL_THRESHOLD_PX = 200;
   private static final int MOBILE_SCROLL_THRESHOLD_PX = 300;
+  private static final int LOADING_SKELETON_ROWS = 6;
 
   public SearchPanelWidget(SearchPanelRenderer renderer) {
     initWidget(frame = BINDER.createAndBindUi(this));
@@ -337,10 +338,54 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   @Override
   public void clearDigests() {
     removeSkeletonLoader();
+    resetLoadingState();
+    clearDigestViews();
+  }
+
+  @Override
+  public void showLoadingSkeleton() {
+    resetLoadingState();
+    clearDigestViews();
+    removeExistingLoadingSkeleton();
+    Element skeleton = Document.get().createDivElement();
+    skeleton.setId("wave-list-skeleton");
+    skeleton.setInnerHTML(buildLoadingSkeletonHtml());
+    Element sentinel = loadingSpinner.getParentElement() != null ? loadingSpinner : showMore;
+    list.insertBefore(skeleton, sentinel);
+  }
+
+  private void removeExistingLoadingSkeleton() {
+    Element skeleton = Document.get().getElementById("wave-list-skeleton");
+    if (skeleton != null) {
+      skeleton.removeFromParent();
+    }
+  }
+
+  private void resetLoadingState() {
+    isLoadingMore = false;
+    showLoadingSpinner(false);
+  }
+
+  private void clearDigestViews() {
     while (!digests.isEmpty()) {
-      digests.getFirst().remove(); // onDigestRemoved removes it from digests.
+      digests.getFirst().remove();
     }
     assert digests.isEmpty();
+  }
+
+  private static String buildLoadingSkeletonHtml() {
+    StringBuilder html = new StringBuilder();
+    for (int i = 0; i < LOADING_SKELETON_ROWS; i++) {
+      html.append("<div class=\"skel-digest\">")
+          .append("<div class=\"skel-avatar\"></div>")
+          .append("<div class=\"skel-lines\">")
+          .append("<div class=\"skel-line title\"></div>")
+          .append("<div class=\"skel-line snippet\"></div>")
+          .append("</div>")
+          .append("<div class=\"skel-time\"></div>")
+          .append("</div>");
+    }
+    return html.toString();
   }
 
   /**

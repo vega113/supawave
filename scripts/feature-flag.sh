@@ -55,22 +55,43 @@ require_command() {
   fi
 }
 
+trim_whitespace() {
+  local value
+
+  value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "${value}"
+}
+
+strip_cookie_header_prefix() {
+  local cookie_value normalized_cookie_value stripped_cookie_value
+
+  cookie_value="$1"
+  normalized_cookie_value="$(printf '%s' "${cookie_value}" | tr '[:upper:]' '[:lower:]')"
+  stripped_cookie_value="${cookie_value}"
+
+  if [[ "${normalized_cookie_value}" == cookie:* ]]; then
+    stripped_cookie_value="${cookie_value#*:}"
+    stripped_cookie_value="$(trim_whitespace "${stripped_cookie_value}")"
+  fi
+
+  printf '%s' "${stripped_cookie_value}"
+}
+
 load_session_cookie() {
   if [[ ! -f "${SESSION_COOKIE_FILE}" ]]; then
     fail "Session cookie file not found at ${SESSION_COOKIE_FILE}. Run scripts/save-wave-session.sh."
   fi
 
   SESSION_COOKIE="$(tr -d '\r\n' < "${SESSION_COOKIE_FILE}")"
-  SESSION_COOKIE="${SESSION_COOKIE#"${SESSION_COOKIE%%[![:space:]]*}"}"
-  SESSION_COOKIE="${SESSION_COOKIE%"${SESSION_COOKIE##*[![:space:]]}"}"
+  SESSION_COOKIE="$(trim_whitespace "${SESSION_COOKIE}")"
 
   if [[ -z "${SESSION_COOKIE}" ]]; then
     fail "Session cookie file is empty: ${SESSION_COOKIE_FILE}"
   fi
 
-  if [[ "${SESSION_COOKIE}" == Cookie:\ * ]]; then
-    SESSION_COOKIE="${SESSION_COOKIE#Cookie: }"
-  fi
+  SESSION_COOKIE="$(strip_cookie_header_prefix "${SESSION_COOKIE}")"
 
   if [[ "${SESSION_COOKIE}" != *=* ]]; then
     fail "Session cookie must be saved as a Cookie header or NAME=value pairs"

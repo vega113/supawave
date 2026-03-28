@@ -61,13 +61,19 @@ make_curl_stub() {
 set -euo pipefail
 body_file=""
 header_file=""
-http_code="401"
-response_body='{"error":"Not authenticated"}'
+cookie_value=""
+http_code="${TEST_RESPONSE_CODE-401}"
+response_body="${TEST_RESPONSE_BODY-{\"error\":\"Not authenticated\"}}"
 response_headers="${TEST_RESPONSE_HEADERS-HTTP/1.1 401 Unauthorized}"
+capture_cookie_file="${TEST_CAPTURE_COOKIE_FILE-}"
 args=("$@")
 index=0
 while [[ ${index} -lt ${#args[@]} ]]; do
   case "${args[${index}]}" in
+    --cookie)
+      index=$((index + 1))
+      cookie_value="${args[${index}]}"
+      ;;
     -o)
       index=$((index + 1))
       body_file="${args[${index}]}"
@@ -82,6 +88,9 @@ while [[ ${index} -lt ${#args[@]} ]]; do
   esac
   index=$((index + 1))
 done
+if [[ -n "${capture_cookie_file}" ]]; then
+  printf '%s' "${cookie_value}" > "${capture_cookie_file}"
+fi
 if [[ -n "${body_file}" ]]; then
   printf '%s' "${response_body}" > "${body_file}"
 fi
@@ -139,9 +148,44 @@ run_missing_jwt_case() {
   assert_contains "${output}" "Save the full Cookie header"
 }
 
+run_lowercase_cookie_header_case() {
+  local captured_cookie output temp_dir home_dir bin_dir capture_file exit_code
+
+  temp_dir="$(mktemp -d)"
+  home_dir="${temp_dir}/home"
+  bin_dir="${temp_dir}/bin"
+  capture_file="${temp_dir}/cookie.txt"
+  mkdir -p "${home_dir}" "${bin_dir}"
+  printf '%s\n' 'cookie: JSESSIONID=active; wave-session-jwt=current' > "${home_dir}/.wave-session"
+  make_curl_stub "${bin_dir}"
+  make_jq_stub "${bin_dir}"
+
+  output="$({
+    HOME="${home_dir}" \
+    PATH="${bin_dir}:${PATH}" \
+    TEST_CAPTURE_COOKIE_FILE="${capture_file}" \
+    TEST_RESPONSE_CODE=200 \
+    TEST_RESPONSE_BODY='{"flags":[]}' \
+    "${SCRIPT_PATH}" list
+  } 2>&1)" && exit_code=0 || exit_code=$?
+
+  if [[ ${exit_code} -ne 0 ]]; then
+    rm -rf "${temp_dir}"
+    fail "expected lowercase cookie header to succeed, got: ${output}"
+  fi
+
+  captured_cookie="$(cat "${capture_file}")"
+  rm -rf "${temp_dir}"
+
+  if [[ "${captured_cookie}" != 'JSESSIONID=active; wave-session-jwt=current' ]]; then
+    fail "expected normalized cookie header, got: ${captured_cookie}"
+  fi
+}
+
 main() {
   run_stale_jwt_case
   run_missing_jwt_case
+  run_lowercase_cookie_header_case
   printf 'PASS: scripts/feature-flag.sh auth diagnostics\n'
 }
 

@@ -100,12 +100,10 @@ public final class SearchWaveletSnapshotPublisher {
           ? searchResult.getTotalResults()
           : newResults.size();
       if (newTotalCount > newResults.size()) {
-        if (!forceSnapshot) {
-          pruneInactiveSubscription(user, query, computedWaveletName, publishLock);
-        } else {
+        if (forceSnapshot) {
           publishLocks.remove(searchWaveletKey, publishLock);
+          return;
         }
-        return;
       }
 
       WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, query);

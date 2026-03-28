@@ -51,7 +51,6 @@ public final class RegistrationSupport {
       throws InvalidParticipantAddress {
     ParticipantId id = normalizeParticipantId(domain, username);
     String localPart = getLocalPart(id);
-
     if (localPart.endsWith(BOT_SUFFIX)) {
       throw new InvalidParticipantAddress(username,
           "Usernames ending with -bot are reserved for robots");
@@ -67,7 +66,6 @@ public final class RegistrationSupport {
       throws InvalidParticipantAddress {
     ParticipantId id = normalizeParticipantId(domain, username);
     String localPart = getLocalPart(id);
-
     if (!ROBOT_USERNAME_PATTERN.matcher(localPart).matches()) {
       throw new InvalidParticipantAddress(username,
           "Only letters (a-z), numbers (0-9), hyphens (-), and periods (.) are allowed in Robot Username");
@@ -117,17 +115,14 @@ public final class RegistrationSupport {
       throw new InvalidParticipantAddress(username,
           "Username portion of address cannot be empty");
     }
-
     String normalized = username.trim().toLowerCase(Locale.ROOT);
     if (normalized.isEmpty()) {
       throw new InvalidParticipantAddress(username,
           "Username portion of address cannot be empty");
     }
-
     ParticipantId id = normalized.contains(ParticipantId.DOMAIN_PREFIX)
         ? ParticipantId.of(normalized)
         : ParticipantId.of(normalized + ParticipantId.DOMAIN_PREFIX + domain);
-
     if (id.getAddress().indexOf('@') < 1) {
       throw new InvalidParticipantAddress(username,
           "Username portion of address cannot be empty");

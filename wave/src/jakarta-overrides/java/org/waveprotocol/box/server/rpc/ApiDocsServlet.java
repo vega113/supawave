@@ -421,6 +421,7 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("      <a href=\"#transport\">Transport model</a>\n");
     html.append("      <a href=\"#auth\">Authentication</a>\n");
     html.append("      <a href=\"#token\">Token walkthrough</a>\n");
+    html.append("      <a href=\"#build-with-ai\">Build with AI</a>\n");
     html.append("      <a href=\"#walkthrough\">End-to-end example</a>\n");
     html.append("      <a href=\"#operations\">Operation reference</a>\n");
     html.append("      <a href=\"#errors\">Errors and status codes</a>\n");
@@ -501,6 +502,28 @@ public final class ApiDocsServlet extends HttpServlet {
         .append(escape(tokenCurlExample(baseUrl)))
         .append("</pre>\n");
     html.append("        <div class=\"warning\"><strong>Use short-lived tokens.</strong> The live token endpoint still supports effectively long-lived tokens when <code>expiry &lt;= 0</code> or when a robot account is configured with a zero lifetime. That behavior is high-risk and not shown in any example here.</div>\n");
+    html.append("      </section>\n");
+    html.append("      <section id=\"build-with-ai\">\n");
+    html.append("        <h2>Build with AI</h2>\n");
+    html.append("        <p>Google AI Studio / Gemini works best when you give it a short-lived token, the machine-readable docs, and stable environment variable names. Generate a one-hour JWT, paste the prompt below into your preferred LLM, and replace the robot-specific placeholders once you mint the robot secret.</p>\n");
+    html.append("        <pre>");
+    html.append(escape("Google AI Studio / Gemini starter prompt\n\n"
+        + "Build a SupaWave robot for me.\n"
+        + "Use these environment variables exactly:\n"
+        + "SUPAWAVE_BASE_URL=" + baseUrl + "\n"
+        + "SUPAWAVE_API_DOCS_URL=" + baseUrl + "/api-docs\n"
+        + "SUPAWAVE_LLM_DOCS_URL=" + baseUrl + "/api/llm.txt\n"
+        + "SUPAWAVE_DATA_API_URL=" + baseUrl + CANONICAL_RPC_PATH + "\n"
+        + "SUPAWAVE_DATA_API_TOKEN=<1 hour JWT>\n"
+        + "SUPAWAVE_ROBOT_ID=<robot@domain>\n"
+        + "SUPAWAVE_ROBOT_SECRET=<consumer secret>\n"
+        + "SUPAWAVE_ROBOT_CALLBACK_URL=<deployment url>\n\n"
+        + "Read the docs first, prefer minimal JSON payloads, explain security tradeoffs, and keep tokens short-lived."));
+    html.append("</pre>\n");
+    html.append("        <div class=\"reference-grid\">\n");
+    html.append("          <div class=\"grid-card\"><h3>Recommended env vars</h3><pre>SUPAWAVE_BASE_URL\nSUPAWAVE_API_DOCS_URL\nSUPAWAVE_LLM_DOCS_URL\nSUPAWAVE_DATA_API_URL\nSUPAWAVE_DATA_API_TOKEN\nSUPAWAVE_ROBOT_ID\nSUPAWAVE_ROBOT_SECRET\nSUPAWAVE_ROBOT_CALLBACK_URL</pre></div>\n");
+    html.append("          <div class=\"grid-card\"><h3>Minimal common operations</h3><pre>robot.createWavelet\nwavelet.appendBlip\nwavelet.addParticipant\nrobot.fetchWave\nrobot.search</pre></div>\n");
+    html.append("        </div>\n");
     html.append("      </section>\n");
     html.append("      <section id=\"walkthrough\">\n");
     html.append("        <h2>Complete end-to-end example</h2>\n");
@@ -970,6 +993,25 @@ public final class ApiDocsServlet extends HttpServlet {
 
     text.append("Token acquisition (client_credentials, short-lived example)\n");
     text.append(tokenCurlExample(baseUrl)).append("\n\n");
+
+    text.append("Google AI Studio / Gemini starter prompt\n");
+    text.append("Build a SupaWave robot for me.\n");
+    text.append("Use these environment variables exactly:\n");
+    text.append("SUPAWAVE_BASE_URL=").append(baseUrl).append('\n');
+    text.append("SUPAWAVE_API_DOCS_URL=").append(baseUrl).append("/api-docs\n");
+    text.append("SUPAWAVE_LLM_DOCS_URL=").append(baseUrl).append("/api/llm.txt\n");
+    text.append("SUPAWAVE_DATA_API_URL=").append(baseUrl).append(CANONICAL_RPC_PATH).append('\n');
+    text.append("SUPAWAVE_DATA_API_TOKEN=<1 hour JWT>\n");
+    text.append("SUPAWAVE_ROBOT_ID=<robot@domain>\n");
+    text.append("SUPAWAVE_ROBOT_SECRET=<consumer secret>\n");
+    text.append("SUPAWAVE_ROBOT_CALLBACK_URL=<deployment url>\n\n");
+
+    text.append("Minimal common operations\n");
+    text.append("- robot.createWavelet\n");
+    text.append("- wavelet.appendBlip\n");
+    text.append("- wavelet.addParticipant\n");
+    text.append("- robot.fetchWave\n");
+    text.append("- robot.search\n\n");
 
     text.append("Request envelope\n");
     text.append(json(singleRequestTemplate())).append("\n\n");

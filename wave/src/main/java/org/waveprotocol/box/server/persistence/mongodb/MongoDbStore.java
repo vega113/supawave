@@ -100,6 +100,7 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   private static final String ROBOT_SECRET_FIELD = "secret";
   private static final String ROBOT_CAPABILITIES_FIELD = "capabilities";
   private static final String ROBOT_VERIFIED_FIELD = "verified";
+  private static final String ROBOT_OWNER_FIELD = "ownerAddress";
 
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
@@ -322,6 +323,22 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     getAccountCollection().remove(object);
   }
 
+  @Override
+  public List<RobotAccountData> getRobotAccountsOwnedBy(String ownerAddress) {
+    List<RobotAccountData> ownedRobots = new ArrayList<RobotAccountData>();
+    DBObject query = new BasicDBObject(ACCOUNT_ROBOT_DATA_FIELD + "." + ROBOT_OWNER_FIELD,
+        ownerAddress);
+    for (DBObject result : getAccountCollection().find(query)) {
+      String idAddress = (String) result.get("_id");
+      ParticipantId id = ParticipantId.ofUnsafe(idAddress);
+      DBObject robot = (DBObject) result.get(ACCOUNT_ROBOT_DATA_FIELD);
+      if (robot != null) {
+        ownedRobots.add((RobotAccountData) objectToRobot(id, robot));
+      }
+    }
+    return ownedRobots;
+  }
+
   private DBObject getDBObjectForParticipant(ParticipantId id) {
     DBObject query = new BasicDBObject();
     query.put("_id", id.getAddress());
@@ -403,7 +420,8 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
         .append(ROBOT_SECRET_FIELD, account.getConsumerSecret())
         .append(ROBOT_CAPABILITIES_FIELD, capabilitiesToObject(account.getCapabilities()))
         .append(ROBOT_VERIFIED_FIELD, account.isVerified())
-        .append("tokenExpirySeconds", account.getTokenExpirySeconds());
+        .append("tokenExpirySeconds", account.getTokenExpirySeconds())
+        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress());
   }
 
   private DBObject capabilitiesToObject(RobotCapabilities capabilities) {
@@ -440,7 +458,9 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     boolean verified = (Boolean) robot.get(ROBOT_VERIFIED_FIELD);
     Object tokenExpiryObj = robot.get("tokenExpirySeconds");
     long tokenExpirySeconds = tokenExpiryObj instanceof Number ? ((Number) tokenExpiryObj).longValue() : 0L;
-    return new RobotAccountDataImpl(id, url, secret, capabilities, verified, tokenExpirySeconds);
+    String ownerAddress = (String) robot.get(ROBOT_OWNER_FIELD);
+    return new RobotAccountDataImpl(id, url, secret, capabilities, verified, tokenExpirySeconds,
+        ownerAddress);
   }
 
   @SuppressWarnings("unchecked")

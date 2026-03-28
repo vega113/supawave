@@ -67,6 +67,13 @@ public interface RobotRegistrar {
       throws RobotRegistrationException, PersistenceException;
 
   /**
+   * Registers a new robot account with ownership metadata and configurable
+   * token expiry.
+   */
+  public RobotAccountData registerNew(ParticipantId robotId, String location, String ownerAddress,
+      long tokenExpirySeconds) throws RobotRegistrationException, PersistenceException;
+
+  /**
    * Unregisters a robot by removing it from the account store.
    *
    * @param robotId the id to remove.
@@ -90,6 +97,13 @@ public interface RobotRegistrar {
    */
   public RobotAccountData registerOrUpdate(ParticipantId robotId, String location)
       throws RobotRegistrationException, PersistenceException;
+
+  /**
+   * Registers a new robot or updates an existing robot while preserving the
+   * owner that originally claimed it.
+   */
+  public RobotAccountData registerOrUpdate(ParticipantId robotId, String location,
+      String ownerAddress) throws RobotRegistrationException, PersistenceException;
 
   /** Adds listener. */
   public void addRegistrationListener(Listener listener);

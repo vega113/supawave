@@ -24,6 +24,7 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountDataSerializer;
@@ -32,6 +33,8 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -147,6 +150,22 @@ public class FileAccountStore implements AccountStore {
       }
       return new java.util.ArrayList<>(accounts.values());
     }
+  }
+
+  @Override
+  public List<RobotAccountData> getRobotAccountsOwnedBy(String ownerAddress)
+      throws PersistenceException {
+    List<RobotAccountData> ownedRobots = new ArrayList<>();
+    List<AccountData> allAccounts = getAllAccounts();
+    for (AccountData account : allAccounts) {
+      if (account.isRobot()) {
+        RobotAccountData robotAccount = account.asRobot();
+        if (ownerAddress.equals(robotAccount.getOwnerAddress())) {
+          ownedRobots.add(robotAccount);
+        }
+      }
+    }
+    return ownedRobots;
   }
 
   @Override

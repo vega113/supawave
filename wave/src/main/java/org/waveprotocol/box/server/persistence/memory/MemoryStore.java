@@ -20,6 +20,7 @@
 package org.waveprotocol.box.server.persistence.memory;
 
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.contact.Contact;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.ContactStore;
@@ -104,6 +105,20 @@ public class MemoryStore implements SignerInfoStore, AccountStore, ContactStore 
   @Override
   public List<AccountData> getAllAccounts() {
     return new ArrayList<AccountData>(accountStore.values());
+  }
+
+  @Override
+  public List<RobotAccountData> getRobotAccountsOwnedBy(String ownerAddress) {
+    List<RobotAccountData> ownedRobots = new ArrayList<RobotAccountData>();
+    for (AccountData account : accountStore.values()) {
+      if (account.isRobot()) {
+        RobotAccountData robotAccount = account.asRobot();
+        if (ownerAddress.equals(robotAccount.getOwnerAddress())) {
+          ownedRobots.add(robotAccount);
+        }
+      }
+    }
+    return ownedRobots;
   }
 
   @Override

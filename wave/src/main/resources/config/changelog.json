@@ -1,5 +1,29 @@
 [
   {
+    "releaseId": "2026-03-28-ai-robot-onboarding",
+    "version": "PR #436",
+    "date": "2026-03-28",
+    "title": "AI Robot Onboarding",
+    "summary": "Robot creation now starts from a SupaWave control room with an AI starter prompt, a one-hour Data API JWT, and clearer API docs for humans and LLMs.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "New authenticated /account/robots control room for creating pending robots and activating callback URLs later",
+          "Ready Google AI Studio / Gemini starter prompt with standardized SUPAWAVE_* environment variable names",
+          "Automatic one-hour Data API JWT generation inside the control room prompt"
+        ]
+      },
+      {
+        "type": "improvement",
+        "items": [
+          "Added a Robot & Data API entry point to the signed-in app menu",
+          "Expanded /api-docs and /api/llm.txt with Build with AI guidance, minimal common operations, and clearer security/error notes"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-link-affordance-followup",
     "version": "PR #435",
     "date": "2026-03-28",
@@ -11,10 +35,6 @@
         "items": [
           "Changed blip links to a wavy ocean underline with a tinted accent shade so they stand apart from ordinary blue text",
           "Kept visited links clearly clickable with a separate lavender tint instead of blending back into body copy"
-        ]
-      }
-    ]
-  },
   {
     "releaseId": "2026-03-28-robot-registration-flow",
     "version": "PR #434",

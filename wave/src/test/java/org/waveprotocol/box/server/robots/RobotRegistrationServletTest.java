@@ -13,6 +13,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -21,8 +23,6 @@ import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 public final class RobotRegistrationServletTest {
   private static final ParticipantId ROBOT_ID = ParticipantId.ofUnsafe("helper-bot@example.com");
@@ -69,7 +69,8 @@ public final class RobotRegistrationServletTest {
 
     servlet.doPost(req, resp);
 
-    verify(registrar, never()).registerNew(eq(ParticipantId.ofUnsafe("helper@example.com")), anyString(), anyLong());
+    verify(registrar, never()).registerNew(eq(ParticipantId.ofUnsafe("helper@example.com")),
+        anyString(), anyLong());
     assertTrue(responseBody.toString().contains("must end with -bot"));
   }
 

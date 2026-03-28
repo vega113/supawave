@@ -20,6 +20,7 @@
 package org.waveprotocol.box.server.persistence;
 
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.List;
@@ -83,6 +84,14 @@ public interface AccountStore {
    * stores that have not implemented enumeration).
    */
   default List<AccountData> getAllAccounts() throws PersistenceException {
+    return java.util.Collections.emptyList();
+  }
+
+  /**
+   * Returns all robot accounts owned by the given human account address.
+   */
+  default List<RobotAccountData> getRobotAccountsOwnedBy(String ownerAddress)
+      throws PersistenceException {
     return java.util.Collections.emptyList();
   }
 

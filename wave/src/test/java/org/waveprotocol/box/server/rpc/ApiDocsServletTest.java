@@ -31,6 +31,22 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public final class ApiDocsServletTest {
   @Test
+  public void apiDocsHtmlIncludesBuildWithAiSection() throws Exception {
+    ApiDocsServlet servlet = new ApiDocsServlet();
+    StringWriter body = new StringWriter();
+    ResponseRecorder recorder = new ResponseRecorder();
+    HttpServletRequest request = request("/api-docs", "https", "docs.example.com");
+    HttpServletResponse response = response(recorder, body);
+
+    servlet.doGet(request, response);
+
+    assertTrue(recorder.status == HttpServletResponse.SC_OK);
+    assertTrue(body.toString().contains("Build with AI"));
+    assertTrue(body.toString().contains("Google AI Studio / Gemini"));
+    assertTrue(body.toString().contains("SUPAWAVE_DATA_API_TOKEN"));
+  }
+
+  @Test
   public void llmsIndexEndpointReturnsRootLevelPointers() throws Exception {
     ApiDocsServlet servlet = new ApiDocsServlet();
     StringWriter body = new StringWriter();
@@ -82,6 +98,9 @@ public final class ApiDocsServletTest {
     assertTrue(body.toString().contains("SupaWave Data API LLM Reference"));
     assertTrue(body.toString().contains("Canonical RPC path: /robot/dataapi/rpc"));
     assertTrue(body.toString().contains("https://docs.example.com/api/openapi.json"));
+    assertTrue(body.toString().contains("Google AI Studio / Gemini starter prompt"));
+    assertTrue(body.toString().contains("SUPAWAVE_ROBOT_SECRET"));
+    assertTrue(body.toString().contains("Minimal common operations"));
   }
 
   @Test

@@ -50,7 +50,9 @@ public class RobotRegistrarImplTest extends TestCase {
   private final static String OTHER_LOCATION = "http://foo.com:9898/robot/";
   private final static ParticipantId ROBOT_ID = ParticipantId.ofUnsafe("robot@example.com");
   private final static ParticipantId HUMAN_ID = ParticipantId.ofUnsafe("human@example.com");
+  private final static ParticipantId OWNER_ID = ParticipantId.ofUnsafe("owner@example.com");
   private final static String CONSUMER_TOKEN = "sometoken";
+  private final static String EXISTING_CONSUMER_TOKEN = "existingtoken";
 
   private AccountStore accountStore;
   private TokenGenerator tokenGenerator;
@@ -66,7 +68,8 @@ public class RobotRegistrarImplTest extends TestCase {
     when(accountData.asRobot()).thenReturn(accountData);
     when(accountData.getUrl()).thenReturn(LOCATION);
     when(accountData.getId()).thenReturn(ROBOT_ID);
-    when(accountData.getConsumerSecret()).thenReturn("existing-secret");
+    when(accountData.getOwnerAddress()).thenReturn(OWNER_ID.getAddress());
+    when(accountData.getConsumerSecret()).thenReturn(EXISTING_CONSUMER_TOKEN);
     when(accountData.isVerified()).thenReturn(true);
     when(accountData.getTokenExpirySeconds()).thenReturn(0L);
     when(tokenGenerator.generateToken(anyInt())).thenReturn(CONSUMER_TOKEN);
@@ -145,7 +148,8 @@ public class RobotRegistrarImplTest extends TestCase {
   public void testReRegisterSucceedsOnExistingRobotAccount() throws PersistenceException,
       RobotRegistrationException {
     when(accountStore.getAccount(ROBOT_ID)).thenReturn(accountData);
-    AccountData unregisteredAccountData = registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION);
+    AccountData unregisteredAccountData =
+        registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION, OWNER_ID.getAddress());
     verify(accountStore, never()).removeAccount(ROBOT_ID);
     verify(accountStore).putAccount(any(RobotAccountData.class));
     assertTrue(unregisteredAccountData.isRobot());
@@ -154,7 +158,8 @@ public class RobotRegistrarImplTest extends TestCase {
     assertEquals(OTHER_LOCATION.substring(0, OTHER_LOCATION.length() - 1),
         robotAccountData.getUrl());
     assertEquals(ROBOT_ID, robotAccountData.getId());
-    assertEquals("existing-secret", robotAccountData.getConsumerSecret());
+    assertEquals(EXISTING_CONSUMER_TOKEN, robotAccountData.getConsumerSecret());
+    assertEquals(OWNER_ID.getAddress(), robotAccountData.getOwnerAddress());
   }
 
   public void testPendingRobotActivationPreservesExistingSecret() throws PersistenceException,
@@ -163,12 +168,13 @@ public class RobotRegistrarImplTest extends TestCase {
         new RobotAccountDataImpl(ROBOT_ID, "", "pending-secret", null, false, 3600L);
     when(accountStore.getAccount(ROBOT_ID)).thenReturn(pendingAccount);
 
-    RobotAccountData updatedAccount = registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION);
+    RobotAccountData updatedAccount = registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION, 0L);
 
     assertEquals("pending-secret", updatedAccount.getConsumerSecret());
     assertEquals(OTHER_LOCATION.substring(0, OTHER_LOCATION.length() - 1), updatedAccount.getUrl());
     assertTrue(updatedAccount.isVerified());
     assertEquals(3600L, updatedAccount.getTokenExpirySeconds());
+  }
   }
 
   public void testReRegisterFailsOnExistingHumanAccount() throws PersistenceException {
@@ -184,7 +190,16 @@ public class RobotRegistrarImplTest extends TestCase {
 
   public void testReRegisterSucceedsOnNonExistingAccount() throws PersistenceException,
       RobotRegistrationException {
-    registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION);
+    registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION, OWNER_ID.getAddress());
     verify(accountStore).putAccount(any(RobotAccountData.class));
+  }
+
+  public void testRegisterNewStoresOwnerAddress() throws PersistenceException,
+      RobotRegistrationException {
+    RobotAccountData resultAccountData =
+        registrar.registerNew(ROBOT_ID, LOCATION, OWNER_ID.getAddress(), 3600L);
+
+    assertEquals(OWNER_ID.getAddress(), resultAccountData.getOwnerAddress());
+    assertEquals(3600L, resultAccountData.getTokenExpirySeconds());
   }
 }

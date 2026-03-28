@@ -3246,11 +3246,15 @@ public final class HtmlRenderer {
       sb.append("      </button>\n");
       sb.append("      <div class=\"user-menu-dropdown\">\n");
       sb.append("        <div class=\"user-info\">").append(fullAddress).append("</div>\n");
+      sb.append("        <div class=\"section-label\">Account</div>\n");
       sb.append("        <a href=\"/userprofile/edit\">Edit Profile</a>\n");
       sb.append("        <a href=\"/account/settings\">Account Settings</a>\n");
-      sb.append("        <a href=\"/robot/register/create\">Robot Registration</a>\n");
-      sb.append("        <a href=\"/robot/dataapi/token\">API Token</a>\n");
-      sb.append("        <a href=\"/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
+      sb.append("        <div class=\"divider\"></div>\n");
+      sb.append("        <div class=\"section-label\">Automation</div>\n");
+      sb.append("        <a class=\"section-link-strong\" href=\"/account/robots\">Robot &amp; Data API</a>\n");
+      sb.append("        <a href=\"/api-docs\" target=\"_blank\">API Docs</a>\n");
+      sb.append("        <div class=\"divider\"></div>\n");
+      sb.append("        <div class=\"section-label\">Product</div>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
       sb.append("        <a href=\"/changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
       sb.append("        <a href=\"/contact\">Contact Us</a>\n");
@@ -3258,8 +3262,9 @@ public final class HtmlRenderer {
         sb.append("        <a href=\"/admin\">Admin</a>\n");
       }
       sb.append("        <div class=\"divider\"></div>\n");
-      sb.append("        <a href=\"/terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
-      sb.append("        <a href=\"/privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
+      sb.append("        <div class=\"section-label\">Legal</div>\n");
+      sb.append("        <a href=\"/terms\" target=\"_blank\">Terms of Service</a>\n");
+      sb.append("        <a href=\"/privacy\" target=\"_blank\">Privacy Policy</a>\n");
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <a id=\"signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
       sb.append("      </div>\n");

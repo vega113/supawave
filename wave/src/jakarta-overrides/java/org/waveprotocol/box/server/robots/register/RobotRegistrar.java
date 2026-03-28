@@ -20,6 +20,9 @@ public interface RobotRegistrar {
   RobotAccountData registerNew(ParticipantId robotId, String location, long tokenExpirySeconds)
       throws RobotRegistrationException, PersistenceException;
 
+  RobotAccountData registerNew(ParticipantId robotId, String location, String ownerAddress,
+      long tokenExpirySeconds) throws RobotRegistrationException, PersistenceException;
+
   RobotAccountData unregister(ParticipantId robotId)
       throws RobotRegistrationException, PersistenceException;
 
@@ -27,6 +30,9 @@ public interface RobotRegistrar {
       throws RobotRegistrationException, PersistenceException;
 
   RobotAccountData registerOrUpdate(ParticipantId robotId, String location, long tokenExpirySeconds)
+      throws RobotRegistrationException, PersistenceException;
+
+  RobotAccountData registerOrUpdate(ParticipantId robotId, String location, String ownerAddress)
       throws RobotRegistrationException, PersistenceException;
 
   void addRegistrationListener(Listener listener);

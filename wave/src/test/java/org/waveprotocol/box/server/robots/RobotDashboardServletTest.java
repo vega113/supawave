@@ -129,6 +129,18 @@ public class RobotDashboardServletTest extends TestCase {
     assertTrue(outputWriter.toString().contains("SUPAWAVE_API_DOCS_URL=http://[::1]:9898/api-docs"));
   }
 
+  public void testDoGetRejectsMalformedBracketedIpv6OriginInAiPrompt() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+    when(req.getScheme()).thenReturn("http");
+    when(req.getHeader("X-Forwarded-Host")).thenReturn("[::1]evil.example");
+
+    servlet.doGet(req, resp);
+
+    assertTrue(outputWriter.toString().contains("SUPAWAVE_BASE_URL=https://example.com"));
+    assertTrue(outputWriter.toString().contains("SUPAWAVE_API_DOCS_URL=https://example.com/api-docs"));
+  }
+
   public void testDoPostRejectsCallbackUpdateFromDifferentOwner() throws Exception {
     when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
     when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());

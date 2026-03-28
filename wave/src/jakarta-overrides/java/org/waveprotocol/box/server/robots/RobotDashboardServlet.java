@@ -493,7 +493,9 @@ public final class RobotDashboardServlet extends HttpServlet {
     String normalizedHost = host;
     if (normalizedHost.startsWith("[")) {
       int closingBracket = normalizedHost.indexOf(']');
-      if (closingBracket > 0) {
+      if (closingBracket > 0
+          && (closingBracket == normalizedHost.length() - 1
+              || normalizedHost.charAt(closingBracket + 1) == ':')) {
         normalizedHost = normalizedHost.substring(1, closingBracket);
       }
     } else {

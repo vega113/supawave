@@ -167,7 +167,7 @@ public final class ActionsImpl implements Actions {
       ContentDocument doc = documents.get(blip).getDocument();
       // Insert the reply at a good spot near the current selection, or use the
       // end of the document as a fallback.
-      int location = DocumentUtil.getLocationNearSelection(doc);
+      int location = ReplyLocationResolver.resolve(edit, blipUi, doc);
       if (location == -1) {
         location = blip.getContent().size() - 1;
       }

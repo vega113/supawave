@@ -12,6 +12,7 @@ public final class HtmlRendererRobotRegistrationTest {
     assertTrue(html.contains("must end with -bot"));
     assertTrue(html.contains("optional"));
     assertTrue(html.contains("later"));
+    assertTrue(html.contains("Current API Token Secret"));
   }
 
   @Test

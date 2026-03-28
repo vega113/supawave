@@ -25,10 +25,12 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
+import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
-import org.waveprotocol.box.server.rpc.HtmlRenderer;
+import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
+import org.waveprotocol.box.server.rpc.HtmlRenderer;
 import org.waveprotocol.box.server.util.RegistrationSupport;
 import org.waveprotocol.box.server.robots.util.RobotsUtil.RobotRegistrationException;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
@@ -36,6 +38,8 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 /** Jakarta variant of the robot registration servlet. */
 @SuppressWarnings("serial")
@@ -44,14 +48,17 @@ public final class RobotRegistrationServlet extends HttpServlet {
   private static final String CREATE_PATH = "/create";
   private static final Log LOG = Log.get(RobotRegistrationServlet.class);
 
+  private final AccountStore accountStore;
   private final RobotRegistrar robotRegistrar;
   private final String domain;
   private final String analyticsAccount;
 
   @Inject
   public RobotRegistrationServlet(@Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
+                                  AccountStore accountStore,
                                   RobotRegistrar robotRegistrar,
                                   Config config) {
+    this.accountStore = accountStore;
     this.robotRegistrar = robotRegistrar;
     this.domain = domain;
     this.analyticsAccount = config.getString("administration.analytics_account");
@@ -86,6 +93,7 @@ public final class RobotRegistrationServlet extends HttpServlet {
   private void handleRegistration(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     String username = req.getParameter("username");
     String location = Strings.nullToEmpty(req.getParameter("location")).trim();
+    String currentSecret = Strings.nullToEmpty(req.getParameter("consumer_secret")).trim();
     String tokenExpiryParam = req.getParameter("token_expiry");
 
     if (Strings.isNullOrEmpty(username)) {
@@ -115,7 +123,18 @@ public final class RobotRegistrationServlet extends HttpServlet {
 
     RobotAccountData robotAccount;
     try {
-      robotAccount = robotRegistrar.registerNew(id, location, tokenExpirySeconds);
+      AccountData existingAccount = accountStore.getAccount(id);
+      if (!location.isEmpty() && existingAccount != null && existingAccount.isRobot()) {
+        RobotAccountData existingRobot = existingAccount.asRobot();
+        if (!currentSecretMatches(existingRobot, currentSecret)) {
+          renderRegistrationPage(req, resp,
+              "Provide the current API token secret to activate or update this robot.");
+          return;
+        }
+        robotAccount = robotRegistrar.registerOrUpdate(id, location, tokenExpirySeconds);
+      } else {
+        robotAccount = robotRegistrar.registerNew(id, location, tokenExpirySeconds);
+      }
     } catch (RobotRegistrationException e) {
       renderRegistrationPage(req, resp, e.getMessage());
       return;
@@ -130,5 +149,14 @@ public final class RobotRegistrationServlet extends HttpServlet {
     resp.setStatus(HttpServletResponse.SC_OK);
     resp.getWriter().write(HtmlRenderer.renderRobotRegistrationSuccessPage(
         robotAccount.getId().getAddress(), robotAccount.getConsumerSecret(), analyticsAccount));
+  }
+
+  private boolean currentSecretMatches(RobotAccountData robotAccount, String currentSecret) {
+    if (currentSecret.isEmpty()) {
+      return false;
+    }
+    return MessageDigest.isEqual(
+        robotAccount.getConsumerSecret().getBytes(StandardCharsets.UTF_8),
+        currentSecret.getBytes(StandardCharsets.UTF_8));
   }
 }

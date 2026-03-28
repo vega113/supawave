@@ -3354,6 +3354,9 @@ public final class HtmlRenderer {
     sb.append("      <label for=\"location\">Robot URL</label>\n");
     sb.append("      <input type=\"text\" name=\"location\" id=\"location\">\n");
     sb.append("      <p class=\"hint\">This callback URL is optional during initial registration. You can add it later when the bot is deployed, and you can update it later if the bot moves. The robot will stay inactive until the callback URL is configured.</p>\n");
+    sb.append("      <label for=\"consumer_secret\">Current API Token Secret</label>\n");
+    sb.append("      <input type=\"password\" name=\"consumer_secret\" id=\"consumer_secret\">\n");
+    sb.append("      <p class=\"hint\">Leave this empty for a brand new robot. To activate or update an existing pending robot, enter the current API token secret you were given when the robot was first created.</p>\n");
     sb.append("      <label for=\"token_expiry\">Token Expiry</label>\n");
     sb.append("      <select name=\"token_expiry\" id=\"token_expiry\" style=\"width:100%;padding:10px 12px;font-size:14px;border:1.5px solid #d0d5dd;border-radius:8px;margin-bottom:14px;background:#fafbfc;\">\n");
     sb.append("        <option value=\"0\" selected>No expiry</option>\n");

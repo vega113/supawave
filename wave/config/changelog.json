@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-03-28-deleted-blip-next-unread",
+    "version": "PR #438",
+    "date": "2026-03-28",
+    "title": "Deleted Blip Focus Recovery",
+    "summary": "Deleting a reply now preserves unread navigation by moving focus to the next surviving blip or its containing parent.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Fixed a crashy unread-navigation case when deleting a blip that still contained the currently focused descendant.",
+          "When a deleted reply has no remaining siblings, focus now falls back to the containing parent blip instead of jumping unpredictably."
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-reply-editor-stability",
     "version": "PR #437",
     "date": "2026-03-28",

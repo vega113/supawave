@@ -39,6 +39,7 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
 import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
+import org.waveprotocol.wave.model.conversation.ConversationBlipHierarchy;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.WaveLockState;
 import org.waveprotocol.wave.model.id.DualIdSerialiser;
@@ -225,31 +226,8 @@ public final class ActionsImpl implements Actions {
 
   @Override
   public void delete(BlipView blipUi) {
-    // If focus is on the blip that is being deleted, move focus somewhere else.
-    // If focus is on a blip inside the blip being deleted, don't worry about it
-    // (checking could get too expensive).
-    BlipView currentlyFocused = (focus != null) ? focus.getFocusedBlip() : null;
-    boolean deletingFocused = (blipUi != null && currentlyFocused != null && blipUi.equals(currentlyFocused));
-    if (deletingFocused) {
-      // Move to next blip in thread if there is one, otherwise previous blip in
-      // thread, otherwise previous blip in traversal order.
-      ThreadView parentUi = (blipUi != null) ? blipUi.getParent() : null;
-      BlipView nextUi = null;
-      if (parentUi != null) {
-        nextUi = parentUi.getBlipAfter(blipUi);
-        if (nextUi == null) {
-          nextUi = parentUi.getBlipBefore(blipUi);
-        }
-      }
-      if (nextUi != null) {
-        if (focus != null) {
-          focus.focus(nextUi);
-        }
-      } else {
-        if (focus != null) {
-          focus.moveUp();
-        }
-      }
+    if (deletingFocusedSubtree(blipUi)) {
+      moveFocusAwayFromDeletedBlip(blipUi);
     }
 
     // When quasi-deletion UI is enabled, defer the actual delete and show an
@@ -258,6 +236,42 @@ public final class ActionsImpl implements Actions {
       UndoableDeleteHelper.softDelete(blipUi, views);
     } else {
       views.getBlip(blipUi).delete();
+    }
+  }
+
+  private boolean deletingFocusedSubtree(BlipView blipUi) {
+    ConversationBlip deletingBlip = blipUi != null ? views.getBlip(blipUi) : null;
+    BlipView focusedBlipUi = focus != null ? focus.getFocusedBlip() : null;
+    ConversationBlip focusedBlip = focusedBlipUi != null ? views.getBlip(focusedBlipUi) : null;
+    return ConversationBlipHierarchy.contains(deletingBlip, focusedBlip);
+  }
+
+  private void moveFocusAwayFromDeletedBlip(BlipView blipUi) {
+    ThreadView parentUi = blipUi != null ? blipUi.getParent() : null;
+    BlipView remainingBlip = null;
+    if (parentUi != null) {
+      remainingBlip = parentUi.getBlipAfter(blipUi);
+      if (remainingBlip == null) {
+        remainingBlip = parentUi.getBlipBefore(blipUi);
+      }
+    }
+    if (remainingBlip != null) {
+      if (focus != null) {
+        focus.focus(remainingBlip);
+      }
+    } else {
+      ConversationBlip deletedBlip = blipUi != null ? views.getBlip(blipUi) : null;
+      ConversationBlip containingBlip = ConversationBlipHierarchy.parentOutside(deletedBlip);
+      BlipView containingBlipUi = containingBlip != null ? views.getBlipView(containingBlip) : null;
+      if (containingBlipUi != null) {
+        if (focus != null) {
+          focus.focus(containingBlipUi);
+        }
+      } else {
+        if (focus != null) {
+          focus.moveUp();
+        }
+      }
     }
   }
 

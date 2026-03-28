@@ -3254,7 +3254,7 @@ public final class HtmlRenderer {
       sb.append("        <a class=\"section-link-strong\" href=\"/account/robots\">Robot &amp; Data API</a>\n");
       sb.append("        <a href=\"/api-docs\" target=\"_blank\">API Docs</a>\n");
       sb.append("        <div class=\"divider\"></div>\n");
-      sb.append("        <div class=\"section-label\">Product / Support</div>\n");
+      sb.append("        <div class=\"section-label\">Product / support</div>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
       sb.append("        <a href=\"/changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
       sb.append("        <a href=\"/contact\">Contact Us</a>\n");

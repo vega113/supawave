@@ -34,6 +34,7 @@ import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.id.WaveletIdSerializer;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.supplement.SupplementedWave;
 import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl;
@@ -66,6 +67,12 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
   private static final Log LOG = Log.get(SimpleSearchProviderImpl.class);
 
   private final PerUserWaveViewProvider waveViewProvider;
+
+  private enum FolderState {
+    INBOX,
+    ARCHIVE,
+    MUTE
+  }
 
   @Inject
   public SimpleSearchProviderImpl(@Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) final String waveDomain,
@@ -476,22 +483,10 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     while (it.hasNext()) {
       WaveViewData wave = it.next();
       try {
-        WaveSupplementContext ctx = getOrBuildContext(wave, user, supplementCache, waveletAdapters);
-
-        // Waves without a conversation root wavelet or without conversation
-        // structure cannot carry archive state. Treat them as inbox waves:
-        // keep them for inbox queries, remove them for archive queries.
-        if (ctx.supplement == null) {
-          if (!wantInbox) {
-            it.remove();
-          }
-          continue;
-        }
-
-        boolean isInbox = ctx.supplement.isInbox();
-        if (wantInbox && !isInbox) {
+        FolderState folderState = readFolderState(wave, user);
+        if (wantInbox && folderState != FolderState.INBOX) {
           it.remove();
-        } else if (!wantInbox && isInbox) {
+        } else if (!wantInbox && folderState != FolderState.ARCHIVE) {
           it.remove();
         }
       } catch (Exception e) {
@@ -994,6 +989,140 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     LOG.info("readTagsFromWaveletData: wave " + waveletData.getWaveId()
         + " tags = " + tags);
     return tags;
+  }
+
+  private FolderState readFolderState(WaveViewData wave, ParticipantId user) {
+    ObservableWaveletData userDataWavelet = null;
+    List<ObservableWaveletData> conversationalWavelets = new ArrayList<ObservableWaveletData>();
+    for (ObservableWaveletData waveletData : wave.getWavelets()) {
+      WaveletId waveletId = waveletData.getWaveletId();
+      if (IdUtil.isUserDataWavelet(user.getAddress(), waveletId)) {
+        userDataWavelet = waveletData;
+      } else if (IdUtil.isConversationalId(waveletId)) {
+        conversationalWavelets.add(waveletData);
+      }
+    }
+    return readFolderStateFromUdw(userDataWavelet, conversationalWavelets);
+  }
+
+  private static FolderState readFolderStateFromUdw(ObservableWaveletData userDataWavelet,
+      List<ObservableWaveletData> conversationalWavelets) {
+    if (readBooleanStateFromUdw(
+        userDataWavelet,
+        org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.MUTED_DOCUMENT,
+        org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.MUTED_TAG,
+        org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.MUTED_ATTR)) {
+      return FolderState.MUTE;
+    }
+    if (conversationalWavelets.isEmpty()) {
+      return FolderState.INBOX;
+    }
+    if (readBooleanStateFromUdw(
+        userDataWavelet,
+        org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.CLEARED_DOCUMENT,
+        org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.CLEARED_TAG,
+        org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.CLEARED_ATTR)) {
+      return FolderState.INBOX;
+    }
+    Map<String, Integer> archiveVersions = readArchiveVersionsFromUdw(userDataWavelet);
+    for (ObservableWaveletData conversationalWavelet : conversationalWavelets) {
+      Integer archivedVersion =
+          archiveVersions.get(WaveletIdSerializer.INSTANCE.toString(conversationalWavelet.getWaveletId()));
+      if (archivedVersion == null
+          || archivedVersion.intValue() < (int) conversationalWavelet.getVersion()) {
+        return FolderState.INBOX;
+      }
+    }
+    return FolderState.ARCHIVE;
+  }
+
+  private static boolean readBooleanStateFromUdw(ObservableWaveletData userDataWavelet,
+      String documentId, String tagName, String attrName) {
+    if (userDataWavelet == null) {
+      return false;
+    }
+    org.waveprotocol.wave.model.wave.data.ReadableBlipData stateDocument =
+        userDataWavelet.getDocument(documentId);
+    if (stateDocument == null) {
+      return false;
+    }
+    org.waveprotocol.wave.model.document.operation.DocInitialization docOp =
+        stateDocument.getContent().asOperation();
+    final boolean[] state = {false};
+    docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
+      @Override
+      public void elementStart(String type,
+          org.waveprotocol.wave.model.document.operation.Attributes attrs) {
+        if (tagName.equals(type)) {
+          String attrValue = attrs == null ? null : attrs.get(attrName);
+          state[0] = attrValue == null || Boolean.parseBoolean(attrValue);
+        }
+      }
+
+      @Override
+      public void elementEnd() {
+      }
+
+      @Override
+      public void characters(String chars) {
+      }
+
+      @Override
+      public void annotationBoundary(
+          org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
+      }
+    });
+    return state[0];
+  }
+
+  private static Map<String, Integer> readArchiveVersionsFromUdw(
+      ObservableWaveletData userDataWavelet) {
+    Map<String, Integer> archiveVersions = new HashMap<String, Integer>();
+    if (userDataWavelet == null) {
+      return archiveVersions;
+    }
+    org.waveprotocol.wave.model.wave.data.ReadableBlipData archiveDocument =
+        userDataWavelet.getDocument(
+            org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.ARCHIVING_DOCUMENT);
+    if (archiveDocument == null) {
+      return archiveVersions;
+    }
+    org.waveprotocol.wave.model.document.operation.DocInitialization docOp =
+        archiveDocument.getContent().asOperation();
+    docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
+      @Override
+      public void elementStart(String type,
+          org.waveprotocol.wave.model.document.operation.Attributes attrs) {
+        if (org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.ARCHIVE_TAG.equals(type)
+            && attrs != null) {
+          String waveletId =
+              attrs.get(org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.ID_ATTR);
+          String versionValue =
+              attrs.get(org.waveprotocol.wave.model.supplement.WaveletBasedSupplement.VERSION_ATTR);
+          if (waveletId != null && versionValue != null) {
+            Integer parsedVersion = Integer.valueOf(versionValue);
+            Integer currentVersion = archiveVersions.get(waveletId);
+            if (currentVersion == null || currentVersion.intValue() < parsedVersion.intValue()) {
+              archiveVersions.put(waveletId, parsedVersion);
+            }
+          }
+        }
+      }
+
+      @Override
+      public void elementEnd() {
+      }
+
+      @Override
+      public void characters(String chars) {
+      }
+
+      @Override
+      public void annotationBoundary(
+          org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
+      }
+    });
+    return archiveVersions;
   }
 
   /**

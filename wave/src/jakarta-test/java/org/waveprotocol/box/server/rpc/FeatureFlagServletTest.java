@@ -28,9 +28,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import org.junit.Test;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
@@ -64,7 +62,7 @@ public final class FeatureFlagServletTest {
             "lucene9",
             "Persisted rollout state",
             true,
-            new LinkedHashSet<>(Arrays.asList("vega@supawave.ai")))));
+            Collections.singletonMap("vega@supawave.ai", true))));
 
     String body = fetchFlagsJson(store);
 
@@ -81,7 +79,7 @@ public final class FeatureFlagServletTest {
             "ot-search",
             "Operational transform search updates",
             false,
-            Collections.emptySet())));
+            Collections.emptyMap())));
 
     String body = fetchFlagsJson(store);
 
@@ -100,7 +98,7 @@ public final class FeatureFlagServletTest {
     when(accountStore.getAccount(OWNER)).thenReturn(admin);
 
     FeatureFlagServlet servlet =
-        new FeatureFlagServlet(store, service, sessionManager, accountStore);
+        new FeatureFlagServlet(store, service, sessionManager, accountStore, "example.com");
 
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpSession session = mock(HttpSession.class);

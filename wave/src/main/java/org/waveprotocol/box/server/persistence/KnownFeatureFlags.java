@@ -27,7 +27,7 @@ import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
 public final class KnownFeatureFlags {
   private static final List<FeatureFlag> DEFAULTS =
       Collections.singletonList(
-          new FeatureFlag("lucene9", "Lucene 9.x full-text search", false, Collections.emptySet()));
+          new FeatureFlag("lucene9", "Lucene 9.x full-text search", false, Collections.emptyMap()));
 
   private KnownFeatureFlags() {
   }

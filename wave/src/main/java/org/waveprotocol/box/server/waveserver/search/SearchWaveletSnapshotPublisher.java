@@ -76,6 +76,10 @@ public final class SearchWaveletSnapshotPublisher {
 
   private void publish(ParticipantId user, String query, SearchResult searchResult,
       boolean forceSnapshot) {
+    WaveletName computedWaveletName = waveletManager.computeWaveletName(user, query);
+    if (forceSnapshot && !dispatcher.hasSubscription(user, computedWaveletName)) {
+      return;
+    }
     WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, query);
     List<SearchWaveletDataProvider.SearchResultEntry> newResults =
         convertSearchResult(searchResult);

@@ -51,7 +51,9 @@ public final class SearchServletTest extends TestCase {
     assertEquals(5, servlet.getPerformedRequests().get(0).getIndex());
     assertEquals(3, servlet.getPerformedRequests().get(0).getNumResults());
     assertEquals(0, servlet.getPerformedRequests().get(1).getIndex());
-    assertEquals(50, servlet.getPerformedRequests().get(1).getNumResults());
+    assertEquals(
+        SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS,
+        servlet.getPerformedRequests().get(1).getNumResults());
   }
 
   public void testDoGetSkipsDuplicateCanonicalBootstrapSearch() throws Exception {
@@ -66,7 +68,9 @@ public final class SearchServletTest extends TestCase {
 
     assertEquals(1, servlet.getPerformedRequests().size());
     assertEquals(0, servlet.getPerformedRequests().get(0).getIndex());
-    assertEquals(50, servlet.getPerformedRequests().get(0).getNumResults());
+    assertEquals(
+        SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS,
+        servlet.getPerformedRequests().get(0).getNumResults());
   }
 
   private static TestSearchServlet createServlet(SearchWaveletSnapshotPublisher snapshotPublisher) {

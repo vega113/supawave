@@ -19,12 +19,15 @@
 
 package org.waveprotocol.box.webclient.search;
 
+import com.google.gwt.http.client.Request;
+
 import junit.framework.TestCase;
 
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
 import org.waveprotocol.wave.model.document.util.DocProviders;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.client.scheduler.testing.FakeTimerService;
@@ -33,6 +36,9 @@ import org.waveprotocol.wave.model.wave.SourcesEvents;
 import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class SearchPresenterTest extends TestCase {
 
@@ -194,11 +200,70 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, scheduler.countTasksScheduled());
   }
 
+  public void testOnShowMoreFallsBackToPollingWhenOtSnapshotCannotGrowWindow()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    SimpleSearch search = new SimpleSearch(new FakeSearchService(), null);
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        null);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "useOtSearch", true);
+    setIntField(presenter, "querySize", 45);
+    setField(
+        presenter,
+        "otSearchSnapshot",
+        new SearchPresenter.OtSearchSnapshot(80, createDigestSnapshots(50)));
+
+    presenter.onShowMoreClicked();
+
+    assertFalse(getBooleanField(presenter, "useOtSearch"));
+    assertEquals(1, scheduler.countTasksScheduled());
+  }
+
   private static void setBooleanField(SearchPresenter presenter, String fieldName, boolean value)
       throws Exception {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.setBoolean(presenter, value);
+  }
+
+  private static boolean getBooleanField(SearchPresenter presenter, String fieldName)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    return field.getBoolean(presenter);
+  }
+
+  private static void setIntField(SearchPresenter presenter, String fieldName, int value)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.setInt(presenter, value);
+  }
+
+  private static void setField(SearchPresenter presenter, String fieldName, Object value)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.set(presenter, value);
+  }
+
+  private static List<SearchService.DigestSnapshot> createDigestSnapshots(int count) {
+    List<SearchService.DigestSnapshot> digests = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      digests.add(new SearchService.DigestSnapshot(
+          "Title " + i,
+          "Snippet " + i,
+          WaveId.of("example.com", "w+" + i),
+          ParticipantId.ofUnsafe("author@example.com"),
+          Collections.<ParticipantId>emptyList(),
+          i,
+          0,
+          1));
+    }
+    return digests;
   }
 
   private static final class FakeSearch implements Search {
@@ -255,6 +320,13 @@ public final class SearchPresenterTest extends TestCase {
 
     @Override
     public void removeListener(ProfileListener listener) {
+    }
+  }
+
+  private static final class FakeSearchService implements SearchService {
+    @Override
+    public Request search(String query, int index, int numResults, Callback callback) {
+      return null;
     }
   }
 

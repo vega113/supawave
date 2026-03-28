@@ -1,5 +1,20 @@
 [
   {
+    "version": "2026-03-28",
+    "date": "2026-03-28",
+    "title": "Realtime Search Stability",
+    "summary": "Experimental OT-backed search now degrades more safely when the live snapshot cannot satisfy the requested result window, and the server only tracks live search state for active subscribers.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Expanded OT search result lists now fall back to polling instead of getting stuck behind a 50-result live snapshot",
+          "Search wavelet bootstrap registration now skips inactive listeners and re-evaluates participant subscriptions conservatively to avoid stale live results"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-27-release-aware-upgrade-notes",
     "version": "PR #405",
     "date": "2026-03-27",

@@ -101,6 +101,10 @@ final class UserManager {
     }
   }
 
+  public synchronized boolean hasSubscription(WaveletName waveletName) {
+    return !matchSubscriptions(waveletName).isEmpty();
+  }
+
   /**
    * Subscribes a listener to updates on a wave, filtered by waveletId.
    *

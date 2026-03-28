@@ -101,6 +101,22 @@ public final class SearchWaveletSnapshotPublisherTest extends TestCase {
     assertEquals(snapshotCaptor.getValue().committedVersion, versionCaptor.getValue());
   }
 
+  public void testPublishBootstrapSkipsInactiveSearchWavelet() {
+    SearchWaveletManager waveletManager = new SearchWaveletManager();
+    SearchIndexer indexer = new SearchIndexer();
+    SearchWaveletSnapshotPublisher publisher =
+        new SearchWaveletSnapshotPublisher(
+            new SearchWaveletDispatcher(),
+            waveletManager,
+            indexer,
+            new SearchWaveletDataProvider());
+
+    publisher.publishBootstrap(USER, QUERY, createSearchResult(QUERY, "example.com/w+abc", 1));
+
+    assertEquals(0, waveletManager.getActiveCount());
+    assertEquals(0, indexer.getSubscriptionCount());
+  }
+
   private static SearchResult createSearchResult(String query, String waveId, int totalResults) {
     SearchResult searchResult = new SearchResult(query);
     searchResult.addDigest(new SearchResult.Digest(

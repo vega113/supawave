@@ -45,4 +45,12 @@ public final class SearchWaveletDispatcher {
     }
     currentWaveletInfo.getUserManager(user).onSnapshot(waveletName, snapshot);
   }
+
+  public boolean hasSubscription(ParticipantId user, WaveletName waveletName) {
+    WaveletInfo currentWaveletInfo = waveletInfo;
+    if (currentWaveletInfo == null) {
+      return false;
+    }
+    return currentWaveletInfo.getUserManager(user).hasSubscription(waveletName);
+  }
 }

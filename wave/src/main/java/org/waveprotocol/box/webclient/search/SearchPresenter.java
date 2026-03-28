@@ -838,7 +838,13 @@ public final class SearchPresenter
     if (shouldUsePolling(otSearchEnabled, useOtSearch)) {
       doSearch();
     } else {
-      applyOtSearchResults();
+      if (canProjectOtSearchWindow(querySize, otSearchSnapshot)) {
+        applyOtSearchResults();
+      } else {
+        fallbackToPolling(
+            "OT search cannot serve query window " + querySize + " for query '" + queryText + "'",
+            null);
+      }
     }
   }
 
@@ -1084,7 +1090,13 @@ public final class SearchPresenter
         otSearchSnapshot = parseOtSearchSnapshot(otSearchDocument);
         useOtSearch = true;
         scheduler.cancel(searchUpdater);
-        applyOtSearchResults();
+        if (canProjectOtSearchWindow(querySize, otSearchSnapshot)) {
+          applyOtSearchResults();
+        } else {
+          fallbackToPolling(
+              "OT search snapshot is smaller than requested window for query '" + queryText + "'",
+              null);
+        }
       }
     } catch (RuntimeException e) {
       fallbackToPolling("Failed to process OT search update for query '" + queryText + "'", e);
@@ -1124,6 +1136,14 @@ public final class SearchPresenter
       digests.add(otSearchSnapshot.getDigests().get(i));
     }
     ((SimpleSearch) search).replaceResults(otSearchSnapshot.getTotal(), digests);
+  }
+
+  private static boolean canProjectOtSearchWindow(int requestedSize, OtSearchSnapshot snapshot) {
+    if (requestedSize <= snapshot.getDigests().size()) {
+      return true;
+    }
+    int total = snapshot.getTotal();
+    return total >= 0 && snapshot.getDigests().size() >= total;
   }
 
   private void handleOtSearchNetworkStatus(NetworkStatusEvent event) {

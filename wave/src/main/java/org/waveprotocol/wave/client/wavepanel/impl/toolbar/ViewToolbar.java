@@ -59,6 +59,7 @@ public final class ViewToolbar {
   private final ToplevelToolbarWidget toolbarUi;
   private final FocusFramePresenter focusFrame;
   private final FocusBlipSelector blipSelector;
+  private final ViewToolbarFocusActions focusActions;
   private final Reader reader;
   private final WaveId waveId;
   private final FolderOperationService folderService;
@@ -88,6 +89,22 @@ public final class ViewToolbar {
     this.folderService = new FolderOperationServiceImpl();
     this.pinned = initiallyPinned;
     blipSelector = FocusBlipSelector.create(wave, views, reader, new ViewTraverser());
+    focusActions = new ViewToolbarFocusActions(new ViewToolbarFocusActions.FocusFrameControl() {
+      @Override
+      public BlipView getFocusedBlip() {
+        return focusFrame.getFocusedBlip();
+      }
+
+      @Override
+      public void focus(BlipView blip) {
+        focusFrame.focus(blip);
+      }
+
+      @Override
+      public void focusNext() {
+        focusFrame.focusNext();
+      }
+    }, blipSelector, reader);
   }
 
   public static ViewToolbar create(FocusFramePresenter focus,  ModelAsViewProvider views,
@@ -111,7 +128,7 @@ public final class ViewToolbar {
         group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
-            focusFrame.focus(blipSelector.selectMostRecentlyModified());
+            focusActions.focusMostRecentlyModified();
           }
         });
 
@@ -119,17 +136,7 @@ public final class ViewToolbar {
         group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
-            BlipView focusedBlip = focusFrame.getFocusedBlip();
-            if (focusedBlip == null) {
-              focusedBlip = blipSelector.getOrFindRootBlip();
-              boolean isRead = reader.isRead(focusedBlip);
-              focusFrame.focus(focusedBlip);
-              if (isRead) {
-                focusFrame.focusNext();
-              }
-            } else {
-              focusFrame.focusNext();
-            }
+            focusActions.focusNextUnread();
           }
         });
     new ToolbarButtonViewBuilder().setText(messages.previous()).applyTo(

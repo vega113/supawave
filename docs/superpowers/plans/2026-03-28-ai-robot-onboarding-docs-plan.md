@@ -386,7 +386,13 @@ git commit -m "docs: add AI-first SupaWave API onboarding"
 Run: `sbt "testOnly org.waveprotocol.box.server.rpc.HtmlRendererChangelogTest"`
 Expected: PASS and no JSON parse errors.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Run the mandatory changelog validator on both mirrored files**
+
+Run: `python3 scripts/validate-changelog.py --changelog wave/config/changelog.json`
+Run: `python3 scripts/validate-changelog.py --changelog wave/src/main/resources/config/changelog.json`
+Expected: PASS for both files and no JSON/schema errors.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add wave/config/changelog.json \

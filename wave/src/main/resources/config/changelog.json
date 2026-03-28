@@ -1,5 +1,20 @@
 [
   {
+    "releaseId": "2026-03-28-search-refresh-stability",
+    "version": "PR #443",
+    "date": "2026-03-28",
+    "title": "Search Refresh Stability",
+    "summary": "Search refreshes no longer preserve stale sidebar rows when the latest result set is empty.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Fixed simple search refresh handling so empty result updates clear stale wave rows instead of leaving old unread/message counts behind"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-robot-control-room-hardening",
     "version": "PR #431",
     "date": "2026-03-28",

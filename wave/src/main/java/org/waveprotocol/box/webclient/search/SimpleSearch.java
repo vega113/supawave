@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.gwt.http.client.Request;
 
 import org.waveprotocol.box.common.DigestStateMerging;
+import org.waveprotocol.box.common.SearchResultUpdate;
 import org.waveprotocol.box.webclient.search.SearchService.Callback;
 import org.waveprotocol.box.webclient.search.SearchService.DigestSnapshot;
 import org.waveprotocol.wave.client.debug.logger.DomLogger;
@@ -348,9 +349,12 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
    * Copies the digest snapshots into this search result's state.
    */
   private void handleSuccess(int total, int from, List<DigestSnapshot> newDigests) {
-    if (this.total == total
-        && from + newDigests.size() <= results.size()
-        && results.subList(from, from + newDigests.size()).hashCode() == newDigests.hashCode()) {
+    if (SearchResultUpdate.isVacuousRefresh(
+        this.total,
+        results,
+        total,
+        newDigests,
+        total == Search.UNKNOWN_SIZE)) {
       log.trace().log("handling vacuous update");
       // Assume no change, but notify listeners that the search is complete.
       fireOnStateChanged();

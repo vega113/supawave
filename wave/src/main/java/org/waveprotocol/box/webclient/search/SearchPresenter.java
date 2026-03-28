@@ -365,7 +365,27 @@ public final class SearchPresenter
   }
 
   private static boolean supportsOtSearch(String query) {
-    return query == null || !query.toLowerCase(Locale.ROOT).contains("tag:");
+    boolean supportsOtSearch = true;
+    if (query != null) {
+      supportsOtSearch = !containsTagFilter(query);
+    }
+    return supportsOtSearch;
+  }
+
+  private static boolean containsTagFilter(String query) {
+    boolean containsTagFilter = false;
+    String[] tokens = query.split("\\s+");
+    for (String token : tokens) {
+      int separatorIndex = token.indexOf(':');
+      if (separatorIndex > 0) {
+        String tokenName = token.substring(0, separatorIndex).toLowerCase(Locale.ROOT);
+        if ("tag".equals(tokenName)) {
+          containsTagFilter = true;
+          break;
+        }
+      }
+    }
+    return containsTagFilter;
   }
 
   static boolean shouldUsePolling(boolean otSearchEnabled, boolean otSearchReady) {

@@ -203,6 +203,27 @@ public final class SearchPresenterTest extends TestCase {
     Mockito.verify(socket).open(Mockito.any());
   }
 
+  public void testBootstrapOtSearchSubscribesNotagSubstringQueryToOtSearch()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
+    RemoteViewServiceMultiplexer channel =
+        new RemoteViewServiceMultiplexer(socket, "alice@example.com");
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        channel);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setField(presenter, "queryText", "notag:foo");
+
+    presenter.bootstrapOtSearch();
+
+    Mockito.verify(socket).open(Mockito.any());
+    assertEquals(1, search.findCalls);
+    assertEquals("notag:foo", search.lastQuery);
+  }
+
   public void testOnFolderActionCompletedUsesImmediateDirectSearchWhenOtSearchIsEnabled()
       throws Exception {
     FakeTimerService scheduler = new FakeTimerService();

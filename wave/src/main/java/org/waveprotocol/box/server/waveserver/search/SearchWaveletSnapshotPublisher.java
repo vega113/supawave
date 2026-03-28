@@ -99,12 +99,6 @@ public final class SearchWaveletSnapshotPublisher {
       int newTotalCount = searchResult != null && searchResult.getTotalResults() >= 0
           ? searchResult.getTotalResults()
           : newResults.size();
-      if (newTotalCount > newResults.size()) {
-        if (forceSnapshot) {
-          publishLocks.remove(searchWaveletKey, publishLock);
-          return;
-        }
-      }
 
       WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, query);
       List<SearchWaveletDataProvider.SearchResultEntry> oldResults =

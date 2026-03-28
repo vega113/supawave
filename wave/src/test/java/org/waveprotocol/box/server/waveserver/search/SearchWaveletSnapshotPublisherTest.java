@@ -109,7 +109,7 @@ public final class SearchWaveletSnapshotPublisherTest extends TestCase {
     assertEquals(snapshotCaptor.getValue().committedVersion, versionCaptor.getValue());
   }
 
-  public void testPublishBootstrapSkipsCappedSearchResult() throws Exception {
+  public void testPublishBootstrapRegistersCappedSearchResultForLiveSearch() throws Exception {
     WaveletProvider waveletProvider = mock(WaveletProvider.class);
     when(waveletProvider.getWaveletIds(any())).thenReturn(ImmutableSet.of());
 
@@ -118,11 +118,12 @@ public final class SearchWaveletSnapshotPublisherTest extends TestCase {
         ClientFrontendImpl.create(waveletProvider, mock(WaveBus.class), waveletInfo);
     SearchWaveletManager waveletManager = new SearchWaveletManager();
     SearchIndexer indexer = new SearchIndexer();
+    SearchWaveletDataProvider dataProvider = new SearchWaveletDataProvider();
     SearchWaveletDispatcher dispatcher = new SearchWaveletDispatcher();
     dispatcher.initialize(waveletInfo);
     SearchWaveletSnapshotPublisher publisher =
         new SearchWaveletSnapshotPublisher(
-            dispatcher, waveletManager, indexer, new SearchWaveletDataProvider());
+            dispatcher, waveletManager, indexer, dataProvider);
 
     WaveletName searchWaveletName = waveletManager.computeWaveletName(USER, QUERY);
     IdFilter filter = IdFilter.of(
@@ -134,8 +135,11 @@ public final class SearchWaveletSnapshotPublisherTest extends TestCase {
 
     publisher.publishBootstrap(USER, QUERY, createSearchResult(QUERY, "example.com/w+abc", 2));
 
-    assertEquals(0, waveletManager.getActiveCount());
-    assertEquals(0, indexer.getSubscriptionCount());
+    assertEquals(1, waveletManager.getActiveCount());
+    assertEquals(1, indexer.getSubscriptionCount());
+    assertEquals("example.com/w+abc",
+        dataProvider.getCurrentResults(searchWaveletName).get(0).getWaveId());
+    assertEquals(2, dataProvider.getCurrentTotal(searchWaveletName));
   }
 
   public void testPublishUpdateKeepsActiveSearchSubscriptionWhenResultIsCapped()

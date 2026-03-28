@@ -25,16 +25,24 @@ Save your Wave session cookie to ~/.wave-session:
 3. Open the Storage/Application tab.
 4. Select Cookies for https://supawave.ai.
    Use http://localhost:9898 instead if you plan to run scripts/feature-flag.sh --local.
-5. Copy the full session cookie as NAME=value.
-   Example: JSESSIONID=abc123
+5. Copy the full Cookie header for the signed-in page.
+   The script accepts either:
+   - the raw Cookie header copied from DevTools, or
+   - plain NAME=value pairs separated by semicolons.
+   Include both JSESSIONID and wave-session-jwt.
+   Example:
+   Cookie: JSESSIONID=abc123; wave-session-jwt=eyJhbGciOi...
 6. Save it locally:
 
-   printf '%s\n' 'JSESSIONID=abc123' > ~/.wave-session
+   printf '%s\n' 'Cookie: JSESSIONID=abc123; wave-session-jwt=eyJhbGciOi...' > ~/.wave-session
    chmod 600 ~/.wave-session
 
-7. Verify the file contains only the cookie value:
+7. Verify the file contains the current signed-in cookies:
 
    cat ~/.wave-session
+
+If scripts/feature-flag.sh says the stored wave-session-jwt is expired or invalid,
+sign in again and refresh ~/.wave-session from the latest browser cookies.
 
 Then you can manage flags with commands like:
 

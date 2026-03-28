@@ -25,6 +25,7 @@ BASE_URL="${REMOTE_FLAGS_URL}"
 SESSION_COOKIE=""
 RESPONSE_STATUS=""
 RESPONSE_BODY=""
+RESPONSE_HEADERS=""
 
 usage() {
   cat <<'EOF'
@@ -60,23 +61,30 @@ load_session_cookie() {
   fi
 
   SESSION_COOKIE="$(tr -d '\r\n' < "${SESSION_COOKIE_FILE}")"
+  SESSION_COOKIE="${SESSION_COOKIE#"${SESSION_COOKIE%%[![:space:]]*}"}"
+  SESSION_COOKIE="${SESSION_COOKIE%"${SESSION_COOKIE##*[![:space:]]}"}"
 
   if [[ -z "${SESSION_COOKIE}" ]]; then
     fail "Session cookie file is empty: ${SESSION_COOKIE_FILE}"
   fi
 
+  if [[ "${SESSION_COOKIE}" == Cookie:\ * ]]; then
+    SESSION_COOKIE="${SESSION_COOKIE#Cookie: }"
+  fi
+
   if [[ "${SESSION_COOKIE}" != *=* ]]; then
-    fail "Session cookie must be saved as NAME=value, for example JSESSIONID=abc123"
+    fail "Session cookie must be saved as a Cookie header or NAME=value pairs"
   fi
 }
 
 perform_request() {
-  local method url body temp_file curl_status
+  local method url body body_file header_file curl_status
 
   method="$1"
   url="$2"
   body="${3-}"
-  temp_file="$(mktemp)"
+  body_file="$(mktemp)"
+  header_file="$(mktemp)"
 
   if [[ -n "${body}" ]]; then
     curl_status="$(
@@ -86,11 +94,12 @@ perform_request() {
         -H 'Accept: application/json' \
         -H 'Content-Type: application/json' \
         --data "${body}" \
-        -o "${temp_file}" \
+        -D "${header_file}" \
+        -o "${body_file}" \
         -w '%{http_code}' \
         "${url}"
     )" || {
-      rm -f "${temp_file}"
+      rm -f "${body_file}" "${header_file}"
       fail "Request failed for ${method} ${url}"
     }
   else
@@ -99,24 +108,64 @@ perform_request() {
         -X "${method}" \
         --cookie "${SESSION_COOKIE}" \
         -H 'Accept: application/json' \
-        -o "${temp_file}" \
+        -D "${header_file}" \
+        -o "${body_file}" \
         -w '%{http_code}' \
         "${url}"
     )" || {
-      rm -f "${temp_file}"
+      rm -f "${body_file}" "${header_file}"
       fail "Request failed for ${method} ${url}"
     }
   fi
 
   RESPONSE_STATUS="${curl_status}"
-  RESPONSE_BODY="$(cat "${temp_file}")"
-  rm -f "${temp_file}"
+  RESPONSE_HEADERS="$(tr -d '\r' < "${header_file}")"
+  RESPONSE_BODY="$(cat "${body_file}")"
+  rm -f "${body_file}" "${header_file}"
+}
+
+session_cookie_has_wave_session_jwt() {
+  [[ "${SESSION_COOKIE}" == *"wave-session-jwt="* ]]
+}
+
+response_cleared_wave_session_jwt() {
+  printf '%s' "${RESPONSE_HEADERS}" | grep -Eiq '^set-cookie: wave-session-jwt=;'
+}
+
+session_cookie_source_url() {
+  if [[ "${BASE_URL}" == "${LOCAL_FLAGS_URL}" ]]; then
+    printf 'http://localhost:9898\n'
+  else
+    printf 'https://supawave.ai\n'
+  fi
+}
+
+not_authenticated_message() {
+  local source_url
+
+  source_url="$(session_cookie_source_url)"
+
+  if response_cleared_wave_session_jwt; then
+    printf '%s\n' \
+      "Not authenticated. The stored wave-session-jwt cookie is expired or invalid. Sign in again in your browser, then refresh ${SESSION_COOKIE_FILE} with the current Cookie header from ${source_url}. See scripts/save-wave-session.sh."
+  elif ! session_cookie_has_wave_session_jwt; then
+    printf '%s\n' \
+      "Not authenticated. The saved session cookie is missing wave-session-jwt, so the server cannot restore your browser session after deploys. Save the full Cookie header from ${source_url}, including both JSESSIONID and wave-session-jwt. See scripts/save-wave-session.sh."
+  else
+    printf '%s\n' \
+      "Not authenticated. Refresh ${SESSION_COOKIE_FILE} from a current signed-in browser session for ${source_url}. See scripts/save-wave-session.sh."
+  fi
 }
 
 extract_error_message() {
   local error_message
 
   error_message="$(printf '%s' "${RESPONSE_BODY}" | jq -r '.error // empty' 2>/dev/null || true)"
+
+  if [[ "${error_message}" == "Not authenticated" ]]; then
+    not_authenticated_message
+    return
+  fi
 
   if [[ -n "${error_message}" ]]; then
     printf '%s\n' "${error_message}"

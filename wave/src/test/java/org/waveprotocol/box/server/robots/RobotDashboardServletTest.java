@@ -17,6 +17,7 @@
 package org.waveprotocol.box.server.robots;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -122,6 +123,26 @@ public class RobotDashboardServletTest extends TestCase {
     assertTrue(outputWriter.toString().contains("You do not own this robot"));
   }
 
+  public void testDoPostRejectsRotateSecretFromDifferentOwner() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("rotate-secret");
+    when(req.getParameter("token")).thenReturn("dashboard-xsrf");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(accountStore.getAccount(ROBOT))
+        .thenReturn(
+            (AccountData)
+                new RobotAccountDataImpl(
+                    ROBOT, "", "secret", null, false, 3600L, OTHER_OWNER.getAddress()));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    assertTrue(outputWriter.toString().contains("You do not own this robot"));
+  }
+
   public void testDoPostUpdatesCallbackForOwnedRobot() throws Exception {
     RobotAccountData existingRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
         3600L, OWNER.getAddress());
@@ -147,6 +168,35 @@ public class RobotDashboardServletTest extends TestCase {
         OWNER.getAddress());
     assertTrue(outputWriter.toString().contains("https://robot.example.com/callback"));
     assertTrue(outputWriter.toString().contains("secret"));
+  }
+
+  public void testDoPostRotatesSecretForOwnedRobot() throws Exception {
+    RobotAccountData existingRobot =
+        new RobotAccountDataImpl(ROBOT, "", "secret", null, false, 3600L, OWNER.getAddress());
+    RobotAccountData rotatedRobot =
+        new RobotAccountDataImpl(
+            ROBOT,
+            "https://robot.example.com/callback",
+            "new-secret",
+            null,
+            true,
+            3600L,
+            OWNER.getAddress());
+
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(existingRobot));
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("rotate-secret");
+    when(req.getParameter("token")).thenReturn("dashboard-xsrf");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(accountStore.getAccount(ROBOT)).thenReturn((AccountData) existingRobot);
+    when(robotRegistrar.rotateSecret(eq(ROBOT))).thenReturn(rotatedRobot);
+
+    servlet.doPost(req, resp);
+
+    verify(robotRegistrar).rotateSecret(ROBOT);
+    assertTrue(outputWriter.toString().contains("new-secret"));
   }
 
   public void testDoPostRegistersPendingRobotForCurrentOwner() throws Exception {

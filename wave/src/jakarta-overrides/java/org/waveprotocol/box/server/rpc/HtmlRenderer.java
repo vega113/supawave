@@ -3328,6 +3328,11 @@ public final class HtmlRenderer {
    */
   public static String renderRobotRegistrationPage(String domain, String message,
       String analyticsAccount) {
+    return renderRobotRegistrationPage(domain, message, analyticsAccount, "");
+  }
+
+  public static String renderRobotRegistrationPage(String domain, String message,
+      String analyticsAccount, String xsrfToken) {
     StringBuilder sb = new StringBuilder(2048);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
@@ -3350,6 +3355,11 @@ public final class HtmlRenderer {
       sb.append("    <p><b>").append(escapeHtml(message)).append("</b></p>\n");
     }
     sb.append("    <form method=\"post\" action=\"\">\n");
+    if (xsrfToken != null && !xsrfToken.isEmpty()) {
+      sb.append("      <input type=\"hidden\" name=\"token\" value=\"")
+          .append(escapeHtml(xsrfToken))
+          .append("\">\n");
+    }
     sb.append("      <label for=\"username\">Robot Username</label>\n");
     sb.append("      <div class=\"input-group\">\n");
     sb.append("        <input type=\"text\" name=\"username\" id=\"username\">\n");

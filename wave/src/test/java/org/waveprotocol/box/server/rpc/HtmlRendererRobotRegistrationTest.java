@@ -7,12 +7,14 @@ import org.junit.Test;
 public final class HtmlRendererRobotRegistrationTest {
   @Test
   public void registrationPageExplainsBotSuffixAndOptionalCallbackUrl() {
-    String html = HtmlRenderer.renderRobotRegistrationPage("example.com", "", "");
+    String html = HtmlRenderer.renderRobotRegistrationPage("example.com", "", "",
+        "registration-xsrf");
 
     assertTrue(html.contains("must end with -bot"));
     assertTrue(html.contains("optional"));
     assertTrue(html.contains("later"));
     assertTrue(html.contains("Current API Token Secret"));
+    assertTrue(html.contains("name=\"token\""));
   }
 
   @Test

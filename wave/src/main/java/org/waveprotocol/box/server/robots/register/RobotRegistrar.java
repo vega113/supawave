@@ -105,6 +105,13 @@ public interface RobotRegistrar {
   public RobotAccountData registerOrUpdate(ParticipantId robotId, String location,
       String ownerAddress) throws RobotRegistrationException, PersistenceException;
 
+  /**
+   * Rotates the shared secret for an existing robot while keeping its current
+   * callback URL, capabilities, expiry, and owner metadata.
+   */
+  public RobotAccountData rotateSecret(ParticipantId robotId)
+      throws RobotRegistrationException, PersistenceException;
+
   /** Adds listener. */
   public void addRegistrationListener(Listener listener);
 

@@ -35,6 +35,9 @@ public interface RobotRegistrar {
   RobotAccountData registerOrUpdate(ParticipantId robotId, String location, String ownerAddress)
       throws RobotRegistrationException, PersistenceException;
 
+  RobotAccountData rotateSecret(ParticipantId robotId)
+      throws RobotRegistrationException, PersistenceException;
+
   void addRegistrationListener(Listener listener);
 
   void removeRegistrationListener(Listener listener);

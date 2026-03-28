@@ -38,6 +38,7 @@ import org.waveprotocol.box.server.util.RegistrationSupport;
 import org.waveprotocol.wave.model.id.TokenGenerator;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ import java.util.concurrent.TimeUnit;
 public final class RobotDashboardServlet extends HttpServlet {
   private static final int XSRF_TOKEN_LENGTH = 12;
   private static final int XSRF_TOKEN_TIMEOUT_HOURS = 12;
+  private static final Log LOG = Log.get(RobotDashboardServlet.class);
 
   private final String domain;
   private final SessionManager sessionManager;
@@ -116,6 +118,10 @@ public final class RobotDashboardServlet extends HttpServlet {
       handleUpdateUrl(req, resp, user);
       return;
     }
+    if ("rotate-secret".equals(action)) {
+      handleRotateSecret(req, resp, user);
+      return;
+    }
 
     renderDashboard(req, resp, user, "Unknown robot action.", null,
         HttpServletResponse.SC_BAD_REQUEST);
@@ -156,6 +162,39 @@ public final class RobotDashboardServlet extends HttpServlet {
       renderDashboard(req, resp, user, e.getMessage(), null, HttpServletResponse.SC_BAD_REQUEST);
     } catch (PersistenceException e) {
       renderDashboard(req, resp, user, "Callback URL update failed.", null,
+          HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  private void handleRotateSecret(HttpServletRequest req, HttpServletResponse resp, ParticipantId user)
+      throws IOException {
+    String robotIdValue = req.getParameter("robotId");
+    if (Strings.isNullOrEmpty(robotIdValue)) {
+      renderDashboard(req, resp, user, "Robot selection is required.", null,
+          HttpServletResponse.SC_BAD_REQUEST);
+      return;
+    }
+
+    RobotAccountData ownedRobot = findOwnedRobot(robotIdValue, user.getAddress());
+    if (ownedRobot == null) {
+      renderDashboard(req, resp, user, "You do not own this robot.", null,
+          HttpServletResponse.SC_FORBIDDEN);
+      return;
+    }
+
+    try {
+      RobotAccountData rotatedRobot = robotRegistrar.rotateSecret(ownedRobot.getId());
+      renderDashboard(
+          req,
+          resp,
+          user,
+          "Secret rotated for " + ownedRobot.getId().getAddress(),
+          rotatedRobot,
+          HttpServletResponse.SC_OK);
+    } catch (RobotRegistrationException e) {
+      renderDashboard(req, resp, user, e.getMessage(), null, HttpServletResponse.SC_BAD_REQUEST);
+    } catch (PersistenceException e) {
+      renderDashboard(req, resp, user, "Secret rotation failed.", null,
           HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
   }
@@ -205,6 +244,7 @@ public final class RobotDashboardServlet extends HttpServlet {
         }
       }
     } catch (InvalidParticipantAddress | PersistenceException e) {
+      LOG.severe("Failed to resolve owned robot " + robotIdValue + " for " + ownerAddress, e);
       ownedRobot = null;
     }
     return ownedRobot;

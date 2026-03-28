@@ -22,6 +22,7 @@
  */
 
 @eval threadTop org.waveprotocol.wave.client.wavepanel.view.dom.full.TopConversationViewBuilder.CssConstants.THREAD_TOP_CSS;
+@eval tagsPanelOffset org.waveprotocol.wave.client.wavepanel.view.dom.full.TagsViewBuilder.CssConstants.PANEL_TOTAL_HEIGHT_CSS;
 
 .fixedSelf {
   position: absolute;
@@ -43,8 +44,7 @@
   top: threadTop;
   left: 0;
   right: 0;
-  /* Stop the scroll area above the tags panel (height 36px in Tags.css). */
-  bottom: 36px;
+  bottom: tagsPanelOffset;
   /* Layout under siblings (participant panel etc). */
   z-index: -1;
 }

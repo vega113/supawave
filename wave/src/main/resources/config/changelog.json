@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-03-28-profile-last-seen",
+    "version": "PR #423",
+    "date": "2026-03-28",
+    "title": "Profile Last Seen",
+    "summary": "Profile cards now show last seen when a user allows it, and hide it when they turn it off.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Successful sign-in and ongoing authenticated activity now update the profile last-seen timestamp",
+          "Turning off Show last seen removes the field from the profile card response"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-direct-messages-stay-explicit",
     "version": "PR #422",
     "date": "2026-03-28",

@@ -94,8 +94,6 @@ public class JsonRpcConstant {
    * @author mprasetya@google.com (Marcel Prasetya)
    */
   public enum ParamsProperty {
-    // TODO(mprasetya): Consider combining this with OperationType, or at least
-    // each OperationType should have a list of ParamsProperty.
 
     // Commonly used parameters.
     WAVE_ID("waveId", String.class),

@@ -31,6 +31,7 @@
 - Modify: `wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPresenter.java`
 - Modify: `wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPanelView.java`
 - Modify: `wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPanelWidget.java`
+- Modify if the change lands: `wave/src/main/resources/config/changelog.json`
 - Modify if the change lands: `wave/config/changelog.json`
 
 ## Constraints And Non-Goals
@@ -87,6 +88,7 @@
 ## Task 5: Verification And Release Hygiene
 
 **Files:**
+- Modify if the change lands: `wave/src/main/resources/config/changelog.json`
 - Modify if the change lands: `wave/config/changelog.json`
 
 - [ ] Run `sbt "testOnly org.waveprotocol.box.search.SearchPresenterLoadingStateTest"`.
@@ -97,7 +99,7 @@
   - first direct results appear without waiting for OT
   - archive/inbox refresh still updates immediately
   - OT silence does not blank the panel and does not keep retrying indefinitely
-- [ ] Add a top-of-file changelog entry summarizing the loading UX and OT overlay cleanup if the implementation lands.
+- [ ] Add matching top-of-file changelog entries to both changelog files summarizing the loading UX and OT overlay cleanup if the implementation lands.
 
 ## Exact Verification Commands
 

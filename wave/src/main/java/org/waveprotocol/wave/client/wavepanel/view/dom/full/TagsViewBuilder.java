@@ -41,6 +41,17 @@ import org.waveprotocol.wave.client.uibuilder.OutputHelper;
  */
 public final class TagsViewBuilder implements UiBuilder {
 
+  static final class CssConstants {
+    static final int PANEL_HEIGHT_PX = 36;
+    static final int PANEL_BORDER_TOP_PX = 1;
+    static final int PANEL_TOTAL_HEIGHT_PX = PANEL_HEIGHT_PX + PANEL_BORDER_TOP_PX;
+    static final String PANEL_HEIGHT_CSS = PANEL_HEIGHT_PX + "px";
+    static final String PANEL_TOTAL_HEIGHT_CSS = PANEL_TOTAL_HEIGHT_PX + "px";
+
+    private CssConstants() {
+    }
+  }
+
   /** A well-known ID for the add-tag button, used by TagController. */
   public static final String ADD_TAG_BUTTON_ID = "add-tag-button";
 

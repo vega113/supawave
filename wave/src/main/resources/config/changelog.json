@@ -16,6 +16,69 @@
     ]
   },
   {
+    "releaseId": "2026-03-28-robot-registration-polish",
+    "version": "PR #430",
+    "date": "2026-03-28",
+    "title": "Robot Registration Polish",
+    "summary": "The robot registration success page now keeps long credentials readable without breaking the layout.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Redesigned the Robot Registered page with a more polished SupaWave presentation",
+          "Long consumer token secrets now wrap cleanly on desktop and narrow screens instead of overflowing the card"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-wave-scroll-tags-overlap",
+    "version": "PR #425",
+    "date": "2026-03-28",
+    "title": "Tagged Wave Scroll Fix",
+    "summary": "The bottom of a wave now stays reachable above the tags bar.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Aligned the wave scroll offset with the full rendered tags-bar height so bottom content is no longer clipped behind it"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-lucene9-admin-flags",
+    "version": "PR #421",
+    "date": "2026-03-28",
+    "title": "Rollout Flags Show Up Before First Enablement",
+    "summary": "Admin feature flags now list prepared rollout flags like lucene9 before they have been saved once.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "The admin feature flags screen now shows code-known rollout flags even when no stored flag record exists yet",
+          "Stored rollout flag settings still override the default placeholder entry once a flag has been saved"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-landing-page-accuracy",
+    "version": "PR #424",
+    "date": "2026-03-28",
+    "title": "Landing Page Accuracy",
+    "summary": "The landing page now reflects the product capabilities that are available today.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Removed the landing page federation claim until federation is actually supported",
+          "Added landing page messaging for Robot registration and Data API token support"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-direct-messages-stay-explicit",
     "version": "PR #422",
     "date": "2026-03-28",

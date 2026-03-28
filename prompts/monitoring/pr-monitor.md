@@ -23,12 +23,17 @@ Search for open PRs authored by me and PRs where review is requested, across all
 - Stuck/pending > 30min → re-run
 
 ### b. Review threads
-- Unresolved threads → fix code if valid, reply + resolve via GraphQL if already addressed
-- Resolve ALL threads: inline, out-of-diff, P1/P2, chatgpt-codex-connector, coderabbitai
+- Inspect thread-aware state with GraphQL, not flat PR comments
+- Unresolved threads → fix code if valid, or reply with technical reasoning if no code change is needed
+- Treat ALL threads as required work: inline, out-of-diff, P1/P2, nitpicks, chatgpt-codex-connector, coderabbitai
+- Never resolve a thread just to clear the gate
+- Only resolve after the fix is pushed or after posting the reply that explains why no code change is needed
+- If a thread was already addressed by a commit, reply with the commit SHA or exact explanation before resolving it
+- Before merge, inspect recently resolved threads too; a bare resolution with no reply or fix is not an acceptable disposition
 - GraphQL resolve: `mutation { resolveReviewThread(input: {threadId: "ID"}) { thread { isResolved } } }`
 
 ### c. Merge readiness
-- All checks pass + no conflicts + no unresolved threads + latest commit age > 5 min → merge
+- All checks pass + no conflicts + no unresolved threads + every nitpick has an explicit disposition + latest commit older than 5 minutes → merge
 - incubator-wave: `--merge`, tube2web/tubescribes/slides-lab: `--squash`
 - Enable auto-merge: `gh pr merge NUM -R repo --merge --auto`
 
@@ -47,6 +52,7 @@ Check all monitored repos for open issues. Spawn background agents to fix action
 ## 4. Codex Review Gate handling
 - Monitor PRs every ~3 minutes so review-state changes are noticed quickly even though the Actions schedule fallback only runs every 5 minutes.
 - Gate baseline is the latest qualifying **CodeRabbit completion on the current head**, not `prUpdatedAt` and not the latest commit timestamp alone.
+- Gate must stay red while any review thread is unresolved, including nitpicks.
 - After CodeRabbit completes on the current head:
   - if no further code changes are needed, add a PR-level `+1` reaction from Codex immediately
   - then re-run the gate via a PR comment containing `/codex-review-gate`
@@ -107,4 +113,3 @@ Check all monitored repos for open issues. Spawn background agents to fix action
 2. Keep the 5-minute Codex thumbs-up grace period aligned with the workflow
 3. TODO: Enable GitHub merge queue to eliminate BEHIND cascade
 4. TODO: Configure chatgpt-codex-connector to skip merge commits
-5. TODO: Auto-resolve P2/informational threads that don't need code changes

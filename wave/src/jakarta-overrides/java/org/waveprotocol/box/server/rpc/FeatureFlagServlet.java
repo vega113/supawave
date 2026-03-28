@@ -35,6 +35,7 @@ import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
+import org.waveprotocol.box.server.persistence.KnownFeatureFlags;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
@@ -115,7 +116,7 @@ public final class FeatureFlagServlet extends HttpServlet {
 
   private void handleList(HttpServletResponse resp) throws IOException {
     try {
-      List<FeatureFlag> flags = store.getAll();
+      List<FeatureFlag> flags = KnownFeatureFlags.mergeWithStored(store.getAll());
       setJsonUtf8(resp);
       PrintWriter w = resp.getWriter();
       w.append("{\"flags\":[");
@@ -201,8 +202,16 @@ public final class FeatureFlagServlet extends HttpServlet {
       sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Missing 'name' parameter");
       return;
     }
+    String trimmedName = name.trim();
+    if (KnownFeatureFlags.isKnownFlag(trimmedName)) {
+      sendJsonError(
+          resp,
+          HttpServletResponse.SC_CONFLICT,
+          "Known feature flags cannot be deleted; save a disabled state instead");
+      return;
+    }
     try {
-      store.delete(name.trim());
+      store.delete(trimmedName);
       service.refreshCache();
       setJsonUtf8(resp);
       resp.getWriter().write("{\"ok\":true}");

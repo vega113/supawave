@@ -1438,6 +1438,7 @@ public final class HtmlRenderer {
       + "  border-radius: 12px;\n"
       + "  box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);\n"
       + "}\n"
+      + ".card-wide { max-width: 720px; }\n"
       + ".card h1 {\n"
       + "  font-size: 22px; margin: 0 0 6px; font-weight: 600; color: #1a1a2e;\n"
       + "}\n"
@@ -1498,10 +1499,158 @@ public final class HtmlRenderer {
       + ".footer-link a { color: " + WAVE_PRIMARY + "; text-decoration: none; font-weight: 500; }\n"
       + ".footer-link a:hover { text-decoration: underline; }\n"
       + ".buttons { display: flex; gap: 8px; margin-top: 8px; }\n"
+      + ".robot-success-card {\n"
+      + "  padding: 0;\n"
+      + "  overflow: hidden;\n"
+      + "  background:\n"
+      + "    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,250,255,0.96) 100%);\n"
+      + "}\n"
+      + ".robot-success-hero {\n"
+      + "  position: relative;\n"
+      + "  overflow: hidden;\n"
+      + "  padding: 28px 28px 24px;\n"
+      + "  background:\n"
+      + "    radial-gradient(circle at top right, rgba(144,224,239,0.72) 0%, rgba(144,224,239,0) 44%),\n"
+      + "    linear-gradient(140deg, #023e8a 0%, #0077b6 44%, #00b4d8 100%);\n"
+      + "  color: #fff;\n"
+      + "}\n"
+      + ".robot-success-hero::after {\n"
+      + "  content: '';\n"
+      + "  position: absolute;\n"
+      + "  right: -8%;\n"
+      + "  bottom: -72px;\n"
+      + "  width: 320px;\n"
+      + "  height: 160px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: radial-gradient(circle, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 72%);\n"
+      + "  transform: rotate(-10deg);\n"
+      + "}\n"
+      + ".robot-success-pill {\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  gap: 8px;\n"
+      + "  padding: 7px 12px;\n"
+      + "  border: 1px solid rgba(255,255,255,0.22);\n"
+      + "  border-radius: 999px;\n"
+      + "  background: rgba(255,255,255,0.14);\n"
+      + "  font-size: 12px;\n"
+      + "  font-weight: 700;\n"
+      + "  letter-spacing: 0.08em;\n"
+      + "  text-transform: uppercase;\n"
+      + "  backdrop-filter: blur(10px);\n"
+      + "}\n"
+      + ".robot-success-pill::before {\n"
+      + "  content: '';\n"
+      + "  width: 8px;\n"
+      + "  height: 8px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: #caf0f8;\n"
+      + "  box-shadow: 0 0 0 5px rgba(202,240,248,0.18);\n"
+      + "}\n"
+      + ".robot-success-hero h1 {\n"
+      + "  margin: 16px 0 10px;\n"
+      + "  color: #fff;\n"
+      + "  font-size: 32px;\n"
+      + "  letter-spacing: -0.04em;\n"
+      + "}\n"
+      + ".robot-success-copy {\n"
+      + "  position: relative;\n"
+      + "  z-index: 1;\n"
+      + "  margin: 0;\n"
+      + "  max-width: 36rem;\n"
+      + "  color: rgba(255,255,255,0.9);\n"
+      + "  font-size: 15px;\n"
+      + "  line-height: 1.6;\n"
+      + "}\n"
+      + ".robot-success-body {\n"
+      + "  padding: 24px 28px 28px;\n"
+      + "}\n"
+      + ".robot-credential-grid {\n"
+      + "  display: grid;\n"
+      + "  grid-template-columns: repeat(2, minmax(0, 1fr));\n"
+      + "  gap: 16px;\n"
+      + "}\n"
+      + ".robot-credential-card {\n"
+      + "  position: relative;\n"
+      + "  min-width: 0;\n"
+      + "  padding: 18px;\n"
+      + "  border: 1px solid rgba(0,119,182,0.12);\n"
+      + "  border-radius: 18px;\n"
+      + "  background:\n"
+      + "    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(232,244,248,0.96) 100%);\n"
+      + "  box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 16px 36px rgba(2,62,138,0.09);\n"
+      + "}\n"
+      + ".robot-credential-card::before {\n"
+      + "  content: '';\n"
+      + "  position: absolute;\n"
+      + "  inset: 0;\n"
+      + "  border-radius: inherit;\n"
+      + "  background: linear-gradient(140deg, rgba(144,224,239,0.18), rgba(255,255,255,0));\n"
+      + "  pointer-events: none;\n"
+      + "}\n"
+      + ".robot-credential-label {\n"
+      + "  position: relative;\n"
+      + "  z-index: 1;\n"
+      + "  display: block;\n"
+      + "  margin-bottom: 6px;\n"
+      + "  color: #0f172a;\n"
+      + "  font-size: 13px;\n"
+      + "  font-weight: 700;\n"
+      + "  letter-spacing: 0.04em;\n"
+      + "  text-transform: uppercase;\n"
+      + "}\n"
+      + ".robot-credential-caption {\n"
+      + "  position: relative;\n"
+      + "  z-index: 1;\n"
+      + "  margin: 0;\n"
+      + "  color: " + WAVE_TEXT_MUTED + ";\n"
+      + "  font-size: 13px;\n"
+      + "  line-height: 1.5;\n"
+      + "}\n"
+      + ".robot-credential-value {\n"
+      + "  position: relative;\n"
+      + "  z-index: 1;\n"
+      + "  display: block;\n"
+      + "  margin-top: 14px;\n"
+      + "  padding: 14px 15px;\n"
+      + "  border-radius: 14px;\n"
+      + "  background: linear-gradient(180deg, #0f172a 0%, #172554 100%);\n"
+      + "  color: #eff6ff;\n"
+      + "  font-family: 'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;\n"
+      + "  font-size: 13px;\n"
+      + "  line-height: 1.65;\n"
+      + "  white-space: normal;\n"
+      + "  overflow-wrap: anywhere;\n"
+      + "  word-break: break-word;\n"
+      + "  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);\n"
+      + "}\n"
+      + ".robot-security-note {\n"
+      + "  margin-top: 18px;\n"
+      + "  padding: 16px 18px;\n"
+      + "  border: 1px solid rgba(0,119,182,0.12);\n"
+      + "  border-radius: 16px;\n"
+      + "  background: rgba(255,255,255,0.72);\n"
+      + "  color: #334155;\n"
+      + "  font-size: 14px;\n"
+      + "  line-height: 1.6;\n"
+      + "}\n"
+      + "@media (max-width: 640px) {\n"
+      + "  .robot-credential-grid { grid-template-columns: 1fr; }\n"
+      + "}\n"
       + "@media (max-width: 480px) {\n"
       + "  .page-wrapper { padding: 24px 12px 180px; }\n"
       + "  .card { padding: 24px 20px; }\n"
       + "  .brand-name { font-size: 24px; }\n"
+      + "  .card-wide { max-width: 100%; }\n"
+      + "  .robot-success-card { padding: 0; }\n"
+      + "  .robot-success-hero { padding: 24px 20px 20px; }\n"
+      + "  .robot-success-hero h1 { font-size: 28px; }\n"
+      + "  .robot-success-body { padding: 20px; }\n"
+      + "  .robot-credential-card { padding: 16px; }\n"
+      + "  .robot-credential-value {\n"
+      + "    padding: 13px 14px;\n"
+      + "    font-size: 12px;\n"
+      + "  }\n"
       + "}\n"
       + "</style>\n";
 
@@ -1995,8 +2144,8 @@ public final class HtmlRenderer {
     sb.append("          <path d=\"M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>\n");
     sb.append("        </svg>\n");
     sb.append("      </div>\n");
-    sb.append("      <h3>Open &amp; Federated</h3>\n");
-    sb.append("      <p>Built on an open protocol. Self-host your own server and communicate across federated SupaWave instances.</p>\n");
+    sb.append("      <h3>Robot &amp; Data API</h3>\n");
+    sb.append("      <p>Register robots and mint Data API tokens for integrations, bots, and scripted workflows on your SupaWave server.</p>\n");
     sb.append("    </div>\n");
 
     sb.append("  </div>\n");
@@ -3177,6 +3326,7 @@ public final class HtmlRenderer {
     StringBuilder sb = new StringBuilder(2048);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<title>Robot Registration</title>\n");
     sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
     sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
@@ -3236,6 +3386,7 @@ public final class HtmlRenderer {
     StringBuilder sb = new StringBuilder(2048);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<title>Robot Successfully Registered</title>\n");
     sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
     sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
@@ -3248,16 +3399,35 @@ public final class HtmlRenderer {
     sb.append("    ").append(WAVE_LOGO_SVG);
     sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
-    sb.append("  <div class=\"card\">\n");
-    sb.append("    <h1>Robot Registered</h1>\n");
-    sb.append("    <p>Your robot has been successfully registered. Please take note of the consumer\n");
-    sb.append("    token and token secret to use for the Active API.</p>\n");
-    sb.append("    <table>\n");
-    sb.append("      <tr><td><b>Consumer Token</b></td><td>").append(escapeHtml(token)).append("</td></tr>\n");
-    sb.append("      <tr><td><b>Consumer Token Secret</b></td><td>").append(escapeHtml(tokenSecret)).append("</td></tr>\n");
-    sb.append("    </table>\n");
+    sb.append("  <div class=\"card card-wide robot-success-card\">\n");
+    sb.append("    <div class=\"robot-success-hero\">\n");
+    sb.append("      <div class=\"robot-success-pill\">Data API Ready</div>\n");
+    sb.append("      <h1>Robot Registered</h1>\n");
+    sb.append("      <p class=\"robot-success-copy\">Your robot is live. Store these Data API credentials now");
+    sb.append(" and keep the secret private.</p>\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"robot-success-body\">\n");
+    sb.append("      <div class=\"robot-credential-grid\">\n");
+    sb.append("        <section class=\"robot-credential-card\">\n");
+    sb.append("          <span class=\"robot-credential-label\">API Token</span>\n");
+    sb.append("          <p class=\"robot-credential-caption\">Use this as the robot identity");
+    sb.append(" when you configure your robot client.</p>\n");
+    sb.append("          <code class=\"robot-credential-value\">").append(escapeHtml(token));
+    sb.append("</code>\n");
+    sb.append("        </section>\n");
+    sb.append("        <section class=\"robot-credential-card\">\n");
+    sb.append("          <span class=\"robot-credential-label\">API Token Secret</span>\n");
+    sb.append("          <p class=\"robot-credential-caption\">Keep this private. It is required");
+    sb.append(" to authenticate this robot.</p>\n");
+    sb.append("          <code class=\"robot-credential-value\">").append(escapeHtml(tokenSecret));
+    sb.append("</code>\n");
+    sb.append("        </section>\n");
+    sb.append("      </div>\n");
+    sb.append("      <div class=\"robot-security-note\"><strong>Heads up:</strong> save the API token");
+    sb.append(" secret in your robot configuration now. Anyone with this value can act as this robot.</div>\n");
     sb.append("    <div class=\"footer-link\">\n");
     sb.append("      <a href=\"/\">&larr; Back to SupaWave</a>\n");
+    sb.append("    </div>\n");
     sb.append("    </div>\n");
     sb.append("  </div>\n"); // .card
     sb.append("</div>\n"); // .page-wrapper

@@ -18,7 +18,7 @@
  */
 package org.waveprotocol.box.server.rpc;
 
-import org.waveprotocol.box.common.DocumentConstants;
+import org.waveprotocol.wave.model.document.DocumentConstants;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
 import org.waveprotocol.wave.model.document.operation.Attributes;
 import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;

@@ -877,7 +877,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
   private static String getRootBlipId(ObservableWaveletData waveletData) {
     org.waveprotocol.wave.model.wave.data.ReadableBlipData manifestDoc =
         waveletData.getDocument(
-            org.waveprotocol.box.common.DocumentConstants.MANIFEST_DOCUMENT_ID);
+            org.waveprotocol.wave.model.document.DocumentConstants.MANIFEST_DOCUMENT_ID);
     if (manifestDoc == null) {
       return null;
     }
@@ -892,9 +892,9 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           org.waveprotocol.wave.model.document.operation.Attributes attrs) {
         // Only capture the first blip element's ID.
         if (rootBlipId[0] == null
-            && org.waveprotocol.box.common.DocumentConstants.BLIP.equals(type)
+            && org.waveprotocol.wave.model.document.DocumentConstants.BLIP.equals(type)
             && attrs != null) {
-          String id = attrs.get(org.waveprotocol.box.common.DocumentConstants.BLIP_ID);
+          String id = attrs.get(org.waveprotocol.wave.model.document.DocumentConstants.BLIP_ID);
           if (id != null) {
             rootBlipId[0] = id;
           }

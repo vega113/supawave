@@ -2026,13 +2026,14 @@ public final class HtmlRenderer {
    * @param websocketAddress the websocket host:port for the client to connect to
    * @param topBarHtml       pre-rendered top-bar HTML fragment
    * @param analyticsAccount Google Analytics account ID (may be null/empty)
-   * @param serverVersion    server version string
+   * @param buildCommit      deployed build commit
    * @param serverBuildTime  server build timestamp
+   * @param currentReleaseId current changelog release key
    * @param prerenderedHtml  SSR Phase 5: pre-rendered wave snapshot HTML, or null
    */
   public static String renderWaveClientPage(JSONObject sessionJson, JSONObject clientFlags,
       String websocketAddress, String topBarHtml, String analyticsAccount,
-      String serverVersion, long serverBuildTime, String prerenderedHtml) {
+      String buildCommit, long serverBuildTime, String currentReleaseId, String prerenderedHtml) {
     StringBuilder sb = new StringBuilder(4096);
     sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
     sb.append("<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n");
@@ -2613,7 +2614,7 @@ public final class HtmlRenderer {
     // -- Lightbox overlay for image attachments --
     appendLightboxFragment(sb);
     // -- Version upgrade detection polling --
-    appendVersionCheckScript(sb, serverVersion, serverBuildTime);
+    appendVersionCheckScript(sb, buildCommit, serverBuildTime, currentReleaseId);
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -2950,26 +2951,28 @@ public final class HtmlRenderer {
    * (i.e. the server has been upgraded while the client page is still open).
    */
   private static void appendVersionCheckScript(StringBuilder sb,
-      String serverVersion, long serverBuildTime) {
+      String buildCommit, long serverBuildTime, String currentReleaseId) {
     sb.append("<script>\n");
     sb.append("(function() {\n");
-    sb.append("  var currentVersion = ").append(escapeJsonString(serverVersion)).append(";\n");
+    sb.append("  var currentBuildCommit = ").append(escapeJsonString(buildCommit)).append(";\n");
     sb.append("  var currentBuildTime = ").append(serverBuildTime).append(";\n");
+    sb.append("  var currentReleaseId = ")
+        .append(escapeJsonString(currentReleaseId)).append(";\n");
     sb.append("  var pollInFlight = false;\n");
     sb.append("  function checkVersion() {\n");
     sb.append("    if (pollInFlight) return;\n");
     sb.append("    pollInFlight = true;\n");
-    sb.append("    fetch('/version', {cache: 'no-store'})\n");
+    sb.append("    fetch('/version?since=' + encodeURIComponent(currentReleaseId || ''), {cache: 'no-store'})\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
-    sb.append("        if (data.version !== currentVersion || data.buildTime !== currentBuildTime) {\n");
-    sb.append("          showUpgradeBanner(data.changelog || null);\n");
+    sb.append("        if (data.buildCommit !== currentBuildCommit || data.buildTime !== currentBuildTime) {\n");
+    sb.append("          showUpgradeBanner(data.releaseNotesStatus, data.releaseNotes || []);\n");
     sb.append("        }\n");
     sb.append("      })\n");
     sb.append("      .catch(function() {})\n");
     sb.append("      .then(function() { pollInFlight = false; });\n");
     sb.append("  }\n");
-    sb.append("  function showUpgradeBanner(entry) {\n");
+    sb.append("  function showUpgradeBanner(status, releaseNotes) {\n");
     sb.append("    if (document.getElementById('upgrade-banner')) return;\n");
     sb.append("    var banner = document.createElement('div');\n");
     sb.append("    banner.id = 'upgrade-banner';\n");
@@ -2995,17 +2998,33 @@ public final class HtmlRenderer {
     sb.append("    banner.appendChild(header);\n");
     sb.append("    var summary = document.createElement('div');\n");
     sb.append("    summary.style.cssText = 'font-size:13px;line-height:1.5;opacity:0.92;margin-bottom:10px;';\n");
-    sb.append("    if (entry && entry.summary) {\n");
-    sb.append("      summary.textContent = entry.title ? entry.title + ': ' + entry.summary : entry.summary;\n");
+    sb.append("    if (status === 'exact' && releaseNotes.length > 0) {\n");
+    sb.append("      var firstRelease = releaseNotes[0];\n");
+    sb.append("      summary.textContent = firstRelease.title ? firstRelease.title + ': ' + firstRelease.summary : firstRelease.summary;\n");
     sb.append("    } else {\n");
     sb.append("      summary.textContent = 'A new version of SupaWave is available.';\n");
     sb.append("    }\n");
     sb.append("    banner.appendChild(summary);\n");
+    sb.append("    if (status === 'exact' && releaseNotes.length > 1) {\n");
+    sb.append("      var extraReleases = document.createElement('ul');\n");
+    sb.append("      extraReleases.style.cssText = 'margin:0 0 10px 18px;padding:0;font-size:13px;line-height:1.5;';\n");
+    sb.append("      for (var i = 1; i < releaseNotes.length; i++) {\n");
+    sb.append("        var release = releaseNotes[i];\n");
+    sb.append("        var item = document.createElement('li');\n");
+    sb.append("        item.textContent = release.title || 'Recent SupaWave update';\n");
+    sb.append("        extraReleases.appendChild(item);\n");
+    sb.append("      }\n");
+    sb.append("      banner.appendChild(extraReleases);\n");
+    sb.append("    }\n");
     sb.append("    var actions = document.createElement('div');\n");
     sb.append("    actions.style.cssText = 'display:flex;gap:14px;align-items:center;flex-wrap:wrap;';\n");
     sb.append("    actions.appendChild(reload);\n");
     sb.append("    var whatsNew = document.createElement('a');\n");
-    sb.append("    whatsNew.href = '/changelog';\n");
+    sb.append("    if (status === 'exact' && releaseNotes.length > 0 && releaseNotes[0].releaseId) {\n");
+    sb.append("      whatsNew.href = '/changelog#release-' + encodeURIComponent(releaseNotes[0].releaseId);\n");
+    sb.append("    } else {\n");
+    sb.append("      whatsNew.href = '/changelog';\n");
+    sb.append("    }\n");
     sb.append("    whatsNew.textContent = \"What's New \\u2192\";\n");
     sb.append("    whatsNew.style.cssText = 'color:white;text-decoration:none;opacity:0.88;';\n");
     sb.append("    whatsNew.target = '_blank';\n");
@@ -4310,10 +4329,10 @@ public final class HtmlRenderer {
     sb.append("      } else if (legacyUser.slice(-8) === ':enabled') {\n");
     sb.append("        legacyUser = legacyUser.slice(0, -8);\n");
     sb.append("      }\n");
-    sb.append("      legacyUser = legacyUser.trim();\n");
+    sb.append("      legacyUser = normalizeAllowedUserEmail(legacyUser.trim());\n");
     sb.append("      return legacyUser ? { email: legacyUser, enabled: legacyEnabled } : null;\n");
     sb.append("    }\n");
-    sb.append("    var email = (user.email || '').trim();\n");
+    sb.append("    var email = normalizeAllowedUserEmail((user.email || '').trim());\n");
     sb.append("    if (!email) { return null; }\n");
     sb.append("    return { email: email, enabled: user.enabled !== false };\n");
     sb.append("  }\n");
@@ -4421,8 +4440,8 @@ public final class HtmlRenderer {
     sb.append("    if (!raw) { return; }\n");
     sb.append("    var parts = raw.split(',');\n");
     sb.append("    for (var i = 0; i < parts.length; i++) {\n");
-    sb.append("      var email = normalizeAllowedUserEmail(parts[i]);\n");
-    sb.append("      if (email) { upsertAllowedUser(email, true); }\n");
+    sb.append("      var entry = normalizeAllowedUserEntry(parts[i]);\n");
+    sb.append("      if (entry) { upsertAllowedUser(entry.email, entry.enabled); }\n");
     sb.append("    }\n");
     sb.append("    flagUsersInput.value = '';\n");
     sb.append("    renderFlagUsersEditor();\n");
@@ -4601,8 +4620,10 @@ public final class HtmlRenderer {
     sb.append("        .then(function(r){return r.json();})\n");
     sb.append("        .then(function(data){\n");
     sb.append("          if (data.error) { showToast(data.error, 'error'); return; }\n");
-    sb.append("          resetFlagEditingState();\n");
-    sb.append("          flagForm.style.display = 'none';\n");
+    sb.append("          if (flagEditingName === name) {\n");
+    sb.append("            resetFlagEditingState();\n");
+    sb.append("            flagForm.style.display = 'none';\n");
+    sb.append("          }\n");
     sb.append("          showToast('Flag deleted', 'success');\n");
     sb.append("          fetchFlags();\n");
     sb.append("        }).catch(function(e){ showToast('Failed: ' + e.message, 'error'); });\n");
@@ -4896,7 +4917,12 @@ public final class HtmlRenderer {
   }
 
   private static void appendChangelogEntry(StringBuilder sb, JSONObject entry) {
-    sb.append("<article class=\"changelog-card\">\n");
+    sb.append("<article class=\"changelog-card\"");
+    String releaseId = entry.optString("releaseId", "");
+    if (!releaseId.isBlank()) {
+      sb.append(" id=\"release-").append(escapeHtml(releaseId)).append("\"");
+    }
+    sb.append(">\n");
     sb.append("  <div class=\"changelog-date\">").append(escapeHtml(formatChangelogDate(entry.optString("date")))).append("</div>\n");
     sb.append("  <h2>").append(escapeHtml(entry.optString("title", "Untitled release"))).append("</h2>\n");
     sb.append("  <p class=\"changelog-summary\">").append(escapeHtml(entry.optString("summary", ""))).append("</p>\n");

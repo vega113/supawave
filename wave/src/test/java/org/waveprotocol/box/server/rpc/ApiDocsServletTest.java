@@ -66,6 +66,24 @@ public final class ApiDocsServletTest {
     assertTrue(body.toString().contains("https://docs.example.com/api/openapi.json"));
   }
 
+  @Test
+  public void llmAliasEndpointStillReturnsDetailedApiContract() throws Exception {
+    ApiDocsServlet servlet = new ApiDocsServlet();
+    StringWriter body = new StringWriter();
+    ResponseRecorder recorder = new ResponseRecorder();
+    HttpServletRequest request = request("/api/llm.txt", "https", "docs.example.com");
+    HttpServletResponse response = response(recorder, body);
+
+    servlet.doGet(request, response);
+
+    assertTrue(recorder.status == HttpServletResponse.SC_OK);
+    assertTrue("text/plain;charset=utf-8".equals(recorder.contentType));
+    assertTrue("UTF-8".equals(recorder.characterEncoding));
+    assertTrue(body.toString().contains("SupaWave Data API LLM Reference"));
+    assertTrue(body.toString().contains("Canonical RPC path: /robot/dataapi/rpc"));
+    assertTrue(body.toString().contains("https://docs.example.com/api/openapi.json"));
+  }
+
   private static HttpServletRequest request(String servletPath, String scheme, String host) {
     InvocationHandler handler =
         (proxy, method, args) -> {

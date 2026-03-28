@@ -127,7 +127,7 @@ public final class RobotRegistrationServletTest {
 
     verify(registrar).registerNew(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L);
     verify(registrar, never())
-        .registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress());
+        .registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L);
     assertTrue(responseBody.toString().contains("secret-token"));
   }
 
@@ -164,7 +164,8 @@ public final class RobotRegistrationServletTest {
     when(req.getParameter("token")).thenReturn("registration-xsrf");
     when(accountStore.getAccount(ROBOT_ID)).thenReturn(
         new RobotAccountDataImpl(ROBOT_ID, "", "secret-token", null, false, 0L, null));
-    when(registrar.registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress()))
+    when(registrar.registerOrUpdate(
+        ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L))
         .thenReturn(
             new RobotAccountDataImpl(
                 ROBOT_ID,
@@ -177,7 +178,8 @@ public final class RobotRegistrationServletTest {
 
     servlet.doPost(req, resp);
 
-    verify(registrar).registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress());
+    verify(registrar)
+        .registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L);
     assertTrue(responseBody.toString().contains("secret-token"));
   }
 
@@ -193,6 +195,16 @@ public final class RobotRegistrationServletTest {
 
     verify(resp)
         .sendRedirect("/wave/auth/signin?r=%2Frobot%2Fregister%2Fcreate%3Fsource%3Dmenu");
+  }
+
+  @Test
+  public void testCreateDoesNotTreatBearerTokenAsSessionAuth() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(null);
+    when(req.getHeader("Authorization")).thenReturn("Bearer fake-token");
+
+    servlet.doGet(req, resp);
+
+    verify(resp).sendRedirect("/auth/signin?r=%2Frobot%2Fregister%2Fcreate");
   }
 
   @Test

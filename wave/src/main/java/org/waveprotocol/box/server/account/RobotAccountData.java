@@ -64,4 +64,10 @@ public interface RobotAccountData extends AccountData {
    * robot predates ownership tracking.
    */
   String getOwnerAddress();
+
+  /**
+   * Returns the epoch millis when the robot account was first created, or 0 if
+   * the robot predates creation-time tracking.
+   */
+  long getCreationTime();
 }

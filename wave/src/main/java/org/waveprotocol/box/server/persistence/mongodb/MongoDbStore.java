@@ -101,6 +101,7 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   private static final String ROBOT_CAPABILITIES_FIELD = "capabilities";
   private static final String ROBOT_VERIFIED_FIELD = "verified";
   private static final String ROBOT_OWNER_FIELD = "ownerAddress";
+  private static final String ROBOT_CREATION_TIME_FIELD = "creationTime";
 
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
@@ -424,7 +425,8 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
         .append(ROBOT_CAPABILITIES_FIELD, capabilitiesToObject(account.getCapabilities()))
         .append(ROBOT_VERIFIED_FIELD, account.isVerified())
         .append("tokenExpirySeconds", account.getTokenExpirySeconds())
-        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress());
+        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress())
+        .append(ROBOT_CREATION_TIME_FIELD, account.getCreationTime());
   }
 
   private DBObject capabilitiesToObject(RobotCapabilities capabilities) {
@@ -462,8 +464,10 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     Object tokenExpiryObj = robot.get("tokenExpirySeconds");
     long tokenExpirySeconds = tokenExpiryObj instanceof Number ? ((Number) tokenExpiryObj).longValue() : 0L;
     String ownerAddress = (String) robot.get(ROBOT_OWNER_FIELD);
+    Object creationTimeObj = robot.get(ROBOT_CREATION_TIME_FIELD);
+    long creationTime = creationTimeObj instanceof Number ? ((Number) creationTimeObj).longValue() : 0L;
     return new RobotAccountDataImpl(id, url, secret, capabilities, verified, tokenExpirySeconds,
-        ownerAddress);
+        ownerAddress, creationTime);
   }
 
   @SuppressWarnings("unchecked")

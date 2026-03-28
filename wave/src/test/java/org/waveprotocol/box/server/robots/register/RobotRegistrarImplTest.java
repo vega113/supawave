@@ -97,6 +97,7 @@ public class RobotRegistrarImplTest extends TestCase {
 
     assertEquals(OWNER_ID.getAddress(), resultAccountData.getOwnerAddress());
     assertEquals(3600L, resultAccountData.getTokenExpirySeconds());
+    assertTrue(resultAccountData.getCreationTime() > 0L);
   }
 
   public void testRegisterNewFailsOnInvalidLocation() throws PersistenceException {
@@ -128,6 +129,7 @@ public class RobotRegistrarImplTest extends TestCase {
     assertEquals("", resultAccountData.getUrl());
     assertFalse(resultAccountData.isVerified());
     assertEquals(CONSUMER_TOKEN, resultAccountData.getConsumerSecret());
+    assertTrue(resultAccountData.getCreationTime() > 0L);
   }
 
   public void testUnregisterSucceeds() throws PersistenceException, RobotRegistrationException {
@@ -175,7 +177,8 @@ public class RobotRegistrarImplTest extends TestCase {
   public void testPendingRobotActivationPreservesExistingSecret() throws PersistenceException,
       RobotRegistrationException {
     RobotAccountData pendingAccount =
-        new RobotAccountDataImpl(ROBOT_ID, "", "pending-secret", null, false, 3600L, null);
+        new RobotAccountDataImpl(ROBOT_ID, "", "pending-secret", null, false, 3600L, null,
+            123456789L);
     when(accountStore.getAccount(ROBOT_ID)).thenReturn(pendingAccount);
 
     RobotAccountData updatedAccount =
@@ -186,6 +189,7 @@ public class RobotRegistrarImplTest extends TestCase {
     assertTrue(updatedAccount.isVerified());
     assertEquals(3600L, updatedAccount.getTokenExpirySeconds());
     assertEquals(OWNER_ID.getAddress(), updatedAccount.getOwnerAddress());
+    assertEquals(123456789L, updatedAccount.getCreationTime());
   }
 
   public void testRegisterOrUpdateClaimsLegacyRobotWhenUrlIsUnchanged() throws PersistenceException,
@@ -250,5 +254,6 @@ public class RobotRegistrarImplTest extends TestCase {
     assertEquals(LOCATION.substring(0, LOCATION.length() - 1), rotatedAccountData.getUrl());
     assertEquals(CONSUMER_TOKEN, rotatedAccountData.getConsumerSecret());
     assertEquals(OWNER_ID.getAddress(), rotatedAccountData.getOwnerAddress());
+    assertEquals(0L, rotatedAccountData.getCreationTime());
   }
 }

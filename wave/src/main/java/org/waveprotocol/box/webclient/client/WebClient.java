@@ -406,12 +406,12 @@ public class WebClient implements EntryPoint {
     setupUi();
     setupStatistics();
 
-    restoreLastWaveFromStorage();
-    History.fireCurrentHistoryState();
-    LOG.info("SimpleWebClient.onModuleLoad() done");
-
-    // Export JSNI function for creating direct waves from profile card popup
     exportCreateDirectWave();
+    if (!maybeHandleDirectMessageIntent()) {
+      restoreLastWaveFromStorage();
+      History.fireCurrentHistoryState();
+    }
+    LOG.info("SimpleWebClient.onModuleLoad() done");
   }
 
   /**
@@ -424,6 +424,95 @@ public class WebClient implements EntryPoint {
     $wnd.__createDirectWave = function(address) {
       self.@org.waveprotocol.box.webclient.client.WebClient::createDirectWave(Ljava/lang/String;)(address);
     };
+  }-*/;
+
+  private boolean maybeHandleDirectMessageIntent() {
+    if (Session.get().isLoggedIn() == false || channel == null) {
+      return false;
+    }
+    String dmAddress = Location.getParameter("dm");
+    if (dmAddress == null || dmAddress.isEmpty()) {
+      return false;
+    }
+    clearDirectMessageIntent();
+    showDirectMessageIntentBanner(dmAddress);
+    return false;
+  }
+
+  private native void clearDirectMessageIntent() /*-{
+    if ($wnd.history && $wnd.history.replaceState) {
+      var pathname = $wnd.location.pathname || '/';
+      var search = $wnd.location.search || '';
+      var hash = $wnd.location.hash || '';
+      search = search.replace(/([?&])dm=[^&]*&?/, '$1');
+      search = search.replace(/[?&]$/, '');
+      search = search.replace(/\?&/, '?');
+      if (search === '?') {
+        search = '';
+      }
+      $wnd.history.replaceState({}, '', pathname + search + hash);
+    }
+  }-*/;
+
+  private native void showDirectMessageIntentBanner(String address) /*-{
+    var self = this;
+    var existing = $doc.getElementById('dm-intent-banner');
+    if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+
+    var container = $doc.createElement('div');
+    container.id = 'dm-intent-banner';
+    container.style.cssText =
+        'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:10000;' +
+        'max-width:520px;width:calc(100% - 32px);background:rgba(255,255,255,0.98);' +
+        'border:1px solid rgba(0, 119, 182, 0.18);border-radius:18px;' +
+        'box-shadow:0 24px 48px rgba(2, 62, 138, 0.16);padding:16px 18px;' +
+        'font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;color:#123047;';
+
+    var title = $doc.createElement('div');
+    title.style.cssText = 'font-size:12px;letter-spacing:0.12em;text-transform:uppercase;' +
+        'color:#0077b6;font-weight:700;margin-bottom:8px;';
+    title.appendChild($doc.createTextNode('Direct message request'));
+
+    var body = $doc.createElement('div');
+    body.style.cssText = 'font-size:15px;line-height:1.5;margin-bottom:14px;';
+    body.appendChild($doc.createTextNode('Create a direct message with ' + address + '?'));
+
+    var actions = $doc.createElement('div');
+    actions.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;';
+
+    var dismiss = $doc.createElement('button');
+    dismiss.type = 'button';
+    dismiss.style.cssText =
+        'border:1px solid rgba(0, 119, 182, 0.18);background:#f6fbfd;color:#24506b;' +
+        'border-radius:999px;padding:10px 16px;font-weight:600;cursor:pointer;';
+    dismiss.appendChild($doc.createTextNode('Dismiss'));
+    dismiss.onclick = function() {
+      if (container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
+    };
+
+    var confirm = $doc.createElement('button');
+    confirm.type = 'button';
+    confirm.style.cssText =
+        'border:none;background:#0077b6;color:#fff;border-radius:999px;' +
+        'padding:10px 16px;font-weight:700;cursor:pointer;';
+    confirm.appendChild($doc.createTextNode('Create message'));
+    confirm.onclick = function() {
+      if (container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
+      self.@org.waveprotocol.box.webclient.client.WebClient::createDirectWave(Ljava/lang/String;)(address);
+    };
+
+    actions.appendChild(dismiss);
+    actions.appendChild(confirm);
+    container.appendChild(title);
+    container.appendChild(body);
+    container.appendChild(actions);
+    ($doc.body || $doc.documentElement).appendChild(container);
   }-*/;
 
   /**

@@ -28,6 +28,7 @@ import java.util.Locale;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.waveprotocol.box.server.account.HumanAccountData;
+import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.rpc.PublicWaveBlipRenderer.BlipInfo;
 
 /**
@@ -3433,28 +3434,928 @@ public final class HtmlRenderer {
     sb.append("          <span class=\"robot-credential-label\">API Token</span>\n");
     sb.append("          <p class=\"robot-credential-caption\">Use this as the robot identity");
     sb.append(" when you configure your robot client.</p>\n");
-    sb.append("          <code class=\"robot-credential-value\">").append(escapeHtml(token));
-    sb.append("</code>\n");
+    sb.append("          <code class=\"robot-credential-value\" id=\"robotSuccessToken\">")
+        .append(escapeHtml(token)).append("</code>\n");
+    sb.append("          <div class=\"buttons\" style=\"margin-top:10px;\">\n");
+    sb.append("            <button type=\"button\" class=\"btn-secondary\" onclick=\"copyRobotSuccessValue('robotSuccessToken', this)\">Copy token</button>\n");
+    sb.append("          </div>\n");
     sb.append("        </section>\n");
     sb.append("        <section class=\"robot-credential-card\">\n");
     sb.append("          <span class=\"robot-credential-label\">API Token Secret</span>\n");
     sb.append("          <p class=\"robot-credential-caption\">Keep this private. It is required");
     sb.append(" to authenticate this robot.</p>\n");
-    sb.append("          <code class=\"robot-credential-value\">").append(escapeHtml(tokenSecret));
-    sb.append("</code>\n");
+    sb.append("          <code class=\"robot-credential-value\" id=\"robotSuccessSecret\">")
+        .append(escapeHtml(tokenSecret)).append("</code>\n");
+    sb.append("          <div class=\"buttons\" style=\"margin-top:10px;\">\n");
+    sb.append("            <button type=\"button\" class=\"btn-secondary\" onclick=\"copyRobotSuccessValue('robotSuccessSecret', this)\">Copy secret</button>\n");
+    sb.append("          </div>\n");
     sb.append("        </section>\n");
     sb.append("      </div>\n");
     sb.append("      <div class=\"robot-security-note\"><strong>Heads up:</strong> save the API token");
     sb.append(" secret in your robot configuration now. Anyone with this value can act as this robot");
     sb.append(" after the callback URL is configured.</div>\n");
+    sb.append("      <div class=\"buttons\" style=\"margin-top:18px;\">\n");
+    sb.append("        <a class=\"btn-primary\" href=\"/account/robots\" style=\"text-decoration:none;text-align:center;\">Open Robot Control Room</a>\n");
+    sb.append("      </div>\n");
     sb.append("    <div class=\"footer-link\">\n");
     sb.append("      <a href=\"/\">&larr; Back to SupaWave</a>\n");
     sb.append("    </div>\n");
     sb.append("    </div>\n");
     sb.append("  </div>\n"); // .card
     sb.append("</div>\n"); // .page-wrapper
+    sb.append("<script>\n");
+    sb.append("function copyRobotSuccessValue(id, button) {\n");
+    sb.append("  var value = document.getElementById(id).textContent;\n");
+    sb.append("  if (!value) return;\n");
+    sb.append("  var original = button.textContent;\n");
+    sb.append("  if (navigator.clipboard && navigator.clipboard.writeText) {\n");
+    sb.append("    navigator.clipboard.writeText(value).then(function() {\n");
+    sb.append("      button.textContent = 'Copied';\n");
+    sb.append("      setTimeout(function() { button.textContent = original; }, 1400);\n");
+    sb.append("    });\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    sb.append("</script>\n");
     sb.append("</body>\n</html>\n");
     return sb.toString();
+  }
+
+  public static String renderRobotDashboardPage(String currentUserAddress,
+      List<RobotAccountData> robots, String message, String xsrfToken, String baseUrl) {
+    RobotAccountData promptRobot = robots.isEmpty() ? null : robots.get(0);
+    String promptMarkdown = buildRobotOnboardingPrompt(baseUrl, promptRobot);
+    StringBuilder sb = new StringBuilder(32768);
+    sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<title>Robot Control Room</title>\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<style>\n");
+    sb.append("body {\n");
+    sb.append("  margin: 0;\n");
+    sb.append("  color: #123047;\n");
+    sb.append("  background:\n");
+    sb.append("    radial-gradient(circle at top left, rgba(255, 200, 126, 0.22), transparent 34%),\n");
+    sb.append("    radial-gradient(circle at top right, rgba(0, 119, 182, 0.16), transparent 28%),\n");
+    sb.append("    linear-gradient(180deg, #fff9f1 0%, #f6fbfd 46%, #eef6f9 100%);\n");
+    sb.append("  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;\n");
+    sb.append("}\n");
+    sb.append(".rd-shell {\n");
+    sb.append("  max-width: 1320px;\n");
+    sb.append("  margin: 0 auto;\n");
+    sb.append("  padding: 32px 20px 72px;\n");
+    sb.append("}\n");
+    sb.append(".rd-back {\n");
+    sb.append("  display: inline-flex;\n");
+    sb.append("  align-items: center;\n");
+    sb.append("  gap: 8px;\n");
+    sb.append("  color: #17465b;\n");
+    sb.append("  text-decoration: none;\n");
+    sb.append("  font-size: 14px;\n");
+    sb.append("  margin-bottom: 18px;\n");
+    sb.append("}\n");
+    sb.append(".rd-hero {\n");
+    sb.append("  display: grid;\n");
+    sb.append("  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);\n");
+    sb.append("  gap: 18px;\n");
+    sb.append("  margin-bottom: 22px;\n");
+    sb.append("}\n");
+    sb.append(".rd-panel {\n");
+    sb.append("  border-radius: 28px;\n");
+    sb.append("  border: 1px solid rgba(19, 48, 71, 0.10);\n");
+    sb.append("  box-shadow: 0 24px 60px rgba(18, 48, 71, 0.08);\n");
+    sb.append("  background: rgba(255, 255, 255, 0.90);\n");
+    sb.append("  backdrop-filter: blur(16px);\n");
+    sb.append("}\n");
+    sb.append(".rd-hero-copy {\n");
+    sb.append("  padding: 30px 34px;\n");
+    sb.append("}\n");
+    sb.append(".rd-eyebrow {\n");
+    sb.append("  display: inline-flex;\n");
+    sb.append("  align-items: center;\n");
+    sb.append("  padding: 7px 12px;\n");
+    sb.append("  border-radius: 999px;\n");
+    sb.append("  background: #153f5e;\n");
+    sb.append("  color: #fff;\n");
+    sb.append("  font-size: 11px;\n");
+    sb.append("  letter-spacing: .18em;\n");
+    sb.append("  text-transform: uppercase;\n");
+    sb.append("}\n");
+    sb.append(".rd-hero-copy h1 {\n");
+    sb.append("  margin: 18px 0 10px;\n");
+    sb.append("  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;\n");
+    sb.append("  font-size: 48px;\n");
+    sb.append("  line-height: 1.02;\n");
+    sb.append("}\n");
+    sb.append(".rd-lede {\n");
+    sb.append("  max-width: 48rem;\n");
+    sb.append("  font-size: 18px;\n");
+    sb.append("  line-height: 1.72;\n");
+    sb.append("  color: #486173;\n");
+    sb.append("}\n");
+    sb.append(".rd-hero-notes {\n");
+    sb.append("  padding: 24px 26px;\n");
+    sb.append("  background: linear-gradient(180deg, #153f5e 0%, #102f46 100%);\n");
+    sb.append("  color: #f6fbfd;\n");
+    sb.append("}\n");
+    sb.append(".rd-hero-notes h2 {\n");
+    sb.append("  margin: 0 0 14px;\n");
+    sb.append("  font-size: 22px;\n");
+    sb.append("}\n");
+    sb.append(".rd-note-list {\n");
+    sb.append("  display: grid;\n");
+    sb.append("  gap: 10px;\n");
+    sb.append("}\n");
+    sb.append(".rd-note {\n");
+    sb.append("  padding: 12px 14px;\n");
+    sb.append("  border-radius: 16px;\n");
+    sb.append("  background: rgba(255, 255, 255, 0.08);\n");
+    sb.append("  color: rgba(246, 251, 253, 0.92);\n");
+    sb.append("  line-height: 1.55;\n");
+    sb.append("}\n");
+    sb.append(".rd-grid {\n");
+    sb.append("  display: grid;\n");
+    sb.append("  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.95fr);\n");
+    sb.append("  gap: 18px;\n");
+    sb.append("}\n");
+    sb.append(".rd-section {\n");
+    sb.append("  padding: 26px;\n");
+    sb.append("}\n");
+    sb.append(".rd-section h2 {\n");
+    sb.append("  margin: 0 0 10px;\n");
+    sb.append("  font-size: 28px;\n");
+    sb.append("}\n");
+    sb.append(".rd-section-copy {\n");
+    sb.append("  margin: 0 0 18px;\n");
+    sb.append("  color: #5a7285;\n");
+    sb.append("  line-height: 1.65;\n");
+    sb.append("}\n");
+    sb.append(".rd-status {\n");
+    sb.append("  margin-bottom: 18px;\n");
+    sb.append("  padding: 12px 14px;\n");
+    sb.append("  border-radius: 16px;\n");
+    sb.append("  background: #eef8fb;\n");
+    sb.append("  color: #1a5c76;\n");
+    sb.append("  border: 1px solid rgba(0, 119, 182, 0.16);\n");
+    sb.append("}\n");
+    sb.append(".rd-robot-stack,\n");
+    sb.append(".rd-side-stack {\n");
+    sb.append("  display: grid;\n");
+    sb.append("  gap: 16px;\n");
+    sb.append("}\n");
+    sb.append(".rd-robot-card,\n");
+    sb.append(".rd-card {\n");
+    sb.append("  border-radius: 22px;\n");
+    sb.append("  border: 1px solid rgba(19, 48, 71, 0.10);\n");
+    sb.append("  background: linear-gradient(180deg, rgba(255,255,255,.94) 0%, rgba(247,251,252,.98) 100%);\n");
+    sb.append("  box-shadow: inset 0 1px 0 rgba(255,255,255,.8);\n");
+    sb.append("}\n");
+    sb.append(".rd-robot-card {\n");
+    sb.append("  padding: 18px 18px 16px;\n");
+    sb.append("}\n");
+    sb.append(".rd-robot-head {\n");
+    sb.append("  display: flex;\n");
+    sb.append("  gap: 16px;\n");
+    sb.append("  justify-content: space-between;\n");
+    sb.append("  align-items: flex-start;\n");
+    sb.append("}\n");
+    sb.append(".rd-avatar-wrap {\n");
+    sb.append("  display: flex;\n");
+    sb.append("  gap: 14px;\n");
+    sb.append("  align-items: center;\n");
+    sb.append("}\n");
+    sb.append(".rd-avatar {\n");
+    sb.append("  width: 58px;\n");
+    sb.append("  height: 58px;\n");
+    sb.append("  border-radius: 20px;\n");
+    sb.append("  object-fit: cover;\n");
+    sb.append("  border: 1px solid rgba(19, 48, 71, 0.12);\n");
+    sb.append("  background: #dfe9ef;\n");
+    sb.append("}\n");
+    sb.append(".rd-title-row {\n");
+    sb.append("  display: flex;\n");
+    sb.append("  flex-wrap: wrap;\n");
+    sb.append("  align-items: center;\n");
+    sb.append("  gap: 10px;\n");
+    sb.append("}\n");
+    sb.append(".rd-title-row h3 {\n");
+    sb.append("  margin: 0;\n");
+    sb.append("  font-size: 22px;\n");
+    sb.append("}\n");
+    sb.append(".rd-badge {\n");
+    sb.append("  display: inline-flex;\n");
+    sb.append("  align-items: center;\n");
+    sb.append("  padding: 5px 10px;\n");
+    sb.append("  border-radius: 999px;\n");
+    sb.append("  font-size: 12px;\n");
+    sb.append("  letter-spacing: .06em;\n");
+    sb.append("  text-transform: uppercase;\n");
+    sb.append("}\n");
+    sb.append(".rd-badge-live { background: #e9f6ee; color: #17633d; }\n");
+    sb.append(".rd-badge-pending { background: #fff4df; color: #8a5816; }\n");
+    sb.append(".rd-meta {\n");
+    sb.append("  margin-top: 8px;\n");
+    sb.append("  color: #5c7487;\n");
+    sb.append("  font-size: 14px;\n");
+    sb.append("  line-height: 1.6;\n");
+    sb.append("}\n");
+    sb.append(".rd-head-actions,\n");
+    sb.append(".rd-actions,\n");
+    sb.append(".rd-inline-actions {\n");
+    sb.append("  display: flex;\n");
+    sb.append("  gap: 10px;\n");
+    sb.append("  flex-wrap: wrap;\n");
+    sb.append("}\n");
+    sb.append(".rd-head-actions {\n");
+    sb.append("  justify-content: flex-end;\n");
+    sb.append("}\n");
+    sb.append(".rd-divider {\n");
+    sb.append("  margin: 16px 0;\n");
+    sb.append("  border-top: 1px solid rgba(19, 48, 71, 0.08);\n");
+    sb.append("}\n");
+    sb.append(".rd-field-grid {\n");
+    sb.append("  display: grid;\n");
+    sb.append("  grid-template-columns: repeat(2, minmax(0, 1fr));\n");
+    sb.append("  gap: 12px;\n");
+    sb.append("}\n");
+    sb.append(".rd-field {\n");
+    sb.append("  display: grid;\n");
+    sb.append("  gap: 6px;\n");
+    sb.append("}\n");
+    sb.append(".rd-field label,\n");
+    sb.append(".rd-subtitle {\n");
+    sb.append("  font-size: 12px;\n");
+    sb.append("  letter-spacing: .08em;\n");
+    sb.append("  text-transform: uppercase;\n");
+    sb.append("  color: #6b8597;\n");
+    sb.append("}\n");
+    sb.append(".rd-copy-field {\n");
+    sb.append("  display: grid;\n");
+    sb.append("  grid-template-columns: minmax(0, 1fr) auto;\n");
+    sb.append("  gap: 8px;\n");
+    sb.append("  align-items: start;\n");
+    sb.append("}\n");
+    sb.append(".rd-copy-field input,\n");
+    sb.append(".rd-copy-field textarea,\n");
+    sb.append(".rd-field input,\n");
+    sb.append(".rd-field select {\n");
+    sb.append("  width: 100%;\n");
+    sb.append("  border-radius: 16px;\n");
+    sb.append("  border: 1px solid rgba(19, 48, 71, 0.12);\n");
+    sb.append("  background: #fffdf9;\n");
+    sb.append("  padding: 12px 14px;\n");
+    sb.append("  color: #103247;\n");
+    sb.append("  font: inherit;\n");
+    sb.append("  box-sizing: border-box;\n");
+    sb.append("}\n");
+    sb.append(".rd-copy-field textarea {\n");
+    sb.append("  min-height: 104px;\n");
+    sb.append("  resize: vertical;\n");
+    sb.append("  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;\n");
+    sb.append("  font-size: 13px;\n");
+    sb.append("}\n");
+    sb.append(".rd-copy-field input[readonly],\n");
+    sb.append(".rd-copy-field textarea[readonly] {\n");
+    sb.append("  background: #f8fbfc;\n");
+    sb.append("}\n");
+    sb.append(".rd-button {\n");
+    sb.append("  appearance: none;\n");
+    sb.append("  border: none;\n");
+    sb.append("  border-radius: 999px;\n");
+    sb.append("  padding: 11px 16px;\n");
+    sb.append("  font: inherit;\n");
+    sb.append("  font-weight: 700;\n");
+    sb.append("  cursor: pointer;\n");
+    sb.append("  text-decoration: none;\n");
+    sb.append("  display: inline-flex;\n");
+    sb.append("  align-items: center;\n");
+    sb.append("  justify-content: center;\n");
+    sb.append("  gap: 8px;\n");
+    sb.append("}\n");
+    sb.append(".rd-button:disabled {\n");
+    sb.append("  opacity: .55;\n");
+    sb.append("  cursor: default;\n");
+    sb.append("}\n");
+    sb.append(".rd-primary { background: #153f5e; color: #fff; }\n");
+    sb.append(".rd-secondary { background: #ebf4f7; color: #17465b; }\n");
+    sb.append(".rd-danger { background: #7a1e22; color: #fff; }\n");
+    sb.append(".rd-ghost {\n");
+    sb.append("  background: rgba(21, 63, 94, 0.08);\n");
+    sb.append("  color: #17465b;\n");
+    sb.append("  border: 1px solid rgba(21, 63, 94, 0.12);\n");
+    sb.append("}\n");
+    sb.append(".rd-help,\n");
+    sb.append(".rd-security-copy,\n");
+    sb.append(".rd-card p {\n");
+    sb.append("  color: #597488;\n");
+    sb.append("  line-height: 1.65;\n");
+    sb.append("}\n");
+    sb.append(".rd-help {\n");
+    sb.append("  margin: 0;\n");
+    sb.append("  font-size: 13px;\n");
+    sb.append("}\n");
+    sb.append(".rd-security {\n");
+    sb.append("  padding: 18px;\n");
+    sb.append("}\n");
+    sb.append(".rd-security h3,\n");
+    sb.append(".rd-card h3 {\n");
+    sb.append("  margin: 0 0 8px;\n");
+    sb.append("  font-size: 20px;\n");
+    sb.append("}\n");
+    sb.append(".rd-sensitive {\n");
+    sb.append("  margin-top: 14px;\n");
+    sb.append("  border-radius: 18px;\n");
+    sb.append("  border: 1px solid rgba(19, 48, 71, 0.10);\n");
+    sb.append("  background: rgba(255, 248, 239, 0.8);\n");
+    sb.append("}\n");
+    sb.append(".rd-sensitive summary {\n");
+    sb.append("  cursor: pointer;\n");
+    sb.append("  padding: 14px 16px;\n");
+    sb.append("  font-weight: 700;\n");
+    sb.append("}\n");
+    sb.append(".rd-sensitive-body {\n");
+    sb.append("  padding: 0 16px 16px;\n");
+    sb.append("}\n");
+    sb.append(".rd-prompt-panel {\n");
+    sb.append("  overflow: hidden;\n");
+    sb.append("}\n");
+    sb.append(".rd-prompt-summary {\n");
+    sb.append("  list-style: none;\n");
+    sb.append("  cursor: pointer;\n");
+    sb.append("  padding: 18px 20px;\n");
+    sb.append("  font-weight: 700;\n");
+    sb.append("  font-size: 18px;\n");
+    sb.append("}\n");
+    sb.append(".rd-prompt-summary::-webkit-details-marker { display: none; }\n");
+    sb.append(".rd-prompt-body {\n");
+    sb.append("  padding: 0 20px 20px;\n");
+    sb.append("  display: grid;\n");
+    sb.append("  gap: 14px;\n");
+    sb.append("}\n");
+    sb.append(".rd-prompt-toolbar {\n");
+    sb.append("  display: flex;\n");
+    sb.append("  gap: 10px;\n");
+    sb.append("  flex-wrap: wrap;\n");
+    sb.append("  align-items: center;\n");
+    sb.append("}\n");
+    sb.append(".rd-mode-toggle {\n");
+    sb.append("  display: flex;\n");
+    sb.append("  gap: 8px;\n");
+    sb.append("  flex-wrap: wrap;\n");
+    sb.append("}\n");
+    sb.append(".rd-mode-toggle .rd-button[aria-pressed='true'] {\n");
+    sb.append("  background: #153f5e;\n");
+    sb.append("  color: #fff;\n");
+    sb.append("}\n");
+    sb.append(".rd-prompt-preview {\n");
+    sb.append("  border-radius: 20px;\n");
+    sb.append("  border: 1px solid rgba(19, 48, 71, 0.10);\n");
+    sb.append("  background: #fcfeff;\n");
+    sb.append("  padding: 18px 18px 10px;\n");
+    sb.append("  line-height: 1.7;\n");
+    sb.append("}\n");
+    sb.append(".rd-prompt-preview h1,\n");
+    sb.append(".rd-prompt-preview h2,\n");
+    sb.append(".rd-prompt-preview h3 {\n");
+    sb.append("  font-family: Georgia, 'Iowan Old Style', serif;\n");
+    sb.append("  margin: 0 0 10px;\n");
+    sb.append("}\n");
+    sb.append(".rd-prompt-preview h1 { font-size: 30px; }\n");
+    sb.append(".rd-prompt-preview h2 { font-size: 24px; margin-top: 18px; }\n");
+    sb.append(".rd-prompt-preview h3 { font-size: 20px; margin-top: 16px; }\n");
+    sb.append(".rd-prompt-preview p { margin: 0 0 12px; }\n");
+    sb.append(".rd-prompt-preview ul { margin: 0 0 12px 20px; padding: 0; }\n");
+    sb.append(".rd-prompt-preview li { margin-bottom: 6px; }\n");
+    sb.append(".rd-prompt-preview pre {\n");
+    sb.append("  overflow-x: auto;\n");
+    sb.append("  padding: 14px;\n");
+    sb.append("  border-radius: 16px;\n");
+    sb.append("  background: #103247;\n");
+    sb.append("  color: #eef7fb;\n");
+    sb.append("}\n");
+    sb.append(".rd-prompt-preview code {\n");
+    sb.append("  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;\n");
+    sb.append("  font-size: 13px;\n");
+    sb.append("}\n");
+    sb.append(".rd-hidden { display: none; }\n");
+    sb.append(".rd-docs-list {\n");
+    sb.append("  display: grid;\n");
+    sb.append("  gap: 10px;\n");
+    sb.append("}\n");
+    sb.append(".rd-empty {\n");
+    sb.append("  padding: 18px;\n");
+    sb.append("  border-radius: 18px;\n");
+    sb.append("  border: 1px dashed rgba(19, 48, 71, 0.18);\n");
+    sb.append("  background: rgba(248, 251, 252, 0.72);\n");
+    sb.append("  color: #5b7487;\n");
+    sb.append("}\n");
+    sb.append("@media (max-width: 1080px) {\n");
+    sb.append("  .rd-hero,\n");
+    sb.append("  .rd-grid,\n");
+    sb.append("  .rd-field-grid {\n");
+    sb.append("    grid-template-columns: 1fr;\n");
+    sb.append("  }\n");
+    sb.append("  .rd-head-actions {\n");
+    sb.append("    justify-content: flex-start;\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    sb.append("</style>\n");
+    sb.append("</head>\n<body>\n");
+    sb.append("<div class=\"rd-shell\">\n");
+    sb.append("  <a class=\"rd-back\" href=\"/\">&larr; Back to SupaWave</a>\n");
+    sb.append("  <section class=\"rd-hero\">\n");
+    sb.append("    <div class=\"rd-panel rd-hero-copy\">\n");
+    sb.append("      <span class=\"rd-eyebrow\">Automation</span>\n");
+    sb.append("      <h1>Robot control room for humans first.</h1>\n");
+    sb.append("      <p class=\"rd-lede\">Create or edit robots, review every sensitive value before you copy it, and hand an LLM a markdown prompt grounded in <code>llms.txt</code>, <code>/api/llm.txt</code>, and the live API docs instead of vague setup notes.</p>\n");
+    if (message != null && !message.isEmpty()) {
+      sb.append("      <div class=\"rd-status\">").append(escapeHtml(message)).append("</div>\n");
+    }
+    sb.append("    </div>\n");
+    sb.append("    <aside class=\"rd-panel rd-hero-notes\">\n");
+    sb.append("      <h2>Security posture</h2>\n");
+    sb.append("      <div class=\"rd-note-list\">\n");
+    sb.append("        <div class=\"rd-note\">Robot secrets stay owner-scoped and visible only inside this authenticated control room.</div>\n");
+    sb.append("        <div class=\"rd-note\">Short-lived human Data API JWTs are generated on demand. The prompt starts with a placeholder token until you explicitly insert one.</div>\n");
+    sb.append("        <div class=\"rd-note\">Robot registration, callback edits, and secret rotation still require the dashboard session and XSRF token. The Data API JWT is not an admin backdoor.</div>\n");
+    sb.append("      </div>\n");
+    sb.append("    </aside>\n");
+    sb.append("  </section>\n");
+    sb.append("  <div class=\"rd-grid\">\n");
+    sb.append("    <section class=\"rd-panel rd-section\">\n");
+    sb.append("      <h2>Registered robots</h2>\n");
+    sb.append("      <p class=\"rd-section-copy\">Previously registered bots stay editable here. Callback URLs, secrets, owner metadata, and legacy-state warnings are all surfaced directly on the card.</p>\n");
+    sb.append("      <div class=\"rd-robot-stack\">\n");
+    if (robots.isEmpty()) {
+      sb.append("        <div class=\"rd-empty\">No robots are registered for this account yet. Create one below, then come back to manage its callback URL, secret, and onboarding prompt.</div>\n");
+    } else {
+      for (int i = 0; i < robots.size(); i++) {
+        RobotAccountData robot = robots.get(i);
+        String ownerAddress = robot.getOwnerAddress() == null ? "" : robot.getOwnerAddress();
+        String robotAddress = robot.getId().getAddress();
+        String robotIdFieldId = "robot-id-" + i;
+        String callbackFieldId = "robot-callback-" + i;
+        String secretFieldId = "robot-secret-" + i;
+        String ownerFieldId = "robot-owner-" + i;
+        String avatarAddress = ownerAddress.isEmpty() ? robotAddress : ownerAddress;
+        sb.append("        <article class=\"rd-robot-card\">\n");
+        sb.append("          <div class=\"rd-robot-head\">\n");
+        sb.append("            <div class=\"rd-avatar-wrap\">\n");
+        sb.append("              <img class=\"rd-avatar\" src=\"").append(escapeHtml(gravatarUrl(avatarAddress)))
+            .append("\" alt=\"\">\n");
+        sb.append("              <div>\n");
+        sb.append("                <div class=\"rd-title-row\">\n");
+        sb.append("                  <h3>").append(escapeHtml(robotAddress)).append("</h3>\n");
+        sb.append("                  <span class=\"rd-badge ").append(robot.isVerified()
+            ? "rd-badge-live\">Live" : "rd-badge-pending\">Pending").append("</span>\n");
+        sb.append("                </div>\n");
+        sb.append("                <div class=\"rd-meta\">Created: ")
+            .append(escapeHtml(robotCreatedLabel(robot.getCreationTime())))
+            .append("<br>Owner: ")
+            .append(escapeHtml(ownerAddress.isEmpty() ? "Untracked legacy owner" : ownerAddress))
+            .append("</div>\n");
+        sb.append("              </div>\n");
+        sb.append("            </div>\n");
+        sb.append("            <div class=\"rd-head-actions\">\n");
+        sb.append("              <button type=\"button\" class=\"rd-button rd-ghost\" onclick=\"copyField('")
+            .append(robotIdFieldId).append("', this)\">Copy ID</button>\n");
+        if (ownerAddress.isEmpty() || currentUserAddress.equals(ownerAddress)) {
+          sb.append("              <button type=\"button\" class=\"rd-button rd-ghost\" disabled>Message owner</button>\n");
+        } else {
+          sb.append("              <button type=\"button\" class=\"rd-button rd-ghost\" onclick=\"sendMessageToOwner('")
+              .append(escapeHtml(ownerAddress)).append("')\">Message owner</button>\n");
+        }
+        sb.append("            </div>\n");
+        sb.append("          </div>\n");
+        sb.append("          <div class=\"rd-divider\"></div>\n");
+        sb.append("          <div class=\"rd-field-grid\">\n");
+        sb.append("            <div class=\"rd-field\">\n");
+        sb.append("              <label for=\"").append(robotIdFieldId).append("\">Robot ID</label>\n");
+        sb.append("              <div class=\"rd-copy-field\">\n");
+        sb.append("                <input id=\"").append(robotIdFieldId).append("\" readonly value=\"")
+            .append(escapeHtml(robotAddress)).append("\">\n");
+        sb.append("                <button type=\"button\" class=\"rd-button rd-secondary\" onclick=\"copyField('")
+            .append(robotIdFieldId).append("', this)\">Copy</button>\n");
+        sb.append("              </div>\n");
+        sb.append("            </div>\n");
+        sb.append("            <div class=\"rd-field\">\n");
+        sb.append("              <label for=\"").append(ownerFieldId).append("\">Owner</label>\n");
+        sb.append("              <div class=\"rd-copy-field\">\n");
+        sb.append("                <input id=\"").append(ownerFieldId).append("\" readonly value=\"")
+            .append(escapeHtml(ownerAddress)).append("\">\n");
+        sb.append("                <button type=\"button\" class=\"rd-button rd-secondary\" onclick=\"copyField('")
+            .append(ownerFieldId).append("', this)\">Copy</button>\n");
+        sb.append("              </div>\n");
+        sb.append("            </div>\n");
+        sb.append("          </div>\n");
+        sb.append("          <form method=\"post\">\n");
+        sb.append("            <input type=\"hidden\" name=\"action\" value=\"update-url\">\n");
+        sb.append("            <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(xsrfToken)).append("\">\n");
+        sb.append("            <input type=\"hidden\" name=\"robotId\" value=\"").append(escapeHtml(robotAddress)).append("\">\n");
+        sb.append("            <div class=\"rd-field\" style=\"margin-top: 14px;\">\n");
+        sb.append("              <label for=\"").append(callbackFieldId).append("\">Callback URL</label>\n");
+        sb.append("              <div class=\"rd-copy-field\">\n");
+        sb.append("                <input id=\"").append(callbackFieldId).append("\" name=\"location\" value=\"")
+            .append(escapeHtml(robot.getUrl())).append("\" placeholder=\"https://robot.example.com/callback\">\n");
+        sb.append("                <button type=\"button\" class=\"rd-button rd-secondary\" onclick=\"copyField('")
+            .append(callbackFieldId).append("', this)\">Copy</button>\n");
+        sb.append("              </div>\n");
+        sb.append("              <p class=\"rd-help\">Pending robots stay inactive until the callback URL is configured. Editing the callback does not rotate the secret.</p>\n");
+        sb.append("            </div>\n");
+        sb.append("            <div class=\"rd-actions\" style=\"margin-top: 12px;\">\n");
+        sb.append("              <button type=\"submit\" class=\"rd-button rd-primary\">Save callback URL</button>\n");
+        sb.append("            </div>\n");
+        sb.append("          </form>\n");
+        sb.append("          <details class=\"rd-sensitive\">\n");
+        sb.append("            <summary>Sensitive credentials</summary>\n");
+        sb.append("            <div class=\"rd-sensitive-body\">\n");
+        sb.append("              <div class=\"rd-field\">\n");
+        sb.append("                <label for=\"").append(secretFieldId).append("\">Robot secret</label>\n");
+        sb.append("                <div class=\"rd-copy-field\">\n");
+        sb.append("                  <input id=\"").append(secretFieldId).append("\" readonly value=\"")
+            .append(escapeHtml(robot.getConsumerSecret())).append("\">\n");
+        sb.append("                  <button type=\"button\" class=\"rd-button rd-secondary\" onclick=\"copyField('")
+            .append(secretFieldId).append("', this)\">Copy</button>\n");
+        sb.append("                </div>\n");
+        sb.append("                <p class=\"rd-help\">Treat this like a production password. Anyone with this value can act as the robot after the callback URL is live.</p>\n");
+        sb.append("              </div>\n");
+        sb.append("            </div>\n");
+        sb.append("          </details>\n");
+        sb.append("          <form method=\"post\" style=\"margin-top: 14px;\">\n");
+        sb.append("            <input type=\"hidden\" name=\"action\" value=\"rotate-secret\">\n");
+        sb.append("            <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(xsrfToken)).append("\">\n");
+        sb.append("            <input type=\"hidden\" name=\"robotId\" value=\"").append(escapeHtml(robotAddress)).append("\">\n");
+        sb.append("            <div class=\"rd-actions\">\n");
+        sb.append("              <button type=\"submit\" class=\"rd-button rd-danger\">Rotate secret</button>\n");
+        sb.append("            </div>\n");
+        sb.append("          </form>\n");
+        sb.append("        </article>\n");
+      }
+    }
+    sb.append("      </div>\n");
+    sb.append("    </section>\n");
+    sb.append("    <aside class=\"rd-side-stack\">\n");
+    sb.append("      <section class=\"rd-panel rd-section\">\n");
+    sb.append("        <h2>Create or update a robot</h2>\n");
+    sb.append("        <p class=\"rd-section-copy\">Create the account first, then deploy the bot and add the callback URL later if you need to. The dashboard keeps the secret visible for human review and copy.</p>\n");
+    sb.append("        <form method=\"post\" class=\"rd-card\" style=\"padding: 18px;\">\n");
+    sb.append("          <input type=\"hidden\" name=\"action\" value=\"register\">\n");
+    sb.append("          <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(xsrfToken)).append("\">\n");
+    sb.append("          <div class=\"rd-field\">\n");
+    sb.append("            <label for=\"robot-username\">Robot username</label>\n");
+    sb.append("            <input id=\"robot-username\" name=\"username\" placeholder=\"helper-bot\">\n");
+    sb.append("            <p class=\"rd-help\">Robot usernames must end with <code>-bot</code>.</p>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"rd-field\" style=\"margin-top: 12px;\">\n");
+    sb.append("            <label for=\"robot-location\">Callback URL</label>\n");
+    sb.append("            <input id=\"robot-location\" name=\"location\" placeholder=\"https://robot.example.com/callback\">\n");
+    sb.append("            <p class=\"rd-help\">Leave blank to create a pending robot first. You can activate it later without rotating the secret.</p>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"rd-field\" style=\"margin-top: 12px;\">\n");
+    sb.append("            <label for=\"robot-token-expiry\">Robot token expiry</label>\n");
+    sb.append("            <select id=\"robot-token-expiry\" name=\"token_expiry\">\n");
+    sb.append("              <option value=\"0\">No expiry</option>\n");
+    sb.append("              <option value=\"3600\">1 hour</option>\n");
+    sb.append("              <option value=\"86400\">1 day</option>\n");
+    sb.append("              <option value=\"604800\">1 week</option>\n");
+    sb.append("            </select>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"rd-actions\" style=\"margin-top: 14px;\">\n");
+    sb.append("            <button type=\"submit\" class=\"rd-button rd-primary\">Create robot</button>\n");
+    sb.append("          </div>\n");
+    sb.append("        </form>\n");
+    sb.append("      </section>\n");
+    sb.append("      <section class=\"rd-panel rd-section\">\n");
+    sb.append("        <h2>Short-lived Data API JWT</h2>\n");
+    sb.append("        <p class=\"rd-section-copy\">Generate a human-scoped token only when you need it. Review it here first, then decide whether to copy it directly or insert it into the onboarding prompt.</p>\n");
+    sb.append("        <div class=\"rd-card\" style=\"padding: 18px;\">\n");
+    sb.append("          <div class=\"rd-field\">\n");
+    sb.append("            <label for=\"human-token-expiry\">JWT expiry</label>\n");
+    sb.append("            <select id=\"human-token-expiry\">\n");
+    sb.append("              <option value=\"60\">60 seconds</option>\n");
+    sb.append("              <option value=\"900\">15 minutes</option>\n");
+    sb.append("              <option value=\"3600\" selected>1 hour</option>\n");
+    sb.append("            </select>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"rd-actions\" style=\"margin-top: 14px;\">\n");
+    sb.append("            <button type=\"button\" class=\"rd-button rd-primary\" id=\"generateHumanTokenBtn\" onclick=\"generateHumanToken()\">Generate JWT</button>\n");
+    sb.append("            <button type=\"button\" class=\"rd-button rd-secondary\" onclick=\"insertCurrentTokenIntoPrompt()\">Insert into prompt</button>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"rd-field\" style=\"margin-top: 14px;\">\n");
+    sb.append("            <label for=\"human-token-value\">Current JWT</label>\n");
+    sb.append("            <div class=\"rd-copy-field\">\n");
+    sb.append("              <textarea id=\"human-token-value\" readonly></textarea>\n");
+    sb.append("              <button type=\"button\" class=\"rd-button rd-secondary\" onclick=\"copyField('human-token-value', this)\">Copy</button>\n");
+    sb.append("            </div>\n");
+    sb.append("            <p class=\"rd-help\" id=\"human-token-meta\">No token generated yet. The onboarding prompt keeps a placeholder value until you choose to insert a live JWT.</p>\n");
+    sb.append("          </div>\n");
+    sb.append("        </div>\n");
+    sb.append("      </section>\n");
+    sb.append("      <details class=\"rd-panel rd-prompt-panel\" open>\n");
+    sb.append("        <summary class=\"rd-prompt-summary\">LLM onboarding prompt</summary>\n");
+    sb.append("        <div class=\"rd-prompt-body\">\n");
+    sb.append("          <p class=\"rd-section-copy\">The prompt is authored as markdown, grounded in the live docs, and split into infrastructure, logic, UX, and security instructions. Review the rendered version first; copy the raw markdown when you want to paste it into an external LLM.</p>\n");
+    sb.append("          <div class=\"rd-prompt-toolbar\">\n");
+    sb.append("            <div class=\"rd-mode-toggle\">\n");
+    sb.append("              <button type=\"button\" class=\"rd-button rd-secondary\" id=\"promptModePreview\" aria-pressed=\"true\" onclick=\"showPromptMode('preview')\">Rendered markdown</button>\n");
+    sb.append("              <button type=\"button\" class=\"rd-button rd-secondary\" id=\"promptModeRaw\" aria-pressed=\"false\" onclick=\"showPromptMode('raw')\">Raw markdown</button>\n");
+    sb.append("            </div>\n");
+    sb.append("            <button type=\"button\" class=\"rd-button rd-ghost\" onclick=\"copyField('promptMarkdown', this)\">Copy prompt</button>\n");
+    sb.append("            <button type=\"button\" class=\"rd-button rd-ghost\" onclick=\"resetPromptTemplate()\">Reset prompt</button>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div id=\"promptPreview\" class=\"rd-prompt-preview\"></div>\n");
+    sb.append("          <textarea id=\"promptMarkdown\" class=\"rd-hidden\">")
+        .append(escapeHtml(promptMarkdown)).append("</textarea>\n");
+    sb.append("          <textarea id=\"promptTemplate\" class=\"rd-hidden\">")
+        .append(escapeHtml(promptMarkdown)).append("</textarea>\n");
+    sb.append("        </div>\n");
+    sb.append("      </details>\n");
+    sb.append("      <section class=\"rd-panel rd-section\">\n");
+    sb.append("        <h2>Docs bundle</h2>\n");
+    sb.append("        <p class=\"rd-section-copy\">Every URL below is already referenced in the prompt. Copy them individually when you want to inspect or share the live contract outside the markdown block.</p>\n");
+    sb.append("        <div class=\"rd-card rd-security\">\n");
+    sb.append("          <div class=\"rd-docs-list\">\n");
+    appendCopyField(sb, "docs-base-url", "Base URL", baseUrl);
+    appendCopyField(sb, "docs-api-url", "HTML docs", baseUrl + "/api-docs");
+    appendCopyField(sb, "docs-openapi-url", "OpenAPI JSON", baseUrl + "/api/openapi.json");
+    appendCopyField(sb, "docs-llms-index-url", "llms.txt", baseUrl + "/llms.txt");
+    appendCopyField(sb, "docs-llms-full-url", "llms-full.txt", baseUrl + "/llms-full.txt");
+    appendCopyField(sb, "docs-llm-alias-url", "/api/llm.txt", baseUrl + "/api/llm.txt");
+    appendCopyField(sb, "docs-rpc-url", "Data API RPC", baseUrl + "/robot/dataapi/rpc");
+    sb.append("          </div>\n");
+    sb.append("        </div>\n");
+    sb.append("      </section>\n");
+    sb.append("    </aside>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+    sb.append("<script>\n");
+    sb.append("const PROMPT_TOKEN_PLACEHOLDER = '{{SUPAWAVE_DATA_API_TOKEN}}';\n");
+    sb.append("function escapeHtmlValue(value) {\n");
+    sb.append("  return String(value)\n");
+    sb.append("    .replace(/&/g, '&amp;')\n");
+    sb.append("    .replace(/</g, '&lt;')\n");
+    sb.append("    .replace(/>/g, '&gt;')\n");
+    sb.append("    .replace(/\\\"/g, '&quot;')\n");
+    sb.append("    .replace(/'/g, '&#39;');\n");
+    sb.append("}\n");
+    sb.append("function setButtonFeedback(button, label) {\n");
+    sb.append("  if (!button) return;\n");
+    sb.append("  const original = button.getAttribute('data-original-label') || button.textContent;\n");
+    sb.append("  button.setAttribute('data-original-label', original);\n");
+    sb.append("  button.textContent = label;\n");
+    sb.append("  window.setTimeout(function() { button.textContent = original; }, 1400);\n");
+    sb.append("}\n");
+    sb.append("function copyField(fieldId, button) {\n");
+    sb.append("  const field = document.getElementById(fieldId);\n");
+    sb.append("  if (!field || !field.value) return;\n");
+    sb.append("  if (navigator.clipboard && navigator.clipboard.writeText) {\n");
+    sb.append("    navigator.clipboard.writeText(field.value).then(function() {\n");
+    sb.append("      setButtonFeedback(button, 'Copied');\n");
+    sb.append("    });\n");
+    sb.append("    return;\n");
+    sb.append("  }\n");
+    sb.append("  field.focus();\n");
+    sb.append("  field.select();\n");
+    sb.append("  document.execCommand('copy');\n");
+    sb.append("  setButtonFeedback(button, 'Copied');\n");
+    sb.append("}\n");
+    sb.append("function formatInlineMarkdown(text) {\n");
+    sb.append("  let html = escapeHtmlValue(text);\n");
+    sb.append("  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');\n");
+    sb.append("  html = html.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');\n");
+    sb.append("  html = html.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>');\n");
+    sb.append("  return html;\n");
+    sb.append("}\n");
+    sb.append("function renderMarkdownToHtml(markdown) {\n");
+    sb.append("  const lines = String(markdown || '').split(/\\r?\\n/);\n");
+    sb.append("  let html = '';\n");
+    sb.append("  let inCode = false;\n");
+    sb.append("  let inList = false;\n");
+    sb.append("  let paragraph = [];\n");
+    sb.append("  function flushParagraph() {\n");
+    sb.append("    if (!paragraph.length) return;\n");
+    sb.append("    html += '<p>' + formatInlineMarkdown(paragraph.join(' ')) + '</p>';\n");
+    sb.append("    paragraph = [];\n");
+    sb.append("  }\n");
+    sb.append("  function closeList() {\n");
+    sb.append("    if (!inList) return;\n");
+    sb.append("    html += '</ul>';\n");
+    sb.append("    inList = false;\n");
+    sb.append("  }\n");
+    sb.append("  lines.forEach(function(line) {\n");
+    sb.append("    if (line.startsWith('```')) {\n");
+    sb.append("      flushParagraph();\n");
+    sb.append("      closeList();\n");
+    sb.append("      if (!inCode) {\n");
+    sb.append("        html += '<pre><code>';\n");
+    sb.append("        inCode = true;\n");
+    sb.append("      } else {\n");
+    sb.append("        html += '</code></pre>';\n");
+    sb.append("        inCode = false;\n");
+    sb.append("      }\n");
+    sb.append("      return;\n");
+    sb.append("    }\n");
+    sb.append("    if (inCode) {\n");
+    sb.append("      html += escapeHtmlValue(line) + '\\n';\n");
+    sb.append("      return;\n");
+    sb.append("    }\n");
+    sb.append("    if (!line.trim()) {\n");
+    sb.append("      flushParagraph();\n");
+    sb.append("      closeList();\n");
+    sb.append("      return;\n");
+    sb.append("    }\n");
+    sb.append("    if (line.startsWith('### ')) {\n");
+    sb.append("      flushParagraph();\n");
+    sb.append("      closeList();\n");
+    sb.append("      html += '<h3>' + formatInlineMarkdown(line.substring(4)) + '</h3>';\n");
+    sb.append("      return;\n");
+    sb.append("    }\n");
+    sb.append("    if (line.startsWith('## ')) {\n");
+    sb.append("      flushParagraph();\n");
+    sb.append("      closeList();\n");
+    sb.append("      html += '<h2>' + formatInlineMarkdown(line.substring(3)) + '</h2>';\n");
+    sb.append("      return;\n");
+    sb.append("    }\n");
+    sb.append("    if (line.startsWith('# ')) {\n");
+    sb.append("      flushParagraph();\n");
+    sb.append("      closeList();\n");
+    sb.append("      html += '<h1>' + formatInlineMarkdown(line.substring(2)) + '</h1>';\n");
+    sb.append("      return;\n");
+    sb.append("    }\n");
+    sb.append("    if (line.startsWith('- ')) {\n");
+    sb.append("      flushParagraph();\n");
+    sb.append("      if (!inList) {\n");
+    sb.append("        html += '<ul>';\n");
+    sb.append("        inList = true;\n");
+    sb.append("      }\n");
+    sb.append("      html += '<li>' + formatInlineMarkdown(line.substring(2)) + '</li>';\n");
+    sb.append("      return;\n");
+    sb.append("    }\n");
+    sb.append("    paragraph.push(line.trim());\n");
+    sb.append("  });\n");
+    sb.append("  flushParagraph();\n");
+    sb.append("  closeList();\n");
+    sb.append("  if (inCode) html += '</code></pre>';\n");
+    sb.append("  return html;\n");
+    sb.append("}\n");
+    sb.append("function renderPromptPreview() {\n");
+    sb.append("  const promptField = document.getElementById('promptMarkdown');\n");
+    sb.append("  const preview = document.getElementById('promptPreview');\n");
+    sb.append("  preview.innerHTML = renderMarkdownToHtml(promptField.value);\n");
+    sb.append("}\n");
+    sb.append("function showPromptMode(mode) {\n");
+    sb.append("  const preview = document.getElementById('promptPreview');\n");
+    sb.append("  const raw = document.getElementById('promptMarkdown');\n");
+    sb.append("  const previewBtn = document.getElementById('promptModePreview');\n");
+    sb.append("  const rawBtn = document.getElementById('promptModeRaw');\n");
+    sb.append("  const previewMode = mode === 'preview';\n");
+    sb.append("  preview.classList.toggle('rd-hidden', !previewMode);\n");
+    sb.append("  raw.classList.toggle('rd-hidden', previewMode);\n");
+    sb.append("  previewBtn.setAttribute('aria-pressed', previewMode ? 'true' : 'false');\n");
+    sb.append("  rawBtn.setAttribute('aria-pressed', previewMode ? 'false' : 'true');\n");
+    sb.append("}\n");
+    sb.append("function resetPromptTemplate() {\n");
+    sb.append("  const raw = document.getElementById('promptMarkdown');\n");
+    sb.append("  raw.value = document.getElementById('promptTemplate').value;\n");
+    sb.append("  renderPromptPreview();\n");
+    sb.append("}\n");
+    sb.append("function upsertPromptToken(token) {\n");
+    sb.append("  const raw = document.getElementById('promptMarkdown');\n");
+    sb.append("  const tokenLine = 'SUPAWAVE_DATA_API_TOKEN=' + token;\n");
+    sb.append("  if (raw.value.indexOf(PROMPT_TOKEN_PLACEHOLDER) >= 0) {\n");
+    sb.append("    raw.value = raw.value.replace(PROMPT_TOKEN_PLACEHOLDER, token);\n");
+    sb.append("  } else {\n");
+    sb.append("    raw.value = raw.value.replace(/SUPAWAVE_DATA_API_TOKEN=.*$/m, tokenLine);\n");
+    sb.append("  }\n");
+    sb.append("  renderPromptPreview();\n");
+    sb.append("}\n");
+    sb.append("function insertCurrentTokenIntoPrompt() {\n");
+    sb.append("  const token = document.getElementById('human-token-value').value;\n");
+    sb.append("  if (!token) return;\n");
+    sb.append("  upsertPromptToken(token);\n");
+    sb.append("}\n");
+    sb.append("function generateHumanToken() {\n");
+    sb.append("  const button = document.getElementById('generateHumanTokenBtn');\n");
+    sb.append("  const expiry = document.getElementById('human-token-expiry').value;\n");
+    sb.append("  const meta = document.getElementById('human-token-meta');\n");
+    sb.append("  button.disabled = true;\n");
+    sb.append("  button.textContent = 'Generating';\n");
+    sb.append("  fetch('/robot/dataapi/token', {\n");
+    sb.append("    method: 'POST',\n");
+    sb.append("    credentials: 'same-origin',\n");
+    sb.append("    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },\n");
+    sb.append("    body: 'expiry=' + encodeURIComponent(expiry)\n");
+    sb.append("  })\n");
+    sb.append("    .then(function(response) {\n");
+    sb.append("      return response.json().then(function(data) { return { ok: response.ok, data: data }; });\n");
+    sb.append("    })\n");
+    sb.append("    .then(function(result) {\n");
+    sb.append("      if (!result.ok || !result.data.access_token) {\n");
+    sb.append("        throw new Error(result.data.error_description || result.data.error || 'Token generation failed');\n");
+    sb.append("      }\n");
+    sb.append("      document.getElementById('human-token-value').value = result.data.access_token;\n");
+    sb.append("      meta.textContent = 'Human-visible JWT ready. Expires in ' + result.data.expires_in + ' seconds until you generate a new one.';\n");
+    sb.append("    })\n");
+    sb.append("    .catch(function(error) {\n");
+    sb.append("      meta.textContent = 'Failed to generate JWT: ' + error.message;\n");
+    sb.append("    })\n");
+    sb.append("    .finally(function() {\n");
+    sb.append("      button.disabled = false;\n");
+    sb.append("      button.textContent = 'Generate JWT';\n");
+    sb.append("    });\n");
+    sb.append("}\n");
+    sb.append("function sendMessageToOwner(address) {\n");
+    sb.append("  if (!address) return;\n");
+    sb.append("  fetch('/search/waves?query=with:' + encodeURIComponent(address) + '+tag:_dm&index=0&numResults=1', { credentials: 'same-origin' })\n");
+    sb.append("    .then(function(response) { return response.json(); })\n");
+    sb.append("    .then(function(data) {\n");
+    sb.append("      if (data && data.digests && data.digests.length > 0) {\n");
+    sb.append("        window.location.href = '/#' + data.digests[0].waveId;\n");
+    sb.append("        return;\n");
+    sb.append("      }\n");
+    sb.append("      window.location.href = '/?dm=' + encodeURIComponent(address);\n");
+    sb.append("    })\n");
+    sb.append("    .catch(function() {\n");
+    sb.append("      window.location.href = '/?dm=' + encodeURIComponent(address);\n");
+    sb.append("    });\n");
+    sb.append("}\n");
+    sb.append("renderPromptPreview();\n");
+    sb.append("showPromptMode('preview');\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  private static void appendCopyField(StringBuilder sb, String fieldId, String label, String value) {
+    sb.append("            <div class=\"rd-field\">\n");
+    sb.append("              <label for=\"").append(fieldId).append("\">").append(escapeHtml(label)).append("</label>\n");
+    sb.append("              <div class=\"rd-copy-field\">\n");
+    sb.append("                <input id=\"").append(fieldId).append("\" readonly value=\"")
+        .append(escapeHtml(value)).append("\">\n");
+    sb.append("                <button type=\"button\" class=\"rd-button rd-secondary\" onclick=\"copyField('")
+        .append(fieldId).append("', this)\">Copy</button>\n");
+    sb.append("              </div>\n");
+    sb.append("            </div>\n");
+  }
+
+  private static String buildRobotOnboardingPrompt(String baseUrl, RobotAccountData promptRobot) {
+    String robotId = promptRobot == null ? "<robot@example.com>" : promptRobot.getId().getAddress();
+    String robotSecret =
+        promptRobot == null ? "<paste robot secret from control room>" : promptRobot.getConsumerSecret();
+    String callbackUrl =
+        promptRobot == null || promptRobot.getUrl().isEmpty()
+            ? "<deployment callback url>"
+            : promptRobot.getUrl();
+    return "# Build a SupaWave robot\n\n"
+        + "Use the live docs first, then produce an implementation plan and setup checklist for the robot.\n\n"
+        + "## Reference docs\n"
+        + "- llms.txt: " + baseUrl + "/llms.txt\n"
+        + "- Full LLM reference: " + baseUrl + "/llms-full.txt\n"
+        + "- Legacy LLM alias: " + baseUrl + "/api/llm.txt\n"
+        + "- Human API docs: " + baseUrl + "/api-docs\n"
+        + "- OpenAPI JSON: " + baseUrl + "/api/openapi.json\n"
+        + "- Canonical Data API RPC: " + baseUrl + "/robot/dataapi/rpc\n\n"
+        + "## Environment variables\n"
+        + "```bash\n"
+        + "SUPAWAVE_BASE_URL=" + baseUrl + "\n"
+        + "SUPAWAVE_API_DOCS_URL=" + baseUrl + "/api-docs\n"
+        + "SUPAWAVE_OPENAPI_URL=" + baseUrl + "/api/openapi.json\n"
+        + "SUPAWAVE_LLMS_INDEX_URL=" + baseUrl + "/llms.txt\n"
+        + "SUPAWAVE_LLM_FULL_URL=" + baseUrl + "/llms-full.txt\n"
+        + "SUPAWAVE_LLM_ALIAS_URL=" + baseUrl + "/api/llm.txt\n"
+        + "SUPAWAVE_DATA_API_URL=" + baseUrl + "/robot/dataapi/rpc\n"
+        + "SUPAWAVE_DATA_API_TOKEN={{SUPAWAVE_DATA_API_TOKEN}}\n"
+        + "SUPAWAVE_ROBOT_ID=" + robotId + "\n"
+        + "SUPAWAVE_ROBOT_SECRET=" + robotSecret + "\n"
+        + "SUPAWAVE_ROBOT_CALLBACK_URL=" + callbackUrl + "\n"
+        + "```\n\n"
+        + "## Infrastructure instructions\n"
+        + "- Read the referenced docs before generating code.\n"
+        + "- Prefer a minimal deployable service that exposes the callback URL defined in `SUPAWAVE_ROBOT_CALLBACK_URL`.\n"
+        + "- Keep secrets in environment variables and never inline them into source control.\n"
+        + "- If the callback URL is still pending, explain exactly what remains blocked and how to activate the robot later without rotating the secret.\n\n"
+        + "## Logic instructions\n"
+        + "- Use the canonical Data API RPC endpoint.\n"
+        + "- Keep JSON-RPC payloads small and explicit.\n"
+        + "- Prefer short-lived human JWTs for setup and testing.\n"
+        + "- Do not assume deprecated OAuth flows are the current public path.\n\n"
+        + "## UX instructions\n"
+        + "- Produce setup steps that a human operator can review line by line.\n"
+        + "- Separate prerequisites, local run commands, deployment steps, and verification steps.\n"
+        + "- Include exact copy-paste examples for environment variables and curl calls.\n\n"
+        + "## Security instructions\n"
+        + "- Treat `SUPAWAVE_ROBOT_SECRET` like a production credential.\n"
+        + "- Treat `SUPAWAVE_DATA_API_TOKEN` as short-lived human bootstrap access only.\n"
+        + "- Do not use the human JWT as justification to bypass the dashboard's owner-scoped registration and callback-edit flow.\n";
+  }
+
+  private static String robotCreatedLabel(long creationTime) {
+    if (creationTime <= 0L) {
+      return "Legacy robot (date unavailable)";
+    }
+    return new java.text.SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
+        .format(new java.util.Date(creationTime));
   }
 
   // =========================================================================

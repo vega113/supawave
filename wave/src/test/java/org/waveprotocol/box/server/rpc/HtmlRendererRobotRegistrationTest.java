@@ -24,5 +24,8 @@ public final class HtmlRendererRobotRegistrationTest {
 
     assertTrue(html.contains("callback URL"));
     assertTrue(html.contains("later"));
+    assertTrue(html.contains("Copy token"));
+    assertTrue(html.contains("Copy secret"));
+    assertTrue(html.contains("/account/robots"));
   }
 }

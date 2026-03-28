@@ -129,6 +129,9 @@ public class ProtoAccountDataSerializer {
     if (account.getOwnerAddress() != null && !account.getOwnerAddress().isEmpty()) {
       builder.setOwnerAddress(account.getOwnerAddress());
     }
+    if (account.getCreationTime() != 0L) {
+      builder.setCreationTime(account.getCreationTime());
+    }
     if (account.getCapabilities() != null) {
       builder.setRobotCapabilities(serialize(account.getCapabilities()));
     }
@@ -232,8 +235,9 @@ public class ProtoAccountDataSerializer {
     }
     long tokenExpirySeconds = data.hasTokenExpirySeconds() ? data.getTokenExpirySeconds() : 0L;
     String ownerAddress = data.hasOwnerAddress() ? data.getOwnerAddress() : null;
+    long creationTime = data.hasCreationTime() ? data.getCreationTime() : 0L;
     return new RobotAccountDataImpl(id, data.getUrl(), data.getConsumerSecret(),
-        capabilities, data.getIsVerified(), tokenExpirySeconds, ownerAddress);
+        capabilities, data.getIsVerified(), tokenExpirySeconds, ownerAddress, creationTime);
   }
 
   private static RobotCapabilities deserialize(ProtoRobotCapabilities data) {

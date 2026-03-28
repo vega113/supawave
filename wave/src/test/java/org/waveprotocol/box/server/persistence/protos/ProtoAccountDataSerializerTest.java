@@ -55,6 +55,7 @@ public class ProtoAccountDataSerializerTest extends TestCase {
   private RobotAccountData robotAccount;
 
   private RobotAccountData robotAccountWithCapabilities;
+  private RobotAccountData robotAccountWithCreationTime;
 
   private HumanAccountData humanAccount;
 
@@ -81,6 +82,10 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     robotAccountWithCapabilities =
         new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret", new RobotCapabilities(
             capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true);
+
+    robotAccountWithCreationTime =
+        new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret", null, true, 3600L,
+            "owner@example.com", 123456789L);
 
     humanAccount = new HumanAccountDataImpl(HUMAN_ID);
     humanAccountWithDigest = new HumanAccountDataImpl(HUMAN_ID,
@@ -168,5 +173,12 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccountWithCapabilities);
     AccountData account = ProtoAccountDataSerializer.deserialize(data);
     assertEquals(robotAccountWithCapabilities, account);
+  }
+
+  public final void testRobotAccountWithCreationTime() {
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccountWithCreationTime);
+    AccountData account = ProtoAccountDataSerializer.deserialize(data);
+    assertEquals(robotAccountWithCreationTime, account);
+    assertEquals(123456789L, account.asRobot().getCreationTime());
   }
 }

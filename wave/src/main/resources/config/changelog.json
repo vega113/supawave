@@ -1,5 +1,28 @@
 [
   {
+    "releaseId": "2026-03-28-robot-ai-onboarding-followup",
+    "version": "PR #440",
+    "date": "2026-03-28",
+    "title": "Robot AI Onboarding Follow-up",
+    "summary": "The robot control room now makes secrets, short-lived JWTs, docs, and onboarding prompts easier to review without weakening the existing owner-scoped security flow.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Robot cards now surface owner metadata, creation dates for newly tracked robots, copyable credentials, and a direct path to message the owner",
+          "The control room now includes a markdown onboarding prompt with rendered and raw views plus copy actions for docs URLs, robot credentials, and short-lived Data API JWTs"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "The AI onboarding docs now reference llms.txt, llms-full.txt, /api/llm.txt, /api-docs, and standardized SupaWave environment variable names",
+          "Legacy robots without historical creation metadata are called out honestly instead of being assigned fabricated dates"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-robot-control-room-hardening",
     "version": "PR #431",
     "date": "2026-03-28",

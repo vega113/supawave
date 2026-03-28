@@ -541,24 +541,13 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("      </section>\n");
     html.append("      <section id=\"build-with-ai\">\n");
     html.append("        <h2>Build with AI</h2>\n");
-    html.append("        <p>Google AI Studio / Gemini works best when you give it a short-lived token, the machine-readable docs, and stable environment variable names. Generate a one-hour JWT, paste the prompt below into your preferred LLM, and replace the robot-specific placeholders once you mint the robot secret.</p>\n");
-    html.append("        <pre>");
-    html.append(escape("Google AI Studio / Gemini starter prompt\n\n"
-        + "Build a SupaWave robot for me.\n"
-        + "Use these environment variables exactly:\n"
-        + "SUPAWAVE_BASE_URL=" + baseUrl + "\n"
-        + "SUPAWAVE_API_DOCS_URL=" + baseUrl + "/api-docs\n"
-        + "SUPAWAVE_LLM_DOCS_URL=" + baseUrl + "/api/llm.txt\n"
-        + "SUPAWAVE_DATA_API_URL=" + baseUrl + CANONICAL_RPC_PATH + "\n"
-        + "SUPAWAVE_DATA_API_TOKEN=<1 hour JWT>\n"
-        + "SUPAWAVE_ROBOT_ID=<robot@domain>\n"
-        + "SUPAWAVE_ROBOT_SECRET=<consumer secret>\n"
-        + "SUPAWAVE_ROBOT_CALLBACK_URL=<deployment url>\n\n"
-        + "Read the docs first, prefer minimal JSON payloads, explain security tradeoffs, and keep tokens short-lived."));
-    html.append("</pre>\n");
+    html.append("        <p>The safest LLM-assisted flow is still human-led: mint a short-lived JWT, review the prompt, and keep robot registration or callback changes inside the authenticated dashboard. Use the markdown prompt below as the starting point for Google AI Studio, Gemini, or any other LLM.</p>\n");
+    html.append("        <pre>")
+        .append(escape(buildRobotPromptText(baseUrl)))
+        .append("</pre>\n");
     html.append("        <div class=\"reference-grid\">\n");
-    html.append("          <div class=\"grid-card\"><h3>Recommended env vars</h3><pre>SUPAWAVE_BASE_URL\nSUPAWAVE_API_DOCS_URL\nSUPAWAVE_LLM_DOCS_URL\nSUPAWAVE_DATA_API_URL\nSUPAWAVE_DATA_API_TOKEN\nSUPAWAVE_ROBOT_ID\nSUPAWAVE_ROBOT_SECRET\nSUPAWAVE_ROBOT_CALLBACK_URL</pre></div>\n");
-    html.append("          <div class=\"grid-card\"><h3>Minimal common operations</h3><pre>robot.createWavelet\nwavelet.appendBlip\nwavelet.addParticipant\nrobot.fetchWave\nrobot.search</pre></div>\n");
+    html.append("          <div class=\"grid-card\"><h3>Standard env vars</h3><pre>SUPAWAVE_BASE_URL\nSUPAWAVE_API_DOCS_URL\nSUPAWAVE_OPENAPI_URL\nSUPAWAVE_LLMS_INDEX_URL\nSUPAWAVE_LLM_FULL_URL\nSUPAWAVE_LLM_ALIAS_URL\nSUPAWAVE_DATA_API_URL\nSUPAWAVE_DATA_API_TOKEN\nSUPAWAVE_ROBOT_ID\nSUPAWAVE_ROBOT_SECRET\nSUPAWAVE_ROBOT_CALLBACK_URL</pre></div>\n");
+    html.append("          <div class=\"grid-card\"><h3>Human review checklist</h3><pre>- Verify the docs URLs resolve\n- Keep the JWT short-lived\n- Confirm the callback URL separately\n- Do not bypass the dashboard for registration or secret rotation</pre></div>\n");
     html.append("        </div>\n");
     html.append("      </section>\n");
     html.append("      <section id=\"walkthrough\">\n");
@@ -1030,24 +1019,8 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("Token acquisition (client_credentials, short-lived example)\n");
     text.append(tokenCurlExample(baseUrl)).append("\n\n");
 
-    text.append("Google AI Studio / Gemini starter prompt\n");
-    text.append("Build a SupaWave robot for me.\n");
-    text.append("Use these environment variables exactly:\n");
-    text.append("SUPAWAVE_BASE_URL=").append(baseUrl).append('\n');
-    text.append("SUPAWAVE_API_DOCS_URL=").append(baseUrl).append("/api-docs\n");
-    text.append("SUPAWAVE_LLM_DOCS_URL=").append(baseUrl).append("/api/llm.txt\n");
-    text.append("SUPAWAVE_DATA_API_URL=").append(baseUrl).append(CANONICAL_RPC_PATH).append('\n');
-    text.append("SUPAWAVE_DATA_API_TOKEN=<1 hour JWT>\n");
-    text.append("SUPAWAVE_ROBOT_ID=<robot@domain>\n");
-    text.append("SUPAWAVE_ROBOT_SECRET=<consumer secret>\n");
-    text.append("SUPAWAVE_ROBOT_CALLBACK_URL=<deployment url>\n\n");
-
-    text.append("Minimal common operations\n");
-    text.append("- robot.createWavelet\n");
-    text.append("- wavelet.appendBlip\n");
-    text.append("- wavelet.addParticipant\n");
-    text.append("- robot.fetchWave\n");
-    text.append("- robot.search\n\n");
+    text.append("Markdown starter prompt\n");
+    text.append(buildRobotPromptText(baseUrl)).append("\n\n");
 
     text.append("Request envelope\n");
     text.append(json(singleRequestTemplate())).append("\n\n");
@@ -1104,6 +1077,48 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("- ").append(LLM_ALIAS_PATH).append(" remains live as a backward-compatible alias.\n");
     text.append("- Do not advertise wavelet.create or DataApiOAuthServlet as the current public API.\n");
     return text.toString();
+  }
+
+  private static String buildRobotPromptText(String baseUrl) {
+    return "# Build a SupaWave robot\n\n"
+        + "Read the live docs first, then produce an implementation plan and setup checklist for the robot.\n\n"
+        + "## Reference docs\n"
+        + "- llms.txt: " + baseUrl + LLMS_INDEX_PATH + "\n"
+        + "- Full LLM reference: " + baseUrl + LLMS_FULL_PATH + "\n"
+        + "- Legacy LLM alias: " + baseUrl + LLM_ALIAS_PATH + "\n"
+        + "- Human API docs: " + baseUrl + API_DOCS_PATH + "\n"
+        + "- OpenAPI JSON: " + baseUrl + OPENAPI_PATH + "\n"
+        + "- Canonical Data API RPC: " + baseUrl + CANONICAL_RPC_PATH + "\n\n"
+        + "## Environment variables\n"
+        + "```bash\n"
+        + "SUPAWAVE_BASE_URL=" + baseUrl + "\n"
+        + "SUPAWAVE_API_DOCS_URL=" + baseUrl + API_DOCS_PATH + "\n"
+        + "SUPAWAVE_OPENAPI_URL=" + baseUrl + OPENAPI_PATH + "\n"
+        + "SUPAWAVE_LLMS_INDEX_URL=" + baseUrl + LLMS_INDEX_PATH + "\n"
+        + "SUPAWAVE_LLM_FULL_URL=" + baseUrl + LLMS_FULL_PATH + "\n"
+        + "SUPAWAVE_LLM_ALIAS_URL=" + baseUrl + LLM_ALIAS_PATH + "\n"
+        + "SUPAWAVE_DATA_API_URL=" + baseUrl + CANONICAL_RPC_PATH + "\n"
+        + "SUPAWAVE_DATA_API_TOKEN=<short-lived human JWT>\n"
+        + "SUPAWAVE_ROBOT_ID=<robot@domain>\n"
+        + "SUPAWAVE_ROBOT_SECRET=<consumer secret>\n"
+        + "SUPAWAVE_ROBOT_CALLBACK_URL=<deployment callback url>\n"
+        + "```\n\n"
+        + "## Infrastructure instructions\n"
+        + "- Keep secrets in environment variables, not source control.\n"
+        + "- Use the canonical RPC endpoint and confirm the callback URL separately.\n"
+        + "- If the callback URL is still pending, explain that activation remains blocked until the dashboard callback step is complete.\n\n"
+        + "## Logic instructions\n"
+        + "- Prefer minimal JSON-RPC payloads and explicit request/response examples.\n"
+        + "- Do not assume deprecated OAuth flows are part of the current public path.\n"
+        + "- Keep the JWT short-lived and human-scoped for setup or testing.\n\n"
+        + "## UX instructions\n"
+        + "- Produce a setup checklist a human can review line by line.\n"
+        + "- Separate prerequisites, local run steps, deployment steps, and verification steps.\n"
+        + "- Include exact copy-paste examples for curl commands and env vars.\n\n"
+        + "## Security instructions\n"
+        + "- Treat the robot secret like a production password.\n"
+        + "- Treat the human JWT as bootstrap access only.\n"
+        + "- Do not bypass the authenticated dashboard for robot registration, callback edits, or secret rotation.\n";
   }
 
   private static Map<String, Object> schemaIndex() {

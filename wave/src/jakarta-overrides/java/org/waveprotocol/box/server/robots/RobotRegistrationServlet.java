@@ -188,7 +188,8 @@ public final class RobotRegistrationServlet extends HttpServlet {
               HttpServletResponse.SC_BAD_REQUEST);
           return;
         }
-        robotAccount = robotRegistrar.registerOrUpdate(id, location, user.getAddress());
+        robotAccount = robotRegistrar.registerOrUpdate(
+            id, location, user.getAddress(), tokenExpirySeconds);
       } else {
         robotAccount = robotRegistrar.registerNew(id, location, user.getAddress(), tokenExpirySeconds);
       }

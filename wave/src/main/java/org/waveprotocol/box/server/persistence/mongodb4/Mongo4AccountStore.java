@@ -62,6 +62,7 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String ROBOT_VERIFIED_FIELD = "verified";
   private static final String ROBOT_TOKEN_EXPIRY_FIELD = "tokenExpirySeconds";
   private static final String ROBOT_OWNER_FIELD = "ownerAddress";
+  private static final String ROBOT_CREATION_TIME_FIELD = "creationTime";
 
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
@@ -327,7 +328,8 @@ final class Mongo4AccountStore implements AccountStore {
         .append(ROBOT_CAPABILITIES_FIELD, capabilitiesToObject(account.getCapabilities()))
         .append(ROBOT_VERIFIED_FIELD, account.isVerified())
         .append(ROBOT_TOKEN_EXPIRY_FIELD, account.getTokenExpirySeconds())
-        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress());
+        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress())
+        .append(ROBOT_CREATION_TIME_FIELD, account.getCreationTime());
   }
 
   private static Document capabilitiesToObject(RobotCapabilities caps) {
@@ -354,8 +356,9 @@ final class Mongo4AccountStore implements AccountStore {
     Long tokenExpiry = robot.getLong(ROBOT_TOKEN_EXPIRY_FIELD);
     long tokenExpirySeconds = tokenExpiry != null ? tokenExpiry : 0L;
     String ownerAddress = robot.getString(ROBOT_OWNER_FIELD);
+    Long creationTime = robot.getLong(ROBOT_CREATION_TIME_FIELD);
     return new RobotAccountDataImpl(id, url, secret, caps, verified, tokenExpirySeconds,
-        ownerAddress);
+        ownerAddress, creationTime != null ? creationTime : 0L);
   }
 
   private static RobotCapabilities objectToCapabilities(Document obj) {

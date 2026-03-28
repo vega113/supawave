@@ -21,14 +21,31 @@ package org.waveprotocol.box.common;
 
 public final class DigestStateMerging {
 
-  private DigestStateMerging() {
+  private boolean preferSnapshotUnreadCount;
+  private boolean preferSnapshotBlipCount;
+
+  public void reset() {
+    preferSnapshotUnreadCount = false;
+    preferSnapshotBlipCount = false;
   }
 
-  public static int mergeUnreadCount(int snapshotUnreadCount, int liveUnreadCount) {
-    return Math.max(snapshotUnreadCount, liveUnreadCount);
+  public void onSnapshotUpdated(
+      int snapshotUnreadCount, int snapshotBlipCount, int liveUnreadCount, int liveBlipCount) {
+    preferSnapshotUnreadCount = snapshotUnreadCount > liveUnreadCount;
+    preferSnapshotBlipCount = snapshotBlipCount > liveBlipCount;
   }
 
-  public static int mergeBlipCount(int snapshotBlipCount, int liveBlipCount) {
-    return Math.max(snapshotBlipCount, liveBlipCount);
+  public int resolveUnreadCount(int snapshotUnreadCount, int liveUnreadCount) {
+    if (preferSnapshotUnreadCount) {
+      return snapshotUnreadCount;
+    }
+    return liveUnreadCount;
+  }
+
+  public int resolveBlipCount(int snapshotBlipCount, int liveBlipCount) {
+    if (preferSnapshotBlipCount) {
+      return snapshotBlipCount;
+    }
+    return liveBlipCount;
   }
 }

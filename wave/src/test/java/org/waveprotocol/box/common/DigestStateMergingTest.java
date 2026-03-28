@@ -23,13 +23,28 @@ import junit.framework.TestCase;
 
 public final class DigestStateMergingTest extends TestCase {
 
-  public void testKeepsHigherSnapshotUnreadCount() {
-    assertEquals(3, DigestStateMerging.mergeUnreadCount(3, 0));
-    assertEquals(5, DigestStateMerging.mergeBlipCount(5, 5));
+  public void testSnapshotCountsWinUntilLiveDigestChanges() {
+    DigestStateMerging merging = new DigestStateMerging();
+
+    merging.reset();
+    merging.onSnapshotUpdated(5, 7, 2, 4);
+
+    assertEquals(5, merging.resolveUnreadCount(5, 2));
+    assertEquals(7, merging.resolveBlipCount(7, 4));
+
+    merging.reset();
+
+    assertEquals(2, merging.resolveUnreadCount(5, 2));
+    assertEquals(4, merging.resolveBlipCount(7, 4));
   }
 
-  public void testUsesHigherLiveCounts() {
-    assertEquals(4, DigestStateMerging.mergeUnreadCount(1, 4));
-    assertEquals(6, DigestStateMerging.mergeBlipCount(2, 6));
+  public void testHigherLiveCountsRemainVisible() {
+    DigestStateMerging merging = new DigestStateMerging();
+
+    merging.reset();
+    merging.onSnapshotUpdated(2, 4, 5, 6);
+
+    assertEquals(5, merging.resolveUnreadCount(2, 5));
+    assertEquals(6, merging.resolveBlipCount(4, 6));
   }
 }

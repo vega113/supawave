@@ -32,16 +32,21 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.robots.OperationContextImpl;
+import org.waveprotocol.box.server.robots.RobotWaveletData;
+import org.waveprotocol.box.server.robots.util.RobotsUtil;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.robots.util.LoggingRequestListener;
 import org.waveprotocol.box.server.robots.util.OperationUtil;
+import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.conversation.ConversationView;
 import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.OperationException;
 import org.waveprotocol.wave.model.supplement.PrimitiveSupplement;
 import org.waveprotocol.wave.model.supplement.SupplementedWave;
@@ -152,7 +157,7 @@ public final class FolderServlet extends HttpServlet {
     WaveletId udwId =
         WaveletId.of(waveId.getDomain(),
             IdUtil.join(IdConstants.USER_DATA_WAVELET_PREFIX, participant.getAddress()));
-    OpBasedWavelet udw = context.openWavelet(waveId, udwId, participant);
+    OpBasedWavelet udw = openParticipantUserDataWavelet(context, waveId, participant);
 
     PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
 
@@ -173,14 +178,12 @@ public final class FolderServlet extends HttpServlet {
    */
   public void setPinState(WaveId waveId, boolean pin, ParticipantId participant)
       throws InvalidRequestException, OperationException, InterruptedException, ExecutionException {
+    verifyWaveVisibleToParticipant(waveId, participant);
 
     OperationContextImpl context = new OperationContextImpl(waveletProvider,
         converterManager.getEventDataConverter(ProtocolVersion.DEFAULT), conversationUtil);
 
-    WaveletId udwId =
-        WaveletId.of(waveId.getDomain(),
-            IdUtil.join(IdConstants.USER_DATA_WAVELET_PREFIX, participant.getAddress()));
-    OpBasedWavelet udw = context.openWavelet(waveId, udwId, participant);
+    OpBasedWavelet udw = openParticipantUserDataWavelet(context, waveId, participant);
 
     PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
     if (pin) {
@@ -193,5 +196,47 @@ public final class FolderServlet extends HttpServlet {
       }
     }
     OperationUtil.submitDeltas(context, waveletProvider, LOGGING_REQUEST_LISTENER);
+  }
+
+  private OpBasedWavelet openParticipantUserDataWavelet(
+      OperationContextImpl context, WaveId waveId, ParticipantId participant)
+      throws InvalidRequestException {
+    WaveletId userDataWaveletId = IdUtil.buildUserDataWaveletId(participant);
+    RobotWaveletData userDataWavelet = loadParticipantUserDataWavelet(waveId, participant);
+    context.putWavelet(waveId, userDataWaveletId, userDataWavelet);
+    return context.openWavelet(waveId, userDataWaveletId, participant);
+  }
+
+  private RobotWaveletData loadParticipantUserDataWavelet(WaveId waveId, ParticipantId participant)
+      throws InvalidRequestException {
+    WaveletName userDataWaveletName = WaveletName.of(waveId, IdUtil.buildUserDataWaveletId(participant));
+    try {
+      CommittedWaveletSnapshot snapshot = waveletProvider.getSnapshot(userDataWaveletName);
+      if (snapshot == null) {
+        return RobotsUtil.createEmptyRobotWavelet(participant, userDataWaveletName);
+      }
+      return new RobotWaveletData(snapshot.snapshot, snapshot.committedVersion);
+    } catch (WaveServerException e) {
+      throw new InvalidRequestException("Wavelet " + userDataWaveletName + " couldn't be retrieved");
+    }
+  }
+
+  private void verifyWaveVisibleToParticipant(WaveId waveId, ParticipantId participant)
+      throws InvalidRequestException {
+    try {
+      boolean hasAccessibleWavelet = false;
+      for (WaveletId waveletId : waveletProvider.getWaveletIds(waveId)) {
+        WaveletName waveletName = WaveletName.of(waveId, waveletId);
+        if (waveletProvider.checkAccessPermission(waveletName, participant)) {
+          hasAccessibleWavelet = true;
+          break;
+        }
+      }
+      if (!hasAccessibleWavelet) {
+        throw new InvalidRequestException("Access rejected");
+      }
+    } catch (WaveServerException e) {
+      throw new InvalidRequestException("Wave " + waveId + " couldn't be retrieved");
+    }
   }
 }

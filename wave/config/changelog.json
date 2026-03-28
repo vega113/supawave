@@ -1,5 +1,20 @@
 [
   {
+    "releaseId": "2026-03-28-shared-wave-pinning",
+    "version": "PR #417",
+    "date": "2026-03-28",
+    "title": "Shared Wave Pinning",
+    "summary": "Pinning and unpinning now works for waves you can access even when you are not the wave owner.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Fixed shared-wave pin and unpin requests so they update your per-user state without requiring wave ownership"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-search-bootstrap-loading-ux",
     "version": "PR #414",
     "date": "2026-03-28",

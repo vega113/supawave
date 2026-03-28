@@ -82,13 +82,19 @@ public final class SearchWaveletSnapshotPublisher {
   private void publish(ParticipantId user, String query, SearchResult searchResult,
       boolean forceSnapshot) {
     WaveletName computedWaveletName = waveletManager.computeWaveletName(user, query);
-    if (forceSnapshot && !dispatcher.hasSubscription(user, computedWaveletName)) {
-      return;
-    }
-    WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, query);
-    Object publishLock =
-        publishLocks.computeIfAbsent(searchWaveletName.toString(), ignored -> new Object());
+    String searchWaveletKey = computedWaveletName.toString();
+    Object publishLock = publishLocks.computeIfAbsent(searchWaveletKey, ignored -> new Object());
     synchronized (publishLock) {
+      if (!dispatcher.hasSubscription(user, computedWaveletName)) {
+        if (!forceSnapshot) {
+          pruneInactiveSubscription(user, query, computedWaveletName, publishLock);
+        } else {
+          publishLocks.remove(searchWaveletKey, publishLock);
+        }
+        return;
+      }
+
+      WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, query);
       List<SearchWaveletDataProvider.SearchResultEntry> newResults =
           convertSearchResult(searchResult);
       int newTotalCount = searchResult != null && searchResult.getTotalResults() >= 0
@@ -112,6 +118,19 @@ public final class SearchWaveletSnapshotPublisher {
           createSnapshot(searchWaveletName, user, newResults, newTotalCount);
       dispatcher.publishSnapshot(user, searchWaveletName, snapshot);
     }
+  }
+
+  private void pruneInactiveSubscription(
+      ParticipantId user,
+      String query,
+      WaveletName searchWaveletName,
+      Object publishLock) {
+    indexer.unregisterSubscription(user, SearchWaveletManager.md5Hex(query));
+    waveletManager.removeSearchWavelet(user, query);
+    dataProvider.clearResults(searchWaveletName);
+    String searchWaveletKey = searchWaveletName.toString();
+    waveletVersions.remove(searchWaveletKey);
+    publishLocks.remove(searchWaveletKey, publishLock);
   }
 
   private Set<WaveId> collectWaveIds(List<SearchWaveletDataProvider.SearchResultEntry> results) {

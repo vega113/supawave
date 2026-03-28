@@ -104,10 +104,7 @@ public class SearchServlet extends HttpServlet {
       boolean hasLiveSubscription =
           snapshotPublisher.hasLiveSubscription(user, searchRequest.getQuery());
       if (hasLiveSubscription) {
-        SearchRequest bootstrapRequest = canonicalLiveSearchRequest(searchRequest);
-        SearchResult bootstrapResult = canonicalBootstrapSearchResult(
-            searchRequest, bootstrapRequest, searchResult, user);
-        snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
+        publishCanonicalBootstrapSnapshot(user, searchRequest, searchResult);
       }
     }
     int totalGuess = computeTotalResultsNumberGuess(searchRequest, searchResult);
@@ -176,6 +173,27 @@ public class SearchServlet extends HttpServlet {
       return searchResult;
     }
     return performSearch(canonicalRequest, user);
+  }
+
+  private void publishCanonicalBootstrapSnapshot(
+      ParticipantId user,
+      SearchRequest searchRequest,
+      SearchResult searchResult) {
+    SearchRequest bootstrapRequest = canonicalLiveSearchRequest(searchRequest);
+    try {
+      SearchResult bootstrapResult = canonicalBootstrapSearchResult(
+          searchRequest, bootstrapRequest, searchResult, user);
+      snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
+    } catch (RuntimeException e) {
+      LOG.warning(
+          "Skipping canonical bootstrap refresh for query=\""
+              + searchRequest.getQuery()
+              + "\" index="
+              + searchRequest.getIndex()
+              + " numResults="
+              + searchRequest.getNumResults(),
+          e);
+    }
   }
 
   private static SearchRequest canonicalLiveSearchRequest(SearchRequest searchRequest) {

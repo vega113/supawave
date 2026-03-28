@@ -129,6 +129,22 @@ public final class SearchServletTest extends TestCase {
         servlet.getPerformedRequests().get(0).getNumResults());
   }
 
+  public void testDoGetTreatsCanonicalBootstrapFailureAsBestEffort() throws Exception {
+    TestSearchServlet servlet =
+        createServlet(createActiveSnapshotPublisher("in:inbox"));
+    servlet.failCanonicalBootstrapSearch();
+    HttpServletRequest request = requestWithParams(Map.of(
+        "query", "in:inbox",
+        "index", "5",
+        "numResults", "3"));
+    HttpServletResponse response = responseWithWriter();
+
+    servlet.doGet(request, response);
+
+    assertEquals(2, servlet.getPerformedRequests().size());
+    assertTrue(servlet.didAttemptCanonicalBootstrapSearch());
+  }
+
   private static TestSearchServlet createServlet(SearchWaveletSnapshotPublisher snapshotPublisher) {
     SessionManager sessionManager = mock(SessionManager.class);
     when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(USER);
@@ -199,6 +215,8 @@ public final class SearchServletTest extends TestCase {
 
   private static final class TestSearchServlet extends SearchServlet {
     private final List<SearchRequest> performedRequests = new ArrayList<>();
+    private boolean failCanonicalBootstrapSearch;
+    private boolean attemptedCanonicalBootstrapSearch;
 
     private TestSearchServlet(
         SessionManager sessionManager,
@@ -221,6 +239,13 @@ public final class SearchServletTest extends TestCase {
     @Override
     protected SearchResult performSearch(SearchRequest searchRequest, ParticipantId user) {
       performedRequests.add(searchRequest);
+      if (searchRequest.getIndex() == 0
+          && searchRequest.getNumResults() == SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS) {
+        attemptedCanonicalBootstrapSearch = true;
+        if (failCanonicalBootstrapSearch) {
+          throw new RuntimeException("canonical bootstrap failed");
+        }
+      }
       SearchResult searchResult = new SearchResult(searchRequest.getQuery());
       searchResult.addDigest(new SearchResult.Digest(
           "title",
@@ -236,6 +261,14 @@ public final class SearchServletTest extends TestCase {
 
     private List<SearchRequest> getPerformedRequests() {
       return performedRequests;
+    }
+
+    private void failCanonicalBootstrapSearch() {
+      failCanonicalBootstrapSearch = true;
+    }
+
+    private boolean didAttemptCanonicalBootstrapSearch() {
+      return attemptedCanonicalBootstrapSearch;
     }
   }
 }

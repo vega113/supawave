@@ -506,22 +506,6 @@ public final class SearchPresenter
           @Override
           public void onClicked() {
             actionHandler.onCreateWave();
-
-            // HACK(hearnden): To mimic live search, fire a search poll
-            // reasonably soon (500ms) after creating a wave. This will be unnecessary
-            // with a real live search implementation. The delay is to give
-            // enough time for the wave state to propagate to the server.
-            int delay = 500;
-            if (useOtSearch) {
-              scheduler.scheduleDelayed(new Task() {
-                @Override
-                public void execute() {
-                  bootstrapOtSearch(false);
-                }
-              }, delay);
-            } else {
-              scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
-            }
           }
         });
     newWaveButton.setVisualElement(createSvgIcon(ICON_NEW_WAVE));

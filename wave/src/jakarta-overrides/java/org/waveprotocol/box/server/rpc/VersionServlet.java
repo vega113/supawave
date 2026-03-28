@@ -25,6 +25,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -32,7 +33,8 @@ import org.json.JSONObject;
  * clients can detect when the server has been upgraded and prompt the user
  * to reload.
  *
- * <p>Response format: {@code {"version":"<sha>","buildTime":<epoch>}}
+ * <p>Response format includes the real build commit, restart timestamp, and
+ * release-note mapping state for the current changelog.
  *
  * <p>The version string is read from {@code core.server_version} in the
  * Typesafe Config (overridable via the {@code WAVE_SERVER_VERSION} environment
@@ -42,42 +44,67 @@ import org.json.JSONObject;
  */
 @Singleton
 public final class VersionServlet extends HttpServlet {
-  private final String version;
+  private final String buildCommit;
   private final long buildTime;
-  private final JSONObject changelog;
+  private final ChangelogProvider changelogProvider;
 
   @Inject
   public VersionServlet(Config config, ChangelogProvider changelogProvider) {
     this(
         config.hasPath("core.server_version") ? config.getString("core.server_version") : "dev",
         System.currentTimeMillis(),
-        changelogProvider.getLatestEntry());
+        changelogProvider);
   }
 
-  public long getBuildTime() { return buildTime; }
+  public long getBuildTime() {
+    return buildTime;
+  }
 
-  /** Visible-for-testing constructor. */
-  public VersionServlet(String version, long buildTime) {
-    this(version, buildTime, null);
+  public String getBuildCommit() {
+    return buildCommit;
+  }
+
+  public String getCurrentReleaseId() {
+    return changelogProvider.getCurrentReleaseId();
   }
 
   /** Visible-for-testing constructor. */
-  public VersionServlet(String version, long buildTime, JSONObject changelog) {
-    this.version = version;
+  public VersionServlet(String buildCommit, long buildTime) {
+    this(buildCommit, buildTime, new ChangelogProvider(new JSONArray()));
+  }
+
+  /** Visible-for-testing constructor. */
+  public VersionServlet(String buildCommit, long buildTime, ChangelogProvider changelogProvider) {
+    this.buildCommit = buildCommit;
     this.buildTime = buildTime;
-    this.changelog = changelog != null ? new JSONObject(changelog.toString()) : null;
+    this.changelogProvider = changelogProvider;
   }
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    String sinceReleaseId = normalizeReleaseId(req.getParameter("since"));
+    String currentReleaseId = changelogProvider.getCurrentReleaseId();
+    ChangelogProvider.ReleaseRange releaseRange =
+        changelogProvider.getReleaseRange(sinceReleaseId, currentReleaseId);
     JSONObject responseJson = new JSONObject();
-    responseJson.put("version", version);
+    responseJson.put("version", buildCommit);
+    responseJson.put("buildCommit", buildCommit);
     responseJson.put("buildTime", buildTime);
-    if (changelog != null && !changelog.isEmpty()) {
-      responseJson.put("changelog", new JSONObject(changelog.toString()));
+    if (currentReleaseId != null) {
+      responseJson.put("releaseId", currentReleaseId);
     }
+    responseJson.put("releaseNotesStatus", releaseRange.getStatus());
+    responseJson.put("releaseNotes", releaseRange.getEntries());
     resp.setContentType("application/json; charset=UTF-8");
     resp.setHeader("Cache-Control", "no-cache, no-store");
     resp.getWriter().write(responseJson.toString());
+  }
+
+  private static String normalizeReleaseId(String releaseId) {
+    if (releaseId == null) {
+      return null;
+    }
+    String normalized = releaseId.trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 }

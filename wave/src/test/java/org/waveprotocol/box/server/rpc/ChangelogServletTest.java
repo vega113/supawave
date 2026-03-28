@@ -38,7 +38,8 @@ public final class ChangelogServletTest {
     servlet = new ChangelogServlet(
         new ChangelogProvider(
             new JSONArray(
-                "[{\"version\":\"2026-03-27\",\"date\":\"2026-03-27\","
+                "[{\"releaseId\":\"2026-03-27-unread-only-search-filter\","
+                    + "\"version\":\"2026-03-27.403\",\"date\":\"2026-03-27\","
                     + "\"title\":\"Changelog System\","
                     + "\"summary\":\"You can now see what's new after each deploy.\","
                     + "\"sections\":[{\"type\":\"feature\",\"items\":[\"New /changelog page\"]}]}]")));
@@ -55,7 +56,7 @@ public final class ChangelogServletTest {
 
     assertEquals("application/json; charset=UTF-8", contentType[0]);
     assertTrue(body.toString().startsWith("["));
-    assertTrue(body.toString().contains("\"version\":\"2026-03-27\""));
+    assertTrue(body.toString().contains("\"releaseId\":\"2026-03-27-unread-only-search-filter\""));
   }
 
   @Test
@@ -70,6 +71,20 @@ public final class ChangelogServletTest {
     assertEquals("application/json; charset=UTF-8", contentType[0]);
     assertTrue(body.toString().startsWith("{"));
     assertTrue(body.toString().contains("\"title\":\"Changelog System\""));
+  }
+
+  @Test
+  public void currentPathReturnsCurrentReleaseEntry() throws Exception {
+    StringWriter body = new StringWriter();
+    String[] contentType = new String[1];
+    HttpServletRequest request = request("/changelog", "/current", null);
+    HttpServletResponse response = response(body, contentType);
+
+    servlet.doGet(request, response);
+
+    assertEquals("application/json; charset=UTF-8", contentType[0]);
+    assertEquals("no-cache", response.getHeader("Cache-Control"));
+    assertTrue(body.toString().contains("\"releaseId\":\"2026-03-27-unread-only-search-filter\""));
   }
 
   @Test
@@ -112,7 +127,7 @@ public final class ChangelogServletTest {
 
     assertEquals("application/json; charset=UTF-8", contentType[0]);
     assertTrue(body.toString().startsWith("["));
-    assertTrue(body.toString().contains("\"version\":\"2026-03-27\""));
+    assertTrue(body.toString().contains("\"releaseId\":\"2026-03-27-unread-only-search-filter\""));
   }
 
   private static HttpServletRequest request(String servletPath, String pathInfo, String accept) {

@@ -30,8 +30,8 @@ public final class HtmlRendererFeatureFlagsTest {
 
     assertTrue(html.contains("e.g. vega (will become vega@supawave.ai)"));
     assertTrue(html.contains("toggleAllowedUser("));
-    assertTrue(html.contains("legacyUser = legacyUser.trim();"));
-    assertTrue(html.contains("var email = (user.email || '').trim();"));
+    assertTrue(html.contains("legacyUser = normalizeAllowedUserEmail(legacyUser.trim());"));
+    assertTrue(html.contains("var email = normalizeAllowedUserEmail((user.email || '').trim());"));
     assertTrue(html.contains("if (flagEditingName === flag.name && flagForm.style.display !== 'none') {"));
     assertTrue(
         html.contains(
@@ -82,11 +82,14 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("resetFlagEditingState();\n    flagForm.style.display = 'none';"));
     assertTrue(
         html.contains(
-            "          resetFlagEditingState();\n"
-                + "          flagForm.style.display = 'none';\n"
+            "if (flagEditingName === name) {\n"
+                + "            resetFlagEditingState();\n"
+                + "            flagForm.style.display = 'none';\n"
+                + "          }\n"
                 + "          showToast('Flag deleted', 'success');\n"
                 + "          fetchFlags();"));
     assertTrue(html.contains("flagNameInput.value = flag.name;"));
     assertTrue(html.contains("return legacyUser ? { email: legacyUser, enabled: legacyEnabled } : null;"));
+    assertTrue(html.contains("var entry = normalizeAllowedUserEntry(parts[i]);"));
   }
 }

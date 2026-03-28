@@ -73,8 +73,9 @@ public class WaveClientServlet extends HttpServlet {
   private final boolean hasExplicitWebsocketPresentedAddress;
   private final String websocketPresentedAddress;
   private final Config config;
-  private final String serverVersion;
+  private final String buildCommit;
   private final long serverBuildTime;
+  private final String currentReleaseId;
   private final boolean prerenderingEnabled;
   private final WavePreRenderer wavePreRenderer;
   private final FeatureFlagService featureFlagService;
@@ -105,9 +106,9 @@ public class WaveClientServlet extends HttpServlet {
     this.sessionManager = sessionManager;
     this.accountStore = accountStore;
     this.config = config;
-    this.serverVersion = config.hasPath("core.server_version")
-        ? config.getString("core.server_version") : "dev";
+    this.buildCommit = versionServlet.getBuildCommit();
     this.serverBuildTime = versionServlet.getBuildTime();
+    this.currentReleaseId = versionServlet.getCurrentReleaseId();
     this.prerenderingEnabled = config.hasPath("core.enable_prerendering")
         && config.getBoolean("core.enable_prerendering");
     this.wavePreRenderer = wavePreRenderer;
@@ -184,8 +185,9 @@ public class WaveClientServlet extends HttpServlet {
           wsAddressForPage,
           topBarHtml,
           analyticsAccount,
-          serverVersion,
+          buildCommit,
           serverBuildTime,
+          currentReleaseId,
           prerenderedHtml));
     } catch (IOException e) {
       LOG.warning("Failed to render WaveClient page", e);

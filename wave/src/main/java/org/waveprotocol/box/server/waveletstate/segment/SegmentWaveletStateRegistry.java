@@ -74,7 +74,7 @@ public final class SegmentWaveletStateRegistry {
   private static final Map<WaveletName, Entry> LRU =
       new LinkedHashMap<WaveletName, Entry>(16, 0.75f, true) {
         @Override
-        protected boolean removeEldestEntry(Map.Entry<WaveletName, Entry> eldest) {
+        protected boolean removeEldestEntry(Map.Entry<WaveletName, SegmentWaveletStateRegistry.Entry> eldest) {
           if (size() > maxEntries) {
             evictions.incrementAndGet();
             return true;

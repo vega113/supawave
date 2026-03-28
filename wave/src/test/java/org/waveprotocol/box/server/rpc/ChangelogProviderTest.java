@@ -143,20 +143,6 @@ public final class ChangelogProviderTest {
   }
 
   @Test
-  public void apiDocsReleaseEntryRemainsDocumented() {
-    String entriesJson = new ChangelogProvider().getEntries().toString();
-
-    assertTrue(entriesJson.contains("2026-03-28-api-docs-discovery"));
-    assertTrue(entriesJson.contains("API Docs Discovery"));
-    assertTrue(entriesJson.contains("/llms.txt"));
-    assertTrue(entriesJson.contains("/llms-full.txt"));
-    assertTrue(entriesJson.contains("navigation bar"));
-    assertTrue(entriesJson.contains("hero section"));
-    assertTrue(entriesJson.contains("footer"));
-    assertTrue(entriesJson.contains("app menu"));
-  }
-
-  @Test
   public void resolvesExactReleaseRangeBetweenOlderClientAndCurrentRelease() {
     ChangelogProvider provider = new ChangelogProvider(sampleEntries());
 

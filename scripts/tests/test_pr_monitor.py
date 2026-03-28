@@ -1,5 +1,7 @@
 import pathlib
+import subprocess
 import unittest
+from unittest.mock import patch
 
 from scripts.pr_monitor import LauncherConfig
 from scripts.pr_monitor import build_codex_command
@@ -7,6 +9,7 @@ from scripts.pr_monitor import build_monitor_paths
 from scripts.pr_monitor import build_pane_title
 from scripts.pr_monitor import build_runner_script
 from scripts.pr_monitor import build_live_head_branch_name
+from scripts.pr_monitor import list_window_panes
 from scripts.pr_monitor import render_prompt
 
 
@@ -92,6 +95,32 @@ class PrMonitorTest(unittest.TestCase):
 
         self.assertIn("set -euo pipefail", script)
         self.assertIn("cd \"$WORKTREE\"", script)
+
+    def test_list_window_panes_tolerates_tabs_in_pane_title(self) -> None:
+        tmux_output = "%1\tPR #405\tFix monitor reliability\tzsh\t0\n"
+
+        with patch(
+            "scripts.pr_monitor.run_tmux",
+            return_value=subprocess.CompletedProcess(
+                args=["tmux"],
+                returncode=0,
+                stdout=tmux_output,
+                stderr="",
+            ),
+        ):
+            panes = list_window_panes("vibe-code", "wave-pr-monitor")
+
+        self.assertEqual(
+            [
+                {
+                    "pane_id": "%1",
+                    "pane_title": "PR #405\tFix monitor reliability",
+                    "pane_command": "zsh",
+                    "pane_dead": "0",
+                }
+            ],
+            panes,
+        )
 
     def test_build_pane_title_includes_pr_number_and_title(self) -> None:
         self.assertEqual(

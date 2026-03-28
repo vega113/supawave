@@ -214,7 +214,14 @@ def list_window_panes(session_name: str, window_name: str) -> list[dict[str, str
     ).stdout
     panes: list[dict[str, str]] = []
     for line in output.splitlines():
-        pane_id, pane_title, pane_command, pane_dead = line.split("\t")
+        parts = line.split("\t", maxsplit=1)
+        if len(parts) != 2:
+            continue
+        pane_id, pane_fields = parts
+        pane_parts = pane_fields.rsplit("\t", maxsplit=2)
+        if len(pane_parts) != 3:
+            continue
+        pane_title, pane_command, pane_dead = pane_parts
         panes.append(
             {
                 "pane_id": pane_id,

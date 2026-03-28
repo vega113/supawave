@@ -12,7 +12,7 @@ Behavior:
 
 - routes monitors into tmux window `wave-pr-monitor`
 - titles the pane as `PR #<number> <title>`
-- writes durable prompt, log, and runner files under `/Users/vega/devroot/worktrees/pr-monitors/`
+- writes durable prompt, log, and runner files under `<shared-root>` (default: `/Users/vega/devroot/worktrees/pr-monitors/`, configurable via `--shared-root`)
 - launches Codex with explicit `--dangerously-bypass-approvals-and-sandbox --sandbox danger-full-access`
 - never uses `--full-auto`
 - restarts the inner monitor if Codex exits while the PR is still open

@@ -46,6 +46,22 @@ public class TagsRobotTest extends TestCase {
     verify(opQueue).modifyTagOfWavelet(wavelet, "tag2", "add");
   }
 
+  public void testContains() throws Exception {
+    assertFalse(tags.contains("tag1"));
+    assertFalse(tags.contains("tag2"));
+
+    assertTrue(tags.add("tag1"));
+    assertTrue(tags.add("tag2"));
+
+    assertTrue(tags.contains("tag1"));
+    assertTrue(tags.contains("tag2"));
+    assertFalse(tags.contains("tag3"));
+
+    assertTrue(tags.remove("tag1"));
+    assertFalse(tags.contains("tag1"));
+    assertTrue(tags.contains("tag2"));
+  }
+
   public void testRemove() throws Exception {
     assertTrue(tags.add("tag1"));
     assertTrue(tags.add("tag2"));

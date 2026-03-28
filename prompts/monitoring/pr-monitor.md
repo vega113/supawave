@@ -34,6 +34,7 @@ Search for open PRs authored by me and PRs where review is requested, across all
 
 ### c. Merge readiness
 - All checks pass + no conflicts + no unresolved threads + every nitpick has an explicit disposition + latest commit older than 5 minutes → merge
+- For stacked PRs targeting a non-default branch, also verify explicit Codex coverage on the current `headRefOid` before merge
 - incubator-wave: `--merge`, tube2web/tubescribes/slides-lab: `--squash`
 - Enable auto-merge: `gh pr merge NUM -R repo --merge --auto`
 
@@ -60,6 +61,9 @@ Check all monitored repos for open issues. Spawn background agents to fix action
 - New commits invalidate the previous CodeRabbit completion and require a fresh current-head CodeRabbit success.
 - Comments/thread resolutions do NOT restart the 5-minute CodeRabbit-completion window.
 - Re-run failed gates once the 5-minute grace period has elapsed if no thumbs-up was added; scheduled fallback uses the same PR comment trigger so it does not depend on the PR branch carrying the latest workflow file.
+- For stacked PRs targeting a non-default branch, do not merge just because the 5-minute window elapsed and no threads exist yet; verify explicit Codex coverage on the current `headRefOid` first
+- If CodeRabbit says `Review skipped` because the base branch is not the default branch, treat that as missing review coverage, not as success
+- After any late-arriving bot review, re-check unresolved threads before merging
 
 ## Monitored repos
 - vega113/incubator-wave

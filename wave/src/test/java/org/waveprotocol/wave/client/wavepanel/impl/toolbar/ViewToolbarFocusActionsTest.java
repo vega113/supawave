@@ -48,6 +48,7 @@ public final class ViewToolbarFocusActionsTest extends TestCase {
     FocusBlipSelector selector = Mockito.mock(FocusBlipSelector.class);
     Reader reader = Mockito.mock(Reader.class);
 
+    assertNull(focusFrame.getFocusedBlip());
     Mockito.when(selector.getOrFindRootBlip()).thenReturn(null);
 
     ViewToolbarFocusActions actions =

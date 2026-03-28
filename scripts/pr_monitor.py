@@ -344,6 +344,20 @@ def build_monitor_name(worktree_path: pathlib.Path) -> str:
     return worktree_path.name
 
 
+def validate_monitor_name(monitor_name: str) -> str:
+    candidate = pathlib.Path(monitor_name)
+    if monitor_name in {".", ".."} or candidate.name != monitor_name:
+        raise ValueError(f"Invalid monitor name: {monitor_name!r}")
+    return monitor_name
+
+
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be > 0")
+    return parsed
+
+
 def write_launcher_artifacts(config: LauncherConfig) -> None:
     config.prompt_path.parent.mkdir(parents=True, exist_ok=True)
     config.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -365,7 +379,9 @@ def write_launcher_artifacts(config: LauncherConfig) -> None:
 def build_launcher_config(args: argparse.Namespace) -> LauncherConfig:
     worktree_path = pathlib.Path(args.worktree).resolve()
     shared_root = pathlib.Path(args.shared_root).resolve()
-    monitor_name = args.monitor_name or build_monitor_name(worktree_path)
+    monitor_name = validate_monitor_name(
+        args.monitor_name or build_monitor_name(worktree_path)
+    )
     paths = build_monitor_paths(shared_root, monitor_name)
     metadata = fetch_pr_metadata(args.repo, args.pr_number)
     pr_title = args.pr_title or metadata["title"]
@@ -412,7 +428,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
     start_parser = subparsers.add_parser("start")
     start_parser.add_argument("--repo", default="vega113/incubator-wave")
-    start_parser.add_argument("--pr-number", type=int, required=True)
+    start_parser.add_argument("--pr-number", type=positive_int, required=True)
     start_parser.add_argument("--pr-title")
     start_parser.add_argument("--worktree", required=True)
     start_parser.add_argument("--shared-root", default=str(DEFAULT_SHARED_ROOT))
@@ -424,7 +440,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     start_parser.add_argument("--reasoning-effort", default=DEFAULT_REASONING)
     start_parser.add_argument(
         "--restart-delay-seconds",
-        type=int,
+        type=positive_int,
         default=DEFAULT_RESTART_DELAY_SECONDS,
     )
 

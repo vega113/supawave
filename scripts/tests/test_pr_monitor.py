@@ -9,7 +9,9 @@ from scripts.pr_monitor import build_monitor_paths
 from scripts.pr_monitor import build_pane_title
 from scripts.pr_monitor import build_runner_script
 from scripts.pr_monitor import build_live_head_branch_name
+from scripts.pr_monitor import build_launcher_config
 from scripts.pr_monitor import list_window_panes
+from scripts.pr_monitor import parse_args
 from scripts.pr_monitor import render_prompt
 
 
@@ -121,6 +123,51 @@ class PrMonitorTest(unittest.TestCase):
             ],
             panes,
         )
+
+    def test_build_launcher_config_rejects_monitor_name_path_escape(self) -> None:
+        args = parse_args(
+            [
+                "start",
+                "--pr-number",
+                "405",
+                "--worktree",
+                "/tmp/pr405-live-head",
+                "--monitor-name",
+                "../../escape",
+            ]
+        )
+
+        with patch(
+            "scripts.pr_monitor.fetch_pr_metadata",
+            return_value={"title": "Fix monitor reliability", "headRefOid": "deadbeef"},
+        ):
+            with self.assertRaises(ValueError):
+                build_launcher_config(args)
+
+    def test_parse_args_rejects_non_positive_integers(self) -> None:
+        with self.assertRaises(SystemExit):
+            parse_args(
+                [
+                    "start",
+                    "--pr-number",
+                    "0",
+                    "--worktree",
+                    "/tmp/pr405-live-head",
+                ]
+            )
+
+        with self.assertRaises(SystemExit):
+            parse_args(
+                [
+                    "start",
+                    "--pr-number",
+                    "405",
+                    "--worktree",
+                    "/tmp/pr405-live-head",
+                    "--restart-delay-seconds",
+                    "0",
+                ]
+            )
 
     def test_build_pane_title_includes_pr_number_and_title(self) -> None:
         self.assertEqual(

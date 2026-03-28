@@ -1,5 +1,20 @@
 [
   {
+    "releaseId": "2026-03-28-public-wave-unread-badges-fix",
+    "version": "PR #420",
+    "date": "2026-03-28",
+    "title": "Public Wave Search Badges",
+    "summary": "Public wave search results no longer show stale fully unread badges after you open them.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Corrected the search panel so `with:@` public wave results keep read badges in sync when a public/shared wave opens without a user-data wavelet snapshot"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-save-recovery",
     "version": "PR #419",
     "date": "2026-03-28",

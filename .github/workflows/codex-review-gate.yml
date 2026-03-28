@@ -49,6 +49,7 @@ jobs:
             const {
               isCodexReactionLogin,
               resolveCodeRabbitCompletedAt,
+              unresolvedReviewThreads,
               reviewGracePeriodMs
             } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
 
@@ -56,6 +57,11 @@ jobs:
               query($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
                   pullRequest(number: $number) {
+                    reviewThreads(first: 100) {
+                      nodes {
+                        isResolved
+                      }
+                    }
                     commits(last: 1) {
                       nodes {
                         commit {
@@ -116,6 +122,13 @@ jobs:
                 repo,
                 number: pullRequest.number
               });
+              const unresolvedThreads = unresolvedReviewThreads(
+                statusResult.repository.pullRequest.reviewThreads.nodes
+              );
+              if (unresolvedThreads.length > 0) {
+                core.info(`Skipping PR #${pullRequest.number}; unresolved review threads remain`);
+                continue;
+              }
               const statusNodes =
                 statusResult.repository.pullRequest.commits.nodes[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
 
@@ -215,6 +228,8 @@ jobs:
               isCodexReactionLogin,
               publishCodexReviewGateHeadStatus,
               resolveCodeRabbitCompletedAt,
+              summarizeUnresolvedReviewThreads,
+              unresolvedReviewThreads,
               reviewGracePeriodMs
             } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
 
@@ -224,6 +239,21 @@ jobs:
                   pullRequest(number: $number) {
                     isDraft
                     headRefOid
+                    reviewThreads(first: 100) {
+                      nodes {
+                        isResolved
+                        isOutdated
+                        path
+                        line
+                        comments(first: 1) {
+                          nodes {
+                            author {
+                              login
+                            }
+                          }
+                        }
+                      }
+                    }
                     labels(first: 100) {
                       nodes { name }
                     }
@@ -269,6 +299,15 @@ jobs:
 
             if (pullRequest.isDraft) {
               core.setFailed("Draft PRs cannot pass Codex Review Gate");
+              return;
+            }
+
+            const unresolvedThreads = unresolvedReviewThreads(pullRequest.reviewThreads.nodes);
+            if (unresolvedThreads.length > 0) {
+              const unresolvedSummary = summarizeUnresolvedReviewThreads(unresolvedThreads);
+              core.setFailed(
+                "Unresolved review threads remain: " + unresolvedSummary
+              );
               return;
             }
 

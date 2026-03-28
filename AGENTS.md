@@ -86,6 +86,11 @@ git worktrees.
 - Keep that check narrow and relevant: boot the app and hit a local health or
   auth endpoint for server/runtime changes, or exercise the affected UI against
   the local server for client changes.
+- Before merge, clear review conversations by actually addressing them. Nitpicks
+  need an explicit fix or reply; they are not silently ignorable.
+- Do not resolve review threads just to bypass monitoring or branch protection.
+  If a thread is already addressed, reply with the fix commit or technical
+  reasoning before resolving it.
 - When implementation is complete and review is resolved, create a pull request
   from the reviewed worktree.
 - Keep Beads, commits, and PRs aligned so the task status is always traceable.

@@ -22,6 +22,8 @@ const {
   latestCodeRabbitCompletion,
   publishCodexReviewGateHeadStatus,
   resolveCodeRabbitCompletedAt,
+  summarizeUnresolvedReviewThreads,
+  unresolvedReviewThreads,
 } = require('./codex-review-gate');
 
 test('latestCodeRabbitCompletion ignores nullish check runs', () => {
@@ -80,6 +82,64 @@ test('resolveCodeRabbitCompletedAt uses GraphQL check run timestamp when availab
   );
 
   assert.equal(result, Date.parse('2026-03-27T17:14:10Z'));
+});
+
+test('unresolvedReviewThreads keeps outdated unresolved threads and drops resolved threads', () => {
+  const result = unresolvedReviewThreads([
+    { isResolved: true, isOutdated: false },
+    { isResolved: false, isOutdated: false },
+    { isResolved: false, isOutdated: true }
+  ]);
+
+  assert.deepEqual(result, [
+    { isResolved: false, isOutdated: false },
+    { isResolved: false, isOutdated: true }
+  ]);
+});
+
+test('summarizeUnresolvedReviewThreads formats author, path, line, and outdated marker', () => {
+  const result = summarizeUnresolvedReviewThreads([
+    {
+      isResolved: false,
+      isOutdated: true,
+      path: '.github/workflows/codex-review-gate.yml',
+      line: 212,
+      comments: {
+        nodes: [
+          {
+            author: {
+              login: 'coderabbitai'
+            }
+          }
+        ]
+      }
+    },
+    {
+      isResolved: true,
+      path: 'ignored.md',
+      line: 99,
+      comments: {
+        nodes: [
+          {
+            author: {
+              login: 'ignored'
+            }
+          }
+        ]
+      }
+    },
+    {
+      isResolved: false,
+      comments: {
+        nodes: []
+      }
+    }
+  ]);
+
+  assert.equal(
+    result,
+    'coderabbitai .github/workflows/codex-review-gate.yml:212 (outdated); unknown general'
+  );
 });
 
 test('publishCodexReviewGateHeadStatus writes a success status on the PR head', async () => {

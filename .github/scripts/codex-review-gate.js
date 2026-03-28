@@ -63,6 +63,27 @@ const resolveCodeRabbitCompletedAt = (checkRuns, statusNodes = []) => {
   return latestCodeRabbitStatusCompletion(statusNodes);
 };
 
+const unresolvedReviewThreads = (reviewThreads = []) => {
+  return reviewThreads.filter((thread) => {
+    return thread != null &&
+      typeof thread === "object" &&
+      thread.isResolved !== true;
+  });
+};
+
+const summarizeUnresolvedReviewThreads = (reviewThreads = [], limit = 5) => {
+  return unresolvedReviewThreads(reviewThreads)
+    .slice(0, limit)
+    .map((thread) => {
+      const author = thread.comments?.nodes?.[0]?.author?.login ?? "unknown";
+      const path = thread.path ?? "general";
+      const line = thread.line == null ? "" : `:${thread.line}`;
+      const outdated = thread.isOutdated ? " (outdated)" : "";
+      return `${author} ${path}${line}${outdated}`;
+    })
+    .join("; ");
+};
+
 const publishCodexReviewGateHeadStatus = async (github, options) => {
   return github.rest.repos.createCommitStatus({
     owner: options.owner,
@@ -81,5 +102,7 @@ module.exports = {
   latestCodeRabbitCompletion,
   publishCodexReviewGateHeadStatus,
   resolveCodeRabbitCompletedAt,
+  summarizeUnresolvedReviewThreads,
+  unresolvedReviewThreads,
   reviewGracePeriodMs
 };

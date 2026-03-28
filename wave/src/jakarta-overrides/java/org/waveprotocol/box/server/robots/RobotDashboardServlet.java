@@ -482,13 +482,26 @@ public final class RobotDashboardServlet extends HttpServlet {
     if (Strings.isNullOrEmpty(host)) {
       return false;
     }
-    String normalizedHost = host;
-    int portSeparator = host.indexOf(':');
-    if (portSeparator >= 0) {
-      normalizedHost = host.substring(0, portSeparator);
-    }
+    String normalizedHost = normalizeHostName(host);
     return normalizedHost.equalsIgnoreCase(domain)
         || normalizedHost.equalsIgnoreCase("localhost")
-        || normalizedHost.equals("127.0.0.1");
+        || normalizedHost.equals("127.0.0.1")
+        || normalizedHost.equals("::1");
+  }
+
+  private String normalizeHostName(String host) {
+    String normalizedHost = host;
+    if (normalizedHost.startsWith("[")) {
+      int closingBracket = normalizedHost.indexOf(']');
+      if (closingBracket > 0) {
+        normalizedHost = normalizedHost.substring(1, closingBracket);
+      }
+    } else {
+      int portSeparator = normalizedHost.indexOf(':');
+      if (portSeparator >= 0) {
+        normalizedHost = normalizedHost.substring(0, portSeparator);
+      }
+    }
+    return normalizedHost;
   }
 }

@@ -131,13 +131,16 @@ public final class SearchPresenterTest extends TestCase {
     assertFalse(SearchPresenter.shouldUsePolling(true, true));
   }
 
-  public void testBootstrapOtSearchUsesImmediateDirectSearchAndKeepsPollingSafety()
+  public void testBootstrapOtSearchUsesImmediateDirectSearchWithoutRepeatingPolling()
       throws Exception {
     FakeTimerService scheduler = new FakeTimerService();
     FakeSearch search = new FakeSearch();
+    WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
+    RemoteViewServiceMultiplexer channel =
+        new RemoteViewServiceMultiplexer(socket, "alice@example.com");
     SearchPresenter presenter = new SearchPresenter(
         scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
-        null);
+        channel);
 
     setBooleanField(presenter, "otSearchEnabled", true);
 
@@ -146,7 +149,9 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, search.findCalls);
     assertEquals("in:inbox", search.lastQuery);
     assertEquals(30, search.lastSize);
-    assertEquals(1, scheduler.countTasksScheduled());
+    scheduler.tick(16000);
+
+    assertEquals(1, search.findCalls);
   }
 
   public void testBootstrapOtSearchSubscribesTagQueryToOtSearch() throws Exception {
@@ -192,6 +197,13 @@ public final class SearchPresenterTest extends TestCase {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.setBoolean(presenter, value);
+  }
+
+  private static void setField(SearchPresenter presenter, String fieldName, String value)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.set(presenter, value);
   }
 
   private static final class FakeSearch implements Search {

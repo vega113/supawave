@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-03-28-landing-page-accuracy",
+    "version": "PR #424",
+    "date": "2026-03-28",
+    "title": "Landing Page Accuracy",
+    "summary": "The landing page now reflects the product capabilities that are available today.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Removed the landing page federation claim until federation is actually supported",
+          "Added landing page messaging for Robot registration and Data API token support"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-direct-messages-stay-explicit",
     "version": "PR #422",
     "date": "2026-03-28",

@@ -45,7 +45,7 @@ public final class HtmlRendererChangelogTest {
     assertTrue(html.contains("data.releaseNotesStatus"));
     assertTrue(html.contains("data.releaseNotes || []"));
     assertTrue(!html.contains("data.changelog || null"));
-    assertTrue(html.contains("'/changelog#' + encodeURIComponent(releaseNotes[0].releaseId)"));
+    assertTrue(html.contains("'/changelog#release-' + encodeURIComponent(releaseNotes[0].releaseId)"));
     assertTrue(html.contains("What's New"));
     assertTrue(
         html.contains(
@@ -106,5 +106,15 @@ public final class HtmlRendererChangelogTest {
     assertTrue(landing.contains(".nav-links {"));
     assertTrue(landing.contains("width: 100%;"));
     assertTrue(landing.contains("justify-content: flex-start;"));
+  }
+
+  @Test
+  public void landingPageAdvertisesCurrentApiSupportWithoutFederationClaim() {
+    String landing = HtmlRenderer.renderLandingPage("example.com", "");
+
+    assertTrue(landing.contains("Robot &amp; Data API"));
+    assertTrue(landing.contains("Register robots and mint Data API tokens"));
+    assertFalse(landing.contains("Open &amp; Federated"));
+    assertFalse(landing.contains("federated SupaWave instances"));
   }
 }

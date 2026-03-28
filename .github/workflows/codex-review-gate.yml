@@ -20,7 +20,138 @@ on:
       - created
       - edited
 
+  schedule:
+    - cron: "*/5 * * * *"
+
 jobs:
+  requeue-codex-review-gate:
+    name: Requeue Codex Review Gate
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Requeue eligible PR gates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { shouldRequeueCodexReviewGate } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const defaultBranchResult = await github.graphql(
+              `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    defaultBranchRef {
+                      name
+                    }
+                  }
+                }
+              `,
+              { owner, repo }
+            );
+            const defaultBranchName = defaultBranchResult.repository.defaultBranchRef?.name ?? "main";
+            const openPulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "open",
+              base: defaultBranchName,
+              per_page: 100,
+            });
+
+            for (const pullRequestSummary of openPulls) {
+              const prResult = await github.graphql(
+                `
+                  query($owner: String!, $repo: String!, $number: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $number) {
+                        isDraft
+                        baseRefName
+                        headRefOid
+                        labels(first: 100) {
+                          nodes { name }
+                        }
+                        commits(last: 1) {
+                          nodes {
+                            commit {
+                              oid
+                              committedDate
+                              statusCheckRollup {
+                                contexts(first: 100) {
+                                  nodes {
+                                    __typename
+                                    ... on StatusContext {
+                                      context
+                                      state
+                                    }
+                                    ... on CheckRun {
+                                      name
+                                      conclusion
+                                      status
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        reviews(last: 100) {
+                          nodes {
+                            author {
+                              login
+                            }
+                            body
+                            commit {
+                              oid
+                            }
+                            state
+                          }
+                        }
+                        comments(last: 100) {
+                          nodes {
+                            author {
+                              login
+                            }
+                            body
+                          }
+                        }
+                        reviewThreads(last: 100) {
+                          nodes {
+                            isResolved
+                          }
+                        }
+                      }
+                    }
+                  }
+                `,
+                { owner, repo, number: pullRequestSummary.number }
+              );
+
+              const pullRequest = prResult.repository.pullRequest;
+              if (!pullRequest) {
+                continue;
+              }
+
+              if (!shouldRequeueCodexReviewGate({
+                defaultBranchName,
+                pullRequest,
+              })) {
+                continue;
+              }
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pullRequestSummary.number,
+                body: "/codex-review-gate\n\nScheduled reevaluation after the 5 minute CodeRabbit grace window.",
+              });
+            }
+
   codex-review-gate:
     name: Codex Review Gate
     if: >-
@@ -29,15 +160,20 @@ jobs:
         (
           github.event_name != 'issue_comment' ||
           (
-            github.event.comment.user.login == github.repository_owner &&
+            (
+              github.event.comment.user.login == github.repository_owner ||
+              github.event.comment.user.login == 'github-actions[bot]'
+            ) &&
             contains(github.event.comment.body, '/codex-review-gate')
           )
         )
       }}
     runs-on: ubuntu-latest
     permissions:
+      issues: write
       pull-requests: read
       contents: read
+      statuses: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -46,7 +182,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { evaluateCodexReviewGate } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
+            const { evaluateCodexReviewGate, publishCodexReviewGateHeadStatus } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const prNumber =
@@ -138,4 +274,15 @@ jobs:
               return;
             }
 
+            if (!pullRequest.headRefOid) {
+              core.setFailed(`Pull request #${prNumber} is missing a current head SHA`);
+              return;
+            }
+
+            await publishCodexReviewGateHeadStatus(github, {
+              owner,
+              repo,
+              sha: pullRequest.headRefOid,
+              description: evaluation.message,
+            });
             core.info(evaluation.message);

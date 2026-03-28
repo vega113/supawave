@@ -1,7 +1,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { evaluateCodexReviewGate } = require("./codex-review-gate");
+const {
+  evaluateCodexReviewGate,
+  publishCodexReviewGateHeadStatus,
+  shouldRequeueCodexReviewGate,
+} = require("./codex-review-gate");
 
 function buildPullRequest(overrides = {}) {
   return {
@@ -169,4 +173,58 @@ test("passes main PRs after the CodeRabbit grace period", () => {
 
   assert.equal(result.ok, true);
   assert.match(result.message, /5 minute Codex-review window/);
+});
+
+test("requeues a CodeRabbit-approved PR after the grace window", () => {
+  const shouldRequeue = shouldRequeueCodexReviewGate({
+    defaultBranchName: "main",
+    nowMs: Date.parse("2026-03-28T13:06:00Z"),
+    pullRequest: buildPullRequest({
+      commits: {
+        nodes: [
+          {
+            commit: {
+              oid: "head-oid",
+              committedDate: "2026-03-28T13:00:00Z",
+              statusCheckRollup: { contexts: { nodes: codeRabbitStatus() } },
+            },
+          },
+        ],
+      },
+    }),
+  });
+
+  assert.equal(shouldRequeue, true);
+});
+
+test("publishes Codex Review Gate success on the PR head", async () => {
+  const calls = [];
+  const github = {
+    rest: {
+      repos: {
+        createCommitStatus: async (payload) => {
+          calls.push(payload);
+          return payload;
+        },
+      },
+    },
+  };
+
+  await publishCodexReviewGateHeadStatus(github, {
+    description: "Review gate passed after the 5 minute Codex-review window using CodeRabbit",
+    owner: "vega113",
+    repo: "incubator-wave",
+    sha: "head-oid",
+  });
+
+  assert.deepEqual(calls, [
+    {
+      context: "Codex Review Gate",
+      description: "Review gate passed after the 5 minute Codex-review window using CodeRabbit",
+      owner: "vega113",
+      repo: "incubator-wave",
+      sha: "head-oid",
+      state: "success",
+    },
+  ]);
 });

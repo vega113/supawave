@@ -17,6 +17,79 @@ function evaluateCodexReviewGate({
 }
 
 function evaluatePullRequestGate({ pullRequest, defaultBranchName, nowMs }) {
+  const gateState = buildGateState({ pullRequest, defaultBranchName, nowMs });
+
+  let result;
+
+  if (gateState.isDraft) {
+    result = failure("Draft PRs cannot pass Codex Review Gate");
+  } else if (gateState.unresolvedThreads.length > 0) {
+    result = failure(
+      `Pull request has ${gateState.unresolvedThreads.length} unresolved review thread(s)`,
+    );
+  } else if (gateState.codexApproved) {
+    result = success("Review gate passed via Codex coverage on the current head commit");
+  } else if (gateState.codeRabbitSkipped) {
+    result = failure(
+      gateState.isStackedPr
+        ? "CodeRabbit skipped review on this stacked PR, so explicit Codex coverage on the current head commit is required"
+        : "CodeRabbit skipped review on this PR, so explicit Codex coverage is required",
+    );
+  } else if (gateState.isStackedPr) {
+    result = failure(
+      "Stacked PRs require explicit Codex coverage on the current head commit; CodeRabbit status alone is not enough",
+    );
+  } else if (!gateState.codeRabbitApproved) {
+    result = failure(
+      `Missing required review signal: ${CODEX_REVIEW_LABEL}, ${CODERABBIT_REVIEW_LABEL}, or successful CodeRabbit status`,
+    );
+  } else if (gateState.commitAgeMs < REVIEW_WINDOW_MS) {
+    const remainingMinutes = Math.ceil((REVIEW_WINDOW_MS - gateState.commitAgeMs) / 60000);
+    result = failure(
+      `CodeRabbit is green, but the PR is still inside the 5 minute Codex-review window (${remainingMinutes} minute(s) remaining)`,
+    );
+  } else {
+    result = success("Review gate passed after the 5 minute Codex-review window using CodeRabbit");
+  }
+
+  return result;
+}
+
+function shouldRequeueCodexReviewGate({
+  pullRequest,
+  defaultBranchName,
+  nowMs = Date.now(),
+}) {
+  const gateState = buildGateState({ pullRequest, defaultBranchName, nowMs });
+  const alreadyPassed = hasSuccessfulCodexReviewGateStatus(gateState.statusNodes);
+
+  return !gateState.isDraft &&
+    gateState.unresolvedThreads.length === 0 &&
+    !gateState.codexApproved &&
+    !gateState.isStackedPr &&
+    gateState.codeRabbitApproved &&
+    gateState.commitAgeMs >= REVIEW_WINDOW_MS &&
+    !alreadyPassed;
+}
+
+async function publishCodexReviewGateHeadStatus(github, {
+  owner,
+  repo,
+  sha,
+  state = "success",
+  description,
+}) {
+  return github.rest.repos.createCommitStatus({
+    owner,
+    repo,
+    sha,
+    state,
+    context: "Codex Review Gate",
+    description,
+  });
+}
+
+function buildGateState({ pullRequest, defaultBranchName, nowMs }) {
   const labels = getLabelNames(pullRequest);
   const latestCommit = getLatestCommit(pullRequest);
   const headRefOid = pullRequest.headRefOid ?? latestCommit?.oid ?? "";
@@ -45,40 +118,21 @@ function evaluatePullRequestGate({ pullRequest, defaultBranchName, nowMs }) {
     ? nowMs - latestCommitAt
     : Number.POSITIVE_INFINITY;
 
-  let result;
-
-  if (pullRequest.isDraft) {
-    result = failure("Draft PRs cannot pass Codex Review Gate");
-  } else if (unresolvedThreads.length > 0) {
-    result = failure(
-      `Pull request has ${unresolvedThreads.length} unresolved review thread(s)`,
-    );
-  } else if (codexApproved) {
-    result = success("Review gate passed via Codex coverage on the current head commit");
-  } else if (codeRabbitSkipped) {
-    result = failure(
-      isStackedPr
-        ? "CodeRabbit skipped review on this stacked PR, so explicit Codex coverage on the current head commit is required"
-        : "CodeRabbit skipped review on this PR, so explicit Codex coverage is required",
-    );
-  } else if (isStackedPr) {
-    result = failure(
-      "Stacked PRs require explicit Codex coverage on the current head commit; CodeRabbit status alone is not enough",
-    );
-  } else if (!codeRabbitApproved) {
-    result = failure(
-      `Missing required review signal: ${CODEX_REVIEW_LABEL}, ${CODERABBIT_REVIEW_LABEL}, or successful CodeRabbit status`,
-    );
-  } else if (commitAgeMs < REVIEW_WINDOW_MS) {
-    const remainingMinutes = Math.ceil((REVIEW_WINDOW_MS - commitAgeMs) / 60000);
-    result = failure(
-      `CodeRabbit is green, but the PR is still inside the 5 minute Codex-review window (${remainingMinutes} minute(s) remaining)`,
-    );
-  } else {
-    result = success("Review gate passed after the 5 minute Codex-review window using CodeRabbit");
-  }
-
-  return result;
+  return {
+    codeRabbitApproved,
+    codeRabbitSkipped,
+    codexApproved,
+    commitAgeMs,
+    isDraft: Boolean(pullRequest.isDraft),
+    isStackedPr,
+    labels,
+    latestCommit,
+    latestCommitAt,
+    unresolvedThreads,
+    reviewNodes,
+    reviewThreadNodes,
+    statusNodes,
+  };
 }
 
 function getLabelNames(pullRequest) {
@@ -140,6 +194,19 @@ function isSuccessfulCodeRabbitStatus(node) {
   );
 }
 
+function hasSuccessfulCodexReviewGateStatus(statusNodes) {
+  return statusNodes.some((node) => {
+    return (
+      (node.__typename === "StatusContext" &&
+        node.context === "Codex Review Gate" &&
+        node.state === "SUCCESS") ||
+      (node.__typename === "CheckRun" &&
+        node.name === "Codex Review Gate" &&
+        node.conclusion === "SUCCESS")
+    );
+  });
+}
+
 function isCodeRabbitSkippedSignal(note) {
   const authorLogin = note.author?.login ?? "";
   const body = note.body ?? "";
@@ -158,8 +225,11 @@ function success(message) {
 module.exports = {
   evaluateCodexReviewGate,
   evaluatePullRequestGate,
+  hasSuccessfulCodexReviewGateStatus,
   hasCodexCoverage,
   hasCodeRabbitApproval,
   isCodeRabbitSkippedSignal,
   isSuccessfulCodeRabbitStatus,
+  publishCodexReviewGateHeadStatus,
+  shouldRequeueCodexReviewGate,
 };

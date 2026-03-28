@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-03-28-robot-registration-polish",
+    "version": "PR #430",
+    "date": "2026-03-28",
+    "title": "Robot Registration Polish",
+    "summary": "The robot registration success page now keeps long credentials readable without breaking the layout.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Redesigned the Robot Registered page with a more polished SupaWave presentation",
+          "Long consumer token secrets now wrap cleanly on desktop and narrow screens instead of overflowing the card"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-wave-scroll-tags-overlap",
     "version": "PR #425",
     "date": "2026-03-28",

@@ -1,4 +1,19 @@
-[
+[ 
+  {
+    "releaseId": "2026-03-28-archive-search-fix",
+    "version": "PR #418",
+    "date": "2026-03-28",
+    "title": "Archive Search Fix",
+    "summary": "Archived waves now leave the inbox immediately and show up in archived results.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Fixed inbox and archived search filters so per-user archive state is honored even for waves without a full manifest structure."
+        ]
+      }
+    ]
+  },
   {
     "releaseId": "2026-03-28-public-wave-unread-badges-fix",
     "version": "PR #420",

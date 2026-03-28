@@ -45,8 +45,11 @@ import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl.WaveSuppl
 import org.waveprotocol.wave.federation.Proto.ProtocolSignedDelta;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
+import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
 import org.waveprotocol.wave.model.id.IdGenerator;
+import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -59,6 +62,7 @@ import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionZeroFactoryImpl;
+import org.waveprotocol.wave.model.supplement.WaveletBasedSupplement;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
@@ -244,6 +248,32 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
     assertEquals(1, results.getNumResults());
     assertEquals(WAVELET_NAME.waveId.serialise(), results.getDigests().get(0).getWaveId());
+  }
+
+  public void testSearchInboxExcludesArchivedWaveWithoutManifest() throws Exception {
+    submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
+    archiveWaveForUser(WAVELET_NAME, USER1);
+
+    SearchResult inboxResults = searchProvider.search(USER1, "in:inbox", 0, 20);
+    SearchResult archiveResults = searchProvider.search(USER1, "in:archive", 0, 20);
+
+    assertEquals(0, inboxResults.getNumResults());
+    assertEquals(1, archiveResults.getNumResults());
+    assertEquals(
+        WAVELET_NAME.waveId.serialise(), archiveResults.getDigests().get(0).getWaveId());
+  }
+
+  public void testSearchInboxIncludesWaveAfterArchiveStateCleared() throws Exception {
+    submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
+    archiveWaveForUser(WAVELET_NAME, USER1);
+    clearArchiveStateForUser(WAVELET_NAME, USER1);
+
+    SearchResult inboxResults = searchProvider.search(USER1, "in:inbox", 0, 20);
+    SearchResult archiveResults = searchProvider.search(USER1, "in:archive", 0, 20);
+
+    assertEquals(1, inboxResults.getNumResults());
+    assertEquals(WAVELET_NAME.waveId.serialise(), inboxResults.getDigests().get(0).getWaveId());
+    assertEquals(0, archiveResults.getNumResults());
   }
 
   public void testSearchInboxDoesNotReturnWaveWithoutUser() throws Exception {
@@ -723,6 +753,53 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
   private void waitForDistinctTimestamp() throws InterruptedException {
     Thread.sleep(5L);
+  }
+
+  private void archiveWaveForUser(WaveletName name, ParticipantId user) throws Exception {
+    long version = waveMap.getOrCreateLocalWavelet(name).copyWaveletData().getVersion();
+    WaveletOperation archiveOperation =
+        new WaveletBlipOperation(
+            WaveletBasedSupplement.ARCHIVING_DOCUMENT,
+            new BlipContentOperation(
+                new WaveletOperationContext(user, 0, 1),
+                new DocOpBuilder()
+                    .elementStart(
+                        WaveletBasedSupplement.ARCHIVE_TAG,
+                        new AttributesImpl(
+                            WaveletBasedSupplement.ID_ATTR,
+                            name.waveletId.serialise(),
+                            WaveletBasedSupplement.VERSION_ATTR,
+                            String.valueOf(version)))
+                    .elementEnd()
+                    .build()));
+    submitDeltaToNewWaveletWithoutView(
+        userDataWaveletName(name.waveId, user), user, archiveOperation);
+  }
+
+  private void clearArchiveStateForUser(WaveletName name, ParticipantId user) throws Exception {
+    WaveletName userDataWaveletName = userDataWaveletName(name.waveId, user);
+    WaveletOperation clearOperation =
+        new WaveletBlipOperation(
+            WaveletBasedSupplement.CLEARED_DOCUMENT,
+            new BlipContentOperation(
+                new WaveletOperationContext(user, 0, 1),
+                new DocOpBuilder()
+                    .elementStart(
+                        WaveletBasedSupplement.CLEARED_TAG,
+                        new AttributesImpl(
+                            WaveletBasedSupplement.CLEARED_ATTR,
+                            String.valueOf(true)))
+                    .elementEnd()
+                    .build()));
+    submitDeltaToExistingWavelet(userDataWaveletName, user, clearOperation);
+  }
+
+  private WaveletName userDataWaveletName(WaveId waveId, ParticipantId user) {
+    WaveletId userDataWaveletId =
+        WaveletId.of(
+            waveId.getDomain(),
+            IdUtil.join(IdConstants.USER_DATA_WAVELET_PREFIX, user.getAddress()));
+    return WaveletName.of(waveId, userDataWaveletId);
   }
 
   private void addWaveletToUserView(WaveletName name, ParticipantId user) {

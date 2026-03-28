@@ -1,5 +1,20 @@
 [
   {
+    "releaseId": "2026-03-28-link-affordance",
+    "version": "PR #433",
+    "date": "2026-03-28",
+    "title": "Clearer Link Styling",
+    "summary": "Links in wave content now look clickable before hover.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Restored visible underlines for links inside wave content while keeping the existing Supawave link colors"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-profile-last-seen",
     "version": "PR #423",
     "date": "2026-03-28",

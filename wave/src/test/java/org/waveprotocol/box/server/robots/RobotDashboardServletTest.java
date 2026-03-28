@@ -93,6 +93,18 @@ public class RobotDashboardServletTest extends TestCase {
     assertTrue(outputWriter.toString().contains("SUPAWAVE_DATA_API_TOKEN"));
   }
 
+  public void testDoGetRendersRotateSecretControlForOwnedRobot() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(
+        new RobotAccountDataImpl(ROBOT, "https://robot.example.com/callback", "secret", null,
+            true, 3600L, OWNER.getAddress())));
+
+    servlet.doGet(req, resp);
+
+    assertTrue(outputWriter.toString().contains("action\" value=\"rotate-secret\""));
+    assertTrue(outputWriter.toString().contains("Rotate Secret"));
+  }
+
   public void testDoGetUsesTrustedRequestOriginInAiPrompt() throws Exception {
     when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
     when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());

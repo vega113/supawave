@@ -41,6 +41,8 @@ public final class ApiDocsServletTest {
     servlet.doGet(request, response);
 
     assertTrue(recorder.status == HttpServletResponse.SC_OK);
+    assertTrue("text/plain;charset=utf-8".equals(recorder.contentType));
+    assertTrue("UTF-8".equals(recorder.characterEncoding));
     assertTrue(body.toString().contains("https://docs.example.com/api-docs"));
     assertTrue(body.toString().contains("https://docs.example.com/api/openapi.json"));
     assertTrue(body.toString().contains("https://docs.example.com/llms-full.txt"));
@@ -57,6 +59,8 @@ public final class ApiDocsServletTest {
     servlet.doGet(request, response);
 
     assertTrue(recorder.status == HttpServletResponse.SC_OK);
+    assertTrue("text/plain;charset=utf-8".equals(recorder.contentType));
+    assertTrue("UTF-8".equals(recorder.characterEncoding));
     assertTrue(body.toString().contains("SupaWave Data API LLM Reference"));
     assertTrue(body.toString().contains("Canonical RPC path: /robot/dataapi/rpc"));
     assertTrue(body.toString().contains("https://docs.example.com/api/openapi.json"));

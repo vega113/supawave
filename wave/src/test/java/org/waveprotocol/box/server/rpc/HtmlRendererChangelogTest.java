@@ -18,6 +18,7 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.json.JSONArray;
@@ -81,7 +82,7 @@ public final class HtmlRendererChangelogTest {
 
     assertTrue(topBar.contains("href=\"/changelog\" target=\"_blank\" rel=\"noopener noreferrer\""));
     assertTrue(landing.contains("href=\"/changelog\">What's New</a>"));
-    assertTrue(!topBar.contains("target=\"_blank\">"));
+    assertFalse(topBar.contains("target=\"_blank\">"));
   }
 
   @Test

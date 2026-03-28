@@ -106,6 +106,14 @@ public interface RobotRegistrar {
       String ownerAddress) throws RobotRegistrationException, PersistenceException;
 
   /**
+   * Registers a new robot or updates an existing robot while preserving the
+   * owner and applying the selected token expiry.
+   */
+  public RobotAccountData registerOrUpdate(ParticipantId robotId, String location,
+      String ownerAddress, long tokenExpirySeconds)
+      throws RobotRegistrationException, PersistenceException;
+
+  /**
    * Rotates the shared secret for an existing robot while keeping its current
    * callback URL, capabilities, expiry, and owner metadata.
    */

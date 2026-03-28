@@ -132,6 +132,13 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
     return registerOrUpdate(robotId, location, ownerAddress, null);
   }
 
+  @Override
+  public RobotAccountData registerOrUpdate(ParticipantId robotId, String location,
+      String ownerAddress, long tokenExpirySeconds)
+      throws RobotRegistrationException, PersistenceException {
+    return registerOrUpdate(robotId, location, ownerAddress, Long.valueOf(tokenExpirySeconds));
+  }
+
   private RobotAccountData registerOrUpdate(ParticipantId robotId, String location,
       String ownerAddress, Long tokenExpirySeconds)
       throws RobotRegistrationException, PersistenceException {

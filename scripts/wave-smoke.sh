@@ -61,7 +61,13 @@ start() {
     echo "Install dir not found: $INSTALL_DIR. Run: sbt Universal/stage" >&2
     exit 1
   fi
-  (cd "$INSTALL_DIR" && nohup ./bin/wave > wave_server.out 2>&1 & echo $! > wave_server.pid)
+  (
+    cd "$INSTALL_DIR"
+    nohup ./bin/wave > wave_server.out 2>&1 < /dev/null &
+    launcher_pid=$!
+    disown "$launcher_pid" 2>/dev/null || true
+    echo "$launcher_pid" > wave_server.pid
+  )
   echo "Started. Wrapper PID=$(cat "$PID_FILE" 2>/dev/null || echo unknown)"
   wait_ready
 

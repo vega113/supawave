@@ -186,9 +186,6 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
   args = parse_args()
   changelog_path = Path(args.changelog).resolve()
-  repo_root = Path(
-      subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-  )
 
   errors: list[str] = []
   try:
@@ -202,6 +199,9 @@ def main() -> int:
 
   if args.base_ref:
     try:
+      repo_root = Path(
+          subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
+      )
       base_entries = load_base_changelog(args.base_ref, changelog_path, repo_root)
       if base_entries_support_release_ids(base_entries):
         base_schema_errors = validate_schema(base_entries)

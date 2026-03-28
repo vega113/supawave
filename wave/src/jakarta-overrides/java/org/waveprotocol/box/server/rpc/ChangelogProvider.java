@@ -138,9 +138,10 @@ public final class ChangelogProvider {
     if (releaseId == null || releaseId.isBlank()) {
       return -1;
     }
+    String normalizedReleaseId = releaseId.trim();
     for (int i = 0; i < entries.length(); i++) {
       JSONObject entry = entries.optJSONObject(i);
-      if (entry != null && releaseId.equals(entry.optString("releaseId"))) {
+      if (entry != null && normalizedReleaseId.equals(entry.optString("releaseId"))) {
         return i;
       }
     }
@@ -159,17 +160,27 @@ public final class ChangelogProvider {
   }
 
   private static JSONArray loadDefaultEntries(Config config) {
-    JSONArray loadedEntries = new JSONArray();
-    if (config != null && config.hasPath("core.changelog_path")) {
-      loadedEntries = loadEntries(resolveConfiguredPath(config.getString("core.changelog_path")));
+    ConfiguredEntries configuredEntries = loadConfiguredEntries(config);
+    if (configuredEntries.hasConfiguredPath()) {
+      return configuredEntries.entries();
     }
-    if (loadedEntries.length() == 0) {
-      loadedEntries = loadEntriesFromClasspath("config/changelog.json");
-    }
+    JSONArray loadedEntries = loadEntriesFromClasspath("config/changelog.json");
     if (loadedEntries.length() == 0) {
       loadedEntries = loadEntries(Paths.get("config", "changelog.json"));
     }
     return loadedEntries;
+  }
+
+  private static ConfiguredEntries loadConfiguredEntries(Config config) {
+    if (config == null || !config.hasPath("core.changelog_path")) {
+      return new ConfiguredEntries(new JSONArray(), false);
+    }
+    Path configuredPath = resolveConfiguredPath(config.getString("core.changelog_path"));
+    if (!Files.exists(configuredPath)) {
+      LOG.warning("Changelog file not found at " + configuredPath.toAbsolutePath());
+      return new ConfiguredEntries(new JSONArray(), false);
+    }
+    return new ConfiguredEntries(loadEntries(configuredPath), true);
   }
 
   private static Path resolveConfiguredPath(String changelogPath) {
@@ -226,7 +237,9 @@ public final class ChangelogProvider {
       if (rawEntry == null || !isValidEntry(rawEntry, seenReleaseIds)) {
         return new JSONArray();
       }
-      sanitizedEntries.put(new JSONObject(rawEntry.toString()));
+      JSONObject sanitizedEntry = new JSONObject(rawEntry.toString());
+      sanitizedEntry.put("releaseId", sanitizedEntry.getString("releaseId").trim());
+      sanitizedEntries.put(sanitizedEntry);
     }
     return sanitizedEntries;
   }
@@ -266,4 +279,6 @@ public final class ChangelogProvider {
       return new JSONArray(entries.toString());
     }
   }
+
+  private record ConfiguredEntries(JSONArray entries, boolean hasConfiguredPath) {}
 }

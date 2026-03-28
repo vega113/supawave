@@ -86,6 +86,41 @@ class ValidateChangelogTest(unittest.TestCase):
     self.assertNotIn("KeyError", stderr.getvalue())
     self.assertNotIn("changelog validation error: 'releaseId'", stderr.getvalue())
 
+  def test_main_does_not_resolve_repo_root_without_base_ref(self):
+    temp_dir = Path(tempfile.mkdtemp(prefix="validate-changelog-no-base-ref"))
+    changelog_path = temp_dir / "changelog.json"
+    changelog_path.write_text("[]", encoding="utf-8")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    current_entries = [
+        {
+            "releaseId": "2026-03-28-release-aware-upgrade-notes",
+            "version": "PR #405",
+            "date": "2026-03-28",
+            "title": "Release-Aware Upgrade Notes",
+            "summary": "The upgrade popup follows the deployed release.",
+            "sections": [{"type": "fix", "items": ["Initial release"]}],
+        }
+    ]
+
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+      with mock.patch.object(
+          validate_changelog,
+          "parse_args",
+          return_value=SimpleNamespace(changelog=str(changelog_path), base_ref=None),
+      ):
+        with mock.patch.object(validate_changelog, "load_changelog", return_value=current_entries):
+          with mock.patch.object(
+              validate_changelog.subprocess,
+              "check_output",
+              side_effect=AssertionError("git should not run without --base-ref"),
+          ):
+            result = validate_changelog.main()
+
+    self.assertEqual(0, result)
+    self.assertEqual("", stderr.getvalue())
+    self.assertIn("changelog validation passed", stdout.getvalue())
+
 
 if __name__ == "__main__":
   unittest.main()

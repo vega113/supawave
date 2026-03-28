@@ -118,7 +118,7 @@ git worktrees.
   implementation summary, the review outcome, and the commit list that landed
   the work.
 
-## Changelog
+## Changelog Guidelines
 - Every PR that changes user-facing behavior MUST update `wave/src/main/resources/config/changelog.json`
   before merging, and keep `wave/config/changelog.json` aligned for staged runtime config.
 - Add a new entry at the top of the array (newest first) with `version`, `date`

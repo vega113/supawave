@@ -186,6 +186,65 @@ public final class ChangelogProviderTest {
     assertNull(provider.getCurrentReleaseId());
   }
 
+  @Test
+  public void trimsReleaseIdsBeforePersistingAndMatchingRanges() {
+    ChangelogProvider provider =
+        new ChangelogProvider(
+            new JSONArray(
+                "[{\"releaseId\":\" 2026-03-27-unread-only-search-filter \","
+                    + "\"version\":\"2026-03-27.403\",\"date\":\"2026-03-27\","
+                    + "\"title\":\"Unread-Only Search Filter\","
+                    + "\"summary\":\"You can now filter the wave list down to waves with unread blips only.\","
+                    + "\"sections\":[{\"type\":\"feature\",\"items\":[\"Added the unread:true search filter\"]}]}]"));
+
+    assertEquals("2026-03-27-unread-only-search-filter", provider.getCurrentReleaseId());
+    assertEquals(
+        "2026-03-27-unread-only-search-filter",
+        provider.getEntries().getJSONObject(0).getString("releaseId"));
+    assertEquals(
+        "same_release",
+        provider
+            .getReleaseRange(
+                "2026-03-27-unread-only-search-filter",
+                "2026-03-27-unread-only-search-filter")
+            .getStatus());
+  }
+
+  @Test
+  public void doesNotFallbackToClasspathWhenConfiguredChangelogIsInvalid() throws Exception {
+    Path tempDir = Files.createTempDirectory("changelog-provider-invalid-config");
+    Path changelogFile = tempDir.resolve("broken-changelog.json");
+    Path configFile = tempDir.resolve("application.conf");
+    Files.writeString(
+        changelogFile,
+        "[{\"date\":\"2026-03-27\",\"title\":\"Broken\",\"summary\":\"Broken entry\","
+            + "\"sections\":[{\"type\":\"feature\",\"items\":[\"No release key\"]}]}]",
+        StandardCharsets.UTF_8);
+    Files.writeString(
+        configFile,
+        "core.changelog_path=\"broken-changelog.json\"",
+        StandardCharsets.UTF_8);
+
+    String previousConfigPath = System.getProperty("wave.server.config");
+    System.setProperty("wave.server.config", configFile.toString());
+    try {
+      Config config =
+          ConfigFactory.parseMap(java.util.Map.of("core.changelog_path", "broken-changelog.json"));
+
+      ChangelogProvider provider = new ChangelogProvider(config);
+
+      assertEquals(0, provider.getEntries().length());
+      assertNull(provider.getCurrentReleaseId());
+      assertNull(provider.getLatestTitle());
+    } finally {
+      if (previousConfigPath == null) {
+        System.clearProperty("wave.server.config");
+      } else {
+        System.setProperty("wave.server.config", previousConfigPath);
+      }
+    }
+  }
+
   private static String javaBinary() {
     return Path.of(System.getProperty("java.home"), "bin", "java").toString();
   }

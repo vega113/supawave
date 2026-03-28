@@ -52,6 +52,7 @@ import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.id.WaveletIdSerializer;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.wave.AddParticipant;
 import org.waveprotocol.wave.model.operation.wave.BlipContentOperation;
@@ -267,6 +268,19 @@ public class SimpleSearchProviderImplTest extends TestCase {
     submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
     archiveWaveForUser(WAVELET_NAME, USER1);
     clearArchiveStateForUser(WAVELET_NAME, USER1);
+
+    SearchResult inboxResults = searchProvider.search(USER1, "in:inbox", 0, 20);
+    SearchResult archiveResults = searchProvider.search(USER1, "in:archive", 0, 20);
+
+    assertEquals(1, inboxResults.getNumResults());
+    assertEquals(WAVELET_NAME.waveId.serialise(), inboxResults.getDigests().get(0).getWaveId());
+    assertEquals(0, archiveResults.getNumResults());
+  }
+
+  public void testSearchInboxIncludesWaveAfterLegacyClearedStateWithoutAttr() throws Exception {
+    submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
+    archiveWaveForUser(WAVELET_NAME, USER1);
+    clearArchiveStateForUserWithoutAttr(WAVELET_NAME, USER1);
 
     SearchResult inboxResults = searchProvider.search(USER1, "in:inbox", 0, 20);
     SearchResult archiveResults = searchProvider.search(USER1, "in:archive", 0, 20);
@@ -767,7 +781,7 @@ public class SimpleSearchProviderImplTest extends TestCase {
                         WaveletBasedSupplement.ARCHIVE_TAG,
                         new AttributesImpl(
                             WaveletBasedSupplement.ID_ATTR,
-                            name.waveletId.serialise(),
+                            WaveletIdSerializer.INSTANCE.toString(name.waveletId),
                             WaveletBasedSupplement.VERSION_ATTR,
                             String.valueOf(version)))
                     .elementEnd()
@@ -789,6 +803,23 @@ public class SimpleSearchProviderImplTest extends TestCase {
                         new AttributesImpl(
                             WaveletBasedSupplement.CLEARED_ATTR,
                             String.valueOf(true)))
+                    .elementEnd()
+                    .build()));
+    submitDeltaToExistingWavelet(userDataWaveletName, user, clearOperation);
+  }
+
+  private void clearArchiveStateForUserWithoutAttr(WaveletName name, ParticipantId user)
+      throws Exception {
+    WaveletName userDataWaveletName = userDataWaveletName(name.waveId, user);
+    WaveletOperation clearOperation =
+        new WaveletBlipOperation(
+            WaveletBasedSupplement.CLEARED_DOCUMENT,
+            new BlipContentOperation(
+                new WaveletOperationContext(user, 0, 1),
+                new DocOpBuilder()
+                    .elementStart(
+                        WaveletBasedSupplement.CLEARED_TAG,
+                        new AttributesImpl())
                     .elementEnd()
                     .build()));
     submitDeltaToExistingWavelet(userDataWaveletName, user, clearOperation);

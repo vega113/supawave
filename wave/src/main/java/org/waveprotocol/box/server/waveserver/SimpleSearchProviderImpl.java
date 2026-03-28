@@ -34,6 +34,7 @@ import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.id.WaveletIdSerializer;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.supplement.SupplementedWave;
 import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl;
@@ -995,9 +996,9 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     List<ObservableWaveletData> conversationalWavelets = new ArrayList<ObservableWaveletData>();
     for (ObservableWaveletData waveletData : wave.getWavelets()) {
       WaveletId waveletId = waveletData.getWaveletId();
-      if (org.waveprotocol.wave.model.id.IdUtil.isUserDataWavelet(user.getAddress(), waveletId)) {
+      if (IdUtil.isUserDataWavelet(user.getAddress(), waveletId)) {
         userDataWavelet = waveletData;
-      } else if (org.waveprotocol.wave.model.id.IdUtil.isConversationalId(waveletId)) {
+      } else if (IdUtil.isConversationalId(waveletId)) {
         conversationalWavelets.add(waveletData);
       }
     }
@@ -1026,7 +1027,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     Map<String, Integer> archiveVersions = readArchiveVersionsFromUdw(userDataWavelet);
     for (ObservableWaveletData conversationalWavelet : conversationalWavelets) {
       Integer archivedVersion =
-          archiveVersions.get(conversationalWavelet.getWaveletId().serialise());
+          archiveVersions.get(WaveletIdSerializer.INSTANCE.toString(conversationalWavelet.getWaveletId()));
       if (archivedVersion == null
           || archivedVersion.intValue() < (int) conversationalWavelet.getVersion()) {
         return FolderState.INBOX;
@@ -1052,8 +1053,9 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       @Override
       public void elementStart(String type,
           org.waveprotocol.wave.model.document.operation.Attributes attrs) {
-        if (tagName.equals(type) && attrs != null) {
-          state[0] = Boolean.parseBoolean(attrs.get(attrName));
+        if (tagName.equals(type)) {
+          String attrValue = attrs == null ? null : attrs.get(attrName);
+          state[0] = attrValue == null || Boolean.parseBoolean(attrValue);
         }
       }
 

@@ -346,14 +346,19 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
   public void showLoadingSkeleton() {
     resetLoadingState();
     clearDigestViews();
-    if (Document.get().getElementById("wave-list-skeleton") != null) {
-      return;
-    }
+    removeExistingLoadingSkeleton();
     Element skeleton = Document.get().createDivElement();
     skeleton.setId("wave-list-skeleton");
     skeleton.setInnerHTML(buildLoadingSkeletonHtml());
     Element sentinel = loadingSpinner.getParentElement() != null ? loadingSpinner : showMore;
     list.insertBefore(skeleton, sentinel);
+  }
+
+  private void removeExistingLoadingSkeleton() {
+    Element skeleton = Document.get().getElementById("wave-list-skeleton");
+    if (skeleton != null) {
+      skeleton.removeFromParent();
+    }
   }
 
   private void resetLoadingState() {

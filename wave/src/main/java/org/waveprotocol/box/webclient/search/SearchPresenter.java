@@ -1172,7 +1172,7 @@ public final class SearchPresenter
     } else if (status == ConnectionStatus.RECONNECTED
         && SearchBootstrapUiState.shouldRetryOtSubscriptionOnReconnect(
             otSearchEnabled, useOtSearch, otSearchTimedOut)) {
-      bootstrapOtSearch(search.getMinimumTotal() == 0);
+      bootstrapOtSearch(searchUi.getFirst() == null);
     }
   }
 

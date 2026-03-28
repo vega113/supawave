@@ -1573,6 +1573,7 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
   @Override
   public ContentDocument removeContent() {
+    flushSynchronous();
     ContentDocument oldDoc = content;
 
     clearContent();
@@ -1590,6 +1591,7 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
   @Override
   public ContentDocument removeContentAndUnrender() {
+    flushSynchronous();
     ContentDocument oldDoc = content;
 
     clearContent();

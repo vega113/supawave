@@ -162,13 +162,13 @@ Expected: all commands pass.
 Run: `sbt prepareServerConfig run`
 
 Then verify in another shell with a narrow real check:
-- load `/robots/create`
+- load `/robot/register/create`
 - confirm the page copy reflects the optional URL flow
 - submit a pending robot registration and verify the success page returns the secret without demanding a URL
 
 - [ ] **Step 7: Commit the user-facing slice**
 
-Run: `git add wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/HtmlRenderer.java wave/config/changelog.json && git commit -m "Polish robot registration messaging"`
+Run: `git add wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/HtmlRenderer.java wave/src/test/java/org/waveprotocol/box/server/rpc/HtmlRendererRobotRegistrationTest.java wave/config/changelog.json && git commit -m "Polish robot registration messaging"`
 
 ## Closeout
 

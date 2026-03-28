@@ -58,4 +58,18 @@ public final class DataApiTokenServletTest {
     verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     assertTrue(responseBody.toString().contains("callback URL"));
   }
+
+  @Test
+  public void testClientCredentialsAllowsLegacyRobotWithCallbackUrl() throws Exception {
+    when(req.getParameter("grant_type")).thenReturn("client_credentials");
+    when(req.getParameter("client_id")).thenReturn(ROBOT_ID.getAddress());
+    when(req.getParameter("client_secret")).thenReturn("legacy-secret");
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(
+        new RobotAccountDataImpl(ROBOT_ID, "https://example.com/robot", "legacy-secret", null, false, 0L));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    assertTrue(responseBody.toString().contains("access_token"));
+  }
 }

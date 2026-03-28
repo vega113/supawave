@@ -264,6 +264,19 @@ public class SimpleSearchProviderImplTest extends TestCase {
         WAVELET_NAME.waveId.serialise(), archiveResults.getDigests().get(0).getWaveId());
   }
 
+  public void testSearchArchiveKeepsMutedWave() throws Exception {
+    submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
+    muteWaveForUser(WAVELET_NAME, USER1);
+
+    SearchResult inboxResults = searchProvider.search(USER1, "in:inbox", 0, 20);
+    SearchResult archiveResults = searchProvider.search(USER1, "in:archive", 0, 20);
+
+    assertEquals(0, inboxResults.getNumResults());
+    assertEquals(1, archiveResults.getNumResults());
+    assertEquals(
+        WAVELET_NAME.waveId.serialise(), archiveResults.getDigests().get(0).getWaveId());
+  }
+
   public void testSearchInboxIncludesWaveAfterArchiveStateCleared() throws Exception {
     submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
     archiveWaveForUser(WAVELET_NAME, USER1);
@@ -788,6 +801,24 @@ public class SimpleSearchProviderImplTest extends TestCase {
   private void archiveWaveForUser(WaveletName name, ParticipantId user) throws Exception {
     long version = waveMap.getOrCreateLocalWavelet(name).copyWaveletData().getVersion();
     archiveWaveForUserWithVersions(name, user, version);
+  }
+
+  private void muteWaveForUser(WaveletName name, ParticipantId user) throws Exception {
+    WaveletOperation muteOperation =
+        new WaveletBlipOperation(
+            WaveletBasedSupplement.MUTED_DOCUMENT,
+            new BlipContentOperation(
+                new WaveletOperationContext(user, 0, 1),
+                new DocOpBuilder()
+                    .elementStart(
+                        WaveletBasedSupplement.MUTED_TAG,
+                        new AttributesImpl(
+                            WaveletBasedSupplement.MUTED_ATTR,
+                            String.valueOf(true)))
+                    .elementEnd()
+                    .build()));
+    submitDeltaToNewWaveletWithoutView(
+        userDataWaveletName(name.waveId, user), user, muteOperation);
   }
 
   private void archiveWaveForUserWithVersions(WaveletName name, ParticipantId user,

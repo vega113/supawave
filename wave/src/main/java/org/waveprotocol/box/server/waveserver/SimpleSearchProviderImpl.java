@@ -486,7 +486,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         FolderState folderState = readFolderState(wave, user);
         if (wantInbox && folderState != FolderState.INBOX) {
           it.remove();
-        } else if (!wantInbox && folderState != FolderState.ARCHIVE) {
+        } else if (!wantInbox && folderState == FolderState.INBOX) {
           it.remove();
         }
       } catch (Exception e) {

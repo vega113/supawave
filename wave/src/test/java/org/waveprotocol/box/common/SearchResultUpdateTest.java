@@ -26,12 +26,24 @@ import java.util.Collections;
 import java.util.List;
 
 public final class SearchResultUpdateTest extends TestCase {
+  private static final int UNKNOWN_SIZE = -1;
 
   public void testEmptyRefreshIsNotVacuousWhenCurrentResultsStillContainDigests() {
     List<String> currentResults = Collections.singletonList("stale-digest");
 
     assertFalse(SearchResultUpdate.isVacuousRefresh(
         0, currentResults, 0, Collections.emptyList(), false));
+  }
+
+  public void testUnknownTotalEmptyRefreshIsNotVacuousWhenCurrentResultsExist() {
+    List<String> currentResults = Collections.singletonList("stale-digest");
+
+    assertFalse(SearchResultUpdate.isVacuousRefresh(
+        UNKNOWN_SIZE,
+        currentResults,
+        UNKNOWN_SIZE,
+        Collections.emptyList(),
+        true));
   }
 
   public void testMatchingResultsRemainVacuous() {

@@ -35,14 +35,13 @@ public final class SearchResultUpdate {
     if (currentTotal != refreshedTotal) {
       return false;
     }
-    int expectedSize = unknownTotal ? currentResults.size() : refreshedTotal;
+    int expectedSize = unknownTotal ? refreshedResults.size() : refreshedTotal;
     if (currentResults.size() != expectedSize) {
       return false;
     }
     if (refreshedResults.size() > currentResults.size()) {
       return false;
     }
-    return currentResults.subList(0, refreshedResults.size()).hashCode()
-        == refreshedResults.hashCode();
+    return currentResults.subList(0, refreshedResults.size()).equals(refreshedResults);
   }
 }

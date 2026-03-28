@@ -3,6 +3,8 @@
  * Ported from Wiab.pro.
  */
 
+@eval panelHeight org.waveprotocol.wave.client.wavepanel.view.dom.full.TagsViewBuilder.CssConstants.PANEL_HEIGHT_CSS;
+
 .panel {
   border-top: 1px solid #B8C6D9;
   border-left: 1px solid #E4F1FE;
@@ -13,7 +15,7 @@
   position: absolute;
   right: 0;
   left: 0;
-  height: 36px;
+  height: panelHeight;
   border-bottom-left-radius: 5px;
   border-bottom-right-radius: 5px;
   z-index: 1;

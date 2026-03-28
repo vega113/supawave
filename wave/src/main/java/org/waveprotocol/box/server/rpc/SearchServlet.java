@@ -142,18 +142,7 @@ public class SearchServlet extends AbstractSearchServlet {
       return;
     }
     SearchResult searchResult = performSearch(searchRequest, user);
-    if (snapshotPublisher != null) {
-      boolean hasLiveSubscription =
-          snapshotPublisher.hasLiveSubscription(user, searchRequest.getQuery());
-      if (hasLiveSubscription) {
-        SearchRequest bootstrapRequest = canonicalLiveSearchRequest(searchRequest);
-        SearchResult bootstrapResult = canonicalBootstrapSearchResult(
-            searchRequest, bootstrapRequest, searchResult, user);
-        if (bootstrapResult != null) {
-          snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
-        }
-      }
-    }
+    publishLiveBootstrapBestEffort(searchRequest, searchResult, user);
 
     int totalGuess = computeTotalResultsNumberGuess(searchRequest, searchResult);
     LOG.fine("Results: " + searchResult.getNumResults() + ", total: " + totalGuess);
@@ -164,6 +153,39 @@ public class SearchServlet extends AbstractSearchServlet {
     serializeObjectToServlet(searchResponse, ctx, response);
     long elapsedMs = System.currentTimeMillis() - startMs;
     LOG.info("SearchServlet.doGet: took " + elapsedMs + " ms");
+  }
+
+  private void publishLiveBootstrapBestEffort(
+      SearchRequest searchRequest,
+      SearchResult searchResult,
+      ParticipantId user) {
+    try {
+      publishLiveBootstrap(searchRequest, searchResult, user);
+    } catch (RuntimeException e) {
+      LOG.warning(
+          "Ignoring live bootstrap publish failure for query " + searchRequest.getQuery(),
+          e);
+    }
+  }
+
+  @VisibleForTesting
+  protected void publishLiveBootstrap(
+      SearchRequest searchRequest,
+      SearchResult searchResult,
+      ParticipantId user) {
+    if (snapshotPublisher == null) {
+      return;
+    }
+    boolean hasLiveSubscription =
+        snapshotPublisher.hasLiveSubscription(user, searchRequest.getQuery());
+    if (hasLiveSubscription) {
+      SearchRequest bootstrapRequest = canonicalLiveSearchRequest(searchRequest);
+      SearchResult bootstrapResult = canonicalBootstrapSearchResult(
+          searchRequest, bootstrapRequest, searchResult, user);
+      if (bootstrapResult != null) {
+        snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
+      }
+    }
   }
 
   @Nullable

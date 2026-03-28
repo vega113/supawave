@@ -145,6 +145,20 @@ public final class SearchServletTest extends TestCase {
     assertTrue(servlet.didAttemptCanonicalBootstrapSearch());
   }
 
+  public void testDoGetTreatsLiveBootstrapPublishFailureAsBestEffort() throws Exception {
+    TestSearchServlet servlet = createServlet(createSnapshotPublisher());
+    servlet.failLiveBootstrapPublish();
+    HttpServletRequest request = requestWithParams(Map.of(
+        "query", "tag:work",
+        "index", "5",
+        "numResults", "3"));
+    HttpServletResponse response = responseWithWriter();
+
+    servlet.doGet(request, response);
+
+    assertEquals(1, servlet.getPerformedRequests().size());
+  }
+
   private static TestSearchServlet createServlet(SearchWaveletSnapshotPublisher snapshotPublisher) {
     SessionManager sessionManager = mock(SessionManager.class);
     when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(USER);
@@ -217,6 +231,7 @@ public final class SearchServletTest extends TestCase {
     private final List<SearchRequest> performedRequests = new ArrayList<>();
     private boolean failCanonicalBootstrapSearch;
     private boolean attemptedCanonicalBootstrapSearch;
+    private boolean failLiveBootstrapPublish;
 
     private TestSearchServlet(
         SessionManager sessionManager,
@@ -259,6 +274,17 @@ public final class SearchServletTest extends TestCase {
       return searchResult;
     }
 
+    @Override
+    protected void publishLiveBootstrap(
+        SearchRequest searchRequest,
+        SearchResult searchResult,
+        ParticipantId user) {
+      if (failLiveBootstrapPublish) {
+        throw new RuntimeException("live bootstrap publish failed");
+      }
+      super.publishLiveBootstrap(searchRequest, searchResult, user);
+    }
+
     private List<SearchRequest> getPerformedRequests() {
       return performedRequests;
     }
@@ -269,6 +295,10 @@ public final class SearchServletTest extends TestCase {
 
     private boolean didAttemptCanonicalBootstrapSearch() {
       return attemptedCanonicalBootstrapSearch;
+    }
+
+    private void failLiveBootstrapPublish() {
+      failLiveBootstrapPublish = true;
     }
   }
 }

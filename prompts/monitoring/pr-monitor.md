@@ -7,8 +7,9 @@
 Before doing anything, check if there's any work:
 ```
 count=$(gh search prs --author=@me --state=open --json number --jq length 2>/dev/null)
+reviews=$(gh search prs --review-requested=@me --state=open --json number --jq length 2>/dev/null)
 issues=$(for repo in vega113/incubator-wave vega113/tube2web vega113/tubescribes vega113/slides-lab; do gh issue list -R "$repo" --state open --json number --jq length 2>/dev/null; done | paste -sd+ | bc)
-if [ "${count:-0}" -eq 0 ] && [ "${issues:-0}" -eq 0 ]; then echo "All clean"; exit 0; fi
+if [ "${count:-0}" -eq 0 ] && [ "${reviews:-0}" -eq 0 ] && [ "${issues:-0}" -eq 0 ]; then echo "All clean"; exit 0; fi
 ```
 
 ## 1. Discover open PRs
@@ -33,6 +34,11 @@ Search for open PRs authored by me and PRs where review is requested, across all
 
 ### d. Immediate cascade on merge
 When ANY PR merges, immediately update ALL other BEHIND PRs. Don't wait for next cycle.
+
+### e. Completion rule
+- Do not stop at merge-ready
+- Do not stop when auto-merge is armed
+- Keep polling until GitHub reports the PR actually merged, or until the PR is truly blocked or closed without merge
 
 ## 3. Discover and fix open issues
 

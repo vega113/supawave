@@ -32,7 +32,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public final class ApiDocsServletTest {
   @Test
   public void apiDocsHtmlIncludesBuildWithAiSection() throws Exception {
-    ApiDocsServlet servlet = new ApiDocsServlet();
+    ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
     StringWriter body = new StringWriter();
     ResponseRecorder recorder = new ResponseRecorder();
     HttpServletRequest request = request("/api-docs", "https", "docs.example.com");
@@ -48,7 +48,7 @@ public final class ApiDocsServletTest {
 
   @Test
   public void llmsIndexEndpointReturnsRootLevelPointers() throws Exception {
-    ApiDocsServlet servlet = new ApiDocsServlet();
+    ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
     StringWriter body = new StringWriter();
     ResponseRecorder recorder = new ResponseRecorder();
     HttpServletRequest request = request("/llms.txt", "https", "docs.example.com");
@@ -66,7 +66,7 @@ public final class ApiDocsServletTest {
 
   @Test
   public void llmsFullEndpointReturnsDetailedApiContract() throws Exception {
-    ApiDocsServlet servlet = new ApiDocsServlet();
+    ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
     StringWriter body = new StringWriter();
     ResponseRecorder recorder = new ResponseRecorder();
     HttpServletRequest request = request("/llms-full.txt", "https", "docs.example.com");
@@ -84,7 +84,7 @@ public final class ApiDocsServletTest {
 
   @Test
   public void llmAliasEndpointStillReturnsDetailedApiContract() throws Exception {
-    ApiDocsServlet servlet = new ApiDocsServlet();
+    ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
     StringWriter body = new StringWriter();
     ResponseRecorder recorder = new ResponseRecorder();
     HttpServletRequest request = request("/api/llm.txt", "https", "docs.example.com");
@@ -105,7 +105,7 @@ public final class ApiDocsServletTest {
 
   @Test
   public void unknownEndpointReturnsNotFound() throws Exception {
-    ApiDocsServlet servlet = new ApiDocsServlet();
+    ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
     StringWriter body = new StringWriter();
     ResponseRecorder recorder = new ResponseRecorder();
     HttpServletRequest request = request("/nope", "https", "docs.example.com");

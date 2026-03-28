@@ -325,6 +325,9 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
 
   @Override
   public List<RobotAccountData> getRobotAccountsOwnedBy(String ownerAddress) {
+    if (ownerAddress == null || ownerAddress.trim().isEmpty()) {
+      return new ArrayList<RobotAccountData>();
+    }
     List<RobotAccountData> ownedRobots = new ArrayList<RobotAccountData>();
     DBObject query = new BasicDBObject(ACCOUNT_ROBOT_DATA_FIELD + "." + ROBOT_OWNER_FIELD,
         ownerAddress);

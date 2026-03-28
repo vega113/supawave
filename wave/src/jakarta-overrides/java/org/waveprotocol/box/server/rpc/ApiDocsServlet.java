@@ -2,6 +2,8 @@ package org.waveprotocol.box.server.rpc;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import jakarta.inject.Singleton;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,11 +19,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+import org.waveprotocol.box.server.CoreSettingsNames;
 
 @Singleton
 @SuppressWarnings("serial")
 public final class ApiDocsServlet extends HttpServlet {
-  private static final String DOCS_VERSION = "2026-03-27";
+  private static final String DOCS_VERSION = "2026-03-28";
   private static final String DEFAULT_BASE_URL = "http://127.0.0.1:9898";
   private static final String API_DOCS_PATH = "/api-docs";
   private static final String OPENAPI_PATH = "/api/openapi.json";
@@ -43,6 +46,16 @@ public final class ApiDocsServlet extends HttpServlet {
               "Wave and conversation",
               "Search, profile, and folders",
               "Export and import"));
+  private final String configuredDomain;
+
+  public ApiDocsServlet() {
+    this.configuredDomain = "";
+  }
+
+  @Inject
+  public ApiDocsServlet(@Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String configuredDomain) {
+    this.configuredDomain = configuredDomain == null ? "" : configuredDomain.trim();
+  }
 
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -73,22 +86,45 @@ public final class ApiDocsServlet extends HttpServlet {
     response.sendError(HttpServletResponse.SC_NOT_FOUND);
   }
 
-  private static String deriveBaseUrl(HttpServletRequest request) {
-    String scheme = request.getHeader("X-Forwarded-Proto");
+  private String deriveBaseUrl(HttpServletRequest request) {
+    String scheme = firstHeaderValue(request.getHeader("X-Forwarded-Proto"));
     if (scheme == null || scheme.isEmpty()) {
       scheme = request.getScheme();
     }
-    String host = request.getHeader("X-Forwarded-Host");
-    if (host != null && host.contains(",")) {
-      host = host.substring(0, host.indexOf(',')).trim();
-    }
+    String host = firstHeaderValue(request.getHeader("X-Forwarded-Host"));
     if (host == null || host.isEmpty()) {
-      host = request.getHeader("Host");
+      host = firstHeaderValue(request.getHeader("Host"));
     }
+    if (isTrustedPublicHost(host)) {
+      return scheme + "://" + host;
+    }
+    if (!configuredDomain.isEmpty()) {
+      return "https://" + configuredDomain;
+    }
+    return DEFAULT_BASE_URL;
+  }
+
+  private String firstHeaderValue(String headerValue) {
+    if (headerValue == null || headerValue.isEmpty()) {
+      return "";
+    }
+    int commaIndex = headerValue.indexOf(',');
+    String singleValue = commaIndex >= 0 ? headerValue.substring(0, commaIndex) : headerValue;
+    return singleValue.trim();
+  }
+
+  private boolean isTrustedPublicHost(String host) {
     if (host == null || host.isEmpty()) {
-      return DEFAULT_BASE_URL;
+      return false;
     }
-    return scheme + "://" + host;
+    String normalizedHost = host;
+    int portSeparator = host.indexOf(':');
+    if (portSeparator >= 0) {
+      normalizedHost = host.substring(0, portSeparator);
+    }
+    return normalizedHost.equalsIgnoreCase(configuredDomain)
+        || normalizedHost.equalsIgnoreCase("localhost")
+        || normalizedHost.equals("127.0.0.1");
   }
 
   private static void writeResponse(HttpServletResponse response, String contentType, String body)

@@ -15,7 +15,7 @@
         ]
       },
       {
-        "type": "improvement",
+        "type": "feature",
         "items": [
           "Added a Robot & Data API entry point to the signed-in app menu",
           "Expanded /api-docs and /api/llm.txt with Build with AI guidance, minimal common operations, and clearer security/error notes"
@@ -35,6 +35,10 @@
         "items": [
           "Changed blip links to a wavy ocean underline with a tinted accent shade so they stand apart from ordinary blue text",
           "Kept visited links clearly clickable with a separate lavender tint instead of blending back into body copy"
+        ]
+      }
+    ]
+  },
   {
     "releaseId": "2026-03-28-robot-registration-flow",
     "version": "PR #434",

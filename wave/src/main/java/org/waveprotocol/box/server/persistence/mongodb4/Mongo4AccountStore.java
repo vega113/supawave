@@ -157,6 +157,9 @@ final class Mongo4AccountStore implements AccountStore {
   @Override
   public List<RobotAccountData> getRobotAccountsOwnedBy(String ownerAddress)
       throws PersistenceException {
+    if (ownerAddress == null || ownerAddress.trim().isEmpty()) {
+      return new ArrayList<>();
+    }
     try {
       List<RobotAccountData> ownedRobots = new ArrayList<>();
       for (Document doc : col.find(eq(ACCOUNT_ROBOT_DATA_FIELD + "." + ROBOT_OWNER_FIELD, ownerAddress))) {

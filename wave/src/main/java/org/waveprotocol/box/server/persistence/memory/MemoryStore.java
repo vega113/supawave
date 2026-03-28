@@ -109,6 +109,9 @@ public class MemoryStore implements SignerInfoStore, AccountStore, ContactStore 
 
   @Override
   public List<RobotAccountData> getRobotAccountsOwnedBy(String ownerAddress) {
+    if (ownerAddress == null || ownerAddress.trim().isEmpty()) {
+      return new ArrayList<RobotAccountData>();
+    }
     List<RobotAccountData> ownedRobots = new ArrayList<RobotAccountData>();
     for (AccountData account : accountStore.values()) {
       if (account.isRobot()) {

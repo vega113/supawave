@@ -1995,8 +1995,8 @@ public final class HtmlRenderer {
     sb.append("          <path d=\"M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>\n");
     sb.append("        </svg>\n");
     sb.append("      </div>\n");
-    sb.append("      <h3>Open &amp; Federated</h3>\n");
-    sb.append("      <p>Built on an open protocol. Self-host your own server and communicate across federated SupaWave instances.</p>\n");
+    sb.append("      <h3>Robot &amp; Data API</h3>\n");
+    sb.append("      <p>Register robots and mint Data API tokens for integrations, bots, and scripted workflows on your SupaWave server.</p>\n");
     sb.append("    </div>\n");
 
     sb.append("  </div>\n");

@@ -1,20 +1,5 @@
 [
   {
-    "releaseId": "2026-03-28-reply-editor-stability",
-    "version": "PR #437",
-    "date": "2026-03-28",
-    "title": "Reply Editor Stability",
-    "summary": "Deleting all text in a new reply no longer crashes the editor.",
-    "sections": [
-      {
-        "type": "fix",
-        "items": [
-          "Flushed pending editor typing state before detaching a blip editor during reply transitions"
-        ]
-      }
-    ]
-  },
-  {
     "releaseId": "2026-03-28-robot-control-room-hardening",
     "version": "PR #431",
     "date": "2026-03-28",
@@ -32,6 +17,21 @@
         "items": [
           "Robot registration now keeps its sign-in return path and requires an XSRF token before creating or claiming a robot",
           "Legacy ownerless robots can be claimed during re-registration even when their callback URL is unchanged"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-28-reply-editor-stability",
+    "version": "PR #437",
+    "date": "2026-03-28",
+    "title": "Reply Editor Stability",
+    "summary": "Deleting all text in a new reply no longer crashes the editor.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Flushed pending editor typing state before detaching a blip editor during reply transitions"
         ]
       }
     ]

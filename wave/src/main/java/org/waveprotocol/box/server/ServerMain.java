@@ -741,12 +741,10 @@ public class ServerMain {
 
     // Register OT search wavelet updater AFTER PerUserWaveViewDistpatcher
     // so that the per-user wave view index is current before search updates.
-    if (config.hasPath("search.ot_search_enabled") && config.getBoolean("search.ot_search_enabled")) {
-      org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater searchUpdater =
-          injector.getInstance(org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater.class);
-      waveBus.subscribe(searchUpdater);
-      LOG.info("SearchWaveletUpdater subscribed to WaveBus (ot-search enabled)");
-    }
+    org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater searchUpdater =
+        injector.getInstance(org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater.class);
+    waveBus.subscribe(searchUpdater);
+    LOG.info("SearchWaveletUpdater subscribed to WaveBus");
 
     long elapsedMs = System.currentTimeMillis() - startMs;
     LOG.info("initializeSearch completed in " + elapsedMs + " ms");

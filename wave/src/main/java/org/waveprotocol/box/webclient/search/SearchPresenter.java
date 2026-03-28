@@ -128,6 +128,7 @@ public final class SearchPresenter
    * serve search wavelets (e.g. the server-side bridge is not yet wired).
    */
   private final static int OT_SEARCH_TIMEOUT_MS = 5000;
+  private final static int OT_SEARCH_BOOTSTRAP_RETRY_MS = 750;
 
   // Inline SVG icons (Lucide icon set, MIT) for toolbar action buttons.
   // Explicit close tags used for GWT HTML-parser compatibility.
@@ -218,10 +219,19 @@ public final class SearchPresenter
   private final Task otSearchTimeoutTask = new Task() {
     @Override
     public void execute() {
-      if (useOtSearch && !otSearchReceivedData) {
+      if (!useOtSearch && !otSearchReceivedData) {
         fallbackToPolling(
             "OT search timed out after " + OT_SEARCH_TIMEOUT_MS
                 + "ms with no data for query '" + queryText + "'", null);
+      }
+    }
+  };
+
+  private final Task otSearchBootstrapRetryTask = new Task() {
+    @Override
+    public void execute() {
+      if (otSearchEnabled && !useOtSearch && !otSearchReceivedData) {
+        doSearch();
       }
     }
   };
@@ -371,8 +381,11 @@ public final class SearchPresenter
   void bootstrapOtSearch() {
     subscribeToSearchWavelet(queryText);
     doSearch();
-    scheduler.cancel(searchUpdater);
-    scheduler.scheduleRepeating(searchUpdater, POLLING_INTERVAL_MS, POLLING_INTERVAL_MS);
+    if (otSearchWaveletName != null) {
+      scheduler.cancel(searchUpdater);
+      scheduler.cancel(otSearchBootstrapRetryTask);
+      scheduler.scheduleDelayed(otSearchBootstrapRetryTask, OT_SEARCH_BOOTSTRAP_RETRY_MS);
+    }
   }
 
   /**
@@ -406,6 +419,7 @@ public final class SearchPresenter
     scheduler.cancel(digestDebounceTask);
     scheduler.cancel(waveClosedRefreshTask);
     scheduler.cancel(otSearchTimeoutTask);
+    scheduler.cancel(otSearchBootstrapRetryTask);
     searchUi.getSearch().reset();
     searchUi.reset();
     search.removeListener(this);
@@ -1073,6 +1087,7 @@ public final class SearchPresenter
         // Data arrived -- cancel the timeout and mark as received.
         otSearchReceivedData = true;
         scheduler.cancel(otSearchTimeoutTask);
+        scheduler.cancel(otSearchBootstrapRetryTask);
         otSearchSnapshot = parseOtSearchSnapshot(otSearchDocument);
         useOtSearch = true;
         scheduler.cancel(searchUpdater);
@@ -1123,16 +1138,18 @@ public final class SearchPresenter
     if ((status == ConnectionStatus.DISCONNECTED || status == ConnectionStatus.NEVER_CONNECTED)
         && useOtSearch) {
       fallbackToPolling("OT search connection dropped for query '" + queryText + "'", null);
-    } else if (status == ConnectionStatus.RECONNECTED && otSearchEnabled && !useOtSearch) {
+    } else if ((status == ConnectionStatus.CONNECTED || status == ConnectionStatus.RECONNECTED)
+        && otSearchEnabled && !useOtSearch) {
       bootstrapOtSearch();
     }
   }
 
   private void fallbackToPolling(String message, Throwable cause) {
+    String suffix = otSearchEnabled ? "; disabling OT bootstrap" : "; falling back to polling";
     if (cause == null) {
-      OT_SEARCH_LOG.warning(message + "; falling back to polling");
+      OT_SEARCH_LOG.warning(message + suffix);
     } else {
-      OT_SEARCH_LOG.log(Level.WARNING, message + "; falling back to polling", cause);
+      OT_SEARCH_LOG.log(Level.WARNING, message + suffix, cause);
     }
     useOtSearch = false;
     unsubscribeFromSearchWavelet();
@@ -1140,6 +1157,7 @@ public final class SearchPresenter
     otSearchSnapshot = OtSearchSnapshot.empty();
     otSearchReceivedData = false;
     scheduler.cancel(otSearchTimeoutTask);
+    scheduler.cancel(otSearchBootstrapRetryTask);
     scheduler.cancel(searchUpdater);
     startPolling();
   }

@@ -391,6 +391,14 @@ public final class RobotDashboardServlet extends HttpServlet {
           .append("\" name=\"location\" value=\"")
           .append(HtmlRenderer.escapeHtml(robot.getUrl())).append("\">");
       sb.append("<div style=\"margin-top:12px;\"><button type=\"submit\">Save Callback URL</button></div>");
+      sb.append("</form>");
+      sb.append("<form method=\"post\" action=\"\" style=\"margin-top:10px;\">");
+      sb.append("<input type=\"hidden\" name=\"action\" value=\"rotate-secret\">");
+      sb.append("<input type=\"hidden\" name=\"token\" value=\"")
+          .append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
+      sb.append("<input type=\"hidden\" name=\"robotId\" value=\"")
+          .append(HtmlRenderer.escapeHtml(robot.getId().getAddress())).append("\">");
+      sb.append("<div style=\"margin-top:12px;\"><button type=\"submit\">Rotate Secret</button></div>");
       sb.append("</form></div>");
     }
     if (robots.isEmpty()) {

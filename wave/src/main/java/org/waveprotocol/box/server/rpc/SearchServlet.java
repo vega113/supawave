@@ -46,6 +46,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.IOException;
 import java.util.List;
 
+import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -148,7 +149,9 @@ public class SearchServlet extends AbstractSearchServlet {
         SearchRequest bootstrapRequest = canonicalLiveSearchRequest(searchRequest);
         SearchResult bootstrapResult = canonicalBootstrapSearchResult(
             searchRequest, bootstrapRequest, searchResult, user);
-        snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
+        if (bootstrapResult != null) {
+          snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
+        }
       }
     }
 
@@ -163,6 +166,7 @@ public class SearchServlet extends AbstractSearchServlet {
     LOG.info("SearchServlet.doGet: took " + elapsedMs + " ms");
   }
 
+  @Nullable
   private SearchResult canonicalBootstrapSearchResult(
       SearchRequest searchRequest,
       SearchRequest canonicalRequest,
@@ -171,7 +175,14 @@ public class SearchServlet extends AbstractSearchServlet {
     if (isCanonicalLiveSearchRequest(searchRequest)) {
       return searchResult;
     }
-    return performSearch(canonicalRequest, user);
+    try {
+      return performSearch(canonicalRequest, user);
+    } catch (RuntimeException e) {
+      LOG.warning(
+          "Ignoring canonical bootstrap search failure for query " + searchRequest.getQuery(),
+          e);
+      return null;
+    }
   }
 
   private static SearchRequest canonicalLiveSearchRequest(SearchRequest searchRequest) {

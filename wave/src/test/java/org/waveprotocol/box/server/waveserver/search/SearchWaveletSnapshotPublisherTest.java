@@ -109,6 +109,35 @@ public final class SearchWaveletSnapshotPublisherTest extends TestCase {
     assertEquals(snapshotCaptor.getValue().committedVersion, versionCaptor.getValue());
   }
 
+  public void testPublishBootstrapSkipsCappedSearchResult() throws Exception {
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    when(waveletProvider.getWaveletIds(any())).thenReturn(ImmutableSet.of());
+
+    WaveletInfo waveletInfo = WaveletInfo.create(HASH_FACTORY, waveletProvider);
+    ClientFrontendImpl clientFrontend =
+        ClientFrontendImpl.create(waveletProvider, mock(WaveBus.class), waveletInfo);
+    SearchWaveletManager waveletManager = new SearchWaveletManager();
+    SearchIndexer indexer = new SearchIndexer();
+    SearchWaveletDispatcher dispatcher = new SearchWaveletDispatcher();
+    dispatcher.initialize(waveletInfo);
+    SearchWaveletSnapshotPublisher publisher =
+        new SearchWaveletSnapshotPublisher(
+            dispatcher, waveletManager, indexer, new SearchWaveletDataProvider());
+
+    WaveletName searchWaveletName = waveletManager.computeWaveletName(USER, QUERY);
+    IdFilter filter = IdFilter.of(
+        Collections.singleton(searchWaveletName.waveletId), Collections.<String>emptySet());
+    OpenListener listener = mock(OpenListener.class);
+
+    clientFrontend.openRequest(
+        USER, searchWaveletName.waveId, filter, NO_KNOWN_WAVELETS, listener);
+
+    publisher.publishBootstrap(USER, QUERY, createSearchResult(QUERY, "example.com/w+abc", 2));
+
+    assertEquals(0, waveletManager.getActiveCount());
+    assertEquals(0, indexer.getSubscriptionCount());
+  }
+
   public void testPublishBootstrapSkipsInactiveSearchWavelet() {
     SearchWaveletManager waveletManager = new SearchWaveletManager();
     SearchIndexer indexer = new SearchIndexer();

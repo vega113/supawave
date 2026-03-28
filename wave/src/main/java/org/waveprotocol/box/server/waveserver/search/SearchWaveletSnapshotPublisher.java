@@ -94,12 +94,21 @@ public final class SearchWaveletSnapshotPublisher {
         return;
       }
 
-      WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, query);
       List<SearchWaveletDataProvider.SearchResultEntry> newResults =
           convertSearchResult(searchResult);
       int newTotalCount = searchResult != null && searchResult.getTotalResults() >= 0
           ? searchResult.getTotalResults()
           : newResults.size();
+      if (newTotalCount > newResults.size()) {
+        if (!forceSnapshot) {
+          pruneInactiveSubscription(user, query, computedWaveletName, publishLock);
+        } else {
+          publishLocks.remove(searchWaveletKey, publishLock);
+        }
+        return;
+      }
+
+      WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, query);
       List<SearchWaveletDataProvider.SearchResultEntry> oldResults =
           dataProvider.getCurrentResults(searchWaveletName);
       int oldTotalCount = dataProvider.getCurrentTotal(searchWaveletName);

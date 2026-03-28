@@ -75,7 +75,7 @@ public final class SearchServletTest extends TestCase {
   private static final Collection<WaveletVersion> NO_KNOWN_WAVELETS =
       Collections.<WaveletVersion>emptySet();
 
-  public void testDoGetRequestsCanonicalBootstrapSearchWithoutLiveSubscription()
+  public void testDoGetDoesNotRequestCanonicalBootstrapSearchWithoutLiveSubscription()
       throws Exception {
     TestSearchServlet servlet = createServlet(createSnapshotPublisher());
     HttpServletRequest request = requestWithParams(Map.of(
@@ -86,13 +86,9 @@ public final class SearchServletTest extends TestCase {
 
     servlet.doGet(request, response);
 
-    assertEquals(2, servlet.getPerformedRequests().size());
+    assertEquals(1, servlet.getPerformedRequests().size());
     assertEquals(5, servlet.getPerformedRequests().get(0).getIndex());
     assertEquals(3, servlet.getPerformedRequests().get(0).getNumResults());
-    assertEquals(0, servlet.getPerformedRequests().get(1).getIndex());
-    assertEquals(
-        SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS,
-        servlet.getPerformedRequests().get(1).getNumResults());
   }
 
   public void testDoGetRequeriesCanonicalLiveSearchWindowForActiveSubscription() throws Exception {

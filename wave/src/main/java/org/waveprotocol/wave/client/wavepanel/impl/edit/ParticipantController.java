@@ -43,6 +43,7 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 import org.waveprotocol.wave.model.conversation.Conversation;
+import org.waveprotocol.wave.model.conversation.DirectMessageUtil;
 import org.waveprotocol.wave.model.conversation.WaveLockState;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.util.Pair;
@@ -498,8 +499,7 @@ public final class ParticipantController {
    * with two participants are NOT considered DMs.
    */
   private static boolean isDirectMessage(Conversation conversation) {
-    Set<String> tags = conversation.getTags();
-    return tags != null && tags.contains(Conversation.DM_TAG);
+    return DirectMessageUtil.isDirectMessage(conversation);
   }
 
   /**

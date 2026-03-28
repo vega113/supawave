@@ -47,6 +47,7 @@ import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.ConversationView;
+import org.waveprotocol.wave.model.conversation.DirectMessageUtil;
 import org.waveprotocol.wave.model.document.Document;
 import org.waveprotocol.wave.model.document.WaveContext;
 import org.waveprotocol.wave.model.id.IdGenerator;
@@ -312,9 +313,7 @@ public class StagesProvider extends Stages {
     if (!isCreator) {
       ConversationView conversations = two.getConversations();
       if (conversations != null && conversations.getRoot() != null) {
-        java.util.Set<String> tags = conversations.getRoot().getTags();
-        isDmParticipant = tags != null && tags.contains(
-            org.waveprotocol.wave.model.conversation.Conversation.DM_TAG);
+        isDmParticipant = DirectMessageUtil.isDirectMessage(conversations.getRoot());
       }
     }
 

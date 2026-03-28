@@ -1,5 +1,20 @@
 [
   {
+    "version": "2026-03-28",
+    "date": "2026-03-28",
+    "title": "Direct Messages Stay Explicit",
+    "summary": "Two-person waves no longer turn into direct messages unless you start them from Send Message.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Ordinary waves with two participants now stay ordinary waves",
+          "Only profile-card Send Message conversations are treated as locked direct messages"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026-03-27",
     "date": "2026-03-27",
     "title": "Changelog System",

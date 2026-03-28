@@ -141,8 +141,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
    *
    * @param id attribute-HTML-safe encoding of the view's HTML id
    * @param isPublic true if the wave is currently public (shared with domain)
-   * @param isDm true if this is a direct message (exactly 2 real participants,
-   *             no domain participant)
+   * @param isDm true if this wave carries the explicit direct-message tag
    */
   public static ParticipantsViewBuilder create(String id, HtmlClosureCollection participantUis,
       boolean isPublic, boolean isDm) {

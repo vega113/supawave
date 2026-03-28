@@ -252,25 +252,30 @@
 
 /* ---- Links inside blip content ---- */
 .contentContainer a {
-  color: #0077b6;
-  text-decoration: underline;
-  text-decoration-color: #0077b6;
+  color: #005f8f;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #00b4d8;
   text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.12em;
+  text-underline-offset: 0.16em;
+  box-shadow: inset 0 -0.22em 0 rgba(0,180,216,0.22);
+  border-radius: 0.2em;
   cursor: pointer;
-  transition: color 0.2s ease, text-decoration-color 0.2s ease;
-  -webkit-transition: color 0.2s ease, text-decoration-color 0.2s ease;
-  -moz-transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-transition: color 0.2s ease, text-decoration-color 0.2s ease, box-shadow 0.2s ease;
+  -moz-transition: color 0.2s ease, text-decoration-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .contentContainer a:hover {
-  color: #00b4d8;
-  text-decoration-color: #00b4d8;
+  color: #0077b6;
+  text-decoration-color: #0077b6;
+  box-shadow: inset 0 -0.28em 0 rgba(0,180,216,0.32);
 }
 
 .contentContainer a:visited {
   color: #6b5b95;
-  text-decoration-color: #6b5b95;
+  text-decoration-color: #8b7db5;
+  box-shadow: inset 0 -0.22em 0 rgba(139,125,181,0.18);
 }
 
 /* Quasi-deleted / soft-delete state (client-side visual only).

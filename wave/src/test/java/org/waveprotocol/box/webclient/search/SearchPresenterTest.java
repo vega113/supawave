@@ -22,6 +22,7 @@ package org.waveprotocol.box.webclient.search;
 import junit.framework.TestCase;
 
 import org.mockito.Mockito;
+import org.waveprotocol.box.common.comms.jso.ProtocolOpenRequestJsoImpl;
 import org.waveprotocol.box.webclient.client.RemoteViewServiceMultiplexer;
 import org.waveprotocol.box.webclient.client.WaveWebSocketClient;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
@@ -37,6 +38,7 @@ import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.PriorityQueue;
 
 public final class SearchPresenterTest extends TestCase {
 
@@ -171,6 +173,28 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, search.findCalls);
   }
 
+  public void testBootstrapOtSearchKeepsFallbackPollingAfterSubscribeFailure()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
+    Mockito.doThrow(new RuntimeException("boom"))
+        .when(socket)
+        .open(Mockito.any(ProtocolOpenRequestJsoImpl.class));
+    RemoteViewServiceMultiplexer channel =
+        new RemoteViewServiceMultiplexer(socket, "alice@example.com");
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        channel);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+
+    presenter.bootstrapOtSearch();
+
+    assertEquals(1, search.findCalls);
+    assertEquals(0, getNextScheduledTime(scheduler));
+  }
+
   public void testBootstrapOtSearchSubscribesTagQueryToOtSearch() throws Exception {
     FakeTimerService scheduler = new FakeTimerService();
     FakeSearch search = new FakeSearch();
@@ -239,6 +263,16 @@ public final class SearchPresenterTest extends TestCase {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.set(presenter, value);
+  }
+
+  private static int getNextScheduledTime(FakeTimerService scheduler) throws Exception {
+    Field tasksField = FakeTimerService.class.getDeclaredField("tasks");
+    tasksField.setAccessible(true);
+    PriorityQueue<?> tasks = (PriorityQueue<?>) tasksField.get(scheduler);
+    Object nextTask = tasks.peek();
+    Method getTime = nextTask.getClass().getDeclaredMethod("getTime");
+    getTime.setAccessible(true);
+    return (Integer) getTime.invoke(nextTask);
   }
 
   private static void invokeFallbackToPolling(SearchPresenter presenter, String message,

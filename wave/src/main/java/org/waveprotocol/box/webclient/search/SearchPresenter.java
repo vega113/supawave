@@ -381,9 +381,11 @@ public final class SearchPresenter
   void bootstrapOtSearch() {
     subscribeToSearchWavelet(queryText);
     doSearch();
-    scheduler.cancel(searchUpdater);
-    scheduler.cancel(otSearchBootstrapRetryTask);
-    scheduler.scheduleDelayed(otSearchBootstrapRetryTask, OT_SEARCH_BOOTSTRAP_RETRY_MS);
+    if (otSearchWaveletName != null) {
+      scheduler.cancel(searchUpdater);
+      scheduler.cancel(otSearchBootstrapRetryTask);
+      scheduler.scheduleDelayed(otSearchBootstrapRetryTask, OT_SEARCH_BOOTSTRAP_RETRY_MS);
+    }
   }
 
   /**

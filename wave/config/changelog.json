@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-03-28-search-panel-unread-accuracy",
+    "version": "PR #411",
+    "date": "2026-03-28",
+    "title": "Search Panel Unread Accuracy",
+    "summary": "Opened waves now keep the correct unread state in the polling search panel.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Stopped opened search results from dropping back to a stale local read state before the polling digest catches up",
+          "Kept higher live unread and message counts when the open wave has newer local state than the last search snapshot"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-realtime-search-stability",
     "version": "2026-03-28",
     "date": "2026-03-28",

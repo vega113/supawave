@@ -34,6 +34,7 @@ import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.robots.RobotCapabilities;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.util.RobotsUtil.RobotRegistrationException;
 import org.waveprotocol.wave.model.id.TokenGenerator;
@@ -207,6 +208,18 @@ public class RobotRegistrarImplTest extends TestCase {
     verify(accountStore).putAccount(any(RobotAccountData.class));
     assertEquals(OWNER_ID.getAddress(), claimedRobot.getOwnerAddress());
     assertEquals(EXISTING_CONSUMER_TOKEN, claimedRobot.getConsumerSecret());
+  }
+
+  public void testRegisterOrUpdateClearsCapabilitiesWhenUrlChanges() throws PersistenceException,
+      RobotRegistrationException {
+    RobotCapabilities capabilities = mock(RobotCapabilities.class);
+    when(accountData.getCapabilities()).thenReturn(capabilities);
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(accountData);
+
+    RobotAccountData updatedAccount =
+        registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION, OWNER_ID.getAddress());
+
+    assertNull(updatedAccount.getCapabilities());
   }
 
   public void testReRegisterFailsOnExistingHumanAccount() throws PersistenceException {

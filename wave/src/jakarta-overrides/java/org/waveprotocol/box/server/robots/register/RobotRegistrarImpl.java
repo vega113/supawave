@@ -201,9 +201,17 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
 
   private RobotAccountData updateRobotAccount(RobotAccountData existingAccount, String location,
       String ownerAddress) throws PersistenceException {
-    RobotAccountData updatedAccount = new RobotAccountDataImpl(existingAccount.getId(), location,
-        existingAccount.getConsumerSecret(), existingAccount.getCapabilities(), !location.isEmpty(),
-        existingAccount.getTokenExpirySeconds(), ownerAddress);
+    RobotCapabilities updatedCapabilities =
+        existingAccount.getUrl().equals(location) ? existingAccount.getCapabilities() : null;
+    RobotAccountData updatedAccount =
+        new RobotAccountDataImpl(
+            existingAccount.getId(),
+            location,
+            existingAccount.getConsumerSecret(),
+            updatedCapabilities,
+            !location.isEmpty(),
+            existingAccount.getTokenExpirySeconds(),
+            ownerAddress);
     accountStore.putAccount(updatedAccount);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updatedAccount);

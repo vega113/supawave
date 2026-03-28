@@ -155,7 +155,10 @@ public final class MagicLinkServlet extends HttpServlet {
       }
 
       if (account != null && account.isHuman()) {
-        authEmailService.sendMagicLinkEmail(req, account.asHuman());
+        HumanAccountData humanAccount = account.asHuman();
+        if (!isSuspended(humanAccount)) {
+          authEmailService.sendMagicLinkEmail(req, humanAccount);
+        }
       } else {
         LOG.info("Magic link requested for non-existent account: " + normalized);
       }
@@ -191,8 +194,7 @@ public final class MagicLinkServlet extends HttpServlet {
       if (!humanAccount.isEmailConfirmed()) {
         authEmailService.confirmEmailOwnership(humanAccount);
       }
-      humanAccount.setLastLoginTime(System.currentTimeMillis());
-      accountStore.putAccount(account);
+      persistLastLogin(account);
 
       WebSession session = WebSessions.from(req, true);
       sessionManager.setLoggedInUser(session, participantId);
@@ -228,5 +230,18 @@ public final class MagicLinkServlet extends HttpServlet {
     resp.setContentType("text/html;charset=utf-8");
     resp.getWriter().write(
         HtmlRenderer.renderMagicLinkRequestPage(domain, message, responseType, analyticsAccount));
+  }
+
+  private boolean isSuspended(HumanAccountData humanAccount) {
+    return HumanAccountData.STATUS_SUSPENDED.equals(humanAccount.getStatus());
+  }
+
+  private void persistLastLogin(AccountData account) {
+    try {
+      account.asHuman().setLastLoginTime(System.currentTimeMillis());
+      accountStore.putAccount(account);
+    } catch (PersistenceException e) {
+      LOG.severe("Failed to persist last login time for " + account.getId().getAddress(), e);
+    }
   }
 }

@@ -3,6 +3,7 @@ package org.waveprotocol.box.server.rpc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,6 +30,7 @@ import org.waveprotocol.box.server.authentication.jwt.JwtClaims;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.io.PrintWriter;
@@ -109,6 +111,22 @@ public class MagicLinkServletTest extends TestCase {
         contains("magic-token"));
   }
 
+  public void testMagicLinkRequestSkipsSuspendedAccount() throws Exception {
+    HumanAccountDataImpl account =
+        new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
+    account.setEmail("frodo@example.com");
+    account.setStatus(HumanAccountData.STATUS_SUSPENDED);
+    when(accountStore.getAccount(USER)).thenReturn(account);
+    when(req.getParameter("address")).thenReturn("frodo@example.com");
+    PrintWriter writer = mock(PrintWriter.class);
+    when(resp.getWriter()).thenReturn(writer);
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    verify(mailProvider, never()).sendEmail(any(), any(), any());
+  }
+
   public void testMagicLinkLoginConfirmsUnconfirmedAccountBeforeRedirect() throws Exception {
     HumanAccountDataImpl account =
         new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
@@ -172,5 +190,39 @@ public class MagicLinkServletTest extends TestCase {
     verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
     verify(sessionManager, never()).setLoggedInUser(any(WebSession.class), eq(USER));
     verify(resp, never()).sendRedirect("/");
+  }
+
+  public void testMagicLinkLoginSucceedsWhenLastLoginPersistenceFails() throws Exception {
+    HumanAccountDataImpl account =
+        new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
+    account.setEmail("frodo@example.com");
+    account.setEmailConfirmed(true);
+    when(accountStore.getAccount(USER)).thenReturn(account);
+    doThrow(new PersistenceException("boom")).when(accountStore).putAccount(account);
+    when(req.getParameter("token")).thenReturn("magic-token");
+    when(req.getSession(true)).thenReturn(session);
+    when(req.getHeader("X-Forwarded-Proto")).thenReturn("https");
+    when(browserSessionJwtIssuer.issue(USER)).thenReturn("browser-jwt");
+    when(emailTokenIssuer.validateToken("magic-token", JwtTokenType.MAGIC_LINK))
+        .thenReturn(new JwtClaims(
+            JwtTokenType.MAGIC_LINK,
+            "example.com",
+            USER.getAddress(),
+            "token-id",
+            "key-id",
+            EnumSet.of(JwtAudience.EMAIL),
+            Set.of(),
+            1L,
+            1L,
+            600L,
+            0L));
+    PrintWriter writer = mock(PrintWriter.class);
+    when(resp.getWriter()).thenReturn(writer);
+
+    servlet.doGet(req, resp);
+
+    verify(sessionManager).setLoggedInUser(any(WebSession.class), eq(USER));
+    verify(resp).sendRedirect("/");
+    verify(resp, never()).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
   }
 }

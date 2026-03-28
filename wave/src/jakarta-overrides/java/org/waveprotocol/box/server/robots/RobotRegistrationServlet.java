@@ -115,11 +115,7 @@ public final class RobotRegistrationServlet extends HttpServlet {
 
     RobotAccountData robotAccount;
     try {
-      if (location.isEmpty()) {
-        robotAccount = robotRegistrar.registerNew(id, location, tokenExpirySeconds);
-      } else {
-        robotAccount = robotRegistrar.registerOrUpdate(id, location, tokenExpirySeconds);
-      }
+      robotAccount = robotRegistrar.registerNew(id, location, tokenExpirySeconds);
     } catch (RobotRegistrationException e) {
       renderRegistrationPage(req, resp, e.getMessage());
       return;

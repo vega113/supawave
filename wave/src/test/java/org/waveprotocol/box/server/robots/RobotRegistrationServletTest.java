@@ -70,4 +70,19 @@ public final class RobotRegistrationServletTest {
     verify(registrar, never()).registerNew(eq(ParticipantId.ofUnsafe("helper@example.com")), anyString(), anyLong());
     assertTrue(responseBody.toString().contains("must end with -bot"));
   }
+
+  @Test
+  public void testCreateWithCallbackUrlStillUsesNewRegistrationFlow() throws Exception {
+    when(req.getParameter("username")).thenReturn("helper-bot");
+    when(req.getParameter("location")).thenReturn("https://example.com/robot");
+    when(req.getParameter("token_expiry")).thenReturn("3600");
+    when(registrar.registerNew(ROBOT_ID, "https://example.com/robot", 3600L)).thenReturn(
+        new RobotAccountDataImpl(ROBOT_ID, "https://example.com/robot", "secret-token", null, true, 3600L));
+
+    servlet.doPost(req, resp);
+
+    verify(registrar).registerNew(ROBOT_ID, "https://example.com/robot", 3600L);
+    verify(registrar, never()).registerOrUpdate(ROBOT_ID, "https://example.com/robot", 3600L);
+    assertTrue(responseBody.toString().contains("secret-token"));
+  }
 }

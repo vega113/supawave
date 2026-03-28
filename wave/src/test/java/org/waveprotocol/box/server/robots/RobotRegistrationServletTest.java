@@ -1,5 +1,6 @@
 package org.waveprotocol.box.server.robots;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -24,7 +25,9 @@ import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
+import org.waveprotocol.box.server.robots.register.RobotRegistrarImpl;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 public final class RobotRegistrationServletTest {
@@ -127,7 +130,7 @@ public final class RobotRegistrationServletTest {
 
     verify(registrar).registerNew(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L);
     verify(registrar, never())
-        .registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress());
+        .registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L);
     assertTrue(responseBody.toString().contains("secret-token"));
   }
 
@@ -148,7 +151,7 @@ public final class RobotRegistrationServletTest {
     servlet.doPost(req, resp);
 
     verify(registrar, never())
-        .registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress());
+        .registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L);
     assertTrue(responseBody.toString().contains("current API token secret"));
   }
 
@@ -164,7 +167,7 @@ public final class RobotRegistrationServletTest {
     when(req.getParameter("token")).thenReturn("registration-xsrf");
     when(accountStore.getAccount(ROBOT_ID)).thenReturn(
         new RobotAccountDataImpl(ROBOT_ID, "", "secret-token", null, false, 0L, null));
-    when(registrar.registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress()))
+    when(registrar.registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L))
         .thenReturn(
             new RobotAccountDataImpl(
                 ROBOT_ID,
@@ -177,8 +180,36 @@ public final class RobotRegistrationServletTest {
 
     servlet.doPost(req, resp);
 
-    verify(registrar).registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress());
+    verify(registrar).registerOrUpdate(ROBOT_ID, "https://example.com/robot", OWNER_ID.getAddress(), 3600L);
     assertTrue(responseBody.toString().contains("secret-token"));
+  }
+
+  @Test
+  public void testActivatePendingRobotPreservesRequestedTokenExpiry() throws Exception {
+    MemoryStore store = new MemoryStore();
+    RobotRegistrarImpl realRegistrar = new RobotRegistrarImpl(store, length -> "next-secret");
+    servlet =
+        new RobotRegistrationServlet(
+            "example.com", store, sessionManager, realRegistrar, config());
+
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER_ID);
+    store.putAccount(
+        new RobotAccountDataImpl(ROBOT_ID, "", "secret-token", null, false, 0L, null));
+
+    servlet.doGet(req, resp);
+    responseBody.getBuffer().setLength(0);
+    when(req.getParameter("username")).thenReturn("helper-bot");
+    when(req.getParameter("location")).thenReturn("https://example.com/robot");
+    when(req.getParameter("consumer_secret")).thenReturn("secret-token");
+    when(req.getParameter("token_expiry")).thenReturn("3600");
+    when(req.getParameter("token")).thenReturn("registration-xsrf");
+
+    servlet.doPost(req, resp);
+
+    assertTrue(responseBody.toString().contains("secret-token"));
+    assertTrue(store.getAccount(ROBOT_ID).isRobot());
+    assertTrue(store.getAccount(ROBOT_ID).asRobot().isVerified());
+    assertEquals(3600L, store.getAccount(ROBOT_ID).asRobot().getTokenExpirySeconds());
   }
 
   @Test
@@ -209,5 +240,9 @@ public final class RobotRegistrationServletTest {
 
     verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     assertTrue(responseBody.toString().contains("Invalid XSRF token"));
+  }
+
+  private Config config() {
+    return ConfigFactory.parseMap(java.util.Map.of("administration.analytics_account", "UA-someid"));
   }
 }

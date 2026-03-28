@@ -45,6 +45,7 @@ public final class FocusBlipSelectorEmptyRootTest extends TestCase {
     BlipView selected = selector.getOrFindRootBlip();
 
     assertNull(selected);
+    Mockito.verifyNoInteractions(views);
   }
 
   public void testSelectMostRecentlyModifiedReturnsNullWhenRootThreadHasNoFirstBlip() {
@@ -62,5 +63,6 @@ public final class FocusBlipSelectorEmptyRootTest extends TestCase {
     BlipView selected = selector.selectMostRecentlyModified();
 
     assertNull(selected);
+    Mockito.verifyNoInteractions(views);
   }
 }

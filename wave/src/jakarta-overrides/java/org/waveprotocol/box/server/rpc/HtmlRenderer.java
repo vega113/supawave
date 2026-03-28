@@ -1906,7 +1906,9 @@ public final class HtmlRenderer {
 
     // Responsive
     sb.append("@media (max-width: 640px) {\n");
-    sb.append("  .nav { padding: 12px 16px; }\n");
+    sb.append("  .nav { padding: 12px 16px; flex-wrap: wrap; gap: 12px; }\n");
+    sb.append("  .nav-links { width: 100%; flex-wrap: wrap; justify-content: flex-start; }\n");
+    sb.append("  .nav-link { text-align: center; }\n");
     sb.append("  .hero { padding: 48px 20px 120px; }\n");
     sb.append("  .hero h1 { font-size: 32px; }\n");
     sb.append("  .hero .tagline { font-size: 18px; }\n");
@@ -1928,6 +1930,7 @@ public final class HtmlRenderer {
     sb.append("  <div class=\"nav-links\">\n");
     sb.append("    <a href=\"/auth/signin\" class=\"nav-link nav-link-signin\">Sign In</a>\n");
     sb.append("    <a href=\"/auth/register\" class=\"nav-link nav-link-register\">Register</a>\n");
+    sb.append("    <a href=\"/api-docs\" class=\"nav-link nav-link-signin\">API Docs</a>\n");
     sb.append("  </div>\n");
     sb.append("</nav>\n");
 
@@ -1943,6 +1946,7 @@ public final class HtmlRenderer {
     sb.append("    <div class=\"hero-buttons\">\n");
     sb.append("      <a href=\"/auth/register\" class=\"hero-btn hero-btn-primary\">Get Started</a>\n");
     sb.append("      <a href=\"/auth/signin\" class=\"hero-btn hero-btn-secondary\">Sign In</a>\n");
+    sb.append("      <a href=\"/api-docs\" class=\"hero-btn hero-btn-secondary\">API Docs</a>\n");
     sb.append("      <a href=\"/public\" class=\"hero-btn hero-btn-secondary\">Explore Public Waves</a>\n");
     sb.append("    </div>\n");
     sb.append("  </div>\n");
@@ -2004,6 +2008,7 @@ public final class HtmlRenderer {
     sb.append("    <a href=\"/terms\">Terms</a> &middot; ");
     sb.append("<a href=\"/privacy\">Privacy</a> &middot; ");
     sb.append("<a href=\"/changelog\">What's New</a> &middot; ");
+    sb.append("<a href=\"/api-docs\">API Docs</a> &middot; ");
     sb.append("<a href=\"/contact\">Contact</a>\n");
     sb.append("  </div>\n");
     sb.append("  Powered by <a href=\"https://supawave.ai\">SupaWave</a>\n");
@@ -3096,15 +3101,16 @@ public final class HtmlRenderer {
       sb.append("        <a href=\"/account/settings\">Account Settings</a>\n");
       sb.append("        <a href=\"/robot/register/create\">Robot Registration</a>\n");
       sb.append("        <a href=\"/robot/dataapi/token\">API Token</a>\n");
+      sb.append("        <a href=\"/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
-      sb.append("        <a href=\"/changelog\" target=\"_blank\">What's New</a>\n");
+      sb.append("        <a href=\"/changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
       sb.append("        <a href=\"/contact\">Contact Us</a>\n");
       if ("owner".equals(userRole) || "admin".equals(userRole)) {
         sb.append("        <a href=\"/admin\">Admin</a>\n");
       }
       sb.append("        <div class=\"divider\"></div>\n");
-      sb.append("        <a href=\"/terms\" target=\"_blank\">Terms of Service</a>\n");
-      sb.append("        <a href=\"/privacy\" target=\"_blank\">Privacy Policy</a>\n");
+      sb.append("        <a href=\"/terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
+      sb.append("        <a href=\"/privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <a id=\"signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
       sb.append("      </div>\n");

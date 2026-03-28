@@ -317,6 +317,8 @@ public class ServerMain {
     server.addServlet("/api-docs", ApiDocsServlet.class);
     server.addServlet("/api/openapi.json", ApiDocsServlet.class);
     server.addServlet("/api/llm.txt", ApiDocsServlet.class);
+    server.addServlet("/llms.txt", ApiDocsServlet.class);
+    server.addServlet("/llms-full.txt", ApiDocsServlet.class);
 
     // SEO endpoints
     server.addServlet("/robots.txt", RobotsServlet.class);

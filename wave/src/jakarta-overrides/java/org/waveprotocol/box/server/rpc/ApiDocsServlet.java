@@ -23,6 +23,11 @@ import java.util.regex.Pattern;
 public final class ApiDocsServlet extends HttpServlet {
   private static final String DOCS_VERSION = "2026-03-27";
   private static final String DEFAULT_BASE_URL = "http://127.0.0.1:9898";
+  private static final String API_DOCS_PATH = "/api-docs";
+  private static final String OPENAPI_PATH = "/api/openapi.json";
+  private static final String LLM_ALIAS_PATH = "/api/llm.txt";
+  private static final String LLMS_INDEX_PATH = "/llms.txt";
+  private static final String LLMS_FULL_PATH = "/llms-full.txt";
   private static final String CANONICAL_RPC_PATH = "/robot/dataapi/rpc";
   private static final String RPC_ALIAS_PATH = "/robot/dataapi";
   private static final String TOKEN_PATH = "/robot/dataapi/token";
@@ -48,16 +53,20 @@ public final class ApiDocsServlet extends HttpServlet {
 
     String baseUrl = deriveBaseUrl(request);
 
-    if ("/api-docs".equals(servletPath)) {
+    if (API_DOCS_PATH.equals(servletPath)) {
       writeResponse(response, "text/html;charset=utf-8", renderHtml(baseUrl));
       return;
     }
-    if ("/api/openapi.json".equals(servletPath)) {
+    if (OPENAPI_PATH.equals(servletPath)) {
       writeResponse(response, "application/json;charset=utf-8", renderOpenApiJson());
       return;
     }
-    if ("/api/llm.txt".equals(servletPath)) {
-      writeResponse(response, "text/plain;charset=utf-8", renderLlmText(baseUrl));
+    if (LLM_ALIAS_PATH.equals(servletPath) || LLMS_FULL_PATH.equals(servletPath)) {
+      writeResponse(response, "text/plain;charset=utf-8", renderLlmFullText(baseUrl));
+      return;
+    }
+    if (LLMS_INDEX_PATH.equals(servletPath)) {
+      writeResponse(response, "text/plain;charset=utf-8", renderLlmIndexText(baseUrl));
       return;
     }
 
@@ -398,8 +407,9 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append(
         "      <p>Wave's current Data/Robot API is a JWT-protected JSON-RPC transport. The canonical endpoint is <code>/robot/dataapi/rpc</code>; <code>/robot/dataapi</code> stays live as a backward-compatible alias. Responses are always returned as a JSON array in request order.</p>\n");
     html.append("      <div class=\"hero-links\">\n");
-    html.append("        <a href=\"/api/openapi.json\">OpenAPI 3.0 JSON</a>\n");
-    html.append("        <a href=\"/api/llm.txt\">LLM integration index</a>\n");
+    html.append("        <a href=\"").append(OPENAPI_PATH).append("\">OpenAPI 3.0 JSON</a>\n");
+    html.append("        <a href=\"").append(LLMS_INDEX_PATH).append("\">llms.txt index</a>\n");
+    html.append("        <a href=\"").append(LLMS_FULL_PATH).append("\">LLM reference</a>\n");
     html.append("        <a href=\"#operations\">24 supported operations</a>\n");
     html.append("      </div>\n");
     html.append("    </div>\n");
@@ -545,7 +555,13 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("        <p>The runtime Data API is currently unversioned. This documentation set is version stamped at <code>")
         .append(escape(DOCS_VERSION))
         .append("</code> so clients can see which contract snapshot they were built against. Future breaking changes should introduce a versioned runtime path rather than silently changing semantics in place.</p>\n");
-    html.append("        <div class=\"inline-links\"><a href=\"/api/openapi.json\">Machine-readable contract</a><a href=\"/api/llm.txt\">LLM-oriented index</a></div>\n");
+    html.append("        <div class=\"inline-links\"><a href=\"")
+        .append(OPENAPI_PATH)
+        .append("\">Machine-readable contract</a><a href=\"")
+        .append(LLMS_INDEX_PATH)
+        .append("\">llms.txt index</a><a href=\"")
+        .append(LLMS_FULL_PATH)
+        .append("\">LLM reference</a></div>\n");
     html.append("      </section>\n");
     html.append("      <section id=\"legacy\">\n");
     html.append("        <h2>Legacy and unsupported notes</h2>\n");
@@ -926,10 +942,26 @@ public final class ApiDocsServlet extends HttpServlet {
     return schema;
   }
 
-  private static String renderLlmText(String baseUrl) {
+  private static String renderLlmIndexText(String baseUrl) {
+    StringBuilder text = new StringBuilder(4096);
+    text.append("# SupaWave API Docs\n\n");
+    text.append("> Self-hosted SupaWave Data API documentation for humans, API clients, and LLM agents.\n\n");
+    text.append("- HTML docs: ").append(baseUrl).append(API_DOCS_PATH).append('\n');
+    text.append("- OpenAPI JSON: ").append(baseUrl).append(OPENAPI_PATH).append('\n');
+    text.append("- Full LLM reference: ").append(baseUrl).append(LLMS_FULL_PATH).append('\n');
+    text.append("- Legacy LLM alias: ").append(baseUrl).append(LLM_ALIAS_PATH).append('\n');
+    text.append("- Token endpoint: ").append(baseUrl).append(TOKEN_PATH).append('\n');
+    text.append("- Canonical RPC endpoint: ").append(baseUrl).append(CANONICAL_RPC_PATH).append('\n');
+    return text.toString();
+  }
+
+  private static String renderLlmFullText(String baseUrl) {
     StringBuilder text = new StringBuilder(72000);
-    text.append("SupaWave Data API LLM Index\n");
+    text.append("SupaWave Data API LLM Reference\n");
     text.append("Docs version: ").append(DOCS_VERSION).append('\n');
+    text.append("Index: ").append(baseUrl).append(LLMS_INDEX_PATH).append('\n');
+    text.append("HTML docs: ").append(baseUrl).append(API_DOCS_PATH).append('\n');
+    text.append("OpenAPI JSON: ").append(baseUrl).append(OPENAPI_PATH).append('\n');
     text.append("Canonical RPC path: ").append(CANONICAL_RPC_PATH).append('\n');
     text.append("Alias path: ").append(RPC_ALIAS_PATH).append('\n');
     text.append("Token endpoint: ").append(TOKEN_PATH).append('\n');
@@ -990,6 +1022,8 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("Compatibility notes\n");
     text.append("- Use ").append(CANONICAL_RPC_PATH).append(" for new integrations.\n");
     text.append("- ").append(RPC_ALIAS_PATH).append(" remains live for compatibility.\n");
+    text.append("- ").append(LLMS_FULL_PATH).append(" is the canonical LLM-friendly reference path.\n");
+    text.append("- ").append(LLM_ALIAS_PATH).append(" remains live as a backward-compatible alias.\n");
     text.append("- Do not advertise wavelet.create or DataApiOAuthServlet as the current public API.\n");
     return text.toString();
   }

@@ -18,6 +18,7 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.json.JSONArray;
@@ -79,7 +80,31 @@ public final class HtmlRendererChangelogTest {
     String topBar = HtmlRenderer.renderTopBar("alice", "example.com", "user");
     String landing = HtmlRenderer.renderLandingPage("example.com", "");
 
-    assertTrue(topBar.contains("href=\"/changelog\""));
+    assertTrue(topBar.contains("href=\"/changelog\" target=\"_blank\" rel=\"noopener noreferrer\""));
     assertTrue(landing.contains("href=\"/changelog\">What's New</a>"));
+    assertFalse(topBar.contains("target=\"_blank\">"));
+  }
+
+  @Test
+  public void topBarAndLandingPageExposeApiDocsLink() {
+    String topBar = HtmlRenderer.renderTopBar("alice", "example.com", "user");
+    String landing = HtmlRenderer.renderLandingPage("example.com", "");
+
+    assertTrue(topBar.contains("href=\"/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\""));
+    assertTrue(landing.contains("href=\"/api-docs\""));
+  }
+
+  @Test
+  public void landingPageNavWrapsControlsOnMobile() {
+    String landing = HtmlRenderer.renderLandingPage("example.com", "");
+
+    assertTrue(landing.contains("@media (max-width: 640px)"));
+    assertTrue(landing.contains(".nav {"));
+    assertTrue(landing.contains("padding: 12px 16px;"));
+    assertTrue(landing.contains("flex-wrap: wrap;"));
+    assertTrue(landing.contains("gap: 12px;"));
+    assertTrue(landing.contains(".nav-links {"));
+    assertTrue(landing.contains("width: 100%;"));
+    assertTrue(landing.contains("justify-content: flex-start;"));
   }
 }

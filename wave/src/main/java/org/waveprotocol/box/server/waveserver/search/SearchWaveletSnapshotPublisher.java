@@ -53,6 +53,7 @@ public final class SearchWaveletSnapshotPublisher {
   private final SearchIndexer indexer;
   private final SearchWaveletDataProvider dataProvider;
   private final ConcurrentHashMap<String, AtomicLong> waveletVersions = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Object> publishLocks = new ConcurrentHashMap<>();
 
   @Inject
   public SearchWaveletSnapshotPublisher(
@@ -74,6 +75,10 @@ public final class SearchWaveletSnapshotPublisher {
     publish(user, query, searchResult, false);
   }
 
+  public boolean hasLiveSubscription(ParticipantId user, String query) {
+    return dispatcher.hasSubscription(user, waveletManager.computeWaveletName(user, query));
+  }
+
   private void publish(ParticipantId user, String query, SearchResult searchResult,
       boolean forceSnapshot) {
     WaveletName computedWaveletName = waveletManager.computeWaveletName(user, query);
@@ -81,28 +86,32 @@ public final class SearchWaveletSnapshotPublisher {
       return;
     }
     WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, query);
-    List<SearchWaveletDataProvider.SearchResultEntry> newResults =
-        convertSearchResult(searchResult);
-    int newTotalCount = searchResult != null && searchResult.getTotalResults() >= 0
-        ? searchResult.getTotalResults()
-        : newResults.size();
-    List<SearchWaveletDataProvider.SearchResultEntry> oldResults =
-        dataProvider.getCurrentResults(searchWaveletName);
-    int oldTotalCount = dataProvider.getCurrentTotal(searchWaveletName);
-    SearchWaveletDataProvider.SearchDiff diff =
-        dataProvider.computeDiff(oldResults, oldTotalCount, newResults, newTotalCount);
+    Object publishLock =
+        publishLocks.computeIfAbsent(searchWaveletName.toString(), ignored -> new Object());
+    synchronized (publishLock) {
+      List<SearchWaveletDataProvider.SearchResultEntry> newResults =
+          convertSearchResult(searchResult);
+      int newTotalCount = searchResult != null && searchResult.getTotalResults() >= 0
+          ? searchResult.getTotalResults()
+          : newResults.size();
+      List<SearchWaveletDataProvider.SearchResultEntry> oldResults =
+          dataProvider.getCurrentResults(searchWaveletName);
+      int oldTotalCount = dataProvider.getCurrentTotal(searchWaveletName);
+      SearchWaveletDataProvider.SearchDiff diff =
+          dataProvider.computeDiff(oldResults, oldTotalCount, newResults, newTotalCount);
 
-    dataProvider.updateCurrentResults(searchWaveletName, newResults, newTotalCount);
-    indexer.registerOrUpdateSubscription(
-        user, query, SearchWaveletManager.md5Hex(query), collectWaveIds(newResults));
+      dataProvider.updateCurrentResults(searchWaveletName, newResults, newTotalCount);
+      indexer.registerOrUpdateSubscription(
+          user, query, SearchWaveletManager.md5Hex(query), collectWaveIds(newResults));
 
-    if (!forceSnapshot && diff == null) {
-      return;
+      if (!forceSnapshot && diff == null) {
+        return;
+      }
+
+      CommittedWaveletSnapshot snapshot =
+          createSnapshot(searchWaveletName, user, newResults, newTotalCount);
+      dispatcher.publishSnapshot(user, searchWaveletName, snapshot);
     }
-
-    CommittedWaveletSnapshot snapshot =
-        createSnapshot(searchWaveletName, user, newResults, newTotalCount);
-    dispatcher.publishSnapshot(user, searchWaveletName, snapshot);
   }
 
   private Set<WaveId> collectWaveIds(List<SearchWaveletDataProvider.SearchResultEntry> results) {

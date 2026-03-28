@@ -50,6 +50,10 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class SearchWaveletSnapshotPublisherTest extends TestCase {
 
@@ -117,6 +121,64 @@ public final class SearchWaveletSnapshotPublisherTest extends TestCase {
     assertEquals(0, indexer.getSubscriptionCount());
   }
 
+  public void testPublishUpdateSerializesConcurrentStateTransitions() throws Exception {
+    SearchWaveletManager waveletManager = new SearchWaveletManager();
+    SearchIndexer indexer = new SearchIndexer();
+    BlockingSearchWaveletDataProvider dataProvider =
+        new BlockingSearchWaveletDataProvider("example.com/w+old", "example.com/w+new");
+    SearchWaveletSnapshotPublisher publisher =
+        new SearchWaveletSnapshotPublisher(
+            new SearchWaveletDispatcher(),
+            waveletManager,
+            indexer,
+            dataProvider);
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+
+    Thread olderPublish = new Thread(
+        () -> runPublish(
+            publisher,
+            createSearchResult(QUERY, "example.com/w+old", 1),
+            failure),
+        "older-publish");
+    Thread newerPublish = new Thread(
+        () -> runPublish(
+            publisher,
+            createSearchResult(QUERY, "example.com/w+new", 1),
+            failure),
+        "newer-publish");
+
+    olderPublish.start();
+    assertTrue(dataProvider.awaitOlderUpdateReady());
+    newerPublish.start();
+    try {
+      assertFalse(dataProvider.awaitNewerUpdateReady());
+    } finally {
+      dataProvider.allowOlderUpdate();
+      olderPublish.join();
+      newerPublish.join();
+    }
+
+    if (failure.get() != null) {
+      throw new AssertionError(failure.get());
+    }
+
+    WaveletName searchWaveletName = waveletManager.computeWaveletName(USER, QUERY);
+    assertEquals(
+        "example.com/w+new",
+        dataProvider.getCurrentResults(searchWaveletName).get(0).getWaveId());
+  }
+
+  private static void runPublish(
+      SearchWaveletSnapshotPublisher publisher,
+      SearchResult searchResult,
+      AtomicReference<Throwable> failure) {
+    try {
+      publisher.publishUpdate(USER, QUERY, searchResult);
+    } catch (Throwable t) {
+      failure.compareAndSet(null, t);
+    }
+  }
+
   private static SearchResult createSearchResult(String query, String waveId, int totalResults) {
     SearchResult searchResult = new SearchResult(query);
     searchResult.addDigest(new SearchResult.Digest(
@@ -130,5 +192,57 @@ public final class SearchWaveletSnapshotPublisherTest extends TestCase {
         7));
     searchResult.setTotalResults(totalResults);
     return searchResult;
+  }
+
+  private static final class BlockingSearchWaveletDataProvider extends SearchWaveletDataProvider {
+    private final String olderWaveId;
+    private final String newerWaveId;
+    private final CountDownLatch olderUpdateReady = new CountDownLatch(1);
+    private final CountDownLatch allowOlderUpdate = new CountDownLatch(1);
+    private final CountDownLatch newerUpdateReady = new CountDownLatch(1);
+
+    private BlockingSearchWaveletDataProvider(String olderWaveId, String newerWaveId) {
+      this.olderWaveId = olderWaveId;
+      this.newerWaveId = newerWaveId;
+    }
+
+    @Override
+    public void updateCurrentResults(
+        WaveletName waveletName,
+        List<SearchResultEntry> results,
+        int totalCount) {
+      String waveId = results.isEmpty() ? "" : results.get(0).getWaveId();
+      if (olderWaveId.equals(waveId)) {
+        olderUpdateReady.countDown();
+        await(allowOlderUpdate);
+      }
+      if (newerWaveId.equals(waveId)) {
+        newerUpdateReady.countDown();
+      }
+      super.updateCurrentResults(waveletName, results, totalCount);
+    }
+
+    private boolean awaitOlderUpdateReady() throws InterruptedException {
+      return olderUpdateReady.await(5, TimeUnit.SECONDS);
+    }
+
+    private boolean awaitNewerUpdateReady() throws InterruptedException {
+      return newerUpdateReady.await(200, TimeUnit.MILLISECONDS);
+    }
+
+    private void allowOlderUpdate() {
+      allowOlderUpdate.countDown();
+    }
+
+    private void await(CountDownLatch latch) {
+      try {
+        if (!latch.await(5, TimeUnit.SECONDS)) {
+          throw new AssertionError("Timed out waiting for publish interleaving");
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new AssertionError("Interrupted while waiting for publish interleaving", e);
+      }
+    }
   }
 }

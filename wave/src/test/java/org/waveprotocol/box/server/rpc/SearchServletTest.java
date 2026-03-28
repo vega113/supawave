@@ -23,7 +23,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.wave.api.SearchResult;
+import org.waveprotocol.box.common.comms.WaveClientRpc.WaveletVersion;
 import com.google.wave.api.data.converter.EventDataConverterManager;
 
 import junit.framework.TestCase;
@@ -31,16 +33,26 @@ import junit.framework.TestCase;
 import org.mockito.stubbing.Answer;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
+import org.waveprotocol.box.server.frontend.ClientFrontend.OpenListener;
+import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
 import org.waveprotocol.box.server.frontend.SearchWaveletDispatcher;
+import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
+import org.waveprotocol.box.server.waveserver.WaveBus;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.search.SearchIndexer;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletDataProvider;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletSnapshotPublisher;
 import org.waveprotocol.box.search.SearchProto.SearchRequest;
+import org.waveprotocol.wave.model.id.IdFilter;
+import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
+import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.version.HashedVersionFactory;
+import org.waveprotocol.wave.model.version.HashedVersionFactoryImpl;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,16 +60,40 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public final class SearchServletTest extends TestCase {
 
+  private static final IdURIEncoderDecoder URI_CODEC =
+      new IdURIEncoderDecoder(new JavaUrlCodec());
+  private static final HashedVersionFactory HASH_FACTORY =
+      new HashedVersionFactoryImpl(URI_CODEC);
   private static final ParticipantId USER = ParticipantId.ofUnsafe("user@example.com");
+  private static final Collection<WaveletVersion> NO_KNOWN_WAVELETS =
+      Collections.<WaveletVersion>emptySet();
 
-  public void testDoGetRequeriesCanonicalLiveSearchWindowForBootstrap() throws Exception {
+  public void testDoGetSkipsCanonicalBootstrapSearchWithoutLiveSubscription() throws Exception {
     TestSearchServlet servlet = createServlet(createSnapshotPublisher());
+    HttpServletRequest request = requestWithParams(Map.of(
+        "query", "in:inbox",
+        "index", "5",
+        "numResults", "3"));
+    HttpServletResponse response = responseWithWriter();
+
+    servlet.doGet(request, response);
+
+    assertEquals(1, servlet.getPerformedRequests().size());
+    assertEquals(5, servlet.getPerformedRequests().get(0).getIndex());
+    assertEquals(3, servlet.getPerformedRequests().get(0).getNumResults());
+  }
+
+  public void testDoGetRequeriesCanonicalLiveSearchWindowForActiveSubscription() throws Exception {
+    TestSearchServlet servlet =
+        createServlet(createActiveSnapshotPublisher("in:inbox"));
     HttpServletRequest request = requestWithParams(Map.of(
         "query", "in:inbox",
         "index", "5",
@@ -76,7 +112,8 @@ public final class SearchServletTest extends TestCase {
   }
 
   public void testDoGetSkipsDuplicateCanonicalBootstrapSearch() throws Exception {
-    TestSearchServlet servlet = createServlet(createSnapshotPublisher());
+    TestSearchServlet servlet =
+        createServlet(createActiveSnapshotPublisher("in:inbox"));
     HttpServletRequest request = requestWithParams(Map.of(
         "query", "in:inbox",
         "index", "0",
@@ -113,6 +150,33 @@ public final class SearchServletTest extends TestCase {
         new SearchWaveletManager(),
         new SearchIndexer(),
         new SearchWaveletDataProvider());
+  }
+
+  private static SearchWaveletSnapshotPublisher createActiveSnapshotPublisher(String query)
+      throws Exception {
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    when(waveletProvider.getWaveletIds(any())).thenReturn(ImmutableSet.of());
+
+    WaveletInfo waveletInfo = WaveletInfo.create(HASH_FACTORY, waveletProvider);
+    ClientFrontendImpl clientFrontend =
+        ClientFrontendImpl.create(waveletProvider, mock(WaveBus.class), waveletInfo);
+    SearchWaveletManager waveletManager = new SearchWaveletManager();
+    SearchWaveletDispatcher dispatcher = new SearchWaveletDispatcher();
+    dispatcher.initialize(waveletInfo);
+    SearchWaveletSnapshotPublisher publisher =
+        new SearchWaveletSnapshotPublisher(
+            dispatcher, waveletManager, new SearchIndexer(), new SearchWaveletDataProvider());
+    WaveletName searchWaveletName = waveletManager.computeWaveletName(USER, query);
+    IdFilter filter = IdFilter.of(
+        Collections.singleton(searchWaveletName.waveletId),
+        Collections.<String>emptySet());
+    clientFrontend.openRequest(
+        USER,
+        searchWaveletName.waveId,
+        filter,
+        NO_KNOWN_WAVELETS,
+        mock(OpenListener.class));
+    return publisher;
   }
 
   private static HttpServletRequest requestWithParams(Map<String, String> params) {

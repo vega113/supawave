@@ -169,7 +169,7 @@ public class SearchServletJakartaIT {
   }
 
   @Test
-  public void snapshotBootstrapRequeriesCanonicalLiveSearchWindow() throws Exception {
+  public void snapshotBootstrapSkipsCanonicalRequeryWithoutLiveSubscription() throws Exception {
     var user = new org.waveprotocol.wave.model.wave.ParticipantId("user@example.com");
     Mockito.when(sm.getLoggedInUser(Mockito.any(WebSession.class))).thenReturn(user);
     Mockito.when(sm.getLoggedInUser(Mockito.isNull(WebSession.class))).thenReturn(user);
@@ -197,13 +197,9 @@ public class SearchServletJakartaIT {
       URL url = new URL("http://localhost:" + cc.getLocalPort() + "/search/?query=in:inbox&index=5&numResults=3");
       HttpURLConnection c = TestSupport.openConnection(url);
       assertEquals(200, c.getResponseCode());
-      assertEquals(2, servlet.getPerformedRequests().size());
+      assertEquals(1, servlet.getPerformedRequests().size());
       assertEquals(5, servlet.getPerformedRequests().get(0).getIndex());
       assertEquals(3, servlet.getPerformedRequests().get(0).getNumResults());
-      assertEquals(0, servlet.getPerformedRequests().get(1).getIndex());
-      assertEquals(
-          SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS,
-          servlet.getPerformedRequests().get(1).getNumResults());
     } finally {
       TestSupport.stopServerQuietly(srv);
     }

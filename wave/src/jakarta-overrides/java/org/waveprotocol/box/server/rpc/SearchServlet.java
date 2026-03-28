@@ -101,10 +101,14 @@ public class SearchServlet extends HttpServlet {
     }
     SearchResult searchResult = performSearch(searchRequest, user);
     if (snapshotPublisher != null) {
-      SearchRequest bootstrapRequest = canonicalLiveSearchRequest(searchRequest);
-      SearchResult bootstrapResult = canonicalBootstrapSearchResult(
-          searchRequest, bootstrapRequest, searchResult, user);
-      snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
+      boolean hasLiveSubscription =
+          snapshotPublisher.hasLiveSubscription(user, searchRequest.getQuery());
+      if (hasLiveSubscription) {
+        SearchRequest bootstrapRequest = canonicalLiveSearchRequest(searchRequest);
+        SearchResult bootstrapResult = canonicalBootstrapSearchResult(
+            searchRequest, bootstrapRequest, searchResult, user);
+        snapshotPublisher.publishBootstrap(user, bootstrapRequest.getQuery(), bootstrapResult);
+      }
     }
     int totalGuess = computeTotalResultsNumberGuess(searchRequest, searchResult);
     SearchResponse searchResponse = serializeSearchResult(searchResult, totalGuess);

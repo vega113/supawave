@@ -162,6 +162,7 @@ public class SearchServlet extends AbstractSearchServlet {
     try {
       publishLiveBootstrap(searchRequest, searchResult, user);
     } catch (RuntimeException e) {
+      // Live bootstrap publishing is a best-effort side effect after the main search succeeds.
       LOG.warning(
           "Ignoring live bootstrap publish failure for query " + searchRequest.getQuery(),
           e);

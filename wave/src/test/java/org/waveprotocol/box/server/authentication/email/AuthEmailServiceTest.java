@@ -92,6 +92,37 @@ public class AuthEmailServiceTest extends TestCase {
     assertFalse(bodyCaptor.getValue().contains("evil.example.net"));
   }
 
+  public void testConfirmationEmailsUsePublicFrontendAddressFallback() throws Exception {
+    Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put("core.auth_email_send_cooldown_seconds", 300)
+        .put("core.auth_email_send_max_per_address_per_hour", 5)
+        .put("core.auth_email_send_max_per_ip_per_hour", 20)
+        .put("core.http_frontend_public_address", "wave.public.example")
+        .put("security.enable_ssl", true)
+        .build());
+    AuthEmailService service = new AuthEmailService(
+        accountStore,
+        emailTokenIssuer,
+        mailProvider,
+        Clock.fixed(Instant.parse("2026-03-28T08:00:00Z"), ZoneOffset.UTC),
+        config);
+
+    HumanAccountDataImpl account = createAccount("frodo@example.com");
+    when(emailTokenIssuer.issueEmailConfirmToken(USER)).thenReturn("confirm-token");
+    when(req.getScheme()).thenReturn("http");
+    when(req.getServerName()).thenReturn("localhost");
+    when(req.getServerPort()).thenReturn(9898);
+
+    AuthEmailService.DispatchResult result = service.sendConfirmationEmail(req, account);
+
+    ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+    assertEquals(AuthEmailService.DispatchResult.SENT, result);
+    verify(mailProvider).sendEmail(eq("frodo@example.com"),
+        eq("Confirm your Wave account"), bodyCaptor.capture());
+    assertTrue(bodyCaptor.getValue().contains("https://wave.public.example/auth/confirm-email?token=confirm-token"));
+    assertFalse(bodyCaptor.getValue().contains("localhost:9898"));
+  }
+
   public void testIpThrottleUsesRemoteAddressInsteadOfForwardedFor() throws Exception {
     Config config = createConfig(0, 5, 1, "https://wave.example.com");
     AuthEmailService service = new AuthEmailService(

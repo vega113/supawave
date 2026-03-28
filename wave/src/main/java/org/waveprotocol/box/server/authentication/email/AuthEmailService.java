@@ -248,6 +248,12 @@ public final class AuthEmailService {
   }
 
   private String readFrontendAddress(Config config) {
+    if (config.hasPath("core.http_frontend_public_address")) {
+      String publicAddress = config.getString("core.http_frontend_public_address").trim();
+      if (!publicAddress.isEmpty()) {
+        return publicAddress;
+      }
+    }
     if (config.hasPath("core.http_frontend_addresses")
         && !config.getStringList("core.http_frontend_addresses").isEmpty()) {
       return config.getStringList("core.http_frontend_addresses").get(0).trim();

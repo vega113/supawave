@@ -1,5 +1,27 @@
 [
   {
+    "releaseId": "2026-03-28-robot-registration-flow",
+    "version": "PR #434",
+    "date": "2026-03-28",
+    "title": "Robot Registration Flow",
+    "summary": "Robot registration now lets you create credentials first, add the callback URL later, and keeps `-bot` reserved for robots.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Robot registration now lets you mint credentials first and add or update the callback URL later without rotating the secret",
+          "Robot usernames must end with `-bot`, and regular user registrations now reject that reserved suffix"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Pending robots can no longer use the `client_credentials` token flow until a callback URL is configured"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-save-status-reliability",
     "version": "PR #432",
     "date": "2026-03-28",
@@ -25,28 +47,6 @@
         "type": "fix",
         "items": [
           "Restored visible underlines for links inside wave content while keeping the existing Supawave link colors"
-        ]
-      }
-    ]
-  },
-  {
-    "releaseId": "2026-03-28-robot-registration-flow",
-    "version": "PR #434",
-    "date": "2026-03-28",
-    "title": "Robot Registration Flow",
-    "summary": "Robot registration now lets you create credentials first, add the callback URL later, and keeps `-bot` reserved for robots.",
-    "sections": [
-      {
-        "type": "improvement",
-        "items": [
-          "Robot registration now lets you mint credentials first and add or update the callback URL later without rotating the secret",
-          "Robot usernames must end with `-bot`, and regular user registrations now reject that reserved suffix"
-        ]
-      },
-      {
-        "type": "fix",
-        "items": [
-          "Pending robots can no longer use the `client_credentials` token flow until a callback URL is configured"
         ]
       }
     ]

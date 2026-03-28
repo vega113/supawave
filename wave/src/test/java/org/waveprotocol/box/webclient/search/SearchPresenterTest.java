@@ -21,6 +21,9 @@ package org.waveprotocol.box.webclient.search;
 
 import junit.framework.TestCase;
 
+import org.mockito.Mockito;
+import org.waveprotocol.box.webclient.client.RemoteViewServiceMultiplexer;
+import org.waveprotocol.box.webclient.client.WaveWebSocketClient;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
@@ -144,6 +147,24 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals("in:inbox", search.lastQuery);
     assertEquals(30, search.lastSize);
     assertEquals(1, scheduler.countTasksScheduled());
+  }
+
+  public void testBootstrapOtSearchSubscribesTagQueryToOtSearch() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
+    RemoteViewServiceMultiplexer channel =
+        new RemoteViewServiceMultiplexer(socket, "alice@example.com");
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        channel);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setField(presenter, "queryText", "tag:work");
+
+    presenter.bootstrapOtSearch();
+
+    Mockito.verify(socket).open(Mockito.any());
   }
 
   public void testOnFolderActionCompletedUsesImmediateDirectSearchWhenOtSearchIsEnabled()

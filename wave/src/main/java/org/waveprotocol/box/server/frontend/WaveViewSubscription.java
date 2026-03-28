@@ -234,6 +234,23 @@ final class WaveViewSubscription {
     sendUpdate(waveletName, ImmutableList.<TransformedWaveletDelta>of(), committedVersion);
   }
 
+  public synchronized void onSnapshot(WaveletName waveletName, CommittedWaveletSnapshot snapshot) {
+    WaveletChannelState state;
+    try {
+      state = channels.get(waveletName.waveletId);
+    } catch (ExecutionException ex) {
+      throw new RuntimeException(ex);
+    }
+    state.lastVersion = snapshot.snapshot.getHashedVersion();
+    openListener.onUpdate(
+        waveletName,
+        snapshot,
+        Collections.<TransformedWaveletDelta>emptyList(),
+        snapshot.committedVersion,
+        null,
+        channelId);
+  }
+
   /**
    * Sends an update to the client.
    */

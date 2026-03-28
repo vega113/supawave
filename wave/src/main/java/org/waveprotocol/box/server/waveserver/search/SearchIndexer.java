@@ -147,6 +147,17 @@ public class SearchIndexer {
     LOG.info("Registered subscription " + key + " covering " + waveIds.size() + " waves");
   }
 
+  public void registerOrUpdateSubscription(ParticipantId user, String query, String queryHash,
+      Set<WaveId> waveIds) {
+    SubscriptionKey key = new SubscriptionKey(user, queryHash);
+    String previousQuery = subscriptionRawQueries.put(key, query);
+    if (previousQuery == null) {
+      registerSubscription(user, query, queryHash, waveIds);
+      return;
+    }
+    updateSubscriptionWaves(user, queryHash, waveIds);
+  }
+
   /**
    * Unregisters a subscription. Must be wired to actual subscription close events.
    *

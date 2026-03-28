@@ -40,6 +40,7 @@ import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
 import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
 import org.waveprotocol.box.server.frontend.FragmentsViewChannelHandler;
 import org.waveprotocol.box.server.frontend.FragmentsFetchBridgeImpl;
+import org.waveprotocol.box.server.frontend.SearchWaveletDispatcher;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
@@ -573,6 +574,7 @@ public class ServerMain {
 
     WaveletProvider provider = injector.getInstance(WaveletProvider.class);
     WaveletInfo waveletInfo = WaveletInfo.create(hashFactory, provider);
+    injector.getInstance(SearchWaveletDispatcher.class).initialize(waveletInfo);
     ClientFrontend frontend =
         ClientFrontendImpl.create(provider, waveBus, waveletInfo);
 

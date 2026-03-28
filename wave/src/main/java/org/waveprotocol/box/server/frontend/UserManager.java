@@ -92,6 +92,19 @@ final class UserManager {
     }
   }
 
+  public synchronized void onSnapshot(WaveletName waveletName, CommittedWaveletSnapshot snapshot) {
+    Preconditions.checkNotNull(waveletName);
+    Preconditions.checkNotNull(snapshot);
+    List<WaveViewSubscription> listeners = matchSubscriptions(waveletName);
+    for (WaveViewSubscription listener : listeners) {
+      listener.onSnapshot(waveletName, snapshot);
+    }
+  }
+
+  public synchronized boolean hasSubscription(WaveletName waveletName) {
+    return !matchSubscriptions(waveletName).isEmpty();
+  }
+
   /**
    * Subscribes a listener to updates on a wave, filtered by waveletId.
    *

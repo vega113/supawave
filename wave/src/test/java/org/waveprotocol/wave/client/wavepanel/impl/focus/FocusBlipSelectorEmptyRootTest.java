@@ -40,9 +40,6 @@ public final class FocusBlipSelectorEmptyRootTest extends TestCase {
     Mockito.when(wave.getRoot()).thenReturn(conversation);
     Mockito.when(conversation.getRootThread()).thenReturn(rootThread);
     Mockito.when(rootThread.getFirstBlip()).thenReturn(null);
-    Mockito.doThrow(new NullPointerException("root blip must be present"))
-        .when(views).getBlipView((ConversationBlip) Mockito.isNull());
-
     FocusBlipSelector selector = FocusBlipSelector.create(wave, views, null, traverser);
 
     BlipView selected = selector.getOrFindRootBlip();
@@ -60,9 +57,6 @@ public final class FocusBlipSelectorEmptyRootTest extends TestCase {
     Mockito.when(wave.getRoot()).thenReturn(conversation);
     Mockito.when(conversation.getRootThread()).thenReturn(rootThread);
     Mockito.when(rootThread.getFirstBlip()).thenReturn(null);
-    Mockito.doThrow(new NullPointerException("root blip must be present"))
-        .when(views).getBlipView((ConversationBlip) Mockito.isNull());
-
     FocusBlipSelector selector = FocusBlipSelector.create(wave, views, null, traverser);
 
     BlipView selected = selector.selectMostRecentlyModified();

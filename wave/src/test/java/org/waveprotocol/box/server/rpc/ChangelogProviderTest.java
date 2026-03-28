@@ -130,7 +130,7 @@ public final class ChangelogProviderTest {
   }
 
   @Test
-  public void bundledAndFallbackChangelogFilesStayAlignedForApiDocsRelease() {
+  public void bundledAndFallbackChangelogFilesStayAligned() {
     ChangelogProvider classpathProvider = new ChangelogProvider();
     ChangelogProvider fallbackProvider =
         new ChangelogProvider(Path.of("wave", "config", "changelog.json"));
@@ -138,17 +138,22 @@ public final class ChangelogProviderTest {
     assertNotNull(classpathProvider.getLatestEntry());
     assertNotNull(fallbackProvider.getLatestEntry());
     assertEquals(
-        classpathProvider.getLatestEntry().toString(),
-        fallbackProvider.getLatestEntry().toString());
-    assertEquals("2026-03-28-api-docs-discovery", classpathProvider.getCurrentReleaseId());
-    assertEquals("PR #406", classpathProvider.getLatestVersion());
-    assertEquals("API Docs Discovery", classpathProvider.getLatestTitle());
-    assertTrue(classpathProvider.getLatestEntry().toString().contains("/llms.txt"));
-    assertTrue(classpathProvider.getLatestEntry().toString().contains("/llms-full.txt"));
-    assertTrue(classpathProvider.getLatestEntry().toString().contains("navigation bar"));
-    assertTrue(classpathProvider.getLatestEntry().toString().contains("hero section"));
-    assertTrue(classpathProvider.getLatestEntry().toString().contains("footer"));
-    assertTrue(classpathProvider.getLatestEntry().toString().contains("app menu"));
+        classpathProvider.getEntries().toString(),
+        fallbackProvider.getEntries().toString());
+  }
+
+  @Test
+  public void apiDocsReleaseEntryRemainsDocumented() {
+    String entriesJson = new ChangelogProvider().getEntries().toString();
+
+    assertTrue(entriesJson.contains("2026-03-28-api-docs-discovery"));
+    assertTrue(entriesJson.contains("API Docs Discovery"));
+    assertTrue(entriesJson.contains("/llms.txt"));
+    assertTrue(entriesJson.contains("/llms-full.txt"));
+    assertTrue(entriesJson.contains("navigation bar"));
+    assertTrue(entriesJson.contains("hero section"));
+    assertTrue(entriesJson.contains("footer"));
+    assertTrue(entriesJson.contains("app menu"));
   }
 
   @Test

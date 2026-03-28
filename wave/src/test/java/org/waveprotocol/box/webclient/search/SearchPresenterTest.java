@@ -36,6 +36,7 @@ import org.waveprotocol.wave.model.wave.SourcesEvents;
 import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public final class SearchPresenterTest extends TestCase {
 
@@ -154,6 +155,22 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, search.findCalls);
   }
 
+  public void testFallbackToPollingRestartsPollingWhenOtSearchFails() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        null);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "useOtSearch", true);
+
+    invokeFallbackToPolling(presenter, "OT search failed", null);
+    scheduler.tick(0);
+
+    assertEquals(1, search.findCalls);
+  }
+
   public void testBootstrapOtSearchSubscribesTagQueryToOtSearch() throws Exception {
     FakeTimerService scheduler = new FakeTimerService();
     FakeSearch search = new FakeSearch();
@@ -192,6 +209,24 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, scheduler.countTasksScheduled());
   }
 
+  public void testFallbackToPollingRestartsPollingWhenOtSearchFailsUnderOtMode()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
+    RemoteViewServiceMultiplexer channel =
+        new RemoteViewServiceMultiplexer(socket, "alice@example.com");
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        channel);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+
+    invokeFallbackToPolling(presenter, "OT search bootstrap failed", null);
+
+    assertEquals(1, scheduler.countTasksScheduled());
+  }
+
   private static void setBooleanField(SearchPresenter presenter, String fieldName, boolean value)
       throws Exception {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
@@ -204,6 +239,14 @@ public final class SearchPresenterTest extends TestCase {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.set(presenter, value);
+  }
+
+  private static void invokeFallbackToPolling(SearchPresenter presenter, String message,
+      Throwable cause) throws Exception {
+    Method method = SearchPresenter.class.getDeclaredMethod(
+        "fallbackToPolling", String.class, Throwable.class);
+    method.setAccessible(true);
+    method.invoke(presenter, message, cause);
   }
 
   private static final class FakeSearch implements Search {

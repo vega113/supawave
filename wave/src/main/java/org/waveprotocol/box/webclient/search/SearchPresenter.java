@@ -1157,9 +1157,7 @@ public final class SearchPresenter
     scheduler.cancel(otSearchTimeoutTask);
     scheduler.cancel(otSearchBootstrapRetryTask);
     scheduler.cancel(searchUpdater);
-    if (!otSearchEnabled) {
-      startPolling();
-    }
+    startPolling();
   }
 
   static WaveletName computeSearchWaveletName(String address, String query) {

@@ -314,7 +314,7 @@ public final class FeatureFlagServletTest {
 
     JSONObject payload = new JSONObject(body.toString());
     JSONArray flags = payload.getJSONArray("flags");
-    String allowedUsers = flags.getJSONObject(0).getString("allowedUsers");
+    String allowedUsers = findFlagByName(flags, "new-ui").getString("allowedUsers");
 
     assertEquals("application/json", contentType[0]);
     assertEquals("vega@supawave.ai:enabled,ops@supawave.ai:disabled", allowedUsers);
@@ -412,6 +412,16 @@ public final class FeatureFlagServletTest {
     allowedUsers.put("vega@supawave.ai", true);
     allowedUsers.put("ops@supawave.ai", false);
     return allowedUsers;
+  }
+
+  private static JSONObject findFlagByName(JSONArray flags, String name) {
+    for (int i = 0; i < flags.length(); i++) {
+      JSONObject flag = flags.getJSONObject(i);
+      if (name.equals(flag.optString("name", null))) {
+        return flag;
+      }
+    }
+    throw new AssertionError("Missing flag " + name);
   }
 
   private static Object defaultValue(Class<?> returnType) {

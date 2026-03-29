@@ -22,8 +22,7 @@ public class PstCodegenContractTest {
 
   @Test
   public void generatedSourcesExist() throws IOException {
-    // Tests typically run with working directory at the module root (wave/)
-    Path outDir = Paths.get("generated", "main", "java");
+    Path outDir = resolveGeneratedSourcesDirectory();
 
     assertTrue("Expected PST generated sources directory to exist: " + outDir.toAbsolutePath(),
         Files.exists(outDir) && Files.isDirectory(outDir));
@@ -44,5 +43,12 @@ public class PstCodegenContractTest {
             ", but found none.",
         javaCount.get() > 0);
   }
-}
 
+  private static Path resolveGeneratedSourcesDirectory() {
+    Path rootGenerated = Paths.get("generated", "main", "java");
+    if (Files.exists(rootGenerated) && Files.isDirectory(rootGenerated)) {
+      return rootGenerated;
+    }
+    return Paths.get("pst", "generated", "main", "java");
+  }
+}

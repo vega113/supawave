@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.EnumSet;
 import java.util.List;
@@ -40,7 +41,9 @@ public final class JwtKeyRingTest {
   @Test
   public void rejectsNullKeyMaterialsBeforeSorting() throws Exception {
     try {
-      new JwtKeyRing(List.of(new JwtKeyMaterial("alpha", keyPair()), null));
+      List<JwtKeyMaterial> materials = new ArrayList<>(List.of(new JwtKeyMaterial("alpha", keyPair())));
+      materials.add(null);
+      new JwtKeyRing(materials);
       fail("Expected null pointer");
     } catch (NullPointerException expected) {
       assertTrue(expected.getMessage().contains("keyMaterial"));

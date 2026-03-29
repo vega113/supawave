@@ -34,8 +34,6 @@ import org.waveprotocol.box.server.authentication.WebSession;
 
 /**
  * Jakarta override of SessionManagerImpl wiring against Jetty 12 session APIs.
- * For now, getSessionFromToken returns null until we implement a direct lookup
- * path compatible with Jetty 12.
  */
 public final class SessionManagerImpl implements SessionManager {
   private static final String USER_FIELD = "user";
@@ -44,7 +42,6 @@ public final class SessionManagerImpl implements SessionManager {
 
   private final AccountStore accountStore;
   private static final Log LOG = Log.get(SessionManagerImpl.class);
-  private final Config config;
   private final org.eclipse.jetty.ee10.servlet.SessionHandler sessionHandler;
 
   @Inject
@@ -52,9 +49,10 @@ public final class SessionManagerImpl implements SessionManager {
                             org.eclipse.jetty.ee10.servlet.SessionHandler sessionHandler,
                             Config config) {
     Preconditions.checkNotNull(accountStore, "Null account store");
+    Preconditions.checkNotNull(sessionHandler, "Null session handler");
+    Preconditions.checkNotNull(config, "Null config");
     this.accountStore = accountStore;
     this.sessionHandler = sessionHandler;
-    this.config = config;
   }
 
   @Override
@@ -114,39 +112,72 @@ public final class SessionManagerImpl implements SessionManager {
 
   @Override
   public WebSession getSessionFromToken(String token) {
-    boolean enabled = false;
     try {
-      enabled = config.hasPath("experimental.jetty12_session_lookup") &&
-          config.getBoolean("experimental.jetty12_session_lookup");
-    } catch (Exception ignore) {}
-    if (!enabled) return null;
-
-    try {
-      if (token == null) return null;
-      String sessionId = token;
-      int dot = sessionId.indexOf('.')
-;      if (dot > 0) sessionId = sessionId.substring(0, dot);
-      // Reflective call to avoid tight coupling while migrating
-      java.lang.reflect.Method m = sessionHandler.getClass().getMethod("getSession", String.class);
-      Object jettySession = m.invoke(sessionHandler, sessionId);
-      if (jettySession == null) return null;
-      // Retrieve the Jakarta HttpSession if possible and wrap as WebSession
-      for (String accessor : new String[] {"getSession", "getHttpSession"}) {
-        try {
-          java.lang.reflect.Method acc = jettySession.getClass().getMethod(accessor);
-          Object httpSess = acc.invoke(jettySession);
-          if (httpSess instanceof jakarta.servlet.http.HttpSession) {
-            return WebSessions.wrap((jakarta.servlet.http.HttpSession) httpSess);
-          }
-        } catch (NoSuchMethodException ignore) {
-          // keep trying
-        }
+      if (token == null) {
+        return null;
       }
-      return null;
+      Object jettySession = findJettySession(normalizeToken(token));
+      if (jettySession == null) {
+        return null;
+      }
+      jakarta.servlet.http.HttpSession httpSession = extractHttpSession(jettySession);
+      return httpSession == null ? null : WebSessions.wrap(httpSession);
     } catch (Throwable t) {
       LOG.info("Jetty 12 session lookup failed (ignored)", t);
       return null;
     }
+  }
+
+  private Object findJettySession(String sessionId) throws ReflectiveOperationException {
+    Object jettySession = invokeSessionLookup(sessionHandler, sessionId);
+    if (jettySession != null) {
+      return jettySession;
+    }
+    Object nestedHandler = unwrapCoreSessionHandler(sessionHandler);
+    if (nestedHandler == null) {
+      return null;
+    }
+    return invokeSessionLookup(nestedHandler, sessionId);
+  }
+
+  private static Object invokeSessionLookup(Object handler, String sessionId)
+      throws ReflectiveOperationException {
+    java.lang.reflect.Method lookup = handler.getClass().getMethod("getSession", String.class);
+    return lookup.invoke(handler, sessionId);
+  }
+
+  private static Object unwrapCoreSessionHandler(Object handler) {
+    try {
+      java.lang.reflect.Method getter = handler.getClass().getMethod("getSessionHandler");
+      return getter.invoke(handler);
+    } catch (ReflectiveOperationException ignored) {
+      return null;
+    }
+  }
+
+  private static String normalizeToken(String token) {
+    String sessionId = token;
+    int dot = sessionId.indexOf('.');
+    if (dot > 0) {
+      sessionId = sessionId.substring(0, dot);
+    }
+    return sessionId;
+  }
+
+  private static jakarta.servlet.http.HttpSession extractHttpSession(Object jettySession)
+      throws ReflectiveOperationException {
+    for (String accessor : new String[] {"getSession", "getHttpSession"}) {
+      try {
+        java.lang.reflect.Method method = jettySession.getClass().getMethod(accessor);
+        Object httpSession = method.invoke(jettySession);
+        if (httpSession instanceof jakarta.servlet.http.HttpSession session) {
+          return session;
+        }
+      } catch (NoSuchMethodException ignored) {
+        // Try the next accessor.
+      }
+    }
+    return null;
   }
 
   private void refreshLastActivity(WebSession session, ParticipantId user, boolean force) {

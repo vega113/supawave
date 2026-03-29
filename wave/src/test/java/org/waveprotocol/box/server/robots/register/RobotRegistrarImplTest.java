@@ -40,6 +40,10 @@ import org.waveprotocol.box.server.robots.util.RobotsUtil.RobotRegistrationExcep
 import org.waveprotocol.wave.model.id.TokenGenerator;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+
 /**
  * Unit tests for {@link RobotRegistrarImpl}.
  *
@@ -54,6 +58,8 @@ public class RobotRegistrarImplTest extends TestCase {
   private final static ParticipantId OWNER_ID = ParticipantId.ofUnsafe("owner@example.com");
   private final static String CONSUMER_TOKEN = "sometoken";
   private final static String EXISTING_CONSUMER_TOKEN = "existingtoken";
+  private final static Clock CLOCK = Clock.fixed(Instant.parse("2026-03-29T10:15:30Z"),
+      ZoneOffset.UTC);
 
   private AccountStore accountStore;
   private TokenGenerator tokenGenerator;
@@ -73,8 +79,12 @@ public class RobotRegistrarImplTest extends TestCase {
     when(accountData.getConsumerSecret()).thenReturn(EXISTING_CONSUMER_TOKEN);
     when(accountData.isVerified()).thenReturn(true);
     when(accountData.getTokenExpirySeconds()).thenReturn(0L);
+    when(accountData.getDescription()).thenReturn("existing description");
+    when(accountData.getCreatedAtMillis()).thenReturn(1234L);
+    when(accountData.getUpdatedAtMillis()).thenReturn(5678L);
+    when(accountData.isPaused()).thenReturn(false);
     when(tokenGenerator.generateToken(anyInt())).thenReturn(CONSUMER_TOKEN);
-    registrar = new RobotRegistrarImpl(accountStore, tokenGenerator);
+    registrar = new RobotRegistrarImpl(accountStore, tokenGenerator, CLOCK);
   }
 
   public void testRegisterNewSucceeds() throws PersistenceException, RobotRegistrationException {
@@ -88,6 +98,10 @@ public class RobotRegistrarImplTest extends TestCase {
     assertEquals(LOCATION.substring(0, LOCATION.length() - 1), robotAccountData.getUrl());
     assertEquals(ROBOT_ID, robotAccountData.getId());
     assertEquals(CONSUMER_TOKEN, robotAccountData.getConsumerSecret());
+    assertEquals("", robotAccountData.getDescription());
+    assertEquals(CLOCK.millis(), robotAccountData.getCreatedAtMillis());
+    assertEquals(CLOCK.millis(), robotAccountData.getUpdatedAtMillis());
+    assertFalse(robotAccountData.isPaused());
   }
 
   public void testRegisterNewStoresOwnerAddress() throws PersistenceException,
@@ -128,6 +142,10 @@ public class RobotRegistrarImplTest extends TestCase {
     assertEquals("", resultAccountData.getUrl());
     assertFalse(resultAccountData.isVerified());
     assertEquals(CONSUMER_TOKEN, resultAccountData.getConsumerSecret());
+    assertEquals("", resultAccountData.getDescription());
+    assertEquals(CLOCK.millis(), resultAccountData.getCreatedAtMillis());
+    assertEquals(CLOCK.millis(), resultAccountData.getUpdatedAtMillis());
+    assertFalse(resultAccountData.isPaused());
   }
 
   public void testUnregisterSucceeds() throws PersistenceException, RobotRegistrationException {
@@ -170,12 +188,17 @@ public class RobotRegistrarImplTest extends TestCase {
     assertEquals(ROBOT_ID, robotAccountData.getId());
     assertEquals(EXISTING_CONSUMER_TOKEN, robotAccountData.getConsumerSecret());
     assertEquals(OWNER_ID.getAddress(), robotAccountData.getOwnerAddress());
+    assertEquals("existing description", robotAccountData.getDescription());
+    assertEquals(1234L, robotAccountData.getCreatedAtMillis());
+    assertEquals(CLOCK.millis(), robotAccountData.getUpdatedAtMillis());
+    assertFalse(robotAccountData.isPaused());
   }
 
   public void testPendingRobotActivationPreservesExistingSecret() throws PersistenceException,
       RobotRegistrationException {
     RobotAccountData pendingAccount =
-        new RobotAccountDataImpl(ROBOT_ID, "", "pending-secret", null, false, 3600L, null);
+        new RobotAccountDataImpl(ROBOT_ID, "", "pending-secret", null, false, 3600L, null,
+            "pending", 111L, 222L, true);
     when(accountStore.getAccount(ROBOT_ID)).thenReturn(pendingAccount);
 
     RobotAccountData updatedAccount =
@@ -183,9 +206,13 @@ public class RobotRegistrarImplTest extends TestCase {
 
     assertEquals("pending-secret", updatedAccount.getConsumerSecret());
     assertEquals(OTHER_LOCATION.substring(0, OTHER_LOCATION.length() - 1), updatedAccount.getUrl());
-    assertTrue(updatedAccount.isVerified());
+    assertFalse(updatedAccount.isVerified());
     assertEquals(3600L, updatedAccount.getTokenExpirySeconds());
     assertEquals(OWNER_ID.getAddress(), updatedAccount.getOwnerAddress());
+    assertEquals("pending", updatedAccount.getDescription());
+    assertEquals(111L, updatedAccount.getCreatedAtMillis());
+    assertEquals(CLOCK.millis(), updatedAccount.getUpdatedAtMillis());
+    assertTrue(updatedAccount.isPaused());
   }
 
   public void testRegisterOrUpdateClaimsLegacyRobotWhenUrlIsUnchanged() throws PersistenceException,
@@ -208,6 +235,31 @@ public class RobotRegistrarImplTest extends TestCase {
     verify(accountStore).putAccount(any(RobotAccountData.class));
     assertEquals(OWNER_ID.getAddress(), claimedRobot.getOwnerAddress());
     assertEquals(EXISTING_CONSUMER_TOKEN, claimedRobot.getConsumerSecret());
+    assertTrue(claimedRobot.isVerified());
+  }
+
+  public void testUpdateDescriptionPreservesSecretAndCreatedTime() throws Exception {
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(accountData);
+
+    RobotAccountData updated = registrar.updateDescription(ROBOT_ID, "new description");
+
+    assertEquals(EXISTING_CONSUMER_TOKEN, updated.getConsumerSecret());
+    assertEquals("new description", updated.getDescription());
+    assertEquals(1234L, updated.getCreatedAtMillis());
+    assertEquals(CLOCK.millis(), updated.getUpdatedAtMillis());
+    assertFalse(updated.isPaused());
+  }
+
+  public void testSetPausedPreservesSecretAndDescription() throws Exception {
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(accountData);
+
+    RobotAccountData updated = registrar.setPaused(ROBOT_ID, true);
+
+    assertEquals(EXISTING_CONSUMER_TOKEN, updated.getConsumerSecret());
+    assertEquals("existing description", updated.getDescription());
+    assertTrue(updated.isPaused());
+    assertEquals(1234L, updated.getCreatedAtMillis());
+    assertEquals(CLOCK.millis(), updated.getUpdatedAtMillis());
   }
 
   public void testRegisterOrUpdateClearsCapabilitiesWhenUrlChanges() throws PersistenceException,
@@ -220,6 +272,7 @@ public class RobotRegistrarImplTest extends TestCase {
         registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION, OWNER_ID.getAddress());
 
     assertNull(updatedAccount.getCapabilities());
+    assertFalse(updatedAccount.isVerified());
   }
 
   public void testReRegisterFailsOnExistingHumanAccount() throws PersistenceException {
@@ -250,5 +303,9 @@ public class RobotRegistrarImplTest extends TestCase {
     assertEquals(LOCATION.substring(0, LOCATION.length() - 1), rotatedAccountData.getUrl());
     assertEquals(CONSUMER_TOKEN, rotatedAccountData.getConsumerSecret());
     assertEquals(OWNER_ID.getAddress(), rotatedAccountData.getOwnerAddress());
+    assertEquals("existing description", rotatedAccountData.getDescription());
+    assertEquals(1234L, rotatedAccountData.getCreatedAtMillis());
+    assertEquals(CLOCK.millis(), rotatedAccountData.getUpdatedAtMillis());
+    assertFalse(rotatedAccountData.isPaused());
   }
 }

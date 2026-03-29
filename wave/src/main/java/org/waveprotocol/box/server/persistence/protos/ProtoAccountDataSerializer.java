@@ -129,6 +129,16 @@ public class ProtoAccountDataSerializer {
     if (account.getOwnerAddress() != null && !account.getOwnerAddress().isEmpty()) {
       builder.setOwnerAddress(account.getOwnerAddress());
     }
+    if (!account.getDescription().isEmpty()) {
+      builder.setDescription(account.getDescription());
+    }
+    if (account.getCreatedAtMillis() != 0L) {
+      builder.setCreatedAtMillis(account.getCreatedAtMillis());
+    }
+    if (account.getUpdatedAtMillis() != 0L) {
+      builder.setUpdatedAtMillis(account.getUpdatedAtMillis());
+    }
+    builder.setPaused(account.isPaused());
     if (account.getCapabilities() != null) {
       builder.setRobotCapabilities(serialize(account.getCapabilities()));
     }
@@ -232,8 +242,13 @@ public class ProtoAccountDataSerializer {
     }
     long tokenExpirySeconds = data.hasTokenExpirySeconds() ? data.getTokenExpirySeconds() : 0L;
     String ownerAddress = data.hasOwnerAddress() ? data.getOwnerAddress() : null;
+    String description = data.hasDescription() ? data.getDescription() : "";
+    long createdAtMillis = data.hasCreatedAtMillis() ? data.getCreatedAtMillis() : 0L;
+    long updatedAtMillis = data.hasUpdatedAtMillis() ? data.getUpdatedAtMillis() : 0L;
+    boolean paused = data.hasPaused() ? data.getPaused() : false;
     return new RobotAccountDataImpl(id, data.getUrl(), data.getConsumerSecret(),
-        capabilities, data.getIsVerified(), tokenExpirySeconds, ownerAddress);
+        capabilities, data.getIsVerified(), tokenExpirySeconds, ownerAddress, description,
+        createdAtMillis, updatedAtMillis, paused);
   }
 
   private static RobotCapabilities deserialize(ProtoRobotCapabilities data) {

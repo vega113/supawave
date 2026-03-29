@@ -125,7 +125,7 @@ public class RobotsGateway implements WaveBus.Subscriber {
 
       if (account != null && account.isRobot()) {
         RobotAccountData robotAccount = account.asRobot();
-        if (robotAccount.isVerified()) {
+        if (robotAccount.isVerified() && !robotAccount.isPaused()) {
           Robot robot = getOrCreateRobot(robotName, robotAccount);
           updateRobot(robot, wavelet, deltas);
         }

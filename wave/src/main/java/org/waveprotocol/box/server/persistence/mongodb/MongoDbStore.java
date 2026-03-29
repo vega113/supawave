@@ -101,6 +101,10 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   private static final String ROBOT_CAPABILITIES_FIELD = "capabilities";
   private static final String ROBOT_VERIFIED_FIELD = "verified";
   private static final String ROBOT_OWNER_FIELD = "ownerAddress";
+  private static final String ROBOT_DESCRIPTION_FIELD = "description";
+  private static final String ROBOT_CREATED_AT_FIELD = "createdAtMillis";
+  private static final String ROBOT_UPDATED_AT_FIELD = "updatedAtMillis";
+  private static final String ROBOT_PAUSED_FIELD = "paused";
 
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
@@ -424,7 +428,11 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
         .append(ROBOT_CAPABILITIES_FIELD, capabilitiesToObject(account.getCapabilities()))
         .append(ROBOT_VERIFIED_FIELD, account.isVerified())
         .append("tokenExpirySeconds", account.getTokenExpirySeconds())
-        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress());
+        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress())
+        .append(ROBOT_DESCRIPTION_FIELD, account.getDescription())
+        .append(ROBOT_CREATED_AT_FIELD, account.getCreatedAtMillis())
+        .append(ROBOT_UPDATED_AT_FIELD, account.getUpdatedAtMillis())
+        .append(ROBOT_PAUSED_FIELD, account.isPaused());
   }
 
   private DBObject capabilitiesToObject(RobotCapabilities capabilities) {
@@ -462,8 +470,15 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     Object tokenExpiryObj = robot.get("tokenExpirySeconds");
     long tokenExpirySeconds = tokenExpiryObj instanceof Number ? ((Number) tokenExpiryObj).longValue() : 0L;
     String ownerAddress = (String) robot.get(ROBOT_OWNER_FIELD);
+    String description = (String) robot.get(ROBOT_DESCRIPTION_FIELD);
+    Object createdAtObj = robot.get(ROBOT_CREATED_AT_FIELD);
+    Object updatedAtObj = robot.get(ROBOT_UPDATED_AT_FIELD);
+    long createdAtMillis = createdAtObj instanceof Number ? ((Number) createdAtObj).longValue() : 0L;
+    long updatedAtMillis = updatedAtObj instanceof Number ? ((Number) updatedAtObj).longValue() : 0L;
+    boolean paused = Boolean.TRUE.equals(robot.get(ROBOT_PAUSED_FIELD));
     return new RobotAccountDataImpl(id, url, secret, capabilities, verified, tokenExpirySeconds,
-        ownerAddress);
+        ownerAddress, description != null ? description : "",
+        createdAtMillis, updatedAtMillis, paused);
   }
 
   @SuppressWarnings("unchecked")

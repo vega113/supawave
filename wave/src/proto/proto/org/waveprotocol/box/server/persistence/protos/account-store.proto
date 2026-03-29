@@ -81,6 +81,10 @@ message ProtoRobotAccountData {
 	required bool is_verified = 4;
 	optional int64 token_expiry_seconds = 5 [default = 0];
 	optional string owner_address = 6;
+	optional string description = 7 [default = ""];
+	optional int64 created_at_millis = 8 [default = 0];
+	optional int64 updated_at_millis = 9 [default = 0];
+	optional bool paused = 10 [default = false];
 }
 
 // Data found in a RobotCapabilities instance

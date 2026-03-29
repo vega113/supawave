@@ -117,6 +117,22 @@ public class RobotDashboardServletTest extends TestCase {
     assertTrue(outputWriter.toString().contains("Rotate Secret"));
   }
 
+  public void testDoGetRendersMaskedSecretPreviewAndTimestamps() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(
+        new RobotAccountDataImpl(ROBOT, "https://robot.example.com/callback",
+            "super-secret-token-123456", null, true, 3600L, OWNER.getAddress(),
+            "Dashboard helper", 111L, 222L, true)));
+
+    servlet.doGet(req, resp);
+
+    assertTrue(outputWriter.toString().contains("Dashboard helper"));
+    assertTrue(outputWriter.toString().contains("supe…3456"));
+    assertTrue(outputWriter.toString().contains("Paused"));
+    assertTrue(outputWriter.toString().contains("1970-01-01T00:00:00.111Z"));
+    assertTrue(outputWriter.toString().contains("1970-01-01T00:00:00.222Z"));
+  }
+
   public void testDoGetUsesTrustedRequestOriginInAiPrompt() throws Exception {
     when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
     when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
@@ -139,6 +155,35 @@ public class RobotDashboardServletTest extends TestCase {
 
     assertTrue(outputWriter.toString().contains("SUPAWAVE_BASE_URL=http://[::1]:9898"));
     assertTrue(outputWriter.toString().contains("SUPAWAVE_API_DOCS_URL=http://[::1]:9898/api-docs"));
+  }
+
+  public void testDoPostRejectsMissingXsrfToken() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("delete");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    assertTrue(outputWriter.toString().contains("Invalid XSRF token."));
+  }
+
+  public void testDoPostRejectsInvalidXsrfToken() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("delete");
+    when(req.getParameter("token")).thenReturn("not-the-token");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    assertTrue(outputWriter.toString().contains("Invalid XSRF token."));
   }
 
   public void testDoGetRejectsMalformedBracketedIpv6OriginInAiPrompt() throws Exception {
@@ -229,6 +274,74 @@ public class RobotDashboardServletTest extends TestCase {
         OWNER.getAddress());
     assertTrue(outputWriter.toString().contains("https://robot.example.com/callback"));
     assertTrue(outputWriter.toString().contains("secret"));
+  }
+
+  public void testDoPostUpdatesDescriptionForOwnedRobot() throws Exception {
+    RobotAccountData existingRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
+        3600L, OWNER.getAddress(), "", 111L, 222L, false);
+    RobotAccountData updatedRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
+        3600L, OWNER.getAddress(), "New dashboard description", 111L, 333L, false);
+
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(existingRobot));
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("update-description");
+    when(req.getParameter("token")).thenReturn("dashboard-xsrf");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(req.getParameter("description")).thenReturn("New dashboard description");
+    when(accountStore.getAccount(ROBOT)).thenReturn((AccountData) existingRobot);
+    when(robotRegistrar.updateDescription(ROBOT, "New dashboard description")).thenReturn(updatedRobot);
+
+    servlet.doPost(req, resp);
+
+    verify(robotRegistrar).updateDescription(ROBOT, "New dashboard description");
+    assertTrue(outputWriter.toString().contains("New dashboard description"));
+  }
+
+  public void testDoPostTogglesPauseForOwnedRobot() throws Exception {
+    RobotAccountData existingRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
+        3600L, OWNER.getAddress(), "", 111L, 222L, false);
+    RobotAccountData updatedRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
+        3600L, OWNER.getAddress(), "", 111L, 333L, true);
+
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(existingRobot));
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("set-paused");
+    when(req.getParameter("token")).thenReturn("dashboard-xsrf");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(req.getParameter("paused")).thenReturn("true");
+    when(accountStore.getAccount(ROBOT)).thenReturn((AccountData) existingRobot);
+    when(robotRegistrar.setPaused(ROBOT, true)).thenReturn(updatedRobot);
+
+    servlet.doPost(req, resp);
+
+    verify(robotRegistrar).setPaused(ROBOT, true);
+    assertTrue(outputWriter.toString().contains("Robot paused"));
+  }
+
+  public void testDoPostDeletesOwnedRobot() throws Exception {
+    RobotAccountData existingRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
+        3600L, OWNER.getAddress(), "", 111L, 222L, false);
+
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress()))
+        .thenReturn(List.of(existingRobot))
+        .thenReturn(List.of());
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("delete");
+    when(req.getParameter("token")).thenReturn("dashboard-xsrf");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(accountStore.getAccount(ROBOT)).thenReturn((AccountData) existingRobot);
+    when(robotRegistrar.unregister(ROBOT)).thenReturn(existingRobot);
+
+    servlet.doPost(req, resp);
+
+    verify(robotRegistrar).unregister(ROBOT);
+    assertTrue(outputWriter.toString().contains("Robot deleted"));
   }
 
   public void testDoPostRotatesSecretForOwnedRobot() throws Exception {

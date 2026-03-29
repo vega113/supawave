@@ -22,6 +22,7 @@ package org.waveprotocol.box.server.robots.passive;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,12 +32,16 @@ import com.google.wave.api.robot.RobotName;
 
 import junit.framework.TestCase;
 
+import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.server.account.RobotAccountData;
+import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.robots.operations.NotifyOperationService;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.testing.DeferredExecutor;
+import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 
 /**
  * Unit tests for {@link RobotsGateway}.
@@ -99,5 +104,21 @@ public class RobotsGatewayTest extends TestCase {
     gateway.updateRobotAccount(robot);
 
     verify(accountStore).putAccount(newAccount);
+  }
+
+  public void testPausedRobotIsSkippedDuringWaveletUpdate() throws Exception {
+    ReadableWaveletData wavelet = mock(ReadableWaveletData.class);
+    when(wavelet.getParticipants()).thenReturn(
+        java.util.Set.of(ParticipantId.ofUnsafe("helper-bot@example.com")));
+    when(accountStore.getAccount(ParticipantId.ofUnsafe("helper-bot@example.com"))).thenReturn(
+        new RobotAccountDataImpl(ParticipantId.ofUnsafe("helper-bot@example.com"),
+            "https://robot.example.com", "secret", null, true, 0L, "owner@example.com",
+            "desc", 10L, 20L, true));
+
+    RobotsGateway pausedGateway = org.mockito.Mockito.spy(gateway);
+
+    pausedGateway.waveletUpdate(wavelet, DeltaSequence.empty());
+
+    verify(pausedGateway, never()).ensureScheduled(org.mockito.ArgumentMatchers.any(Robot.class));
   }
 }

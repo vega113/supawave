@@ -38,6 +38,12 @@ public interface RobotRegistrar {
   RobotAccountData registerOrUpdate(ParticipantId robotId, String location, String ownerAddress,
       long tokenExpirySeconds) throws RobotRegistrationException, PersistenceException;
 
+  RobotAccountData updateDescription(ParticipantId robotId, String description)
+      throws RobotRegistrationException, PersistenceException;
+
+  RobotAccountData setPaused(ParticipantId robotId, boolean paused)
+      throws RobotRegistrationException, PersistenceException;
+
   RobotAccountData rotateSecret(ParticipantId robotId)
       throws RobotRegistrationException, PersistenceException;
 

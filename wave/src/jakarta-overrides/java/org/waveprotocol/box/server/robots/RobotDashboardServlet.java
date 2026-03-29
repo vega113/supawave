@@ -43,6 +43,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -120,8 +121,20 @@ public final class RobotDashboardServlet extends HttpServlet {
       handleUpdateUrl(req, resp, user);
       return;
     }
+    if ("update-description".equals(action)) {
+      handleUpdateDescription(req, resp, user);
+      return;
+    }
     if ("rotate-secret".equals(action)) {
       handleRotateSecret(req, resp, user);
+      return;
+    }
+    if ("set-paused".equals(action)) {
+      handleSetPaused(req, resp, user);
+      return;
+    }
+    if ("delete".equals(action)) {
+      handleDelete(req, resp, user);
       return;
     }
 
@@ -178,6 +191,36 @@ public final class RobotDashboardServlet extends HttpServlet {
     }
   }
 
+  private void handleUpdateDescription(HttpServletRequest req, HttpServletResponse resp,
+      ParticipantId user) throws IOException {
+    String robotIdValue = req.getParameter("robotId");
+    String description = Strings.nullToEmpty(req.getParameter("description")).trim();
+    if (Strings.isNullOrEmpty(robotIdValue)) {
+      renderDashboard(req, resp, user, "Robot selection is required.", null,
+          HttpServletResponse.SC_BAD_REQUEST);
+      return;
+    }
+
+    RobotAccountData ownedRobot = findOwnedRobot(robotIdValue, user.getAddress());
+    if (ownedRobot == null) {
+      renderDashboard(req, resp, user, "You do not own this robot.", null,
+          HttpServletResponse.SC_FORBIDDEN);
+      return;
+    }
+
+    try {
+      RobotAccountData updatedRobot = robotRegistrar.updateDescription(ownedRobot.getId(),
+          description);
+      renderDashboard(req, resp, user, "Description updated for " + ownedRobot.getId().getAddress(),
+          updatedRobot, HttpServletResponse.SC_OK);
+    } catch (RobotRegistrationException e) {
+      renderDashboard(req, resp, user, e.getMessage(), null, HttpServletResponse.SC_BAD_REQUEST);
+    } catch (PersistenceException e) {
+      renderDashboard(req, resp, user, "Description update failed.", null,
+          HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+  }
+
   private void handleRotateSecret(HttpServletRequest req, HttpServletResponse resp, ParticipantId user)
       throws IOException {
     String robotIdValue = req.getParameter("robotId");
@@ -207,6 +250,66 @@ public final class RobotDashboardServlet extends HttpServlet {
       renderDashboard(req, resp, user, e.getMessage(), null, HttpServletResponse.SC_BAD_REQUEST);
     } catch (PersistenceException e) {
       renderDashboard(req, resp, user, "Secret rotation failed.", null,
+          HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  private void handleSetPaused(HttpServletRequest req, HttpServletResponse resp, ParticipantId user)
+      throws IOException {
+    String robotIdValue = req.getParameter("robotId");
+    String pausedValue = req.getParameter("paused");
+    if (Strings.isNullOrEmpty(robotIdValue) || Strings.isNullOrEmpty(pausedValue)) {
+      renderDashboard(req, resp, user, "Robot and paused state are required.", null,
+          HttpServletResponse.SC_BAD_REQUEST);
+      return;
+    }
+
+    RobotAccountData ownedRobot = findOwnedRobot(robotIdValue, user.getAddress());
+    if (ownedRobot == null) {
+      renderDashboard(req, resp, user, "You do not own this robot.", null,
+          HttpServletResponse.SC_FORBIDDEN);
+      return;
+    }
+
+    boolean paused = Boolean.parseBoolean(pausedValue);
+    try {
+      RobotAccountData updatedRobot = robotRegistrar.setPaused(ownedRobot.getId(), paused);
+      String message = paused
+          ? "Robot paused: " + ownedRobot.getId().getAddress()
+          : "Robot unpaused: " + ownedRobot.getId().getAddress();
+      renderDashboard(req, resp, user, message, updatedRobot, HttpServletResponse.SC_OK);
+    } catch (RobotRegistrationException e) {
+      renderDashboard(req, resp, user, e.getMessage(), null, HttpServletResponse.SC_BAD_REQUEST);
+    } catch (PersistenceException e) {
+      renderDashboard(req, resp, user, "Robot pause update failed.", null,
+          HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  private void handleDelete(HttpServletRequest req, HttpServletResponse resp, ParticipantId user)
+      throws IOException {
+    String robotIdValue = req.getParameter("robotId");
+    if (Strings.isNullOrEmpty(robotIdValue)) {
+      renderDashboard(req, resp, user, "Robot selection is required.", null,
+          HttpServletResponse.SC_BAD_REQUEST);
+      return;
+    }
+
+    RobotAccountData ownedRobot = findOwnedRobot(robotIdValue, user.getAddress());
+    if (ownedRobot == null) {
+      renderDashboard(req, resp, user, "You do not own this robot.", null,
+          HttpServletResponse.SC_FORBIDDEN);
+      return;
+    }
+
+    try {
+      robotRegistrar.unregister(ownedRobot.getId());
+      renderDashboard(req, resp, user, "Robot deleted: " + ownedRobot.getId().getAddress(), null,
+          HttpServletResponse.SC_OK);
+    } catch (RobotRegistrationException e) {
+      renderDashboard(req, resp, user, e.getMessage(), null, HttpServletResponse.SC_BAD_REQUEST);
+    } catch (PersistenceException e) {
+      renderDashboard(req, resp, user, "Robot deletion failed.", null,
           HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
   }
@@ -386,11 +489,34 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("<div class=\"robot-card\"><h3>")
           .append(HtmlRenderer.escapeHtml(robot.getId().getAddress()))
           .append("</h3><div class=\"meta\">");
-      sb.append("Callback URL: ")
+      sb.append("Description: ")
+          .append(HtmlRenderer.escapeHtml(robot.getDescription().isEmpty()
+              ? "No description yet"
+              : robot.getDescription()))
+          .append("<br>Callback URL: ")
           .append(HtmlRenderer.escapeHtml(robot.getUrl().isEmpty() ? "Pending" : robot.getUrl()))
-          .append("<br>Secret: ")
-          .append(HtmlRenderer.escapeHtml(robot.getConsumerSecret()))
+          .append("<br>Secret preview: ")
+          .append(HtmlRenderer.escapeHtml(maskSecret(robot.getConsumerSecret())))
+          .append("<br>Status: ")
+          .append(robot.isPaused() ? "Paused" : "Active")
+          .append("<br>Created: ")
+          .append(HtmlRenderer.escapeHtml(formatTimestamp(robot.getCreatedAtMillis())))
+          .append("<br>Updated: ")
+          .append(HtmlRenderer.escapeHtml(formatTimestamp(robot.getUpdatedAtMillis())))
           .append("</div>");
+      sb.append("<form method=\"post\" action=\"\" style=\"margin-top:10px;\">");
+      sb.append("<input type=\"hidden\" name=\"action\" value=\"update-description\">");
+      sb.append("<input type=\"hidden\" name=\"token\" value=\"")
+          .append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
+      sb.append("<input type=\"hidden\" name=\"robotId\" value=\"")
+          .append(HtmlRenderer.escapeHtml(robot.getId().getAddress())).append("\">");
+      sb.append("<label for=\"description-").append(HtmlRenderer.escapeHtml(robot.getId().getAddress()))
+          .append("\">Description</label>");
+      sb.append("<input id=\"description-").append(HtmlRenderer.escapeHtml(robot.getId().getAddress()))
+          .append("\" name=\"description\" value=\"")
+          .append(HtmlRenderer.escapeHtml(robot.getDescription())).append("\">");
+      sb.append("<div style=\"margin-top:12px;\"><button type=\"submit\">Save Description</button></div>");
+      sb.append("</form>");
       sb.append("<form method=\"post\" action=\"\">");
       sb.append("<input type=\"hidden\" name=\"action\" value=\"update-url\">");
       sb.append("<input type=\"hidden\" name=\"token\" value=\"")
@@ -411,7 +537,27 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("<input type=\"hidden\" name=\"robotId\" value=\"")
           .append(HtmlRenderer.escapeHtml(robot.getId().getAddress())).append("\">");
       sb.append("<div style=\"margin-top:12px;\"><button type=\"submit\">Rotate Secret</button></div>");
-      sb.append("</form></div>");
+      sb.append("</form>");
+      sb.append("<form method=\"post\" action=\"\" style=\"margin-top:10px;\">");
+      sb.append("<input type=\"hidden\" name=\"action\" value=\"set-paused\">");
+      sb.append("<input type=\"hidden\" name=\"token\" value=\"")
+          .append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
+      sb.append("<input type=\"hidden\" name=\"robotId\" value=\"")
+          .append(HtmlRenderer.escapeHtml(robot.getId().getAddress())).append("\">");
+      sb.append("<input type=\"hidden\" name=\"paused\" value=\"")
+          .append(robot.isPaused() ? "false" : "true").append("\">");
+      sb.append("<div style=\"margin-top:12px;\"><button type=\"submit\">")
+          .append(robot.isPaused() ? "Unpause Robot" : "Pause Robot").append("</button></div>");
+      sb.append("</form>");
+      sb.append("<form method=\"post\" action=\"\" style=\"margin-top:10px;\" onsubmit=\"return confirm('Delete this robot?');\">");
+      sb.append("<input type=\"hidden\" name=\"action\" value=\"delete\">");
+      sb.append("<input type=\"hidden\" name=\"token\" value=\"")
+          .append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
+      sb.append("<input type=\"hidden\" name=\"robotId\" value=\"")
+          .append(HtmlRenderer.escapeHtml(robot.getId().getAddress())).append("\">");
+      sb.append("<div style=\"margin-top:12px;\"><button type=\"submit\">Delete Robot</button></div>");
+      sb.append("</form>");
+      sb.append("</div>");
     }
     if (robots.isEmpty()) {
       sb.append("<div class=\"robot-card\"><h3>No robots yet</h3><div class=\"meta\">");
@@ -464,6 +610,23 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</script>");
     sb.append("</aside></div></div></body></html>");
     return sb.toString();
+  }
+
+  private String maskSecret(String secret) {
+    if (Strings.isNullOrEmpty(secret)) {
+      return "<empty>";
+    }
+    if (secret.length() <= 8) {
+      return secret;
+    }
+    return secret.substring(0, 4) + "\u2026" + secret.substring(secret.length() - 4);
+  }
+
+  private String formatTimestamp(long timestampMillis) {
+    if (timestampMillis <= 0L) {
+      return "Legacy / not set";
+    }
+    return Instant.ofEpochMilli(timestampMillis).toString() + " (" + timestampMillis + ")";
   }
 
   private String derivePublicBaseUrl(HttpServletRequest req) {

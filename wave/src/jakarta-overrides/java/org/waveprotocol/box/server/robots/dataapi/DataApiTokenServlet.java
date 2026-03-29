@@ -353,6 +353,12 @@ public final class DataApiTokenServlet extends HttpServlet {
       return;
     }
 
+    if (robotAccount.isPaused()) {
+      sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "invalid_client",
+          "Robot is paused");
+      return;
+    }
+
     String callbackUrl = robotAccount.getUrl();
     if (callbackUrl == null || callbackUrl.isEmpty()) {
       sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "invalid_client",

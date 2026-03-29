@@ -56,6 +56,8 @@ public class ProtoAccountDataSerializerTest extends TestCase {
 
   private RobotAccountData robotAccountWithCapabilities;
 
+  private RobotAccountData robotAccountWithMetadata;
+
   private HumanAccountData humanAccount;
 
   private HumanAccountData humanAccountWithDigest;
@@ -81,6 +83,9 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     robotAccountWithCapabilities =
         new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret", new RobotCapabilities(
             capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true);
+    robotAccountWithMetadata = new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret",
+        new RobotCapabilities(capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true, 3600L,
+        "owner@example.com", "A helpful robot", 123456L, 234567L, true);
 
     humanAccount = new HumanAccountDataImpl(HUMAN_ID);
     humanAccountWithDigest = new HumanAccountDataImpl(HUMAN_ID,
@@ -168,5 +173,21 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccountWithCapabilities);
     AccountData account = ProtoAccountDataSerializer.deserialize(data);
     assertEquals(robotAccountWithCapabilities, account);
+  }
+
+  public final void testRobotAccountWithMetadata() {
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccountWithMetadata);
+    AccountData account = ProtoAccountDataSerializer.deserialize(data);
+    assertEquals(robotAccountWithMetadata, account);
+  }
+
+  public final void testLegacyRobotAccountDefaultsMissingMetadata() {
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccount);
+    AccountData account = ProtoAccountDataSerializer.deserialize(data);
+    RobotAccountData robot = account.asRobot();
+    assertEquals("", robot.getDescription());
+    assertEquals(0L, robot.getCreatedAtMillis());
+    assertEquals(0L, robot.getUpdatedAtMillis());
+    assertFalse(robot.isPaused());
   }
 }

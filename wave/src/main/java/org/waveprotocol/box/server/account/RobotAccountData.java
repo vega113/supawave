@@ -60,6 +60,26 @@ public interface RobotAccountData extends AccountData {
   long getTokenExpirySeconds();
 
   /**
+   * Returns the robot description or an empty string for legacy records.
+   */
+  String getDescription();
+
+  /**
+   * Returns the creation time in milliseconds since epoch, or 0 for legacy records.
+   */
+  long getCreatedAtMillis();
+
+  /**
+   * Returns the last update time in milliseconds since epoch, or 0 for legacy records.
+   */
+  long getUpdatedAtMillis();
+
+  /**
+   * Returns whether the robot is paused.
+   */
+  boolean isPaused();
+
+  /**
    * Returns the human account address that owns this robot, or null when the
    * robot predates ownership tracking.
    */

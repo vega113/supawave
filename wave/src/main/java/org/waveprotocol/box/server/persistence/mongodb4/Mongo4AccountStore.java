@@ -62,6 +62,10 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String ROBOT_VERIFIED_FIELD = "verified";
   private static final String ROBOT_TOKEN_EXPIRY_FIELD = "tokenExpirySeconds";
   private static final String ROBOT_OWNER_FIELD = "ownerAddress";
+  private static final String ROBOT_DESCRIPTION_FIELD = "description";
+  private static final String ROBOT_CREATED_AT_FIELD = "createdAtMillis";
+  private static final String ROBOT_UPDATED_AT_FIELD = "updatedAtMillis";
+  private static final String ROBOT_PAUSED_FIELD = "paused";
 
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
@@ -327,7 +331,11 @@ final class Mongo4AccountStore implements AccountStore {
         .append(ROBOT_CAPABILITIES_FIELD, capabilitiesToObject(account.getCapabilities()))
         .append(ROBOT_VERIFIED_FIELD, account.isVerified())
         .append(ROBOT_TOKEN_EXPIRY_FIELD, account.getTokenExpirySeconds())
-        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress());
+        .append(ROBOT_OWNER_FIELD, account.getOwnerAddress())
+        .append(ROBOT_DESCRIPTION_FIELD, account.getDescription())
+        .append(ROBOT_CREATED_AT_FIELD, account.getCreatedAtMillis())
+        .append(ROBOT_UPDATED_AT_FIELD, account.getUpdatedAtMillis())
+        .append(ROBOT_PAUSED_FIELD, account.isPaused());
   }
 
   private static Document capabilitiesToObject(RobotCapabilities caps) {
@@ -354,8 +362,15 @@ final class Mongo4AccountStore implements AccountStore {
     Long tokenExpiry = robot.getLong(ROBOT_TOKEN_EXPIRY_FIELD);
     long tokenExpirySeconds = tokenExpiry != null ? tokenExpiry : 0L;
     String ownerAddress = robot.getString(ROBOT_OWNER_FIELD);
+    String description = robot.getString(ROBOT_DESCRIPTION_FIELD);
+    Long createdAt = robot.getLong(ROBOT_CREATED_AT_FIELD);
+    Long updatedAt = robot.getLong(ROBOT_UPDATED_AT_FIELD);
+    boolean paused = Boolean.TRUE.equals(robot.getBoolean(ROBOT_PAUSED_FIELD));
     return new RobotAccountDataImpl(id, url, secret, caps, verified, tokenExpirySeconds,
-        ownerAddress);
+        ownerAddress, description != null ? description : "",
+        createdAt != null ? createdAt : 0L,
+        updatedAt != null ? updatedAt : 0L,
+        paused);
   }
 
   private static RobotCapabilities objectToCapabilities(Document obj) {

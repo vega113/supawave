@@ -114,6 +114,18 @@ public interface RobotRegistrar {
       throws RobotRegistrationException, PersistenceException;
 
   /**
+   * Updates the description for an existing robot.
+   */
+  public RobotAccountData updateDescription(ParticipantId robotId, String description)
+      throws RobotRegistrationException, PersistenceException;
+
+  /**
+   * Updates the paused state for an existing robot.
+   */
+  public RobotAccountData setPaused(ParticipantId robotId, boolean paused)
+      throws RobotRegistrationException, PersistenceException;
+
+  /**
    * Rotates the shared secret for an existing robot while keeping its current
    * callback URL, capabilities, expiry, and owner metadata.
    */

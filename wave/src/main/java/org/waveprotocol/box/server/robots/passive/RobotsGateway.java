@@ -121,15 +121,15 @@ public class RobotsGateway implements WaveBus.Subscriber {
       } catch (PersistenceException e) {
         LOG.severe("Failed to retrieve the account data for " + robotId.getAddress(), e);
         continue;
-      }
-
-      if (account != null && account.isRobot()) {
-        RobotAccountData robotAccount = account.asRobot();
-        if (robotAccount.isVerified()) {
-          Robot robot = getOrCreateRobot(robotName, robotAccount);
-          updateRobot(robot, wavelet, deltas);
         }
-      }
+
+        if (account != null && account.isRobot()) {
+          RobotAccountData robotAccount = account.asRobot();
+          if (robotAccount.isVerified() && !robotAccount.isPaused()) {
+            Robot robot = getOrCreateRobot(robotName, robotAccount);
+            updateRobot(robot, wavelet, deltas);
+          }
+        }
     }
   }
 

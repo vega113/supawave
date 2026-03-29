@@ -54,6 +54,8 @@ public abstract class AccountStoreTestBase extends TestCase {
 
   private RobotAccountData updatedRobotAccount;
 
+  private RobotAccountData robotAccountWithMetadata;
+
   private HumanAccountData convertedRobot;
 
   @Override
@@ -77,6 +79,9 @@ public abstract class AccountStoreTestBase extends TestCase {
     updatedRobotAccount =
         new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret", new RobotCapabilities(
             capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true);
+    robotAccountWithMetadata = new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret",
+        new RobotCapabilities(capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true, 3600L,
+        "owner@example.com", "robot description", 111L, 222L, true);
     convertedRobot = new HumanAccountDataImpl(ROBOT_ID);
   }
 
@@ -109,6 +114,17 @@ public abstract class AccountStoreTestBase extends TestCase {
     accountStore.putAccount(robotAccount);
     AccountData retrievedAccount = accountStore.getAccount(ROBOT_ID);
     assertEquals(robotAccount, retrievedAccount);
+  }
+
+  public final void testRoundtripRobotAccountWithMetadata() throws Exception {
+    AccountStore accountStore = newAccountStore();
+
+    accountStore.putAccount(robotAccountWithMetadata);
+    RobotAccountData retrievedAccount = accountStore.getAccount(ROBOT_ID).asRobot();
+    assertEquals("robot description", retrievedAccount.getDescription());
+    assertEquals(111L, retrievedAccount.getCreatedAtMillis());
+    assertEquals(222L, retrievedAccount.getUpdatedAtMillis());
+    assertTrue(retrievedAccount.isPaused());
   }
 
   public final void testGetMissingAccountReturnsNull() throws Exception {

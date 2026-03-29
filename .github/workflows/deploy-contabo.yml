@@ -78,7 +78,7 @@ jobs:
 
       - name: Build distribution
         timeout-minutes: 10
-        run: sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage"
+        run: sbt --batch "pst/compile; wave/compile; Universal/stage"
 
       - name: Log in to GitHub Container Registry
         run: |

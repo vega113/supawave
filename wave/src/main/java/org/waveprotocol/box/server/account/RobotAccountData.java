@@ -64,4 +64,24 @@ public interface RobotAccountData extends AccountData {
    * robot predates ownership tracking.
    */
   String getOwnerAddress();
+
+  /**
+   * Returns the owner-managed description for this robot.
+   */
+  String getDescription();
+
+  /**
+   * Returns the persisted creation timestamp in epoch milliseconds.
+   */
+  long getCreatedAtMillis();
+
+  /**
+   * Returns the persisted last update timestamp in epoch milliseconds.
+   */
+  long getUpdatedAtMillis();
+
+  /**
+   * Returns true when this robot is paused and should not execute.
+   */
+  boolean isPaused();
 }

@@ -72,4 +72,19 @@ public final class DataApiTokenServletTest {
     verify(resp).setStatus(HttpServletResponse.SC_OK);
     assertTrue(responseBody.toString().contains("access_token"));
   }
+
+  @Test
+  public void testClientCredentialsRejectsPausedRobot() throws Exception {
+    when(req.getParameter("grant_type")).thenReturn("client_credentials");
+    when(req.getParameter("client_id")).thenReturn(ROBOT_ID.getAddress());
+    when(req.getParameter("client_secret")).thenReturn("paused-secret");
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(
+        new RobotAccountDataImpl(ROBOT_ID, "https://example.com/robot", "paused-secret", null,
+            true, 0L, null, "", 0L, 0L, true));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    assertTrue(responseBody.toString().contains("paused"));
+  }
 }

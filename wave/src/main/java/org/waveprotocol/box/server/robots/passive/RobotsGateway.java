@@ -125,7 +125,8 @@ public class RobotsGateway implements WaveBus.Subscriber {
 
       if (account != null && account.isRobot()) {
         RobotAccountData robotAccount = account.asRobot();
-        if (robotAccount.isVerified()) {
+        updateCachedRobotAccount(robotName, robotAccount);
+        if (robotAccount.isVerified() && !robotAccount.isPaused()) {
           Robot robot = getOrCreateRobot(robotName, robotAccount);
           updateRobot(robot, wavelet, deltas);
         }
@@ -146,6 +147,8 @@ public class RobotsGateway implements WaveBus.Subscriber {
     if (robot == null) {
       robot = createNewRobot(robotName, account);
       allRobots.put(robotName, robot);
+    } else {
+      robot.setAccount(account);
     }
     return robot;
   }
@@ -211,6 +214,20 @@ public class RobotsGateway implements WaveBus.Subscriber {
     runnableRobots.remove(robot.getRobotName());
   }
 
+  boolean syncRobotAccount(Robot robot) {
+    ParticipantId robotId = ParticipantId.ofUnsafe(robot.getRobotName().toEmailAddress());
+    try {
+      AccountData latestAccount = accountStore.getAccount(robotId);
+      if (latestAccount != null && latestAccount.isRobot()) {
+        robot.setAccount(latestAccount.asRobot());
+        return true;
+      }
+    } catch (PersistenceException e) {
+      LOG.severe("Failed to refresh robot account for " + robotId.getAddress(), e);
+    }
+    return false;
+  }
+
   /**
    * Updates the account for the given {@link Robot}.
    *
@@ -225,5 +242,12 @@ public class RobotsGateway implements WaveBus.Subscriber {
     RobotAccountData newAccount = connector.fetchCapabilities(robot.getAccount(), activeApiUrl);
     accountStore.putAccount(newAccount);
     robot.setAccount(newAccount);
+  }
+
+  private void updateCachedRobotAccount(RobotName robotName, RobotAccountData account) {
+    Robot robot = allRobots.get(robotName);
+    if (robot != null) {
+      robot.setAccount(account);
+    }
   }
 }

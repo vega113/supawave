@@ -32,10 +32,12 @@ import com.google.wave.api.robot.RobotName;
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.server.account.RobotAccountData;
+import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.robots.operations.NotifyOperationService;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.testing.DeferredExecutor;
 
 /**
@@ -99,5 +101,19 @@ public class RobotsGatewayTest extends TestCase {
     gateway.updateRobotAccount(robot);
 
     verify(accountStore).putAccount(newAccount);
+  }
+
+  public void testSyncRobotAccountRefreshesPausedStateFromStore() throws Exception {
+    Robot robot = mock(Robot.class);
+    RobotName robotName = RobotName.fromAddress("robot@example.com");
+    RobotAccountData pausedAccount =
+        new RobotAccountDataImpl(ParticipantId.ofUnsafe("robot@example.com"),
+            "https://example.com/robot", "secret", null, true, 0L, null, "", 0L, 0L, true);
+    when(robot.getRobotName()).thenReturn(robotName);
+    when(accountStore.getAccount(ParticipantId.ofUnsafe("robot@example.com"))).thenReturn(pausedAccount);
+
+    gateway.syncRobotAccount(robot);
+
+    verify(robot).setAccount(pausedAccount);
   }
 }

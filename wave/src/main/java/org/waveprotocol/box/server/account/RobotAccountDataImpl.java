@@ -37,6 +37,10 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   private final boolean isVerified;
   private final long tokenExpirySeconds;
   private final String ownerAddress;
+  private final String description;
+  private final long createdAtMillis;
+  private final long updatedAtMillis;
+  private final boolean paused;
 
   /**
    * Creates a new {@link RobotAccountData} with default token expiry (0 = no expiry).
@@ -54,7 +58,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
    */
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
       RobotCapabilities capabilities, boolean isVerified) {
-    this(id, url, consumerSecret, capabilities, isVerified, 0L, null);
+    this(id, url, consumerSecret, capabilities, isVerified, 0L, null, "", 0L, 0L, false);
   }
 
   /**
@@ -71,12 +75,21 @@ public final class RobotAccountDataImpl implements RobotAccountData {
    */
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
       RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds) {
-    this(id, url, consumerSecret, capabilities, isVerified, tokenExpirySeconds, null);
+    this(id, url, consumerSecret, capabilities, isVerified, tokenExpirySeconds, null,
+        "", 0L, 0L, false);
   }
 
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
       RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds,
       String ownerAddress) {
+    this(id, url, consumerSecret, capabilities, isVerified, tokenExpirySeconds, ownerAddress,
+        "", 0L, 0L, false);
+  }
+
+  public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
+      RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds,
+      String ownerAddress, String description, long createdAtMillis, long updatedAtMillis,
+      boolean paused) {
     Preconditions.checkNotNull(id, "Id can not be null");
     Preconditions.checkNotNull(url, "Url can not be null");
     Preconditions.checkNotNull(consumerSecret, "Consumer secret can not be null");
@@ -89,6 +102,10 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     this.isVerified = isVerified;
     this.tokenExpirySeconds = tokenExpirySeconds;
     this.ownerAddress = ownerAddress;
+    this.description = description == null ? "" : description;
+    this.createdAtMillis = Math.max(0L, createdAtMillis);
+    this.updatedAtMillis = Math.max(0L, updatedAtMillis);
+    this.paused = paused;
   }
 
   @Override
@@ -147,16 +164,40 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   }
 
   @Override
+  public String getDescription() {
+    return description;
+  }
+
+  @Override
+  public long getCreatedAtMillis() {
+    return createdAtMillis;
+  }
+
+  @Override
+  public long getUpdatedAtMillis() {
+    return updatedAtMillis;
+  }
+
+  @Override
+  public boolean isPaused() {
+    return paused;
+  }
+
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
     result = prime * result + ((capabilities == null) ? 0 : capabilities.hashCode());
     result = prime * result + ((consumerSecret == null) ? 0 : consumerSecret.hashCode());
+    result = prime * result + Long.hashCode(createdAtMillis);
+    result = prime * result + ((description == null) ? 0 : description.hashCode());
     result = prime * result + ((id == null) ? 0 : id.hashCode());
     result = prime * result + (isVerified ? 1231 : 1237);
     result = prime * result + ((ownerAddress == null) ? 0 : ownerAddress.hashCode());
+    result = prime * result + (paused ? 1231 : 1237);
     result = prime * result + ((url == null) ? 0 : url.hashCode());
     result = prime * result + Long.hashCode(tokenExpirySeconds);
+    result = prime * result + Long.hashCode(updatedAtMillis);
     return result;
   }
 
@@ -186,6 +227,16 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     } else if (!consumerSecret.equals(other.consumerSecret)) {
       return false;
     }
+    if (createdAtMillis != other.createdAtMillis) {
+      return false;
+    }
+    if (description == null) {
+      if (other.description != null) {
+        return false;
+      }
+    } else if (!description.equals(other.description)) {
+      return false;
+    }
     if (id == null) {
       if (other.id != null) {
         return false;
@@ -203,6 +254,9 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     } else if (!ownerAddress.equals(other.ownerAddress)) {
       return false;
     }
+    if (paused != other.paused) {
+      return false;
+    }
     if (url == null) {
       if (other.url != null) {
         return false;
@@ -213,6 +267,9 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     if (tokenExpirySeconds != other.tokenExpirySeconds) {
       return false;
     }
+    if (updatedAtMillis != other.updatedAtMillis) {
+      return false;
+    }
     return true;
   }
 
@@ -220,11 +277,15 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   public String toString() {
     return "RobotAccountDataImp" +
         "[id=" + id +
-	",url=" + url +
-	",consumerSecret=<redacted>" +
-	",capabilities=" + capabilities +
-	",isVerified=" + isVerified +
-	",ownerAddress=<redacted>" +
-	",tokenExpirySeconds=" + tokenExpirySeconds + "]";
+        ",url=" + url +
+        ",consumerSecret=<redacted>" +
+        ",capabilities=" + capabilities +
+        ",isVerified=" + isVerified +
+        ",ownerAddress=<redacted>" +
+        ",description=" + description +
+        ",createdAtMillis=" + createdAtMillis +
+        ",updatedAtMillis=" + updatedAtMillis +
+        ",paused=" + paused +
+        ",tokenExpirySeconds=" + tokenExpirySeconds + "]";
   }
 }

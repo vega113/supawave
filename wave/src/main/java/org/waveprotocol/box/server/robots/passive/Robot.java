@@ -67,7 +67,7 @@ public class Robot implements Runnable {
   // This is not final because it needs to be updated when the capabilities
   // change.
   // TODO(ljvderijk): Keep up to date with other updates to account?
-  private RobotAccountData account;
+  private volatile RobotAccountData account;
   private final RobotsGateway gateway;
   private final RobotConnector connector;
   private final EventDataConverterManager converterManager;
@@ -215,6 +215,17 @@ public class Robot implements Runnable {
   public void run() {
     try {
       LOG.fine(robotName + " called for processing");
+
+      if (!gateway.syncRobotAccount(this)) {
+        LOG.warning(robotName + ": skipped because the latest robot account could not be loaded");
+        gateway.doneRunning(this);
+        return;
+      }
+      if (account.isPaused()) {
+        LOG.info(robotName + ": skipped because the robot is paused");
+        gateway.doneRunning(this);
+        return;
+      }
 
       WaveletAndDeltas wavelet = dequeueWavelet();
       if (wavelet == null) {

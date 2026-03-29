@@ -73,6 +73,10 @@ public class RobotRegistrarImplTest extends TestCase {
     when(accountData.getConsumerSecret()).thenReturn(EXISTING_CONSUMER_TOKEN);
     when(accountData.isVerified()).thenReturn(true);
     when(accountData.getTokenExpirySeconds()).thenReturn(0L);
+    when(accountData.getDescription()).thenReturn("");
+    when(accountData.getCreatedAtMillis()).thenReturn(0L);
+    when(accountData.getUpdatedAtMillis()).thenReturn(0L);
+    when(accountData.isPaused()).thenReturn(false);
     when(tokenGenerator.generateToken(anyInt())).thenReturn(CONSUMER_TOKEN);
     registrar = new RobotRegistrarImpl(accountStore, tokenGenerator);
   }
@@ -97,6 +101,18 @@ public class RobotRegistrarImplTest extends TestCase {
 
     assertEquals(OWNER_ID.getAddress(), resultAccountData.getOwnerAddress());
     assertEquals(3600L, resultAccountData.getTokenExpirySeconds());
+  }
+
+  public void testRegisterNewStoresDescriptionAndTimestamps() throws PersistenceException,
+      RobotRegistrationException {
+    RobotAccountData resultAccountData =
+        registrar.registerNew(ROBOT_ID, LOCATION, OWNER_ID.getAddress(), 3600L,
+            "Summarises daily updates");
+
+    assertEquals("Summarises daily updates", resultAccountData.getDescription());
+    assertTrue(resultAccountData.getCreatedAtMillis() > 0L);
+    assertEquals(resultAccountData.getCreatedAtMillis(), resultAccountData.getUpdatedAtMillis());
+    assertFalse(resultAccountData.isPaused());
   }
 
   public void testRegisterNewFailsOnInvalidLocation() throws PersistenceException {
@@ -175,7 +191,8 @@ public class RobotRegistrarImplTest extends TestCase {
   public void testPendingRobotActivationPreservesExistingSecret() throws PersistenceException,
       RobotRegistrationException {
     RobotAccountData pendingAccount =
-        new RobotAccountDataImpl(ROBOT_ID, "", "pending-secret", null, false, 3600L, null);
+        new RobotAccountDataImpl(ROBOT_ID, "", "pending-secret", null, false, 3600L, null,
+            "Pending robot", 1000L, 2000L, false);
     when(accountStore.getAccount(ROBOT_ID)).thenReturn(pendingAccount);
 
     RobotAccountData updatedAccount =
@@ -186,6 +203,9 @@ public class RobotRegistrarImplTest extends TestCase {
     assertTrue(updatedAccount.isVerified());
     assertEquals(3600L, updatedAccount.getTokenExpirySeconds());
     assertEquals(OWNER_ID.getAddress(), updatedAccount.getOwnerAddress());
+    assertEquals("Pending robot", updatedAccount.getDescription());
+    assertEquals(1000L, updatedAccount.getCreatedAtMillis());
+    assertTrue(updatedAccount.getUpdatedAtMillis() >= 2000L);
   }
 
   public void testRegisterOrUpdateClaimsLegacyRobotWhenUrlIsUnchanged() throws PersistenceException,
@@ -250,5 +270,38 @@ public class RobotRegistrarImplTest extends TestCase {
     assertEquals(LOCATION.substring(0, LOCATION.length() - 1), rotatedAccountData.getUrl());
     assertEquals(CONSUMER_TOKEN, rotatedAccountData.getConsumerSecret());
     assertEquals(OWNER_ID.getAddress(), rotatedAccountData.getOwnerAddress());
+  }
+
+  public void testUpdateDescriptionPreservesExistingRobotSettings() throws PersistenceException,
+      RobotRegistrationException {
+    RobotAccountData existingAccount =
+        new RobotAccountDataImpl(ROBOT_ID, LOCATION.substring(0, LOCATION.length() - 1),
+            EXISTING_CONSUMER_TOKEN, null, true, 0L, OWNER_ID.getAddress(), "",
+            1111L, 2222L, false);
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(existingAccount);
+
+    RobotAccountData updatedAccount =
+        registrar.updateDescription(ROBOT_ID, "Handles after-hours triage");
+
+    assertEquals("Handles after-hours triage", updatedAccount.getDescription());
+    assertEquals(EXISTING_CONSUMER_TOKEN, updatedAccount.getConsumerSecret());
+    assertEquals(1111L, updatedAccount.getCreatedAtMillis());
+    assertTrue(updatedAccount.getUpdatedAtMillis() >= 2222L);
+  }
+
+  public void testSetPausedUpdatesPauseFlag() throws PersistenceException,
+      RobotRegistrationException {
+    RobotAccountData existingAccount =
+        new RobotAccountDataImpl(ROBOT_ID, LOCATION.substring(0, LOCATION.length() - 1),
+            EXISTING_CONSUMER_TOKEN, null, true, 0L, OWNER_ID.getAddress(),
+            "Owns the escalation queue", 1111L, 2222L, false);
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(existingAccount);
+
+    RobotAccountData pausedAccount = registrar.setPaused(ROBOT_ID, true);
+
+    assertTrue(pausedAccount.isPaused());
+    assertEquals("Owns the escalation queue", pausedAccount.getDescription());
+    assertEquals(1111L, pausedAccount.getCreatedAtMillis());
+    assertTrue(pausedAccount.getUpdatedAtMillis() >= 2222L);
   }
 }

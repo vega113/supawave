@@ -74,6 +74,14 @@ public interface RobotRegistrar {
       long tokenExpirySeconds) throws RobotRegistrationException, PersistenceException;
 
   /**
+   * Registers a new robot account with ownership metadata, configurable token
+   * expiry, and an owner-managed description.
+   */
+  public RobotAccountData registerNew(ParticipantId robotId, String location, String ownerAddress,
+      long tokenExpirySeconds, String description)
+      throws RobotRegistrationException, PersistenceException;
+
+  /**
    * Unregisters a robot by removing it from the account store.
    *
    * @param robotId the id to remove.
@@ -118,6 +126,18 @@ public interface RobotRegistrar {
    * callback URL, capabilities, expiry, and owner metadata.
    */
   public RobotAccountData rotateSecret(ParticipantId robotId)
+      throws RobotRegistrationException, PersistenceException;
+
+  /**
+   * Updates the owner-managed description for an existing robot.
+   */
+  public RobotAccountData updateDescription(ParticipantId robotId, String description)
+      throws RobotRegistrationException, PersistenceException;
+
+  /**
+   * Pauses or unpauses an existing robot.
+   */
+  public RobotAccountData setPaused(ParticipantId robotId, boolean paused)
       throws RobotRegistrationException, PersistenceException;
 
   /** Adds listener. */

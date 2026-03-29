@@ -84,6 +84,9 @@ public class RobotTest extends TestCase {
   private static final ParticipantId ROBOT = ParticipantId.ofUnsafe(ROBOT_NAME.toEmailAddress());
   private static final RobotAccountData ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", null, true);
+  private static final RobotAccountData PAUSED_ACCOUNT =
+      new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", null, true, 0L, null, "",
+          0L, 0L, true);
   private static final RobotAccountData INITIALIZED_ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", new RobotCapabilities(
           Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT), true);
@@ -105,10 +108,13 @@ public class RobotTest extends TestCase {
     waveletProvider = mock(WaveletProvider.class);
     eventGenerator = mock(EventGenerator.class);
     operationApplicator = mock(RobotOperationApplicator.class);
+    EventDataConverter converter = mock(EventDataConverter.class);
+    when(converterManager.getEventDataConverter(any(ProtocolVersion.class))).thenReturn(converter);
 
     robot =
         new Robot(ROBOT_NAME, ACCOUNT, gateway, connector, converterManager, waveletProvider,
             eventGenerator, operationApplicator);
+    when(gateway.syncRobotAccount(any(Robot.class))).thenReturn(true);
     // Set the initialized account when updateRobotAccount is called.
     doAnswer(new Answer<Object>() {
       @Override
@@ -180,6 +186,19 @@ public class RobotTest extends TestCase {
     robot.run();
     verify(gateway).doneRunning(robot);
     verify(gateway, never()).ensureScheduled(robot);
+  }
+
+  public void testRunSkipsPausedRobot() throws Exception {
+    robot.setAccount(PAUSED_ACCOUNT);
+    enqueueEmptyWavelet();
+
+    robot.run();
+
+    verify(gateway).syncRobotAccount(robot);
+    verify(gateway).doneRunning(robot);
+    verify(gateway, never()).ensureScheduled(robot);
+    verify(connector, never()).sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class));
   }
 
   public void testProcessUpdatesAccountIfNoCapabilities() throws Exception {

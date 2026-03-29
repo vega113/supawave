@@ -157,9 +157,7 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
 
   private CompletableFuture<Void> openWebSocketAsync(WebSocketChannel clientChannel, InetSocketAddress inetAddress) {
     if (inetAddress == null || inetAddress.getPort() <= 0) {
-      CompletableFuture<Void> future = new CompletableFuture<>();
-      future.completeExceptionally(new IllegalArgumentException("Invalid server address: " + inetAddress));
-      return future;
+      throw new IllegalArgumentException("Invalid server address: " + inetAddress);
     }
 
     URI uri;

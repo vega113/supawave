@@ -215,8 +215,7 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       if (attempt < maxAttempts) {
         long sleepMs = backoffMs;
         if (jitterFraction > 0) {
-          double r = (Math.random() * 2 * jitterFraction) - jitterFraction; // [-jitter,+jitter]
-          sleepMs = Math.max(0, (long) (backoffMs * (1.0 + r)));
+          sleepMs = jitteredBackoffMs(backoffMs, jitterFraction);
         }
         final long nextBackoffMs = Math.min(backoffMs * 2, maxBackoffMs);
         RETRY_EXECUTOR.schedule(() -> attemptConnect(clientChannel, uri, attempt + 1, maxAttempts,
@@ -226,5 +225,13 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
         resultFuture.completeExceptionally(new IOException("WebSocket connection failed after " + maxAttempts + " attempts", ex));
       }
     }
+  }
+
+  /**
+   * Returns a backoff duration adjusted by a random factor in [-jitterFraction, +jitterFraction].
+   */
+  private long jitteredBackoffMs(long backoffMs, double jitterFraction) {
+    double r = (Math.random() * 2 * jitterFraction) - jitterFraction;
+    return Math.max(0, (long) (backoffMs * (1.0 + r)));
   }
 }

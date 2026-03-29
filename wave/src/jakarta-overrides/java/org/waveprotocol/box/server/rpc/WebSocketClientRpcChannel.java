@@ -148,7 +148,7 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
 
     URI uri;
     try {
-      uri = new URI("ws", null, inetAddress.getHostName(), inetAddress.getPort(), "/socket", null, null);
+      uri = new URI("ws", null, inetAddress.getHostString(), inetAddress.getPort(), "/socket", null, null);
     } catch (URISyntaxException e) {
       LOG.severe("Unable to create ws:// uri from given address (" + inetAddress + ")", e);
       CompletableFuture<Session> future = new CompletableFuture<>();

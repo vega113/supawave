@@ -58,6 +58,19 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
         return t;
       });
 
+  static {
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      RETRY_EXECUTOR.shutdown();
+      try {
+        if (!RETRY_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+          RETRY_EXECUTOR.shutdownNow();
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        RETRY_EXECUTOR.shutdownNow();
+      }
+    }, "WebSocketClientRpcChannel-Retry-ShutdownHook"));
+  }
   private final WebSocketClient socketClient;
   private final WebSocketChannel clientChannel;
   private final AtomicInteger lastSequenceNumber = new AtomicInteger();

@@ -3252,7 +3252,7 @@ public final class HtmlRenderer {
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <div class=\"section-label\">Automation / APIs</div>\n");
       sb.append("        <a class=\"section-link-strong\" href=\"/account/robots\">Robot &amp; Data API</a>\n");
-      sb.append("        <a href=\"/api-docs\" target=\"_blank\">API Docs</a>\n");
+       sb.append("        <a href=\"/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <div class=\"section-label\">Product / Support</div>\n");
       sb.append("        <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
@@ -3263,8 +3263,8 @@ public final class HtmlRenderer {
       }
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <div class=\"section-label\">Legal</div>\n");
-      sb.append("        <a href=\"/terms\" target=\"_blank\">Terms of Service</a>\n");
-      sb.append("        <a href=\"/privacy\" target=\"_blank\">Privacy Policy</a>\n");
+       sb.append("        <a href=\"/terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
+       sb.append("        <a href=\"/privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
       sb.append("        <div class=\"divider\"></div>\n");
       sb.append("        <a id=\"signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
       sb.append("      </div>\n");

@@ -239,6 +239,7 @@ public final class ChangelogProvider {
       }
       JSONObject sanitizedEntry = new JSONObject(rawEntry.toString());
       sanitizedEntry.put("releaseId", sanitizedEntry.getString("releaseId").trim());
+      sanitizedEntry.put("sections", normalizeSections(rawEntry.opt("sections")));
       sanitizedEntries.put(sanitizedEntry);
     }
     return sanitizedEntries;
@@ -249,7 +250,7 @@ public final class ChangelogProvider {
     String date = entry.optString("date", "").trim();
     String title = entry.optString("title", "").trim();
     String summary = entry.optString("summary", "").trim();
-    JSONArray sections = entry.optJSONArray("sections");
+    JSONArray sections = normalizeSections(entry.opt("sections"));
     if (releaseId.isEmpty() || date.isEmpty() || title.isEmpty() || summary.isEmpty()
         || sections == null || sections.length() == 0) {
       LOG.warning("Changelog entry is missing required fields: " + entry);
@@ -260,6 +261,58 @@ public final class ChangelogProvider {
       return false;
     }
     return true;
+  }
+
+  private static JSONArray normalizeSections(Object rawSections) {
+    if (rawSections instanceof JSONArray sectionsArray) {
+      JSONArray normalizedSections = new JSONArray();
+      for (int i = 0; i < sectionsArray.length(); i++) {
+        JSONObject section = sectionsArray.optJSONObject(i);
+        JSONArray normalizedItems = section == null ? null : normalizeSectionItems(section.opt("items"));
+        if (section == null || normalizedItems == null) {
+          return null;
+        }
+        String type = section.optString("type", "").trim();
+        if (type.isEmpty()) {
+          return null;
+        }
+        JSONObject normalizedSection = new JSONObject();
+        normalizedSection.put("type", type);
+        normalizedSection.put("items", normalizedItems);
+        normalizedSections.put(normalizedSection);
+      }
+      return normalizedSections;
+    }
+    if (rawSections instanceof JSONObject sectionsObject) {
+      JSONArray normalizedSections = new JSONArray();
+      for (String sectionType : sectionsObject.keySet()) {
+        JSONArray normalizedItems = normalizeSectionItems(sectionsObject.opt(sectionType));
+        if (normalizedItems == null) {
+          return null;
+        }
+        JSONObject normalizedSection = new JSONObject();
+        normalizedSection.put("type", sectionType.trim());
+        normalizedSection.put("items", normalizedItems);
+        normalizedSections.put(normalizedSection);
+      }
+      return normalizedSections;
+    }
+    return null;
+  }
+
+  private static JSONArray normalizeSectionItems(Object rawItems) {
+    if (!(rawItems instanceof JSONArray items) || items.length() == 0) {
+      return null;
+    }
+    JSONArray normalizedItems = new JSONArray();
+    for (int i = 0; i < items.length(); i++) {
+      Object item = items.opt(i);
+      if (!(item instanceof String text) || text.trim().isEmpty()) {
+        return null;
+      }
+      normalizedItems.put(text);
+    }
+    return normalizedItems;
   }
 
   public static final class ReleaseRange {

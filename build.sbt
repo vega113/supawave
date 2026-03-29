@@ -167,11 +167,12 @@ Test / unmanagedSourceDirectories += baseDirectory.value / "wave" / "src" / "tes
 // All dependencies are managed via libraryDependencies (Coursier).
 // Codegen tasks resolve JARs from managed deps via (Compile / dependencyClasspath).
 
-// Serve static assets from wave/war/ via classpath resources (Jetty will still serve filesystem if desired)
+// Runtime web assets live under the repo-root war/ directory for both sbt run
+// and staged distributions.
 // NOTE: must use unmanagedResourceDirectories (not resourceDirectories) so SBT actually
 // scans these dirs and includes their files in unmanagedResources / the classpath JAR.
 Compile / unmanagedResourceDirectories += baseDirectory.value / "wave" / "src" / "main" / "resources"
-Compile / unmanagedResourceDirectories += baseDirectory.value / "wave" / "war"
+Compile / unmanagedResourceDirectories += baseDirectory.value / "war"
 
 // Prefer forking when running, to mimic production flags when needed
 fork := true
@@ -643,8 +644,8 @@ Universal / mappings ++= {
   val configFiles = (configDir ** "*").get.filter(_.isFile).map { f =>
     f -> ("config/" + IO.relativize(configDir, f).get)
   }
-  // wave/war/ -> war/
-  val warDir = base / "wave" / "war"
+  // war/ -> war/
+  val warDir = base / "war"
   val warFiles = (warDir ** "*").get.filter(_.isFile).map { f =>
     f -> ("war/" + IO.relativize(warDir, f).get)
   }
@@ -1026,8 +1027,8 @@ Compile / compile := (Compile / compile)
   // generateGxp removed — GXP replaced by HtmlRenderer
   .value
 
-// Ensure `run` has a config in place
-Compile / run := (Compile / run).dependsOn(prepareServerConfig).evaluated
+// Ensure `run` has a config in place and the web client is built first.
+Compile / run := (Compile / run).dependsOn(prepareServerConfig, compileGwt).evaluated
 
 // =============================================================================
 // Phase 6: GWT Compilation Bridge
@@ -1109,8 +1110,9 @@ ThisBuild / compileGwt := {
       val forkOpts = ForkOptions()
         .withRunJVMOptions(Vector("-Xmx1024M"))
 
-      // Output to wave/war/ so Universal/stage mappings pick it up
-      val warDir = (base / "wave" / "war").getAbsolutePath
+      // Output to root war/ so sbt run and staged distributions share one
+      // runtime asset layout.
+      val warDir = (base / "war").getAbsolutePath
 
       val gwtArgs = Seq(
         "-war", warDir,
@@ -1135,3 +1137,9 @@ ThisBuild / compileGwt := {
 
 // Wire compileGwt to run after compileJava (GWT needs compiled classes)
 compileGwt := (compileGwt).dependsOn(Compile / compile).value
+Universal / stage := (Universal / stage).dependsOn(compileGwt).value
+Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt).value
+
+cleanFiles += baseDirectory.value / "war" / "webclient"
+cleanFiles += baseDirectory.value / "war" / "org"
+cleanFiles += baseDirectory.value / "war" / "WEB-INF"

@@ -23,7 +23,7 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
   - `proto_src/` (generated Protobuf Java sources)
   - `gen/gxp/`, `gen/messages/`, `gen/flags/` (generated sources)
 - Dependencies: all managed via SBT `libraryDependencies` (Coursier).
-- Resources: `wave/war/` is added to the classpath for static content.
+- Resources: runtime web assets live under repo-root `war/`.
 - Main class: `org.waveprotocol.box.server.ServerMain`.
 - Runtime config lives under `wave/config/`. `prepareServerConfig` seeds the
   root `config/` directory from the checked-in files when it is missing.
@@ -44,6 +44,8 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
     - Creates `config/application.conf` and `config/reference.conf` from
       `wave/config/`.
   - Then: `sbt run`
+    - This builds the GWT web client into `war/webclient/` before the server
+      starts, so the local UI can boot without a separate manual step.
   - Defaults in `build.sbt` set:
     - `-Dwave.server.config=wave/config/application.conf`
     - `-Djava.util.logging.config.file=wave/config/wiab-logging.conf`
@@ -59,8 +61,8 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
 - HTTP endpoints:
   - `/auth/signin` (GXP-backed login page)
   - `/` (Wave client page; redirects to signin when not authenticated)
-  - `/static/*`, `/render/*`, `/webclient/*` (served by Jetty DefaultServlet;
-    GWT bundle not built in this phase)
+  - `/static/*`, `/render/*`, `/webclient/*` (served from the runtime `war/`
+    asset layout; `sbt run` builds the GWT bundle automatically)
   - `/static/ws-test.html` (simple page to test WebSocket handshake at `/socket`)
 
 - Package fat JAR:

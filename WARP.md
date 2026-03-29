@@ -229,7 +229,7 @@ The Linux VMs install Wave to `/opt/apache/wave` and bind to `0.0.0.0:9898` for 
 - **`gen/shims/`** - SBT-only stubs for GWT client classes
 
 ### Web Resources
-- **`wave/war`** - GWT client resources served to browsers
+- **`war`** - Runtime web assets served to browsers (`static/` + generated GWT `webclient/`)
 
 ### Configuration
 - **`wave/config/reference.conf`** - Complete configuration reference with defaults

@@ -19,6 +19,8 @@
 */_indexes
 */gwt-unitCache
 war/WEB-INF
+war/webclient/
+war/org*
 *.old
 .DS_Store
 .helper
@@ -38,9 +40,6 @@ war/WEB-INF
 .metadata/
 
 ### Build output
-wave/war/WEB-INF/
-wave/war/webclient/
-wave/war/org*
 distributions/
 ### Reports
 reports/

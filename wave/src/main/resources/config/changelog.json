@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-03-29-runtime-web-assets-consolidation",
+    "version": "PR TBD",
+    "date": "2026-03-29",
+    "title": "Runtime Web Asset Consolidation",
+    "summary": "Wave now serves one shared runtime asset tree so local runs and staged packages both load the web client reliably.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Moved tracked static assets and generated GWT output to the repo-root war/ layout so /webclient/webclient.nocache.js resolves during local sbt run",
+          "Made sbt run, Universal/stage, and packaged distributions build the web client before startup or staging"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-28-robot-dashboard-management",
     "version": "PR #455",
     "date": "2026-03-28",

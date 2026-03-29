@@ -19,6 +19,7 @@ package org.waveprotocol.box.server.robots;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -275,6 +276,27 @@ public class RobotDashboardServletTest extends TestCase {
     assertTrue(outputWriter.toString().contains("You do not own this robot"));
   }
 
+  public void testDoPostRejectsVerifyFromDifferentOwner() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("verify");
+    when(req.getParameter("token")).thenReturn("dashboard-xsrf");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(accountStore.getAccount(ROBOT))
+        .thenReturn(
+            (AccountData)
+                new RobotAccountDataImpl(
+                    ROBOT, "", "secret", null, false, 3600L, OTHER_OWNER.getAddress()));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(capabilityFetcher, never()).fetchCapabilities(any(RobotAccountData.class), any(String.class));
+    assertTrue(outputWriter.toString().contains("You do not own this robot"));
+  }
+
   public void testDoPostUpdatesCallbackForOwnedRobot() throws Exception {
     RobotAccountData existingRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
         3600L, OWNER.getAddress());
@@ -362,6 +384,7 @@ public class RobotDashboardServletTest extends TestCase {
     when(req.getParameter("action")).thenReturn("delete");
     when(req.getParameter("token")).thenReturn("dashboard-xsrf");
     when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(req.getParameter("confirm_delete")).thenReturn("yes");
     when(accountStore.getAccount(ROBOT)).thenReturn((AccountData) existingRobot);
     when(robotRegistrar.unregister(ROBOT)).thenReturn(existingRobot);
 
@@ -369,6 +392,26 @@ public class RobotDashboardServletTest extends TestCase {
 
     verify(robotRegistrar).unregister(ROBOT);
     assertTrue(outputWriter.toString().contains("Robot deleted"));
+  }
+
+  public void testDoPostRequiresDeleteConfirmation() throws Exception {
+    RobotAccountData existingRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
+        3600L, OWNER.getAddress(), "", 111L, 222L, false);
+
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(existingRobot));
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("delete");
+    when(req.getParameter("token")).thenReturn("dashboard-xsrf");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(accountStore.getAccount(ROBOT)).thenReturn((AccountData) existingRobot);
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    verify(robotRegistrar, never()).unregister(ROBOT);
+    assertTrue(outputWriter.toString().contains("Confirm robot deletion before continuing."));
   }
 
   public void testDoPostRotatesSecretForOwnedRobot() throws Exception {

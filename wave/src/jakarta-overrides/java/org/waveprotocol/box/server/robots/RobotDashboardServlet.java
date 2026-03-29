@@ -347,6 +347,11 @@ public final class RobotDashboardServlet extends HttpServlet {
           HttpServletResponse.SC_FORBIDDEN);
       return;
     }
+    if (!"yes".equals(req.getParameter("confirm_delete"))) {
+      renderDashboard(req, resp, user, "Confirm robot deletion before continuing.", ownedRobot,
+          HttpServletResponse.SC_BAD_REQUEST);
+      return;
+    }
 
     try {
       robotRegistrar.unregister(ownedRobot.getId());
@@ -643,6 +648,10 @@ public final class RobotDashboardServlet extends HttpServlet {
           .append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
       sb.append("<input type=\"hidden\" name=\"robotId\" value=\"")
           .append(HtmlRenderer.escapeHtml(robot.getId().getAddress())).append("\">");
+      sb.append("<label style=\"display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:normal;text-transform:none;margin-top:10px;\">");
+      sb.append("<input type=\"checkbox\" name=\"confirm_delete\" value=\"yes\" required style=\"width:auto;padding:0;\">");
+      sb.append("I understand this permanently deletes the robot.");
+      sb.append("</label>");
       sb.append("<div style=\"margin-top:12px;\"><button type=\"submit\">Delete Robot</button></div>");
       sb.append("</form>");
       sb.append("</div>");

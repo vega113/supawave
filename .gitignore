@@ -88,3 +88,5 @@ proto_src/
 
 ### Legacy vendored JARs (removed; dependencies are managed via SBT/Coursier)
 third_party/
+/.junie/
+/.env

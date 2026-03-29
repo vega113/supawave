@@ -104,9 +104,12 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       }
     };
     clientChannel = new WebSocketChannelImpl(callback);
+    CompletableFuture<Session> connectFuture =
+        openWebSocketAsync(clientChannel, (InetSocketAddress) serverAddress);
     try {
-      openWebSocketAsync(clientChannel, (InetSocketAddress) serverAddress).get();
+      connectFuture.get();
     } catch (InterruptedException e) {
+      connectFuture.cancel(true);
       Thread.currentThread().interrupt();
       throw new IOException("WebSocket connection interrupted", e);
     } catch (ExecutionException e) {

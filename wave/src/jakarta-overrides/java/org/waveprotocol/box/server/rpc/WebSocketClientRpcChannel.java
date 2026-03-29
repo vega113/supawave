@@ -59,19 +59,6 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
         return t;
       });
 
-  static {
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      RETRY_EXECUTOR.shutdown();
-      try {
-        if (!RETRY_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
-          RETRY_EXECUTOR.shutdownNow();
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        RETRY_EXECUTOR.shutdownNow();
-      }
-    }, "WebSocketClientRpcChannel-Retry-Shutdown"));
-  }
   private final WebSocketChannel clientChannel;
   private final AtomicInteger lastSequenceNumber = new AtomicInteger();
   private final Map<Integer, ClientRpcController> activeMethodMap = new ConcurrentHashMap<>();
@@ -104,12 +91,9 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       }
     };
     clientChannel = new WebSocketChannelImpl(callback);
-    CompletableFuture<Session> connectFuture =
-        openWebSocketAsync(clientChannel, (InetSocketAddress) serverAddress);
     try {
-      connectFuture.get();
+      openWebSocketAsync(clientChannel, (InetSocketAddress) serverAddress).get();
     } catch (InterruptedException e) {
-      connectFuture.cancel(true);
       Thread.currentThread().interrupt();
       throw new IOException("WebSocket connection interrupted", e);
     } catch (ExecutionException e) {
@@ -155,9 +139,11 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
     clientChannel.sendMessage(sequenceNo, request, responsePrototype);
   }
 
-  private CompletableFuture<Void> openWebSocketAsync(WebSocketChannel clientChannel, InetSocketAddress inetAddress) {
+  private CompletableFuture<Session> openWebSocketAsync(WebSocketChannel clientChannel, InetSocketAddress inetAddress) {
     if (inetAddress == null || inetAddress.getPort() <= 0) {
-      throw new IllegalArgumentException("Invalid server address: " + inetAddress);
+      CompletableFuture<Session> future = new CompletableFuture<>();
+      future.completeExceptionally(new IllegalArgumentException("Invalid server address: " + inetAddress));
+      return future;
     }
 
     URI uri;
@@ -165,22 +151,22 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       uri = new URI("ws", null, inetAddress.getHostName(), inetAddress.getPort(), "/socket", null, null);
     } catch (URISyntaxException e) {
       LOG.severe("Unable to create ws:// uri from given address (" + inetAddress + ")", e);
-      CompletableFuture<Void> future = new CompletableFuture<>();
+      CompletableFuture<Session> future = new CompletableFuture<>();
       future.completeExceptionally(new IllegalStateException(e));
       return future;
     }
 
-    CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+    CompletableFuture<Session> resultFuture = new CompletableFuture<>();
     attemptConnect(clientChannel, uri, 1, 3, null, resultFuture);
     return resultFuture;
   }
 
-  private void attemptConnect(WebSocketChannel clientChannel, URI uri, int attempt, int maxAttempts, Exception lastException, CompletableFuture<Void> resultFuture) {
+  private void attemptConnect(WebSocketChannel clientChannel, URI uri, int attempt, int maxAttempts, Exception lastException, CompletableFuture<Session> resultFuture) {
     try {
       WebSocketContainer container = ContainerProvider.getWebSocketContainer();
       ClientEndpointAdapter endpoint = new ClientEndpointAdapter((WebSocketChannelImpl) clientChannel);
       this.session = container.connectToServer(endpoint, uri);
-      resultFuture.complete(null);
+      resultFuture.complete(this.session);
       return;
     } catch (Exception ex) {
       LOG.warning("Jakarta WS connect attempt " + attempt + " failed to " + uri + ": " + ex.getMessage(), ex);

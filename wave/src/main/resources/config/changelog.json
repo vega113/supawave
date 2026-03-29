@@ -4,13 +4,14 @@
     "version": "PR TBD",
     "date": "2026-03-29",
     "title": "Runtime Web Asset Consolidation",
-    "summary": "Wave now serves one shared runtime asset tree so local runs and staged packages both load the web client reliably.",
+    "summary": "Wave now serves one shared runtime asset tree, keeps Jakarta websocket auth messages consistent, and resolves local sessions reliably.",
     "sections": [
       {
         "type": "fix",
         "items": [
           "Moved tracked static assets and generated GWT output to the repo-root war/ layout so /webclient/webclient.nocache.js resolves during local sbt run",
-          "Made sbt run, Universal/stage, and packaged distributions build the web client before startup or staging"
+          "Made sbt run, Universal/stage, and packaged distributions build the web client before startup or staging",
+          "Standardized Jakarta websocket auth rejection logging and session-token lookup behavior for Jetty 12"
         ]
       }
     ]

@@ -112,20 +112,21 @@ public final class SessionManagerImpl implements SessionManager {
 
   @Override
   public WebSession getSessionFromToken(String token) {
+    WebSession session = null;
     try {
-      if (token == null) {
-        return null;
+      if (token != null) {
+        Object jettySession = findJettySession(normalizeToken(token));
+        if (jettySession != null) {
+          jakarta.servlet.http.HttpSession httpSession = extractHttpSession(jettySession);
+          if (httpSession != null) {
+            session = WebSessions.wrap(httpSession);
+          }
+        }
       }
-      Object jettySession = findJettySession(normalizeToken(token));
-      if (jettySession == null) {
-        return null;
-      }
-      jakarta.servlet.http.HttpSession httpSession = extractHttpSession(jettySession);
-      return httpSession == null ? null : WebSessions.wrap(httpSession);
     } catch (Throwable t) {
       LOG.info("Jetty 12 session lookup failed (ignored)", t);
-      return null;
     }
+    return session;
   }
 
   private Object findJettySession(String sessionId) throws ReflectiveOperationException {
@@ -174,7 +175,6 @@ public final class SessionManagerImpl implements SessionManager {
           return session;
         }
       } catch (NoSuchMethodException ignored) {
-        // Try the next accessor.
       }
     }
     return null;

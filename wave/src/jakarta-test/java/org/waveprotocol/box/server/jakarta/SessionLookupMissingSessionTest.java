@@ -31,7 +31,7 @@ import static org.junit.Assert.*;
 /**
  * Verifies the Jakarta session lookup path handles missing sessions gracefully.
  */
-public class SessionLookupFlagTest {
+public class SessionLookupMissingSessionTest {
 
   @Test
   public void returnsNullGracefullyWhenSessionIsMissing() throws Exception {

@@ -118,7 +118,7 @@ public class WaveWebSocketEndpointTest {
     assertEquals(1, records.size());
     assertEquals(Level.INFO, records.get(0).getLevel());
     assertEquals(
-        "WebSocket rejected unauthenticated message: auth token invalid",
+        "WebSocket rejected unauthenticated message: Auth token invalid",
         records.get(0).getMessage());
     assertNull(records.get(0).getThrown());
   }

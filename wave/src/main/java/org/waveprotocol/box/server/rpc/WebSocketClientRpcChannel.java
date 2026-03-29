@@ -187,6 +187,9 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
   private void attemptConnect(WebSocketChannel clientChannel, URI uri, int attempt, int maxAttempts,
       long backoffMs, int maxBackoffMs, double jitterFraction, int connectTimeoutMs, int connectWaitMs,
       Exception lastException, CompletableFuture<WebSocketClient> resultFuture) {
+    if (resultFuture.isDone()) {
+      return;
+    }
     WebSocketClient client = new WebSocketClient();
     client.setConnectTimeout(connectTimeoutMs);
     boolean started = false;
@@ -195,7 +198,11 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       started = true;
       ClientUpgradeRequest request = new ClientUpgradeRequest();
       client.connect(clientChannel, uri, request).get(connectWaitMs, TimeUnit.MILLISECONDS);
-      resultFuture.complete(client); // success
+      if (!resultFuture.complete(client)) {
+        try { client.stop(); } catch (Exception stopEx) {
+          LOG.warning("WebSocket client stop() failed after future already done", stopEx);
+        }
+      }
       return;
     } catch (Exception ex) {
       LOG.warning("WebSocket connect attempt " + attempt + " failed", ex);

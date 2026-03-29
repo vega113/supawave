@@ -52,7 +52,7 @@ import static org.junit.Assert.*;
 public class SessionLookupEmbeddedIT {
   private Server server;
   private int port;
-  private SessionHandler sessionHandler;
+  private org.eclipse.jetty.ee10.servlet.SessionHandler eeSessionHandler;
 
   @Before
   public void start() throws Exception {
@@ -62,17 +62,7 @@ public class SessionLookupEmbeddedIT {
       c.setPort(0);
       server.addConnector(c);
 
-      org.eclipse.jetty.ee10.servlet.SessionHandler eeSessionHandler = new org.eclipse.jetty.ee10.servlet.SessionHandler();
-      try {
-        java.lang.reflect.Method m = eeSessionHandler.getClass().getMethod("getSessionHandler");
-        Object base = m.invoke(eeSessionHandler);
-        if (!(base instanceof org.eclipse.jetty.session.SessionHandler)) {
-          Assume.assumeTrue("EE10 SessionHandler does not expose core SessionHandler", false);
-        }
-        sessionHandler = (org.eclipse.jetty.session.SessionHandler) base;
-      } catch (Throwable t) {
-        Assume.assumeNoException("Unable to access core SessionHandler from EE10", t);
-      }
+      eeSessionHandler = new org.eclipse.jetty.ee10.servlet.SessionHandler();
 
       ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
       ctx.setContextPath("/");
@@ -105,7 +95,7 @@ public class SessionLookupEmbeddedIT {
   }
 
   @Test
-  public void lookupByToken_whenFlagEnabled_returnsSession() throws Exception {
+  public void lookupByToken_returnsSession() throws Exception {
     // 1) Create a session via servlet and capture the session id body
     URL url = new URL("http://localhost:" + port + "/sid");
     HttpURLConnection c = TestSupport.openConnection(url);
@@ -114,16 +104,16 @@ public class SessionLookupEmbeddedIT {
     assertNotNull(sid);
     assertFalse(sid.isEmpty());
 
-    // 2) Build SessionManagerImpl with the same SessionHandler and flag enabled
-    Config cfg = ConfigFactory.parseString("experimental.jetty12_session_lookup = true");
+    // 2) Build SessionManagerImpl with the same SessionHandler
+    Config cfg = ConfigFactory.empty();
     AccountStore store = Mockito.mock(AccountStore.class);
     // Construct Jakarta override SessionManagerImpl via reflection to avoid tight coupling
     Class<?> smClass = Class.forName("org.waveprotocol.box.server.authentication.SessionManagerImpl");
     SessionManager sm = (SessionManager) smClass
         .getConstructor(org.waveprotocol.box.server.persistence.AccountStore.class,
-                        org.eclipse.jetty.session.SessionHandler.class,
+                        org.eclipse.jetty.ee10.servlet.SessionHandler.class,
                         com.typesafe.config.Config.class)
-        .newInstance(store, sessionHandler, cfg);
+        .newInstance(store, eeSessionHandler, cfg);
 
     // 3) Lookup by token
     WebSession session = sm.getSessionFromToken(sid);

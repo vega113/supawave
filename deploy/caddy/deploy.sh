@@ -69,6 +69,21 @@ release_lock() {
   flock -u 9 || true
 }
 
+retry() {
+  local n=0
+  local max=3
+  local delay=15
+  until "$@"; do
+    n=$((n+1))
+    if [ $n -ge $max ]; then
+      echo "[deploy] Command failed after $max attempts: $*" >&2
+      return 1
+    fi
+    echo "[deploy] Attempt $n failed, retrying in ${delay}s..." >&2
+    sleep $delay
+  done
+}
+
 activate_release() {
   ln -sfn "$release_dir" "$deploy_root/current"
 }
@@ -93,7 +108,10 @@ login_registry_if_needed() {
 
 pull_image() {
   local image_ref="${WAVE_IMAGE:-supawave-wave:$(basename "$release_dir")}"
-  docker pull "$image_ref" >/dev/null
+  # Flush DNS cache to clear any stale entries before pulling
+  systemd-resolve --flush-caches 2>/dev/null || true
+  # Retry docker pull up to 3 times with 15s backoff to handle transient DNS failures
+  retry docker pull "$image_ref" >/dev/null
 }
 
 render_application_config() {
@@ -103,7 +121,7 @@ render_application_config() {
   fi
 }
 
-compose_up() {
+_do_compose_up() {
   # --wait blocks until every service with a healthcheck reports healthy.
   # Combined with the wave service's deploy.update_config.order=start-first,
   # Docker Compose will start the new container, wait for it to become healthy,
@@ -119,6 +137,11 @@ compose_up() {
   WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-noreply@${canonical_host}}" \
   WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
     docker compose --project-name "$project_name" -f "$release_dir/compose.yml" up -d --remove-orphans --wait --wait-timeout 180
+}
+
+compose_up() {
+  # Retry is used to handle transient DNS failures when pulling images
+  retry _do_compose_up
 }
 
 check_readyz() {
@@ -144,6 +167,22 @@ wait_for_ready() {
   return 1
 }
 
+_do_rollback_compose() {
+  local rollback_image="$1"
+  local previous_release="$2"
+  DEPLOY_ROOT="$deploy_root" \
+  WAVE_IMAGE="$rollback_image" \
+  WAVE_SERVER_VERSION="${WAVE_SERVER_VERSION:-$(basename "$previous_release")}" \
+  CANONICAL_HOST="$canonical_host" \
+  ROOT_HOST="$root_host" \
+  WWW_HOST="$www_host" \
+  WAVE_INTERNAL_PORT="$internal_port" \
+  RESEND_API_KEY="${RESEND_API_KEY:-}" \
+  WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-noreply@${canonical_host}}" \
+  WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
+    docker compose --project-name "$project_name" -f "$deploy_root/current/compose.yml" up -d --remove-orphans --wait --wait-timeout 180
+}
+
 rollback_release() {
   if [[ ! -L "$deploy_root/previous" ]]; then
     echo "No previous release is available for rollback" >&2
@@ -164,17 +203,7 @@ rollback_release() {
   fi
 
   ln -sfn "$previous_release" "$deploy_root/current"
-  DEPLOY_ROOT="$deploy_root" \
-  WAVE_IMAGE="$rollback_image" \
-  WAVE_SERVER_VERSION="${WAVE_SERVER_VERSION:-$(basename "$previous_release")}" \
-  CANONICAL_HOST="$canonical_host" \
-  ROOT_HOST="$root_host" \
-  WWW_HOST="$www_host" \
-  WAVE_INTERNAL_PORT="$internal_port" \
-  RESEND_API_KEY="${RESEND_API_KEY:-}" \
-  WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-noreply@${canonical_host}}" \
-  WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
-    docker compose --project-name "$project_name" -f "$deploy_root/current/compose.yml" up -d --remove-orphans --wait --wait-timeout 180
+  retry _do_rollback_compose "$rollback_image" "$previous_release"
 
   wait_for_ready
   check_proxy

@@ -34,6 +34,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -60,6 +64,7 @@ public class UrlPreviewServlet extends HttpServlet {
   private static final int FETCH_TIMEOUT_MS = 5000;
   private static final int MAX_BODY_BYTES = 512 * 1024; // 512 KB max HTML to read
   private static final int CACHE_MAX_SIZE = 500;
+  private static final int MAX_REDIRECTS = 5;
 
   private static final Pattern OG_TITLE = Pattern.compile(
       "<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']*)[\"']", Pattern.CASE_INSENSITIVE);
@@ -122,13 +127,14 @@ public class UrlPreviewServlet extends HttpServlet {
       return;
     }
 
-    // Basic URL validation
-    if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
-      response.sendError(HttpServletResponse.SC_BAD_REQUEST, "URL must start with http:// or https://");
-      return;
-    }
     if (targetUrl.length() > 2048) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST, "URL too long");
+      return;
+    }
+    try {
+      validateUrlForPreview(URI.create(targetUrl).toURL());
+    } catch (Exception e) {
+      response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid or disallowed URL");
       return;
     }
 
@@ -168,37 +174,124 @@ public class UrlPreviewServlet extends HttpServlet {
   }
 
   private static String fetchUrl(String targetUrl) throws IOException {
-    URL url = URI.create(targetUrl).toURL();
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-    try {
-      conn.setRequestMethod("GET");
-      conn.setConnectTimeout(FETCH_TIMEOUT_MS);
-      conn.setReadTimeout(FETCH_TIMEOUT_MS);
-      conn.setInstanceFollowRedirects(true);
-      conn.setRequestProperty("User-Agent", "WaveBot/1.0 (URL Preview)");
-      conn.setRequestProperty("Accept", "text/html,application/xhtml+xml");
-
-      int status = conn.getResponseCode();
-      if (status != 200) {
-        throw new IOException("HTTP " + status + " for " + targetUrl);
-      }
-
-      try (InputStream is = conn.getInputStream();
-           BufferedReader reader = new BufferedReader(
-               new InputStreamReader(is, StandardCharsets.UTF_8))) {
-        StringBuilder sb = new StringBuilder();
-        char[] buf = new char[4096];
-        int read;
-        int total = 0;
-        while ((read = reader.read(buf)) != -1 && total < MAX_BODY_BYTES) {
-          sb.append(buf, 0, read);
-          total += read;
+    URL currentUrl = URI.create(targetUrl).toURL();
+    int redirectCount = 0;
+    while (redirectCount <= MAX_REDIRECTS) {
+      validateUrlForPreview(currentUrl);
+      HttpURLConnection conn = openPreviewConnection(currentUrl);
+      try {
+        int status = conn.getResponseCode();
+        if (isRedirectStatus(status)) {
+          String location = conn.getHeaderField("Location");
+          if (location == null || location.isBlank()) {
+            throw new IOException("Redirect without location for " + currentUrl);
+          }
+          currentUrl = currentUrl.toURI().resolve(location).toURL();
+          redirectCount += 1;
+        } else if (status == HttpURLConnection.HTTP_OK) {
+          try (InputStream is = conn.getInputStream();
+               BufferedReader reader = new BufferedReader(
+                   new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            char[] buf = new char[4096];
+            int read;
+            int total = 0;
+            while ((read = reader.read(buf)) != -1 && total < MAX_BODY_BYTES) {
+              sb.append(buf, 0, read);
+              total += read;
+            }
+            return sb.toString();
+          }
+        } else {
+          throw new IOException("HTTP " + status + " for " + currentUrl);
         }
-        return sb.toString();
+      } catch (Exception e) {
+        if (e instanceof IOException) {
+          throw (IOException) e;
+        }
+        throw new IOException("Failed to fetch " + currentUrl, e);
+      } finally {
+        conn.disconnect();
       }
-    } finally {
-      conn.disconnect();
     }
+    throw new IOException("Too many redirects for " + targetUrl);
+  }
+
+  private static HttpURLConnection openPreviewConnection(URL url) throws IOException {
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("GET");
+    conn.setConnectTimeout(FETCH_TIMEOUT_MS);
+    conn.setReadTimeout(FETCH_TIMEOUT_MS);
+    conn.setInstanceFollowRedirects(false);
+    conn.setRequestProperty("User-Agent", "WaveBot/1.0 (URL Preview)");
+    conn.setRequestProperty("Accept", "text/html,application/xhtml+xml");
+    return conn;
+  }
+
+  private static boolean isRedirectStatus(int status) {
+    return status == HttpURLConnection.HTTP_MOVED_PERM
+        || status == HttpURLConnection.HTTP_MOVED_TEMP
+        || status == HttpURLConnection.HTTP_SEE_OTHER
+        || status == 307
+        || status == 308;
+  }
+
+  private static void validateUrlForPreview(URL url) throws IOException {
+    String protocol = url.getProtocol();
+    if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
+      throw new MalformedURLException("Unsupported protocol");
+    }
+    if (url.getUserInfo() != null) {
+      throw new MalformedURLException("User info is not allowed");
+    }
+    String host = url.getHost();
+    if (host == null || host.isBlank()) {
+      throw new MalformedURLException("Host is required");
+    }
+    if (isBlockedHostName(host)) {
+      throw new MalformedURLException("Blocked host");
+    }
+    InetAddress[] resolvedAddresses = InetAddress.getAllByName(host);
+    if (resolvedAddresses.length == 0) {
+      throw new MalformedURLException("Unresolvable host");
+    }
+    for (InetAddress address : resolvedAddresses) {
+      if (isBlockedAddress(address)) {
+        throw new MalformedURLException("Blocked address");
+      }
+    }
+  }
+
+  private static boolean isBlockedHostName(String host) {
+    String normalized = host.toLowerCase();
+    return "localhost".equals(normalized)
+        || normalized.endsWith(".localhost")
+        || "metadata".equals(normalized)
+        || "metadata.google.internal".equals(normalized);
+  }
+
+  private static boolean isBlockedAddress(InetAddress address) {
+    if (address.isAnyLocalAddress()
+        || address.isLoopbackAddress()
+        || address.isLinkLocalAddress()
+        || address.isSiteLocalAddress()
+        || address.isMulticastAddress()) {
+      return true;
+    }
+    if (address instanceof Inet4Address) {
+      byte[] bytes = ((Inet4Address) address).getAddress();
+      int first = Byte.toUnsignedInt(bytes[0]);
+      int second = Byte.toUnsignedInt(bytes[1]);
+      boolean isCarrierGradeNat = first == 100 && second >= 64 && second <= 127;
+      boolean isBenchmarkingRange = first == 198 && (second == 18 || second == 19);
+      return isCarrierGradeNat || isBenchmarkingRange;
+    }
+    if (address instanceof Inet6Address) {
+      byte[] bytes = ((Inet6Address) address).getAddress();
+      int first = Byte.toUnsignedInt(bytes[0]);
+      return (first & 0xFE) == 0xFC;
+    }
+    return false;
   }
 
   private static String parseMetadata(String html, String targetUrl) {

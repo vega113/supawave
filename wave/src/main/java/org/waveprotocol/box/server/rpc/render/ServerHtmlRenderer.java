@@ -641,8 +641,18 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
     // java.net.URI keeps the check permissive enough to accept URLs that contain
     // spaces or other characters that URI strictly rejects
     // (e.g. "https://example.com/search?q=hello world").
+    // A colon is only a scheme separator when it appears before any '/', '?', or '#'
+    // — otherwise it is part of a path, query, or fragment (e.g. "?q=foo:bar").
     int colonIdx = trimmedUrl.indexOf(':');
-    String normalizedScheme = colonIdx > 0
+    int firstPathChar = Integer.MAX_VALUE;
+    for (char c : new char[]{'/', '?', '#'}) {
+      int idx = trimmedUrl.indexOf(c);
+      if (idx >= 0 && idx < firstPathChar) {
+        firstPathChar = idx;
+      }
+    }
+    boolean colonIsScheme = colonIdx > 0 && colonIdx < firstPathChar;
+    String normalizedScheme = colonIsScheme
         ? trimmedUrl.substring(0, colonIdx).toLowerCase(Locale.ROOT)
         : null;
     // No scheme → relative URL (path, query, or fragment) — always safe.

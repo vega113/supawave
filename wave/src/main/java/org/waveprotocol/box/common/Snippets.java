@@ -123,7 +123,7 @@ public final class Snippets {
             if (s.length() <= remaining) {
               resultBuilder.append(s);
             } else {
-              resultBuilder.append(s.substring(0, remaining));
+              resultBuilder.append(s, 0, remaining);
               throw new SnippetLimitReachedException();
             }
           }

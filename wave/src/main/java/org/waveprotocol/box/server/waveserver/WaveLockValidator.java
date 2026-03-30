@@ -106,7 +106,9 @@ final class WaveLockValidator {
           org.waveprotocol.wave.model.document.operation.Attributes attrs) {
         if (!found[0] && LOCK_TAG.equals(type)) {
           found[0] = true;
-          result[0] = WaveLockState.fromValue(attrs.get(LOCK_MODE_ATTR));
+          result[0] = attrs != null
+              ? WaveLockState.fromValue(attrs.get(LOCK_MODE_ATTR))
+              : WaveLockState.UNLOCKED;
         }
       }
 
@@ -147,7 +149,7 @@ final class WaveLockValidator {
       public void elementStart(String type,
           org.waveprotocol.wave.model.document.operation.Attributes attrs) {
         if (rootBlipId[0] == null && BLIP_TAG.equals(type)) {
-          rootBlipId[0] = attrs.get(BLIP_ID_ATTR);
+          rootBlipId[0] = attrs != null ? attrs.get(BLIP_ID_ATTR) : null;
         }
       }
 

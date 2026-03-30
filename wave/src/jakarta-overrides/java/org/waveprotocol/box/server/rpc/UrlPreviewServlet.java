@@ -176,7 +176,7 @@ public class UrlPreviewServlet extends HttpServlet {
   private static String fetchUrl(String targetUrl) throws IOException {
     URL currentUrl = URI.create(targetUrl).toURL();
     int redirectCount = 0;
-    while (redirectCount <= MAX_REDIRECTS) {
+    while (redirectCount < MAX_REDIRECTS) {
       validateUrlForPreview(currentUrl);
       HttpURLConnection conn = openPreviewConnection(currentUrl);
       try {
@@ -197,8 +197,9 @@ public class UrlPreviewServlet extends HttpServlet {
             int read;
             int total = 0;
             while ((read = reader.read(buf)) != -1 && total < MAX_BODY_BYTES) {
-              sb.append(buf, 0, read);
-              total += read;
+              int toAppend = Math.min(read, MAX_BODY_BYTES - total);
+              sb.append(buf, 0, toAppend);
+              total += toAppend;
             }
             return sb.toString();
           }

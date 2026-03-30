@@ -40,6 +40,7 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -466,7 +467,7 @@ public final class ProfileServlet extends HttpServlet {
 
   private static String normalizeMimeType(String mimeType) {
     if (mimeType == null) return null;
-    String normalized = mimeType.trim().toLowerCase();
+    String normalized = mimeType.trim().toLowerCase(Locale.ROOT);
     int separator = normalized.indexOf(';');
     if (separator >= 0) {
       normalized = normalized.substring(0, separator).trim();

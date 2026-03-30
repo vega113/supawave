@@ -1,4 +1,6 @@
 name: Codex Review Gate
+run-name: >-
+  ${{ github.event_name == 'issue_comment' && format('Review Gate issue #{0}', github.event.issue.number) || github.event_name == 'pull_request_review' && format('Review Gate PR #{0}', github.event.pull_request.number) || github.event_name == 'pull_request' && format('Review Gate PR #{0}', github.event.pull_request.number) || github.event_name == 'schedule' && 'Review Gate scheduler' || format('Review Gate {0}', github.event_name) }}
 
 on:
   pull_request:

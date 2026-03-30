@@ -16,6 +16,8 @@
 # under the License.
 
 name: Deploy Contabo
+run-name: >-
+  ${{ github.event_name == 'push' && format('Deploy {0} @ {1}', github.ref_name, github.sha) || github.event_name == 'workflow_dispatch' && format('Deploy {0} @ {1}', github.ref_name, github.sha) || format('Deploy {0}', github.event_name) }}
 
 on:
   workflow_dispatch:

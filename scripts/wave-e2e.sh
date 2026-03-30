@@ -13,7 +13,6 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT=9898
 INSTALL_DIR="$REPO_ROOT/target/universal/stage"
 RESULTS_DIR="$REPO_ROOT/wave/target/e2e-results"
-E2E_DIR="$REPO_ROOT/wave/src/e2e-test"
 PID_FILE="$INSTALL_DIR/wave_server.pid"
 
 mkdir -p "$RESULTS_DIR"
@@ -111,17 +110,11 @@ else
   wait_for_healthz "$BASE_URL"
 fi
 
-echo "[e2e] Running pytest against $BASE_URL ..."
-
-PYTHON="${PYTHON:-python3}"
+echo "[e2e] Running Java E2E suite (sbt e2eTest:test) against $BASE_URL ..."
 
 set +e
 WAVE_E2E_BASE_URL="$BASE_URL" \
-  "$PYTHON" -m pytest "$E2E_DIR" \
-    -v \
-    --tb=short \
-    --junitxml="$RESULTS_DIR/e2e-junit.xml" \
-    -o "console_output_style=classic" \
+  sbt --batch "e2eTest:test" \
   2>&1 | tee "$RESULTS_DIR/e2e-output.txt"
 exit_code=${PIPESTATUS[0]}
 set -e

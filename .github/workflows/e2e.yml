@@ -35,16 +35,10 @@ jobs:
       - name: Stage distribution
         run: sbt --batch Universal/stage
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies
-        run: pip install -r wave/src/e2e-test/requirements.txt
-
       - name: Run E2E tests
-        run: PYTHON=python bash scripts/wave-e2e.sh
+        env:
+          WAVE_E2E_BASE_URL: http://localhost:9898
+        run: bash scripts/wave-e2e.sh
 
       - name: Upload E2E results
         if: always()

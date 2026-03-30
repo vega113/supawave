@@ -466,7 +466,7 @@ inConfig(JakartaTest)(Defaults.testSettings)
 inConfig(JakartaIT)(Defaults.testSettings)
 inConfig(StacktraceTest)(Defaults.testSettings)
 inConfig(ThumbTest)(Defaults.testSettings)
-inConfig(E2eTest)(Defaults.testSettings)
+inConfig(E2eTest)(Defaults.testSettings ++ net.aichler.jupiter.sbt.JupiterPlugin.scopedSettings)
 
 // Suppress "unused key" linter warnings for keys auto-created by Defaults.testSettings in custom configs
 Global / excludeLintKeys ++= Set(
@@ -602,7 +602,7 @@ E2eTest / javaOptions ++= Seq("-ea")
 E2eTest / dependencyClasspath ++= (Compile / exportedProducts).value
 E2eTest / dependencyClasspath ++= (Test / dependencyClasspath).value
 E2eTest / dependencyClasspath ++= (Compile / fullClasspath).value
-E2eTest / testFrameworks += new TestFramework("net.aichler.sbt.jupiterinterfaceplugin.JupiterTestFramework")
+E2eTest / testFrameworks += new TestFramework("net.aichler.jupiter.api.JupiterFramework")
 // WAVE_E2E_BASE_URL is read from the OS environment by the forked JVM
 
 // --- Additional per-config dependencies (matches Gradle) ---

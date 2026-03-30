@@ -35,6 +35,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -46,6 +47,8 @@ public class FileAccountStore implements AccountStore {
   private static final String ACCOUNT_FILE_EXTENSION = ".account";
   private final String accountStoreBasePath;
   private final Map<ParticipantId, AccountData> accounts = Maps.newHashMap();
+  private final Map<String, ParticipantId> emailToParticipant = Maps.newHashMap();
+  private boolean emailIndexInitialized;
 
   private static final Log LOG = Log.get(FileAccountStore.class);
 
@@ -58,6 +61,9 @@ public class FileAccountStore implements AccountStore {
   public void initializeAccountStore() throws PersistenceException {
     FileUtils.performDirectoryChecks(accountStoreBasePath, ACCOUNT_FILE_EXTENSION, "account store",
         LOG);
+    synchronized (accounts) {
+      populateEmailIndexIfNeeded();
+    }
   }
 
   @Override
@@ -68,6 +74,7 @@ public class FileAccountStore implements AccountStore {
         account = readAccount(id);
         if (account != null) {
           accounts.put(id, account);
+          indexAccountEmail(account);
         }
       }
       return account;
@@ -79,7 +86,9 @@ public class FileAccountStore implements AccountStore {
     synchronized (accounts) {
       Preconditions.checkNotNull(account);
       writeAccount(account);
+      removeIndexedEmail(accounts.get(account.getId()));
       accounts.put(account.getId(), account);
+      indexAccountEmail(account);
     }
   }
 
@@ -89,39 +98,13 @@ public class FileAccountStore implements AccountStore {
       return null;
     }
     synchronized (accounts) {
-      // First check already-cached accounts
-      for (AccountData account : accounts.values()) {
-        if (account.isHuman() && email.equalsIgnoreCase(account.asHuman().getEmail())) {
-          return account;
-        }
+      populateEmailIndexIfNeeded();
+      ParticipantId participantId = emailToParticipant.get(normalizeEmail(email));
+      if (participantId == null) {
+        return null;
       }
-      // Scan account files on disk that are not yet cached
-      File dir = new File(accountStoreBasePath);
-      File[] files = dir.listFiles((d, name) -> name.endsWith(ACCOUNT_FILE_EXTENSION));
-      if (files != null) {
-        for (File f : files) {
-          String fileName = f.getName();
-          String addr = fileName.substring(0, fileName.length() - ACCOUNT_FILE_EXTENSION.length());
-          ParticipantId pid;
-          try {
-            pid = ParticipantId.of(addr);
-          } catch (Exception e) {
-            continue;
-          }
-          if (accounts.containsKey(pid)) {
-            continue; // already checked above
-          }
-          AccountData account = readAccount(pid);
-          if (account != null) {
-            accounts.put(pid, account);
-            if (account.isHuman() && email.equalsIgnoreCase(account.asHuman().getEmail())) {
-              return account;
-            }
-          }
-        }
-      }
+      return getAccount(participantId);
     }
-    return null;
   }
 
   @Override
@@ -144,6 +127,7 @@ public class FileAccountStore implements AccountStore {
             AccountData account = readAccount(pid);
             if (account != null) {
               accounts.put(pid, account);
+              indexAccountEmail(account);
             }
           }
         }
@@ -190,8 +174,74 @@ public class FileAccountStore implements AccountStore {
               + id.getAddress());
         }
       }
-      accounts.remove(id);
+      AccountData removedAccount = accounts.remove(id);
+      if (removedAccount != null) {
+        removeIndexedEmail(removedAccount);
+      }
     }
+  }
+
+  private void populateEmailIndexIfNeeded() throws PersistenceException {
+    if (emailIndexInitialized) {
+      return;
+    }
+
+    File dir = new File(accountStoreBasePath);
+    File[] files = dir.listFiles((d, name) -> name.endsWith(ACCOUNT_FILE_EXTENSION));
+    if (files != null) {
+      for (File file : files) {
+        String fileName = file.getName();
+        String address = fileName.substring(0, fileName.length() - ACCOUNT_FILE_EXTENSION.length());
+        ParticipantId participantId;
+        try {
+          participantId = ParticipantId.of(address);
+        } catch (Exception ignored) {
+          continue;
+        }
+
+        AccountData account = accounts.get(participantId);
+        if (account == null) {
+          account = readAccount(participantId);
+          if (account != null) {
+            accounts.put(participantId, account);
+          }
+        }
+
+        indexAccountEmail(account);
+      }
+    }
+
+    emailIndexInitialized = true;
+  }
+
+  private void indexAccountEmail(AccountData account) {
+    if (account == null || !account.isHuman()) {
+      return;
+    }
+
+    String email = account.asHuman().getEmail();
+    if (email == null || email.isEmpty()) {
+      return;
+    }
+
+    emailToParticipant.put(normalizeEmail(email), account.getId());
+  }
+
+  private void removeIndexedEmail(AccountData account) {
+    if (account == null || !account.isHuman()) {
+      return;
+    }
+
+    String email = account.asHuman().getEmail();
+    if (email == null || email.isEmpty()) {
+      return;
+    }
+
+    emailToParticipant.remove(normalizeEmail(email));
+  }
+
+  private String normalizeEmail(String email) {
+    return email.trim().toLowerCase(Locale.ROOT);
   }
 
   private String participantIdToFileName(ParticipantId id) {

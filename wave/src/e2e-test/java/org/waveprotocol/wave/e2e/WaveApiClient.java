@@ -24,7 +24,7 @@ class WaveApiClient {
     private final HttpClient http;
 
     WaveApiClient(String baseUrl) {
-        this.baseUrl = baseUrl.replaceAll("/$", "");
+        this.baseUrl = baseUrl.replaceAll("/+$", "");
         this.http = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .connectTimeout(Duration.ofSeconds(10))

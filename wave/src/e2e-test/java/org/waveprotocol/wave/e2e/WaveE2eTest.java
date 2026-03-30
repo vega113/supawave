@@ -448,7 +448,14 @@ class WaveE2eTest {
             throws Exception {
         long deadlineNs = System.nanoTime() + timeoutMs * 1_000_000L;
         while (System.nanoTime() < deadlineNs) {
-            JsonObject result = client.search(jsessionid, "in:inbox");
+            JsonObject result;
+            try {
+                result = client.search(jsessionid, "in:inbox");
+            } catch (Exception e) {
+                // Absorb transient 5xx/transport errors; retry until deadline
+                Thread.sleep(pollMs);
+                continue;
+            }
             if (result.has("3") && result.get("3").isJsonArray()) {
                 for (var elem : result.get("3").getAsJsonArray()) {
                     JsonObject digest = elem.getAsJsonObject();

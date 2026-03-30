@@ -70,6 +70,7 @@ public final class PasswordResetServlet extends HttpServlet {
   private final String analyticsAccount;
   private final String fromAddress;
   private final boolean passwordResetEnabled;
+  private final String publicBaseUrl;
 
   @Inject
   public PasswordResetServlet(AccountStore accountStore,
@@ -87,6 +88,7 @@ public final class PasswordResetServlet extends HttpServlet {
         ? config.getString("core.email_from_address") : "noreply@wave.example.test";
     this.passwordResetEnabled = !config.hasPath("core.password_reset_enabled")
         || config.getBoolean("core.password_reset_enabled");
+    this.publicBaseUrl = readPublicBaseUrl(config);
   }
 
   @Override
@@ -172,7 +174,7 @@ public final class PasswordResetServlet extends HttpServlet {
           String sendTo = (human.getEmail() != null && !human.getEmail().isEmpty())
               ? human.getEmail() : account.getId().getAddress();
           String jwtToken = emailTokenIssuer.issuePasswordResetToken(account.getId());
-          String resetUrl = buildResetUrl(req, jwtToken);
+          String resetUrl = buildResetUrl(jwtToken);
           String emailBody = renderResetEmail(account.getId().getAddress(), resetUrl);
           mailProvider.sendEmail(sendTo, "Password Reset - Wave", emailBody);
           LOG.info("Password reset email sent for user " + account.getId().getAddress());
@@ -253,18 +255,50 @@ public final class PasswordResetServlet extends HttpServlet {
     }
   }
 
-  private String buildResetUrl(HttpServletRequest req, String token) {
-    String scheme = req.getScheme();
-    String serverName = req.getServerName();
-    int serverPort = req.getServerPort();
-    StringBuilder url = new StringBuilder();
-    url.append(scheme).append("://").append(serverName);
-    if (("http".equals(scheme) && serverPort != 80)
-        || ("https".equals(scheme) && serverPort != 443)) {
-      url.append(":").append(serverPort);
+  private String buildResetUrl(String token) {
+    return publicBaseUrl + "/auth/password-reset?token=" + token;
+  }
+
+  private String readPublicBaseUrl(Config config) {
+    if (config.hasPath("core.public_url")) {
+      String configuredUrl = stripTrailingSlash(config.getString("core.public_url").trim());
+      if (!configuredUrl.isEmpty()) {
+        return configuredUrl;
+      }
     }
-    url.append("/auth/password-reset?token=").append(token);
-    return url.toString();
+
+    String configuredAddress = readFrontendAddress(config);
+    String scheme = readFrontendScheme(config);
+    return stripTrailingSlash(scheme + "://" + configuredAddress);
+  }
+
+  private String readFrontendAddress(Config config) {
+    if (config.hasPath("core.http_frontend_public_address")) {
+      String publicAddress = config.getString("core.http_frontend_public_address").trim();
+      if (!publicAddress.isEmpty()) {
+        return publicAddress;
+      }
+    }
+    if (config.hasPath("core.http_frontend_addresses")
+        && !config.getStringList("core.http_frontend_addresses").isEmpty()) {
+      return config.getStringList("core.http_frontend_addresses").get(0).trim();
+    }
+    if (config.hasPath("core.default_http_frontend_address")) {
+      return config.getString("core.default_http_frontend_address").trim();
+    }
+    return "wave.example.test";
+  }
+
+  private String readFrontendScheme(Config config) {
+    boolean sslEnabled = config.hasPath("security.enable_ssl") && config.getBoolean("security.enable_ssl");
+    return sslEnabled ? "https" : "http";
+  }
+
+  private String stripTrailingSlash(String value) {
+    if (value.endsWith("/")) {
+      return value.substring(0, value.length() - 1);
+    }
+    return value;
   }
 
   private String renderResetEmail(String address, String resetUrl) {

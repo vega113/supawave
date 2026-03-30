@@ -7,6 +7,10 @@ const {
   shouldRequeueCodexReviewGate,
 } = require("./codex-review-gate");
 
+const BASE_TIME = Date.parse("2026-03-28T13:00:00Z");
+const AFTER_WINDOW = Date.parse("2026-03-28T13:06:00Z");
+const WITHIN_WINDOW = Date.parse("2026-03-28T13:03:00Z");
+
 function buildPullRequest(overrides = {}) {
   return {
     isDraft: false,
@@ -18,219 +22,193 @@ function buildPullRequest(overrides = {}) {
         {
           commit: {
             oid: "head-oid",
-            committedDate: "2026-03-28T13:00:00Z",
+            committedDate: new Date(BASE_TIME).toISOString(),
             statusCheckRollup: { contexts: { nodes: [] } },
           },
         },
       ],
     },
-    reviews: { nodes: [] },
-    comments: { nodes: [] },
     reviewThreads: { nodes: [] },
     ...overrides,
   };
 }
 
-function codeRabbitStatus() {
-  return [
-    {
-      __typename: "StatusContext",
-      context: "CodeRabbit",
-      state: "SUCCESS",
+function withGateSuccess() {
+  return {
+    commits: {
+      nodes: [
+        {
+          commit: {
+            oid: "head-oid",
+            committedDate: new Date(BASE_TIME).toISOString(),
+            statusCheckRollup: {
+              contexts: {
+                nodes: [
+                  {
+                    __typename: "StatusContext",
+                    context: "Codex Review Gate",
+                    state: "SUCCESS",
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
     },
-  ];
+  };
 }
 
-test("fails when review threads are unresolved", () => {
+// --- evaluateCodexReviewGate ---
+
+test("fails for draft PRs", () => {
   const result = evaluateCodexReviewGate({
     defaultBranchName: "main",
+    nowMs: AFTER_WINDOW,
+    pullRequest: buildPullRequest({ isDraft: true }),
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.message, /Draft/);
+});
+
+test("fails when there are unresolved review threads", () => {
+  const result = evaluateCodexReviewGate({
+    defaultBranchName: "main",
+    nowMs: AFTER_WINDOW,
     pullRequest: buildPullRequest({
       reviewThreads: { nodes: [{ isResolved: false }] },
     }),
   });
-
   assert.equal(result.ok, false);
   assert.match(result.message, /unresolved review thread/);
 });
 
-test("rejects stacked PRs with stale Codex labels", () => {
+test("fails when inside the 5-minute window", () => {
   const result = evaluateCodexReviewGate({
     defaultBranchName: "main",
-    pullRequest: buildPullRequest({
-      baseRefName: "fix/tag-filter-regression",
-      labels: { nodes: [{ name: "codex-reviewed" }] },
-    }),
+    nowMs: WITHIN_WINDOW,
+    pullRequest: buildPullRequest(),
   });
-
   assert.equal(result.ok, false);
-  assert.match(result.message, /explicit Codex coverage/);
+  assert.match(result.message, /5-minute review window/);
 });
 
-test("passes main PRs with Codex label coverage", () => {
+test("reports remaining minutes when inside window", () => {
   const result = evaluateCodexReviewGate({
     defaultBranchName: "main",
-    pullRequest: buildPullRequest({
-      labels: { nodes: [{ name: "codex-reviewed" }] },
-    }),
+    nowMs: WITHIN_WINDOW,
+    pullRequest: buildPullRequest(),
   });
-
-  assert.equal(result.ok, true);
-  assert.match(result.message, /Codex coverage/);
-});
-
-test("rejects stacked PRs when only CodeRabbit is green", () => {
-  const result = evaluateCodexReviewGate({
-    defaultBranchName: "main",
-    pullRequest: buildPullRequest({
-      baseRefName: "fix/tag-filter-regression",
-      commits: {
-        nodes: [
-          {
-            commit: {
-              oid: "head-oid",
-              committedDate: "2026-03-28T13:00:00Z",
-              statusCheckRollup: { contexts: { nodes: codeRabbitStatus() } },
-            },
-          },
-        ],
-      },
-    }),
-  });
-
   assert.equal(result.ok, false);
-  assert.match(result.message, /explicit Codex coverage/);
+  assert.match(result.message, /\d+ minute/);
 });
 
-test("passes stacked PRs when Codex comments on the current head commit", () => {
+test("passes after the 5-minute window with no unresolved threads", () => {
   const result = evaluateCodexReviewGate({
     defaultBranchName: "main",
-    pullRequest: buildPullRequest({
-      baseRefName: "fix/tag-filter-regression",
-      reviews: {
-        nodes: [
-          {
-            author: { login: "chatgpt-codex-connector[bot]" },
-            commit: { oid: "head-oid" },
-            state: "APPROVED",
-          },
-        ],
-      },
-    }),
+    nowMs: AFTER_WINDOW,
+    pullRequest: buildPullRequest(),
   });
-
   assert.equal(result.ok, true);
-  assert.match(result.message, /Codex coverage/);
+  assert.match(result.message, /5-minute window elapsed/);
 });
 
-test("rejects main PRs when CodeRabbit skipped review", () => {
+test("passes for stacked PRs after the window (no special requirement)", () => {
   const result = evaluateCodexReviewGate({
     defaultBranchName: "main",
+    nowMs: AFTER_WINDOW,
+    pullRequest: buildPullRequest({ baseRefName: "fix/some-feature" }),
+  });
+  assert.equal(result.ok, true);
+});
+
+test("passes when all threads are resolved", () => {
+  const result = evaluateCodexReviewGate({
+    defaultBranchName: "main",
+    nowMs: AFTER_WINDOW,
     pullRequest: buildPullRequest({
-      comments: {
-        nodes: [
-          {
-            author: { login: "coderabbitai[bot]" },
-            body: "Review skipped because the base branch is not the default branch",
-          },
-        ],
-      },
-      commits: {
-        nodes: [
-          {
-            commit: {
-              oid: "head-oid",
-              committedDate: "2026-03-28T13:00:00Z",
-              statusCheckRollup: { contexts: { nodes: codeRabbitStatus() } },
-            },
-          },
-        ],
+      reviewThreads: { nodes: [{ isResolved: true }, { isResolved: true }] },
+    }),
+  });
+  assert.equal(result.ok, true);
+});
+
+test("fails with unresolved threads even after window", () => {
+  const result = evaluateCodexReviewGate({
+    defaultBranchName: "main",
+    nowMs: AFTER_WINDOW,
+    pullRequest: buildPullRequest({
+      reviewThreads: {
+        nodes: [{ isResolved: true }, { isResolved: false }],
       },
     }),
   });
-
   assert.equal(result.ok, false);
-  assert.match(result.message, /skipped review/);
+  assert.match(result.message, /unresolved review thread/);
 });
 
-test("passes main PRs after the CodeRabbit grace period", () => {
-  const result = evaluateCodexReviewGate({
-    defaultBranchName: "main",
-    nowMs: Date.parse("2026-03-28T13:06:00Z"),
-    pullRequest: buildPullRequest({
-      commits: {
-        nodes: [
-          {
-            commit: {
-              oid: "head-oid",
-              committedDate: "2026-03-28T13:00:00Z",
-              statusCheckRollup: { contexts: { nodes: codeRabbitStatus() } },
-            },
-          },
-        ],
-      },
+// --- shouldRequeueCodexReviewGate ---
+
+test("shouldRequeue: true after window, no unresolved threads, not yet passed", () => {
+  assert.equal(
+    shouldRequeueCodexReviewGate({
+      defaultBranchName: "main",
+      nowMs: AFTER_WINDOW,
+      pullRequest: buildPullRequest(),
     }),
-  });
-
-  assert.equal(result.ok, true);
-  assert.match(result.message, /5 minute Codex-review window/);
+    true,
+  );
 });
 
-test("requeues a CodeRabbit-approved PR after the grace window", () => {
-  const shouldRequeue = shouldRequeueCodexReviewGate({
-    defaultBranchName: "main",
-    nowMs: Date.parse("2026-03-28T13:06:00Z"),
-    pullRequest: buildPullRequest({
-      commits: {
-        nodes: [
-          {
-            commit: {
-              oid: "head-oid",
-              committedDate: "2026-03-28T13:00:00Z",
-              statusCheckRollup: { contexts: { nodes: codeRabbitStatus() } },
-            },
-          },
-        ],
-      },
+test("shouldRequeue: false when still inside the 5-minute window", () => {
+  assert.equal(
+    shouldRequeueCodexReviewGate({
+      defaultBranchName: "main",
+      nowMs: WITHIN_WINDOW,
+      pullRequest: buildPullRequest(),
     }),
-  });
-
-  assert.equal(shouldRequeue, true);
+    false,
+  );
 });
 
-test("does not requeue a CodeRabbit-skipped PR", () => {
-  const shouldRequeue = shouldRequeueCodexReviewGate({
-    defaultBranchName: "main",
-    nowMs: Date.parse("2026-03-28T13:06:00Z"),
-    pullRequest: buildPullRequest({
-      comments: {
-        nodes: [
-          {
-            author: { login: "coderabbitai[bot]" },
-            body: "Review skipped because the base branch is not the default branch",
-          },
-        ],
-      },
-      labels: {
-        nodes: [{ name: "coderabbitai-reviewed" }],
-      },
-      commits: {
-        nodes: [
-          {
-            commit: {
-              oid: "head-oid",
-              committedDate: "2026-03-28T13:00:00Z",
-              statusCheckRollup: { contexts: { nodes: codeRabbitStatus() } },
-            },
-          },
-        ],
-      },
+test("shouldRequeue: false when gate already passed", () => {
+  assert.equal(
+    shouldRequeueCodexReviewGate({
+      defaultBranchName: "main",
+      nowMs: AFTER_WINDOW,
+      pullRequest: buildPullRequest(withGateSuccess()),
     }),
-  });
-
-  assert.equal(shouldRequeue, false);
+    false,
+  );
 });
 
-test("publishes Codex Review Gate success on the PR head", async () => {
+test("shouldRequeue: false when there are unresolved threads", () => {
+  assert.equal(
+    shouldRequeueCodexReviewGate({
+      defaultBranchName: "main",
+      nowMs: AFTER_WINDOW,
+      pullRequest: buildPullRequest({
+        reviewThreads: { nodes: [{ isResolved: false }] },
+      }),
+    }),
+    false,
+  );
+});
+
+test("shouldRequeue: false for draft PRs", () => {
+  assert.equal(
+    shouldRequeueCodexReviewGate({
+      defaultBranchName: "main",
+      nowMs: AFTER_WINDOW,
+      pullRequest: buildPullRequest({ isDraft: true }),
+    }),
+    false,
+  );
+});
+
+// --- publishCodexReviewGateHeadStatus ---
+
+test("publishes success status on the PR head", async () => {
   const calls = [];
   const github = {
     rest: {
@@ -244,7 +222,7 @@ test("publishes Codex Review Gate success on the PR head", async () => {
   };
 
   await publishCodexReviewGateHeadStatus(github, {
-    description: "Review gate passed after the 5 minute Codex-review window using CodeRabbit",
+    description: "Review gate passed: 5-minute window elapsed and no unresolved threads",
     owner: "vega113",
     repo: "incubator-wave",
     sha: "head-oid",
@@ -253,7 +231,7 @@ test("publishes Codex Review Gate success on the PR head", async () => {
   assert.deepEqual(calls, [
     {
       context: "Codex Review Gate",
-      description: "Review gate passed after the 5 minute Codex-review window using CodeRabbit",
+      description: "Review gate passed: 5-minute window elapsed and no unresolved threads",
       owner: "vega113",
       repo: "incubator-wave",
       sha: "head-oid",
@@ -262,7 +240,7 @@ test("publishes Codex Review Gate success on the PR head", async () => {
   ]);
 });
 
-test("publishes Codex Review Gate failure on the PR head", async () => {
+test("publishes failure status on the PR head", async () => {
   const calls = [];
   const github = {
     rest: {
@@ -276,7 +254,7 @@ test("publishes Codex Review Gate failure on the PR head", async () => {
   };
 
   await publishCodexReviewGateHeadStatus(github, {
-    description: "Missing required review signal",
+    description: "Pull request has 1 unresolved review thread(s)",
     owner: "vega113",
     repo: "incubator-wave",
     sha: "head-oid",
@@ -286,7 +264,7 @@ test("publishes Codex Review Gate failure on the PR head", async () => {
   assert.deepEqual(calls, [
     {
       context: "Codex Review Gate",
-      description: "Missing required review signal",
+      description: "Pull request has 1 unresolved review thread(s)",
       owner: "vega113",
       repo: "incubator-wave",
       sha: "head-oid",

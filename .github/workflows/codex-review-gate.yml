@@ -100,26 +100,6 @@ jobs:
                             }
                           }
                         }
-                        reviews(last: 100) {
-                          nodes {
-                            author {
-                              login
-                            }
-                            body
-                            commit {
-                              oid
-                            }
-                            state
-                          }
-                        }
-                        comments(last: 100) {
-                          nodes {
-                            author {
-                              login
-                            }
-                            body
-                          }
-                        }
                         reviewThreads(last: 100) {
                           nodes {
                             isResolved
@@ -148,7 +128,7 @@ jobs:
                 owner,
                 repo,
                 issue_number: pullRequestSummary.number,
-                body: "/codex-review-gate\n\nScheduled reevaluation after the 5 minute CodeRabbit grace window.",
+                body: "/codex-review-gate\n\nScheduled reevaluation after the 5-minute review window.",
               });
             }
 
@@ -225,26 +205,6 @@ jobs:
                             }
                           }
                         }
-                      }
-                    }
-                    reviews(last: 100) {
-                      nodes {
-                        author {
-                          login
-                        }
-                        body
-                        commit {
-                          oid
-                        }
-                        state
-                      }
-                    }
-                    comments(last: 100) {
-                      nodes {
-                        author {
-                          login
-                        }
-                        body
                       }
                     }
                     reviewThreads(last: 100) {

@@ -29,6 +29,7 @@ import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuilder;
+import org.waveprotocol.wave.model.document.operation.impl.AnnotationBoundaryMapBuilder;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -94,6 +95,35 @@ public class PublicWaveServletTest extends TestCase {
             .characters("Hello public world")
             .elementEnd()
             .build(),
+        1234567890, 0);
+    return wavelet;
+  }
+
+  private WaveletData createWaveletWithLink(String linkUrl, ParticipantId... extraParticipants) {
+    WaveletName name = WaveletName.of(WAVE_ID, CONV_ROOT);
+    WaveletData wavelet = WaveletDataUtil.createEmptyWavelet(
+        name, CREATOR, HashedVersion.unsigned(0), 1234567890);
+    wavelet.addParticipant(CREATOR);
+    for (ParticipantId p : extraParticipants) {
+      wavelet.addParticipant(p);
+    }
+
+    DocInitializationBuilder contentBuilder = new DocInitializationBuilder()
+        .elementStart("body", org.waveprotocol.wave.model.document.operation.Attributes.EMPTY_MAP)
+        .elementStart("line", org.waveprotocol.wave.model.document.operation.Attributes.EMPTY_MAP)
+        .elementEnd()
+        .annotationBoundary(new AnnotationBoundaryMapBuilder()
+            .change("link/manual", null, linkUrl)
+            .build())
+        .characters("Danger link")
+        .annotationBoundary(new AnnotationBoundaryMapBuilder()
+            .end("link/manual")
+            .build())
+        .elementEnd();
+
+    wavelet.createDocument("b+first", CREATOR,
+        java.util.Collections.<ParticipantId>emptySet(),
+        contentBuilder.build(),
         1234567890, 0);
     return wavelet;
   }
@@ -231,5 +261,38 @@ public class PublicWaveServletTest extends TestCase {
     assertTrue("Expected robots meta", html.contains("robots"));
     assertTrue("Expected twitter:card meta", html.contains("twitter:card"));
     assertTrue("Expected og:type meta", html.contains("og:type"));
+  }
+
+  public void testPublicWaveBlocksJavascriptLinkAnnotations() throws Exception {
+    WaveletData wavelet = createWaveletWithLink("javascript:alert(1)", DOMAIN_PARTICIPANT);
+    setupWaveletProvider(wavelet);
+
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter writer = new StringWriter();
+    when(response.getWriter()).thenReturn(new PrintWriter(writer));
+    when(request.getPathInfo()).thenReturn("/" + WAVE_ID.serialise());
+
+    servlet.doGet(request, response);
+
+    String html = writer.toString();
+    assertFalse("Expected javascript URL to be removed", html.contains("href=\"javascript:alert(1)\""));
+    assertTrue("Expected link text to still render", html.contains("Danger link"));
+  }
+
+  public void testPublicWaveKeepsHttpsLinkAnnotations() throws Exception {
+    WaveletData wavelet = createWaveletWithLink("https://example.com/docs", DOMAIN_PARTICIPANT);
+    setupWaveletProvider(wavelet);
+
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter writer = new StringWriter();
+    when(response.getWriter()).thenReturn(new PrintWriter(writer));
+    when(request.getPathInfo()).thenReturn("/" + WAVE_ID.serialise());
+
+    servlet.doGet(request, response);
+
+    String html = writer.toString();
+    assertTrue("Expected https URL to be preserved", html.contains("href=\"https://example.com/docs\""));
   }
 }

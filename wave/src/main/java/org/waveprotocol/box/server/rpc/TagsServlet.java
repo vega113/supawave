@@ -176,6 +176,7 @@ public final class TagsServlet extends HttpServlet {
   private List<TagCount> getTagsForUser(ParticipantId user) {
     String key = user.getAddress();
     synchronized (cache) {
+      evictExpiredEntries();
       CacheEntry entry = cache.get(key);
       if (entry != null && !entry.isExpired()) {
         return entry.tags;
@@ -188,6 +189,10 @@ public final class TagsServlet extends HttpServlet {
       cache.put(key, new CacheEntry(tags));
     }
     return tags;
+  }
+
+  private void evictExpiredEntries() {
+    cache.entrySet().removeIf(entry -> entry.getValue().isExpired());
   }
 
   private List<TagCount> collectTagsFromWaves(ParticipantId user) {

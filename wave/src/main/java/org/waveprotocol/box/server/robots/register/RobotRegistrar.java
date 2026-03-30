@@ -115,12 +115,16 @@ public interface RobotRegistrar {
 
   /**
    * Updates the description for an existing robot.
+   *
+   * @return the updated robot, or {@code null} when the robot account does not exist
    */
   public RobotAccountData updateDescription(ParticipantId robotId, String description)
       throws RobotRegistrationException, PersistenceException;
 
   /**
    * Updates the paused state for an existing robot.
+   *
+   * @return the updated robot, or {@code null} when the robot account does not exist
    */
   public RobotAccountData setPaused(ParticipantId robotId, boolean paused)
       throws RobotRegistrationException, PersistenceException;

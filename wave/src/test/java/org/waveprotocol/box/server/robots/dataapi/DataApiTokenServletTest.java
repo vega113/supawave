@@ -88,4 +88,19 @@ public final class DataApiTokenServletTest {
     verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     assertTrue(responseBody.toString().contains("paused"));
   }
+
+  @Test
+  public void testClientCredentialsRejectsManagedUnverifiedRobot() throws Exception {
+    when(req.getParameter("grant_type")).thenReturn("client_credentials");
+    when(req.getParameter("client_id")).thenReturn(ROBOT_ID.getAddress());
+    when(req.getParameter("client_secret")).thenReturn("managed-secret");
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(
+        new RobotAccountDataImpl(ROBOT_ID, "https://example.com/robot", "managed-secret", null,
+            false, 0L, OWNER.getAddress(), "", 111L, 222L, false));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    assertTrue(responseBody.toString().contains("verified"));
+  }
 }

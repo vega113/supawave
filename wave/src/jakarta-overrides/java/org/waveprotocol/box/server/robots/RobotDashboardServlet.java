@@ -317,7 +317,12 @@ public final class RobotDashboardServlet extends HttpServlet {
       return;
     }
 
-    boolean paused = Boolean.parseBoolean(pausedValue);
+    Boolean paused = parsePausedValue(pausedValue);
+    if (paused == null) {
+      renderDashboard(req, resp, user, "Paused state must be true or false.", ownedRobot,
+          HttpServletResponse.SC_BAD_REQUEST);
+      return;
+    }
     try {
       RobotAccountData updatedRobot = robotRegistrar.setPaused(ownedRobot.getId(), paused);
       String message = paused
@@ -720,6 +725,16 @@ public final class RobotDashboardServlet extends HttpServlet {
       return secret.substring(0, 2) + "\u2026" + secret.substring(secret.length() - 2);
     }
     return secret.substring(0, 4) + "\u2026" + secret.substring(secret.length() - 4);
+  }
+
+  private Boolean parsePausedValue(String pausedValue) {
+    if ("true".equalsIgnoreCase(pausedValue)) {
+      return true;
+    }
+    if ("false".equalsIgnoreCase(pausedValue)) {
+      return false;
+    }
+    return null;
   }
 
   private String formatTimestamp(long timestampMillis) {

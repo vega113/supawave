@@ -155,6 +155,8 @@ public class RobotDashboardServletTest extends TestCase {
 
     assertTrue(outputWriter.toString().contains("Dashboard helper"));
     assertTrue(outputWriter.toString().contains("supe…3456"));
+    assertFalse(outputWriter.toString().contains("super-secret-token-123456"));
+    assertFalse(outputWriter.toString().contains("Copy this robot secret now"));
     assertTrue(outputWriter.toString().contains("Paused"));
     assertTrue(outputWriter.toString().contains("1970-01-01T00:00:00.111Z"));
     assertTrue(outputWriter.toString().contains("1970-01-01T00:00:00.222Z"));
@@ -195,6 +197,7 @@ public class RobotDashboardServletTest extends TestCase {
     servlet.doPost(req, resp);
 
     verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    verify(robotRegistrar, never()).unregister(ROBOT);
     assertTrue(outputWriter.toString().contains("Invalid XSRF token."));
   }
 
@@ -210,6 +213,7 @@ public class RobotDashboardServletTest extends TestCase {
     servlet.doPost(req, resp);
 
     verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    verify(robotRegistrar, never()).unregister(ROBOT);
     assertTrue(outputWriter.toString().contains("Invalid XSRF token."));
   }
 
@@ -369,6 +373,28 @@ public class RobotDashboardServletTest extends TestCase {
 
     verify(robotRegistrar).setPaused(ROBOT, true);
     assertTrue(outputWriter.toString().contains("Robot paused"));
+  }
+
+  public void testDoPostRejectsInvalidPausedValue() throws Exception {
+    RobotAccountData existingRobot = new RobotAccountDataImpl(ROBOT, "", "secret", null, false,
+        3600L, OWNER.getAddress(), "", 111L, 222L, false);
+
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(existingRobot));
+    servlet.doGet(req, resp);
+    outputWriter.getBuffer().setLength(0);
+    when(req.getParameter("action")).thenReturn("set-paused");
+    when(req.getParameter("token")).thenReturn("dashboard-xsrf");
+    when(req.getParameter("robotId")).thenReturn(ROBOT.getAddress());
+    when(req.getParameter("paused")).thenReturn("1");
+    when(accountStore.getAccount(ROBOT)).thenReturn((AccountData) existingRobot);
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    verify(robotRegistrar, never()).setPaused(ROBOT, true);
+    verify(robotRegistrar, never()).setPaused(ROBOT, false);
+    assertTrue(outputWriter.toString().contains("Paused state must be true or false."));
   }
 
   public void testDoPostDeletesOwnedRobot() throws Exception {

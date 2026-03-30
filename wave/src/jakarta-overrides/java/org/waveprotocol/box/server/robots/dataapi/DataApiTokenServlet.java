@@ -365,6 +365,11 @@ public final class DataApiTokenServlet extends HttpServlet {
           "Robot callback URL must be configured before requesting tokens");
       return;
     }
+    if (requiresVerification(robotAccount) && !robotAccount.isVerified()) {
+      sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "invalid_client",
+          "Robot must be verified before requesting tokens");
+      return;
+    }
 
     // Use explicit expiry parameter if provided, else fall back to the robot's configured expiry.
     String expiryParam = req.getParameter("expiry");
@@ -381,6 +386,13 @@ public final class DataApiTokenServlet extends HttpServlet {
 
     String token = issueToken(robotAccount.getId().getAddress(), issuedAt, expiresAt);
     sendTokenResponse(resp, token, lifetimeSeconds);
+  }
+
+  private boolean requiresVerification(RobotAccountData robotAccount) {
+    String ownerAddress = robotAccount.getOwnerAddress();
+    return (ownerAddress != null && !ownerAddress.isEmpty())
+        || robotAccount.getCreatedAtMillis() > 0
+        || robotAccount.getUpdatedAtMillis() > 0;
   }
 
   /**

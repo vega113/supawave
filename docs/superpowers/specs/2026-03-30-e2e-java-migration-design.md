@@ -110,7 +110,7 @@ Key implementation notes:
 
 JSON with numeric string field keys (proto3 field numbers as strings):
 
-```
+```json
 Envelope:        {"messageType": "...", "sequenceNumber": N, "message": {...}}
 ProtocolAuthenticate:       {"1": "<jsessionid>"}
 ProtocolOpenRequest:        {"1": participant, "2": waveId, "3": [], "4": []}

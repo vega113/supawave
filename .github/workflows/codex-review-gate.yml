@@ -71,11 +71,7 @@ jobs:
                     repository(owner: $owner, name: $repo) {
                       pullRequest(number: $number) {
                         isDraft
-                        baseRefName
                         headRefOid
-                        labels(first: 100) {
-                          nodes { name }
-                        }
                         commits(last: 1) {
                           nodes {
                             commit {
@@ -118,7 +114,6 @@ jobs:
               }
 
               if (!shouldRequeueCodexReviewGate({
-                defaultBranchName,
                 pullRequest,
               })) {
                 continue;
@@ -173,16 +168,9 @@ jobs:
             const query = `
               query($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
-                  defaultBranchRef {
-                    name
-                  }
                   pullRequest(number: $number) {
                     isDraft
-                    baseRefName
                     headRefOid
-                    labels(first: 100) {
-                      nodes { name }
-                    }
                     commits(last: 1) {
                       nodes {
                         commit {
@@ -226,7 +214,6 @@ jobs:
 
             const evaluation = evaluateCodexReviewGate({
               pullRequest,
-              defaultBranchName: result.repository.defaultBranchRef?.name ?? "main",
             });
 
             if (!pullRequest.headRefOid) {

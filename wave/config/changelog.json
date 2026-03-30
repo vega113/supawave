@@ -4,7 +4,7 @@
     "version": "PR #482",
     "date": "2026-03-30",
     "title": "Restore runtime static assets under root war",
-    "summary": "Moves tracked static assets into repo-root war/static so local runs and staged builds serve the same favicon, CSS, and image paths after the runtime asset root migration.",
+    "summary": "Ensures favicons, authentication CSS, logo, and images are served correctly after relocating runtime static assets.",
     "sections": [
       {
         "type": "fix",

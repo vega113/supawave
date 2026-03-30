@@ -87,7 +87,7 @@ public final class ParticipantAvatarViewBuilder implements IntrinsicParticipantV
     sb.append("id='").append(id).append("' ");
     sb.append("class='").append(css.participant()).append("' ");
     if (safeUrl != null) {
-      sb.append("src='").append(safeUrl).append("' ");
+      sb.append("src='").append(EscapeUtils.htmlEscape(safeUrl)).append("' ");
     }
     sb.append("alt='").append(escapedName).append("' ");
     sb.append("title='").append(escapedName).append("' ");

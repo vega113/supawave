@@ -268,7 +268,7 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
         img.append("id='").append(avatarId).append("' ");
         img.append("class='").append(css.avatar()).append("' ");
         if (safeUrl != null) {
-          img.append("src='").append(safeUrl).append("' ");
+          img.append("src='").append(EscapeUtils.htmlEscape(safeUrl)).append("' ");
         }
         img.append("alt='author' ");
         if (authorAddress != null) {

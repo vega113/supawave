@@ -1,5 +1,20 @@
 [
   {
+    "releaseId": "2026-03-30-runtime-static-assets",
+    "date": "2026-03-30",
+    "title": "Restore runtime static assets under root war",
+    "summary": "Moves tracked static assets into repo-root war/static so local runs and staged builds serve the same favicon, CSS, and image paths after the runtime asset root migration.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Move auth CSS, favicons, logo, and image assets from wave/war/static to war/static to match the current runtime web asset root."
+        ]
+      }
+    ],
+    "version": "PR #482"
+  },
+  {
     "releaseId": "2026-03-29-robot-control-room-upgrades",
     "version": "PR #478",
     "date": "2026-03-29",

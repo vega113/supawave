@@ -19,27 +19,33 @@
 
 package org.waveprotocol.wave.common.logging;
 
-import junit.framework.TestCase;
+import static org.junit.Assert.assertEquals;
+
+import org.junit.Test;
 
 /**
  * Tests for {@link LogUtils}.
  */
-public class LogUtilsTest extends TestCase {
+public class LogUtilsTest {
 
+  @Test
   public void testPrintObjectAsHtmlWithNull() {
     assertEquals("<span class='object'>null</span>", LogUtils.printObjectAsHtml(null));
   }
 
+  @Test
   public void testPrintObjectAsHtmlWithSimpleString() {
     assertEquals("<span class='object'>hello world</span>", LogUtils.printObjectAsHtml("hello world"));
   }
 
+  @Test
   public void testPrintObjectAsHtmlWithEscapedCharacters() {
     String input = "A & B < C > D \" E ' F";
     String expected = "<span class='object'>A &amp; B &lt; C &gt; D &quot; E &#39; F</span>";
     assertEquals(expected, LogUtils.printObjectAsHtml(input));
   }
 
+  @Test
   public void testPrintObjectAsHtmlWithCustomObject() {
     Object customObj = new Object() {
       @Override
@@ -49,5 +55,37 @@ public class LogUtilsTest extends TestCase {
     };
     String expected = "<span class='object'>custom &lt;object&gt;</span>";
     assertEquals(expected, LogUtils.printObjectAsHtml(customObj));
+  }
+
+  @Test
+  public void testStringifyLogObjectWithSingleObject() {
+    String singleObject = "single object";
+    assertEquals("single object", LogUtils.stringifyLogObject(singleObject));
+
+    Integer number = 42;
+    assertEquals("42", LogUtils.stringifyLogObject(number));
+  }
+
+  @Test
+  public void testStringifyLogObjectWithArray() {
+    Object[] array = new Object[]{"hello", " ", "world"};
+    assertEquals("hello world", LogUtils.stringifyLogObject(array));
+
+    Object[] emptyArray = new Object[]{};
+    assertEquals("", LogUtils.stringifyLogObject(emptyArray));
+
+    Object[] mixedArray = new Object[]{"Number: ", 42, ", Boolean: ", true};
+    assertEquals("Number: 42, Boolean: true", LogUtils.stringifyLogObject(mixedArray));
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testStringifyLogObjectWithNullThrowsNPE() {
+    LogUtils.stringifyLogObject(null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testStringifyLogObjectWithArrayContainingNullsThrowsNPE() {
+    Object[] arrayWithNull = new Object[]{"hello", null, "world"};
+    LogUtils.stringifyLogObject(arrayWithNull);
   }
 }

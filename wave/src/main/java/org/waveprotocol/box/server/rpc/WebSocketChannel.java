@@ -50,8 +50,6 @@ public abstract class WebSocketChannel extends MessageExpectingChannel {
    * contains an arbitrary protobuf, which breaks the protobuf typing rules.
    */
   private static class MessageWrapper {
-    private final static JsonParser parser = new JsonParser();
-
     final int sequenceNumber;
     final String messageType;
     final JsonElement message;
@@ -63,7 +61,7 @@ public abstract class WebSocketChannel extends MessageExpectingChannel {
     }
 
     public static MessageWrapper deserialize(Gson gson, String data) {
-      JsonElement e = parser.parse(data);
+      JsonElement e = JsonParser.parseString(data);
       JsonObject obj = e.getAsJsonObject();
       String type = obj.get("messageType").getAsString();
       int seqno = obj.get("sequenceNumber").getAsInt();

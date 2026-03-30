@@ -353,7 +353,7 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.wave.fed
 
   /** Translates a pojo enum to a proto enum. */
   private org.waveprotocol.wave.federation.Proto.ProtocolSignerInfo.HashAlgorithm toProtoEnumHashAlgorithm(HashAlgorithm value) {
-    return org.waveprotocol.wave.federation.Proto.ProtocolSignerInfo.HashAlgorithm.valueOf(value.getValue());
+    return org.waveprotocol.wave.federation.Proto.ProtocolSignerInfo.HashAlgorithm.forNumber(value.getValue());
   }
 
   /** Translates a proto enum to a pojo enum. */

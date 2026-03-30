@@ -279,7 +279,7 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.wave.con
 
   /** Translates a pojo enum to a proto enum. */
   private org.waveprotocol.wave.concurrencycontrol.ClientServer.ResponseStatus.ResponseCode toProtoEnumResponseCode(ResponseCode value) {
-    return org.waveprotocol.wave.concurrencycontrol.ClientServer.ResponseStatus.ResponseCode.valueOf(value.getValue());
+    return org.waveprotocol.wave.concurrencycontrol.ClientServer.ResponseStatus.ResponseCode.forNumber(value.getValue());
   }
 
   /** Translates a proto enum to a pojo enum. */

@@ -96,8 +96,9 @@ public final class PstCommandLine {
     return cl.hasOption('f');
   }
 
+  @SuppressWarnings("deprecation") // HelpFormatter deprecated in commons-cli 1.9; no non-deprecated replacement
   public static void printHelp() {
-    new HelpFormatter().printHelp(
+    HelpFormatter.builder().get().printHelp(
         PstMain.class.getSimpleName() + " [options] templates...", getOptions());
   }
 

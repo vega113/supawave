@@ -2,6 +2,7 @@ const REVIEW_WINDOW_MS = 5 * 60 * 1000;
 
 function evaluateCodexReviewGate({
   pullRequest,
+  defaultBranchName,
   nowMs = Date.now(),
 }) {
   return pullRequest
@@ -25,10 +26,9 @@ function evaluatePullRequestGate({ pullRequest, nowMs }) {
 
   const latestCommit = getLatestCommit(pullRequest);
   const latestCommitAt = Date.parse(latestCommit?.committedDate ?? "");
-  if (!Number.isFinite(latestCommitAt)) {
-    return failure("Unable to determine last commit time");
-  }
-  const commitAgeMs = nowMs - latestCommitAt;
+  const commitAgeMs = Number.isFinite(latestCommitAt)
+    ? nowMs - latestCommitAt
+    : Number.POSITIVE_INFINITY;
 
   if (commitAgeMs < REVIEW_WINDOW_MS) {
     const remainingMinutes = Math.ceil(
@@ -46,6 +46,7 @@ function evaluatePullRequestGate({ pullRequest, nowMs }) {
 
 function shouldRequeueCodexReviewGate({
   pullRequest,
+  defaultBranchName,
   nowMs = Date.now(),
 }) {
   if (pullRequest.isDraft) return false;
@@ -57,8 +58,9 @@ function shouldRequeueCodexReviewGate({
 
   const latestCommit = getLatestCommit(pullRequest);
   const latestCommitAt = Date.parse(latestCommit?.committedDate ?? "");
-  if (!Number.isFinite(latestCommitAt)) return false;
-  const commitAgeMs = nowMs - latestCommitAt;
+  const commitAgeMs = Number.isFinite(latestCommitAt)
+    ? nowMs - latestCommitAt
+    : Number.POSITIVE_INFINITY;
 
   const statusNodes = getStatusNodes(latestCommit);
   const alreadyPassed = hasSuccessfulCodexReviewGateStatus(statusNodes);

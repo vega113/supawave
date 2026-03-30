@@ -918,7 +918,7 @@ public class ClientFlagsBase {
     listEmailContacts = helper.getBoolean(FlagConstants.LIST_EMAIL_CONTACTS, true);
     loadOrCreateSettingsWaves = helper.getBoolean(FlagConstants.LOAD_OR_CREATE_SETTINGS_WAVES, false);
     logoHeight = helper.getInteger(FlagConstants.LOGO_HEIGHT, 39);
-    logoUrl = helper.getString(FlagConstants.LOGO_URL, "static/images/logo.png");
+    logoUrl = helper.getString(FlagConstants.LOGO_URL, "static/logo.png");
     logoWidth = helper.getInteger(FlagConstants.LOGO_WIDTH, 136);
     maxCalloutParticipants = helper.getInteger(FlagConstants.MAX_CALLOUT_PARTICIPANTS, 3);
     maxContactsDesktop = helper.getInteger(FlagConstants.MAX_CONTACTS_DESKTOP, 50);

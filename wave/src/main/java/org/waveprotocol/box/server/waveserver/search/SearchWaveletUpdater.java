@@ -169,7 +169,9 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     // Check per-user rate limit
     UpdateCounter counter = userCounters.computeIfAbsent(
         key.getUser().getAddress(), k -> new UpdateCounter(MAX_UPDATES_PER_SEC));
-    if (counter.getQueueSize() >= MAX_QUEUE_PER_USER) {
+    ScheduledFuture<?> existing = pendingTasks.get(taskKey);
+    boolean hasPendingTask = existing != null && !existing.isDone();
+    if (!hasPendingTask && counter.getQueueSize() >= MAX_QUEUE_PER_USER) {
       LOG.warning("Dropping search update for " + key + " -- queue full");
       return;
     }
@@ -185,8 +187,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     }
 
     // Cancel any existing pending task for this key
-    ScheduledFuture<?> existing = pendingTasks.get(taskKey);
-    if (existing != null && !existing.isDone()) {
+    if (hasPendingTask) {
       existing.cancel(false);
     }
 
@@ -194,6 +195,9 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     ScheduledFuture<?> future = scheduler.schedule(
         () -> executeUpdate(key, taskKey), delay, TimeUnit.MILLISECONDS);
     pendingTasks.put(taskKey, future);
+    if (!hasPendingTask) {
+      counter.incrementQueue();
+    }
   }
 
   /**
@@ -202,16 +206,21 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
    */
   private void executeUpdate(SearchIndexer.SubscriptionKey key, String taskKey) {
     try {
-      // Clear batch tracking state
-      pendingTasks.remove(taskKey);
-      firstSeenTimestamps.remove(taskKey);
-
       // Rate-limit per user
       UpdateCounter counter = userCounters.get(key.getUser().getAddress());
       if (counter != null && !counter.tryAcquire()) {
         // Re-enqueue with a short delay
-        scheduler.schedule(() -> executeUpdate(key, taskKey), 100, TimeUnit.MILLISECONDS);
+        ScheduledFuture<?> retryFuture = scheduler.schedule(
+            () -> executeUpdate(key, taskKey), 100, TimeUnit.MILLISECONDS);
+        pendingTasks.put(taskKey, retryFuture);
         return;
+      }
+
+      // Clear batch tracking state
+      ScheduledFuture<?> pendingTask = pendingTasks.remove(taskKey);
+      firstSeenTimestamps.remove(taskKey);
+      if (pendingTask != null && counter != null) {
+        counter.decrementQueue();
       }
 
       // Look up the raw query for this subscription
@@ -361,7 +370,9 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     }
 
     synchronized void decrementQueue() {
-      if (queueSize > 0) queueSize--;
+      if (queueSize > 0) {
+        queueSize--;
+      }
     }
   }
 }

@@ -78,14 +78,14 @@ public class LogUtilsTest {
     assertEquals("Number: 42, Boolean: true", LogUtils.stringifyLogObject(mixedArray));
   }
 
-  @Test(expected = NullPointerException.class)
-  public void testStringifyLogObjectWithNullThrowsNPE() {
-    LogUtils.stringifyLogObject(null);
+  @Test
+  public void testStringifyLogObjectWithNullHandledSafely() {
+    assertEquals("null", LogUtils.stringifyLogObject(null));
   }
 
-  @Test(expected = NullPointerException.class)
-  public void testStringifyLogObjectWithArrayContainingNullsThrowsNPE() {
+  @Test
+  public void testStringifyLogObjectWithArrayContainingNullsHandledSafely() {
     Object[] arrayWithNull = new Object[]{"hello", null, "world"};
-    LogUtils.stringifyLogObject(arrayWithNull);
+    assertEquals("hellonullworld", LogUtils.stringifyLogObject(arrayWithNull));
   }
 }

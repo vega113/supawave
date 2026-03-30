@@ -127,7 +127,7 @@ public class BlipRobotTest extends TestCase {
     assertEquals("\nHello 5 world!", blip.getContent());
   }
 
-  public void testAllWithRestrictionMap() throws Exception {
+  public void testAllWithRestrictions() throws Exception {
     Blip blip = newBlip(ROOT_BLIP_ID, Arrays.asList(CHILD_BLIP_ID), null);
     String url1 = "http://www.test.com/image1.png";
     String url2 = "http://www.test.com/image2.png";

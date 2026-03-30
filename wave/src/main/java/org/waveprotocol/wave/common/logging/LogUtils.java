@@ -56,11 +56,11 @@ public final class LogUtils {
       StringBuilder builder = new StringBuilder();
       Object[] objects = (Object[]) o;
       for (Object object : objects) {
-        builder.append(object.toString());
+        builder.append(String.valueOf(object));
       }
       return builder.toString();
     } else {
-      return o.toString();
+      return String.valueOf(o);
     }
   }
 

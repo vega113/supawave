@@ -234,6 +234,11 @@ libraryDependencies ++= Seq(
   "org.testcontainers"             % "testcontainers"             % "1.21.4"   % Test,
   "org.testcontainers"             % "mongodb"                    % "1.21.4"   % Test,
 
+  // --- E2E test (JUnit 5 — scoped to e2eTest config only, does not affect unit tests) ---
+  "org.junit.jupiter"              % "junit-jupiter-api"          % "5.10.2"   % E2eTest,
+  "org.junit.jupiter"              % "junit-jupiter-engine"       % "5.10.2"   % E2eTest,
+  "net.aichler"                    % "jupiter-interface"          % "0.11.1"   % E2eTest,
+
   // --- Protobuf ---
   "com.google.protobuf"            % "protobuf-java"              % ProtobufV,
 
@@ -452,22 +457,25 @@ lazy val JakartaTest    = config("jakartaTest")    extend Test  describedAs "Jak
 lazy val JakartaIT      = config("jakartaIT")      extend Test  describedAs "Jakarta integration tests (*IT allowlist)"
 lazy val StacktraceTest = config("stacktraceTest") extend Test  describedAs "Isolated StackTraces utility tests"
 lazy val ThumbTest      = config("thumbTest")      extend Test  describedAs "Isolated AttachmentServlet thumbnail tests"
+lazy val E2eTest        = config("e2eTest")        extend Test  describedAs "E2E sanity tests against a running Wave server"
 
 // Register all custom test configs with Ivy so POM generation can resolve them
-ivyConfigurations ++= Seq(JakartaTest, JakartaIT, StacktraceTest, ThumbTest)
+ivyConfigurations ++= Seq(JakartaTest, JakartaIT, StacktraceTest, ThumbTest, E2eTest)
 
 // Wire all four configs into the project so `sbt jakartaTest:test` etc. work
 inConfig(JakartaTest)(Defaults.testSettings)
 inConfig(JakartaIT)(Defaults.testSettings)
 inConfig(StacktraceTest)(Defaults.testSettings)
 inConfig(ThumbTest)(Defaults.testSettings)
+inConfig(E2eTest)(Defaults.testSettings ++ net.aichler.jupiter.sbt.JupiterPlugin.scopedSettings)
 
 // Suppress "unused key" linter warnings for keys auto-created by Defaults.testSettings in custom configs
 Global / excludeLintKeys ++= Set(
   JakartaTest / javaSource, JakartaTest / scalaSource, JakartaTest / resourceDirectory, JakartaTest / semanticdbTargetRoot,
   JakartaIT / javaSource, JakartaIT / scalaSource, JakartaIT / resourceDirectory, JakartaIT / semanticdbTargetRoot,
   StacktraceTest / javaSource, StacktraceTest / scalaSource, StacktraceTest / semanticdbTargetRoot,
-  ThumbTest / javaSource, ThumbTest / scalaSource, ThumbTest / semanticdbTargetRoot
+  ThumbTest / javaSource, ThumbTest / scalaSource, ThumbTest / semanticdbTargetRoot,
+  E2eTest / javaSource, E2eTest / scalaSource, E2eTest / resourceDirectory, E2eTest / semanticdbTargetRoot
 )
 
 // --- JakartaTest source directories & exclusions ---
@@ -584,6 +592,19 @@ ThumbTest / javaOptions ++= Seq(
 )
 ThumbTest / fork := true
 ThumbTest / dependencyClasspath ++= (Compile / exportedProducts).value
+
+// --- E2eTest: E2E sanity suite settings ---
+// Source: wave/src/e2e-test/java — runs against a live Wave server (WAVE_E2E_BASE_URL)
+E2eTest / unmanagedSourceDirectories := Seq(
+  baseDirectory.value / "wave" / "src" / "e2e-test" / "java"
+)
+E2eTest / fork := true
+E2eTest / javaOptions ++= Seq("-ea")
+E2eTest / dependencyClasspath ++= (Compile / exportedProducts).value
+E2eTest / dependencyClasspath ++= (Test / dependencyClasspath).value
+E2eTest / dependencyClasspath ++= (Compile / fullClasspath).value
+E2eTest / testFrameworks += new TestFramework("net.aichler.jupiter.api.JupiterFramework")
+// WAVE_E2E_BASE_URL is read from the OS environment by the forked JVM
 
 // --- Additional per-config dependencies (matches Gradle) ---
 // JakartaTest and JakartaIT need Jakarta WebSocket + Jetty EE10 test deps

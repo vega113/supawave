@@ -37,6 +37,10 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -46,6 +50,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class WebSocketClientRpcChannel implements ClientRpcChannel {
   private static final Log LOG = Log.get(WebSocketClientRpcChannel.class);
+
+  private static final ScheduledExecutorService RETRY_EXECUTOR =
+      Executors.newScheduledThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), r -> {
+        Thread t = new Thread(r, "WebSocketClientRpcChannel-Retry");
+        t.setDaemon(true);
+        return t;
+      });
 
   private final WebSocketClient socketClient;
   private final WebSocketChannel clientChannel;
@@ -85,7 +96,20 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       }
     };
     clientChannel = new WebSocketChannelImpl(callback);
-    socketClient = openWebSocket(clientChannel, (InetSocketAddress) serverAddress);
+    CompletableFuture<WebSocketClient> connectFuture =
+        openWebSocketAsync(clientChannel, requireInetSocketAddress(serverAddress));
+    try {
+      socketClient = connectFuture.get();
+    } catch (InterruptedException e) {
+      connectFuture.cancel(true);
+      Thread.currentThread().interrupt();
+      throw new IOException("WebSocket connection interrupted", e);
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      }
+      throw new IOException("WebSocket connection failed", e.getCause());
+    }
     clientChannel.expectMessage(Rpc.RpcFinished.getDefaultInstance());
     LOG.fine("Opened a new WebSocketClientRpcChannel to " + serverAddress);
   }
@@ -127,11 +151,21 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
     clientChannel.sendMessage(sequenceNo, request, responsePrototype);
   }
 
-  private WebSocketClient openWebSocket(WebSocketChannel clientChannel,
-      InetSocketAddress inetAddress) throws IOException {
-    // Validate input early to avoid ambiguous failures
+  private InetSocketAddress requireInetSocketAddress(SocketAddress serverAddress)
+      throws IOException {
+    if (serverAddress instanceof InetSocketAddress) {
+      return (InetSocketAddress) serverAddress;
+    }
+    throw new IOException(
+        "Unsupported server address type: " + serverAddress.getClass().getName());
+  }
+
+  private CompletableFuture<WebSocketClient> openWebSocketAsync(WebSocketChannel clientChannel,
+      InetSocketAddress inetAddress) {
     if (inetAddress == null || inetAddress.getPort() <= 0) {
-      throw new IllegalArgumentException("Invalid server address: " + inetAddress);
+      CompletableFuture<WebSocketClient> future = new CompletableFuture<>();
+      future.completeExceptionally(new IllegalArgumentException("Invalid server address: " + inetAddress));
+      return future;
     }
 
     final URI uri;
@@ -146,45 +180,73 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
           null);
     } catch (URISyntaxException e) {
       LOG.severe("Unable to create ws:// uri from given address (" + inetAddress + ")", e);
-      throw new IllegalStateException(e);
+      CompletableFuture<WebSocketClient> future = new CompletableFuture<>();
+      future.completeExceptionally(new IllegalStateException(e));
+      return future;
     }
 
-    int attempts = 3;
+    final int attempts = 3;
     final int connectTimeoutMs = Integer.getInteger("wave.websocket.connectTimeoutMs", 10_000);
     final int connectWaitMs = Integer.getInteger("wave.websocket.connectWaitMs", 15_000);
     final int maxBackoffMs = Integer.getInteger("wave.websocket.maxBackoffMs", 8_000);
     final double jitterFraction = Double.parseDouble(System.getProperty("wave.websocket.jitterFraction", "0.2"));
-    long backoffMs = 1000;
-    Exception last = null;
-    for (int i = 1; i <= attempts; i++) {
-      WebSocketClient client = new WebSocketClient();
-      client.setConnectTimeout(connectTimeoutMs);
-      boolean started = false;
-      try {
-        client.start();
-        started = true;
-        ClientUpgradeRequest request = new ClientUpgradeRequest();
-        client.connect(clientChannel, uri, request).get(connectWaitMs, TimeUnit.MILLISECONDS);
-        return client; // success
-      } catch (Exception ex) {
-        last = ex;
-        LOG.warning("WebSocket connect attempt " + i + " failed", ex);
-        if (started) {
-          try { client.stop(); } catch (Exception stopEx) {
-            LOG.warning("WebSocket client stop() failed during cleanup", stopEx);
-          }
-        }
-        if (i < attempts) {
-          long sleepMs = backoffMs;
-          if (jitterFraction > 0) {
-            double r = (Math.random() * 2 * jitterFraction) - jitterFraction; // [-jitter,+jitter]
-            sleepMs = Math.max(0, (long) (backoffMs * (1.0 + r)));
-          }
-          try { Thread.sleep(sleepMs); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
-          backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
+
+    CompletableFuture<WebSocketClient> resultFuture = new CompletableFuture<>();
+    attemptConnect(
+        clientChannel,
+        uri,
+        1,
+        attempts,
+        1000,
+        maxBackoffMs,
+        jitterFraction,
+        connectTimeoutMs,
+        connectWaitMs,
+        resultFuture);
+    return resultFuture;
+  }
+
+  private void attemptConnect(WebSocketChannel clientChannel, URI uri, int attempt, int maxAttempts,
+      long backoffMs, int maxBackoffMs, double jitterFraction, int connectTimeoutMs,
+      int connectWaitMs, CompletableFuture<WebSocketClient> resultFuture) {
+    if (resultFuture.isDone()) {
+      return;
+    }
+    WebSocketClient client = new WebSocketClient();
+    client.setConnectTimeout(connectTimeoutMs);
+    boolean started = false;
+    try {
+      client.start();
+      started = true;
+      ClientUpgradeRequest request = new ClientUpgradeRequest();
+      client.connect(clientChannel, uri, request).get(connectWaitMs, TimeUnit.MILLISECONDS);
+      if (!resultFuture.complete(client)) {
+        try { client.stop(); } catch (Exception stopEx) {
+          LOG.warning("WebSocket client stop() failed after future already done", stopEx);
         }
       }
+      return;
+    } catch (Exception ex) {
+      LOG.warning("WebSocket connect attempt " + attempt + " failed", ex);
+      if (started) {
+        try { client.stop(); } catch (Exception stopEx) {
+          LOG.warning("WebSocket client stop() failed during cleanup", stopEx);
+        }
+      }
+
+      if (attempt < maxAttempts) {
+        long sleepMs = backoffMs;
+        if (jitterFraction > 0) {
+          double r = (Math.random() * 2 * jitterFraction) - jitterFraction; // [-jitter,+jitter]
+          sleepMs = Math.max(0, (long) (backoffMs * (1.0 + r)));
+        }
+        final long nextBackoffMs = Math.min(backoffMs * 2, maxBackoffMs);
+        RETRY_EXECUTOR.schedule(() -> attemptConnect(clientChannel, uri, attempt + 1, maxAttempts,
+            nextBackoffMs, maxBackoffMs, jitterFraction, connectTimeoutMs, connectWaitMs, resultFuture),
+            sleepMs, TimeUnit.MILLISECONDS);
+      } else {
+        resultFuture.completeExceptionally(new IOException("WebSocket connection failed after " + maxAttempts + " attempts", ex));
+      }
     }
-    throw new IOException(last);
   }
 }

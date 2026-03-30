@@ -166,11 +166,8 @@ public final class UserRegistrationServlet extends HttpServlet {
         account.setEmail(normalizedEmail);
       }
       account.setRegistrationTime(System.currentTimeMillis());
-      assignOwnerIfFirst(account);
-      try {
-        accountStore.putAccount(account);
-      } catch (PersistenceException e) {
-        LOG.severe("Failed to create account for " + id, e);
+      boolean accountCreated = persistAccountWithOwnerAssignment(account);
+      if (!accountCreated) {
         return "An unexpected error occurred while trying to create the account";
       }
 
@@ -185,11 +182,8 @@ public final class UserRegistrationServlet extends HttpServlet {
         account.setEmail(normalizedEmail);
       }
       account.setRegistrationTime(System.currentTimeMillis());
-      assignOwnerIfFirst(account);
-      try {
-        accountStore.putAccount(account);
-      } catch (PersistenceException e) {
-        LOG.severe("Failed to create account for " + id, e);
+      boolean accountCreated = persistAccountWithOwnerAssignment(account);
+      if (!accountCreated) {
         return "An unexpected error occurred while trying to create the account";
       }
 
@@ -206,15 +200,24 @@ public final class UserRegistrationServlet extends HttpServlet {
   /**
    * If no other accounts exist yet, promote this account to "owner".
    */
-  private void assignOwnerIfFirst(HumanAccountDataImpl account) {
+  private boolean persistAccountWithOwnerAssignment(HumanAccountDataImpl account) {
     try {
-      long count = accountStore.getAccountCount();
-      if (count == 0) {
-        account.setRole(HumanAccountData.ROLE_OWNER);
-        LOG.info("First registration — assigning owner role to " + account.getId());
+      synchronized (accountStore) {
+        assignOwnerIfFirst(account);
+        accountStore.putAccount(account);
       }
+      return true;
     } catch (PersistenceException e) {
-      LOG.warning("Failed to check account count for owner assignment", e);
+      LOG.severe("Failed to create account for " + account.getId(), e);
+      return false;
+    }
+  }
+
+  private void assignOwnerIfFirst(HumanAccountDataImpl account) throws PersistenceException {
+    long count = accountStore.getAccountCount();
+    if (count == 0) {
+      account.setRole(HumanAccountData.ROLE_OWNER);
+      LOG.info("First registration — assigning owner role to " + account.getId());
     }
   }
 

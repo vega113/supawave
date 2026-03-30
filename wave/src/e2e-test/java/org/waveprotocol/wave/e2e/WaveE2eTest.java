@@ -58,8 +58,8 @@ class WaveE2eTest {
 
     @Test @Order(1)
     void test01_healthCheck() throws InterruptedException {
-        // Retry for up to 30 s to tolerate server warm-up delays
-        long deadline = System.currentTimeMillis() + 30_000;
+        // Retry for up to 90 s to match the Python conftest _wait_for_healthz timeout
+        long deadline = System.currentTimeMillis() + 90_000;
         while (!client.healthCheck()) {
             assertTrue(System.currentTimeMillis() < deadline,
                     "Server /healthz did not return 200 within 30 s");

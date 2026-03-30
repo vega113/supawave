@@ -135,10 +135,7 @@ public class BlipRobotTest extends TestCase {
     blip.append(new Image(url1, 100, 100, "Image 1"));
     blip.append(new Image(url2, 100, 100, "Image 2"));
 
-    Map<String, String> restrictions = new HashMap<String, String>();
-    restrictions.put("url", url2);
-
-    List<BlipContent> result = BlipContentRefs.all(blip, ElementType.IMAGE, -1, restrictions).values();
+    List<BlipContent> result = BlipContentRefs.all(blip, ElementType.IMAGE, -1, Restriction.of("url", url2)).values();
     assertEquals(1, result.size());
 
     Element element = result.get(0).asElement();

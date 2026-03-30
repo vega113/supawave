@@ -84,6 +84,15 @@ public final class Snippets {
     return collateTextForOps(docOps);
   }
 
+  public static String collateTextForDocuments(Iterable<? extends ReadableBlipData> documents,
+      int maxLength) {
+    ArrayList<DocOp> docOps = new ArrayList<DocOp>();
+    for (ReadableBlipData blipData : documents) {
+      docOps.add(blipData.getContent().asOperation());
+    }
+    return collateTextForOps(docOps, DEFAULT_LINE_MODIFIER, maxLength);
+  }
+
   /**
    * Concatenates all of the text of the specified docops into a single String.
    *
@@ -94,53 +103,71 @@ public final class Snippets {
    */
   public static String collateTextForOps(Iterable<? extends DocOp> documentops,
       final Function<StringBuilder, Void> func) {
+    return collateTextForOps(documentops, func, Integer.MAX_VALUE);
+  }
+
+  private static String collateTextForOps(Iterable<? extends DocOp> documentops,
+      final Function<StringBuilder, Void> func, final int maxLength) {
     final StringBuilder resultBuilder = new StringBuilder();
-    for (DocOp docOp : documentops) {
-      docOp.apply(InitializationCursorAdapter.adapt(new DocOpCursor() {
-        @Override
-        public void characters(String s) {
-          resultBuilder.append(s);
-        }
-
-        @Override
-        public void annotationBoundary(AnnotationBoundaryMap map) {
-        }
-
-        @Override
-        public void elementStart(String type, Attributes attrs) {
-          if (type.equals(DocumentConstants.LINE)) {
-            func.apply(resultBuilder);
+    int safeMaxLength = Math.max(0, maxLength);
+    try {
+      for (DocOp docOp : documentops) {
+        docOp.apply(InitializationCursorAdapter.adapt(new DocOpCursor() {
+          @Override
+          public void characters(String s) {
+            if (resultBuilder.length() >= safeMaxLength) {
+              throw new SnippetLimitReachedException();
+            }
+            int remaining = safeMaxLength - resultBuilder.length();
+            if (s.length() <= remaining) {
+              resultBuilder.append(s);
+            } else {
+              resultBuilder.append(s.substring(0, remaining));
+              throw new SnippetLimitReachedException();
+            }
           }
-        }
 
-        @Override
-        public void elementEnd() {
-        }
+          @Override
+          public void annotationBoundary(AnnotationBoundaryMap map) {
+          }
 
-        @Override
-        public void retain(int itemCount) {
-        }
+          @Override
+          public void elementStart(String type, Attributes attrs) {
+            if (type.equals(DocumentConstants.LINE)) {
+              func.apply(resultBuilder);
+            }
+          }
 
-        @Override
-        public void deleteCharacters(String chars) {
-        }
+          @Override
+          public void elementEnd() {
+          }
 
-        @Override
-        public void deleteElementStart(String type, Attributes attrs) {
-        }
+          @Override
+          public void retain(int itemCount) {
+          }
 
-        @Override
-        public void deleteElementEnd() {
-        }
+          @Override
+          public void deleteCharacters(String chars) {
+          }
 
-        @Override
-        public void replaceAttributes(Attributes oldAttrs, Attributes newAttrs) {
-        }
+          @Override
+          public void deleteElementStart(String type, Attributes attrs) {
+          }
 
-        @Override
-        public void updateAttributes(AttributesUpdate attrUpdate) {
-        }
-      }));
+          @Override
+          public void deleteElementEnd() {
+          }
+
+          @Override
+          public void replaceAttributes(Attributes oldAttrs, Attributes newAttrs) {
+          }
+
+          @Override
+          public void updateAttributes(AttributesUpdate attrUpdate) {
+          }
+        }));
+      }
+    } catch (SnippetLimitReachedException ignored) {
     }
     return resultBuilder.toString().trim();
   }
@@ -284,11 +311,15 @@ public final class Snippets {
     if (document == null) {
       return "";
     }
-    String text = collateTextForDocuments(Arrays.asList(document)).trim();
+    String text = collateTextForDocuments(Arrays.asList(document), maxSnippetLength).trim();
     if (text.length() > maxSnippetLength) {
       return text.substring(0, maxSnippetLength);
     }
     return text;
+  }
+
+  private static final class SnippetLimitReachedException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
   }
 
   private Snippets() {

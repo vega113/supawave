@@ -124,8 +124,9 @@ git worktrees.
   the work.
 
 ## Changelog Guidelines
-- Every PR that changes user-facing behavior MUST update `wave/src/main/resources/config/changelog.json`
-  before merging, and keep `wave/config/changelog.json` aligned for staged runtime config.
+- Every PR that changes user-facing behavior MUST update `wave/config/changelog.json`
+  before merging. The classpath resource `config/changelog.json` is generated from
+  that source during the build and verified in the staged distribution.
 - Add a new entry at the top of the array (newest first) with `version`, `date`
   (ISO `YYYY-MM-DD`, usually matching `version`), `title`, `summary`, and
   `sections` (`feature` / `fix`).
@@ -196,8 +197,8 @@ Below are practical, action-focused rules for each MCP server defined in `~/.cod
 
 ## Changelog
 - User-facing releases should prepend a new entry to
-  `wave/config/changelog.json` and keep
-  `wave/src/main/resources/config/changelog.json` aligned with the same data.
+  `wave/config/changelog.json`; the generated `config/changelog.json` resource
+  stays in sync through the build.
 - Every changelog entry must keep a stable `releaseId` slug, plus `date`,
   `title`, `summary`, and `sections`.
 - Do not rewrite, regroup, or delete older release entries in a feature PR.

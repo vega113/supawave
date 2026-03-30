@@ -281,10 +281,18 @@ public final class PasswordResetServlet extends HttpServlet {
     }
     if (config.hasPath("core.http_frontend_addresses")
         && !config.getStringList("core.http_frontend_addresses").isEmpty()) {
-      return config.getStringList("core.http_frontend_addresses").get(0).trim();
+      for (String address : config.getStringList("core.http_frontend_addresses")) {
+        String trimmedAddress = address.trim();
+        if (!trimmedAddress.isEmpty()) {
+          return trimmedAddress;
+        }
+      }
     }
     if (config.hasPath("core.default_http_frontend_address")) {
-      return config.getString("core.default_http_frontend_address").trim();
+      String defaultAddress = config.getString("core.default_http_frontend_address").trim();
+      if (!defaultAddress.isEmpty()) {
+        return defaultAddress;
+      }
     }
     return "wave.example.test";
   }

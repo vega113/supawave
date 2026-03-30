@@ -113,6 +113,14 @@ public final class RobotDashboardServlet extends HttpServlet {
     if (user == null) {
       return;
     }
+
+    // JSON API: robot creation
+    String contentType = req.getContentType();
+    if (contentType != null && contentType.startsWith("application/json")) {
+      handleJsonRegister(req, resp, user);
+      return;
+    }
+
     if (!hasValidXsrfToken(user, req)) {
       renderDashboard(req, resp, user, "Invalid XSRF token.", null,
           HttpServletResponse.SC_UNAUTHORIZED);
@@ -374,6 +382,7 @@ public final class RobotDashboardServlet extends HttpServlet {
       throws IOException {
     String username = req.getParameter("username");
     String location = Strings.nullToEmpty(req.getParameter("location")).trim();
+    String description = Strings.nullToEmpty(req.getParameter("description")).trim();
     long tokenExpirySeconds = parseTokenExpiry(req.getParameter("token_expiry"));
     if (Strings.isNullOrEmpty(username)) {
       renderDashboard(req, resp, user, "Robot username is required.", null,
@@ -393,6 +402,14 @@ public final class RobotDashboardServlet extends HttpServlet {
     try {
       RobotAccountData registeredRobot =
           robotRegistrar.registerNew(robotId, location, user.getAddress(), tokenExpirySeconds);
+      // If a description was provided during registration, update it immediately
+      if (!description.isEmpty()) {
+        try {
+          registeredRobot = robotRegistrar.updateDescription(robotId, description);
+        } catch (RobotRegistrationException | PersistenceException e) {
+          LOG.warning("Robot registered but description update failed: " + e.getMessage());
+        }
+      }
       renderDashboard(req, resp, user, "Robot registered: " + robotId.getAddress(), registeredRobot,
           HttpServletResponse.SC_OK, registeredRobot.getConsumerSecret());
     } catch (RobotRegistrationException e) {
@@ -401,6 +418,123 @@ public final class RobotDashboardServlet extends HttpServlet {
       renderDashboard(req, resp, user, "Robot registration failed.", null,
           HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
+  }
+
+  // -- JSON API for programmatic robot creation --
+
+  private void handleJsonRegister(HttpServletRequest req, HttpServletResponse resp,
+      ParticipantId user) throws IOException {
+    resp.setContentType("application/json");
+    resp.setCharacterEncoding("UTF-8");
+
+    String body;
+    try {
+      body = new String(req.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      resp.getWriter().write("{\"error\":\"Failed to read request body\"}");
+      return;
+    }
+
+    String username = extractJsonString(body, "username");
+    String description = extractJsonString(body, "description");
+    String callbackUrl = extractJsonString(body, "callbackUrl");
+    long tokenExpiry = extractJsonLong(body, "tokenExpiry", 3600L);
+
+    if (Strings.isNullOrEmpty(username)) {
+      resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      resp.getWriter().write("{\"error\":\"username is required\"}");
+      return;
+    }
+
+    ParticipantId robotId;
+    try {
+      robotId = RegistrationSupport.checkNewRobotUsername(domain, username);
+    } catch (InvalidParticipantAddress e) {
+      resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      resp.getWriter().write("{\"error\":" + escapeJsonValue(e.getMessage()) + "}");
+      return;
+    }
+
+    try {
+      String location = Strings.nullToEmpty(callbackUrl).trim();
+      RobotAccountData registeredRobot =
+          robotRegistrar.registerNew(robotId, location, user.getAddress(), tokenExpiry);
+      if (!Strings.isNullOrEmpty(description)) {
+        try {
+          registeredRobot = robotRegistrar.updateDescription(robotId, description.trim());
+        } catch (RobotRegistrationException | PersistenceException e) {
+          LOG.warning("JSON API: robot registered but description update failed: " + e.getMessage());
+        }
+      }
+      resp.setStatus(HttpServletResponse.SC_OK);
+      StringBuilder json = new StringBuilder(256);
+      json.append("{\"robotId\":").append(escapeJsonValue(registeredRobot.getId().getAddress()));
+      json.append(",\"secret\":").append(escapeJsonValue(registeredRobot.getConsumerSecret()));
+      json.append(",\"status\":\"active\"");
+      json.append(",\"callbackUrl\":").append(escapeJsonValue(Strings.nullToEmpty(registeredRobot.getUrl())));
+      json.append(",\"description\":").append(escapeJsonValue(Strings.nullToEmpty(registeredRobot.getDescription())));
+      json.append("}");
+      resp.getWriter().write(json.toString());
+    } catch (RobotRegistrationException e) {
+      resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      resp.getWriter().write("{\"error\":" + escapeJsonValue(e.getMessage()) + "}");
+    } catch (PersistenceException e) {
+      resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      resp.getWriter().write("{\"error\":\"Robot registration failed\"}");
+    }
+  }
+
+  static String extractJsonString(String json, String key) {
+    String search = "\"" + key + "\"";
+    int idx = json.indexOf(search);
+    if (idx < 0) return "";
+    idx = json.indexOf(":", idx + search.length());
+    if (idx < 0) return "";
+    idx = json.indexOf("\"", idx + 1);
+    if (idx < 0) return "";
+    int end = json.indexOf("\"", idx + 1);
+    if (end < 0) return "";
+    return json.substring(idx + 1, end);
+  }
+
+  static long extractJsonLong(String json, String key, long defaultVal) {
+    String search = "\"" + key + "\"";
+    int idx = json.indexOf(search);
+    if (idx < 0) return defaultVal;
+    idx = json.indexOf(":", idx + search.length());
+    if (idx < 0) return defaultVal;
+    StringBuilder num = new StringBuilder();
+    for (int i = idx + 1; i < json.length(); i++) {
+      char c = json.charAt(i);
+      if (Character.isDigit(c) || c == '-') num.append(c);
+      else if (num.length() > 0) break;
+    }
+    try { return Long.parseLong(num.toString()); } catch (NumberFormatException e) { return defaultVal; }
+  }
+
+  private static String escapeJsonValue(String value) {
+    if (value == null) return "null";
+    StringBuilder sb = new StringBuilder(value.length() + 2);
+    sb.append('"');
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      switch (c) {
+        case '"': sb.append("\\\""); break;
+        case '\\': sb.append("\\\\"); break;
+        case '\n': sb.append("\\n"); break;
+        case '\r': sb.append("\\r"); break;
+        case '\t': sb.append("\\t"); break;
+        default:
+          if (c < 0x20) {
+            sb.append(String.format("\\u%04x", (int) c));
+          } else {
+            sb.append(c);
+          }
+      }
+    }
+    sb.append('"');
+    return sb.toString();
   }
 
   private RobotAccountData findOwnedRobot(String robotIdValue, String ownerAddress) {
@@ -472,6 +606,8 @@ public final class RobotDashboardServlet extends HttpServlet {
     return tokenExpirySeconds;
   }
 
+  // -- Render overloads --
+
   private void renderDashboard(HttpServletRequest req, HttpServletResponse resp, ParticipantId user,
       String message,
       RobotAccountData highlightedRobot, int statusCode) throws IOException {
@@ -522,6 +658,8 @@ public final class RobotDashboardServlet extends HttpServlet {
     return robotsToRender;
   }
 
+  // -- Page rendering --
+
   private String renderDashboardPage(String userAddress, List<RobotAccountData> robots,
       String message, String xsrfToken, String baseUrl, String revealedSecret) {
     RobotAccountData promptRobot = robots.isEmpty() ? null : robots.get(robots.size() - 1);
@@ -544,12 +682,15 @@ public final class RobotDashboardServlet extends HttpServlet {
     appendHero(sb);
     sb.append("<div class=\"grid\"><section class=\"panel\">");
     appendStatusMessages(sb, message, revealedSecret);
-    appendRobotCards(sb, robots, xsrfToken);
-    appendCreateForm(sb, xsrfToken);
+    appendTabbedView(sb, robots, xsrfToken);
     sb.append("</section><aside class=\"panel\">");
     appendAiSection(sb, userAddress, baseUrl, promptRobotId, promptRobotSecret, promptCallbackUrl);
     appendTokenSection(sb);
     sb.append("</aside></div></div>");
+    // Robot modals (rendered after the grid, before scripts)
+    for (RobotAccountData robot : robots) {
+      appendRobotModal(sb, robot, xsrfToken);
+    }
     appendScripts(sb);
     // Animated wave background fixed to bottom of page (matches main app)
     sb.append("<div class=\"wave-bg\"><svg viewBox=\"0 0 1440 150\" preserveAspectRatio=\"none\">");
@@ -573,6 +714,245 @@ public final class RobotDashboardServlet extends HttpServlet {
     return sb.toString();
   }
 
+  // -- Tabbed view (My Robots table + Register New form) --
+
+  private void appendTabbedView(StringBuilder sb, List<RobotAccountData> robots, String xsrfToken) {
+    // Tab bar
+    sb.append("<div class=\"tabs\">");
+    sb.append("<div class=\"tab active\" data-tab=\"robots\" onclick=\"switchTab('robots')\">My Robots</div>");
+    sb.append("<div class=\"tab\" data-tab=\"register\" onclick=\"switchTab('register')\">Register New</div>");
+    sb.append("</div>");
+    // Tab content: My Robots
+    sb.append("<div id=\"tab-robots\" class=\"tab-content\" style=\"display:block;\">");
+    appendRobotTable(sb, robots, xsrfToken);
+    sb.append("</div>");
+    // Tab content: Register New
+    sb.append("<div id=\"tab-register\" class=\"tab-content\" style=\"display:none;\">");
+    appendCreateForm(sb, xsrfToken);
+    sb.append("</div>");
+  }
+
+  private void appendRobotTable(StringBuilder sb, List<RobotAccountData> robots, String xsrfToken) {
+    if (robots.isEmpty()) {
+      sb.append("<div class=\"empty-state\">");
+      sb.append("<svg width=\"48\" height=\"48\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#0077b6\" stroke-width=\"1.5\">");
+      sb.append("<rect x=\"3\" y=\"8\" width=\"18\" height=\"12\" rx=\"2\"/>");
+      sb.append("<circle cx=\"9\" cy=\"14\" r=\"1.5\"/><circle cx=\"15\" cy=\"14\" r=\"1.5\"/>");
+      sb.append("<path d=\"M12 2v6M8 2h8\"/></svg>");
+      sb.append("<h3 style=\"color:#3d627a;\">No robots yet</h3>");
+      sb.append("<p class=\"tiny\">Switch to the Register New tab to create your first robot.</p>");
+      sb.append("</div>");
+      return;
+    }
+    sb.append("<div class=\"table-container\">");
+    sb.append("<table>");
+    sb.append("<thead><tr>");
+    sb.append("<th>Robot ID</th><th>Description</th><th>Callback URL</th>");
+    sb.append("<th>Status</th><th>Created</th><th>Actions</th>");
+    sb.append("</tr></thead>");
+    sb.append("<tbody>");
+    for (RobotAccountData robot : robots) {
+      appendRobotTableRow(sb, robot, xsrfToken);
+    }
+    sb.append("</tbody></table></div>");
+  }
+
+  private void appendRobotTableRow(StringBuilder sb, RobotAccountData robot, String xsrfToken) {
+    String robotAddr = robot.getId().getAddress();
+    String escapedAddr = HtmlRenderer.escapeHtml(robotAddr);
+    String modalId = toModalId(robotAddr);
+    sb.append("<tr>");
+    // Robot ID
+    sb.append("<td><strong>").append(escapedAddr).append("</strong></td>");
+    // Description
+    sb.append("<td>");
+    if (robot.getDescription().isEmpty()) {
+      sb.append("<span style=\"color:#8fa3b5;font-style:italic;\">None</span>");
+    } else {
+      sb.append(HtmlRenderer.escapeHtml(robot.getDescription()));
+    }
+    sb.append("</td>");
+    // Callback URL
+    sb.append("<td>");
+    if (robot.getUrl().isEmpty()) {
+      sb.append("<span style=\"color:#8fa3b5;font-style:italic;\">Pending</span>");
+    } else {
+      sb.append("<span class=\"tiny\">").append(HtmlRenderer.escapeHtml(robot.getUrl())).append("</span>");
+    }
+    sb.append("</td>");
+    // Status
+    sb.append("<td>");
+    if (robot.isPaused()) {
+      sb.append("<span class=\"badge badge-paused\">Paused</span>");
+    } else {
+      sb.append("<span class=\"badge badge-active\">Active</span>");
+    }
+    sb.append("</td>");
+    // Created
+    sb.append("<td class=\"tiny\">").append(HtmlRenderer.escapeHtml(formatTimestamp(robot.getCreatedAtMillis()))).append("</td>");
+    // Actions
+    sb.append("<td>");
+    sb.append("<button class=\"btn btn-secondary btn-sm\" onclick=\"openModal('")
+        .append(HtmlRenderer.escapeHtml(modalId))
+        .append("')\">Edit</button> ");
+    // Test button (only if callback URL is set)
+    if (!Strings.isNullOrEmpty(robot.getUrl())) {
+      sb.append("<form method=\"post\" action=\"\" style=\"display:inline;margin:0;\">");
+      appendHidden(sb, "action", "verify");
+      appendHidden(sb, "token", xsrfToken);
+      appendHidden(sb, "robotId", robotAddr);
+      sb.append("<button class=\"btn btn-ghost btn-sm\" type=\"submit\">Test</button>");
+      sb.append("</form> ");
+    }
+    // Inline delete form
+    sb.append("<form method=\"post\" action=\"\" style=\"display:inline;margin:0;\">");
+    appendHidden(sb, "action", "delete");
+    appendHidden(sb, "token", xsrfToken);
+    appendHidden(sb, "robotId", robotAddr);
+    sb.append("<label class=\"delete-confirm\">");
+    sb.append("<input type=\"checkbox\" name=\"confirm_delete\" value=\"yes\" required>");
+    sb.append(" Delete");
+    sb.append("</label>");
+    sb.append("<button class=\"btn btn-danger btn-sm\" type=\"submit\" style=\"margin-left:4px;\">Delete</button>");
+    sb.append("</form>");
+    sb.append("</td>");
+    sb.append("</tr>");
+  }
+
+  // -- Robot edit modal --
+
+  private void appendRobotModal(StringBuilder sb, RobotAccountData robot, String xsrfToken) {
+    String robotAddr = robot.getId().getAddress();
+    String escapedAddr = HtmlRenderer.escapeHtml(robotAddr);
+    String modalId = toModalId(robotAddr);
+
+    sb.append("<div class=\"modal-overlay\" id=\"modal-").append(HtmlRenderer.escapeHtml(modalId)).append("\">");
+    sb.append("<div class=\"modal\">");
+    // Modal header
+    sb.append("<div class=\"modal-header\">");
+    sb.append("<h3>").append(escapedAddr).append("</h3>");
+    sb.append("<button class=\"modal-close\" onclick=\"closeModal('")
+        .append(HtmlRenderer.escapeHtml(modalId)).append("')\">&times;</button>");
+    sb.append("</div>");
+    // Modal body
+    sb.append("<div class=\"modal-body\">");
+
+    // Robot ID (read-only)
+    sb.append("<div class=\"modal-field\">");
+    sb.append("<label>Robot ID</label>");
+    sb.append("<div class=\"readonly-value\">").append(escapedAddr).append("</div>");
+    sb.append("</div>");
+
+    // Description form
+    sb.append("<div class=\"modal-field\">");
+    sb.append("<form method=\"post\" action=\"\">");
+    appendHidden(sb, "action", "update-description");
+    appendHidden(sb, "token", xsrfToken);
+    appendHidden(sb, "robotId", robotAddr);
+    sb.append("<label for=\"desc-").append(HtmlRenderer.escapeHtml(modalId)).append("\">Description</label>");
+    sb.append("<input id=\"desc-").append(HtmlRenderer.escapeHtml(modalId))
+        .append("\" name=\"description\" value=\"")
+        .append(HtmlRenderer.escapeHtml(robot.getDescription())).append("\">");
+    sb.append("<div class=\"btn-row\"><button class=\"btn btn-primary\" type=\"submit\">Save</button></div>");
+    sb.append("</form>");
+    sb.append("</div>");
+
+    // Callback URL form
+    sb.append("<div class=\"modal-field\">");
+    sb.append("<form method=\"post\" action=\"\">");
+    appendHidden(sb, "action", "update-url");
+    appendHidden(sb, "token", xsrfToken);
+    appendHidden(sb, "robotId", robotAddr);
+    sb.append("<label for=\"loc-").append(HtmlRenderer.escapeHtml(modalId)).append("\">Callback URL</label>");
+    sb.append("<input id=\"loc-").append(HtmlRenderer.escapeHtml(modalId))
+        .append("\" name=\"location\" value=\"")
+        .append(HtmlRenderer.escapeHtml(robot.getUrl())).append("\">");
+    sb.append("<div class=\"btn-row\"><button class=\"btn btn-primary\" type=\"submit\">Save URL</button></div>");
+    sb.append("</form>");
+    sb.append("</div>");
+
+    // Status with Pause/Resume toggle
+    sb.append("<div class=\"modal-field\">");
+    sb.append("<label>Status</label>");
+    sb.append("<div style=\"display:flex;align-items:center;gap:12px;\">");
+    if (robot.isPaused()) {
+      sb.append("<span class=\"badge badge-paused\">Paused</span>");
+    } else {
+      sb.append("<span class=\"badge badge-active\">Active</span>");
+    }
+    sb.append("<form method=\"post\" action=\"\" style=\"margin:0;\">");
+    appendHidden(sb, "action", "set-paused");
+    appendHidden(sb, "token", xsrfToken);
+    appendHidden(sb, "robotId", robotAddr);
+    sb.append("<input type=\"hidden\" name=\"paused\" value=\"")
+        .append(robot.isPaused() ? "false" : "true").append("\">");
+    sb.append("<button class=\"btn btn-ghost btn-sm\" type=\"submit\">")
+        .append(robot.isPaused() ? "Resume" : "Pause").append("</button>");
+    sb.append("</form>");
+    sb.append("</div></div>");
+
+    // Secret (masked) with Regenerate button
+    sb.append("<div class=\"modal-field\">");
+    sb.append("<label>Secret</label>");
+    sb.append("<div style=\"display:flex;align-items:center;gap:12px;\">");
+    sb.append("<code class=\"secret-masked\">").append(HtmlRenderer.escapeHtml(maskSecret(robot.getConsumerSecret()))).append("</code>");
+    sb.append("<form method=\"post\" action=\"\" style=\"margin:0;\">");
+    appendHidden(sb, "action", "rotate-secret");
+    appendHidden(sb, "token", xsrfToken);
+    appendHidden(sb, "robotId", robotAddr);
+    sb.append("<button class=\"btn btn-secondary btn-sm\" type=\"submit\">Regenerate Secret</button>");
+    sb.append("</form>");
+    sb.append("</div></div>");
+
+    // Test Bot button (only if URL set)
+    if (!Strings.isNullOrEmpty(robot.getUrl())) {
+      sb.append("<div class=\"modal-field\">");
+      sb.append("<form method=\"post\" action=\"\" style=\"margin:0;\">");
+      appendHidden(sb, "action", "verify");
+      appendHidden(sb, "token", xsrfToken);
+      appendHidden(sb, "robotId", robotAddr);
+      sb.append("<button class=\"btn btn-ghost\" type=\"submit\">Test Bot</button>");
+      sb.append("</form>");
+      sb.append("</div>");
+    }
+
+    // Metadata (read-only)
+    sb.append("<div class=\"modal-field\">");
+    sb.append("<label>Metadata</label>");
+    sb.append("<div class=\"meta\">");
+    if (!Strings.isNullOrEmpty(robot.getOwnerAddress())) {
+      appendMetaRow(sb, "Creator", robot.getOwnerAddress());
+    }
+    appendMetaRow(sb, "Created", formatTimestamp(robot.getCreatedAtMillis()));
+    appendMetaRow(sb, "Updated", formatTimestamp(robot.getUpdatedAtMillis()));
+    sb.append("</div></div>");
+
+    // Delete section
+    sb.append("<div class=\"modal-field modal-field-danger\">");
+    sb.append("<label>Delete Robot</label>");
+    sb.append("<form method=\"post\" action=\"\">");
+    appendHidden(sb, "action", "delete");
+    appendHidden(sb, "token", xsrfToken);
+    appendHidden(sb, "robotId", robotAddr);
+    sb.append("<label class=\"delete-confirm\">");
+    sb.append("<input type=\"checkbox\" name=\"confirm_delete\" value=\"yes\" required>");
+    sb.append("I confirm deleting this robot permanently");
+    sb.append("</label>");
+    sb.append("<div class=\"btn-row\"><button class=\"btn btn-danger\" type=\"submit\">Delete Robot</button></div>");
+    sb.append("</form>");
+    sb.append("</div>");
+
+    sb.append("</div>"); // modal-body
+    sb.append("</div>"); // modal
+    sb.append("</div>"); // modal-overlay
+  }
+
+  static String toModalId(String robotAddr) {
+    return robotAddr.replace("@", "_at_").replace(".", "_dot_");
+  }
+
+  // -- Styles --
+
   private void appendStyles(StringBuilder sb) {
     sb.append("<style>");
     sb.append("*,*::before,*::after{box-sizing:border-box;}");
@@ -582,7 +962,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Animated wave background (bottom of page, matches main app)
     sb.append(".wave-bg{position:fixed;bottom:0;left:0;width:100%;height:180px;z-index:0;pointer-events:none;}");
     sb.append(".wave-bg svg{width:100%;height:100%;}");
-    // Top bar — matches main app topbar
+    // Top bar -- matches main app topbar
     sb.append(".topbar{display:flex;align-items:center;justify-content:space-between;");
     sb.append("padding:0 24px;height:48px;background:linear-gradient(135deg,#023e6b 0%,#0077b6 100%);");
     sb.append("color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(2,62,138,.15);}");
@@ -600,7 +980,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("box-shadow:0 0 0 2px rgba(255,255,255,.3);}");
     // Shell
     sb.append(".shell{max-width:1140px;margin:0 auto;padding:0 24px 80px;position:relative;z-index:1;}");
-    // Hero — gradient banner matching Wave landing page
+    // Hero -- gradient banner matching Wave landing page
     sb.append(".hero{position:relative;overflow:hidden;");
     sb.append("background:linear-gradient(135deg,#0077b6 0%,#00b4d8 50%,#90e0ef 100%);");
     sb.append("padding:36px 36px 56px;margin-bottom:24px;color:#fff;border-radius:0 0 24px 24px;}");
@@ -625,25 +1005,32 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("background:linear-gradient(135deg,#edf8fb,#e0f4fa);color:#124663;font-size:14px;");
     sb.append("border-left:4px solid #0077b6;}");
     sb.append(".status strong{color:#023e8a;}");
-    // Robot cards
-    sb.append(".robot-card{padding:18px 20px;border-radius:16px;background:#f7fcfd;");
-    sb.append("border:1px solid rgba(0,119,182,.08);margin-bottom:14px;transition:all .2s;}");
-    sb.append(".robot-card:hover{box-shadow:0 6px 20px rgba(0,119,182,.1);transform:translateY(-1px);}");
-    sb.append(".robot-card h3{margin:0 0 6px;font-size:18px;color:#023e8a;}");
-    sb.append(".meta{font-size:13px;color:#56738a;line-height:1.7;}");
-    sb.append(".meta-row{display:flex;gap:6px;align-items:baseline;}");
-    sb.append(".meta-label{font-weight:600;color:#3d627a;min-width:100px;}");
+    // Tabs
+    sb.append(".tabs{display:flex;gap:0;border-bottom:2px solid rgba(0,119,182,.15);margin-bottom:20px;}");
+    sb.append(".tab{padding:12px 24px;cursor:pointer;font-weight:600;font-size:14px;color:#56738a;");
+    sb.append("border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;user-select:none;}");
+    sb.append(".tab.active{color:#0077b6;border-bottom-color:#0077b6;}");
+    sb.append(".tab:hover{color:#0077b6;background:rgba(0,119,182,.04);}");
+    sb.append(".tab-content{display:none;}");
+    // Table
+    sb.append(".table-container{max-height:600px;overflow-y:auto;}");
+    sb.append("table{width:100%;border-collapse:collapse;}");
+    sb.append("th{text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;");
+    sb.append("letter-spacing:.08em;color:#4b6b81;border-bottom:2px solid rgba(0,119,182,.12);position:sticky;top:0;background:#fff;}");
+    sb.append("td{padding:12px;font-size:14px;border-bottom:1px solid rgba(0,119,182,.06);}");
+    sb.append("tr:hover{background:rgba(0,119,182,.04);}");
+    // Badges
     sb.append(".badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;}");
     sb.append(".badge-active{background:#d4edda;color:#155724;}");
     sb.append(".badge-paused{background:#fff3cd;color:#856404;}");
     // Forms
-    sb.append(".edit-section{margin-top:14px;padding-top:14px;border-top:1px solid rgba(0,119,182,.08);}");
     sb.append("label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#4b6b81;margin:0 0 5px;font-weight:600;}");
     sb.append("input[type=text],input:not([type]){width:100%;padding:10px 12px;border-radius:10px;");
     sb.append("border:1px solid rgba(0,119,182,.18);font:inherit;font-size:14px;transition:border-color .15s,box-shadow .15s;}");
     sb.append("input[type=text]:focus,input:not([type]):focus{outline:none;border-color:#0077b6;box-shadow:0 0 0 3px rgba(0,119,182,.1);}");
     // Buttons
     sb.append(".btn{border:none;border-radius:999px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}");
+    sb.append(".btn-sm{padding:6px 14px;font-size:12px;}");
     sb.append(".btn-primary{background:linear-gradient(135deg,#0077b6,#00b4d8);color:#fff;}");
     sb.append(".btn-primary:hover{background:linear-gradient(135deg,#005f8f,#0098b8);box-shadow:0 4px 14px rgba(0,119,182,.3);transform:translateY(-1px);}");
     sb.append(".btn-secondary{background:transparent;color:#0077b6;border:1.5px solid #0077b6;}");
@@ -674,6 +1061,36 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append(".delete-confirm{display:flex;align-items:center;gap:8px;font-size:12px;");
     sb.append("letter-spacing:normal;text-transform:none;color:#c0392b;margin-top:8px;}");
     sb.append(".delete-confirm input{width:auto;padding:0;}");
+    // Create form card
+    sb.append(".create-form-card{padding:20px;border-radius:16px;background:#f7fcfd;");
+    sb.append("border:1px solid rgba(0,119,182,.08);}");
+    // Modal overlay and styles
+    sb.append(".modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;");
+    sb.append("background:rgba(10,22,40,.5);backdrop-filter:blur(4px);z-index:200;");
+    sb.append("justify-content:center;align-items:flex-start;padding:60px 20px;overflow-y:auto;}");
+    sb.append(".modal-overlay.active{display:flex;}");
+    sb.append(".modal{background:#fff;border-radius:20px;max-width:560px;width:100%;");
+    sb.append("box-shadow:0 24px 64px rgba(2,62,107,.2);overflow:hidden;animation:modalIn .25s ease;}");
+    sb.append("@keyframes modalIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}");
+    sb.append(".modal-header{background:linear-gradient(135deg,#0077b6 0%,#00b4d8 100%);");
+    sb.append("padding:20px 24px;color:#fff;display:flex;justify-content:space-between;align-items:center;}");
+    sb.append(".modal-header h3{margin:0;font-size:18px;}");
+    sb.append(".modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;");
+    sb.append("border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;");
+    sb.append("justify-content:center;transition:background .15s;}");
+    sb.append(".modal-close:hover{background:rgba(255,255,255,.35);}");
+    sb.append(".modal-body{padding:24px;}");
+    sb.append(".modal-field{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid rgba(0,119,182,.06);}");
+    sb.append(".modal-field:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}");
+    sb.append(".modal-field-danger{border:1px solid rgba(192,57,43,.12);border-radius:12px;padding:16px;background:#fefafa;}");
+    sb.append(".readonly-value{padding:10px 12px;background:#f0f8ff;border-radius:10px;");
+    sb.append("border:1px solid rgba(0,119,182,.1);font-family:monospace;font-size:14px;color:#023e8a;}");
+    sb.append(".secret-masked{font-family:monospace;font-size:14px;padding:8px 12px;background:#f0f8ff;");
+    sb.append("border-radius:8px;border:1px solid rgba(0,119,182,.1);color:#023e8a;}");
+    // Meta rows
+    sb.append(".meta{font-size:13px;color:#56738a;line-height:1.7;}");
+    sb.append(".meta-row{display:flex;gap:6px;align-items:baseline;}");
+    sb.append(".meta-label{font-weight:600;color:#3d627a;min-width:100px;}");
     sb.append("</style>");
   }
 
@@ -739,116 +1156,6 @@ public final class RobotDashboardServlet extends HttpServlet {
     }
   }
 
-  private void appendRobotCards(StringBuilder sb, List<RobotAccountData> robots, String xsrfToken) {
-    if (robots.isEmpty()) {
-      sb.append("<div class=\"robot-card empty-state\">");
-      sb.append("<svg width=\"48\" height=\"48\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#0077b6\" stroke-width=\"1.5\">");
-      sb.append("<rect x=\"3\" y=\"8\" width=\"18\" height=\"12\" rx=\"2\"/>");
-      sb.append("<circle cx=\"9\" cy=\"14\" r=\"1.5\"/><circle cx=\"15\" cy=\"14\" r=\"1.5\"/>");
-      sb.append("<path d=\"M12 2v6M8 2h8\"/></svg>");
-      sb.append("<h3 style=\"color:#3d627a;\">No robots yet</h3>");
-      sb.append("<p class=\"tiny\">Create your first robot below, then hand the starter prompt to your LLM.</p>");
-      sb.append("</div>");
-      return;
-    }
-    sb.append("<h2 style=\"font-size:16px;margin:0 0 12px;\">Your Robots (")
-        .append(robots.size()).append(")</h2>");
-    for (RobotAccountData robot : robots) {
-      appendSingleRobotCard(sb, robot, xsrfToken);
-    }
-  }
-
-  private void appendSingleRobotCard(StringBuilder sb, RobotAccountData robot, String xsrfToken) {
-    String robotAddr = robot.getId().getAddress();
-    String escapedAddr = HtmlRenderer.escapeHtml(robotAddr);
-    sb.append("<div class=\"robot-card\">");
-    sb.append("<h3>").append(escapedAddr).append("</h3>");
-    sb.append("<div class=\"meta\">");
-    appendMetaRow(sb, "Description",
-        robot.getDescription().isEmpty() ? "No description yet" : robot.getDescription());
-    appendMetaRow(sb, "Callback URL",
-        robot.getUrl().isEmpty() ? "Pending" : robot.getUrl());
-    appendMetaRow(sb, "Secret", maskSecret(robot.getConsumerSecret()));
-    if (!Strings.isNullOrEmpty(robot.getOwnerAddress())) {
-      appendMetaRow(sb, "Creator", robot.getOwnerAddress());
-    }
-    sb.append("<div class=\"meta-row\"><span class=\"meta-label\">Status</span>");
-    if (robot.isPaused()) {
-      sb.append("<span class=\"badge badge-paused\">Paused</span>");
-    } else {
-      sb.append("<span class=\"badge badge-active\">Active</span>");
-    }
-    sb.append("</div>");
-    appendMetaRow(sb, "Created", formatTimestamp(robot.getCreatedAtMillis()));
-    appendMetaRow(sb, "Updated", formatTimestamp(robot.getUpdatedAtMillis()));
-    sb.append("</div>");
-    // Edit section
-    sb.append("<div class=\"edit-section\">");
-    // Description form
-    sb.append("<form method=\"post\" action=\"\">");
-    appendHidden(sb, "action", "update-description");
-    appendHidden(sb, "token", xsrfToken);
-    appendHidden(sb, "robotId", robotAddr);
-    sb.append("<label for=\"desc-").append(escapedAddr).append("\">Description</label>");
-    sb.append("<input id=\"desc-").append(escapedAddr)
-        .append("\" name=\"description\" value=\"")
-        .append(HtmlRenderer.escapeHtml(robot.getDescription())).append("\">");
-    sb.append("<div class=\"btn-row\"><button class=\"btn btn-primary\" type=\"submit\">Save</button></div>");
-    sb.append("</form>");
-    // URL form
-    sb.append("<form method=\"post\" action=\"\" style=\"margin-top:12px;\">");
-    appendHidden(sb, "action", "update-url");
-    appendHidden(sb, "token", xsrfToken);
-    appendHidden(sb, "robotId", robotAddr);
-    sb.append("<label for=\"loc-").append(escapedAddr).append("\">Callback URL</label>");
-    sb.append("<input id=\"loc-").append(escapedAddr)
-        .append("\" name=\"location\" value=\"")
-        .append(HtmlRenderer.escapeHtml(robot.getUrl())).append("\">");
-    sb.append("<div class=\"btn-row\"><button class=\"btn btn-primary\" type=\"submit\">Save URL</button></div>");
-    sb.append("</form>");
-    // Action buttons row
-    sb.append("<div class=\"btn-row\" style=\"margin-top:14px;\">");
-    // Rotate secret
-    sb.append("<form method=\"post\" action=\"\" style=\"margin:0;\">");
-    appendHidden(sb, "action", "rotate-secret");
-    appendHidden(sb, "token", xsrfToken);
-    appendHidden(sb, "robotId", robotAddr);
-    sb.append("<button class=\"btn btn-secondary\" type=\"submit\">Rotate Secret</button>");
-    sb.append("</form>");
-    // Test bot (only if URL set)
-    if (!Strings.isNullOrEmpty(robot.getUrl())) {
-      sb.append("<form method=\"post\" action=\"\" style=\"margin:0;\">");
-      appendHidden(sb, "action", "verify");
-      appendHidden(sb, "token", xsrfToken);
-      appendHidden(sb, "robotId", robotAddr);
-      sb.append("<button class=\"btn btn-ghost\" type=\"submit\">Test Bot</button>");
-      sb.append("</form>");
-    }
-    // Pause / Unpause
-    sb.append("<form method=\"post\" action=\"\" style=\"margin:0;\">");
-    appendHidden(sb, "action", "set-paused");
-    appendHidden(sb, "token", xsrfToken);
-    appendHidden(sb, "robotId", robotAddr);
-    sb.append("<input type=\"hidden\" name=\"paused\" value=\"")
-        .append(robot.isPaused() ? "false" : "true").append("\">");
-    sb.append("<button class=\"btn btn-ghost\" type=\"submit\">")
-        .append(robot.isPaused() ? "Unpause" : "Pause").append("</button>");
-    sb.append("</form>");
-    sb.append("</div>");
-    // Delete form (no confirm() popup - checkbox only)
-    sb.append("<form method=\"post\" action=\"\" style=\"margin-top:12px;\">");
-    appendHidden(sb, "action", "delete");
-    appendHidden(sb, "token", xsrfToken);
-    appendHidden(sb, "robotId", robotAddr);
-    sb.append("<label class=\"delete-confirm\">");
-    sb.append("<input type=\"checkbox\" name=\"confirm_delete\" value=\"yes\" required>");
-    sb.append("I confirm deleting this robot permanently");
-    sb.append("</label>");
-    sb.append("<div class=\"btn-row\"><button class=\"btn btn-danger\" type=\"submit\">Delete Robot</button></div>");
-    sb.append("</form>");
-    sb.append("</div></div>");
-  }
-
   private void appendMetaRow(StringBuilder sb, String label, String value) {
     sb.append("<div class=\"meta-row\"><span class=\"meta-label\">")
         .append(HtmlRenderer.escapeHtml(label)).append("</span><span>")
@@ -861,12 +1168,15 @@ public final class RobotDashboardServlet extends HttpServlet {
   }
 
   private void appendCreateForm(StringBuilder sb, String xsrfToken) {
-    sb.append("<div class=\"robot-card\"><h3>Register New Robot</h3>");
+    sb.append("<div class=\"create-form-card\">");
+    sb.append("<h3 style=\"margin:0 0 16px;font-size:18px;color:#023e8a;\">Register New Robot</h3>");
     sb.append("<form method=\"post\" action=\"\">");
     appendHidden(sb, "action", "register");
     appendHidden(sb, "token", xsrfToken);
     sb.append("<label for=\"username\">Robot Username</label>");
-    sb.append("<input id=\"username\" name=\"username\" placeholder=\"helper-bot\">");
+    sb.append("<input id=\"username\" name=\"username\" placeholder=\"helper-bot\" required>");
+    sb.append("<label for=\"create-description\" style=\"margin-top:12px;\">Description (optional)</label>");
+    sb.append("<input id=\"create-description\" name=\"description\" placeholder=\"What does this robot do?\">");
     sb.append("<label for=\"create-location\" style=\"margin-top:12px;\">Callback URL (optional)</label>");
     sb.append("<input id=\"create-location\" name=\"location\" placeholder=\"https://example.com/robot\">");
     sb.append("<label for=\"token-expiry\" style=\"margin-top:12px;\">Token Expiry (seconds)</label>");
@@ -923,6 +1233,34 @@ public final class RobotDashboardServlet extends HttpServlet {
 
   private void appendScripts(StringBuilder sb) {
     sb.append("<script>");
+    // Tab switching
+    sb.append("function switchTab(tabName){");
+    sb.append("document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});");
+    sb.append("document.querySelectorAll('.tab-content').forEach(function(c){c.style.display='none';});");
+    sb.append("document.querySelector('[data-tab=\"'+tabName+'\"]').classList.add('active');");
+    sb.append("document.getElementById('tab-'+tabName).style.display='block';");
+    sb.append("}");
+    // Modal open/close
+    sb.append("function openModal(id){");
+    sb.append("document.getElementById('modal-'+id).classList.add('active');");
+    sb.append("document.body.style.overflow='hidden';");
+    sb.append("}");
+    sb.append("function closeModal(id){");
+    sb.append("document.getElementById('modal-'+id).classList.remove('active');");
+    sb.append("document.body.style.overflow='';");
+    sb.append("}");
+    // Close on overlay click
+    sb.append("document.addEventListener('click',function(e){");
+    sb.append("if(e.target.classList.contains('modal-overlay')){");
+    sb.append("e.target.classList.remove('active');");
+    sb.append("document.body.style.overflow='';");
+    sb.append("}});");
+    // Close on Escape key
+    sb.append("document.addEventListener('keydown',function(e){");
+    sb.append("if(e.key==='Escape'){");
+    sb.append("document.querySelectorAll('.modal-overlay.active').forEach(function(m){m.classList.remove('active');});");
+    sb.append("document.body.style.overflow='';");
+    sb.append("}});");
     // Auto-generate JWT into prompt on page load
     sb.append("(function(){");
     sb.append("var prompt=document.getElementById('starter-prompt');");

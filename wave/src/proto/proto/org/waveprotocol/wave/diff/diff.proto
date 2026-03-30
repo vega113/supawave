@@ -22,7 +22,6 @@
 
 syntax = "proto2";
 
-import "org/waveprotocol/box/server/rpc/rpc.proto";
 import "org/waveprotocol/wave/concurrencycontrol/clientserver.proto";
 import "org/waveprotocol/wave/federation/federation.protodevel";
 import "org/apache/wave/pst/protobuf/extensions.proto";

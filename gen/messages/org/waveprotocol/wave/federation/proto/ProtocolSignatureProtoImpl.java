@@ -314,7 +314,7 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.wave.fed
 
   /** Translates a pojo enum to a proto enum. */
   private org.waveprotocol.wave.federation.Proto.ProtocolSignature.SignatureAlgorithm toProtoEnumSignatureAlgorithm(SignatureAlgorithm value) {
-    return org.waveprotocol.wave.federation.Proto.ProtocolSignature.SignatureAlgorithm.valueOf(value.getValue());
+    return org.waveprotocol.wave.federation.Proto.ProtocolSignature.SignatureAlgorithm.forNumber(value.getValue());
   }
 
   /** Translates a proto enum to a pojo enum. */

@@ -12,7 +12,7 @@ enablePlugins(JavaAppPackaging)
 Compile / compileOrder := CompileOrder.JavaThenScala
 
 // Java toolchain: compile and target JDK 17 bytecode (matches Gradle's java.toolchain.languageVersion)
-javacOptions ++= Seq("--release", "17")
+javacOptions ++= Seq("--release", "17", "-Xlint:deprecation", "-Xlint:unchecked")
 
 // Disable Javadoc generation — gwt-user sources reference GWTBridge (in gwt-dev)
 // which is not on the compile classpath, causing Javadoc to fail during Universal/stage.
@@ -255,6 +255,7 @@ libraryDependencies ++= Seq(
   "commons-cli"                    % "commons-cli"                % "1.11.0",
   "commons-io"                     % "commons-io"                 % "2.16.1",
   "org.apache.commons"             % "commons-lang3"              % "3.14.0",
+  "org.apache.commons"             % "commons-text"               % "1.12.0",
 
   // --- HTTP ---
   "org.apache.httpcomponents"      % "httpclient"                 % "4.5.14",
@@ -750,6 +751,7 @@ lazy val pst = Project("pst", file("pst"))
   .settings(
     crossPaths := false,
     autoScalaLibrary := false,
+    javacOptions ++= Seq("-Xlint:deprecation", "-Xlint:unchecked"),
     Compile / compileOrder := CompileOrder.JavaThenScala,
     Compile / unmanagedSourceDirectories += baseDirectory.value / "generated" / "main" / "java",
     libraryDependencies ++= Seq(
@@ -857,7 +859,26 @@ Compile / PB.includePaths := Seq(
 )
 Compile / PB.targets := Seq(PB.gens.java -> (baseDirectory.value / "proto_src"))
 // Ensure staging runs before protoc
-Compile / PB.generate := (Compile / PB.generate).dependsOn(prepareProtosForPB).value
+Compile / PB.generate := {
+  val result = (Compile / PB.generate).dependsOn(prepareProtosForPB).value
+  // Post-process protoc output: replace deprecated .PARSER with .parser()
+  val log = streams.value.log
+  val protoSrc = baseDirectory.value / "proto_src"
+  val javaFiles = (protoSrc ** "*.java").get
+  var patchCount = 0
+  javaFiles.foreach { f =>
+    val content = IO.read(f)
+    if (content.contains(".PARSER,") || content.contains(".PARSER)")) {
+      val patched = content
+        .replace(".PARSER,", ".parser(),")
+        .replace(".PARSER)", ".parser())")
+      IO.write(f, patched)
+      patchCount += 1
+    }
+  }
+  if (patchCount > 0) log.info(s"Patched $patchCount proto_src files: .PARSER -> .parser()")
+  result
+}
 
 
 ThisBuild / generatePstMessages := {
@@ -888,6 +909,7 @@ ThisBuild / generatePstMessages := {
   val javacProto = Seq(
     "javac",
     "-g",
+    "-Xlint:deprecation", "-Xlint:unchecked",
     "-cp", protobufJar,
     "-d", pstProtoClasses.getAbsolutePath
   ) ++ protoSources.map(_.getAbsolutePath)

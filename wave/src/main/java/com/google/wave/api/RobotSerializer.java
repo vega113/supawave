@@ -76,7 +76,7 @@ public class RobotSerializer {
    * An instance of {@link JsonParser} to parse JSON string into
    * {@link JsonElement}.
    */
-  private final JsonParser jsonParser;
+  // JsonParser is used via static methods (parseString) since Gson 2.8.6+
 
   /**
    * Constructor. Note that the defaultprotocol version must occur in the map
@@ -94,7 +94,7 @@ public class RobotSerializer {
     }
     this.gsons = gsons;
     this.defaultProtocolVersion = defaultProtocolVersion;
-    this.jsonParser = new JsonParser();
+    // JsonParser now used via static methods
   }
 
   /**
@@ -167,7 +167,7 @@ public class RobotSerializer {
    *     {@code jsonString}.
    */
   public JsonElement parse(String jsonString) {
-    return jsonParser.parse(jsonString);
+    return JsonParser.parseString(jsonString);
   }
 
   /**
@@ -190,7 +190,7 @@ public class RobotSerializer {
 
     JsonElement json = null;
     try {
-      json = jsonParser.parse(jsonString);
+      json = JsonParser.parseString(jsonString);
     } catch (JsonParseException e) {
       throw new InvalidRequestException("Couldn't deserialize incoming operations: " +
           jsonString, null, e);

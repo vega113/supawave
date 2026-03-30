@@ -19,7 +19,7 @@
 
 /** Translates a pojo enum to a proto enum. */
 private $t.protoType$ toProtoEnum$t.javaType$($t.javaType$ value) {
-  return $t.protoType$.valueOf(value.getValue());
+  return $t.protoType$.forNumber(value.getValue());
 }
 
 /** Translates a proto enum to a pojo enum. */

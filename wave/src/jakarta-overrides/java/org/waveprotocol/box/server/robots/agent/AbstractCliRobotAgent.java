@@ -32,12 +32,11 @@ import com.google.wave.api.event.WaveletSelfAddedEvent;
 import com.typesafe.config.Config;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
-import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.PosixParser;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
@@ -57,6 +56,7 @@ public abstract class AbstractCliRobotAgent extends AbstractBaseRobotAgent {
   /** The options for the command. */
   private final Options options;
   private final CommandLineParser parser;
+  @SuppressWarnings("deprecation") // HelpFormatter class deprecated in commons-cli 1.9; no non-deprecated replacement available
   private final HelpFormatter helpFormatter;
 
   /**
@@ -84,8 +84,10 @@ public abstract class AbstractCliRobotAgent extends AbstractBaseRobotAgent {
                         RobotRegistrar robotRegistrar, Boolean sslEnabled,
                         LocalOperationSubmitter submitter) {
     super(waveDomain, frontendAddressHolder, accountStore, robotRegistrar, sslEnabled, submitter);
-    parser = new PosixParser();
-    helpFormatter = new HelpFormatter();
+    parser = new DefaultParser();
+    @SuppressWarnings("deprecation") // HelpFormatter deprecated in commons-cli 1.9; builder().get() is the recommended pattern
+    HelpFormatter hf = HelpFormatter.builder().get();
+    helpFormatter = hf;
     options = initOptions();
   }
 
@@ -167,12 +169,13 @@ public abstract class AbstractCliRobotAgent extends AbstractBaseRobotAgent {
   /**
    * Returns the command options usage.
    */
+  @SuppressWarnings("deprecation") // HelpFormatter deprecated in commons-cli 1.9
   public String getUsage() {
     StringWriter stringWriter = new StringWriter();
     PrintWriter pw = new PrintWriter(stringWriter);
-    helpFormatter.printHelp(pw, helpFormatter.defaultWidth, getCommandName() + " "
-        + getCmdLineSyntax() + " \n", null, options, helpFormatter.defaultLeftPad,
-        helpFormatter.defaultDescPad, "", false);
+    helpFormatter.printHelp(pw, helpFormatter.getWidth(), getCommandName() + " "
+        + getCmdLineSyntax() + " \n", null, options, helpFormatter.getLeftPadding(),
+        helpFormatter.getDescPadding(), "", false);
     pw.flush();
     return stringWriter.toString();
   }
@@ -182,8 +185,8 @@ public abstract class AbstractCliRobotAgent extends AbstractBaseRobotAgent {
    */
   protected Options initOptions() {
     Options options = new Options();
-    @SuppressWarnings({"static-access", "static"})
-    Option help = OptionBuilder.withDescription("Displays help for the command.").create("help");
+    @SuppressWarnings("deprecation") // Option.Builder.build() deprecated in commons-cli 1.10; get() not available for Option.Builder
+    Option help = Option.builder("help").desc("Displays help for the command.").build();
     options.addOption(help);
     return options;
   }

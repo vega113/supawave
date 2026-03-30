@@ -37,6 +37,7 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -61,6 +62,8 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
   /** The loading cache that holds wave viev per each online user.*/
   public LoadingCache<ParticipantId, Multimap<WaveId, WaveletId>> explicitPerUserWaveViews;
 
+  private final AtomicBoolean storageWarmupCompleted = new AtomicBoolean(false);
+
   @Inject
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {
     // Let the view expire if it not accessed for some time.
@@ -73,11 +76,7 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
           public Multimap<WaveId, WaveletId> load(final ParticipantId user) {
             long startMs = System.currentTimeMillis();
             Multimap<WaveId, WaveletId> userView = HashMultimap.create();
-            try {
-              waveMap.loadAllWavelets();
-            } catch (WaveletStateException e) {
-              throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
-            }
+            ensureWaveMapLoaded(waveMap, user);
 
             Map<WaveId, Wave> waves = waveMap.getWaves();
             for (Map.Entry<WaveId, Wave> entry : waves.entrySet()) {
@@ -119,6 +118,21 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
             return userView;
           }
         });
+  }
+
+  private void ensureWaveMapLoaded(WaveMap waveMap, ParticipantId user) {
+    if (!storageWarmupCompleted.get()) {
+      synchronized (storageWarmupCompleted) {
+        if (!storageWarmupCompleted.get()) {
+          try {
+            waveMap.loadAllWavelets();
+            storageWarmupCompleted.set(true);
+          } catch (WaveletStateException e) {
+            throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
+          }
+        }
+      }
+    }
   }
 
   @Override

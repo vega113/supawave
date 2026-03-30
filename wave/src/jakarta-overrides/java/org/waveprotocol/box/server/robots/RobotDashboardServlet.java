@@ -406,14 +406,16 @@ public final class RobotDashboardServlet extends HttpServlet {
       RobotAccountData registeredRobot =
           robotRegistrar.registerNew(robotId, location, user.getAddress(), tokenExpirySeconds);
       // If a description was provided during registration, update it immediately
+      String successMsg = "Robot registered: " + robotId.getAddress();
       if (!description.isEmpty()) {
         try {
           registeredRobot = robotRegistrar.updateDescription(robotId, description);
         } catch (RobotRegistrationException | PersistenceException e) {
           LOG.warning("Robot registered but description update failed: " + e.getMessage());
+          successMsg = "Robot registered: " + robotId.getAddress() + " (description update failed)";
         }
       }
-      renderDashboard(req, resp, user, "Robot registered: " + robotId.getAddress(), registeredRobot,
+      renderDashboard(req, resp, user, successMsg, registeredRobot,
           HttpServletResponse.SC_OK, registeredRobot.getConsumerSecret());
     } catch (RobotRegistrationException e) {
       renderDashboard(req, resp, user, e.getMessage(), null, HttpServletResponse.SC_BAD_REQUEST);
@@ -432,7 +434,20 @@ public final class RobotDashboardServlet extends HttpServlet {
 
     String body;
     try {
-      body = new String(req.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+      int MAX_JSON_BODY_SIZE = 16 * 1024;
+      int contentLength = req.getContentLength();
+      if (contentLength > MAX_JSON_BODY_SIZE) {
+        resp.setStatus(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+        resp.getWriter().write("{\"error\":\"Request body too large\"}");
+        return;
+      }
+      byte[] bytes = req.getInputStream().readNBytes(MAX_JSON_BODY_SIZE + 1);
+      if (bytes.length > MAX_JSON_BODY_SIZE) {
+        resp.setStatus(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+        resp.getWriter().write("{\"error\":\"Request body too large\"}");
+        return;
+      }
+      body = new String(bytes, StandardCharsets.UTF_8);
     } catch (IOException e) {
       resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
       resp.getWriter().write("{\"error\":\"Failed to read request body\"}");
@@ -463,11 +478,13 @@ public final class RobotDashboardServlet extends HttpServlet {
       String location = Strings.nullToEmpty(callbackUrl).trim();
       RobotAccountData registeredRobot =
           robotRegistrar.registerNew(robotId, location, user.getAddress(), tokenExpiry);
+      boolean descriptionFailed = false;
       if (!Strings.isNullOrEmpty(description)) {
         try {
           registeredRobot = robotRegistrar.updateDescription(robotId, description.trim());
         } catch (RobotRegistrationException | PersistenceException e) {
           LOG.warning("JSON API: robot registered but description update failed: " + e.getMessage());
+          descriptionFailed = true;
         }
       }
       resp.setStatus(HttpServletResponse.SC_OK);
@@ -477,6 +494,9 @@ public final class RobotDashboardServlet extends HttpServlet {
       json.append(",\"status\":\"active\"");
       json.append(",\"callbackUrl\":").append(escapeJsonValue(Strings.nullToEmpty(registeredRobot.getUrl())));
       json.append(",\"description\":").append(escapeJsonValue(Strings.nullToEmpty(registeredRobot.getDescription())));
+      if (descriptionFailed) {
+        json.append(",\"warning\":\"Description update failed; robot registered without description\"");
+      }
       json.append("}");
       resp.getWriter().write(json.toString());
     } catch (RobotRegistrationException e) {

@@ -22,7 +22,7 @@ import com.google.inject.Singleton;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
-import org.waveprotocol.box.common.DocumentConstants;
+import org.waveprotocol.wave.model.document.DocumentConstants;
 import org.waveprotocol.box.common.Snippets;
 import org.waveprotocol.wave.model.conversation.TitleHelper;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;

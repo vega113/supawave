@@ -56,6 +56,7 @@ public final class UserRegistrationServlet extends HttpServlet {
       java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
   private final AccountStore accountStore;
+  private final Object accountCreationLock = new Object();
   private final String domain;
   private final boolean registrationDisabled;
   private final String analyticsAccount;
@@ -202,8 +203,10 @@ public final class UserRegistrationServlet extends HttpServlet {
    */
   private boolean persistAccountWithOwnerAssignment(HumanAccountDataImpl account) {
     try {
-      assignOwnerIfFirst(account);
-      accountStore.putAccount(account);
+      synchronized (accountCreationLock) {
+        assignOwnerIfFirst(account);
+        accountStore.putAccount(account);
+      }
       return true;
     } catch (PersistenceException e) {
       LOG.severe("Failed to create account for " + account.getId(), e);

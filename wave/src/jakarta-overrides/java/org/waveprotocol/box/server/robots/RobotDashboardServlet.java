@@ -534,7 +534,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     StringBuilder sb = new StringBuilder(16384);
     sb.append("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\">");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-    sb.append("<title>SupaWave Robot Management</title>");
+    sb.append("<title>Robot Control Room - SupaWave Robot Management</title>");
     sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">");
     sb.append("<style>");
     // CSS custom properties — Wave blue palette
@@ -726,9 +726,12 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("<h3>No robots yet</h3>");
       sb.append("<p>Create a robot to get started with SupaWave automation.</p></div>");
     }
+    int robotIdx = 0;
     for (RobotAccountData robot : robots) {
       String escapedId = HtmlRenderer.escapeHtml(robot.getId().getAddress());
-      String safeIdAttr = escapedId.replace("@", "-at-").replace(".", "-");
+      // Use numeric index for collision-free DOM IDs (e.g. foo.bar-bot and foo-bar-bot would
+      // both normalize to the same string if only replacing dots/hyphens).
+      String safeIdAttr = "robot-" + (robotIdx++);
       boolean paused = robot.isPaused();
       sb.append("<div class=\"robot-card\" id=\"card-").append(safeIdAttr).append("\">");
       // Card header
@@ -750,10 +753,10 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("<input type=\"hidden\" name=\"token\" value=\"").append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
       sb.append("<input type=\"hidden\" name=\"robotId\" value=\"").append(escapedId).append("\">");
       sb.append("<div class=\"field-group\">");
-      sb.append("<div class=\"field-label\">Callback URL ");
+      sb.append("<label class=\"field-label\" for=\"location-").append(safeIdAttr).append("\">Callback URL ");
       sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
-      sb.append("The HTTPS endpoint where Wave sends events to your bot. Example: https://mybot.fly.dev/wave \u2014 leave blank until your bot is deployed.");
-      sb.append("</span></span></div>");
+      sb.append("The HTTP(S) endpoint where Wave sends events to your bot. Example: https://mybot.fly.dev/wave \u2014 leave blank until your bot is deployed.");
+      sb.append("</span></span></label>");
       sb.append("<input type=\"url\" id=\"location-").append(safeIdAttr).append("\" name=\"location\" value=\"");
       sb.append(HtmlRenderer.escapeHtml(robot.getUrl())).append("\" placeholder=\"https://mybot.fly.dev/wave\">");
       sb.append("</div>");
@@ -765,10 +768,10 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("<input type=\"hidden\" name=\"token\" value=\"").append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
       sb.append("<input type=\"hidden\" name=\"robotId\" value=\"").append(escapedId).append("\">");
       sb.append("<div class=\"field-group\">");
-      sb.append("<div class=\"field-label\">Description ");
+      sb.append("<label class=\"field-label\" for=\"description-").append(safeIdAttr).append("\">Description ");
       sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
       sb.append("A label visible only to you in this dashboard. Use it to remember what this bot does.");
-      sb.append("</span></span></div>");
+      sb.append("</span></span></label>");
       sb.append("<input type=\"text\" id=\"description-").append(safeIdAttr).append("\" name=\"description\" value=\"");
       sb.append(HtmlRenderer.escapeHtml(robot.getDescription())).append("\" placeholder=\"My awesome bot\">");
       sb.append("</div>");
@@ -850,27 +853,27 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<input type=\"hidden\" name=\"token\" value=\"").append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
     // Robot Username
     sb.append("<div class=\"field-group\">");
-    sb.append("<div class=\"field-label\">Robot Username ");
+    sb.append("<label class=\"field-label\" for=\"username\">Robot Username ");
     sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
     sb.append("The unique identifier for your robot on SupaWave. Forms the address &lt;username&gt;@").append(HtmlRenderer.escapeHtml(domain));
-    sb.append(". Use lowercase letters, numbers and hyphens.");
-    sb.append("</span></span></div>");
+    sb.append(". Must end with '-bot' and may include letters, numbers, underscores, periods, and hyphens. Usernames are normalized to lowercase.");
+    sb.append("</span></span></label>");
     sb.append("<input type=\"text\" id=\"username\" name=\"username\" placeholder=\"helper-bot\">");
     sb.append("</div>");
     // Callback URL
     sb.append("<div class=\"field-group\">");
-    sb.append("<div class=\"field-label\">Callback URL ");
+    sb.append("<label class=\"field-label\" for=\"create-location\">Callback URL ");
     sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
-    sb.append("The HTTPS endpoint where Wave sends events to your bot. Example: https://mybot.fly.dev/wave \u2014 leave blank until your bot is deployed.");
-    sb.append("</span></span></div>");
+    sb.append("The HTTP(S) endpoint where Wave sends events to your bot. Example: https://mybot.fly.dev/wave \u2014 leave blank until your bot is deployed.");
+    sb.append("</span></span></label>");
     sb.append("<input type=\"url\" id=\"create-location\" name=\"location\" placeholder=\"https://example.com/robot\">");
     sb.append("</div>");
     // Token Expiry
     sb.append("<div class=\"field-group\">");
-    sb.append("<div class=\"field-label\">Token Expiry (seconds) ");
+    sb.append("<label class=\"field-label\" for=\"token-expiry\">Token Expiry (seconds) ");
     sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
     sb.append("How long a JWT token issued to this robot remains valid (in seconds). Default 3600 = 1 hour. Use 0 for tokens that never expire (not recommended for production).");
-    sb.append("</span></span></div>");
+    sb.append("</span></span></label>");
     sb.append("<input type=\"number\" id=\"token-expiry\" name=\"token_expiry\" value=\"3600\">");
     sb.append("</div>");
     sb.append("<div style=\"font-size:12px;color:var(--text-muted);margin-bottom:14px;\">");
@@ -901,7 +904,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</div>");
     sb.append("<div id=\"token-status\" class=\"prompt-status\">Generating a one-hour JWT for the starter prompt\u2026</div>");
     sb.append("<button class=\"btn-primary\" style=\"margin-top:12px;\" onclick=\"");
-    sb.append("var ta=document.getElementById('starter-prompt');navigator.clipboard.writeText(ta.value);this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy Prompt';},1500);");
+    sb.append("generateStarterJWT();var ta=document.getElementById('starter-prompt');navigator.clipboard.writeText(ta.value);this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy Prompt';},1500);");
     sb.append("\">Copy Prompt</button>");
     sb.append("</div></div>");
     sb.append("</section>");
@@ -925,6 +928,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("var sec=document.getElementById('tab-'+name);if(sec)sec.classList.add('active');");
     sb.append("document.querySelectorAll('.tab-btn').forEach(b=>{if(b.getAttribute('data-tab')===name)b.classList.add('active');});");
     sb.append("var fab=document.getElementById('fab-create');if(fab)fab.style.display=name==='robots'?'':'none';");
+    sb.append("if(name==='buildai')generateStarterJWT();");
     sb.append("}");
     sb.append("document.querySelectorAll('.tab-btn').forEach(b=>{b.addEventListener('click',()=>switchTab(b.getAttribute('data-tab')));});");
     // Card collapse
@@ -943,8 +947,10 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("function hideDeleteModal(){document.getElementById('delete-overlay').classList.remove('visible');pendingDeleteForm=null;}");
     sb.append("document.getElementById('delete-modal-confirm').addEventListener('click',function(){if(pendingDeleteForm)pendingDeleteForm.submit();});");
     sb.append("document.getElementById('delete-overlay').addEventListener('click',function(e){if(e.target===this)hideDeleteModal();});");
-    // JWT fetch for Build AI prompt
-    sb.append("(function(){");
+    // JWT fetch for Build AI prompt — lazy: only called when Build AI tab is first opened
+    sb.append("var jwtGenerated=false;");
+    sb.append("function generateStarterJWT(){");
+    sb.append("if(jwtGenerated)return;jwtGenerated=true;");
     sb.append("var prompt=document.getElementById('starter-prompt');");
     sb.append("var status=document.getElementById('token-status');");
     sb.append("fetch('/robot/dataapi/token',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry=3600'})");
@@ -954,7 +960,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("status.textContent='Ready \u2014 prompt includes a one-hour Data API JWT.';");
     sb.append("})");
     sb.append(".catch(function(){status.textContent='Sign in again if the one-hour JWT could not be generated automatically.';});");
-    sb.append("})();");
+    sb.append("}");
     sb.append("</script>");
     sb.append("</div></body></html>");
     return sb.toString();

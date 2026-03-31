@@ -64,6 +64,15 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
   /** Guards concurrent calls to {@code loadAllWavelets()} during cache rebuilds. */
   private final Object waveMapLoadLock = new Object();
 
+  /**
+   * Minimum interval (ms) between consecutive full wave-map reloads.
+   * Prevents back-to-back scans when many users' caches miss around the same time.
+   */
+  private static final long WAVE_MAP_RELOAD_COOLDOWN_MS = 30_000;
+
+  /** Timestamp of the last successful {@code loadAllWavelets()} call. */
+  private volatile long lastWaveMapLoadMs = 0;
+
   @Inject
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {
     // Let the view expire if it not accessed for some time.
@@ -129,14 +138,19 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
    * {@code getWaves()} only returns what is currently cached, so we must
    * reload from storage to get a complete view.
    *
-   * <p>Synchronized so that concurrent per-user cache misses (e.g. multiple
-   * users' views expiring around the same time) coalesce into a single
-   * storage scan rather than fanning out into redundant full-store walks.
+   * <p>A {@link #WAVE_MAP_RELOAD_COOLDOWN_MS} cooldown prevents redundant
+   * back-to-back scans: threads that acquire the lock within the cooldown window
+   * after a completed scan skip the reload and use the already-warm WaveMap.
    */
   private void ensureWaveMapLoaded(WaveMap waveMap, ParticipantId user) {
     synchronized (waveMapLoadLock) {
+      long now = System.currentTimeMillis();
+      if (now - lastWaveMapLoadMs < WAVE_MAP_RELOAD_COOLDOWN_MS) {
+        return;
+      }
       try {
         waveMap.loadAllWavelets();
+        lastWaveMapLoadMs = now;
       } catch (WaveletStateException e) {
         throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
       }

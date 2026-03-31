@@ -104,11 +104,9 @@ public class FeatureFlaggedSearchProviderImplTest extends TestCase {
     flagStore.save(new FeatureFlag("lucene9", "test", false, allowedUsers));
     flagService.refreshCache();
 
-    // Unflagged user gets legacy
     SearchResult unflaggedResult = provider.search(USER, QUERY, START, NUM);
     assertSame(legacyResult, unflaggedResult);
 
-    // Flagged user gets lucene9
     SearchResult flaggedResult = provider.search(FLAGGED_USER, QUERY, START, NUM);
     assertSame(lucene9Result, flaggedResult);
   }

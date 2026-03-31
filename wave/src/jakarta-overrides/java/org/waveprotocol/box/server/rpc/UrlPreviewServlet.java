@@ -273,11 +273,12 @@ public class UrlPreviewServlet extends HttpServlet {
       HttpsURLConnection httpsConn = (HttpsURLConnection) conn;
       httpsConn.setSSLSocketFactory(
           new SsrfSafeSSLSocketFactory(originalHost, effectivePort, validatedAddress));
-      // Verify the certificate against the original hostname, not the IP
-      httpsConn.setHostnameVerifier((hostname, session) -> {
-        // Delegate to the default verifier with the original hostname
-        return HttpsURLConnection.getDefaultHostnameVerifier().verify(originalHost, session);
-      });
+      // Certificate hostname verification is enforced at the TLS layer via
+      // SSLParameters.setEndpointIdentificationAlgorithm("HTTPS") in SsrfSafeSSLSocketFactory.
+      // This performs RFC 2818 hostname verification during handshake against the original hostname.
+      // The HostnameVerifier returns true because the IP-rewritten URL hostname won't match
+      // the cert, but the SSLSocket-level endpoint identification already verified it.
+      httpsConn.setHostnameVerifier((hostname, session) -> true);
     }
 
     conn.setRequestMethod("GET");
@@ -404,12 +405,14 @@ public class UrlPreviewServlet extends HttpServlet {
       }
       // Layer TLS over an existing socket, using original hostname for SNI
       SSLSocket sslSocket = (SSLSocket) delegate.createSocket(s, originalHost, port, autoClose);
+      SSLParameters params = sslSocket.getSSLParameters();
+      // Enforce RFC 2818 hostname verification at TLS level
+      params.setEndpointIdentificationAlgorithm("HTTPS");
       // Set SNI only if originalHost is not a numeric IP literal
       if (!isNumericIpLiteral(originalHost)) {
-        SSLParameters params = sslSocket.getSSLParameters();
         params.setServerNames(List.of(new SNIHostName(originalHost)));
-        sslSocket.setSSLParameters(params);
       }
+      sslSocket.setSSLParameters(params);
       return sslSocket;
     }
 
@@ -421,13 +424,15 @@ public class UrlPreviewServlet extends HttpServlet {
         // Layer TLS on top with original hostname for SNI and certificate verification
         SSLSocket sslSocket = (SSLSocket) delegate.createSocket(
             rawSocket, originalHost, port, true);
+        SSLParameters params = sslSocket.getSSLParameters();
+        // Enforce RFC 2818 hostname verification at TLS level
+        params.setEndpointIdentificationAlgorithm("HTTPS");
         // Set SNI only if originalHost is not a numeric IP literal
         if (!isNumericIpLiteral(originalHost)) {
-          SSLParameters params = sslSocket.getSSLParameters();
           params.setServerNames(
               List.of(new SNIHostName(originalHost)));
-          sslSocket.setSSLParameters(params);
         }
+        sslSocket.setSSLParameters(params);
         return sslSocket;
       } catch (Exception e) {
         // Catch Exception (not just IOException) to also handle IllegalArgumentException

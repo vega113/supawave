@@ -112,9 +112,12 @@ public class SnapshotSerializer {
         ModernIdSerialiser.INSTANCE.deserialiseWaveletId(snapshot.getWaveletId());
     long creationTime = snapshot.getCreationTime();
 
+    HashedVersion snapshotVersion = WaveletOperationSerializer.deserialize(snapshot.getVersion());
+    if (snapshotVersion == null) {
+      throw new IllegalArgumentException("WaveletSnapshot is missing a version token");
+    }
     ObservableWaveletData wavelet = factory.create(new EmptyWaveletSnapshot(waveId, waveletId,
-            author, WaveletOperationSerializer.deserialize(snapshot.getVersion()),
-            creationTime));
+            author, snapshotVersion, creationTime));
 
     for (String participant : snapshot.getParticipantId()) {
       wavelet.addParticipant(ParticipantId.of(participant));

@@ -74,7 +74,7 @@ public class GsonUtil {
   public static <T extends GsonSerializable> void parseJson(T object,
       Gson gson, String json, RawStringData data) throws GsonException {
     try {
-      JsonElement root = new JsonParser().parse(json);
+      JsonElement root = JsonParser.parseString(json);
       object.fromGson(root, gson, data);
     } catch (JsonParseException e) {
       throw new GsonException("Unable to parse Json", e);

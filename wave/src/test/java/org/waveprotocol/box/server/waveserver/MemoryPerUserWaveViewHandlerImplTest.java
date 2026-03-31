@@ -59,6 +59,7 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
   private static final WaveletId WAVELET_ID = WaveletId.of(DOMAIN, "conv+root");
   private static final WaveletName WAVELET_NAME = WaveletName.of(WAVE_ID, WAVELET_ID);
   private static final ParticipantId PARTICIPANT = ParticipantId.ofUnsafe("user1@" + DOMAIN);
+  private static final ParticipantId SECOND_PARTICIPANT = ParticipantId.ofUnsafe("user2@" + DOMAIN);
   private static final Config CONFIG = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "core.wave_cache_size", 1000,
       "core.wave_cache_expire", "60m"));
@@ -115,9 +116,20 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     assertTrue(waveView.containsEntry(WAVE_ID, WAVELET_ID));
   }
 
+  public void testRetrievePerUserWaveViewLoadsStorageOnlyOnce() {
+    ReloadingWaveMap reloadingWaveMap = (ReloadingWaveMap) waveMap;
+    MemoryPerUserWaveViewHandlerImpl handler = new MemoryPerUserWaveViewHandlerImpl(reloadingWaveMap);
+
+    handler.retrievePerUserWaveView(PARTICIPANT);
+    handler.retrievePerUserWaveView(SECOND_PARTICIPANT);
+
+    assertEquals(1, reloadingWaveMap.loadAllWaveletsCallCount);
+  }
+
   private static final class ReloadingWaveMap extends WaveMap {
     private final ImmutableMap<WaveId, Wave> loadedWaves;
     private boolean loaded;
+    private int loadAllWaveletsCallCount;
 
     private ReloadingWaveMap(DeltaAndSnapshotStore store,
         LocalWaveletContainer.Factory localFactory, RemoteWaveletContainer.Factory remoteFactory,
@@ -130,6 +142,7 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     @Override
     public void loadAllWavelets() {
       loaded = true;
+      loadAllWaveletsCallCount++;
     }
 
     @Override

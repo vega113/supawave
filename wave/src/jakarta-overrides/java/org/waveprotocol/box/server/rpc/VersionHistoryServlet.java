@@ -82,6 +82,8 @@ import java.util.concurrent.atomic.AtomicReference;
 @SuppressWarnings("serial")
 public final class VersionHistoryServlet extends HttpServlet {
   private static final Log LOG = Log.get(VersionHistoryServlet.class);
+  private static final int MAX_HISTORY_API_DELTAS = 1000;
+  private static final int MAX_SNAPSHOT_REPLAY_DELTAS = 2000;
 
   private final WaveletProvider waveletProvider;
   private final SessionManager sessionManager;
@@ -301,8 +303,8 @@ public final class VersionHistoryServlet extends HttpServlet {
             "Invalid version range: start or end is not at a delta boundary");
         return;
       }
-      int MAX_DELTAS = 1000;
       LinkedList<DeltaInfo> deltas = new LinkedList<>();
+      final boolean[] capped = {false};
 
       waveletProvider.getHistory(waveletName, startVersion, endVersion, new Receiver<TransformedWaveletDelta>() {
         @Override
@@ -314,13 +316,19 @@ public final class VersionHistoryServlet extends HttpServlet {
               delta.getApplicationTimestamp(),
               delta.size()
           ));
-          // Keep a rolling window of the newest MAX_DELTAS entries
-          if (deltas.size() > MAX_DELTAS) {
-            deltas.removeFirst();
+          if (deltas.size() > MAX_HISTORY_API_DELTAS) {
+            capped[0] = true;
+            return false;
           }
           return true;
         }
       });
+
+      if (capped[0]) {
+        resp.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+            "History range exceeds maximum of " + MAX_HISTORY_API_DELTAS + " deltas");
+        return;
+      }
 
       setJsonUtf8(resp);
       try (PrintWriter w = resp.getWriter()) {
@@ -401,14 +409,25 @@ public final class VersionHistoryServlet extends HttpServlet {
         return;
       }
       List<TransformedWaveletDelta> deltaList = new ArrayList<>();
+      final boolean[] capped = {false};
 
       waveletProvider.getHistory(waveletName, startVer, endVer, new Receiver<TransformedWaveletDelta>() {
         @Override
         public boolean put(TransformedWaveletDelta delta) {
           deltaList.add(delta);
+          if (deltaList.size() > MAX_SNAPSHOT_REPLAY_DELTAS) {
+            capped[0] = true;
+            return false;
+          }
           return true;
         }
       });
+
+      if (capped[0]) {
+        resp.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+            "Snapshot replay exceeds maximum of " + MAX_SNAPSHOT_REPLAY_DELTAS + " deltas");
+        return;
+      }
 
       if (deltaList.isEmpty()) {
         resp.sendError(HttpServletResponse.SC_NOT_FOUND, "No deltas found for version " + targetVersion);
@@ -428,7 +447,7 @@ public final class VersionHistoryServlet extends HttpServlet {
 
       // Build wavelet from deltas
       ReadableWaveletData waveletData =
-          org.waveprotocol.box.server.util.WaveletDataUtil.buildWaveletFromDeltas(
+          WaveletDataUtil.buildWaveletFromDeltas(
               waveletName, deltaList.iterator());
 
       writeSnapshotJson(waveletData, resp);
@@ -436,7 +455,7 @@ public final class VersionHistoryServlet extends HttpServlet {
     } catch (WaveServerException e) {
       LOG.warning("Failed to get snapshot at version for " + waveletName, e);
       resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-    } catch (org.waveprotocol.wave.model.operation.OperationException e) {
+    } catch (OperationException e) {
       LOG.warning("Failed to replay deltas for " + waveletName, e);
       resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }

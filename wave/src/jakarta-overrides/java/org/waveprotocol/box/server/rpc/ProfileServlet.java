@@ -40,6 +40,8 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Profile servlet for editing the current user's profile and serving
@@ -62,6 +64,11 @@ public final class ProfileServlet extends HttpServlet {
   private static final Log LOG = Log.get(ProfileServlet.class);
   private static final int MAX_BIO_LENGTH = 200;
   private static final int MAX_NAME_LENGTH = 50;
+  private static final Set<String> ALLOWED_PROFILE_IMAGE_MIME_TYPES = Set.of(
+      "image/png",
+      "image/jpeg",
+      "image/gif",
+      "image/webp");
 
   private final AccountStore accountStore;
   private final SessionManager sessionManager;
@@ -225,9 +232,9 @@ public final class ProfileServlet extends HttpServlet {
       return;
     }
 
-    String mimeType = filePart.getContentType();
-    if (mimeType == null || !mimeType.startsWith("image/")) {
-      sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Only image files are allowed");
+    String mimeType = normalizeMimeType(filePart.getContentType());
+    if (!isAllowedProfileImageMimeType(mimeType)) {
+      sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Only PNG, JPEG, GIF, and WEBP images are allowed");
       return;
     }
 
@@ -323,11 +330,16 @@ public final class ProfileServlet extends HttpServlet {
         resp.sendRedirect(profilesFetcher.fetchProfile(address).getImageUrl());
         return;
       }
-      String header = imageData.substring(5, commaIdx); // after "data:"
-      String mimeType = header.split(";")[0];
+      String header = imageData.substring(5, commaIdx);
+      String mimeType = normalizeMimeType(header.split(";")[0]);
+      if (!isAllowedProfileImageMimeType(mimeType)) {
+        resp.sendRedirect(profilesFetcher.fetchProfile(address).getImageUrl());
+        return;
+      }
       byte[] bytes = java.util.Base64.getDecoder().decode(imageData.substring(commaIdx + 1));
 
       resp.setContentType(mimeType);
+      resp.setHeader("X-Content-Type-Options", "nosniff");
       resp.setContentLength(bytes.length);
       resp.setHeader("Cache-Control", "public, max-age=3600");
       resp.getOutputStream().write(bytes);
@@ -410,9 +422,15 @@ public final class ProfileServlet extends HttpServlet {
     String profileImageId = account.getProfileImageAttachmentId();
     if (profileImageId != null && !profileImageId.isEmpty()) {
       if (profileImageId.startsWith("data:")) {
-        return profileImageId;
+        String mimeType = extractMimeTypeFromDataUrl(profileImageId);
+        if (isAllowedProfileImageMimeType(mimeType)) {
+          return profileImageId;
+        }
       }
-      return "/userprofile/image/" + profileImageId;
+      // Non-data-URL values are not supported for direct inline serving; fall
+      // through to the participant-address-based endpoint which looks up the
+      // stored data URL from the account, or falls back to Gravatar.
+      return "/userprofile/image/" + account.getId().getAddress();
     }
     // Use the profile fetcher to get the default image URL
     return profilesFetcher.fetchProfile(account.getId().getAddress()).getImageUrl();
@@ -435,6 +453,28 @@ public final class ProfileServlet extends HttpServlet {
     // Registration time is always public
     w.append(",\"registrationTime\":").append(String.valueOf(h.getRegistrationTime()));
     w.append('}');
+  }
+
+  private static String extractMimeTypeFromDataUrl(String dataUrl) {
+    if (dataUrl == null || !dataUrl.startsWith("data:")) return null;
+    int commaIdx = dataUrl.indexOf(',');
+    if (commaIdx <= 5) return null;
+    String header = dataUrl.substring(5, commaIdx);
+    return normalizeMimeType(header.split(";")[0]);
+  }
+
+  private static boolean isAllowedProfileImageMimeType(String mimeType) {
+    return mimeType != null && ALLOWED_PROFILE_IMAGE_MIME_TYPES.contains(mimeType);
+  }
+
+  private static String normalizeMimeType(String mimeType) {
+    if (mimeType == null) return null;
+    String normalized = mimeType.trim().toLowerCase(Locale.ROOT);
+    int separator = normalized.indexOf(';');
+    if (separator >= 0) {
+      normalized = normalized.substring(0, separator).trim();
+    }
+    return normalized;
   }
 
   private static String readBody(HttpServletRequest req) throws IOException {

@@ -141,7 +141,7 @@ public final class PstFileDescriptor {
           "javac", pathToJava, "-d", dir.getAbsolutePath(), "-verbose",
           "-cp", determineClasspath(pathToJava) + ":" + determineSystemClasspath()
       };
-      Process javac = Runtime.getRuntime().exec(javacCommand);
+      Process javac = new ProcessBuilder(javacCommand).start();
       consumeStdOut(javac);
       List<String> stdErr = readLines(javac.getErrorStream());
       int exitCode = javac.waitFor();
@@ -251,7 +251,7 @@ public final class PstFileDescriptor {
           "-I" + protoPath.getPath(),
           "--java_out", intermediateJavaDir.getAbsolutePath()
       };
-      Process protoc = Runtime.getRuntime().exec(protocCommand);
+      Process protoc = new ProcessBuilder(protocCommand).start();
       // TODO(ben): configure timeout?
       killProcessAfter(10, TimeUnit.SECONDS, protoc);
       int exitCode = protoc.waitFor();

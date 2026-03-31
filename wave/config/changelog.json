@@ -1,18 +1,81 @@
 [
   {
-    "releaseId": "2026-03-30-runtime-static-assets",
+    "releaseId": "2026-03-30-jakarta-session-websocket-auth-hardening",
+    "version": "PR #480",
     "date": "2026-03-30",
-    "title": "Restore runtime static assets under root war",
-    "summary": "Moves tracked static assets into repo-root war/static so local runs and staged builds serve the same favicon, CSS, and image paths after the runtime asset root migration.",
+    "title": "Jakarta Session and WebSocket Auth Hardening",
+    "summary": "Jakarta session-token lookup now always resolves auth tokens, and invalid WebSocket auth closes with a policy-violation reason.",
     "sections": [
       {
         "type": "fix",
         "items": [
-          "Move auth CSS, favicons, logo, and image assets from wave/war/static to war/static to match the current runtime web asset root."
+          "Enabled Jakarta session-token lookup for token-based auth without a feature flag",
+          "Closed invalid-auth WebSocket messages with a policy-violation reason and aligned the server log message"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-30-sanitize-rendered-link-image-urls",
+    "version": "PR #486",
+    "date": "2026-03-30",
+    "title": "Harden rendered URL sanitizer",
+    "summary": "Replaces the URI-based link/image URL sanitizer with a permissive scheme-extraction check that handles URLs with spaces, adds wave:// support, and rejects protocol-relative URLs.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "URLs with unencoded spaces (e.g. search query strings) are no longer incorrectly dropped by the /render endpoint",
+          "Internal wave:// and waveid:// links remain navigable in rendered HTML output",
+          "Protocol-relative URLs (//host/path) are now rejected to prevent open-redirect attacks"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-30-xss-avatar-escape",
+    "version": "PR #485",
+    "date": "2026-03-30",
+    "title": "Security: Avatar XSS Fix",
+    "summary": "Escape avatar URL values in HTML attribute context to prevent stored XSS via attacker-controlled profile image URLs.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Escape avatar src attribute values in participant, blip author, and digest views to prevent stored XSS"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-03-30-logo-url-default-fix",
+    "date": "2026-03-30",
+    "title": "Fix default logoUrl path after static asset restructure",
+    "summary": "Updates the default logoUrl client flag from static/images/logo.png to static/logo.png to prevent a 404 after the logo was moved out of the images/ subdirectory.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Corrected default logoUrl from static/images/logo.png to static/logo.png to match the new asset location and prevent runtime 404s."
         ]
       }
     ],
-    "version": "PR #482"
+    "version": "PR #484"
+  },
+  {
+    "releaseId": "2026-03-30-runtime-static-assets",
+    "version": "PR #482",
+    "date": "2026-03-30",
+    "title": "Restore runtime static assets under root war",
+    "summary": "Ensures favicons, authentication CSS, logo, and images are served correctly after relocating runtime static assets.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Move auth CSS, favicons, logo, and image assets into war/static to match the runtime asset root."
+        ]
+      }
+    ]
   },
   {
     "releaseId": "2026-03-29-robot-control-room-upgrades",

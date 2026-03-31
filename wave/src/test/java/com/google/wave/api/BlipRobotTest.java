@@ -127,6 +127,22 @@ public class BlipRobotTest extends TestCase {
     assertEquals("\nHello 5 world!", blip.getContent());
   }
 
+  public void testAllWithRestrictions() throws Exception {
+    Blip blip = newBlip(ROOT_BLIP_ID, Arrays.asList(CHILD_BLIP_ID), null);
+    String url1 = "http://www.test.com/image1.png";
+    String url2 = "http://www.test.com/image2.png";
+
+    blip.append(new Image(url1, 100, 100, "Image 1"));
+    blip.append(new Image(url2, 100, 100, "Image 2"));
+
+    List<BlipContent> result = BlipContentRefs.all(blip, ElementType.IMAGE, -1, Restriction.of("url", url2)).values();
+    assertEquals(1, result.size());
+
+    Element element = result.get(0).asElement();
+    assertTrue(element instanceof Image);
+    assertEquals(url2, ((Image) element).getUrl());
+  }
+
   public void testElementHandling() throws Exception {
     Blip blip = newBlip(ROOT_BLIP_ID, Arrays.asList(CHILD_BLIP_ID), null);
     int originalLength = blip.getContent().length();

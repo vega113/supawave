@@ -30,6 +30,7 @@ import org.waveprotocol.box.common.comms.WaveletSnapshot;
 import org.waveprotocol.box.search.SearchBootstrapUiState;
 import org.waveprotocol.wave.federation.ProtocolHashedVersion;
 import org.waveprotocol.wave.federation.ProtocolWaveletDelta;
+import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.box.webclient.client.RemoteViewServiceMultiplexer;
 import org.waveprotocol.box.webclient.client.Session;
 import org.waveprotocol.box.webclient.client.WaveWebSocketCallback;
@@ -506,22 +507,6 @@ public final class SearchPresenter
           @Override
           public void onClicked() {
             actionHandler.onCreateWave();
-
-            // HACK(hearnden): To mimic live search, fire a search poll
-            // reasonably soon (500ms) after creating a wave. This will be unnecessary
-            // with a real live search implementation. The delay is to give
-            // enough time for the wave state to propagate to the server.
-            int delay = 500;
-            if (useOtSearch) {
-              scheduler.scheduleDelayed(new Task() {
-                @Override
-                public void execute() {
-                  bootstrapOtSearch(false);
-                }
-              }, delay);
-            } else {
-              scheduler.scheduleRepeating(searchUpdater, delay, POLLING_INTERVAL_MS);
-            }
           }
         });
     newWaveButton.setVisualElement(createSvgIcon(ICON_NEW_WAVE));
@@ -1368,10 +1353,21 @@ public final class SearchPresenter
     }
     List<TransformedWaveletDelta> parsed = new ArrayList<TransformedWaveletDelta>();
     for (int i = 0; i < deltas.size(); i++) {
+      ProtocolWaveletDelta delta = deltas.get(i);
       ProtocolHashedVersion thisEnd =
           i < deltas.size() - 1 ? deltas.get(i + 1).getHashedVersion() : end;
-      parsed.add(WaveletOperationSerializer.deserialize(deltas.get(i),
-          WaveletOperationSerializer.deserialize(thisEnd)));
+      HashedVersion endVersion;
+      if (thisEnd != null) {
+        endVersion = WaveletOperationSerializer.deserialize(thisEnd);
+      } else {
+        ProtocolHashedVersion deltaVersion = delta.getHashedVersion();
+        if (deltaVersion == null) {
+          throw new IllegalArgumentException(
+              "Missing end version and delta hashed version when deserializing wavelet delta");
+        }
+        endVersion = HashedVersion.unsigned((long) deltaVersion.getVersion() + delta.getOperationSize());
+      }
+      parsed.add(WaveletOperationSerializer.deserialize(delta, endVersion));
     }
     return parsed;
   }

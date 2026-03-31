@@ -53,6 +53,37 @@ public class ServerHtmlRendererTest extends TestCase {
     assertEquals("Hello world", ServerHtmlRenderer.escapeHtml("Hello world"));
   }
 
+  public void testSanitizeUrlAllowsSafeSchemes() {
+    assertEquals("https://example.com", ServerHtmlRenderer.sanitizeUrl("https://example.com", true));
+    assertEquals("http://example.com", ServerHtmlRenderer.sanitizeUrl("http://example.com", false));
+    assertEquals("/waves/123", ServerHtmlRenderer.sanitizeUrl("/waves/123", false));
+    assertEquals("ftp://files.example.com/doc.pdf",
+        ServerHtmlRenderer.sanitizeUrl("ftp://files.example.com/doc.pdf", false));
+    assertEquals("mailto:user@example.com",
+        ServerHtmlRenderer.sanitizeUrl("mailto:user@example.com", true));
+    assertEquals("wave://example.com/w+abc",
+        ServerHtmlRenderer.sanitizeUrl("wave://example.com/w+abc", true));
+    assertEquals("waveid://example.com/w+abc",
+        ServerHtmlRenderer.sanitizeUrl("waveid://example.com/w+abc", true));
+  }
+
+  public void testSanitizeUrlRejectsUnsafeSchemes() {
+    assertNull(ServerHtmlRenderer.sanitizeUrl("javascript:alert(1)", true));
+    assertNull(ServerHtmlRenderer.sanitizeUrl("data:text/html;base64,PHNjcmlwdA==", true));
+    assertNull(ServerHtmlRenderer.sanitizeUrl("vbscript:msgbox(1)", true));
+    assertNull(ServerHtmlRenderer.sanitizeUrl("mailto:user@example.com", false));
+    assertNull(ServerHtmlRenderer.sanitizeUrl("//example.com/x", true));
+    assertNull(ServerHtmlRenderer.sanitizeUrl("wave://example.com/w+abc", false));
+  }
+
+  public void testSanitizeUrlAllowsUrlsWithSpaces() {
+    String urlWithSpaces = "https://example.com/search?q=hello world&lang=en";
+    String sanitized = ServerHtmlRenderer.sanitizeUrl(urlWithSpaces, true);
+    assertNotNull("URL with spaces in query should not be dropped", sanitized);
+    assertTrue("Sanitized URL should preserve the https scheme and host",
+        sanitized.startsWith("https://example.com/"));
+  }
+
   // =========================================================================
   // Tests for renderWave with empty / missing data
   // =========================================================================

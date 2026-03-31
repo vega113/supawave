@@ -61,7 +61,7 @@ public final class AuthEmailService {
     this.cooldownMillis = readCooldownMillis(config);
     this.maxPerAddressPerHour = readLimit(config, "core.auth_email_send_max_per_address_per_hour", 5);
     this.maxPerIpPerHour = readLimit(config, "core.auth_email_send_max_per_ip_per_hour", 20);
-    this.publicBaseUrl = readPublicBaseUrl(config);
+    this.publicBaseUrl = PublicBaseUrlResolver.resolve(config);
   }
 
   public DispatchResult sendConfirmationEmail(HttpServletRequest request, HumanAccountData account) {
@@ -234,45 +234,4 @@ public final class AuthEmailService {
     return Math.max(1, value);
   }
 
-  private String readPublicBaseUrl(Config config) {
-    if (config.hasPath("core.public_url")) {
-      String configuredUrl = stripTrailingSlash(config.getString("core.public_url").trim());
-      if (!configuredUrl.isEmpty()) {
-        return configuredUrl;
-      }
-    }
-
-    String configuredAddress = readFrontendAddress(config);
-    String scheme = readFrontendScheme(config);
-    return stripTrailingSlash(scheme + "://" + configuredAddress);
-  }
-
-  private String readFrontendAddress(Config config) {
-    if (config.hasPath("core.http_frontend_public_address")) {
-      String publicAddress = config.getString("core.http_frontend_public_address").trim();
-      if (!publicAddress.isEmpty()) {
-        return publicAddress;
-      }
-    }
-    if (config.hasPath("core.http_frontend_addresses")
-        && !config.getStringList("core.http_frontend_addresses").isEmpty()) {
-      return config.getStringList("core.http_frontend_addresses").get(0).trim();
-    }
-    if (config.hasPath("core.default_http_frontend_address")) {
-      return config.getString("core.default_http_frontend_address").trim();
-    }
-    return "wave.example.test";
-  }
-
-  private String readFrontendScheme(Config config) {
-    boolean sslEnabled = config.hasPath("security.enable_ssl") && config.getBoolean("security.enable_ssl");
-    return sslEnabled ? "https" : "http";
-  }
-
-  private String stripTrailingSlash(String value) {
-    if (value.endsWith("/")) {
-      return value.substring(0, value.length() - 1);
-    }
-    return value;
-  }
 }

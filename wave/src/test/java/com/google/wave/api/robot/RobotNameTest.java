@@ -33,6 +33,10 @@ public class RobotNameTest extends TestCase {
     assertFalse(RobotName.isWellFormedAddress("bar.com"));
     assertFalse(RobotName.isWellFormedAddress("@bar.com"));
     assertFalse(RobotName.isWellFormedAddress("foo@"));
+    assertFalse(RobotName.isWellFormedAddress(".foo@bar.com"));
+    assertFalse(RobotName.isWellFormedAddress("+foo@bar.com"));
+    assertFalse(RobotName.isWellFormedAddress("#foo@bar.com"));
+    assertFalse(RobotName.isWellFormedAddress("_foo@bar.com"));
     assertTrue(RobotName.isWellFormedAddress("foo@bar.com"));
     assertTrue(RobotName.isWellFormedAddress("foo#1@bar.com"));
     assertTrue(RobotName.isWellFormedAddress("foo+wave#1@bar.com"));

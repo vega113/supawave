@@ -65,9 +65,8 @@ public final class WaveletBasedConversation implements ObservableConversation {
     }
 
     /** Creates a new thread id. */
+    @SuppressWarnings("deprecation") // TODO(user): stop using the blip id when wave panel and rusty doesn't rely on it.
     String createThreadId() {
-      // TODO(user): stop using the blip id when wave panel and rusty doesn't
-      // rely on it.
       return idGenerator.peekBlipId();
       //return idGenerator.newUniqueToken();
     }

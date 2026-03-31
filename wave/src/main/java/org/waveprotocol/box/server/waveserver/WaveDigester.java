@@ -25,8 +25,8 @@ import com.google.wave.api.ApiIdSerializer;
 import com.google.wave.api.SearchResult;
 import com.google.wave.api.SearchResult.Digest;
 
-import org.waveprotocol.box.common.DocumentConstants;
 import org.waveprotocol.box.common.Snippets;
+import org.waveprotocol.wave.model.document.DocumentConstants;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl.WaveSupplementContext;
 import org.waveprotocol.wave.model.conversation.BlipIterators;

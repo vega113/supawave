@@ -500,17 +500,33 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
     } else {
       List<TransformedWaveletDelta> parsed = new ArrayList<TransformedWaveletDelta>();
       for (int i = 0; i < deltas.size(); i++) {
-        ProtocolHashedVersion thisEnd = //
+        ProtocolWaveletDelta delta = deltas.get(i);
+        ProtocolHashedVersion thisEnd =
             i < deltas.size() - 1 ? deltas.get(i + 1).getHashedVersion() : end;
-        parsed.add(deserialize(deltas.get(i), thisEnd));
+        HashedVersion endVersion = thisEnd != null
+            ? WaveletOperationSerializer.deserialize(thisEnd)
+            : computeDerivedEndVersion(delta);
+        parsed.add(WaveletOperationSerializer.deserialize(delta, endVersion));
       }
       return parsed;
     }
   }
 
-  private static TransformedWaveletDelta deserialize(ProtocolWaveletDelta delta,
-      ProtocolHashedVersion end) {
-    return WaveletOperationSerializer.deserialize(delta, deserialize(end));
+  /**
+   * Derives an end version from a delta's applied-at version + operation count.
+   * Used when the next delta's hashed version or the update's resultingVersion
+   * is absent. Throws if the delta itself has no hashed version, since there is
+   * then no safe basis for a fallback.
+   */
+  private static HashedVersion computeDerivedEndVersion(ProtocolWaveletDelta delta) {
+    ProtocolHashedVersion deltaVersion = delta.getHashedVersion();
+    if (deltaVersion == null) {
+      throw new IllegalArgumentException(
+          "Missing end version and delta hashed version when deserializing wavelet delta");
+    }
+    long appliedAt = (long) deltaVersion.getVersion();
+    int opCount = delta.getOperationSize();
+    return HashedVersion.unsigned(appliedAt + opCount);
   }
 
   private ObservableWaveletData deserialize(WaveId waveId, WaveletSnapshot snapshot) {
@@ -574,6 +590,9 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
   }
 
   private static HashedVersion deserialize(ProtocolHashedVersion version) {
+    if (version == null) {
+      return null;
+    }
     return WaveletOperationSerializer.deserialize(version);
   }
 }

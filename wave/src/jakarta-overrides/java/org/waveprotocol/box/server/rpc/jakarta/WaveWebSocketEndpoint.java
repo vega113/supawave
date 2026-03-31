@@ -19,6 +19,7 @@
 package org.waveprotocol.box.server.rpc.jakarta;
 
 import jakarta.servlet.http.HttpSession;
+import jakarta.websocket.CloseReason;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
 import jakarta.websocket.OnMessage;
@@ -41,6 +42,7 @@ import java.nio.channels.ClosedChannelException;
 public class WaveWebSocketEndpoint {
   private static final Log LOG = Log.get(WaveWebSocketEndpoint.class);
   private static final String CONNECTION_KEY = "wave.websocket.connection";
+  private static final String INVALID_AUTH_TOKEN_MESSAGE = "Auth token invalid";
 
   private volatile ServerRpcProvider provider;
 
@@ -85,8 +87,14 @@ public class WaveWebSocketEndpoint {
     try {
       connection.handleText(data);
     } catch (Throwable t) {
-      LOG.warning("WebSocket message handling failed", t);
-      closeQuietly(session);
+      if (isInvalidAuthTokenError(t)) {
+        LOG.info("WebSocket rejected unauthenticated message: " + INVALID_AUTH_TOKEN_MESSAGE);
+        detachConnection(session);
+        closeQuietly(session, invalidAuthCloseReason());
+      } else {
+        LOG.warning("WebSocket message handling failed", t);
+        closeQuietly(session);
+      }
     }
   }
 
@@ -133,10 +141,34 @@ public class WaveWebSocketEndpoint {
     return closedChannelError;
   }
 
+  private static boolean isInvalidAuthTokenError(Throwable error) {
+    boolean invalidAuthTokenError = false;
+    Throwable current = error;
+    while (current != null && !invalidAuthTokenError) {
+      invalidAuthTokenError = current instanceof IllegalArgumentException
+          && INVALID_AUTH_TOKEN_MESSAGE.equals(current.getMessage());
+      current = current.getCause();
+    }
+    return invalidAuthTokenError;
+  }
+
+  private static CloseReason invalidAuthCloseReason() {
+    return new CloseReason(
+        CloseReason.CloseCodes.VIOLATED_POLICY, INVALID_AUTH_TOKEN_MESSAGE);
+  }
+
   private static void closeQuietly(Session session) {
+    closeQuietly(session, null);
+  }
+
+  private static void closeQuietly(Session session, CloseReason reason) {
     if (session != null && session.isOpen()) {
       try {
-        session.close();
+        if (reason == null) {
+          session.close();
+        } else {
+          session.close(reason);
+        }
       } catch (Exception ignore) {
         // ignore close failures
       }

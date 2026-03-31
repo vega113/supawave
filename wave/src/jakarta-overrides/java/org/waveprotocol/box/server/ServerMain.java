@@ -32,7 +32,6 @@ import org.waveprotocol.box.server.rpc.*;
 import org.waveprotocol.box.server.robots.ProfileFetcherModule;
 import org.waveprotocol.box.server.robots.JakartaRobotApiBindingsModule;
 import org.waveprotocol.box.server.robots.RobotDashboardServlet;
-import org.waveprotocol.box.server.robots.RobotRegistrationServlet;
 import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
 import org.waveprotocol.box.server.robots.agent.registration.RegistrationRobot;
@@ -285,7 +284,6 @@ public class ServerMain {
     server.addServlet("/folder/*", FolderServlet.class);
     server.addServlet("/searches", SearchesServlet.class);
     server.addServlet("/tags", TagsServlet.class);
-    server.addServlet("/robot/register/*", RobotRegistrationServlet.class);
     server.addServlet("/robot/rpc", ActiveApiServlet.class);
     server.addServlet("/robot/dataapi", DataApiServlet.class);
     server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);

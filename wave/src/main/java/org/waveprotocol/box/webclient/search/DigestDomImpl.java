@@ -28,6 +28,7 @@ import com.google.gwt.uibinder.client.UiField;
 import org.waveprotocol.box.webclient.search.i18n.DigestDomMessages;
 
 import org.waveprotocol.wave.client.account.Profile;
+import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.uibuilder.BuilderHelper;
@@ -185,11 +186,11 @@ public final class DigestDomImpl implements DigestView {
   }
 
   private void renderAvatar(SafeHtmlBuilder html, Profile profile) {
-    // URL is trusted to be attribute safe (i.e., no ' or ")
     String url = profile.getImageUrl();
+    String safeUrl = url != null ? EscapeUtils.htmlEscape(EscapeUtils.sanitizeUri(url)) : "";
     String name = profile.getFullName();
     html.appendHtmlConstant("<img class='" + css.avatar() + "' src='");
-    html.appendHtmlConstant(url);
+    html.appendHtmlConstant(safeUrl);
     html.appendHtmlConstant("' alt='");
     html.appendEscaped(name);
     html.appendHtmlConstant("' title='");

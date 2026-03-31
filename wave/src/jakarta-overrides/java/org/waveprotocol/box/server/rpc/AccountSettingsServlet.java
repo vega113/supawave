@@ -31,6 +31,7 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
 import org.waveprotocol.box.server.mail.MailException;
 import org.waveprotocol.box.server.mail.MailProvider;
@@ -70,6 +71,7 @@ public final class AccountSettingsServlet extends HttpServlet {
   private final String fromAddress;
   private final boolean emailConfirmationEnabled;
   private final boolean passwordResetEnabled;
+  private final String publicBaseUrl;
 
   @Inject
   public AccountSettingsServlet(AccountStore accountStore,
@@ -89,6 +91,7 @@ public final class AccountSettingsServlet extends HttpServlet {
         && config.getBoolean("core.email_confirmation_enabled");
     this.passwordResetEnabled = !config.hasPath("core.password_reset_enabled")
         || config.getBoolean("core.password_reset_enabled");
+    this.publicBaseUrl = PublicBaseUrlResolver.resolve(config);
   }
 
   @Override
@@ -107,6 +110,10 @@ public final class AccountSettingsServlet extends HttpServlet {
     req.setCharacterEncoding("UTF-8");
     HumanAccountData caller = getAuthenticatedUser(req, resp);
     if (caller == null) return;
+    if (!isTrustedSameOriginRequest(req)) {
+      sendJsonError(resp, HttpServletResponse.SC_FORBIDDEN, "CSRF validation failed");
+      return;
+    }
 
     String pathInfo = req.getPathInfo();
     if (pathInfo == null) pathInfo = "";
@@ -150,7 +157,7 @@ public final class AccountSettingsServlet extends HttpServlet {
         // Email changed and confirmation is enabled: mark as unconfirmed and send confirmation
         caller.setEmailConfirmed(false);
         accountStore.putAccount(caller);
-        sendConfirmationEmail(req, caller, newEmail);
+        sendConfirmationEmail(caller, newEmail);
         setJsonUtf8(resp);
         resp.getWriter().write("{\"ok\":true,\"message\":\"Email updated. A confirmation email has been sent to your new address.\"}");
       } else {
@@ -168,11 +175,10 @@ public final class AccountSettingsServlet extends HttpServlet {
     }
   }
 
-  private void sendConfirmationEmail(HttpServletRequest req, HumanAccountData caller,
-      String email) {
+  private void sendConfirmationEmail(HumanAccountData caller, String email) {
     try {
       String token = emailTokenIssuer.issueEmailConfirmToken(caller.getId());
-      String confirmUrl = buildUrl(req, "/auth/confirm-email?token=" + token);
+      String confirmUrl = buildUrl("/auth/confirm-email?token=" + token);
       String emailBody = "<html><body>"
           + "<h2>Confirm Your Email</h2>"
           + "<p>Your Wave account <b>" + HtmlRenderer.escapeHtml(caller.getId().getAddress())
@@ -217,7 +223,7 @@ public final class AccountSettingsServlet extends HttpServlet {
 
     try {
       String token = emailTokenIssuer.issuePasswordResetToken(caller.getId());
-      String resetUrl = buildUrl(req, "/auth/password-reset?token=" + token);
+      String resetUrl = buildUrl("/auth/password-reset?token=" + token);
       String emailBody = "<html><body>"
           + "<h2>Password Reset</h2>"
           + "<p>A password reset was requested for your Wave account: <b>"
@@ -273,18 +279,8 @@ public final class AccountSettingsServlet extends HttpServlet {
     }
   }
 
-  private String buildUrl(HttpServletRequest req, String path) {
-    String scheme = req.getScheme();
-    String serverName = req.getServerName();
-    int serverPort = req.getServerPort();
-    StringBuilder url = new StringBuilder();
-    url.append(scheme).append("://").append(serverName);
-    if (("http".equals(scheme) && serverPort != 80)
-        || ("https".equals(scheme) && serverPort != 443)) {
-      url.append(":").append(serverPort);
-    }
-    url.append(path);
-    return url.toString();
+  private String buildUrl(String path) {
+    return publicBaseUrl + path;
   }
 
   /** Masks an email address for display, e.g. "u***@example.com". */
@@ -343,5 +339,44 @@ public final class AccountSettingsServlet extends HttpServlet {
     resp.setStatus(status);
     setJsonUtf8(resp);
     resp.getWriter().write("{\"error\":\"" + message.replace("\"", "\\\"") + "\"}");
+  }
+
+  private boolean isTrustedSameOriginRequest(HttpServletRequest req) {
+    String expectedOrigin = getExpectedOrigin();
+    String origin = req.getHeader("Origin");
+    if (origin != null && !origin.isEmpty()) {
+      return expectedOrigin.equals(origin);
+    }
+    String referer = req.getHeader("Referer");
+    if (referer == null || referer.isEmpty()) {
+      return false;
+    }
+    return referer.startsWith(expectedOrigin + "/");
+  }
+
+  /**
+   * Returns the expected request origin derived from the configured {@code publicBaseUrl}.
+   * Using the public URL (rather than the raw request host/port) ensures correct
+   * behaviour in proxied deployments where the servlet container sees an internal
+   * address instead of the public-facing one.
+   */
+  private String getExpectedOrigin() {
+    // publicBaseUrl already has any trailing slash stripped; extract just the origin portion.
+    try {
+      java.net.URI uri = java.net.URI.create(publicBaseUrl);
+      int port = uri.getPort();
+      String scheme = uri.getScheme();
+      StringBuilder origin = new StringBuilder();
+      origin.append(scheme).append("://").append(uri.getHost());
+      if (port != -1
+          && !(("http".equals(scheme) && port == 80)
+               || ("https".equals(scheme) && port == 443))) {
+        origin.append(":").append(port);
+      }
+      return origin.toString();
+    } catch (IllegalArgumentException e) {
+      // Fallback: use publicBaseUrl directly as origin (no path component expected)
+      return publicBaseUrl;
+    }
   }
 }

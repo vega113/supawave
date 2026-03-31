@@ -77,10 +77,8 @@ public final class IndexedDocumentFactory implements DocumentFactory<DocumentOpe
 
       @Override
       public void init(SilentOperationSink<? super DocOp> outputSink) {
-        // No-op: immutable indexed documents never produce operations,
-        // so the output sink is accepted but ignored. This allows
-        // IndexedDocumentFactory to be used with OpBasedWavelet in
-        // read-only scenarios (e.g., manifest order extraction).
+        throw new UnsupportedOperationException(
+            "This document implementation does not support mutable documents");
       }
     };
   }

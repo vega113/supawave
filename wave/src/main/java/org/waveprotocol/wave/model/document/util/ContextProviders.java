@@ -32,6 +32,8 @@ import org.waveprotocol.wave.model.document.indexed.ObservableIndexedDocument;
 import org.waveprotocol.wave.model.document.operation.Attributes;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.automaton.DocumentSchema;
+import org.waveprotocol.wave.model.document.operation.impl.DocOpUtil;
+import org.waveprotocol.wave.model.document.parser.XmlParseException;
 import org.waveprotocol.wave.model.document.raw.RawDocument;
 import org.waveprotocol.wave.model.document.raw.TextNodeOrganiser;
 import org.waveprotocol.wave.model.document.raw.impl.Element;
@@ -171,10 +173,15 @@ public class ContextProviders {
       final MiscListener miscListener,
       final DocumentSchema schemaConstraints) {
 
+    DocInitialization docInitialization;
+    try {
+      docInitialization = DocOpUtil.docInitializationFromXml(initialInnerXml);
+    } catch (XmlParseException e) {
+      throw new IllegalArgumentException(e);
+    }
+
     return createTestPojoContext(
-        // FIXME(ohler): it's a bit weird that we parse into an IndexedDocument just to
-        // get its asOperation().
-        DocProviders.POJO.parse(initialInnerXml).asOperation(),
+        docInitialization,
         docHandler, annotationSetListener, miscListener, schemaConstraints);
   }
 

@@ -48,6 +48,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
@@ -393,8 +394,11 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
       if (href == null && attrs != null) {
         href = attrs.get("url");
       }
-      if (href != null) {
-        sb.append("<a href=\"").append(escapeAttr(href)).append("\" rel=\"nofollow\">");
+      String safeHref = sanitizeUrl(href, true);
+      if (safeHref != null) {
+        sb.append("<a href=\"").append(escapeAttr(safeHref)).append("\" rel=\"nofollow\">");
+      } else if (href != null) {
+        sb.append("<a rel=\"nofollow\">");
       } else {
         sb.append("<a>");
       }
@@ -409,8 +413,9 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
       if (src == null && attrs != null) {
         src = attrs.get("attachment");
       }
-      if (src != null) {
-        sb.append("<img src=\"").append(escapeAttr(src)).append("\" />");
+      String safeSrc = sanitizeUrl(src, false);
+      if (safeSrc != null) {
+        sb.append("<img src=\"").append(escapeAttr(safeSrc)).append("\" />");
       }
       return;
     }
@@ -617,6 +622,51 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
   static String escapeAttr(String text) {
     // Same as escapeHtml -- covers all necessary attribute escaping.
     return escapeHtml(text);
+  }
+
+  static String sanitizeUrl(String candidateUrl, boolean allowMailto) {
+    if (candidateUrl == null) {
+      return null;
+    }
+    String trimmedUrl = candidateUrl.trim();
+    if (trimmedUrl.isEmpty()) {
+      return null;
+    }
+    // Reject protocol-relative URLs like //evil.example/path; browsers resolve
+    // these using the current page scheme and they are a common open-redirect vector.
+    if (trimmedUrl.startsWith("//")) {
+      return null;
+    }
+    // Extract scheme by scanning for the first ':'.  Using indexOf instead of
+    // java.net.URI keeps the check permissive enough to accept URLs that contain
+    // spaces or other characters that URI strictly rejects
+    // (e.g. "https://example.com/search?q=hello world").
+    // A colon is only a scheme separator when it appears before any '/', '?', or '#'
+    // — otherwise it is part of a path, query, or fragment (e.g. "?q=foo:bar").
+    int colonIdx = trimmedUrl.indexOf(':');
+    int firstPathChar = Integer.MAX_VALUE;
+    for (char c : new char[]{'/', '?', '#'}) {
+      int idx = trimmedUrl.indexOf(c);
+      if (idx >= 0 && idx < firstPathChar) {
+        firstPathChar = idx;
+      }
+    }
+    boolean colonIsScheme = colonIdx > 0 && colonIdx < firstPathChar;
+    String normalizedScheme = colonIsScheme
+        ? trimmedUrl.substring(0, colonIdx).toLowerCase(Locale.ROOT)
+        : null;
+    // No scheme → relative URL (path, query, or fragment) — always safe.
+    if (normalizedScheme == null) {
+      return trimmedUrl;
+    }
+    boolean allowed = "http".equals(normalizedScheme)
+        || "https".equals(normalizedScheme)
+        || "ftp".equals(normalizedScheme)
+        || (allowMailto && "mailto".equals(normalizedScheme))
+        // wave:// and waveid:// are internal Wave reference schemes used for
+        // in-app navigation; clients convert them to safe fragment URLs.
+        || (allowMailto && ("wave".equals(normalizedScheme) || "waveid".equals(normalizedScheme)));
+    return allowed ? trimmedUrl : null;
   }
 
   /** Extracts a human-readable name from a wave address (e.g., "user@example.com" -> "user"). */

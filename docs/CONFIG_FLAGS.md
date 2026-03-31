@@ -1,7 +1,7 @@
 # Configuration Flags Reference (server + tests)
 
 Status: Living Document
-Updated: 2025-09-02
+Updated: 2026-03-30
 
 This page documents configuration flags and environment variables recently added or used during modernization. It also tracks temporary flags/classes and their planned removal.
 
@@ -28,16 +28,6 @@ This page documents configuration flags and environment variables recently added
 // Removed in T5: experimental.native_servlet_registration, experimental.enable_programmatic_poc
 // These temporary flags have been retired; servlet/filter registration uses the stable path.
 
-- experimental.jetty12_session_lookup: boolean (default: false)
-  - Purpose: Enable a best-effort, reflective Jetty 12 session lookup from a token in the Jakarta build.
-  - Behavior (Jakarta path only):
-    - Attempts to obtain the core `org.eclipse.jetty.session.SessionHandler` and invoke `getSession(String)` reflectively, then unwraps to a `HttpSession` via common accessors.
-    - Accepts tokens with or without a node/cluster suffix; if a dot (`.`) is present, the suffix is stripped (e.g., `abc.node1` → `abc`).
-    - If reflection fails or the session is not found, returns null gracefully (no exceptions thrown to callers).
-  - Security: Intended for transitional use only. Do not rely on this for cross-node production lookups; prefer normal cookie-based session handling.
-  - Tests: Covered by `SessionLookupFlagTest` (flag wiring) and `SessionLookupEmbeddedIT` (embedded EE10 server path).
-  - Status: Transitional; will be revisited/removed once Jakarta session integration is finalized.
-
 ## Test/Env Variables (non-Typesafe Config)
 
 - DOCKER_HOST (env)
@@ -62,7 +52,6 @@ This page documents configuration flags and environment variables recently added
 - application.conf (server):
   # (removed) experimental.native_servlet_registration
   # (removed) experimental.enable_programmatic_poc
-  - experimental.jetty12_session_lookup = true
   - network.enable_forwarded_headers = true
   - core.mongodb_driver = v4
 
@@ -74,3 +63,4 @@ This page documents configuration flags and environment variables recently added
 
 - 2025-09-02: Added experimental.native_servlet_registration and experimental.enable_programmatic_poc docs; documented Mongo driver flag and test env behavior.
 - 2025-09-03: Retired the two experimental flags and deleted POC classes/tasks.
+- 2026-03-29: Removed `experimental.jetty12_session_lookup`; Jakarta session-token lookup is now always enabled for websocket auth.

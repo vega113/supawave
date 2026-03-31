@@ -1639,6 +1639,7 @@ public final class ApiDocsServlet extends HttpServlet {
     return builder.toString();
   }
 
+  @SafeVarargs
   private static <T> List<T> list(T... items) {
     return new ArrayList<T>(Arrays.asList(items));
   }

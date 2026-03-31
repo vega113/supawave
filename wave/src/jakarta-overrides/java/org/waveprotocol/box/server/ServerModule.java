@@ -123,6 +123,7 @@ public class ServerModule extends AbstractModule {
   @Provides @Singleton
   public SessionHandler provideSessionHandler(Config config) {
     SessionHandler sessionHandler = new SessionHandler();
+    sessionHandler.setSessionIdPathParameterName(null);
 
     // Configure cookie attributes to match the javax variant
     try {

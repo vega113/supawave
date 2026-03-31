@@ -118,21 +118,6 @@ public class ContactsRecorder implements WaveBus.Subscriber {
                   ex);
             }
           }
-          // Indirect call: every existing participant -> receptor
-          for (ParticipantId participant : participants) {
-            if (!participant.equals(sharedParticipant)
-                && !participant.equals(caller)
-                && !participant.equals(receptor)) {
-              try {
-                contactManager.newCall(
-                    participant, receptor, delta.getApplicationTimestamp(), false);
-              } catch (PersistenceException ex) {
-                LOG.severe(
-                    "Update contact " + participant.getAddress() + "->" + receptor.getAddress(),
-                    ex);
-              }
-            }
-          }
           participants.add(receptor);
         }
       } else if (op instanceof RemoveParticipant) {

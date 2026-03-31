@@ -601,25 +601,32 @@ public class WaveServerImpl implements WaveletProvider, ReadableWaveletDataProvi
         return;
       }
 
-      // Phase 5: server-side reply depth enforcement. If the delta contains
-      // operations that would create thread elements in the conversation
-      // manifest, verify the resulting depth would not exceed the limit.
-      if (maxReplyDepth > 0 && IdUtil.isConversationalId(waveletName.waveletId)) {
+      // Server-side validation for conversational wave constraints.
+      if (IdUtil.isConversationalId(waveletName.waveletId)) {
         try {
           WaveletDelta deserialized =
               CoreWaveletOperationSerializer.deserialize(delta);
           CommittedWaveletSnapshot snap = wavelet.getSnapshot();
           ReadableWaveletData snapData = (snap != null) ? snap.snapshot : null;
-          String depthError = ReplyDepthValidator.validate(
-              snapData, deserialized, maxReplyDepth);
-          if (depthError != null) {
-            resultListener.onFailure(FederationErrors.badRequest(depthError));
+
+          String lockError = WaveLockValidator.validate(snapData, deserialized, deserialized.getAuthor());
+          if (lockError != null) {
+            resultListener.onFailure(FederationErrors.badRequest(lockError));
             return;
           }
+
+          if (maxReplyDepth > 0) {
+            String depthError = ReplyDepthValidator.validate(
+                snapData, deserialized, maxReplyDepth);
+            if (depthError != null) {
+              resultListener.onFailure(FederationErrors.badRequest(depthError));
+              return;
+            }
+          }
         } catch (WaveletStateException e) {
-          // Best-effort: if we can't read the snapshot, skip the check and
+          // Best-effort: if we can't read the snapshot, skip the checks and
           // let the submit proceed normally.
-          LOG.warning("Could not perform reply depth check: " + e.getMessage());
+          LOG.warning("Could not perform server-side conversational checks: " + e.getMessage());
         }
       }
 

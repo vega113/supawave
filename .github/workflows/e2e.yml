@@ -1,4 +1,6 @@
 name: E2E Tests
+run-name: >-
+  ${{ github.event_name == 'pull_request' && format('E2E PR #{0} @ {1}', github.event.pull_request.number, github.event.pull_request.head.sha) || github.event_name == 'push' && format('E2E {0} @ {1}', github.ref_name, github.sha) || github.event_name == 'workflow_dispatch' && format('E2E {0} @ {1}', github.ref_name, github.sha) || format('E2E {0}', github.event_name) }}
 
 on:
   push:
@@ -33,16 +35,8 @@ jobs:
       - name: Stage distribution
         run: sbt --batch Universal/stage
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies
-        run: pip install -r wave/src/e2e-test/requirements.txt
-
       - name: Run E2E tests
-        run: PYTHON=python bash scripts/wave-e2e.sh
+        run: bash scripts/wave-e2e.sh
 
       - name: Upload E2E results
         if: always()

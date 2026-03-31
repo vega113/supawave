@@ -149,6 +149,7 @@ public class ServerModule extends AbstractModule {
   @Singleton
   public SessionHandler provideSessionHandler(Config config) {
     SessionHandler sessionHandler = new SessionHandler();
+    sessionHandler.setSessionIdPathParameterName(null);
     // Configure cookie attributes
     try {
       sessionHandler.getSessionCookieConfig().setMaxAge(config.getInt("network.session_cookie_max_age"));

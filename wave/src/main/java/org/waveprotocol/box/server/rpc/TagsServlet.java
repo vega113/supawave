@@ -87,6 +87,12 @@ public final class TagsServlet extends HttpServlet {
   /** Simple per-user cache: participant address -> CacheEntry. */
   private final Map<String, CacheEntry> cache = new HashMap<>();
 
+  /** Minimum interval between cache eviction sweeps (ms). */
+  private static final long EVICTION_INTERVAL_MS = 30_000;
+
+  /** Timestamp of the last eviction sweep; access is guarded by {@code cache} lock. */
+  private long lastEvictionTime = 0;
+
   private static final class CacheEntry {
     final List<TagCount> tags;
     final long createdAt;
@@ -176,6 +182,11 @@ public final class TagsServlet extends HttpServlet {
   private List<TagCount> getTagsForUser(ParticipantId user) {
     String key = user.getAddress();
     synchronized (cache) {
+      long now = System.currentTimeMillis();
+      if (now - lastEvictionTime >= EVICTION_INTERVAL_MS) {
+        evictExpiredEntries();
+        lastEvictionTime = now;
+      }
       CacheEntry entry = cache.get(key);
       if (entry != null && !entry.isExpired()) {
         return entry.tags;
@@ -188,6 +199,10 @@ public final class TagsServlet extends HttpServlet {
       cache.put(key, new CacheEntry(tags));
     }
     return tags;
+  }
+
+  private void evictExpiredEntries() {
+    cache.entrySet().removeIf(entry -> entry.getValue().isExpired());
   }
 
   private List<TagCount> collectTagsFromWaves(ParticipantId user) {

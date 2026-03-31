@@ -105,10 +105,9 @@ public final class ProtoSerializer {
 
     D newDto() throws SerializationException {
       try {
-        return dtoClass.newInstance();
-      } catch (InstantiationException e) {
-        throw new SerializationException(e);
-      } catch (IllegalAccessException e) {
+        return dtoClass.getDeclaredConstructor().newInstance();
+      } catch (InstantiationException | IllegalAccessException
+          | NoSuchMethodException | java.lang.reflect.InvocationTargetException e) {
         throw new SerializationException(e);
       }
     }

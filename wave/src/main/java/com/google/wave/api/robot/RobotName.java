@@ -64,10 +64,10 @@ public final class RobotName {
   /**
    * Regular expression for robot participant id. TLD is between 2 and 6
    * characters long to match the ascii IANA top level domains as of Sept 2010.
+   * The local part must start with an alphanumeric character.
    */
-  // TODO(user): Make this stricter.
   private static final Pattern ROBOT_ID_REGEX =
-      Pattern.compile("^[a-z0-9._%+#-]+?@[a-z0-9.-]+\\.[a-z]{2,6}$", Pattern.CASE_INSENSITIVE);
+      Pattern.compile("^[a-z0-9][a-z0-9._%+#-]*@[a-z0-9.-]+\\.[a-z]{2,6}$", Pattern.CASE_INSENSITIVE);
 
   /**
    * Checks if the given address looks like a well-formed robot id.

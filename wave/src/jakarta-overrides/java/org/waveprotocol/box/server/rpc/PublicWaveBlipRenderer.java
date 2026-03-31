@@ -18,7 +18,7 @@
  */
 package org.waveprotocol.box.server.rpc;
 
-import org.waveprotocol.box.common.DocumentConstants;
+import org.waveprotocol.wave.model.document.DocumentConstants;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
 import org.waveprotocol.wave.model.document.operation.Attributes;
 import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
@@ -27,9 +27,12 @@ import org.waveprotocol.wave.model.document.operation.impl.InitializationCursorA
 import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -241,6 +244,7 @@ public final class PublicWaveBlipRenderer {
         } else if (activeAnnotations.containsKey("link/wave")) {
           newLink = activeAnnotations.get("link/wave");
         }
+        newLink = sanitizeLinkUrl(newLink);
 
         // Only emit close/open tags if formatting actually changed and we're in body.
         boolean boldChanged = inBold[0] != newBold;
@@ -427,5 +431,41 @@ public final class PublicWaveBlipRenderer {
     if (inBold[0]) {
       html.append("<strong>");
     }
+  }
+
+  private static String sanitizeLinkUrl(String rawUrl) {
+    if (rawUrl == null) {
+      return null;
+    }
+    String trimmedUrl = rawUrl.trim();
+    if (trimmedUrl.isEmpty()) {
+      return null;
+    }
+    // Reject protocol-relative URLs like //evil.example/path — java.net.URI parses
+    // these with scheme=null, which would make them appear safe to the check below.
+    if (trimmedUrl.startsWith("//")) {
+      return null;
+    }
+
+    URI parsedUri;
+    try {
+      parsedUri = new URI(trimmedUrl);
+    } catch (URISyntaxException e) {
+      return null;
+    }
+
+    String scheme = parsedUri.getScheme();
+    if (scheme == null) {
+      return trimmedUrl;
+    }
+
+    String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
+    if ("http".equals(normalizedScheme)
+        || "https".equals(normalizedScheme)
+        || "mailto".equals(normalizedScheme)) {
+      return trimmedUrl;
+    }
+
+    return null;
   }
 }

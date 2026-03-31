@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Test;
@@ -32,7 +33,12 @@ import org.waveprotocol.box.common.comms.impl.ProtocolFragmentRangeImpl;
 import org.waveprotocol.box.common.comms.impl.ProtocolFragmentsImpl;
 import org.waveprotocol.box.common.comms.impl.ProtocolWaveletUpdateImpl;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.federation.ProtocolWaveletDelta;
+import org.waveprotocol.wave.federation.impl.ProtocolHashedVersionImpl;
+import org.waveprotocol.wave.federation.impl.ProtocolWaveletDeltaImpl;
+import org.waveprotocol.wave.federation.impl.ProtocolWaveletOperationImpl;
 import org.waveprotocol.wave.model.id.WaveId;
+import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
 import org.waveprotocol.wave.model.wave.data.DocumentFactory;
 import org.waveprotocol.wave.model.wave.data.DocumentOperationSink;
 import org.waveprotocol.wave.model.operation.SilentOperationSink;
@@ -119,5 +125,44 @@ public final class RemoteWaveViewServiceFragmentsTest {
     assertTrue("index mapped", sawIndex);
     assertTrue("manifest mapped", sawManifest);
     assertTrue("blip mapped", sawBlip);
+  }
+
+  /**
+   * Regression: a delta update with a null resultingVersion must not throw.
+   * The end version should be derived from the delta's applied-at version + op count.
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void deserializeAppliedDeltas_nullEndVersion_derivesFromDeltaVersion() throws Exception {
+    // Build a delta: appliedAt=10, 3 no-op operations → expected end version = 13
+    ProtocolHashedVersionImpl deltaVersion = new ProtocolHashedVersionImpl();
+    deltaVersion.setVersion(10);
+
+    ProtocolWaveletOperationImpl noOp1 = new ProtocolWaveletOperationImpl();
+    noOp1.setNoOp(true);
+    ProtocolWaveletOperationImpl noOp2 = new ProtocolWaveletOperationImpl();
+    noOp2.setNoOp(true);
+    ProtocolWaveletOperationImpl noOp3 = new ProtocolWaveletOperationImpl();
+    noOp3.setNoOp(true);
+
+    ProtocolWaveletDeltaImpl delta = new ProtocolWaveletDeltaImpl();
+    delta.setHashedVersion(deltaVersion);
+    delta.setAuthor("user@example.com");
+    delta.addOperation(noOp1);
+    delta.addOperation(noOp2);
+    delta.addOperation(noOp3);
+
+    // Call private static deserialize(List<ProtocolWaveletDelta>, null) via reflection
+    Method deserialize = RemoteWaveViewService.class.getDeclaredMethod(
+        "deserialize", List.class, org.waveprotocol.wave.federation.ProtocolHashedVersion.class);
+    deserialize.setAccessible(true);
+
+    List<TransformedWaveletDelta> result = (List<TransformedWaveletDelta>)
+        deserialize.invoke(null, Collections.singletonList(delta), null);
+
+    assertNotNull("result must not be null", result);
+    assertEquals("one delta deserialized", 1, result.size());
+    assertEquals("end version derived as appliedAt + opCount",
+        13L, result.get(0).getResultingVersion().getVersion());
   }
 }

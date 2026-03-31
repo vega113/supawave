@@ -1,4 +1,6 @@
 name: Build
+run-name: >-
+  ${{ github.event_name == 'pull_request' && format('Build PR #{0} @ {1}', github.event.pull_request.number, github.event.pull_request.head.sha) || github.event_name == 'push' && format('Build {0} @ {1}', github.ref_name, github.sha) || github.event_name == 'release' && format('Build release {0}', github.event.release.tag_name) || github.event_name == 'workflow_dispatch' && format('Build {0} @ {1}', github.ref_name, github.sha) || format('Build {0}', github.event_name) }}
 
 on:
   push:

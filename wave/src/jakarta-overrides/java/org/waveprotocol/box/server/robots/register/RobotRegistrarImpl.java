@@ -281,7 +281,10 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
     boolean locationUnchanged = existingAccount.getUrl().equals(normalizedLocation);
     RobotCapabilities updatedCapabilities =
         locationUnchanged ? capabilities : null;
-    boolean updatedVerified = locationUnchanged && verified;
+    // When location changes, clear verification. Exception: activating a pending robot
+    // (previously had an empty URL) with a real URL marks it as verified.
+    boolean activatingPendingRobot = existingAccount.getUrl().isEmpty() && !normalizedLocation.isEmpty();
+    boolean updatedVerified = locationUnchanged ? verified : activatingPendingRobot;
     RobotAccountData updatedAccount =
         new RobotAccountDataImpl(
             existingAccount.getId(),

@@ -390,22 +390,22 @@ public abstract class ElementSerializer {
           gadget.setIframe(ifr);
         }
 
-        // TODO(user): Streamline this. Maybe use SchemaConstraints.java to
-        // get a list of child elements or attributes, then automate this.
         E child = doc.asElement(doc.getFirstChild(element));
         while (child != null) {
-          if (doc.getTagName(child).equals("name")) {
-            gadget.setProperty("name", doc.getAttribute(child, "value"));
-          } else if (doc.getTagName(child).equals("title")) {
-            gadget.setProperty("title", doc.getAttribute(child, "value"));
-          } else if (doc.getTagName(child).equals("thumbnail")) {
-            gadget.setProperty("thumbnail", doc.getAttribute(child, "value"));
-          } else if (doc.getTagName(child).equals("pref")) {
-            gadget.setProperty("pref", doc.getAttribute(child, "value"));
-          } else if (doc.getTagName(child).equals("state")) {
-            gadget.setProperty(doc.getAttribute(child, "name"), doc.getAttribute(child, "value"));
-          } else if (doc.getTagName(child).equals("category")) {
-            gadget.setProperty("category", doc.getAttribute(child, "name"));
+          String tagName = doc.getTagName(child);
+          switch (tagName) {
+            case "name":
+            case "title":
+            case "thumbnail":
+            case "pref":
+              gadget.setProperty(tagName, doc.getAttribute(child, "value"));
+              break;
+            case "state":
+              gadget.setProperty(doc.getAttribute(child, "name"), doc.getAttribute(child, "value"));
+              break;
+            case "category":
+              gadget.setProperty("category", doc.getAttribute(child, "name"));
+              break;
           }
           child = doc.asElement(doc.getNextSibling(child));
         }

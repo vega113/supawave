@@ -30,6 +30,7 @@ import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
 import org.waveprotocol.box.server.authentication.jwt.JwtClaims;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
@@ -70,6 +71,7 @@ public final class PasswordResetServlet extends HttpServlet {
   private final String analyticsAccount;
   private final String fromAddress;
   private final boolean passwordResetEnabled;
+  private final String publicBaseUrl;
 
   @Inject
   public PasswordResetServlet(AccountStore accountStore,
@@ -87,6 +89,7 @@ public final class PasswordResetServlet extends HttpServlet {
         ? config.getString("core.email_from_address") : "noreply@wave.example.test";
     this.passwordResetEnabled = !config.hasPath("core.password_reset_enabled")
         || config.getBoolean("core.password_reset_enabled");
+    this.publicBaseUrl = PublicBaseUrlResolver.resolve(config);
   }
 
   @Override
@@ -172,7 +175,7 @@ public final class PasswordResetServlet extends HttpServlet {
           String sendTo = (human.getEmail() != null && !human.getEmail().isEmpty())
               ? human.getEmail() : account.getId().getAddress();
           String jwtToken = emailTokenIssuer.issuePasswordResetToken(account.getId());
-          String resetUrl = buildResetUrl(req, jwtToken);
+          String resetUrl = buildResetUrl(jwtToken);
           String emailBody = renderResetEmail(account.getId().getAddress(), resetUrl);
           mailProvider.sendEmail(sendTo, "Password Reset - Wave", emailBody);
           LOG.info("Password reset email sent for user " + account.getId().getAddress());
@@ -253,18 +256,8 @@ public final class PasswordResetServlet extends HttpServlet {
     }
   }
 
-  private String buildResetUrl(HttpServletRequest req, String token) {
-    String scheme = req.getScheme();
-    String serverName = req.getServerName();
-    int serverPort = req.getServerPort();
-    StringBuilder url = new StringBuilder();
-    url.append(scheme).append("://").append(serverName);
-    if (("http".equals(scheme) && serverPort != 80)
-        || ("https".equals(scheme) && serverPort != 443)) {
-      url.append(":").append(serverPort);
-    }
-    url.append("/auth/password-reset?token=").append(token);
-    return url.toString();
+  private String buildResetUrl(String token) {
+    return publicBaseUrl + "/auth/password-reset?token=" + token;
   }
 
   private String renderResetEmail(String address, String resetUrl) {

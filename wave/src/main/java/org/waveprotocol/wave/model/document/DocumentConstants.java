@@ -17,12 +17,10 @@
  * under the License.
  */
 
-package org.waveprotocol.box.common;
+package org.waveprotocol.wave.model.document;
 
 /**
  * Constants relating to the document model.
- *
- * TODO: put in org.waveprotocol.wave.document or similar
  */
 public class DocumentConstants {
 

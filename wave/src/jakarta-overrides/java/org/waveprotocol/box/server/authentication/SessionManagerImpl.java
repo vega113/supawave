@@ -21,7 +21,10 @@ package org.waveprotocol.box.server.authentication;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
-import com.typesafe.config.Config;
+import jakarta.servlet.http.HttpSession;
+import org.eclipse.jetty.ee10.servlet.SessionHandler;
+import org.eclipse.jetty.server.Session;
+import org.eclipse.jetty.session.ManagedSession;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.persistence.AccountStore;
@@ -30,12 +33,8 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.escapers.PercentEscaper;
 import org.waveprotocol.wave.util.logging.Log;
 
-import org.waveprotocol.box.server.authentication.WebSession;
-
 /**
  * Jakarta override of SessionManagerImpl wiring against Jetty 12 session APIs.
- * For now, getSessionFromToken returns null until we implement a direct lookup
- * path compatible with Jetty 12.
  */
 public final class SessionManagerImpl implements SessionManager {
   private static final String USER_FIELD = "user";
@@ -44,17 +43,15 @@ public final class SessionManagerImpl implements SessionManager {
 
   private final AccountStore accountStore;
   private static final Log LOG = Log.get(SessionManagerImpl.class);
-  private final Config config;
-  private final org.eclipse.jetty.ee10.servlet.SessionHandler sessionHandler;
+  private final SessionHandler sessionHandler;
 
   @Inject
   public SessionManagerImpl(AccountStore accountStore,
-                            org.eclipse.jetty.ee10.servlet.SessionHandler sessionHandler,
-                            Config config) {
+                            SessionHandler sessionHandler) {
     Preconditions.checkNotNull(accountStore, "Null account store");
+    Preconditions.checkNotNull(sessionHandler, "Null session handler");
     this.accountStore = accountStore;
     this.sessionHandler = sessionHandler;
-    this.config = config;
   }
 
   @Override
@@ -114,39 +111,30 @@ public final class SessionManagerImpl implements SessionManager {
 
   @Override
   public WebSession getSessionFromToken(String token) {
-    boolean enabled = false;
+    WebSession session = null;
     try {
-      enabled = config.hasPath("experimental.jetty12_session_lookup") &&
-          config.getBoolean("experimental.jetty12_session_lookup");
-    } catch (Exception ignore) {}
-    if (!enabled) return null;
-
-    try {
-      if (token == null) return null;
-      String sessionId = token;
-      int dot = sessionId.indexOf('.')
-;      if (dot > 0) sessionId = sessionId.substring(0, dot);
-      // Reflective call to avoid tight coupling while migrating
-      java.lang.reflect.Method m = sessionHandler.getClass().getMethod("getSession", String.class);
-      Object jettySession = m.invoke(sessionHandler, sessionId);
-      if (jettySession == null) return null;
-      // Retrieve the Jakarta HttpSession if possible and wrap as WebSession
-      for (String accessor : new String[] {"getSession", "getHttpSession"}) {
-        try {
-          java.lang.reflect.Method acc = jettySession.getClass().getMethod(accessor);
-          Object httpSess = acc.invoke(jettySession);
-          if (httpSess instanceof jakarta.servlet.http.HttpSession) {
-            return WebSessions.wrap((jakarta.servlet.http.HttpSession) httpSess);
+      if (token != null) {
+        ManagedSession managedSession = sessionHandler.getManagedSession(normalizeToken(token));
+        if (managedSession != null) {
+          Session.API sessionApi = sessionHandler.newSessionAPIWrapper(managedSession);
+          if (sessionApi instanceof HttpSession httpSession) {
+            session = WebSessions.wrap(httpSession);
           }
-        } catch (NoSuchMethodException ignore) {
-          // keep trying
         }
       }
-      return null;
     } catch (Throwable t) {
       LOG.info("Jetty 12 session lookup failed (ignored)", t);
-      return null;
     }
+    return session;
+  }
+
+  private static String normalizeToken(String token) {
+    String sessionId = token;
+    int dot = sessionId.indexOf('.');
+    if (dot > 0) {
+      sessionId = sessionId.substring(0, dot);
+    }
+    return sessionId;
   }
 
   private void refreshLastActivity(WebSession session, ParticipantId user, boolean force) {

@@ -128,8 +128,9 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
+    // Modal contains rotate-secret form and Regenerate Secret button
     assertTrue(outputWriter.toString().contains("action\" value=\"rotate-secret\""));
-    assertTrue(outputWriter.toString().contains("Rotate Secret"));
+    assertTrue(outputWriter.toString().contains("Regenerate Secret"));
   }
 
   public void testDoGetRendersVerifyControlForOwnedRobotWithCallbackUrl() throws Exception {
@@ -140,26 +141,57 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
+    // Modal contains verify form and Test Bot button
     assertTrue(outputWriter.toString().contains("action\" value=\"verify\""));
     assertTrue(outputWriter.toString().contains("Test Bot"));
+    // Table also has an inline Test button for robots with callback URL
+    assertTrue(outputWriter.toString().contains(">Test</button>"));
   }
 
   public void testDoGetRendersMaskedSecretPreviewAndTimestamps() throws Exception {
+    RobotAccountData robot = new RobotAccountDataImpl(ROBOT, "https://robot.example.com/callback",
+        "super-secret-token-123456", null, true, 3600L, OWNER.getAddress(),
+        "Dashboard helper", 111L, 222L, true);
     when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
-    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(
-        new RobotAccountDataImpl(ROBOT, "https://robot.example.com/callback",
-            "super-secret-token-123456", null, true, 3600L, OWNER.getAddress(),
-            "Dashboard helper", 111L, 222L, true)));
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(robot));
 
     servlet.doGet(req, resp);
 
+    // Modal shows description, masked secret, timestamps, and paused status
     assertTrue(outputWriter.toString().contains("Dashboard helper"));
-    assertTrue(outputWriter.toString().contains("supe…3456"));
+    assertTrue(outputWriter.toString().contains("supe\u2026" + "3456"));
     assertFalse(outputWriter.toString().contains("super-secret-token-123456"));
     assertFalse(outputWriter.toString().contains("Copy this robot secret now"));
     assertTrue(outputWriter.toString().contains("Paused"));
     assertTrue(outputWriter.toString().contains("1970-01-01T00:00:00.111Z"));
     assertTrue(outputWriter.toString().contains("1970-01-01T00:00:00.222Z"));
+  }
+
+  public void testDoGetRendersModalWithCorrectId() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(
+        new RobotAccountDataImpl(ROBOT, "https://robot.example.com/callback", "secret", null,
+            true, 3600L, OWNER.getAddress())));
+
+    servlet.doGet(req, resp);
+
+    // Modal ID is derived from robot address
+    String modalId = "robot-bot_at_example_dot_com";
+    assertTrue(outputWriter.toString().contains("id=\"modal-" + modalId + "\""));
+    assertTrue(outputWriter.toString().contains("openModal('" + modalId + "')"));
+    assertTrue(outputWriter.toString().contains("closeModal('" + modalId + "')"));
+  }
+
+  public void testDoGetRendersEditButtonAsModalOpener() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of(
+        new RobotAccountDataImpl(ROBOT, "", "secret", null, false, 3600L, OWNER.getAddress())));
+
+    servlet.doGet(req, resp);
+
+    // Edit button opens modal, not a separate page
+    assertTrue(outputWriter.toString().contains("openModal('robot-bot_at_example_dot_com')"));
+    assertFalse(outputWriter.toString().contains("?edit="));
   }
 
   public void testDoGetUsesTrustedRequestOriginInAiPrompt() throws Exception {

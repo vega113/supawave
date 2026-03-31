@@ -29,15 +29,13 @@ import org.waveprotocol.box.server.authentication.WebSession;
 import static org.junit.Assert.*;
 
 /**
- * Verifies the feature flag plumbing for Jetty 12 session lookup code path.
- * When enabled, the method should handle reflection attempts gracefully and
- * return null if no session is found.
+ * Verifies the Jakarta session lookup path handles missing sessions gracefully.
  */
 public class SessionLookupFlagTest {
 
   @Test
-  public void returnsNullGracefully_whenFlagEnabled() throws Exception {
-    Config cfg = ConfigFactory.parseString("experimental.jetty12_session_lookup = true");
+  public void returnsNullGracefullyWhenSessionIsMissing() throws Exception {
+    Config cfg = ConfigFactory.empty();
     AccountStore store = Mockito.mock(AccountStore.class);
     // Use reflection to avoid compile-time dependency on Jetty 12 in this test
     final Class<?> shClass;

@@ -38,7 +38,7 @@ import org.waveprotocol.wave.model.conversation.WaveBasedConversationView;
 import org.waveprotocol.wave.model.conversation.BlipIterators;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
-import org.waveprotocol.wave.model.wave.data.IndexedDocumentFactory;
+import org.waveprotocol.wave.model.wave.data.MuteDocumentFactory;
 import org.waveprotocol.wave.model.schema.conversation.ConversationSchemas;
 import org.waveprotocol.wave.model.id.IdGenerator;
 import org.waveprotocol.wave.model.id.IdGeneratorImpl;
@@ -134,9 +134,11 @@ public final class FragmentsFetcherCompat {
     ReadableWaveletData data = (snap != null) ? snap.snapshot : null;
     if (data == null) return Collections.emptyList();
 
-    // Create an ObservableWaveletData copy using conversation schemas
+    // Create an ObservableWaveletData copy using MuteDocumentFactory — its documents
+    // are observable (required by WaveBasedConversationView) and silently discard
+    // outgoing ops, which is safe because we only read the manifest structure.
     ObservableWaveletData obs = WaveletDataImpl.Factory.create(
-        new IndexedDocumentFactory(new ConversationSchemas())).create(data);
+        new MuteDocumentFactory(new ConversationSchemas())).create(data);
     // Build a minimal ReadOnlyWaveView to host the observable wavelet
     WaveId waveId = data.getWaveId();
     ReadOnlyWaveView wv = new ReadOnlyWaveView(waveId);

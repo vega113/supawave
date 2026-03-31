@@ -289,7 +289,7 @@ public class WaveService {
   private static final String JSON_MIME_TYPE = "application/json; charset=utf-8";
   private static final String OAUTH_BODY_HASH = "oauth_body_hash";
   private static final String POST = "POST";
-  private static final String SHA_1 = "SHA-1";
+  private static final String SHA_256 = "SHA-256";
   private static final String UTF_8 = "UTF-8";
 
   /** Wave RPC URLs. */
@@ -435,7 +435,7 @@ public class WaveService {
 
     // Compute and check the hash of the body.
     try {
-      MessageDigest md = MessageDigest.getInstance(SHA_1);
+      MessageDigest md = MessageDigest.getInstance(SHA_256);
       byte[] hash = md.digest(jsonBody.getBytes(UTF_8));
       String encodedHash = new String(Base64.encodeBase64(hash, false), UTF_8);
       if (!encodedHash.equals(message.getParameter(OAUTH_BODY_HASH))) {
@@ -973,7 +973,7 @@ public class WaveService {
 
     // Compute the hash of the body.
     byte[] rawBody = jsonBody.getBytes(UTF_8);
-    byte[] hash = DigestUtils.sha1(rawBody);
+    byte[] hash = DigestUtils.sha256(rawBody);
     byte[] encodedHash = Base64.encodeBase64(hash);
     message.addParameter(OAUTH_BODY_HASH, new String(encodedHash, UTF_8));
 

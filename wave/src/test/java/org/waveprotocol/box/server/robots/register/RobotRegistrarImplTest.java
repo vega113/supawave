@@ -206,7 +206,8 @@ public class RobotRegistrarImplTest extends TestCase {
 
     assertEquals("pending-secret", updatedAccount.getConsumerSecret());
     assertEquals(OTHER_LOCATION.substring(0, OTHER_LOCATION.length() - 1), updatedAccount.getUrl());
-    assertFalse(updatedAccount.isVerified());
+    // Activating a pending robot (empty URL -> real URL) should mark it as verified.
+    assertTrue(updatedAccount.isVerified());
     assertEquals(3600L, updatedAccount.getTokenExpirySeconds());
     assertEquals(OWNER_ID.getAddress(), updatedAccount.getOwnerAddress());
     assertEquals("pending", updatedAccount.getDescription());

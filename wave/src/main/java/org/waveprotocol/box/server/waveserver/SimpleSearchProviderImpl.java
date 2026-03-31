@@ -36,11 +36,16 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletIdSerializer;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
+import org.waveprotocol.wave.model.document.operation.Attributes;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
 import org.waveprotocol.wave.model.supplement.SupplementedWave;
 import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
+import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
@@ -53,6 +58,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
@@ -65,6 +71,7 @@ import java.util.HashSet;
 public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
   private static final Log LOG = Log.get(SimpleSearchProviderImpl.class);
+  private static final int MAX_SEARCHABLE_BLIP_TEXT_CHARS = 32768;
 
   private final PerUserWaveViewProvider waveViewProvider;
 
@@ -692,7 +699,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     // Build lowercase search terms for case-insensitive matching.
     List<String> lowerTerms = new ArrayList<String>();
     for (String term : requiredTerms) {
-      lowerTerms.add(term.toLowerCase(java.util.Locale.ROOT));
+      lowerTerms.add(term.toLowerCase(Locale.ROOT));
     }
 
     Iterator<WaveViewData> it = results.iterator();
@@ -717,15 +724,14 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           continue;
         }
 
-        org.waveprotocol.wave.model.wave.data.ReadableBlipData rootBlip =
-            convWavelet.getDocument(rootBlipId);
+        ReadableBlipData rootBlip = convWavelet.getDocument(rootBlipId);
         if (rootBlip == null) {
           it.remove();
           continue;
         }
 
-        String titleText = extractTextFromBlip(rootBlip)
-            .toLowerCase(java.util.Locale.ROOT);
+        String titleText = extractTextFromBlip(rootBlip, MAX_SEARCHABLE_BLIP_TEXT_CHARS)
+            .toLowerCase(Locale.ROOT);
 
         boolean matches = true;
         for (String term : lowerTerms) {
@@ -759,7 +765,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     // Build lowercase search terms for case-insensitive matching.
     List<String> lowerTerms = new ArrayList<String>();
     for (String term : requiredTerms) {
-      lowerTerms.add(term.toLowerCase(java.util.Locale.ROOT));
+      lowerTerms.add(term.toLowerCase(Locale.ROOT));
     }
 
     Iterator<WaveViewData> it = results.iterator();
@@ -770,20 +776,19 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
         // Iterate over all conversational wavelets in this wave.
         for (ObservableWaveletData wd : wave.getWavelets()) {
-          if (!org.waveprotocol.wave.model.id.IdUtil.isConversationalId(wd.getWaveletId())) {
+          if (!IdUtil.isConversationalId(wd.getWaveletId())) {
             continue;
           }
 
           // Iterate over all documents (blips) in the wavelet.
           for (String docId : wd.getDocumentIds()) {
-            org.waveprotocol.wave.model.wave.data.ReadableBlipData blip =
-                wd.getDocument(docId);
+            ReadableBlipData blip = wd.getDocument(docId);
             if (blip == null) {
               continue;
             }
 
-            String blipText = extractTextFromBlip(blip)
-                .toLowerCase(java.util.Locale.ROOT);
+            String blipText = extractTextFromBlip(blip, MAX_SEARCHABLE_BLIP_TEXT_CHARS)
+                .toLowerCase(Locale.ROOT);
             if (blipText.isEmpty()) {
               continue;
             }
@@ -827,18 +832,14 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * @param blip the blip data to extract text from.
    * @return the plain text content of the blip.
    */
-  private static String extractTextFromBlip(
-      org.waveprotocol.wave.model.wave.data.ReadableBlipData blip) {
-    org.waveprotocol.wave.model.document.operation.DocInitialization docOp =
-        blip.getContent().asOperation();
+  private static String extractTextFromBlip(ReadableBlipData blip, int maxChars) {
+    DocInitialization docOp = blip.getContent().asOperation();
 
-    final StringBuilder textBuilder = new StringBuilder();
-    docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
+    final StringBuilder textBuilder = new StringBuilder(Math.min(maxChars, 1024));
+    docOp.apply(new DocInitializationCursor() {
       @Override
-      public void elementStart(String type,
-          org.waveprotocol.wave.model.document.operation.Attributes attrs) {
-        // Insert a space for line elements to separate words across lines.
-        if ("line".equals(type) && textBuilder.length() > 0) {
+      public void elementStart(String type, Attributes attrs) {
+        if ("line".equals(type) && textBuilder.length() > 0 && textBuilder.length() < maxChars) {
           textBuilder.append(' ');
         }
       }
@@ -850,16 +851,18 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
       @Override
       public void characters(String chars) {
-        if (chars != null) {
-          textBuilder.append(chars);
+        if (chars != null && textBuilder.length() < maxChars) {
+          int remaining = maxChars - textBuilder.length();
+          if (chars.length() <= remaining) {
+            textBuilder.append(chars);
+          } else {
+            textBuilder.append(chars, 0, remaining);
+          }
         }
       }
 
       @Override
-      public void annotationBoundary(
-          org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
-        // Annotation boundaries can appear between characters() calls within
-        // the same element. We simply ignore them and keep accumulating text.
+      public void annotationBoundary(AnnotationBoundaryMap map) {
       }
     });
     return textBuilder.toString().trim();
@@ -875,26 +878,22 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
    * @return the root blip document ID, or null if not found.
    */
   private static String getRootBlipId(ObservableWaveletData waveletData) {
-    org.waveprotocol.wave.model.wave.data.ReadableBlipData manifestDoc =
-        waveletData.getDocument(
-            org.waveprotocol.box.common.DocumentConstants.MANIFEST_DOCUMENT_ID);
+    ReadableBlipData manifestDoc = waveletData.getDocument(
+        org.waveprotocol.wave.model.document.DocumentConstants.MANIFEST_DOCUMENT_ID);
     if (manifestDoc == null) {
       return null;
     }
 
-    org.waveprotocol.wave.model.document.operation.DocInitialization docOp =
-        manifestDoc.getContent().asOperation();
+    DocInitialization docOp = manifestDoc.getContent().asOperation();
 
     final String[] rootBlipId = {null};
-    docOp.apply(new org.waveprotocol.wave.model.document.operation.DocInitializationCursor() {
+    docOp.apply(new DocInitializationCursor() {
       @Override
-      public void elementStart(String type,
-          org.waveprotocol.wave.model.document.operation.Attributes attrs) {
-        // Only capture the first blip element's ID.
+      public void elementStart(String type, Attributes attrs) {
         if (rootBlipId[0] == null
-            && org.waveprotocol.box.common.DocumentConstants.BLIP.equals(type)
+            && org.waveprotocol.wave.model.document.DocumentConstants.BLIP.equals(type)
             && attrs != null) {
-          String id = attrs.get(org.waveprotocol.box.common.DocumentConstants.BLIP_ID);
+          String id = attrs.get(org.waveprotocol.wave.model.document.DocumentConstants.BLIP_ID);
           if (id != null) {
             rootBlipId[0] = id;
           }
@@ -908,13 +907,10 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
       @Override
       public void characters(String chars) {
-        // No characters expected in manifest.
       }
 
       @Override
-      public void annotationBoundary(
-          org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {
-        // Ignore.
+      public void annotationBoundary(AnnotationBoundaryMap map) {
       }
     });
 

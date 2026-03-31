@@ -39,6 +39,11 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -46,6 +51,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class WebSocketClientRpcChannel implements ClientRpcChannel {
   private static final Log LOG = Log.get(WebSocketClientRpcChannel.class);
+
+  private static final ScheduledExecutorService RETRY_EXECUTOR =
+      Executors.newScheduledThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), r -> {
+        Thread t = new Thread(r, "WebSocketClientRpcChannel-Retry");
+        t.setDaemon(true);
+        return t;
+      });
 
   private final WebSocketChannel clientChannel;
   private final AtomicInteger lastSequenceNumber = new AtomicInteger();
@@ -79,9 +91,31 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
       }
     };
     clientChannel = new WebSocketChannelImpl(callback);
-    openWebSocket(clientChannel, (InetSocketAddress) serverAddress);
+    CompletableFuture<Session> connectFuture =
+        openWebSocketAsync(clientChannel, requireInetSocketAddress(serverAddress));
+    try {
+      connectFuture.get();
+    } catch (InterruptedException e) {
+      connectFuture.cancel(true);
+      Thread.currentThread().interrupt();
+      throw new IOException("WebSocket connection interrupted", e);
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      }
+      throw new IOException("WebSocket connection failed", e.getCause());
+    }
     clientChannel.expectMessage(Rpc.RpcFinished.getDefaultInstance());
     LOG.fine("Opened a new WebSocketClientRpcChannel to " + serverAddress);
+  }
+
+  private InetSocketAddress requireInetSocketAddress(SocketAddress serverAddress)
+      throws IOException {
+    if (serverAddress instanceof InetSocketAddress) {
+      return (InetSocketAddress) serverAddress;
+    }
+    throw new IOException(
+        "Unsupported server address type: " + serverAddress.getClass().getName());
   }
 
   @Override
@@ -117,31 +151,62 @@ public class WebSocketClientRpcChannel implements ClientRpcChannel {
     clientChannel.sendMessage(sequenceNo, request, responsePrototype);
   }
 
-  private void openWebSocket(WebSocketChannel clientChannel, InetSocketAddress inetAddress) throws IOException {
+  private CompletableFuture<Session> openWebSocketAsync(WebSocketChannel clientChannel, InetSocketAddress inetAddress) {
+    if (inetAddress == null || inetAddress.getPort() <= 0) {
+      CompletableFuture<Session> future = new CompletableFuture<>();
+      future.completeExceptionally(new IllegalArgumentException("Invalid server address: " + inetAddress));
+      return future;
+    }
+
     URI uri;
     try {
       uri = new URI("ws", null, inetAddress.getHostName(), inetAddress.getPort(), "/socket", null, null);
     } catch (URISyntaxException e) {
       LOG.severe("Unable to create ws:// uri from given address (" + inetAddress + ")", e);
-      throw new IllegalStateException(e);
+      CompletableFuture<Session> future = new CompletableFuture<>();
+      future.completeExceptionally(new IllegalStateException(e));
+      return future;
     }
-    int attempts = 0; Exception last = null;
-    while (attempts < 3) {
-      attempts++;
-      try {
-        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-        ClientEndpointAdapter endpoint = new ClientEndpointAdapter((WebSocketChannelImpl) clientChannel);
-        this.session = container.connectToServer(endpoint, uri);
-        return;
-      } catch (Exception ex) {
-        last = ex;
-        LOG.warning("Jakarta WS connect attempt " + attempts + " failed to " + uri + ": " + ex.getMessage(), ex);
-        try { Thread.sleep(300L * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+
+    CompletableFuture<Session> resultFuture = new CompletableFuture<>();
+    attemptConnect(clientChannel, uri, 1, 3, resultFuture);
+    return resultFuture;
+  }
+
+  private void attemptConnect(WebSocketChannel clientChannel, URI uri, int attempt,
+      int maxAttempts, CompletableFuture<Session> resultFuture) {
+    if (resultFuture.isDone()) {
+      return;
+    }
+    try {
+      WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+      ClientEndpointAdapter endpoint = new ClientEndpointAdapter((WebSocketChannelImpl) clientChannel);
+      Session connectedSession = container.connectToServer(endpoint, uri);
+      if (resultFuture.complete(connectedSession)) {
+        this.session = connectedSession;
+      } else {
+        closeSession(connectedSession);
+      }
+      return;
+    } catch (Exception ex) {
+      LOG.warning("Jakarta WS connect attempt " + attempt + " failed to " + uri + ": " + ex.getMessage(), ex);
+      if (attempt < maxAttempts) {
+        long sleepMs = 300L * attempt;
+        RETRY_EXECUTOR.schedule(() -> attemptConnect(clientChannel, uri, attempt + 1, maxAttempts, resultFuture), sleepMs, TimeUnit.MILLISECONDS);
+      } else {
+        IOException ioe = new IOException("Failed to open Jakarta WebSocket to " + uri.getHost() + " after " + maxAttempts + " attempts");
+        ioe.initCause(ex);
+        resultFuture.completeExceptionally(ioe);
       }
     }
-    IOException ioe = new IOException("Failed to open Jakarta WebSocket to " + inetAddress + " after " + attempts + " attempts");
-    if (last != null) ioe.initCause(last);
-    throw ioe;
+  }
+
+  private void closeSession(Session session) {
+    try {
+      session.close();
+    } catch (IOException e) {
+      LOG.warning("Jakarta WebSocket session close() failed during cleanup", e);
+    }
   }
 
   @ClientEndpoint

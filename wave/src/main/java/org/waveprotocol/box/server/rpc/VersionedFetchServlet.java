@@ -27,7 +27,6 @@ import org.waveprotocol.box.common.ListReceiver;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
-import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.SnapshotStore;
 import org.waveprotocol.box.server.rpc.ProtoSerializer.SerializationException;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
@@ -74,6 +73,7 @@ import java.util.List;
 @Singleton
 public final class VersionedFetchServlet extends HttpServlet {
   private static final Log LOG = Log.get(VersionedFetchServlet.class);
+  private static final long MAX_GROUPS_HISTORY_VERSION_SPAN = 10000L;
 
   private final WaveletProvider waveletProvider;
   private final ProtoSerializer serializer;
@@ -502,6 +502,12 @@ public final class VersionedFetchServlet extends HttpServlet {
       return;
     }
 
+    if (currentVersion > MAX_GROUPS_HISTORY_VERSION_SPAN) {
+      response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+          "Wavelet history is too large for grouped fetch");
+      return;
+    }
+
     // Fetch all deltas
     try {
       HashedVersion startVersion = HashedVersion.unsigned(0);
@@ -563,52 +569,9 @@ public final class VersionedFetchServlet extends HttpServlet {
 
       writeJsonResponse(response, result);
 
-      // Pre-cache snapshots at group boundary versions (async, best-effort)
-      preCacheGroupBoundarySnapshots(waveletName, allGroups, startIdx, endIdx);
-
     } catch (WaveServerException e) {
       LOG.warning("Failed to compute groups for " + waveletName, e);
       response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  /**
-   * Pre-caches snapshots at group boundary versions (endVersion of each group)
-   * in the SnapshotStore so that scrubbing between groups in the UI is fast.
-   * This is best-effort; failures are logged but do not affect the API response.
-   */
-  private void preCacheGroupBoundarySnapshots(WaveletName waveletName,
-      List<ChangeGroup> groups, int startIdx, int endIdx) {
-    for (int i = startIdx; i < endIdx; i++) {
-      long boundaryVersion = groups.get(i).getEndVersion();
-      if (boundaryVersion <= 0) {
-        continue;
-      }
-      try {
-        // Build snapshot at this version by replaying deltas
-        HashedVersion start = HashedVersion.unsigned(0);
-        HashedVersion end = HashedVersion.unsigned(boundaryVersion);
-        ListReceiver<TransformedWaveletDelta> receiver = new ListReceiver<>();
-        waveletProvider.getHistory(waveletName, start, end, receiver);
-        List<TransformedWaveletDelta> filteredDeltas = new ArrayList<>();
-        for (TransformedWaveletDelta delta : receiver) {
-          if (delta.getResultingVersion().getVersion() <= boundaryVersion) {
-            filteredDeltas.add(delta);
-          }
-        }
-        if (filteredDeltas.isEmpty()) {
-          continue;
-        }
-        ObservableWaveletData wavelet = WaveletDataUtil.buildWaveletFromDeltas(
-            waveletName, filteredDeltas.iterator());
-        Message message = SnapshotSerializer.serializeWavelet(
-            wavelet, wavelet.getHashedVersion());
-        byte[] serialized = message.toByteArray();
-        snapshotStore.storeSnapshot(waveletName, serialized, boundaryVersion);
-      } catch (WaveServerException | OperationException | PersistenceException e) {
-        LOG.warning("Failed to pre-cache snapshot at version " + boundaryVersion
-            + " for " + waveletName + ": " + e.getMessage());
-      }
     }
   }
 

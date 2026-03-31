@@ -77,6 +77,7 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   private final boolean rebuildOnStartup;
   private final IndexWriter indexWriter;
   private final SearcherManager searcherManager;
+  private volatile int lastRebuildWaveCount = -1;
 
   @Inject
   public Lucene9WaveIndexerImpl(WaveMap waveMap, WaveletProvider waveletProvider,
@@ -108,20 +109,48 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
       if (rebuildOnStartup) {
         indexWriter.deleteAll();
       }
-      waveMap.loadAllWavelets();
-      try {
-        org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
-            waveletProvider.getWaveIds();
-        while (waveIds.hasNext()) {
-          upsertWave(waveIds.next());
-        }
-        indexWriter.commit();
-        searcherManager.maybeRefreshBlocking();
-      } finally {
-        waveMap.unloadAllWavelets();
-      }
+      lastRebuildWaveCount = doRebuild();
     } catch (IOException e) {
       throw new IndexException(e);
+    }
+  }
+
+  /**
+   * Forces a clean rebuild of the Lucene9 index regardless of config settings.
+   * Deletes all existing documents and re-indexes every wave from storage.
+   * Called by admin dashboard reindex trigger.
+   *
+   * @return the number of waves indexed
+   */
+  public synchronized int forceRemakeIndex() throws WaveletStateException, WaveServerException {
+    try {
+      int existingDocs = indexWriter.getDocStats().numDocs;
+      LOG.info("Admin-triggered forced rebuild (had " + existingDocs + " docs)");
+      indexWriter.deleteAll();
+      lastRebuildWaveCount = doRebuild();
+      return lastRebuildWaveCount;
+    } catch (IOException e) {
+      throw new IndexException(e);
+    }
+  }
+
+  /** Shared rebuild logic: loads all waves and indexes them. Returns wave count. */
+  private int doRebuild() throws WaveletStateException, WaveServerException, IOException {
+    waveMap.loadAllWavelets();
+    try {
+      org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
+          waveletProvider.getWaveIds();
+      int count = 0;
+      while (waveIds.hasNext()) {
+        upsertWave(waveIds.next());
+        count++;
+      }
+      indexWriter.commit();
+      searcherManager.maybeRefreshBlocking();
+      LOG.info("Lucene9 index built with " + count + " waves");
+      return count;
+    } finally {
+      waveMap.unloadAllWavelets();
     }
   }
 
@@ -176,6 +205,25 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     } catch (IOException e) {
       LOG.log(Level.WARNING, "Failed to release lucene9 searcher", e);
     }
+  }
+
+  /** Returns the number of documents currently in the Lucene9 index. */
+  public int getIndexedDocCount() {
+    IndexSearcher searcher = null;
+    try {
+      searcher = acquireSearcher();
+      return searcher.getIndexReader().numDocs();
+    } catch (IOException e) {
+      LOG.log(Level.WARNING, "Failed to get indexed doc count", e);
+      return -1;
+    } finally {
+      release(searcher);
+    }
+  }
+
+  /** Returns the wave count from the last rebuild, or -1 if no rebuild has occurred. */
+  public int getLastRebuildWaveCount() {
+    return lastRebuildWaveCount;
   }
 
   private void upsertWave(WaveId waveId) throws WaveServerException, WaveletStateException,

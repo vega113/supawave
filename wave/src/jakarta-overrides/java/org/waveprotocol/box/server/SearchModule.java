@@ -45,6 +45,7 @@ import org.waveprotocol.box.server.waveserver.SolrWaveIndexerImpl;
 import org.waveprotocol.box.server.waveserver.WaveIndexer;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9SearchProviderImpl;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
+import org.waveprotocol.box.server.waveserver.ReindexService;
 import org.waveprotocol.box.server.waveserver.lucene9.NoOpWaveEmbeddingProvider;
 import org.waveprotocol.box.server.waveserver.lucene9.WaveEmbeddingProvider;
 
@@ -61,6 +62,9 @@ public class SearchModule extends AbstractModule {
 
   @Override
   public void configure() {
+    // ReindexService is available in all modes; it gracefully handles null indexer
+    bind(ReindexService.class).in(Singleton.class);
+
     if ("lucene".equals(searchType)) {
       bind(SimpleSearchProviderImpl.class).in(Singleton.class);
       bind(Lucene9SearchProviderImpl.class).in(Singleton.class);

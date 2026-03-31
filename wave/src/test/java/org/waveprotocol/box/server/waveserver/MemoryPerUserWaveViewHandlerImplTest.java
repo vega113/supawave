@@ -116,12 +116,22 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     assertTrue(waveView.containsEntry(WAVE_ID, WAVELET_ID));
   }
 
-  public void testRetrievePerUserWaveViewLoadsStorageOnlyOnce() {
+  public void testRapidCacheMissesShareSingleLoad() {
     ReloadingWaveMap reloadingWaveMap = (ReloadingWaveMap) waveMap;
     MemoryPerUserWaveViewHandlerImpl handler = new MemoryPerUserWaveViewHandlerImpl(reloadingWaveMap);
 
     handler.retrievePerUserWaveView(PARTICIPANT);
     handler.retrievePerUserWaveView(SECOND_PARTICIPANT);
+
+    assertEquals(1, reloadingWaveMap.loadAllWaveletsCallCount);
+  }
+
+  public void testRetrievePerUserWaveViewCacheHitSkipsReload() {
+    ReloadingWaveMap reloadingWaveMap = (ReloadingWaveMap) waveMap;
+    MemoryPerUserWaveViewHandlerImpl handler = new MemoryPerUserWaveViewHandlerImpl(reloadingWaveMap);
+
+    handler.retrievePerUserWaveView(PARTICIPANT);
+    handler.retrievePerUserWaveView(PARTICIPANT);
 
     assertEquals(1, reloadingWaveMap.loadAllWaveletsCallCount);
   }

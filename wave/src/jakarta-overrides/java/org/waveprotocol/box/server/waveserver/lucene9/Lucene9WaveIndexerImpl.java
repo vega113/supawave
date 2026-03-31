@@ -31,7 +31,6 @@ import java.util.logging.Logger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -41,6 +40,7 @@ import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.waveprotocol.box.server.persistence.lucene.Lucene9SearchIndexDirectory;
+import org.waveprotocol.box.server.persistence.lucene.LuceneIndexWriterFactory;
 import org.waveprotocol.box.server.waveserver.AbstractSearchProviderImpl;
 import org.waveprotocol.box.server.waveserver.IndexException;
 import org.waveprotocol.box.server.waveserver.ReadableWaveletDataProvider;
@@ -87,11 +87,16 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     this.metadataExtractor = metadataExtractor;
     this.documentBuilder = documentBuilder;
     this.rebuildOnStartup = config.getBoolean("core.lucene9_rebuild_on_startup");
+    this.indexWriter =
+        LuceneIndexWriterFactory.openWithRetry(directory.getDirectory(), new StandardAnalyzer(), LOG);
     try {
-      this.indexWriter = new IndexWriter(directory.getDirectory(),
-          new IndexWriterConfig(new StandardAnalyzer()));
       this.searcherManager = new SearcherManager(indexWriter, new SearcherFactory());
     } catch (IOException e) {
+      try {
+        indexWriter.close();
+      } catch (IOException closeEx) {
+        e.addSuppressed(closeEx);
+      }
       throw new IndexException(e);
     }
   }
@@ -105,18 +110,29 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   @Override
   public synchronized void remakeIndex() throws WaveletStateException, WaveServerException {
     try {
-      if (rebuildOnStartup) {
+      int existingDocs = indexWriter.getDocStats().numDocs;
+      if (existingDocs > 0 && !rebuildOnStartup) {
+        LOG.info("Lucene9 index already has " + existingDocs
+            + " documents, skipping rebuild (lucene9_rebuild_on_startup=false)");
+        return;
+      }
+      if (existingDocs > 0) {
+        LOG.info("Rebuilding Lucene9 index (had " + existingDocs
+            + " docs, lucene9_rebuild_on_startup=true)");
         indexWriter.deleteAll();
       }
       waveMap.loadAllWavelets();
       try {
         org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
             waveletProvider.getWaveIds();
+        int count = 0;
         while (waveIds.hasNext()) {
           upsertWave(waveIds.next());
+          count++;
         }
         indexWriter.commit();
         searcherManager.maybeRefreshBlocking();
+        LOG.info("Lucene9 index built with " + count + " waves");
       } finally {
         waveMap.unloadAllWavelets();
       }

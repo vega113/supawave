@@ -46,7 +46,6 @@ import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreDoc;
@@ -60,6 +59,7 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.executor.ExecutorAnnotations.IndexExecutor;
 import org.waveprotocol.box.server.persistence.lucene.IndexDirectory;
+import org.waveprotocol.box.server.persistence.lucene.LuceneIndexWriterFactory;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -92,11 +92,16 @@ public class LucenePerUserWaveViewHandlerImpl implements PerUserWaveViewHandler,
     this.waveletProvider = waveletProvider;
     this.executor = executor;
     this.analyzer = new StandardAnalyzer();
+    this.indexWriter =
+        LuceneIndexWriterFactory.openWithRetry(directory.getDirectory(), analyzer, LOG);
     try {
-      IndexWriterConfig indexConfig = new IndexWriterConfig(analyzer);
-      this.indexWriter = new IndexWriter(directory.getDirectory(), indexConfig);
       this.searcherManager = new SearcherManager(indexWriter, new SearcherFactory());
     } catch (IOException e) {
+      try {
+        indexWriter.close();
+      } catch (IOException closeEx) {
+        e.addSuppressed(closeEx);
+      }
       throw new IndexException(e);
     }
   }

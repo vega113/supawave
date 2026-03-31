@@ -20,21 +20,12 @@ package org.waveprotocol.box.server;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
-import com.google.inject.Key;
 import com.google.inject.Singleton;
-import com.google.inject.name.Names;
 import com.typesafe.config.Config;
-import org.waveprotocol.box.server.persistence.file.FileUtils;
-import org.waveprotocol.box.server.persistence.lucene.IndexDirectory;
-import org.waveprotocol.box.server.persistence.lucene.LegacyLuceneIndexDirectory;
-import org.waveprotocol.box.server.waveserver.CompositeWaveIndexer;
 import org.waveprotocol.box.server.waveserver.FeatureFlaggedSearchProviderImpl;
 import org.waveprotocol.box.server.waveserver.IndexException;
-import org.waveprotocol.box.server.waveserver.LucenePerUserWaveViewHandlerImpl;
-import org.waveprotocol.box.server.waveserver.LuceneWaveIndexerImpl;
 import org.waveprotocol.box.server.waveserver.MemoryPerUserWaveViewHandlerImpl;
 import org.waveprotocol.box.server.waveserver.MemoryWaveIndexerImpl;
-import org.waveprotocol.box.server.waveserver.NoOpWaveIndexerImpl;
 import org.waveprotocol.box.server.waveserver.PerUserWaveViewBus;
 import org.waveprotocol.box.server.waveserver.PerUserWaveViewHandler;
 import org.waveprotocol.box.server.waveserver.PerUserWaveViewProvider;
@@ -51,40 +42,32 @@ import org.waveprotocol.box.server.waveserver.lucene9.WaveEmbeddingProvider;
 public class SearchModule extends AbstractModule {
 
   private final String searchType;
-  private final String legacyIndexDirectory;
 
   @Inject
   public SearchModule(Config config) {
     this.searchType = config.getString("core.search_type");
-    this.legacyIndexDirectory = config.getString("core.legacy_index_directory");
   }
 
   @Override
   public void configure() {
     if ("lucene".equals(searchType)) {
+      // FeatureFlaggedSearchProviderImpl routes between legacy (SimpleSearch)
+      // and Lucene9 based on the "lucene9" per-user feature flag.
+      // The legacy fallback uses the fixed in-memory per-user view so there
+      // is no async bootstrap race on clean deploys.
       bind(SimpleSearchProviderImpl.class).in(Singleton.class);
       bind(Lucene9SearchProviderImpl.class).in(Singleton.class);
       bind(WaveEmbeddingProvider.class).to(NoOpWaveEmbeddingProvider.class).in(Singleton.class);
       bind(FeatureFlaggedSearchProviderImpl.class).in(Singleton.class);
       bind(SearchProvider.class).to(FeatureFlaggedSearchProviderImpl.class).in(Singleton.class);
-      bind(PerUserWaveViewProvider.class).to(LucenePerUserWaveViewHandlerImpl.class)
+      bind(PerUserWaveViewProvider.class).to(MemoryPerUserWaveViewHandlerImpl.class)
           .in(Singleton.class);
-      bind(PerUserWaveViewBus.Listener.class).to(LucenePerUserWaveViewHandlerImpl.class)
+      bind(PerUserWaveViewBus.Listener.class).to(MemoryPerUserWaveViewHandlerImpl.class)
           .in(Singleton.class);
-      bind(PerUserWaveViewHandler.class).to(LucenePerUserWaveViewHandlerImpl.class)
+      bind(PerUserWaveViewHandler.class).to(MemoryPerUserWaveViewHandlerImpl.class)
           .in(Singleton.class);
-      bind(IndexDirectory.class).to(LegacyLuceneIndexDirectory.class);
       bind(Lucene9WaveIndexerImpl.class).in(Singleton.class);
-      bind(Key.get(WaveIndexer.class, Names.named("lucene9WaveIndexer")))
-          .to(Lucene9WaveIndexerImpl.class);
-      if (!FileUtils.isDirExistsAndNonEmpty(legacyIndexDirectory)) {
-        bind(Key.get(WaveIndexer.class, Names.named("legacyWaveIndexer")))
-            .to(LuceneWaveIndexerImpl.class);
-      } else {
-        bind(Key.get(WaveIndexer.class, Names.named("legacyWaveIndexer")))
-            .to(NoOpWaveIndexerImpl.class);
-      }
-      bind(WaveIndexer.class).to(CompositeWaveIndexer.class).in(Singleton.class);
+      bind(WaveIndexer.class).to(Lucene9WaveIndexerImpl.class).in(Singleton.class);
       return;
     }
     if ("solr".equals(searchType)) {

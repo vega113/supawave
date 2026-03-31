@@ -434,8 +434,48 @@ public class ServerMain {
       LOG.info("SearchWaveletUpdater subscribed to WaveBus (ot-search enabled)");
     }
 
+    warmUpWaveView(injector, config);
+
     long elapsedMs = System.currentTimeMillis() - startMs;
     LOG.info("initializeSearch completed in " + elapsedMs + " ms");
+  }
+
+  /**
+   * Pre-warms the wave map and, if an owner is configured, the owner's per-user
+   * view so that the first search request is fast rather than waiting for a lazy
+   * full-store scan on first access.
+   *
+   * <p>If {@code core.owner_address} is set, only {@code retrievePerUserWaveView}
+   * is called — that call already triggers {@code loadAllWavelets()} internally
+   * on cache miss, so a separate explicit load would double the startup I/O.
+   * Without an owner, a direct {@code loadAllWavelets()} warms the WaveMap cache.
+   */
+  private static void warmUpWaveView(Injector injector, Config config) {
+    try {
+      long warmupStart = System.currentTimeMillis();
+      final String rawOwner = config.hasPath("core.owner_address")
+          ? config.getString("core.owner_address").trim()
+          : "";
+      if (!rawOwner.isEmpty()) {
+        final String ownerAddress = rawOwner.contains("@")
+            ? rawOwner
+            : rawOwner + "@" + config.getString("core.wave_server_domain");
+        PerUserWaveViewProvider viewProvider =
+            injector.getInstance(PerUserWaveViewProvider.class);
+        ParticipantId owner = ParticipantId.ofUnsafe(ownerAddress);
+        viewProvider.retrievePerUserWaveView(owner);
+        long viewMs = System.currentTimeMillis() - warmupStart;
+        LOG.info("Pre-warmed wave view for owner " + ownerAddress + " in " + viewMs + " ms");
+      } else {
+        WaveMap waveMap = injector.getInstance(WaveMap.class);
+        waveMap.loadAllWavelets();
+        long loadMs = System.currentTimeMillis() - warmupStart;
+        LOG.info("Wave map pre-warmed: loaded all wavelets in " + loadMs + " ms");
+      }
+    } catch (Exception e) {
+      LOG.log(java.util.logging.Level.WARNING,
+          "Wave view warmup failed (non-fatal, will load on first request)", e);
+    }
   }
 
   private static void initializeShutdownHandler(final ServerRpcProvider server) {

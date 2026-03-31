@@ -61,6 +61,12 @@ start() {
     echo "Install dir not found: $INSTALL_DIR. Run: sbt Universal/stage" >&2
     exit 1
   fi
+  # Ensure port is free before starting (avoids collision with prior runs)
+  if port_in_use; then
+    echo "Port $PORT already in use — stopping stale server first" >&2
+    stop
+    sleep 1
+  fi
   (cd "$INSTALL_DIR" && nohup ./bin/wave > wave_server.out 2>&1 & echo $! > wave_server.pid)
   echo "Started. Wrapper PID=$(cat "$PID_FILE" 2>/dev/null || echo unknown)"
   wait_ready
@@ -78,8 +84,12 @@ start() {
 }
 
 wait_ready() {
+  local curl_log="${INSTALL_DIR}/curl_probe.log"
   for i in {1..60}; do
-    http_status=$(curl -sS -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" || true)
+    # Use -s (silent) without -S to suppress expected connection-refused errors
+    # during JVM startup. Redirect stderr to a log file so real networking
+    # problems (DNS, loopback misconfiguration) remain diagnosable.
+    http_status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" 2>>"$curl_log" || true)
     if [[ "${http_status:-000}" != "000" ]]; then
       echo "PROBE_HTTP=$http_status"
     fi

@@ -91,7 +91,20 @@ jobs:
         timeout-minutes: 2
         run: |
           cd target/universal/stage
+          # Ensure port 9898 is free (previous smoke step should have stopped, but guard anyway).
+          # Fail closed: if ss is unavailable or errors, assume port may be in use and wait.
+          for attempt in 1 2 3; do
+            if command -v ss >/dev/null 2>&1; then
+              ss -tlnp 'sport = :9898' 2>/dev/null | grep -q LISTEN || break
+            else
+              # ss unavailable — fall back to curl probe (fail closed)
+              curl -s -o /dev/null --max-time 1 http://localhost:9898/ 2>/dev/null || break
+            fi
+            echo "Port 9898 still in use, waiting... (attempt $attempt)"
+            sleep 2
+          done
           SERVER_LOG=/tmp/wave-startup.log
+          CURL_LOG=/tmp/wave-curl-probe.log
           ./bin/wave > "$SERVER_LOG" 2>&1 &
           SERVER_PID=$!
           cleanup() {
@@ -100,7 +113,7 @@ jobs:
           }
           trap cleanup EXIT
           for i in $(seq 1 30); do
-            STATUS_CODE="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9898/healthz || true)"
+            STATUS_CODE="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9898/healthz 2>>"$CURL_LOG" || true)"
             if [ "$STATUS_CODE" = "200" ]; then
               echo "Server started successfully"
               exit 0
@@ -113,7 +126,10 @@ jobs:
             sleep 2
           done
           echo "Server failed to start within 60 seconds"
+          echo "--- Server log ---"
           tail -n 200 "$SERVER_LOG" || true
+          echo "--- Curl probe log ---"
+          cat "$CURL_LOG" 2>/dev/null || true
           exit 1
 
       - name: Guard experimental flags for release (tags/releases/release branches)

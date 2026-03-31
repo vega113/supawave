@@ -507,8 +507,9 @@ public final class RobotDashboardServlet extends HttpServlet {
     resp.setCharacterEncoding("UTF-8");
     resp.setContentType("text/html; charset=UTF-8");
     String baseUrl = derivePublicBaseUrl(req);
+    String contextPath = Strings.nullToEmpty(req.getContextPath());
     resp.getWriter().write(renderDashboardPage(user.getAddress(), robotsToRender, message,
-        getOrGenerateXsrfToken(user), baseUrl, revealedSecret));
+        getOrGenerateXsrfToken(user), baseUrl, revealedSecret, contextPath));
   }
 
   private List<RobotAccountData> loadOwnedRobots(String ownerAddress) {
@@ -543,7 +544,7 @@ public final class RobotDashboardServlet extends HttpServlet {
   }
 
   private String renderDashboardPage(String userAddress, List<RobotAccountData> robots,
-      String message, String xsrfToken, String baseUrl, String revealedSecret) {
+      String message, String xsrfToken, String baseUrl, String revealedSecret, String contextPath) {
     RobotAccountData promptRobot = robots.isEmpty() ? null : robots.get(robots.size() - 1);
     String promptRobotId = promptRobot == null ? "<robot@domain>" : promptRobot.getId().getAddress();
     String promptRobotSecret =
@@ -924,7 +925,11 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</div>");
     sb.append("<div id=\"token-status\" class=\"prompt-status\">Generating a one-hour JWT for the starter prompt\u2026</div>");
     sb.append("<button class=\"btn-primary\" style=\"margin-top:12px;\" onclick=\"");
-    sb.append("generateStarterJWT();var ta=document.getElementById('starter-prompt');navigator.clipboard.writeText(ta.value);this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy Prompt';},1500);");
+    sb.append("var btn=this;btn.disabled=true;btn.textContent='Copying\u2026';");
+    sb.append("generateStarterJWT().then(function(){");
+    sb.append("var ta=document.getElementById('starter-prompt');navigator.clipboard.writeText(ta.value);");
+    sb.append("btn.textContent='Copied!';btn.disabled=false;setTimeout(()=>{btn.textContent='Copy Prompt';},1500);");
+    sb.append("}).catch(function(){btn.textContent='Copy Prompt';btn.disabled=false;});");
     sb.append("\">Copy Prompt</button>");
     sb.append("</div></div>");
     sb.append("</section>");
@@ -967,19 +972,21 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("function hideDeleteModal(){document.getElementById('delete-overlay').classList.remove('visible');pendingDeleteForm=null;}");
     sb.append("document.getElementById('delete-modal-confirm').addEventListener('click',function(){if(pendingDeleteForm)pendingDeleteForm.submit();});");
     sb.append("document.getElementById('delete-overlay').addEventListener('click',function(e){if(e.target===this)hideDeleteModal();});");
-    // JWT fetch for Build AI prompt — lazy: only called when Build AI tab is first opened
-    sb.append("var jwtGenerated=false;");
+    // JWT fetch for Build AI prompt — lazy: only when Build AI tab first opened or Copy clicked.
+    // Returns a Promise so callers can await token generation before reading the prompt value.
+    sb.append("var jwtPromise=null;");
     sb.append("function generateStarterJWT(){");
-    sb.append("if(jwtGenerated)return;jwtGenerated=true;");
+    sb.append("if(jwtPromise)return jwtPromise;");
     sb.append("var prompt=document.getElementById('starter-prompt');");
     sb.append("var status=document.getElementById('token-status');");
-    sb.append("fetch('/robot/dataapi/token',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry=3600'})");
+    sb.append("jwtPromise=fetch('").append(HtmlRenderer.escapeHtml(contextPath)).append("/robot/dataapi/token',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry=3600'})");
     sb.append(".then(function(r){return r.ok?r.json():Promise.reject(new Error('HTTP '+r.status));})");
     sb.append(".then(function(data){");
     sb.append("prompt.value=prompt.value.replace('<generating 1 hour JWT...>',data.access_token);");
     sb.append("status.textContent='Ready \u2014 prompt includes a one-hour Data API JWT.';");
     sb.append("})");
     sb.append(".catch(function(){status.textContent='Sign in again if the one-hour JWT could not be generated automatically.';});");
+    sb.append("return jwtPromise;");
     sb.append("}");
     sb.append("</script>");
     sb.append("</div></body></html>");

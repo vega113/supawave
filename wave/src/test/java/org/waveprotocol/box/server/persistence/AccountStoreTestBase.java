@@ -167,4 +167,24 @@ public abstract class AccountStoreTestBase extends TestCase {
     accountStore.removeAccount(ROBOT_ID);
     assertNull("Removed account was not null", accountStore.getAccount(ROBOT_ID));
   }
+
+  public final void testGetAccountCountExcludesRobots() throws Exception {
+    AccountStore accountStore = newAccountStore();
+
+    // Add a human account
+    HumanAccountDataImpl humanAccount = new HumanAccountDataImpl(HUMAN_ID);
+    accountStore.putAccount(humanAccount);
+    assertEquals("Count should be 1 with one human account", 1, accountStore.getAccountCount());
+
+    // Add a robot account
+    accountStore.putAccount(robotAccount);
+    assertEquals("Count should remain 1; robot accounts must be excluded", 1,
+        accountStore.getAccountCount());
+
+    // Add another human account
+    ParticipantId secondHumanId = ParticipantId.ofUnsafe("human2@example.com");
+    HumanAccountDataImpl secondHumanAccount = new HumanAccountDataImpl(secondHumanId);
+    accountStore.putAccount(secondHumanAccount);
+    assertEquals("Count should be 2 with two human accounts", 2, accountStore.getAccountCount());
+  }
 }

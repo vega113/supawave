@@ -157,11 +157,30 @@ public class FileAccountStore implements AccountStore {
 
   @Override
   public long getAccountCount() throws PersistenceException {
-    synchronized (accounts) {
-      File dir = new File(accountStoreBasePath);
-      File[] files = dir.listFiles((d, name) -> name.endsWith(ACCOUNT_FILE_EXTENSION));
-      return files != null ? files.length : 0;
+    return countHumanAccounts();
+  }
+
+  private long countHumanAccounts() throws PersistenceException {
+    long count = 0;
+    File dir = new File(accountStoreBasePath);
+    File[] files = dir.listFiles((d, name) -> name.endsWith(ACCOUNT_FILE_EXTENSION));
+    if (files != null) {
+      for (File f : files) {
+        String fileName = f.getName();
+        String addr = fileName.substring(0, fileName.length() - ACCOUNT_FILE_EXTENSION.length());
+        ParticipantId pid;
+        try {
+          pid = ParticipantId.of(addr);
+        } catch (Exception e) {
+          continue;
+        }
+        AccountData account = readAccount(pid);
+        if (account != null && account.isHuman()) {
+          count++;
+        }
+      }
     }
+    return count;
   }
 
   @Override

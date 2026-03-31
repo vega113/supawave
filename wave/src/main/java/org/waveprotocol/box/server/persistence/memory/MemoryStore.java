@@ -126,7 +126,11 @@ public class MemoryStore implements SignerInfoStore, AccountStore, ContactStore 
 
   @Override
   public long getAccountCount() {
-    return accountStore.size();
+    return accountStore
+        .values()
+        .stream()
+        .filter(AccountData::isHuman)
+        .count();
   }
 
   /*

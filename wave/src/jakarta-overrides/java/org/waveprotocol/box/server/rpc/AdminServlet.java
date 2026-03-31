@@ -90,6 +90,7 @@ public final class AdminServlet extends HttpServlet {
   private final WaveletProvider waveletProvider;
   private final FeatureFlagService featureFlagService;
   private final @Nullable Lucene9WaveIndexerImpl lucene9Indexer;
+  private final String publicBaseUrl;
 
   @Inject
   public AdminServlet(AccountStore accountStore,
@@ -112,6 +113,8 @@ public final class AdminServlet extends HttpServlet {
     this.waveletProvider = waveletProvider;
     this.featureFlagService = featureFlagService;
     this.lucene9Indexer = lucene9Indexer;
+    String url = config.getString("core.http_frontend_public_address");
+    this.publicBaseUrl = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 
   @Override
@@ -530,7 +533,15 @@ public final class AdminServlet extends HttpServlet {
       if (config.hasPath(key)) {
         if (!first) w.append(',');
         first = false;
-        w.append(jsonStr(key)).append(':').append(jsonStr(config.getString(key)));
+        Object value = config.getAnyRef(key);
+        w.append(jsonStr(key)).append(':');
+        if (value == null) {
+          w.append("null");
+        } else if (value instanceof Number || value instanceof Boolean) {
+          w.append(String.valueOf(value));
+        } else {
+          w.append(jsonStr(String.valueOf(value)));
+        }
       }
     }
     w.append('}');
@@ -549,6 +560,11 @@ public final class AdminServlet extends HttpServlet {
 
   private void handleTriggerReindex(HttpServletRequest req, HttpServletResponse resp,
       HumanAccountData caller) throws IOException {
+    if (!isTrustedSameOriginRequest(req)) {
+      sendJsonError(resp, HttpServletResponse.SC_FORBIDDEN, "Cross-origin request rejected");
+      return;
+    }
+
     String searchType = config.getString("core.search_type");
     if (!"lucene".equals(searchType)) {
       sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST,
@@ -824,4 +840,40 @@ public final class AdminServlet extends HttpServlet {
       return defaultVal;
     }
   }
+
+  // =========================================================================
+  // CSRF same-origin validation
+  // =========================================================================
+
+  private boolean isTrustedSameOriginRequest(HttpServletRequest req) {
+    String expectedOrigin = getExpectedOrigin();
+    String origin = req.getHeader("Origin");
+    if (origin != null && !origin.isEmpty()) {
+      return expectedOrigin.equals(origin);
+    }
+    String referer = req.getHeader("Referer");
+    if (referer == null || referer.isEmpty()) {
+      return false;
+    }
+    return referer.startsWith(expectedOrigin + "/");
+  }
+
+  private String getExpectedOrigin() {
+    try {
+      java.net.URI uri = java.net.URI.create(publicBaseUrl);
+      int port = uri.getPort();
+      String scheme = uri.getScheme();
+      StringBuilder origin = new StringBuilder();
+      origin.append(scheme).append("://").append(uri.getHost());
+      if (port > 0
+          && !(port == 80 && "http".equals(scheme))
+          && !(port == 443 && "https".equals(scheme))) {
+        origin.append(':').append(port);
+      }
+      return origin.toString();
+    } catch (Exception e) {
+      return publicBaseUrl;
+    }
+  }
+
 }

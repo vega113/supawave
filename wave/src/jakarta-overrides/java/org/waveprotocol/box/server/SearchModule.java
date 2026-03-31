@@ -99,6 +99,8 @@ public class SearchModule extends AbstractModule {
       bind(PerUserWaveViewHandler.class).to(MemoryPerUserWaveViewHandlerImpl.class)
           .in(Singleton.class);
       bind(WaveIndexer.class).to(SolrWaveIndexerImpl.class).in(Singleton.class);
+      // Explicit null provider so @Nullable injection works without JIT binding attempts
+      bind(Lucene9WaveIndexerImpl.class).toProvider(() -> null).in(Singleton.class);
       return;
     }
     if ("memory".equals(searchType)) {
@@ -110,6 +112,8 @@ public class SearchModule extends AbstractModule {
       bind(PerUserWaveViewHandler.class).to(MemoryPerUserWaveViewHandlerImpl.class)
           .in(Singleton.class);
       bind(WaveIndexer.class).to(MemoryWaveIndexerImpl.class).in(Singleton.class);
+      // Explicit null provider so @Nullable injection works without JIT binding attempts
+      bind(Lucene9WaveIndexerImpl.class).toProvider(() -> null).in(Singleton.class);
       return;
     }
     throw new IndexException("Unknown search type: " + searchType);

@@ -138,5 +138,6 @@ public class ReindexServiceTest {
     while (service.getState() != expected && System.currentTimeMillis() < deadline) {
       Thread.sleep(50);
     }
+    assertEquals("Timed out waiting for state " + expected, expected, service.getState());
   }
 }

@@ -30,39 +30,33 @@ Auth: same as existing admin APIs — requires `ROLE_OWNER` or `ROLE_ADMIN`.
 ```json
 {
   "searchIndex": {
-    "searchType": "lucene",
-    "lucene9FlagGlobal": true,
-    "lucene9FlagUsers": ["user1@domain.com"],
-    "wavesInStorage": 134,
-    "docsInLucene9": 134,
-    "rebuildOnStartup": true
-  },
+    "type": "lucene",
+    "lucene9FlagEnabled": true,
+        "wavesInStorage": 134,
+    "docsInIndex": 134,
+      },
   "serverInfo": {
     "uptimeMs": 3600000,
     "heapUsedBytes": 134217728,
     "heapMaxBytes": 536870912,
-    "serverVersion": "0.5.0-SNAPSHOT",
-    "jvmVersion": "17.0.18+8"
+        "javaVersion": "17.0.18+8"
   },
   "config": {
     "core.search_type": "lucene",
     "core.wave_server_domain": "supawave.ai",
     "core.mongodb_driver": "v4",
     "core.lucene9_rebuild_on_startup": "true",
-    "core.wave_cache_size": "1000",
-    "core.wave_cache_expire": "60m",
-    "server.fragments.transport": "stream"
-  }
+              }
 }
 ```
 
 **POST /admin/api/ops/reindex** → 202
 ```json
-{ "status": "started", "message": "Reindex started" }
+{ "reindex": { "state": "RUNNING", "startTimeMs": 1711900000000, "triggeredBy": "admin@example.com" } }
 ```
 Or 409 if already running:
 ```json
-{ "status": "conflict", "message": "Reindex already in progress" }
+{ "error": "Reindex already running", "reindex": { "state": "RUNNING", ... } }
 ```
 
 **GET /admin/api/ops/reindex/status**

@@ -789,8 +789,9 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("if(apiToken)return Promise.resolve(apiToken);");
     sb.append("return fetch(CTX+'/robot/dataapi/token',{method:'POST',credentials:'same-origin',");
     sb.append("headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry=3600'})");
-    sb.append(".then(function(r){if(r.status===401){window.location.href=CTX+'/auth/signin?r=/account/robots';return Promise.reject();}return r.json();})");
-    sb.append(".then(function(d){apiToken=d.access_token;return apiToken;});}");
+    sb.append(".then(function(r){if(r.status===401){window.location.href=CTX+'/auth/signin?r=/account/robots';return Promise.reject();}");
+    sb.append("if(!r.ok)throw new Error('Token request failed (HTTP '+r.status+')');return r.json();})");
+    sb.append(".then(function(d){if(!d.access_token)throw new Error('Token endpoint returned no access_token');apiToken=d.access_token;return apiToken;});}");
 
     // API call helper
     sb.append("function api(method,path,body){");

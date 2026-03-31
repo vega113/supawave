@@ -774,10 +774,10 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("<input type=\"hidden\" name=\"token\" value=\"").append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
       sb.append("<input type=\"hidden\" name=\"robotId\" value=\"").append(escapedId).append("\">");
       sb.append("<div class=\"field-group\">");
-      sb.append("<label class=\"field-label\" for=\"location-").append(safeIdAttr).append("\">Callback URL ");
-      sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
+      sb.append("<label class=\"field-label\" for=\"location-").append(safeIdAttr).append("\">Callback URL</label>");
+      sb.append("<button type=\"button\" class=\"info-icon\" aria-label=\"Callback URL help\">\u24D8<span class=\"tooltip\">");
       sb.append("The HTTP(S) endpoint where Wave sends events to your bot. Example: https://mybot.fly.dev/wave. Required to save.");
-      sb.append("</span></span></label>");
+      sb.append("</span></button>");
       sb.append("<input type=\"url\" id=\"location-").append(safeIdAttr).append("\" name=\"location\" value=\"");
       sb.append(HtmlRenderer.escapeHtml(robot.getUrl())).append("\" placeholder=\"https://mybot.fly.dev/wave\">");
       sb.append("</div>");
@@ -789,10 +789,10 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("<input type=\"hidden\" name=\"token\" value=\"").append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
       sb.append("<input type=\"hidden\" name=\"robotId\" value=\"").append(escapedId).append("\">");
       sb.append("<div class=\"field-group\">");
-      sb.append("<label class=\"field-label\" for=\"description-").append(safeIdAttr).append("\">Description ");
-      sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
+      sb.append("<label class=\"field-label\" for=\"description-").append(safeIdAttr).append("\">Description</label>");
+      sb.append("<button type=\"button\" class=\"info-icon\" aria-label=\"Description help\">\u24D8<span class=\"tooltip\">");
       sb.append("A label visible only to you in this dashboard. Use it to remember what this bot does.");
-      sb.append("</span></span></label>");
+      sb.append("</span></button>");
       sb.append("<input type=\"text\" id=\"description-").append(safeIdAttr).append("\" name=\"description\" value=\"");
       sb.append(HtmlRenderer.escapeHtml(robot.getDescription())).append("\" placeholder=\"My awesome bot\">");
       sb.append("</div>");
@@ -874,27 +874,27 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<input type=\"hidden\" name=\"token\" value=\"").append(HtmlRenderer.escapeHtml(xsrfToken)).append("\">");
     // Robot Username
     sb.append("<div class=\"field-group\">");
-    sb.append("<label class=\"field-label\" for=\"username\">Robot Username ");
-    sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
+    sb.append("<label class=\"field-label\" for=\"username\">Robot Username</label>");
+    sb.append("<button type=\"button\" class=\"info-icon\" aria-label=\"Robot Username help\">\u24D8<span class=\"tooltip\">");
     sb.append("The unique identifier for your robot on SupaWave. Forms the address &lt;username&gt;@").append(HtmlRenderer.escapeHtml(domain));
     sb.append(". Must end with '-bot' and may include letters, numbers, underscores, periods, and hyphens. Usernames are normalized to lowercase.");
-    sb.append("</span></span></label>");
+    sb.append("</span></button>");
     sb.append("<input type=\"text\" id=\"username\" name=\"username\" placeholder=\"helper-bot\">");
     sb.append("</div>");
     // Callback URL
     sb.append("<div class=\"field-group\">");
-    sb.append("<label class=\"field-label\" for=\"create-location\">Callback URL ");
-    sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
+    sb.append("<label class=\"field-label\" for=\"create-location\">Callback URL</label>");
+    sb.append("<button type=\"button\" class=\"info-icon\" aria-label=\"Callback URL help\">\u24D8<span class=\"tooltip\">");
     sb.append("The HTTP(S) endpoint where Wave sends events to your bot. Example: https://mybot.fly.dev/wave \u2014 leave blank until your bot is deployed.");
-    sb.append("</span></span></label>");
+    sb.append("</span></button>");
     sb.append("<input type=\"url\" id=\"create-location\" name=\"location\" placeholder=\"https://example.com/robot\">");
     sb.append("</div>");
     // Token Expiry
     sb.append("<div class=\"field-group\">");
-    sb.append("<label class=\"field-label\" for=\"token-expiry\">Token Expiry (seconds) ");
-    sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
+    sb.append("<label class=\"field-label\" for=\"token-expiry\">Token Expiry (seconds)</label>");
+    sb.append("<button type=\"button\" class=\"info-icon\" aria-label=\"Token Expiry help\">\u24D8<span class=\"tooltip\">");
     sb.append("How long a JWT token issued to this robot remains valid (in seconds). Default 3600 = 1 hour. Use 0 for tokens that never expire (not recommended for production).");
-    sb.append("</span></span></label>");
+    sb.append("</span></button>");
     sb.append("<input type=\"number\" id=\"token-expiry\" name=\"token_expiry\" value=\"3600\">");
     sb.append("</div>");
     sb.append("<div style=\"font-size:12px;color:var(--text-muted);margin-bottom:14px;\">");
@@ -924,11 +924,11 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</textarea>");
     sb.append("</div>");
     sb.append("<div id=\"token-status\" class=\"prompt-status\">Generating a one-hour JWT for the starter prompt\u2026</div>");
-    sb.append("<button class=\"btn-primary\" style=\"margin-top:12px;\" onclick=\"");
+    sb.append("<button id=\"copy-prompt-btn\" class=\"btn-primary\" style=\"margin-top:12px;\" disabled onclick=\"");
     sb.append("var btn=this;btn.disabled=true;btn.textContent='Copying\u2026';");
-    sb.append("generateStarterJWT().then(function(){");
-    sb.append("var ta=document.getElementById('starter-prompt');navigator.clipboard.writeText(ta.value);");
-    sb.append("btn.textContent='Copied!';btn.disabled=false;setTimeout(()=>{btn.textContent='Copy Prompt';},1500);");
+    sb.append("var ta=document.getElementById('starter-prompt');");
+    sb.append("navigator.clipboard.writeText(ta.value).then(function(){");
+    sb.append("btn.textContent='Copied!';btn.disabled=false;setTimeout(function(){btn.textContent='Copy Prompt';btn.disabled=false;},1500);");
     sb.append("}).catch(function(){btn.textContent='Copy Prompt';btn.disabled=false;});");
     sb.append("\">Copy Prompt</button>");
     sb.append("</div></div>");
@@ -972,23 +972,37 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("function hideDeleteModal(){document.getElementById('delete-overlay').classList.remove('visible');pendingDeleteForm=null;}");
     sb.append("document.getElementById('delete-modal-confirm').addEventListener('click',function(){if(pendingDeleteForm)pendingDeleteForm.submit();});");
     sb.append("document.getElementById('delete-overlay').addEventListener('click',function(e){if(e.target===this)hideDeleteModal();});");
-    // JWT fetch for Build AI prompt — lazy: only when Build AI tab first opened or Copy clicked.
-    // Returns a Promise so callers can await token generation before reading the prompt value.
-    sb.append("var jwtPromise=null;");
+    // JWT fetch for Build AI prompt — lazy: generated when Build AI tab first opened.
+    // Cached until expiry (55 min); re-fetched on next call after expiry.
+    // Copy Prompt button stays disabled until JWT is ready, so clipboard.writeText()
+    // is called synchronously in the user-gesture click handler (no lost activation).
+    sb.append("var jwtPromise=null,jwtIssuedAt=0,promptTemplate=null;");
+    sb.append("var JWT_TTL_MS=55*60*1000;"); // Refresh 5 min before 1-hour expiry
     sb.append("function generateStarterJWT(){");
-    // Return existing promise if already resolved or in-flight; clear on failure so next call retries.
-    sb.append("if(jwtPromise)return jwtPromise;");
     sb.append("var prompt=document.getElementById('starter-prompt');");
     sb.append("var status=document.getElementById('token-status');");
+    sb.append("var copyBtn=document.getElementById('copy-prompt-btn');");
+    // Save the original template (with placeholder) on first call
+    sb.append("if(!promptTemplate)promptTemplate=prompt.value;");
+    // If cached promise is past TTL, clear it and reset textarea to template
+    sb.append("if(jwtPromise&&(Date.now()-jwtIssuedAt)>JWT_TTL_MS){");
+    sb.append("jwtPromise=null;prompt.value=promptTemplate;");
+    sb.append("status.textContent='JWT expired \u2014 refreshing\u2026';");
+    sb.append("if(copyBtn)copyBtn.disabled=true;");
+    sb.append("}");
+    sb.append("if(jwtPromise)return jwtPromise;");
     sb.append("jwtPromise=fetch('").append(HtmlRenderer.escapeHtml(contextPath)).append("/robot/dataapi/token',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry=3600'})");
     sb.append(".then(function(r){return r.ok?r.json():Promise.reject(new Error('HTTP '+r.status));})");
     sb.append(".then(function(data){");
+    sb.append("jwtIssuedAt=Date.now();");
     sb.append("prompt.value=prompt.value.replace('<generating 1 hour JWT...>',data.access_token);");
     sb.append("status.textContent='Ready \u2014 prompt includes a one-hour Data API JWT.';");
+    sb.append("if(copyBtn)copyBtn.disabled=false;"); // Enable Copy button now that value is ready
     sb.append("})");
     sb.append(".catch(function(err){");
     sb.append("jwtPromise=null;"); // Clear so next call retries
     sb.append("status.textContent='JWT generation failed \u2014 click Copy Prompt to retry or sign in again.';");
+    sb.append("if(copyBtn)copyBtn.disabled=false;"); // Re-enable so user can retry
     sb.append("return Promise.reject(err);");
     sb.append("});");
     sb.append("return jwtPromise;");

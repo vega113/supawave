@@ -12,7 +12,7 @@ import static io.gatling.javaapi.http.HttpDsl.*;
  * Measures GET /search/?query=in:inbox latency under load.
  *
  * Prerequisites: run the seed script first to create test waves.
- * Run: WAVE_PERF_BASE_URL=http://localhost:9898 sbt "gatlingTest:testOnly *SearchLoadSimulation"
+ * Run: WAVE_PERF_BASE_URL=http://localhost:9898 sbt "GatlingTest / runMain org.waveprotocol.wave.perf.GatlingRunner SearchLoadSimulation"
  *
  * Thresholds:
  *   - P95 < 2000ms (baseline single-user)

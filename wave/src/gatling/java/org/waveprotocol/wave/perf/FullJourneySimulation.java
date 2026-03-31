@@ -13,7 +13,7 @@ import static io.gatling.javaapi.http.HttpDsl.*;
  * Measures the full user experience latency in a single-user baseline.
  *
  * Prerequisites: run the seed script first to create test waves.
- * Run: WAVE_PERF_BASE_URL=http://localhost:9898 sbt "gatlingTest:testOnly *FullJourneySimulation"
+ * Run: WAVE_PERF_BASE_URL=http://localhost:9898 sbt "GatlingTest / runMain org.waveprotocol.wave.perf.GatlingRunner FullJourneySimulation"
  *
  * Thresholds:
  *   - Mean response time < 2000ms across all requests

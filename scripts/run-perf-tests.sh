@@ -6,7 +6,7 @@
 #   bash scripts/run-perf-tests.sh                    # uses http://localhost:9898
 #   WAVE_PERF_BASE_URL=http://localhost:9901 bash scripts/run-perf-tests.sh
 #   bash scripts/run-perf-tests.sh --skip-seed         # skip data seeding
-#   bash scripts/run-perf-tests.sh --simulation Search # run only SearchLoadSimulation
+#   bash scripts/run-perf-tests.sh --simulation SearchLoadSimulation # run only SearchLoadSimulation
 #
 # Prerequisites:
 #   - A running Wave server (sbt run)

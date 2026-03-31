@@ -13,7 +13,7 @@ import static io.gatling.javaapi.http.HttpDsl.*;
  * Measures wave fetch latency (GET /fetch/{domain}/{waveId}) under load.
  *
  * Prerequisites: run the seed script first to create test waves.
- * Run: WAVE_PERF_BASE_URL=http://localhost:9898 sbt "gatlingTest:testOnly *WaveOpenSimulation"
+ * Run: WAVE_PERF_BASE_URL=http://localhost:9898 sbt "GatlingTest / runMain org.waveprotocol.wave.perf.GatlingRunner WaveOpenSimulation"
  *
  * Thresholds:
  *   - P95 < 3000ms (baseline single-user)

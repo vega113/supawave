@@ -12,7 +12,6 @@ import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -80,7 +79,13 @@ public class WaveDataSeeder {
         // Step 1: Register user
         System.out.print("Registering user " + USER + "... ");
         int regStatus = register();
-        System.out.println(regStatus == 200 ? "created." : "already exists.");
+        if (regStatus == 200) {
+            System.out.println("created.");
+        } else if (regStatus == 403) {
+            System.out.println("already exists.");
+        } else {
+            throw new RuntimeException("Registration failed with unexpected HTTP " + regStatus);
+        }
 
         // Step 2: Login
         System.out.print("Logging in as " + ADDRESS + "... ");
@@ -166,7 +171,11 @@ public class WaveDataSeeder {
                 .GET()
                 .build();
         HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200) return 0;
+        if (resp.statusCode() != 200) {
+            System.err.println("Warning: inbox search returned HTTP " + resp.statusCode()
+                    + " for JSESSIONID=" + jsessionid);
+            return 0;
+        }
         JsonObject result = GSON.fromJson(resp.body(), JsonObject.class);
         if (result.has("3") && result.get("3").isJsonArray()) {
             return result.get("3").getAsJsonArray().size();

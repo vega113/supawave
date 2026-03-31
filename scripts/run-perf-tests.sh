@@ -21,7 +21,14 @@ SIMULATION=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-seed) SKIP_SEED=true; shift ;;
-    --simulation) SIMULATION="$2"; shift 2 ;;
+    --simulation)
+      if [[ $# -lt 2 ]] || [[ -z "${2:-}" ]]; then
+        echo "Error: --simulation requires a non-empty argument." >&2
+        exit 1
+      fi
+      SIMULATION="$2"
+      shift 2
+      ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -59,12 +66,21 @@ if [ -n "$SIMULATION" ]; then
   WAVE_PERF_BASE_URL="$BASE_URL" sbt --batch \
     "GatlingTest / runMain org.waveprotocol.wave.perf.GatlingRunner ${SIMULATION}"
 else
+  overall_exit=0
   for sim in SearchLoadSimulation WaveOpenSimulation FullJourneySimulation; do
     echo ">>> $sim"
+    set +e
     WAVE_PERF_BASE_URL="$BASE_URL" sbt --batch \
-      "GatlingTest / runMain org.waveprotocol.wave.perf.GatlingRunner ${sim}" || true
+      "GatlingTest / runMain org.waveprotocol.wave.perf.GatlingRunner ${sim}"
+    sim_exit=$?
+    set -e
+    if [ "$sim_exit" -ne 0 ]; then
+      echo "WARN: $sim failed with exit code $sim_exit" >&2
+      overall_exit=1
+    fi
     echo ""
   done
+  exit "$overall_exit"
 fi
 
 echo ""

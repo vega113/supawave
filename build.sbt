@@ -620,9 +620,10 @@ GatlingTest / javaOptions ++= Seq("-ea")
 GatlingTest / dependencyClasspath ++= (Compile / exportedProducts).value
 GatlingTest / dependencyClasspath ++= (Test / dependencyClasspath).value
 GatlingTest / dependencyClasspath ++= (Compile / fullClasspath).value
-// Run simulations via: sbt "gatlingTest:testOnly *SearchLoadSimulation"
-// Or via runner: sbt "gatlingTest:runMain org.waveprotocol.wave.perf.GatlingRunner"
-GatlingTest / testFrameworks := Seq(new TestFramework("io.gatling.sbt.GatlingFramework"))
+// Run simulations via: sbt "GatlingTest / runMain org.waveprotocol.wave.perf.GatlingRunner SearchLoadSimulation"
+// Or run all via: bash scripts/run-perf-tests.sh
+// Note: io.gatling.sbt.GatlingFramework is in the gatling-sbt plugin, not gatling-test-framework.
+// Simulations are invoked programmatically via GatlingRunner, so no TestFramework is needed.
 // Pass WAVE_PERF_BASE_URL to the forked JVM
 GatlingTest / envVars ++= sys.env.filter(_._1.startsWith("WAVE_PERF_"))
 

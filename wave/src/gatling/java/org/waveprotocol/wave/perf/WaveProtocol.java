@@ -9,7 +9,7 @@ import static io.gatling.javaapi.http.HttpDsl.http;
  */
 final class WaveProtocol {
     static final String BASE_URL = System.getenv().getOrDefault(
-            "WAVE_PERF_BASE_URL", "http://localhost:9898");
+            "WAVE_PERF_BASE_URL", "http://localhost:9898").replaceAll("/+$", "");
 
     static final HttpProtocolBuilder HTTP_PROTOCOL = http
             .baseUrl(BASE_URL)

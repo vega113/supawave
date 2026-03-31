@@ -320,7 +320,7 @@ public class UrlPreviewServlet extends HttpServlet {
         return addr;
       }
     }
-    throw new IOException("All resolved addresses for host are blocked");
+    throw new IOException("All resolved addresses for host are blocked: " + host);
   }
 
   /**
@@ -463,19 +463,22 @@ public class UrlPreviewServlet extends HttpServlet {
       if (host == null || host.isEmpty()) {
         return false;
       }
-      try {
-        // Try to parse as InetAddress; if it succeeds and the result matches the input,
-        // it's a numeric IP literal
-        InetAddress addr = InetAddress.getByName(host);
-        String ipAddr = addr.getHostAddress();
-        // For IPv6, wrap in brackets for comparison
-        if (addr instanceof Inet6Address && !host.startsWith("[")) {
-          ipAddr = "[" + ipAddr + "]";
-        }
-        return host.equals(ipAddr) || host.equals(addr.getHostAddress());
-      } catch (java.net.UnknownHostException e) {
-        return false;
+      // URL.getHost() returns bracketed IPv6 like "[2001:db8::1]" — strip brackets for parsing
+      String stripped = host;
+      if (host.startsWith("[") && host.endsWith("]")) {
+        stripped = host.substring(1, host.length() - 1);
+        // Bracketed hosts are always IPv6 literals
+        return true;
       }
+      // Check for IPv4 literal: all digits and dots
+      if (stripped.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) {
+        return true;
+      }
+      // Check for un-bracketed IPv6 literal (contains colons)
+      if (stripped.contains(":")) {
+        return true;
+      }
+      return false;
     }
   }
 

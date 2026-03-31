@@ -976,6 +976,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Returns a Promise so callers can await token generation before reading the prompt value.
     sb.append("var jwtPromise=null;");
     sb.append("function generateStarterJWT(){");
+    // Return existing promise if already resolved or in-flight; clear on failure so next call retries.
     sb.append("if(jwtPromise)return jwtPromise;");
     sb.append("var prompt=document.getElementById('starter-prompt');");
     sb.append("var status=document.getElementById('token-status');");
@@ -985,7 +986,11 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("prompt.value=prompt.value.replace('<generating 1 hour JWT...>',data.access_token);");
     sb.append("status.textContent='Ready \u2014 prompt includes a one-hour Data API JWT.';");
     sb.append("})");
-    sb.append(".catch(function(){status.textContent='Sign in again if the one-hour JWT could not be generated automatically.';});");
+    sb.append(".catch(function(err){");
+    sb.append("jwtPromise=null;"); // Clear so next call retries
+    sb.append("status.textContent='JWT generation failed \u2014 click Copy Prompt to retry or sign in again.';");
+    sb.append("return Promise.reject(err);");
+    sb.append("});");
     sb.append("return jwtPromise;");
     sb.append("}");
     sb.append("</script>");
@@ -1025,7 +1030,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     String username = extractJsonString(body, "username");
     String description = extractJsonString(body, "description");
     String callbackUrl = extractJsonString(body, "callbackUrl");
-    long tokenExpiry = extractJsonLong(body, "tokenExpiry", 3600L);
+    long tokenExpiry = Math.max(0L, extractJsonLong(body, "tokenExpiry", 3600L));
 
     if (Strings.isNullOrEmpty(username)) {
       resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);

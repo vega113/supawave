@@ -70,8 +70,8 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
    */
   private static final long WAVE_MAP_RELOAD_COOLDOWN_MS = 30_000;
 
-  /** Timestamp of the last successful {@code loadAllWavelets()} call. */
-  private volatile long lastWaveMapLoadMs = 0;
+  /** Timestamp of the last successful {@code loadAllWavelets()} call. Guarded by {@link #waveMapLoadLock}. */
+  private long lastWaveMapLoadMs = 0;
 
   @Inject
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {

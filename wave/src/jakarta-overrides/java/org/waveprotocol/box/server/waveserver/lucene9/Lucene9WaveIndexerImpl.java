@@ -92,6 +92,11 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     try {
       this.searcherManager = new SearcherManager(indexWriter, new SearcherFactory());
     } catch (IOException e) {
+      try {
+        indexWriter.close();
+      } catch (IOException closeEx) {
+        e.addSuppressed(closeEx);
+      }
       throw new IndexException(e);
     }
   }

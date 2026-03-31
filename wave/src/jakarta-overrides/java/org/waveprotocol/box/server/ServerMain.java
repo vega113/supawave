@@ -453,14 +453,13 @@ public class ServerMain {
   private static void warmUpWaveView(Injector injector, Config config) {
     try {
       long warmupStart = System.currentTimeMillis();
-      String ownerAddress = config.hasPath("core.owner_address")
+      final String rawOwner = config.hasPath("core.owner_address")
           ? config.getString("core.owner_address").trim()
           : "";
-      if (!ownerAddress.isEmpty()) {
-        if (!ownerAddress.contains("@")) {
-          ownerAddress = ownerAddress + "@"
-              + config.getString("core.wave_server_domain");
-        }
+      if (!rawOwner.isEmpty()) {
+        final String ownerAddress = rawOwner.contains("@")
+            ? rawOwner
+            : rawOwner + "@" + config.getString("core.wave_server_domain");
         PerUserWaveViewProvider viewProvider =
             injector.getInstance(PerUserWaveViewProvider.class);
         ParticipantId owner = ParticipantId.ofUnsafe(ownerAddress);

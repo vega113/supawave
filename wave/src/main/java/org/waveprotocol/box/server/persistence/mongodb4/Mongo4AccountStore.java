@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Filters.exists;
 
 /** MongoDB 4.x AccountStore implementation (human + robot). */
 final class Mongo4AccountStore implements AccountStore {
@@ -183,7 +184,9 @@ final class Mongo4AccountStore implements AccountStore {
   @Override
   public long getAccountCount() throws PersistenceException {
     try {
-      return col.countDocuments();
+      // Count only human accounts — robot agents also live in this collection
+      // and must not prevent the first human user from getting the owner role.
+      return col.countDocuments(exists(ACCOUNT_HUMAN_DATA_FIELD));
     } catch (RuntimeException e) {
       throw new PersistenceException(e);
     }

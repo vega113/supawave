@@ -173,11 +173,7 @@ public class FileAccountStore implements AccountStore {
 
   @Override
   public long getAccountCount() throws PersistenceException {
-    synchronized (accounts) {
-      File dir = new File(accountStoreBasePath);
-      File[] files = dir.listFiles((d, name) -> name.endsWith(ACCOUNT_FILE_EXTENSION));
-      return files != null ? files.length : 0;
-    }
+    return getAllAccounts().stream().filter(AccountData::isHuman).count();
   }
 
   @Override

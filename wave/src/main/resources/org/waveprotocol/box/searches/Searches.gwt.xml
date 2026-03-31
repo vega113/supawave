@@ -21,5 +21,9 @@
 -->
 
 <module>
-  <source path=""/>
+  <!-- SearchesProto.java is protobuf-generated and uses Guava internals not translatable
+       by GWT; exclude it to avoid "Ignored N units with compilation errors in first pass". -->
+  <source path="">
+    <exclude name="SearchesProto.java"/>
+  </source>
 </module>

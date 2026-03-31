@@ -25,9 +25,9 @@ import com.google.common.collect.Iterables;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.help.HelpFormatter;
 
 import org.apache.wave.pst.style.PstStyler;
 import org.apache.wave.pst.style.Styler;
@@ -96,10 +96,13 @@ public final class PstCommandLine {
     return cl.hasOption('f');
   }
 
-  @SuppressWarnings("deprecation") // HelpFormatter deprecated in commons-cli 1.9; no non-deprecated replacement
   public static void printHelp() {
-    HelpFormatter.builder().get().printHelp(
-        PstMain.class.getSimpleName() + " [options] templates...", getOptions());
+    try {
+      HelpFormatter.builder().get().printHelp(
+          PstMain.class.getSimpleName() + " [options] templates...", "", getOptions(), "", false);
+    } catch (java.io.IOException e) {
+      // PrintWriter to stdout does not throw; ignore
+    }
   }
 
   public File getProtoFile() {

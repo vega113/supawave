@@ -24,6 +24,9 @@
   <inherits name="org.waveprotocol.wave.federation.Federation"/>
   <!-- DTO deps below. -->
   <inherits name="org.waveprotocol.wave.communication.Communication"/>
-  <source path="" excludes="gson/** proto/**"/>
+  <!-- Exclude server-side-only subdirectories/files that use java.util.regex or other
+       non-GWT-translatable APIs (QueryParser was adapted from GWT-compatible RegExpWrapFactory
+       to standard Java regex, making it server-side only). -->
+  <source path="" excludes="gson/** proto/** query/**"/>
   <source path="" excludes="**/SearchProto.java"/>
 </module>

@@ -35,6 +35,7 @@ import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
+import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTMLPanel;
 import com.google.gwt.user.client.ui.TextBox;
@@ -101,6 +102,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   Element helpBackdrop;
   @UiField
   Element helpCloseButton;
+  @UiField
+  Element helpColumnsDiv;
   @UiField
   SpanElement exInbox;
   @UiField
@@ -172,6 +175,9 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
         String display = visible ? "none" : "block";
         helpPanel.getStyle().setProperty("display", display);
         helpBackdrop.getStyle().setProperty("display", display);
+        if (!visible) {
+          applyResponsiveColumns();
+        }
       }
     });
 
@@ -193,6 +199,13 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       }
     });
 
+    // Re-apply responsive columns on viewport resize while panel is visible
+    Window.addResizeHandler(e -> {
+      if (!"none".equals(helpPanel.getStyle().getDisplay())) {
+        applyResponsiveColumns();
+      }
+    });
+
     // Clickable examples: fill the search box and trigger search
     wireExample(exInbox);
     wireExample(exArchive);
@@ -211,6 +224,18 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     wireExample(exCreatorArchive);
     wireExample(exTitle);
     wireExample(exContent);
+  }
+
+  /** Stacks help columns vertically on narrow viewports (≤600 px). */
+  private void applyResponsiveColumns() {
+    int windowWidth = com.google.gwt.user.client.Window.getClientWidth();
+    if (windowWidth <= 600) {
+      helpColumnsDiv.getStyle().setProperty("flexDirection", "column");
+      helpColumnsDiv.getStyle().setProperty("gap", "8px");
+    } else {
+      helpColumnsDiv.getStyle().clearProperty("flexDirection");
+      helpColumnsDiv.getStyle().clearProperty("gap");
+    }
   }
 
   /**

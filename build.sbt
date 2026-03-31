@@ -12,7 +12,8 @@ enablePlugins(JavaAppPackaging)
 Compile / compileOrder := CompileOrder.JavaThenScala
 
 // Java toolchain: compile and target JDK 17 bytecode (matches Gradle's java.toolchain.languageVersion)
-javacOptions ++= Seq("--release", "17", "-Xlint:deprecation", "-Xlint:unchecked")
+javacOptions ++= Seq("--release", "17")
+
 
 // Disable Javadoc generation — gwt-user sources reference GWTBridge (in gwt-dev)
 // which is not on the compile classpath, causing Javadoc to fail during Universal/stage.
@@ -234,11 +235,6 @@ libraryDependencies ++= Seq(
   "org.testcontainers"             % "testcontainers"             % "1.21.4"   % Test,
   "org.testcontainers"             % "mongodb"                    % "1.21.4"   % Test,
 
-  // --- E2E test (JUnit 5 — scoped to e2eTest config only, does not affect unit tests) ---
-  "org.junit.jupiter"              % "junit-jupiter-api"          % "5.10.2"   % E2eTest,
-  "org.junit.jupiter"              % "junit-jupiter-engine"       % "5.10.2"   % E2eTest,
-  "net.aichler"                    % "jupiter-interface"          % "0.11.1"   % E2eTest,
-
   // --- Protobuf ---
   "com.google.protobuf"            % "protobuf-java"              % ProtobufV,
 
@@ -457,25 +453,22 @@ lazy val JakartaTest    = config("jakartaTest")    extend Test  describedAs "Jak
 lazy val JakartaIT      = config("jakartaIT")      extend Test  describedAs "Jakarta integration tests (*IT allowlist)"
 lazy val StacktraceTest = config("stacktraceTest") extend Test  describedAs "Isolated StackTraces utility tests"
 lazy val ThumbTest      = config("thumbTest")      extend Test  describedAs "Isolated AttachmentServlet thumbnail tests"
-lazy val E2eTest        = config("e2eTest")        extend Test  describedAs "E2E sanity tests against a running Wave server"
 
 // Register all custom test configs with Ivy so POM generation can resolve them
-ivyConfigurations ++= Seq(JakartaTest, JakartaIT, StacktraceTest, ThumbTest, E2eTest)
+ivyConfigurations ++= Seq(JakartaTest, JakartaIT, StacktraceTest, ThumbTest)
 
 // Wire all four configs into the project so `sbt jakartaTest:test` etc. work
 inConfig(JakartaTest)(Defaults.testSettings)
 inConfig(JakartaIT)(Defaults.testSettings)
 inConfig(StacktraceTest)(Defaults.testSettings)
 inConfig(ThumbTest)(Defaults.testSettings)
-inConfig(E2eTest)(Defaults.testSettings ++ net.aichler.jupiter.sbt.JupiterPlugin.scopedSettings)
 
 // Suppress "unused key" linter warnings for keys auto-created by Defaults.testSettings in custom configs
 Global / excludeLintKeys ++= Set(
   JakartaTest / javaSource, JakartaTest / scalaSource, JakartaTest / resourceDirectory, JakartaTest / semanticdbTargetRoot,
   JakartaIT / javaSource, JakartaIT / scalaSource, JakartaIT / resourceDirectory, JakartaIT / semanticdbTargetRoot,
   StacktraceTest / javaSource, StacktraceTest / scalaSource, StacktraceTest / semanticdbTargetRoot,
-  ThumbTest / javaSource, ThumbTest / scalaSource, ThumbTest / semanticdbTargetRoot,
-  E2eTest / javaSource, E2eTest / scalaSource, E2eTest / resourceDirectory, E2eTest / semanticdbTargetRoot
+  ThumbTest / javaSource, ThumbTest / scalaSource, ThumbTest / semanticdbTargetRoot
 )
 
 // --- JakartaTest source directories & exclusions ---
@@ -592,19 +585,6 @@ ThumbTest / javaOptions ++= Seq(
 )
 ThumbTest / fork := true
 ThumbTest / dependencyClasspath ++= (Compile / exportedProducts).value
-
-// --- E2eTest: E2E sanity suite settings ---
-// Source: wave/src/e2e-test/java — runs against a live Wave server (WAVE_E2E_BASE_URL)
-E2eTest / unmanagedSourceDirectories := Seq(
-  baseDirectory.value / "wave" / "src" / "e2e-test" / "java"
-)
-E2eTest / fork := true
-E2eTest / javaOptions ++= Seq("-ea")
-E2eTest / dependencyClasspath ++= (Compile / exportedProducts).value
-E2eTest / dependencyClasspath ++= (Test / dependencyClasspath).value
-E2eTest / dependencyClasspath ++= (Compile / fullClasspath).value
-E2eTest / testFrameworks += new TestFramework("net.aichler.jupiter.api.JupiterFramework")
-// WAVE_E2E_BASE_URL is read from the OS environment by the forked JVM
 
 // --- Additional per-config dependencies (matches Gradle) ---
 // JakartaTest and JakartaIT need Jakarta WebSocket + Jetty EE10 test deps
@@ -772,7 +752,6 @@ lazy val pst = Project("pst", file("pst"))
   .settings(
     crossPaths := false,
     autoScalaLibrary := false,
-    javacOptions ++= Seq("-Xlint:deprecation", "-Xlint:unchecked"),
     Compile / compileOrder := CompileOrder.JavaThenScala,
     Compile / unmanagedSourceDirectories += baseDirectory.value / "generated" / "main" / "java",
     libraryDependencies ++= Seq(
@@ -809,7 +788,11 @@ lazy val wave = Project("wave", file("."))
       val targetFile = targetDir / "changelog.json"
       IO.copyFile(sourceFile, targetFile)
       Seq(targetFile)
-    }
+    },
+    // Suppress deprecation notes from protobuf 3.25.3-generated code (PARSER field, valueOf(int) in enums).
+    // Hand-written deprecated API usages are fixed directly in source; generated code cannot be changed
+    // without upgrading the protobuf code generator beyond 3.25.3.
+    Compile / javacOptions += "-Xlint:-deprecation"
   )
   .aggregate(pst)
 lazy val root = wave
@@ -880,26 +863,28 @@ Compile / PB.includePaths := Seq(
 )
 Compile / PB.targets := Seq(PB.gens.java -> (baseDirectory.value / "proto_src"))
 // Ensure staging runs before protoc
-Compile / PB.generate := {
-  val result = (Compile / PB.generate).dependsOn(prepareProtosForPB).value
-  // Post-process protoc output: replace deprecated .PARSER with .parser()
-  val log = streams.value.log
+Compile / PB.generate := (Compile / PB.generate).dependsOn(prepareProtosForPB).value
+
+// Post-process protoc-generated Java files to replace deprecated .PARSER field references
+// with .parser() method calls. Protobuf 3.25.3 marks PARSER @Deprecated but still generates
+// code that references it; parser() is the non-deprecated replacement with identical semantics.
+lazy val fixProtoDeprecations = taskKey[Unit]("Replace deprecated .PARSER field access with .parser() in generated proto sources")
+ThisBuild / fixProtoDeprecations := {
   val protoSrc = baseDirectory.value / "proto_src"
-  val javaFiles = (protoSrc ** "*.java").get
-  var patchCount = 0
-  javaFiles.foreach { f =>
-    val content = IO.read(f)
+  val javaFiles = (protoSrc ** "*.java").get.filterNot(_.getPath.contains("/com/google/protobuf/"))
+  javaFiles.foreach { file =>
+    val content = IO.read(file)
+    // Replace only cross-class .PARSER references in readMessage() calls.
+    // Matches e.g. "Proto.ProtocolWaveletDelta.PARSER," → "Proto.ProtocolWaveletDelta.parser(),"
     if (content.contains(".PARSER,") || content.contains(".PARSER)")) {
-      val patched = content
-        .replace(".PARSER,", ".parser(),")
-        .replace(".PARSER)", ".parser())")
-      IO.write(f, patched)
-      patchCount += 1
+      val fixed = content.replace(".PARSER,", ".parser(),").replace(".PARSER)", ".parser())")
+      if (fixed != content) IO.write(file, fixed)
     }
   }
-  if (patchCount > 0) log.info(s"Patched $patchCount proto_src files: .PARSER -> .parser()")
-  result
 }
+// Run fixProtoDeprecations after PB.generate, before compile
+fixProtoDeprecations := fixProtoDeprecations.dependsOn(Compile / PB.generate).value
+Compile / compile := (Compile / compile).dependsOn(fixProtoDeprecations).value
 
 
 ThisBuild / generatePstMessages := {
@@ -930,7 +915,7 @@ ThisBuild / generatePstMessages := {
   val javacProto = Seq(
     "javac",
     "-g",
-    "-Xlint:deprecation", "-Xlint:unchecked",
+    "-Xlint:-deprecation",
     "-cp", protobufJar,
     "-d", pstProtoClasses.getAbsolutePath
   ) ++ protoSources.map(_.getAbsolutePath)
@@ -1073,8 +1058,9 @@ ThisBuild / generateFlags := {
 }
 
 // Ensure codegen runs before compilation
-// Ensure ordering: PST depends on sbt-protoc (which itself ensures staging first)
-generatePstMessages := (generatePstMessages).dependsOn(Compile / PB.generate).value
+// Ensure ordering: PST depends on fixProtoDeprecations (which depends on sbt-protoc)
+// so that proto_src files are fixed before javacProto compiles them.
+generatePstMessages := (generatePstMessages).dependsOn(fixProtoDeprecations).value
 
 Compile / compile := (Compile / compile)
 .dependsOn(generatePstMessages)

@@ -44,7 +44,7 @@ public class OperationRequestGsonAdaptorRobotTest extends TestCase {
   public void testDeserialize() throws Exception {
     String operation = "{'id':'op1','method':'wavelet.setTitle','params':{" +
         "'waveId':'1','waveletId':'2','waveletTitle':'Title','unknown':'value'}}";
-    JsonElement jsonElement = new JsonParser().parse(operation);
+    JsonElement jsonElement = JsonParser.parseString(operation);
 
     JsonDeserializationContext mockContext = mock(JsonDeserializationContext.class);
     when(mockContext.deserialize(any(JsonElement.class), eq(String.class))).thenAnswer(

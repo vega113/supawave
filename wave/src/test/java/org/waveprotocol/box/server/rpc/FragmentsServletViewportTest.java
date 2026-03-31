@@ -90,7 +90,7 @@ public final class FragmentsServletViewportTest {
 
     servlet.doGet(req, resp);
     if (buf.toString() == null || buf.toString().isEmpty()) return; // tolerate environments where heavy snapshot path fails
-    JsonElement root = new JsonParser().parse(buf.toString());
+    JsonElement root = JsonParser.parseString(buf.toString());
     if (root == null || !root.isJsonObject()) return; // servlet may have written nothing under some envs
     JsonObject json = root.getAsJsonObject();
     if (!json.has("status") || !"ok".equals(json.get("status").getAsString())) return;
@@ -142,7 +142,7 @@ public final class FragmentsServletViewportTest {
 
     servlet.doGet(req, resp);
     if (buf.toString() == null || buf.toString().isEmpty()) return;
-    JsonElement root = new JsonParser().parse(buf.toString());
+    JsonElement root = JsonParser.parseString(buf.toString());
     if (root == null || !root.isJsonObject()) return;
     JsonObject json = root.getAsJsonObject();
     if (!json.has("status") || !"ok".equals(json.get("status").getAsString())) return;

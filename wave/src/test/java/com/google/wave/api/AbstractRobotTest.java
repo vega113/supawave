@@ -284,8 +284,7 @@ public class AbstractRobotTest extends TestCase {
     assertEquals(EventType.WAVELET_TAGS_CHANGED, calledEvents.get(2));
 
     // Assert that the outgoing operation bundle contains robot.notify() op.
-    JsonParser jsonParser = new JsonParser();
-    JsonArray ops = jsonParser.parse(mockWriter.getString()).getAsJsonArray();
+    JsonArray ops = JsonParser.parseString(mockWriter.getString()).getAsJsonArray();
     assertEquals(1, ops.size());
 
     JsonObject op = ops.get(0).getAsJsonObject();

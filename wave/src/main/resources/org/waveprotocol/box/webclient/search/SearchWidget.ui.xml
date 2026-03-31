@@ -38,7 +38,7 @@
        <span class='{css.helpTitle}'>Search Help</span>
        <div ui:field='helpCloseButton' class='{css.helpClose}'>Got it</div>
      </div>
-     <div class='{css.helpColumns}'>
+     <div ui:field='helpColumnsDiv' class='{css.helpColumns}'>
        <!-- Left column: Filters -->
        <div class='{css.helpColumn}'>
          <div class='{css.helpSectionTitle}'>Filters</div>

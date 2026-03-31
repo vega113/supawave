@@ -56,7 +56,7 @@ public abstract class AbstractCliRobotAgent extends AbstractBaseRobotAgent {
   /** The options for the command. */
   private final Options options;
   private final CommandLineParser parser;
-  @SuppressWarnings("deprecation") // HelpFormatter class deprecated in commons-cli 1.9; no non-deprecated replacement available
+  @SuppressWarnings("deprecation")
   private final HelpFormatter helpFormatter;
 
   /**
@@ -79,15 +79,14 @@ public abstract class AbstractCliRobotAgent extends AbstractBaseRobotAgent {
   /**
    * Constructor for testing.
    */
+  @SuppressWarnings("deprecation")
   AbstractCliRobotAgent(String waveDomain,
                         ServerFrontendAddressHolder frontendAddressHolder, AccountStore accountStore,
                         RobotRegistrar robotRegistrar, Boolean sslEnabled,
                         LocalOperationSubmitter submitter) {
     super(waveDomain, frontendAddressHolder, accountStore, robotRegistrar, sslEnabled, submitter);
     parser = new DefaultParser();
-    @SuppressWarnings("deprecation") // HelpFormatter deprecated in commons-cli 1.9; builder().get() is the recommended pattern
-    HelpFormatter hf = HelpFormatter.builder().get();
-    helpFormatter = hf;
+    helpFormatter = new HelpFormatter();
     options = initOptions();
   }
 
@@ -169,13 +168,13 @@ public abstract class AbstractCliRobotAgent extends AbstractBaseRobotAgent {
   /**
    * Returns the command options usage.
    */
-  @SuppressWarnings("deprecation") // HelpFormatter deprecated in commons-cli 1.9
+  @SuppressWarnings("deprecation")
   public String getUsage() {
     StringWriter stringWriter = new StringWriter();
     PrintWriter pw = new PrintWriter(stringWriter);
-    helpFormatter.printHelp(pw, helpFormatter.getWidth(), getCommandName() + " "
-        + getCmdLineSyntax() + " \n", null, options, helpFormatter.getLeftPadding(),
-        helpFormatter.getDescPadding(), "", false);
+    helpFormatter.printHelp(pw, helpFormatter.defaultWidth, getCommandName() + " "
+        + getCmdLineSyntax() + " \n", null, options, helpFormatter.defaultLeftPad,
+        helpFormatter.defaultDescPad, "", false);
     pw.flush();
     return stringWriter.toString();
   }
@@ -185,8 +184,7 @@ public abstract class AbstractCliRobotAgent extends AbstractBaseRobotAgent {
    */
   protected Options initOptions() {
     Options options = new Options();
-    @SuppressWarnings("deprecation") // Option.Builder.build() deprecated in commons-cli 1.10; get() not available for Option.Builder
-    Option help = Option.builder("help").desc("Displays help for the command.").build();
+    Option help = Option.builder("help").desc("Displays help for the command.").get();
     options.addOption(help);
     return options;
   }

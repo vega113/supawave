@@ -43,7 +43,7 @@ public class JsonRpcResponseGsonAdaptorRobotTest extends TestCase {
 
   public void testDeserializeJsonRpcErrorResponse() throws Exception {
     String response = "{'id':'op1','error':{'message':'Not authorized!'}}";
-    JsonElement jsonElement = new JsonParser().parse(response);
+    JsonElement jsonElement = JsonParser.parseString(response);
 
     JsonRpcResponseGsonAdaptor adaptor = new JsonRpcResponseGsonAdaptor();
     JsonRpcResponse result = adaptor.deserialize(jsonElement, null, null);
@@ -54,7 +54,7 @@ public class JsonRpcResponseGsonAdaptorRobotTest extends TestCase {
 
   public void testDeserializeJsonRpcResponse() throws Exception {
     String response = "{'id':'op1','data':{'newBlipId':'blip1','unknown':'value'}}";
-    JsonElement jsonElement = new JsonParser().parse(response);
+    JsonElement jsonElement = JsonParser.parseString(response);
 
     JsonDeserializationContext mockContext = mock(JsonDeserializationContext.class);
     when(mockContext.deserialize(any(JsonElement.class), eq(String.class))).thenAnswer(

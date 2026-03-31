@@ -69,7 +69,6 @@ public class WaveExport {
   private static final HashedVersionFactory HASH_FACTORY = new HashedVersionFactoryImpl(URI_CODEC);
 
   private static final Gson gson = new GsonFactory().create();
-  private static final JsonParser jsonParser = new JsonParser();
 
   private final String serverUrl;
   private final WaveService api;
@@ -249,7 +248,7 @@ public class WaveExport {
     writeSnapshotToFile(waveId, waveletId, snapshotJSon);
     WaveletSnapshotProtoImpl snapshot = new WaveletSnapshotProtoImpl();
     try {
-      snapshot.fromGson(jsonParser.parse(snapshotJSon), gson, null);
+      snapshot.fromGson(JsonParser.parseString(snapshotJSon), gson, null);
     } catch (GsonException ex) {
       throw new IOException(ex);
     }

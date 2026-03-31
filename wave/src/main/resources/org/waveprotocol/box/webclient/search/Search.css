@@ -255,10 +255,5 @@ input.query:focus {
   font-style: italic;
 }
 
-/* Responsive: stack columns on narrow screens */
-@media (max-width: 600px) {
-  .helpColumns {
-    flex-direction: column;
-    gap: 8px;
-  }
-}
+/* Note: @media queries are not supported by GWT CssResource; responsive
+   layout for .helpColumns is handled via inline styles in SearchWidget.java */

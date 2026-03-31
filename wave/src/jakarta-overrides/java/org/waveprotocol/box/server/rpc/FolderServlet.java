@@ -85,6 +85,7 @@ public final class FolderServlet extends HttpServlet {
 
   @Override
   @VisibleForTesting
+  @SuppressWarnings("deprecation") // StringEscapeUtils.unescapeHtml4 is deprecated in commons-lang3; commons-text is not on the classpath
   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
     ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(request, false));
     if (user == null) {

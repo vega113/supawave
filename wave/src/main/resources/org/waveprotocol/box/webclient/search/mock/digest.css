@@ -125,25 +125,5 @@
   font-weight: 600;
 }
 
-/* =====================================================================
-   MOBILE: Touch-friendly digest sizing (viewport <= 768px)
-   ===================================================================== */
-@media (max-width: 768px) {
-  .digest {
-    min-height: 60px;
-    padding: 12px 14px 12px 10px;
-  }
-
-  .inner {
-    height: auto;
-    min-height: 36px;
-  }
-
-  .title {
-    font-size: 15px;
-  }
-
-  .snippet {
-    font-size: 13px;
-  }
-}
+/* Note: @media queries are not supported by GWT CssResource; responsive
+   overrides for .digest/.inner/.title/.snippet are not applicable here */

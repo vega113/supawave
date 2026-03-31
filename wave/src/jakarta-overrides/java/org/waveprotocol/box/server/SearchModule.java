@@ -50,6 +50,10 @@ public class SearchModule extends AbstractModule {
 
   @Override
   public void configure() {
+    // WaveEmbeddingProvider is needed by WaveDocumentBuilder → Lucene9WaveIndexerImpl chain;
+    // bind in all modes so Guice can resolve the dependency graph even in non-lucene paths.
+    bind(WaveEmbeddingProvider.class).to(NoOpWaveEmbeddingProvider.class).in(Singleton.class);
+
     if ("lucene".equals(searchType)) {
       // FeatureFlaggedSearchProviderImpl routes between legacy (SimpleSearch)
       // and Lucene9 based on the "lucene9" per-user feature flag.
@@ -57,7 +61,6 @@ public class SearchModule extends AbstractModule {
       // is no async bootstrap race on clean deploys.
       bind(SimpleSearchProviderImpl.class).in(Singleton.class);
       bind(Lucene9SearchProviderImpl.class).in(Singleton.class);
-      bind(WaveEmbeddingProvider.class).to(NoOpWaveEmbeddingProvider.class).in(Singleton.class);
       bind(FeatureFlaggedSearchProviderImpl.class).in(Singleton.class);
       bind(SearchProvider.class).to(FeatureFlaggedSearchProviderImpl.class).in(Singleton.class);
       bind(PerUserWaveViewProvider.class).to(MemoryPerUserWaveViewHandlerImpl.class)

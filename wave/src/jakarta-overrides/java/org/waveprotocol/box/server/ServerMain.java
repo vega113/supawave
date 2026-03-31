@@ -434,8 +434,38 @@ public class ServerMain {
       LOG.info("SearchWaveletUpdater subscribed to WaveBus (ot-search enabled)");
     }
 
+    // Pre-warm the wave map and owner's per-user view so the first search
+    // is fast instead of waiting for a lazy 6-7 second load on first request.
+    warmUpWaveView(injector, config);
+
     long elapsedMs = System.currentTimeMillis() - startMs;
     LOG.info("initializeSearch completed in " + elapsedMs + " ms");
+  }
+
+  private static void warmUpWaveView(Injector injector, Config config) {
+    try {
+      long warmupStart = System.currentTimeMillis();
+      WaveMap waveMap = injector.getInstance(WaveMap.class);
+      waveMap.loadAllWavelets();
+      long loadMs = System.currentTimeMillis() - warmupStart;
+      LOG.info("Wave map pre-warmed: loaded all wavelets in " + loadMs + " ms");
+
+      if (config.hasPath("core.owner_address")) {
+        String ownerAddress = config.getString("core.owner_address");
+        if (ownerAddress != null && !ownerAddress.isEmpty()) {
+          long viewStart = System.currentTimeMillis();
+          PerUserWaveViewProvider viewProvider =
+              injector.getInstance(PerUserWaveViewProvider.class);
+          ParticipantId owner = ParticipantId.ofUnsafe(ownerAddress);
+          viewProvider.retrievePerUserWaveView(owner);
+          long viewMs = System.currentTimeMillis() - viewStart;
+          LOG.info("Pre-warmed wave view for owner " + ownerAddress + " in " + viewMs + " ms");
+        }
+      }
+    } catch (Exception e) {
+      LOG.warning("Wave view warmup failed (non-fatal, will load on first request): "
+          + e.getMessage());
+    }
   }
 
   private static void initializeShutdownHandler(final ServerRpcProvider server) {

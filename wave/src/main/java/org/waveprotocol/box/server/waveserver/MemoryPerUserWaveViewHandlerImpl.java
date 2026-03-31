@@ -37,7 +37,6 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -62,7 +61,8 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
   /** The loading cache that holds wave viev per each online user.*/
   public LoadingCache<ParticipantId, Multimap<WaveId, WaveletId>> explicitPerUserWaveViews;
 
-  private final AtomicBoolean storageWarmupCompleted = new AtomicBoolean(false);
+  /** Guards concurrent calls to {@code loadAllWavelets()} during cache rebuilds. */
+  private final Object waveMapLoadLock = new Object();
 
   @Inject
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {
@@ -120,17 +120,25 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
         });
   }
 
+  /**
+   * Ensures all waves are loaded in the WaveMap before iterating.
+   *
+   * <p>The WaveMap's internal cache evicts entries after a period of inactivity
+   * ({@code core.wave_cache_expire}). When the per-user view cache also expires
+   * and needs to be rebuilt, the WaveMap may have evicted most of its entries.
+   * {@code getWaves()} only returns what is currently cached, so we must
+   * reload from storage to get a complete view.
+   *
+   * <p>Synchronized so that concurrent per-user cache misses (e.g. multiple
+   * users' views expiring around the same time) coalesce into a single
+   * storage scan rather than fanning out into redundant full-store walks.
+   */
   private void ensureWaveMapLoaded(WaveMap waveMap, ParticipantId user) {
-    if (!storageWarmupCompleted.get()) {
-      synchronized (storageWarmupCompleted) {
-        if (!storageWarmupCompleted.get()) {
-          try {
-            waveMap.loadAllWavelets();
-            storageWarmupCompleted.set(true);
-          } catch (WaveletStateException e) {
-            throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
-          }
-        }
+    synchronized (waveMapLoadLock) {
+      try {
+        waveMap.loadAllWavelets();
+      } catch (WaveletStateException e) {
+        throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
       }
     }
   }

@@ -116,13 +116,26 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     assertTrue(waveView.containsEntry(WAVE_ID, WAVELET_ID));
   }
 
-  public void testRetrievePerUserWaveViewLoadsStorageOnlyOnce() {
+  public void testRetrievePerUserWaveViewLoadsStoragePerCacheMiss() {
     ReloadingWaveMap reloadingWaveMap = (ReloadingWaveMap) waveMap;
     MemoryPerUserWaveViewHandlerImpl handler = new MemoryPerUserWaveViewHandlerImpl(reloadingWaveMap);
 
     handler.retrievePerUserWaveView(PARTICIPANT);
     handler.retrievePerUserWaveView(SECOND_PARTICIPANT);
 
+    // Each cache miss triggers loadAllWavelets to ensure the wave map is fully
+    // populated (wave map entries may have been evicted since startup).
+    assertEquals(2, reloadingWaveMap.loadAllWaveletsCallCount);
+  }
+
+  public void testRetrievePerUserWaveViewCacheHitSkipsReload() {
+    ReloadingWaveMap reloadingWaveMap = (ReloadingWaveMap) waveMap;
+    MemoryPerUserWaveViewHandlerImpl handler = new MemoryPerUserWaveViewHandlerImpl(reloadingWaveMap);
+
+    handler.retrievePerUserWaveView(PARTICIPANT);
+    handler.retrievePerUserWaveView(PARTICIPANT); // cache hit
+
+    // Second call for the same user is a cache hit -- no additional load.
     assertEquals(1, reloadingWaveMap.loadAllWaveletsCallCount);
   }
 

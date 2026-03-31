@@ -92,24 +92,26 @@ public class WaveDataSeeder {
         String jsessionid = login();
         System.out.println("OK");
 
-        // Step 3: Check existing waves
-        System.out.print("Checking existing waves... ");
-        int existing = countInboxWaves(jsessionid);
-        System.out.println(existing + " waves found.");
+        // Step 3: Discover existing perf waves by ID (not inbox count, which includes non-perf
+        // waves and breaks retryability when waves fail mid-run).
+        System.out.print("Checking existing perf waves... ");
+        int highestPerfIdx = discoverHighestPerfIndex(jsessionid);
+        System.out.println("highest w+perf index = " + highestPerfIdx + ".");
 
-        if (existing >= numWaves) {
-            System.out.println("Already have " + existing + " waves (>= " + numWaves + "). Done.");
+        if (highestPerfIdx >= numWaves) {
+            System.out.println("Already have w+perf up to index " + highestPerfIdx
+                    + " (>= " + numWaves + "). Done.");
             return;
         }
 
-        int toCreate = numWaves - existing;
+        int toCreate = numWaves - highestPerfIdx;
         System.out.println("Creating " + toCreate + " more waves...");
         System.out.println();
 
         // Step 4: Create waves via WebSocket
         int created = 0;
         for (int i = 0; i < toCreate; i++) {
-            int waveNum = existing + i + 1;
+            int waveNum = highestPerfIdx + i + 1;
             String waveLocal = String.format("w+perf%04d", waveNum);
             System.out.print("  Wave " + waveNum + "/" + numWaves + " (" + waveLocal + ")... ");
 
@@ -125,8 +127,8 @@ public class WaveDataSeeder {
         // Step 5: Verify
         System.out.println();
         System.out.print("Verifying... ");
-        int finalCount = countInboxWaves(jsessionid);
-        System.out.println(finalCount + " waves in inbox.");
+        int finalIdx = discoverHighestPerfIndex(jsessionid);
+        System.out.println("highest w+perf index = " + finalIdx + ".");
         System.out.println();
         int failed = toCreate - created;
         System.out.println("=== Seeding complete: " + created + " waves created"
@@ -165,6 +167,53 @@ public class WaveDataSeeder {
             }
         }
         throw new RuntimeException("Login failed — no JSESSIONID (HTTP " + resp.statusCode() + ")");
+    }
+
+    /**
+     * Pages through the inbox and returns the highest numeric index among existing
+     * {@code w+perfNNNN} wave IDs.  Returns 0 if no perf waves exist.
+     *
+     * <p>Using the highest perf index rather than the total inbox count makes seeding
+     * idempotent and retryable: non-perf waves in the inbox no longer skew the starting
+     * offset, and a failed mid-run retry resumes from the correct wave number.
+     */
+    private int discoverHighestPerfIndex(String jsessionid) throws Exception {
+        final int PAGE_SIZE = 100;
+        int highest = 0;
+        int index = 0;
+        while (true) {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/search/?query=" + enc("in:inbox")
+                            + "&index=" + index + "&numResults=" + PAGE_SIZE))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Cookie", "JSESSIONID=" + jsessionid)
+                    .GET()
+                    .build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) {
+                System.err.println("Warning: inbox search returned HTTP " + resp.statusCode()
+                        + " for JSESSIONID=" + jsessionid);
+                return highest;
+            }
+            JsonObject result = GSON.fromJson(resp.body(), JsonObject.class);
+            if (!result.has("3") || !result.get("3").isJsonArray()) break;
+            JsonArray digests = result.get("3").getAsJsonArray();
+            for (int i = 0; i < digests.size(); i++) {
+                JsonObject digest = digests.get(i).getAsJsonObject();
+                // Digest field "3" is the serialized waveId, e.g. "local.net/w+perf0007"
+                if (!digest.has("3")) continue;
+                String waveId = digest.get("3").getAsString();
+                int slash = waveId.lastIndexOf('/');
+                String local = slash >= 0 ? waveId.substring(slash + 1) : waveId;
+                if (local.matches("w\\+perf\\d+")) {
+                    int idx = Integer.parseInt(local.substring("w+perf".length()));
+                    if (idx > highest) highest = idx;
+                }
+            }
+            if (digests.size() < PAGE_SIZE) break;
+            index += PAGE_SIZE;
+        }
+        return highest;
     }
 
     private int countInboxWaves(String jsessionid) throws Exception {

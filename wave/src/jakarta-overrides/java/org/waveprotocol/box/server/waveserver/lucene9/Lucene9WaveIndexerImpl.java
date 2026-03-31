@@ -78,6 +78,10 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   private final IndexWriter indexWriter;
   private final SearcherManager searcherManager;
 
+  /** Max attempts to acquire the Lucene write lock during start-first deploys. */
+  private static final int LOCK_RETRY_ATTEMPTS = 12;
+  private static final long LOCK_RETRY_DELAY_MS = 5_000;
+
   @Inject
   public Lucene9WaveIndexerImpl(WaveMap waveMap, WaveletProvider waveletProvider,
       Lucene9SearchIndexDirectory directory, WaveMetadataExtractor metadataExtractor,
@@ -87,13 +91,42 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     this.metadataExtractor = metadataExtractor;
     this.documentBuilder = documentBuilder;
     this.rebuildOnStartup = config.getBoolean("core.lucene9_rebuild_on_startup");
+    this.indexWriter = openWriterWithRetry(directory);
     try {
-      this.indexWriter = new IndexWriter(directory.getDirectory(),
-          new IndexWriterConfig(new StandardAnalyzer()));
       this.searcherManager = new SearcherManager(indexWriter, new SearcherFactory());
     } catch (IOException e) {
       throw new IndexException(e);
     }
+  }
+
+  /**
+   * Opens an IndexWriter, retrying if the write lock is held by a previous
+   * container during a start-first rolling deploy.
+   */
+  private static IndexWriter openWriterWithRetry(Lucene9SearchIndexDirectory directory) {
+    for (int attempt = 1; attempt <= LOCK_RETRY_ATTEMPTS; attempt++) {
+      try {
+        return new IndexWriter(directory.getDirectory(),
+            new IndexWriterConfig(new StandardAnalyzer()));
+      } catch (org.apache.lucene.store.LockObtainFailedException e) {
+        if (attempt == LOCK_RETRY_ATTEMPTS) {
+          throw new IndexException("Failed to acquire Lucene write lock after "
+              + LOCK_RETRY_ATTEMPTS + " attempts (previous container may still be running)", e);
+        }
+        LOG.info("Lucene write lock held by previous instance, retrying in "
+            + (LOCK_RETRY_DELAY_MS / 1000) + "s (attempt " + attempt + "/"
+            + LOCK_RETRY_ATTEMPTS + ")");
+        try {
+          Thread.sleep(LOCK_RETRY_DELAY_MS);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw new IndexException("Interrupted waiting for Lucene write lock", ie);
+        }
+      } catch (IOException e) {
+        throw new IndexException(e);
+      }
+    }
+    throw new IndexException("Unreachable");
   }
 
   @Override
@@ -105,18 +138,29 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   @Override
   public synchronized void remakeIndex() throws WaveletStateException, WaveServerException {
     try {
-      if (rebuildOnStartup) {
+      int existingDocs = indexWriter.getDocStats().numDocs;
+      if (existingDocs > 0 && !rebuildOnStartup) {
+        LOG.info("Lucene9 index already has " + existingDocs
+            + " documents, skipping rebuild (lucene9_rebuild_on_startup=false)");
+        return;
+      }
+      if (existingDocs > 0) {
+        LOG.info("Rebuilding Lucene9 index (had " + existingDocs
+            + " docs, lucene9_rebuild_on_startup=true)");
         indexWriter.deleteAll();
       }
       waveMap.loadAllWavelets();
       try {
         org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
             waveletProvider.getWaveIds();
+        int count = 0;
         while (waveIds.hasNext()) {
           upsertWave(waveIds.next());
+          count++;
         }
         indexWriter.commit();
         searcherManager.maybeRefreshBlocking();
+        LOG.info("Lucene9 index built with " + count + " waves");
       } finally {
         waveMap.unloadAllWavelets();
       }

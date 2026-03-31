@@ -427,7 +427,11 @@ public class UrlPreviewServlet extends HttpServlet {
         sslSocket.setSSLParameters(params);
         return sslSocket;
       } catch (IOException e) {
-        rawSocket.close();
+        try {
+          rawSocket.close();
+        } catch (IOException closeEx) {
+          e.addSuppressed(closeEx);
+        }
         throw e;
       }
     }

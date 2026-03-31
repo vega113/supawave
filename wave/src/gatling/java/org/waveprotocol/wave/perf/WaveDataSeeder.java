@@ -168,24 +168,33 @@ public class WaveDataSeeder {
     }
 
     private int countInboxWaves(String jsessionid) throws Exception {
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/search/?query=" + enc("in:inbox")
-                        + "&index=0&numResults=100"))
-                .timeout(Duration.ofSeconds(10))
-                .header("Cookie", "JSESSIONID=" + jsessionid)
-                .GET()
-                .build();
-        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200) {
-            System.err.println("Warning: inbox search returned HTTP " + resp.statusCode()
-                    + " for JSESSIONID=" + jsessionid);
-            return 0;
+        final int PAGE_SIZE = 100;
+        int total = 0;
+        int index = 0;
+        while (true) {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/search/?query=" + enc("in:inbox")
+                            + "&index=" + index + "&numResults=" + PAGE_SIZE))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Cookie", "JSESSIONID=" + jsessionid)
+                    .GET()
+                    .build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) {
+                System.err.println("Warning: inbox search returned HTTP " + resp.statusCode()
+                        + " for JSESSIONID=" + jsessionid);
+                return total;
+            }
+            JsonObject result = GSON.fromJson(resp.body(), JsonObject.class);
+            int pageCount = 0;
+            if (result.has("3") && result.get("3").isJsonArray()) {
+                pageCount = result.get("3").getAsJsonArray().size();
+            }
+            total += pageCount;
+            if (pageCount < PAGE_SIZE) break;  // last page reached
+            index += PAGE_SIZE;
         }
-        JsonObject result = GSON.fromJson(resp.body(), JsonObject.class);
-        if (result.has("3") && result.get("3").isJsonArray()) {
-            return result.get("3").getAsJsonArray().size();
-        }
-        return 0;
+        return total;
     }
 
     private void createWaveWithBlips(String jsessionid, String waveLocal, int blipCount)
@@ -257,9 +266,11 @@ public class WaveDataSeeder {
 
                 JsonObject blipResp = ws.recvUntil("ProtocolSubmitResponse", 30_000);
                 JsonObject blipRespMsg = blipResp.get("message").getAsJsonObject();
-                if (blipRespMsg.has("3")) {
-                    lastVersion = blipRespMsg.get("3").getAsJsonObject();
+                if (!blipRespMsg.has("3")) {
+                    throw new RuntimeException("No hashed_version in blip submit response (blip "
+                            + b + "/" + blipCount + ") — server likely rejected the submit");
                 }
+                lastVersion = blipRespMsg.get("3").getAsJsonObject();
             }
         } finally {
             ws.close();

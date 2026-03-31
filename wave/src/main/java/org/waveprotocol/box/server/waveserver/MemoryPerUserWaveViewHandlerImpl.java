@@ -144,13 +144,12 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
    */
   private void ensureWaveMapLoaded(WaveMap waveMap, ParticipantId user) {
     synchronized (waveMapLoadLock) {
-      long now = System.currentTimeMillis();
-      if (now - lastWaveMapLoadMs < WAVE_MAP_RELOAD_COOLDOWN_MS) {
+      if (System.currentTimeMillis() - lastWaveMapLoadMs < WAVE_MAP_RELOAD_COOLDOWN_MS) {
         return;
       }
       try {
         waveMap.loadAllWavelets();
-        lastWaveMapLoadMs = now;
+        lastWaveMapLoadMs = System.currentTimeMillis();
       } catch (WaveletStateException e) {
         throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
       }

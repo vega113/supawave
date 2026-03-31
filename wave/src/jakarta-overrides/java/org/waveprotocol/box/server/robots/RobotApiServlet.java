@@ -415,6 +415,10 @@ public final class RobotApiServlet extends HttpServlet {
     }
     try {
       RobotAccountData rotated = robotRegistrar.rotateSecret(robot.getId());
+      if (rotated == null) {
+        sendError(resp, 404, "Robot not found", "NOT_FOUND");
+        return;
+      }
       // Include the new secret in response (only time it's visible)
       StringBuilder json = new StringBuilder(256);
       json.append("{");
@@ -507,7 +511,11 @@ public final class RobotApiServlet extends HttpServlet {
     }
     try {
       // Soft delete: atomically pause and clear callback URL in one store write
-      robotRegistrar.softDelete(robot.getId());
+      RobotAccountData result = robotRegistrar.softDelete(robot.getId());
+      if (result == null) {
+        sendError(resp, 404, "Robot not found", "NOT_FOUND");
+        return;
+      }
       sendJson(resp, 200, "{\"deleted\":true,\"paused\":true,\"id\":" + jv(robot.getId().getAddress()) + "}");
     } catch (RobotRegistrationException e) {
       sendError(resp, 400, e.getMessage(), "DELETE_ERROR");

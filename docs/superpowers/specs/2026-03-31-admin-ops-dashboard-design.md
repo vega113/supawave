@@ -32,27 +32,35 @@ Auth: same as existing admin APIs — requires `ROLE_OWNER` or `ROLE_ADMIN`.
   "searchIndex": {
     "type": "lucene",
     "lucene9FlagEnabled": true,
-        "wavesInStorage": 134,
+    "wavesInStorage": 134,
     "docsInIndex": 134,
-      },
+    "lastRebuildWaveCount": 134
+  },
   "serverInfo": {
     "uptimeMs": 3600000,
     "heapUsedBytes": 134217728,
     "heapMaxBytes": 536870912,
-        "javaVersion": "17.0.18+8"
+    "javaVersion": "17.0.18+8"
   },
   "config": {
     "core.search_type": "lucene",
     "core.wave_server_domain": "supawave.ai",
     "core.mongodb_driver": "v4",
-    "core.lucene9_rebuild_on_startup": "true",
-              }
+    "core.lucene9_rebuild_on_startup": true
+  },
+  "lastReindex": {
+    "state": "COMPLETED",
+    "startTimeMs": 1711900000000,
+    "endTimeMs": 1711900005000,
+    "waveCount": 134,
+    "triggeredBy": "startup"
+  }
 }
 ```
 
 **POST /admin/api/ops/reindex** → 202
 ```json
-{ "reindex": { "state": "RUNNING", "startTimeMs": 1711900000000, "triggeredBy": "admin@example.com" } }
+{ "ok": true, "reindex": { "state": "RUNNING", "startTimeMs": 1711900000000, "triggeredBy": "admin@example.com" } }
 ```
 Or 409 if already running:
 ```json
@@ -64,13 +72,12 @@ Or 409 if already running:
 {
   "state": "RUNNING",
   "startTimeMs": 1711900000000,
-  "endTimeMs": null,
-  "elapsedMs": 5000,
-  "waveCount": null,
-  "errorMessage": null,
+  "waveCount": 0,
   "triggeredBy": "vega@supawave.ai"
 }
 ```
+
+Note: `endTimeMs`, `waveCount`, and `error` fields are conditionally omitted when not applicable.
 
 ### Dashboard Sections
 
@@ -79,11 +86,10 @@ Or 409 if already running:
 | Field | Source |
 |-------|--------|
 | Search type | `Config.getString("core.search_type")` |
-| Lucene9 flag (global) | `FeatureFlagService.isEnabledGlobally("lucene9")` |
-| Lucene9 flag (users) | `FeatureFlagService.getAllowedUsers("lucene9")` |
-| Waves in storage | `WaveletProvider.getWaveIds()` count (iterate + count) |
-| Docs in Lucene9 index | New accessor: `Lucene9WaveIndexerImpl.getIndexedDocCount()` using `acquireSearcher()` → `IndexReader.numDocs()` then `release()` |
-| Rebuild on startup | `Config.getBoolean("core.lucene9_rebuild_on_startup")` |
+| Lucene9 flag | `FeatureFlagService.isEnabled("lucene9", null)` |
+| Waves in storage | `WaveletProvider.getWaveIds()` count (cached, 30s TTL) |
+| Docs in Lucene9 index | `Lucene9WaveIndexerImpl.getIndexedDocCount()` via `acquireSearcher()` → `IndexReader.numDocs()` |
+| Last rebuild wave count | `Lucene9WaveIndexerImpl.getLastRebuildWaveCount()` |
 | Last reindex | From `ReindexService` (in-memory, labeled "since process start") |
 
 **Rebuild Index button:**

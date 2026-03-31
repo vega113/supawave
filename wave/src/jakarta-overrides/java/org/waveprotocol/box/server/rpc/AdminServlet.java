@@ -40,6 +40,7 @@ import org.waveprotocol.box.server.persistence.ContactMessageStore.ContactMessag
 import org.waveprotocol.box.server.persistence.ContactMessageStore.ContactReply;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.waveserver.ReindexService;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
@@ -116,8 +117,7 @@ public final class AdminServlet extends HttpServlet {
     this.waveletProvider = waveletProvider;
     this.featureFlagService = featureFlagService;
     this.lucene9Indexer = lucene9Indexer;
-    String url = config.getString("core.http_frontend_public_address");
-    this.publicBaseUrl = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+    this.publicBaseUrl = PublicBaseUrlResolver.resolve(config);
   }
 
   @Override

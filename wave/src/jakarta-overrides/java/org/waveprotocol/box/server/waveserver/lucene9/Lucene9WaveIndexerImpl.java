@@ -126,9 +126,20 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
         org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
             waveletProvider.getWaveIds();
         int count = 0;
+        int errors = 0;
         while (waveIds.hasNext()) {
-          upsertWave(waveIds.next());
-          count++;
+          WaveId waveId = waveIds.next();
+          try {
+            upsertWave(waveId);
+            count++;
+          } catch (Exception e) {
+            errors++;
+            LOG.log(Level.WARNING, "Failed to index wave " + waveId + ", skipping", e);
+          }
+        }
+        if (errors > 0) {
+          LOG.warning("Lucene9 index repair completed with " + errors
+              + " errors out of " + (count + errors) + " waves");
         }
         indexWriter.commit();
         searcherManager.maybeRefreshBlocking();

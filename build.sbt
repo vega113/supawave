@@ -1068,7 +1068,10 @@ Compile / compile := (Compile / compile)
   // generateGxp removed — GXP replaced by HtmlRenderer
   .value
 
-// Ensure `run` has a config in place and the web client is built first.
+// Ensure `run` has a config in place and the GWT web client is compiled first.
+// ⚠️  DO NOT REMOVE compileGwt from this line. Without it, `sbt run` serves a
+//     blank wave list because webclient.nocache.js is never built. This has been
+//     a recurring regression — see PR history for context.
 Compile / run := (Compile / run).dependsOn(prepareServerConfig, compileGwt).evaluated
 
 // =============================================================================
@@ -1178,6 +1181,10 @@ ThisBuild / compileGwt := {
 
 // Wire compileGwt to run after compileJava (GWT needs compiled classes)
 compileGwt := (compileGwt).dependsOn(Compile / compile).value
+
+// ⚠️  DO NOT REMOVE these lines. They ensure GWT compilation runs before
+//     staging or packaging. Without them, distributions ship without the
+//     web client and users see a blank wave list after login.
 Universal / stage := (Universal / stage).dependsOn(compileGwt).value
 Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt).value
 

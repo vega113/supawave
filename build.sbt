@@ -1178,7 +1178,7 @@ ThisBuild / compileGwt := {
 
   val outputTs = if (nocacheJs.exists) nocacheJs.lastModified else 0L
   val newestInput = gwtInputDirs.flatMap(d =>
-    (d ** ("*.java" | "*.xml" | "*.proto")).get
+    (d ** ("*.java" | "*.xml" | "*.proto" | "*.css" | "*.html" | "*.properties" | "*.png" | "*.gif" | "*.jpg")).get
   ).map(_.lastModified).foldLeft(0L)(math.max)
 
   val upToDate = nocacheJs.exists && newestInput <= outputTs

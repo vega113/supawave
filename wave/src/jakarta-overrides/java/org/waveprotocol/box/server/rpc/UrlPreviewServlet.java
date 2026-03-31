@@ -429,13 +429,18 @@ public class UrlPreviewServlet extends HttpServlet {
           sslSocket.setSSLParameters(params);
         }
         return sslSocket;
-      } catch (IOException e) {
+      } catch (Exception e) {
+        // Catch Exception (not just IOException) to also handle IllegalArgumentException
+        // from SNIHostName for edge-case hostnames, preventing rawSocket leaks.
         try {
           rawSocket.close();
         } catch (IOException closeEx) {
           e.addSuppressed(closeEx);
         }
-        throw e;
+        if (e instanceof IOException) {
+          throw (IOException) e;
+        }
+        throw new IOException("SSL socket creation failed", e);
       }
     }
 

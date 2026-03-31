@@ -118,6 +118,8 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
       } else if (existingDocs > 0) {
         LOG.info("Lucene9 index has " + existingDocs
             + " documents, running incremental repair");
+      } else {
+        LOG.info("Lucene9 index is empty, performing initial build");
       }
       waveMap.loadAllWavelets();
       try {

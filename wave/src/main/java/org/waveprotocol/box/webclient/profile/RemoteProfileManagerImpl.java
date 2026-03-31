@@ -43,8 +43,7 @@ import java.util.Set;
  *
  * @author yurize@apache.org (Yuri Zelikov)
  */
-public final class RemoteProfileManagerImpl extends AbstractProfileManager<ProfileImpl> implements
-    FetchProfilesService.Callback {
+public final class RemoteProfileManagerImpl extends AbstractProfileManager<ProfileImpl> {
 
   private final static LoggerBundle LOG = new DomLogger("fetchProfiles");
   private final FetchProfilesServiceImpl fetchProfilesService;
@@ -117,20 +116,25 @@ public final class RemoteProfileManagerImpl extends AbstractProfileManager<Profi
       pendingAddresses.clear();
       LOG.trace().log("Batch fetching " + addresses.length + " profiles");
       for (int i = 0; i < addresses.length; i += MAX_ADDRESSES_PER_REQUEST) {
-        String[] chunk = Arrays.copyOfRange(addresses, i,
+        final String[] chunk = Arrays.copyOfRange(addresses, i,
             Math.min(i + MAX_ADDRESSES_PER_REQUEST, addresses.length));
-        fetchProfilesService.fetch(RemoteProfileManagerImpl.this, chunk);
+        fetchProfilesService.fetch(new FetchProfilesService.Callback() {
+          @Override
+          public void onFailure(String message) {
+            LOG.error().log(message);
+            // Requeue stranded addresses so they are retried on the next flush.
+            for (String addr : chunk) {
+              pendingAddresses.add(addr);
+            }
+            scheduleFlush();
+          }
+
+          @Override
+          public void onSuccess(ProfileResponse profileResponse) {
+            deserializeResponseAndUpdateProfiles(RemoteProfileManagerImpl.this, profileResponse);
+          }
+        }, chunk);
       }
     }
-  }
-
-  @Override
-  public void onFailure(String message) {
-    LOG.error().log(message);
-  }
-
-  @Override
-  public void onSuccess(ProfileResponse profileResponse) {
-    deserializeResponseAndUpdateProfiles(this, profileResponse);
   }
 }

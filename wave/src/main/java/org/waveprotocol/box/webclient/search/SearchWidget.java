@@ -35,6 +35,7 @@ import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
+import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTMLPanel;
 import com.google.gwt.user.client.ui.TextBox;
@@ -195,6 +196,13 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       if (Event.ONCLICK == event.getTypeInt()) {
         helpPanel.getStyle().setProperty("display", "none");
         helpBackdrop.getStyle().setProperty("display", "none");
+      }
+    });
+
+    // Re-apply responsive columns on viewport resize while panel is visible
+    Window.addResizeHandler(e -> {
+      if (!"none".equals(helpPanel.getStyle().getDisplay())) {
+        applyResponsiveColumns();
       }
     });
 

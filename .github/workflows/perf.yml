@@ -1,0 +1,48 @@
+name: Performance Tests
+run-name: >-
+  ${{ github.event_name == 'pull_request' && format('Perf PR #{0} @ {1}', github.event.pull_request.number, github.event.pull_request.head.sha) || github.event_name == 'push' && format('Perf {0} @ {1}', github.ref_name, github.sha) || github.event_name == 'workflow_dispatch' && format('Perf {0} @ {1}', github.ref_name, github.sha) || format('Perf {0}', github.event_name) }}
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  perf:
+    name: Gatling Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'sbt'
+
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Compile PST and Wave
+        run: sbt --batch pst/compile wave/compile
+
+      - name: Stage distribution
+        run: sbt --batch Universal/stage
+
+      - name: Run performance tests
+        run: bash scripts/wave-perf.sh
+
+      - name: Upload performance results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: |
+            wave/target/perf-results/
+            target/universal/stage/wave_server.out

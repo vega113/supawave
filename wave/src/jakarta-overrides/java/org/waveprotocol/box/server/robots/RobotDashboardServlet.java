@@ -926,9 +926,11 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<div id=\"token-status\" class=\"prompt-status\">Generating a one-hour JWT for the starter prompt\u2026</div>");
     sb.append("<button id=\"copy-prompt-btn\" class=\"btn-primary\" style=\"margin-top:12px;\" disabled onclick=\"");
     sb.append("var btn=this;btn.disabled=true;btn.textContent='Copying\u2026';");
+    sb.append("generateStarterJWT().then(function(){");
     sb.append("var ta=document.getElementById('starter-prompt');");
-    sb.append("navigator.clipboard.writeText(ta.value).then(function(){");
-    sb.append("btn.textContent='Copied!';btn.disabled=false;setTimeout(function(){btn.textContent='Copy Prompt';btn.disabled=false;},1500);");
+    sb.append("return navigator.clipboard.writeText(ta.value);");
+    sb.append("}).then(function(){");
+    sb.append("btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy Prompt';btn.disabled=false;},1500);");
     sb.append("}).catch(function(){btn.textContent='Copy Prompt';btn.disabled=false;});");
     sb.append("\">Copy Prompt</button>");
     sb.append("</div></div>");

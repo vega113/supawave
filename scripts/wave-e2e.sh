@@ -110,11 +110,11 @@ else
   wait_for_healthz "$BASE_URL"
 fi
 
-echo "[e2e] Running Java E2E suite (sbt e2eTest:test) against $BASE_URL ..."
+echo "[e2e] Running Java E2E suite (sbt e2eTest/test) against $BASE_URL ..."
 
 set +e
 WAVE_E2E_BASE_URL="$BASE_URL" \
-  sbt --batch "e2eTest:test" \
+  sbt --batch "e2eTest/test" \
   2>&1 | tee "$RESULTS_DIR/e2e-output.txt"
 exit_code=${PIPESTATUS[0]}
 set -e

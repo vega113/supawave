@@ -184,12 +184,19 @@ final class Mongo4AccountStore implements AccountStore {
   @Override
   public long getAccountCount() throws PersistenceException {
     try {
-      // Count only human accounts — robot agents also live in this collection
-      // and must not prevent the first human user from getting the owner role.
-      return col.countDocuments(exists(ACCOUNT_HUMAN_DATA_FIELD));
+      return col.countDocuments(humanAccountsFilter());
     } catch (RuntimeException e) {
       throw new PersistenceException(e);
     }
+  }
+
+  /**
+   * Returns a filter for documents that contain a human account.
+   * Robot agents also live in this collection but must be excluded
+   * to prevent them from affecting first-user owner assignment.
+   */
+  private static org.bson.conversions.Bson humanAccountsFilter() {
+    return exists(ACCOUNT_HUMAN_DATA_FIELD);
   }
 
   private static Document humanToObject(HumanAccountData account) {

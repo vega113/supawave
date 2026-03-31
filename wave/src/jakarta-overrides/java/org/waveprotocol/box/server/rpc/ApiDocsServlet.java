@@ -732,6 +732,14 @@ public final class ApiDocsServlet extends HttpServlet {
     paths.put(CANONICAL_RPC_PATH, rpcPathObject(true));
     paths.put(RPC_ALIAS_PATH, rpcPathObject(false));
     paths.put(TOKEN_PATH, tokenPathObject());
+    // Robot Management API paths
+    paths.put("/api/robots", robotsCollectionPath());
+    paths.put("/api/robots/{id}", robotsItemPath());
+    paths.put("/api/robots/{id}/url", robotsUrlPath());
+    paths.put("/api/robots/{id}/description", robotsDescriptionPath());
+    paths.put("/api/robots/{id}/rotate", robotsRotatePath());
+    paths.put("/api/robots/{id}/verify", robotsVerifyPath());
+    paths.put("/api/robots/{id}/paused", robotsPausedPath());
     document.put("paths", paths);
 
     Map<String, Object> components = orderedMap();
@@ -756,6 +764,20 @@ public final class ApiDocsServlet extends HttpServlet {
                     "client_id", orderedMap("type", "string"),
                     "client_secret", orderedMap("type", "string"),
                     "expiry", orderedMap("type", "integer", "format", "int64", "example", 3600))));
+    // Robot Management API schemas
+    schemas.put("Robot", robotSchema(false));
+    schemas.put("RobotDetailed", robotSchema(true));
+    schemas.put("RobotRegistration", robotRegistrationSchema());
+    schemas.put("RobotList", orderedMap("type", "array", "items", orderedMap("$ref", "#/components/schemas/RobotDetailed")));
+    schemas.put("RobotDeleteResponse", orderedMap("type", "object", "properties",
+        orderedMap("deleted", orderedMap("type", "boolean"),
+                   "paused", orderedMap("type", "boolean"),
+                   "id", orderedMap("type", "string"))));
+    schemas.put("RobotRotateResponse", orderedMap("type", "object", "properties",
+        orderedMap("id", orderedMap("type", "string"),
+                   "secret", orderedMap("type", "string", "description", "New consumer secret — only returned once"),
+                   "maskedSecret", orderedMap("type", "string"),
+                   "status", orderedMap("type", "string"))));
     for (OperationDoc operation : OPERATIONS) {
       schemas.put(operation.requestSchemaName, requestSchema(operation));
       schemas.put(operation.responseSchemaName, responseSchema(operation));
@@ -874,6 +896,183 @@ public final class ApiDocsServlet extends HttpServlet {
                             "application/json",
                             orderedMap("schema", orderedMap("$ref", "#/components/schemas/TokenErrorResponse"))))));
     return orderedMap("get", get, "post", post);
+  }
+
+  // ── Robot Management API path helpers ──────────────────────────────
+
+  private static List<Object> robotIdParam() {
+    return list(orderedMap(
+        "name", "id",
+        "in", "path",
+        "required", true,
+        "schema", orderedMap("type", "string"),
+        "description", "Robot participant ID (e.g. my-bot@example.com) or just the username part"));
+  }
+
+  private static Map<String, Object> robotBearerSecurity() {
+    return orderedMap("security", list(orderedMap("BearerAuth", list())));
+  }
+
+  private static Map<String, Object> robotsCollectionPath() {
+    Map<String, Object> get = orderedMap();
+    get.put("summary", "List owned robots");
+    get.put("description", "Returns all robots owned by the authenticated user, including token expiry and masked secret.");
+    get.put("security", list(orderedMap("BearerAuth", list())));
+    get.put("responses", orderedMap(
+        "200", orderedMap("description", "Array of robot objects",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotList")))),
+        "401", orderedMap("description", "Missing or invalid bearer token.")));
+
+    Map<String, Object> post = orderedMap();
+    post.put("summary", "Register a new robot");
+    post.put("security", list(orderedMap("BearerAuth", list())));
+    post.put("requestBody", orderedMap("required", true, "content", orderedMap("application/json",
+        orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotRegistration")))));
+    post.put("responses", orderedMap(
+        "201", orderedMap("description", "Robot registered. Response includes the consumer secret (only returned once).",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotRotateResponse")))),
+        "400", orderedMap("description", "Validation error (missing username, invalid address, etc.)"),
+        "401", orderedMap("description", "Missing or invalid bearer token.")));
+    return orderedMap("get", get, "post", post);
+  }
+
+  private static Map<String, Object> robotsItemPath() {
+    Map<String, Object> get = orderedMap();
+    get.put("summary", "Get robot details");
+    get.put("security", list(orderedMap("BearerAuth", list())));
+    get.put("parameters", robotIdParam());
+    get.put("responses", orderedMap(
+        "200", orderedMap("description", "Robot details",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotDetailed")))),
+        "404", orderedMap("description", "Robot not found or not owned by caller."),
+        "401", orderedMap("description", "Missing or invalid bearer token.")));
+
+    Map<String, Object> delete = orderedMap();
+    delete.put("summary", "Soft delete robot");
+    delete.put("description", "Pauses the robot and clears its callback URL, making it fully inoperable. The account record is retained.");
+    delete.put("security", list(orderedMap("BearerAuth", list())));
+    delete.put("parameters", robotIdParam());
+    delete.put("responses", orderedMap(
+        "200", orderedMap("description", "Robot deleted (paused + callback URL cleared)",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotDeleteResponse")))),
+        "404", orderedMap("description", "Robot not found or not owned by caller."),
+        "401", orderedMap("description", "Missing or invalid bearer token.")));
+    return orderedMap("get", get, "delete", delete);
+  }
+
+  private static Map<String, Object> robotsUrlPath() {
+    Map<String, Object> put = orderedMap();
+    put.put("summary", "Update callback URL");
+    put.put("security", list(orderedMap("BearerAuth", list())));
+    put.put("parameters", robotIdParam());
+    put.put("requestBody", orderedMap("required", true, "content", orderedMap("application/json",
+        orderedMap("schema", orderedMap("type", "object", "required", list("url"),
+            "properties", orderedMap("url", orderedMap("type", "string", "format", "uri")))))));
+    put.put("responses", orderedMap(
+        "200", orderedMap("description", "Updated robot",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotDetailed")))),
+        "400", orderedMap("description", "url missing or empty"),
+        "401", orderedMap("description", "Missing or invalid bearer token."),
+        "404", orderedMap("description", "Robot not found or not owned by caller.")));
+    return orderedMap("put", put);
+  }
+
+  private static Map<String, Object> robotsDescriptionPath() {
+    Map<String, Object> put = orderedMap();
+    put.put("summary", "Update description");
+    put.put("security", list(orderedMap("BearerAuth", list())));
+    put.put("parameters", robotIdParam());
+    put.put("requestBody", orderedMap("required", true, "content", orderedMap("application/json",
+        orderedMap("schema", orderedMap("type", "object",
+            "properties", orderedMap("description", orderedMap("type", "string")))))));
+    put.put("responses", orderedMap(
+        "200", orderedMap("description", "Updated robot",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotDetailed")))),
+        "401", orderedMap("description", "Missing or invalid bearer token."),
+        "404", orderedMap("description", "Robot not found or not owned by caller.")));
+    return orderedMap("put", put);
+  }
+
+  private static Map<String, Object> robotsRotatePath() {
+    Map<String, Object> post = orderedMap();
+    post.put("summary", "Rotate consumer secret");
+    post.put("description", "Generates a new consumer secret. The new secret is returned once in this response and masked on subsequent reads.");
+    post.put("security", list(orderedMap("BearerAuth", list())));
+    post.put("parameters", robotIdParam());
+    post.put("responses", orderedMap(
+        "200", orderedMap("description", "New secret returned",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotRotateResponse")))),
+        "401", orderedMap("description", "Missing or invalid bearer token."),
+        "404", orderedMap("description", "Robot not found or not owned by caller.")));
+    return orderedMap("post", post);
+  }
+
+  private static Map<String, Object> robotsVerifyPath() {
+    Map<String, Object> post = orderedMap();
+    post.put("summary", "Test bot (fetch capabilities)");
+    post.put("description", "Fetches the capabilities.xml from the robot callback URL to confirm it is reachable.");
+    post.put("security", list(orderedMap("BearerAuth", list())));
+    post.put("parameters", robotIdParam());
+    post.put("responses", orderedMap(
+        "200", orderedMap("description", "Robot verified",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotDetailed")))),
+        "400", orderedMap("description", "No callback URL set."),
+        "401", orderedMap("description", "Missing or invalid bearer token."),
+        "502", orderedMap("description", "Capability fetch failed.")));
+    return orderedMap("post", post);
+  }
+
+  private static Map<String, Object> robotsPausedPath() {
+    Map<String, Object> put = orderedMap();
+    put.put("summary", "Pause or unpause robot");
+    put.put("security", list(orderedMap("BearerAuth", list())));
+    put.put("parameters", robotIdParam());
+    put.put("requestBody", orderedMap("required", true, "content", orderedMap("application/json",
+        orderedMap("schema", orderedMap("type", "object", "required", list("paused"),
+            "properties", orderedMap("paused", orderedMap("type", "string", "enum", list("true", "false"))))))));
+    put.put("responses", orderedMap(
+        "200", orderedMap("description", "Updated robot",
+            "content", orderedMap("application/json",
+                orderedMap("schema", orderedMap("$ref", "#/components/schemas/RobotDetailed")))),
+        "400", orderedMap("description", "Invalid paused value."),
+        "401", orderedMap("description", "Missing or invalid bearer token."),
+        "404", orderedMap("description", "Robot not found or not owned by caller.")));
+    return orderedMap("put", put);
+  }
+
+  private static Map<String, Object> robotSchema(boolean detailed) {
+    Map<String, Object> props = orderedMap(
+        "id", orderedMap("type", "string"),
+        "status", orderedMap("type", "string", "enum", list("active", "paused")),
+        "description", orderedMap("type", "string"),
+        "callbackUrl", orderedMap("type", "string"),
+        "verified", orderedMap("type", "boolean"),
+        "createdAt", orderedMap("type", "string", "format", "date-time"),
+        "updatedAt", orderedMap("type", "string", "format", "date-time"));
+    if (detailed) {
+      props.put("tokenExpirySeconds", orderedMap("type", "integer", "format", "int64"));
+      props.put("maskedSecret", orderedMap("type", "string"));
+    }
+    return orderedMap("type", "object", "properties", props);
+  }
+
+  private static Map<String, Object> robotRegistrationSchema() {
+    return orderedMap(
+        "type", "object",
+        "required", list("username"),
+        "properties", orderedMap(
+            "username", orderedMap("type", "string", "description", "Robot username (without @domain)"),
+            "description", orderedMap("type", "string"),
+            "callbackUrl", orderedMap("type", "string", "format", "uri"),
+            "tokenExpiry", orderedMap("type", "integer", "format", "int64", "description", "Token TTL in seconds (0 = no expiry)", "example", 3600)));
   }
 
   private static Map<String, Object> bearerAuthScheme() {

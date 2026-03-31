@@ -223,7 +223,7 @@ public final class RobotApiServlet extends HttpServlet {
     json.append("[");
     for (int i = 0; i < robots.size(); i++) {
       if (i > 0) json.append(",");
-      json.append(robotToJson(robots.get(i), false));
+      json.append(robotToJson(robots.get(i), true));
     }
     json.append("]");
     sendJson(resp, 200, json.toString());
@@ -302,7 +302,7 @@ public final class RobotApiServlet extends HttpServlet {
     String body = readBody(req, resp);
     if (body == null) return;
     String url = jsonString(body, "url");
-    if (url == null) {
+    if (Strings.isNullOrEmpty(url) || url.trim().isEmpty()) {
       sendError(resp, 400, "url is required", "VALIDATION_ERROR");
       return;
     }
@@ -421,9 +421,15 @@ public final class RobotApiServlet extends HttpServlet {
       return;
     }
     try {
-      // Soft delete: pause the robot so it can't operate
-      robotRegistrar.setPaused(robot.getId(), true);
-      sendJson(resp, 200, "{\"deleted\":true,\"id\":" + jv(robot.getId().getAddress()) + "}");
+      // Soft delete: pause and clear callback URL so the robot is fully inoperable
+      RobotAccountData paused = robotRegistrar.setPaused(robot.getId(), true);
+      RobotAccountData cleared = new RobotAccountDataImpl(
+          paused.getId(), "", paused.getConsumerSecret(),
+          paused.getCapabilities(), false, paused.getTokenExpirySeconds(),
+          paused.getOwnerAddress(), paused.getDescription(),
+          paused.getCreatedAtMillis(), clock.millis(), true);
+      accountStore.putAccount(cleared);
+      sendJson(resp, 200, "{\"deleted\":true,\"paused\":true,\"id\":" + jv(robot.getId().getAddress()) + "}");
     } catch (RobotRegistrationException e) {
       sendError(resp, 400, e.getMessage(), "DELETE_ERROR");
     } catch (PersistenceException e) {

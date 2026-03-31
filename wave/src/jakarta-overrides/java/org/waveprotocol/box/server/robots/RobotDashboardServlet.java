@@ -763,8 +763,11 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("var icon=type==='ok'?'\u2713':type==='err'?'\u2715':'\u2139';");
     sb.append("d.innerHTML=icon+' '+esc(msg);tc.prepend(d);setTimeout(function(){d.remove()},3500);}");
 
-    // Escape HTML
+    // Escape HTML (safe for text nodes)
     sb.append("function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}");
+    // Escape for HTML attribute values (additionally encodes double-quote)
+    sb.append("function escAttr(s){return esc(s).replace(/\"/g,'&quot;');}");
+
 
     // Tab switching
     sb.append("function st(t){");
@@ -830,16 +833,16 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("h+='<div class=\"rb\" style=\"display:none\">';");
     // Description
     sb.append("h+='<div class=\"fg\"><div class=\"fl\">Description <span class=\"ii\" title=\"Visible only to you. Describe what this bot does.\">i</span></div>';");
-    sb.append("h+='<div class=\"fi\"><input id=\"desc-'+i+'\" value=\"'+esc(r.description||'')+'\" /><button class=\"ic\" onclick=\"saveDesc('+i+')\" title=\"Save\">\uD83D\uDCBE</button></div></div>';");
+    sb.append("h+='<div class=\"fi\"><input id=\"desc-'+i+'\" value=\"'+escAttr(r.description||'')+'\" /><button class=\"ic\" onclick=\"saveDesc('+i+')\" title=\"Save\">\uD83D\uDCBE</button></div></div>';");
     // Callback URL
     sb.append("h+='<div class=\"fg\"><div class=\"fl\">Callback URL <span class=\"ii\" title=\"HTTPS endpoint Wave sends events to. Leave blank until deployed.\">i</span></div>';");
-    sb.append("h+='<div class=\"fi\"><input id=\"url-'+i+'\" value=\"'+esc(r.callbackUrl||'')+'\" /><button class=\"ic\" onclick=\"saveUrl('+i+')\" title=\"Save\">\uD83D\uDCBE</button></div></div>';");
-    // Consumer Secret
+    sb.append("h+='<div class=\"fi\"><input id=\"url-'+i+'\" value=\"'+escAttr(r.callbackUrl||'')+'\" /><button class=\"ic\" onclick=\"saveUrl('+i+')\" title=\"Save\">\uD83D\uDCBE</button></div></div>';");
+    // Consumer Secret — prefer real secret (available right after create/rotate) over masked
     sb.append("h+='<div class=\"fg\"><div class=\"fl\">Consumer Secret <span class=\"ii\" title=\"OAuth credential for the Data API. Treat like a password.\">i</span></div>';");
-    sb.append("h+='<div class=\"fi\"><input value=\"'+(r.maskedSecret||'\u2026')+'\" readonly style=\"color:var(--g4);letter-spacing:.04em\" /><button class=\"ic\" onclick=\"copyField(null,\\'Secret copied\\',\\''+esc(r.maskedSecret||'')+'\\')\" title=\"Copy\">📋</button></div></div>';");
+    sb.append("h+='<div class=\"fi\"><input value=\"'+escAttr(r.secret||r.maskedSecret||'\u2026')+'\" readonly style=\"color:var(--g4);letter-spacing:.04em\" /><button class=\"ic\" onclick=\"copyField(null,\\'Secret copied\\',\\''+escAttr(r.secret||r.maskedSecret||'')+'\\')\" title=\"Copy\">📋</button></div></div>';");
     // Token Expiry
     sb.append("h+='<div class=\"fg\"><div class=\"fl\">Token Expiry (s) <span class=\"ii\" title=\"How long issued JWTs remain valid. Default 3600.\">i</span></div>';");
-    sb.append("h+='<div class=\"fi\"><input type=\"number\" value=\"'+(r.tokenExpirySeconds||3600)+'\" readonly /></div></div>';");
+    sb.append("h+='<div class=\"fi\"><input type=\"number\" value=\"'+(r.tokenExpirySeconds!=null?r.tokenExpirySeconds:3600)+'\" readonly /></div></div>';");
     sb.append("h+='</div>';"); // end rb
     // Action bar
     sb.append("h+='<div class=\"ab\" style=\"display:none\">';");
@@ -871,7 +874,8 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("function saveDesc(i){var v=document.getElementById('desc-'+i).value;");
     sb.append("api('PUT',robotsData[i].id+'/description',{description:v}).then(function(d){robotsData[i]=d;toast('Description saved');}).catch(function(e){if(e)toast(e.message,'err');});}");
 
-    sb.append("function saveUrl(i){var v=document.getElementById('url-'+i).value;");
+    sb.append("function saveUrl(i){var v=document.getElementById('url-'+i).value.trim();");
+    sb.append("if(!v){toast('Callback URL cannot be empty','err');return;}");
     sb.append("api('PUT',robotsData[i].id+'/url',{url:v}).then(function(d){robotsData[i]=d;toast('Callback URL saved');}).catch(function(e){if(e)toast(e.message,'err');});}");
 
     sb.append("function testBot(i){toast('Bot test initiated\u2026','info');");
@@ -879,7 +883,7 @@ public final class RobotDashboardServlet extends HttpServlet {
 
     sb.append("function rotateSecret(i){");
     sb.append("api('POST',robotsData[i].id+'/rotate').then(function(d){");
-    sb.append("robotsData[i]=d;toast('New secret generated: '+d.secret+' \u2014 copy it now!');renderRobots();");
+    sb.append("robotsData[i]=d;toast('Secret rotated \u2014 copy it from the card now!');renderRobots();");
     sb.append("}).catch(function(e){if(e)toast(e.message,'err');});}");
 
     sb.append("function togglePause(i){var p=robotsData[i].status==='paused';");
@@ -894,14 +898,17 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("var u=document.getElementById('reg-username').value.trim();");
     sb.append("var d=document.getElementById('reg-description').value.trim();");
     sb.append("var c=document.getElementById('reg-callback').value.trim();");
-    sb.append("var e=parseInt(document.getElementById('reg-expiry').value)||3600;");
+    sb.append("var _ev=document.getElementById('reg-expiry').value.trim();var e=(_ev===''||isNaN(+_ev))?3600:+_ev;");
     sb.append("if(!u){toast('Username is required','err');return;}");
     sb.append("api('POST','',{username:u,description:d,callbackUrl:c,tokenExpiry:e}).then(function(r){");
-    sb.append("toast('Robot created! Secret: '+r.secret+' \u2014 copy it now!');");
+    sb.append("robotsData.unshift(r);renderRobots();");
+    sb.append("toast('Robot created \u2014 copy the secret from the card now!');");
     sb.append("document.getElementById('reg-username').value='';");
     sb.append("document.getElementById('reg-description').value='';");
     sb.append("document.getElementById('reg-callback').value='';");
-    sb.append("st('r');loadRobots();");
+    sb.append("st('r');");
+    // Reload in background to sync with server (will lose real secret, but by then user has copied it)
+    sb.append("setTimeout(loadRobots,3000);");
     sb.append("}).catch(function(e){if(e)toast(e.message,'err');});}");
 
     // Copy helpers

@@ -31,6 +31,7 @@ import org.waveprotocol.box.server.persistence.SignerInfoStore;
 import org.waveprotocol.box.server.rpc.*;
 import org.waveprotocol.box.server.robots.ProfileFetcherModule;
 import org.waveprotocol.box.server.robots.JakartaRobotApiBindingsModule;
+import org.waveprotocol.box.server.robots.RobotApiServlet;
 import org.waveprotocol.box.server.robots.RobotDashboardServlet;
 import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.active.ActiveApiServlet;
@@ -280,6 +281,8 @@ public class ServerMain {
     server.addServlet("/admin", AdminServlet.class);
     server.addServlet("/admin/*", AdminServlet.class);
     server.addServlet("/account/robots", RobotDashboardServlet.class);
+    server.addServlet("/api/robots", RobotApiServlet.class);
+    server.addServlet("/api/robots/*", RobotApiServlet.class);
     server.addServlet("/contact", ContactServlet.class);
     server.addServlet("/folder/*", FolderServlet.class);
     server.addServlet("/searches", SearchesServlet.class);

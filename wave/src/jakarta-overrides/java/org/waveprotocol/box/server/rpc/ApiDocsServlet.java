@@ -460,6 +460,7 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("      <a href=\"#build-with-ai\">Build with AI</a>\n");
     html.append("      <a href=\"#walkthrough\">End-to-end example</a>\n");
     html.append("      <a href=\"#operations\">Operation reference</a>\n");
+    html.append("      <a href=\"#robots\">Robot Management API</a>\n");
     html.append("      <a href=\"#errors\">Errors and status codes</a>\n");
     html.append("      <a href=\"#versioning\">Versioning</a>\n");
     html.append("      <a href=\"#legacy\">Legacy notes</a>\n");
@@ -621,6 +622,29 @@ public final class ApiDocsServlet extends HttpServlet {
         .append("\">llms.txt index</a><a href=\"")
         .append(LLMS_FULL_PATH)
         .append("\">LLM reference</a></div>\n");
+    html.append("      </section>\n");
+    html.append("      <section id=\"robots\">\n");
+    html.append("        <h2>Robot Management API</h2>\n");
+    html.append("        <p>REST API for programmatic robot management. All endpoints require a <code>Authorization: Bearer &lt;token&gt;</code> header with a <code>data-api-access</code> JWT.</p>\n");
+    html.append("        <p>Base path: <code>/api/robots</code></p>\n");
+    html.append("        <table><thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead><tbody>\n");
+    html.append("        <tr><td><code>GET</code></td><td><code>/api/robots</code></td><td>List all robots owned by the authenticated user</td></tr>\n");
+    html.append("        <tr><td><code>POST</code></td><td><code>/api/robots</code></td><td>Register a new robot. Body: <code>{\"username\",\"description\",\"callbackUrl\",\"tokenExpiry\"}</code></td></tr>\n");
+    html.append("        <tr><td><code>GET</code></td><td><code>/api/robots/{id}</code></td><td>Get robot details</td></tr>\n");
+    html.append("        <tr><td><code>PUT</code></td><td><code>/api/robots/{id}/url</code></td><td>Update callback URL. Body: <code>{\"url\":\"...\"}</code></td></tr>\n");
+    html.append("        <tr><td><code>PUT</code></td><td><code>/api/robots/{id}/description</code></td><td>Update description. Body: <code>{\"description\":\"...\"}</code></td></tr>\n");
+    html.append("        <tr><td><code>POST</code></td><td><code>/api/robots/{id}/rotate</code></td><td>Rotate consumer secret (returns new secret)</td></tr>\n");
+    html.append("        <tr><td><code>POST</code></td><td><code>/api/robots/{id}/verify</code></td><td>Test bot (fetches capabilities from callback URL)</td></tr>\n");
+    html.append("        <tr><td><code>PUT</code></td><td><code>/api/robots/{id}/paused</code></td><td>Pause/unpause. Body: <code>{\"paused\":\"true|false\"}</code></td></tr>\n");
+    html.append("        <tr><td><code>DELETE</code></td><td><code>/api/robots/{id}</code></td><td>Soft delete (pauses robot, clears callback URL)</td></tr>\n");
+    html.append("        </tbody></table>\n");
+    html.append("        <h3>Registration example</h3>\n");
+    html.append("        <pre>curl -X POST ").append(escape(baseUrl)).append("/api/robots \\\n");
+    html.append("  -H \"Authorization: Bearer $TOKEN\" \\\n");
+    html.append("  -H \"Content-Type: application/json\" \\\n");
+    html.append("  -d '{\"username\":\"my-bot\",\"description\":\"My robot\",\"tokenExpiry\":3600}'</pre>\n");
+    html.append("        <h3>Response</h3>\n");
+    html.append("        <pre>{\"id\":\"my-bot@domain\",\"secret\":\"...\",\"status\":\"active\",\"callbackUrl\":\"\",\"description\":\"My robot\",\"tokenExpirySeconds\":3600,\"createdAt\":\"...\"}</pre>\n");
     html.append("      </section>\n");
     html.append("      <section id=\"legacy\">\n");
     html.append("        <h2>Legacy and unsupported notes</h2>\n");
@@ -1011,6 +1035,7 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("- Legacy LLM alias: ").append(baseUrl).append(LLM_ALIAS_PATH).append('\n');
     text.append("- Token endpoint: ").append(baseUrl).append(TOKEN_PATH).append('\n');
     text.append("- Canonical RPC endpoint: ").append(baseUrl).append(CANONICAL_RPC_PATH).append('\n');
+    text.append("- Robot Management API: ").append(baseUrl).append("/api/robots (POST to register, GET to list)\n");
     return text.toString();
   }
 
@@ -1026,6 +1051,17 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("Token endpoint: ").append(TOKEN_PATH).append('\n');
     text.append("Auth: Authorization: Bearer <token> (JWT type=data-api-access, audience=data-api)\n");
     text.append("Transport: HTTP POST JSON-RPC. Request body can be one object or an array. Response body is always an array in request order.\n\n");
+    text.append("Robot Management REST API\n");
+    text.append("Base: /api/robots (same Bearer token auth)\n");
+    text.append("POST /api/robots — register robot: {\"username\",\"description\",\"callbackUrl\",\"tokenExpiry\"} → {id, secret, status}\n");
+    text.append("GET /api/robots — list owned robots\n");
+    text.append("GET /api/robots/{id} — robot details\n");
+    text.append("PUT /api/robots/{id}/url — update callback URL: {\"url\":\"...\"}\n");
+    text.append("PUT /api/robots/{id}/description — update description: {\"description\":\"...\"}\n");
+    text.append("POST /api/robots/{id}/rotate — rotate secret (returns new secret)\n");
+    text.append("POST /api/robots/{id}/verify — test bot\n");
+    text.append("PUT /api/robots/{id}/paused — pause/unpause: {\"paused\":\"true|false\"}\n");
+    text.append("DELETE /api/robots/{id} — soft delete\n\n");
 
     text.append("Token acquisition (client_credentials, short-lived example)\n");
     text.append(tokenCurlExample(baseUrl)).append("\n\n");

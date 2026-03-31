@@ -230,6 +230,64 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
   }
 
   @Override
+  public RobotAccountData markVerified(ParticipantId robotId, RobotCapabilities capabilities)
+      throws RobotRegistrationException, PersistenceException {
+    Preconditions.checkNotNull(robotId);
+    AccountData account = accountStore.getAccount(robotId);
+    if (account == null) {
+      return null;
+    }
+    throwExceptionIfNotRobot(account);
+    RobotAccountData robotAccount = account.asRobot();
+    RobotAccountData updated = new RobotAccountDataImpl(
+        robotAccount.getId(),
+        robotAccount.getUrl(),
+        robotAccount.getConsumerSecret(),
+        capabilities,
+        true,
+        robotAccount.getTokenExpirySeconds(),
+        robotAccount.getOwnerAddress(),
+        robotAccount.getDescription(),
+        robotAccount.getCreatedAtMillis(),
+        clock.millis(),
+        robotAccount.isPaused());
+    accountStore.putAccount(updated);
+    for (Listener listener : listeners) {
+      listener.onRegistrationSuccess(updated);
+    }
+    return updated;
+  }
+
+  @Override
+  public RobotAccountData softDelete(ParticipantId robotId)
+      throws RobotRegistrationException, PersistenceException {
+    Preconditions.checkNotNull(robotId);
+    AccountData account = accountStore.getAccount(robotId);
+    if (account == null) {
+      return null;
+    }
+    throwExceptionIfNotRobot(account);
+    RobotAccountData robotAccount = account.asRobot();
+    RobotAccountData updated = new RobotAccountDataImpl(
+        robotAccount.getId(),
+        "",
+        robotAccount.getConsumerSecret(),
+        null,
+        false,
+        robotAccount.getTokenExpirySeconds(),
+        robotAccount.getOwnerAddress(),
+        robotAccount.getDescription(),
+        robotAccount.getCreatedAtMillis(),
+        clock.millis(),
+        true);
+    accountStore.putAccount(updated);
+    for (Listener listener : listeners) {
+      listener.onUnregistrationSuccess(updated);
+    }
+    return updated;
+  }
+
+  @Override
   public void addRegistrationListener(Listener listener) {
     listeners.add(listener);
   }

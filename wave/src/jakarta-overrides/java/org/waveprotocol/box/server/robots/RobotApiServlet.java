@@ -16,7 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
-import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
 import org.waveprotocol.box.server.authentication.jwt.JwtClaims;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
@@ -39,7 +38,6 @@ import org.waveprotocol.box.server.CoreSettingsNames;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -74,7 +72,6 @@ public final class RobotApiServlet extends HttpServlet {
   private final AccountStore accountStore;
   private final RobotRegistrar robotRegistrar;
   private final RobotCapabilityFetcher capabilityFetcher;
-  private final Clock clock;
 
   @Inject
   public RobotApiServlet(
@@ -82,14 +79,12 @@ public final class RobotApiServlet extends HttpServlet {
       JwtKeyRing keyRing,
       AccountStore accountStore,
       RobotRegistrar robotRegistrar,
-      RobotCapabilityFetcher capabilityFetcher,
-      Clock clock) {
+      RobotCapabilityFetcher capabilityFetcher) {
     this.domain = domain;
     this.keyRing = keyRing;
     this.accountStore = accountStore;
     this.robotRegistrar = robotRegistrar;
     this.capabilityFetcher = capabilityFetcher;
-    this.clock = clock;
   }
 
   // ── Authentication ──────────────────────────────────────────────────
@@ -231,7 +226,13 @@ public final class RobotApiServlet extends HttpServlet {
 
   private void handleGetRobot(HttpServletResponse resp, ParticipantId user, String robotId)
       throws IOException {
-    RobotAccountData robot = findOwnedRobot(robotId, user.getAddress());
+    RobotAccountData robot;
+    try {
+      robot = findOwnedRobot(robotId, user.getAddress());
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Lookup failed", "INTERNAL_ERROR");
+      return;
+    }
     if (robot == null) {
       sendError(resp, 404, "Robot not found or not owned by you", "NOT_FOUND");
       return;
@@ -312,7 +313,13 @@ public final class RobotApiServlet extends HttpServlet {
 
   private void handleUpdateUrl(HttpServletRequest req, HttpServletResponse resp,
       ParticipantId user, String robotIdStr) throws IOException {
-    RobotAccountData robot = findOwnedRobot(robotIdStr, user.getAddress());
+    RobotAccountData robot;
+    try {
+      robot = findOwnedRobot(robotIdStr, user.getAddress());
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Lookup failed", "INTERNAL_ERROR");
+      return;
+    }
     if (robot == null) {
       sendError(resp, 404, "Robot not found or not owned by you", "NOT_FOUND");
       return;
@@ -353,7 +360,13 @@ public final class RobotApiServlet extends HttpServlet {
 
   private void handleUpdateDescription(HttpServletRequest req, HttpServletResponse resp,
       ParticipantId user, String robotIdStr) throws IOException {
-    RobotAccountData robot = findOwnedRobot(robotIdStr, user.getAddress());
+    RobotAccountData robot;
+    try {
+      robot = findOwnedRobot(robotIdStr, user.getAddress());
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Lookup failed", "INTERNAL_ERROR");
+      return;
+    }
     if (robot == null) {
       sendError(resp, 404, "Robot not found or not owned by you", "NOT_FOUND");
       return;
@@ -389,7 +402,13 @@ public final class RobotApiServlet extends HttpServlet {
 
   private void handleRotateSecret(HttpServletResponse resp, ParticipantId user, String robotIdStr)
       throws IOException {
-    RobotAccountData robot = findOwnedRobot(robotIdStr, user.getAddress());
+    RobotAccountData robot;
+    try {
+      robot = findOwnedRobot(robotIdStr, user.getAddress());
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Lookup failed", "INTERNAL_ERROR");
+      return;
+    }
     if (robot == null) {
       sendError(resp, 404, "Robot not found or not owned by you", "NOT_FOUND");
       return;
@@ -412,7 +431,13 @@ public final class RobotApiServlet extends HttpServlet {
 
   private void handleVerify(HttpServletResponse resp, ParticipantId user, String robotIdStr)
       throws IOException {
-    RobotAccountData robot = findOwnedRobot(robotIdStr, user.getAddress());
+    RobotAccountData robot;
+    try {
+      robot = findOwnedRobot(robotIdStr, user.getAddress());
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Lookup failed", "INTERNAL_ERROR");
+      return;
+    }
     if (robot == null) {
       sendError(resp, 404, "Robot not found or not owned by you", "NOT_FOUND");
       return;
@@ -422,16 +447,15 @@ public final class RobotApiServlet extends HttpServlet {
       return;
     }
     try {
+      // Fetch capabilities via network call, then atomically apply to a fresh store read
+      // to avoid overwriting concurrent changes (secret rotation, description edits, etc.)
       RobotAccountData refreshed = capabilityFetcher.fetchCapabilities(robot, "");
-      RobotAccountData verified = new RobotAccountDataImpl(
-          refreshed.getId(), refreshed.getUrl(), refreshed.getConsumerSecret(),
-          refreshed.getCapabilities(), true, refreshed.getTokenExpirySeconds(),
-          refreshed.getOwnerAddress(), refreshed.getDescription(),
-          refreshed.getCreatedAtMillis(), clock.millis(), refreshed.isPaused());
-      accountStore.putAccount(verified);
+      RobotAccountData verified = robotRegistrar.markVerified(robot.getId(), refreshed.getCapabilities());
       sendJson(resp, 200, robotToJson(verified, true));
     } catch (CapabilityFetchException e) {
       sendError(resp, 502, "Verification failed: " + e.getMessage(), "VERIFY_ERROR");
+    } catch (RobotRegistrationException e) {
+      sendError(resp, 400, e.getMessage(), "VERIFY_ERROR");
     } catch (PersistenceException e) {
       sendError(resp, 500, "Verification failed", "INTERNAL_ERROR");
     }
@@ -439,7 +463,13 @@ public final class RobotApiServlet extends HttpServlet {
 
   private void handleSetPaused(HttpServletRequest req, HttpServletResponse resp,
       ParticipantId user, String robotIdStr) throws IOException {
-    RobotAccountData robot = findOwnedRobot(robotIdStr, user.getAddress());
+    RobotAccountData robot;
+    try {
+      robot = findOwnedRobot(robotIdStr, user.getAddress());
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Lookup failed", "INTERNAL_ERROR");
+      return;
+    }
     if (robot == null) {
       sendError(resp, 404, "Robot not found or not owned by you", "NOT_FOUND");
       return;
@@ -464,20 +494,20 @@ public final class RobotApiServlet extends HttpServlet {
 
   private void handleDelete(HttpServletResponse resp, ParticipantId user, String robotIdStr)
       throws IOException {
-    RobotAccountData robot = findOwnedRobot(robotIdStr, user.getAddress());
+    RobotAccountData robot;
+    try {
+      robot = findOwnedRobot(robotIdStr, user.getAddress());
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Lookup failed", "INTERNAL_ERROR");
+      return;
+    }
     if (robot == null) {
       sendError(resp, 404, "Robot not found or not owned by you", "NOT_FOUND");
       return;
     }
     try {
-      // Soft delete: pause and clear callback URL so the robot is fully inoperable
-      RobotAccountData paused = robotRegistrar.setPaused(robot.getId(), true);
-      RobotAccountData cleared = new RobotAccountDataImpl(
-          paused.getId(), "", paused.getConsumerSecret(),
-          paused.getCapabilities(), false, paused.getTokenExpirySeconds(),
-          paused.getOwnerAddress(), paused.getDescription(),
-          paused.getCreatedAtMillis(), clock.millis(), true);
-      accountStore.putAccount(cleared);
+      // Soft delete: atomically pause and clear callback URL in one store write
+      robotRegistrar.softDelete(robot.getId());
       sendJson(resp, 200, "{\"deleted\":true,\"paused\":true,\"id\":" + jv(robot.getId().getAddress()) + "}");
     } catch (RobotRegistrationException e) {
       sendError(resp, 400, e.getMessage(), "DELETE_ERROR");
@@ -488,7 +518,14 @@ public final class RobotApiServlet extends HttpServlet {
 
   // ── Helpers ─────────────────────────────────────────────────────────
 
-  private RobotAccountData findOwnedRobot(String robotIdStr, String ownerAddress) {
+  /**
+   * Looks up a robot by ID and verifies ownership.
+   *
+   * @return the robot account, or {@code null} if not found or not owned by {@code ownerAddress}
+   * @throws PersistenceException if the backing store fails — callers should return 500
+   */
+  private RobotAccountData findOwnedRobot(String robotIdStr, String ownerAddress)
+      throws PersistenceException {
     try {
       // robotIdStr might be just "botname" or "botname@domain"
       ParticipantId robotId;
@@ -504,10 +541,11 @@ public final class RobotApiServlet extends HttpServlet {
           return robot;
         }
       }
-    } catch (InvalidParticipantAddress | PersistenceException e) {
-      LOG.severe("Failed to resolve robot: " + robotIdStr, e);
+      return null;
+    } catch (InvalidParticipantAddress e) {
+      LOG.warning("Invalid robot ID format: " + robotIdStr);
+      return null;
     }
-    return null;
   }
 
   private String subPath(HttpServletRequest req) {

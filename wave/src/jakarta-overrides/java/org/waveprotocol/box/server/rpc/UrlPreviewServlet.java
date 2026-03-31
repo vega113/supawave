@@ -289,7 +289,9 @@ public class UrlPreviewServlet extends HttpServlet {
     // in standard JVM settings. For HTTPS, SNI provides the primary routing mechanism.
     // For HTTP, multi-tenant hosts sharing an IP may fail to route correctly; this is an
     // acceptable trade-off for IP-pinning SSRF protection.
-    String hostHeader = port != -1 && port != 80 && port != 443
+    // Use scheme-aware default port logic: 80 for HTTP, 443 for HTTPS.
+    int defaultPort = isHttps ? 443 : 80;
+    String hostHeader = port != -1 && port != defaultPort
         ? originalHost + ":" + port
         : originalHost;
     try {
@@ -336,13 +338,9 @@ public class UrlPreviewServlet extends HttpServlet {
 
     SsrfSafeSSLSocketFactory(String originalHost, int port, InetAddress validatedAddress)
         throws IOException {
-      try {
-        SSLContext ctx = SSLContext.getInstance("TLSv1.3");
-        ctx.init(null, null, new SecureRandom());
-        this.delegate = ctx.getSocketFactory();
-      } catch (NoSuchAlgorithmException | KeyManagementException e) {
-        throw new IOException("Failed to create SSLContext", e);
-      }
+      // Use platform default SSL socket factory to allow TLS version negotiation
+      // (TLSv1.2, TLSv1.3, etc.) with the server, rather than forcing TLSv1.3.
+      this.delegate = (SSLSocketFactory) SSLSocketFactory.getDefault();
       this.originalHost = originalHost;
       this.port = port;
       this.validatedAddress = validatedAddress;
@@ -406,9 +404,12 @@ public class UrlPreviewServlet extends HttpServlet {
       }
       // Layer TLS over an existing socket, using original hostname for SNI
       SSLSocket sslSocket = (SSLSocket) delegate.createSocket(s, originalHost, port, autoClose);
-      SSLParameters params = sslSocket.getSSLParameters();
-      params.setServerNames(List.of(new SNIHostName(originalHost)));
-      sslSocket.setSSLParameters(params);
+      // Set SNI only if originalHost is not a numeric IP literal
+      if (!isNumericIpLiteral(originalHost)) {
+        SSLParameters params = sslSocket.getSSLParameters();
+        params.setServerNames(List.of(new SNIHostName(originalHost)));
+        sslSocket.setSSLParameters(params);
+      }
       return sslSocket;
     }
 
@@ -420,11 +421,13 @@ public class UrlPreviewServlet extends HttpServlet {
         // Layer TLS on top with original hostname for SNI and certificate verification
         SSLSocket sslSocket = (SSLSocket) delegate.createSocket(
             rawSocket, originalHost, port, true);
-        // Explicitly set SNI hostname
-        SSLParameters params = sslSocket.getSSLParameters();
-        params.setServerNames(
-            List.of(new SNIHostName(originalHost)));
-        sslSocket.setSSLParameters(params);
+        // Set SNI only if originalHost is not a numeric IP literal
+        if (!isNumericIpLiteral(originalHost)) {
+          SSLParameters params = sslSocket.getSSLParameters();
+          params.setServerNames(
+              List.of(new SNIHostName(originalHost)));
+          sslSocket.setSSLParameters(params);
+        }
         return sslSocket;
       } catch (IOException e) {
         try {
@@ -450,6 +453,29 @@ public class UrlPreviewServlet extends HttpServlet {
     @Override
     public String[] getSupportedCipherSuites() {
       return delegate.getSupportedCipherSuites();
+    }
+
+    /**
+     * Detects if the given string is a numeric IP literal (IPv4 or IPv6).
+     * Returns true for "192.168.1.1", "[::1]", etc.
+     */
+    private static boolean isNumericIpLiteral(String host) {
+      if (host == null || host.isEmpty()) {
+        return false;
+      }
+      try {
+        // Try to parse as InetAddress; if it succeeds and the result matches the input,
+        // it's a numeric IP literal
+        InetAddress addr = InetAddress.getByName(host);
+        String ipAddr = addr.getHostAddress();
+        // For IPv6, wrap in brackets for comparison
+        if (addr instanceof Inet6Address && !host.startsWith("[")) {
+          ipAddr = "[" + ipAddr + "]";
+        }
+        return host.equals(ipAddr) || host.equals(addr.getHostAddress());
+      } catch (java.net.UnknownHostException e) {
+        return false;
+      }
     }
   }
 

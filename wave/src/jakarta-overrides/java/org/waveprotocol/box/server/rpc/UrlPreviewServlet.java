@@ -284,11 +284,21 @@ public class UrlPreviewServlet extends HttpServlet {
     conn.setConnectTimeout(FETCH_TIMEOUT_MS);
     conn.setReadTimeout(FETCH_TIMEOUT_MS);
     conn.setInstanceFollowRedirects(false);
-    // Set the Host header to the original hostname so the target server routes correctly
-    conn.setRequestProperty("Host",
-        port != -1 && port != 80 && port != 443
-            ? originalHost + ":" + port
-            : originalHost);
+    // Attempt to set the Host header to the original hostname.
+    // Note: HttpURLConnection treats "Host" as a restricted header and may not honor this
+    // in standard JVM settings. For HTTPS, SNI provides the primary routing mechanism.
+    // For HTTP, multi-tenant hosts sharing an IP may fail to route correctly; this is an
+    // acceptable trade-off for IP-pinning SSRF protection.
+    String hostHeader = port != -1 && port != 80 && port != 443
+        ? originalHost + ":" + port
+        : originalHost;
+    try {
+      conn.setRequestProperty("Host", hostHeader);
+    } catch (IllegalArgumentException e) {
+      // Host header is restricted in this JVM; log and continue.
+      // HTTPS will route via SNI; HTTP routing may fail for some multi-tenant hosts.
+      LOG.warning("Could not set Host header (restricted by JVM): " + e.getMessage());
+    }
     conn.setRequestProperty("User-Agent", "WaveBot/1.0 (URL Preview)");
     conn.setRequestProperty("Accept", "text/html,application/xhtml+xml");
     return conn;
@@ -379,10 +389,21 @@ public class UrlPreviewServlet extends HttpServlet {
     /**
      * Layers TLS over an existing socket using the original hostname for SNI.
      * The socket is already connected to the validated IP, so we only layer TLS.
+     * Defensive check: verify socket is connected to the validated IP.
      */
     @Override
     public Socket createSocket(Socket s, String host, int port, boolean autoClose)
         throws IOException {
+      // Defensive check: if the socket is already connected, verify it's to our validated IP.
+      // This prevents bypass of IP-pinning if HttpsURLConnection were to pass a socket
+      // connected to a different (malicious) address.
+      if (s.isConnected()) {
+        InetAddress remoteAddr = s.getInetAddress();
+        if (remoteAddr != null && !remoteAddr.equals(validatedAddress)) {
+          throw new IOException("Socket connected to unexpected address: " + remoteAddr +
+              " (expected " + validatedAddress + ")");
+        }
+      }
       // Layer TLS over an existing socket, using original hostname for SNI
       SSLSocket sslSocket = (SSLSocket) delegate.createSocket(s, originalHost, port, autoClose);
       SSLParameters params = sslSocket.getSSLParameters();
@@ -451,19 +472,12 @@ public class UrlPreviewServlet extends HttpServlet {
     if (isBlockedHostName(host)) {
       throw new MalformedURLException("Blocked host");
     }
-    InetAddress[] resolvedAddresses = InetAddress.getAllByName(host);
-    if (resolvedAddresses.length == 0) {
-      throw new MalformedURLException("Unresolvable host");
-    }
-    for (InetAddress address : resolvedAddresses) {
-      if (isBlockedAddress(address)) {
-        throw new MalformedURLException("Blocked address");
-      }
-    }
-    // Note: This pre-flight check is defense-in-depth only. The actual SSRF protection
-    // is enforced at connect time by openSsrfSafeConnection(), which resolves DNS once,
-    // validates the IP, and pins the connection to that validated address, closing the
-    // DNS rebinding TOCTOU gap (see GitHub issue #511).
+    // Note: The authoritative SSRF protection is enforced at connect time by
+    // openSsrfSafeConnection(), which resolves DNS once, validates the IP,
+    // and pins the connection to that validated address, closing the DNS rebinding
+    // TOCTOU gap (see GitHub issue #511). Higher-level hostname validation here
+    // provides fail-fast defense-in-depth, but the connection-layer pinning is the
+    // actual protection.
   }
 
   private static boolean isBlockedHostName(String host) {

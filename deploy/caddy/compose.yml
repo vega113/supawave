@@ -42,10 +42,10 @@ services:
         failure_action: rollback
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9898/healthz || exit 1"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 30
-      start_period: 60s
+      start_period: 300s
     ports:
       - "127.0.0.1:9898:9898"
     volumes:

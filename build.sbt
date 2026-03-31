@@ -459,9 +459,10 @@ lazy val JakartaIT      = config("jakartaIT")      extend Test  describedAs "Jak
 lazy val StacktraceTest = config("stacktraceTest") extend Test  describedAs "Isolated StackTraces utility tests"
 lazy val ThumbTest      = config("thumbTest")      extend Test  describedAs "Isolated AttachmentServlet thumbnail tests"
 lazy val E2eTest        = config("e2eTest")        extend Test  describedAs "E2E sanity tests against a running Wave server"
+lazy val GatlingTest    = config("gatlingTest")    extend Test  describedAs "Gatling performance tests against a running Wave server"
 
 // Register all custom test configs with Ivy so POM generation can resolve them
-ivyConfigurations ++= Seq(JakartaTest, JakartaIT, StacktraceTest, ThumbTest, E2eTest)
+ivyConfigurations ++= Seq(JakartaTest, JakartaIT, StacktraceTest, ThumbTest, E2eTest, GatlingTest)
 
 // Wire all four configs into the project so `sbt jakartaTest:test` etc. work
 inConfig(JakartaTest)(Defaults.testSettings)
@@ -469,6 +470,7 @@ inConfig(JakartaIT)(Defaults.testSettings)
 inConfig(StacktraceTest)(Defaults.testSettings)
 inConfig(ThumbTest)(Defaults.testSettings)
 inConfig(E2eTest)(Defaults.testSettings ++ net.aichler.jupiter.sbt.JupiterPlugin.scopedSettings)
+inConfig(GatlingTest)(Defaults.testSettings)
 
 // Suppress "unused key" linter warnings for keys auto-created by Defaults.testSettings in custom configs
 Global / excludeLintKeys ++= Set(
@@ -476,7 +478,8 @@ Global / excludeLintKeys ++= Set(
   JakartaIT / javaSource, JakartaIT / scalaSource, JakartaIT / resourceDirectory, JakartaIT / semanticdbTargetRoot,
   StacktraceTest / javaSource, StacktraceTest / scalaSource, StacktraceTest / semanticdbTargetRoot,
   ThumbTest / javaSource, ThumbTest / scalaSource, ThumbTest / semanticdbTargetRoot,
-  E2eTest / javaSource, E2eTest / scalaSource, E2eTest / resourceDirectory, E2eTest / semanticdbTargetRoot
+  E2eTest / javaSource, E2eTest / scalaSource, E2eTest / resourceDirectory, E2eTest / semanticdbTargetRoot,
+  GatlingTest / javaSource, GatlingTest / scalaSource, GatlingTest / resourceDirectory, GatlingTest / semanticdbTargetRoot
 )
 
 // --- JakartaTest source directories & exclusions ---
@@ -607,6 +610,22 @@ E2eTest / dependencyClasspath ++= (Compile / fullClasspath).value
 E2eTest / testFrameworks += new TestFramework("net.aichler.jupiter.api.JupiterFramework")
 // WAVE_E2E_BASE_URL is read from the OS environment by the forked JVM
 
+// --- GatlingTest: Gatling performance suite settings ---
+// Source: wave/src/gatling/java — runs against a live Wave server (WAVE_PERF_BASE_URL)
+GatlingTest / unmanagedSourceDirectories := Seq(
+  baseDirectory.value / "wave" / "src" / "gatling" / "java"
+)
+GatlingTest / fork := true
+GatlingTest / javaOptions ++= Seq("-ea")
+GatlingTest / dependencyClasspath ++= (Compile / exportedProducts).value
+GatlingTest / dependencyClasspath ++= (Test / dependencyClasspath).value
+GatlingTest / dependencyClasspath ++= (Compile / fullClasspath).value
+// Run simulations via: sbt "gatlingTest:testOnly *SearchLoadSimulation"
+// Or via runner: sbt "gatlingTest:runMain org.waveprotocol.wave.perf.GatlingRunner"
+GatlingTest / testFrameworks := Seq(new TestFramework("io.gatling.sbt.GatlingFramework"))
+// Pass WAVE_PERF_BASE_URL to the forked JVM
+GatlingTest / envVars ++= sys.env.filter(_._1.startsWith("WAVE_PERF_"))
+
 // --- Additional per-config dependencies (matches Gradle) ---
 // JakartaTest and JakartaIT need Jakarta WebSocket + Jetty EE10 test deps
 libraryDependencies ++= Seq(
@@ -625,7 +644,10 @@ libraryDependencies ++= Seq(
   "org.eclipse.jetty.ee10.websocket" % "jetty-ee10-websocket-jakarta-server"  % JettyV % JakartaIT,
   "org.mockito"                 % "mockito-core"                              % "2.2.21" % JakartaIT,
   // ThumbTest needs jakarta.servlet-api
-  "jakarta.servlet"             % "jakarta.servlet-api"                       % "6.0.0"  % ThumbTest
+  "jakarta.servlet"             % "jakarta.servlet-api"                       % "6.0.0"  % ThumbTest,
+  // GatlingTest: Gatling performance test framework
+  "io.gatling.highcharts"       % "gatling-charts-highcharts"                 % "3.10.5" % GatlingTest,
+  "io.gatling"                  % "gatling-test-framework"                    % "3.10.5" % GatlingTest
 )
 
 // --- Convenience aliases (Gradle task equivalents) ---

@@ -776,7 +776,7 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("<div class=\"field-group\">");
       sb.append("<label class=\"field-label\" for=\"location-").append(safeIdAttr).append("\">Callback URL ");
       sb.append("<span class=\"info-icon\" tabindex=\"0\">\u24D8<span class=\"tooltip\">");
-      sb.append("The HTTP(S) endpoint where Wave sends events to your bot. Example: https://mybot.fly.dev/wave \u2014 leave blank until your bot is deployed.");
+      sb.append("The HTTP(S) endpoint where Wave sends events to your bot. Example: https://mybot.fly.dev/wave. Required to save.");
       sb.append("</span></span></label>");
       sb.append("<input type=\"url\" id=\"location-").append(safeIdAttr).append("\" name=\"location\" value=\"");
       sb.append(HtmlRenderer.escapeHtml(robot.getUrl())).append("\" placeholder=\"https://mybot.fly.dev/wave\">");

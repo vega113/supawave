@@ -35,10 +35,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class WaveDataSeeder {
 
     private static final Gson GSON = new Gson();
-    private static final String DOMAIN = "local.net";
-    private static final String USER = "perfuser";
-    private static final String PASSWORD = "PerfTest123!";
-    private static final String ADDRESS = USER + "@" + DOMAIN;
 
     private static final String BLIP_TEXT =
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor "
@@ -55,23 +51,59 @@ public class WaveDataSeeder {
         }
         baseUrl = baseUrl.replaceAll("/+$", "");
 
+        // Determine whether this is a localhost-only run.  Credentials may be
+        // defaulted only for localhost — shared/CI environments must supply them
+        // via env vars so they are never committed to source control.
+        boolean isLocalhost = baseUrl.matches("https?://(localhost|127\\.0\\.0\\.1)(:\\d+)?(/.*)?");
+
+        String perfDomain   = System.getenv("WAVE_PERF_DOMAIN");
+        String perfUser     = System.getenv("WAVE_PERF_USER");
+        String perfPassword = System.getenv("WAVE_PERF_PASSWORD");
+
+        if (isLocalhost) {
+            if (perfDomain   == null || perfDomain.isEmpty())   perfDomain   = "local.net";
+            if (perfUser     == null || perfUser.isEmpty())     perfUser     = "perfuser";
+            if (perfPassword == null || perfPassword.isEmpty()) perfPassword = "PerfTest123!";
+        } else {
+            if (perfDomain == null || perfUser == null || perfPassword == null
+                    || perfDomain.isEmpty() || perfUser.isEmpty() || perfPassword.isEmpty()) {
+                System.err.println("Error: WAVE_PERF_DOMAIN, WAVE_PERF_USER, and WAVE_PERF_PASSWORD"
+                        + " must be set for non-localhost runs.");
+                System.exit(1);
+            }
+        }
+
         int numWaves = args.length > 0 ? Integer.parseInt(args[0]) : 20;
         int blipsPerWave = args.length > 1 ? Integer.parseInt(args[1]) : 10;
 
         System.out.println("=== Wave Performance Test Data Seeder ===");
         System.out.println("Server: " + baseUrl);
+        System.out.println("User:   " + perfUser + "@" + perfDomain);
         System.out.println("Waves: " + numWaves + ", Blips per wave: " + blipsPerWave);
         System.out.println();
 
-        WaveDataSeeder seeder = new WaveDataSeeder(baseUrl);
+        WaveDataSeeder seeder = new WaveDataSeeder(baseUrl, perfDomain, perfUser, perfPassword);
         seeder.seed(numWaves, blipsPerWave);
     }
 
     private final String baseUrl;
+    private final String perfDomain;
+    private final String perfUser;
+    private final String perfPassword;
+    private final String perfAddress;
     private final HttpClient http;
 
-    public WaveDataSeeder(String baseUrl) {
+    /**
+     * @param perfDomain   Wave server domain (e.g. "local.net") — load from WAVE_PERF_DOMAIN
+     * @param perfUser     Perf account username — load from WAVE_PERF_USER
+     * @param perfPassword Perf account password — load from WAVE_PERF_PASSWORD
+     */
+    public WaveDataSeeder(String baseUrl, String perfDomain, String perfUser, String perfPassword) {
         this.baseUrl = baseUrl;
+        this.perfDomain = perfDomain;
+        this.perfUser = perfUser;
+        this.perfPassword = perfPassword;
+        this.perfAddress = perfUser + "@" + perfDomain;
         this.http = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .connectTimeout(Duration.ofSeconds(10))
@@ -80,7 +112,7 @@ public class WaveDataSeeder {
 
     public void seed(int numWaves, int blipsPerWave) throws Exception {
         // Step 1: Register user
-        System.out.print("Registering user " + USER + "... ");
+        System.out.print("Registering user " + perfUser + "... ");
         int regStatus = register();
         if (regStatus == 200) {
             System.out.println("created.");
@@ -91,7 +123,7 @@ public class WaveDataSeeder {
         }
 
         // Step 2: Login
-        System.out.print("Logging in as " + ADDRESS + "... ");
+        System.out.print("Logging in as " + perfAddress + "... ");
         String jsessionid = login();
         System.out.println("OK");
 
@@ -164,7 +196,7 @@ public class WaveDataSeeder {
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(
-                        "address=" + enc(USER) + "&password=" + enc(PASSWORD)))
+                        "address=" + enc(perfUser) + "&password=" + enc(perfPassword)))
                 .build();
         return http.send(req, HttpResponse.BodyHandlers.discarding()).statusCode();
     }
@@ -175,7 +207,7 @@ public class WaveDataSeeder {
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(
-                        "address=" + enc(ADDRESS) + "&password=" + enc(PASSWORD)))
+                        "address=" + enc(perfAddress) + "&password=" + enc(perfPassword)))
                 .build();
         HttpResponse<Void> resp = http.send(req, HttpResponse.BodyHandlers.discarding());
         for (String header : resp.headers().allValues("set-cookie")) {
@@ -271,9 +303,9 @@ public class WaveDataSeeder {
     private void createWaveWithBlips(String jsessionid, String waveLocal, int blipCount)
             throws Exception {
         String waveletLocal = "conv+root";
-        String modernWaveId = DOMAIN + "/" + waveLocal;
-        String waveletName = DOMAIN + "/" + waveLocal + "/~/" + waveletLocal;
-        String v0Hash = versionZeroHash(DOMAIN, waveLocal, waveletLocal);
+        String modernWaveId = perfDomain + "/" + waveLocal;
+        String waveletName = perfDomain + "/" + waveLocal + "/~/" + waveletLocal;
+        String v0Hash = versionZeroHash(perfDomain, waveLocal, waveletLocal);
 
         SimpleWsClient ws = SimpleWsClient.connect(baseUrl, jsessionid);
         try {
@@ -285,7 +317,7 @@ public class WaveDataSeeder {
 
             // 2. Open wave (subscribe)
             JsonObject openReq = new JsonObject();
-            openReq.addProperty("1", ADDRESS);
+            openReq.addProperty("1", perfAddress);
             openReq.addProperty("2", modernWaveId);
             openReq.add("3", new JsonArray());
             openReq.add("4", new JsonArray());
@@ -313,7 +345,7 @@ public class WaveDataSeeder {
             }
 
             // 3. Add participant delta at version 0
-            JsonObject addPartDelta = makeAddParticipantDelta(ADDRESS, ADDRESS, 0, v0Hash);
+            JsonObject addPartDelta = makeAddParticipantDelta(perfAddress, perfAddress, 0, v0Hash);
             JsonObject submitReq = makeSubmitRequest(waveletName, addPartDelta, channelId);
             ws.send("ProtocolSubmitRequest", submitReq);
 
@@ -331,7 +363,7 @@ public class WaveDataSeeder {
                 // Vary the text slightly per blip for realistic content
                 String text = BLIP_TEXT + " [blip " + b + " of " + blipCount + "]";
 
-                JsonObject blipDelta = makeBlipDelta(ADDRESS, blipId, text, version, historyHash);
+                JsonObject blipDelta = makeBlipDelta(perfAddress, blipId, text, version, historyHash);
                 JsonObject blipSubmit = makeSubmitRequest(waveletName, blipDelta, channelId);
                 ws.send("ProtocolSubmitRequest", blipSubmit);
 

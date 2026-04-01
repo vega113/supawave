@@ -1,0 +1,274 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# =============================================================================
+# Production Docker Compose for Wave Blue/Green Deployment
+# =============================================================================
+#
+# Target host: supawave (94 GiB RAM, 18 AMD EPYC cores, 678 GiB disk)
+#
+# Memory budget (94 GiB total):
+#   wave-blue:   22 GiB limit (20 GiB heap + 2 GiB JVM overhead)
+#   wave-green:  22 GiB limit (20 GiB heap + 2 GiB JVM overhead)
+#   mongo:       12 GiB limit (8 GiB WiredTiger cache + 4 GiB overhead)
+#   caddy:        1 GiB limit (reverse proxy, minimal)
+#   OS + buffer: ~37 GiB free
+#
+# CPU budget (18 cores total):
+#   wave-blue:   8 cores limit, 6 reserved
+#   wave-green:  8 cores limit, 6 reserved
+#   mongo:       4 cores limit, 2 reserved
+#   caddy:       2 cores limit, 1 reserved
+#   OS:          remaining cores shared
+#
+# WARNING: Adjust memory values if host RAM differs from 94 GiB.
+# WARNING: During blue/green switchover, both instances run simultaneously.
+#          The memory budget accounts for this overlap period.
+# WARNING: CPU limits sum to 22 cores (8+8+4+2) on an 18-core host.  This is
+#          intentional oversubscription -- during steady state only one Wave
+#          instance is active, so actual demand stays under 18.  During the
+#          brief switchover overlap, Docker will throttle rather than OOM.
+#
+# IMPORTANT: Shared Lucene Index Constraint
+#   Both wave-blue and wave-green mount the same _indexes volume.  Lucene
+#   uses an exclusive write lock (see LuceneIndexWriterFactory.java), so
+#   only ONE instance can hold the index open at a time.  The green instance
+#   will retry acquiring the lock for up to 60 seconds.  The blue instance
+#   MUST be stopped before this window expires.  Do NOT run both instances
+#   under sustained load simultaneously.
+#
+# IMPORTANT: This compose file expects application.conf and Caddyfile to
+#   exist alongside it in the release bundle directory.  The deploy script
+#   (deploy/contabo/deploy.sh) copies these from the release artifact.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # MongoDB - Shared between blue and green instances
+  # ---------------------------------------------------------------------------
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    command:
+      - --bind_ip_all
+      # 8 GiB WiredTiger cache serves both blue and green Wave instances.
+      # Default is (totalRAM - 1 GiB) / 2, which would over-allocate on this
+      # host. An explicit cap prevents MongoDB from starving the JVMs.
+      - --wiredTigerCacheSizeGB=8
+      # Log queries that take longer than 100 ms so we can spot regressions.
+      - --slowms=100
+      # Profile level 1: log slow operations only (no overhead from full profiling).
+      - --profile=1
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          # 8 GiB cache + 4 GiB for connections, indexes, and temporary sort buffers.
+          memory: 12G
+          cpus: '4'
+        reservations:
+          memory: 10G
+          cpus: '2'
+    volumes:
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/mongo/db:/data/db
+
+  # ---------------------------------------------------------------------------
+  # Wave Blue Instance
+  # ---------------------------------------------------------------------------
+  # In blue/green mode, traffic is routed to the "active" instance while the
+  # other is either starting up (new release) or draining.
+  # ---------------------------------------------------------------------------
+  wave-blue:
+    image: ${WAVE_IMAGE:?set WAVE_IMAGE before running compose}
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsSI --max-time 3 http://127.0.0.1:9898/readyz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      # Wave loads Lucene indexes and replays deltas on startup.
+      # 5 minutes is generous but prevents false-positive failures.
+      start_period: 300s
+    ports:
+      - "127.0.0.1:9898:9898"
+    environment:
+      # -----------------------------------------------------------------------
+      # JVM Tuning (see RESOURCE_OPTIMIZATION_ANALYSIS.md for rationale)
+      # -----------------------------------------------------------------------
+      # -Xmx20G : Max heap sized for blue/green (two instances at 20 GiB each
+      #           fit comfortably in 94 GiB with room for MongoDB and OS).
+      # -Xms6G  : Initial heap. Keeps startup fast and lets G1 grow on demand.
+      #           Setting Xms = Xmx would pin 40 GiB immediately across both
+      #           instances, leaving less headroom during switchover.
+      # G1GC    : Recommended for heaps > 4 GiB. Provides predictable pause
+      #           times with MaxGCPauseMillis=200.
+      # GC logging: Writes to /opt/wave/logs/gc.log for post-incident analysis.
+      # -----------------------------------------------------------------------
+      JAVA_OPTS: >-
+        -Xmx20G
+        -Xms6G
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=200
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/opt/wave/logs/heapdump-blue.hprof
+        -Xlog:gc*:file=/opt/wave/logs/gc-blue.log:time,uptime,level,tags:filecount=5,filesize=50m
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      WAVE_EMAIL_FROM: ${WAVE_EMAIL_FROM:-noreply@supawave.ai}
+      WAVE_MAIL_PROVIDER: ${WAVE_MAIL_PROVIDER:-logging}
+      WAVE_SERVER_VERSION: ${WAVE_SERVER_VERSION:-dev}
+    deploy:
+      resources:
+        limits:
+          # 20 GiB heap + 2 GiB for JVM metaspace, thread stacks, NIO buffers,
+          # and Lucene mmap overhead.
+          memory: 22G
+          cpus: '8'
+        reservations:
+          # Guaranteed allocation prevents the OOM killer from targeting Wave
+          # when MongoDB or another service spikes temporarily.
+          memory: 20G
+          cpus: '6'
+    volumes:
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/accounts:/opt/wave/_accounts
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/attachments:/opt/wave/_attachments
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/certificates:/opt/wave/_certificates
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/deltas:/opt/wave/_deltas
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/indexes:/opt/wave/_indexes
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/sessions:/opt/wave/_sessions
+      - ./application.conf:/opt/wave/config/application.conf:ro
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/logs:/opt/wave/logs
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 262144
+      nproc:
+        soft: 65536
+        hard: 65536
+
+  # ---------------------------------------------------------------------------
+  # Wave Green Instance
+  # ---------------------------------------------------------------------------
+  # Mirror of wave-blue on a different host port. During switchover the Caddy
+  # upstream is updated to point here, then wave-blue is stopped or recycled.
+  # ---------------------------------------------------------------------------
+  wave-green:
+    image: ${WAVE_IMAGE_GREEN:-${WAVE_IMAGE:?set WAVE_IMAGE before running compose}}
+    # "no" prevents a restart loop when green cannot acquire the Lucene write
+    # lock because blue is still running.  The operator starts green explicitly
+    # during switchover and stops it explicitly after switchover completes.
+    # Change to "unless-stopped" only for the ACTIVE slot after switchover.
+    restart: "no"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsSI --max-time 3 http://127.0.0.1:9898/readyz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 300s
+    ports:
+      # Different host port so both instances can run simultaneously.
+      - "127.0.0.1:9899:9898"
+    environment:
+      JAVA_OPTS: >-
+        -Xmx20G
+        -Xms6G
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=200
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/opt/wave/logs/heapdump-green.hprof
+        -Xlog:gc*:file=/opt/wave/logs/gc-green.log:time,uptime,level,tags:filecount=5,filesize=50m
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      WAVE_EMAIL_FROM: ${WAVE_EMAIL_FROM:-noreply@supawave.ai}
+      WAVE_MAIL_PROVIDER: ${WAVE_MAIL_PROVIDER:-logging}
+      WAVE_SERVER_VERSION: ${WAVE_SERVER_VERSION:-dev}
+    deploy:
+      resources:
+        limits:
+          memory: 22G
+          cpus: '8'
+        reservations:
+          memory: 20G
+          cpus: '6'
+    volumes:
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/accounts:/opt/wave/_accounts
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/attachments:/opt/wave/_attachments
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/certificates:/opt/wave/_certificates
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/deltas:/opt/wave/_deltas
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/indexes:/opt/wave/_indexes
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/sessions:/opt/wave/_sessions
+      - ./application.conf:/opt/wave/config/application.conf:ro
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/logs:/opt/wave/logs
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 262144
+      nproc:
+        soft: 65536
+        hard: 65536
+
+  # ---------------------------------------------------------------------------
+  # Caddy Reverse Proxy
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    # NOTE: Caddy depends on wave-blue OR wave-green depending on which slot
+    # is active.  During initial deployment, blue is active.  During
+    # switchover, start green first, wait for its healthcheck, then
+    # recreate caddy with WAVE_ACTIVE_BACKEND=wave-green.
+    #
+    # The Caddyfile uses:  reverse_proxy {$WAVE_ACTIVE_BACKEND}:{$WAVE_INTERNAL_PORT}
+    # where WAVE_ACTIVE_BACKEND is a Docker Compose service name (wave-blue
+    # or wave-green), resolved via Docker's internal DNS.
+    #
+    # No hard depends_on here: Caddy must be able to start/restart
+    # regardless of which color slot is active.  The operator ensures the
+    # active backend is healthy before switching WAVE_ACTIVE_BACKEND.
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CANONICAL_HOST: ${CANONICAL_HOST:?set CANONICAL_HOST before running compose}
+      ROOT_HOST: ${ROOT_HOST:?set ROOT_HOST before running compose}
+      WWW_HOST: ${WWW_HOST:?set WWW_HOST before running compose}
+      # WAVE_ACTIVE_BACKEND: Docker service name of the active Wave instance.
+      # Set to "wave-blue" (default) or "wave-green" during switchover.
+      # This relies on Docker Compose internal DNS, not host ports.
+      WAVE_ACTIVE_BACKEND: ${WAVE_ACTIVE_BACKEND:-wave-blue}
+      WAVE_INTERNAL_PORT: ${WAVE_INTERNAL_PORT:-9898}
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2'
+        reservations:
+          memory: 256M
+          cpus: '1'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/caddy-data:/data
+      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/caddy-config:/config

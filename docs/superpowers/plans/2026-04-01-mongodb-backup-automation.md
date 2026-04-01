@@ -91,9 +91,12 @@ main() {
 
   log "starting backup of database '${MONGO_DATABASE}' from container '${MONGO_CONTAINER}'"
 
-  docker exec "$MONGO_CONTAINER" \
+  if ! docker exec "$MONGO_CONTAINER" \
     mongodump --db="$MONGO_DATABASE" --archive --gzip \
-    > "$tmp_path"
+    > "$tmp_path"; then
+    log "ERROR: mongodump failed"
+    exit 1
+  fi
 
   # Validate
   if [[ ! -s "$tmp_path" ]]; then
@@ -173,7 +176,11 @@ main() {
     case "$1" in
       --yes|-y) yes_flag=true; shift ;;
       -*) log "unknown flag: $1"; exit 64 ;;
-      *) archive_path="$1"; shift ;;
+      *)
+        if [[ -n "$archive_path" ]]; then
+          log "ERROR: only one archive path allowed"; exit 64
+        fi
+        archive_path="$1"; shift ;;
     esac
   done
 
@@ -205,9 +212,12 @@ main() {
 
   log "restoring database '${MONGO_DATABASE}' from $(basename "$archive_path")"
 
-  docker exec -i "$MONGO_CONTAINER" \
+  if ! docker exec -i "$MONGO_CONTAINER" \
     mongorestore --db="$MONGO_DATABASE" --archive --gzip --drop \
-    < "$archive_path"
+    < "$archive_path"; then
+    log "ERROR: mongorestore failed"
+    exit 1
+  fi
 
   log "restore complete"
 }
@@ -260,11 +270,20 @@ log() {
 copy_scripts() {
   mkdir -p "$SHARED_MONGO" "$SHARED_LOGS" "${SHARED_MONGO}/backups"
 
-  cp "$SCRIPT_DIR/backup.sh" "$SHARED_MONGO/backup.sh"
-  cp "$SCRIPT_DIR/restore.sh" "$SHARED_MONGO/restore.sh"
-  chmod +x "$SHARED_MONGO/backup.sh" "$SHARED_MONGO/restore.sh"
+  local src_backup="$SCRIPT_DIR/backup.sh"
+  local src_restore="$SCRIPT_DIR/restore.sh"
+  local dst_backup="$SHARED_MONGO/backup.sh"
+  local dst_restore="$SHARED_MONGO/restore.sh"
 
-  log "scripts copied to ${SHARED_MONGO}/"
+  # Skip copy if source and destination are the same file (running from shared/mongo/)
+  if [[ "$(realpath "$src_backup")" != "$(realpath "$dst_backup" 2>/dev/null || echo _)" ]]; then
+    cp "$src_backup" "$dst_backup"
+    cp "$src_restore" "$dst_restore"
+    log "scripts copied to ${SHARED_MONGO}/"
+  else
+    log "scripts already in ${SHARED_MONGO}/ (skipping copy)"
+  fi
+  chmod +x "$dst_backup" "$dst_restore"
 }
 
 install_cron() {
@@ -282,11 +301,22 @@ install_cron() {
       return 0
     fi
 
-    # Stale entry — remove it (and any CRON_TZ line before it)
+    # Stale entry — remove the job line and the CRON_TZ line preceding it
     log "removing stale cron entry"
-    current_cron=$(echo "$current_cron" | grep -v "$CRON_MARKER")
-    # Also remove orphaned CRON_TZ=UTC lines that we may have inserted before
-    # (only remove if not followed by another job)
+    # Use awk to remove the marker line and any CRON_TZ=UTC line immediately before it
+    current_cron=$(echo "$current_cron" | awk -v marker="$CRON_MARKER" '
+      { lines[NR] = $0 }
+      END {
+        for (i = 1; i <= NR; i++) {
+          if (index(lines[i], marker)) {
+            if (i > 1 && lines[i-1] == "CRON_TZ=UTC") skip_prev = i-1
+            continue
+          }
+          if (i == skip_prev) continue
+          print lines[i]
+        }
+      }
+    ')
   fi
 
   # Append new two-line entry
@@ -440,8 +470,8 @@ KEEP_COUNT=20 /home/ubuntu/supawave/shared/mongo/backup.sh
 - Check Docker logs: `docker logs supawave-mongo-1 --tail 20`
 
 **Restore fails with "not authorized"**
-- When MongoDB authentication is enabled, add credentials via `MONGODB_URI`.
-  This is not yet needed (auth is currently disabled).
+- When MongoDB authentication is enabled, the scripts will need to be updated
+  to pass credentials. This is not yet needed (auth is currently disabled).
 
 ## Restore Drill
 
@@ -452,9 +482,10 @@ Periodically verify backups by restoring into a scratch container:
 docker run -d --name mongo-drill -p 27777:27017 mongo:6.0
 
 # Restore:
+# Use the most recent backup (ls -1t sorts by modification time)
+LATEST=$(ls -1t /home/ubuntu/supawave/shared/mongo/backups/wiab-*.archive.gz | head -1)
 MONGO_CONTAINER=mongo-drill \
-  /home/ubuntu/supawave/shared/mongo/restore.sh --yes \
-  /home/ubuntu/supawave/shared/mongo/backups/wiab-LATEST.archive.gz
+  /home/ubuntu/supawave/shared/mongo/restore.sh --yes "$LATEST"
 
 # Verify:
 docker exec mongo-drill mongosh --quiet --eval 'db.getCollectionNames()' wiab
@@ -465,8 +496,8 @@ docker rm -f mongo-drill
 
 ## Future Enhancements
 
-- **Authentication:** When MongoDB auth is enabled, scripts will need
-  credentials via `MONGODB_URI` or separate env vars.
+- **Authentication:** When MongoDB auth is enabled, scripts will need updating
+  to pass credentials to mongodump/mongorestore.
 - **Off-host replication:** rsync or S3-compatible storage for disaster recovery.
 - **Monitoring:** Alert on backup failures (email, Slack, PagerDuty).
 ```
@@ -508,10 +539,10 @@ Also update the "Current state" table at the top:
 - Change `Backup schedule` from `**NONE**` to `Every 6 hours via cron (see section 2)`
 - Change `Database` row to show the current 12 collections instead of 2
 
-- [ ] **Step 2: Verify the file has no broken markdown**
+- [ ] **Step 2: Verify key sections are present**
 
-Run: `head -5 docs/deployment/mongo-hardening.md`
-Expected: valid markdown header
+Run: `grep -n '## [0-9]' docs/deployment/mongo-hardening.md`
+Expected: sections 1-4 headings present, section 2 updated with new content
 
 - [ ] **Step 3: Commit**
 
@@ -557,7 +588,7 @@ Expected: lists the backup we just created
 
 ```bash
 ssh supawave 'docker run -d --name mongo-drill -p 27777:27017 mongo:6.0 && sleep 3'
-ssh supawave 'MONGO_CONTAINER=mongo-drill /home/ubuntu/supawave/shared/mongo/restore.sh --yes /home/ubuntu/supawave/shared/mongo/backups/wiab-*.archive.gz'
+ssh supawave 'LATEST=$(ls -1t /home/ubuntu/supawave/shared/mongo/backups/wiab-*.archive.gz | head -1) && MONGO_CONTAINER=mongo-drill /home/ubuntu/supawave/shared/mongo/restore.sh --yes "$LATEST"'
 ssh supawave 'docker exec mongo-drill mongosh --quiet --eval "db.getCollectionNames()" wiab'
 ssh supawave 'docker rm -f mongo-drill'
 ```
@@ -572,16 +603,27 @@ ssh supawave 'MIN_DISK_MB=999999999 /home/ubuntu/supawave/shared/mongo/backup.sh
 
 Expected: exit code 2, error message about insufficient disk space
 
-- [ ] **Step 6: Test rotation**
+- [ ] **Step 6: Test rotation (uses isolated directory to protect real backups)**
 
 ```bash
-ssh supawave 'for i in $(seq 1 12); do KEEP_COUNT=10 /home/ubuntu/supawave/shared/mongo/backup.sh; sleep 1; done'
-ssh supawave 'ls -1 /home/ubuntu/supawave/shared/mongo/backups/wiab-*.archive.gz | wc -l'
+ssh supawave 'mkdir -p /tmp/backup-rotation-test && BACKUP_DIR=/tmp/backup-rotation-test KEEP_COUNT=3 /home/ubuntu/supawave/shared/mongo/backup.sh; sleep 1; BACKUP_DIR=/tmp/backup-rotation-test KEEP_COUNT=3 /home/ubuntu/supawave/shared/mongo/backup.sh; sleep 1; BACKUP_DIR=/tmp/backup-rotation-test KEEP_COUNT=3 /home/ubuntu/supawave/shared/mongo/backup.sh; sleep 1; BACKUP_DIR=/tmp/backup-rotation-test KEEP_COUNT=3 /home/ubuntu/supawave/shared/mongo/backup.sh; sleep 1; BACKUP_DIR=/tmp/backup-rotation-test KEEP_COUNT=3 /home/ubuntu/supawave/shared/mongo/backup.sh'
+ssh supawave 'ls -1 /tmp/backup-rotation-test/wiab-*.archive.gz | wc -l'
+ssh supawave 'rm -rf /tmp/backup-rotation-test'
 ```
 
-Expected: exactly 10 archives remain
+Expected: exactly 3 archives remain (KEEP_COUNT=3, 5 runs, 2 rotated out)
 
-- [ ] **Step 7: Install cron**
+- [ ] **Step 7: Test interrupted backup cleanup (no partial files left)**
+
+```bash
+ssh supawave 'BACKUP_DIR=/tmp/interrupt-test mkdir -p /tmp/interrupt-test && timeout 0.1 bash -c "BACKUP_DIR=/tmp/interrupt-test /home/ubuntu/supawave/shared/mongo/backup.sh" || true'
+ssh supawave 'ls -la /tmp/interrupt-test/'
+ssh supawave 'rm -rf /tmp/interrupt-test'
+```
+
+Expected: no `.tmp` files left behind (trap cleans up on exit)
+
+- [ ] **Step 8: Install cron**
 
 ```bash
 ssh supawave '/home/ubuntu/supawave/shared/mongo/install-cron.sh'
@@ -590,7 +632,16 @@ ssh supawave 'crontab -l | grep -A1 CRON_TZ'
 
 Expected: shows `CRON_TZ=UTC` followed by the backup cron job line
 
-- [ ] **Step 8: Commit verification results**
+- [ ] **Step 9: Test installer idempotency (re-run should be no-op for cron)**
+
+```bash
+ssh supawave '/home/ubuntu/supawave/shared/mongo/install-cron.sh'
+ssh supawave 'crontab -l | grep -c wave-mongo-backup'
+```
+
+Expected: "cron job already installed and correct" message, count = 1 (not duplicated)
+
+- [ ] **Step 10: Commit verification results**
 
 ```bash
 git commit --allow-empty -m "chore: verified backup scripts on production host"

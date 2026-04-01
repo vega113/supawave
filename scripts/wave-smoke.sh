@@ -58,13 +58,31 @@ port_in_use() {
 
 # Returns 0 if the process with the given PID was launched from our install
 # directory (i.e. it is the Wave server we own), 1 otherwise.
-# Checks both the raw and canonicalized INSTALL_DIR to handle symlinked paths.
+# Checks both raw and canonicalized INSTALL_DIR with a trailing / boundary
+# to prevent prefix collisions (e.g., /opt/wave vs /opt/wave-prod).
 is_wave_process() {
   local pid=$1
   local cmdline canonical_dir
   cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
   canonical_dir=$(realpath "$INSTALL_DIR" 2>/dev/null || echo "$INSTALL_DIR")
-  [[ "$cmdline" == *"$canonical_dir"* ]] || [[ "$cmdline" == *"$INSTALL_DIR"* ]]
+  [[ "$cmdline" == *"${canonical_dir}/"* ]] || [[ "$cmdline" == *"${INSTALL_DIR}/"* ]]
+}
+
+# Sends SIGTERM then SIGKILL to a specific space-separated list of PIDs,
+# waiting for the port to clear. Does not touch PID_FILE or call fuser.
+stop_pids() {
+  local pids_to_kill=$1
+  local deadline=$(( $(date +%s) + STOP_TIMEOUT ))
+  echo "Sending SIGTERM to PIDs: $pids_to_kill" >&2
+  printf '%s\n' $pids_to_kill | xargs -I{} kill {} 2>/dev/null || true
+  for i in {1..5}; do
+    sleep 1
+    port_in_use || return 0
+    [[ $(date +%s) -lt $deadline ]] || break
+  done
+  echo "Sending SIGKILL to PIDs: $pids_to_kill" >&2
+  printf '%s\n' $pids_to_kill | xargs -I{} kill -9 {} 2>/dev/null || true
+  sleep 1
 }
 
 # Ensures $PORT is free before launch. Stops any stale Wave server found on the
@@ -89,7 +107,7 @@ ensure_port_free() {
       return 1
     fi
     echo "Port $PORT in use by stale Wave process — stopping (attempt $attempt)" >&2
-    stop || true
+    stop_pids "$pids" || true
     sleep 1
   done
   if port_in_use; then

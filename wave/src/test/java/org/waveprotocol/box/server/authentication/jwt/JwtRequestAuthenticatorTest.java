@@ -94,7 +94,7 @@ public final class JwtRequestAuthenticatorTest {
           JwtAudience.ROBOT,
           Set.of("wave:robot:active", "wave:data:read")); // requires both, token only has one
       fail("Should reject token with insufficient scopes");
-    } catch (JwtValidationException e) {
+    } catch (JwtInsufficientScopeException e) {
       assertEquals("Token missing required scope: wave:data:read", e.getMessage());
     }
   }

@@ -94,7 +94,7 @@ public final class JwtRequestAuthenticator {
     // Scope enforcement
     for (String scope : requiredScopes) {
       if (!claims.hasScope(scope)) {
-        throw new JwtValidationException("Token missing required scope: " + scope);
+        throw new JwtInsufficientScopeException("Token missing required scope: " + scope);
       }
     }
 

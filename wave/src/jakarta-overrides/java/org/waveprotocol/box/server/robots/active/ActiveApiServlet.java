@@ -23,6 +23,7 @@ import com.google.wave.api.data.converter.EventDataConverterManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
+import org.waveprotocol.box.server.authentication.jwt.JwtInsufficientScopeException;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
 import org.waveprotocol.box.server.authentication.jwt.JwtRevocationState;
@@ -90,6 +91,10 @@ public final class ActiveApiServlet extends BaseApiServlet {
           tokenScopes = Set.of();
         }
       }
+    } catch (JwtInsufficientScopeException e) {
+      LOG.info("Insufficient scope for Active API", e);
+      resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+      return;
     } catch (JwtValidationException e) {
       LOG.info("JWT authentication failed for Active API", e);
       resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

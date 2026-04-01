@@ -44,9 +44,13 @@ restore_file() {
 
 remove_wave_fstab_entry() {
   if [[ -f /etc/fstab ]]; then
-    if grep -q -F "/swapfile none swap sw 0 0" /etc/fstab; then
-      sed -i '/\/swapfile none swap sw 0 0/d' /etc/fstab
-      log "Removed swapfile entry from /etc/fstab"
+    if awk '$1 == "/swapfile" && $3 == "swap" { found = 1 } END { exit !found }' /etc/fstab; then
+      local tmp
+      tmp=$(mktemp)
+      awk '!($1 == "/swapfile" && $3 == "swap")' /etc/fstab > "$tmp"
+      cat "$tmp" > /etc/fstab
+      rm -f "$tmp"
+      log "Removed swapfile entries from /etc/fstab"
     fi
   fi
 }
@@ -63,7 +67,7 @@ main() {
 
   restore_file "/etc/sysctl.conf" "sysctl.conf.orig" "$backup_dir" || true
   restore_file "/etc/sysctl.d/99-wave.conf" "99-wave.conf.orig" "$backup_dir" || rm -f /etc/sysctl.d/99-wave.conf
-  restore_file "/etc/security/limits.conf" "limits.conf.orig" "$backup_dir" || true
+  restore_file "/etc/security/limits.d/99-wave.conf" "99-wave.conf.orig" "$backup_dir" || rm -f /etc/security/limits.d/99-wave.conf
   restore_file "/etc/pam.d/common-session" "common-session.orig" "$backup_dir" || true
   restore_file "/etc/pam.d/common-session-noninteractive" "common-session-noninteractive.orig" "$backup_dir" || true
   restore_file "/etc/fstab" "fstab.orig" "$backup_dir" || true

@@ -61,7 +61,7 @@ activate_swapfile() {
 
 ensure_fstab_entry() {
   local swap_path=$1
-  if ! grep -q -F "$swap_path none swap sw 0 0" /etc/fstab; then
+  if ! grep -Eq "^[[:space:]]*${swap_path}[[:space:]]+none[[:space:]]+swap[[:space:]]" /etc/fstab; then
     echo "$swap_path none swap sw 0 0" >>/etc/fstab
     log "Added $swap_path to /etc/fstab"
   fi

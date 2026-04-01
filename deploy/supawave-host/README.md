@@ -6,18 +6,18 @@ Automation for applying the production resource tuning from `deploy/production/`
 
 - Run directly on the Supawave host with sudo/root access.
 - Docker and Docker Compose installed and running.
-- `mongosh`, `curl`, and `fallocate` available on the host.
+- `curl` and `fallocate` available on the host (`mongosh` is only required inside the Mongo container).
 
 ## Scripts
 
 - `provision.sh` — Orchestrates pre-flight validation, sysctl tuning, PAM limits, swap setup, and post-flight checks.
 - `apply-sysctl.sh` — Installs `deploy/production/sysctl-tuning.conf` to `/etc/sysctl.d/99-wave.conf` and validates key tunables.
-- `apply-limits.sh` — Merges `deploy/production/limits.conf.prod` into `/etc/security/limits.conf`, ensures PAM limits are active, and verifies entries.
+- `apply-limits.sh` — Installs `deploy/production/limits.conf.prod` as `/etc/security/limits.d/99-wave.conf`, ensures PAM limits are active, and verifies entries.
 - `setup-swap.sh` — Creates and activates a 32 GiB `/swapfile`, persists it in `/etc/fstab`, and sets `vm.swappiness=10`.
 - `validate.sh` — Pre/post validation of sudo, disk space, docker/mongo, swap, sysctl values, ulimits, and container health. Writes reports under `/var/log/wave-supawave/`.
 - `rollback.sh` — Restores `/etc/sysctl.conf`, `/etc/security/limits.conf`, PAM session files, and `/etc/fstab` from backups, disables swap, and removes `/swapfile`.
 
-Backups and snapshots are stored under `/var/backups/wave-supawave` (override with `BACKUP_DIR`).
+Backups and snapshots are stored under `/var/backups/wave-supawave` (override with `BACKUP_DIR`). When running via `sudo`, use `sudo --preserve-env=BACKUP_DIR,SWAP_SIZE_GB ./provision.sh` to pass environment overrides through.
 
 ## CI Integration
 

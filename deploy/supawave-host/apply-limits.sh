@@ -106,7 +106,8 @@ main() {
   repo_root=$(cd "$script_dir/../.." && pwd)
 
   local source_conf="$repo_root/deploy/production/limits.conf.prod"
-  local target_conf="/etc/security/limits.conf"
+  local limits_dir="/etc/security/limits.d"
+  local target_conf="$limits_dir/99-wave.conf"
   local backup_dir="${BACKUP_DIR:-/var/backups/wave-supawave}"
 
   if [[ ! -f "$source_conf" ]]; then
@@ -114,8 +115,9 @@ main() {
     exit 1
   fi
 
+  mkdir -p "$limits_dir"
   touch "$target_conf"
-  backup_file "$target_conf" "limits.conf.orig" "$backup_dir"
+  backup_file "$target_conf" "99-wave.conf.orig" "$backup_dir"
   backup_file "/etc/pam.d/common-session" "common-session.orig" "$backup_dir"
   backup_file "/etc/pam.d/common-session-noninteractive" "common-session-noninteractive.orig" "$backup_dir"
 
@@ -134,8 +136,12 @@ main() {
 
   local hard_nofile
   hard_nofile=$(ulimit -Hn 2>/dev/null || true)
-  if [[ -n "$hard_nofile" && "$hard_nofile" -lt 262144 ]]; then
-    log "WARN: current hard nofile is $hard_nofile; open a new login session to pick up limits"
+  if [[ -n "$hard_nofile" && "$hard_nofile" =~ ^[0-9]+$ ]]; then
+    if (( hard_nofile < 262144 )); then
+      log "WARN: current hard nofile is $hard_nofile; open a new login session to pick up limits"
+    else
+      log "Limit check: hard nofile $hard_nofile"
+    fi
   else
     log "Limit check: hard nofile ${hard_nofile:-unknown}"
   fi

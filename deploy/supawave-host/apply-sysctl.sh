@@ -73,7 +73,7 @@ main() {
   backup_file "/etc/sysctl.conf" "sysctl.conf.orig" "$backup_dir"
   backup_file "$target_conf" "99-wave.conf.orig" "$backup_dir"
 
-  if cmp -s "$source_conf" "$target_conf"; then
+  if [[ -f "$target_conf" ]] && cmp -s "$source_conf" "$target_conf"; then
     log "sysctl config already matches target, skipping copy"
   else
     install -m 644 "$source_conf" "$target_conf"

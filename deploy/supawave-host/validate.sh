@@ -38,6 +38,9 @@ check_command() {
 }
 
 check_sudo() {
+  if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+    return 0
+  fi
   if sudo -n true 2>/dev/null; then
     return 0
   fi
@@ -82,7 +85,8 @@ check_mongo() {
 
 check_swap() {
   local swap_path="/swapfile"
-  local expected_bytes=$((32 * 1024 * 1024 * 1024))
+  local swap_size_gb=${SWAP_SIZE_GB:-32}
+  local expected_bytes=$((swap_size_gb * 1024 * 1024 * 1024))
   local size
   size=$(swapon --show=NAME,SIZE --bytes --noheadings 2>/dev/null | awk '$1 == "'"$swap_path"'" {print $2}')
   if [[ -z "$size" ]]; then
@@ -114,10 +118,10 @@ check_ulimits() {
   hard_nofile=$(ulimit -Hn 2>/dev/null || true)
   local hard_nproc
   hard_nproc=$(ulimit -Hu 2>/dev/null || true)
-  if [[ -z "$hard_nofile" || "$hard_nofile" -lt 262144 ]]; then
+  if [[ -z "$hard_nofile" || ( "$hard_nofile" != "unlimited" && "$hard_nofile" =~ ^[0-9]+$ && "$hard_nofile" -lt 262144 ) ]]; then
     log "WARN: hard nofile is ${hard_nofile:-unset}; open a new login session to pick up PAM limits"
   fi
-  if [[ -z "$hard_nproc" || "$hard_nproc" -lt 65536 ]]; then
+  if [[ -z "$hard_nproc" || ( "$hard_nproc" != "unlimited" && "$hard_nproc" =~ ^[0-9]+$ && "$hard_nproc" -lt 65536 ) ]]; then
     log "WARN: hard nproc is ${hard_nproc:-unset}; open a new login session to pick up PAM limits"
   fi
 }
@@ -151,12 +155,13 @@ run_checks() {
 
   if [[ "$mode" == "pre" || "$mode" == "all" ]]; then
     log "Running pre-flight checks"
+    local swap_size_gb=${SWAP_SIZE_GB:-32}
+    local disk_required_mb=$(((swap_size_gb + 1) * 1024))
     check_sudo || failures=$((failures + 1))
     check_command ssh || failures=$((failures + 1))
     check_command java || failures=$((failures + 1))
     check_docker || failures=$((failures + 1))
-    check_command mongosh || failures=$((failures + 1))
-    check_disk "/" 60000 || failures=$((failures + 1))
+    check_disk "/" "$disk_required_mb" || failures=$((failures + 1))
     check_mongo || failures=$((failures + 1))
   fi
 

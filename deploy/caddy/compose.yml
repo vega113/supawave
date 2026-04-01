@@ -15,6 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+x-wave-env: &wave-env
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  WAVE_EMAIL_FROM: ${WAVE_EMAIL_FROM:-noreply@supawave.ai}
+  WAVE_MAIL_PROVIDER: ${WAVE_MAIL_PROVIDER:-logging}
+  WAVE_SERVER_VERSION: ${WAVE_SERVER_VERSION:-dev}
+
 services:
   mongo:
     image: mongo:6.0
@@ -30,16 +36,13 @@ services:
     volumes:
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/mongo/db:/data/db
 
-  wave:
-    image: ${WAVE_IMAGE:?set WAVE_IMAGE before running compose}
+  wave-blue:
+    image: ${WAVE_IMAGE_BLUE:-scratch}
+    container_name: wave-blue
     restart: unless-stopped
     depends_on:
       mongo:
         condition: service_healthy
-    deploy:
-      update_config:
-        order: start-first
-        failure_action: rollback
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9898/healthz || exit 1"]
       interval: 10s
@@ -49,25 +52,46 @@ services:
     ports:
       - "127.0.0.1:9898:9898"
     volumes:
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/accounts:/opt/wave/_accounts
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/attachments:/opt/wave/_attachments
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/certificates:/opt/wave/_certificates
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/deltas:/opt/wave/_deltas
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/indexes:/opt/wave/_indexes
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/sessions:/opt/wave/_sessions
-      - ./application.conf:/opt/wave/config/application.conf:ro
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/logs:/opt/wave/logs
-    environment:
-      - RESEND_API_KEY=${RESEND_API_KEY:-}
-      - WAVE_EMAIL_FROM=${WAVE_EMAIL_FROM:-noreply@supawave.ai}
-      - WAVE_MAIL_PROVIDER=${WAVE_MAIL_PROVIDER:-logging}
-      - WAVE_SERVER_VERSION=${WAVE_SERVER_VERSION:-dev}
+      - ${DEPLOY_ROOT:?}/releases/blue/application.conf:/opt/wave/config/application.conf:ro
+      - ${DEPLOY_ROOT:?}/shared/accounts:/opt/wave/_accounts
+      - ${DEPLOY_ROOT:?}/shared/attachments:/opt/wave/_attachments
+      - ${DEPLOY_ROOT:?}/shared/certificates:/opt/wave/_certificates:ro
+      - ${DEPLOY_ROOT:?}/shared/deltas:/opt/wave/_deltas
+      - ${DEPLOY_ROOT:?}/shared/indexes/blue:/opt/wave/_indexes
+      - ${DEPLOY_ROOT:?}/shared/sessions/blue:/opt/wave/_sessions
+      - ${DEPLOY_ROOT:?}/shared/logs:/opt/wave/logs
+    environment: *wave-env
+
+  wave-green:
+    image: ${WAVE_IMAGE_GREEN:-scratch}
+    container_name: wave-green
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9898/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 300s
+    ports:
+      - "127.0.0.1:9899:9898"
+    volumes:
+      - ${DEPLOY_ROOT:?}/releases/green/application.conf:/opt/wave/config/application.conf:ro
+      - ${DEPLOY_ROOT:?}/shared/accounts:/opt/wave/_accounts
+      - ${DEPLOY_ROOT:?}/shared/attachments:/opt/wave/_attachments
+      - ${DEPLOY_ROOT:?}/shared/certificates:/opt/wave/_certificates:ro
+      - ${DEPLOY_ROOT:?}/shared/deltas:/opt/wave/_deltas
+      - ${DEPLOY_ROOT:?}/shared/indexes/green:/opt/wave/_indexes
+      - ${DEPLOY_ROOT:?}/shared/sessions/green:/opt/wave/_sessions
+      - ${DEPLOY_ROOT:?}/shared/logs:/opt/wave/logs
+    environment: *wave-env
+    profiles: ["green"]
 
   caddy:
     image: caddy:2.8.4-alpine
     restart: unless-stopped
-    depends_on:
-      - wave
     ports:
       - "80:80"
       - "443:443"
@@ -75,8 +99,8 @@ services:
       CANONICAL_HOST: ${CANONICAL_HOST:?set CANONICAL_HOST before running compose}
       ROOT_HOST: ${ROOT_HOST:?set ROOT_HOST before running compose}
       WWW_HOST: ${WWW_HOST:?set WWW_HOST before running compose}
-      WAVE_INTERNAL_PORT: ${WAVE_INTERNAL_PORT:?set WAVE_INTERNAL_PORT before running compose}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/caddy-data:/data
-      - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/caddy-config:/config
+      - ${DEPLOY_ROOT:?}/shared/upstream.caddy:/etc/caddy/upstream.caddy:ro
+      - ${DEPLOY_ROOT:?}/shared/caddy-data:/data
+      - ${DEPLOY_ROOT:?}/shared/caddy-config:/config

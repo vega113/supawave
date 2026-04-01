@@ -598,7 +598,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Layout
     sb.append(".main{max-width:1140px;margin:0 auto;padding:16px 24px 60px}");
     // Card with tonal lift
-    sb.append(".card{background:var(--card);border-radius:4px;box-shadow:var(--shadow);border:1px solid var(--sh)}");
+    sb.append(".card{background:var(--card);border-radius:4px;box-shadow:var(--shadow);border:1px solid var(--bdr)}");
     // Tabs — clean underline
     sb.append(".tabs{display:flex;gap:0;padding:0 20px;background:var(--card);border-radius:4px 4px 0 0}");
     sb.append(".tab{padding:12px 20px;font-size:12px;font-weight:600;color:var(--txt3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;user-select:none;letter-spacing:.02em;transition:color .12s}");
@@ -683,7 +683,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append(".doc-link .dl-label{font-size:12px;font-weight:600;color:var(--txt)}");
     // Centered content for onboarding
     sb.append(".centered{max-width:760px;margin:0 auto;padding:24px}");
-    sb.append(".centered .card-section{background:var(--card);border-radius:4px;box-shadow:var(--shadow);border:1px solid var(--sh);padding:24px;margin-bottom:20px}");
+    sb.append(".centered .card-section{background:var(--card);border-radius:4px;box-shadow:var(--shadow);border:1px solid var(--bdr);padding:24px;margin-bottom:20px}");
     // Modal overlay
     sb.append(".modal-overlay{display:none;position:fixed;inset:0;background:rgba(23,28,31,.5);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)}");
     sb.append(".modal-overlay.open{display:flex}");

@@ -62,7 +62,7 @@ is_wave_process() {
   local pid=$1
   local cmdline
   cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
-  [[ "$cmdline" == *"$INSTALL_DIR"* ]] || [[ "$cmdline" == *"/bin/wave"* ]]
+  [[ "$cmdline" == *"$INSTALL_DIR"* ]]
 }
 
 # Ensures $PORT is free before launch. Stops any stale Wave server found on the

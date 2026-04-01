@@ -68,18 +68,30 @@ public final class DataApiServlet extends BaseApiServlet {
   }
 
   /**
-   * Overrides the operation type mapping to treat ROBOT_FOLDER_ACTION as a write operation
-   * in the Data API context (where it requires data:write scope), rather than as a robot-active
-   * operation (which would require robot:active scope only available to Active API tokens).
+   * Overrides the operation type mapping for Data API-specific scope requirements.
+   *
+   * ROBOT_FOLDER_ACTION and ROBOT_NOTIFY operations are treated as robot-active (ROBOT_RPC)
+   * in the base mapping, but in the Data API context they are either data modifications
+   * (folder actions) or compatibility no-ops (notify operations) that should only require
+   * data scope, not robot:active scope.
    */
   @Override
   protected OpScopeMapper.OpType mapOperationToOpType(OperationRequest operation) {
     OperationType opType = OperationUtil.getOperationType(operation);
-    // In Data API context, ROBOT_FOLDER_ACTION is a data modification, not an active channel operation
-    if (opType == OperationType.ROBOT_FOLDER_ACTION) {
-      return OpScopeMapper.OpType.MODIFY_WAVELET;
+    switch (opType) {
+      // Folder actions are data modifications in Data API context
+      case ROBOT_FOLDER_ACTION:
+        return OpScopeMapper.OpType.MODIFY_WAVELET;
+
+      // Notify operations are compatibility no-ops in Data API context (they don't do anything)
+      // Map to FETCH_WAVE (read-only) since they're not actually modifying data
+      case ROBOT_NOTIFY:
+      case ROBOT_NOTIFY_CAPABILITIES_HASH:
+        return OpScopeMapper.OpType.FETCH_WAVE;
+
+      default:
+        return super.mapOperationToOpType(operation);
     }
-    return super.mapOperationToOpType(operation);
   }
 
   @Override

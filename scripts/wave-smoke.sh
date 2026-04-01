@@ -69,21 +69,20 @@ is_wave_process() {
 # port (up to 3 attempts). Returns 0 when the port is clear; returns 1 if a
 # non-Wave process owns the port or the port remains occupied after retries.
 ensure_port_free() {
-  local attempt pids pid is_wave
+  local attempt pids pid non_wave_pids
   for attempt in 1 2 3; do
     if ! port_in_use; then
       return 0
     fi
     pids=$(find_port_pids)
-    is_wave=false
+    non_wave_pids=""
     for pid in $pids; do
-      if is_wave_process "$pid"; then
-        is_wave=true
-        break
+      if ! is_wave_process "$pid"; then
+        non_wave_pids="${non_wave_pids:+$non_wave_pids }$pid"
       fi
     done
-    if ! $is_wave; then
-      echo "Port $PORT in use by non-Wave process (PIDs: $pids) — aborting" >&2
+    if [[ -n "${non_wave_pids:-}" ]]; then
+      echo "Port $PORT in use by non-Wave process (PIDs: $non_wave_pids) — aborting" >&2
       echo "Stop the conflicting process or use a different PORT" >&2
       return 1
     fi

@@ -113,7 +113,9 @@ jobs:
             else
               # bash /dev/tcp: exit 0=connected (in use), 1=refused (free),
               # other=unsupported — treated as unknown (fail closed, port_free stays 0).
-              bash -c "exec 6<>/dev/tcp/127.0.0.1/$PORT" >/dev/null 2>&1; tcp_exit=$?
+              # Use || to capture exit code safely under set -e.
+              tcp_exit=0
+              bash -c "exec 6<>/dev/tcp/127.0.0.1/$PORT" >/dev/null 2>&1 || tcp_exit=$?
               if [ "$tcp_exit" -eq 1 ]; then
                 port_free=1
               fi

@@ -136,7 +136,7 @@ _do_compose_up() {
   RESEND_API_KEY="${RESEND_API_KEY:-}" \
   WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-noreply@${canonical_host}}" \
   WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
-    docker compose --project-name "$project_name" -f "$release_dir/compose.yml" up -d --remove-orphans --wait --wait-timeout 180
+    docker compose --project-name "$project_name" -f "$release_dir/compose.yml" up -d --remove-orphans --wait --wait-timeout 420
 }
 
 compose_up() {
@@ -180,7 +180,7 @@ _do_rollback_compose() {
   RESEND_API_KEY="${RESEND_API_KEY:-}" \
   WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-noreply@${canonical_host}}" \
   WAVE_MAIL_PROVIDER="${WAVE_MAIL_PROVIDER:-logging}" \
-    docker compose --project-name "$project_name" -f "$deploy_root/current/compose.yml" up -d --remove-orphans --wait --wait-timeout 180
+    docker compose --project-name "$project_name" -f "$deploy_root/current/compose.yml" up -d --remove-orphans --wait --wait-timeout 420
 }
 
 rollback_release() {

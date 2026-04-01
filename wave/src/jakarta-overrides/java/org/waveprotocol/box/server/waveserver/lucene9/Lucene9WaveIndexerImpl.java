@@ -31,7 +31,6 @@ import java.util.logging.Logger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -41,6 +40,7 @@ import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.waveprotocol.box.server.persistence.lucene.Lucene9SearchIndexDirectory;
+import org.waveprotocol.box.server.persistence.lucene.LuceneIndexWriterFactory;
 import org.waveprotocol.box.server.waveserver.AbstractSearchProviderImpl;
 import org.waveprotocol.box.server.waveserver.IndexException;
 import org.waveprotocol.box.server.waveserver.ReadableWaveletDataProvider;
@@ -88,11 +88,16 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     this.metadataExtractor = metadataExtractor;
     this.documentBuilder = documentBuilder;
     this.rebuildOnStartup = config.getBoolean("core.lucene9_rebuild_on_startup");
+    this.indexWriter =
+        LuceneIndexWriterFactory.openWithRetry(directory.getDirectory(), new StandardAnalyzer(), LOG);
     try {
-      this.indexWriter = new IndexWriter(directory.getDirectory(),
-          new IndexWriterConfig(new StandardAnalyzer()));
       this.searcherManager = new SearcherManager(indexWriter, new SearcherFactory());
     } catch (IOException e) {
+      try {
+        indexWriter.close();
+      } catch (IOException closeEx) {
+        e.addSuppressed(closeEx);
+      }
       throw new IndexException(e);
     }
   }
@@ -106,10 +111,28 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   @Override
   public synchronized void remakeIndex() throws WaveletStateException, WaveServerException {
     try {
-      if (rebuildOnStartup) {
+      int existingDocs = indexWriter.getDocStats().numDocs;
+      if (existingDocs > 0 && rebuildOnStartup) {
+        LOG.info("Full rebuild of Lucene9 index (had " + existingDocs
+            + " docs, lucene9_rebuild_on_startup=true)");
         indexWriter.deleteAll();
+      } else if (existingDocs > 0) {
+        LOG.info("Lucene9 index has " + existingDocs
+            + " documents, running incremental repair");
+      } else {
+        LOG.info("Lucene9 index is empty, performing initial build");
       }
-      lastRebuildWaveCount = doRebuild();
+      boolean fullRebuild = (existingDocs > 0 && rebuildOnStartup) || existingDocs == 0;
+      try {
+        waveMap.loadAllWavelets();
+      } catch (WaveletStateException e) {
+        if (fullRebuild) {
+          throw e;
+        }
+        LOG.log(Level.WARNING,
+            "loadAllWavelets failed during incremental repair, using cached waves", e);
+      }
+      lastRebuildWaveCount = doRebuild(fullRebuild);
     } catch (IOException e) {
       throw new IndexException(e);
     }
@@ -127,27 +150,50 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
       int existingDocs = indexWriter.getDocStats().numDocs;
       LOG.info("Admin-triggered forced rebuild (had " + existingDocs + " docs)");
       indexWriter.deleteAll();
-      lastRebuildWaveCount = doRebuild();
+      waveMap.loadAllWavelets();
+      lastRebuildWaveCount = doRebuild(true);
       return lastRebuildWaveCount;
     } catch (IOException e) {
       throw new IndexException(e);
     }
   }
 
-  /** Shared rebuild logic: loads all waves and indexes them. Returns wave count. */
-  private int doRebuild() throws WaveletStateException, WaveServerException, IOException {
-    waveMap.loadAllWavelets();
+  /**
+   * Shared rebuild logic: loads all waves and indexes them. Returns wave count.
+   * @param fullRebuild if true, errors during individual wave indexing are fatal;
+   *                    if false, errors are logged and indexing continues (incremental repair).
+   */
+  private int doRebuild(boolean fullRebuild)
+      throws WaveletStateException, WaveServerException, IOException {
     try {
       org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
           waveletProvider.getWaveIds();
       int count = 0;
+      int errors = 0;
       while (waveIds.hasNext()) {
-        upsertWave(waveIds.next());
-        count++;
+        WaveId waveId = waveIds.next();
+        try {
+          upsertWave(waveId);
+          count++;
+        } catch (IOException e) {
+          throw e;
+        } catch (WaveServerException e) {
+          if (fullRebuild) {
+            throw e;
+          }
+          errors++;
+          LOG.log(Level.WARNING, "Failed to index wave " + waveId + ", skipping", e);
+        }
       }
       indexWriter.commit();
       searcherManager.maybeRefreshBlocking();
-      LOG.info("Lucene9 index built with " + count + " waves");
+      LOG.info("Lucene9 index completed: " + count + " waves indexed"
+          + (errors > 0 ? ", " + errors + " skipped due to errors" : ""));
+      if (errors > 0) {
+        LOG.warning("Lucene9 incremental repair incomplete: " + errors
+            + " waves could not be indexed out of " + (count + errors)
+            + " — search results may be partial until next successful repair");
+      }
       return count;
     } finally {
       waveMap.unloadAllWavelets();

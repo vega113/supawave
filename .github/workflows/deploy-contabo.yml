@@ -124,7 +124,7 @@ jobs:
           set -euo pipefail
           remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
           remote_incoming="$remote_root/incoming"
-          ssh -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "mkdir -p '$remote_incoming'"
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "mkdir -p '$remote_incoming'"
           scp -P "${{ secrets.CONTABO_SSH_PORT || '22' }}" "$RUNNER_TEMP/supawave-release.tgz" \
             "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}:$remote_incoming/$RELEASE_ID.tgz"
 
@@ -139,7 +139,7 @@ jobs:
           release_dir="$remote_root/releases/$RELEASE_ID"
           resend_api_key_q=$(printf '%q' "${RESEND_API_KEY:-}")
           wave_email_from_q=$(printf '%q' "${WAVE_EMAIL_FROM:-}")
-          ssh -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "
             set -euo pipefail
             rm -rf '$release_dir'
             mkdir -p '$release_dir'

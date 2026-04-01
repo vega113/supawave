@@ -37,7 +37,9 @@ war/WEB-INF
 */.settings/
 .metadata/
 
-### Build output
+### Build output — GWT compiled files
+war/webclient/
+war/org*
 wave/war/WEB-INF/
 wave/war/webclient/
 wave/war/org*

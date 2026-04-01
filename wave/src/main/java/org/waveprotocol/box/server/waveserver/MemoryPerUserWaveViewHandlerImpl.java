@@ -37,7 +37,6 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -62,7 +61,17 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
   /** The loading cache that holds wave viev per each online user.*/
   public LoadingCache<ParticipantId, Multimap<WaveId, WaveletId>> explicitPerUserWaveViews;
 
-  private final AtomicBoolean storageWarmupCompleted = new AtomicBoolean(false);
+  /** Guards concurrent calls to {@code loadAllWavelets()} during cache rebuilds. */
+  private final Object waveMapLoadLock = new Object();
+
+  /**
+   * Minimum interval (ms) between consecutive full wave-map reloads.
+   * Prevents back-to-back scans when many users' caches miss around the same time.
+   */
+  private static final long WAVE_MAP_RELOAD_COOLDOWN_MS = 30_000;
+
+  /** Timestamp of the last successful {@code loadAllWavelets()} call. Guarded by {@link #waveMapLoadLock}. */
+  private long lastWaveMapLoadMs = 0;
 
   @Inject
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {
@@ -120,17 +129,29 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
         });
   }
 
+  /**
+   * Ensures all waves are loaded in the WaveMap before iterating.
+   *
+   * <p>The WaveMap's internal cache evicts entries after a period of inactivity
+   * ({@code core.wave_cache_expire}). When the per-user view cache also expires
+   * and needs to be rebuilt, the WaveMap may have evicted most of its entries.
+   * {@code getWaves()} only returns what is currently cached, so we must
+   * reload from storage to get a complete view.
+   *
+   * <p>A {@link #WAVE_MAP_RELOAD_COOLDOWN_MS} cooldown prevents redundant
+   * back-to-back scans: threads that acquire the lock within the cooldown window
+   * after a completed scan skip the reload and use the already-warm WaveMap.
+   */
   private void ensureWaveMapLoaded(WaveMap waveMap, ParticipantId user) {
-    if (!storageWarmupCompleted.get()) {
-      synchronized (storageWarmupCompleted) {
-        if (!storageWarmupCompleted.get()) {
-          try {
-            waveMap.loadAllWavelets();
-            storageWarmupCompleted.set(true);
-          } catch (WaveletStateException e) {
-            throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
-          }
-        }
+    synchronized (waveMapLoadLock) {
+      if (System.currentTimeMillis() - lastWaveMapLoadMs < WAVE_MAP_RELOAD_COOLDOWN_MS) {
+        return;
+      }
+      try {
+        waveMap.loadAllWavelets();
+        lastWaveMapLoadMs = System.currentTimeMillis();
+      } catch (WaveletStateException e) {
+        throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
       }
     }
   }

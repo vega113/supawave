@@ -94,7 +94,7 @@ jobs:
           PORT=9898
           # Wait until $PORT is demonstrably free (fail closed: tool errors
           # leave port_free=0 so we keep waiting rather than proceeding blind).
-          for attempt in 1 2 3; do
+          for attempt in $(seq 1 15); do
             port_free=0
             if command -v ss >/dev/null 2>&1; then
               # Capture output and exit code separately; only trust a successful run.

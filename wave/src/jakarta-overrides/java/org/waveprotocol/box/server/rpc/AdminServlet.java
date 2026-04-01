@@ -522,6 +522,13 @@ public final class AdminServlet extends HttpServlet {
       if (lastCount >= 0) {
         w.append(",\"lastRebuildWaveCount\":").append(String.valueOf(lastCount));
       }
+      // Incremental indexing stats (rolling average from real-time wave updates)
+      long incrCount = lucene9Indexer.getIncrementalIndexCount();
+      if (incrCount > 0) {
+        w.append(",\"incrementalAvgMs\":").append(
+            String.format("%.1f", lucene9Indexer.getIncrementalAvgMs()));
+        w.append(",\"incrementalIndexCount\":").append(String.valueOf(incrCount));
+      }
     }
     w.append('}');
 
@@ -626,6 +633,31 @@ public final class AdminServlet extends HttpServlet {
     }
     if (st == ReindexService.State.COMPLETED || st == ReindexService.State.RUNNING) {
       w.append(",\"waveCount\":").append(String.valueOf(reindexService.getWaveCount()));
+    }
+    // Live progress during RUNNING state
+    if (st == ReindexService.State.RUNNING) {
+      int soFar = reindexService.getWavesIndexedSoFar();
+      int estTotal = reindexService.getEstimatedTotalWaves();
+      w.append(",\"wavesIndexedSoFar\":").append(String.valueOf(soFar));
+      w.append(",\"estimatedTotalWaves\":").append(String.valueOf(estTotal));
+      if (soFar > 0) {
+        long elapsedMs = System.currentTimeMillis() - reindexService.getStartTimeMs();
+        double avgMs = (double) elapsedMs / soFar;
+        w.append(",\"avgMsPerWave\":").append(String.format("%.1f", avgMs));
+        if (estTotal > soFar) {
+          long remainingMs = Math.round((estTotal - soFar) * avgMs);
+          w.append(",\"estimatedRemainingMs\":").append(String.valueOf(remainingMs));
+        }
+      }
+    }
+    // Stats from completed reindex
+    if (st == ReindexService.State.COMPLETED) {
+      double avg = reindexService.getLastAvgMsPerWave();
+      if (avg > 0) {
+        w.append(",\"avgMsPerWave\":").append(String.format("%.1f", avg));
+        w.append(",\"minMsPerWave\":").append(String.valueOf(reindexService.getLastMinMsPerWave()));
+        w.append(",\"maxMsPerWave\":").append(String.valueOf(reindexService.getLastMaxMsPerWave()));
+      }
     }
     if (st == ReindexService.State.FAILED && reindexService.getErrorMessage() != null) {
       w.append(",\"error\":").append(jsonStr(reindexService.getErrorMessage()));

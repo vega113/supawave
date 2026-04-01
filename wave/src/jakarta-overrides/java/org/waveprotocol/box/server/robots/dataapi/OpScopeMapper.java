@@ -18,8 +18,8 @@
  */
 package org.waveprotocol.box.server.robots.dataapi;
 
+import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -32,33 +32,28 @@ public class OpScopeMapper {
   private static final Map<OpType, Set<String>> OPERATION_SCOPES = new EnumMap<>(OpType.class);
 
   static {
-    OPERATION_SCOPES.put(OpType.FETCH_WAVE, setOf(SCOPE_WAVE_DATA_READ));
-    OPERATION_SCOPES.put(OpType.LIST_WAVES, setOf(SCOPE_WAVE_DATA_READ));
-    OPERATION_SCOPES.put(OpType.MODIFY_WAVELET, setOf(SCOPE_WAVE_DATA_WRITE));
-    OPERATION_SCOPES.put(OpType.CREATE_WAVELET, setOf(SCOPE_WAVE_DATA_WRITE));
-    OPERATION_SCOPES.put(OpType.SUBMIT_DELTA, setOf(SCOPE_WAVE_DATA_WRITE));
-    OPERATION_SCOPES.put(OpType.ROBOT_RPC, setOf(SCOPE_WAVE_ROBOT_ACTIVE));
-    OPERATION_SCOPES.put(OpType.ADMIN_OPERATION, setOf(SCOPE_WAVE_ADMIN));
+    OPERATION_SCOPES.put(OpType.FETCH_WAVE, Set.of(SCOPE_WAVE_DATA_READ));
+    OPERATION_SCOPES.put(OpType.LIST_WAVES, Set.of(SCOPE_WAVE_DATA_READ));
+    OPERATION_SCOPES.put(OpType.MODIFY_WAVELET, Set.of(SCOPE_WAVE_DATA_WRITE));
+    OPERATION_SCOPES.put(OpType.CREATE_WAVELET, Set.of(SCOPE_WAVE_DATA_WRITE));
+    OPERATION_SCOPES.put(OpType.SUBMIT_DELTA, Set.of(SCOPE_WAVE_DATA_WRITE));
+    OPERATION_SCOPES.put(OpType.ROBOT_RPC, Set.of(SCOPE_WAVE_ROBOT_ACTIVE));
+    OPERATION_SCOPES.put(OpType.ADMIN_OPERATION, Set.of(SCOPE_WAVE_ADMIN));
   }
 
   public static Set<String> getRequiredScopes(OpType opType) {
-    return OPERATION_SCOPES.getOrDefault(opType, new HashSet<>());
+    return OPERATION_SCOPES.getOrDefault(opType, Collections.emptySet());
   }
 
   public static boolean checkScopes(OpType opType, Set<String> tokenScopes) {
+    if (tokenScopes == null || tokenScopes.isEmpty()) {
+      return false;
+    }
     Set<String> required = getRequiredScopes(opType);
     if (required.isEmpty()) {
       return false;
     }
     return tokenScopes.containsAll(required);
-  }
-
-  private static Set<String> setOf(String... scopes) {
-    Set<String> set = new HashSet<>();
-    for (String scope : scopes) {
-      set.add(scope);
-    }
-    return set;
   }
 
   public enum OpType {

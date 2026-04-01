@@ -1,7 +1,7 @@
 # Blue-Green Deployment Design
 
 **Date:** 2026-04-01
-**Status:** Draft (v5 — post-review round 4)
+**Status:** Draft (v6 — post-review round 5)
 **PR Dependency:** #541 (deploy sanity check)
 
 ## Problem Statement
@@ -514,6 +514,8 @@ deploy() {
     cancel_cooldown
 
     activate_release
+    migrate_to_blue_green   # no-op if already migrated
+    detect_project_name
     ensure_caddy_bootstrap
     retry pull_image
     render_slot_config "$TARGET_SLOT"
@@ -736,7 +738,11 @@ on:
 
 ### First Deploy After Migration
 
-1. Before deploying the new compose file, run a one-time migration:
+1. The migration runs as part of the **first deploy that includes the new
+   blue-green compose file**. The CI deploy uploads the new compose.yml
+   (with `wave-blue`/`wave-green` services) to `$DEPLOY_ROOT/incoming/`,
+   then `deploy.sh deploy` detects the missing `active-slot` file and
+   runs migration automatically.
 
 ```bash
 migrate_to_blue_green() {
@@ -757,16 +763,16 @@ migrate_to_blue_green() {
     load_deploy_env 2>/dev/null || true
     detect_project_name
 
-    # Detect current running state using pinned compose file and project
-    local compose_file="$deploy_root/releases/current/compose.yml"
-    if [ ! -f "$compose_file" ]; then
-        log "No compose file at releases/current — fresh install, skipping migration"
+    # Find the OLD compose file to detect running state
+    local old_compose="$deploy_root/releases/current/compose.yml"
+    if [ ! -f "$old_compose" ]; then
+        log "No existing compose file — fresh install, skipping migration"
         echo "blue" > "$deploy_root/shared/active-slot"
         return 0
     fi
 
     local current_image
-    current_image=$(docker compose -f "$compose_file" -p "$PROJECT_NAME" \
+    current_image=$(docker compose -f "$old_compose" -p "$PROJECT_NAME" \
         images wave --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -1)
     if [ -z "$current_image" ] || [ "$current_image" = ":" ]; then
         log "No running 'wave' service found — fresh install, skipping container migration"
@@ -774,10 +780,10 @@ migrate_to_blue_green() {
         return 0
     fi
 
-    # Step 1: Stop old container FIRST to release port 9898 and file locks
+    # Step 1: Stop old container using OLD compose (releases port 9898 + file locks)
     log "Stopping old 'wave' container..."
-    docker compose -f "$compose_file" -p "$PROJECT_NAME" stop wave
-    docker compose -f "$compose_file" -p "$PROJECT_NAME" rm -f wave
+    docker compose -f "$old_compose" -p "$PROJECT_NAME" stop wave
+    docker compose -f "$old_compose" -p "$PROJECT_NAME" rm -f wave
 
     # Step 2: Move index/session files safely (old container is stopped)
     local f
@@ -807,9 +813,13 @@ reverse_proxy wave-blue:9898 {
 }
 UPSTREAM
 
-    # Step 5: Start wave-blue on the now-free port 9898
+    # Step 5: Install NEW compose/Caddyfile to releases/current
+    #         (activate_release was already called by deploy() before migration)
+    # The NEW compose file defines wave-blue/wave-green, so we use it from here
+
+    # Step 6: Start wave-blue using NEW compose file (now in releases/current)
     export WAVE_IMAGE_BLUE="$current_image"
-    docker compose -f "$compose_file" -p "$PROJECT_NAME" up -d wave-blue caddy
+    dc up -d wave-blue caddy
 
     log "Migration complete. Active slot: blue (brief downtime during migration is expected)"
 }

@@ -92,21 +92,29 @@ jobs:
         run: |
           cd target/universal/stage
           PORT=9898
-          # Ensure port is free (previous smoke step should have stopped, but guard anyway).
-          # Fail closed: treat tool errors as "port may be in use" and only proceed on a
-          # positive indication that nothing is listening.
+          # Wait until $PORT is demonstrably free (fail closed: tool errors
+          # leave port_free=0 so we keep waiting rather than proceeding blind).
           for attempt in 1 2 3; do
             port_free=0
             if command -v ss >/dev/null 2>&1; then
-              if ! ss -tlnp "sport = :$PORT" 2>/dev/null | grep -q LISTEN; then
-                port_free=1
+              # Capture output and exit code separately; only trust a successful run.
+              if ss_out="$(ss -tlnp "sport = :$PORT" 2>/dev/null)"; then
+                if ! printf '%s\n' "$ss_out" | grep -q LISTEN; then
+                  port_free=1
+                fi
               fi
             elif command -v lsof >/dev/null 2>&1; then
-              if ! lsof -iTCP:$PORT -sTCP:LISTEN -Pn >/dev/null 2>&1; then
+              # lsof exit 0=listener found, 1=no listener, >1=error; only 1 is "free".
+              lsof_exit=0
+              lsof -iTCP:$PORT -sTCP:LISTEN -Pn >/dev/null 2>&1 || lsof_exit=$?
+              if [ "$lsof_exit" -eq 1 ]; then
                 port_free=1
               fi
             else
-              if ! (echo > /dev/tcp/127.0.0.1/$PORT) >/dev/null 2>&1; then
+              # bash /dev/tcp: exit 0=connected (in use), 1=refused (free),
+              # other=unsupported — treated as unknown (fail closed, port_free stays 0).
+              bash -c "exec 6<>/dev/tcp/127.0.0.1/$PORT" >/dev/null 2>&1; tcp_exit=$?
+              if [ "$tcp_exit" -eq 1 ]; then
                 port_free=1
               fi
             fi
@@ -116,7 +124,7 @@ jobs:
             echo "Port $PORT still in use, waiting... (attempt $attempt)"
             sleep 2
           done
-          # Final fail-closed check: abort if port is still bound after retries
+          # Abort if the port is still bound (or tool status was unknown) after retries.
           if [ "$port_free" -ne 1 ]; then
             echo "Port $PORT is still in use after waiting; aborting startup smoke test."
             exit 1

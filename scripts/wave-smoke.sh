@@ -56,42 +56,54 @@ port_in_use() {
   [[ -n "${pids:-}" ]]
 }
 
+# Returns 0 if the process with the given PID was launched from our install
+# directory (i.e. it is the Wave server we own), 1 otherwise.
+is_wave_process() {
+  local pid=$1
+  local cmdline
+  cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
+  [[ "$cmdline" == *"$INSTALL_DIR"* ]] || [[ "$cmdline" == *"/bin/wave"* ]]
+}
+
+# Ensures $PORT is free before launch. Stops any stale Wave server found on the
+# port (up to 3 attempts). Returns 0 when the port is clear; returns 1 if a
+# non-Wave process owns the port or the port remains occupied after retries.
+ensure_port_free() {
+  local attempt pids pid is_wave
+  for attempt in 1 2 3; do
+    if ! port_in_use; then
+      return 0
+    fi
+    pids=$(find_port_pids)
+    is_wave=false
+    for pid in $pids; do
+      if is_wave_process "$pid"; then
+        is_wave=true
+        break
+      fi
+    done
+    if ! $is_wave; then
+      echo "Port $PORT in use by non-Wave process (PIDs: $pids) — aborting" >&2
+      echo "Stop the conflicting process or use a different PORT" >&2
+      return 1
+    fi
+    echo "Port $PORT in use by stale Wave process — stopping (attempt $attempt)" >&2
+    stop || true
+    sleep 1
+  done
+  if port_in_use; then
+    echo "Port $PORT still in use after 3 stop attempts — aborting" >&2
+    return 1
+  fi
+  return 0
+}
+
 start() {
   if [[ ! -x "$INSTALL_DIR/bin/wave" ]]; then
     echo "Install dir not found: $INSTALL_DIR. Run: sbt Universal/stage" >&2
     exit 1
   fi
-  # Ensure port is free before starting (avoids collision with prior runs).
-  # Only auto-stop if the listener looks like a Wave/Java process; otherwise
-  # fail with an error so we don't kill an unrelated service.
-  for attempt in 1 2 3; do
-    if ! port_in_use; then
-      break
-    fi
-    # Check whether the listener is a Java process (likely our Wave server)
-    local pids
-    pids=$(find_port_pids)
-    local is_wave=false
-    for pid in $pids; do
-      if ps -p "$pid" -o comm= 2>/dev/null | grep -qi java; then
-        is_wave=true
-        break
-      fi
-    done
-    if $is_wave; then
-      echo "Port $PORT in use by Java process — stopping stale server (attempt $attempt)" >&2
-      stop
-      sleep 1
-    else
-      echo "Port $PORT in use by non-Wave process (PIDs: $pids) — aborting" >&2
-      echo "Stop the conflicting process or use a different PORT" >&2
-      exit 1
-    fi
-  done
-  if port_in_use; then
-    echo "Port $PORT still in use after 3 stop attempts — aborting" >&2
-    exit 1
-  fi
+  ensure_port_free || exit 1
   (cd "$INSTALL_DIR" && nohup ./bin/wave > wave_server.out 2>&1 & echo $! > wave_server.pid)
   echo "Started. Wrapper PID=$(cat "$PID_FILE" 2>/dev/null || echo unknown)"
   wait_ready

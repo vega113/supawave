@@ -91,18 +91,36 @@ jobs:
         timeout-minutes: 2
         run: |
           cd target/universal/stage
-          # Ensure port 9898 is free (previous smoke step should have stopped, but guard anyway).
-          # Fail closed: if ss is unavailable or errors, assume port may be in use and wait.
+          PORT=9898
+          # Ensure port is free (previous smoke step should have stopped, but guard anyway).
+          # Fail closed: treat tool errors as "port may be in use" and only proceed on a
+          # positive indication that nothing is listening.
           for attempt in 1 2 3; do
+            port_free=0
             if command -v ss >/dev/null 2>&1; then
-              ss -tlnp 'sport = :9898' 2>/dev/null | grep -q LISTEN || break
+              if ! ss -tlnp "sport = :$PORT" 2>/dev/null | grep -q LISTEN; then
+                port_free=1
+              fi
+            elif command -v lsof >/dev/null 2>&1; then
+              if ! lsof -iTCP:$PORT -sTCP:LISTEN -Pn >/dev/null 2>&1; then
+                port_free=1
+              fi
             else
-              # ss unavailable — fall back to curl probe (fail closed)
-              curl -s -o /dev/null --max-time 1 http://localhost:9898/ 2>/dev/null || break
+              if ! (echo > /dev/tcp/127.0.0.1/$PORT) >/dev/null 2>&1; then
+                port_free=1
+              fi
             fi
-            echo "Port 9898 still in use, waiting... (attempt $attempt)"
+            if [ "$port_free" -eq 1 ]; then
+              break
+            fi
+            echo "Port $PORT still in use, waiting... (attempt $attempt)"
             sleep 2
           done
+          # Final fail-closed check: abort if port is still bound after retries
+          if [ "$port_free" -ne 1 ]; then
+            echo "Port $PORT is still in use after waiting; aborting startup smoke test."
+            exit 1
+          fi
           SERVER_LOG=/tmp/wave-startup.log
           CURL_LOG=/tmp/wave-curl-probe.log
           ./bin/wave > "$SERVER_LOG" 2>&1 &
@@ -113,7 +131,7 @@ jobs:
           }
           trap cleanup EXIT
           for i in $(seq 1 30); do
-            STATUS_CODE="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9898/healthz 2>>"$CURL_LOG" || true)"
+            STATUS_CODE="$(curl --connect-timeout 2 --max-time 4 -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/healthz" 2>>"$CURL_LOG" || true)"
             if [ "$STATUS_CODE" = "200" ]; then
               echo "Server started successfully"
               exit 0

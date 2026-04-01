@@ -61,11 +61,36 @@ start() {
     echo "Install dir not found: $INSTALL_DIR. Run: sbt Universal/stage" >&2
     exit 1
   fi
-  # Ensure port is free before starting (avoids collision with prior runs)
+  # Ensure port is free before starting (avoids collision with prior runs).
+  # Only auto-stop if the listener looks like a Wave/Java process; otherwise
+  # fail with an error so we don't kill an unrelated service.
+  for attempt in 1 2 3; do
+    if ! port_in_use; then
+      break
+    fi
+    # Check whether the listener is a Java process (likely our Wave server)
+    local pids
+    pids=$(find_port_pids)
+    local is_wave=false
+    for pid in $pids; do
+      if ps -p "$pid" -o comm= 2>/dev/null | grep -qi java; then
+        is_wave=true
+        break
+      fi
+    done
+    if $is_wave; then
+      echo "Port $PORT in use by Java process — stopping stale server (attempt $attempt)" >&2
+      stop
+      sleep 1
+    else
+      echo "Port $PORT in use by non-Wave process (PIDs: $pids) — aborting" >&2
+      echo "Stop the conflicting process or use a different PORT" >&2
+      exit 1
+    fi
+  done
   if port_in_use; then
-    echo "Port $PORT already in use — stopping stale server first" >&2
-    stop
-    sleep 1
+    echo "Port $PORT still in use after 3 stop attempts — aborting" >&2
+    exit 1
   fi
   (cd "$INSTALL_DIR" && nohup ./bin/wave > wave_server.out 2>&1 & echo $! > wave_server.pid)
   echo "Started. Wrapper PID=$(cat "$PID_FILE" 2>/dev/null || echo unknown)"
@@ -85,11 +110,14 @@ start() {
 
 wait_ready() {
   local curl_log="${INSTALL_DIR}/curl_probe.log"
+  # Truncate log from prior runs so it doesn't grow unbounded
+  : > "$curl_log"
   for i in {1..60}; do
     # Use -s (silent) without -S to suppress expected connection-refused errors
     # during JVM startup. Redirect stderr to a log file so real networking
     # problems (DNS, loopback misconfiguration) remain diagnosable.
-    http_status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" 2>>"$curl_log" || true)
+    # --connect-timeout and --max-time prevent curl from stalling indefinitely.
+    http_status=$(curl --connect-timeout 2 --max-time 5 -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" 2>>"$curl_log" || true)
     if [[ "${http_status:-000}" != "000" ]]; then
       echo "PROBE_HTTP=$http_status"
     fi

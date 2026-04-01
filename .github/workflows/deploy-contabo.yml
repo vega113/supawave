@@ -148,7 +148,7 @@ jobs:
           wave_email_from_q=$(printf '%q' "${WAVE_EMAIL_FROM:-}")
           ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "
             set -euo pipefail
-            incoming='$remote_root/incoming'
+            incoming='$remote_root/incoming/$RELEASE_ID'
             mkdir -p \"\$incoming\"
             tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C \"\$incoming\"
             chmod +x \"\$incoming/deploy.sh\"

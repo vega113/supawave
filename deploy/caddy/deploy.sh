@@ -148,9 +148,10 @@ activate_release() {
     cp -a "$release_dir" "$previous_dir"
   fi
   mkdir -p "$release_dir"
+  # Copy from script_dir (the incoming bundle dir where this script lives)
   for f in compose.yml Caddyfile deploy.sh application.conf; do
-    if [ -f "$deploy_root/incoming/$f" ]; then
-      cp "$deploy_root/incoming/$f" "$release_dir/"
+    if [ -f "$script_dir/$f" ]; then
+      cp "$script_dir/$f" "$release_dir/"
     fi
   done
   [ -f "$release_dir/deploy.sh" ] && chmod +x "$release_dir/deploy.sh"
@@ -182,15 +183,26 @@ migrate_to_blue_green() {
   fi
 
   echo "[deploy] Migrating to blue-green..."
+  # Old compose may require env vars no longer used by the new layout.
+  # Export them so stop/rm succeed against the legacy compose file.
+  export WAVE_IMAGE="${current_image}"
+  export WAVE_INTERNAL_PORT="${WAVE_INTERNAL_PORT:-9898}"
+  export DEPLOY_ROOT="$deploy_root"
   docker compose -f "$old_compose" -p "$PROJECT_NAME" stop wave
   docker compose -f "$old_compose" -p "$PROJECT_NAME" rm -f wave
 
+  # Move existing index and session entries (files and directories) to blue slot.
+  # Skip the blue/green subdirectories themselves (created by ensure_layout).
   local f
   for f in "$deploy_root/shared/indexes"/*; do
-    [ -f "$f" ] && mv "$f" "$deploy_root/shared/indexes/blue/" 2>/dev/null || true
+    local base; base=$(basename "$f")
+    [ "$base" = "blue" ] || [ "$base" = "green" ] && continue
+    [ -e "$f" ] && mv "$f" "$deploy_root/shared/indexes/blue/" 2>/dev/null || true
   done
   for f in "$deploy_root/shared/sessions"/*; do
-    [ -f "$f" ] && mv "$f" "$deploy_root/shared/sessions/blue/" 2>/dev/null || true
+    local base; base=$(basename "$f")
+    [ "$base" = "blue" ] || [ "$base" = "green" ] && continue
+    [ -e "$f" ] && mv "$f" "$deploy_root/shared/sessions/blue/" 2>/dev/null || true
   done
 
   echo "blue" > "$deploy_root/shared/active-slot"
@@ -244,7 +256,8 @@ UPSTREAM
 }
 
 reload_caddy() {
-  dc exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+  # -T disables pseudo-TTY allocation — required when running over non-interactive SSH
+  dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 }
 
 render_slot_config() {
@@ -450,6 +463,8 @@ deploy_release() {
   done
   detect_project_name
   migrate_to_blue_green
+  # Re-determine slot after migration — migration may have initialized active-slot
+  determine_target_slot
   ensure_caddy_bootstrap
   login_registry_if_needed
   pull_image

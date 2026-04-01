@@ -1,85 +1,139 @@
-# Mongo Operational Hardening
+# MongoDB Backup and Restore
 
-Status: Follow-through
-Last updated: 2026-03-20
+Operational scripts for backing up and restoring the Wave MongoDB database
+(`wiab`) on the production host. Scripts run `mongodump`/`mongorestore` inside
+the existing Docker container — no host-side Mongo tools needed.
 
-This directory captures the operational guidance for the Mongo-backed Wave
-stores.
+## Quick Start
 
-Current reality:
-- The codebase already has Mongo-backed store implementations.
-- The deployment stacks already keep Mongo on the private Compose network.
-- The application does not yet have Mongo username/password config wiring.
-- That means the live overlay is not production-safe yet, even though Mongo is
-  now the intended persistence direction.
-
-Do not treat this as a completed production hardening story. Use it as the
-operator baseline for the remaining auth, backup, restore, and durability work.
-
-## 1. Authentication baseline
-
-Minimum production posture:
-- Never publish Mongo on a public port.
-- Put Mongo on a private host or private Compose network only.
-- Use a dedicated MongoDB admin account for bootstrap and a separate Wave
-  application account with the narrowest practical privileges.
-- Store secrets outside the application repo and outside `application.conf`.
-
-At the moment Wave cannot consume Mongo credentials from config, so a fully
-auth-enabled Mongo deployment still needs application work before it can carry
-live traffic.
-
-Recommended target privilege split once app credential support lands:
-- Admin user: create users, rotate credentials, and manage backups.
-- Wave user: `readWrite` on the `wiab` database only.
-- Backup user: read-only access sufficient for `mongodump`.
-
-## 2. Backup and restore
-
-The scripts in this directory are intentionally small wrappers around the
-standard Mongo tools.
-
-Backup:
+### Manual backup
 
 ```bash
-MONGODB_URI='mongodb://user:pass@mongo:27017/wiab?authSource=admin' \
-  ./deploy/mongo/backup.sh /backups/wiab.archive.gz
+# From anywhere on the host:
+/home/ubuntu/supawave/shared/mongo/backup.sh
 ```
 
-Restore:
+The archive is saved to `/home/ubuntu/supawave/shared/mongo/backups/` and the
+path is printed to stdout. Old backups beyond the retention count are
+automatically deleted.
+
+### Manual restore
 
 ```bash
-MONGODB_URI='mongodb://user:pass@mongo:27017/wiab?authSource=admin' \
-  ./deploy/mongo/restore.sh /backups/wiab.archive.gz
+# List available backups:
+/home/ubuntu/supawave/shared/mongo/restore.sh
+
+# Restore a specific backup (will prompt for confirmation):
+cd /home/ubuntu/supawave
+docker compose -p supawave -f current/compose.yml stop wave
+./shared/mongo/restore.sh shared/mongo/backups/wiab-20260401-060000.archive.gz
+docker compose -p supawave -f current/compose.yml start wave
 ```
 
-Operational rules:
-- Keep backups off the Mongo host.
-- Encrypt backups at rest if the storage layer does not already do so.
-- Run a restore drill against a scratch database or throwaway container before
-  you rely on a new backup set.
-- Treat backup success as incomplete until restore has been verified.
+Stop Wave before restoring to prevent writes during the drop-and-replace. The
+`-p supawave -f current/compose.yml` flags match the project name used by
+`deploy.sh`.
 
-## 3. Durability guidance
+To skip the confirmation prompt (for scripted use), pass `--yes`:
 
-For the current production direction, the durable baseline should be:
-- WiredTiger with journaling enabled.
-- Stable persistent storage, not tmpfs or ephemeral container storage.
-- A replica set or managed Mongo service when you need restart tolerance beyond
-  a single node.
-- Majority write concern for the Wave data path once the deployment can express
-  it consistently.
+```bash
+./shared/mongo/restore.sh --yes shared/mongo/backups/wiab-20260401-060000.archive.gz
+```
 
-Single-node Mongo is acceptable for local development and disposable test
-deployments, but it is not a strong production durability story.
+## Automated Backups (Cron)
 
-## 4. Live-overlay gate
+### Setup
 
-The Mongo-backed stores are not yet safe for a live overlay because the repo is
-still missing:
-- application-level Mongo credential wiring
-- a validated backup/restore drill
-- a documented production durability target
+Run the installer (one-time, or re-run to update scripts):
 
-Only after those are in place should the Mongo-backed deployment be treated as
-production-grade.
+```bash
+cd /path/to/repo
+./deploy/mongo/install-cron.sh
+```
+
+This:
+1. Copies `backup.sh` and `restore.sh` to `/home/ubuntu/supawave/shared/mongo/`
+2. Installs a crontab entry to run backups every 6 hours (UTC)
+
+### Schedule
+
+Backups run at 00:00, 06:00, 12:00, and 18:00 UTC. Output is logged to
+`/home/ubuntu/supawave/shared/logs/backup.log`.
+
+Verify the cron job:
+
+```bash
+crontab -l | grep wave-mongo-backup
+```
+
+### Retention
+
+The 10 most recent backups are kept. Older archives are deleted after each
+backup run. At 6-hour intervals, this gives ~60 hours of backup history.
+
+Override with `KEEP_COUNT`:
+
+```bash
+KEEP_COUNT=20 /home/ubuntu/supawave/shared/mongo/backup.sh
+```
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `DEPLOY_ROOT` | `/home/ubuntu/supawave` | Base deploy directory |
+| `BACKUP_DIR` | `$DEPLOY_ROOT/shared/mongo/backups` | Where archives are stored |
+| `MONGO_CONTAINER` | `supawave-mongo-1` | Docker container name |
+| `MONGO_DATABASE` | `wiab` | Database to dump/restore |
+| `KEEP_COUNT` | `10` | Number of backups to retain |
+| `MIN_DISK_MB` | `1024` | Minimum free disk (MB) before aborting |
+
+## Troubleshooting
+
+**"Cannot connect to the Docker daemon"**
+- The user running the script must have Docker access. On production, the
+  `ubuntu` user is in the `docker` group.
+
+**"Error: container not found"**
+- Verify the container is running: `docker ps | grep mongo`
+- Check the container name matches `MONGO_CONTAINER`.
+
+**"disk space insufficient" (exit code 2)**
+- Free up space or lower `MIN_DISK_MB`. Check backup directory for unexpectedly
+  large archives.
+
+**Backup produced empty file**
+- Check that MongoDB is healthy: `docker exec supawave-mongo-1 mongosh --quiet --eval 'db.runCommand({ping:1})'`
+- Check Docker logs: `docker logs supawave-mongo-1 --tail 20`
+
+**Restore fails with "not authorized"**
+- When MongoDB authentication is enabled, the scripts will need to be updated
+  to pass credentials. This is not yet needed (auth is currently disabled).
+
+## Restore Drill
+
+Periodically verify backups by restoring into a scratch container:
+
+```bash
+# Start a throwaway Mongo:
+docker run -d --name mongo-drill mongo:6.0
+
+# Restore:
+# Use the most recent backup (ls -1t sorts by modification time)
+LATEST=$(ls -1t /home/ubuntu/supawave/shared/mongo/backups/wiab-*.archive.gz | head -1)
+MONGO_CONTAINER=mongo-drill \
+  /home/ubuntu/supawave/shared/mongo/restore.sh --yes "$LATEST"
+
+# Verify:
+docker exec mongo-drill mongosh --quiet --eval 'db.getCollectionNames()' wiab
+
+# Cleanup:
+docker rm -f mongo-drill
+```
+
+## Future Enhancements
+
+- **Authentication:** When MongoDB auth is enabled, scripts will need updating
+  to pass credentials to mongodump/mongorestore.
+- **Off-host replication:** rsync or S3-compatible storage for disaster recovery.
+- **Monitoring:** Alert on backup failures (email, Slack, PagerDuty).

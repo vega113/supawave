@@ -24,6 +24,11 @@ deploy_root=${DEPLOY_ROOT:-$(dirname "$(dirname "$script_dir")")}
 canonical_host=${CANONICAL_HOST:-supawave.ai}
 root_host=${ROOT_HOST:-wave.supawave.ai}
 www_host=${WWW_HOST:-www.supawave.ai}
+# Export so docker compose can interpolate ${DEPLOY_ROOT:?}, ${CANONICAL_HOST:?}, etc.
+export DEPLOY_ROOT="$deploy_root"
+export CANONICAL_HOST="$canonical_host"
+export ROOT_HOST="$root_host"
+export WWW_HOST="$www_host"
 smoke_image=${SMOKE_IMAGE:-curlimages/curl:8.10.1}
 sanity_image=${SANITY_IMAGE:-alpine:3.20}
 registry_host=${GHCR_REGISTRY_HOST:-ghcr.io}
@@ -147,14 +152,22 @@ activate_release() {
     rm -rf "$previous_dir"
     cp -a "$release_dir" "$previous_dir"
   fi
-  mkdir -p "$release_dir"
-  # Copy from script_dir (the incoming bundle dir where this script lives)
+  # Validate all required files are present in the incoming bundle before committing.
+  local missing=()
   for f in compose.yml Caddyfile deploy.sh application.conf; do
-    if [ -f "$script_dir/$f" ]; then
-      cp "$script_dir/$f" "$release_dir/"
-    fi
+    [ -f "$script_dir/$f" ] || missing+=("$f")
   done
-  [ -f "$release_dir/deploy.sh" ] && chmod +x "$release_dir/deploy.sh"
+  if [ "${#missing[@]}" -ne 0 ]; then
+    echo "[deploy] ERROR: missing required bundle file(s): ${missing[*]}" >&2
+    exit 1
+  fi
+  # Start from a clean release directory to prevent stale files persisting across releases.
+  rm -rf "$release_dir"
+  mkdir -p "$release_dir"
+  for f in compose.yml Caddyfile deploy.sh application.conf; do
+    cp "$script_dir/$f" "$release_dir/"
+  done
+  chmod +x "$release_dir/deploy.sh"
 }
 
 migrate_to_blue_green() {
@@ -192,11 +205,12 @@ migrate_to_blue_green() {
   echo "[deploy] Migrating to blue-green (brief downtime expected)..."
   echo "[deploy] WARNING: stopping legacy 'wave' container to free port 9898"
   echo "[deploy]   wave-blue will start immediately after on the same port"
-  # Old compose may require env vars no longer used by the new layout.
-  # Export them so stop/rm succeed against the legacy compose file.
+  # Export all vars that the legacy compose file may require (${VAR:?} interpolation).
   export WAVE_IMAGE="${current_image}"
   export WAVE_INTERNAL_PORT="${WAVE_INTERNAL_PORT:-9898}"
-  export DEPLOY_ROOT="$deploy_root"
+  export RESEND_API_KEY="${RESEND_API_KEY:-}"
+  export WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-}"
+  # DEPLOY_ROOT/CANONICAL_HOST/ROOT_HOST/WWW_HOST already exported at script top.
   docker compose -f "$old_compose" -p "$PROJECT_NAME" stop wave
   docker compose -f "$old_compose" -p "$PROJECT_NAME" rm -f wave
 
@@ -205,12 +219,12 @@ migrate_to_blue_green() {
   local f
   for f in "$deploy_root/shared/indexes"/*; do
     local base; base=$(basename "$f")
-    [ "$base" = "blue" ] || [ "$base" = "green" ] && continue
+    if [ "$base" = "blue" ] || [ "$base" = "green" ]; then continue; fi
     [ -e "$f" ] && mv "$f" "$deploy_root/shared/indexes/blue/" 2>/dev/null || true
   done
   for f in "$deploy_root/shared/sessions"/*; do
     local base; base=$(basename "$f")
-    [ "$base" = "blue" ] || [ "$base" = "green" ] && continue
+    if [ "$base" = "blue" ] || [ "$base" = "green" ]; then continue; fi
     [ -e "$f" ] && mv "$f" "$deploy_root/shared/sessions/blue/" 2>/dev/null || true
   done
 
@@ -551,6 +565,7 @@ rollback_release() {
   fi
 
   cancel_cooldown
+  ensure_caddy_bootstrap
   generate_upstream "$prev"
   reload_caddy
 

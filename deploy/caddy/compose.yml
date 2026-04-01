@@ -55,7 +55,7 @@ services:
       - ${DEPLOY_ROOT:?}/releases/blue/application.conf:/opt/wave/config/application.conf:ro
       - ${DEPLOY_ROOT:?}/shared/accounts:/opt/wave/_accounts
       - ${DEPLOY_ROOT:?}/shared/attachments:/opt/wave/_attachments
-      - ${DEPLOY_ROOT:?}/shared/certificates:/opt/wave/_certificates:ro
+      - ${DEPLOY_ROOT:?}/shared/certificates:/opt/wave/_certificates
       - ${DEPLOY_ROOT:?}/shared/deltas:/opt/wave/_deltas
       - ${DEPLOY_ROOT:?}/shared/indexes/blue:/opt/wave/_indexes
       - ${DEPLOY_ROOT:?}/shared/sessions/blue:/opt/wave/_sessions
@@ -81,7 +81,7 @@ services:
       - ${DEPLOY_ROOT:?}/releases/green/application.conf:/opt/wave/config/application.conf:ro
       - ${DEPLOY_ROOT:?}/shared/accounts:/opt/wave/_accounts
       - ${DEPLOY_ROOT:?}/shared/attachments:/opt/wave/_attachments
-      - ${DEPLOY_ROOT:?}/shared/certificates:/opt/wave/_certificates:ro
+      - ${DEPLOY_ROOT:?}/shared/certificates:/opt/wave/_certificates
       - ${DEPLOY_ROOT:?}/shared/deltas:/opt/wave/_deltas
       - ${DEPLOY_ROOT:?}/shared/indexes/green:/opt/wave/_indexes
       - ${DEPLOY_ROOT:?}/shared/sessions/green:/opt/wave/_sessions

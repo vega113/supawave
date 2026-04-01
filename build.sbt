@@ -1176,14 +1176,23 @@ ThisBuild / compileGwt := {
     base / "gen" / "flags"
   ).filter(_.exists)
 
-  val outputTs = if (nocacheJs.exists) nocacheJs.lastModified else 0L
+  // Validate that the GWT output directory is complete, not just that nocache.js exists.
+  // GWT generates permutation .cache.js files alongside nocache.js — if those are missing
+  // the output is incomplete and we must recompile.
+  val webclientDir = base / "war" / "webclient"
+  val hasCompleteOutput = nocacheJs.exists &&
+    (webclientDir ** GlobFilter("*.cache.js")).get.nonEmpty
+
+  val outputTs = if (hasCompleteOutput) nocacheJs.lastModified else 0L
   val gwtExts = Seq("java", "xml", "proto", "css", "html", "properties", "js", "jslib", "png", "gif", "jpg")
   val gwtFilter: FileFilter = gwtExts.map(ext => GlobFilter(s"*.$ext"): FileFilter).reduce(_ || _)
-  val newestInput = gwtInputDirs.flatMap(d =>
+  // Include build config files — dependency or GWT setting changes should trigger recompile
+  val buildConfigFiles = Seq(base / "build.sbt", base / "project" / "plugins.sbt").filter(_.exists)
+  val newestInput = (gwtInputDirs.flatMap(d =>
     (d ** gwtFilter).get
-  ).map(_.lastModified).foldLeft(0L)(math.max(_, _))
+  ) ++ buildConfigFiles).map(_.lastModified).foldLeft(0L)(math.max(_, _))
 
-  val upToDate = nocacheJs.exists && newestInput <= outputTs
+  val upToDate = hasCompleteOutput && newestInput <= outputTs
 
   if (skip) {
     log.info("[compileGwt] Skipped (skipGwt=true)")

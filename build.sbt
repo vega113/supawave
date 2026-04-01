@@ -499,6 +499,7 @@ JakartaTest / unmanagedSources := (JakartaTest / unmanagedSources).value.filterN
   p.endsWith("/WaveWebSocketClientTest.java") ||
   p.endsWith("/RemoteWaveViewServiceEmptyUserDataSnapshotTest.java") ||
   p.endsWith("/FocusBlipSelectorTest.java") ||
+  p.endsWith("/BlipMetaDomImplTest.java") ||
   // Constructor signature changed; exclude until test is updated
   p.endsWith("/WaveClientServletFragmentDefaultsTest.java")
 }

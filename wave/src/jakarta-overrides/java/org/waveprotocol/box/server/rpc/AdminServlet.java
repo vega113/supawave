@@ -20,9 +20,11 @@ package org.waveprotocol.box.server.rpc;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import com.typesafe.config.Config;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import javax.annotation.Nullable;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
@@ -36,7 +38,14 @@ import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.ContactMessageStore;
 import org.waveprotocol.box.server.persistence.ContactMessageStore.ContactMessage;
 import org.waveprotocol.box.server.persistence.ContactMessageStore.ContactReply;
+import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
+import org.waveprotocol.box.server.waveserver.ReindexService;
+import org.waveprotocol.box.server.waveserver.WaveServerException;
+import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
@@ -64,23 +73,51 @@ import java.util.Locale;
 public final class AdminServlet extends HttpServlet {
   private static final Log LOG = Log.get(AdminServlet.class);
 
+  private static final long SERVER_START_TIME =
+      java.lang.management.ManagementFactory.getRuntimeMXBean().getStartTime();
+
+  /** Config keys safe to expose in the admin dashboard. */
+  private static final String[] SAFE_CONFIG_KEYS = {
+      "core.search_type", "core.wave_server_domain", "core.mongodb_driver",
+      "core.lucene9_rebuild_on_startup"
+  };
+
   private final AccountStore accountStore;
   private final SessionManager sessionManager;
   private final ContactMessageStore contactMessageStore;
   private final MailProvider mailProvider;
   private final String domain;
+  private final ReindexService reindexService;
+  private final Config config;
+  private final WaveletProvider waveletProvider;
+  private final FeatureFlagService featureFlagService;
+  private final @Nullable Lucene9WaveIndexerImpl lucene9Indexer;
+  private volatile int cachedWaveCount = -1;
+  private volatile long lastWaveCountTimeMs;
+  private final String publicBaseUrl;
 
   @Inject
   public AdminServlet(AccountStore accountStore,
                       SessionManager sessionManager,
                       ContactMessageStore contactMessageStore,
                       MailProvider mailProvider,
-                      @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain) {
+                      @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
+                      ReindexService reindexService,
+                      Config config,
+                      WaveletProvider waveletProvider,
+                      FeatureFlagService featureFlagService,
+                      @Nullable Lucene9WaveIndexerImpl lucene9Indexer) {
     this.accountStore = accountStore;
     this.sessionManager = sessionManager;
     this.contactMessageStore = contactMessageStore;
     this.mailProvider = mailProvider;
     this.domain = domain;
+    this.reindexService = reindexService;
+    this.config = config;
+    this.waveletProvider = waveletProvider;
+    this.featureFlagService = featureFlagService;
+    this.lucene9Indexer = lucene9Indexer;
+    this.publicBaseUrl = PublicBaseUrlResolver.resolve(config);
   }
 
   @Override
@@ -89,7 +126,11 @@ public final class AdminServlet extends HttpServlet {
     if (caller == null) return; // response already sent
 
     String pathInfo = req.getPathInfo();
-    if (pathInfo != null && pathInfo.startsWith("/api/users")) {
+    if (pathInfo != null && pathInfo.equals("/api/ops/status")) {
+      handleOpsStatus(resp);
+    } else if (pathInfo != null && pathInfo.equals("/api/ops/reindex/status")) {
+      handleReindexStatus(resp);
+    } else if (pathInfo != null && pathInfo.startsWith("/api/users")) {
       handleGetUsers(req, resp, caller);
     } else if (pathInfo != null && pathInfo.startsWith("/api/contacts")) {
       handleGetContacts(req, resp);
@@ -113,7 +154,9 @@ public final class AdminServlet extends HttpServlet {
       return;
     }
 
-    if (pathInfo.startsWith("/api/contacts/") && pathInfo.endsWith("/reply")) {
+    if (pathInfo.equals("/api/ops/reindex")) {
+      handleTriggerReindex(req, resp, caller);
+    } else if (pathInfo.startsWith("/api/contacts/") && pathInfo.endsWith("/reply")) {
       handleContactReply(req, resp, caller, pathInfo);
     } else if (pathInfo.startsWith("/api/contacts/") && pathInfo.endsWith("/status")) {
       handleContactStatusChange(req, resp, pathInfo);
@@ -452,6 +495,165 @@ public final class AdminServlet extends HttpServlet {
   }
 
   // =========================================================================
+  // GET /admin/api/ops/status
+  // =========================================================================
+
+  private void handleOpsStatus(HttpServletResponse resp) throws IOException {
+    setJsonUtf8(resp);
+    PrintWriter w = resp.getWriter();
+    w.append('{');
+
+    // --- searchIndex ---
+    String searchType = config.getString("core.search_type");
+    w.append("\"searchIndex\":{");
+    w.append("\"type\":").append(jsonStr(searchType));
+    boolean lucene9FlagEnabled = featureFlagService.isEnabled("lucene9", null);
+    w.append(",\"lucene9FlagEnabled\":").append(String.valueOf(lucene9FlagEnabled));
+    // Use lastRebuildWaveCount for accurate persistent store count (set during full rebuild)
+    if (lucene9Indexer != null && lucene9Indexer.getLastRebuildWaveCount() >= 0) {
+      w.append(",\"wavesInStorage\":").append(String.valueOf(lucene9Indexer.getLastRebuildWaveCount()));
+    } else {
+      // Fallback: count from WaveMap cache (may under-count if waves are evicted)
+      w.append(",\"wavesInStorage\":").append(String.valueOf(countWavesInStorage()));
+    }
+    if (lucene9Indexer != null) {
+      w.append(",\"docsInIndex\":").append(String.valueOf(lucene9Indexer.getIndexedDocCount()));
+      int lastCount = lucene9Indexer.getLastRebuildWaveCount();
+      if (lastCount >= 0) {
+        w.append(",\"lastRebuildWaveCount\":").append(String.valueOf(lastCount));
+      }
+    }
+    w.append('}');
+
+    // --- serverInfo ---
+    Runtime rt = Runtime.getRuntime();
+    long uptimeMs = System.currentTimeMillis() - SERVER_START_TIME;
+    w.append(",\"serverInfo\":{");
+    w.append("\"uptimeMs\":").append(String.valueOf(uptimeMs));
+    w.append(",\"heapUsedBytes\":").append(String.valueOf(rt.totalMemory() - rt.freeMemory()));
+    w.append(",\"heapMaxBytes\":").append(String.valueOf(rt.maxMemory()));
+    w.append(",\"javaVersion\":").append(jsonStr(System.getProperty("java.version")));
+    w.append('}');
+
+    // --- config (safe subset) ---
+    w.append(",\"config\":{");
+    boolean first = true;
+    for (String key : SAFE_CONFIG_KEYS) {
+      if (config.hasPath(key)) {
+        if (!first) w.append(',');
+        first = false;
+        Object value = config.getAnyRef(key);
+        w.append(jsonStr(key)).append(':');
+        if (value == null) {
+          w.append("null");
+        } else if (value instanceof Number || value instanceof Boolean) {
+          w.append(String.valueOf(value));
+        } else {
+          w.append(jsonStr(String.valueOf(value)));
+        }
+      }
+    }
+    w.append('}');
+
+    // --- lastReindex ---
+    w.append(",\"lastReindex\":");
+    writeReindexStatusJson(w);
+
+    w.append('}');
+    w.flush();
+  }
+
+  // =========================================================================
+  // POST /admin/api/ops/reindex
+  // =========================================================================
+
+  private void handleTriggerReindex(HttpServletRequest req, HttpServletResponse resp,
+      HumanAccountData caller) throws IOException {
+    if (!isTrustedSameOriginRequest(req)) {
+      sendJsonError(resp, HttpServletResponse.SC_FORBIDDEN, "Cross-origin request rejected");
+      return;
+    }
+
+    String searchType = config.getString("core.search_type");
+    if (!"lucene".equals(searchType)) {
+      sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST,
+          "Reindex only available when search_type=lucene (current: " + searchType + ")");
+      return;
+    }
+
+    String adminUser = caller.getId().getAddress();
+    boolean started = reindexService.triggerReindex(adminUser);
+    if (!started) {
+      resp.setStatus(HttpServletResponse.SC_CONFLICT);
+      setJsonUtf8(resp);
+      PrintWriter w = resp.getWriter();
+      w.append("{\"error\":\"Reindex already running\",\"reindex\":");
+      writeReindexStatusJson(w);
+      w.append('}');
+      w.flush();
+      return;
+    }
+
+    LOG.info("Admin " + adminUser + " triggered Lucene reindex");
+    resp.setStatus(HttpServletResponse.SC_ACCEPTED);
+    setJsonUtf8(resp);
+    PrintWriter w = resp.getWriter();
+    w.append("{\"ok\":true,\"reindex\":");
+    writeReindexStatusJson(w);
+    w.append('}');
+    w.flush();
+  }
+
+  // =========================================================================
+  // GET /admin/api/ops/reindex/status
+  // =========================================================================
+
+  private void handleReindexStatus(HttpServletResponse resp) throws IOException {
+    setJsonUtf8(resp);
+    PrintWriter w = resp.getWriter();
+    writeReindexStatusJson(w);
+    w.flush();
+  }
+
+  private void writeReindexStatusJson(PrintWriter w) {
+    ReindexService.State st = reindexService.getState();
+    w.append("{\"state\":").append(jsonStr(st.name()));
+    if (reindexService.getStartTimeMs() > 0) {
+      w.append(",\"startTimeMs\":").append(String.valueOf(reindexService.getStartTimeMs()));
+    }
+    if (reindexService.getEndTimeMs() > 0 && st != ReindexService.State.RUNNING) {
+      w.append(",\"endTimeMs\":").append(String.valueOf(reindexService.getEndTimeMs()));
+    }
+    if (st == ReindexService.State.COMPLETED || st == ReindexService.State.RUNNING) {
+      w.append(",\"waveCount\":").append(String.valueOf(reindexService.getWaveCount()));
+    }
+    if (st == ReindexService.State.FAILED && reindexService.getErrorMessage() != null) {
+      w.append(",\"error\":").append(jsonStr(reindexService.getErrorMessage()));
+    }
+    String triggeredBy = reindexService.getTriggeredBy();
+    if (triggeredBy != null) {
+      w.append(",\"triggeredBy\":").append(jsonStr(triggeredBy));
+    }
+    w.append('}');
+  }
+
+  private int countWavesInStorage() {
+    try {
+      org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> iter =
+          waveletProvider.getWaveIds();
+      int count = 0;
+      while (iter.hasNext()) {
+        iter.next();
+        count++;
+      }
+      return count;
+    } catch (WaveServerException e) {
+      LOG.severe("Failed to count waves in storage", e);
+      return -1;
+    }
+  }
+
+  // =========================================================================
   // Authorization
   // =========================================================================
 
@@ -647,4 +849,40 @@ public final class AdminServlet extends HttpServlet {
       return defaultVal;
     }
   }
+
+  // =========================================================================
+  // CSRF same-origin validation
+  // =========================================================================
+
+  private boolean isTrustedSameOriginRequest(HttpServletRequest req) {
+    String expectedOrigin = getExpectedOrigin();
+    String origin = req.getHeader("Origin");
+    if (origin != null && !origin.isEmpty()) {
+      return expectedOrigin.equals(origin);
+    }
+    String referer = req.getHeader("Referer");
+    if (referer == null || referer.isEmpty()) {
+      return false;
+    }
+    return referer.startsWith(expectedOrigin + "/");
+  }
+
+  private String getExpectedOrigin() {
+    try {
+      java.net.URI uri = java.net.URI.create(publicBaseUrl);
+      int port = uri.getPort();
+      String scheme = uri.getScheme();
+      StringBuilder origin = new StringBuilder();
+      origin.append(scheme).append("://").append(uri.getHost());
+      if (port > 0
+          && !(port == 80 && "http".equals(scheme))
+          && !(port == 443 && "https".equals(scheme))) {
+        origin.append(':').append(port);
+      }
+      return origin.toString();
+    } catch (Exception e) {
+      return publicBaseUrl;
+    }
+  }
+
 }

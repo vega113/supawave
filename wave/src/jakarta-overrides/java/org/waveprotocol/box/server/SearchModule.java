@@ -36,6 +36,7 @@ import org.waveprotocol.box.server.waveserver.SolrWaveIndexerImpl;
 import org.waveprotocol.box.server.waveserver.WaveIndexer;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9SearchProviderImpl;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
+import org.waveprotocol.box.server.waveserver.ReindexService;
 import org.waveprotocol.box.server.waveserver.lucene9.NoOpWaveEmbeddingProvider;
 import org.waveprotocol.box.server.waveserver.lucene9.WaveEmbeddingProvider;
 
@@ -50,6 +51,8 @@ public class SearchModule extends AbstractModule {
 
   @Override
   public void configure() {
+    // ReindexService is available in all modes; it gracefully handles null indexer
+    bind(ReindexService.class).in(Singleton.class);
     // WaveEmbeddingProvider is needed by WaveDocumentBuilder → Lucene9WaveIndexerImpl chain;
     // bind in all modes so Guice can resolve the dependency graph even in non-lucene paths.
     bind(WaveEmbeddingProvider.class).to(NoOpWaveEmbeddingProvider.class).in(Singleton.class);
@@ -81,6 +84,8 @@ public class SearchModule extends AbstractModule {
       bind(PerUserWaveViewHandler.class).to(MemoryPerUserWaveViewHandlerImpl.class)
           .in(Singleton.class);
       bind(WaveIndexer.class).to(SolrWaveIndexerImpl.class).in(Singleton.class);
+      // Explicit null provider so @Nullable injection works without JIT binding attempts
+      bind(Lucene9WaveIndexerImpl.class).toProvider(() -> null).in(Singleton.class);
       return;
     }
     if ("memory".equals(searchType)) {
@@ -92,6 +97,8 @@ public class SearchModule extends AbstractModule {
       bind(PerUserWaveViewHandler.class).to(MemoryPerUserWaveViewHandlerImpl.class)
           .in(Singleton.class);
       bind(WaveIndexer.class).to(MemoryWaveIndexerImpl.class).in(Singleton.class);
+      // Explicit null provider so @Nullable injection works without JIT binding attempts
+      bind(Lucene9WaveIndexerImpl.class).toProvider(() -> null).in(Singleton.class);
       return;
     }
     throw new IndexException("Unknown search type: " + searchType);

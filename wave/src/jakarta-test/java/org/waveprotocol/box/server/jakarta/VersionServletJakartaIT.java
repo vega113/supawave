@@ -70,7 +70,7 @@ public final class VersionServletJakartaIT {
                             + "\"version\":\"2026-03-27.383\",\"date\":\"2026-03-27\","
                             + "\"title\":\"Changelog System\","
                             + "\"summary\":\"You can now see what's new after each deploy.\","
-                            + "\"sections\":[{\"type\":\"feature\",\"items\":[\"New /changelog page\"]}]}]"))),
+                            + "\"sections\":[{\"type\":\"feature\",\"items\":[\"New /changelog page\"]}]}]")))),
         "/version");
     server.setHandler(context);
     server.start();

@@ -149,7 +149,18 @@ jobs:
             mkdir -p '$release_dir'
             tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C '$release_dir'
             chmod +x '$release_dir/deploy.sh'
-            DEPLOY_ROOT='$remote_root' WAVE_IMAGE='$IMAGE_REF' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' RESEND_API_KEY=$resend_api_key_q WAVE_EMAIL_FROM=$wave_email_from_q SANITY_ADDRESS=$sanity_address_q SANITY_PASSWORD=$sanity_password_q bash '$release_dir/deploy.sh' deploy
+            # Export secrets as environment variables (not argv) to avoid /proc/*/cmdline exposure
+            # The deploy script reads these via load_deploy_env() from shared/deploy.env or from the environment
+            export DEPLOY_ROOT='$remote_root'
+            export WAVE_IMAGE='$IMAGE_REF'
+            export CANONICAL_HOST='$CANONICAL_HOST'
+            export ROOT_HOST='$ROOT_HOST'
+            export WWW_HOST='$WWW_HOST'
+            export RESEND_API_KEY=$resend_api_key_q
+            export WAVE_EMAIL_FROM=$wave_email_from_q
+            export SANITY_ADDRESS=$sanity_address_q
+            export SANITY_PASSWORD=$sanity_password_q
+            bash '$release_dir/deploy.sh' deploy
           "
 
       - name: Close deploy-failure issues on success

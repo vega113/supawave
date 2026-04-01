@@ -19,6 +19,10 @@ Automation for applying the production resource tuning from `deploy/production/`
 
 Backups and snapshots are stored under `/var/backups/wave-supawave` (override with `BACKUP_DIR`).
 
+## CI Integration
+
+The GitHub Actions workflow `.github/workflows/deploy-contabo.yml` now uploads this directory with each deploy and runs `provision.sh` on the host (guarded to the `deploy` action). Manual runs remain supported for iterative validation or rollback.
+
 ## Quick Start
 
 ```bash

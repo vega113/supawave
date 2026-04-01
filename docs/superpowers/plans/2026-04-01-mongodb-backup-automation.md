@@ -64,7 +64,7 @@ check_disk_space() {
 
 rotate_backups() {
   local backups
-  backups=$(ls -1 "$BACKUP_DIR"/wiab-*.archive.gz 2>/dev/null | sort)
+  backups=$(ls -1 "$BACKUP_DIR"/${MONGO_DATABASE}-*.archive.gz 2>/dev/null | sort)
   local count
   count=$(echo "$backups" | grep -c . || true)
   if [[ $count -gt $KEEP_COUNT ]]; then
@@ -82,7 +82,7 @@ main() {
 
   local timestamp
   timestamp=$(date -u +%Y%m%d-%H%M%S)
-  local archive_name="wiab-${timestamp}.archive.gz"
+  local archive_name="${MONGO_DATABASE}-${timestamp}.archive.gz"
   local archive_path="${BACKUP_DIR}/${archive_name}"
   local tmp_path="${archive_path}.tmp"
 
@@ -159,8 +159,8 @@ log() {
 
 list_backups() {
   log "available backups in ${BACKUP_DIR}:"
-  if ls -1 "$BACKUP_DIR"/wiab-*.archive.gz >/dev/null 2>&1; then
-    ls -1t "$BACKUP_DIR"/wiab-*.archive.gz | while read -r f; do
+  if ls -1 "$BACKUP_DIR"/${MONGO_DATABASE}-*.archive.gz >/dev/null 2>&1; then
+    ls -1t "$BACKUP_DIR"/${MONGO_DATABASE}-*.archive.gz | while read -r f; do
       printf '  %s  (%s)\n' "$(basename "$f")" "$(du -h "$f" | cut -f1)" >&2
     done
   else
@@ -479,7 +479,7 @@ Periodically verify backups by restoring into a scratch container:
 
 ```bash
 # Start a throwaway Mongo:
-docker run -d --name mongo-drill -p 27777:27017 mongo:6.0
+docker run -d --name mongo-drill mongo:6.0
 
 # Restore:
 # Use the most recent backup (ls -1t sorts by modification time)
@@ -533,6 +533,7 @@ The key changes:
 Update the checklist items in section 4 to match:
 - Replace `[ ] Ops: set up daily backup cron (step 2a)` with `[ ] Ops: run install-cron.sh on host (step 2a)`
 - Replace `[ ] Ops: set up retention pruning (step 2b)` with `[ ] Ops: verify retention (automatic, KEEP_COUNT=10)`
+- Replace `[ ] Ops: set up off-host backup copy (step 2c)` with `[ ] Ops: set up off-host backup copy — future work, not in scope`
 - Replace `[ ] Ops: run first restore drill (step 2e)` with `[ ] Ops: run restore drill against scratch container (step 2c)`
 
 Also update the "Current state" table at the top:
@@ -587,7 +588,7 @@ Expected: lists the backup we just created
 - [ ] **Step 4: Test restore into scratch container**
 
 ```bash
-ssh supawave 'docker run -d --name mongo-drill -p 27777:27017 mongo:6.0 && sleep 3'
+ssh supawave 'docker run -d --name mongo-drill mongo:6.0 && sleep 3'
 ssh supawave 'LATEST=$(ls -1t /home/ubuntu/supawave/shared/mongo/backups/wiab-*.archive.gz | head -1) && MONGO_CONTAINER=mongo-drill /home/ubuntu/supawave/shared/mongo/restore.sh --yes "$LATEST"'
 ssh supawave 'docker exec mongo-drill mongosh --quiet --eval "db.getCollectionNames()" wiab'
 ssh supawave 'docker rm -f mongo-drill'

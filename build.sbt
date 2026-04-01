@@ -1164,8 +1164,48 @@ ThisBuild / compileGwt := {
   val resolved = update.value
   val compileCp = (Compile / dependencyClasspath).value.map(_.data)
 
+  val nocacheJs = base / "war" / "webclient" / "webclient.nocache.js"
+
+  // Check whether any GWT input source is newer than the compiled output.
+  // If the output is up-to-date we can skip the expensive GWT compile step.
+  val gwtInputDirs = Seq(
+    base / "wave" / "src" / "main" / "java",
+    base / "wave" / "src" / "main" / "resources",
+    base / "wave" / "generated" / "src" / "main" / "java",
+    base / "proto_src",
+    base / "gen" / "messages",
+    base / "gen" / "flags"
+  ).filter(_.exists)
+
+  // Validate completeness by cross-checking compilation-mappings.txt (written by GWT
+  // as one of its last steps) against the actual *.cache.js files on disk.  Every
+  // permutation strong-name listed in that file must have a corresponding .cache.js.
+  val webclientDir = base / "war" / "webclient"
+  val mappingsFile = webclientDir / "compilation-mappings.txt"
+  val hasCompleteOutput = nocacheJs.exists && mappingsFile.exists && {
+    val cacheJsPattern = "([0-9A-Fa-f]{32})\\.cache\\.js".r
+    val expectedFiles = IO.readLines(mappingsFile)
+      .map(_.trim).collect { case cacheJsPattern(h) => h + ".cache.js" }
+      .distinct
+    expectedFiles.nonEmpty &&
+      expectedFiles.forall(f => (webclientDir / f).exists)
+  }
+
+  val outputTs = if (hasCompleteOutput) nocacheJs.lastModified else 0L
+  val gwtExts = Seq("java", "xml", "proto", "css", "html", "properties", "js", "jslib", "png", "gif", "jpg")
+  val gwtFilter: FileFilter = gwtExts.map(ext => GlobFilter(s"*.$ext"): FileFilter).reduce(_ || _)
+  // Include build config files — dependency or GWT setting changes should trigger recompile
+  val buildConfigFiles = Seq(base / "build.sbt", base / "project" / "plugins.sbt").filter(_.exists)
+  val newestInput = (gwtInputDirs.flatMap(d =>
+    (d ** gwtFilter).get
+  ) ++ buildConfigFiles).map(_.lastModified).foldLeft(0L)(math.max(_, _))
+
+  val upToDate = hasCompleteOutput && newestInput <= outputTs
+
   if (skip) {
     log.info("[compileGwt] Skipped (skipGwt=true)")
+  } else if (upToDate) {
+    log.info("[compileGwt] Skipped — output is up-to-date (use 'sbt clean run' to force recompile)")
   } else {
     val gradlew = base / "gradlew"
     if (gradlew.exists && gradlew.canExecute) {

@@ -53,9 +53,8 @@ jobs:
           bash -n scripts/deployment/bootstrap-linux-host.sh
           bash -n deploy/caddy/deploy.sh
           bash scripts/ci-validate-deploy-healthcheck.sh
-          WAVE_IMAGE=ghcr.io/example/wave:test \
+          WAVE_IMAGE_BLUE=ghcr.io/example/wave:test \
           DEPLOY_ROOT=/tmp/supawave \
-          WAVE_INTERNAL_PORT=9898 \
           CANONICAL_HOST=wave.example.test \
           ROOT_HOST=example.test \
           WWW_HOST=www.example.test \

@@ -124,6 +124,8 @@ jobs:
           cp deploy/caddy/Caddyfile "$bundle_dir/Caddyfile"
           cp deploy/caddy/application.conf "$bundle_dir/application.conf"
           cp deploy/caddy/deploy.sh "$bundle_dir/deploy.sh"
+          cp -R deploy/supawave-host "$bundle_dir/supawave-host"
+          chmod +x "$bundle_dir/supawave-host/"*.sh
           chmod +x "$bundle_dir/deploy.sh"
           tar -C "$bundle_dir" -czf "$RUNNER_TEMP/supawave-release.tgz" .
 
@@ -163,6 +165,11 @@ jobs:
             mkdir -p \"\$incoming\"
             tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C \"\$incoming\"
             chmod +x \"\$incoming/deploy.sh\"
+            chmod +x \"\$incoming/supawave-host/\"*.sh
+            if [ \"$action\" = \"deploy\" ]; then
+              echo '[deploy] Applying supawave host tuning'
+              sudo -n env BACKUP_DIR='/var/backups/wave-supawave' \"\$incoming/supawave-host/provision.sh\"
+            fi
             DEPLOY_ROOT='$remote_root' \
             WAVE_IMAGE='$IMAGE_REF' \
             CANONICAL_HOST='$CANONICAL_HOST' \

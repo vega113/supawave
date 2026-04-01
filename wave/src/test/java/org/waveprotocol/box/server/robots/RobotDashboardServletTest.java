@@ -116,8 +116,8 @@ public class RobotDashboardServletTest extends TestCase {
 
     assertTrue(outputWriter.toString().contains("Robot Control Center"));
     assertTrue(outputWriter.toString().contains("robot-bot@example.com"));
-    assertTrue(outputWriter.toString().contains("ChatGPT, Claude, or Gemini"));
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_DATA_API_TOKEN"));
+    assertTrue(outputWriter.toString().contains("ChatGPT, Claude"));
+    assertTrue(outputWriter.toString().contains("SUPAWAVE_MANAGEMENT_TOKEN"));
   }
 
   public void testDoGetRendersRotateSecretControlForOwnedRobot() throws Exception {

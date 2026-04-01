@@ -437,6 +437,12 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("  </style>\n");
     html.append("</head>\n");
     html.append("<body>\n");
+    html.append("  <nav style=\"padding:12px 24px;max-width:1180px;margin:0 auto\">");
+    html.append("<a href=\"/\" style=\"display:inline-flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none\">");
+    html.append("<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"15 18 9 12 15 6\"/></svg> Back to SupaWave</a>");
+    html.append(" <span style=\"color:rgba(255,255,255,.3);margin:0 6px\">/</span> ");
+    html.append("<a href=\"/account/robots\" style=\"font-size:12px;color:rgba(255,255,255,.7);text-decoration:none\">Robot Control Center</a>");
+    html.append("</nav>\n");
     html.append("  <header class=\"hero\">\n");
     html.append("    <div class=\"hero-inner\">\n");
     html.append("      <span class=\"eyebrow\">Self-hosted API docs</span>\n");

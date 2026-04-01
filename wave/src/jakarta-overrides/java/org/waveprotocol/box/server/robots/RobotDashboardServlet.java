@@ -563,16 +563,24 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("--ok:#10b981;--err:#ba1a1a;--errbg:#ffdad6;");
     sb.append("--mono:'SF Mono',ui-monospace,Consolas,'Liberation Mono',monospace;");
     sb.append("--sans:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;");
-    sb.append("--shadow:0 8px 30px rgba(0,99,153,.06);--shadow-hover:0 8px 30px rgba(0,99,153,.10)}");
+    sb.append("--shadow:0 8px 30px rgba(0,99,153,.06);--shadow-hover:0 8px 30px rgba(0,99,153,.10);");
+    sb.append("--warm:#c2956b;--warmlt:rgba(194,149,107,.08)}");
     sb.append("*{box-sizing:border-box;margin:0;padding:0}");
     sb.append("body{font-family:var(--sans);background:var(--bg);color:var(--txt);min-height:100vh;font-size:13px;line-height:1.5}");
     sb.append("a{color:var(--p);text-decoration:none}a:hover{text-decoration:underline}");
-    // Header bar — compact, no hero
-    sb.append(".hdr{padding:20px 24px 0;max-width:1140px;margin:0 auto}");
+    // Back link
+    sb.append(".back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--txt3);text-decoration:none;padding:12px 24px;max-width:1140px;margin:0 auto;transition:color .12s}");
+    sb.append(".back-link:hover{color:var(--p);text-decoration:none}");
+    sb.append(".back-link svg{width:16px;height:16px}");
+    // Header bar with wave decoration
+    sb.append(".hdr{padding:0 24px 0;max-width:1140px;margin:0 auto}");
     sb.append(".hdr-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}");
     sb.append(".hdr h1{font-size:20px;font-weight:700;color:var(--txt)}");
     sb.append(".hdr-sub{font-size:12px;color:var(--txt3);margin-top:2px}");
-    sb.append(".hdr-line{height:3px;margin-top:16px;border-radius:2px;background:linear-gradient(90deg,var(--p) 0%,var(--pc) 50%,#90e0ef 100%)}");
+    sb.append(".hdr-line{height:3px;margin-top:16px;border-radius:2px;background:linear-gradient(90deg,var(--p) 0%,var(--pc) 40%,#90e0ef 70%,var(--warm) 100%)}");
+    // Wave decoration
+    sb.append(".wave-deco{width:100%;overflow:hidden;height:40px;margin-bottom:-20px}");
+    sb.append(".wave-deco svg{display:block;width:100%;height:40px}");
     // Primary button (gradient CTA)
     sb.append(".btn-p{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;border:none;color:#fff;background:linear-gradient(135deg,var(--p),var(--pc));transition:box-shadow .15s,transform .1s}");
     sb.append(".btn-p:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px)}");
@@ -590,7 +598,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Layout
     sb.append(".main{max-width:1140px;margin:0 auto;padding:16px 24px 60px}");
     // Card with tonal lift
-    sb.append(".card{background:var(--card);border-radius:4px;box-shadow:var(--shadow)}");
+    sb.append(".card{background:var(--card);border-radius:4px;box-shadow:var(--shadow);border:1px solid var(--sh)}");
     // Tabs — clean underline
     sb.append(".tabs{display:flex;gap:0;padding:0 20px;background:var(--card);border-radius:4px 4px 0 0}");
     sb.append(".tab{padding:12px 20px;font-size:12px;font-weight:600;color:var(--txt3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;user-select:none;letter-spacing:.02em;transition:color .12s}");
@@ -655,7 +663,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append(".doc-link .dl-label{font-size:12px;font-weight:600;color:var(--txt)}");
     // Centered content for onboarding
     sb.append(".centered{max-width:760px;margin:0 auto;padding:24px}");
-    sb.append(".centered .card-section{background:var(--card);border-radius:4px;box-shadow:var(--shadow);padding:24px;margin-bottom:20px}");
+    sb.append(".centered .card-section{background:var(--card);border-radius:4px;box-shadow:var(--shadow);border:1px solid var(--sh);padding:24px;margin-bottom:20px}");
     // Modal overlay
     sb.append(".modal-overlay{display:none;position:fixed;inset:0;background:rgba(23,28,31,.5);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)}");
     sb.append(".modal-overlay.open{display:flex}");
@@ -699,7 +707,10 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append(".tab{padding:10px 14px;white-space:nowrap}.grid2{grid-template-columns:1fr;padding:16px}}");
     sb.append("</style></head><body>");
 
-    // ——— Compact header bar (no hero) ———
+    // ——— Back to Wave link ———
+    sb.append("<a class=\"back-link\" href=\"").append(safeCtx).append("/\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"15 18 9 12 15 6\"/></svg> Back to SupaWave</a>");
+
+    // ——— Header bar with wave flair ———
     sb.append("<div class=\"hdr\">");
     sb.append("<div class=\"hdr-row\">");
     sb.append("<div><h1>Robot Control Center</h1>");
@@ -707,6 +718,11 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<button class=\"btn-p\" onclick=\"openModal()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg> Register New Robot</button>");
     sb.append("</div>");
     sb.append("<div class=\"hdr-line\"></div></div>");
+    // Wave SVG decoration
+    sb.append("<div class=\"wave-deco\"><svg viewBox=\"0 0 1440 40\" preserveAspectRatio=\"none\">");
+    sb.append("<path d=\"M0,20 C180,35 360,5 540,20 C720,35 900,5 1080,20 C1260,35 1440,10 1440,20 L1440,0 L0,0 Z\" fill=\"#90e0ef\" opacity=\".15\"/>");
+    sb.append("<path d=\"M0,18 C200,30 400,8 600,18 C800,28 1000,8 1200,18 C1350,25 1440,12 1440,18 L1440,0 L0,0 Z\" fill=\"var(--pc)\" opacity=\".08\"/>");
+    sb.append("</svg></div>");
 
     // ——— Main content area ———
     sb.append("<div class=\"main\">");
@@ -723,44 +739,68 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</div>");
 
     // ——— Tab 2: API & Tokens ———
-    sb.append("<div class=\"tpanel card\" id=\"tp-api\" style=\"border-radius:0 0 4px 4px\">");
-    sb.append("<div class=\"grid2\">");
-    // Left column: Token Generator
+    sb.append("<div class=\"tpanel card\" id=\"tp-api\" style=\"border-radius:0 0 4px 4px;padding:20px\">");
+
+    // Section 1: Robot API Keys (long-lived)
+    sb.append("<div style=\"margin-bottom:28px\">");
+    sb.append("<div class=\"sec-title\">Robot API Keys</div>");
+    sb.append("<div class=\"sec-desc\">Each robot receives a <strong>consumer secret</strong> at creation time. Robots use this secret via the <code style=\"font-family:var(--mono);font-size:11px;background:var(--sf);padding:1px 5px;border-radius:3px\">client_credentials</code> grant to obtain long-lived API tokens. Since robots are persistent web services, tokens default to <strong>never expire</strong>. You can configure expiry per-robot in the registration modal.</div>");
+    sb.append("<div class=\"refcard\" style=\"margin-top:12px\">");
+    sb.append("<h4>Robot Authentication Flow</h4>");
+    sb.append("<div class=\"hint\" style=\"margin-bottom:8px\">Robots authenticate by exchanging their credentials for a Bearer token:</div>");
+    sb.append("<code style=\"font-family:var(--mono);font-size:11px;color:var(--p);background:var(--bg);padding:8px 10px;border-radius:3px;display:block;line-height:1.8;white-space:pre\">POST /robot/dataapi/token\ngrant_type=client_credentials&amp;client_id=mybot@domain&amp;client_secret=...</code>");
+    sb.append("<div class=\"hint\" style=\"margin-top:8px\">Returns a JWT Bearer token the robot uses for all Data API calls. Token lifetime is controlled by the robot's configured expiry (default: never).</div>");
+    sb.append("</div></div>");
+
+    // Section 2: Registration Management Token (short-lived)
+    sb.append("<div style=\"margin-bottom:28px\">");
+    sb.append("<div class=\"sec-title\">Registration Management Token</div>");
+    sb.append("<div class=\"sec-desc\">Generate a <strong>short-lived token (1 hour)</strong> to manage robots on your behalf. Give this to an LLM (Google AI Studio, ChatGPT, Claude) along with the AI prompt so it can automatically register, configure, and deploy robots for you via the Registration API.</div>");
+    sb.append("<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px\">");
     sb.append("<div>");
-    sb.append("<div class=\"sec-title\">Generate Data API Token</div>");
-    sb.append("<div class=\"sec-desc\">Create a short-lived JWT for authenticating robot API calls. Tokens expire in 1 hour and are not stored.</div>");
-    sb.append("<div style=\"margin-bottom:12px\"><label class=\"fl\" style=\"margin-bottom:6px\">Select Robot</label>");
-    sb.append("<select class=\"fi\" id=\"tok-robot\" style=\"cursor:pointer\"><option value=\"\">Loading\u2026</option></select></div>");
-    sb.append("<div class=\"tok-row\">");
-    sb.append("<button class=\"btn-p\" onclick=\"genVisibleTok()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4\"/></svg> Generate Token</button>");
+    sb.append("<label class=\"fl\" style=\"margin-bottom:6px\">Token Lifetime</label>");
+    sb.append("<select class=\"fi\" id=\"tok-expiry-sel\" style=\"cursor:pointer\">");
+    sb.append("<option value=\"3600\" selected>1 hour (recommended)</option>");
+    sb.append("<option value=\"1800\">30 minutes</option>");
+    sb.append("<option value=\"7200\">2 hours</option>");
+    sb.append("</select></div><div></div></div>");
+    sb.append("<div class=\"tok-row\" style=\"margin-bottom:8px\">");
+    sb.append("<button class=\"btn-p\" onclick=\"genVisibleTok()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4\"/></svg> Generate Management Token</button>");
     sb.append("</div>");
-    sb.append("<div id=\"tok-output\" style=\"display:none;margin-top:14px\">");
-    sb.append("<label class=\"fl\" style=\"margin-bottom:4px\">Generated Token</label>");
+    sb.append("<div id=\"tok-output\" style=\"display:none;margin-top:10px\">");
+    sb.append("<label class=\"fl\" style=\"margin-bottom:4px\">Management Token</label>");
     sb.append("<div class=\"tok-row\">");
     sb.append("<input class=\"tok-input\" id=\"tok\" readonly placeholder=\"Token will appear here\"/>");
     sb.append("<button class=\"btn-icon\" onclick=\"copyField('tok','Token copied')\" title=\"Copy\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>");
     sb.append("</div>");
     sb.append("<div class=\"hint\" style=\"margin-top:6px\" id=\"tok-expiry\"></div>");
     sb.append("</div></div>");
-    // Right column: Quick Reference
-    sb.append("<div>");
-    sb.append("<div class=\"refcard\" style=\"margin-bottom:16px\">");
-    sb.append("<h4>API Endpoints</h4>");
+
+    // Section 3: API Reference
+    sb.append("<div class=\"grid2\" style=\"padding:0\">");
+    sb.append("<div class=\"refcard\">");
+    sb.append("<h4>Registration Management API</h4>");
+    sb.append("<div class=\"hint\" style=\"margin-bottom:8px\">Use the short-lived management token to manage robots on behalf of a user:</div>");
     sb.append("<table class=\"api-tbl\">");
     sb.append("<thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead><tbody>");
     sb.append("<tr><td class=\"method\">GET</td><td class=\"path\">/api/robots</td><td>List your robots</td></tr>");
     sb.append("<tr><td class=\"method\">POST</td><td class=\"path\">/api/robots</td><td>Register new robot</td></tr>");
     sb.append("<tr><td class=\"method\">PUT</td><td class=\"path\">/api/robots/{id}/url</td><td>Update callback URL</td></tr>");
+    sb.append("<tr><td class=\"method\">PUT</td><td class=\"path\">/api/robots/{id}/description</td><td>Update description</td></tr>");
     sb.append("<tr><td class=\"method\">POST</td><td class=\"path\">/api/robots/{id}/rotate</td><td>Rotate secret</td></tr>");
     sb.append("<tr><td class=\"method\">POST</td><td class=\"path\">/api/robots/{id}/verify</td><td>Test connectivity</td></tr>");
+    sb.append("<tr><td class=\"method\">PUT</td><td class=\"path\">/api/robots/{id}/paused</td><td>Pause/unpause</td></tr>");
     sb.append("<tr><td class=\"method\">DELETE</td><td class=\"path\">/api/robots/{id}</td><td>Delete robot</td></tr>");
     sb.append("</tbody></table></div>");
     sb.append("<div class=\"refcard\">");
     sb.append("<h4>Authentication</h4>");
     sb.append("<div class=\"hint\" style=\"margin-bottom:8px\">Include a Bearer token in the Authorization header:</div>");
     sb.append("<code style=\"font-family:var(--mono);font-size:11px;color:var(--p);background:var(--bg);padding:6px 10px;border-radius:3px;display:block\">Authorization: Bearer eyJhbG...</code>");
+    sb.append("<div class=\"hint\" style=\"margin-top:12px\"><strong>Two token types:</strong></div>");
+    sb.append("<div class=\"hint\">1. <strong>Management token</strong> (short-lived) \u2014 for registration API, generated above</div>");
+    sb.append("<div class=\"hint\">2. <strong>Robot API key</strong> (long-lived) \u2014 for Data API, via client_credentials grant</div>");
     sb.append("</div></div>");
-    sb.append("</div></div>"); // end grid2, end tp-api
+    sb.append("</div>"); // end tp-api
 
     // ——— Tab 3: AI Onboarding ———
     sb.append("<div class=\"tpanel\" id=\"tp-onboard\">");
@@ -773,30 +813,35 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("Build a SupaWave Robot\n\n");
     sb.append("Environment variables:\n");
     sb.append("  SUPAWAVE_BASE_URL=").append(HtmlRenderer.escapeHtml(baseUrl)).append("\n");
-    sb.append("  SUPAWAVE_DATA_API_URL=/robot/dataapi/rpc\n");
-    sb.append("  SUPAWAVE_DATA_API_TOKEN=eyJh... (generate on API &amp; Tokens tab)\n");
+    sb.append("  SUPAWAVE_MANAGEMENT_TOKEN=&lt;paste from API &amp; Tokens tab&gt;\n");
     sb.append("  SUPAWAVE_API_DOCS_URL=/api-docs\n");
     sb.append("  SUPAWAVE_LLM_DOCS_URL=/api/llm.txt\n\n");
-    sb.append("The robot communicates via the Data API:\n");
+    sb.append("Step 1 - Register the robot using the Management Token:\n");
+    sb.append("  POST /api/robots  Authorization: Bearer $SUPAWAVE_MANAGEMENT_TOKEN\n");
+    sb.append("  Body: {\"username\":\"mybot-bot\",\"callbackUrl\":\"https://your-server/callback\"}\n");
+    sb.append("  Response includes: id, secret (consumer secret for long-lived auth)\n\n");
+    sb.append("Step 2 - Robot authenticates itself using client_credentials:\n");
+    sb.append("  POST /robot/dataapi/token\n");
+    sb.append("  grant_type=client_credentials&amp;client_id=mybot-bot@domain&amp;client_secret=...\n");
+    sb.append("  Returns a long-lived Bearer token for the Data API.\n\n");
+    sb.append("Step 3 - Robot uses the Data API:\n");
     sb.append("  GET  /api/data/wave/{waveId}        - Read wave content\n");
     sb.append("  POST /api/data/wave/{waveId}/reply   - Post a reply\n");
     sb.append("  GET  /api/data/search?q=...           - Search waves\n\n");
-    sb.append("Instructions:\n");
-    sb.append("  1. Read docs at SUPAWAVE_LLM_DOCS_URL\n");
-    sb.append("  2. Authenticate with Bearer token\n");
-    sb.append("  3. Receive wave events via callback URL\n");
-    sb.append("  4. Process messages and respond via Data API\n");
-    sb.append("  5. Keep tokens short-lived, rotate secrets regularly");
+    sb.append("Key concepts:\n");
+    sb.append("  - Management Token: short-lived (1h), for registration API only\n");
+    sb.append("  - Robot API Key: long-lived (never expires), for Data API\n");
+    sb.append("  - Full docs: read SUPAWAVE_LLM_DOCS_URL before building");
     sb.append("</div></div>");
     // Getting Started
     sb.append("<div class=\"card-section\">");
     sb.append("<div class=\"sec-title\">Getting Started</div>");
     sb.append("<ol class=\"steps\">");
-    sb.append("<li>Register your robot using the \"Register New Robot\" button</li>");
-    sb.append("<li>Generate an API token on the \"API &amp; Tokens\" tab</li>");
-    sb.append("<li>Copy the AI prompt above and paste into your AI assistant</li>");
-    sb.append("<li>Deploy your bot and set the callback URL on the \"My Robots\" tab</li>");
-    sb.append("<li>Test connectivity using the verify button on your robot row</li>");
+    sb.append("<li>Generate a <strong>Management Token</strong> on the \"API &amp; Tokens\" tab (expires in 1 hour)</li>");
+    sb.append("<li>Copy the AI prompt above and paste into your LLM (Google AI Studio, ChatGPT, Claude)</li>");
+    sb.append("<li>The LLM will write code, deploy a web server, and register the robot automatically using the Management Token</li>");
+    sb.append("<li>The robot receives its own <strong>long-lived API key</strong> (consumer secret) at registration</li>");
+    sb.append("<li>Verify connectivity on the \"My Robots\" tab using the test button</li>");
     sb.append("</ol></div>");
     // Documentation links
     sb.append("<div class=\"card-section\">");
@@ -834,9 +879,9 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<input class=\"fi\" id=\"reg-callback\" type=\"url\" placeholder=\"https://example.com/robot\"/>");
     sb.append("<div class=\"hint\">Leave blank to mint credentials first. Add URL after deployment.</div></div>");
     sb.append("<div class=\"fg\">");
-    sb.append("<label class=\"fl\">Token Expiry</label>");
-    sb.append("<div class=\"fi-suffix\"><input class=\"fi\" type=\"number\" id=\"reg-expiry\" value=\"3600\"/><span class=\"suffix\">seconds</span></div>");
-    sb.append("<div class=\"hint\">JWT validity period. Default 3600 = 1 hour.</div></div>");
+    sb.append("<label class=\"fl\">Robot API Key Expiry</label>");
+    sb.append("<div class=\"fi-suffix\"><input class=\"fi\" type=\"number\" id=\"reg-expiry\" value=\"0\"/><span class=\"suffix\">seconds (0 = never)</span></div>");
+    sb.append("<div class=\"hint\">How long robot-issued API keys last. Default 0 = never expire (recommended for persistent services).</div></div>");
     sb.append("</div>"); // end modal-body
     sb.append("<div class=\"modal-foot\">");
     sb.append("<button class=\"btn-o\" onclick=\"closeModal()\">Cancel</button>");
@@ -999,14 +1044,17 @@ public final class RobotDashboardServlet extends HttpServlet {
 
     // Generate visible token
     sb.append("function genVisibleTok(){");
+    sb.append("var exp=document.getElementById('tok-expiry-sel');");
+    sb.append("var secs=exp?exp.value:'3600';");
     sb.append("fetch(CTX+'/robot/dataapi/token',{method:'POST',credentials:'same-origin',");
-    sb.append("headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry=3600'})");
+    sb.append("headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry='+secs})");
     sb.append(".then(function(r){if(!r.ok)throw new Error('Token request failed');return r.json();})");
     sb.append(".then(function(d){if(!d.access_token)throw new Error('No token returned');");
     sb.append("document.getElementById('tok').value=d.access_token;");
     sb.append("document.getElementById('tok-output').style.display='block';");
-    sb.append("document.getElementById('tok-expiry').textContent='Expires in 1 hour. Not stored.';");
-    sb.append("toast('Token generated','info');");
+    sb.append("var mins=Math.round(parseInt(secs)/60);");
+    sb.append("document.getElementById('tok-expiry').textContent='Expires in '+mins+' minutes. Not stored. Give this to your LLM to register robots on your behalf.';");
+    sb.append("toast('Management token generated','info');");
     sb.append("}).catch(function(){toast('Token generation failed','err');});}");
 
     // Init

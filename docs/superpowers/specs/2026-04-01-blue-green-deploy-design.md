@@ -1,20 +1,20 @@
 # Blue-Green Deployment Design
 
 **Date:** 2026-04-01
-**Status:** Draft
+**Status:** Draft (v2 — post-review)
 **PR Dependency:** #541 (deploy sanity check)
 
 ## Problem Statement
 
-The current deployment uses Docker Compose `start-first` rolling updates with Caddy health-aware routing. While this provides near-zero-downtime, it has limitations:
+The current deployment uses Docker Compose with Caddy health-aware routing. Despite `deploy.update_config.order: start-first` being declared in compose.yml, this directive is **Swarm-only** and has no effect in plain `docker compose` mode. The actual behavior is stop-then-start, meaning:
 
-1. **No instant rollback** — rollback requires re-pulling the previous image and restarting, which takes 30-60 seconds.
-2. **No approval gate** — Caddy automatically routes to the new container as soon as it's healthy, before functional sanity checks complete.
-3. **Brief traffic interruption** — during the rolling swap there's a window where the proxy may route to a container that's healthy but not yet fully warmed (e.g., Lucene indexes loading).
+1. **Downtime on every deploy** — the old container stops before the new one is ready.
+2. **No approval gate** — there is no functional sanity check before users hit the new version.
+3. **Slow rollback** — rollback requires re-pulling the previous image and restarting (~30-60s).
 
 ## Solution
 
-True blue-green deployment with dual Wave services, a sanity check gate, and Caddy upstream swapping.
+True blue-green deployment with dual Wave services, per-slot release bundles, a sanity check gate (pre- and post-swap), and Caddy config reload (not container recreation).
 
 ## Architecture
 
@@ -33,7 +33,7 @@ Two Wave services coexist in a single Docker Compose file sharing one MongoDB in
 │                                                  │
 │  ┌──────────┐                                    │
 │  │  caddy    │  reverse_proxy → active slot      │
-│  │  :80/:443 │                                   │
+│  │  :80/:443 │  (file-based upstream config)     │
 │  └──────────┘                                    │
 └─────────────────────────────────────────────────┘
 ```
@@ -42,47 +42,70 @@ Both Wave services bind to the container-internal port `9898` but map to differe
 - `wave-blue`: `127.0.0.1:9898:9898`
 - `wave-green`: `127.0.0.1:9899:9898`
 
-Both share the same MongoDB instance (`mongo:27017`), same volume mounts, and same application.conf. The only difference is the host port binding and the image tag.
+Both share the same MongoDB instance. They use **slot-specific** directories for Lucene indexes and sessions (see Shared State below).
 
-### State Files
+### Per-Slot Release Directories
+
+Each slot gets its own release bundle to ensure config/image consistency during rollback:
 
 ```
-$DEPLOY_ROOT/shared/active-slot      # Contains "blue" or "green"
-$DEPLOY_ROOT/shared/previous-slot    # For rollback reference
-$DEPLOY_ROOT/shared/blue-image       # Image ref running on blue
-$DEPLOY_ROOT/shared/green-image      # Image ref running on green
-$DEPLOY_ROOT/shared/cooldown-pid     # PID of background cleanup process
+$DEPLOY_ROOT/
+  releases/
+    blue/
+      application.conf    # Config rendered for blue's deploy
+      image-ref           # ghcr.io/...@sha256:...
+    green/
+      application.conf    # Config rendered for green's deploy
+      image-ref
+  shared/
+    active-slot           # "blue" or "green"
+    previous-slot         # For rollback reference
+    accounts/             # MongoDB-backed (shared safely)
+    attachments/          # MongoDB-backed (shared safely)
+    certificates/         # Shared (read-only at runtime)
+    deltas/               # MongoDB-backed (shared safely)
+    indexes/
+      blue/               # Slot-specific Lucene directory
+      green/              # Slot-specific Lucene directory
+    sessions/
+      blue/               # Slot-specific Jetty sessions
+      green/              # Slot-specific Jetty sessions
+    logs/                 # Shared (append-only, safe)
+    mongo/db/             # Single MongoDB data dir
+    caddy-config/         # Caddy runtime config
+    caddy-data/           # Caddy ACME certs
+    upstream.caddy        # Generated: active upstream definition
 ```
 
 ### Deployment Flow
 
 ```
-1. CI builds Docker image, pushes to ghcr.io
+1. CI builds Docker image, pushes to ghcr.io with SHA tag
 2. CI SSHs to host, uploads bundle, runs deploy.sh deploy
 3. deploy.sh determines inactive slot:
    - Reads $DEPLOY_ROOT/shared/active-slot
    - If "blue" → target = "green", port = 9899
    - If "green" → target = "blue", port = 9898
    - If file missing → initialize as "blue" active, target "green"
-4. Pull new image for target slot
-5. Set WAVE_IMAGE_{BLUE|GREEN} env var to new image ref
-6. Start target slot: docker compose up -d wave-${target}
-7. Wait for target slot health check (/healthz on target port)
-   - 90 retries × 2s = 3 minutes max
-8. Run sanity check against target slot (login, search, fetch)
-   - Uses target port directly, not through Caddy
-   - This is the PR #541 sanity_check() function
-9. On sanity success:
-   a. Update WAVE_UPSTREAM env var to wave-${target}:9898
-   b. Recreate Caddy to pick up new upstream
-   c. Write "${target}" to active-slot file
-   d. Write previous slot to previous-slot file
-   e. Store new image ref to ${target}-image file
-   f. Kill any existing cooldown process
-   g. Schedule old slot stop after 30 minutes:
-      (sleep 1800 && docker compose stop wave-${old}) &
-      echo $! > cooldown-pid
-10. On sanity failure:
+4. Cancel any existing cooldown timer BEFORE starting target
+5. Pull new image for target slot (with retry)
+6. Render application.conf into target slot's release dir
+7. Store image ref in target slot's release dir
+8. Set WAVE_IMAGE_{BLUE|GREEN} env var to new image ref
+9. Start target slot: docker compose up -d wave-${target}
+10. Wait for target slot health check (/healthz on target port)
+    - 90 retries × 2s = 3 minutes max
+11. Run sanity check against target slot (login, search, fetch)
+    - Uses target port directly, not through Caddy
+    - This is the PR #541 sanity_check() function
+12. On sanity success:
+    a. Generate upstream.caddy pointing to wave-${target}:9898
+    b. Reload Caddy via admin API (no container restart)
+    c. Run post-swap smoke through Caddy (proxy-level verification)
+    d. If post-swap smoke fails: revert upstream.caddy, reload Caddy, stop target, exit 1
+    e. Update active-slot state file
+    f. Schedule old slot stop after 30 minutes (via systemd-run)
+13. On sanity failure:
     a. Stop target slot
     b. Log failure, exit non-zero (triggers CI failure notification)
 ```
@@ -93,122 +116,172 @@ $DEPLOY_ROOT/shared/cooldown-pid     # PID of background cleanup process
 1. deploy.sh rollback
 2. Read previous-slot file → old_slot
 3. Verify wave-${old_slot} container is still running
-   - If not running (cooldown expired): pull old image from ${old_slot}-image, start it, wait for health
-   - If running: skip straight to swap
-4. Update WAVE_UPSTREAM to wave-${old_slot}:9898
-5. Recreate Caddy
-6. Update active-slot file
-7. Kill cooldown PID if exists
-8. Schedule new inactive slot stop after 30 minutes
+   - If not running (cooldown expired):
+     a. Read image ref from releases/${old_slot}/image-ref
+     b. Set WAVE_IMAGE env, start old slot
+     c. Wait for health check
+4. Run sanity check against old slot (verify it's actually healthy)
+5. Generate upstream.caddy pointing to wave-${old_slot}:9898
+6. Reload Caddy via admin API
+7. Run post-swap smoke through Caddy
+8. Update active-slot / previous-slot state files
+9. Cancel active cooldown, schedule new cooldown for current slot
+10. Done (instant if old container is still running)
 ```
 
 ### Status Command
 
 ```
 deploy.sh status
-  - Shows: active slot, inactive slot status, image refs, cooldown remaining
+  - Shows: active slot, inactive slot status, image refs per slot
+  - Shows: Caddy upstream target
+  - Shows: cooldown timer status (systemd timer query)
 ```
 
 ## Compose File Changes
 
-### Current (single service)
-
-```yaml
-wave:
-  image: ${WAVE_IMAGE}
-  ports: ["127.0.0.1:9898:9898"]
-  deploy:
-    update_config:
-      order: start-first
-      failure_action: rollback
-```
-
 ### Proposed (dual services)
 
 ```yaml
-wave-blue:
-  image: ${WAVE_IMAGE_BLUE:-scratch}
-  container_name: wave-blue
-  ports: ["127.0.0.1:9898:9898"]
-  depends_on:
-    mongo: { condition: service_healthy }
-  healthcheck:
-    test: ["CMD", "curl", "-sf", "http://localhost:9898/healthz"]
-    interval: 10s
-    timeout: 5s
-    retries: 30
-    start_period: 300s
-  restart: unless-stopped
-  volumes: &wave-volumes
-    - ${DEPLOY_ROOT}/releases/current/application.conf:/opt/wave/config/application.conf:ro
-    - ${DEPLOY_ROOT}/shared/accounts:/opt/wave/_accounts
-    - ${DEPLOY_ROOT}/shared/attachments:/opt/wave/_attachments
-    - ${DEPLOY_ROOT}/shared/certificates:/opt/wave/_certificates
-    - ${DEPLOY_ROOT}/shared/deltas:/opt/wave/_deltas
-    - ${DEPLOY_ROOT}/shared/indexes:/opt/wave/_indexes
-    - ${DEPLOY_ROOT}/shared/sessions:/opt/wave/_sessions
-    - ${DEPLOY_ROOT}/shared/logs:/opt/wave/logs
-  environment: &wave-env
-    RESEND_API_KEY: ${RESEND_API_KEY:-}
-    WAVE_EMAIL_FROM: ${WAVE_EMAIL_FROM:-}
-    WAVE_MAIL_PROVIDER: ${WAVE_MAIL_PROVIDER:-log}
-    WAVE_SERVER_VERSION: ${RELEASE_ID:-dev}
+x-wave-volumes: &wave-volumes
+  - ${DEPLOY_ROOT}/shared/certificates:/opt/wave/_certificates:ro
+  - ${DEPLOY_ROOT}/shared/logs:/opt/wave/logs
 
-wave-green:
-  image: ${WAVE_IMAGE_GREEN:-scratch}
-  container_name: wave-green
-  ports: ["127.0.0.1:9899:9898"]
-  depends_on:
-    mongo: { condition: service_healthy }
-  healthcheck:
-    test: ["CMD", "curl", "-sf", "http://localhost:9898/healthz"]
-    interval: 10s
-    timeout: 5s
-    retries: 30
-    start_period: 300s
-  restart: unless-stopped
-  volumes: *wave-volumes
-  environment: *wave-env
-  profiles: ["green"]
+x-wave-env: &wave-env
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  WAVE_EMAIL_FROM: ${WAVE_EMAIL_FROM:-}
+  WAVE_MAIL_PROVIDER: ${WAVE_MAIL_PROVIDER:-log}
+  WAVE_SERVER_VERSION: ${RELEASE_ID:-dev}
 
-caddy:
-  depends_on:
-    mongo: { condition: service_healthy }
-  environment:
-    WAVE_UPSTREAM: ${WAVE_UPSTREAM:-wave-blue:9898}
-    CANONICAL_HOST: ${CANONICAL_HOST}
-    ROOT_HOST: ${ROOT_HOST}
-    WWW_HOST: ${WWW_HOST}
-    WAVE_INTERNAL_PORT: "9898"
+services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    ports: ["127.0.0.1:27017:27017"]
+    volumes:
+      - ${DEPLOY_ROOT}/shared/mongo/db:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  wave-blue:
+    image: ${WAVE_IMAGE_BLUE:-scratch}
+    container_name: wave-blue
+    ports: ["127.0.0.1:9898:9898"]
+    depends_on:
+      mongo: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9898/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 300s
+    restart: unless-stopped
+    volumes:
+      - ${DEPLOY_ROOT}/releases/blue/application.conf:/opt/wave/config/application.conf:ro
+      - ${DEPLOY_ROOT}/shared/accounts:/opt/wave/_accounts
+      - ${DEPLOY_ROOT}/shared/attachments:/opt/wave/_attachments
+      - ${DEPLOY_ROOT}/shared/deltas:/opt/wave/_deltas
+      - ${DEPLOY_ROOT}/shared/indexes/blue:/opt/wave/_indexes
+      - ${DEPLOY_ROOT}/shared/sessions/blue:/opt/wave/_sessions
+      - *wave-volumes
+    environment: *wave-env
+
+  wave-green:
+    image: ${WAVE_IMAGE_GREEN:-scratch}
+    container_name: wave-green
+    ports: ["127.0.0.1:9899:9898"]
+    depends_on:
+      mongo: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9898/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 300s
+    restart: unless-stopped
+    volumes:
+      - ${DEPLOY_ROOT}/releases/green/application.conf:/opt/wave/config/application.conf:ro
+      - ${DEPLOY_ROOT}/shared/accounts:/opt/wave/_accounts
+      - ${DEPLOY_ROOT}/shared/attachments:/opt/wave/_attachments
+      - ${DEPLOY_ROOT}/shared/deltas:/opt/wave/_deltas
+      - ${DEPLOY_ROOT}/shared/indexes/green:/opt/wave/_indexes
+      - ${DEPLOY_ROOT}/shared/sessions/green:/opt/wave/_sessions
+      - *wave-volumes
+    environment: *wave-env
+    profiles: ["green"]
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on:
+      mongo: { condition: service_healthy }
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CANONICAL_HOST: ${CANONICAL_HOST}
+      ROOT_HOST: ${ROOT_HOST}
+      WWW_HOST: ${WWW_HOST}
+    volumes:
+      - ${DEPLOY_ROOT}/releases/current/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DEPLOY_ROOT}/shared/upstream.caddy:/etc/caddy/upstream.caddy:ro
+      - ${DEPLOY_ROOT}/shared/caddy-data:/data
+      - ${DEPLOY_ROOT}/shared/caddy-config:/config
 ```
 
-Key changes:
-- Two wave services with YAML anchors (`&wave-volumes`, `&wave-env`) to avoid duplication
-- `wave-green` uses `profiles: ["green"]` so it doesn't start by default on first deploy
+Key changes from current:
+- Two wave services with **slot-specific** index and session volumes
+- Each slot mounts its own `releases/{slot}/application.conf`
+- Caddy imports an `upstream.caddy` file (generated by deploy script)
+- `wave-green` uses `profiles: ["green"]` so it doesn't start by default
 - Both use `scratch` as default image (won't start without explicit image set)
-- Caddy depends on mongo (not wave) since it dynamically discovers the active upstream
-- `WAVE_UPSTREAM` env var controls which slot Caddy proxies to
+- Caddy depends on mongo (not wave) since the active slot varies
 
 ### Caddyfile Changes
-
-The Caddyfile already uses `{$WAVE_INTERNAL_PORT}` — only the service name changes:
 
 ```caddy
 {$CANONICAL_HOST} {
     encode zstd gzip
-    reverse_proxy {$WAVE_UPSTREAM} {
-        health_uri /healthz
-        health_interval 2s
-        health_timeout 3s
-        lb_try_duration 5s
-        lb_try_interval 250ms
-    }
+    import /etc/caddy/upstream.caddy
+}
+
+{$ROOT_HOST} { redir https://{$CANONICAL_HOST}{uri} permanent }
+{$WWW_HOST}  { redir https://{$CANONICAL_HOST}{uri} permanent }
+```
+
+The `upstream.caddy` file is generated by the deploy script:
+
+```caddy
+# Generated by deploy.sh — do not edit
+reverse_proxy wave-blue:9898 {
+    health_uri /healthz
+    health_interval 2s
+    health_timeout 3s
+    lb_try_duration 5s
+    lb_try_interval 250ms
 }
 ```
 
-The `WAVE_UPSTREAM` variable replaces the hardcoded `wave:{$WAVE_INTERNAL_PORT}`.
+The swap writes a new `upstream.caddy` pointing to the target slot, then reloads Caddy via its admin API: `curl -X POST http://localhost:2019/load -H "Content-Type: text/caddyfile" -d @/etc/caddy/Caddyfile`. This avoids container restart and preserves in-flight connections.
 
 ## Deploy Script Changes
+
+### Compose Helper
+
+All docker compose calls go through a helper that pins project name and file:
+
+```bash
+COMPOSE_FILE="$DEPLOY_ROOT/releases/current/compose.yml"
+PROJECT_NAME="wave"
+
+dc() {
+    docker compose -f "$COMPOSE_FILE" -p "$PROJECT_NAME" "$@"
+}
+```
 
 ### New Functions
 
@@ -227,12 +300,18 @@ determine_target_slot() {
     fi
 }
 
+cancel_cooldown() {
+    # Cancel any existing systemd timer
+    systemctl stop "wave-cooldown.timer" 2>/dev/null || true
+    systemctl disable "wave-cooldown.timer" 2>/dev/null || true
+}
+
 start_target_slot() {
     export "WAVE_IMAGE_${TARGET_SLOT^^}=$IMAGE_REF"
     if [ "$TARGET_SLOT" = "green" ]; then
-        docker compose --profile green up -d "wave-${TARGET_SLOT}"
+        dc --profile green up -d "wave-${TARGET_SLOT}"
     else
-        docker compose up -d "wave-${TARGET_SLOT}"
+        dc up -d "wave-${TARGET_SLOT}"
     fi
 }
 
@@ -256,26 +335,60 @@ sanity_check_slot() {
     SANITY_PORT=$port sanity_check
 }
 
-swap_traffic() {
-    export WAVE_UPSTREAM="wave-${TARGET_SLOT}:9898"
-    docker compose up -d --force-recreate caddy
+generate_upstream() {
+    local slot=$1
+    cat > "$DEPLOY_ROOT/shared/upstream.caddy" <<UPSTREAM
+# Generated by deploy.sh — do not edit — active: ${slot}
+reverse_proxy wave-${slot}:9898 {
+    health_uri /healthz
+    health_interval 2s
+    health_timeout 3s
+    lb_try_duration 5s
+    lb_try_interval 250ms
+}
+UPSTREAM
+}
+
+reload_caddy() {
+    # Reload Caddy config without restarting the container
+    dc exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+}
+
+post_swap_smoke() {
+    # Verify through the proxy (TLS, Host header, redirects, websocket upgrade)
+    local canonical="${CANONICAL_HOST}"
+    local retries=10
+    local i=0
+    while [ $i -lt $retries ]; do
+        if curl -sf "https://${canonical}/healthz" > /dev/null 2>&1; then
+            return 0
+        fi
+        sleep 2
+        i=$((i + 1))
+    done
+    return 1
 }
 
 schedule_cooldown() {
     local old_slot=$1
-    # Kill any existing cooldown
-    if [ -f "$DEPLOY_ROOT/shared/cooldown-pid" ]; then
-        kill "$(cat "$DEPLOY_ROOT/shared/cooldown-pid")" 2>/dev/null || true
-    fi
-    # Schedule old slot stop after 30 minutes
-    (sleep 1800 && docker compose stop "wave-${old_slot}" 2>/dev/null) &
-    echo $! > "$DEPLOY_ROOT/shared/cooldown-pid"
+    # Use systemd-run for durable timer (survives SSH disconnect)
+    systemd-run --on-active=30min --unit="wave-cooldown" \
+        docker compose -f "$COMPOSE_FILE" -p "$PROJECT_NAME" stop "wave-${old_slot}"
+}
+
+render_slot_config() {
+    local slot=$1
+    local release_dir="$DEPLOY_ROOT/releases/${slot}"
+    mkdir -p "$release_dir"
+    cp "$DEPLOY_ROOT/incoming/application.conf" "$release_dir/application.conf"
+    # Substitute canonical host
+    perl -pi -e "s/wave\\.example\\.test/${CANONICAL_HOST}/g" "$release_dir/application.conf"
+    echo "$IMAGE_REF" > "$release_dir/image-ref"
 }
 
 update_state() {
     echo "$TARGET_SLOT" > "$DEPLOY_ROOT/shared/active-slot"
     echo "$ACTIVE_SLOT" > "$DEPLOY_ROOT/shared/previous-slot"
-    echo "$IMAGE_REF" > "$DEPLOY_ROOT/shared/${TARGET_SLOT}-image"
 }
 ```
 
@@ -289,21 +402,42 @@ deploy() {
     acquire_lock
     determine_target_slot
     log "Deploying to ${TARGET_SLOT} slot (active: ${ACTIVE_SLOT})"
+
+    # Cancel any existing cooldown BEFORE starting new slot
+    cancel_cooldown
+
     retry pull_image
+    render_slot_config "$TARGET_SLOT"
     start_target_slot
+
     if ! wait_for_slot_health "$TARGET_PORT"; then
         log "ERROR: ${TARGET_SLOT} health check failed"
-        docker compose stop "wave-${TARGET_SLOT}"
+        dc stop "wave-${TARGET_SLOT}"
         release_lock
         exit 1
     fi
+
     if ! sanity_check_slot "$TARGET_PORT"; then
         log "ERROR: ${TARGET_SLOT} sanity check failed"
-        docker compose stop "wave-${TARGET_SLOT}"
+        dc stop "wave-${TARGET_SLOT}"
         release_lock
         exit 1
     fi
-    swap_traffic
+
+    # Swap traffic
+    generate_upstream "$TARGET_SLOT"
+    reload_caddy
+
+    # Post-swap smoke through proxy
+    if ! post_swap_smoke; then
+        log "ERROR: post-swap smoke failed, reverting"
+        generate_upstream "$ACTIVE_SLOT"
+        reload_caddy
+        dc stop "wave-${TARGET_SLOT}"
+        release_lock
+        exit 1
+    fi
+
     update_state
     schedule_cooldown "$ACTIVE_SLOT"
     release_lock
@@ -325,21 +459,49 @@ rollback() {
         release_lock
         exit 1
     fi
+
+    local prev_port
+    prev_port=$([ "$prev" = "blue" ] && echo 9898 || echo 9899)
+
     # Ensure previous slot is running
-    if ! docker compose ps "wave-${prev}" --format json | grep -q '"running"'; then
+    if ! dc ps "wave-${prev}" --format json | grep -q '"running"'; then
         local prev_image
-        prev_image=$(cat "$DEPLOY_ROOT/shared/${prev}-image" 2>/dev/null)
+        prev_image=$(cat "$DEPLOY_ROOT/releases/${prev}/image-ref" 2>/dev/null)
         if [ -z "$prev_image" ]; then
             log "ERROR: No previous image recorded"
             release_lock
             exit 1
         fi
         export "WAVE_IMAGE_${prev^^}=$prev_image"
-        docker compose up -d "wave-${prev}"
-        wait_for_slot_health "$([ "$prev" = "blue" ] && echo 9898 || echo 9899)"
+        if [ "$prev" = "green" ]; then
+            dc --profile green up -d "wave-${prev}"
+        else
+            dc up -d "wave-${prev}"
+        fi
+        if ! wait_for_slot_health "$prev_port"; then
+            log "ERROR: Previous slot health check failed"
+            release_lock
+            exit 1
+        fi
     fi
-    export WAVE_UPSTREAM="wave-${prev}:9898"
-    docker compose up -d --force-recreate caddy
+
+    # Verify old slot is actually healthy before swapping
+    if ! sanity_check_slot "$prev_port"; then
+        log "ERROR: Previous slot sanity check failed — cannot rollback"
+        release_lock
+        exit 1
+    fi
+
+    cancel_cooldown
+    generate_upstream "$prev"
+    reload_caddy
+
+    if ! post_swap_smoke; then
+        log "ERROR: post-rollback proxy smoke failed"
+        release_lock
+        exit 1
+    fi
+
     local current
     current=$(cat "$DEPLOY_ROOT/shared/active-slot")
     echo "$prev" > "$DEPLOY_ROOT/shared/active-slot"
@@ -357,71 +519,148 @@ status() {
     local active
     active=$(cat "$DEPLOY_ROOT/shared/active-slot" 2>/dev/null || echo "unknown")
     echo "Active slot: $active"
-    echo "Blue image:  $(cat "$DEPLOY_ROOT/shared/blue-image" 2>/dev/null || echo 'none')"
-    echo "Green image: $(cat "$DEPLOY_ROOT/shared/green-image" 2>/dev/null || echo 'none')"
+    echo ""
+    echo "Blue:"
+    echo "  Image: $(cat "$DEPLOY_ROOT/releases/blue/image-ref" 2>/dev/null || echo 'none')"
+    echo "Green:"
+    echo "  Image: $(cat "$DEPLOY_ROOT/releases/green/image-ref" 2>/dev/null || echo 'none')"
     echo ""
     echo "Container status:"
-    docker compose ps wave-blue wave-green 2>/dev/null || echo "  (compose not running)"
-    if [ -f "$DEPLOY_ROOT/shared/cooldown-pid" ]; then
-        local pid
-        pid=$(cat "$DEPLOY_ROOT/shared/cooldown-pid")
-        if kill -0 "$pid" 2>/dev/null; then
-            echo "Cooldown timer active (PID $pid)"
-        else
-            echo "Cooldown timer expired"
-        fi
-    fi
-}
-```
-
-## GitHub Actions Changes
-
-### deploy-contabo.yml
-
-Changes required:
-1. Pass `IMAGE_REF` to deploy script (already done via env var)
-2. The deploy script internally handles slot selection
-3. Remove `update_config.order` reliance — blue-green replaces rolling updates
-
-The workflow itself needs minimal changes since the deploy script encapsulates the blue-green logic. The main change is that the script now handles the swap internally rather than relying on Docker Compose rolling update behavior.
-
-## Migration Path
-
-### First Deploy After Migration
-
-1. The current `wave` service is running.
-2. The new compose file replaces `wave` with `wave-blue` + `wave-green`.
-3. `docker compose up -d` will:
-   - Stop old `wave` container (name no longer exists)
-   - Start `wave-blue` with the current image
-4. Initialize `active-slot` to "blue"
-5. Subsequent deploys use the blue-green flow
-
-### Migration Script
-
-```bash
-migrate_to_blue_green() {
-    # Record current image as blue
-    local current_image
-    current_image=$(docker compose images wave --format json 2>/dev/null | jq -r '.[0].Repository + ":" + .[0].Tag')
-    echo "blue" > "$DEPLOY_ROOT/shared/active-slot"
-    echo "$current_image" > "$DEPLOY_ROOT/shared/blue-image"
-    # Stop old wave service
-    docker compose stop wave 2>/dev/null || true
-    docker compose rm -f wave 2>/dev/null || true
-    # Start wave-blue with current image
-    export WAVE_IMAGE_BLUE="$current_image"
-    docker compose up -d wave-blue
+    dc ps wave-blue wave-green 2>/dev/null || echo "  (compose not running)"
+    echo ""
+    echo "Caddy upstream:"
+    head -1 "$DEPLOY_ROOT/shared/upstream.caddy" 2>/dev/null || echo "  (not configured)"
+    echo ""
+    echo "Cooldown timer:"
+    systemctl status wave-cooldown.timer 2>/dev/null || echo "  (none active)"
 }
 ```
 
 ## Shared State Considerations
 
-Both slots share:
-- **MongoDB** — Safe. Wave operations are idempotent via OT versioning. Two instances can read/write concurrently without corruption.
-- **Lucene indexes** — Each Wave instance builds its own in-memory index from MongoDB on startup. The `_indexes` volume is shared but each instance writes to the same directory. **Risk:** concurrent writes during the overlap window.
-  - **Mitigation:** Since the old slot is only serving read traffic (no new writes once Caddy swaps) and stops within 30 minutes, the risk is minimal. Lucene index directory should use slot-specific subdirectories if concurrent indexing becomes an issue.
-- **File stores** (`_accounts`, `_attachments`, `_deltas`, `_sessions`) — Read-mostly during overlap, safe to share.
+### Safe to Share
+
+- **MongoDB** — Production uses MongoDB for accounts, deltas, attachments, contacts. Wave operations are idempotent via OT versioning. Two instances can read/write concurrently without corruption.
+- **Certificates** (`_certificates`) — Read-only at runtime, safe to share.
+- **Logs** — Append-only, safe to share.
+
+### Must Be Slot-Specific
+
+- **Lucene indexes** (`_indexes/{blue,green}`) — `LuceneIndexWriterFactory` acquires an exclusive write lock on the index directory. Two instances competing for the same lock will cause the second to fail after ~60s of retries. Each slot gets its own index directory. Both rebuild from MongoDB on startup independently.
+
+- **Sessions** (`_sessions/{blue,green}`) — Jetty `FileSessionDataStore` is not designed for concurrent JVM access. Additionally, session format/state may differ between versions. Each slot gets its own session directory. Users on the old slot will need to re-authenticate after swap (existing behavior — the JWT restoration filter already handles this gracefully).
+
+### Layout Initialization
+
+The `ensure_layout()` function must create slot-specific subdirectories:
+
+```bash
+ensure_layout() {
+    # ... existing shared dirs ...
+    mkdir -p "$DEPLOY_ROOT/shared/indexes/blue"
+    mkdir -p "$DEPLOY_ROOT/shared/indexes/green"
+    mkdir -p "$DEPLOY_ROOT/shared/sessions/blue"
+    mkdir -p "$DEPLOY_ROOT/shared/sessions/green"
+    mkdir -p "$DEPLOY_ROOT/releases/blue"
+    mkdir -p "$DEPLOY_ROOT/releases/green"
+}
+```
+
+## Caddy Reload Strategy
+
+The spec uses Caddy's built-in reload capability instead of container recreation:
+
+1. **Why not `docker compose up -d --force-recreate caddy`?** — Recreating the Caddy container tears down the listener on `:80/:443`, dropping in-flight HTTP requests and WebSocket connections. This defeats the zero-downtime goal.
+
+2. **How reload works:** `caddy reload --config /path/to/Caddyfile --adapter caddyfile` atomically swaps the running config. Existing connections are drained gracefully. New connections immediately use the new upstream.
+
+3. **Caddy admin API must be enabled.** The default Caddy config enables the admin API on `localhost:2019`. This is already the case in the stock Caddy Docker image.
+
+4. **Import directive:** The Caddyfile uses `import /etc/caddy/upstream.caddy` to pull in the generated upstream block. This file is volume-mounted from `$DEPLOY_ROOT/shared/upstream.caddy`.
+
+## GitHub Actions Changes
+
+### deploy-contabo.yml
+
+Minimal changes needed — the deploy script encapsulates blue-green logic:
+
+1. **Bundle assembly** — already packs compose.yml, Caddyfile, application.conf, deploy.sh. No change needed.
+2. **Remote execution** — already runs `deploy.sh deploy`. No change needed.
+3. **New secrets** — none required beyond existing ones.
+4. **Rollback** — can be triggered manually via `workflow_dispatch` with a `rollback` input parameter.
+
+Optional addition: a `rollback` workflow_dispatch input:
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Deploy action'
+        required: false
+        default: 'deploy'
+        type: choice
+        options: ['deploy', 'rollback', 'status']
+```
+
+## Migration Path
+
+### Prerequisites
+
+1. PR #541 (sanity check) must be merged first.
+2. `systemd-run` must be available on the deploy host (standard on systemd-based Linux).
+
+### First Deploy After Migration
+
+1. Before deploying the new compose file, run a one-time migration:
+
+```bash
+migrate_to_blue_green() {
+    local deploy_root="${DEPLOY_ROOT:?}"
+
+    # Create slot-specific directories
+    mkdir -p "$deploy_root/releases/blue" "$deploy_root/releases/green"
+    mkdir -p "$deploy_root/shared/indexes/blue" "$deploy_root/shared/indexes/green"
+    mkdir -p "$deploy_root/shared/sessions/blue" "$deploy_root/shared/sessions/green"
+
+    # Move existing indexes and sessions to blue slot
+    if [ -d "$deploy_root/shared/indexes" ] && [ ! -d "$deploy_root/shared/indexes/blue/segments" ]; then
+        # Move existing index files (not subdirs) to blue
+        find "$deploy_root/shared/indexes" -maxdepth 1 -type f -exec mv {} "$deploy_root/shared/indexes/blue/" \;
+    fi
+    if [ -d "$deploy_root/shared/sessions" ] && [ ! -d "$deploy_root/shared/sessions/blue" ]; then
+        find "$deploy_root/shared/sessions" -maxdepth 1 -type f -exec mv {} "$deploy_root/shared/sessions/blue/" \;
+    fi
+
+    # Record current state as blue
+    local current_image
+    current_image=$(docker compose images wave --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -1)
+    echo "blue" > "$deploy_root/shared/active-slot"
+    echo "$current_image" > "$deploy_root/releases/blue/image-ref"
+
+    # Copy current config to blue release dir
+    cp "$deploy_root/releases/current/application.conf" "$deploy_root/releases/blue/application.conf"
+
+    # Generate initial upstream.caddy pointing to blue
+    cat > "$deploy_root/shared/upstream.caddy" <<'UPSTREAM'
+reverse_proxy wave-blue:9898 {
+    health_uri /healthz
+    health_interval 2s
+    health_timeout 3s
+    lb_try_duration 5s
+    lb_try_interval 250ms
+}
+UPSTREAM
+
+    # Deploy new compose file (renames wave → wave-blue)
+    export WAVE_IMAGE_BLUE="$current_image"
+    docker compose -f "$deploy_root/releases/current/compose.yml" -p wave up -d wave-blue caddy
+    # Old 'wave' container is now orphaned — remove it
+    docker compose -f "$deploy_root/releases/current/compose.yml" -p wave rm -f wave 2>/dev/null || true
+}
+```
+
+2. The migration is idempotent — running it twice is safe.
+3. After migration, all subsequent deploys use the blue-green flow automatically.
 
 ## Error Scenarios
 
@@ -429,16 +668,35 @@ Both slots share:
 |----------|----------|
 | Health check fails | Target slot stopped, deploy exits non-zero, CI sends failure notification |
 | Sanity check fails | Target slot stopped, deploy exits non-zero, CI sends failure notification |
-| Caddy recreate fails | Target slot still running but not receiving traffic; manual intervention needed |
-| Rollback requested but old slot already stopped | Re-pull old image from recorded ref, start, wait for health, then swap |
+| Post-swap proxy smoke fails | Upstream reverted to old slot, Caddy reloaded, target stopped, exit non-zero |
+| Caddy reload fails | Target slot running but not receiving traffic; manual intervention needed |
+| Rollback requested but old slot stopped | Re-pull from recorded image-ref, start, health+sanity check, then swap |
+| Rollback requested but old slot unhealthy | Sanity check catches this — rollback aborted with error |
 | Both slots fail | Manual intervention; `deploy.sh status` shows state |
 | Deploy during existing deploy | File lock prevents concurrent deploys (30s wait, then fail) |
+| SSH disconnects mid-deploy | Lock auto-releases on process exit; cooldown timer persists via systemd |
+| Cooldown timer after host reboot | systemd transient timer is lost; old slot stays up until next deploy cleans it up (harmless) |
+
+## Health Check Limitations
+
+The current `/healthz` and `/readyz` endpoints are identical — they return `200 ok` as soon as the servlet container starts. They do **not** verify:
+- Lucene index is built and queryable
+- MongoDB connection pool is warmed
+- WebSocket endpoint is ready
+
+The sanity check (PR #541) compensates by testing login, search, and wave fetch — these exercise the full stack including Lucene and MongoDB. The health check serves only as a "process is alive" signal; the sanity check is the true readiness gate.
+
+**Future improvement:** Add a `/readyz` endpoint that checks Lucene index state and MongoDB connectivity. This is out of scope for this design.
 
 ## Testing Plan
 
-1. **Local Docker Compose test** — verify both services start, different ports work
-2. **Staging deploy** — run full cycle on a non-production host
-3. **Rollback test** — deploy, verify, rollback, verify old version serves
-4. **Cooldown test** — verify old slot stops after 30 minutes
-5. **Concurrent write test** — verify MongoDB OT operations work with two instances briefly overlapping
-6. **CI integration test** — verify GitHub Actions workflow triggers deploy correctly
+1. **Local Docker Compose test** — verify both services start on different ports, slot-specific volumes are isolated
+2. **Caddy reload test** — verify `caddy reload` swaps upstream without dropping connections
+3. **Migration test** — run migration script on a copy of production layout, verify blue slot starts correctly
+4. **Full deploy cycle** — deploy to green, sanity check, swap, verify through proxy
+5. **Rollback test** — deploy, swap, rollback, verify old version serves correctly
+6. **Cooldown test** — verify systemd timer stops old slot after 30 minutes
+7. **Post-swap smoke test** — verify proxy-level health, TLS termination, WebSocket upgrade
+8. **Concurrent Lucene test** — verify two slots with separate index dirs don't conflict
+9. **Session isolation test** — verify login on blue doesn't create session files in green's directory
+10. **CI integration test** — verify GitHub Actions workflow triggers deploy and rollback correctly

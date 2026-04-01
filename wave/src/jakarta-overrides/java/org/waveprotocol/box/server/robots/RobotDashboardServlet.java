@@ -1106,6 +1106,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Populate robot select on API tab
     sb.append("function populateRobotSelect(){");
     sb.append("var sel=document.getElementById('tok-robot');");
+    sb.append("if(!sel)return;");
     sb.append("sel.innerHTML='<option value=\"\">-- Select a robot --</option>';");
     sb.append("robotsData.forEach(function(r){sel.innerHTML+='<option value=\"'+escAttr(r.id)+'\">'+esc(r.id)+'</option>';});}");
 

@@ -54,7 +54,8 @@ public final class JwtRequestAuthenticator {
    * @param expectedAudience the expected JWT audience
    * @param requiredScopes scopes that the token must contain (empty = no scope check)
    * @return the authenticated ParticipantId
-   * @throws JwtValidationException if validation fails
+   * @throws JwtValidationException if token validation fails (signature, type, audience, revocation)
+   * @throws JwtInsufficientScopeException if token is valid but missing a required scope
    */
   public ParticipantId authenticate(String authorizationHeader,
                                     JwtTokenType expectedType,

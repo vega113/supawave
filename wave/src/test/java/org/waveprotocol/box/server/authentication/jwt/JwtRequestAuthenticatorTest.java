@@ -18,6 +18,7 @@ package org.waveprotocol.box.server.authentication.jwt;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -177,5 +178,34 @@ public final class JwtRequestAuthenticatorTest {
         JwtAudience.ROBOT);
 
     assertEquals(ROBOT_ID, result);
+  }
+
+  @Test
+  public void testRevokedTokenIsInvalidEvenIfMissingScope() throws Exception {
+    // Issue token with subjectVersion=5 and only one required scope
+    String token = issueBearerToken(ROBOT_ID, JwtTokenType.ROBOT_ACCESS,
+        Set.of("wave:robot:active"), 5);  // only has robot:active, not data:read
+
+    // Account now has tokenVersion=10, so token is revoked
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(
+        new RobotAccountDataImpl(ROBOT_ID, "https://example.com/robot", "secret", null,
+            true, 0L, null, "", 0L, 0L, false, 10L));
+
+    try {
+      // Require both robot:active and data:read
+      authenticator.authenticate(
+          token,
+          JwtTokenType.ROBOT_ACCESS,
+          JwtAudience.ROBOT,
+          Set.of("wave:robot:active", "wave:data:read"));
+      fail("Should reject revoked token");
+    } catch (JwtValidationException e) {
+      // Should be treated as invalid token (revocation check happens first),
+      // not as insufficient scope
+      assertEquals("Token has been revoked (version 5 < required 10)", e.getMessage());
+      // Ensure it's NOT JwtInsufficientScopeException (which would give 403)
+      assertTrue("Should be JwtValidationException, not JwtInsufficientScopeException",
+          !(e instanceof JwtInsufficientScopeException));
+    }
   }
 }

@@ -65,7 +65,8 @@ Replace the current script (which calls `mongodump` directly) with a Docker-awar
 - After dump: validate file exists and size > 0.
 - Rotation: list archives sorted by name (lexicographic = chronological), delete all but
   the newest `$KEEP_COUNT` (default 10).
-- Disk check: before backup, warn and abort if less than 1 GB free on the backup partition.
+- Disk check: before backup, warn and abort if less than `$MIN_DISK_MB` free on the
+  backup partition (default: 1024 MB).
 - Exit codes: 0 success, 1 backup failed, 2 disk space insufficient.
 - Stdout: prints the archive path on success.
 - Stderr: logs timestamped messages for cron visibility.
@@ -76,6 +77,7 @@ Replace the current script (which calls `mongodump` directly) with a Docker-awar
 - `MONGO_CONTAINER` — container name (default: `supawave-mongo-1`)
 - `MONGO_DATABASE` — database to dump (default: `wiab`)
 - `KEEP_COUNT` — number of backups to retain (default: `10`)
+- `MIN_DISK_MB` — minimum free disk space in MB before aborting (default: `1024`)
 
 #### 2. `deploy/mongo/restore.sh` — Rewrite
 
@@ -101,14 +103,16 @@ One-time setup script that installs the cron job on the host.
 
 **Behavior:**
 - Checks current crontab for existing Wave backup entry.
-- If missing, appends:
-  `CRON_TZ=UTC 0 */6 * * * /home/ubuntu/supawave/shared/mongo/backup.sh >> /home/ubuntu/supawave/shared/logs/backup.log 2>&1`
+- If missing, appends two lines to the user's crontab:
+  ```
+  CRON_TZ=UTC
+  0 */6 * * * /home/ubuntu/supawave/shared/mongo/backup.sh >> /home/ubuntu/supawave/shared/logs/backup.log 2>&1
+  ```
+  (`CRON_TZ` must be on its own line — it is a crontab environment variable, not inline.)
 - If present, prints current entry and exits.
-- Verifies `backup.sh` is executable.
-- Creates log directory if needed.
-
-Note: The cron entry uses `CRON_TZ=UTC` to ensure consistent 6-hour intervals regardless
-of host timezone configuration.
+- Copies `backup.sh`, `restore.sh` into `$DEPLOY_ROOT/shared/mongo/` if not already
+  present, and ensures they are executable.
+- Creates backup and log directories if needed.
 
 #### 4. `deploy/mongo/README.md` — Update
 
@@ -164,15 +168,24 @@ This gives ~60 hours of backup history at the 6-hour interval with 10 retained.
 
 ### Restore procedure
 
-1. Stop the Wave application:
-   `docker compose -p supawave stop wave` (Mongo stays running).
-2. Run restore:
-   `./shared/mongo/restore.sh /path/to/archive.gz`
-3. Start Wave:
-   `docker compose -p supawave start wave`
+All commands run from `$DEPLOY_ROOT` (`/home/ubuntu/supawave`):
+
+```bash
+cd /home/ubuntu/supawave
+
+# 1. Stop Wave (Mongo stays running)
+docker compose -p supawave -f current/compose.yml stop wave
+
+# 2. Restore from backup
+./shared/mongo/restore.sh shared/mongo/backups/wiab-YYYYMMDD-HHMMSS.archive.gz
+
+# 3. Start Wave
+docker compose -p supawave -f current/compose.yml start wave
+```
 
 Stopping Wave first prevents it from writing while the restore drops and replaces data.
-The `-p supawave` flag is required to match the project name used by `deploy.sh`.
+The `-p supawave` and `-f current/compose.yml` flags are required to match the project
+name and compose file used by `deploy.sh`.
 
 ### Security considerations
 
@@ -190,6 +203,6 @@ The `-p supawave` flag is required to match the project name used by `deploy.sh`
 - Restore into a scratch container (`docker run --rm mongo:6.0 ...`) to verify archive
   integrity, rather than testing against production.
 - Run backup 12 times, verify only 10 archives remain (oldest 2 deleted).
-- Simulate low disk space (set threshold high), verify script aborts gracefully.
+- Simulate low disk space (`MIN_DISK_MB=999999`), verify script aborts gracefully.
 - Kill backup mid-stream, verify no partial archive is left behind.
 - Install cron, wait 6 hours, verify automatic backup appears.

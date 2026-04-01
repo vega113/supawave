@@ -189,7 +189,9 @@ migrate_to_blue_green() {
     return 0
   fi
 
-  echo "[deploy] Migrating to blue-green..."
+  echo "[deploy] Migrating to blue-green (brief downtime expected)..."
+  echo "[deploy] WARNING: stopping legacy 'wave' container to free port 9898"
+  echo "[deploy]   wave-blue will start immediately after on the same port"
   # Old compose may require env vars no longer used by the new layout.
   # Export them so stop/rm succeed against the legacy compose file.
   export WAVE_IMAGE="${current_image}"

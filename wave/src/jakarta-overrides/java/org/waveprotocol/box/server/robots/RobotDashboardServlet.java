@@ -619,10 +619,21 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append(".chip::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}");
     sb.append(".chip.active{background:rgba(16,185,129,.12);color:#065f46}");
     sb.append(".chip.paused{background:rgba(112,120,129,.12);color:var(--txt3)}");
-    // Robot name cell
+    // Robot card rows
+    sb.append(".ri{border-bottom:1px solid var(--sh)}.ri:last-child{border-bottom:none}");
+    sb.append(".rh{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;user-select:none;transition:background .1s}");
+    sb.append(".rh:hover{background:var(--sf)}");
+    sb.append(".rm{flex:1;min-width:0}");
     sb.append(".rname{font-weight:600;font-size:13px;color:var(--txt)}");
     sb.append(".raddr{font-family:var(--mono);font-size:10px;color:var(--txt3);margin-top:1px}");
-    // Actions cell
+    sb.append(".rmeta{font-size:12px;color:var(--txt3);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}");
+    sb.append(".chev{color:var(--txt3);flex-shrink:0;transition:transform .2s}");
+    // Expanded body
+    sb.append(".rb{display:grid;grid-template-columns:1fr 180px;gap:20px;padding:0 16px 16px;border-top:1px solid var(--sh)}");
+    sb.append("@media(max-width:700px){.rb{grid-template-columns:1fr}}");
+    sb.append(".rb-fields{display:flex;flex-direction:column;gap:10px}");
+    sb.append(".rb-actions{display:flex;flex-direction:column;gap:8px;padding-top:4px}");
+    // Actions cell (kept for compat)
     sb.append(".acts{display:flex;gap:2px;align-items:center}");
     // Inline edit input
     sb.append(".ied{font-family:var(--mono);font-size:11px;padding:4px 6px;border:1px solid rgba(191,199,209,.4);border-radius:3px;background:var(--card);color:var(--txt2);width:100%;max-width:220px;transition:border-color .15s}");
@@ -811,37 +822,72 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<div class=\"codeblock\" id=\"ai-prompt\">");
     sb.append("<button class=\"cb-btn\" onclick=\"copyPrompt()\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg> Copy</button>");
     sb.append("Build a SupaWave Robot\n\n");
-    sb.append("Environment variables:\n");
-    sb.append("  SUPAWAVE_BASE_URL=").append(HtmlRenderer.escapeHtml(baseUrl)).append("\n");
-    sb.append("  SUPAWAVE_MANAGEMENT_TOKEN=&lt;paste from API &amp; Tokens tab&gt;\n");
-    sb.append("  SUPAWAVE_API_DOCS_URL=/api-docs\n");
-    sb.append("  SUPAWAVE_LLM_DOCS_URL=/api/llm.txt\n\n");
-    sb.append("Step 1 - Register the robot using the Management Token:\n");
-    sb.append("  POST /api/robots  Authorization: Bearer $SUPAWAVE_MANAGEMENT_TOKEN\n");
-    sb.append("  Body: {\"username\":\"mybot-bot\",\"callbackUrl\":\"https://your-server/callback\"}\n");
-    sb.append("  Response includes: id, secret (consumer secret for long-lived auth)\n\n");
-    sb.append("Step 2 - Robot authenticates itself using client_credentials:\n");
-    sb.append("  POST /robot/dataapi/token\n");
-    sb.append("  grant_type=client_credentials&amp;client_id=mybot-bot@domain&amp;client_secret=...\n");
-    sb.append("  Returns a long-lived Bearer token for the Data API.\n\n");
-    sb.append("Step 3 - Robot uses the Data API:\n");
-    sb.append("  GET  /api/data/wave/{waveId}        - Read wave content\n");
-    sb.append("  POST /api/data/wave/{waveId}/reply   - Post a reply\n");
-    sb.append("  GET  /api/data/search?q=...           - Search waves\n\n");
-    sb.append("Key concepts:\n");
-    sb.append("  - Management Token: short-lived (1h), for registration API only\n");
-    sb.append("  - Robot API Key: long-lived (never expires), for Data API\n");
-    sb.append("  - Full docs: read SUPAWAVE_LLM_DOCS_URL before building");
+    sb.append("== What is SupaWave? ==\n");
+    sb.append("SupaWave is a real-time collaboration platform based on Apache Wave.\n");
+    sb.append("Users create \"waves\" (threaded conversations/documents) and collaborate\n");
+    sb.append("in real-time. Robots are automated participants that join waves.\n\n");
+    sb.append("== What can robots do? ==\n");
+    sb.append("- AI assistants that respond to messages in waves\n");
+    sb.append("- Notification bots (post alerts, reminders, summaries)\n");
+    sb.append("- Content moderation (filter, tag, organize)\n");
+    sb.append("- Data integrations (pull from external APIs into waves)\n");
+    sb.append("- Workflow automation (route tasks, track status)\n\n");
+    sb.append("== Two APIs ==\n");
+    sb.append("1. Registration Management API (REST) at /api/robots\n");
+    sb.append("   - Register, configure, pause, delete robots\n");
+    sb.append("   - Uses short-lived Management Token (1h)\n");
+    sb.append("2. Data API (JSON-RPC) at /robot/dataapi/rpc\n");
+    sb.append("   - Robots read/write wave content\n");
+    sb.append("   - Uses long-lived Robot API Key (never expires)\n\n");
+    sb.append("== Environment variables ==\n");
+    sb.append("SUPAWAVE_BASE_URL=").append(HtmlRenderer.escapeHtml(baseUrl)).append("\n");
+    sb.append("SUPAWAVE_MANAGEMENT_TOKEN=&lt;paste from API &amp; Tokens tab&gt;\n");
+    sb.append("SUPAWAVE_LLM_DOCS_URL=").append(HtmlRenderer.escapeHtml(baseUrl)).append("/api/llm.txt\n\n");
+    sb.append("== Step 1: Register robot ==\n");
+    sb.append("POST $SUPAWAVE_BASE_URL/api/robots\n");
+    sb.append("Authorization: Bearer $SUPAWAVE_MANAGEMENT_TOKEN\n");
+    sb.append("Content-Type: application/json\n");
+    sb.append("{\"username\":\"mybot-bot\",\"description\":\"My bot\",\"callbackUrl\":\"https://your-server/callback\"}\n");
+    sb.append("Response: {id, secret, status, callbackUrl}\n");
+    sb.append("IMPORTANT: Include callbackUrl at registration, or set it before Step 2.\n");
+    sb.append("The robot cannot get API tokens without a callback URL configured.\n\n");
+    sb.append("== Step 2: Robot gets its own long-lived token ==\n");
+    sb.append("POST $SUPAWAVE_BASE_URL/robot/dataapi/token\n");
+    sb.append("Content-Type: application/x-www-form-urlencoded\n");
+    sb.append("grant_type=client_credentials&amp;client_id=mybot-bot@domain&amp;client_secret=SECRET_FROM_STEP_1\n");
+    sb.append("Response: {access_token, token_type:\"bearer\", expires_in}\n\n");
+    sb.append("== Step 3: Robot uses the Data API (JSON-RPC) ==\n");
+    sb.append("POST $SUPAWAVE_BASE_URL/robot/dataapi/rpc\n");
+    sb.append("Authorization: Bearer $ROBOT_ACCESS_TOKEN\n");
+    sb.append("Content-Type: application/json\n\n");
+    sb.append("Example - Search for waves:\n");
+    sb.append("{\"id\":\"1\",\"method\":\"robot.search\",\"params\":{\"query\":\"in:inbox\",\"index\":0,\"numResults\":10}}\n\n");
+    sb.append("Example - Create a new wave:\n");
+    sb.append("{\"id\":\"2\",\"method\":\"robot.createWavelet\",\"params\":{\"waveletData\":{}}}\n\n");
+    sb.append("Example - Post a message to a wave:\n");
+    sb.append("{\"id\":\"3\",\"method\":\"wavelet.appendBlip\",\"params\":{\"waveId\":\"...\",\"waveletId\":\"...\",\"blipData\":{\"content\":\"Hello from robot!\"}}}\n\n");
+    sb.append("Example - Fetch wave content:\n");
+    sb.append("{\"id\":\"4\",\"method\":\"robot.fetchWave\",\"params\":{\"waveId\":\"...\",\"waveletId\":\"...\"}}\n\n");
+    sb.append("Key operations: robot.createWavelet, robot.fetchWave, wavelet.appendBlip,\n");
+    sb.append("wavelet.addParticipant, robot.search, blip.createChild, document.modify\n\n");
+    sb.append("== Best practices ==\n");
+    sb.append("- Read full docs at $SUPAWAVE_LLM_DOCS_URL before building\n");
+    sb.append("- Robot tokens default to never expire (persistent web services)\n");
+    sb.append("- Management tokens expire in 1 hour (registration only)\n");
+    sb.append("- Always set callback URL before requesting robot tokens\n");
+    sb.append("- Rotate consumer secrets periodically\n");
+    sb.append("- Data API supports batch requests (send array of operations)\n");
+    sb.append("- Responses are always arrays, in request order");
     sb.append("</div></div>");
     // Getting Started
     sb.append("<div class=\"card-section\">");
     sb.append("<div class=\"sec-title\">Getting Started</div>");
     sb.append("<ol class=\"steps\">");
     sb.append("<li>Generate a <strong>Management Token</strong> on the \"API &amp; Tokens\" tab (expires in 1 hour)</li>");
-    sb.append("<li>Copy the AI prompt above and paste into your LLM (Google AI Studio, ChatGPT, Claude)</li>");
-    sb.append("<li>The LLM will write code, deploy a web server, and register the robot automatically using the Management Token</li>");
-    sb.append("<li>The robot receives its own <strong>long-lived API key</strong> (consumer secret) at registration</li>");
-    sb.append("<li>Verify connectivity on the \"My Robots\" tab using the test button</li>");
+    sb.append("<li>Copy the AI prompt above and paste into your LLM (Google AI Studio, ChatGPT, Claude, etc.)</li>");
+    sb.append("<li>The LLM writes a robot, deploys it, and registers it via the Management API using your token</li>");
+    sb.append("<li>The robot receives a <strong>consumer secret</strong> at registration and uses <code style=\"font-family:var(--mono);font-size:11px;background:var(--sf);padding:1px 4px;border-radius:2px\">client_credentials</code> to get its own long-lived Data API token</li>");
+    sb.append("<li>Expand the robot on \"My Robots\" tab \u2014 click <strong>Test Robot</strong> to verify connectivity</li>");
     sb.append("</ol></div>");
     // Documentation links
     sb.append("<div class=\"card-section\">");
@@ -951,38 +997,59 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("robotsData=data;renderRobots();");
     sb.append("}).catch(function(e){if(e)document.getElementById('robots-content').innerHTML='<div class=\"loading\" style=\"color:var(--err)\">Failed to load robots</div>';});}");
 
-    // Render robot data table — all info visible, no expand/collapse
+    // Render robot list — expandable card-rows
     sb.append("function renderRobots(){");
     sb.append("var c=document.getElementById('robots-content');");
     sb.append("document.getElementById('rcnt').textContent=robotsData.length||'';");
     sb.append("if(!robotsData.length){c.innerHTML='<div class=\"empty\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><rect x=\"2\" y=\"3\" width=\"20\" height=\"14\" rx=\"2\" ry=\"2\"/><line x1=\"8\" y1=\"21\" x2=\"16\" y2=\"21\"/><line x1=\"12\" y1=\"17\" x2=\"12\" y2=\"21\"/></svg><h3>No robots yet</h3><p>Click \\\"Register New Robot\\\" to create one.</p></div>';return;}");
-    sb.append("var h='<table class=\"rtable\"><thead><tr>';");
-    sb.append("h+='<th>Status</th><th>Robot</th><th>Description</th><th>Callback URL</th><th>Secret</th><th>Created</th><th style=\"width:110px\">Actions</th>';");
-    sb.append("h+='</tr></thead><tbody>';");
+    sb.append("var h='';");
     sb.append("robotsData.forEach(function(r,i){");
     sb.append("var p=r.status==='paused';");
     sb.append("var name=r.id.split('@')[0];");
+    sb.append("var updated=r.updatedAt?timeAgo(r.updatedAt):'--';");
     sb.append("var created=r.createdAt?shortDate(r.createdAt):'--';");
-    sb.append("h+='<tr>';");
-    sb.append("h+='<td><span class=\"chip '+(p?'paused':'active')+'\">'+(p?'Paused':'Active')+'</span></td>';");
-    sb.append("h+='<td><div class=\"rname\">'+esc(name)+'</div><div class=\"raddr\">'+esc(r.id)+'</div></td>';");
-    sb.append("h+='<td><div style=\"display:flex;gap:4px;align-items:center\"><input class=\"ied\" id=\"desc-'+i+'\" value=\"'+escAttr(r.description||'')+'\" placeholder=\"--\" />';");
-    sb.append("h+='<button class=\"btn-icon\" onclick=\"saveDesc('+i+')\" title=\"Save\">'+ICO.save+'</button></div></td>';");
-    sb.append("h+='<td><div style=\"display:flex;gap:4px;align-items:center\"><input class=\"ied\" id=\"url-'+i+'\" value=\"'+escAttr(r.callbackUrl||'')+'\" placeholder=\"Not set\" />';");
-    sb.append("h+='<button class=\"btn-icon\" onclick=\"saveUrl('+i+')\" title=\"Save\">'+ICO.save+'</button></div></td>';");
-    sb.append("h+='<td><div style=\"display:flex;gap:4px;align-items:center\"><span class=\"mono\" style=\"font-size:10px\">'+esc(r.secret||r.maskedSecret||'...')+'</span>';");
-    sb.append("h+='<button class=\"btn-icon\" onclick=\"copyField(\\'\\',\\'Secret copied\\',\\''+escAttr(r.secret||r.maskedSecret||'')+'\\')\" title=\"Copy\">'+ICO.copy+'</button></div></td>';");
-    sb.append("h+='<td style=\"font-size:12px;color:var(--txt2);white-space:nowrap\">'+esc(created)+'</td>';");
-    sb.append("h+='<td><div class=\"acts\">';");
-    sb.append("h+='<button class=\"btn-icon\" onclick=\"testBot('+i+')\" title=\"Test\">'+ICO.play+'</button>';");
-    sb.append("h+='<button class=\"btn-icon\" onclick=\"rotateSecret('+i+')\" title=\"Rotate Secret\">'+ICO.rotate+'</button>';");
-    sb.append("h+='<button class=\"btn-icon\" onclick=\"togglePause('+i+')\" title=\"'+(p?'Unpause':'Pause')+'\">'+(p?ICO.play:ICO.pause)+'</button>';");
-    sb.append("h+='<button class=\"btn-icon\" onclick=\"confirmDelete('+i+')\" title=\"Delete\" style=\"color:var(--err)\">'+ICO.trash+'</button>';");
-    sb.append("h+='</div></td></tr>';");
+    sb.append("var expiry=r.tokenExpirySeconds===0||r.tokenExpirySeconds>=3153600000?'Never':r.tokenExpirySeconds+'s';");
+    // Collapsed summary row
+    sb.append("h+='<div class=\"ri\">';");
+    sb.append("h+='<div class=\"rh\" onclick=\"tog(this)\">';");
+    sb.append("h+='<span class=\"chip '+(p?'paused':'active')+'\">'+(p?'Paused':'Active')+'</span>';");
+    sb.append("h+='<div class=\"rm\"><div class=\"rname\">'+esc(name)+'</div><div class=\"raddr\">'+esc(r.id)+'</div></div>';");
+    sb.append("h+='<div class=\"rmeta\"><span>'+esc(r.description||'No description')+'</span></div>';");
+    sb.append("h+='<div class=\"rmeta\"><span>Updated '+esc(updated)+'</span></div>';");
+    sb.append("h+='<svg class=\"chev\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><polyline points=\"6 9 12 15 18 9\"/></svg>';");
+    sb.append("h+='</div>';");
+    // Expanded details (hidden by default)
+    sb.append("h+='<div class=\"rb\" style=\"display:none\">';");
+    // Left: editable fields
+    sb.append("h+='<div class=\"rb-fields\">';");
+    sb.append("h+='<div class=\"fg\"><label class=\"fl\">Description</label><div style=\"display:flex;gap:4px\"><input class=\"ied\" id=\"desc-'+i+'\" value=\"'+escAttr(r.description||'')+'\" placeholder=\"What does this bot do?\" style=\"max-width:none;flex:1\" /><button class=\"btn-icon\" onclick=\"saveDesc('+i+')\" title=\"Save\">'+ICO.save+'</button></div></div>';");
+    sb.append("h+='<div class=\"fg\"><label class=\"fl\">Callback URL</label><div style=\"display:flex;gap:4px\"><input class=\"ied\" id=\"url-'+i+'\" value=\"'+escAttr(r.callbackUrl||'')+'\" placeholder=\"https://your-server/callback\" style=\"max-width:none;flex:1\" /><button class=\"btn-icon\" onclick=\"saveUrl('+i+')\" title=\"Save\">'+ICO.save+'</button></div></div>';");
+    sb.append("h+='<div class=\"fg\"><label class=\"fl\">Consumer Secret</label><div style=\"display:flex;gap:4px;align-items:center\"><span class=\"mono\" style=\"font-size:11px;color:var(--txt2)\">'+esc(r.secret||r.maskedSecret||'...')+'</span><button class=\"btn-icon\" onclick=\"copyField(\\'\\',\\'Secret copied\\',\\''+escAttr(r.secret||r.maskedSecret||'')+'\\')\" title=\"Copy\">'+ICO.copy+'</button></div></div>';");
+    sb.append("h+='<div style=\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:4px\">';");
+    sb.append("h+='<div class=\"fg\"><label class=\"fl\">API Key Expiry</label><span class=\"hint\">'+esc(expiry)+'</span></div>';");
+    sb.append("h+='<div class=\"fg\"><label class=\"fl\">Created</label><span class=\"hint\">'+esc(created)+'</span></div>';");
+    sb.append("h+='<div class=\"fg\"><label class=\"fl\">Last Updated</label><span class=\"hint\">'+esc(updated)+'</span></div>';");
+    sb.append("h+='</div>';");
+    sb.append("h+='<div class=\"fg\"><label class=\"fl\">Verified</label><span class=\"chip '+(r.verified?'active':'paused')+'\" style=\"font-size:10px\">'+(r.verified?'Yes':'Not yet')+'</span></div>';");
+    sb.append("h+='</div>';");
+    // Right: actions
+    sb.append("h+='<div class=\"rb-actions\">';");
+    sb.append("h+='<button class=\"btn-p\" style=\"width:100%;justify-content:center\" onclick=\"testBot('+i+')\">'+ICO.play+' Test Robot</button>';");
+    sb.append("h+='<button class=\"btn-o\" style=\"width:100%;justify-content:center\" onclick=\"rotateSecret('+i+')\">'+ICO.rotate+' Rotate Secret</button>';");
+    sb.append("h+='<button class=\"btn-s\" style=\"width:100%;justify-content:center\" onclick=\"togglePause('+i+')\">'+(p?ICO.play+' Unpause':ICO.pause+' Pause')+'</button>';");
+    sb.append("h+='<button class=\"btn-o\" style=\"width:100%;justify-content:center\" onclick=\"copyText(\\''+escAttr(r.id)+'\\',\\'Address copied\\')\">'+ICO.copy+' Copy Address</button>';");
+    sb.append("h+='<div style=\"border-top:1px solid var(--sh);padding-top:10px;margin-top:6px\"><button class=\"btn-d\" style=\"width:100%;justify-content:center\" onclick=\"confirmDelete('+i+')\">'+ICO.trash+' Delete Robot</button></div>';");
+    sb.append("h+='</div>';");
+    sb.append("h+='</div>';"); // end rb
+    sb.append("h+='</div>';"); // end ri
     sb.append("});");
-    sb.append("h+='</tbody></table>';");
-    sb.append("h+='<div style=\"padding:10px 12px;font-size:11px;color:var(--txt3)\">'+robotsData.length+' robot'+(robotsData.length!==1?'s':'')+' registered</div>';");
+    sb.append("h+='<div style=\"padding:10px 16px;font-size:11px;color:var(--txt3)\">'+robotsData.length+' robot'+(robotsData.length!==1?'s':'')+' registered</div>';");
     sb.append("c.innerHTML=h;}");
+    // Toggle expand/collapse
+    sb.append("function tog(el){var card=el.parentElement;var chev=el.querySelector('.chev');");
+    sb.append("var rb=card.querySelector('.rb');if(!rb)return;");
+    sb.append("var open=rb.style.display!=='none';rb.style.display=open?'none':'';");
+    sb.append("chev.style.transform=open?'':'rotate(180deg)';}");
 
     // Time helpers
     sb.append("function timeAgo(iso){try{var d=new Date(iso),s=Math.floor((Date.now()-d)/1000);");

@@ -37,14 +37,26 @@ import java.net.HttpURLConnection;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 /**
  * Servlet that fetches URL metadata (Open Graph, title, description, image)
@@ -182,7 +194,7 @@ public class UrlPreviewServlet extends HttpServlet {
     // recorded, before the destination is requested).
     while (redirectCount <= MAX_REDIRECTS) {
       validateUrlForPreview(currentUrl);
-      HttpURLConnection conn = openPreviewConnection(currentUrl);
+      HttpURLConnection conn = openSsrfSafeConnection(currentUrl);
       try {
         int status = conn.getResponseCode();
         if (isRedirectStatus(status)) {
@@ -222,15 +234,262 @@ public class UrlPreviewServlet extends HttpServlet {
     throw new IOException("Too many redirects for " + targetUrl);
   }
 
-  private static HttpURLConnection openPreviewConnection(URL url) throws IOException {
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+  /**
+   * Opens an HTTP(S) connection to the given URL with SSRF protection at the socket layer.
+   *
+   * <p>We resolve DNS ourselves, validate every resolved IP against {@link #isBlockedAddress},
+   * then force the connection to use that validated IP. This eliminates the DNS rebinding
+   * TOCTOU gap where {@code HttpURLConnection} could re-resolve the hostname to a different
+   * (malicious) IP after our validation check.
+   *
+   * <p>For HTTP: we rewrite the URL to use the validated IP and set the Host header explicitly.
+   * For HTTPS: we additionally install an {@link SSLSocketFactory} that performs TLS handshake
+   * with the original hostname for proper SNI and certificate verification, and set a
+   * {@link javax.net.ssl.HostnameVerifier} that checks the original hostname.
+   */
+  private static HttpURLConnection openSsrfSafeConnection(URL url) throws IOException {
+    String originalHost = url.getHost();
+    int port = url.getPort();
+    boolean isHttps = "https".equalsIgnoreCase(url.getProtocol());
+    int effectivePort = port != -1 ? port : (isHttps ? 443 : 80);
+
+    // Resolve and validate: pick the first non-blocked address
+    InetAddress validatedAddress = resolveAndValidate(originalHost);
+
+    // Rewrite URL to use the validated IP directly, preventing the JVM from re-resolving DNS
+    String ipLiteral = validatedAddress.getHostAddress();
+    if (validatedAddress instanceof Inet6Address) {
+      ipLiteral = "[" + ipLiteral + "]";
+    }
+    String rewrittenSpec = url.getProtocol() + "://" + ipLiteral
+        + (port != -1 ? ":" + port : "")
+        + (url.getPath() != null ? url.getPath() : "")
+        + (url.getQuery() != null ? "?" + url.getQuery() : "");
+    URL ipUrl = URI.create(rewrittenSpec).toURL();
+
+    HttpURLConnection conn = (HttpURLConnection) ipUrl.openConnection();
+
+    if (isHttps && conn instanceof HttpsURLConnection) {
+      HttpsURLConnection httpsConn = (HttpsURLConnection) conn;
+      httpsConn.setSSLSocketFactory(
+          new SsrfSafeSSLSocketFactory(originalHost, effectivePort, validatedAddress));
+      // Certificate hostname verification is enforced at the TLS layer via
+      // SSLParameters.setEndpointIdentificationAlgorithm("HTTPS") in SsrfSafeSSLSocketFactory.
+      // This performs RFC 2818 hostname verification during handshake against the original hostname.
+      // The HostnameVerifier returns true because the IP-rewritten URL hostname won't match
+      // the cert, but the SSLSocket-level endpoint identification already verified it.
+      httpsConn.setHostnameVerifier((hostname, session) -> true);
+    }
+
     conn.setRequestMethod("GET");
     conn.setConnectTimeout(FETCH_TIMEOUT_MS);
     conn.setReadTimeout(FETCH_TIMEOUT_MS);
     conn.setInstanceFollowRedirects(false);
+    // Attempt to set the Host header to the original hostname.
+    // Note: HttpURLConnection treats "Host" as a restricted header and may not honor this
+    // in standard JVM settings. For HTTPS, SNI provides the primary routing mechanism.
+    // For HTTP, multi-tenant hosts sharing an IP may fail to route correctly; this is an
+    // acceptable trade-off for IP-pinning SSRF protection.
+    // Use scheme-aware default port logic: 80 for HTTP, 443 for HTTPS.
+    int defaultPort = isHttps ? 443 : 80;
+    String hostHeader = port != -1 && port != defaultPort
+        ? originalHost + ":" + port
+        : originalHost;
+    try {
+      conn.setRequestProperty("Host", hostHeader);
+    } catch (IllegalArgumentException e) {
+      // Host header is restricted in this JVM; log and continue.
+      // HTTPS will route via SNI; HTTP routing may fail for some multi-tenant hosts.
+      LOG.warning("Could not set Host header (restricted by JVM): " + e.getMessage());
+    }
     conn.setRequestProperty("User-Agent", "WaveBot/1.0 (URL Preview)");
     conn.setRequestProperty("Accept", "text/html,application/xhtml+xml");
     return conn;
+  }
+
+  /**
+   * Resolves the hostname and returns the first non-blocked address.
+   * Throws if all resolved addresses are blocked or the host is unresolvable.
+   */
+  private static InetAddress resolveAndValidate(String host) throws IOException {
+    InetAddress[] addresses = InetAddress.getAllByName(host);
+    if (addresses.length == 0) {
+      throw new IOException("Unresolvable host: " + host);
+    }
+    for (InetAddress addr : addresses) {
+      if (!isBlockedAddress(addr)) {
+        return addr;
+      }
+    }
+    throw new IOException("All resolved addresses for host are blocked: " + host);
+  }
+
+  /**
+   * An {@link SSLSocketFactory} that connects to a pre-validated IP address while performing
+   * TLS with the original hostname for proper SNI and certificate verification.
+   *
+   * <p>This closes the DNS rebinding TOCTOU gap for HTTPS connections: the socket connects
+   * to the IP we already validated, so a second DNS lookup cannot redirect to an internal host.
+   */
+  private static final class SsrfSafeSSLSocketFactory extends SSLSocketFactory {
+    private final SSLSocketFactory delegate;
+    private final String originalHost;
+    private final int port;
+    private final InetAddress validatedAddress;
+
+    SsrfSafeSSLSocketFactory(String originalHost, int port, InetAddress validatedAddress)
+        throws IOException {
+      // Use platform default SSL socket factory to allow TLS version negotiation
+      // (TLSv1.2, TLSv1.3, etc.) with the server, rather than forcing TLSv1.3.
+      this.delegate = (SSLSocketFactory) SSLSocketFactory.getDefault();
+      this.originalHost = originalHost;
+      this.port = port;
+      this.validatedAddress = validatedAddress;
+    }
+
+    /**
+     * Intercepts socket creation by host/port. Instead of letting the JVM resolve the hostname,
+     * we connect a plain socket to the validated IP and then layer TLS on top with the original
+     * hostname for SNI.
+     */
+    @Override
+    public Socket createSocket(String host, int port) throws IOException {
+      return createValidatedSslSocket();
+    }
+
+    /**
+     * Creates an SSL socket with local address binding.
+     * Uses the pre-validated IP, ignoring the host parameter.
+     */
+    @Override
+    public Socket createSocket(String host, int port,
+        InetAddress localHost, int localPort) throws IOException {
+      return createValidatedSslSocket();
+    }
+
+    /**
+     * Creates an SSL socket from an InetAddress. Uses the pre-validated IP.
+     */
+    @Override
+    public Socket createSocket(InetAddress host, int port) throws IOException {
+      return createValidatedSslSocket();
+    }
+
+    /**
+     * Creates an SSL socket from an InetAddress with local address binding.
+     * Uses the pre-validated IP, ignoring the host parameter.
+     */
+    @Override
+    public Socket createSocket(InetAddress host, int port,
+        InetAddress localHost, int localPort) throws IOException {
+      return createValidatedSslSocket();
+    }
+
+    /**
+     * Layers TLS over an existing socket using the original hostname for SNI.
+     * The socket is already connected to the validated IP, so we only layer TLS.
+     * Defensive check: verify socket is connected to the validated IP.
+     */
+    @Override
+    public Socket createSocket(Socket s, String host, int port, boolean autoClose)
+        throws IOException {
+      // Defensive check: if the socket is already connected, verify it's to our validated IP.
+      // This prevents bypass of IP-pinning if HttpsURLConnection were to pass a socket
+      // connected to a different (malicious) address.
+      if (s.isConnected()) {
+        InetAddress remoteAddr = s.getInetAddress();
+        if (remoteAddr != null && !remoteAddr.equals(validatedAddress)) {
+          throw new IOException("Socket connected to unexpected address: " + remoteAddr +
+              " (expected " + validatedAddress + ")");
+        }
+      }
+      // Layer TLS over an existing socket, using original hostname for SNI
+      SSLSocket sslSocket = (SSLSocket) delegate.createSocket(s, originalHost, port, autoClose);
+      SSLParameters params = sslSocket.getSSLParameters();
+      // Enforce RFC 2818 hostname verification at TLS level
+      params.setEndpointIdentificationAlgorithm("HTTPS");
+      // Set SNI only if originalHost is not a numeric IP literal
+      if (!isNumericIpLiteral(originalHost)) {
+        params.setServerNames(List.of(new SNIHostName(originalHost)));
+      }
+      sslSocket.setSSLParameters(params);
+      return sslSocket;
+    }
+
+    private SSLSocket createValidatedSslSocket() throws IOException {
+      // Connect a plain TCP socket to the validated IP
+      Socket rawSocket = new Socket();
+      try {
+        rawSocket.connect(new InetSocketAddress(validatedAddress, port), FETCH_TIMEOUT_MS);
+        // Layer TLS on top with original hostname for SNI and certificate verification
+        SSLSocket sslSocket = (SSLSocket) delegate.createSocket(
+            rawSocket, originalHost, port, true);
+        SSLParameters params = sslSocket.getSSLParameters();
+        // Enforce RFC 2818 hostname verification at TLS level
+        params.setEndpointIdentificationAlgorithm("HTTPS");
+        // Set SNI only if originalHost is not a numeric IP literal
+        if (!isNumericIpLiteral(originalHost)) {
+          params.setServerNames(
+              List.of(new SNIHostName(originalHost)));
+        }
+        sslSocket.setSSLParameters(params);
+        return sslSocket;
+      } catch (Exception e) {
+        // Catch Exception (not just IOException) to also handle IllegalArgumentException
+        // from SNIHostName for edge-case hostnames, preventing rawSocket leaks.
+        try {
+          rawSocket.close();
+        } catch (IOException closeEx) {
+          e.addSuppressed(closeEx);
+        }
+        if (e instanceof IOException) {
+          throw (IOException) e;
+        }
+        throw new IOException("SSL socket creation failed", e);
+      }
+    }
+
+    /**
+     * Returns the default cipher suites from the underlying delegate factory.
+     */
+    @Override
+    public String[] getDefaultCipherSuites() {
+      return delegate.getDefaultCipherSuites();
+    }
+
+    /**
+     * Returns the supported cipher suites from the underlying delegate factory.
+     */
+    @Override
+    public String[] getSupportedCipherSuites() {
+      return delegate.getSupportedCipherSuites();
+    }
+
+    /**
+     * Detects if the given string is a numeric IP literal (IPv4 or IPv6).
+     * Returns true for "192.168.1.1", "[::1]", etc.
+     */
+    private static boolean isNumericIpLiteral(String host) {
+      if (host == null || host.isEmpty()) {
+        return false;
+      }
+      // URL.getHost() returns bracketed IPv6 like "[2001:db8::1]" — strip brackets for parsing
+      String stripped = host;
+      if (host.startsWith("[") && host.endsWith("]")) {
+        stripped = host.substring(1, host.length() - 1);
+        // Bracketed hosts are always IPv6 literals
+        return true;
+      }
+      // Check for IPv4 literal: all digits and dots
+      if (stripped.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) {
+        return true;
+      }
+      // Check for un-bracketed IPv6 literal (contains colons)
+      if (stripped.contains(":")) {
+        return true;
+      }
+      return false;
+    }
   }
 
   private static boolean isRedirectStatus(int status) {
@@ -256,25 +515,12 @@ public class UrlPreviewServlet extends HttpServlet {
     if (isBlockedHostName(host)) {
       throw new MalformedURLException("Blocked host");
     }
-    InetAddress[] resolvedAddresses = InetAddress.getAllByName(host);
-    if (resolvedAddresses.length == 0) {
-      throw new MalformedURLException("Unresolvable host");
-    }
-    for (InetAddress address : resolvedAddresses) {
-      if (isBlockedAddress(address)) {
-        throw new MalformedURLException("Blocked address");
-      }
-    }
-    // KNOWN LIMITATION — DNS rebinding / TOCTOU gap (see GitHub issue #511):
-    // The DNS resolution performed above is disconnected from the actual TCP connection made by
-    // HttpURLConnection.openConnection() below.  An attacker who controls their own DNS server can
-    // arrange for the first resolution (used in this validation) to return a safe public IP while
-    // a subsequent resolution (used by the JVM's HTTP client) returns an internal/loopback address.
-    // This gap cannot be closed with Java's standard HttpURLConnection because it does not expose
-    // an API for connecting to a caller-supplied pre-resolved InetAddress.
-    // A proper fix requires replacing HttpURLConnection with a custom SocketFactory or an HTTP
-    // client library that supports explicit IP pinning (e.g. OkHttp with a custom DNS resolver
-    // that validates each resolved address before the socket is opened).
+    // Note: The authoritative SSRF protection is enforced at connect time by
+    // openSsrfSafeConnection(), which resolves DNS once, validates the IP,
+    // and pins the connection to that validated address, closing the DNS rebinding
+    // TOCTOU gap (see GitHub issue #511). Higher-level hostname validation here
+    // provides fail-fast defense-in-depth, but the connection-layer pinning is the
+    // actual protection.
   }
 
   private static boolean isBlockedHostName(String host) {

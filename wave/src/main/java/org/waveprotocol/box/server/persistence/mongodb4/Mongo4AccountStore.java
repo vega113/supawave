@@ -67,6 +67,7 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String ROBOT_CREATED_AT_FIELD = "createdAtMillis";
   private static final String ROBOT_UPDATED_AT_FIELD = "updatedAtMillis";
   private static final String ROBOT_PAUSED_FIELD = "paused";
+  private static final String ROBOT_TOKEN_VERSION_FIELD = "tokenVersion";
 
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
@@ -345,7 +346,8 @@ final class Mongo4AccountStore implements AccountStore {
         .append(ROBOT_DESCRIPTION_FIELD, account.getDescription())
         .append(ROBOT_CREATED_AT_FIELD, account.getCreatedAtMillis())
         .append(ROBOT_UPDATED_AT_FIELD, account.getUpdatedAtMillis())
-        .append(ROBOT_PAUSED_FIELD, account.isPaused());
+        .append(ROBOT_PAUSED_FIELD, account.isPaused())
+        .append(ROBOT_TOKEN_VERSION_FIELD, account.getTokenVersion());
   }
 
   private static Document capabilitiesToObject(RobotCapabilities caps) {
@@ -376,11 +378,13 @@ final class Mongo4AccountStore implements AccountStore {
     Long createdAt = robot.getLong(ROBOT_CREATED_AT_FIELD);
     Long updatedAt = robot.getLong(ROBOT_UPDATED_AT_FIELD);
     boolean paused = Boolean.TRUE.equals(robot.getBoolean(ROBOT_PAUSED_FIELD));
+    Long tokenVer = robot.getLong(ROBOT_TOKEN_VERSION_FIELD);
+    long tokenVersion = tokenVer != null ? tokenVer : 0L;
     return new RobotAccountDataImpl(id, url, secret, caps, verified, tokenExpirySeconds,
         ownerAddress, description != null ? description : "",
         createdAt != null ? createdAt : 0L,
         updatedAt != null ? updatedAt : 0L,
-        paused);
+        paused, tokenVersion);
   }
 
   private static RobotCapabilities objectToCapabilities(Document obj) {

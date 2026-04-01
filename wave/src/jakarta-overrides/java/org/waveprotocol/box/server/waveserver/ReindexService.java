@@ -27,6 +27,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
+import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl.ReindexStats;
 
 /**
  * Manages async Lucene reindex operations triggered by admin dashboard.
@@ -53,6 +54,15 @@ public class ReindexService {
   private volatile String errorMessage;
   private volatile String triggeredBy;
 
+  // Live progress (updated during RUNNING state)
+  private volatile int wavesIndexedSoFar;
+  private volatile int estimatedTotalWaves;
+
+  // Stats from last completed reindex
+  private volatile double lastAvgMsPerWave;
+  private volatile long lastMinMsPerWave;
+  private volatile long lastMaxMsPerWave;
+
   @Inject
   public ReindexService(@Nullable Lucene9WaveIndexerImpl indexer) {
     this.indexer = indexer;
@@ -78,15 +88,29 @@ public class ReindexService {
     this.endTimeMs = 0;
     this.waveCount = 0;
     this.errorMessage = null;
+    this.wavesIndexedSoFar = 0;
 
-    LOG.info("Admin reindex triggered by " + adminUser);
+    // Estimate total waves from last rebuild count or current index size
+    int estimate = indexer.getLastRebuildWaveCount();
+    if (estimate < 0) {
+      estimate = indexer.getIndexedDocCount();
+    }
+    this.estimatedTotalWaves = Math.max(estimate, 0);
+
+    LOG.info("Admin reindex triggered by " + adminUser
+        + " (est. " + estimatedTotalWaves + " waves)");
     executor.submit(() -> {
       try {
-        int count = indexer.forceRemakeIndex();
-        this.waveCount = count;
+        ReindexStats stats = indexer.forceRemakeIndex(count -> {
+          this.wavesIndexedSoFar = count;
+        });
+        this.waveCount = stats.waveCount;
+        this.lastAvgMsPerWave = stats.avgMsPerWave;
+        this.lastMinMsPerWave = stats.minMsPerWave;
+        this.lastMaxMsPerWave = stats.maxMsPerWave;
         this.endTimeMs = System.currentTimeMillis();
         this.state.set(State.COMPLETED);
-        LOG.info("Admin reindex completed: " + count + " waves in "
+        LOG.info("Admin reindex completed: " + stats.waveCount + " waves in "
             + (endTimeMs - startTimeMs) + " ms");
       } catch (Exception e) {
         this.errorMessage = e.getMessage();
@@ -101,8 +125,25 @@ public class ReindexService {
   /**
    * Records a startup reindex result so the dashboard can display it.
    */
-  public void recordStartupReindex(int waveCount) {
+  public void recordStartupReindex(ReindexStats stats) {
     // Only record if no admin reindex is already running
+    State current = this.state.get();
+    if (current == State.RUNNING) {
+      LOG.info("Skipping startup reindex recording — admin reindex already running");
+      return;
+    }
+    this.triggeredBy = "startup";
+    this.startTimeMs = System.currentTimeMillis();
+    this.endTimeMs = System.currentTimeMillis();
+    this.waveCount = stats.waveCount;
+    this.lastAvgMsPerWave = stats.avgMsPerWave;
+    this.lastMinMsPerWave = stats.minMsPerWave;
+    this.lastMaxMsPerWave = stats.maxMsPerWave;
+    this.state.set(State.COMPLETED);
+  }
+
+  /** Overload for backward compatibility (startup with count only, no timing). */
+  public void recordStartupReindex(int waveCount) {
     State current = this.state.get();
     if (current == State.RUNNING) {
       LOG.info("Skipping startup reindex recording — admin reindex already running");
@@ -121,4 +162,13 @@ public class ReindexService {
   public int getWaveCount() { return waveCount; }
   public String getErrorMessage() { return errorMessage; }
   public String getTriggeredBy() { return triggeredBy; }
+
+  // Live progress getters
+  public int getWavesIndexedSoFar() { return wavesIndexedSoFar; }
+  public int getEstimatedTotalWaves() { return estimatedTotalWaves; }
+
+  // Stats from last completed reindex
+  public double getLastAvgMsPerWave() { return lastAvgMsPerWave; }
+  public long getLastMinMsPerWave() { return lastMinMsPerWave; }
+  public long getLastMaxMsPerWave() { return lastMaxMsPerWave; }
 }

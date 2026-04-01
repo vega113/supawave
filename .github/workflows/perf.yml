@@ -38,11 +38,20 @@ jobs:
       - name: Run performance tests
         run: bash scripts/wave-perf.sh
 
+      - name: Ensure Gatling reports collected
+        if: always()
+        run: |
+          if [ -d target/gatling ] && [ ! -d wave/target/perf-results/gatling-reports ]; then
+            mkdir -p wave/target/perf-results
+            cp -r target/gatling wave/target/perf-results/gatling-reports
+          fi
+
       - name: Upload performance results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: perf-results
+          retention-days: 30
           path: |
             wave/target/perf-results/
             target/universal/stage/wave_server.out

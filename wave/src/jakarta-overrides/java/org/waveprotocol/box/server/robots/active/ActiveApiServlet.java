@@ -23,7 +23,10 @@ import com.google.wave.api.data.converter.EventDataConverterManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
+import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
+import org.waveprotocol.box.server.authentication.jwt.JwtRevocationState;
+import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
@@ -34,6 +37,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import java.util.Set;
 
 import jakarta.inject.Singleton;
 
@@ -47,6 +51,7 @@ public final class ActiveApiServlet extends BaseApiServlet {
   private static final Log LOG = Log.get(ActiveApiServlet.class);
 
   private final JwtRequestAuthenticator jwtAuthenticator;
+  private final JwtKeyRing keyRing;
 
   @Inject
   public ActiveApiServlet(RobotSerializer robotSerializer,
@@ -54,23 +59,43 @@ public final class ActiveApiServlet extends BaseApiServlet {
                           WaveletProvider waveletProvider,
                           @Named("ActiveApiRegistry") OperationServiceRegistry operationRegistry,
                           ConversationUtil conversationUtil,
-                          JwtRequestAuthenticator jwtAuthenticator) {
+                          JwtRequestAuthenticator jwtAuthenticator,
+                          JwtKeyRing keyRing) {
     super(robotSerializer, converterManager, waveletProvider, operationRegistry, conversationUtil);
     this.jwtAuthenticator = jwtAuthenticator;
+    this.keyRing = keyRing;
   }
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     ParticipantId participant;
+    Set<String> tokenScopes = Set.of();
+
     try {
+      // Authenticate the token first
       participant = jwtAuthenticator.authenticate(
-          req.getHeader("Authorization"), JwtTokenType.ROBOT_ACCESS, JwtAudience.ROBOT);
+          req.getHeader("Authorization"), JwtTokenType.ROBOT_ACCESS, JwtAudience.ROBOT,
+          Set.of(JwtScopes.ROBOT_ACTIVE));
+
+      // Extract scopes from the JWT token for per-operation validation
+      String authHeader = req.getHeader("Authorization");
+      if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        String token = authHeader.substring(7).trim();
+        JwtRevocationState revocationState = new JwtRevocationState(0, 0);
+        try {
+          var tokenContext = keyRing.validator().validate(token, revocationState);
+          tokenScopes = tokenContext.claims().scopes();
+        } catch (Exception e) {
+          LOG.warning("Failed to extract scopes from JWT: " + e.getMessage());
+          tokenScopes = Set.of();
+        }
+      }
     } catch (JwtValidationException e) {
       LOG.info("JWT authentication failed for Active API", e);
       resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
       return;
     }
 
-    processOpsRequest(req, resp, participant);
+    processOpsRequest(req, resp, participant, tokenScopes);
   }
 }

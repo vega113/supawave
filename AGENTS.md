@@ -80,6 +80,18 @@ git worktrees.
   when isolated persistence state is explicitly needed.
 - Do not mix agent edits in the main working tree.
 - Use `/Users/vega/devroot/worktrees` as the shared root for local worktrees.
+- **CRITICAL — tmux lanes must always be launched FROM the worktree directory, never from
+  `/Users/vega/devroot/incubator-wave` or any subdirectory (e.g. `war/static`).** Any
+  `git checkout` or `git switch` run inside the main repo changes the shared HEAD and flips
+  the branch for every open Claude Code session. The canonical launch sequence is:
+  ```bash
+  git worktree add /Users/vega/devroot/worktrees/<branch-name> -b <branch-name>
+  # then launch claude from that directory:
+  tmux send-keys -t "<session>:<window>.<pane>" \
+    "cd /Users/vega/devroot/worktrees/<branch-name> && claude --model <model> --dangerously-skip-permissions < /tmp/lane-prompt.txt" Enter
+  ```
+- **NEVER** create worktrees under `.claude/worktrees/` inside the main repo tree. Always
+  use `/Users/vega/devroot/worktrees/<branch-name>` as the target path for `git worktree add`.
 - Before opening a PR for app-affecting changes, run a local server sanity
   verification appropriate to the area changed and record the exact command
   plus result in Beads.

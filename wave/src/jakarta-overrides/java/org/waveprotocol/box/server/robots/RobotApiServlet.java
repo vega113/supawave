@@ -17,10 +17,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
-import org.waveprotocol.box.server.authentication.jwt.JwtClaims;
-import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
-import org.waveprotocol.box.server.authentication.jwt.JwtRevocationState;
-import org.waveprotocol.box.server.authentication.jwt.JwtTokenContext;
+import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
+import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.persistence.AccountStore;
@@ -41,6 +39,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * REST API for robot management.
@@ -68,7 +67,7 @@ public final class RobotApiServlet extends HttpServlet {
   private static final String JSON = "application/json";
 
   private final String domain;
-  private final JwtKeyRing keyRing;
+  private final JwtRequestAuthenticator jwtAuthenticator;
   private final AccountStore accountStore;
   private final RobotRegistrar robotRegistrar;
   private final RobotCapabilityFetcher capabilityFetcher;
@@ -76,12 +75,12 @@ public final class RobotApiServlet extends HttpServlet {
   @Inject
   public RobotApiServlet(
       @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
-      JwtKeyRing keyRing,
+      JwtRequestAuthenticator jwtAuthenticator,
       AccountStore accountStore,
       RobotRegistrar robotRegistrar,
       RobotCapabilityFetcher capabilityFetcher) {
     this.domain = domain;
-    this.keyRing = keyRing;
+    this.jwtAuthenticator = jwtAuthenticator;
     this.accountStore = accountStore;
     this.robotRegistrar = robotRegistrar;
     this.capabilityFetcher = capabilityFetcher;
@@ -91,35 +90,18 @@ public final class RobotApiServlet extends HttpServlet {
 
   private ParticipantId authenticate(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
-    String authHeader = req.getHeader("Authorization");
-    if (Strings.isNullOrEmpty(authHeader) || !authHeader.startsWith("Bearer ")) {
-      sendError(resp, 401, "Missing or invalid Authorization header", "AUTH_REQUIRED");
-      return null;
-    }
-    String token = authHeader.substring(7).trim();
-    if (token.isEmpty()) {
-      sendError(resp, 401, "Empty bearer token", "AUTH_REQUIRED");
-      return null;
-    }
-    try {
-      JwtRevocationState revocationState = new JwtRevocationState(0, 0);
-      JwtTokenContext context = keyRing.validator().validate(token, revocationState);
-      JwtClaims claims = context.claims();
+    return authenticate(req, resp, Set.of());
+  }
 
-      if (claims.tokenType() != JwtTokenType.DATA_API_ACCESS) {
-        sendError(resp, 401, "Invalid token type", "AUTH_INVALID");
-        return null;
-      }
-      if (!claims.hasAudience(JwtAudience.DATA_API)) {
-        sendError(resp, 401, "Token audience mismatch", "AUTH_INVALID");
-        return null;
-      }
-      return ParticipantId.of(claims.subject());
+  private ParticipantId authenticate(HttpServletRequest req, HttpServletResponse resp,
+      Set<String> requiredScopes) throws IOException {
+    try {
+      return jwtAuthenticator.authenticate(
+          req.getHeader("Authorization"), JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API,
+          requiredScopes);
     } catch (JwtValidationException e) {
-      sendError(resp, 401, "Invalid or expired token", "AUTH_INVALID");
-      return null;
-    } catch (InvalidParticipantAddress e) {
-      sendError(resp, 401, "Invalid token subject", "AUTH_INVALID");
+      LOG.warning("JWT authentication failed", e);
+      sendError(resp, 401, "Invalid authentication token", "AUTH_INVALID");
       return null;
     }
   }
@@ -128,7 +110,7 @@ public final class RobotApiServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId user = authenticate(req, resp);
+    ParticipantId user = authenticate(req, resp, Set.of(JwtScopes.DATA_READ));
     if (user == null) return;
 
     String sub = subPath(req);
@@ -143,7 +125,7 @@ public final class RobotApiServlet extends HttpServlet {
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId user = authenticate(req, resp);
+    ParticipantId user = authenticate(req, resp, Set.of(JwtScopes.DATA_WRITE));
     if (user == null) return;
 
     String sub = subPath(req);
@@ -169,7 +151,7 @@ public final class RobotApiServlet extends HttpServlet {
 
   @Override
   protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId user = authenticate(req, resp);
+    ParticipantId user = authenticate(req, resp, Set.of(JwtScopes.DATA_WRITE));
     if (user == null) return;
 
     String sub = subPath(req);
@@ -190,7 +172,7 @@ public final class RobotApiServlet extends HttpServlet {
 
   @Override
   protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId user = authenticate(req, resp);
+    ParticipantId user = authenticate(req, resp, Set.of(JwtScopes.DATA_WRITE));
     if (user == null) return;
 
     String sub = subPath(req);

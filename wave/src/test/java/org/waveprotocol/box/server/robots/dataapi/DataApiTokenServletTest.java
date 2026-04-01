@@ -104,4 +104,54 @@ public final class DataApiTokenServletTest {
     verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     assertTrue(responseBody.toString().contains("verified"));
   }
+
+  @Test
+  public void testClientCredentialsRejectsUnknownTokenType() throws Exception {
+    when(req.getParameter("grant_type")).thenReturn("client_credentials");
+    when(req.getParameter("client_id")).thenReturn(ROBOT_ID.getAddress());
+    when(req.getParameter("client_secret")).thenReturn("verified-secret");
+    when(req.getParameter("token_type")).thenReturn("invalid_type");
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(
+        new RobotAccountDataImpl(ROBOT_ID, "https://example.com/robot", "verified-secret", null,
+            true, 0L, OWNER.getAddress(), "", 111L, 222L, false));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    assertTrue(responseBody.toString().contains("invalid_request"));
+  }
+
+  @Test
+  public void testClientCredentialsAllowsRobotTokenType() throws Exception {
+    when(req.getParameter("grant_type")).thenReturn("client_credentials");
+    when(req.getParameter("client_id")).thenReturn(ROBOT_ID.getAddress());
+    when(req.getParameter("client_secret")).thenReturn("verified-secret");
+    when(req.getParameter("token_type")).thenReturn("robot");
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(
+        new RobotAccountDataImpl(ROBOT_ID, "https://example.com/robot", "verified-secret", null,
+            true, 0L, OWNER.getAddress(), "", 111L, 222L, false));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    assertTrue(responseBody.toString().contains("access_token"));
+    assertTrue(responseBody.toString().contains("bearer"));
+  }
+
+  @Test
+  public void testClientCredentialsAllowsDataApiTokenType() throws Exception {
+    when(req.getParameter("grant_type")).thenReturn("client_credentials");
+    when(req.getParameter("client_id")).thenReturn(ROBOT_ID.getAddress());
+    when(req.getParameter("client_secret")).thenReturn("verified-secret");
+    when(req.getParameter("token_type")).thenReturn("data_api");
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(
+        new RobotAccountDataImpl(ROBOT_ID, "https://example.com/robot", "verified-secret", null,
+            true, 0L, OWNER.getAddress(), "", 111L, 222L, false));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    assertTrue(responseBody.toString().contains("access_token"));
+    assertTrue(responseBody.toString().contains("bearer"));
+  }
 }

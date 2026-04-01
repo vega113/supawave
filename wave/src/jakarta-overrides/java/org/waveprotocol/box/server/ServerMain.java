@@ -292,6 +292,7 @@ public class ServerMain {
     server.addServlet("/robot/dataapi", DataApiServlet.class);
     server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
     server.addServlet("/robot/dataapi/token", DataApiTokenServlet.class);
+    server.addServlet("/robot/token", DataApiTokenServlet.class);
 
     // Register FragmentsServlet for HTTP fragment transport (mirrors main ServerMain logic).
     try {
@@ -426,7 +427,11 @@ public class ServerMain {
       Lucene9WaveIndexerImpl lucene9Indexer = injector.getInstance(Lucene9WaveIndexerImpl.class);
       waveBus.subscribe(lucene9Indexer);
       ReindexService reindexService = injector.getInstance(ReindexService.class);
-      reindexService.recordStartupReindex(lucene9Indexer.getLastRebuildWaveCount());
+      if (lucene9Indexer.getLastReindexStats() != null) {
+        reindexService.recordStartupReindex(lucene9Indexer.getLastReindexStats());
+      } else {
+        reindexService.recordStartupReindex(lucene9Indexer.getLastRebuildWaveCount());
+      }
     }
 
     // Register OT search wavelet updater AFTER PerUserWaveViewDistpatcher

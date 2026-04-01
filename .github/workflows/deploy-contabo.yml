@@ -21,6 +21,13 @@ run-name: >-
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Deploy action'
+        required: false
+        default: 'deploy'
+        type: choice
+        options: ['deploy', 'rollback', 'status']
   push:
     branches:
       - main
@@ -51,6 +58,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate changelog history before deploy
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
         run: |
           base_ref="${{ github.event.before }}"
           if [ -z "$base_ref" ]; then
@@ -61,6 +69,7 @@ jobs:
             --base-ref "$base_ref"
 
       - name: Set up JDK 17
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -68,6 +77,7 @@ jobs:
           cache: sbt
 
       - name: Set up sbt
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
         uses: sbt/setup-sbt@v1
 
       - name: Start SSH agent
@@ -76,10 +86,12 @@ jobs:
           ssh-private-key: ${{ secrets.CONTABO_SSH_KEY }}
 
       - name: Build distribution
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
         timeout-minutes: 10
         run: sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage"
 
       - name: Verify staged changelog asset
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
         run: |
           set -euo pipefail
           staged_changelog="target/universal/stage/config/changelog.json"
@@ -90,11 +102,13 @@ jobs:
           diff -u wave/config/changelog.json "$staged_changelog"
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
         run: |
           set -euo pipefail
           printf '%s' "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Build and push container image
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
         run: |
           set -euo pipefail
           docker build --tag "$IMAGE_REF" -f Dockerfile.prebuilt target/universal/stage
@@ -110,6 +124,8 @@ jobs:
           cp deploy/caddy/Caddyfile "$bundle_dir/Caddyfile"
           cp deploy/caddy/application.conf "$bundle_dir/application.conf"
           cp deploy/caddy/deploy.sh "$bundle_dir/deploy.sh"
+          cp -R deploy/supawave-host "$bundle_dir/supawave-host"
+          chmod +x "$bundle_dir/supawave-host/"*.sh
           chmod +x "$bundle_dir/deploy.sh"
           tar -C "$bundle_dir" -czf "$RUNNER_TEMP/supawave-release.tgz" .
 
@@ -133,23 +149,41 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
+          SANITY_ADDRESS: ${{ secrets.SANITY_ADDRESS }}
+          SANITY_PASSWORD: ${{ secrets.SANITY_PASSWORD }}
         run: |
           set -euo pipefail
           remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
-          release_dir="$remote_root/releases/$RELEASE_ID"
+          action="${{ github.event.inputs.action || 'deploy' }}"
           resend_api_key_q=$(printf '%q' "${RESEND_API_KEY:-}")
           wave_email_from_q=$(printf '%q' "${WAVE_EMAIL_FROM:-}")
+          sanity_address_q=$(printf '%q' "${SANITY_ADDRESS:-}")
+          sanity_password_q=$(printf '%q' "${SANITY_PASSWORD:-}")
           ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "
             set -euo pipefail
-            rm -rf '$release_dir'
-            mkdir -p '$release_dir'
-            tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C '$release_dir'
-            chmod +x '$release_dir/deploy.sh'
-            DEPLOY_ROOT='$remote_root' WAVE_IMAGE='$IMAGE_REF' CANONICAL_HOST='$CANONICAL_HOST' ROOT_HOST='$ROOT_HOST' WWW_HOST='$WWW_HOST' RESEND_API_KEY=$resend_api_key_q WAVE_EMAIL_FROM=$wave_email_from_q bash '$release_dir/deploy.sh' deploy
+            incoming='$remote_root/incoming/$RELEASE_ID'
+            mkdir -p \"\$incoming\"
+            tar -xzf '$remote_root/incoming/$RELEASE_ID.tgz' -C \"\$incoming\"
+            chmod +x \"\$incoming/deploy.sh\"
+            chmod +x \"\$incoming/supawave-host/\"*.sh
+            if [ \"$action\" = \"deploy\" ]; then
+              echo '[deploy] Applying supawave host tuning'
+              sudo -n env BACKUP_DIR='/var/backups/wave-supawave' \"\$incoming/supawave-host/provision.sh\"
+            fi
+            DEPLOY_ROOT='$remote_root' \
+            WAVE_IMAGE='$IMAGE_REF' \
+            CANONICAL_HOST='$CANONICAL_HOST' \
+            ROOT_HOST='$ROOT_HOST' \
+            WWW_HOST='$WWW_HOST' \
+            RESEND_API_KEY=$resend_api_key_q \
+            WAVE_EMAIL_FROM=$wave_email_from_q \
+            SANITY_ADDRESS=$sanity_address_q \
+            SANITY_PASSWORD=$sanity_password_q \
+              bash \"\$incoming/deploy.sh\" \"$action\"
           "
 
       - name: Close deploy-failure issues on success
-        if: success()
+        if: success() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         continue-on-error: true
         uses: actions/github-script@v7
         with:
@@ -177,7 +211,7 @@ jobs:
             }
 
       - name: Create GitHub issue on deploy failure
-        if: failure()
+        if: failure() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         uses: actions/github-script@v7
         with:
           script: |
@@ -263,7 +297,7 @@ jobs:
             });
 
       - name: Notify deploy success
-        if: success()
+        if: success() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
@@ -279,7 +313,7 @@ jobs:
             }") || echo "Email notification failed (non-blocking): $RESPONSE"
 
       - name: Notify deploy failure
-        if: failure()
+        if: failure() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}

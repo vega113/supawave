@@ -13,8 +13,8 @@ Last updated: 2026-03-23
 | Startup flags | `--bind_ip_all` only |
 | Network exposure | Private Compose network only; not published on host ports |
 | Data volume | `$DEPLOY_ROOT/shared/mongo/db` (~323 MB on disk) |
-| Database | `wiab` (2 collections: `deltas`, `account`, ~209 objects) |
-| Backup schedule | **NONE** (no cron job for mongodump) |
+| Database | `wiab` (12 collections: `deltas`, `account`, `contacts`, `snapshots`, `attachments`, `feature_flags`, etc.) |
+| Backup schedule | Every 6 hours via cron (see section 2) |
 | Driver | Mongo Java Driver v4 via `Mongo4DbProvider` |
 | Credential config support | **NOT YET** -- `Mongo4DbProvider` builds `mongodb://host:port/db` with no user/pass |
 
@@ -189,89 +189,85 @@ deploy.env.
 
 ## 2. Backup strategy
 
-### 2a. Daily mongodump via cron
+### 2a. Every-6-hour mongodump via cron
 
-The `deploy/mongo/backup.sh` script already exists and wraps `mongodump`.
-Schedule it as a host cron job:
-
-```bash
-# On the Contabo host, run as the ubuntu user:
-crontab -e
-
-# Add:
-0 3 * * * MONGODB_URI='mongodb://wavebackup:<password>@localhost:27017/wiab?authSource=admin' /home/ubuntu/supawave/current/deploy/mongo/backup.sh /home/ubuntu/supawave/shared/backups/wiab-$(date -u +\%Y\%m\%dT\%H\%M\%SZ).archive.gz >> /home/ubuntu/supawave/shared/backups/backup.log 2>&1
-```
-
-Note: `mongodump` must be available on the host or run inside the container.
-For the container approach:
+`deploy/mongo/backup.sh` runs `mongodump` inside the running mongo container
+via `docker exec` and writes a gzip archive to
+`$DEPLOY_ROOT/shared/mongo/backups/`.  Install the cron entry on the Contabo
+host by running the provided helper:
 
 ```bash
-# Alternative: run mongodump inside the mongo container
-0 3 * * * docker exec supawave-mongo-1 mongodump --uri='mongodb://wavebackup:<password>@localhost:27017/wiab?authSource=admin' --archive --gzip > /home/ubuntu/supawave/shared/backups/wiab-$(date -u +\%Y\%m\%dT\%H\%M\%SZ).archive.gz 2>> /home/ubuntu/supawave/shared/backups/backup.log
+# On the Contabo host, from a local clone or checkout of the repo:
+cd /path/to/incubator-wave
+./deploy/mongo/install-cron.sh
 ```
+
+The installer copies `backup.sh` and `restore.sh` into
+`/home/ubuntu/supawave/shared/mongo/` (the persistent shared directory, not
+the per-release bundle) and registers the following crontab entry:
+
+```bash
+CRON_TZ=UTC
+0 */6 * * * /home/ubuntu/supawave/shared/mongo/backup.sh >> /home/ubuntu/supawave/shared/logs/backup.log 2>&1 # wave-mongo-backup
+```
+
+The schedule fires at 00:00, 06:00, 12:00, and 18:00 UTC every day.
 
 ### 2b. Retention policy
 
-Keep:
-- Daily backups: 7 days
-- Weekly backups (Sunday): 4 weeks
-- Monthly backups (1st of month): 3 months
+`backup.sh` automatically prunes old archives after each run, keeping the
+**last 10** backups (controlled by `KEEP_COUNT=10` inside the script).  No
+separate prune job is needed.
 
-Prune script (add after backup in cron or as a separate daily job):
+### 2c. Restore procedure
 
-```bash
-# Delete daily backups older than 7 days (excluding those on the 1st or Sundays)
-find /home/ubuntu/supawave/shared/backups/ -name 'wiab-*.archive.gz' -mtime +7 -delete
-```
-
-For a more granular retention policy, tag weekly/monthly backups by copying
-them into separate subdirectories.
-
-### 2c. Off-host backup copy
-
-Backups stored only on the Mongo host are not safe against host failure.
-Options:
-- `rsync` or `scp` to a second Contabo VPS or object storage after each backup
-- Mount an external volume (Contabo Object Storage or S3-compatible) and write
-  directly there
-
-Minimum viable: a daily `rsync` to a second host or object store bucket.
-
-### 2d. Restore procedure
-
-Using the existing `deploy/mongo/restore.sh`:
+Using `deploy/mongo/restore.sh`:
 
 ```bash
 # Stop the wave service first to avoid write conflicts:
-docker compose --project-name supawave stop wave
+docker compose -p supawave -f /home/ubuntu/supawave/current/compose.yml stop wave
 
 # Restore:
-MONGODB_URI='mongodb://waveadmin:<password>@localhost:27017/wiab?authSource=admin' \
-  ./deploy/mongo/restore.sh /path/to/wiab-YYYYMMDDTHHMMSSZ.archive.gz
+/home/ubuntu/supawave/shared/mongo/restore.sh \
+  /home/ubuntu/supawave/shared/mongo/backups/wiab-YYYYMMDD-HHMMSS.archive.gz
 
 # Restart:
-docker compose --project-name supawave start wave
+docker compose -p supawave -f /home/ubuntu/supawave/current/compose.yml start wave
 ```
 
-Or from inside the container:
+`restore.sh` pipes the archive into `docker exec -i supawave-mongo-1
+mongorestore` so no host-side `mongorestore` binary is required.
 
-```bash
-docker exec -i supawave-mongo-1 mongorestore \
-  --uri='mongodb://waveadmin:<password>@localhost:27017/wiab?authSource=admin' \
-  --archive --gzip --drop \
-  < /path/to/wiab-YYYYMMDDTHHMMSSZ.archive.gz
-```
+**Restore drill (scratch container):** Before relying on the backup pipeline,
+validate a backup against a throwaway container:
 
-### 2e. Restore drill
+1. Start a scratch Mongo container (no port published — private network only):
+   ```bash
+   docker run -d --name mongo-scratch mongo:6.0
+   ```
+2. Restore the latest backup using `restore.sh`:
+   ```bash
+   LATEST=$(ls -1t /home/ubuntu/supawave/shared/mongo/backups/wiab-*.archive.gz | head -1)
+   MONGO_CONTAINER=mongo-scratch \
+     /home/ubuntu/supawave/shared/mongo/restore.sh --yes "$LATEST"
+   ```
+3. Verify collections and document counts:
+   ```bash
+   docker exec mongo-scratch mongosh wiab --quiet \
+     --eval 'db.getCollectionNames().forEach(c => print(c, db[c].countDocuments()))'
+   ```
+4. Remove the scratch container:
+   ```bash
+   docker rm -f mongo-scratch
+   ```
 
-Before relying on the backup pipeline, run a restore drill:
+Schedule this drill quarterly or after any backup infrastructure change.
 
-1. Spin up a throwaway Mongo container on a different port.
-2. Restore the latest backup into it.
-3. Verify the `wiab` database has the expected collections and document counts.
-4. Drop the throwaway container.
+### 2d. Off-host backup copy
 
-Schedule this quarterly or after any backup infrastructure change.
+Backups currently live only on the Contabo host.  Replicating them off-host
+(e.g. `rsync` to a second VPS, or Contabo Object Storage) is **future work**
+and not in the current scope.
 
 ## 3. Monitoring and log rotation
 
@@ -327,9 +323,9 @@ services:
 - [ ] Deploy: enable `--auth` in compose.yml (step 1d)
 - [ ] Deploy: configure application.conf with credentials (step 1e)
 - [ ] Deploy: update healthcheck to authenticate (step 1d)
-- [ ] Ops: set up daily backup cron (step 2a)
-- [ ] Ops: set up retention pruning (step 2b)
-- [ ] Ops: set up off-host backup copy (step 2c)
-- [ ] Ops: run first restore drill (step 2e)
+- [ ] Ops: run install-cron.sh on host (step 2a)
+- [ ] Ops: verify retention (automatic, KEEP_COUNT=10)
+- [ ] Ops: set up off-host backup copy — future work, not in scope
+- [ ] Ops: run restore drill against scratch container (step 2c)
 - [ ] Ops: add Docker log rotation (step 3c)
 - [ ] Ops: add disk-space monitoring (step 3b)

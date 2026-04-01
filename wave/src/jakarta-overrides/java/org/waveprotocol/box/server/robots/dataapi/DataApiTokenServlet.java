@@ -30,6 +30,7 @@ import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
 import org.waveprotocol.box.server.authentication.jwt.JwtClaims;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
+import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
@@ -47,14 +48,23 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Token endpoint that issues a DATA_API_ACCESS JWT.
+ * Token endpoint that issues JWT access tokens for robot APIs.
  *
  * <p>Supports two authentication paths:
  * <ul>
- *   <li><b>Session-based</b> (default): the user is logged in via browser session.</li>
+ *   <li><b>Session-based</b> (default): the user is logged in via browser session.
+ *       Always issues a {@code DATA_API_ACCESS} token.</li>
  *   <li><b>client_credentials</b>: robots authenticate directly with their
  *       consumer secret via {@code grant_type=client_credentials},
- *       {@code client_id} (robot address), and {@code client_secret}.</li>
+ *       {@code client_id} (robot address), and {@code client_secret}.
+ *       Supports the {@code token_type} parameter:
+ *       <ul>
+ *         <li>{@code data_api} (default): issues a {@code DATA_API_ACCESS} token for
+ *             {@code /robot/dataapi} endpoints.</li>
+ *         <li>{@code robot}: issues a {@code ROBOT_ACCESS} token for {@code /robot/rpc}
+ *             (Active API) endpoints.</li>
+ *       </ul>
+ *   </li>
  * </ul>
  *
  * <p>Returns JSON:
@@ -69,6 +79,8 @@ public final class DataApiTokenServlet extends HttpServlet {
   private static final long NO_EXPIRY_LIFETIME_SECONDS = 100L * 365 * 24 * 3600;
   private static final String JSON_CONTENT_TYPE = "application/json";
   private static final String GRANT_TYPE_CLIENT_CREDENTIALS = "client_credentials";
+  private static final String TOKEN_TYPE_ROBOT = "robot";
+  private static final String TOKEN_TYPE_DATA_API = "data_api";
 
   private final SessionManager sessionManager;
   private final JwtKeyRing keyRing;
@@ -179,7 +191,7 @@ public final class DataApiTokenServlet extends HttpServlet {
     sb.append("</head>\n<body>\n");
 
     sb.append("<div class=\"card\">\n");
-    sb.append("  <h1>Data API Token</h1>\n");
+    sb.append("  <h1>Robot API Token</h1>\n");
     sb.append("  <div class=\"subtitle\">Logged in as: ").append(safeUser).append("</div>\n");
     sb.append("  <div class=\"msg\" id=\"statusMsg\"></div>\n");
 
@@ -299,11 +311,12 @@ public final class DataApiTokenServlet extends HttpServlet {
     }
 
     long expirySeconds = parseExpiryParam(req);
-
+    // Session-based tokens are always DATA_API_ACCESS — ROBOT_ACCESS tokens
+    // require robot account credentials via client_credentials grant.
     long issuedAt = clock.instant().getEpochSecond();
     long expiresAt = issuedAt + expirySeconds;
 
-    String token = issueToken(user.getAddress(), issuedAt, expiresAt);
+    String token = issueToken(user.getAddress(), issuedAt, expiresAt, false, 0L);
     sendTokenResponse(resp, token, expirySeconds);
   }
 
@@ -384,7 +397,24 @@ public final class DataApiTokenServlet extends HttpServlet {
     long issuedAt = clock.instant().getEpochSecond();
     long expiresAt = issuedAt + lifetimeSeconds;
 
-    String token = issueToken(robotAccount.getId().getAddress(), issuedAt, expiresAt);
+    // Validate token_type parameter: allow null/empty/"data_api" (defaults to false),
+    // "robot" (true), or reject anything else with 400 invalid_request.
+    String tokenTypeParam = req.getParameter("token_type");
+    boolean isRobotToken;
+    if (tokenTypeParam == null || tokenTypeParam.isEmpty() || TOKEN_TYPE_DATA_API.equals(tokenTypeParam)) {
+      isRobotToken = false;
+    } else if (TOKEN_TYPE_ROBOT.equals(tokenTypeParam)) {
+      isRobotToken = true;
+    } else {
+      sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "invalid_request",
+          "Unknown token_type: " + tokenTypeParam);
+      return;
+    }
+
+    long tokenVersion = robotAccount.getTokenVersion();
+
+    String token = issueToken(robotAccount.getId().getAddress(), issuedAt, expiresAt,
+        isRobotToken, tokenVersion);
     sendTokenResponse(resp, token, lifetimeSeconds);
   }
 
@@ -409,19 +439,34 @@ public final class DataApiTokenServlet extends HttpServlet {
     return expirySeconds;
   }
 
-  private String issueToken(String subject, long issuedAt, long expiresAt) {
+  private String issueToken(String subject, long issuedAt, long expiresAt,
+                            boolean isRobotToken, long subjectVersion) {
+    JwtTokenType tokenType;
+    EnumSet<JwtAudience> audiences;
+    Set<String> scopes;
+
+    if (isRobotToken) {
+      tokenType = JwtTokenType.ROBOT_ACCESS;
+      audiences = EnumSet.of(JwtAudience.ROBOT);
+      scopes = JwtScopes.ROBOT_DEFAULT;
+    } else {
+      tokenType = JwtTokenType.DATA_API_ACCESS;
+      audiences = EnumSet.of(JwtAudience.DATA_API);
+      scopes = JwtScopes.DATA_API_DEFAULT;
+    }
+
     JwtClaims claims = new JwtClaims(
-        JwtTokenType.DATA_API_ACCESS,
+        tokenType,
         issuer,
         subject,
         UUID.randomUUID().toString(),
         keyRing.signingKeyId(),
-        EnumSet.of(JwtAudience.DATA_API),
-        Set.of(),
+        audiences,
+        scopes,
         issuedAt,
         issuedAt,
         expiresAt,
-        0L);
+        subjectVersion);
 
     return keyRing.issuer().issue(claims);
   }

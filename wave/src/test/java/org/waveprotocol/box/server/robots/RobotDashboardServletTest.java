@@ -114,10 +114,10 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    assertTrue(outputWriter.toString().contains("Robot Control Room"));
+    assertTrue(outputWriter.toString().contains("Robot Control Center"));
     assertTrue(outputWriter.toString().contains("robot-bot@example.com"));
-    assertTrue(outputWriter.toString().contains("Google AI Studio / Gemini"));
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_DATA_API_TOKEN"));
+    assertTrue(outputWriter.toString().contains("ChatGPT, Claude"));
+    assertTrue(outputWriter.toString().contains("SUPAWAVE_MANAGEMENT_TOKEN"));
   }
 
   public void testDoGetRendersRotateSecretControlForOwnedRobot() throws Exception {

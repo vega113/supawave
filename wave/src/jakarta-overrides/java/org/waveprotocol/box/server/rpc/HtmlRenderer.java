@@ -3458,86 +3458,7 @@ public final class HtmlRenderer {
   }
 
   // =========================================================================
-  // 7. OAuth Authorize Token Page
-  // =========================================================================
-
-  /**
-   * Renders the OAuth token authorization page.
-   *
-   * @param user      the logged-in user address
-   * @param xsrfToken XSRF protection token
-   */
-  public static String renderOAuthAuthorizeTokenPage(String user, String xsrfToken) {
-    StringBuilder sb = new StringBuilder(2048);
-    sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
-    sb.append("<meta charset=\"UTF-8\">\n");
-    sb.append("<title>Authorization Required</title>\n");
-    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
-    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
-    sb.append(AUTH_CSS);
-    sb.append("</head>\n<body>\n");
-    sb.append(WAVE_SVG);
-    sb.append("<div class=\"page-wrapper\">\n");
-    sb.append("  <div class=\"brand\">\n");
-    sb.append("    ").append(WAVE_LOGO_SVG);
-    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
-    sb.append("  </div>\n");
-    sb.append("  <div class=\"card\">\n");
-    sb.append("    <h1>Authorization Required</h1>\n");
-    sb.append("    <p>You are logged in as <b>").append(escapeHtml(user)).append("</b>.</p>\n");
-    sb.append("    <p>A program would like to access your waves and perform operations on your behalf.</p>\n");
-    sb.append("    <form method=\"post\" action=\"\">\n");
-    sb.append("      <input type=\"hidden\" name=\"token\" value=\"").append(escapeHtml(xsrfToken)).append("\">\n");
-    sb.append("      <div class=\"buttons\">\n");
-    sb.append("        <input type=\"submit\" class=\"btn-primary\" value=\"Agree\" name=\"agree\">\n");
-    sb.append("        <input type=\"submit\" class=\"btn-secondary\" value=\"Cancel\" name=\"cancel\">\n");
-    sb.append("      </div>\n");
-    sb.append("    </form>\n");
-    sb.append("  </div>\n"); // .card
-    sb.append("</div>\n"); // .page-wrapper
-    sb.append("</body>\n</html>\n");
-    return sb.toString();
-  }
-
-  // =========================================================================
-  // 8. OAuth Authorization Code Page
-  // =========================================================================
-
-  /**
-   * Renders the page that displays an OAuth authorization code.
-   *
-   * @param code the authorization code to show
-   */
-  public static String renderOAuthAuthorizationCodePage(String code) {
-    StringBuilder sb = new StringBuilder(1024);
-    sb.append("<!DOCTYPE html>\n<html>\n<head>\n");
-    sb.append("<meta charset=\"UTF-8\">\n");
-    sb.append("<title>Authorization code</title>\n");
-    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
-    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
-    sb.append(AUTH_CSS);
-    sb.append("</head>\n<body>\n");
-    sb.append(WAVE_SVG);
-    sb.append("<div class=\"page-wrapper\">\n");
-    sb.append("  <div class=\"brand\">\n");
-    sb.append("    ").append(WAVE_LOGO_SVG);
-    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
-    sb.append("  </div>\n");
-    sb.append("  <div class=\"card\">\n");
-    sb.append("    <h1>Authorization Code</h1>\n");
-    sb.append("    <p>Please copy this code, switch to your application and paste it there:</p>\n");
-    sb.append("    <input id=\"code\" type=\"text\" readonly ");
-    sb.append("style=\"width:100%;font-family:monospace;\" ");
-    sb.append("onclick=\"this.focus();this.select();\" ");
-    sb.append("value=\"").append(escapeHtml(code)).append("\">\n");
-    sb.append("  </div>\n"); // .card
-    sb.append("</div>\n"); // .page-wrapper
-    sb.append("</body>\n</html>\n");
-    return sb.toString();
-  }
-
-  // =========================================================================
-  // 9. Password Reset Request Page
+  // 7. Password Reset Request Page
   // =========================================================================
 
   /**
@@ -4170,11 +4091,20 @@ public final class HtmlRenderer {
     sb.append("          <tr><td>Waves in storage</td><td id=\"opsWavesStorage\">—</td></tr>\n");
     sb.append("          <tr><td>Docs in Lucene index</td><td id=\"opsDocsIndex\">—</td></tr>\n");
     sb.append("          <tr><td>Last rebuild count</td><td id=\"opsLastRebuild\">—</td></tr>\n");
+    sb.append("          <tr><td>Avg index time (incremental)</td><td id=\"opsIncrementalAvg\">—</td></tr>\n");
+    sb.append("          <tr><td>Incremental indexes</td><td id=\"opsIncrementalCount\">—</td></tr>\n");
+    sb.append("          <tr><td>Est. full reindex time</td><td id=\"opsEstReindex\">—</td></tr>\n");
+    sb.append("          <tr><td>Last reindex stats</td><td id=\"opsLastReindexStats\">—</td></tr>\n");
     sb.append("        </tbody>\n");
     sb.append("      </table>\n");
     sb.append("      <div style=\"margin-top:12px\">\n");
     sb.append("        <button class=\"btn\" id=\"reindexBtn\" disabled>Rebuild Lucene Index</button>\n");
-    sb.append("        <span id=\"reindexStatus\" style=\"margin-left:12px;color:#666\"></span>\n");
+    sb.append("        <div id=\"reindexProgress\" style=\"margin-top:8px\">\n");
+    sb.append("          <div id=\"reindexBar\" style=\"display:none;background:#e0e0e0;border-radius:4px;height:20px;max-width:400px;margin-bottom:4px\">\n");
+    sb.append("            <div id=\"reindexBarFill\" style=\"background:#4a90d9;height:100%;border-radius:4px;width:0%;transition:width 0.3s\"></div>\n");
+    sb.append("          </div>\n");
+    sb.append("          <span id=\"reindexStatus\" style=\"color:#666\"></span>\n");
+    sb.append("        </div>\n");
     sb.append("      </div>\n");
     sb.append("    </div>\n");
     sb.append("    <div class=\"card\" style=\"margin-top:16px\">\n");
@@ -4885,13 +4815,61 @@ public final class HtmlRenderer {
     sb.append("    return (b/1073741824).toFixed(2) + ' GB';\n");
     sb.append("  }\n");
 
+    sb.append("  function formatDuration(ms) {\n");
+    sb.append("    if (!ms || ms <= 0) return '\\u2014';\n");
+    sb.append("    if (ms < 1000) return '< 1s';\n");
+    sb.append("    var s = ms / 1000;\n");
+    sb.append("    if (s < 60) return s.toFixed(1) + 's';\n");
+    sb.append("    var m = Math.floor(s / 60);\n");
+    sb.append("    var rs = Math.round(s % 60);\n");
+    sb.append("    return m + 'm ' + rs + 's';\n");
+    sb.append("  }\n");
+
+    sb.append("  function updateReindexBar(ri) {\n");
+    sb.append("    var bar = document.getElementById('reindexBar');\n");
+    sb.append("    var fill = document.getElementById('reindexBarFill');\n");
+    sb.append("    if (ri && ri.state === 'RUNNING' && ri.estimatedTotalWaves > 0) {\n");
+    sb.append("      bar.style.display = 'block';\n");
+    sb.append("      var pct = Math.min(100, Math.round(100 * (ri.wavesIndexedSoFar || 0) / ri.estimatedTotalWaves));\n");
+    sb.append("      fill.style.width = pct + '%';\n");
+    sb.append("    } else {\n");
+    sb.append("      bar.style.display = 'none';\n");
+    sb.append("      fill.style.width = '0%';\n");
+    sb.append("    }\n");
+    sb.append("  }\n");
+
     sb.append("  function fmtRI(ri) {\n");
     sb.append("    if (!ri || ri.state === 'IDLE') return 'No reindex has run';\n");
     sb.append("    var s = ri.state;\n");
-    sb.append("    if (s === 'RUNNING') return 'Running... (started by ' + esc(ri.triggeredBy || '?') + ')';\n");
+    sb.append("    if (s === 'RUNNING') {\n");
+    sb.append("      var soFar = ri.wavesIndexedSoFar || 0;\n");
+    sb.append("      var est = ri.estimatedTotalWaves || 0;\n");
+    sb.append("      var pct = est > 0 ? Math.round(100 * soFar / est) : 0;\n");
+    sb.append("      var txt = soFar + (est > 0 ? ' / ' + est : '') + ' waves';\n");
+    sb.append("      if (est > 0) txt += ' (' + pct + '%)';\n");
+    sb.append("      if (ri.avgMsPerWave) txt += ' \\u2014 avg ' + ri.avgMsPerWave.toFixed(1) + 'ms/wave';\n");
+    sb.append("      if (ri.estimatedRemainingMs > 0) {\n");
+    sb.append("        txt += ' \\u2014 ETA: ~' + formatDuration(ri.estimatedRemainingMs);\n");
+    sb.append("      } else if (soFar > 0 && est > 0 && soFar >= est) {\n");
+    sb.append("        txt += ' \\u2014 Finishing...';\n");
+    sb.append("      } else if (soFar === 0) {\n");
+    sb.append("        txt += ' \\u2014 Estimating...';\n");
+    sb.append("      }\n");
+    sb.append("      return txt;\n");
+    sb.append("    }\n");
     sb.append("    if (s === 'COMPLETED') {\n");
-    sb.append("      var dur = ri.endTimeMs && ri.startTimeMs ? ((ri.endTimeMs - ri.startTimeMs)/1000).toFixed(1) + 's' : '?';\n");
-    sb.append("      return 'Completed: ' + (ri.waveCount || 0) + ' waves in ' + dur + ' (by ' + esc(ri.triggeredBy || '?') + ')';\n");
+    sb.append("      var dur = ri.endTimeMs && ri.startTimeMs ? formatDuration(ri.endTimeMs - ri.startTimeMs) : '?';\n");
+    sb.append("      var txt = (ri.waveCount || 0) + ' waves in ' + dur;\n");
+    sb.append("      if (ri.endTimeMs && ri.startTimeMs && ri.waveCount > 0) {\n");
+    sb.append("        var rate = (ri.waveCount * 1000 / (ri.endTimeMs - ri.startTimeMs)).toFixed(1);\n");
+    sb.append("        txt += ' (' + rate + '/sec';\n");
+    sb.append("        if (ri.avgMsPerWave) txt += ', avg ' + ri.avgMsPerWave.toFixed(1) + 'ms';\n");
+    sb.append("        if (ri.minMsPerWave !== undefined) txt += ', min ' + ri.minMsPerWave + 'ms';\n");
+    sb.append("        if (ri.maxMsPerWave !== undefined) txt += ', max ' + ri.maxMsPerWave + 'ms';\n");
+    sb.append("        txt += ')';\n");
+    sb.append("      }\n");
+    sb.append("      txt += ' by ' + esc(ri.triggeredBy || '?');\n");
+    sb.append("      return txt;\n");
     sb.append("    }\n");
     sb.append("    if (s === 'FAILED') return 'Failed: ' + esc(ri.error || 'unknown error');\n");
     sb.append("    return s;\n");
@@ -4906,6 +4884,24 @@ public final class HtmlRenderer {
     sb.append("      document.getElementById('opsWavesStorage').textContent = si.wavesInStorage >= 0 ? si.wavesInStorage : '\\u2014';\n");
     sb.append("      document.getElementById('opsDocsIndex').textContent = si.docsInIndex >= 0 ? si.docsInIndex : 'N/A';\n");
     sb.append("      document.getElementById('opsLastRebuild').textContent = si.lastRebuildWaveCount >= 0 ? si.lastRebuildWaveCount : '\\u2014';\n");
+    // Incremental indexing stats
+    sb.append("      document.getElementById('opsIncrementalAvg').textContent = si.incrementalAvgMs ? si.incrementalAvgMs.toFixed(1) + 'ms' : '\\u2014';\n");
+    sb.append("      document.getElementById('opsIncrementalCount').textContent = si.incrementalIndexCount || '\\u2014';\n");
+    // Estimated full reindex time
+    sb.append("      var estMs = 0;\n");
+    sb.append("      var ri = d.lastReindex || {};\n");
+    sb.append("      if (ri.avgMsPerWave && si.wavesInStorage > 0) {\n");
+    sb.append("        estMs = si.wavesInStorage * ri.avgMsPerWave;\n");
+    sb.append("      } else if (si.incrementalAvgMs && si.wavesInStorage > 0) {\n");
+    sb.append("        estMs = si.wavesInStorage * si.incrementalAvgMs;\n");
+    sb.append("      }\n");
+    sb.append("      document.getElementById('opsEstReindex').textContent = estMs > 0 ? '~' + formatDuration(estMs) : '\\u2014';\n");
+    // Last reindex stats summary
+    sb.append("      if (ri.state === 'COMPLETED' && ri.avgMsPerWave) {\n");
+    sb.append("        document.getElementById('opsLastReindexStats').textContent = fmtRI(ri);\n");
+    sb.append("      } else {\n");
+    sb.append("        document.getElementById('opsLastReindexStats').textContent = fmtRI(ri);\n");
+    sb.append("      }\n");
     sb.append("      var srv = d.serverInfo || {};\n");
     sb.append("      document.getElementById('opsUptime').textContent = formatUptime(srv.uptimeMs || 0);\n");
     sb.append("      document.getElementById('opsHeap').textContent = formatBytes(srv.heapUsedBytes||0) + ' / ' + formatBytes(srv.heapMaxBytes||0);\n");
@@ -4918,6 +4914,7 @@ public final class HtmlRenderer {
     sb.append("      var reindexRunning = d.lastReindex && d.lastReindex.state === 'RUNNING';\n");
     sb.append("      btn.disabled = si.type !== 'lucene' || reindexRunning;\n");
     sb.append("      document.getElementById('reindexStatus').textContent = fmtRI(d.lastReindex);\n");
+    sb.append("      updateReindexBar(d.lastReindex);\n");
     sb.append("      if (d.lastReindex && d.lastReindex.state === 'RUNNING') startReindexPoll();\n");
     sb.append("    }).catch(function(e){\n");
     sb.append("      showToast('Failed to load ops status: ' + e.message, 'error');\n");
@@ -4929,6 +4926,7 @@ public final class HtmlRenderer {
     sb.append("    reindexPollTimer = setInterval(function(){\n");
     sb.append("      fetch('/admin/api/ops/reindex/status').then(function(r){return r.json();}).then(function(ri){\n");
     sb.append("        document.getElementById('reindexStatus').textContent = fmtRI(ri);\n");
+    sb.append("        updateReindexBar(ri);\n");
     sb.append("        if (ri.state !== 'RUNNING') {\n");
     sb.append("          clearInterval(reindexPollTimer);\n");
     sb.append("          reindexPollTimer = null;\n");
@@ -4953,6 +4951,7 @@ public final class HtmlRenderer {
     sb.append("    }).then(function(d){\n");
     sb.append("      if (d && d.reindex) {\n");
     sb.append("        document.getElementById('reindexStatus').textContent = fmtRI(d.reindex);\n");
+    sb.append("        updateReindexBar(d.reindex);\n");
     sb.append("      }\n");
     sb.append("      startReindexPoll();\n");
     sb.append("    }).catch(function(e){\n");

@@ -26,6 +26,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.function.IntConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -78,6 +79,8 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   private final IndexWriter indexWriter;
   private final SearcherManager searcherManager;
   private volatile int lastRebuildWaveCount = -1;
+  private volatile ReindexStats lastReindexStats;
+  private final IncrementalIndexStats incrementalStats = new IncrementalIndexStats();
 
   @Inject
   public Lucene9WaveIndexerImpl(WaveMap waveMap, WaveletProvider waveletProvider,
@@ -132,7 +135,9 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
         LOG.log(Level.WARNING,
             "loadAllWavelets failed during incremental repair, using cached waves", e);
       }
-      lastRebuildWaveCount = doRebuild(fullRebuild);
+      ReindexStats stats = doRebuild(fullRebuild, null);
+      lastRebuildWaveCount = stats.waveCount;
+      lastReindexStats = stats;
     } catch (IOException e) {
       throw new IndexException(e);
     }
@@ -143,16 +148,20 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
    * Deletes all existing documents and re-indexes every wave from storage.
    * Called by admin dashboard reindex trigger.
    *
-   * @return the number of waves indexed
+   * @param progressCallback optional callback invoked after each wave with the current count
+   * @return stats from the rebuild including wave count and timing metrics
    */
-  public synchronized int forceRemakeIndex() throws WaveletStateException, WaveServerException {
+  public synchronized ReindexStats forceRemakeIndex(IntConsumer progressCallback)
+      throws WaveletStateException, WaveServerException {
     try {
       int existingDocs = indexWriter.getDocStats().numDocs;
       LOG.info("Admin-triggered forced rebuild (had " + existingDocs + " docs)");
       indexWriter.deleteAll();
       waveMap.loadAllWavelets();
-      lastRebuildWaveCount = doRebuild(true);
-      return lastRebuildWaveCount;
+      ReindexStats stats = doRebuild(true, progressCallback);
+      lastRebuildWaveCount = stats.waveCount;
+      lastReindexStats = stats;
+      return stats;
     } catch (IOException e) {
       throw new IndexException(e);
     } catch (WaveServerException | RuntimeException e) {
@@ -173,22 +182,37 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   }
 
   /**
-   * Shared rebuild logic: loads all waves and indexes them. Returns wave count.
+   * Shared rebuild logic: loads all waves and indexes them. Returns stats.
    * @param fullRebuild if true, errors during individual wave indexing are fatal;
    *                    if false, errors are logged and indexing continues (incremental repair).
+   * @param progressCallback optional callback invoked after each wave with the current count
    */
-  private int doRebuild(boolean fullRebuild)
+  private ReindexStats doRebuild(boolean fullRebuild, IntConsumer progressCallback)
       throws WaveletStateException, WaveServerException, IOException {
     try {
+      long rebuildStartMs = System.currentTimeMillis();
       org.waveprotocol.box.common.ExceptionalIterator<WaveId, WaveServerException> waveIds =
           waveletProvider.getWaveIds();
       int count = 0;
       int errors = 0;
+      long sumNs = 0;
+      long minNs = Long.MAX_VALUE;
+      long maxNs = 0;
       while (waveIds.hasNext()) {
         WaveId waveId = waveIds.next();
         try {
-          upsertWave(waveId);
+          long elapsedNs = upsertWaveTimed(waveId);
           count++;
+          sumNs += elapsedNs;
+          if (elapsedNs < minNs) minNs = elapsedNs;
+          if (elapsedNs > maxNs) maxNs = elapsedNs;
+          if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine("[rebuild " + count + "] Indexed wave " + waveId.serialise()
+                + " in " + (elapsedNs / 1_000_000) + "ms");
+          }
+          if (progressCallback != null) {
+            progressCallback.accept(count);
+          }
         } catch (IOException e) {
           throw e;
         } catch (WaveServerException e) {
@@ -201,14 +225,22 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
       }
       indexWriter.commit();
       searcherManager.maybeRefreshBlocking();
-      LOG.info("Lucene9 index completed: " + count + " waves indexed"
+      long totalMs = System.currentTimeMillis() - rebuildStartMs;
+      ReindexStats stats = new ReindexStats(count, errors, totalMs,
+          count > 0 ? sumNs : 0, count > 0 ? minNs : 0, count > 0 ? maxNs : 0);
+      double rate = totalMs > 0 ? (count * 1000.0 / totalMs) : 0;
+      LOG.info("Lucene9 reindex completed: " + count + " waves in "
+          + String.format("%.1f", totalMs / 1000.0) + "s ("
+          + String.format("%.1f", rate) + " waves/sec, avg "
+          + String.format("%.1f", stats.avgMsPerWave) + "ms, min "
+          + stats.minMsPerWave + "ms, max " + stats.maxMsPerWave + "ms)"
           + (errors > 0 ? ", " + errors + " skipped due to errors" : ""));
       if (errors > 0) {
         LOG.warning("Lucene9 incremental repair incomplete: " + errors
             + " waves could not be indexed out of " + (count + errors)
             + " — search results may be partial until next successful repair");
       }
-      return count;
+      return stats;
     } finally {
       waveMap.unloadAllWavelets();
     }
@@ -221,9 +253,14 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   @Override
   public void waveletCommitted(WaveletName waveletName, HashedVersion version) {
     try {
-      upsertWave(waveletName.waveId);
+      long elapsedNs = upsertWaveTimed(waveletName.waveId);
+      incrementalStats.record(elapsedNs);
       indexWriter.commit();
       searcherManager.maybeRefreshBlocking();
+      if (LOG.isLoggable(Level.FINE)) {
+        LOG.fine("Indexed wave " + waveletName.waveId.serialise()
+            + " in " + (elapsedNs / 1_000_000) + "ms (incremental)");
+      }
     } catch (IOException e) {
       LOG.log(Level.WARNING, "Failed to refresh lucene9 search index for " + waveletName, e);
     } catch (WaveServerException e) {
@@ -286,11 +323,28 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     return lastRebuildWaveCount;
   }
 
-  private void upsertWave(WaveId waveId) throws WaveServerException, WaveletStateException,
+  /** Returns stats from the last rebuild, or null if no rebuild has completed. */
+  public ReindexStats getLastReindexStats() {
+    return lastReindexStats;
+  }
+
+  /** Returns the rolling average ms per wave for incremental (real-time) indexing. */
+  public double getIncrementalAvgMs() {
+    return incrementalStats.getAvgMs();
+  }
+
+  /** Returns the total number of incremental index operations since startup. */
+  public long getIncrementalIndexCount() {
+    return incrementalStats.getCount();
+  }
+
+  private long upsertWaveTimed(WaveId waveId) throws WaveServerException, WaveletStateException,
       IOException {
+    long startNs = System.nanoTime();
     WaveViewData wave = loadWave(waveId);
     Document document = documentBuilder.build(metadataExtractor.extract(wave), wave);
     indexWriter.updateDocument(new Term(Lucene9FieldNames.DOC_ID, waveId.serialise()), document);
+    return System.nanoTime() - startNs;
   }
 
   private WaveViewData loadWave(WaveId waveId) throws WaveServerException, WaveletStateException {
@@ -299,5 +353,49 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
       waveletProvider.getSnapshot(WaveletName.of(waveId, waveletId));
     }
     return AbstractSearchProviderImpl.buildWaveViewData(waveId, waveletIds, MATCH_ALL, waveMap);
+  }
+
+  /** Thread-safe rolling average tracker for incremental indexing times. */
+  static class IncrementalIndexStats {
+    private static final int RING_SIZE = 100;
+    private final long[] timesNs = new long[RING_SIZE];
+    private int pos = 0;
+    private long totalCount = 0;
+
+    synchronized void record(long elapsedNs) {
+      timesNs[pos % RING_SIZE] = elapsedNs;
+      pos++;
+      totalCount++;
+    }
+
+    synchronized double getAvgMs() {
+      int filled = (int) Math.min(totalCount, RING_SIZE);
+      if (filled == 0) return 0;
+      long sum = 0;
+      for (int i = 0; i < filled; i++) sum += timesNs[i];
+      return (sum / filled) / 1_000_000.0;
+    }
+
+    synchronized long getCount() { return totalCount; }
+  }
+
+  /** Immutable stats from a completed reindex operation. */
+  public static class ReindexStats {
+    public final int waveCount;
+    public final int errorCount;
+    public final long totalMs;
+    public final double avgMsPerWave;
+    public final long minMsPerWave;
+    public final long maxMsPerWave;
+
+    public ReindexStats(int waveCount, int errorCount, long totalMs,
+        long sumNs, long minNs, long maxNs) {
+      this.waveCount = waveCount;
+      this.errorCount = errorCount;
+      this.totalMs = totalMs;
+      this.avgMsPerWave = waveCount > 0 ? (sumNs / waveCount) / 1_000_000.0 : 0;
+      this.minMsPerWave = waveCount > 0 ? minNs / 1_000_000 : 0;
+      this.maxMsPerWave = waveCount > 0 ? maxNs / 1_000_000 : 0;
+    }
   }
 }

@@ -23,18 +23,28 @@ import static org.mockito.Mockito.*;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntConsumer;
 import org.junit.Before;
 import org.junit.Test;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
+import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl.ReindexStats;
 
 public class ReindexServiceTest {
 
   private Lucene9WaveIndexerImpl mockIndexer;
   private ReindexService service;
 
+  private static ReindexStats makeStats(int waveCount) {
+    // sumNs=waveCount*10ms, minNs=5ms, maxNs=20ms
+    return new ReindexStats(waveCount, 0, waveCount * 10L,
+        waveCount * 10_000_000L, 5_000_000L, 20_000_000L);
+  }
+
   @Before
   public void setUp() {
     mockIndexer = mock(Lucene9WaveIndexerImpl.class);
+    when(mockIndexer.getLastRebuildWaveCount()).thenReturn(-1);
+    when(mockIndexer.getIndexedDocCount()).thenReturn(0);
     service = new ReindexService(mockIndexer);
   }
 
@@ -45,7 +55,7 @@ public class ReindexServiceTest {
 
   @Test
   public void testTriggerReindexStartsJob() throws Exception {
-    when(mockIndexer.forceRemakeIndex()).thenReturn(42);
+    when(mockIndexer.forceRemakeIndex(any(IntConsumer.class))).thenReturn(makeStats(42));
 
     boolean started = service.triggerReindex("admin@test.com");
     assertTrue(started);
@@ -56,15 +66,16 @@ public class ReindexServiceTest {
     assertEquals(42, service.getWaveCount());
     assertEquals("admin@test.com", service.getTriggeredBy());
     assertTrue(service.getEndTimeMs() >= service.getStartTimeMs());
+    assertTrue(service.getLastAvgMsPerWave() > 0);
   }
 
   @Test
   public void testConcurrentReindexReturnsConflict() throws Exception {
     // Block the indexer so the first job stays RUNNING
     CountDownLatch latch = new CountDownLatch(1);
-    when(mockIndexer.forceRemakeIndex()).thenAnswer(inv -> {
+    when(mockIndexer.forceRemakeIndex(any(IntConsumer.class))).thenAnswer(inv -> {
       latch.await(10, TimeUnit.SECONDS);
-      return 10;
+      return makeStats(10);
     });
 
     assertTrue(service.triggerReindex("admin1@test.com"));
@@ -81,7 +92,8 @@ public class ReindexServiceTest {
 
   @Test
   public void testFailedReindexSetsErrorState() throws Exception {
-    when(mockIndexer.forceRemakeIndex()).thenThrow(new RuntimeException("disk full"));
+    when(mockIndexer.forceRemakeIndex(any(IntConsumer.class)))
+        .thenThrow(new RuntimeException("disk full"));
 
     assertTrue(service.triggerReindex("admin@test.com"));
     awaitState(ReindexService.State.FAILED, 5000);
@@ -92,13 +104,13 @@ public class ReindexServiceTest {
 
   @Test
   public void testCanRetriggerAfterCompletion() throws Exception {
-    when(mockIndexer.forceRemakeIndex()).thenReturn(10);
+    when(mockIndexer.forceRemakeIndex(any(IntConsumer.class))).thenReturn(makeStats(10));
 
     assertTrue(service.triggerReindex("admin@test.com"));
     awaitState(ReindexService.State.COMPLETED, 5000);
 
     // Should be able to trigger again
-    when(mockIndexer.forceRemakeIndex()).thenReturn(20);
+    when(mockIndexer.forceRemakeIndex(any(IntConsumer.class))).thenReturn(makeStats(20));
     assertTrue(service.triggerReindex("admin@test.com"));
     awaitState(ReindexService.State.COMPLETED, 5000);
     assertEquals(20, service.getWaveCount());
@@ -106,13 +118,14 @@ public class ReindexServiceTest {
 
   @Test
   public void testCanRetriggerAfterFailure() throws Exception {
-    when(mockIndexer.forceRemakeIndex()).thenThrow(new RuntimeException("fail"));
+    when(mockIndexer.forceRemakeIndex(any(IntConsumer.class)))
+        .thenThrow(new RuntimeException("fail"));
 
     assertTrue(service.triggerReindex("admin@test.com"));
     awaitState(ReindexService.State.FAILED, 5000);
 
-    // Should be able to trigger again — use doReturn to avoid re-triggering the throw
-    doReturn(15).when(mockIndexer).forceRemakeIndex();
+    // Should be able to trigger again
+    doReturn(makeStats(15)).when(mockIndexer).forceRemakeIndex(any(IntConsumer.class));
     assertTrue(service.triggerReindex("admin@test.com"));
     awaitState(ReindexService.State.COMPLETED, 5000);
     assertEquals(15, service.getWaveCount());
@@ -131,6 +144,31 @@ public class ReindexServiceTest {
     assertEquals(ReindexService.State.COMPLETED, service.getState());
     assertEquals(134, service.getWaveCount());
     assertEquals("startup", service.getTriggeredBy());
+  }
+
+  @Test
+  public void testRecordStartupReindexWithStats() {
+    ReindexStats stats = makeStats(200);
+    service.recordStartupReindex(stats);
+    assertEquals(ReindexService.State.COMPLETED, service.getState());
+    assertEquals(200, service.getWaveCount());
+    assertEquals("startup", service.getTriggeredBy());
+    assertTrue(service.getLastAvgMsPerWave() > 0);
+  }
+
+  @Test
+  public void testProgressTrackingDuringReindex() throws Exception {
+    when(mockIndexer.getLastRebuildWaveCount()).thenReturn(100);
+    when(mockIndexer.forceRemakeIndex(any(IntConsumer.class))).thenAnswer(inv -> {
+      IntConsumer callback = inv.getArgument(0);
+      for (int i = 1; i <= 50; i++) callback.accept(i);
+      return makeStats(50);
+    });
+
+    assertTrue(service.triggerReindex("admin@test.com"));
+    awaitState(ReindexService.State.COMPLETED, 5000);
+    assertEquals(100, service.getEstimatedTotalWaves());
+    assertEquals(50, service.getWavesIndexedSoFar());
   }
 
   private void awaitState(ReindexService.State expected, long timeoutMs) throws InterruptedException {

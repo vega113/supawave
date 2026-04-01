@@ -35,6 +35,7 @@ import org.waveprotocol.box.server.robots.util.OperationUtil;
 import org.waveprotocol.wave.model.conversation.ObservableConversationBlip;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
+import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
@@ -106,21 +107,33 @@ public class CreateWaveletService implements OperationService {
     }
 
     // Store the temporary id of the wavelet and rootblip so that future
-    // operations can reference it.
+    // operations can reference it.  Fall back to the server-generated
+    // waveletName when the client omits waveId or waveletId (common for
+    // robot.createWavelet where the server picks the ids).
     try {
-      String clientWaveId = waveletData.getWaveId();
-      String clientWaveletId = waveletData.getWaveletId();
-      WaveId waveId = (clientWaveId != null)
-          ? ApiIdSerializer.instance().deserialiseWaveId(clientWaveId)
-          : waveletName.waveId;
-      WaveletId waveletId = (clientWaveletId != null)
-          ? ApiIdSerializer.instance().deserialiseWaveletId(clientWaveletId)
-          : waveletName.waveletId;
+      final String clientWaveId = waveletData.getWaveId();
+      final String clientWaveletId = waveletData.getWaveletId();
+      final WaveId waveId;
+      final WaveletId waveletId;
+      if (clientWaveId != null) {
+        waveId = ApiIdSerializer.instance().deserialiseWaveId(clientWaveId);
+        waveletId = (clientWaveletId != null)
+            ? ApiIdSerializer.instance().deserialiseWaveletId(clientWaveletId)
+            : WaveletId.of(waveId.getDomain(), IdConstants.CONVERSATION_ROOT_WAVELET);
+      } else {
+        // No client wave id: use server-generated ids for both.
+        waveId = waveletName.waveId;
+        waveletId = waveletName.waveletId;
+      }
       context.putWavelet(waveId, waveletId, newWavelet);
     } catch (InvalidIdException e) {
       throw new InvalidRequestException("Invalid id", operation, e);
     }
-    context.putBlip(waveletData.getRootBlipId(), rootBlip);
+    String rootBlipId = waveletData.getRootBlipId();
+    if (rootBlipId == null) {
+      rootBlipId = rootBlip.getId();
+    }
+    context.putBlip(rootBlipId, rootBlip);
 
     String message = OperationUtil.getOptionalParameter(operation, ParamsProperty.MESSAGE);
     WaveletCreatedEvent event =

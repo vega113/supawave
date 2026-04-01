@@ -34,6 +34,7 @@ public final class ApiDocsServlet extends HttpServlet {
   private static final String CANONICAL_RPC_PATH = "/robot/dataapi/rpc";
   private static final String RPC_ALIAS_PATH = "/robot/dataapi";
   private static final String TOKEN_PATH = "/robot/dataapi/token";
+  private static final String TOKEN_ALIAS_PATH = "/robot/token";
   private static final Gson PRETTY_JSON =
       new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
   private static final Pattern NON_ALNUM = Pattern.compile("[^a-z0-9]+");
@@ -436,6 +437,12 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("  </style>\n");
     html.append("</head>\n");
     html.append("<body>\n");
+    html.append("  <nav style=\"padding:10px 24px;max-width:1180px;margin:0 auto;position:relative;z-index:2\">");
+    html.append("<a href=\"/\" style=\"display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:rgba(255,255,255,.85);text-decoration:none\">");
+    html.append("<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"15 18 9 12 15 6\"/></svg> SupaWave</a>");
+    html.append(" <span style=\"color:rgba(255,255,255,.4);margin:0 6px\">/</span> ");
+    html.append("<a href=\"/account/robots\" style=\"font-size:12px;font-weight:500;color:rgba(255,255,255,.85);text-decoration:none\">Robot Control Center</a>");
+    html.append("</nav>\n");
     html.append("  <header class=\"hero\">\n");
     html.append("    <div class=\"hero-inner\">\n");
     html.append("      <span class=\"eyebrow\">Self-hosted API docs</span>\n");
@@ -519,7 +526,9 @@ public final class ApiDocsServlet extends HttpServlet {
         .append(escape(TOKEN_PATH))
         .append("\nPOST ")
         .append(escape(TOKEN_PATH))
-        .append("</pre></div>\n");
+        .append("\nPOST ")
+        .append(escape(TOKEN_ALIAS_PATH))
+        .append(" (alias)</pre></div>\n");
     html.append("        </div>\n");
     html.append("      </section>\n");
     html.append("      <section id=\"token\">\n");
@@ -530,7 +539,7 @@ public final class ApiDocsServlet extends HttpServlet {
         .append(escape(baseUrl))
         .append(TOKEN_PATH)
         .append("</code> while logged in.</li>\n");
-    html.append("          <li>Select a short-lived expiry such as <code>3600</code> seconds.</li>\n");
+    html.append("          <li>Select a short-lived expiry such as <code>3600</code> seconds. (Browser tokens are always Data API tokens.)</li>\n");
     html.append("          <li>Generate the token and copy it into your <code>Authorization</code> header.</li>\n");
     html.append("        </ul>\n");
     html.append("        <h3>Robot client_credentials flow</h3>\n");
@@ -650,7 +659,7 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("        <h2>Legacy and unsupported notes</h2>\n");
     html.append("        <ul>\n");
     html.append("          <li><code>robot.createWavelet</code> is the supported create method. <code>wavelet.create</code> is not part of the live Jakarta Data API registry.</li>\n");
-    html.append("          <li><code>DataApiOAuthServlet</code> still exists in source, but it is not registered by the live Jakarta server and should not be treated as the current auth story.</li>\n");
+    html.append("          <li>Legacy OAuth 1.0 code has been removed. All robot API authentication uses JWT Bearer tokens.</li>\n");
     html.append("          <li>Public docs here are scoped to the 24 methods in the live Jakarta registry, not the full shared <code>OperationType</code> enum.</li>\n");
     html.append("        </ul>\n");
     html.append("      </section>\n");
@@ -763,7 +772,9 @@ public final class ApiDocsServlet extends HttpServlet {
                         orderedMap("type", "string", "enum", list("client_credentials")),
                     "client_id", orderedMap("type", "string"),
                     "client_secret", orderedMap("type", "string"),
-                    "expiry", orderedMap("type", "integer", "format", "int64", "example", 3600))));
+                    "expiry", orderedMap("type", "integer", "format", "int64", "example", 3600),
+                    "token_type", orderedMap("type", "string", "enum", list("data_api", "robot"), "default", "data_api",
+                        "description", "Token type: data_api for /robot/dataapi, robot for /robot/rpc"))));
     // Robot Management API schemas
     schemas.put("Robot", robotSchema(false));
     schemas.put("RobotDetailed", robotSchema(true));
@@ -1247,8 +1258,10 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("OpenAPI JSON: ").append(baseUrl).append(OPENAPI_PATH).append('\n');
     text.append("Canonical RPC path: ").append(CANONICAL_RPC_PATH).append('\n');
     text.append("Alias path: ").append(RPC_ALIAS_PATH).append('\n');
-    text.append("Token endpoint: ").append(TOKEN_PATH).append('\n');
-    text.append("Auth: Authorization: Bearer <token> (JWT type=data-api-access, audience=data-api)\n");
+    text.append("Token endpoint: ").append(TOKEN_PATH).append(" (alias: ").append(TOKEN_ALIAS_PATH).append(")\n");
+    text.append("Auth: Authorization: Bearer <token>\n");
+    text.append("  Data API tokens: JWT type=data-api-access, audience=data-api, scopes=wave:data:read,wave:data:write\n");
+    text.append("  Robot API tokens: JWT type=robot-access, audience=robot, scopes=wave:robot:active,wave:data:read,wave:data:write (pass token_type=robot)\n");
     text.append("Transport: HTTP POST JSON-RPC. Request body can be one object or an array. Response body is always an array in request order.\n\n");
     text.append("Robot Management REST API\n");
     text.append("Base: /api/robots (same Bearer token auth)\n");
@@ -1337,7 +1350,7 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("- ").append(RPC_ALIAS_PATH).append(" remains live for compatibility.\n");
     text.append("- ").append(LLMS_FULL_PATH).append(" is the canonical LLM-friendly reference path.\n");
     text.append("- ").append(LLM_ALIAS_PATH).append(" remains live as a backward-compatible alias.\n");
-    text.append("- Do not advertise wavelet.create or DataApiOAuthServlet as the current public API.\n");
+    text.append("- Do not advertise wavelet.create as the current public API. All auth uses JWT Bearer tokens.\n");
     return text.toString();
   }
 
@@ -1362,7 +1375,8 @@ public final class ApiDocsServlet extends HttpServlet {
   }
 
   private static String tokenCurlExample(String baseUrl) {
-    return "curl -sS \\\n"
+    return "# Data API token (default)\n"
+        + "curl -sS \\\n"
         + "  -X POST "
         + baseUrl
         + TOKEN_PATH
@@ -1371,6 +1385,18 @@ public final class ApiDocsServlet extends HttpServlet {
         + "  --data-urlencode 'grant_type=client_credentials' \\\n"
         + "  --data-urlencode 'client_id=robot@example.com' \\\n"
         + "  --data-urlencode 'client_secret=replace-me' \\\n"
+        + "  --data-urlencode 'expiry=3600'\n\n"
+        + "# Active Robot API token (for /robot/rpc)\n"
+        + "curl -sS \\\n"
+        + "  -X POST "
+        + baseUrl
+        + TOKEN_PATH
+        + " \\\n"
+        + "  -H 'Content-Type: application/x-www-form-urlencoded' \\\n"
+        + "  --data-urlencode 'grant_type=client_credentials' \\\n"
+        + "  --data-urlencode 'client_id=robot@example.com' \\\n"
+        + "  --data-urlencode 'client_secret=replace-me' \\\n"
+        + "  --data-urlencode 'token_type=robot' \\\n"
         + "  --data-urlencode 'expiry=3600'";
   }
 

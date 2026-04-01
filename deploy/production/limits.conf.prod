@@ -1,0 +1,79 @@
+# =============================================================================
+# Production File Descriptor and Process Limits for Wave Server
+# =============================================================================
+#
+# Target host: supawave (94 GiB RAM, 18 cores, Ubuntu/Debian)
+#
+# Installation:
+#   sudo cp limits.conf.prod /etc/security/limits.d/99-wave.conf
+#
+# NOTE: Changes take effect on next login.  For running sessions, use:
+#   ulimit -n 131072   (temporary, current shell only)
+#
+# After installation, verify with:
+#   su - wave -c 'ulimit -n'   # should print 131072
+#   su - wave -c 'ulimit -u'   # should print 65536
+#   su - root -c 'ulimit -n'   # should print 262144
+#
+# WARNING: The fs.nr_open sysctl must be >= the hard nofile values below.
+#          Ensure sysctl-tuning.conf is applied first (fs.nr_open = 1048576).
+#
+# IMPORTANT: These PAM limits only apply to login sessions (SSH, su, etc.).
+#   - Docker containers: Use ulimits in docker-compose.yml.prod instead.
+#     Docker does NOT read /etc/security/limits.d/ for container processes.
+#   - systemd services: Add LimitNOFILE=131072 and LimitNPROC=65536 in the
+#     [Service] section of the unit file.  systemd does NOT use PAM limits
+#     unless PAMName= is set.
+#   - The host-level limits below protect bare-metal Wave deployments and
+#     any management scripts that open many files.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Wave service account
+# ---------------------------------------------------------------------------
+# If Wave runs as a dedicated "wave" user (recommended), these limits apply
+# to that user.  If Wave runs as root inside Docker, use the root limits
+# below instead (or set ulimits in docker-compose.yml.prod).
+
+# nofile: Maximum number of open file descriptors.
+# Rationale:
+#   - Lucene index segments: each segment has multiple files; a large index
+#     with 100+ segments can hold 500-1000 FDs open.
+#   - Jetty WebSocket connections: one FD per connected client.
+#   - MongoDB driver pool: ~20-100 FDs depending on pool size.
+#   - JVM internal: class loading, NIO channels, log files.
+#   - Safety margin for spikes.
+#
+# Current default (1024) is dangerously low.  131072 soft / 262144 hard
+# provides headroom for 100K+ concurrent connections.
+wave     soft    nofile    131072
+wave     hard    nofile    262144
+
+# nproc: Maximum number of processes (threads) the wave user can create.
+# The JVM uses native threads for GC, JIT compilation, Jetty acceptors, and
+# application thread pools.  A large heap with G1GC on 18 cores can spawn
+# 100+ GC threads alone.  65536 is generous but prevents a thread leak from
+# fork-bombing the host.
+wave     soft    nproc     65536
+wave     hard    nproc     65536
+
+# ---------------------------------------------------------------------------
+# Root account
+# ---------------------------------------------------------------------------
+# Root limits apply when Wave is launched directly by root or when Docker
+# inherits root's limits.  These should be at least as high as the wave user
+# limits to prevent surprises.
+root     soft    nofile    262144
+root     hard    nofile    262144
+root     soft    nproc     65536
+root     hard    nproc     65536
+
+# ---------------------------------------------------------------------------
+# Wildcard fallback
+# ---------------------------------------------------------------------------
+# Catch-all for any other user that might interact with Wave processes
+# (e.g., monitoring agents, backup scripts).  Uses moderate values.
+*        soft    nofile    65536
+*        hard    nofile    131072
+*        soft    nproc     32768
+*        hard    nproc     65536

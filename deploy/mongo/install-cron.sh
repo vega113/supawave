@@ -41,38 +41,27 @@ install_cron() {
   local current_cron
   current_cron=$(crontab -l 2>/dev/null || true)
 
-  # Check if our marker exists in current crontab
-  if echo "$current_cron" | grep -qF "$CRON_MARKER"; then
-    # Check if CRON_TZ=UTC line precedes the job
-    local tz_and_job
-    tz_and_job=$(echo "$current_cron" | grep -B1 "$CRON_MARKER" | head -1)
-    if [[ "$tz_and_job" == "CRON_TZ=UTC" ]]; then
-      log "cron job already installed and correct:"
-      echo "$current_cron" | grep -B1 "$CRON_MARKER" >&2
-      return 0
-    fi
-
-    # Stale entry — remove the job line and the CRON_TZ line preceding it
-    log "removing stale cron entry"
-    # Use awk to remove the marker line and any CRON_TZ=UTC line immediately before it
-    current_cron=$(echo "$current_cron" | awk -v marker="$CRON_MARKER" '
-      { lines[NR] = $0 }
-      END {
-        for (i = 1; i <= NR; i++) {
-          if (index(lines[i], marker)) {
-            if (i > 1 && lines[i-1] == "CRON_TZ=UTC") skip_prev = i-1
-            continue
-          }
-          if (i == skip_prev) continue
-          print lines[i]
+  # Remove all existing marker lines and any CRON_TZ=UTC line immediately before each one.
+  # This handles duplicates and stale entries cleanly on every run.
+  local cleaned_cron
+  cleaned_cron=$(echo "$current_cron" | awk -v marker="$CRON_MARKER" '
+    { lines[NR] = $0 }
+    END {
+      for (i = 1; i <= NR; i++) {
+        if (index(lines[i], marker)) {
+          if (i > 1 && lines[i-1] == "CRON_TZ=UTC") skip[i-1] = 1
+          skip[i] = 1
         }
       }
-    ')
-  fi
+      for (i = 1; i <= NR; i++) {
+        if (!skip[i]) print lines[i]
+      }
+    }
+  ')
 
-  # Append new two-line entry
+  # Append canonical two-line entry
   local new_cron
-  new_cron=$(printf '%s\nCRON_TZ=UTC\n%s\n' "$current_cron" "$CRON_JOB")
+  new_cron=$(printf '%s\nCRON_TZ=UTC\n%s\n' "$cleaned_cron" "$CRON_JOB")
   echo "$new_cron" | crontab -
 
   log "cron job installed:"

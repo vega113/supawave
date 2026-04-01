@@ -126,19 +126,26 @@ sanity_check() {
 
   echo "[deploy] Running sanity check as $addr ..."
 
-  docker run --rm --network host "$sanity_image" sh -c '
+  docker run --rm --network host \
+    -e INTERNAL_PORT="${internal_port}" \
+    -e SANITY_ADDR="${addr}" \
+    -e SANITY_PASS="${pass}" \
+    "$sanity_image" sh -c '
     set -e
-    apk add --no-cache curl jq >/dev/null 2>&1
+    if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+      apk add --no-cache curl jq >/dev/null 2>&1
+    fi
 
-    BASE="http://127.0.0.1:'"${internal_port}"'"
-    ADDR="'"${addr}"'"
-    PASS="'"${pass}"'"
+    BASE="http://127.0.0.1:${INTERNAL_PORT}"
+    ADDR="$SANITY_ADDR"
+    PASS="$SANITY_PASS"
     COOKIE=/tmp/c.txt
 
     # --- Step 1: Login ---------------------------------------------------
     HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
       -c "$COOKIE" -L --max-time 10 \
-      -d "address=${ADDR}&password=${PASS}" \
+      --data-urlencode "address=${ADDR}" \
+      --data-urlencode "password=${PASS}" \
       "$BASE/auth/signin")
     if ! grep -q JSESSIONID "$COOKIE" 2>/dev/null; then
       echo "[sanity] FAIL: login did not set JSESSIONID (HTTP $HTTP)"

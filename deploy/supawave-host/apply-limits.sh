@@ -105,18 +105,20 @@ main() {
   local repo_root
   repo_root=$(cd "$script_dir/../.." && pwd)
 
-  local source_conf="$script_dir/limits.conf.prod"
-  if [[ ! -f "$source_conf" ]]; then
-    source_conf="$repo_root/deploy/production/limits.conf.prod"
+  local co_located="$script_dir/limits.conf.prod"
+  local repo_path="$repo_root/deploy/production/limits.conf.prod"
+  local source_conf=""
+  if [[ -f "$co_located" ]]; then
+    source_conf="$co_located"
+  elif [[ -f "$repo_path" ]]; then
+    source_conf="$repo_path"
+  else
+    log "Missing source limits config (checked $co_located and $repo_path)"
+    exit 1
   fi
   local limits_dir="/etc/security/limits.d"
   local target_conf="$limits_dir/99-wave.conf"
   local backup_dir="${BACKUP_DIR:-/var/backups/wave-supawave}"
-
-  if [[ ! -f "$source_conf" ]]; then
-    log "Missing source limits config: $source_conf"
-    exit 1
-  fi
 
   mkdir -p "$limits_dir"
   touch "$target_conf"

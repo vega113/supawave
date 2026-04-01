@@ -61,17 +61,19 @@ main() {
   local repo_root
   repo_root=$(cd "$script_dir/../.." && pwd)
 
-  local source_conf="$script_dir/sysctl-tuning.conf"
-  if [[ ! -f "$source_conf" ]]; then
-    source_conf="$repo_root/deploy/production/sysctl-tuning.conf"
+  local co_located="$script_dir/sysctl-tuning.conf"
+  local repo_path="$repo_root/deploy/production/sysctl-tuning.conf"
+  local source_conf=""
+  if [[ -f "$co_located" ]]; then
+    source_conf="$co_located"
+  elif [[ -f "$repo_path" ]]; then
+    source_conf="$repo_path"
+  else
+    log "Missing source sysctl config (checked $co_located and $repo_path)"
+    exit 1
   fi
   local target_conf="/etc/sysctl.d/99-wave.conf"
   local backup_dir="${BACKUP_DIR:-/var/backups/wave-supawave}"
-
-  if [[ ! -f "$source_conf" ]]; then
-    log "Missing source sysctl config: $source_conf"
-    exit 1
-  fi
 
   backup_file "/etc/sysctl.conf" "sysctl.conf.orig" "$backup_dir"
   backup_file "$target_conf" "sysctl-99-wave.conf.orig" "$backup_dir"

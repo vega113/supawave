@@ -514,13 +514,7 @@ public final class AdminServlet extends HttpServlet {
       w.append(",\"wavesInStorage\":").append(String.valueOf(lucene9Indexer.getLastRebuildWaveCount()));
     } else {
       // Fallback: count from WaveMap cache (may under-count if waves are evicted)
-      // Use lastRebuildWaveCount for accurate persistent store count (set during full rebuild)
-    if (lucene9Indexer != null && lucene9Indexer.getLastRebuildWaveCount() >= 0) {
-      w.append(",\"wavesInStorage\":").append(String.valueOf(lucene9Indexer.getLastRebuildWaveCount()));
-    } else {
-      // Fallback: count from WaveMap cache (may under-count if waves are evicted)
       w.append(",\"wavesInStorage\":").append(String.valueOf(countWavesInStorage()));
-    }
     }
     if (lucene9Indexer != null) {
       w.append(",\"docsInIndex\":").append(String.valueOf(lucene9Indexer.getIndexedDocCount()));

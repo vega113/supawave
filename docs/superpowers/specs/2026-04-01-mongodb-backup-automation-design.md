@@ -42,9 +42,11 @@ production these tools only exist inside the `supawave-mongo-1` container.
 
 ### Approach: docker exec into existing container
 
-Use `docker exec supawave-mongo-1 mongodump` with `--archive --gzip` streamed to stdout,
-piped to a file on the host filesystem. This avoids installing `mongodb-database-tools` on
-the host and keeps tools version-matched with the running MongoDB.
+Use `docker exec supawave-mongo-1 mongodump --db wiab` with `--archive --gzip` streamed
+to stdout, piped to a file on the host filesystem. This avoids installing
+`mongodb-database-tools` on the host and keeps tools version-matched with the running
+MongoDB. No auto-detection of Docker vs local tools — these scripts are Docker-first for
+production use.
 
 ### File changes
 
@@ -53,8 +55,10 @@ the host and keeps tools version-matched with the running MongoDB.
 Replace the current script (which calls `mongodump` directly) with a Docker-aware version.
 
 **Behavior:**
-- Detects whether running inside Docker (container name configured) or with local tools.
-- Default mode: `docker exec $CONTAINER mongodump --archive --gzip` piped to host file.
+- Runs `docker exec $CONTAINER mongodump --db $MONGO_DATABASE --archive --gzip` piped to
+  a temp file on the host, then atomically renames to final path on success.
+- On failure: cleans up partial temp file.
+- Sets `umask 077` so archives are created with mode 600 (owner-only).
 - Archive naming: `wiab-YYYYMMDD-HHMMSS.archive.gz` in `$BACKUP_DIR`.
 - Default `BACKUP_DIR`: `$DEPLOY_ROOT/shared/mongo/backups` where `DEPLOY_ROOT`
   defaults to `/home/ubuntu/supawave`.
@@ -83,7 +87,8 @@ Replace the current script with a Docker-aware version.
 - Validates archive file exists and is non-empty.
 - Prints a confirmation prompt ("This will DROP existing data. Continue? [y/N]") unless
   `--yes` flag is passed (for scripted use).
-- Pipes archive into `docker exec -i $CONTAINER mongorestore --archive --gzip --drop`.
+- Pipes archive into
+  `docker exec -i $CONTAINER mongorestore --db $MONGO_DATABASE --archive --gzip --drop`.
 - Exit codes: 0 success, 1 restore failed, 66 archive not found.
 
 **Environment variables:**
@@ -96,10 +101,14 @@ One-time setup script that installs the cron job on the host.
 
 **Behavior:**
 - Checks current crontab for existing Wave backup entry.
-- If missing, appends: `0 */6 * * * /home/ubuntu/supawave/current/deploy/mongo/backup.sh >> /home/ubuntu/supawave/shared/logs/backup.log 2>&1`
+- If missing, appends:
+  `CRON_TZ=UTC 0 */6 * * * /home/ubuntu/supawave/shared/mongo/backup.sh >> /home/ubuntu/supawave/shared/logs/backup.log 2>&1`
 - If present, prints current entry and exits.
 - Verifies `backup.sh` is executable.
 - Creates log directory if needed.
+
+Note: The cron entry uses `CRON_TZ=UTC` to ensure consistent 6-hour intervals regardless
+of host timezone configuration.
 
 #### 4. `deploy/mongo/README.md` — Update
 
@@ -108,11 +117,36 @@ Expand the existing README to add:
 - Cron setup instructions (manual and via `install-cron.sh`).
 - Retention policy explanation.
 - Troubleshooting section (common failures, how to verify backups).
-- Restore drill procedure.
+- Restore drill procedure (against a scratch container, not production).
+
+#### 5. `docs/deployment/mongo-hardening.md` — Update
+
+Sync the backup section to match the new scripts and schedule. Currently documents a
+different schedule and invocation style that would contradict this spec.
+
+### Deployment packaging
+
+**Problem:** The CI deploy bundle (`.github/workflows/deploy-contabo.yml`) currently ships
+only `compose.yml`, `Caddyfile`, `application.conf`, and `deploy.sh`. It does not include
+`deploy/mongo/*`, so the cron target path would not exist on the host.
+
+**Solution:** Copy `deploy/mongo/backup.sh`, `restore.sh`, and `install-cron.sh` into
+`$DEPLOY_ROOT/shared/mongo/` on first setup (not per-deploy). These are operational scripts
+that live alongside the data, not per-release artifacts. The cron entry and README will
+reference `$DEPLOY_ROOT/shared/mongo/backup.sh` instead of `$DEPLOY_ROOT/current/...`.
+
+Initial setup (one-time, done manually or by `install-cron.sh`):
+```bash
+cp deploy/mongo/backup.sh deploy/mongo/restore.sh /home/ubuntu/supawave/shared/mongo/
+chmod +x /home/ubuntu/supawave/shared/mongo/{backup,restore}.sh
+```
+
+Updates to these scripts are deployed by re-running the copy step, which is infrequent.
 
 ### Cron schedule
 
 ```
+CRON_TZ=UTC
 0 */6 * * *   — runs at 00:00, 06:00, 12:00, 18:00 UTC
 ```
 
@@ -130,31 +164,32 @@ This gives ~60 hours of backup history at the 6-hour interval with 10 retained.
 
 ### Restore procedure
 
-1. Stop the Wave application: `docker compose stop wave` (Mongo stays running).
-2. Run restore: `./deploy/mongo/restore.sh /path/to/archive.gz`
-3. Start Wave: `docker compose start wave`
+1. Stop the Wave application:
+   `docker compose -p supawave stop wave` (Mongo stays running).
+2. Run restore:
+   `./shared/mongo/restore.sh /path/to/archive.gz`
+3. Start Wave:
+   `docker compose -p supawave start wave`
 
 Stopping Wave first prevents it from writing while the restore drops and replaces data.
-
-### Deployment integration
-
-The `deploy/caddy/deploy.sh` script already creates `$DEPLOY_ROOT/shared/` directories.
-The backup directory (`shared/mongo/backups/`) will be created by `backup.sh` on first run.
-The cron job points to `$DEPLOY_ROOT/current/deploy/mongo/backup.sh`, which follows the
-existing `current` symlink so it always runs the latest deployed version.
+The `-p supawave` flag is required to match the project name used by `deploy.sh`.
 
 ### Security considerations
 
 - No credentials needed currently (MongoDB has no auth enabled).
 - When auth is added later, the scripts will need `MONGODB_URI` or separate credential
   env vars. The README will note this as a future enhancement.
-- Backup files contain all database contents — file permissions should be 600 (owner-only).
+- Scripts set `umask 077` so archives are created mode 600 (owner-only).
+- Writes to a temp file first, atomically renames on success, cleans up on failure.
 - The backup directory should be owned by the deploy user (ubuntu).
 
 ## Testing
 
 - Run `backup.sh` manually on the host, verify archive is created and non-empty.
-- Run `restore.sh` with the archive, verify data is intact.
+- Verify archive permissions are 600 (owner-only).
+- Restore into a scratch container (`docker run --rm mongo:6.0 ...`) to verify archive
+  integrity, rather than testing against production.
 - Run backup 12 times, verify only 10 archives remain (oldest 2 deleted).
 - Simulate low disk space (set threshold high), verify script aborts gracefully.
+- Kill backup mid-stream, verify no partial archive is left behind.
 - Install cron, wait 6 hours, verify automatic backup appears.

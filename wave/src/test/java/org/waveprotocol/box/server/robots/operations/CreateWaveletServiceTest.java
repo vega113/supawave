@@ -39,6 +39,7 @@ import org.waveprotocol.box.server.robots.OperationContextImpl;
 import org.waveprotocol.box.server.robots.RobotWaveletData;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -129,6 +130,53 @@ public class CreateWaveletServiceTest extends TestCase {
     }
     assertTrue("Alex was not added", seenAddAlex);
     assertTrue("Bob was not added", seenAddBob);
+  }
+
+  public void testCreateWaveletServiceWithNullWaveletId() throws Exception {
+    WaveletData nullWaveletIdData = mock(WaveletData.class);
+    when(nullWaveletIdData.getWaveId()).thenReturn(TEMP_WAVE_ID);
+    when(nullWaveletIdData.getWaveletId()).thenReturn(null);
+    when(nullWaveletIdData.getRootBlipId()).thenReturn("b+root");
+    when(nullWaveletIdData.getParticipants()).thenReturn(Collections.emptyList());
+
+    OperationRequest nullWaveletIdOp =
+        new OperationRequest(OperationType.ROBOT_CREATE_WAVELET.method(), OPERATION_ID,
+            Parameter.of(ParamsProperty.WAVELET_DATA, nullWaveletIdData),
+            Parameter.of(ParamsProperty.MESSAGE, MESSAGE));
+
+    service.execute(nullWaveletIdOp, context, ALEX);
+
+    JsonRpcResponse response = context.getResponse(OPERATION_ID);
+    assertFalse("Operation should succeed when waveletId is null", response.isError());
+
+    // Verify the temp mapping uses the client wave domain for the wavelet id,
+    // so subsequent batch operations can look it up with the expected
+    // (tempWaveId, clientDomain!conv+root) pair.
+    WaveId tempWaveId = ApiIdSerializer.instance().deserialiseWaveId(TEMP_WAVE_ID);
+    WaveletId expectedWaveletId =
+        WaveletId.of(tempWaveId.getDomain(), IdConstants.CONVERSATION_ROOT_WAVELET);
+    RobotWaveletData opened = context.getOpenWavelets().values().iterator().next();
+    WaveletName actualName = opened.getWaveletName();
+    assertNotNull("Wavelet should be openable via client-domain temp mapping",
+        context.openWavelet(tempWaveId, expectedWaveletId, ALEX));
+  }
+
+  public void testCreateWaveletServiceWithNullWaveAndWaveletId() throws Exception {
+    WaveletData nullIdsData = mock(WaveletData.class);
+    when(nullIdsData.getWaveId()).thenReturn(null);
+    when(nullIdsData.getWaveletId()).thenReturn(null);
+    when(nullIdsData.getRootBlipId()).thenReturn("b+root");
+    when(nullIdsData.getParticipants()).thenReturn(Collections.emptyList());
+
+    OperationRequest nullIdsOp =
+        new OperationRequest(OperationType.ROBOT_CREATE_WAVELET.method(), OPERATION_ID,
+            Parameter.of(ParamsProperty.WAVELET_DATA, nullIdsData),
+            Parameter.of(ParamsProperty.MESSAGE, MESSAGE));
+
+    service.execute(nullIdsOp, context, ALEX);
+
+    JsonRpcResponse response = context.getResponse(OPERATION_ID);
+    assertFalse("Operation should succeed when both IDs are null", response.isError());
   }
 
   public void testCreateWaveletServiceThrowsOnInvalidParticipant() throws Exception {

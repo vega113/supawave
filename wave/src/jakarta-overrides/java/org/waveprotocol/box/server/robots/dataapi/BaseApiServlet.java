@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.wave.api.InvalidRequestException;
 import com.google.wave.api.JsonRpcResponse;
 import com.google.wave.api.OperationRequest;
+import com.google.wave.api.OperationType;
 import com.google.wave.api.ProtocolVersion;
 import com.google.wave.api.RobotSerializer;
 import com.google.wave.api.data.converter.EventDataConverterManager;
@@ -45,6 +46,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -82,12 +84,20 @@ public abstract class BaseApiServlet extends HttpServlet {
   }
 
   /**
-   * Reads the JSON-RPC request body, deserializes operations, executes them,
-   * and writes the JSON response. The caller is responsible for authenticating
-   * the request and providing the verified {@link ParticipantId}.
+   * Reads the JSON-RPC request body, deserializes operations, enforces per-operation
+   * scope checks, executes them, and writes the JSON response.
+   *
+   * <p>The caller is responsible for authenticating the request and providing the
+   * verified {@link ParticipantId} and token scopes.
+   *
+   * @param req the HTTP request
+   * @param resp the HTTP response
+   * @param participant the authenticated participant
+   * @param tokenScopes the scopes granted by the caller's JWT token
    */
   protected final void processOpsRequest(HttpServletRequest req, HttpServletResponse resp,
-                                         ParticipantId participant) throws IOException {
+                                         ParticipantId participant,
+                                         Set<String> tokenScopes) throws IOException {
     String apiRequest;
     try {
       BufferedReader reader = req.getReader();
@@ -111,12 +121,82 @@ public abstract class BaseApiServlet extends HttpServlet {
       return;
     }
 
+    // Enforce per-operation scope checks before executing any operation.
+    for (OperationRequest operation : operations) {
+      OpScopeMapper.OpType opType = mapOperationToOpType(operation);
+      if (!validateOpScopes(opType, tokenScopes)) {
+        LOG.info("Scope check failed for operation " + operation.getMethod()
+            + " (opType=" + opType + ") with token scopes " + tokenScopes);
+        resp.sendError(HttpServletResponse.SC_FORBIDDEN,
+            "Insufficient scopes for operation: " + operation.getMethod());
+        return;
+      }
+    }
+
     ProtocolVersion version = OperationUtil.getProtocolVersion(operations);
     OperationContextImpl context = new OperationContextImpl(
         waveletProvider, converterManager.getEventDataConverter(version), conversationUtil);
 
     executeOperations(context, operations, participant);
     handleResults(context, resp, version);
+  }
+
+  /**
+   * Validates that the given token scopes are sufficient for the specified operation type.
+   *
+   * @param opType the operation type derived from the incoming operation
+   * @param tokenScopes the scopes granted by the caller's JWT token
+   * @return {@code true} if the token has all required scopes; {@code false} otherwise
+   */
+  protected boolean validateOpScopes(OpScopeMapper.OpType opType, Set<String> tokenScopes) {
+    return OpScopeMapper.checkScopes(opType, tokenScopes);
+  }
+
+  /**
+   * Maps an incoming {@link OperationRequest} to an {@link OpScopeMapper.OpType} for
+   * scope enforcement. Operations that do not match any known write/read/admin category
+   * are treated as MODIFY_WAVELET (write scope required) to fail-closed.
+   *
+   * @param operation the incoming operation request
+   * @return the corresponding {@link OpScopeMapper.OpType}
+   */
+  protected OpScopeMapper.OpType mapOperationToOpType(OperationRequest operation) {
+    OperationType opType = OperationUtil.getOperationType(operation);
+    switch (opType) {
+      // Read operations
+      case ROBOT_FETCH_WAVE:
+      case ROBOT_EXPORT_SNAPSHOT:
+      case ROBOT_EXPORT_DELTAS:
+      case ROBOT_EXPORT_ATTACHMENT:
+        return OpScopeMapper.OpType.FETCH_WAVE;
+
+      // Search / list
+      case ROBOT_SEARCH:
+        return OpScopeMapper.OpType.LIST_WAVES;
+
+      // Wavelet / document creation
+      case WAVELET_CREATE:
+      case ROBOT_CREATE_WAVELET:
+      case ROBOT_IMPORT_SNAPSHOT:
+      case ROBOT_IMPORT_DELTAS:
+      case ROBOT_IMPORT_ATTACHMENT:
+        return OpScopeMapper.OpType.CREATE_WAVELET;
+
+      // Robot active channel operations
+      case ROBOT_NOTIFY:
+      case ROBOT_NOTIFY_CAPABILITIES_HASH:
+      case ROBOT_FOLDER_ACTION:
+        return OpScopeMapper.OpType.ROBOT_RPC;
+
+      // Profile fetch (read)
+      case ROBOT_FETCH_MY_PROFILE:
+      case ROBOT_FETCH_PROFILES:
+        return OpScopeMapper.OpType.FETCH_WAVE;
+
+      // All document/blip/wavelet modification operations → write scope
+      default:
+        return OpScopeMapper.OpType.MODIFY_WAVELET;
+    }
   }
 
   private void executeOperations(

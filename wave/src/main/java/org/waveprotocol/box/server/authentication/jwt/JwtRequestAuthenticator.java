@@ -40,6 +40,27 @@ public final class JwtRequestAuthenticator {
   public ParticipantId authenticate(String authorizationHeader,
                                     JwtTokenType expectedType,
                                     JwtAudience expectedAudience) {
+    JwtTokenContext context = authenticateContext(authorizationHeader, expectedType, expectedAudience);
+    return extractParticipant(context.claims());
+  }
+
+  /**
+   * Validates a JWT Bearer token and returns the full {@link JwtTokenContext},
+   * which includes the authenticated participant and the token's scopes.
+   *
+   * <p>Use this method when per-operation scope checking is required.
+   *
+   * @param authorizationHeader the full value of the HTTP Authorization header
+   *     (e.g. "Bearer eyJ...")
+   * @param expectedType the expected JWT token type (e.g. ROBOT_ACCESS, DATA_API_ACCESS)
+   * @param expectedAudience the expected JWT audience
+   * @return the validated {@link JwtTokenContext} containing claims (including scopes)
+   * @throws JwtValidationException if the token is missing, malformed, expired,
+   *     has wrong type/audience, or fails signature verification
+   */
+  public JwtTokenContext authenticateContext(String authorizationHeader,
+                                             JwtTokenType expectedType,
+                                             JwtAudience expectedAudience) {
     Objects.requireNonNull(expectedType, "expectedType");
     Objects.requireNonNull(expectedAudience, "expectedAudience");
 
@@ -70,6 +91,13 @@ public final class JwtRequestAuthenticator {
           "Token does not have required audience: " + expectedAudience.claimValue());
     }
 
+    // Validate the subject is a parseable participant address
+    extractParticipant(claims);
+
+    return context;
+  }
+
+  private static ParticipantId extractParticipant(JwtClaims claims) {
     try {
       return ParticipantId.of(claims.subject());
     } catch (InvalidParticipantAddress e) {

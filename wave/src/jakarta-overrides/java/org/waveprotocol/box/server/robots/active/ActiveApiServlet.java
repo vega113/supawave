@@ -24,12 +24,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
+import org.waveprotocol.box.server.authentication.jwt.JwtTokenContext;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.dataapi.BaseApiServlet;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
@@ -61,9 +63,9 @@ public final class ActiveApiServlet extends BaseApiServlet {
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId participant;
+    JwtTokenContext tokenContext;
     try {
-      participant = jwtAuthenticator.authenticate(
+      tokenContext = jwtAuthenticator.authenticateContext(
           req.getHeader("Authorization"), JwtTokenType.ROBOT_ACCESS, JwtAudience.ROBOT);
     } catch (JwtValidationException e) {
       LOG.info("JWT authentication failed for Active API", e);
@@ -71,6 +73,15 @@ public final class ActiveApiServlet extends BaseApiServlet {
       return;
     }
 
-    processOpsRequest(req, resp, participant);
+    ParticipantId participant;
+    try {
+      participant = ParticipantId.of(tokenContext.claims().subject());
+    } catch (InvalidParticipantAddress e) {
+      LOG.info("Invalid participant address in JWT for Active API", e);
+      resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+      return;
+    }
+
+    processOpsRequest(req, resp, participant, tokenContext.claims().scopes());
   }
 }

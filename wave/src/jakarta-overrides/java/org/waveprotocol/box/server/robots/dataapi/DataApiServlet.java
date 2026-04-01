@@ -24,11 +24,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
+import org.waveprotocol.box.server.authentication.jwt.JwtTokenContext;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
@@ -60,9 +62,9 @@ public final class DataApiServlet extends BaseApiServlet {
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId participant;
+    JwtTokenContext tokenContext;
     try {
-      participant = jwtAuthenticator.authenticate(
+      tokenContext = jwtAuthenticator.authenticateContext(
           req.getHeader("Authorization"), JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API);
     } catch (JwtValidationException e) {
       LOG.info("JWT authentication failed for Data API", e);
@@ -70,6 +72,15 @@ public final class DataApiServlet extends BaseApiServlet {
       return;
     }
 
-    processOpsRequest(req, resp, participant);
+    ParticipantId participant;
+    try {
+      participant = ParticipantId.of(tokenContext.claims().subject());
+    } catch (InvalidParticipantAddress e) {
+      LOG.info("Invalid participant address in JWT for Data API", e);
+      resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+      return;
+    }
+
+    processOpsRequest(req, resp, participant, tokenContext.claims().scopes());
   }
 }

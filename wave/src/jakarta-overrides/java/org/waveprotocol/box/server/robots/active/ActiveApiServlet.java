@@ -26,7 +26,6 @@ import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
 import org.waveprotocol.box.server.authentication.jwt.JwtInsufficientScopeException;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
-import org.waveprotocol.box.server.authentication.jwt.JwtRevocationState;
 import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
@@ -34,7 +33,6 @@ import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.dataapi.BaseApiServlet;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
-import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
@@ -69,28 +67,13 @@ public final class ActiveApiServlet extends BaseApiServlet {
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId participant;
-    Set<String> tokenScopes = Set.of();
-
     try {
-      // Authenticate the token first
-      participant = jwtAuthenticator.authenticate(
+      // Authenticate and extract scopes in one call, requiring ROBOT_ACTIVE scope
+      var auth = jwtAuthenticator.authenticateAndExtractScopes(
           req.getHeader("Authorization"), JwtTokenType.ROBOT_ACCESS, JwtAudience.ROBOT,
           Set.of(JwtScopes.ROBOT_ACTIVE));
 
-      // Extract scopes from the JWT token for per-operation validation
-      String authHeader = req.getHeader("Authorization");
-      if (authHeader != null && authHeader.startsWith("Bearer ")) {
-        String token = authHeader.substring(7).trim();
-        JwtRevocationState revocationState = new JwtRevocationState(0, 0);
-        try {
-          var tokenContext = keyRing.validator().validate(token, revocationState);
-          tokenScopes = tokenContext.claims().scopes();
-        } catch (Exception e) {
-          LOG.warning("Failed to extract scopes from JWT: " + e.getMessage());
-          tokenScopes = Set.of();
-        }
-      }
+      processOpsRequest(req, resp, auth.participant(), auth.scopes());
     } catch (JwtInsufficientScopeException e) {
       LOG.info("Insufficient scope for Active API", e);
       resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
@@ -100,7 +83,5 @@ public final class ActiveApiServlet extends BaseApiServlet {
       resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
       return;
     }
-
-    processOpsRequest(req, resp, participant, tokenScopes);
   }
 }

@@ -68,9 +68,6 @@ public abstract class BaseApiServlet extends HttpServlet {
   private final OperationServiceRegistry operationRegistry;
   private final ConversationUtil conversationUtil;
 
-  /** Holds incoming operation requests. */
-  private List<OperationRequest> operations;
-
   public BaseApiServlet(RobotSerializer robotSerializer,
                         EventDataConverterManager converterManager,
                         WaveletProvider waveletProvider,
@@ -111,8 +108,9 @@ public abstract class BaseApiServlet extends HttpServlet {
     }
 
     LOG.info("Received data API request (" + apiRequest.length() + " chars)");
+    List<OperationRequest> requestOperations;
     try {
-      operations = robotSerializer.deserializeOperations(apiRequest);
+      requestOperations = robotSerializer.deserializeOperations(apiRequest);
     } catch (InvalidRequestException e) {
       LOG.info("Unable to parse Json to list of OperationRequests (length="
           + apiRequest.length() + ")");
@@ -122,7 +120,7 @@ public abstract class BaseApiServlet extends HttpServlet {
     }
 
     // Enforce per-operation scope checks before executing any operation.
-    for (OperationRequest operation : operations) {
+    for (OperationRequest operation : requestOperations) {
       OpScopeMapper.OpType opType = mapOperationToOpType(operation);
       if (!validateOpScopes(opType, tokenScopes)) {
         LOG.info("Scope check failed for operation " + operation.getMethod()
@@ -133,12 +131,12 @@ public abstract class BaseApiServlet extends HttpServlet {
       }
     }
 
-    ProtocolVersion version = OperationUtil.getProtocolVersion(operations);
+    ProtocolVersion version = OperationUtil.getProtocolVersion(requestOperations);
     OperationContextImpl context = new OperationContextImpl(
         waveletProvider, converterManager.getEventDataConverter(version), conversationUtil);
 
-    executeOperations(context, operations, participant);
-    handleResults(context, resp, version);
+    executeOperations(context, requestOperations, participant);
+    handleResults(context, resp, requestOperations, version);
   }
 
   /**
@@ -193,7 +191,7 @@ public abstract class BaseApiServlet extends HttpServlet {
       case ROBOT_FETCH_PROFILES:
         return OpScopeMapper.OpType.FETCH_WAVE;
 
-      // All document/blip/wavelet modification operations → write scope
+      // All document/blip/wavelet modification operations -> write scope
       default:
         return OpScopeMapper.OpType.MODIFY_WAVELET;
     }
@@ -207,7 +205,8 @@ public abstract class BaseApiServlet extends HttpServlet {
   }
 
   private void handleResults(
-      OperationResults results, HttpServletResponse resp, ProtocolVersion version)
+      OperationResults results, HttpServletResponse resp,
+      List<OperationRequest> operations, ProtocolVersion version)
       throws IOException {
     OperationUtil.submitDeltas(results, waveletProvider, LOGGING_REQUEST_LISTENER);
 

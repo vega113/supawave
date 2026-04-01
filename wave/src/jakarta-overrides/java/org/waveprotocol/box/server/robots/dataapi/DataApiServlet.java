@@ -25,20 +25,18 @@ import com.google.wave.api.data.converter.EventDataConverterManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
+import org.waveprotocol.box.server.authentication.jwt.JwtInsufficientScopeException;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
-import org.waveprotocol.box.server.authentication.jwt.JwtRevocationState;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.robots.util.OperationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
-import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
-import java.util.Set;
 
 import jakarta.inject.Singleton;
 
@@ -68,49 +66,48 @@ public final class DataApiServlet extends BaseApiServlet {
   }
 
   /**
-   * Overrides the operation type mapping to treat ROBOT_FOLDER_ACTION as a write operation
-   * in the Data API context (where it requires data:write scope), rather than as a robot-active
-   * operation (which would require robot:active scope only available to Active API tokens).
+   * Overrides the operation type mapping for Data API-specific scope requirements.
+   *
+   * ROBOT_FOLDER_ACTION and ROBOT_NOTIFY operations are treated as robot-active (ROBOT_RPC)
+   * in the base mapping, but in the Data API context they are either data modifications
+   * (folder actions) or compatibility no-ops (notify operations) that should only require
+   * data scope, not robot:active scope.
    */
   @Override
   protected OpScopeMapper.OpType mapOperationToOpType(OperationRequest operation) {
     OperationType opType = OperationUtil.getOperationType(operation);
-    // In Data API context, ROBOT_FOLDER_ACTION is a data modification, not an active channel operation
-    if (opType == OperationType.ROBOT_FOLDER_ACTION) {
-      return OpScopeMapper.OpType.MODIFY_WAVELET;
+    switch (opType) {
+      // Folder actions are data modifications in Data API context
+      case ROBOT_FOLDER_ACTION:
+        return OpScopeMapper.OpType.MODIFY_WAVELET;
+
+      // Notify operations are compatibility no-ops in Data API context (they don't do anything)
+      // Map to FETCH_WAVE (read-only) since they're not actually modifying data
+      case ROBOT_NOTIFY:
+      case ROBOT_NOTIFY_CAPABILITIES_HASH:
+        return OpScopeMapper.OpType.FETCH_WAVE;
+
+      default:
+        return super.mapOperationToOpType(operation);
     }
-    return super.mapOperationToOpType(operation);
   }
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ParticipantId participant;
-    Set<String> tokenScopes = Set.of();
-
     try {
-      // Authenticate the token first
-      participant = jwtAuthenticator.authenticate(
+      // Authenticate and extract scopes in one call to avoid double-validation
+      var auth = jwtAuthenticator.authenticateAndExtractScopes(
           req.getHeader("Authorization"), JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API);
 
-      // Extract scopes from the JWT token for per-operation validation
-      String authHeader = req.getHeader("Authorization");
-      if (authHeader != null && authHeader.startsWith("Bearer ")) {
-        String token = authHeader.substring(7).trim();
-        JwtRevocationState revocationState = new JwtRevocationState(0, 0);
-        try {
-          var tokenContext = keyRing.validator().validate(token, revocationState);
-          tokenScopes = tokenContext.claims().scopes();
-        } catch (Exception e) {
-          LOG.warning("Failed to extract scopes from JWT: " + e.getMessage());
-          tokenScopes = Set.of();
-        }
-      }
+      processOpsRequest(req, resp, auth.participant(), auth.scopes());
+    } catch (JwtInsufficientScopeException e) {
+      LOG.info("Insufficient scope for Data API", e);
+      resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+      return;
     } catch (JwtValidationException e) {
       LOG.info("JWT authentication failed for Data API", e);
       resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
       return;
     }
-
-    processOpsRequest(req, resp, participant, tokenScopes);
   }
 }

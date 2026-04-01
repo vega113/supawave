@@ -1,5 +1,31 @@
 [
   {
+    "releaseId": "2026-04-01-jwt-robot-api-migration",
+    "version": "PR #557",
+    "date": "2026-04-01",
+    "title": "JWT Robot API Migration with Scope Enforcement",
+    "summary": "Robot and Data APIs now enforce per-operation JWT scopes, add a /robot/token endpoint alias, and provide migration support for legacy pre-scoped long-lived tokens.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added /robot/token endpoint as an alias for /robot/dataapi/token for improved API discoverability",
+          "Implemented per-operation JWT scope enforcement for Data and Robot APIs",
+          "Notify operations (robot.notify, robot.notifyCapabilitiesHash) now require only data:read scope instead of wave:robot:active"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Fixed shared mutable state race condition in BaseApiServlet operations list handling",
+          "Added migration fallback for legacy unscoped tokens that defaults scopes by token type",
+          "Scope validation errors now return HTTP 403 instead of 401 to properly distinguish insufficient scope from invalid token",
+          "Removed duplicate JWT validation in DataApiServlet and ActiveApiServlet"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-03-30-jakarta-session-websocket-auth-hardening",
     "version": "PR #480",
     "date": "2026-03-30",

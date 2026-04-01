@@ -870,10 +870,10 @@ public final class ApiDocsServlet extends HttpServlet {
             "302", orderedMap("description", "Redirect to sign-in for unauthenticated callers.")));
 
     Map<String, Object> post = orderedMap();
-    post.put("summary", "Issue a Data API JWT");
+    post.put("summary", "Issue a Data API or Robot JWT");
     post.put(
         "description",
-        "Supports browser-session issuance and robot client_credentials issuance. Prefer expiry=3600 or another short-lived value.");
+        "Issue a JWT token for Data API or Robot API access. Use token_type=robot for Robot API tokens. Supports browser-session issuance and robot client_credentials issuance. Prefer expiry=3600 or another short-lived value.");
     post.put(
         "requestBody",
         orderedMap(

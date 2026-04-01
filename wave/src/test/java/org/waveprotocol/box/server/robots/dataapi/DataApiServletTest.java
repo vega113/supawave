@@ -37,20 +37,14 @@ import com.google.wave.api.data.converter.EventDataConverterManager;
 
 import junit.framework.TestCase;
 
-import net.oauth.OAuth;
-import net.oauth.OAuthAccessor;
-import net.oauth.OAuthConsumer;
-import net.oauth.OAuthException;
-import net.oauth.OAuthMessage;
-import net.oauth.OAuthServiceProvider;
-import net.oauth.OAuthValidator;
-
+import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
+import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
+import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.robots.OperationContext;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.operations.OperationService;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
-import org.waveprotocol.wave.model.id.TokenGenerator;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.io.BufferedReader;
@@ -61,6 +55,7 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -73,19 +68,17 @@ import jakarta.servlet.http.HttpServletResponse;
 public class DataApiServletTest extends TestCase {
 
   private static final ParticipantId ALEX = ParticipantId.ofUnsafe("alex@example.com");
-  private static final String FAKE_TOKEN = "fake_token";
+  private static final String FAKE_TOKEN = "Bearer fake_token";
 
   private RobotSerializer robotSerializer;
   private EventDataConverterManager converterManager;
   private WaveletProvider waveletProvider;
   private OperationServiceRegistry operationRegistry;
   private DataApiServlet servlet;
-  private OAuthValidator validator;
-  private DataApiTokenContainer tokenContainer;
+  private JwtRequestAuthenticator jwtAuthenticator;
   private HttpServletRequest req;
   private HttpServletResponse resp;
   private StringWriter stringWriter;
-  private OAuthConsumer consumer;
 
   @Override
   protected void setUp() throws Exception {
@@ -94,18 +87,13 @@ public class DataApiServletTest extends TestCase {
     waveletProvider = mock(WaveletProvider.class);
     operationRegistry = mock(OperationServiceRegistry.class);
     ConversationUtil conversationUtil = mock(ConversationUtil.class);
-    validator = mock(OAuthValidator.class);
-    TokenGenerator tokenGenerator = mock(TokenGenerator.class);
-    when(tokenGenerator.generateToken(anyInt())).thenReturn(FAKE_TOKEN);
-    tokenContainer = new DataApiTokenContainer(tokenGenerator);
-
-    OAuthServiceProvider serviceProvider = new OAuthServiceProvider("", "", "");
-    consumer = new OAuthConsumer("", "consumerkey", "consumersecret", serviceProvider);
+    jwtAuthenticator = mock(JwtRequestAuthenticator.class);
 
     req = mock(HttpServletRequest.class);
     when(req.getRequestURL()).thenReturn(new StringBuffer("www.example.com"));
     when(req.getReader()).thenReturn(new BufferedReader(new StringReader("")));
     when(req.getMethod()).thenReturn("POST");
+    when(req.getHeader("Authorization")).thenReturn(FAKE_TOKEN);
 
     resp = mock(HttpServletResponse.class);
     stringWriter = new StringWriter();
@@ -114,7 +102,7 @@ public class DataApiServletTest extends TestCase {
 
     servlet =
         new DataApiServlet(robotSerializer, converterManager, waveletProvider, operationRegistry,
-            conversationUtil, validator, tokenContainer);
+            conversationUtil, jwtAuthenticator);
   }
 
   public void testDoPostExecutesAndWritesResponse() throws Exception {
@@ -125,15 +113,17 @@ public class DataApiServletTest extends TestCase {
     String responseValue = "response value";
     when(robotSerializer.serialize(any(), any(Type.class), any(ProtocolVersion.class))).thenReturn(
         responseValue);
-    Map<String, String[]> params = getOAuthParams();
-    when(req.getParameterMap()).thenReturn(params);
+
+    // Mock JWT authentication
+    when(jwtAuthenticator.authenticateAndExtractScopes(
+        FAKE_TOKEN, JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API))
+        .thenReturn(new JwtRequestAuthenticator.AuthenticatedJwt(ALEX, Set.of("wave:data:write")));
 
     OperationService service = mock(OperationService.class);
     when(operationRegistry.getServiceFor(any(OperationType.class))).thenReturn(service);
 
     servlet.doPost(req, resp);
 
-    verify(validator).validateMessage(any(OAuthMessage.class), any(OAuthAccessor.class));
     verify(operationRegistry).getServiceFor(any(OperationType.class));
     verify(service).execute(eq(operation), any(OperationContext.class), eq(ALEX));
     verify(resp).setStatus(HttpServletResponse.SC_OK);

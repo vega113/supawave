@@ -131,6 +131,42 @@ public class CreateWaveletServiceTest extends TestCase {
     assertTrue("Bob was not added", seenAddBob);
   }
 
+  public void testCreateWaveletServiceWithNullWaveletId() throws Exception {
+    WaveletData nullWaveletIdData = mock(WaveletData.class);
+    when(nullWaveletIdData.getWaveId()).thenReturn(TEMP_WAVE_ID);
+    when(nullWaveletIdData.getWaveletId()).thenReturn(null);
+    when(nullWaveletIdData.getRootBlipId()).thenReturn("b+root");
+    when(nullWaveletIdData.getParticipants()).thenReturn(Collections.emptyList());
+
+    OperationRequest nullWaveletIdOp =
+        new OperationRequest(OperationType.ROBOT_CREATE_WAVELET.method(), OPERATION_ID,
+            Parameter.of(ParamsProperty.WAVELET_DATA, nullWaveletIdData),
+            Parameter.of(ParamsProperty.MESSAGE, MESSAGE));
+
+    service.execute(nullWaveletIdOp, context, ALEX);
+
+    JsonRpcResponse response = context.getResponse(OPERATION_ID);
+    assertFalse("Operation should succeed when waveletId is null", response.isError());
+  }
+
+  public void testCreateWaveletServiceWithNullWaveAndWaveletId() throws Exception {
+    WaveletData nullIdsData = mock(WaveletData.class);
+    when(nullIdsData.getWaveId()).thenReturn(null);
+    when(nullIdsData.getWaveletId()).thenReturn(null);
+    when(nullIdsData.getRootBlipId()).thenReturn("b+root");
+    when(nullIdsData.getParticipants()).thenReturn(Collections.emptyList());
+
+    OperationRequest nullIdsOp =
+        new OperationRequest(OperationType.ROBOT_CREATE_WAVELET.method(), OPERATION_ID,
+            Parameter.of(ParamsProperty.WAVELET_DATA, nullIdsData),
+            Parameter.of(ParamsProperty.MESSAGE, MESSAGE));
+
+    service.execute(nullIdsOp, context, ALEX);
+
+    JsonRpcResponse response = context.getResponse(OPERATION_ID);
+    assertFalse("Operation should succeed when both IDs are null", response.isError());
+  }
+
   public void testCreateWaveletServiceThrowsOnInvalidParticipant() throws Exception {
     when(waveletData.getParticipants()).thenReturn(Collections.singletonList(MALFORMED_ADDRESS));
     try {

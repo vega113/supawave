@@ -108,14 +108,20 @@ public class CreateWaveletService implements OperationService {
     // Store the temporary id of the wavelet and rootblip so that future
     // operations can reference it.
     try {
-      String clientWaveId = waveletData.getWaveId();
-      String clientWaveletId = waveletData.getWaveletId();
-      WaveId waveId = (clientWaveId != null)
-          ? ApiIdSerializer.instance().deserialiseWaveId(clientWaveId)
-          : waveletName.waveId;
-      WaveletId waveletId = (clientWaveletId != null)
-          ? ApiIdSerializer.instance().deserialiseWaveletId(clientWaveletId)
-          : waveletName.waveletId;
+      final String clientWaveId = waveletData.getWaveId();
+      final String clientWaveletId = waveletData.getWaveletId();
+      final WaveId waveId;
+      final WaveletId waveletId;
+      if (clientWaveId != null) {
+        waveId = ApiIdSerializer.instance().deserialiseWaveId(clientWaveId);
+        waveletId = (clientWaveletId != null)
+            ? ApiIdSerializer.instance().deserialiseWaveletId(clientWaveletId)
+            : waveletName.waveletId;
+      } else {
+        // No client wave id: use server-generated ids for both.
+        waveId = waveletName.waveId;
+        waveletId = waveletName.waveletId;
+      }
       context.putWavelet(waveId, waveletId, newWavelet);
     } catch (InvalidIdException e) {
       throw new InvalidRequestException("Invalid id", operation, e);

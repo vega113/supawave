@@ -76,6 +76,9 @@ rotate_backups() {
   fi
 }
 
+# Global so the EXIT trap can access it after main() returns
+_tmp_path=""
+
 main() {
   mkdir -p "$BACKUP_DIR"
   check_disk_space
@@ -84,28 +87,28 @@ main() {
   timestamp=$(date -u +%Y%m%d-%H%M%S)
   local archive_name="${MONGO_DATABASE}-${timestamp}.archive.gz"
   local archive_path="${BACKUP_DIR}/${archive_name}"
-  local tmp_path="${archive_path}.tmp"
+  _tmp_path="${archive_path}.tmp"
 
-  # Cleanup partial file on failure
-  trap 'rm -f "$tmp_path"' EXIT
+  # Cleanup partial file on failure (uses global _tmp_path for trap safety)
+  trap 'rm -f "$_tmp_path"' EXIT
 
   log "starting backup of database '${MONGO_DATABASE}' from container '${MONGO_CONTAINER}'"
 
   if ! docker exec "$MONGO_CONTAINER" \
     mongodump --db="$MONGO_DATABASE" --archive --gzip \
-    > "$tmp_path"; then
+    > "$_tmp_path"; then
     log "ERROR: mongodump failed"
     exit 1
   fi
 
   # Validate
-  if [[ ! -s "$tmp_path" ]]; then
+  if [[ ! -s "$_tmp_path" ]]; then
     log "ERROR: backup produced empty file"
     exit 1
   fi
 
   # Atomic rename
-  mv "$tmp_path" "$archive_path"
+  mv "$_tmp_path" "$archive_path"
   trap - EXIT
 
   log "backup complete: ${archive_path} ($(du -h "$archive_path" | cut -f1))"

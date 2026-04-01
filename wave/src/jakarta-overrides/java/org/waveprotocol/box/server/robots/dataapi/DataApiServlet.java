@@ -18,6 +18,8 @@ package org.waveprotocol.box.server.robots.dataapi;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import com.google.wave.api.OperationRequest;
+import com.google.wave.api.OperationType;
 import com.google.wave.api.RobotSerializer;
 import com.google.wave.api.data.converter.EventDataConverterManager;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,6 +32,7 @@ import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
+import org.waveprotocol.box.server.robots.util.OperationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
@@ -62,6 +65,21 @@ public final class DataApiServlet extends BaseApiServlet {
     super(robotSerializer, converterManager, waveletProvider, operationRegistry, conversationUtil);
     this.jwtAuthenticator = jwtAuthenticator;
     this.keyRing = keyRing;
+  }
+
+  /**
+   * Overrides the operation type mapping to treat ROBOT_FOLDER_ACTION as a write operation
+   * in the Data API context (where it requires data:write scope), rather than as a robot-active
+   * operation (which would require robot:active scope only available to Active API tokens).
+   */
+  @Override
+  protected OpScopeMapper.OpType mapOperationToOpType(OperationRequest operation) {
+    OperationType opType = OperationUtil.getOperationType(operation);
+    // In Data API context, ROBOT_FOLDER_ACTION is a data modification, not an active channel operation
+    if (opType == OperationType.ROBOT_FOLDER_ACTION) {
+      return OpScopeMapper.OpType.MODIFY_WAVELET;
+    }
+    return super.mapOperationToOpType(operation);
   }
 
   @Override

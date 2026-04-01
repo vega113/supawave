@@ -28,6 +28,7 @@ root_host=${ROOT_HOST:-wave.supawave.ai}
 www_host=${WWW_HOST:-www.supawave.ai}
 internal_port=${WAVE_INTERNAL_PORT:-9898}
 smoke_image=${SMOKE_IMAGE:-curlimages/curl:8.10.1}
+sanity_image=${SANITY_IMAGE:-alpine:3.20}
 registry_host=${GHCR_REGISTRY_HOST:-ghcr.io}
 deploy_env_file="$deploy_root/shared/deploy.env"
 
@@ -115,6 +116,72 @@ wait_for_ready() {
   return 1
 }
 
+sanity_check() {
+  local addr="${SANITY_ADDRESS:-}"
+  local pass="${SANITY_PASSWORD:-}"
+  if [[ -z "$addr" || -z "$pass" ]]; then
+    echo "[deploy] SANITY_ADDRESS/SANITY_PASSWORD not set, skipping sanity check"
+    return 0
+  fi
+
+  echo "[deploy] Running sanity check as $addr ..."
+
+  docker run --rm --network host "$sanity_image" sh -c '
+    set -e
+    apk add --no-cache curl jq >/dev/null 2>&1
+
+    BASE="http://127.0.0.1:'"${internal_port}"'"
+    ADDR="'"${addr}"'"
+    PASS="'"${pass}"'"
+    COOKIE=/tmp/c.txt
+
+    # --- Step 1: Login ---------------------------------------------------
+    HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+      -c "$COOKIE" -L --max-time 10 \
+      -d "address=${ADDR}&password=${PASS}" \
+      "$BASE/auth/signin")
+    if ! grep -q JSESSIONID "$COOKIE" 2>/dev/null; then
+      echo "[sanity] FAIL: login did not set JSESSIONID (HTTP $HTTP)"
+      exit 1
+    fi
+    echo "[sanity] login OK"
+
+    # --- Step 2: Poll search (60 s) --------------------------------------
+    DEADLINE=$(( $(date +%s) + 60 ))
+    WAVE_ID=""
+    while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+      RESP=$(curl -s -b "$COOKIE" --max-time 10 \
+        "$BASE/search/?query=in:inbox&index=0&numResults=1" 2>/dev/null || true)
+      WAVE_ID=$(printf "%s" "$RESP" | jq -r ".[\"3\"][0][\"3\"] // empty" 2>/dev/null || true)
+      if [ -n "$WAVE_ID" ]; then break; fi
+      sleep 2
+    done
+    if [ -z "$WAVE_ID" ]; then
+      echo "[sanity] FAIL: search returned no waves within 60 s"
+      exit 1
+    fi
+    echo "[sanity] search OK — found wave: $WAVE_ID"
+
+    # --- Step 3: Fetch top wave ------------------------------------------
+    FETCH_PATH=$(printf "%s" "$WAVE_ID" | sed "s|!|/|g")
+    FETCH_RESP=$(curl -s -b "$COOKIE" -w "\n%{http_code}" --max-time 10 \
+      "$BASE/fetch/$FETCH_PATH")
+    FETCH_CODE=$(printf "%s" "$FETCH_RESP" | tail -1)
+    FETCH_BODY=$(printf "%s" "$FETCH_RESP" | sed "\$d")
+    if [ "$FETCH_CODE" != "200" ]; then
+      echo "[sanity] FAIL: fetch returned HTTP $FETCH_CODE"
+      exit 1
+    fi
+    HAS_CONTENT=$(printf "%s" "$FETCH_BODY" | jq "has(\"1\")" 2>/dev/null || echo "false")
+    if [ "$HAS_CONTENT" != "true" ]; then
+      echo "[sanity] FAIL: fetch response missing wavelet content"
+      exit 1
+    fi
+    echo "[sanity] fetch OK — wave loaded with content"
+    echo "[sanity] ALL CHECKS PASSED"
+  '
+}
+
 rollback_release() {
   if [[ ! -L "$deploy_root/previous" ]]; then
     echo "No previous release is available for rollback" >&2
@@ -154,7 +221,7 @@ deploy_release() {
   activate_release
   compose_up
 
-  if wait_for_ready && check_proxy; then
+  if wait_for_ready && check_proxy && sanity_check; then
     echo "Deployed $(basename "$release_dir")"
     return 0
   fi

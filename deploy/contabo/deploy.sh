@@ -28,6 +28,7 @@ root_host=${ROOT_HOST:-wave.supawave.ai}
 www_host=${WWW_HOST:-www.supawave.ai}
 internal_port=${WAVE_INTERNAL_PORT:-9898}
 smoke_image=${SMOKE_IMAGE:-curlimages/curl:8.10.1}
+sanity_image=${SANITY_IMAGE:-alpine:3.20}
 registry_host=${GHCR_REGISTRY_HOST:-ghcr.io}
 deploy_env_file="$deploy_root/shared/deploy.env"
 
@@ -115,6 +116,103 @@ wait_for_ready() {
   return 1
 }
 
+sanity_check() {
+  local addr="${SANITY_ADDRESS:-}"
+  local pass="${SANITY_PASSWORD:-}"
+  if [[ -z "$addr" && -z "$pass" ]]; then
+    echo "[deploy] SANITY_ADDRESS/SANITY_PASSWORD not set, skipping sanity check"
+    return 0
+  fi
+  if [[ -z "$addr" || -z "$pass" ]]; then
+    echo "[deploy] SANITY_ADDRESS and SANITY_PASSWORD must both be set" >&2
+    return 1
+  fi
+
+  echo "[deploy] Running sanity check ..."
+
+  export INTERNAL_PORT="${internal_port}"
+  export SANITY_ADDR="${addr}"
+  export SANITY_PASS="${pass}"
+  docker run --rm --network host \
+    -e INTERNAL_PORT \
+    -e SANITY_ADDR \
+    -e SANITY_PASS \
+    "$sanity_image" sh -c '
+    set -e
+    if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+      if command -v apk >/dev/null 2>&1; then
+        if ! apk add --no-cache curl jq >/dev/null; then
+          echo "[sanity] FAIL: unable to install curl/jq via apk" >&2
+          exit 1
+        fi
+      else
+        echo "[sanity] FAIL: curl/jq not found and apk unavailable in sanity image"
+        exit 1
+      fi
+    fi
+
+    BASE="http://127.0.0.1:${INTERNAL_PORT}"
+    ADDR="$SANITY_ADDR"
+    PASS="$SANITY_PASS"
+    COOKIE=/tmp/c.txt
+
+    # --- Step 1: Login ---------------------------------------------------
+    if ! HTTP=$(curl -sS -o /dev/null -w "%{http_code}" \
+      -c "$COOKIE" -L --max-time 10 \
+      --data-urlencode "address=${ADDR}" \
+      --data-urlencode "password=${PASS}" \
+      "$BASE/auth/signin"); then
+      echo "[sanity] FAIL: login request failed" >&2
+      exit 1
+    fi
+    if ! grep -q JSESSIONID "$COOKIE" 2>/dev/null; then
+      echo "[sanity] FAIL: login did not set JSESSIONID (HTTP $HTTP)"
+      exit 1
+    fi
+    echo "[sanity] login OK"
+
+    # --- Step 2: Poll search (60 s) --------------------------------------
+    DEADLINE=$(( $(date +%s) + 60 ))
+    WAVE_ID=""
+    while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+      if ! RESP=$(curl -sS -b "$COOKIE" --max-time 10 \
+        "$BASE/search/?query=in:inbox&index=0&numResults=1" 2>&1); then
+        sleep 2
+        continue
+      fi
+      WAVE_ID=$(printf "%s" "$RESP" | jq -r ".[\"3\"][0][\"3\"] // empty" 2>/dev/null || true)
+      if [ -n "$WAVE_ID" ]; then break; fi
+      sleep 2
+    done
+    if [ -z "$WAVE_ID" ]; then
+      echo "[sanity] FAIL: search returned no waves within 60 s"
+      exit 1
+    fi
+    echo "[sanity] search OK — found wave: $WAVE_ID"
+
+    # --- Step 3: Fetch top wave ------------------------------------------
+    FETCH_PATH=$(printf "%s" "$WAVE_ID" | sed "s|!|/|g")
+    if ! FETCH_RESP=$(curl -sS -b "$COOKIE" -w "\n%{http_code}" --max-time 10 \
+      "$BASE/fetch/$FETCH_PATH"); then
+      echo "[sanity] FAIL: fetch request failed" >&2
+      exit 1
+    fi
+    FETCH_CODE=$(printf "%s" "$FETCH_RESP" | tail -1)
+    FETCH_BODY=$(printf "%s" "$FETCH_RESP" | sed "\$d")
+    if [ "$FETCH_CODE" != "200" ]; then
+      echo "[sanity] FAIL: fetch returned HTTP $FETCH_CODE"
+      exit 1
+    fi
+    HAS_CONTENT=$(printf "%s" "$FETCH_BODY" | jq "has(\"1\")" 2>/dev/null || echo "false")
+    if [ "$HAS_CONTENT" != "true" ]; then
+      echo "[sanity] FAIL: fetch response missing wavelet content"
+      exit 1
+    fi
+    echo "[sanity] fetch OK — wave loaded with content"
+    echo "[sanity] ALL CHECKS PASSED"
+  '
+}
+
 rollback_release() {
   if [[ ! -L "$deploy_root/previous" ]]; then
     echo "No previous release is available for rollback" >&2
@@ -154,7 +252,7 @@ deploy_release() {
   activate_release
   compose_up
 
-  if wait_for_ready && check_proxy; then
+  if wait_for_ready && check_proxy && sanity_check; then
     echo "Deployed $(basename "$release_dir")"
     return 0
   fi

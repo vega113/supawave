@@ -84,4 +84,12 @@ public interface RobotAccountData extends AccountData {
    * robot predates ownership tracking.
    */
   String getOwnerAddress();
+
+  /**
+   * Returns the token version for JWT revocation. Tokens issued with a version
+   * lower than this are considered revoked. Defaults to 0 for legacy records.
+   */
+  default long getTokenVersion() {
+    return 0L;
+  }
 }

@@ -41,6 +41,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   private final long updatedAtMillis;
   private final boolean paused;
   private final String ownerAddress;
+  private final long tokenVersion;
 
   /**
    * Creates a new {@link RobotAccountData} with default token expiry (0 = no expiry).
@@ -90,6 +91,14 @@ public final class RobotAccountDataImpl implements RobotAccountData {
       RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds,
       String ownerAddress, String description, long createdAtMillis, long updatedAtMillis,
       boolean paused) {
+    this(id, url, consumerSecret, capabilities, isVerified, tokenExpirySeconds, ownerAddress,
+        description, createdAtMillis, updatedAtMillis, paused, 0L);
+  }
+
+  public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
+      RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds,
+      String ownerAddress, String description, long createdAtMillis, long updatedAtMillis,
+      boolean paused, long tokenVersion) {
     Preconditions.checkNotNull(id, "Id can not be null");
     Preconditions.checkNotNull(url, "Url can not be null");
     Preconditions.checkNotNull(consumerSecret, "Consumer secret can not be null");
@@ -106,6 +115,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     this.updatedAtMillis = updatedAtMillis;
     this.paused = paused;
     this.ownerAddress = ownerAddress;
+    this.tokenVersion = tokenVersion;
   }
 
   @Override
@@ -184,6 +194,11 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   }
 
   @Override
+  public long getTokenVersion() {
+    return tokenVersion;
+  }
+
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
@@ -198,6 +213,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     result = prime * result + (paused ? 1231 : 1237);
     result = prime * result + ((url == null) ? 0 : url.hashCode());
     result = prime * result + Long.hashCode(tokenExpirySeconds);
+    result = prime * result + Long.hashCode(tokenVersion);
     return result;
   }
 
@@ -270,6 +286,9 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     if (tokenExpirySeconds != other.tokenExpirySeconds) {
       return false;
     }
+    if (tokenVersion != other.tokenVersion) {
+      return false;
+    }
     return true;
   }
 
@@ -286,6 +305,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
         ",updatedAtMillis=" + updatedAtMillis +
         ",paused=" + paused +
 	",ownerAddress=<redacted>" +
-	",tokenExpirySeconds=" + tokenExpirySeconds + "]";
+	",tokenExpirySeconds=" + tokenExpirySeconds +
+	",tokenVersion=" + tokenVersion + "]";
   }
 }

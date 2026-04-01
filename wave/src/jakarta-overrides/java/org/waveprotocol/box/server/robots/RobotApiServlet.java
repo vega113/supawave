@@ -17,10 +17,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
-import org.waveprotocol.box.server.authentication.jwt.JwtClaims;
-import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
-import org.waveprotocol.box.server.authentication.jwt.JwtRevocationState;
-import org.waveprotocol.box.server.authentication.jwt.JwtTokenContext;
+import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.persistence.AccountStore;
@@ -29,7 +26,6 @@ import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
 import org.waveprotocol.box.server.robots.util.RobotsUtil.RobotRegistrationException;
 import org.waveprotocol.box.server.util.RegistrationSupport;
-import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 import com.google.inject.name.Named;
@@ -68,7 +64,7 @@ public final class RobotApiServlet extends HttpServlet {
   private static final String JSON = "application/json";
 
   private final String domain;
-  private final JwtKeyRing keyRing;
+  private final JwtRequestAuthenticator jwtAuthenticator;
   private final AccountStore accountStore;
   private final RobotRegistrar robotRegistrar;
   private final RobotCapabilityFetcher capabilityFetcher;
@@ -76,12 +72,12 @@ public final class RobotApiServlet extends HttpServlet {
   @Inject
   public RobotApiServlet(
       @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
-      JwtKeyRing keyRing,
+      JwtRequestAuthenticator jwtAuthenticator,
       AccountStore accountStore,
       RobotRegistrar robotRegistrar,
       RobotCapabilityFetcher capabilityFetcher) {
     this.domain = domain;
-    this.keyRing = keyRing;
+    this.jwtAuthenticator = jwtAuthenticator;
     this.accountStore = accountStore;
     this.robotRegistrar = robotRegistrar;
     this.capabilityFetcher = capabilityFetcher;
@@ -91,35 +87,11 @@ public final class RobotApiServlet extends HttpServlet {
 
   private ParticipantId authenticate(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
-    String authHeader = req.getHeader("Authorization");
-    if (Strings.isNullOrEmpty(authHeader) || !authHeader.startsWith("Bearer ")) {
-      sendError(resp, 401, "Missing or invalid Authorization header", "AUTH_REQUIRED");
-      return null;
-    }
-    String token = authHeader.substring(7).trim();
-    if (token.isEmpty()) {
-      sendError(resp, 401, "Empty bearer token", "AUTH_REQUIRED");
-      return null;
-    }
     try {
-      JwtRevocationState revocationState = new JwtRevocationState(0, 0);
-      JwtTokenContext context = keyRing.validator().validate(token, revocationState);
-      JwtClaims claims = context.claims();
-
-      if (claims.tokenType() != JwtTokenType.DATA_API_ACCESS) {
-        sendError(resp, 401, "Invalid token type", "AUTH_INVALID");
-        return null;
-      }
-      if (!claims.hasAudience(JwtAudience.DATA_API)) {
-        sendError(resp, 401, "Token audience mismatch", "AUTH_INVALID");
-        return null;
-      }
-      return ParticipantId.of(claims.subject());
+      return jwtAuthenticator.authenticate(
+          req.getHeader("Authorization"), JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API);
     } catch (JwtValidationException e) {
-      sendError(resp, 401, "Invalid or expired token", "AUTH_INVALID");
-      return null;
-    } catch (InvalidParticipantAddress e) {
-      sendError(resp, 401, "Invalid token subject", "AUTH_INVALID");
+      sendError(resp, 401, e.getMessage(), "AUTH_INVALID");
       return null;
     }
   }

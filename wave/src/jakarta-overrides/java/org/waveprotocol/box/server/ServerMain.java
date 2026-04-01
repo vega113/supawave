@@ -292,6 +292,7 @@ public class ServerMain {
     server.addServlet("/robot/dataapi", DataApiServlet.class);
     server.addServlet("/robot/dataapi/rpc", DataApiServlet.class);
     server.addServlet("/robot/dataapi/token", DataApiTokenServlet.class);
+    server.addServlet("/robot/token", DataApiTokenServlet.class);
 
     // Register FragmentsServlet for HTTP fragment transport (mirrors main ServerMain logic).
     try {

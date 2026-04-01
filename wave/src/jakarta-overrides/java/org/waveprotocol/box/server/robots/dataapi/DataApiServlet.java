@@ -24,6 +24,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
+import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
@@ -33,6 +34,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import java.util.Set;
 
 import jakarta.inject.Singleton;
 
@@ -63,7 +65,8 @@ public final class DataApiServlet extends BaseApiServlet {
     ParticipantId participant;
     try {
       participant = jwtAuthenticator.authenticate(
-          req.getHeader("Authorization"), JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API);
+          req.getHeader("Authorization"), JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API,
+          Set.of(JwtScopes.DATA_READ));
     } catch (JwtValidationException e) {
       LOG.info("JWT authentication failed for Data API", e);
       resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

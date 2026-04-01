@@ -139,6 +139,9 @@ public class ProtoAccountDataSerializer {
       builder.setUpdatedAtMillis(account.getUpdatedAtMillis());
     }
     builder.setPaused(account.isPaused());
+    if (account.getTokenVersion() != 0L) {
+      builder.setTokenVersion(account.getTokenVersion());
+    }
     if (account.getCapabilities() != null) {
       builder.setRobotCapabilities(serialize(account.getCapabilities()));
     }
@@ -246,9 +249,10 @@ public class ProtoAccountDataSerializer {
     long createdAtMillis = data.hasCreatedAtMillis() ? data.getCreatedAtMillis() : 0L;
     long updatedAtMillis = data.hasUpdatedAtMillis() ? data.getUpdatedAtMillis() : 0L;
     boolean paused = data.hasPaused() ? data.getPaused() : false;
+    long tokenVersion = data.hasTokenVersion() ? data.getTokenVersion() : 0L;
     return new RobotAccountDataImpl(id, data.getUrl(), data.getConsumerSecret(),
         capabilities, data.getIsVerified(), tokenExpirySeconds, ownerAddress, description,
-        createdAtMillis, updatedAtMillis, paused);
+        createdAtMillis, updatedAtMillis, paused, tokenVersion);
   }
 
   private static RobotCapabilities deserialize(ProtoRobotCapabilities data) {

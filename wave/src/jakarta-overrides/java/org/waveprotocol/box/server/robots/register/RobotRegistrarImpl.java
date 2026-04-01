@@ -229,10 +229,28 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
     if (robotAccount.isPaused() == paused) {
       return robotAccount;
     }
-    return updateRobotAccount(robotAccount, robotAccount.getUrl(), robotAccount.getOwnerAddress(),
-        robotAccount.getTokenExpirySeconds(), robotAccount.getConsumerSecret(),
-        robotAccount.getCapabilities(), robotAccount.isVerified(), robotAccount.getDescription(),
-        robotAccount.getCreatedAtMillis(), clock.millis(), paused);
+    // When pausing, bump token version to invalidate outstanding JWT tokens.
+    long tokenVersion = paused
+        ? robotAccount.getTokenVersion() + 1
+        : robotAccount.getTokenVersion();
+    RobotAccountData updated = new RobotAccountDataImpl(
+        robotAccount.getId(),
+        robotAccount.getUrl(),
+        robotAccount.getConsumerSecret(),
+        robotAccount.getCapabilities(),
+        robotAccount.isVerified(),
+        robotAccount.getTokenExpirySeconds(),
+        robotAccount.getOwnerAddress(),
+        robotAccount.getDescription(),
+        robotAccount.getCreatedAtMillis(),
+        clock.millis(),
+        paused,
+        tokenVersion);
+    accountStore.putAccount(updated);
+    for (Listener listener : listeners) {
+      listener.onRegistrationSuccess(updated);
+    }
+    return updated;
   }
 
   @Override
@@ -269,7 +287,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
         robotAccount.getDescription(),
         robotAccount.getCreatedAtMillis(),
         clock.millis(),
-        robotAccount.isPaused());
+        robotAccount.isPaused(),
+        robotAccount.getTokenVersion());
     accountStore.putAccount(updated);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updated);
@@ -287,6 +306,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
     }
     throwExceptionIfNotRobot(account);
     RobotAccountData robotAccount = account.asRobot();
+    // Bump token version to invalidate outstanding tokens on soft delete.
+    long newTokenVersion = robotAccount.getTokenVersion() + 1;
     RobotAccountData updated = new RobotAccountDataImpl(
         robotAccount.getId(),
         "",
@@ -298,7 +319,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
         robotAccount.getDescription(),
         robotAccount.getCreatedAtMillis(),
         clock.millis(),
-        true);
+        true,
+        newTokenVersion);
     accountStore.putAccount(updated);
     for (Listener listener : listeners) {
       listener.onUnregistrationSuccess(updated);
@@ -374,7 +396,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
             description,
             createdAtMillis,
             updatedAtMillis,
-            paused);
+            paused,
+            existingAccount.getTokenVersion());
     accountStore.putAccount(updatedAccount);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updatedAccount);
@@ -385,6 +408,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
   private RobotAccountData updateRobotSecret(RobotAccountData existingAccount, String consumerSecret)
       throws RobotRegistrationException, PersistenceException {
     String normalizedLocation = normalizeRobotLocation(existingAccount.getUrl());
+    // Bump token version to invalidate all previously issued JWT tokens.
+    long newTokenVersion = existingAccount.getTokenVersion() + 1;
     RobotAccountData updatedAccount =
         new RobotAccountDataImpl(
             existingAccount.getId(),
@@ -397,7 +422,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
             existingAccount.getDescription(),
             existingAccount.getCreatedAtMillis(),
             clock.millis(),
-            existingAccount.isPaused());
+            existingAccount.isPaused(),
+            newTokenVersion);
     accountStore.putAccount(updatedAccount);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updatedAccount);

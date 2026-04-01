@@ -24,6 +24,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
+import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
@@ -34,6 +35,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import java.util.Set;
 
 import jakarta.inject.Singleton;
 
@@ -64,7 +66,8 @@ public final class ActiveApiServlet extends BaseApiServlet {
     ParticipantId participant;
     try {
       participant = jwtAuthenticator.authenticate(
-          req.getHeader("Authorization"), JwtTokenType.ROBOT_ACCESS, JwtAudience.ROBOT);
+          req.getHeader("Authorization"), JwtTokenType.ROBOT_ACCESS, JwtAudience.ROBOT,
+          Set.of(JwtScopes.ROBOT_ACTIVE));
     } catch (JwtValidationException e) {
       LOG.info("JWT authentication failed for Active API", e);
       resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

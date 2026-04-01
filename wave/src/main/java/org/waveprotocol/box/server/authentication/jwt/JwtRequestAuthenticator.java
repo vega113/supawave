@@ -32,34 +32,35 @@ public final class JwtRequestAuthenticator {
   }
 
   /**
-   * Validates a JWT Bearer token and returns the authenticated participant.
+   * Validates a JWT Bearer token and returns both the authenticated participant and token scopes.
    *
    * @param authorizationHeader the full value of the HTTP Authorization header
    * @param expectedType the expected JWT token type
    * @param expectedAudience the expected JWT audience
-   * @return the authenticated ParticipantId
+   * @return AuthenticatedJwt with participant and scopes
    * @throws JwtValidationException if validation fails
    */
-  public ParticipantId authenticate(String authorizationHeader,
-                                    JwtTokenType expectedType,
-                                    JwtAudience expectedAudience) {
-    return authenticate(authorizationHeader, expectedType, expectedAudience, Set.of());
+  public AuthenticatedJwt authenticateAndExtractScopes(String authorizationHeader,
+                                                       JwtTokenType expectedType,
+                                                       JwtAudience expectedAudience) {
+    return authenticateAndExtractScopes(authorizationHeader, expectedType, expectedAudience, Set.of());
   }
 
   /**
-   * Validates a JWT Bearer token with scope enforcement.
+   * Validates a JWT Bearer token with scope enforcement and returns both participant and scopes.
    *
    * @param authorizationHeader the full value of the HTTP Authorization header
    * @param expectedType the expected JWT token type
    * @param expectedAudience the expected JWT audience
    * @param requiredScopes scopes that the token must contain (empty = no scope check)
-   * @return the authenticated ParticipantId
+   * @return AuthenticatedJwt with participant and scopes
    * @throws JwtValidationException if validation fails
+   * @throws JwtInsufficientScopeException if token lacks required scopes
    */
-  public ParticipantId authenticate(String authorizationHeader,
-                                    JwtTokenType expectedType,
-                                    JwtAudience expectedAudience,
-                                    Set<String> requiredScopes) {
+  public AuthenticatedJwt authenticateAndExtractScopes(String authorizationHeader,
+                                                       JwtTokenType expectedType,
+                                                       JwtAudience expectedAudience,
+                                                       Set<String> requiredScopes) {
     Objects.requireNonNull(expectedType, "expectedType");
     Objects.requireNonNull(expectedAudience, "expectedAudience");
     Objects.requireNonNull(requiredScopes, "requiredScopes");
@@ -91,10 +92,18 @@ public final class JwtRequestAuthenticator {
           "Token does not have required audience: " + expectedAudience.claimValue());
     }
 
+    // Extract scopes from the token (may be empty for legacy tokens)
+    Set<String> tokenScopes = claims.scopes();
+
+    // Apply default scopes for legacy tokens with empty scope claim
+    if (tokenScopes.isEmpty()) {
+      tokenScopes = getDefaultScopes(expectedType);
+    }
+
     // Scope enforcement
     for (String scope : requiredScopes) {
-      if (!claims.hasScope(scope)) {
-        throw new JwtValidationException("Token missing required scope: " + scope);
+      if (!tokenScopes.contains(scope)) {
+        throw new JwtInsufficientScopeException("Token missing required scope: " + scope);
       }
     }
 
@@ -110,7 +119,55 @@ public final class JwtRequestAuthenticator {
       verifyAccountState(participant, expectedType, claims.subjectVersion());
     }
 
-    return participant;
+    return new AuthenticatedJwt(participant, tokenScopes);
+  }
+
+  /**
+   * Validates a JWT Bearer token and returns the authenticated participant.
+   * Use authenticateAndExtractScopes() for scope enforcement and extraction.
+   *
+   * @param authorizationHeader the full value of the HTTP Authorization header
+   * @param expectedType the expected JWT token type
+   * @param expectedAudience the expected JWT audience
+   * @return the authenticated ParticipantId
+   * @throws JwtValidationException if validation fails
+   */
+  public ParticipantId authenticate(String authorizationHeader,
+                                    JwtTokenType expectedType,
+                                    JwtAudience expectedAudience) {
+    return authenticate(authorizationHeader, expectedType, expectedAudience, Set.of());
+  }
+
+  /**
+   * Validates a JWT Bearer token with scope enforcement.
+   * Use authenticateAndExtractScopes() instead to get both participant and scopes.
+   *
+   * @param authorizationHeader the full value of the HTTP Authorization header
+   * @param expectedType the expected JWT token type
+   * @param expectedAudience the expected JWT audience
+   * @param requiredScopes scopes that the token must contain (empty = no scope check)
+   * @return the authenticated ParticipantId
+   * @throws JwtValidationException if validation fails
+   * @throws JwtInsufficientScopeException if token lacks required scopes
+   */
+  public ParticipantId authenticate(String authorizationHeader,
+                                    JwtTokenType expectedType,
+                                    JwtAudience expectedAudience,
+                                    Set<String> requiredScopes) {
+    AuthenticatedJwt auth = authenticateAndExtractScopes(authorizationHeader, expectedType, expectedAudience, requiredScopes);
+    return auth.participant();
+  }
+
+  /**
+   * Returns default scopes for a given token type.
+   * Used as a fallback for legacy tokens that have empty scopes.
+   */
+  private Set<String> getDefaultScopes(JwtTokenType tokenType) {
+    return switch (tokenType) {
+      case DATA_API_ACCESS -> JwtScopes.DATA_API_DEFAULT;
+      case ROBOT_ACCESS -> JwtScopes.ROBOT_DEFAULT;
+      default -> Set.of();
+    };
   }
 
   /**
@@ -144,6 +201,16 @@ public final class JwtRequestAuthenticator {
             "Token has been revoked (version " + tokenSubjectVersion
                 + " < required " + minimumVersion + ")");
       }
+    }
+  }
+
+  /**
+   * Result of JWT authentication containing both the authenticated participant and token scopes.
+   */
+  public record AuthenticatedJwt(ParticipantId participant, Set<String> scopes) {
+    public AuthenticatedJwt {
+      Objects.requireNonNull(participant, "participant");
+      Objects.requireNonNull(scopes, "scopes");
     }
   }
 }

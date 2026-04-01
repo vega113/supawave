@@ -17,6 +17,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
+import org.waveprotocol.box.server.authentication.jwt.JwtInsufficientScopeException;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
 import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
@@ -99,6 +100,10 @@ public final class RobotApiServlet extends HttpServlet {
       return jwtAuthenticator.authenticate(
           req.getHeader("Authorization"), JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API,
           requiredScopes);
+    } catch (JwtInsufficientScopeException e) {
+      LOG.warning("Insufficient scopes for Robot API", e);
+      sendError(resp, 403, "Insufficient scopes for this operation", "INSUFFICIENT_SCOPES");
+      return null;
     } catch (JwtValidationException e) {
       LOG.warning("JWT authentication failed", e);
       sendError(resp, 401, "Invalid authentication token", "AUTH_INVALID");

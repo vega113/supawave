@@ -22,22 +22,24 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
+import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 
 public class OpScopeMapper {
-  public static final String SCOPE_WAVE_DATA_READ = "wave:data:read";
-  public static final String SCOPE_WAVE_DATA_WRITE = "wave:data:write";
-  public static final String SCOPE_WAVE_ROBOT_ACTIVE = "wave:robot:active";
+  // Deprecated: use JwtScopes constants instead
+  public static final String SCOPE_WAVE_DATA_READ = JwtScopes.DATA_READ;
+  public static final String SCOPE_WAVE_DATA_WRITE = JwtScopes.DATA_WRITE;
+  public static final String SCOPE_WAVE_ROBOT_ACTIVE = JwtScopes.ROBOT_ACTIVE;
   public static final String SCOPE_WAVE_ADMIN = "wave:admin";
 
   private static final Map<OpType, Set<String>> OPERATION_SCOPES = new EnumMap<>(OpType.class);
 
   static {
-    OPERATION_SCOPES.put(OpType.FETCH_WAVE, Set.of(SCOPE_WAVE_DATA_READ));
-    OPERATION_SCOPES.put(OpType.LIST_WAVES, Set.of(SCOPE_WAVE_DATA_READ));
-    OPERATION_SCOPES.put(OpType.MODIFY_WAVELET, Set.of(SCOPE_WAVE_DATA_WRITE));
-    OPERATION_SCOPES.put(OpType.CREATE_WAVELET, Set.of(SCOPE_WAVE_DATA_WRITE));
-    OPERATION_SCOPES.put(OpType.SUBMIT_DELTA, Set.of(SCOPE_WAVE_DATA_WRITE));
-    OPERATION_SCOPES.put(OpType.ROBOT_RPC, Set.of(SCOPE_WAVE_ROBOT_ACTIVE));
+    OPERATION_SCOPES.put(OpType.FETCH_WAVE, Set.of(JwtScopes.DATA_READ));
+    OPERATION_SCOPES.put(OpType.LIST_WAVES, Set.of(JwtScopes.DATA_READ));
+    OPERATION_SCOPES.put(OpType.MODIFY_WAVELET, Set.of(JwtScopes.DATA_WRITE));
+    OPERATION_SCOPES.put(OpType.CREATE_WAVELET, Set.of(JwtScopes.DATA_WRITE));
+    OPERATION_SCOPES.put(OpType.SUBMIT_DELTA, Set.of(JwtScopes.DATA_WRITE));
+    OPERATION_SCOPES.put(OpType.ROBOT_RPC, Set.of(JwtScopes.ROBOT_ACTIVE));
     OPERATION_SCOPES.put(OpType.ADMIN_OPERATION, Set.of(SCOPE_WAVE_ADMIN));
   }
 

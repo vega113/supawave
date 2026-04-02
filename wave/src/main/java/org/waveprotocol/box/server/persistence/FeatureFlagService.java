@@ -118,4 +118,13 @@ public final class FeatureFlagService {
       LOG.log(Level.WARNING, "Failed to refresh feature flag cache", e);
     }
   }
+
+  public void shutdown() {
+    scheduler.shutdownNow();
+    try {
+      scheduler.awaitTermination(5, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
 }

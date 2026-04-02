@@ -23,15 +23,25 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.junit.After;
 import org.junit.Test;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
 
 public final class FeatureFlagServiceTest {
+  private FeatureFlagService service;
+
+  @After
+  public void tearDown() {
+    if (service != null) {
+      service.shutdown();
+    }
+  }
+
   @Test
   public void knownFlagsStayDisabledForFreshStores() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
-    FeatureFlagService service = new FeatureFlagService(store);
+    service = new FeatureFlagService(store);
 
     assertFalse(service.getEnabledFlagNames(null).contains("ot-search"));
   }
@@ -46,7 +56,7 @@ public final class FeatureFlagServiceTest {
             true,
             new LinkedHashMap<>()));
 
-    FeatureFlagService service = new FeatureFlagService(store);
+    service = new FeatureFlagService(store);
 
     assertTrue(service.getEnabledFlagNames(null).contains("ot-search"));
   }
@@ -61,7 +71,7 @@ public final class FeatureFlagServiceTest {
             false,
             new LinkedHashMap<>()));
 
-    FeatureFlagService service = new FeatureFlagService(store);
+    service = new FeatureFlagService(store);
 
     assertFalse(service.getEnabledFlagNames(null).contains("ot-search"));
   }
@@ -71,7 +81,7 @@ public final class FeatureFlagServiceTest {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     store.save(new FeatureFlag("new-ui", "New UI", false, allowedUsers(false)));
 
-    FeatureFlagService service = new FeatureFlagService(store);
+    service = new FeatureFlagService(store);
 
     assertFalse(service.isEnabled("new-ui", "vega@supawave.ai"));
   }
@@ -81,7 +91,7 @@ public final class FeatureFlagServiceTest {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     store.save(new FeatureFlag("new-ui", "New UI", false, allowedUsers(true)));
 
-    FeatureFlagService service = new FeatureFlagService(store);
+    service = new FeatureFlagService(store);
 
     assertTrue(service.isEnabled("new-ui", "vega@supawave.ai"));
   }

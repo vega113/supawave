@@ -436,6 +436,7 @@ class DeployRecoveryTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
         self.assertIn("Legacy wave image unresolved; using target image fallback", result.stdout)
         self.assertIn("Falling back to legacy container name supawave-wave-1", result.stdout)
+        self.assertIn("Deploying to green slot", result.stdout)
 
         docker_commands = docker_log.read_text(encoding="utf-8")
         self.assertIn("ps -aq wave", docker_commands)

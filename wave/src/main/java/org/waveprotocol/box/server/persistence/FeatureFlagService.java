@@ -108,7 +108,7 @@ public final class FeatureFlagService {
    */
   public void refreshCache() {
     try {
-      List<FeatureFlag> all = store.getAll();
+      List<FeatureFlag> all = KnownFeatureFlags.mergeWithStored(store.getAll());
       Map<String, FeatureFlag> newCache = new ConcurrentHashMap<>();
       for (FeatureFlag f : all) {
         newCache.put(f.getName(), f);
@@ -116,6 +116,15 @@ public final class FeatureFlagService {
       cache = newCache;
     } catch (PersistenceException e) {
       LOG.log(Level.WARNING, "Failed to refresh feature flag cache", e);
+    }
+  }
+
+  public void shutdown() {
+    scheduler.shutdownNow();
+    try {
+      scheduler.awaitTermination(5, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
   }
 }

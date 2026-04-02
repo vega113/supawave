@@ -25,9 +25,14 @@ import java.util.List;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
 
 public final class KnownFeatureFlags {
-  private static final List<FeatureFlag> DEFAULTS =
-      Collections.singletonList(
-          new FeatureFlag("lucene9", "Lucene 9.x full-text search", false, Collections.emptyMap()));
+  private static final List<FeatureFlag> DEFAULTS;
+
+  static {
+    List<FeatureFlag> defaults = new ArrayList<>();
+    defaults.add(new FeatureFlag("lucene9", "Lucene 9.x full-text search", false, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("ot-search", "Real-time search wavelets (replaces 15s polling)", false, Collections.emptyMap()));
+    DEFAULTS = Collections.unmodifiableList(defaults);
+  }
 
   private KnownFeatureFlags() {
   }

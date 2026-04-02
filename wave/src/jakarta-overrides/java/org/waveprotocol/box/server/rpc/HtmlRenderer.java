@@ -3202,6 +3202,240 @@ public final class HtmlRenderer {
   // =========================================================================
 
   /**
+   * Returns self-contained CSS for the shared topbar, suitable for any server-rendered page
+   * that is not the GWT wave client. Extracted from renderWaveClientPage CSS, minus GWT-specific
+   * mobile nav and panel overrides.
+   */
+  public static String renderSharedTopBarCss() {
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append(".topbar {\n");
+    sb.append("  height: 40px; line-height: 40px;\n");
+    sb.append("  background: linear-gradient(135deg, #023e6b 0%, ").append(WAVE_PRIMARY).append(" 60%, ").append(WAVE_ACCENT).append(" 100%);\n");
+    sb.append("  border-bottom: none;\n");
+    sb.append("  box-shadow: 0 2px 8px rgba(0,50,100,0.18);\n");
+    sb.append("  overflow: visible;\n");
+    sb.append("  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,\n");
+    sb.append("    Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;\n");
+    sb.append("  font-size: 14px; padding: 0 12px;\n");
+    sb.append("  position: relative; z-index: 1;\n");
+    sb.append("  display: flex; align-items: center;\n");
+    sb.append("}\n");
+    sb.append(".topbar-brand { display: flex; align-items: center; text-decoration: none; color: inherit; gap: 8px; cursor: pointer; }\n");
+    sb.append(".topbar-brand svg { flex-shrink: 0; }\n");
+    sb.append(".title {\n");
+    sb.append("  font-size: 17px; font-weight: 700; color: #fff;\n");
+    sb.append("  letter-spacing: -0.3px;\n");
+    sb.append("}\n");
+    sb.append(".banner { margin-left: 12px; }\n");
+    sb.append(".topbar-icon {\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  width: 32px; height: 32px; border-radius: 6px; cursor: default;\n");
+    sb.append("  transition: transform 0.15s, background 0.15s;\n");
+    sb.append("  background: rgba(255,255,255,0.10);\n");
+    sb.append("  position: relative;\n");
+    sb.append("}\n");
+    sb.append(".topbar-icon:hover {\n");
+    sb.append("  transform: scale(1.1);\n");
+    sb.append("  background: rgba(255,255,255,0.18);\n");
+    sb.append("}\n");
+    sb.append(".topbar-icon svg { width: 20px; height: 20px; }\n");
+    sb.append(".lang-icon-btn {\n");
+    sb.append("  cursor: pointer; position: relative;\n");
+    sb.append("}\n");
+    sb.append(".lang-icon-btn select {\n");
+    sb.append("  position: absolute; top: 0; left: 0; width: 100%; height: 100%;\n");
+    sb.append("  opacity: 0; cursor: pointer; font-size: 14px;\n");
+    sb.append("}\n");
+    sb.append("#netstatus {\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("}\n");
+    sb.append("#netstatus svg { width: 20px; height: 20px; }\n");
+    sb.append(".topbar-icon svg { stroke: white; color: white; }\n");
+    sb.append(".topbar-icon::after {\n");
+    sb.append("  content: ''; position: absolute; bottom: 2px; right: 2px;\n");
+    sb.append("  width: 8px; height: 8px; border-radius: 50%;\n");
+    sb.append("  border: 1.5px solid rgba(0,50,100,0.6);\n");
+    sb.append("  display: none;\n");
+    sb.append("}\n");
+    sb.append(".lang-icon-btn::after { display: none !important; }\n");
+    sb.append("#langCode {\n");
+    sb.append("  font-size: 10px; font-weight: 700; color: white;\n");
+    sb.append("  letter-spacing: 0.5px; line-height: 1;\n");
+    sb.append("  pointer-events: none; user-select: none;\n");
+    sb.append("  position: absolute; bottom: 1px; right: -2px;\n");
+    sb.append("  background: rgba(0,0,0,0.45); border-radius: 3px;\n");
+    sb.append("  padding: 1px 2px;\n");
+    sb.append("}\n");
+    sb.append(".topbar-icon.saved::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    sb.append(".topbar-icon.saving::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    sb.append(".topbar-icon.online::after { display: block; background: #48bb78; box-shadow: 0 0 4px #48bb78; }\n");
+    sb.append(".topbar-icon.connecting::after { display: block; background: #ecc94b; box-shadow: 0 0 4px #ecc94b; animation: indicator-pulse 1.2s ease-in-out infinite; }\n");
+    sb.append(".topbar-icon.offline::after { display: block; background: #fc8181; box-shadow: 0 0 4px #fc8181; }\n");
+    sb.append("@keyframes indicator-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }\n");
+    sb.append(".info { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.9); }\n");
+    sb.append(".info a { color: #fff; text-decoration: none; font-weight: 500; }\n");
+    sb.append(".info a:hover { text-decoration: underline; }\n");
+    sb.append(".online svg, .connecting svg, .offline svg { color: white; stroke: white; }\n");
+    sb.append(".user-avatar {\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  width: 28px; height: 28px; border-radius: 50%;\n");
+    sb.append("  background: rgba(255,255,255,0.25); color: #fff;\n");
+    sb.append("  font-weight: 700; font-size: 13px; text-transform: uppercase;\n");
+    sb.append("  flex-shrink: 0;\n");
+    sb.append("}\n");
+    sb.append(".user-menu { position: relative; display: inline-block; cursor: pointer; }\n");
+    sb.append(".user-menu-toggle {\n");
+    sb.append("  background: rgba(255,255,255,0.10); border: none; color: #fff;\n");
+    sb.append("  cursor: pointer; font: inherit; padding: 3px 8px 3px 4px; border-radius: 20px;\n");
+    sb.append("  transition: background 0.15s; display: flex; align-items: center; gap: 6px; line-height: 1;\n");
+    sb.append("}\n");
+    sb.append(".user-menu-toggle:hover { background: rgba(255,255,255,0.22); }\n");
+    sb.append(".user-menu-toggle .caret { font-size: 10px; opacity: 0.8; }\n");
+    sb.append(".user-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); min-width: 210px; z-index: 1000; padding: 4px 0; margin-top: 6px; border: 1px solid #e2e8f0; }\n");
+    sb.append(".user-menu-dropdown.open { display: block; }\n");
+    sb.append(".user-menu-dropdown .user-info { padding: 10px 16px; border-bottom: 1px solid #e2e8f0; color: #4a5568; font-size: 12px; }\n");
+    sb.append(".user-menu-dropdown a { display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px; transition: background 0.1s; }\n");
+    sb.append(".user-menu-dropdown a:hover { background: #f0f4f8; color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".user-menu-dropdown .divider { border-top: 1px solid #e2e8f0; margin: 4px 0; }\n");
+    sb.append(".section-label { padding: 4px 16px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #999; }\n");
+    sb.append(".user-menu-dropdown .section-link-strong { font-weight: 600; color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".user-menu-dropdown .section-link-strong:hover { color: #005f8f !important; }\n");
+    sb.append("@media (max-width: 767px) {\n");
+    sb.append("  .topbar { height: 48px; line-height: 48px; padding: 0 8px; gap: 4px; }\n");
+    sb.append("  .topbar .title { font-size: 15px; }\n");
+    sb.append("  .topbar .info { gap: 4px; }\n");
+    sb.append("  .lang-icon-btn { display: none; }\n");
+    sb.append("  .user-menu-toggle { padding: 3px 6px 3px 3px; }\n");
+    sb.append("  .user-menu-dropdown {\n");
+    sb.append("    position: fixed !important; left: 8px; right: 8px;\n");
+    sb.append("    top: 48px; width: auto !important; min-width: 0 !important;\n");
+    sb.append("  }\n");
+    sb.append("  .user-menu-dropdown a {\n");
+    sb.append("    padding: 12px 16px; font-size: 15px;\n");
+    sb.append("    min-height: 44px; display: flex; align-items: center;\n");
+    sb.append("  }\n");
+    sb.append("}\n");
+    sb.append("@media (max-width: 479px) {\n");
+    sb.append("  .topbar { padding: 0 4px; }\n");
+    sb.append("  .topbar-brand svg { width: 22px; height: 22px; }\n");
+    sb.append("  .topbar .title { font-size: 14px; }\n");
+    sb.append("  .topbar-icon { width: 28px; height: 28px; }\n");
+    sb.append("  .topbar-icon svg { width: 16px; height: 16px; }\n");
+    sb.append("  .user-avatar { width: 24px; height: 24px; font-size: 11px; }\n");
+    sb.append("}\n");
+    return sb.toString();
+  }
+
+  /**
+   * Returns shared topbar HTML for server-rendered pages (not GWT wave client).
+   *
+   * @param fullAddress full user address e.g. alice@example.com (HTML-escaped internally)
+   * @param domain      server domain e.g. example.com
+   * @param contextPath servlet context path, typically "" for root deployments
+   * @param userRole    user role for conditional admin link; null to omit admin link
+   */
+  public static String renderSharedTopBarHtml(String fullAddress, String domain,
+      String contextPath, String userRole) {
+    String safeCtx = escapeHtml(contextPath == null ? "" : contextPath);
+    String safeAddr = escapeHtml(fullAddress == null ? "" : fullAddress);
+    String safeAddrFull = safeAddr;
+    int atIdx = fullAddress == null ? -1 : fullAddress.indexOf('@');
+    String localPart = atIdx > 0 ? fullAddress.substring(0, atIdx) : (fullAddress == null ? "" : fullAddress);
+    String firstLetter = (!localPart.isEmpty()) ? escapeHtml(localPart.substring(0, 1).toUpperCase()) : "?";
+
+    StringBuilder sb = new StringBuilder(2048);
+    sb.append("<div class=\"topbar\">\n");
+    sb.append("  <a href=\"").append(safeCtx).append("/\" class=\"topbar-brand\">");
+    sb.append(WAVE_LOGO_SVG_SMALL);
+    sb.append("<span class=\"title\">SupaWave</span></a>\n");
+    sb.append("  <div class=\"banner\" id=\"banner\"></div>\n");
+    sb.append("  <div class=\"info\">\n");
+    // Language selector
+    sb.append("    <div class=\"topbar-icon lang-icon-btn\" title=\"Language\">\n");
+    sb.append("      ").append(ICON_GLOBE).append("\n");
+    sb.append("      <span id=\"langCode\"></span>\n");
+    sb.append("      <select id=\"lang\" size=\"1\"></select>\n");
+    sb.append("    </div>\n");
+    // Connection status
+    sb.append("    <span id=\"netstatus\" class=\"topbar-icon offline\" title=\"Offline\">");
+    sb.append(ICON_WIFI_OFF).append("</span>\n");
+    // User menu
+    sb.append("    <div class=\"user-menu\">\n");
+    sb.append("      <button class=\"user-menu-toggle\" title=\"").append(safeAddrFull).append("\">\n");
+    sb.append("        <span class=\"user-avatar\">").append(firstLetter).append("</span>\n");
+    sb.append("        <span class=\"caret\">&#9662;</span>\n");
+    sb.append("      </button>\n");
+    sb.append("      <div class=\"user-menu-dropdown\">\n");
+    sb.append("        <div class=\"user-info\">").append(safeAddrFull).append("</div>\n");
+    sb.append("        <div class=\"section-label\">Account</div>\n");
+    sb.append("        <a href=\"").append(safeCtx).append("/userprofile/edit\">Edit Profile</a>\n");
+    sb.append("        <a href=\"").append(safeCtx).append("/account/settings\">Account Settings</a>\n");
+    sb.append("        <div class=\"divider\"></div>\n");
+    sb.append("        <div class=\"section-label\">Automation / APIs</div>\n");
+    sb.append("        <a class=\"section-link-strong\" href=\"").append(safeCtx).append("/account/robots\">Robot &amp; Data API</a>\n");
+    sb.append("        <a href=\"").append(safeCtx).append("/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
+    sb.append("        <div class=\"divider\"></div>\n");
+    sb.append("        <div class=\"section-label\">Product / Support</div>\n");
+    sb.append("        <a href=\"").append(safeCtx).append("/changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
+    sb.append("        <a href=\"").append(safeCtx).append("/contact\">Contact Us</a>\n");
+    if ("owner".equals(userRole) || "admin".equals(userRole)) {
+      sb.append("        <a href=\"").append(safeCtx).append("/admin\">Admin</a>\n");
+    }
+    sb.append("        <div class=\"divider\"></div>\n");
+    sb.append("        <div class=\"section-label\">Legal</div>\n");
+    sb.append("        <a href=\"").append(safeCtx).append("/terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
+    sb.append("        <a href=\"").append(safeCtx).append("/privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
+    sb.append("        <div class=\"divider\"></div>\n");
+    sb.append("        <a id=\"signout\" href=\"").append(safeCtx).append("/auth/signout?r=/\">Sign Out</a>\n");
+    sb.append("      </div>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+    return sb.toString();
+  }
+
+  /**
+   * Returns a script block for the shared topbar: user-menu toggle, connection status,
+   * and language selector initialization. Safe for server-rendered pages without GWT.
+   *
+   * @param contextPath servlet context path, typically "" for root deployments
+   */
+  public static String renderSharedTopBarJs(String contextPath) {
+    StringBuilder sb = new StringBuilder(1024);
+    sb.append("<script>\n(function(){\n");
+    sb.append("var _ctx=").append(escapeJsonString(contextPath == null ? "" : contextPath)).append(";\n");
+    // User menu toggle
+    sb.append("var t=document.querySelector('.user-menu-toggle');\n");
+    sb.append("if(t){t.addEventListener('click',function(e){e.stopPropagation();\n");
+    sb.append("document.querySelector('.user-menu-dropdown').classList.toggle('open');});}\n");
+    sb.append("document.addEventListener('click',function(){\n");
+    sb.append("var d=document.querySelector('.user-menu-dropdown');if(d)d.classList.remove('open');});\n");
+    // Connection status
+    sb.append("var ns=document.getElementById('netstatus');\n");
+    sb.append("function updNet(){if(!ns)return;\n");
+    sb.append("ns.className='topbar-icon '+(navigator.onLine?'online':'offline');\n");
+    sb.append("ns.title=navigator.onLine?'Online':'Offline';}\n");
+    sb.append("updNet();\n");
+    sb.append("window.addEventListener('online',updNet);\n");
+    sb.append("window.addEventListener('offline',updNet);\n");
+    // Language selector
+    sb.append("var ls=document.getElementById('lang'),lc=document.getElementById('langCode');\n");
+    sb.append("if(ls){\n");
+    sb.append("[['en','English'],['fr','Fran\\u00e7ais'],['de','Deutsch'],['es','Espa\\u00f1ol'],");
+    sb.append("['ar','\\u0627\\u0644\\u0639\\u0631\\u0628\\u064a\\u0629'],['zh','\\u4e2d\\u6587']].forEach(function(l){\n");
+    sb.append("var o=document.createElement('option');o.value=l[0];o.text=l[1];\n");
+    sb.append("if(l[0]===(navigator.language||'en').split('-')[0])o.selected=true;\n");
+    sb.append("ls.appendChild(o);});\n");
+    sb.append("if(lc)lc.textContent=ls.value.toUpperCase();\n");
+    sb.append("ls.addEventListener('change',function(){\n");
+    sb.append("var fd=new FormData();fd.append('locale',ls.value);\n");
+    sb.append("fetch(_ctx+'/locale',{method:'POST',body:fd}).catch(function(){});\n");
+    sb.append("if(lc)lc.textContent=ls.value.toUpperCase();});}\n");
+    sb.append("})();\n</script>\n");
+    return sb.toString();
+  }
+
+  /**
    * Renders the top-bar HTML fragment shown above the wave client.
    *
    * @param username user part of the address (before @), or null if not logged in
@@ -3752,19 +3986,6 @@ public final class HtmlRenderer {
     sb.append("  min-height: 100vh;\n");
     sb.append("}\n");
 
-    // Header bar
-    sb.append(".admin-header {\n");
-    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
-    sb.append("  color: #fff; padding: 16px 24px;\n");
-    sb.append("  display: flex; align-items: center; justify-content: space-between;\n");
-    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n");
-    sb.append("}\n");
-    sb.append(".admin-header .brand { display: flex; align-items: center; gap: 10px; }\n");
-    sb.append(".admin-header .brand span { font-size: 20px; font-weight: 700; }\n");
-    sb.append(".admin-header .user-info { font-size: 13px; opacity: 0.9; }\n");
-    sb.append(".admin-header a { color: #fff; text-decoration: none; margin-left: 16px; font-size: 13px; opacity: 0.85; }\n");
-    sb.append(".admin-header a:hover { opacity: 1; text-decoration: underline; }\n");
-
     // Container
     sb.append(".admin-container {\n");
     sb.append("  max-width: 1400px; margin: 24px auto; padding: 0 24px;\n");
@@ -3939,18 +4160,11 @@ public final class HtmlRenderer {
     sb.append("  .admin-table td, .admin-table th { padding: 8px 10px; }\n");
     sb.append("}\n");
     sb.append("</style>\n");
+    sb.append("<style>\n").append(renderSharedTopBarCss()).append("</style>\n");
     sb.append("</head>\n<body>\n");
 
-    // Header
-    sb.append("<div class=\"admin-header\">\n");
-    sb.append("  <div class=\"brand\">").append(WAVE_LOGO_SVG_SMALL);
-    sb.append("<span>SupaWave Admin</span></div>\n");
-    sb.append("  <div class=\"user-info\">\n");
-    sb.append("    ").append(escapeHtml(currentUser)).append("\n");
-    sb.append("    <a href=\"/\">Back to Wave</a>\n");
-    sb.append("    <a href=\"/auth/signout?r=/admin\">Sign Out</a>\n");
-    sb.append("  </div>\n");
-    sb.append("</div>\n");
+    // Shared app header
+    sb.append(renderSharedTopBarHtml(currentUser, domain, "", callerRole));
 
     // Main content
     sb.append("<div class=\"admin-container\">\n");
@@ -4962,6 +5176,7 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
+    sb.append(renderSharedTopBarJs(""));
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -7206,18 +7421,6 @@ public final class HtmlRenderer {
     sb.append("  min-height: 100vh;\n");
     sb.append("}\n");
 
-    // Header bar
-    sb.append(".settings-header {\n");
-    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
-    sb.append("  color: #fff; padding: 16px 24px;\n");
-    sb.append("  display: flex; align-items: center; justify-content: space-between;\n");
-    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n");
-    sb.append("}\n");
-    sb.append(".settings-header .brand { display: flex; align-items: center; gap: 10px; }\n");
-    sb.append(".settings-header .brand span { font-size: 20px; font-weight: 700; }\n");
-    sb.append(".settings-header a { color: #fff; text-decoration: none; margin-left: 16px; font-size: 13px; opacity: 0.85; }\n");
-    sb.append(".settings-header a:hover { opacity: 1; text-decoration: underline; }\n");
-
     // Container
     sb.append(".settings-container {\n");
     sb.append("  max-width: 640px; margin: 32px auto; padding: 0 24px;\n");
@@ -7317,19 +7520,11 @@ public final class HtmlRenderer {
     sb.append("}\n");
 
     sb.append("</style>\n");
+    sb.append("<style>\n").append(renderSharedTopBarCss()).append("</style>\n");
     sb.append("</head>\n<body>\n");
 
-    // Header
-    sb.append("<div class=\"settings-header\">\n");
-    sb.append("  <div class=\"brand\">\n");
-    sb.append("    <span>SupaWave</span>\n");
-    sb.append("  </div>\n");
-    sb.append("  <div>\n");
-    sb.append("    <span style=\"font-size:13px; opacity:0.9;\">").append(escapeHtml(currentUser)).append("</span>\n");
-    sb.append("    <a href=\"/userprofile/edit\">Edit Profile</a>\n");
-    sb.append("    <a href=\"/\">Back to Wave</a>\n");
-    sb.append("  </div>\n");
-    sb.append("</div>\n");
+    // Shared app header
+    sb.append(renderSharedTopBarHtml(currentUser, domain, "", null));
 
     // Content
     sb.append("<div class=\"settings-container\">\n");
@@ -7488,6 +7683,7 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
+    sb.append(renderSharedTopBarJs(""));
 
     sb.append("</body>\n</html>\n");
     return sb.toString();
@@ -7520,18 +7716,6 @@ public final class HtmlRenderer {
     sb.append("  color: ").append(WAVE_TEXT).append(";\n");
     sb.append("  min-height: 100vh;\n");
     sb.append("}\n");
-
-    // Header bar
-    sb.append(".profile-header {\n");
-    sb.append("  background: ").append(WAVE_GRADIENT).append(";\n");
-    sb.append("  color: #fff; padding: 16px 24px;\n");
-    sb.append("  display: flex; align-items: center; justify-content: space-between;\n");
-    sb.append("  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n");
-    sb.append("}\n");
-    sb.append(".profile-header .brand { display: flex; align-items: center; gap: 10px; }\n");
-    sb.append(".profile-header .brand span { font-size: 20px; font-weight: 700; }\n");
-    sb.append(".profile-header a { color: #fff; text-decoration: none; margin-left: 16px; font-size: 13px; opacity: 0.85; }\n");
-    sb.append(".profile-header a:hover { opacity: 1; text-decoration: underline; }\n");
 
     // Container
     sb.append(".profile-container {\n");
@@ -7653,18 +7837,11 @@ public final class HtmlRenderer {
     sb.append(".name-row .form-group { flex: 1; }\n");
 
     sb.append("</style>\n");
+    sb.append("<style>\n").append(renderSharedTopBarCss()).append("</style>\n");
     sb.append("</head>\n<body>\n");
 
-    // Header
-    sb.append("<div class=\"profile-header\">\n");
-    sb.append("  <div class=\"brand\">\n");
-    sb.append("    <span>SupaWave</span>\n");
-    sb.append("  </div>\n");
-    sb.append("  <div>\n");
-    sb.append("    <span style=\"font-size:13px; opacity:0.9;\">").append(escapeHtml(currentUser)).append("</span>\n");
-    sb.append("    <a href=\"/\">Back to Wave</a>\n");
-    sb.append("  </div>\n");
-    sb.append("</div>\n");
+    // Shared app header
+    sb.append(renderSharedTopBarHtml(currentUser, domain, "", null));
 
     // Form
     sb.append("<div class=\"profile-container\">\n");
@@ -7820,6 +7997,7 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
+    sb.append(renderSharedTopBarJs(""));
 
     sb.append("</body>\n</html>\n");
     return sb.toString();

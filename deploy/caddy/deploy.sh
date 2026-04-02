@@ -197,6 +197,7 @@ migrate_to_blue_green() {
   echo "[deploy] Inspecting legacy compose file: $old_compose"
 
   local legacy_container_id=""
+  local legacy_container_ref=""
   local current_image=""
   local target_image="${WAVE_IMAGE:-}"
   local legacy_fallback_container="${PROJECT_NAME}-wave-1"
@@ -204,6 +205,7 @@ migrate_to_blue_green() {
   echo "[deploy] Discovering legacy wave image"
   legacy_container_id=$(docker compose -f "$old_compose" -p "$PROJECT_NAME" ps -aq wave 2>/dev/null | sed -n '1p' || true)
   if [ -n "$legacy_container_id" ]; then
+    legacy_container_ref="$legacy_container_id"
     current_image=$(docker inspect --format '{{.Config.Image}}' "$legacy_container_id" 2>/dev/null || true)
     if [ -n "$current_image" ]; then
       echo "[deploy] Resolved legacy wave image from compose service container $legacy_container_id"
@@ -212,6 +214,7 @@ migrate_to_blue_green() {
 
   if [ -z "$current_image" ]; then
     echo "[deploy] Falling back to legacy container name $legacy_fallback_container"
+    legacy_container_ref="$legacy_fallback_container"
     current_image=$(docker inspect --format '{{.Config.Image}}' "$legacy_fallback_container" 2>/dev/null || true)
     if [ -n "$current_image" ]; then
       echo "[deploy] Resolved legacy wave image from fallback container $legacy_fallback_container"
@@ -235,8 +238,10 @@ migrate_to_blue_green() {
   export WAVE_INTERNAL_PORT="${WAVE_INTERNAL_PORT:-9898}"
   export RESEND_API_KEY="${RESEND_API_KEY:-}"
   export WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-}"
-  docker compose -f "$old_compose" -p "$PROJECT_NAME" stop wave 2>/dev/null || true
-  docker compose -f "$old_compose" -p "$PROJECT_NAME" rm -f wave 2>/dev/null || true
+  if [ -n "$legacy_container_ref" ]; then
+    echo "[deploy] Removing legacy wave container $legacy_container_ref"
+    docker rm -f "$legacy_container_ref"
+  fi
 
   local f
   for f in "$deploy_root/shared/indexes"/*; do

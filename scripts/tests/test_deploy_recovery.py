@@ -32,6 +32,21 @@ class DeployRecoveryTest(unittest.TestCase):
         env.update(extra_env)
         return env
 
+    def checked_replace(
+        self,
+        text: str,
+        old: str,
+        new: str,
+        description: str,
+        count: int = -1,
+    ) -> str:
+        patched_text = text.replace(old, new, count)
+        if patched_text == text:
+            raise AssertionError(
+                f"Failed to patch {description}: expected to replace {old!r}, but no changes were made"
+            )
+        return patched_text
+
     def write_testable_deploy_bundle(self, temp_dir: Path) -> Path:
         bundle_dir = temp_dir / "deploy-bundle"
         bundle_dir.mkdir()
@@ -54,7 +69,13 @@ class DeployRecoveryTest(unittest.TestCase):
             """
         ).strip()
         marker = "# ---------------------------------------------------------------------------\n# Main\n# ---------------------------------------------------------------------------"
-        deploy_script = deploy_script.replace(marker, f"{overrides}\n\n{marker}", 1)
+        deploy_script = self.checked_replace(
+            deploy_script,
+            marker,
+            f"{overrides}\n\n{marker}",
+            "deploy script main marker",
+            1,
+        )
 
         deploy_path = bundle_dir / "deploy.sh"
         deploy_path.write_text(deploy_script, encoding="utf-8")
@@ -63,7 +84,8 @@ class DeployRecoveryTest(unittest.TestCase):
 
     def write_testable_setup_swap_script(self, temp_dir: Path) -> Path:
         script_text = SETUP_SWAP_SCRIPT.read_text(encoding="utf-8")
-        script_text = script_text.replace(
+        script_text = self.checked_replace(
+            script_text,
             textwrap.dedent(
                 """
                 require_root() {
@@ -80,23 +102,33 @@ class DeployRecoveryTest(unittest.TestCase):
                 }
                 """
             ).strip(),
+            "setup-swap.sh require_root",
             1,
         )
-        script_text = script_text.replace(
+        script_text = self.checked_replace(
+            script_text,
             "/etc/fstab",
             "${TEST_ETC_FSTAB:-/etc/fstab}",
+            "setup-swap.sh /etc/fstab",
         )
-        script_text = script_text.replace(
+        script_text = self.checked_replace(
+            script_text,
             "/etc/sysctl.d/99-wave.conf",
             "${TEST_SYSCTL_CONF:-/etc/sysctl.d/99-wave.conf}",
+            "setup-swap.sh /etc/sysctl.d/99-wave.conf",
         )
-        script_text = script_text.replace(
+        script_text = self.checked_replace(
+            script_text,
             "/proc/sys/vm/swappiness",
             "${TEST_PROC_SWAPPINESS:-/proc/sys/vm/swappiness}",
+            "setup-swap.sh /proc/sys/vm/swappiness",
         )
-        script_text = script_text.replace(
+        script_text = self.checked_replace(
+            script_text,
             'local swap_path="/swapfile"',
             'local swap_path="${TEST_SWAP_PATH:-/swapfile}"',
+            "setup-swap.sh swap_path",
+            1,
         )
 
         script_path = temp_dir / "setup-swap.sh"
@@ -106,7 +138,8 @@ class DeployRecoveryTest(unittest.TestCase):
 
     def write_testable_validate_script(self, temp_dir: Path) -> Path:
         script_text = VALIDATE_SCRIPT.read_text(encoding="utf-8")
-        script_text = script_text.replace(
+        script_text = self.checked_replace(
+            script_text,
             textwrap.dedent(
                 """
                 require_root() {
@@ -123,15 +156,21 @@ class DeployRecoveryTest(unittest.TestCase):
                 }
                 """
             ).strip(),
+            "validate.sh require_root",
             1,
         )
-        script_text = script_text.replace(
+        script_text = self.checked_replace(
+            script_text,
             'local swap_path="/swapfile"',
             'local swap_path="${TEST_SWAP_PATH:-/swapfile}"',
+            "validate.sh swap_path",
+            1,
         )
-        script_text = script_text.replace(
+        script_text = self.checked_replace(
+            script_text,
             "/var/log/wave-supawave",
             "${TEST_LOG_DIR:-/var/log/wave-supawave}",
+            "validate.sh log dir",
         )
 
         script_path = temp_dir / "validate.sh"
@@ -344,7 +383,9 @@ class DeployRecoveryTest(unittest.TestCase):
         docker_commands = docker_log.read_text(encoding="utf-8")
         self.assertIn("ps -aq wave", docker_commands)
         self.assertIn("inspect --format {{.Config.Image}} legacy-wave-container", docker_commands)
-        self.assertNotIn("images wave --format", docker_commands)
+        self.assertIn("rm -f legacy-wave-container", docker_commands)
+        self.assertNotIn("stop wave", docker_commands)
+        self.assertNotIn("rm -f wave", docker_commands)
         self.assertEqual(
             "ghcr.io/example/wave:legacy",
             (deploy_root / "releases/blue/image-ref").read_text(encoding="utf-8").strip(),
@@ -399,6 +440,7 @@ class DeployRecoveryTest(unittest.TestCase):
         docker_commands = docker_log.read_text(encoding="utf-8")
         self.assertIn("ps -aq wave", docker_commands)
         self.assertIn("inspect --format {{.Config.Image}} supawave-wave-1", docker_commands)
+        self.assertIn("rm -f supawave-wave-1", docker_commands)
         self.assertEqual(
             "ghcr.io/example/wave:target",
             (deploy_root / "releases/blue/image-ref").read_text(encoding="utf-8").strip(),

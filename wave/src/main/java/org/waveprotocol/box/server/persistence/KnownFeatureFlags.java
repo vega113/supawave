@@ -30,7 +30,7 @@ public final class KnownFeatureFlags {
   static {
     List<FeatureFlag> defaults = new ArrayList<>();
     defaults.add(new FeatureFlag("lucene9", "Lucene 9.x full-text search", false, Collections.emptyMap()));
-    defaults.add(new FeatureFlag("ot-search", "Real-time search wavelets (replaces 15s polling)", true, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("ot-search", "Real-time search wavelets (replaces 15s polling)", false, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }
 

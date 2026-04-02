@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-04-02-ot-search-local-seeding",
+    "version": "PR #577",
+    "date": "2026-04-02",
+    "title": "Enable OT search locally",
+    "summary": "Seeds the ot-search feature flag from server config so local runtime state stays aligned with the OT-search gate.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "OT search now follows search.ot_search_enabled in the persistent feature-flag store",
+          "Fresh local stores no longer advertise ot-search as enabled unless the server config turns it on"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-01-jwt-robot-api-migration",
     "version": "PR #557",
     "date": "2026-04-01",

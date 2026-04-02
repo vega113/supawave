@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.waveprotocol.box.server.persistence;
+package org.waveprotocol.box.server.persistence.memory;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -24,20 +24,35 @@ import static org.junit.Assert.assertTrue;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.Test;
+import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
-import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
 
 public final class FeatureFlagServiceTest {
   @Test
-  public void knownFlagsAreEnabledForFreshStores() throws Exception {
+  public void knownFlagsStayDisabledForFreshStores() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    FeatureFlagService service = new FeatureFlagService(store);
+
+    assertFalse(service.getEnabledFlagNames(null).contains("ot-search"));
+  }
+
+  @Test
+  public void storedOtSearchFlagEnablesKnownFlag() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(
+        new FeatureFlag(
+            "ot-search",
+            "Real-time search wavelets (replaces 15s polling)",
+            true,
+            new LinkedHashMap<>()));
+
     FeatureFlagService service = new FeatureFlagService(store);
 
     assertTrue(service.getEnabledFlagNames(null).contains("ot-search"));
   }
 
   @Test
-  public void storedFlagOverridesKnownDefault() throws Exception {
+  public void storedFalseOtSearchFlagKeepsKnownFlagDisabled() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     store.save(
         new FeatureFlag(

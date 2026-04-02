@@ -79,6 +79,28 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(1, codexClient.completeCalls);
   }
 
+  public void testCallbackBundleDoesNotFallBackToPassiveReplyWhenActiveDeliveryFails() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Reply from the active API.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    apiClient.appendSucceeds = false;
+    GptBotConfig config = TEST_CONFIG.withReplyMode(GptBotConfig.ReplyMode.ACTIVE);
+    GptBotRobot robot = new GptBotRobot(config,
+        new GptBotReplyPlanner(config.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJson(config.getParticipantId(),
+        "\n@gpt-bot please answer", new BlipSubmittedEvent(null, null, "alice@example.com", 1L,
+            "b+root")));
+
+    assertFalse(response.contains("Reply from the active API."));
+    assertFalse(response.contains("blip.createChild"));
+    assertFalse(response.contains("blip.reply"));
+    assertEquals(1, apiClient.appendCalls);
+    assertEquals("Reply from the active API.", apiClient.lastReply);
+    assertEquals(1, apiClient.fetchCalls);
+    assertEquals(1, codexClient.completeCalls);
+  }
+
   public void testCallbackBundleDoesNotFetchContextWithoutMention() {
     RecordingCodexClient codexClient = new RecordingCodexClient();
     RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();

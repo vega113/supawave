@@ -139,14 +139,11 @@ public final class GptBotRobot {
         Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext);
         if (reply.isPresent()) {
           String replyText = reply.get();
-          boolean appended = false;
           if (config.getReplyMode() == GptBotConfig.ReplyMode.ACTIVE) {
-            appended = apiClient.appendReply(waveId, waveletId, blip.getBlipId(), replyText);
-            if (!appended) {
-              LOG.warning("Falling back to passive callback reply after active API delivery failed");
+            if (!apiClient.appendReply(waveId, waveletId, blip.getBlipId(), replyText)) {
+              LOG.warning("Active API reply delivery failed; not falling back to passive reply");
             }
-          }
-          if (!appended) {
+          } else {
             blip.reply().append(replyText);
           }
         }

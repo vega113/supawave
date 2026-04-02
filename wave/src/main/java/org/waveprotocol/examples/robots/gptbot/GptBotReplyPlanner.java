@@ -104,6 +104,10 @@ public final class GptBotReplyPlanner {
     sanitized = sanitized.replaceAll("(?i)(client_secret\\s*[:=]\\s*)\\S+", "$1[redacted]");
     sanitized = sanitized.replaceAll("(?i)(secret\\s*[:=]\\s*)\\S+", "$1[redacted]");
     sanitized = sanitized.replaceAll("(?i)(password\\s*[:=]\\s*)\\S+", "$1[redacted]");
+    sanitized = sanitized.replaceAll("(?i)(api[_-]?key\\s*[:=]\\s*)\\S+", "$1[redacted]");
+    sanitized = sanitized.replaceAll("(?i)(apikey\\s*[:=]\\s*)\\S+", "$1[redacted]");
+    sanitized = sanitized.replaceAll("(?i)(token\\s*[:=]\\s*)\\S+", "$1[redacted]");
+    sanitized = sanitized.replaceAll("(?i)(key\\s*[:=]\\s*)\\S+", "$1[redacted]");
     if (sanitized.length() > limit) {
       sanitized = sanitized.substring(0, limit).trim() + "…";
     }

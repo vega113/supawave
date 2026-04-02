@@ -26,6 +26,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 public final class GptBotServer {
 
   private static final Log LOG = Log.get(GptBotServer.class);
+  private static final int MAX_REQUEST_BODY_BYTES = 1024 * 1024;
 
   public static void main(String[] args) throws Exception {
     GptBotConfig config = GptBotConfig.fromEnvironment();
@@ -83,16 +85,44 @@ public final class GptBotServer {
         new TextHandler(405, "method not allowed\n", "text/plain; charset=utf-8")
             .handle(exchange);
       } else {
-        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        try {
-          String response = robot.handleEventBundle(body);
-          new TextHandler(200, response, "application/json; charset=utf-8").handle(exchange);
-        } catch (RuntimeException e) {
-          LOG.warning("gpt-bot callback failed", e);
-          new TextHandler(400, "{\"error\":\"invalid event bundle\"}\n",
+        if (isRequestTooLarge(exchange)) {
+          exchange.getRequestBody().close();
+          new TextHandler(413, "{\"error\":\"request too large\"}\n",
               "application/json; charset=utf-8").handle(exchange);
+        } else {
+          try (InputStream requestBody = exchange.getRequestBody()) {
+            byte[] bodyBytes = requestBody.readNBytes(MAX_REQUEST_BODY_BYTES + 1);
+            if (bodyBytes.length > MAX_REQUEST_BODY_BYTES) {
+              new TextHandler(413, "{\"error\":\"request too large\"}\n",
+                  "application/json; charset=utf-8").handle(exchange);
+            } else {
+              String body = new String(bodyBytes, StandardCharsets.UTF_8);
+              try {
+                String response = robot.handleEventBundle(body);
+                new TextHandler(200, response, "application/json; charset=utf-8")
+                    .handle(exchange);
+              } catch (RuntimeException e) {
+                LOG.warning("gpt-bot callback failed", e);
+                new TextHandler(400, "{\"error\":\"invalid event bundle\"}\n",
+                    "application/json; charset=utf-8").handle(exchange);
+              }
+            }
+          }
         }
       }
+    }
+
+    private boolean isRequestTooLarge(HttpExchange exchange) {
+      String contentLength = exchange.getRequestHeaders().getFirst("Content-Length");
+      boolean tooLarge = false;
+      if (contentLength != null) {
+        try {
+          tooLarge = Long.parseLong(contentLength) > MAX_REQUEST_BODY_BYTES;
+        } catch (NumberFormatException e) {
+          tooLarge = false;
+        }
+      }
+      return tooLarge;
     }
   }
 

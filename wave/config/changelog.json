@@ -11,7 +11,7 @@
         "items": [
           "Added a standalone gpt-bot example server with capabilities.xml, profile, and callback handling",
           "Local Codex invocation now powers mention-driven replies in the example robot",
-          "Docs include local run, Cloudflare tunnel, and robot registration steps"
+          "README.md and docs/gpt-bot.md document local run, Cloudflare tunnel, and robot registration steps"
         ]
       },
       {

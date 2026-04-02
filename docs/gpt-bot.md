@@ -62,9 +62,9 @@ If you already have a named tunnel hostname, set it first:
 
 Set `GPTBOT_PUBLIC_BASE_URL` to the resulting public origin so the root page shows the same URL you register with SupaWave.
 
-The callback URL you register is always:
+The callback URL you register is the public base URL:
 
-`https://<public-host>/_wave/robot/jsonrpc`
+`https://<public-host>`
 
 ## Registering The Robot
 
@@ -77,7 +77,7 @@ curl -sS -X POST "$SUPAWAVE_BASE_URL/api/robots" \
   -d '{
     "username": "gpt-bot@example.com",
     "description": "Example gpt-bot robot",
-    "callbackUrl": "https://<public-host>/_wave/robot/jsonrpc",
+    "callbackUrl": "https://<public-host>",
     "tokenExpiry": 3600
   }'
 ```

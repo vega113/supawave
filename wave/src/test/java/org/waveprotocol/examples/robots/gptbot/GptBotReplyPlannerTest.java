@@ -35,7 +35,7 @@ public class GptBotReplyPlannerTest extends TestCase {
     Optional<String> reply = planner.replyFor("just chatting", "wave context");
 
     assertFalse(reply.isPresent());
-    assertEquals(null, codexClient.lastPrompt);
+    assertNull(codexClient.lastPrompt);
   }
 
   public void testBuildsPromptAndReturnsCodexResponse() {
@@ -73,6 +73,20 @@ public class GptBotReplyPlannerTest extends TestCase {
     assertFalse(codexClient.lastPrompt.contains("secret-token"));
     assertFalse(codexClient.lastPrompt.contains("abc123"));
     assertTrue(codexClient.lastPrompt.contains("[redacted]"));
+  }
+
+  public void testRedactsApiKeyStyleValuesFromWaveContext() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "ok";
+    GptBotReplyPlanner planner = new GptBotReplyPlanner("gpt-bot", codexClient);
+
+    planner.replyFor("@gpt-bot summarize", "api_key=abc123\napikey: def456\napi-key=ghi789\ntoken=jk10\nkey=lm11");
+
+    assertFalse(codexClient.lastPrompt.contains("abc123"));
+    assertFalse(codexClient.lastPrompt.contains("def456"));
+    assertFalse(codexClient.lastPrompt.contains("ghi789"));
+    assertFalse(codexClient.lastPrompt.contains("jk10"));
+    assertFalse(codexClient.lastPrompt.contains("lm11"));
   }
 
   private static final class RecordingCodexClient implements CodexClient {

@@ -190,7 +190,7 @@ public final class SupaWaveApiClient implements SupaWaveClient {
     return token;
   }
 
-  private String getDataApiAccessToken() throws IOException, InterruptedException {
+  private synchronized String getDataApiAccessToken() throws IOException, InterruptedException {
     AccessToken current = dataApiToken;
     String token = null;
     if (current != null && current.isFresh()) {
@@ -202,7 +202,7 @@ public final class SupaWaveApiClient implements SupaWaveClient {
     return token;
   }
 
-  private String getRobotAccessToken() throws IOException, InterruptedException {
+  private synchronized String getRobotAccessToken() throws IOException, InterruptedException {
     AccessToken current = robotApiToken;
     String token = null;
     if (current != null && current.isFresh()) {

@@ -34,6 +34,9 @@ public final class MentionDetector {
   private final Pattern mentionPattern;
 
   public MentionDetector(String robotName) {
+    if (robotName == null || robotName.isBlank()) {
+      throw new IllegalArgumentException("robotName must not be blank");
+    }
     this.mentionPattern = Pattern.compile(buildMentionRegex(robotName), Pattern.CASE_INSENSITIVE);
   }
 
@@ -52,6 +55,9 @@ public final class MentionDetector {
 
   private static String buildMentionRegex(String robotName) {
     String normalized = robotName == null ? "" : robotName.trim().toLowerCase(Locale.ROOT);
+    if (normalized.isBlank()) {
+      return "(?!)";
+    }
     String[] tokens = normalized.split("[\\s_-]+");
     StringBuilder pattern = new StringBuilder();
     for (String token : tokens) {

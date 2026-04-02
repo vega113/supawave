@@ -60,4 +60,13 @@ public class MentionDetectorTest extends TestCase {
     assertFalse(detector.extractPrompt("This is about a goat bot").isPresent());
     assertFalse(detector.extractPrompt("No mention here").isPresent());
   }
+
+  public void testRejectsBlankRobotName() {
+    try {
+      new MentionDetector(" ");
+      fail("Expected blank robot names to be rejected");
+    } catch (IllegalArgumentException expected) {
+      // Expected.
+    }
+  }
 }

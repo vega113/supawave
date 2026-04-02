@@ -19,6 +19,7 @@
 
 package org.waveprotocol.examples.robots.gptbot;
 
+import com.google.gson.JsonSyntaxException;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -114,7 +115,7 @@ public final class GptBotServer {
                 String response = robot.handleEventBundle(body);
                 new TextHandler(200, response, "application/json; charset=utf-8")
                     .handle(exchange);
-              } catch (IllegalArgumentException e) {
+              } catch (IllegalArgumentException | JsonSyntaxException e) {
                 LOG.warning("gpt-bot callback rejected invalid bundle", e);
                 new TextHandler(400, "{\"error\":\"invalid event bundle\"}\n",
                     "application/json; charset=utf-8").handle(exchange);

@@ -380,6 +380,53 @@ public final class SearchWaveletUpdaterTest extends TestCase {
     }
   }
 
+  public void testFailedRecomputeCleansPendingState() throws Exception {
+    SearchWaveletManager waveletManager = mock(SearchWaveletManager.class);
+    SearchIndexer indexer = mock(SearchIndexer.class);
+    SearchProvider searchProvider = mock(SearchProvider.class);
+    SearchWaveletDataProvider dataProvider = new SearchWaveletDataProvider();
+    ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    SearchWaveletUpdater updater =
+        new SearchWaveletUpdater(
+            waveletManager,
+            indexer,
+            searchProvider,
+            dataProvider,
+            null,
+            SearchWaveletUpdater.SearchUpdateBatchingPolicy.defaults(),
+            scheduler);
+
+    try {
+      ParticipantId user = ParticipantId.ofUnsafe("user@example.com");
+      String query = "in:inbox";
+      SearchIndexer.SubscriptionKey key =
+          new SearchIndexer.SubscriptionKey(user, SearchWaveletManager.md5Hex(query));
+      when(indexer.getRawQuery(key)).thenReturn(query);
+      when(searchProvider.search(user, query, 0, 50))
+          .thenThrow(new RuntimeException("boom"));
+
+      invokeEnqueueUpdate(updater, key);
+      waitForPendingStateCleanup(updater, key.toString(), 1500L);
+
+      ConcurrentHashMap<String, Object> userCounters =
+          (ConcurrentHashMap<String, Object>) getField(updater, "userCounters");
+      Object updateCounter = userCounters.get(user.getAddress());
+      assertNotNull(updateCounter);
+
+      ConcurrentHashMap<?, ?> pendingTasks =
+          (ConcurrentHashMap<?, ?>) getField(updater, "pendingTasks");
+      ConcurrentHashMap<?, ?> firstSeenTimestamps =
+          (ConcurrentHashMap<?, ?>) getField(updater, "firstSeenTimestamps");
+
+      assertFalse(pendingTasks.containsKey(key.toString()));
+      assertFalse(firstSeenTimestamps.containsKey(key.toString()));
+      assertEquals(0, invokeIntMethod(updateCounter, "getQueueSize"));
+    } finally {
+      updater.shutdown();
+      scheduler.shutdownNow();
+    }
+  }
+
   private static void waitForRecomputeCount(
       SearchWaveletUpdater updater, long expectedCount, long timeoutMs) throws Exception {
     long deadline = System.currentTimeMillis() + timeoutMs;
@@ -388,6 +435,22 @@ public final class SearchWaveletUpdaterTest extends TestCase {
       Thread.sleep(10L);
     }
     assertEquals(expectedCount, updater.getSearchRecomputeCount());
+  }
+
+  private static void waitForPendingStateCleanup(
+      SearchWaveletUpdater updater, String taskKey, long timeoutMs) throws Exception {
+    long deadline = System.currentTimeMillis() + timeoutMs;
+    while (System.currentTimeMillis() < deadline) {
+      ConcurrentHashMap<?, ?> pendingTasks =
+          (ConcurrentHashMap<?, ?>) getField(updater, "pendingTasks");
+      ConcurrentHashMap<?, ?> firstSeenTimestamps =
+          (ConcurrentHashMap<?, ?>) getField(updater, "firstSeenTimestamps");
+      if (!pendingTasks.containsKey(taskKey) && !firstSeenTimestamps.containsKey(taskKey)) {
+        return;
+      }
+      Thread.sleep(10L);
+    }
+    fail("Timed out waiting for pending state cleanup for " + taskKey);
   }
 
   private static SearchResult createSearchResult(String query, String waveId, int totalResults) {
@@ -426,6 +489,12 @@ public final class SearchWaveletUpdaterTest extends TestCase {
     Method method = target.getClass().getDeclaredMethod(methodName);
     method.setAccessible(true);
     method.invoke(target);
+  }
+
+  private static int invokeIntMethod(Object target, String methodName) throws Exception {
+    Method method = target.getClass().getDeclaredMethod(methodName);
+    method.setAccessible(true);
+    return ((Integer) method.invoke(target)).intValue();
   }
 
   private static void setUserCounter(

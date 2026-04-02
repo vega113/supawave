@@ -265,8 +265,8 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
           return;
         }
       }
-      boolean completed = executeSearchUpdateIfCurrent(key, taskHolder, generation);
-      if (completed) {
+      UpdateOutcome outcome = executeSearchUpdateIfCurrent(key, taskHolder, generation);
+      if (outcome == UpdateOutcome.APPLIED || outcome == UpdateOutcome.FAILED) {
         completePendingUpdate(taskKey, taskHolder, generation, counter);
       }
     } catch (Exception e) {
@@ -296,7 +296,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     }
   }
 
-  private boolean executeSearchUpdateIfCurrent(
+  private UpdateOutcome executeSearchUpdateIfCurrent(
       SearchIndexer.SubscriptionKey key,
       TaskHolder taskHolder,
       long generation) {
@@ -304,7 +304,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       String rawQuery = indexer.getRawQuery(key);
       if (rawQuery == null) {
         LOG.fine("Subscription " + key + " no longer registered, skipping update");
-        return true;
+        return UpdateOutcome.APPLIED;
       }
       ParticipantId user = key.getUser();
       searchRecomputeCount.incrementAndGet();
@@ -313,7 +313,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
               user, rawQuery, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
       synchronized (taskHolder) {
         if (taskHolder.generation.get() != generation) {
-          return false;
+          return UpdateOutcome.STALE;
         }
         if (snapshotPublisher != null) {
           snapshotPublisher.publishUpdate(user, rawQuery, searchResult);
@@ -321,10 +321,10 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
           updateCachedSearchWavelet(key, user, rawQuery, searchResult);
         }
       }
-      return true;
+      return UpdateOutcome.APPLIED;
     } catch (Exception e) {
       LOG.severe("Failed to update search wavelet for " + key, e);
-      return false;
+      return UpdateOutcome.FAILED;
     }
   }
 
@@ -588,6 +588,12 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     private final AtomicLong generation = new AtomicLong();
     private ScheduledFuture<?> future;
     private boolean queued;
+  }
+
+  private enum UpdateOutcome {
+    APPLIED,
+    STALE,
+    FAILED
   }
 
   private static final class UpdateCounter {

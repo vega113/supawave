@@ -39,4 +39,11 @@ public class GptBotServerTest extends TestCase {
     assertEquals("http://127.0.0.1:8087/_wave/robot/jsonrpc?token=secret+token",
         config.getCallbackUrl("/_wave/robot/jsonrpc"));
   }
+
+  public void testRedactedCallbackUrlHidesTokenWhenConfigured() {
+    GptBotConfig config = GptBotConfig.forTest().withCallbackToken("secret token");
+
+    assertEquals("http://127.0.0.1:8087/_wave/robot/jsonrpc?token=<redacted>",
+        config.getRedactedCallbackUrl("/_wave/robot/jsonrpc"));
+  }
 }

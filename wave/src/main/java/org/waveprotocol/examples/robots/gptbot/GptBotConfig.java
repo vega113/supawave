@@ -254,6 +254,14 @@ public final class GptBotConfig {
     return callbackUrl;
   }
 
+  public String getRedactedCallbackUrl(String rpcPath) {
+    String callbackUrl = getAdvertisedBaseUrl() + rpcPath;
+    if (!callbackToken.isBlank()) {
+      callbackUrl = callbackUrl + "?token=<redacted>";
+    }
+    return callbackUrl;
+  }
+
   private static String readString(String primaryName, String legacyName, String defaultValue) {
     String value = readEnvironment(primaryName);
     if (value.isBlank()) {
@@ -301,7 +309,16 @@ public final class GptBotConfig {
     }
     boolean parsed = defaultValue;
     if (!value.isBlank()) {
-      parsed = Boolean.parseBoolean(value.trim());
+      String trimmed = value.trim().toLowerCase(Locale.ROOT);
+      if ("true".equals(trimmed)) {
+        parsed = true;
+      } else if ("false".equals(trimmed)) {
+        parsed = false;
+      } else {
+        LOG.warning("Ignoring unrecognized boolean value for "
+            + environmentName(primaryName, legacyName) + ": " + value
+            + "; using default " + defaultValue);
+      }
     }
     return parsed;
   }

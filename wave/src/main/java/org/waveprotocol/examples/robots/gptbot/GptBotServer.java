@@ -68,7 +68,7 @@ public final class GptBotServer {
     server.createContext(robot.getRpcPath(), new CallbackHandler(config, robot));
     int workerThreads = config.getHttpWorkerThreads();
     server.setExecutor(new ThreadPoolExecutor(workerThreads, workerThreads, 60L, TimeUnit.SECONDS,
-        new LinkedBlockingQueue<Runnable>(workerThreads), new ThreadPoolExecutor.AbortPolicy()));
+        new LinkedBlockingQueue<Runnable>(workerThreads), new ThreadPoolExecutor.CallerRunsPolicy()));
     server.start();
 
     LOG.info("gpt-bot listening on " + config.getLocalBaseUrl());
@@ -192,7 +192,8 @@ public final class GptBotServer {
       body.append("context mode: ").append(config.getContextMode().name().toLowerCase()).append('\n');
       body.append("profile: ").append(robot.getProfilePath()).append('\n');
       body.append("capabilities: ").append(robot.getCapabilitiesPath()).append('\n');
-      body.append("callback: ").append(config.getCallbackUrl(robot.getRpcPath())).append('\n');
+      body.append("callback: ").append(config.getRedactedCallbackUrl(robot.getRpcPath()))
+          .append('\n');
       new TextHandler(200, body.toString(), "text/plain; charset=utf-8").handle(exchange);
     }
   }

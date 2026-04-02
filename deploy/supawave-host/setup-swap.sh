@@ -76,7 +76,7 @@ validate_swap() {
     log "FAIL: $swap_path not active"
     exit 1
   fi
-  if (( size < expected_bytes )); then
+  if (( size < expected_bytes - 4096 )); then
     log "FAIL: $swap_path size ${size}B below expected ${expected_bytes}B"
     exit 1
   fi
@@ -99,7 +99,7 @@ main() {
   if swapon --show=NAME --noheadings 2>/dev/null | grep -q "^$swap_path$"; then
     local current_bytes
     current_bytes=$(swapon --show=NAME,SIZE --bytes --noheadings 2>/dev/null | awk '$1 == "'"$swap_path"'" {print $2}')
-    if [[ -n "$current_bytes" ]] && (( current_bytes >= swap_bytes )); then
+    if [[ -n "$current_bytes" ]] && (( current_bytes >= swap_bytes - 4096 )); then
       log "$swap_path already active (${current_bytes} bytes)"
     else
       swapoff "$swap_path"

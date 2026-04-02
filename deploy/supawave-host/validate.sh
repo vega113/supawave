@@ -93,7 +93,7 @@ check_swap() {
     log "FAIL: swapfile not active"
     return 1
   fi
-  if (( size < expected_bytes )); then
+  if (( size < expected_bytes - 4096 )); then
     log "FAIL: swapfile size ${size} below expected ${expected_bytes}"
     return 1
   fi

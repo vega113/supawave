@@ -73,7 +73,7 @@ The active API is now much thinner than its historical name suggests.
 - `ActiveApiServlet` authenticates with `JwtRequestAuthenticator.authenticate(...)`.
 - It expects:
   - token type `ROBOT_ACCESS`
-  - audience `ROBOT`
+  - audience `robot`
   - required scope `wave:robot:active`
 - After auth, it delegates to `BaseApiServlet.processOpsRequest(...)`.
 - `BaseApiServlet` reads the request body, deserializes `OperationRequest[]`, maps each op to a logical scope with `OpScopeMapper`, validates scopes, executes the operations, and serializes `JsonRpcResponse[]`.
@@ -90,7 +90,7 @@ Operationally, it is no longer a different transport stack. It is a JWT-authenti
 
 The Data API is the same basic servlet shape as the active API.
 
-- `DataApiServlet` authenticates `DATA_API_ACCESS` JWTs with audience `DATA_API`.
+- `DataApiServlet` authenticates `DATA_API_ACCESS` JWTs with audience `data-api`.
 - It uses the same `BaseApiServlet`.
 - `DataApiOperationServiceRegistry` is almost identical to `ActiveApiOperationServiceRegistry`.
 
@@ -535,7 +535,7 @@ Recommended migration rules:
 
 1. Add `jwtVersion` to human accounts with default value `0`.
 2. Persistence readers must treat missing stored values as `0`.
-3. JWT validation must treat missing `subjectVersion` claims as `0` for legacy human tokens.
+3. JWT validation must treat missing `subjectVersion` claims as `0` only for legacy direct `DATA_API_ACCESS` human tokens. `DELEGATED_API_ACCESS` tokens are always freshly minted and must carry explicit version claims; missing version claims on a delegated token must be rejected, not defaulted.
 4. Existing session-based `DATA_API_ACCESS` tokens continue working until expiry because both token and stored version resolve to `0`.
 5. The first explicit user revocation event increments `jwtVersion` from `0` to `1`, invalidating all previously minted human tokens.
 
@@ -579,9 +579,12 @@ Recommended validation rules:
 - token type must be `DELEGATED_API_ACCESS`
 - `sub` must be a human account
 - `actorSubject` must be a robot account
+- the human subject account must be in a current, allowed state (not suspended, banned, or otherwise restricted)
+- the robot account must still be verified and not paused or disabled
 - the delegation grant must exist, be active, and match the subject and actor
 - the requested scopes must be a subset of the grant scopes
 - `subjectVersion`, `actorVersion`, and `delegationVersion` must all still be current
+- all version claims must be present and explicit; missing version claims are rejected (no zero-default fallback for delegated tokens)
 
 Minting rules:
 
@@ -1045,10 +1048,10 @@ Build a new JSON stream transport on top of `ClientFrontend`, not on top of the 
 
 ```json
 { "type": "auth", "token": "..." }
-{ "type": "subscribe", "requestId": "r1", "waveId": "example.com!w+abc", "waveletIdPrefixes": ["conv+"], "knownVersions": [{ "waveletName": "example.com!conv+root", "hashed_version": { "version": 42, "historyHash": "base64..." } }] }
+{ "type": "subscribe", "requestId": "r1", "waveId": "example.com!w+abc", "waveletIdPrefixes": ["conv+"], "knownVersions": [{ "waveletName": "example.com!conv+root", "hashedVersion": { "version": 42, "historyHash": "base64..." } }] }
 { "type": "unsubscribe", "channelId": "ch12" }
 { "type": "submitOps", "requestId": "r2", "channelId": "ch12", "operations": [ ... ] }
-{ "type": "submitDelta", "requestId": "r3", "channelId": "ch12", "delta": { "hashed_version": { "version": 42, "historyHash": "base64..." }, "author": "user@example.com", "operation": [ ... ], "address_path": [] } }
+{ "type": "submitDelta", "requestId": "r3", "channelId": "ch12", "delta": { "hashedVersion": { "version": 42, "historyHash": "base64..." }, "author": "user@example.com", "operation": [ ... ], "addressPath": [] } }
 ```
 
 #### Server to client
@@ -1073,13 +1076,13 @@ high-level robot operation services, which execute against current server state.
 
 `submitDelta` contract details:
 
-- the embedded `delta` object is a JSON form of `ProtocolWaveletDelta`, so
-  `hashed_version` and `author` are required fields
+- the embedded `delta` object is a JSON form of `ProtocolWaveletDelta` using proto3 JSON
+  field-name mapping (camelCase); `hashedVersion` and `author` are required fields
 - `delta.author` must equal the delegated session's `effectiveSubject`, not the
   robot actor id
 - if the submit is accepted after operational transformation, the server returns
   `submit.ack` with `hashedVersionAfterApplication`
-- if the submitted `hashed_version` is too stale or cannot be bridged, surface
+- if the submitted `hashedVersion` is too stale or cannot be bridged, surface
   `error { code: "RESYNC_REQUIRED" }`
 - if the submit fails for another reason, surface
   `error { code: "SUBMIT_FAILED", message: "<wave-server error>" }`

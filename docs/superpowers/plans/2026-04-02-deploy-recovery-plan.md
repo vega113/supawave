@@ -261,7 +261,7 @@ git commit -m "fix: tolerate real swapfile sizes in deploy validation"
 
 Run:
 ```bash
-ssh supawave 'set -e; root=/home/ubuntu/supawave; for p in "$root/current" "$root/previous" "$root/releases/current" "$root/releases/blue" "$root/releases/green"; do [ -e "$p" ] && ls -ld "$p" || echo missing:$p; done; docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"'
+ssh supawave 'set -e; root=/home/ubuntu/supawave; for p in "$root/current" "$root/previous" "$root/releases/current" "$root/releases/blue" "$root/releases/green" "$root/shared/active-slot"; do [ -e "$p" ] && ls -ld "$p" || echo missing:$p; done; docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"'
 ```
 Expected: legacy `supawave-wave-1` / `supawave-caddy-1` still present and `shared/active-slot` still absent until the fixed deploy runs.
 
@@ -279,7 +279,7 @@ Minimum success criteria:
 
 Run:
 ```bash
-ssh supawave 'curl -s http://localhost:9898/healthz || curl -s http://localhost:9899/healthz'
+ssh supawave 'curl -fsS http://localhost:9898/healthz || curl -fsS http://localhost:9899/healthz'
 curl -fsS https://supawave.ai/healthz
 ```
 Expected: HTTP 200 on the active slot and public endpoint.

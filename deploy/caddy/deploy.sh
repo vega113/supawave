@@ -194,6 +194,7 @@ migrate_to_blue_green() {
 
   local legacy_container_id=""
   local current_image=""
+  local target_image="${WAVE_IMAGE:-}"
 
   echo "[deploy] Discovering legacy wave image"
   legacy_container_id=$(docker compose -f "$old_compose" -p "$PROJECT_NAME" ps -q wave 2>/dev/null || true)
@@ -228,6 +229,11 @@ migrate_to_blue_green() {
   export WAVE_EMAIL_FROM="${WAVE_EMAIL_FROM:-}"
   docker compose -f "$old_compose" -p "$PROJECT_NAME" stop wave
   docker compose -f "$old_compose" -p "$PROJECT_NAME" rm -f wave
+  if [ -n "$target_image" ]; then
+    export WAVE_IMAGE="$target_image"
+  else
+    unset WAVE_IMAGE
+  fi
 
   local f
   for f in "$deploy_root/shared/indexes"/*; do

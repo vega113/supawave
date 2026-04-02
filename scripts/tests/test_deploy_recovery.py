@@ -45,7 +45,6 @@ class DeployRecoveryTest(unittest.TestCase):
             acquire_lock() { :; }
             release_lock() { :; }
             pull_image() { :; }
-            render_slot_config() { :; }
             start_target_slot() { :; }
             wait_for_slot_health() { return 0; }
             sanity_check_slot() { return 0; }
@@ -305,6 +304,7 @@ class DeployRecoveryTest(unittest.TestCase):
                 bin_dir,
                 {
                     "DEPLOY_ROOT": str(deploy_root),
+                    "WAVE_IMAGE": "ghcr.io/example/wave:target",
                 },
             ),
         )
@@ -321,6 +321,14 @@ class DeployRecoveryTest(unittest.TestCase):
         self.assertIn("ps -q wave", docker_commands)
         self.assertIn("inspect --format {{.Config.Image}} supawave-wave-1", docker_commands)
         self.assertNotIn("images wave --format", docker_commands)
+        self.assertEqual(
+            "ghcr.io/example/wave:legacy",
+            (deploy_root / "releases/blue/image-ref").read_text(encoding="utf-8").strip(),
+        )
+        self.assertEqual(
+            "ghcr.io/example/wave:target",
+            (deploy_root / "releases/green/image-ref").read_text(encoding="utf-8").strip(),
+        )
 
     def test_swap_tolerance_accepts_near_nominal_size(self) -> None:
         with self.subTest("setup-swap keeps an already-active near-nominal swapfile"):

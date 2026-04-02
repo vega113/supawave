@@ -463,6 +463,7 @@ Recommended API contract:
 
 - robot sends plain HTML, not Wave XML and not base64
 - server owns sanitization, canonicalization, hashing, and storage encoding
+- `key` must be unique within a blip; inserts reject duplicates and updates fail if more than one match exists
 - update operation addresses the element by `key` within the blip
 
 Why a new operation is worth it:
@@ -709,7 +710,7 @@ Robot-injected HTML cannot run arbitrary JavaScript that directly mutates wavele
 
 #### **Option A: Wave-Stored State (Recommended for Collaborative State)**
 
-Store state in a new `<robot-state>` element (sibling to or child of `<robot-html>`).
+Store state in new `<robot-state>` child elements under the owning `<robot-html>` element.
 
 ```xml
 <robot-html namespace="robot.incubator-wave.org" data-robot-id="mybot">
@@ -722,10 +723,14 @@ Store state in a new `<robot-state>` element (sibling to or child of `<robot-htm
 
 **Semantics:**
 - State is stored in the wavelet, persisted with the HTML element
+- `<robot-state>` is child-only and is never stored as a sibling of `<robot-html>`
 - All wave participants can read the state
 - Robots can modify state via new `robot_state.update` operation
 - Concurrent updates use **last-writer-wins** (whole-value replacement, not character-level merge)
 - State survives wave snapshots and is exported with wave data
+- The parent `<robot-html>` `data-robot-id` must match the robot before creating a new state entry
+- `data-state-key` values must be unique within a single `<robot-html>` element
+- New state creation must check the per-element and per-blip quotas before appending
 
 **Pros:**
 - State is in the wave (decentralized, no external dependencies)
@@ -903,11 +908,15 @@ public class RobotStateUpdateService extends OperationService {
     
     // Find the <robot-html> element by stable key anywhere in the document tree
     XmlElement htmlElem = null;
+    int matchingHtmlCount = 0;
     for (XmlElement child : doc.getDescendants()) {
       if ("robot-html".equals(child.getTagName()) && robotHtmlKey.equals(child.getAttribute("key"))) {
         htmlElem = child;
-        break;
+        matchingHtmlCount++;
       }
+    }
+    if (matchingHtmlCount > 1) {
+      throw new ConflictException("Duplicate <robot-html> key " + robotHtmlKey);
     }
     if (htmlElem == null) {
       throw new BadRequestException("No <robot-html> element found for key " + robotHtmlKey);
@@ -924,11 +933,15 @@ public class RobotStateUpdateService extends OperationService {
     
     // Find existing <robot-state> by matching data-state-key, or create new
     XmlElement stateElem = null;
+    int matchingStateCount = 0;
     for (XmlElement child : htmlElem.getChildren("robot-state")) {
       if (stateKey.equals(child.getAttribute("data-state-key"))) {
         stateElem = child;
-        break;
+        matchingStateCount++;
       }
+    }
+    if (matchingStateCount > 1) {
+      throw new ConflictException("Duplicate <robot-state> key " + stateKey);
     }
     if (stateElem == null) {
       stateElem = XmlElement.create("robot-state");
@@ -1112,13 +1125,34 @@ public class RobotStateUpdateService extends OperationService {
     // Find existing <robot-state> by matching stateKey, or create new
     String stateKey = context.getParameter("stateKey");
     XmlElement stateElem = null;
+    int matchingStateCount = 0;
     for (XmlElement child : htmlElem.getChildren("robot-state")) {
       if (stateKey.equals(child.getAttribute("data-state-key"))) {
         stateElem = child;
-        break;
+        matchingStateCount++;
       }
     }
+    if (matchingStateCount > 1) {
+      throw new ConflictException("Duplicate <robot-state> key " + stateKey);
+    }
+    if (!robot.getId().equals(htmlElem.getAttribute("data-robot-id"))) {
+      throw new UnauthorizedException("Only robot " + htmlElem.getAttribute("data-robot-id")
+        + " can create state for this widget");
+    }
     if (stateElem == null) {
+      if (htmlElem.getChildren("robot-state").size() >= 5) {
+        throw new PayloadTooLargeException("Too many <robot-state> children for this widget");
+      }
+      int totalStateBytes = 0;
+      for (XmlElement child : htmlElem.getChildren("robot-state")) {
+        String existingSize = child.getAttribute("data-size-bytes");
+        if (existingSize != null) {
+          totalStateBytes += Integer.parseInt(existingSize);
+        }
+      }
+      if (totalStateBytes + byteLen > 500_000) {
+        throw new PayloadTooLargeException("State quota exceeded for this blip");
+      }
       stateElem = XmlElement.create("robot-state");
       htmlElem.appendChild(stateElem);
       stateElem.setAttribute("data-robot-id", robot.getId());
@@ -1460,8 +1494,9 @@ Add or change:
 - `wave/src/main/java/com/google/wave/api/OperationType.java`
   - add `DOCUMENT_INSERT_ROBOT_HTML`
   - add `DOCUMENT_UPDATE_ROBOT_HTML`
+  - add `ROBOT_STATE_UPDATE`
 - `wave/src/main/java/com/google/wave/api/OperationQueue.java`
-  - helper methods for enqueueing robot HTML operations
+  - helper methods for enqueueing robot HTML and robot state operations
 - `wave/src/main/java/com/google/wave/api/Blip.java`
   - convenience helpers
 - `wave/src/main/java/com/google/wave/api/ElementType.java`
@@ -1477,12 +1512,15 @@ Server operation wiring:
 
 - `wave/src/main/java/org/waveprotocol/box/server/robots/active/ActiveApiOperationServiceRegistry.java`
 - `wave/src/main/java/org/waveprotocol/box/server/robots/dataapi/DataApiOperationServiceRegistry.java`
-- new operation service class under `wave/src/main/java/org/waveprotocol/box/server/robots/operations/`
+- `wave/src/main/java/org/waveprotocol/box/server/robots/operations/RobotStateUpdateService.java`
+  - new state update service
+- `wave/src/main/java/org/waveprotocol/box/server/robots/operations/`
+  - new operation service classes
 
 Jakarta scope enforcement:
 
 - `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java`
-  - classify the new operations as write operations
+  - classify the new robot HTML and robot state operations as write operations
 
 ## 6.2 Server-Side Blip Model and Validation
 

@@ -43,6 +43,9 @@ import org.waveprotocol.box.server.frontend.FragmentsFetchBridgeImpl;
 import org.waveprotocol.box.server.frontend.SearchWaveletDispatcher;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.FeatureFlagSeeder;
+import org.waveprotocol.box.server.persistence.FeatureFlagService;
+import org.waveprotocol.box.server.persistence.FeatureFlagStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceModule;
 import org.waveprotocol.box.server.persistence.SignerInfoStore;
@@ -86,6 +89,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.LogManager;
 import java.util.logging.Level;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.waveprotocol.box.server.config.ConfigurationInitializationException;
 import org.waveprotocol.box.server.frontend.ManifestOrderCache;
@@ -109,6 +115,7 @@ public class ServerMain {
   }
 
   private static final Log LOG = Log.get(ServerMain.class);
+  private static final long SEARCH_WAVELET_UPDATER_RETRY_SECONDS = 30L;
 
   public static void main(String... args) {
     configureLoggingBridge();
@@ -363,6 +370,7 @@ public class ServerMain {
     AccountStore accountStore = injector.getInstance(AccountStore.class);
     accountStore.initializeAccountStore();
     AccountStoreHolder.init(accountStore, waveDomain);
+    initializeFeatureFlags(injector);
 
     // Initialize ContactStore asynchronously to avoid blocking if MongoDB is unavailable
     initializeContactStoreAsync(injector);
@@ -383,6 +391,58 @@ public class ServerMain {
   private static void initializeWaveServer(Injector injector) throws PersistenceException, WaveServerException {
     WaveletProvider waveServer = injector.getInstance(WaveletProvider.class);
     waveServer.initialize();
+  }
+
+  /** Seeds config-driven feature flags into the persistent store before services read them. */
+  private static void initializeFeatureFlags(Injector injector) {
+    try {
+      Config config = injector.getInstance(Config.class);
+      FeatureFlagStore featureFlagStore = injector.getInstance(FeatureFlagStore.class);
+      FeatureFlagSeeder.seedSearchFeatureFlags(featureFlagStore, config);
+      injector.getInstance(FeatureFlagService.class).refreshCache();
+    } catch (PersistenceException e) {
+      LOG.log(Level.WARNING, "Failed to seed ot-search feature flag; search updates stay off", e);
+    }
+  }
+
+  private static void initializeSearchWaveletUpdater(
+      Injector injector, WaveBus waveBus, FeatureFlagStore featureFlagStore) {
+    try {
+      if (FeatureFlagSeeder.isSearchWaveletUpdaterEnabled(featureFlagStore)) {
+        subscribeSearchWaveletUpdater(injector, waveBus);
+      }
+    } catch (PersistenceException e) {
+      LOG.log(Level.WARNING,
+          "Failed to read ot-search feature flag; retrying search updates later", e);
+      retrySearchWaveletUpdaterInitialization(injector, waveBus, featureFlagStore);
+    }
+  }
+
+  private static void retrySearchWaveletUpdaterInitialization(
+      Injector injector, WaveBus waveBus, FeatureFlagStore featureFlagStore) {
+    ScheduledExecutorService retryExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+      Thread thread = new Thread(r, "SearchWaveletUpdater-Initializer");
+      thread.setDaemon(true);
+      return thread;
+    });
+    retryExecutor.scheduleWithFixedDelay(() -> {
+      try {
+        if (FeatureFlagSeeder.isSearchWaveletUpdaterEnabled(featureFlagStore)) {
+          subscribeSearchWaveletUpdater(injector, waveBus);
+          retryExecutor.shutdown();
+        }
+      } catch (PersistenceException e) {
+        LOG.log(Level.WARNING,
+            "Failed to read ot-search feature flag during retry; search updates stay off", e);
+      }
+    }, SEARCH_WAVELET_UPDATER_RETRY_SECONDS, SEARCH_WAVELET_UPDATER_RETRY_SECONDS, TimeUnit.SECONDS);
+  }
+
+  private static void subscribeSearchWaveletUpdater(Injector injector, WaveBus waveBus) {
+    org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater searchUpdater =
+        injector.getInstance(org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater.class);
+    waveBus.subscribe(searchUpdater);
+    LOG.info("SearchWaveletUpdater subscribed to WaveBus (ot-search enabled)");
   }
 
   /** Initializes ContactStore asynchronously to avoid blocking if MongoDB is unavailable. */
@@ -741,12 +801,8 @@ public class ServerMain {
 
     // Register OT search wavelet updater AFTER PerUserWaveViewDistpatcher
     // so that the per-user wave view index is current before search updates.
-    if (config.hasPath("search.ot_search_enabled") && config.getBoolean("search.ot_search_enabled")) {
-      org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater searchUpdater =
-          injector.getInstance(org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater.class);
-      waveBus.subscribe(searchUpdater);
-      LOG.info("SearchWaveletUpdater subscribed to WaveBus (ot-search enabled)");
-    }
+    FeatureFlagStore featureFlagStore = injector.getInstance(FeatureFlagStore.class);
+    initializeSearchWaveletUpdater(injector, waveBus, featureFlagStore);
 
     long elapsedMs = System.currentTimeMillis() - startMs;
     LOG.info("initializeSearch completed in " + elapsedMs + " ms");

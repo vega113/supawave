@@ -16,24 +16,72 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.waveprotocol.box.server.persistence;
+package org.waveprotocol.box.server.persistence.memory;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.junit.After;
 import org.junit.Test;
+import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
-import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
 
 public final class FeatureFlagServiceTest {
+  private FeatureFlagService service;
+
+  @After
+  public void tearDown() {
+    if (service != null) {
+      service.shutdown();
+    }
+  }
+
+  @Test
+  public void knownFlagsStayDisabledForFreshStores() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    service = new FeatureFlagService(store);
+
+    assertFalse(service.getEnabledFlagNames(null).contains("ot-search"));
+  }
+
+  @Test
+  public void storedOtSearchFlagEnablesKnownFlag() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(
+        new FeatureFlag(
+            "ot-search",
+            "Real-time search wavelets (replaces 15s polling)",
+            true,
+            new LinkedHashMap<>()));
+
+    service = new FeatureFlagService(store);
+
+    assertTrue(service.getEnabledFlagNames(null).contains("ot-search"));
+  }
+
+  @Test
+  public void storedFalseOtSearchFlagKeepsKnownFlagDisabled() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(
+        new FeatureFlag(
+            "ot-search",
+            "Real-time search wavelets (replaces 15s polling)",
+            false,
+            new LinkedHashMap<>()));
+
+    service = new FeatureFlagService(store);
+
+    assertFalse(service.getEnabledFlagNames(null).contains("ot-search"));
+  }
+
   @Test
   public void disabledAllowedUserDoesNotEnableFlag() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     store.save(new FeatureFlag("new-ui", "New UI", false, allowedUsers(false)));
 
-    FeatureFlagService service = new FeatureFlagService(store);
+    service = new FeatureFlagService(store);
 
     assertFalse(service.isEnabled("new-ui", "vega@supawave.ai"));
   }
@@ -43,7 +91,7 @@ public final class FeatureFlagServiceTest {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     store.save(new FeatureFlag("new-ui", "New UI", false, allowedUsers(true)));
 
-    FeatureFlagService service = new FeatureFlagService(store);
+    service = new FeatureFlagService(store);
 
     assertTrue(service.isEnabled("new-ui", "vega@supawave.ai"));
   }

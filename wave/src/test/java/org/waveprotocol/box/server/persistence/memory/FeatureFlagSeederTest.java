@@ -37,6 +37,8 @@ public final class FeatureFlagSeederTest {
     FeatureFlagSeeder.seedSearchFeatureFlags(
         store, ConfigFactory.parseString("search.ot_search_enabled = true"));
 
+    assertTrue(store.get("ot-search") != null);
+
     FeatureFlagService service = new FeatureFlagService(store);
 
     assertTrue(service.getEnabledFlagNames(null).contains("ot-search"));
@@ -48,6 +50,8 @@ public final class FeatureFlagSeederTest {
 
     FeatureFlagSeeder.seedSearchFeatureFlags(
         store, ConfigFactory.parseString("search.ot_search_enabled = false"));
+
+    assertTrue(store.get("ot-search") != null);
 
     FeatureFlagService service = new FeatureFlagService(store);
 

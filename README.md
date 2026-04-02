@@ -78,6 +78,7 @@ Notes:
 - SBT build notes: `docs/BUILDING-sbt.md`
 - Configuration and fragments flags: `docs/CONFIG_FLAGS.md`, `docs/fragments-config.md`
 - Beads epic index: `docs/epics/README.md`
+- gpt-bot example robot: `docs/gpt-bot.md`
 
 SBT is now the sole build system. Gradle has been removed (Phase 8).
 

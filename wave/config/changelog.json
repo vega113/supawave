@@ -1,5 +1,22 @@
 [
   {
+    "releaseId": "2026-04-02-gpt-bot-example-robot",
+    "version": "PR #580",
+    "date": "2026-04-02",
+    "title": "Add the gpt-bot example robot",
+    "summary": "Adds a copyable Java gpt-bot example that exposes the Wave callback endpoints, calls local Codex for answers, and documents tunnel-based registration.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added a standalone gpt-bot example server with capabilities.xml, profile, and callback handling",
+          "Local Codex invocation now powers mention-driven replies in the example robot",
+          "Docs include local run, Cloudflare tunnel, and robot registration steps"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-02-ot-search-public-wave-batching",
     "version": "PR #579",
     "date": "2026-04-02",

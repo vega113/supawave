@@ -108,7 +108,6 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   val mainDirExcluded = underMain && (
     p.contains("/com/google/wave/api/oauth/") ||
     p.contains("/org/waveprotocol/box/server/robots/agent/") ||
-    p.contains("/org/waveprotocol/examples/robots/") ||
     p.contains("/org/apache/wave/box/server/rpc/")
   )
 

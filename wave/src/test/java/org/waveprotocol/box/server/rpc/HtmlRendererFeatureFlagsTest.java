@@ -26,7 +26,8 @@ import org.junit.Test;
 public final class HtmlRendererFeatureFlagsTest {
   @Test
   public void adminPageShowsDomainHintAndPerUserToggleHooks() {
-    String html = HtmlRenderer.renderAdminPage("owner@supawave.ai", "supawave.ai", "owner");
+    String html = HtmlRenderer.renderAdminPage(
+        "owner@supawave.ai", "supawave.ai", "/wave", "owner");
 
     assertTrue(html.contains("e.g. vega (will become vega@supawave.ai)"));
     assertTrue(html.contains("toggleAllowedUser("));
@@ -91,5 +92,6 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("flagNameInput.value = flag.name;"));
     assertTrue(html.contains("return legacyUser ? { email: legacyUser, enabled: legacyEnabled } : null;"));
     assertTrue(html.contains("var entry = normalizeAllowedUserEntry(parts[i]);"));
+    assertTrue(html.contains("href=\"/wave/admin\""));
   }
 }

@@ -139,7 +139,7 @@ public final class AdminServlet extends HttpServlet {
       resp.setContentType("text/html;charset=utf-8");
       resp.setCharacterEncoding("UTF-8");
       resp.getWriter().write(HtmlRenderer.renderAdminPage(
-          caller.getId().getAddress(), domain, caller.getRole()));
+          caller.getId().getAddress(), domain, req.getContextPath(), caller.getRole()));
     }
   }
 

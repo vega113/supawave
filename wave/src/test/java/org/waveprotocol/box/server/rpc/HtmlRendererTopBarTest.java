@@ -16,6 +16,8 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import static org.junit.Assert.assertFalse;
+
 import junit.framework.TestCase;
 
 public final class HtmlRendererTopBarTest extends TestCase {
@@ -34,5 +36,35 @@ public final class HtmlRendererTopBarTest extends TestCase {
     assertTrue(topBarHtml.contains("section-label\">Product / Support"));
     assertTrue(topBarHtml.contains("section-label\">Legal"));
     assertTrue(topBarHtml.contains("href=\"/admin\""));
+  }
+
+  public void testRenderSharedTopBarUsesContextPathAndAccessibleControls() {
+    String topBarHtml = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "/wave", "admin");
+
+    assertTrue(topBarHtml.contains("href=\"/wave/account/robots\""));
+    assertTrue(topBarHtml.contains("href=\"/wave/admin\""));
+    assertTrue(topBarHtml.contains("href=\"/wave/auth/signout?r=%2Fwave%2F\""));
+    assertTrue(topBarHtml.contains("aria-label=\"Language\""));
+    assertTrue(topBarHtml.contains("aria-haspopup=\"menu\""));
+    assertTrue(topBarHtml.contains("aria-expanded=\"false\""));
+    assertTrue(topBarHtml.contains("role=\"menu\""));
+    assertTrue(topBarHtml.contains("net-icon-online"));
+    assertTrue(topBarHtml.contains("net-icon-offline"));
+  }
+
+  public void testRenderSharedTopBarCssScopesInfoStyles() {
+    String css = HtmlRenderer.renderSharedTopBarCss();
+
+    assertTrue(css.contains(".topbar .info {"));
+    assertTrue(css.contains(".topbar .info > a {"));
+    assertTrue(css.contains(".lang-icon-btn:focus-within {"));
+    assertFalse(css.contains("\n.info {"));
+  }
+
+  public void testRenderSharedTopBarJsUsesContextPath() {
+    String js = HtmlRenderer.renderSharedTopBarJs("/wave");
+
+    assertTrue(js.contains("var _ctx=\"\\/wave\";"));
+    assertTrue(js.contains("fetch(_ctx+'/locale'"));
   }
 }

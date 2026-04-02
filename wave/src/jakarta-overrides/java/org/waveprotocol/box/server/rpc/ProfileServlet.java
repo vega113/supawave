@@ -108,7 +108,7 @@ public final class ProfileServlet extends HttpServlet {
     if ("/edit/data".equals(pathInfo)) {
       handleGetProfileData(resp, caller);
     } else if ("/edit".equals(pathInfo) || "/edit/".equals(pathInfo)) {
-      handleGetEditPage(resp, caller);
+      handleGetEditPage(req, resp, caller);
     } else {
       resp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
@@ -149,13 +149,14 @@ public final class ProfileServlet extends HttpServlet {
   // GET /profile/edit — Profile edit page HTML
   // =========================================================================
 
-  private void handleGetEditPage(HttpServletResponse resp, HumanAccountData caller)
+  private void handleGetEditPage(HttpServletRequest req, HttpServletResponse resp,
+      HumanAccountData caller)
       throws IOException {
     resp.setContentType("text/html;charset=utf-8");
     resp.setCharacterEncoding("UTF-8");
     String imageUrl = resolveImageUrl(caller);
     resp.getWriter().write(HtmlRenderer.renderProfileEditPage(
-        caller.getId().getAddress(), domain, imageUrl, caller));
+        caller.getId().getAddress(), domain, req.getContextPath(), imageUrl, caller));
   }
 
   // =========================================================================

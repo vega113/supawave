@@ -102,7 +102,7 @@ public final class AccountSettingsServlet extends HttpServlet {
     resp.setContentType("text/html;charset=utf-8");
     resp.setCharacterEncoding("UTF-8");
     resp.getWriter().write(HtmlRenderer.renderAccountSettingsPage(
-        caller.getId().getAddress(), domain, caller, passwordResetEnabled));
+        caller.getId().getAddress(), domain, req.getContextPath(), caller, passwordResetEnabled));
   }
 
   @Override

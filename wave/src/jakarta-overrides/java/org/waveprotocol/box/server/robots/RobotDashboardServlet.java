@@ -568,19 +568,6 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("*{box-sizing:border-box;margin:0;padding:0}");
     sb.append("body{font-family:var(--sans);background:var(--bg);color:var(--txt);min-height:100vh;font-size:13px;line-height:1.5}");
     sb.append("a{color:var(--p);text-decoration:none}a:hover{text-decoration:underline}");
-    // Back link
-    sb.append(".back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--txt3);text-decoration:none;padding:12px 24px;max-width:1140px;margin:0 auto;transition:color .12s}");
-    sb.append(".back-link:hover{color:var(--p);text-decoration:none}");
-    sb.append(".back-link svg{width:16px;height:16px}");
-    // Header bar with wave decoration
-    sb.append(".hdr{padding:0 24px 0;max-width:1140px;margin:0 auto}");
-    sb.append(".hdr-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}");
-    sb.append(".hdr h1{font-size:20px;font-weight:700;color:var(--txt)}");
-    sb.append(".hdr-sub{font-size:12px;color:var(--txt3);margin-top:2px}");
-    sb.append(".hdr-line{height:3px;margin-top:16px;border-radius:2px;background:linear-gradient(90deg,var(--p) 0%,var(--pc) 40%,#90e0ef 70%,var(--warm) 100%)}");
-    // Wave decoration
-    sb.append(".wave-deco{width:100%;overflow:hidden;height:40px;margin-bottom:-20px}");
-    sb.append(".wave-deco svg{display:block;width:100%;height:40px}");
     // Primary button (gradient CTA)
     sb.append(".btn-p{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;border:none;color:#fff;background:linear-gradient(135deg,var(--p),var(--pc));transition:box-shadow .15s,transform .1s}");
     sb.append(".btn-p:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px)}");
@@ -723,8 +710,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append(".loading{text-align:center;padding:40px;color:var(--txt3);font-size:13px}");
     // Responsive mobile
     sb.append("@media(max-width:700px){");
-    sb.append(".hdr{padding:16px 16px 0}.main{padding:12px 16px 40px}");
-    sb.append(".back-link{padding:10px 16px}");
+    sb.append(".main{padding:12px 16px 40px}");
     sb.append(".tabs{padding:0 12px;overflow-x:auto}.tab{padding:10px 14px;white-space:nowrap}");
     sb.append(".rh{flex-wrap:wrap;gap:8px;padding:10px 12px}");
     sb.append(".rmeta{max-width:none;flex-basis:100%}");
@@ -736,30 +722,22 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append(".modal{width:calc(100vw - 24px);max-height:calc(100vh - 24px)}");
     sb.append(".confirm-strip{flex-wrap:wrap}");
     sb.append(".btn-p{padding:8px 14px;font-size:11px}");
-    sb.append(".hdr-row{gap:10px}");
     sb.append(".doc-links{flex-direction:column}");
     sb.append("}");
-    sb.append("</style></head><body>");
+    sb.append("</style>\n<style>").append(HtmlRenderer.renderSharedTopBarCss()).append("</style></head><body>");
 
-    // ——— Back to Wave link ———
-    sb.append("<a class=\"back-link\" href=\"").append(safeCtx).append("/\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"15 18 9 12 15 6\"/></svg> Back to SupaWave</a>");
-
-    // ——— Header bar with wave flair ———
-    sb.append("<div class=\"hdr\">");
-    sb.append("<div class=\"hdr-row\">");
-    sb.append("<div><h1>Robot Control Center</h1>");
-    sb.append("<div class=\"hdr-sub\">Manage automation robots for ").append(safeUser).append("</div></div>");
-    sb.append("<button class=\"btn-p\" onclick=\"openModal()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg> Register New Robot</button>");
-    sb.append("</div>");
-    sb.append("<div class=\"hdr-line\"></div></div>");
-    // Wave SVG decoration
-    sb.append("<div class=\"wave-deco\"><svg viewBox=\"0 0 1440 40\" preserveAspectRatio=\"none\">");
-    sb.append("<path d=\"M0,20 C180,35 360,5 540,20 C720,35 900,5 1080,20 C1260,35 1440,10 1440,20 L1440,0 L0,0 Z\" fill=\"#90e0ef\" opacity=\".15\"/>");
-    sb.append("<path d=\"M0,18 C200,30 400,8 600,18 C800,28 1000,8 1200,18 C1350,25 1440,12 1440,18 L1440,0 L0,0 Z\" fill=\"var(--pc)\" opacity=\".08\"/>");
-    sb.append("</svg></div>");
+    // ——— Shared app header ———
+    sb.append(HtmlRenderer.renderSharedTopBarHtml(userAddress, contextPath, null));
 
     // ——— Main content area ———
     sb.append("<div class=\"main\">");
+    sb.append("<div style=\"display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px\">");
+    sb.append("<div>");
+    sb.append("<h2 style=\"font-size:18px;font-weight:700;color:var(--txt)\">Robot Control Center</h2>");
+    sb.append("<div style=\"font-size:12px;color:var(--txt3)\">Manage automation robots for ").append(safeUser).append("</div>");
+    sb.append("</div>");
+    sb.append("<button class=\"btn-p\" onclick=\"openModal()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg> Register New Robot</button>");
+    sb.append("</div>");
     // Tabs — 3 tabs, no duplication
     sb.append("<div class=\"tabs\">");
     sb.append("<div class=\"tab on\" data-tab=\"robots\" onclick=\"switchTab('robots')\">My Robots<span class=\"tbadge\" id=\"rcnt\"></span></div>");
@@ -1265,7 +1243,9 @@ public final class RobotDashboardServlet extends HttpServlet {
 
     // Init
     sb.append("loadRobots();");
-    sb.append("</script></body></html>");
+    sb.append("</script>");
+    sb.append(HtmlRenderer.renderSharedTopBarJs(contextPath));
+    sb.append("</body></html>");
     return sb.toString();
   }
 

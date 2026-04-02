@@ -19,6 +19,7 @@
 package org.waveprotocol.box.server.rpc;
 
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.inject.name.Named;
 import com.typesafe.config.Config;
 import jakarta.servlet.http.HttpServlet;
@@ -39,12 +40,15 @@ import org.waveprotocol.box.server.persistence.ContactMessageStore;
 import org.waveprotocol.box.server.persistence.ContactMessageStore.ContactMessage;
 import org.waveprotocol.box.server.persistence.ContactMessageStore.ContactReply;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
+import org.waveprotocol.box.server.persistence.FeatureFlagSeeder;
+import org.waveprotocol.box.server.persistence.FeatureFlagStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.waveserver.ReindexService;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
@@ -91,7 +95,9 @@ public final class AdminServlet extends HttpServlet {
   private final Config config;
   private final WaveletProvider waveletProvider;
   private final FeatureFlagService featureFlagService;
+  private final FeatureFlagStore featureFlagStore;
   private final @Nullable Lucene9WaveIndexerImpl lucene9Indexer;
+  private final Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider;
   private volatile int cachedWaveCount = -1;
   private volatile long lastWaveCountTimeMs;
   private final String publicBaseUrl;
@@ -106,7 +112,9 @@ public final class AdminServlet extends HttpServlet {
                       Config config,
                       WaveletProvider waveletProvider,
                       FeatureFlagService featureFlagService,
-                      @Nullable Lucene9WaveIndexerImpl lucene9Indexer) {
+                      FeatureFlagStore featureFlagStore,
+                      @Nullable Lucene9WaveIndexerImpl lucene9Indexer,
+                      Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider) {
     this.accountStore = accountStore;
     this.sessionManager = sessionManager;
     this.contactMessageStore = contactMessageStore;
@@ -116,7 +124,9 @@ public final class AdminServlet extends HttpServlet {
     this.config = config;
     this.waveletProvider = waveletProvider;
     this.featureFlagService = featureFlagService;
+    this.featureFlagStore = featureFlagStore;
     this.lucene9Indexer = lucene9Indexer;
+    this.searchWaveletUpdaterProvider = searchWaveletUpdaterProvider;
     this.publicBaseUrl = PublicBaseUrlResolver.resolve(config);
   }
 
@@ -532,6 +542,56 @@ public final class AdminServlet extends HttpServlet {
     }
     w.append('}');
 
+    w.append(",\"otSearch\":{");
+    boolean otSearchConfigEnabled = config.hasPath("search.ot_search_enabled")
+        && config.getBoolean("search.ot_search_enabled");
+    boolean otSearchFeatureEnabled = isSearchWaveletUpdaterEnabled();
+    SearchWaveletUpdater searchWaveletUpdater =
+        otSearchFeatureEnabled ? searchWaveletUpdaterProvider.get() : null;
+    w.append("\"enabled\":").append(String.valueOf(otSearchFeatureEnabled));
+    w.append(",\"configEnabled\":").append(String.valueOf(otSearchConfigEnabled));
+    w.append(",\"publicBatchingEnabled\":")
+        .append(String.valueOf(getEffectivePublicBatchingEnabled(searchWaveletUpdater)));
+    w.append(",\"publicBatchMs\":")
+        .append(String.valueOf(getEffectivePublicBatchMs(searchWaveletUpdater)));
+    w.append(",\"publicFanoutThreshold\":")
+        .append(String.valueOf(getEffectivePublicFanoutThreshold(searchWaveletUpdater)));
+    w.append(",\"highParticipantThreshold\":")
+        .append(String.valueOf(getEffectiveHighParticipantThreshold(searchWaveletUpdater)));
+    w.append(",\"activeSubscriptions\":")
+        .append(String.valueOf(searchWaveletUpdater != null
+            ? searchWaveletUpdater.getActiveSubscriptionCount()
+            : 0));
+    w.append(",\"indexedWaves\":")
+        .append(String.valueOf(searchWaveletUpdater != null
+            ? searchWaveletUpdater.getIndexedWaveCount()
+            : 0));
+    w.append(",\"waveUpdateCount\":")
+        .append(String.valueOf(searchWaveletUpdater != null
+            ? searchWaveletUpdater.getWaveUpdateCount()
+            : 0));
+    w.append(",\"lowLatencyWaveUpdateCount\":")
+        .append(String.valueOf(searchWaveletUpdater != null
+            ? searchWaveletUpdater.getLowLatencyWaveUpdateCount()
+            : 0));
+    w.append(",\"slowPathWaveUpdateCount\":")
+        .append(String.valueOf(searchWaveletUpdater != null
+            ? searchWaveletUpdater.getSlowPathWaveUpdateCount()
+            : 0));
+    w.append(",\"slowPathFlushCount\":")
+        .append(String.valueOf(searchWaveletUpdater != null
+            ? searchWaveletUpdater.getSlowPathFlushCount()
+            : 0));
+    w.append(",\"slowPathQueuedSubscriptionCount\":")
+        .append(String.valueOf(searchWaveletUpdater != null
+            ? searchWaveletUpdater.getSlowPathQueuedSubscriptionCount()
+            : 0));
+    w.append(",\"searchRecomputeCount\":")
+        .append(String.valueOf(searchWaveletUpdater != null
+            ? searchWaveletUpdater.getSearchRecomputeCount()
+            : 0));
+    w.append('}');
+
     // --- serverInfo ---
     Runtime rt = Runtime.getRuntime();
     long uptimeMs = System.currentTimeMillis() - SERVER_START_TIME;
@@ -568,6 +628,54 @@ public final class AdminServlet extends HttpServlet {
 
     w.append('}');
     w.flush();
+  }
+
+  private boolean isSearchWaveletUpdaterEnabled() {
+    try {
+      return FeatureFlagSeeder.isSearchWaveletUpdaterEnabled(featureFlagStore);
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to read ot-search feature flag for ops status", e);
+      return false;
+    }
+  }
+
+  private boolean getBooleanConfig(String key, boolean defaultValue) {
+    return config.hasPath(key) ? config.getBoolean(key) : defaultValue;
+  }
+
+  private long getLongConfig(String key, long defaultValue) {
+    return config.hasPath(key) ? config.getLong(key) : defaultValue;
+  }
+
+  private int getIntConfig(String key, int defaultValue) {
+    return config.hasPath(key) ? config.getInt(key) : defaultValue;
+  }
+
+  private boolean getEffectivePublicBatchingEnabled(
+      @Nullable SearchWaveletUpdater searchWaveletUpdater) {
+    return searchWaveletUpdater != null
+        ? searchWaveletUpdater.isPublicBatchingEnabled()
+        : getBooleanConfig("search.ot_search_public_batching_enabled", true);
+  }
+
+  private long getEffectivePublicBatchMs(@Nullable SearchWaveletUpdater searchWaveletUpdater) {
+    return searchWaveletUpdater != null
+        ? searchWaveletUpdater.getPublicBatchMs()
+        : Math.max(0L, getLongConfig("search.ot_search_public_batch_ms", 15000L));
+  }
+
+  private int getEffectivePublicFanoutThreshold(
+      @Nullable SearchWaveletUpdater searchWaveletUpdater) {
+    return searchWaveletUpdater != null
+        ? searchWaveletUpdater.getPublicFanoutThreshold()
+        : Math.max(1, getIntConfig("search.ot_search_public_fanout_threshold", 25));
+  }
+
+  private int getEffectiveHighParticipantThreshold(
+      @Nullable SearchWaveletUpdater searchWaveletUpdater) {
+    return searchWaveletUpdater != null
+        ? searchWaveletUpdater.getHighParticipantThreshold()
+        : Math.max(1, getIntConfig("search.ot_search_high_participant_threshold", 25));
   }
 
   // =========================================================================

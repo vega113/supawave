@@ -21,15 +21,19 @@ package org.waveprotocol.box.server.waveserver.search;
 
 import com.google.common.collect.ImmutableSet;
 
-import junit.framework.TestCase;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Test;
 
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.Set;
 
-public final class SearchIndexerTest extends TestCase {
+public final class SearchIndexerTest {
 
+  @Test
   public void testKnownWaveStillTriggersOtherParticipantSubscriptions() {
     SearchIndexer indexer = new SearchIndexer();
     ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
@@ -56,5 +60,43 @@ public final class SearchIndexerTest extends TestCase {
 
     assertTrue(affected.contains(activeKey));
     assertTrue(affected.contains(unrelatedKey));
+  }
+
+  @Test
+  public void testUnregisterRemovesParticipantOwnedSubscriptionsFromAffectedLookup() {
+    SearchIndexer indexer = new SearchIndexer();
+    ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
+    WaveId changedWave = WaveId.of("example.com", "w+changed");
+    String query = "in:inbox";
+    SearchIndexer.SubscriptionKey key =
+        new SearchIndexer.SubscriptionKey(user, SearchWaveletManager.md5Hex(query));
+
+    indexer.registerSubscription(user, query, key.getQueryHash(), ImmutableSet.of(changedWave));
+    indexer.unregisterSubscription(user, key.getQueryHash());
+
+    Set<SearchIndexer.SubscriptionKey> affected =
+        indexer.getAffectedSubscriptions(changedWave, ImmutableSet.of(user));
+
+    assertFalse(affected.contains(key));
+  }
+
+  @Test
+  public void testUpdateSubscriptionWavesDoesNotResurrectUnregisteredSubscription() {
+    SearchIndexer indexer = new SearchIndexer();
+    ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
+    WaveId changedWave = WaveId.of("example.com", "w+changed");
+    WaveId indexedWave = WaveId.of("example.com", "w+indexed");
+    String query = "in:inbox";
+    SearchIndexer.SubscriptionKey key =
+        new SearchIndexer.SubscriptionKey(user, SearchWaveletManager.md5Hex(query));
+
+    indexer.registerSubscription(user, query, key.getQueryHash(), ImmutableSet.of(indexedWave));
+    indexer.unregisterSubscription(user, key.getQueryHash());
+    indexer.updateSubscriptionWaves(user, key.getQueryHash(), ImmutableSet.of(changedWave));
+
+    Set<SearchIndexer.SubscriptionKey> affected =
+        indexer.getAffectedSubscriptions(changedWave, ImmutableSet.of(user));
+
+    assertFalse(affected.contains(key));
   }
 }

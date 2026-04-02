@@ -23,17 +23,7 @@ import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.wave.api.SearchResult;
-
-import org.waveprotocol.box.common.DeltaSequence;
-import org.waveprotocol.box.server.waveserver.SearchProvider;
-import org.waveprotocol.box.server.waveserver.WaveBus;
-import org.waveprotocol.wave.model.id.WaveId;
-import org.waveprotocol.wave.model.id.WaveletName;
-import org.waveprotocol.wave.model.version.HashedVersion;
-import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
-import org.waveprotocol.wave.util.logging.Log;
-
+import com.typesafe.config.Config;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -43,60 +33,49 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import org.waveprotocol.box.common.DeltaSequence;
+import org.waveprotocol.box.server.util.WaveletDataUtil;
+import org.waveprotocol.box.server.waveserver.SearchProvider;
+import org.waveprotocol.box.server.waveserver.WaveBus;
+import org.waveprotocol.wave.model.id.WaveId;
+import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.version.HashedVersion;
+import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
+import org.waveprotocol.wave.util.logging.Log;
 
-/**
- * Listens for wave changes on the {@link WaveBus} and pushes updates to
- * affected search wavelets.
- *
- * <p>This subscriber is registered <strong>after</strong>
- * {@code PerUserWaveViewDistpatcher} in {@code ServerMain.initializeSearch()}
- * so that the per-user wave view index is current before search wavelet
- * updates are computed.
- *
- * <p>Batching: updates are debounced with a 100ms delay and a 500ms max-wait
- * ceiling per user+query. A per-user token bucket (10 updates/sec, queue
- * capacity 100) provides backpressure.
- *
- * <p>Follows the same WaveBus.Subscriber pattern as {@code ContactsRecorder}.
- */
 @Singleton
 public class SearchWaveletUpdater implements WaveBus.Subscriber {
 
   private static final Log LOG = Log.get(SearchWaveletUpdater.class);
-
-  /** Debounce delay for batching search wavelet updates. */
   private static final long DEBOUNCE_MS = 100;
-
-  /** Maximum wait time before a batched update must fire. */
   private static final long MAX_WAIT_MS = 500;
-
-  /** Maximum search wavelet updates per second per user. */
   private static final int MAX_UPDATES_PER_SEC = 10;
-
-  /** Maximum queued updates per user before oldest are dropped. */
   private static final int MAX_QUEUE_PER_USER = 100;
 
-  /** Maximum number of search results to fetch per query. */
   private final SearchWaveletManager waveletManager;
   private final SearchIndexer indexer;
   private final SearchProvider searchProvider;
   private final SearchWaveletDataProvider dataProvider;
   private final SearchWaveletSnapshotPublisher snapshotPublisher;
-
-  /** Scheduled executor for debounced update tasks. */
+  private final SearchUpdateBatchingPolicy batchingPolicy;
   private final ScheduledExecutorService scheduler;
-
-  /** Pending debounced tasks keyed by "user|queryHash". */
-  private final ConcurrentHashMap<String, ScheduledFuture<?>> pendingTasks =
+  private final ConcurrentHashMap<String, TaskHolder> pendingTasks =
       new ConcurrentHashMap<>();
-
-  /** First-seen timestamp for max-wait tracking, keyed by "user|queryHash". */
   private final ConcurrentHashMap<String, Long> firstSeenTimestamps =
       new ConcurrentHashMap<>();
-
-  /** Per-user update counter for token bucket, keyed by user address. */
   private final ConcurrentHashMap<String, UpdateCounter> userCounters =
       new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<WaveId, SlowPathBatchState> slowPathBatches =
+      new ConcurrentHashMap<>();
+  private final AtomicLong waveUpdateCount = new AtomicLong();
+  private final AtomicLong lowLatencyWaveUpdateCount = new AtomicLong();
+  private final AtomicLong slowPathWaveUpdateCount = new AtomicLong();
+  private final AtomicLong slowPathFlushCount = new AtomicLong();
+  private final AtomicLong slowPathQueuedSubscriptionCount = new AtomicLong();
+  private final AtomicLong searchRecomputeCount = new AtomicLong();
 
   @Inject
   public SearchWaveletUpdater(
@@ -104,177 +83,308 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       SearchIndexer indexer,
       SearchProvider searchProvider,
       SearchWaveletDataProvider dataProvider,
+      SearchWaveletSnapshotPublisher snapshotPublisher,
+      Config config) {
+    this(
+        waveletManager,
+        indexer,
+        searchProvider,
+        dataProvider,
+        snapshotPublisher,
+        new SearchUpdateBatchingPolicy(config),
+        createScheduler());
+  }
+
+  SearchWaveletUpdater(
+      SearchWaveletManager waveletManager,
+      SearchIndexer indexer,
+      SearchProvider searchProvider,
+      SearchWaveletDataProvider dataProvider,
       SearchWaveletSnapshotPublisher snapshotPublisher) {
+    this(
+        waveletManager,
+        indexer,
+        searchProvider,
+        dataProvider,
+        snapshotPublisher,
+        SearchUpdateBatchingPolicy.defaults(),
+        createScheduler());
+  }
+
+  SearchWaveletUpdater(
+      SearchWaveletManager waveletManager,
+      SearchIndexer indexer,
+      SearchProvider searchProvider,
+      SearchWaveletDataProvider dataProvider,
+      SearchWaveletSnapshotPublisher snapshotPublisher,
+      SearchUpdateBatchingPolicy batchingPolicy,
+      ScheduledExecutorService scheduler) {
     this.waveletManager = waveletManager;
     this.indexer = indexer;
     this.searchProvider = searchProvider;
     this.dataProvider = dataProvider;
     this.snapshotPublisher = snapshotPublisher;
-    this.scheduler = Executors.newScheduledThreadPool(2, r -> {
-      Thread t = new Thread(r, "SearchWaveletUpdater-scheduler");
-      t.setDaemon(true);
-      return t;
+    this.batchingPolicy = batchingPolicy;
+    this.scheduler = scheduler;
+  }
+
+  private static ScheduledExecutorService createScheduler() {
+    return Executors.newScheduledThreadPool(2, runnable -> {
+      Thread thread = new Thread(runnable, "SearchWaveletUpdater-scheduler");
+      thread.setDaemon(true);
+      return thread;
     });
   }
 
   @Override
   public void waveletUpdate(ReadableWaveletData wavelet, DeltaSequence deltas) {
     WaveletName waveletName = WaveletName.of(wavelet.getWaveId(), wavelet.getWaveletId());
-
-    // Guard: skip recursive updates from search wavelets themselves.
-    if (waveletManager.isSearchWavelet(waveletName)) {
-      return;
-    }
-
-    WaveId waveId = wavelet.getWaveId();
-
-    // Gather participants from the wavelet snapshot.
-    Set<ParticipantId> participants = Sets.newHashSet(wavelet.getParticipants());
-
-    // Find all subscriptions that may be affected by this wave change.
-    Set<SearchIndexer.SubscriptionKey> affected =
-        indexer.getAffectedSubscriptions(waveId, participants);
-
-    if (affected.isEmpty()) {
-      return;
-    }
-
-    if (LOG.isFineLoggable()) {
-      LOG.fine("Wave " + waveId + " change affects " + affected.size() + " subscriptions");
-    }
-
-    // Enqueue a debounced update for each affected subscription.
-    for (SearchIndexer.SubscriptionKey key : affected) {
-      enqueueUpdate(key);
+    boolean searchWavelet = waveletManager.isSearchWavelet(waveletName);
+    if (!searchWavelet) {
+      WaveId changedWaveId = wavelet.getWaveId();
+      Set<ParticipantId> participants = Sets.newHashSet(wavelet.getParticipants());
+      Set<SearchIndexer.SubscriptionKey> affected =
+          indexer.getAffectedSubscriptions(changedWaveId, participants);
+      if (!affected.isEmpty()) {
+        waveUpdateCount.incrementAndGet();
+        if (LOG.isFineLoggable()) {
+          LOG.fine(
+              "Wave " + changedWaveId + " change affects " + affected.size() + " subscriptions");
+        }
+        SearchUpdateBatchingPolicy.UpdateMode mode = batchingPolicy.classify(wavelet, affected.size());
+        if (mode == SearchUpdateBatchingPolicy.UpdateMode.POLL_EQUIVALENT) {
+          slowPathWaveUpdateCount.incrementAndGet();
+          slowPathQueuedSubscriptionCount.addAndGet(affected.size());
+          enqueueSlowPathBatch(changedWaveId, affected);
+        } else {
+          lowLatencyWaveUpdateCount.incrementAndGet();
+          enqueueLowLatencyUpdates(affected);
+        }
+      }
     }
   }
 
   @Override
   public void waveletCommitted(WaveletName waveletName, HashedVersion version) {
-    // No action needed on commit.
   }
 
-  /**
-   * Enqueues a debounced update for the given subscription key.
-   * Implements 100ms debounce with 500ms max-wait.
-   */
+  private void enqueueLowLatencyUpdates(Set<SearchIndexer.SubscriptionKey> affected) {
+    for (SearchIndexer.SubscriptionKey key : affected) {
+      enqueueUpdate(key);
+    }
+  }
+
+  private void enqueueSlowPathBatch(WaveId changedWaveId, Set<SearchIndexer.SubscriptionKey> affected) {
+    SlowPathBatchState batchState =
+        slowPathBatches.computeIfAbsent(changedWaveId, ignored -> new SlowPathBatchState());
+    boolean shouldSchedule;
+    synchronized (batchState) {
+      batchState.pendingKeys.addAll(affected);
+      shouldSchedule = batchState.future == null || batchState.future.isDone();
+      if (shouldSchedule) {
+        batchState.future =
+            scheduler.schedule(
+                () -> flushSlowPathBatch(changedWaveId, batchState),
+                batchingPolicy.getPublicBatchMs(),
+                TimeUnit.MILLISECONDS);
+      }
+    }
+  }
+
+  private void flushSlowPathBatch(WaveId changedWaveId, SlowPathBatchState batchState) {
+    Set<SearchIndexer.SubscriptionKey> keysToUpdate;
+    synchronized (batchState) {
+      batchState.future = null;
+      keysToUpdate = new HashSet<>(batchState.pendingKeys);
+      batchState.pendingKeys.clear();
+    }
+    if (!keysToUpdate.isEmpty()) {
+      slowPathFlushCount.incrementAndGet();
+      enqueueLowLatencyUpdates(keysToUpdate);
+    }
+    synchronized (batchState) {
+      boolean idle = batchState.future == null && batchState.pendingKeys.isEmpty();
+      if (idle) {
+        slowPathBatches.remove(changedWaveId, batchState);
+      }
+    }
+  }
+
   private void enqueueUpdate(SearchIndexer.SubscriptionKey key) {
     String taskKey = key.toString();
     long now = System.currentTimeMillis();
-
-    // Track first-seen time for max-wait
-    firstSeenTimestamps.putIfAbsent(taskKey, now);
-    long firstSeen = firstSeenTimestamps.get(taskKey);
-
-    // Check per-user rate limit
+    long firstSeen = firstSeenTimestamps.computeIfAbsent(taskKey, ignored -> now);
     UpdateCounter counter = userCounters.computeIfAbsent(
-        key.getUser().getAddress(), k -> new UpdateCounter(MAX_UPDATES_PER_SEC));
-    ScheduledFuture<?> existing = pendingTasks.get(taskKey);
-    boolean hasPendingTask = existing != null && !existing.isDone();
-    if (!hasPendingTask && counter.getQueueSize() >= MAX_QUEUE_PER_USER) {
-      LOG.warning("Dropping search update for " + key + " -- queue full");
-      return;
-    }
-
-    // Calculate delay: respect max-wait ceiling
-    long elapsed = now - firstSeen;
+        key.getUser().getAddress(), ignored -> new UpdateCounter(MAX_UPDATES_PER_SEC));
+    TaskHolder taskHolder = pendingTasks.computeIfAbsent(taskKey, ignored -> new TaskHolder());
     long delay;
-    if (elapsed >= MAX_WAIT_MS) {
-      // Max-wait exceeded -- fire immediately
-      delay = 0;
-    } else {
-      delay = Math.min(DEBOUNCE_MS, MAX_WAIT_MS - elapsed);
+    long generation;
+    synchronized (taskHolder) {
+      boolean hasPendingTask = taskHolder.queued;
+      if (!hasPendingTask && counter.getQueueSize() >= MAX_QUEUE_PER_USER) {
+        LOG.warning("Dropping search update for " + key + " -- queue full");
+        firstSeenTimestamps.remove(taskKey);
+        pendingTasks.remove(taskKey, taskHolder);
+        return;
+      }
+      long elapsed = now - firstSeen;
+      delay = elapsed >= MAX_WAIT_MS ? 0 : Math.min(DEBOUNCE_MS, MAX_WAIT_MS - elapsed);
+      generation = taskHolder.generation.incrementAndGet();
+      if (hasPendingTask) {
+        ScheduledFuture<?> existing = taskHolder.future;
+        if (existing != null) {
+          existing.cancel(false);
+        }
+      } else {
+        taskHolder.queued = true;
+        counter.incrementQueue();
+      }
     }
+    scheduleUpdate(key, taskKey, delay, taskHolder, generation);
+  }
 
-    // Cancel any existing pending task for this key
-    if (hasPendingTask) {
-      existing.cancel(false);
-    }
+  private void executeUpdate(SearchIndexer.SubscriptionKey key, String taskKey) {
+    executeSearchUpdate(key);
+  }
 
-    // Schedule the update
-    ScheduledFuture<?> future = scheduler.schedule(
-        () -> executeUpdate(key, taskKey), delay, TimeUnit.MILLISECONDS);
-    pendingTasks.put(taskKey, future);
-    if (!hasPendingTask) {
-      counter.incrementQueue();
+  private void executePendingUpdate(
+      SearchIndexer.SubscriptionKey key,
+      String taskKey,
+      TaskHolder taskHolder,
+      long generation) {
+    try {
+      UpdateCounter counter = userCounters.get(key.getUser().getAddress());
+      synchronized (taskHolder) {
+        if (taskHolder.generation.get() != generation) {
+          return;
+        }
+        boolean acquired = counter == null || counter.tryAcquire();
+        if (!acquired) {
+          long retryGeneration = taskHolder.generation.incrementAndGet();
+          scheduleUpdate(key, taskKey, 100, taskHolder, retryGeneration);
+          return;
+        }
+      }
+      UpdateOutcome outcome = executeSearchUpdateIfCurrent(key, taskHolder, generation);
+      if (outcome == UpdateOutcome.APPLIED || outcome == UpdateOutcome.FAILED) {
+        completePendingUpdate(taskKey, taskHolder, generation, counter);
+      }
+    } catch (Exception e) {
+      LOG.severe("Failed to update search wavelet for " + key, e);
     }
   }
 
-  /**
-   * Executes the actual search re-evaluation and diff computation for
-   * a single subscription.
-   */
-  private void executeUpdate(SearchIndexer.SubscriptionKey key, String taskKey) {
+  private void executeSearchUpdate(SearchIndexer.SubscriptionKey key) {
     try {
-      // Rate-limit per user
-      UpdateCounter counter = userCounters.get(key.getUser().getAddress());
-      if (counter != null && !counter.tryAcquire()) {
-        // Re-enqueue with a short delay
-        ScheduledFuture<?> retryFuture = scheduler.schedule(
-            () -> executeUpdate(key, taskKey), 100, TimeUnit.MILLISECONDS);
-        pendingTasks.put(taskKey, retryFuture);
-        return;
-      }
-
-      // Clear batch tracking state
-      ScheduledFuture<?> pendingTask = pendingTasks.remove(taskKey);
-      firstSeenTimestamps.remove(taskKey);
-      if (pendingTask != null && counter != null) {
-        counter.decrementQueue();
-      }
-
-      // Look up the raw query for this subscription
       String rawQuery = indexer.getRawQuery(key);
       if (rawQuery == null) {
-        // Subscription was unregistered between enqueue and execute
         LOG.fine("Subscription " + key + " no longer registered, skipping update");
-        return;
+      } else {
+        ParticipantId user = key.getUser();
+        searchRecomputeCount.incrementAndGet();
+        SearchResult searchResult =
+            searchProvider.search(
+                user, rawQuery, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
+        if (snapshotPublisher != null) {
+          snapshotPublisher.publishUpdate(user, rawQuery, searchResult);
+        } else {
+          updateCachedSearchWavelet(key, user, rawQuery, searchResult);
+        }
       }
+    } catch (Exception e) {
+      LOG.severe("Failed to update search wavelet for " + key, e);
+    }
+  }
 
+  private UpdateOutcome executeSearchUpdateIfCurrent(
+      SearchIndexer.SubscriptionKey key,
+      TaskHolder taskHolder,
+      long generation) {
+    try {
+      String rawQuery = indexer.getRawQuery(key);
+      if (rawQuery == null) {
+        LOG.fine("Subscription " + key + " no longer registered, skipping update");
+        return UpdateOutcome.APPLIED;
+      }
       ParticipantId user = key.getUser();
+      searchRecomputeCount.incrementAndGet();
+      SearchResult searchResult =
+          searchProvider.search(
+              user, rawQuery, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
+      synchronized (taskHolder) {
+        if (taskHolder.generation.get() != generation) {
+          return UpdateOutcome.STALE;
+        }
+        if (snapshotPublisher != null) {
+          snapshotPublisher.publishUpdate(user, rawQuery, searchResult);
+        } else {
+          updateCachedSearchWavelet(key, user, rawQuery, searchResult);
+        }
+      }
+      return UpdateOutcome.APPLIED;
+    } catch (Exception e) {
+      LOG.severe("Failed to update search wavelet for " + key, e);
+      return UpdateOutcome.FAILED;
+    }
+  }
 
-      // Re-run the search to get current results
-      SearchResult searchResult = searchProvider.search(
-          user, rawQuery, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
-
-      if (snapshotPublisher != null) {
-        snapshotPublisher.publishUpdate(user, rawQuery, searchResult);
+  private void completePendingUpdate(
+      String taskKey,
+      TaskHolder taskHolder,
+      long generation,
+      UpdateCounter counter) {
+    synchronized (taskHolder) {
+      if (taskHolder.generation.get() != generation) {
         return;
       }
-
-      if (snapshotPublisher != null) {
-        snapshotPublisher.publishUpdate(user, rawQuery, searchResult);
+      if (!pendingTasks.remove(taskKey, taskHolder)) {
         return;
       }
+      taskHolder.queued = false;
+      taskHolder.future = null;
+      if (counter != null) {
+        counter.decrementQueue();
+      }
+      firstSeenTimestamps.remove(taskKey);
+    }
+  }
 
-      // Convert SearchResult digests to our SearchResultEntry list
-      List<SearchWaveletDataProvider.SearchResultEntry> newResults =
-          convertSearchResult(searchResult);
-      int newTotalCount = searchResult.getTotalResults() >= 0
-          ? searchResult.getTotalResults()
-          : newResults.size();
-
-      // Get or create the search wavelet
-      WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, rawQuery);
-
-      // Compute current results stored in the search wavelet (get from data provider cache)
-      List<SearchWaveletDataProvider.SearchResultEntry> oldResults =
-          dataProvider.getCurrentResults(searchWaveletName);
-      int oldTotalCount = dataProvider.getCurrentTotal(searchWaveletName);
-
-      // Compute the diff
-      SearchWaveletDataProvider.SearchDiff diff =
-          dataProvider.computeDiff(oldResults, oldTotalCount, newResults, newTotalCount);
-
-      if (diff == null) {
-        // No changes needed
+  private void scheduleUpdate(
+      SearchIndexer.SubscriptionKey key,
+      String taskKey,
+      long delayMs,
+      TaskHolder taskHolder,
+      long generation) {
+    ScheduledFuture<?> future =
+        scheduler.schedule(
+            () -> executePendingUpdate(key, taskKey, taskHolder, generation),
+            delayMs,
+            TimeUnit.MILLISECONDS);
+    synchronized (taskHolder) {
+      if (taskHolder.generation.get() != generation || !taskHolder.queued) {
+        future.cancel(false);
         return;
       }
+      taskHolder.future = future;
+    }
+  }
 
-      // Update the data provider's cached state
+  private void updateCachedSearchWavelet(
+      SearchIndexer.SubscriptionKey key,
+      ParticipantId user,
+      String rawQuery,
+      SearchResult searchResult) {
+    List<SearchWaveletDataProvider.SearchResultEntry> newResults = convertSearchResult(searchResult);
+    int newTotalCount =
+        searchResult.getTotalResults() >= 0 ? searchResult.getTotalResults() : newResults.size();
+    WaveletName searchWaveletName = waveletManager.getOrCreateSearchWavelet(user, rawQuery);
+    List<SearchWaveletDataProvider.SearchResultEntry> oldResults =
+        dataProvider.getCurrentResults(searchWaveletName);
+    int oldTotalCount = dataProvider.getCurrentTotal(searchWaveletName);
+    SearchWaveletDataProvider.SearchDiff diff =
+        dataProvider.computeDiff(oldResults, oldTotalCount, newResults, newTotalCount);
+    if (diff != null) {
       dataProvider.updateCurrentResults(searchWaveletName, newResults, newTotalCount);
-
-      // Update the indexer's wave set for this subscription
       Set<WaveId> newWaveIds = new HashSet<>();
       for (SearchWaveletDataProvider.SearchResultEntry entry : newResults) {
         try {
@@ -284,68 +394,217 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
         }
       }
       indexer.updateSubscriptionWaves(user, key.getQueryHash(), newWaveIds);
-
       if (LOG.isFineLoggable()) {
-        LOG.fine("Updated search wavelet " + searchWaveletName + " for " + user.getAddress()
-            + ": " + diff.getAddedCount() + " added, " + diff.getRemovedCount() + " removed, "
-            + diff.getModifiedCount() + " modified");
+        LOG.fine(
+            "Updated search wavelet "
+                + searchWaveletName
+                + " for "
+                + user.getAddress()
+                + ": "
+                + diff.getAddedCount()
+                + " added, "
+                + diff.getRemovedCount()
+                + " removed, "
+                + diff.getModifiedCount()
+                + " modified");
       }
-
-    } catch (Exception e) {
-      // Log and continue -- never let one bad update block others
-      LOG.severe("Failed to update search wavelet for " + key, e);
     }
   }
 
-  /**
-   * Converts a SearchResult from the SearchProvider into our internal
-   * SearchResultEntry list.
-   */
   private List<SearchWaveletDataProvider.SearchResultEntry> convertSearchResult(
       SearchResult searchResult) {
     List<SearchWaveletDataProvider.SearchResultEntry> entries = new ArrayList<>();
-    if (searchResult == null || searchResult.getDigests() == null) {
-      return entries;
-    }
-    for (SearchResult.Digest digest : searchResult.getDigests()) {
-      // Digest has no getAuthor(); use first participant as creator if available.
-      List<String> participants = digest.getParticipants();
-      String creator = (participants != null && !participants.isEmpty())
-          ? participants.get(0) : "";
-      entries.add(new SearchWaveletDataProvider.SearchResultEntry(
-          digest.getWaveId(),
-          digest.getTitle() != null ? digest.getTitle() : "",
-          digest.getSnippet() != null ? digest.getSnippet() : "",
-          digest.getLastModified(),
-          creator,
-          participants != null ? participants.size() : 0,
-          digest.getUnreadCount(),
-          digest.getBlipCount()));
+    if (searchResult != null && searchResult.getDigests() != null) {
+      for (SearchResult.Digest digest : searchResult.getDigests()) {
+        List<String> participants = digest.getParticipants();
+        String creator =
+            participants != null && !participants.isEmpty() ? participants.get(0) : "";
+        entries.add(
+            new SearchWaveletDataProvider.SearchResultEntry(
+                digest.getWaveId(),
+                digest.getTitle() != null ? digest.getTitle() : "",
+                digest.getSnippet() != null ? digest.getSnippet() : "",
+                digest.getLastModified(),
+                creator,
+                participants != null ? participants.size() : 0,
+                digest.getUnreadCount(),
+                digest.getBlipCount()));
+      }
     }
     return entries;
   }
 
-  /**
-   * Shuts down the background scheduler. Called during server shutdown.
-   */
-  public void shutdown() {
-    scheduler.shutdownNow();
+  public boolean isPublicBatchingEnabled() {
+    return batchingPolicy.isPublicBatchingEnabled();
   }
 
-  /**
-   * Simple per-user rate limiter using a sliding window counter.
-   */
-  private static class UpdateCounter {
+  public long getPublicBatchMs() {
+    return batchingPolicy.getPublicBatchMs();
+  }
+
+  public int getPublicFanoutThreshold() {
+    return batchingPolicy.getPublicFanoutThreshold();
+  }
+
+  public int getHighParticipantThreshold() {
+    return batchingPolicy.getHighParticipantThreshold();
+  }
+
+  public long getWaveUpdateCount() {
+    return waveUpdateCount.get();
+  }
+
+  public long getLowLatencyWaveUpdateCount() {
+    return lowLatencyWaveUpdateCount.get();
+  }
+
+  public long getSlowPathWaveUpdateCount() {
+    return slowPathWaveUpdateCount.get();
+  }
+
+  public long getSlowPathFlushCount() {
+    return slowPathFlushCount.get();
+  }
+
+  public long getSlowPathQueuedSubscriptionCount() {
+    return slowPathQueuedSubscriptionCount.get();
+  }
+
+  public long getSearchRecomputeCount() {
+    return searchRecomputeCount.get();
+  }
+
+  public int getActiveSubscriptionCount() {
+    return indexer.getSubscriptionCount();
+  }
+
+  public int getIndexedWaveCount() {
+    return indexer.getIndexedWaveCount();
+  }
+
+  public void shutdown() {
+    scheduler.shutdownNow();
+    pendingTasks.clear();
+    slowPathBatches.clear();
+  }
+
+  static final class SearchUpdateBatchingPolicy {
+
+    private static final boolean DEFAULT_PUBLIC_BATCHING_ENABLED = true;
+    private static final long DEFAULT_PUBLIC_BATCH_MS = 15000;
+    private static final int DEFAULT_PUBLIC_FANOUT_THRESHOLD = 25;
+    private static final int DEFAULT_HIGH_PARTICIPANT_THRESHOLD = 25;
+
+    enum UpdateMode {
+      LOW_LATENCY,
+      POLL_EQUIVALENT
+    }
+
+    private final boolean publicBatchingEnabled;
+    private final long publicBatchMs;
+    private final int publicFanoutThreshold;
+    private final int highParticipantThreshold;
+
+    SearchUpdateBatchingPolicy(Config config) {
+      this(
+          config.hasPath("search.ot_search_public_batching_enabled")
+              ? config.getBoolean("search.ot_search_public_batching_enabled")
+              : DEFAULT_PUBLIC_BATCHING_ENABLED,
+          config.hasPath("search.ot_search_public_batch_ms")
+              ? config.getLong("search.ot_search_public_batch_ms")
+              : DEFAULT_PUBLIC_BATCH_MS,
+          config.hasPath("search.ot_search_public_fanout_threshold")
+              ? config.getInt("search.ot_search_public_fanout_threshold")
+              : DEFAULT_PUBLIC_FANOUT_THRESHOLD,
+          config.hasPath("search.ot_search_high_participant_threshold")
+              ? config.getInt("search.ot_search_high_participant_threshold")
+              : DEFAULT_HIGH_PARTICIPANT_THRESHOLD);
+    }
+
+    SearchUpdateBatchingPolicy(
+        boolean publicBatchingEnabled,
+        long publicBatchMs,
+        int publicFanoutThreshold,
+        int highParticipantThreshold) {
+      this.publicBatchingEnabled = publicBatchingEnabled;
+      this.publicBatchMs = Math.max(0L, publicBatchMs);
+      this.publicFanoutThreshold = Math.max(1, publicFanoutThreshold);
+      this.highParticipantThreshold = Math.max(1, highParticipantThreshold);
+    }
+
+    static SearchUpdateBatchingPolicy defaults() {
+      return new SearchUpdateBatchingPolicy(
+          DEFAULT_PUBLIC_BATCHING_ENABLED,
+          DEFAULT_PUBLIC_BATCH_MS,
+          DEFAULT_PUBLIC_FANOUT_THRESHOLD,
+          DEFAULT_HIGH_PARTICIPANT_THRESHOLD);
+    }
+
+    UpdateMode classify(ReadableWaveletData wavelet, int affectedSubscriptionCount) {
+      boolean highFanout = affectedSubscriptionCount >= publicFanoutThreshold;
+      boolean publicWave = isPublicWavelet(wavelet);
+      boolean highParticipantCount = hasHighParticipantCount(wavelet);
+      boolean shouldUseSlowPath =
+          publicBatchingEnabled && highFanout && (publicWave || highParticipantCount);
+      return shouldUseSlowPath ? UpdateMode.POLL_EQUIVALENT : UpdateMode.LOW_LATENCY;
+    }
+
+    boolean isPublicBatchingEnabled() {
+      return publicBatchingEnabled;
+    }
+
+    long getPublicBatchMs() {
+      return publicBatchMs;
+    }
+
+    int getPublicFanoutThreshold() {
+      return publicFanoutThreshold;
+    }
+
+    int getHighParticipantThreshold() {
+      return highParticipantThreshold;
+    }
+
+    private boolean hasHighParticipantCount(ReadableWaveletData wavelet) {
+      return wavelet != null && wavelet.getParticipants().size() >= highParticipantThreshold;
+    }
+
+    private boolean isPublicWavelet(ReadableWaveletData wavelet) {
+      if (wavelet == null) {
+        return false;
+      }
+      ParticipantId sharedDomainParticipant =
+          ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(wavelet.getWaveId().getDomain());
+      return WaveletDataUtil.isPublicWavelet(wavelet, sharedDomainParticipant);
+    }
+  }
+
+  private static final class SlowPathBatchState {
+    private final Set<SearchIndexer.SubscriptionKey> pendingKeys = new HashSet<>();
+    private ScheduledFuture<?> future;
+  }
+
+  private static final class TaskHolder {
+    private final AtomicLong generation = new AtomicLong();
+    private ScheduledFuture<?> future;
+    private boolean queued;
+  }
+
+  private enum UpdateOutcome {
+    APPLIED,
+    STALE,
+    FAILED
+  }
+
+  private static final class UpdateCounter {
     private final int maxPerSecond;
     private long windowStart;
     private int count;
     private int queueSize;
 
-    UpdateCounter(int maxPerSecond) {
+    private UpdateCounter(int maxPerSecond) {
       this.maxPerSecond = maxPerSecond;
       this.windowStart = System.currentTimeMillis();
-      this.count = 0;
-      this.queueSize = 0;
     }
 
     synchronized boolean tryAcquire() {
@@ -354,11 +613,11 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
         windowStart = now;
         count = 0;
       }
-      if (count >= maxPerSecond) {
-        return false;
+      boolean available = count < maxPerSecond;
+      if (available) {
+        count++;
       }
-      count++;
-      return true;
+      return available;
     }
 
     synchronized int getQueueSize() {

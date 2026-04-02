@@ -170,7 +170,7 @@ Phase 0 must also enumerate and clean every gadget-coupled file outside the gadg
 | `wave/src/main/java/com/google/wave/api/BlipData.java` | Deserializes gadget elements into `com.google.wave.api.Gadget` | Remove gadget element deserialization or isolate it with the server-only compatibility module |
 | `wave/src/main/java/com/google/wave/api/data/ApiView.java` | Matches gadget element properties in the data API | Remove gadget element matching from the view serializer path or isolate it with the server-only compatibility module |
 | `wave/src/main/java/com/google/wave/api/data/ElementSerializer.java` | Serializes gadget elements in the data API | Remove gadget serialization support or isolate it with the server-only compatibility module |
-| `wave/src/main/java/com/google/wave/api/impl/ElementGsonAdaptor.java` | Gson adaptor reconstructs gadget elements | Remove gadget JSON adaptor support or isolate it with the server-only compatibility module |
+| `wave/src/main/java/com/google/wave/api/impl/ElementGsonAdaptor.java` | Gson adapter reconstructs gadget elements | Remove gadget JSON adapter support or isolate it with the server-only compatibility module |
 | `wave/src/main/java/com/google/wave/api/event/EventHandler.java` | Declares `onGadgetStateChanged(...)` | Delete the gadget-state callback from the robot event contract |
 | `wave/src/main/java/com/google/wave/api/event/EventType.java` | Defines `GADGET_STATE_CHANGED` event type | Delete the gadget-state event enum entry |
 | `wave/src/main/java/com/google/wave/api/event/GadgetStateChangedEvent.java` | Gadget-specific robot event payload | Delete the event type class |

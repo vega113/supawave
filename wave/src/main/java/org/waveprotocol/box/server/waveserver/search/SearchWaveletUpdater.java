@@ -264,9 +264,11 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
           scheduleUpdate(key, taskKey, 100, taskHolder, retryGeneration);
           return;
         }
-        taskHolder.future = null;
       }
-      executeSearchUpdate(key, taskKey, taskHolder, generation, counter);
+      boolean completed = executeSearchUpdateIfCurrent(key, taskHolder, generation);
+      if (completed) {
+        completePendingUpdate(taskKey, taskHolder, generation, counter);
+      }
     } catch (Exception e) {
       LOG.severe("Failed to update search wavelet for " + key, e);
     }
@@ -294,21 +296,15 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     }
   }
 
-  private void executeSearchUpdate(
+  private boolean executeSearchUpdateIfCurrent(
       SearchIndexer.SubscriptionKey key,
-      String taskKey,
       TaskHolder taskHolder,
-      long generation,
-      UpdateCounter counter) {
+      long generation) {
     try {
       String rawQuery = indexer.getRawQuery(key);
       if (rawQuery == null) {
-        synchronized (taskHolder) {
-          if (finishPendingUpdate(taskKey, taskHolder, generation, counter)) {
-            LOG.fine("Subscription " + key + " no longer registered, skipping update");
-          }
-        }
-        return;
+        LOG.fine("Subscription " + key + " no longer registered, skipping update");
+        return true;
       }
       ParticipantId user = key.getUser();
       searchRecomputeCount.incrementAndGet();
@@ -316,8 +312,8 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
           searchProvider.search(
               user, rawQuery, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
       synchronized (taskHolder) {
-        if (!finishPendingUpdate(taskKey, taskHolder, generation, counter)) {
-          return;
+        if (taskHolder.generation.get() != generation) {
+          return false;
         }
         if (snapshotPublisher != null) {
           snapshotPublisher.publishUpdate(user, rawQuery, searchResult);
@@ -325,32 +321,32 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
           updateCachedSearchWavelet(key, user, rawQuery, searchResult);
         }
       }
+      return true;
     } catch (Exception e) {
-      synchronized (taskHolder) {
-        finishPendingUpdate(taskKey, taskHolder, generation, counter);
-      }
       LOG.severe("Failed to update search wavelet for " + key, e);
+      return false;
     }
   }
 
-  private boolean finishPendingUpdate(
+  private void completePendingUpdate(
       String taskKey,
       TaskHolder taskHolder,
       long generation,
       UpdateCounter counter) {
-    if (taskHolder.generation.get() != generation) {
-      return false;
+    synchronized (taskHolder) {
+      if (taskHolder.generation.get() != generation) {
+        return;
+      }
+      if (!pendingTasks.remove(taskKey, taskHolder)) {
+        return;
+      }
+      taskHolder.queued = false;
+      taskHolder.future = null;
+      if (counter != null) {
+        counter.decrementQueue();
+      }
+      firstSeenTimestamps.remove(taskKey);
     }
-    if (!pendingTasks.remove(taskKey, taskHolder)) {
-      return false;
-    }
-    taskHolder.queued = false;
-    taskHolder.future = null;
-    if (counter != null) {
-      counter.decrementQueue();
-    }
-    firstSeenTimestamps.remove(taskKey);
-    return true;
   }
 
   private void scheduleUpdate(
@@ -365,7 +361,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
             delayMs,
             TimeUnit.MILLISECONDS);
     synchronized (taskHolder) {
-      if (taskHolder.generation.get() == generation) {
+      if (taskHolder.generation.get() == generation && taskHolder.queued) {
         taskHolder.future = future;
       } else {
         future.cancel(false);

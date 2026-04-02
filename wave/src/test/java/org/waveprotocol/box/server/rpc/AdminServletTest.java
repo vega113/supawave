@@ -49,10 +49,10 @@ public final class AdminServletTest {
             Collections.singletonMap(ADMIN_ID.getAddress(), true)));
 
     SearchWaveletUpdater searchWaveletUpdater = mock(SearchWaveletUpdater.class);
-    when(searchWaveletUpdater.isPublicBatchingEnabled()).thenReturn(true);
-    when(searchWaveletUpdater.getPublicBatchMs()).thenReturn(15_000L);
-    when(searchWaveletUpdater.getPublicFanoutThreshold()).thenReturn(25);
-    when(searchWaveletUpdater.getHighParticipantThreshold()).thenReturn(25);
+    when(searchWaveletUpdater.isPublicBatchingEnabled()).thenReturn(false);
+    when(searchWaveletUpdater.getPublicBatchMs()).thenReturn(0L);
+    when(searchWaveletUpdater.getPublicFanoutThreshold()).thenReturn(3);
+    when(searchWaveletUpdater.getHighParticipantThreshold()).thenReturn(9);
     when(searchWaveletUpdater.getActiveSubscriptionCount()).thenReturn(7);
     when(searchWaveletUpdater.getIndexedWaveCount()).thenReturn(11);
     when(searchWaveletUpdater.getWaveUpdateCount()).thenReturn(13L);
@@ -67,10 +67,10 @@ public final class AdminServletTest {
 
     assertFalse(otSearch.getBoolean("configEnabled"));
     assertTrue(otSearch.getBoolean("enabled"));
-    assertTrue(otSearch.getBoolean("publicBatchingEnabled"));
-    assertEquals(15_000L, otSearch.getLong("publicBatchMs"));
-    assertEquals(25, otSearch.getInt("publicFanoutThreshold"));
-    assertEquals(25, otSearch.getInt("highParticipantThreshold"));
+    assertFalse(otSearch.getBoolean("publicBatchingEnabled"));
+    assertEquals(0L, otSearch.getLong("publicBatchMs"));
+    assertEquals(3, otSearch.getInt("publicFanoutThreshold"));
+    assertEquals(9, otSearch.getInt("highParticipantThreshold"));
     assertEquals(7, otSearch.getInt("activeSubscriptions"));
     assertEquals(11, otSearch.getInt("indexedWaves"));
     assertEquals(13L, otSearch.getLong("waveUpdateCount"));

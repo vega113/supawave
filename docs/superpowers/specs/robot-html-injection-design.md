@@ -536,8 +536,9 @@ Recommended sanitizer policy for v1:
     - Table: `colspan`, `rowspan`
   - **If custom data-* attributes are needed:** Implement a prefix check (e.g., `attr.startsWith("data-") && isWhitelistedDataAttribute(attr)`) instead of relying on glob matching
   - **Rationale:** Set.contains() is exact-match only; to support `data-*` patterns, either enumerate specific attributes or implement custom prefix logic
-  - clamp payload size before and after sanitization
-  - canonicalize the sanitized output so equal input produces equal stored output
+  - **Sanitizer checklist:**
+    - clamp payload size before and after sanitization
+    - canonicalize the sanitized output so equal input produces equal stored output
 
 Important design choice:
 

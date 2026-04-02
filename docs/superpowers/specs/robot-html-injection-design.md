@@ -878,7 +878,7 @@ Use a **combination of approaches** depending on use case:
 
 wavelet.update_robot_state(
   blip_id="b+abc123",
-  element_index=2,  # index of <robot-html> element
+  robot_html_key="build-card-123",
   state_key="dashboard-prefs",
   state_type="json",
   state_value={"refreshInterval": 60, "timezone": "PST", "collapsed": true}
@@ -892,17 +892,24 @@ public class RobotStateUpdateService extends OperationService {
   
   public void execute(Robot robot, OperationContext context) {
     String blipId = context.getBlipId();
-    int htmlElemIndex = context.getParameter("elementIndex");
+    String robotHtmlKey = context.getParameter("robotHtmlKey");
     String stateKey = context.getParameter("stateKey");
+    String stateVersion = context.getParameter("stateVersion", "1");
     String stateType = context.getParameter("stateType");  // json|xml|text
     String stateValue = context.getParameter("stateValue");
     
     Document doc = context.getBlip(blipId).getContent();
     
-    // Find the <robot-html> element at the given index
-    XmlElement htmlElem = (XmlElement) doc.getElementAt(htmlElemIndex);
-    if (!htmlElem.getTagName().equals("robot-html")) {
-      throw new BadRequestException("Element at index is not <robot-html>");
+    // Find the <robot-html> element by stable key rather than document index
+    XmlElement htmlElem = null;
+    for (XmlElement child : doc.getChildren()) {
+      if ("robot-html".equals(child.getTagName()) && robotHtmlKey.equals(child.getAttribute("key"))) {
+        htmlElem = child;
+        break;
+      }
+    }
+    if (htmlElem == null) {
+      throw new BadRequestException("No <robot-html> element found for key " + robotHtmlKey);
     }
     
     // Validate state value (parse JSON if type=="json")
@@ -925,13 +932,17 @@ public class RobotStateUpdateService extends OperationService {
     if (stateElem == null) {
       stateElem = XmlElement.create("robot-state");
       htmlElem.appendChild(stateElem);
+      stateElem.setAttribute("data-robot-id", robot.getId());
+    } else if (!robot.getId().equals(stateElem.getAttribute("data-robot-id"))) {
+      throw new UnauthorizedException("Only robot " + stateElem.getAttribute("data-robot-id")
+        + " can update this state");
     }
     
     // Update state attributes and content
     stateElem.setAttribute("type", stateType);
     stateElem.setAttribute("data-state-key", stateKey);
+    stateElem.setAttribute("data-version", stateVersion);
     stateElem.setAttribute("data-timestamp", Instant.now().toString());  // ISO 8601
-    stateElem.setAttribute("data-robot-id", robot.getId());
     stateElem.setText(stateValue);
   }
 }
@@ -960,9 +971,10 @@ let state = JSON.parse(stateJson);
 document.getElementById("refreshInterval").value = state.refreshInterval;
 
 // On user action, signal parent frame (robot can listen)
+const hostOrigin = document.currentScript.dataset.hostOrigin;
 window.parent.postMessage(
   {type: "robot-state-change", stateKey: "dashboard-prefs", newValue: {...}},
-  origin
+  hostOrigin
 );
 ```
 
@@ -1028,22 +1040,20 @@ Scenario: User A and User B both click "refresh" at same time
 
 **IF Partial/Field-Level Updates are Needed (Advanced):**
 
-For complex widgets with many fields (e.g., 20+ settings), robots can use Wave's native **updateAttributes()** operation for field-level merging:
+For complex widgets with many fields (e.g., 20+ settings), robots should keep the mutable fields in the state payload and update that payload atomically:
 
 ```java
-// Instead of whole-value replacement
-stateElem.setText(newFullState);  // ← Avoids this (whole-value)
-
-// Use field-level updates
-AttributesUpdate update = Attributes.updateWith("refreshInterval", "60")
-  .with("timezone", "PST");
-stateElem.getAttributes().applyAndCompound(update);  // ← Wave merges field-level
+JsonObject state = JsonParser.parseString(stateElem.getText()).getAsJsonObject();
+state.addProperty("refreshInterval", 60);
+state.addProperty("timezone", "PST");
+stateElem.setText(state.toString());  // state stays in the payload body
 ```
 
-This allows Wave's OT to merge independent field updates from different robots. However, this requires:
-- Careful schema design (which fields are independent?)
-- Agreement on conflict resolution (what if two robots update same field?)
-- Test coverage for OT merge semantics
+This keeps the schema consistent:
+
+- metadata stays in element attributes
+- the mutable state stays in the text payload
+- robot code can still do logical field-by-field updates before writing the new payload
 
 **Recommendation for v1**: **Use whole-value replacement + single-writer model.** Field-level updates can be added post-v1 if needed.
 
@@ -1109,9 +1119,12 @@ public class RobotStateUpdateService extends OperationService {
     if (stateElem == null) {
       stateElem = XmlElement.create("robot-state");
       htmlElem.appendChild(stateElem);
+      stateElem.setAttribute("data-robot-id", robot.getId());
+    } else if (!robot.getId().equals(stateElem.getAttribute("data-robot-id"))) {
+      throw new UnauthorizedException("Only robot " + stateElem.getAttribute("data-robot-id")
+        + " can update this state");
     }
     
-    stateElem.setAttribute("data-robot-id", robot.getId());
     stateElem.setAttribute("data-state-key", stateKey);
     stateElem.setAttribute("data-version", stateVersion);
     stateElem.setAttribute("type", stateType);
@@ -1324,11 +1337,12 @@ When iframe script execution is enabled (allow-scripts), robots can implement in
 
 ```python
 # v2+: With interactive iframe (allow-scripts enabled)
+# hostOrigin is injected by the parent page/template, not derived from the iframe origin.
 html = f"""
   <div class="weather-widget">
     <h3>Weather in {location}</h3>
     <p>{weather['condition']}, {weather['temp']}°{units[0]}</p>
-    <button onclick="window.parent.postMessage({{'action': 'refresh', 'elementKey': 'build-card-123'}}, window.location.origin)">Refresh</button>
+    <button onclick="window.parent.postMessage({{'action': 'refresh', 'elementKey': 'build-card-123'}}, '{hostOrigin}')">Refresh</button>
   </div>
 """
 
@@ -1340,7 +1354,7 @@ def handle_iframe_message(event, wavelet):
     ...
 ```
 
-**v2+ security requirement**: When `allow-scripts` is enabled, the host-side `message` event listener MUST validate `event.origin` against a known allowlist (e.g., the Wave server origin) and verify `event.source` matches the expected iframe's `contentWindow` before acting on any message. The iframe MUST NOT use wildcard `'*'` as the `postMessage` target origin. This prevents cross-frame message spoofing from unrelated iframes or windows.
+**v2+ security requirement**: When `allow-scripts` is enabled, the host-side `message` event listener MUST validate `event.origin` against a known allowlist (e.g., the Wave server origin) and verify `event.source` matches the expected iframe's `contentWindow` before acting on any message. The iframe MUST use the host's explicit allowlisted origin string as the `postMessage` target origin and MUST NOT use wildcard `'*'`. This prevents cross-frame message spoofing from unrelated iframes or windows.
 
 **v1 constraint**: This interactive pattern requires `allow-scripts` in iframe sandbox (v2+). Current design uses static server-rendered HTML.
 

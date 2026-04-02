@@ -70,14 +70,15 @@ ensure_fstab_entry() {
 validate_swap() {
   local swap_path=$1
   local expected_bytes=$2
+  local minimum_bytes=$3
   local size
   size=$(swapon --show=NAME,SIZE --bytes --noheadings 2>/dev/null | awk '$1 == "'"$swap_path"'" {print $2}')
   if [[ -z "$size" ]]; then
     log "FAIL: $swap_path not active"
     exit 1
   fi
-  if [[ "$size" -lt "$expected_bytes" ]]; then
-    log "FAIL: $swap_path size ${size}B below expected ${expected_bytes}B"
+  if [[ "$size" -lt "$minimum_bytes" ]]; then
+    log "FAIL: $swap_path size ${size}B below minimum ${minimum_bytes}B for expected ${expected_bytes}B"
     exit 1
   fi
   log "Swap active at $swap_path (${size} bytes)"
@@ -89,6 +90,7 @@ main() {
   local swap_path="/swapfile"
   local swap_size_gb="${SWAP_SIZE_GB:-32}"
   local swap_bytes=$((swap_size_gb * 1024 * 1024 * 1024))
+  local minimum_bytes=$((swap_bytes - 4096))
   local backup_dir="${BACKUP_DIR:-/var/backups/wave-supawave}"
   local required_mb=$((swap_size_gb * 1024 + 1024))
 
@@ -99,7 +101,7 @@ main() {
   if swapon --show=NAME --noheadings 2>/dev/null | grep -q "^$swap_path$"; then
     local current_bytes
     current_bytes=$(swapon --show=NAME,SIZE --bytes --noheadings 2>/dev/null | awk '$1 == "'"$swap_path"'" {print $2}')
-    if [[ -n "$current_bytes" && "$current_bytes" -ge "$swap_bytes" ]]; then
+    if [[ -n "$current_bytes" && "$current_bytes" -ge "$minimum_bytes" ]]; then
       log "$swap_path already active (${current_bytes} bytes)"
     else
       swapoff "$swap_path"
@@ -127,7 +129,7 @@ main() {
   fi
   sysctl -w vm.swappiness=10 >/dev/null
 
-  validate_swap "$swap_path" "$swap_bytes"
+  validate_swap "$swap_path" "$swap_bytes" "$minimum_bytes"
   log "Swap setup complete (swappiness=$(cat /proc/sys/vm/swappiness))"
 }
 

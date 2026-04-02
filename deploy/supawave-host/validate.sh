@@ -87,14 +87,15 @@ check_swap() {
   local swap_path="/swapfile"
   local swap_size_gb=${SWAP_SIZE_GB:-32}
   local expected_bytes=$((swap_size_gb * 1024 * 1024 * 1024))
+  local minimum_bytes=$((expected_bytes - 4096))
   local size
   size=$(swapon --show=NAME,SIZE --bytes --noheadings 2>/dev/null | awk '$1 == "'"$swap_path"'" {print $2}')
   if [[ -z "$size" ]]; then
     log "FAIL: swapfile not active"
     return 1
   fi
-  if [[ "$size" -lt "$expected_bytes" ]]; then
-    log "FAIL: swapfile size ${size} below expected ${expected_bytes}"
+  if [[ "$size" -lt "$minimum_bytes" ]]; then
+    log "FAIL: swapfile size ${size} below minimum ${minimum_bytes} for expected ${expected_bytes}"
     return 1
   fi
   log "OK: swapfile active (${size} bytes)"

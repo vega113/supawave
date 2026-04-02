@@ -679,6 +679,399 @@ Using a new inner element avoids broad changes to:
 - focus traversal
 - editor lifecycle
 
+## 4.8 State Management for Robot-Injected HTML
+
+**Critical consideration:** OpenSocial gadgets supported persistent state (preferences and mutable widget state). Robot-injected HTML requires an explicit strategy for managing state across multiple participants and concurrent edits.
+
+### 4.8.1 OpenSocial State Model (Reference)
+
+Gadgets stored state in two locations:
+- **Public state (prefs)**: Element attributes `<gadget ... prefs="{...}" />` — visible to all wave participants
+- **Private state (supplement)**: Per-user storage accessible only to that user — not shared
+- **Mutable state**: Gadget state attribute could be updated by the gadget JavaScript code via RPC back to the server
+
+This allowed interactive gadgets to:
+- Store user preferences (displayed columns, settings)
+- Persist transient UI state (scroll position, collapsed sections)
+- Coordinate with other participants on shared state
+
+### 4.8.2 Robot-Injected HTML: State Storage Options
+
+Robot-injected HTML cannot run arbitrary JavaScript that directly mutates wavelet state. Instead, robots have several options for managing state:
+
+#### **Option A: Wave-Stored State (Recommended for Collaborative State)**
+
+Store state in a new `<robot-state>` element (sibling to or child of `<robot-html>`).
+
+```xml
+<robot-html namespace="robot.incubator-wave.org" data-robot-id="mybot">
+  <data>&lt;h1&gt;Widget with state&lt;/h1&gt;</data>
+  <robot-state type="json" data-key="widget-prefs">
+    {"collapsed": false, "sortBy": "date", "filterTag": "important"}
+  </robot-state>
+</robot-html>
+```
+
+**Semantics:**
+- State is stored in the wavelet, persisted with the HTML element
+- All wave participants can read the state
+- Robots can modify state via new `robot_state.update` operation
+- Concurrent updates use **last-writer-wins** (whole-value replacement, not character-level merge)
+- State survives wave snapshots and is exported with wave data
+
+**Pros:**
+- State is in the wave (decentralized, no external dependencies)
+- Participants can see state changes in real-time
+- Works with existing Wave infrastructure (snapshots, export, etc.)
+
+**Cons:**
+- Last-writer-wins semantics for concurrent updates (no character-level merging)
+- State becomes part of the blip; contributes to blip size
+- Schema must register the `<robot-state>` element
+- Shared state may not be appropriate for all use cases (some state should be private)
+
+#### **Option B: Robot-Hosted State (Recommended for Private/Ephemeral State)**
+
+Robots maintain an external database (Redis, PostgreSQL, DynamoDB) mapping wave-id → state.
+
+```
+Robot logic:
+1. When rendering HTML: fetch state from robot DB (wave-id lookup)
+2. Include state in HTML template variables
+3. Inject final HTML into wave
+4. User action → robot processes event → updates robot DB
+5. Next render fetches updated state
+
+Wave blip contains only:
+<robot-html ...>
+  <data>&lt;h1&gt;Cached state snapshot from robot DB&lt;/h1&gt;</data>
+</robot-html>
+```
+
+**Semantics:**
+- State is external to the wave
+- Robot controls state persistence, versioning, TTL
+- State is not shared in wave snapshots or exports (only the rendered HTML is)
+- Robot is responsible for consistency (e.g., handling wave deletion, cleanup)
+
+**Pros:**
+- Full control over state semantics (merging, versioning, access control)
+- State not constrained by Wave OT model
+- Can implement fine-grained access control (user X can see state Y)
+- Ephemeral state (auto-expire, GC old state)
+
+**Cons:**
+- Requires robot to run persistent service (availability dependency)
+- State not in the wave (requires robot auth to inspect)
+- Snapshots/exports don't include state (lossy)
+- Adds operational complexity (backup, monitoring, cleanup)
+
+#### **Option C: Hybrid (Wave Index + Robot Storage)**
+
+Wave stores a **state reference** (robot-id + state-version-id); robot DB holds the actual state.
+
+```xml
+<robot-html namespace="robot.incubator-wave.org" data-robot-id="mybot">
+  <data>&lt;h1&gt;Widget with hybrid state&lt;/h1&gt;</data>
+  <robot-state-ref version-id="v2" storage="robot-db" />
+</robot-html>
+```
+
+**Semantics:**
+- Wave records that state exists and its version
+- Actual state stored in robot database
+- Robot can validate/upgrade state versions (e.g., migrate v1 → v2 on next render)
+- Wave participants know state exists but don't see it directly
+
+**Pros:**
+- Flexibility: robot can implement rich state semantics (merging, versioning, TTL)
+- Wave has state reference for auditing/debugging
+- Supports both shared and private state
+- Allows retroactive state cleanup (remove old versions)
+
+**Cons:**
+- Most complex option
+- Requires robot service + DB
+- Version skew possible if robot upgrades schema and old robots render stale HTML
+
+#### **Option D: Form-Based State (Recommended for Interactive Actions)**
+
+Use Wave's existing **FormElement** infrastructure for state that participants interact with.
+
+```
+Robot logic:
+1. Inject HTML for visual display
+2. Also inject FormElements (INPUT, TEXTAREA, CHECKBOX, etc.)
+3. Participants fill form fields
+4. Robot processes form submission via Wave events
+5. Robot reads form values from blip document
+```
+
+**Semantics:**
+- Form state is stored in the blip as FormElement properties
+- Automatically persisted and synchronized across participants
+- Standard Wave element type (already supported by client, server, serializers)
+- Participants can edit form fields directly in the Wave UI
+
+**Pros:**
+- Reuses proven, battle-tested Wave infrastructure
+- State is visible and editable by participants (transparent)
+- No new code needed for serialization/deserialization
+- Works well for data-entry use cases
+
+**Cons:**
+- Limited to form-like state (not arbitrary JSON)
+- Visual presentation mixed with data representation
+- Not suitable for ephemeral/computed state
+
+### 4.8.3 Recommended Strategy (Multi-Tier)
+
+Use a **combination of approaches** depending on use case:
+
+| Use Case | Recommended Option | Rationale |
+|----------|-------------------|-----------|
+| Shared widget preferences (all users see/edit same settings) | **Option A** (Wave-stored state) | Simple, transparent, in-wave |
+| User action history, notifications, private preferences | **Option B** (Robot-hosted) | Private, no shared storage overhead |
+| Data entry forms where participants input information | **Option D** (FormElements) | Standard Wave, user-editable |
+| Complex state with versioning/migration | **Option C** (Hybrid) | Full control while keeping wave reference |
+
+### 4.8.4 Implementation: Wave-Stored State (Option A)
+
+**New element type:** `<robot-state>`
+
+```xml
+<robot-html namespace="robot.incubator-wave.org" data-robot-id="mybot">
+  <data>&lt;h1&gt;Dashboard&lt;/h1&gt;&lt;p id="status"&gt;...&lt;/p&gt;</data>
+  <robot-state type="json" data-state-key="dashboard-prefs">
+    {"refreshInterval": 30, "timezone": "UTC", "collapsed": false}
+  </robot-state>
+</robot-html>
+```
+
+**Wire format:**
+- Element tag: `<robot-state>`
+- Attributes:
+  - `type` (required): `"json"`, `"xml"`, `"text"` (format of state content)
+  - `data-state-key` (optional): Application key for this state (useful if multiple state elements)
+  - `data-timestamp` (optional): Last modified time
+  - `data-robot-id` (optional): Which robot last modified
+- Text content: State value (JSON, XML, or plain text)
+
+**Robot API operation:**
+
+```python
+# Pseudo-code for robot library
+
+wavelet.update_robot_state(
+  blip_id="b+abc123",
+  element_index=2,  # index of <robot-html> element
+  state_key="dashboard-prefs",
+  state_type="json",
+  state_value={"refreshInterval": 60, "timezone": "PST", "collapsed": true}
+)
+```
+
+**Server-side implementation:**
+
+```java
+public class RobotStateUpdateService extends OperationService {
+  
+  public void execute(Robot robot, OperationContext context) {
+    String blipId = context.getBlipId();
+    int htmlElemIndex = context.getParameter("elementIndex");
+    String stateKey = context.getParameter("stateKey");
+    String stateType = context.getParameter("stateType");  // json|xml|text
+    String stateValue = context.getParameter("stateValue");
+    
+    Document doc = context.getBlip(blipId).getContent();
+    
+    // Find the <robot-html> element at the given index
+    XmlElement htmlElem = (XmlElement) doc.getElementAt(htmlElemIndex);
+    if (!htmlElem.getTagName().equals("robot-html")) {
+      throw new BadRequestException("Element at index is not <robot-html>");
+    }
+    
+    // Validate state value (parse JSON if type=="json")
+    if ("json".equals(stateType)) {
+      try {
+        JsonParser.parse(stateValue);
+      } catch (JsonParseException e) {
+        throw new BadRequestException("Invalid JSON in state_value: " + e.getMessage());
+      }
+    }
+    
+    // Find or create <robot-state> child element
+    XmlElement stateElem = htmlElem.getFirstChild("robot-state");
+    if (stateElem == null) {
+      stateElem = XmlElement.create("robot-state");
+      htmlElem.appendChild(stateElem);
+    }
+    
+    // Update state attributes and content
+    stateElem.setAttribute("type", stateType);
+    stateElem.setAttribute("data-state-key", stateKey);
+    stateElem.setAttribute("data-timestamp", System.currentTimeMillis());
+    stateElem.setAttribute("data-robot-id", robot.getId());
+    stateElem.setText(stateValue);
+  }
+}
+```
+
+**Client-side usage:**
+
+In the GWT renderer, when rendering `<robot-html>` with a child `<robot-state>`, the element handler can:
+1. Parse the state JSON
+2. Make it available to JavaScript in the iframe (via hidden data attributes or postMessage)
+3. Store it for future robot interactions
+
+```javascript
+// In injected HTML (inside iframe)
+let stateJson = document.currentScript.dataset.robotState;
+let state = JSON.parse(stateJson);
+
+// Use state to initialize UI
+document.getElementById("refreshInterval").value = state.refreshInterval;
+
+// On user action, signal parent frame (robot can listen)
+window.parent.postMessage(
+  {type: "robot-state-change", stateKey: "dashboard-prefs", newValue: {...}},
+  origin
+);
+```
+
+### 4.8.5 Concurrent State Updates and Merging
+
+**Wave OT Semantics:** Element attributes are **last-writer-wins** (whole-value replacement).
+
+Scenario:
+- Participant A updates state: `refreshInterval: 30 → 60`
+- Participant B (offline) updates state: `timezone: UTC → PST` (based on older state)
+- Both reconnect and submit
+
+Result:
+- Last write wins: whichever update reaches the server last overwrites the previous one
+- Participant B's `timezone` change is lost (overwritten by A's full state value)
+
+**Mitigation strategies:**
+
+1. **Operational Transform for state** (complex):
+   - Implement custom OT for robot-state attributes
+   - Robots merge state updates (e.g., `Object.assign(oldState, deltaState)`)
+   - Requires custom conflict resolution logic
+
+2. **Client-side conflict resolution** (recommended):
+   - Robot polls state periodically (e.g., fetch state before update)
+   - Detect conflicts and re-render HTML with merged state
+   - Participants see a "state conflict" notification and re-apply their change
+
+3. **Versioned state with merge function** (Option C hybrid):
+   - Robot DB tracks state versions
+   - Merge function defined by robot (e.g., "later timestamp wins", "sum numbers", etc.)
+   - Wave stores version reference only
+
+4. **Restrict state updates to single robot** (simplest):
+   - Only the originating robot can update its own state
+   - Participants trigger robot actions (via FormElements or Wave events)
+   - Robot updates state atomically
+   - Avoids concurrent multi-writer conflicts
+
+**Recommendation for v1:** Option 4 (single-writer) + client-side conflict detection if needed.
+
+### 4.8.6 State Lifecycle and Cleanup
+
+**Persistence:**
+- `<robot-state>` elements are persistent (part of the blip)
+- They are included in snapshots, exports, and diffs
+- They survive wave archival, deletion (follow blip lifecycle)
+
+**Cleanup:**
+- Robot can delete state: `wavelet.delete_robot_state(blip_id, element_index, state_key)`
+- When `<robot-html>` element is deleted, its `<robot-state>` children are deleted too
+- For Option B (robot-hosted): robot must implement cleanup when wave/blip is deleted (via Wave event hook)
+
+**TTL and Expiration:**
+- Wave does not support automatic TTL for elements
+- If robots want ephemeral state, use Option B (robot-hosted) with explicit TTL
+
+### 4.8.7 Migration Example: Gadget → Robot HTML with State
+
+**Old OpenSocial gadget:**
+```xml
+<gadget 
+  url="https://example.com/weather-gadget"
+  title="Weather Forecast"
+  state="{&quot;location&quot;: &quot;SF&quot;, &quot;units&quot;: &quot;C&quot;}"
+  prefs="{&quot;refreshInterval&quot;: 30}">
+</gadget>
+```
+
+**New robot-injected HTML:**
+```xml
+<robot-html namespace="robot.incubator-wave.org" data-robot-id="weather-robot">
+  <data>&lt;div class="weather-widget"&gt;&lt;h3&gt;Weather in SF&lt;/h3&gt;&lt;p&gt;Sunny, 22°C&lt;/p&gt;&lt;/div&gt;</data>
+  <robot-state type="json" data-state-key="user-prefs">
+    {"location": "SF", "units": "C", "refreshInterval": 30}
+  </robot-state>
+</robot-html>
+```
+
+**Robot code:**
+```python
+@robot.handle(document_ops.DocumentChangedEvent)
+def on_blip_change(event, wavelet):
+  blip = event.blip
+  
+  # Fetch user preferences from wave state (or robot DB)
+  state = wavelet.get_robot_state(blip.id, state_key="user-prefs")
+  location = state.get("location", "SF")
+  units = state.get("units", "C")
+  
+  # Fetch weather data from external API
+  weather = fetch_weather(location)  # Returns {temp: 22, condition: "Sunny"}
+  
+  # Render HTML with injected state
+  html = f"""
+    <div class="weather-widget">
+      <h3>Weather in {location}</h3>
+      <p>{weather['condition']}, {weather['temp']}°{units[0]}</p>
+      <button onclick="window.parent.postMessage({{'action': 'refresh'}}, '*')">Refresh</button>
+    </div>
+  """
+  
+  blip.inject_robot_html(html, state)
+
+# On user action (button click), robot receives message and updates
+def handle_user_action(action):
+  new_state = {
+    "location": "NYC",
+    "units": "F",
+    "refreshInterval": 15,
+    "lastUpdate": time.time()
+  }
+  wavelet.update_robot_state(blip_id, state_key="user-prefs", state_value=new_state)
+  # ... re-render HTML with new state
+```
+
+### 4.8.8 Testing State Management
+
+**Unit tests:**
+- State serialization/deserialization (JSON parsing, XML escaping)
+- State validation (size limits, type checking)
+- Concurrent update scenarios (last-writer-wins behavior)
+
+**Integration tests:**
+- Robot state update operation end-to-end
+- Wave snapshots including state elements
+- State cleanup on element deletion
+- State migration scenarios (v1 → v2 format changes)
+
+**Security tests:**
+- State injection (robots cannot inject malicious state that affects rendering)
+- State access control (verify only authorized robots can update)
+- Size limits (prevent DoS via bloated state)
+
+---
+
 ## 5. Migration Path from OpenSocial Gadgets
 
 Treat this as a product migration, not as a compatibility layer.

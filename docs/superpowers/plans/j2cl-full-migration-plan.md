@@ -318,7 +318,7 @@ Phase 4 search prerequisites:
 
 The root build is already SBT, but the browser client is still special-cased.
 
-- `build.sbt` excludes `org/waveprotocol/box/webclient/**`, `org/waveprotocol/wave/client/**`, `org/waveprotocol/wave/communication/gwt/**`, and `com/google/gwt/**` from the normal root compile path.
+- `build.sbt` excludes most of `org/waveprotocol/box/webclient/**`, `org/waveprotocol/wave/client/**`, `org/waveprotocol/wave/communication/gwt/**`, and `com/google/gwt/**` from the normal root compile path (with an explicit allowlist of `wave/client/**` files still needed server-side: `BlipReadStateMonitor.java`, `ThreadReadStateMonitor.java`, `RenderingRules.java`, `ReductionBasedRenderer.java`, and `WaveRenderer.java`).
 - The browser build is handled by a dedicated `compileGwt` task with an isolated `Gwt` configuration that still brings in `gwt-dev`, `gwt-user`, `gwt-codeserver`, and `guava-gwt`.
 - `compileGwt` either delegates to `./gradlew :wave:compileGwt` or invokes `com.google.gwt.dev.Compiler` directly.
 - `Compile / run`, `Universal / stage`, and `Universal / packageBin` still depend on `compileGwt`.
@@ -364,7 +364,9 @@ The current repo has no `j2cl-maven-plugin` configuration yet, so every item bel
 | File | Purpose |
 |---|---|
 | `j2cl/pom.xml` | Isolated J2CL build definition |
-| `j2cl/.mvn/wrapper/**` | Reproducible Maven wrapper for CI and local builds |
+| `j2cl/mvnw` | Maven wrapper executable script (must be `chmod +x` in CI) |
+| `j2cl/mvnw.cmd` | Maven wrapper for Windows CI environments |
+| `j2cl/.mvn/wrapper/**` | Maven wrapper JAR and properties for reproducible builds |
 | `j2cl/src/main/webapp/**` | Minimal host page and public assets for J2CL slices |
 | `j2cl/src/test/java/**` | Browser-facing J2CL tests for migrated slices |
 | `build.sbt` updates | SBT tasks that invoke Maven sidecar builds/tests |
@@ -653,7 +655,7 @@ Rollback:
 | 5 | CSS/resource ordering regressions | Current client relies on `CssResource`, `ClientBundle`, and synchronous `StyleInjector` behavior | Migrate the search panel first because it already centralizes CSS loading; add browser visual smoke tests |
 | 6 | Hidden deferred-binding behavior | Today the runtime still depends on user-agent and loglevel permutations | Remove deferred binding in Phase 0 and replace with explicit runtime selectors |
 | 7 | Gadget deletion side effects | Toolbar/menu/model code still references gadget paths | Delete entire gadget cluster early and verify toolbar/menu compile before any J2CL work starts |
-| 8 | Closure compiler / extern mismatch | `ADVANCED_OPTIMIZATIONS` will break interop if browser/custom JS surfaces are not described correctly | Start the sidecar on `BUNDLE`, keep `env=BROWSER`, and advance to `ADVANCED_OPTIMIZATIONS` only after the JsInterop/browser boundary is verified |
+| 8 | Closure compiler / extern mismatch | `ADVANCED_OPTIMIZATIONS` will break interop if browser/custom JS surfaces are not described correctly | Start the sidecar on `BUNDLE_JAR`, keep `env=BROWSER`, and use `BUNDLE` only for targeted debugging of a single project; advance to `ADVANCED_OPTIMIZATIONS` only after the JsInterop/browser boundary is verified |
 
 ## 10. Prerequisites Checklist
 

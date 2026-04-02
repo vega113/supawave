@@ -538,7 +538,7 @@ Recommended migration rules:
 
 1. Add `jwtVersion` to human accounts with default value `0`.
 2. Persistence readers must treat missing stored `jwtVersion` values as `0`.
-3. JWT validation must treat missing `subjectVersion` claims as `0` only for legacy direct `DATA_API_ACCESS` human tokens. `DELEGATED_API_ACCESS` tokens must always carry explicit version claims; missing version claims on a delegated token must be rejected, not defaulted.
+3. JWT validation must treat missing `subjectVersion` claims as `0` only for legacy direct `DATA_API_ACCESS` human tokens. `DELEGATED_API_ACCESS` tokens must always carry explicit `subjectVersion`, `actorVersion`, and `delegationVersion` claims; missing any version claim on a delegated token must be rejected, not defaulted.
 4. Existing session-based `DATA_API_ACCESS` tokens continue working until expiry because both token and stored version resolve to `0`.
 5. The first explicit user revocation event increments `jwtVersion` from `0` to `1`, invalidating all previously minted human tokens.
 
@@ -587,7 +587,7 @@ Recommended validation rules:
 - the human subject account must be in a current, allowed state (not suspended, banned, or otherwise restricted)
 - the robot account must still be verified and not paused or disabled
 - the delegation grant must exist, be active, and match the subject and actor
-- grant validation must confirm the human and robot account states both when the grant is created and again when the token is used, so version matching alone does not establish eligibility
+- grant validation must confirm the human and robot account states both when the grant is created and again when the token is used, so version matching alone does not establish eligibility; do not rely on version matching by itself to imply the account is still allowed
 - the requested scopes must be a subset of the grant scopes
 - `subjectVersion`, `actorVersion`, and `delegationVersion` must all still be current
 - all version claims must be present and explicit; missing version claims are rejected (no zero-default fallback for delegated tokens)

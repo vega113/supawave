@@ -727,13 +727,16 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</style>\n<style>").append(HtmlRenderer.renderSharedTopBarCss()).append("</style></head><body>");
 
     // ——— Shared app header ———
-    sb.append(HtmlRenderer.renderSharedTopBarHtml(userAddress, this.domain, contextPath, null));
+    sb.append(HtmlRenderer.renderSharedTopBarHtml(userAddress, contextPath, null));
 
     // ——— Main content area ———
     sb.append("<div class=\"main\">");
-    sb.append("<div style=\"margin-bottom:16px\">");
+    sb.append("<div style=\"display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px\">");
+    sb.append("<div>");
     sb.append("<h2 style=\"font-size:18px;font-weight:700;color:var(--txt)\">Robot Control Center</h2>");
     sb.append("<div style=\"font-size:12px;color:var(--txt3)\">Manage automation robots for ").append(safeUser).append("</div>");
+    sb.append("</div>");
+    sb.append("<button class=\"btn-p\" onclick=\"openModal()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg> Register New Robot</button>");
     sb.append("</div>");
     // Tabs — 3 tabs, no duplication
     sb.append("<div class=\"tabs\">");

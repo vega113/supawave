@@ -3334,7 +3334,7 @@ public final class HtmlRenderer {
    * @param contextPath servlet context path, typically "" for root deployments
    * @param userRole    user role for conditional admin link; null to omit admin link
    */
-  public static String renderSharedTopBarHtml(String fullAddress, String domain,
+  public static String renderSharedTopBarHtml(String fullAddress,
       String contextPath, String userRole) {
     String safeCtx = escapeHtml(contextPath == null ? "" : contextPath);
     String safeAddr = escapeHtml(fullAddress == null ? "" : fullAddress);
@@ -4164,7 +4164,7 @@ public final class HtmlRenderer {
     sb.append("</head>\n<body>\n");
 
     // Shared app header
-    sb.append(renderSharedTopBarHtml(currentUser, domain, "", callerRole));
+    sb.append(renderSharedTopBarHtml(currentUser, "", callerRole));
 
     // Main content
     sb.append("<div class=\"admin-container\">\n");
@@ -7524,7 +7524,7 @@ public final class HtmlRenderer {
     sb.append("</head>\n<body>\n");
 
     // Shared app header
-    sb.append(renderSharedTopBarHtml(currentUser, domain, "", null));
+    sb.append(renderSharedTopBarHtml(currentUser, "", null));
 
     // Content
     sb.append("<div class=\"settings-container\">\n");
@@ -7841,7 +7841,7 @@ public final class HtmlRenderer {
     sb.append("</head>\n<body>\n");
 
     // Shared app header
-    sb.append(renderSharedTopBarHtml(currentUser, domain, "", null));
+    sb.append(renderSharedTopBarHtml(currentUser, "", null));
 
     // Form
     sb.append("<div class=\"profile-container\">\n");

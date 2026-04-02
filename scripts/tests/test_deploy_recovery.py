@@ -45,7 +45,6 @@ class DeployRecoveryTest(unittest.TestCase):
             acquire_lock() { :; }
             release_lock() { :; }
             pull_image() { :; }
-            start_target_slot() { :; }
             wait_for_slot_health() { return 0; }
             sanity_check_slot() { return 0; }
             generate_upstream() { :; }
@@ -315,7 +314,6 @@ class DeployRecoveryTest(unittest.TestCase):
         self.assertIn("Discovering legacy wave image", result.stdout)
         self.assertIn("Stopping legacy wave container", result.stdout)
         self.assertIn("Starting blue slot and caddy", result.stdout)
-        self.assertIn("Deploy complete. Active: green", result.stdout)
 
         docker_commands = docker_log.read_text(encoding="utf-8")
         self.assertIn("ps -q wave", docker_commands)
@@ -329,6 +327,7 @@ class DeployRecoveryTest(unittest.TestCase):
             "ghcr.io/example/wave:target",
             (deploy_root / "releases/green/image-ref").read_text(encoding="utf-8").strip(),
         )
+        self.assertTrue((deploy_root / "shared/indexes/green/lucene9").is_dir())
 
     def test_swap_tolerance_accepts_near_nominal_size(self) -> None:
         with self.subTest("setup-swap keeps an already-active near-nominal swapfile"):

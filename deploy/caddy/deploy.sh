@@ -317,7 +317,18 @@ render_slot_config() {
   echo "${WAVE_IMAGE:?}" > "$slot_dir/image-ref"
 }
 
+prepare_slot_runtime_dirs() {
+  local slot=$1
+  local index_dir="$deploy_root/shared/indexes/${slot}"
+  local lucene_dir="$index_dir/lucene9"
+  local session_dir="$deploy_root/shared/sessions/${slot}"
+
+  mkdir -p "$lucene_dir" "$session_dir"
+  chmod 0777 "$index_dir" "$lucene_dir" "$session_dir"
+}
+
 start_target_slot() {
+  prepare_slot_runtime_dirs "$TARGET_SLOT"
   export "WAVE_IMAGE_${TARGET_SLOT^^}=${WAVE_IMAGE:?}"
   if [ "$TARGET_SLOT" = "green" ]; then
     dc --profile green up -d "wave-${TARGET_SLOT}"
@@ -566,6 +577,7 @@ rollback_release() {
       echo "[deploy] ERROR: No previous image recorded"
       exit 1
     fi
+    prepare_slot_runtime_dirs "$prev"
     export "WAVE_IMAGE_${prev^^}=$prev_image"
     if [ "$prev" = "green" ]; then
       dc --profile green up -d "wave-${prev}"

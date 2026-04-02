@@ -390,11 +390,15 @@ public class ServerMain {
   }
 
   /** Seeds config-driven feature flags into the persistent store before services read them. */
-  private static void initializeFeatureFlags(Injector injector) throws PersistenceException {
-    Config config = injector.getInstance(Config.class);
-    FeatureFlagStore featureFlagStore = injector.getInstance(FeatureFlagStore.class);
-    FeatureFlagSeeder.seedSearchFeatureFlags(featureFlagStore, config);
-    injector.getInstance(FeatureFlagService.class).refreshCache();
+  private static void initializeFeatureFlags(Injector injector) {
+    try {
+      Config config = injector.getInstance(Config.class);
+      FeatureFlagStore featureFlagStore = injector.getInstance(FeatureFlagStore.class);
+      FeatureFlagSeeder.seedSearchFeatureFlags(featureFlagStore, config);
+      injector.getInstance(FeatureFlagService.class).refreshCache();
+    } catch (PersistenceException e) {
+      LOG.log(Level.WARNING, "Failed to seed ot-search feature flag; search updates stay off", e);
+    }
   }
 
   /** Initializes ContactStore asynchronously to avoid blocking if MongoDB is unavailable. */

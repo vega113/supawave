@@ -20,8 +20,6 @@
 
 ---
 
-## Chunk 1: Regression Coverage
-
 ## File Map
 
 | File | Action | Responsibility |
@@ -31,6 +29,8 @@
 | `deploy/caddy/deploy.sh` | Modify | Replace the brittle legacy image probe and add explicit migration-step logging |
 | `deploy/supawave-host/setup-swap.sh` | Modify | Make swap validation accept the real active size with a small tolerance |
 | `deploy/supawave-host/validate.sh` | Modify | Match the swap tolerance logic used by setup-swap |
+
+## Chunk 1: Regression Coverage
 
 ### Task 1: Add regression tests before changing deploy logic
 

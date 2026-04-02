@@ -55,12 +55,15 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -310,6 +313,15 @@ public final class SearchWaveletUpdaterTest extends TestCase {
     try {
       when(waveletManager.isSearchWavelet(any(WaveletName.class))).thenReturn(false);
       Map<SearchIndexer.SubscriptionKey, String> queries = new HashMap<>();
+      when(indexer.getRawQuery(any()))
+          .thenAnswer(invocation -> queries.get(invocation.getArgument(0)));
+      when(searchProvider.search(any(), anyString(), eq(0), eq(50)))
+          .thenAnswer(
+              invocation ->
+                  createSearchResult(
+                      invocation.getArgument(1),
+                      "example.com/w+" + SearchWaveletManager.md5Hex(invocation.getArgument(1)),
+                      1));
       for (int i = 0; i < 10; i++) {
         WaveId changedWaveId = WaveId.of("example.com", "w+private" + i);
         WaveletId changedWaveletId = WaveletId.of("example.com", "conv+root" + i);
@@ -327,15 +339,6 @@ public final class SearchWaveletUpdaterTest extends TestCase {
         when(wavelet.getParticipants()).thenReturn(ImmutableSet.of(user));
         updater.waveletUpdate(wavelet, DeltaSequence.empty());
       }
-      when(indexer.getRawQuery(any()))
-          .thenAnswer(invocation -> queries.get(invocation.getArgument(0)));
-      when(searchProvider.search(any(), anyString(), eq(0), eq(50)))
-          .thenAnswer(
-              invocation ->
-                  createSearchResult(
-                      invocation.getArgument(1),
-                      "example.com/w+" + SearchWaveletManager.md5Hex(invocation.getArgument(1)),
-                      1));
 
       waitForRecomputeCount(updater, 10L, 1500L);
       assertEquals(10L, updater.getWaveUpdateCount());
@@ -346,6 +349,34 @@ public final class SearchWaveletUpdaterTest extends TestCase {
     } finally {
       updater.shutdown();
       scheduler.shutdownNow();
+    }
+  }
+
+  public void testDroppedQueuedUpdateClearsFirstSeenTimestamp() throws Exception {
+    SearchWaveletManager waveletManager = mock(SearchWaveletManager.class);
+    SearchIndexer indexer = mock(SearchIndexer.class);
+    SearchProvider searchProvider = mock(SearchProvider.class);
+    SearchWaveletDataProvider dataProvider = new SearchWaveletDataProvider();
+    SearchWaveletUpdater updater =
+        new SearchWaveletUpdater(waveletManager, indexer, searchProvider, dataProvider, null);
+
+    try {
+      ParticipantId user = ParticipantId.ofUnsafe("user@example.com");
+      SearchIndexer.SubscriptionKey key =
+          new SearchIndexer.SubscriptionKey(user, SearchWaveletManager.md5Hex("in:inbox"));
+      Object updateCounter = newUpdateCounter(10);
+      for (int i = 0; i < 100; i++) {
+        invokeMethod(updateCounter, "incrementQueue");
+      }
+      setUserCounter(updater, key.getUser().getAddress(), updateCounter);
+
+      invokeEnqueueUpdate(updater, key);
+
+      ConcurrentHashMap<?, ?> firstSeenTimestamps =
+          (ConcurrentHashMap<?, ?>) getField(updater, "firstSeenTimestamps");
+      assertFalse(firstSeenTimestamps.containsKey(key.toString()));
+    } finally {
+      updater.shutdown();
     }
   }
 
@@ -372,5 +403,41 @@ public final class SearchWaveletUpdaterTest extends TestCase {
         7));
     searchResult.setTotalResults(totalResults);
     return searchResult;
+  }
+
+  private static Object newUpdateCounter(int maxPerSecond) throws Exception {
+    Class<?> updateCounterClass =
+        Class.forName(SearchWaveletUpdater.class.getName() + "$UpdateCounter");
+    Constructor<?> constructor = updateCounterClass.getDeclaredConstructor(int.class);
+    constructor.setAccessible(true);
+    return constructor.newInstance(maxPerSecond);
+  }
+
+  private static void invokeEnqueueUpdate(SearchWaveletUpdater updater,
+      SearchIndexer.SubscriptionKey key) throws Exception {
+    Method method =
+        SearchWaveletUpdater.class.getDeclaredMethod(
+            "enqueueUpdate", SearchIndexer.SubscriptionKey.class);
+    method.setAccessible(true);
+    method.invoke(updater, key);
+  }
+
+  private static void invokeMethod(Object target, String methodName) throws Exception {
+    Method method = target.getClass().getDeclaredMethod(methodName);
+    method.setAccessible(true);
+    method.invoke(target);
+  }
+
+  private static void setUserCounter(
+      SearchWaveletUpdater updater, String userAddress, Object updateCounter) throws Exception {
+    ConcurrentHashMap<String, Object> userCounters =
+        (ConcurrentHashMap<String, Object>) getField(updater, "userCounters");
+    userCounters.put(userAddress, updateCounter);
+  }
+
+  private static Object getField(SearchWaveletUpdater updater, String fieldName) throws Exception {
+    Field field = SearchWaveletUpdater.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    return field.get(updater);
   }
 }

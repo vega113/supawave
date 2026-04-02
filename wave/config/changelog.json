@@ -9,9 +9,10 @@
       {
         "type": "fix",
         "items": [
-          "Batch high-fanout public OT search updates per wave instead of recomputing every live search subscription on every edit",
-          "Keep low-fanout OT search behavior unchanged and expose batching counters in the admin ops status endpoint",
-          "Speed up affected-subscription lookup with a direct user-to-subscriptions index and add focused coverage for hot-wave and boundary scenarios"
+          "Batch hot public OT search edits per wave instead of recomputing every live subscription",
+          "Keep low-fanout OT search behavior unchanged and expose batching counters in admin ops status",
+          "Speed up affected-subscription lookup with a direct user-to-subscriptions index",
+          "Add focused coverage for hot-wave and boundary scenarios"
         ]
       }
     ]

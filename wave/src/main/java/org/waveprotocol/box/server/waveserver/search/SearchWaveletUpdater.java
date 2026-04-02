@@ -221,6 +221,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     boolean hasPendingTask = existing != null && !existing.isDone();
     if (!hasPendingTask && counter.getQueueSize() >= MAX_QUEUE_PER_USER) {
       LOG.warning("Dropping search update for " + key + " -- queue full");
+      firstSeenTimestamps.remove(taskKey);
     } else {
       long elapsed = now - firstSeen;
       long delay = elapsed >= MAX_WAIT_MS ? 0 : Math.min(DEBOUNCE_MS, MAX_WAIT_MS - elapsed);

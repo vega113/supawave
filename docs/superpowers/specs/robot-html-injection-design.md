@@ -208,10 +208,10 @@ The proposed robot HTML design applies defense-in-depth across multiple layers:
 | Defense Layer | Client Iframe | ServerHtmlRenderer | Notes |
 |---|---|---|---|
 | **Insertion-time Sanitization** | Yes (section 4.4) | Yes (section 4.5a) | Attribute whitelist, URL protocol allowlist, CSS property whitelist |
-| **Render-time Sanitization** | Yes (iframe auto-sanitizes) | Yes (re-sanitization) | Re-apply same sanitization pipeline to detect corruption or bugs |
-| **Iframe Sandbox** | Yes (`sandbox` attribute, no `allow-same-origin`) | N/A | Process-level isolation; no access to parent DOM, storage, or APIs |
-| **CSP in Iframe** | Yes (frame-level CSP) | N/A | Prevent script execution, inline styles, etc. even if injected |
-| **No Script Execution** | Yes (verified by iframe) | Yes (SSR context has no JS) | Neither client iframe nor SSR can run JavaScript from injected content |
+| **Render-time Sanitization** | Yes (re-sanitize before srcdoc injection) | Yes (re-sanitization) | Re-apply same sanitization pipeline to detect corruption or bugs at insertion or render time |
+| **Iframe Sandbox** | Yes (`sandbox` attribute, no `allow-same-origin`, no `allow-scripts`) | N/A | Process-level isolation + script execution policy enforcement; no access to parent DOM, storage, or APIs |
+| **CSP in Iframe** | Yes (frame-level CSP) | N/A | Additional execution policy enforcement (blocks inline scripts, eval, etc.) even if sandbox bypassed |
+| **No Script Execution** | Yes (enforced by sandbox + CSP + sanitized payload) | Yes (SSR context has no JS) | Both client iframe (no `allow-scripts`) and SSR (template context) prevent JavaScript execution. Sanitizer output has no `<script>` tags or event handlers. |
 
 **Defense-in-depth justification:**
 
@@ -515,7 +515,9 @@ Recommended sanitizer policy for v1:
 
 **URL sanitization (protocol allowlist, not blacklist):**
   - **href attributes:** Allow only `http://`, `https://`, relative URLs (`/`, `.`). Block all other protocols including `javascript:`, `data:`, `vbscript:`, etc.
-  - **src attributes:** Allow `http://`, `https://`, relative URLs, and `data:image/*` patterns only (PNG, JPEG, GIF, WebP, SVG). Block `data:text/html`, `javascript:`, etc.
+  - **src attributes (v1):** Allow `http://`, `https://`, relative URLs, and `data:image/` with ONLY safe formats (PNG, JPEG, GIF, WebP). Explicitly block `data:image/svg+xml`, `data:text/html`, `javascript:`, etc.
+    - **Rationale**: SVG can embed active content and scripting; v1 excludes it despite `<svg>` tag ban to prevent policy bypass via data URLs
+    - **Future (v2+)**: SVG support via `data:image/svg+xml` can be added with explicit XML sanitization if needed
   - **Normalization:** Before protocol check, trim whitespace and unescape HTML entities (e.g., `javascript%3a` → `javascript:`)
   - **Rationale:** Blacklist-based checks (`reject "javascript:"`) are bypassable via encoding; allowlist approach is safer
 
@@ -569,16 +571,16 @@ Recommended client path:
    - `style-src 'unsafe-inline'`
    - `font-src data: https:`
 7. Host-side code sizes the iframe using:
-   - preferred height from element metadata as initial layout
-   - optional post-load measurement using `postMessage` API if content introspection is needed
+   - **v1 (Recommended)**: Preferred height from element metadata (element attribute or initial CSS) as fixed layout
+   - **Post-v2**: Auto-height can be added if iframe script support is enabled (requires careful design to allow trusted sizing script but not robot payload scripts)
 
 Why `allow-same-origin` is NOT used:
 
 - Robot HTML is display-only content with no need for parent API access (localStorage, cookies, parent DOM)
 - Using `srcdoc` creates a unique null origin per iframe, providing process-level isolation
 - Removing `allow-same-origin` eliminates a potential attack surface if sanitization fails
-- Fallback height measurement can use standard `postMessage` API without same-origin access
-- If sanitizer fails, script still does not execute because `allow-scripts` is absent, but removing same-origin adds defense in depth
+- v1 uses fixed/explicit height; automatic sizing is deferred to future versions when script support can be added more carefully
+- If sanitizer fails, script still does not execute because `allow-scripts` is absent, providing defense in depth
 
 Recommended rendering behavior:
 
@@ -1657,7 +1659,7 @@ This section documents revisions made to address critical architectural feedback
   - **Status:** ✅ RESOLVED
 
 **ISSUE 3 (Critical - Safety):** URL sanitization via `startsWith("javascript:")` is bypassable.
-  - **Fix:** Replaced with protocol allowlist in section 4.4. URLs are normalized (trim, unescape HTML entities) before protocol check. href allows `http://`, `https://`, relative only. src allows those plus `data:image/*` only (PNG, JPEG, GIF, WebP, SVG).
+  - **Fix:** Replaced with protocol allowlist in section 4.4. URLs are normalized (trim, unescape HTML entities) before protocol check. href allows `http://`, `https://`, relative only. src allows those plus `data:image/*` with v1 limited to PNG, JPEG, GIF, WebP only (SVG excluded in v1 to prevent policy bypass via data URLs).
   - **Status:** ✅ RESOLVED
 
 **ISSUE 4 (Critical - Correctness):** `<html>` tag collides with existing schema.

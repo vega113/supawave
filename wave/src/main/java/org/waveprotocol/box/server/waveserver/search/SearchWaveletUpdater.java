@@ -34,6 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.waveserver.SearchProvider;
@@ -230,22 +231,37 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       } else {
         counter.incrementQueue();
       }
-      ScheduledFuture<?> future =
-          scheduler.schedule(() -> executeUpdate(key, taskKey), delay, TimeUnit.MILLISECONDS);
-      pendingTasks.put(taskKey, future);
+      scheduleUpdate(key, taskKey, delay, hasPendingTask ? existing : null, counter);
     }
   }
 
   private void executeUpdate(SearchIndexer.SubscriptionKey key, String taskKey) {
+    executeUpdate(key, taskKey, null);
+  }
+
+  private void executeUpdate(
+      SearchIndexer.SubscriptionKey key,
+      String taskKey,
+      ScheduledFuture<?> expectedFuture) {
     try {
+      if (expectedFuture != null && pendingTasks.get(taskKey) != expectedFuture) {
+        return;
+      }
       UpdateCounter counter = userCounters.get(key.getUser().getAddress());
       boolean acquired = counter == null || counter.tryAcquire();
       if (!acquired) {
-        ScheduledFuture<?> retryFuture =
-            scheduler.schedule(() -> executeUpdate(key, taskKey), 100, TimeUnit.MILLISECONDS);
-        pendingTasks.put(taskKey, retryFuture);
+        if (expectedFuture != null && pendingTasks.get(taskKey) != expectedFuture) {
+          return;
+        }
+        scheduleUpdate(key, taskKey, 100, expectedFuture, counter);
       } else {
-        ScheduledFuture<?> pendingTask = pendingTasks.remove(taskKey);
+        ScheduledFuture<?> pendingTask =
+            expectedFuture != null
+                ? (pendingTasks.remove(taskKey, expectedFuture) ? expectedFuture : null)
+                : pendingTasks.remove(taskKey);
+        if (expectedFuture != null && pendingTask == null) {
+          return;
+        }
         firstSeenTimestamps.remove(taskKey);
         if (pendingTask != null && counter != null) {
           counter.decrementQueue();
@@ -268,6 +284,32 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
       }
     } catch (Exception e) {
       LOG.severe("Failed to update search wavelet for " + key, e);
+    }
+  }
+
+  private void scheduleUpdate(
+      SearchIndexer.SubscriptionKey key,
+      String taskKey,
+      long delayMs,
+      ScheduledFuture<?> previousFuture,
+      UpdateCounter counter) {
+    AtomicReference<ScheduledFuture<?>> futureRef = new AtomicReference<>();
+    ScheduledFuture<?> future =
+        scheduler.schedule(
+            () -> executeUpdate(key, taskKey, futureRef.get()),
+            delayMs,
+            TimeUnit.MILLISECONDS);
+    futureRef.set(future);
+    if (previousFuture != null) {
+      if (!pendingTasks.replace(taskKey, previousFuture, future)) {
+        future.cancel(false);
+      }
+    } else {
+      ScheduledFuture<?> existingFuture = pendingTasks.putIfAbsent(taskKey, future);
+      if (existingFuture != null) {
+        future.cancel(false);
+        counter.decrementQueue();
+      }
     }
   }
 

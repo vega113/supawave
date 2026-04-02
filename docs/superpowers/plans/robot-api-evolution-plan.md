@@ -1080,6 +1080,9 @@ high-level robot operation services, which execute against current server state.
   field-name mapping (camelCase); `hashedVersion` and `author` are required fields
 - `delta.author` must equal the delegated session's `effectiveSubject`, not the
   robot actor id
+- when routing to `ClientFrontend.submitRequest(...)`, the `loggedInUser` parameter
+  must also be set to `effectiveSubject` to satisfy the server's
+  `author.equals(loggedInUser)` validation (see §4.7 RPC and Stream Behavior)
 - if the submit is accepted after operational transformation, the server returns
   `submit.ack` with `hashedVersionAfterApplication`
 - if the submitted `hashedVersion` is too stale or cannot be bridged, surface

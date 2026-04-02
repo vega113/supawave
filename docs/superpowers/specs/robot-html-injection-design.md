@@ -713,7 +713,7 @@ Store state in a new `<robot-state>` element (sibling to or child of `<robot-htm
 ```xml
 <robot-html namespace="robot.incubator-wave.org" data-robot-id="mybot">
   <data>&lt;h1&gt;Widget with state&lt;/h1&gt;</data>
-  <robot-state type="json" data-key="widget-prefs">
+  <robot-state type="json" data-state-key="widget-prefs">
     {"collapsed": false, "sortBy": "date", "filterTag": "important"}
   </robot-state>
 </robot-html>
@@ -900,9 +900,9 @@ public class RobotStateUpdateService extends OperationService {
     
     Document doc = context.getBlip(blipId).getContent();
     
-    // Find the <robot-html> element by stable key rather than document index
+    // Find the <robot-html> element by stable key anywhere in the document tree
     XmlElement htmlElem = null;
-    for (XmlElement child : doc.getChildren()) {
+    for (XmlElement child : doc.getDescendants()) {
       if ("robot-html".equals(child.getTagName()) && robotHtmlKey.equals(child.getAttribute("key"))) {
         htmlElem = child;
         break;

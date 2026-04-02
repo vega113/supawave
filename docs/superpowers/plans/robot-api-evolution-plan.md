@@ -12,7 +12,7 @@ The good news is that the "active" and Data APIs are already mostly unified inte
 
 The real legacy split is between:
 
-- passive webhook delivery, which is event driven and initiated by the server, and
+- passive webhook delivery, which is event-driven and initiated by the server, and
 - proactive RPC access, which is request/response and initiated by the robot.
 
 The recommended direction is:
@@ -287,6 +287,8 @@ Fix the pre-existing `BaseApiServlet` singleton race as part of this refactor.
 inherit that pattern. The executor should be request-scoped/stateless: parsed
 operations travel through method parameters or immutable request/result objects,
 never through servlet instance fields.
+Under concurrent requests, that shared field can be overwritten mid-request,
+causing crossed responses or incomplete operation execution.
 
 #### New classes to add
 
@@ -534,12 +536,14 @@ Do not break existing human `DATA_API_ACCESS` tokens during rollout.
 Recommended migration rules:
 
 1. Add `jwtVersion` to human accounts with default value `0`.
-2. Persistence readers must treat missing stored values as `0`.
+2. Persistence readers must treat missing stored `jwtVersion` values as `0`.
 3. JWT validation must treat missing `subjectVersion` claims as `0` only for legacy direct `DATA_API_ACCESS` human tokens. `DELEGATED_API_ACCESS` tokens are always freshly minted and must carry explicit version claims; missing version claims on a delegated token must be rejected, not defaulted.
 4. Existing session-based `DATA_API_ACCESS` tokens continue working until expiry because both token and stored version resolve to `0`.
 5. The first explicit user revocation event increments `jwtVersion` from `0` to `1`, invalidating all previously minted human tokens.
 
 This allows a rolling deploy without forcing all logged-in users to reauthenticate immediately.
+
+Rule 2 is the persistence layer default. Rule 3 is the validation layer default. Do not use the persistence fallback to weaken delegated-token claim requirements.
 
 Scope note:
 
@@ -582,6 +586,7 @@ Recommended validation rules:
 - the human subject account must be in a current, allowed state (not suspended, banned, or otherwise restricted)
 - the robot account must still be verified and not paused or disabled
 - the delegation grant must exist, be active, and match the subject and actor
+- grant validation must confirm the human and robot account states both when the grant is created and again when the token is used, so version matching alone does not establish eligibility
 - the requested scopes must be a subset of the grant scopes
 - `subjectVersion`, `actorVersion`, and `delegationVersion` must all still be current
 - all version claims must be present and explicit; missing version claims are rejected (no zero-default fallback for delegated tokens)
@@ -696,6 +701,8 @@ Enforce this restriction at both layers:
 
 `DataApiTokenServlet` must re-check that the grant's `createdByUserId` and the robot's `ownerAddress` still satisfy the v1 self-owned rule before minting a delegated token.
 
+If a robot's `ownerAddress` is cleared or changed after a delegated token has been minted, increment the robot's `tokenVersion` so previously issued delegated tokens are invalidated immediately. `DataApiTokenServlet` and `PUT /api/robots/{id}/delegations/me` both need to observe `tokenVersion` for this invalidation path.
+
 Failure behavior for legacy ownerless robots:
 
 - `PUT /api/robots/{id}/delegations/me` returns a dedicated validation error such
@@ -724,7 +731,7 @@ Recommended additional protections:
 - require a second confirmation for write delegation
 - show last-used time in the dashboard
 
-#### Rate limiting design
+#### Rate-limiting design
 
 Add a small dedicated rate-limit service instead of burying limits inside individual servlets.
 
@@ -1142,6 +1149,13 @@ Additional phase-2 blocker that must be designed up front:
 - if the server cannot seed a contiguous stream from that version, fail the
   subscribe with `RESYNC_REQUIRED` instead of letting the precondition crash the
   server thread
+- the server should retain only a bounded window of recent deltas per wavelet,
+  such as the last `N` deltas or the last `T` minutes, so `knownVersions`
+  outside that window are considered stale
+- stale `knownVersions` are expected reconnect cases, not client bugs; the
+  server should return `RESYNC_REQUIRED` and require an explicit resubscribe
+  with empty `knownVersions`
+- `RESYNC_REQUIRED` does not trigger an automatic full snapshot replay
 
 Concrete phase-2 code changes:
 
@@ -1149,6 +1163,8 @@ Concrete phase-2 code changes:
 - initialize `WaveViewSubscription.WaveletChannelState.lastVersion` from that
   map during subscription creation
 - update `UserManager.subscribe(...)` and related tests to pass the seed data
+- seed `lastVersion` from `knownVersions` only when the version falls inside the
+  retained window; otherwise fail the subscribe with `RESYNC_REQUIRED`
 - keep the phase-1 reconnect story as full snapshot replay only
 
 Expected MVP reconnect cost:
@@ -1226,8 +1242,13 @@ Namespace rule for delegated streams:
     authorship
   - `subscriptionNamespace` for `WaveletInfo` / `UserManager` bookkeeping and
     own-submit suppression
-- direct browser and direct robot sessions can keep using a namespace equal to
-  their authenticated subject; delegated robot sessions cannot
+- direct browser and direct robot sessions can keep using
+  `subscriptionNamespace = authenticatedSubject.toString()`
+- delegated robot sessions should use
+  `subscriptionNamespace = "robot:" + robotId + ":as:" + effectiveSubject.toString()`
+- those namespace rules keep `WaveletInfo` / `UserManager` bookkeeping,
+  own-submit suppression, and logging deterministic across direct and delegated
+  sessions
 
 Recommended cleanup behavior:
 
@@ -1302,7 +1323,7 @@ That is not the same as the first-party client's raw `ProtocolWaveletDelta` path
 - version-aware delta stream
 - clear rebase/resync semantics
 
-#### Blocker 2: Webclient-specific coupling
+#### Blocker 2: Web client-specific coupling
 
 Parts of the live client stack are still tuned for the first-party web client:
 

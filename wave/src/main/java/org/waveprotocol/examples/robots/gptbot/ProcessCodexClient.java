@@ -146,6 +146,7 @@ public final class ProcessCodexClient implements CodexClient {
         response = "I’m here — what would you like me to help with?";
       }
     } catch (InterruptedException e) {
+      destroyProcess(process);
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Codex execution was interrupted", e);
     } catch (IOException e) {

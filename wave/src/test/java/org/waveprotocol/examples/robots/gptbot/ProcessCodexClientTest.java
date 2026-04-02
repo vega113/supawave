@@ -53,6 +53,28 @@ public class ProcessCodexClientTest extends TestCase {
     }
   }
 
+  public void testCompleteDestroysProcessWhenInterrupted() {
+    final RecordingInterruptedProcess process = new RecordingInterruptedProcess();
+    ProcessCodexClient client = new ProcessCodexClient("codex", "gpt-5.4-mini", "low",
+        Duration.ofSeconds(1), false, new ProcessCodexClient.ProcessLauncher() {
+          @Override
+          public Process start(List<String> command, Path errorFile) {
+            return process;
+          }
+        });
+
+    try {
+      client.complete("hello");
+      fail("Expected interruption failure");
+    } catch (IllegalStateException e) {
+      assertEquals("Codex execution was interrupted", e.getMessage());
+      assertTrue(process.destroyed);
+      assertTrue(Thread.currentThread().isInterrupted());
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
   public void testCompleteSkipsInvalidReasoningEffortValue() {
     RecordingProcessLauncher launcher = new RecordingProcessLauncher();
     ProcessCodexClient client = new ProcessCodexClient("codex", "gpt-5.4-mini",
@@ -182,6 +204,52 @@ public class ProcessCodexClientTest extends TestCase {
 
     @Override
     public Process destroyForcibly() {
+      return this;
+    }
+  }
+
+  private static final class RecordingInterruptedProcess extends Process {
+
+    private final OutputStream outputStream = new ByteArrayOutputStream();
+    private boolean destroyed;
+
+    @Override
+    public OutputStream getOutputStream() {
+      return outputStream;
+    }
+
+    @Override
+    public InputStream getInputStream() {
+      return new ByteArrayInputStream(new byte[0]);
+    }
+
+    @Override
+    public InputStream getErrorStream() {
+      return new ByteArrayInputStream(new byte[0]);
+    }
+
+    @Override
+    public int waitFor() throws InterruptedException {
+      throw new InterruptedException("interrupted");
+    }
+
+    @Override
+    public boolean waitFor(long timeout, TimeUnit unit) throws InterruptedException {
+      throw new InterruptedException("interrupted");
+    }
+
+    @Override
+    public int exitValue() {
+      return 0;
+    }
+
+    @Override
+    public void destroy() {
+    }
+
+    @Override
+    public Process destroyForcibly() {
+      destroyed = true;
       return this;
     }
   }

@@ -62,6 +62,13 @@ jobs:
           WAVE_EMAIL_FROM=test-dummy \
           docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
 
+      - name: Run deployment regression tests
+        run: |
+          python3 -m unittest \
+            scripts.tests.test_validate_changelog \
+            scripts.tests.test_pr_monitor \
+            scripts.tests.test_deploy_recovery
+
       - name: Compile PST and Wave
         run: sbt --batch pst/compile wave/compile
 

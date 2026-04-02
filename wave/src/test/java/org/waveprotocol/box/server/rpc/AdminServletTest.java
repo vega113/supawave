@@ -87,6 +87,10 @@ public final class AdminServletTest {
 
     assertFalse(otSearch.getBoolean("configEnabled"));
     assertFalse(otSearch.getBoolean("enabled"));
+    assertTrue(otSearch.getBoolean("publicBatchingEnabled"));
+    assertEquals(0L, otSearch.getLong("publicBatchMs"));
+    assertEquals(1, otSearch.getInt("publicFanoutThreshold"));
+    assertEquals(1, otSearch.getInt("highParticipantThreshold"));
     assertEquals(0L, otSearch.getLong("activeSubscriptions"));
     verify(searchWaveletUpdaterProvider, never()).get();
   }
@@ -112,9 +116,9 @@ public final class AdminServletTest {
                 + "core.public_url = \"https://wave.example.test\"\n"
                 + "search.ot_search_enabled = false\n"
                 + "search.ot_search_public_batching_enabled = true\n"
-                + "search.ot_search_public_batch_ms = 15000\n"
-                + "search.ot_search_public_fanout_threshold = 25\n"
-                + "search.ot_search_high_participant_threshold = 25");
+                + "search.ot_search_public_batch_ms = -15000\n"
+                + "search.ot_search_public_fanout_threshold = 0\n"
+                + "search.ot_search_high_participant_threshold = 0");
     HumanAccountData admin = new HumanAccountDataImpl(ADMIN_ID);
     admin.setRole(HumanAccountData.ROLE_OWNER);
 

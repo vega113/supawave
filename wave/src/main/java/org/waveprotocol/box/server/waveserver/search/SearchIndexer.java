@@ -128,28 +128,32 @@ public class SearchIndexer {
 
   public void unregisterSubscription(ParticipantId user, String queryHash) {
     SubscriptionKey key = new SubscriptionKey(user, queryHash);
-    subscriptionRawQueries.remove(key);
-    userToSubscriptions.computeIfPresent(
-        user,
-        (ignored, userSubscriptions) -> {
-          userSubscriptions.remove(key);
-          return userSubscriptions.isEmpty() ? null : userSubscriptions;
-        });
-    Set<WaveId> waves = subscriptionToWaves.get(key);
-    if (waves != null) {
-      for (WaveId waveId : waves) {
-        Set<SubscriptionKey> subs = waveToSubscriptions.get(waveId);
-        if (subs != null) {
-          subs.remove(key);
-          if (subs.isEmpty()) {
-            waveToSubscriptions.remove(waveId, subs);
+    subscriptionRawQueries.computeIfPresent(
+        key,
+        (ignored, rawQuery) -> {
+          userToSubscriptions.computeIfPresent(
+              user,
+              (ignoredUser, userSubscriptions) -> {
+                userSubscriptions.remove(key);
+                return userSubscriptions.isEmpty() ? null : userSubscriptions;
+              });
+          Set<WaveId> waves = subscriptionToWaves.get(key);
+          if (waves != null) {
+            for (WaveId waveId : waves) {
+              Set<SubscriptionKey> subs = waveToSubscriptions.get(waveId);
+              if (subs != null) {
+                subs.remove(key);
+                if (subs.isEmpty()) {
+                  waveToSubscriptions.remove(waveId, subs);
+                }
+              }
+            }
+            subscriptionToWaves.remove(key, waves);
           }
-        }
-      }
-      subscriptionToWaves.remove(key, waves);
-    }
-    subscriptionBloomFilters.remove(key);
-    LOG.info("Unregistered subscription " + key);
+          subscriptionBloomFilters.remove(key);
+          LOG.info("Unregistered subscription " + key);
+          return null;
+        });
   }
 
   public Set<SubscriptionKey> getAffectedSubscriptions(
@@ -170,33 +174,39 @@ public class SearchIndexer {
 
   public void updateSubscriptionWaves(ParticipantId user, String queryHash, Set<WaveId> newWaveIds) {
     SubscriptionKey key = new SubscriptionKey(user, queryHash);
-    Set<WaveId> oldWaves = subscriptionToWaves.get(key);
-    if (oldWaves != null) {
-      for (WaveId oldWaveId : oldWaves) {
-        Set<SubscriptionKey> subs = waveToSubscriptions.get(oldWaveId);
-        if (subs != null) {
-          subs.remove(key);
-          if (subs.isEmpty()) {
-            waveToSubscriptions.remove(oldWaveId, subs);
+    subscriptionRawQueries.computeIfPresent(
+        key,
+        (ignored, rawQuery) -> {
+          Set<WaveId> oldWaves = subscriptionToWaves.get(key);
+          if (oldWaves != null) {
+            for (WaveId oldWaveId : oldWaves) {
+              Set<SubscriptionKey> subs = waveToSubscriptions.get(oldWaveId);
+              if (subs != null) {
+                subs.remove(key);
+                if (subs.isEmpty()) {
+                  waveToSubscriptions.remove(oldWaveId, subs);
+                }
+              }
+            }
           }
-        }
-      }
-    }
-    Set<WaveId> waveSet = ConcurrentHashMap.newKeySet();
-    waveSet.addAll(newWaveIds);
-    userToSubscriptions.compute(
-        user,
-        (ignored, subscriptions) -> {
-          Set<SubscriptionKey> currentSubscriptions =
-              subscriptions != null ? subscriptions : ConcurrentHashMap.newKeySet();
-          currentSubscriptions.add(key);
-          return currentSubscriptions;
+          Set<WaveId> waveSet = ConcurrentHashMap.newKeySet();
+          waveSet.addAll(newWaveIds);
+          userToSubscriptions.compute(
+              user,
+              (ignoredUser, subscriptions) -> {
+                Set<SubscriptionKey> currentSubscriptions =
+                    subscriptions != null ? subscriptions : ConcurrentHashMap.newKeySet();
+                currentSubscriptions.add(key);
+                return currentSubscriptions;
+              });
+          for (WaveId waveId : newWaveIds) {
+            waveToSubscriptions.computeIfAbsent(waveId, ignoredWave -> ConcurrentHashMap.newKeySet())
+                .add(key);
+          }
+          subscriptionToWaves.put(key, waveSet);
+          rebuildBloomFilter(key, newWaveIds);
+          return rawQuery;
         });
-    for (WaveId waveId : newWaveIds) {
-      waveToSubscriptions.computeIfAbsent(waveId, ignored -> ConcurrentHashMap.newKeySet()).add(key);
-    }
-    subscriptionToWaves.put(key, waveSet);
-    rebuildBloomFilter(key, newWaveIds);
   }
 
   public String getRawQuery(SubscriptionKey key) {

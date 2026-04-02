@@ -264,17 +264,9 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
           scheduleUpdate(key, taskKey, 100, taskHolder, retryGeneration);
           return;
         }
-        if (!pendingTasks.remove(taskKey, taskHolder)) {
-          return;
-        }
-        taskHolder.queued = false;
         taskHolder.future = null;
-        if (counter != null) {
-          counter.decrementQueue();
-        }
       }
-      firstSeenTimestamps.remove(taskKey);
-      executeSearchUpdate(key);
+      executeSearchUpdate(key, taskKey, taskHolder, generation, counter);
     } catch (Exception e) {
       LOG.severe("Failed to update search wavelet for " + key, e);
     }
@@ -300,6 +292,65 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     } catch (Exception e) {
       LOG.severe("Failed to update search wavelet for " + key, e);
     }
+  }
+
+  private void executeSearchUpdate(
+      SearchIndexer.SubscriptionKey key,
+      String taskKey,
+      TaskHolder taskHolder,
+      long generation,
+      UpdateCounter counter) {
+    try {
+      String rawQuery = indexer.getRawQuery(key);
+      if (rawQuery == null) {
+        synchronized (taskHolder) {
+          if (finishPendingUpdate(taskKey, taskHolder, generation, counter)) {
+            LOG.fine("Subscription " + key + " no longer registered, skipping update");
+          }
+        }
+        return;
+      }
+      ParticipantId user = key.getUser();
+      searchRecomputeCount.incrementAndGet();
+      SearchResult searchResult =
+          searchProvider.search(
+              user, rawQuery, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
+      synchronized (taskHolder) {
+        if (!finishPendingUpdate(taskKey, taskHolder, generation, counter)) {
+          return;
+        }
+        if (snapshotPublisher != null) {
+          snapshotPublisher.publishUpdate(user, rawQuery, searchResult);
+        } else {
+          updateCachedSearchWavelet(key, user, rawQuery, searchResult);
+        }
+      }
+    } catch (Exception e) {
+      synchronized (taskHolder) {
+        finishPendingUpdate(taskKey, taskHolder, generation, counter);
+      }
+      LOG.severe("Failed to update search wavelet for " + key, e);
+    }
+  }
+
+  private boolean finishPendingUpdate(
+      String taskKey,
+      TaskHolder taskHolder,
+      long generation,
+      UpdateCounter counter) {
+    if (taskHolder.generation.get() != generation) {
+      return false;
+    }
+    if (!pendingTasks.remove(taskKey, taskHolder)) {
+      return false;
+    }
+    taskHolder.queued = false;
+    taskHolder.future = null;
+    if (counter != null) {
+      counter.decrementQueue();
+    }
+    firstSeenTimestamps.remove(taskKey);
+    return true;
   }
 
   private void scheduleUpdate(

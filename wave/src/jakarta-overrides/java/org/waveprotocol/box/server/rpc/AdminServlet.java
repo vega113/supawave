@@ -551,13 +551,13 @@ public final class AdminServlet extends HttpServlet {
     w.append("\"enabled\":").append(String.valueOf(otSearchFeatureEnabled));
     w.append(",\"configEnabled\":").append(String.valueOf(otSearchConfigEnabled));
     w.append(",\"publicBatchingEnabled\":")
-        .append(String.valueOf(getBooleanConfig("search.ot_search_public_batching_enabled", true)));
+        .append(String.valueOf(getEffectivePublicBatchingEnabled(searchWaveletUpdater)));
     w.append(",\"publicBatchMs\":")
-        .append(String.valueOf(getLongConfig("search.ot_search_public_batch_ms", 15000L)));
+        .append(String.valueOf(getEffectivePublicBatchMs(searchWaveletUpdater)));
     w.append(",\"publicFanoutThreshold\":")
-        .append(String.valueOf(getIntConfig("search.ot_search_public_fanout_threshold", 25)));
+        .append(String.valueOf(getEffectivePublicFanoutThreshold(searchWaveletUpdater)));
     w.append(",\"highParticipantThreshold\":")
-        .append(String.valueOf(getIntConfig("search.ot_search_high_participant_threshold", 25)));
+        .append(String.valueOf(getEffectiveHighParticipantThreshold(searchWaveletUpdater)));
     w.append(",\"activeSubscriptions\":")
         .append(String.valueOf(searchWaveletUpdater != null
             ? searchWaveletUpdater.getActiveSubscriptionCount()
@@ -649,6 +649,33 @@ public final class AdminServlet extends HttpServlet {
 
   private int getIntConfig(String key, int defaultValue) {
     return config.hasPath(key) ? config.getInt(key) : defaultValue;
+  }
+
+  private boolean getEffectivePublicBatchingEnabled(
+      @Nullable SearchWaveletUpdater searchWaveletUpdater) {
+    return searchWaveletUpdater != null
+        ? searchWaveletUpdater.isPublicBatchingEnabled()
+        : getBooleanConfig("search.ot_search_public_batching_enabled", true);
+  }
+
+  private long getEffectivePublicBatchMs(@Nullable SearchWaveletUpdater searchWaveletUpdater) {
+    return searchWaveletUpdater != null
+        ? searchWaveletUpdater.getPublicBatchMs()
+        : Math.max(0L, getLongConfig("search.ot_search_public_batch_ms", 15000L));
+  }
+
+  private int getEffectivePublicFanoutThreshold(
+      @Nullable SearchWaveletUpdater searchWaveletUpdater) {
+    return searchWaveletUpdater != null
+        ? searchWaveletUpdater.getPublicFanoutThreshold()
+        : Math.max(1, getIntConfig("search.ot_search_public_fanout_threshold", 25));
+  }
+
+  private int getEffectiveHighParticipantThreshold(
+      @Nullable SearchWaveletUpdater searchWaveletUpdater) {
+    return searchWaveletUpdater != null
+        ? searchWaveletUpdater.getHighParticipantThreshold()
+        : Math.max(1, getIntConfig("search.ot_search_high_participant_threshold", 25));
   }
 
   // =========================================================================

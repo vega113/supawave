@@ -851,11 +851,18 @@ Use a **combination of approaches** depending on use case:
 **Wire format:**
 - Element tag: `<robot-state>`
 - Attributes:
+  - `data-robot-id` (required): Which robot owns/writes this state (enforces single-writer model)
+  - `data-state-key` (required): Application key for this state (unique per <robot-html> element)
+  - `data-version` (required): Schema version (e.g., "1", "2") — supports state migration
   - `type` (required): `"json"`, `"xml"`, `"text"` (format of state content)
-  - `data-state-key` (optional): Application key for this state (useful if multiple state elements)
-  - `data-timestamp` (optional): Last modified time
-  - `data-robot-id` (optional): Which robot last modified
-- Text content: State value (JSON, XML, or plain text)
+  - `data-timestamp` (optional): Last modified time (ISO 8601)
+  - `data-size-bytes` (optional): Actual size for quota tracking
+- Text content: State value (JSON, XML, or plain text) — **max 100 KB per element**
+- Validation:
+  - Robot ID must be non-empty and match creating robot
+  - Version must be positive integer
+  - Size must be < 100 KB (configurable per deployment)
+  - Content must be parseable as declared type (JSON, XML, text)
 
 **Robot API operation:**
 
@@ -939,45 +946,267 @@ window.parent.postMessage(
 );
 ```
 
-### 4.8.5 Concurrent State Updates and Merging
+### 4.8.5 Concurrent State Updates and Conflict Resolution
 
-**Wave OT Semantics:** Element attributes are **last-writer-wins** (whole-value replacement).
+**CRITICAL CONSTRAINT: Robot-exclusive State Updates**
 
-Scenario:
-- Participant A updates state: `refreshInterval: 30 → 60`
-- Participant B (offline) updates state: `timezone: UTC → PST` (based on older state)
-- Both reconnect and submit
+This is a **hard requirement**, not optional: **Only the originating robot can update its own state.**
 
-Result:
-- Last write wins: whichever update reaches the server last overwrites the previous one
-- Participant B's `timezone` change is lost (overwritten by A's full state value)
+**Rationale:**
+- Wave's OT layer for element attributes is **field-level delta-based** (not whole-value replacement)
+- Implementing distributed state merging with multiple writers is complex and error-prone
+- Single-writer model (robot is sole writer) eliminates concurrent-update conflicts
+- Participants interact via FormElements or wave events; robot processes these and updates state atomically
+- This pattern is proven in real-time collaboration (Firebase, OT.js, Yjs) — designate a single authority for each piece of state
 
-**Mitigation strategies:**
+**Permission Model:**
+```java
+// Server-side RobotStateUpdateService enforces:
+if (!context.getRobotId().equals(stateElem.getAttribute("data-robot-id"))) {
+  throw new UnauthorizedException("Only robot " + stateElem.getAttribute("data-robot-id") 
+    + " can update this state");
+}
+```
 
-1. **Operational Transform for state** (complex):
-   - Implement custom OT for robot-state attributes
-   - Robots merge state updates (e.g., `Object.assign(oldState, deltaState)`)
-   - Requires custom conflict resolution logic
+**Design Pattern:**
+```
+User Action (Wave UI) 
+  ↓
+Participant submits form or triggers event
+  ↓
+Wave server broadcasts event to robots
+  ↓
+Originating Robot processes event (single writer)
+  ↓
+Robot computes new state (atomic)
+  ↓
+Robot updates <robot-state> element (single operation)
+  ↓
+Wave broadcasts state change to all participants
+  ↓
+All participants see consistent state (no conflicts)
+```
 
-2. **Client-side conflict resolution** (recommended):
-   - Robot polls state periodically (e.g., fetch state before update)
-   - Detect conflicts and re-render HTML with merged state
-   - Participants see a "state conflict" notification and re-apply their change
+**Why This Works:**
+- Eliminates concurrency complexity (single writer per state element)
+- Atomic updates (robot controls whole-state semantics)
+- Clear ownership (robot is responsible for state consistency)
+- Scalable (no OT transform needed for state; only robot operations)
 
-3. **Versioned state with merge function** (Option C hybrid):
-   - Robot DB tracks state versions
-   - Merge function defined by robot (e.g., "later timestamp wins", "sum numbers", etc.)
-   - Wave stores version reference only
+**Conflict Scenario (Handled Correctly):**
+```
+Scenario: User A and User B both click "refresh" at same time
 
-4. **Restrict state updates to single robot** (simplest):
-   - Only the originating robot can update its own state
-   - Participants trigger robot actions (via FormElements or Wave events)
-   - Robot updates state atomically
-   - Avoids concurrent multi-writer conflicts
+1. Both trigger Robot.handle_user_action() → Robot receives 2 events
+2. Robot processes sequentially (Wave serializes event delivery)
+3. First refresh: updates state, re-renders HTML
+4. Second refresh: robot sees already-updated state, no-ops or re-fetches data
+5. Both participants see consistent final state (no merge conflict)
+```
 
-**Recommendation for v1:** Option 4 (single-writer) + client-side conflict detection if needed.
+**IF Partial/Field-Level Updates are Needed (Advanced):**
 
-### 4.8.6 State Lifecycle and Cleanup
+For complex widgets with many fields (e.g., 20+ settings), robots can use Wave's native **updateAttributes()** operation for field-level merging:
+
+```java
+// Instead of whole-value replacement
+stateElem.setText(newFullState);  // ← Avoids this (whole-value)
+
+// Use field-level updates
+AttributesUpdate update = Attributes.updateWith("refreshInterval", "60")
+  .with("timezone", "PST");
+stateElem.getAttributes().applyAndCompound(update);  // ← Wave merges field-level
+```
+
+This allows Wave's OT to merge independent field updates from different robots. However, this requires:
+- Careful schema design (which fields are independent?)
+- Agreement on conflict resolution (what if two robots update same field?)
+- Test coverage for OT merge semantics
+
+**Recommendation for v1**: **Use whole-value replacement + single-writer model.** Field-level updates can be added post-v1 if needed.
+
+### 4.8.6 State Versioning and Schema Migration
+
+**Problem:** Over time, robot code evolves. State schemas change (new fields, removed fields, renames). Old wave documents contain v1 state while new robot code expects v2.
+
+**Example:**
+```json
+// Old robot code (v1) stored state like this:
+{"collapsed": false, "sortBy": "date", "timezone": "UTC"}
+
+// New robot code (v2) expects:
+{"collapsed": false, "sortBy": "date", "timezone": "UTC", "theme": "dark", "locale": "en"}
+```
+
+**Solution: Versioned State with Migration Functions**
+
+Every `<robot-state>` includes a `data-version` attribute that robots use to detect and migrate old state.
+
+```xml
+<robot-state data-robot-id="dashboard-bot" data-state-key="prefs" data-version="2">
+  {"collapsed": false, "sortBy": "date", "timezone": "UTC", "theme": "dark", "locale": "en"}
+</robot-state>
+```
+
+**Server-side RobotStateUpdateService:**
+
+```java
+public class RobotStateUpdateService extends OperationService {
+  
+  public void execute(Robot robot, OperationContext context) {
+    // ... existing validation ...
+    
+    String stateValue = context.getParameter("stateValue");
+    String stateVersion = context.getParameter("stateVersion", "1");  // default v1
+    String stateType = context.getParameter("stateType", "json");
+    
+    // Validate size limit
+    if (stateValue.length() > 100_000) {  // 100 KB limit
+      throw new BadRequestException("State exceeds max size of 100 KB");
+    }
+    
+    // Validate JSON/XML/text format
+    if ("json".equals(stateType)) {
+      try {
+        JsonParser.parse(stateValue);
+      } catch (JsonParseException e) {
+        throw new BadRequestException("Invalid JSON in state_value");
+      }
+    }
+    
+    // Create/update state element
+    XmlElement stateElem = htmlElem.getFirstChild("robot-state");
+    if (stateElem == null) {
+      stateElem = XmlElement.create("robot-state");
+      htmlElem.appendChild(stateElem);
+    }
+    
+    stateElem.setAttribute("data-robot-id", robot.getId());
+    stateElem.setAttribute("data-state-key", context.getParameter("stateKey"));
+    stateElem.setAttribute("data-version", stateVersion);
+    stateElem.setAttribute("type", stateType);
+    stateElem.setAttribute("data-timestamp", System.currentTimeMillis());
+    stateElem.setAttribute("data-size-bytes", stateValue.length());
+    stateElem.setText(stateValue);
+  }
+}
+```
+
+**Client-Side & Robot Migration:**
+
+When rendering HTML or processing state, robot fetches state and migrates if needed:
+
+```python
+def get_and_migrate_state(wavelet, blip_id, state_key):
+  """Fetch state and auto-migrate to current schema version."""
+  state_elem = wavelet.get_robot_state(blip_id, state_key)
+  
+  stored_version = int(state_elem.getAttribute("data-version", "1"))
+  current_version = 2  # Robot's current schema version
+  
+  state = json.loads(state_elem.getText())
+  
+  # Migrate if needed
+  if stored_version < current_version:
+    state = migrate_state_schema(state, stored_version, current_version)
+    # Optionally update state in wave with new version
+    wavelet.update_robot_state(blip_id, state_key, state, version=current_version)
+  
+  return state
+
+def migrate_state_schema(state, from_version, to_version):
+  """Migrate state from one schema to another."""
+  if from_version == 1 and to_version == 2:
+    # v1 -> v2: add new fields with defaults
+    state.setdefault("theme", "light")
+    state.setdefault("locale", "en")
+  
+  if from_version == 2 and to_version == 3:
+    # v2 -> v3: rename field
+    if "sortBy" in state:
+      state["sortOrder"] = state.pop("sortBy")
+  
+  return state
+
+@robot.handle(document_ops.DocumentChangedEvent)
+def on_blip_change(event, wavelet):
+  blip = event.blip
+  # Fetch and auto-migrate state
+  state = get_and_migrate_state(wavelet, blip.id, "dashboard-prefs")
+  # Now use state with current schema
+  ...
+```
+
+**Testing State Versioning:**
+
+```python
+# Unit test: migration function
+def test_migrate_v1_to_v2():
+  old_state = {"collapsed": False, "sortBy": "date", "timezone": "UTC"}
+  new_state = migrate_state_schema(old_state, 1, 2)
+  assert new_state["theme"] == "light"
+  assert new_state["locale"] == "en"
+
+# Integration test: state fetched with correct version
+def test_auto_migrate_on_fetch():
+  # Create old wave with v1 state
+  wavelet.create_blip(html, state={"collapsed": False}, version="1")
+  
+  # Fetch with new robot expecting v2
+  state = get_and_migrate_state(wavelet, blip_id, "key")
+  assert state["version"] == 2
+  assert state["theme"] == "light"
+```
+
+**Best Practices:**
+
+1. **Increment version for breaking changes only** (e.g., renamed fields, removed fields)
+2. **Add defaults for new fields** (forward-compatible)
+3. **Keep migration functions simple** (one-step migrations, e.g., v1→v2, v2→v3)
+4. **Document schema changes** in robot README/changelog
+5. **Test migrations** before deploying robot update
+
+### 4.8.7 State Size Limits and Quota
+
+**Size Limit Enforcement:**
+
+The Wave server enforces a **100 KB per-element limit** for `<robot-state>` content:
+
+```
+Max state size = 100 KB per <robot-state> element
+Rationale:
+- Prevents unbounded blip growth (impacts snapshots, exports, diffs)
+- Typical state (dashboard prefs, widget settings): 1-10 KB
+- Complex state (chat history, data cache): 50 KB OK
+- Oversized state (>100 KB) should use Option B (robot-hosted)
+```
+
+**Quota Tracking:**
+
+Each `<robot-state>` element includes `data-size-bytes` attribute for quota monitoring:
+
+```xml
+<robot-state data-robot-id="mybot" data-state-key="dashboard-prefs" 
+             data-size-bytes="4521" data-version="1">
+  {..."dashboard-prefs": 4521 bytes of JSON...}
+</robot-state>
+```
+
+**Per-Blip State Quota:**
+
+- Max `<robot-state>` elements per `<robot-html>`: 5 (prevents state explosion)
+- Max total state per blip: 500 KB (sum of all `<robot-state>` elements)
+- Robots exceeding quota get error: HTTP 413 Payload Too Large with clear message
+
+**Migration Path for Oversized State:**
+
+If robot needs >100 KB state:
+1. Keep small state (metadata, references) in Wave-stored state (Option A)
+2. Move bulk data to robot database (Option B)
+3. Use state as reference: `{"cacheKey": "dashb-42", "versionId": "v7"}`
+4. Robot fetches bulk data from DB when rendering HTML
+
+### 4.8.8 State Lifecycle and Cleanup
 
 **Persistence:**
 - `<robot-state>` elements are persistent (part of the blip)
@@ -985,7 +1214,7 @@ Result:
 - They survive wave archival, deletion (follow blip lifecycle)
 
 **Cleanup:**
-- Robot can delete state: `wavelet.delete_robot_state(blip_id, element_index, state_key)`
+- Robot can delete state: `wavelet.delete_robot_state(blip_id, state_key)`
 - When `<robot-html>` element is deleted, its `<robot-state>` children are deleted too
 - For Option B (robot-hosted): robot must implement cleanup when wave/blip is deleted (via Wave event hook)
 
@@ -993,7 +1222,7 @@ Result:
 - Wave does not support automatic TTL for elements
 - If robots want ephemeral state, use Option B (robot-hosted) with explicit TTL
 
-### 4.8.7 Migration Example: Gadget → Robot HTML with State
+### 4.8.9 Migration Example: Gadget → Robot HTML with State
 
 **Old OpenSocial gadget:**
 ```xml
@@ -1052,7 +1281,7 @@ def handle_user_action(action):
   # ... re-render HTML with new state
 ```
 
-### 4.8.8 Testing State Management
+### 4.8.10 Testing State Management
 
 **Unit tests:**
 - State serialization/deserialization (JSON parsing, XML escaping)

@@ -286,9 +286,10 @@ Fix the pre-existing `BaseApiServlet` singleton race as part of this refactor.
 `handleResults(...)` reads it back. `UnifiedRobotOperationExecutor` must not
 inherit that pattern. The executor should be request-scoped/stateless: parsed
 operations travel through method parameters or immutable request/result objects,
-never through servlet instance fields.
-Under concurrent requests, that shared field can be overwritten mid-request,
-causing crossed responses or incomplete operation execution.
+never through servlet instance fields. Under concurrent requests handled by the
+same `ActiveApiServlet` or `DataApiServlet` instance, that field can be
+overwritten or read mid-request, causing crossed responses or incomplete
+operation execution.
 
 #### New classes to add
 
@@ -1085,11 +1086,12 @@ high-level robot operation services, which execute against current server state.
 
 - the embedded `delta` object is a JSON form of `ProtocolWaveletDelta` using proto3 JSON
   field-name mapping (camelCase); `hashedVersion` and `author` are required fields
-- `delta.author` must equal the delegated session's `effectiveSubject`, not the
-  robot actor id
-- when routing to `ClientFrontend.submitRequest(...)`, the `loggedInUser` parameter
-  must also be set to `effectiveSubject` to satisfy the server's
-  `author.equals(loggedInUser)` validation (see §4.7 RPC and Stream Behavior)
+- Per Proposal 2, `delta.author` must equal the delegated session's
+  `effectiveSubject`, not the robot actor id
+- Per Proposal 2, when routing to `ClientFrontend.submitRequest(...)`, the
+  `loggedInUser` parameter must also be set to `effectiveSubject` to satisfy
+  the server's `author.equals(loggedInUser)` validation (see §4.7 RPC and
+  Stream Behavior)
 - if the submit is accepted after operational transformation, the server returns
   `submit.ack` with `hashedVersionAfterApplication`
 - if the submitted `hashedVersion` is too stale or cannot be bridged, surface

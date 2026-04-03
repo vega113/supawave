@@ -88,7 +88,8 @@ Key runtime files:
 - Follow `eclipse-formatter-style.xml`
 - Build checks: `sbt wave/compile`, `sbt compileGwt`, `sbt prepareServerConfig run`
 - Local server verification is required before PRs that affect app behavior
-- Work in isolated git worktrees under `${WORKTREE_ROOT}`
+- Work in isolated git worktrees under `${WORKTREE_ROOT}` (default:
+  `${HOME}/devroot/worktrees`; do not place worktrees inside the main repo tree)
 
 ## Critical Decisions Already Made
 
@@ -185,7 +186,9 @@ Practical note:
 - primary checkout: `<repo-root>/incubator-wave`
 - active JWT lane: `${WORKTREE_ROOT}/incubator-wave/jwt-shared-platform`
 - active route-fix lane: `${WORKTREE_ROOT}/incubator-wave/search-clientapplier-fix`
-- worktrees should live under `${WORKTREE_ROOT}` (set this to your shared worktree root)
+- worktrees should live under `${WORKTREE_ROOT}` (set to
+  `${HOME}/devroot/worktrees` unless your environment explicitly overrides the
+  shared root; never use `.claude/worktrees/` inside the repo)
 
 ## Current Open Risks
 

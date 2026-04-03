@@ -21,7 +21,7 @@
 
 - [ ] **Step 1: Confirm the current inconsistency**
 Run: `rg -n "Jakarta Migration Pattern|jakarta-overrides|wrong-edit-guard" AGENTS.md ORCHESTRATOR.md scripts/jakarta-wrong-edit-guard.sh`
-Expected: `scripts/jakarta-wrong-edit-guard.sh` cites `AGENTS.md`, `ORCHESTRATOR.md` documents the override rule, and `AGENTS.md` lacks the matching rule text.
+Expected: before the follow-up landed, `scripts/jakarta-wrong-edit-guard.sh` cited `AGENTS.md`, `ORCHESTRATOR.md` documented the override rule, and `AGENTS.md` lacked the matching rule text; after the follow-up, `AGENTS.md` contains the same Jakarta dual-source rule.
 
 - [ ] **Step 2: Add the minimal AGENTS.md rule**
 Edit `AGENTS.md` near the workflow and code-guidance sections to state that when a matching file exists under `wave/src/jakarta-overrides/java/`, agents must edit the override copy because the override is runtime-active.

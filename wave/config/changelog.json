@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-04-03-search-startup-warmup-default-off",
+    "version": "PR TBD",
+    "date": "2026-04-03",
+    "title": "Stop blocking startup on eager search warmup",
+    "summary": "Search startup no longer pre-builds the owner wave view by default, so deploys and reloads reach the app shell faster while real search requests keep the existing lazy rebuild path.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Moved startup search warmup behind a new search.startup_wave_view_warmup config flag that defaults to false",
+          "Added focused Jakarta coverage for disabled startup warmup, owner normalization, fallback wave-map warmup, and non-fatal warmup failures"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-03-architecture-docs-links",
     "version": "PR #592",
     "date": "2026-04-03",

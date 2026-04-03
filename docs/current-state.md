@@ -1,7 +1,7 @@
 # Apache Wave Current State and Resumption Guide
 
 Status: Canonical
-Updated: 2026-03-18
+Updated: 2026-04-03
 Owner: Project Maintainers
 
 This document is the single starting point for resuming work on the modernized
@@ -38,7 +38,7 @@ Cloudflare is optional and should be treated as an overlay, not as a baseline de
 Read these files first when resuming work:
 
 1. `README.md`
-   - Entry point for local setup, SBT usage, and documentation links.
+   - Entry point for local setup, SBT notes, and legacy Gradle references.
 2. `docs/current-state.md`
    - Verified current repository snapshot and prioritized backlog.
 3. `docs/architecture/jakarta-dual-source.md`
@@ -56,9 +56,9 @@ Read these files first when resuming work:
 9. `docs/jetty-migration.md`
    - Detailed Jetty / Jakarta migration ledger and test history.
 10. `docs/migrate-conversation-renderer-to-apache-wave.md`
-    - Detailed renderer, quasi-deletion, and fragment import log.
+    - Renderer, quasi-deletion, and fragment import log.
 11. `docs/blocks-adoption-plan.md`
-    - Detailed server-first fragments and segment-state adoption log.
+    - Server-first fragments and segment-state adoption log.
 12. `docs/BUILDING-sbt.md`
     - State of the additive SBT build port.
 13. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
@@ -77,7 +77,7 @@ Read these files first when resuming work:
 Use `ORCHESTRATOR.md` for live operational state and lane context. Use the
 `docs/architecture/` references above for durable architecture guidance.
 
-## Verified current state
+## Verified current state snapshot (2026-03-22)
 
 ### Modernization work that is already in place
 
@@ -119,12 +119,12 @@ Use `ORCHESTRATOR.md` for live operational state and lane context. Use the
 
 ### Smoke verification on core-smoke
 
-- `./gradlew -q :wave:compileJava` passes on this branch.
-- `./gradlew -q :wave:smokeUi` passes on this branch and reports
-  `ROOT=302 WEBCLIENT=200` followed by `UI smoke OK`.
-- `./gradlew -q :wave:test` still fails at `:wave:compileTestJava` with legacy
-  test debt in the server tree. The current failures include Jetty session API
-  drift in `FragmentsHttpGatingTest`, stale
+This branch's legacy core-smoke validation passed the main compile check and UI
+smoke check.
+
+The legacy test path still fails at `compileTestJava` with test debt in the
+server tree. The current failures include Jetty session API drift in
+`FragmentsHttpGatingTest`, stale
   `ServerMain.applyFragmentsConfig(...)` references in
   `ServerMainApplierConfigValidationTest` and `ServerMainConfigValidationTest`,
   javax/jakarta servlet mismatches in `FragmentsServletViewportTest`, and

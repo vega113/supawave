@@ -75,8 +75,11 @@ Use this workflow when touching runtime code:
 4. If you add a Jakarta replacement for a class that already exists in
    `src/main/java`, check `build.sbt` so the main copy is excluded from the
    compile set.
-5. Prefer Jakarta integration coverage in `wave/src/jakarta-test/java` for
-   runtime-facing changes.
+5. Prefer new Jakarta integration coverage in `wave/src/jakarta-test/java` for
+   runtime-facing Jakarta changes. Some existing tests in this directory are
+   historical workarounds that still exercise `javax` implementations; verify
+   a test's intent before moving or converting it, such as
+   `wave/src/jakarta-test/java/org/waveprotocol/box/server/stat/StatuszServletConfigTest.java`.
 
 Editing only the main-tree copy of a class that already has a Jakarta override
 will not change the live server behavior.

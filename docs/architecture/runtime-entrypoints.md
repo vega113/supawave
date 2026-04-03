@@ -36,12 +36,15 @@ entrypoints are:
 Two classes split the main request-path responsibilities:
 
 - `ServerMain`
-  - owns high-level servlet registration in `initializeServlets()`
-  - registers application routes such as `/auth/*`, `/fetch/*`, `/search/*`,
-    `/fragments`, `/robot/*`, `/admin/*`, `/changelog`, and `/`
+  - orchestrates servlet and filter registration in `initializeServlets()` by
+    calling `addServlet()` and `addFilter()` on `ServerRpcProvider`
+  - registers application routes such as `/auth/signin`, `/auth/register`,
+    `/fetch/*`, `/search/*`, `/healthz`, `/readyz`, `/account/robots`,
+    `/api/robots`, `/robot/dataapi`, `/robot/token`, `/changelog`, and `/`
 - `ServerRpcProvider`
-  - owns the Jetty server, connectors, filters, static resource handling, and
-    Jakarta WebSocket endpoint registration
+  - owns the Jetty server, connectors, and static resource handling
+  - provides `addServlet()` and `addFilter()` for application registration
+  - manages Jakarta WebSocket endpoint registration
   - serves `/webclient/*`
   - registers the `/socket` endpoint for live client RPC
 
@@ -90,8 +93,7 @@ sequence stable when touching build or runtime seams:
 
 1. Protobuf
 2. PST
-3. GXP
-4. GWT
+3. GWT
 
-Changing build wiring without preserving that order can break runtime behavior
-indirectly by invalidating generated classes or assets.
+GXP generation is no longer part of the current build pipeline; the SBT build
+replaces it with `HtmlRenderer` and wires `compileGwt` after Java compilation.

@@ -88,7 +88,7 @@ Key runtime files:
 - Follow `eclipse-formatter-style.xml`
 - Build checks: `sbt wave/compile`, `sbt compileGwt`, `sbt prepareServerConfig run`
 - Local server verification is required before PRs that affect app behavior
-- Work in isolated git worktrees under `/Users/vega/devroot/worktrees`
+- Work in isolated git worktrees under `${WORKTREE_ROOT}`
 
 ## Critical Decisions Already Made
 
@@ -116,7 +116,7 @@ Key runtime files:
 - `StatuszServlet` reflection is brittle against internal field renames
 - Fragment transport modes exist, but HTTP mode is metrics-only today
 
-## Current State (2026-03-22)
+## Current State Snapshot (2026-03-22)
 
 ### What is working
 - Jakarta-only server/runtime path
@@ -182,10 +182,10 @@ Practical note:
 
 ## Worktree / Repo Conventions
 
-- primary checkout: `/Users/vega/devroot/incubator-wave`
-- active JWT lane: `/Users/vega/devroot/worktrees/incubator-wave/jwt-shared-platform`
-- active route-fix lane: `/Users/vega/devroot/worktrees/incubator-wave/search-clientapplier-fix`
-- worktrees must live under `/Users/vega/devroot/worktrees`
+- primary checkout: `<repo-root>/incubator-wave`
+- active JWT lane: `${WORKTREE_ROOT}/incubator-wave/jwt-shared-platform`
+- active route-fix lane: `${WORKTREE_ROOT}/incubator-wave/search-clientapplier-fix`
+- worktrees should live under `${WORKTREE_ROOT}` (set this to your shared worktree root)
 
 ## Current Open Risks
 

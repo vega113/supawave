@@ -133,7 +133,7 @@ ssh session.
 
 running `vagrant up win10` will setup a windows 10 environment for Apache Wave,
 this vm does not setup a dist but that can be done by following the steps below
-in the Gradle Tasks section within the vm.
+in the SBT Tasks section within the vm.
 
 The virtual machine will make a copy of the current source into the users
 documents folder under Apache-Wave. Running the vagrant up command again will

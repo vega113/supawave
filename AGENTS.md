@@ -25,6 +25,14 @@ git worktrees.
 - Memory contains: workflow rules, coding patterns, model selection, drill procedure, and project-specific lessons.
 - This memory persists across sessions — always check it before starting work.
 
+## Jakarta Dual-Source Rule
+- The codebase keeps runtime-active Jakarta replacements under
+  `wave/src/jakarta-overrides/java/` while the legacy source remains under
+  `wave/src/main/java/`.
+- When a matching override exists, edit the Jakarta override copy. The override
+  version is what runs, so changes made only in `wave/src/main/java/` will not
+  take effect.
+
 ## Agent Roles
 
 ### Lead

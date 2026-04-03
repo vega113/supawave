@@ -38,6 +38,20 @@ jobs:
             python3 scripts/validate-changelog.py --changelog wave/config/changelog.json
           fi
 
+      - name: Advisory Jakarta wrong-edit guardrail
+        continue-on-error: true
+        run: |
+          base_ref=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base_ref="${{ github.event.pull_request.base.sha }}"
+          elif [ -n "${{ github.event.before || '' }}" ] \
+            && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            base_ref="${{ github.event.before }}"
+          else
+            base_ref="origin/main"
+          fi
+          ./scripts/jakarta-wrong-edit-guard.sh --base-ref "$base_ref"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

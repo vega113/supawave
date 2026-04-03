@@ -66,6 +66,10 @@ Notes:
 ## Documentation map
 
 - Verified current status and prioritized backlog: `docs/current-state.md`
+- Stable architecture references:
+  - Jakarta dual-source rules: `docs/architecture/jakarta-dual-source.md`
+  - Runtime entrypoints and wiring: `docs/architecture/runtime-entrypoints.md`
+  - Dev persistence topology: `docs/architecture/dev-persistence-topology.md`
 - Deployment entry point: `docs/deployment/README.md`
 - Generic Linux host baseline: `docs/deployment/linux-host.md`
 - Supported deployment flavors: `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
@@ -129,7 +133,7 @@ ssh session.
 
 running `vagrant up win10` will setup a windows 10 environment for Apache Wave,
 this vm does not setup a dist but that can be done by following the steps below
-in the Gradle Tasks section within the vm.
+in the SBT Tasks section within the vm.
 
 The virtual machine will make a copy of the current source into the users
 documents folder under Apache-Wave. Running the vagrant up command again will

@@ -6,8 +6,7 @@ Date: 2025-10-11
 
 Status note (2026-03-18)
 - Detailed Jetty / Jakarta migration ledger kept for implementation history.
-- Canonical current-state tracking lives in `docs/current-state.md` and
-  `.beads/issues.jsonl` under `incubator-wave-modernization`.
+- Canonical current-state tracking lives in `docs/current-state.md` and the live GitHub Issues workflow documented in `docs/github-issues.md`.
 - The legacy `-PjettyFamily=javax` fallback is retired; new work should assume
   the Jakarta runtime as the only supported server profile.
 

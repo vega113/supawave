@@ -7,7 +7,8 @@ Status note (2026-03-23)
 - Historical implementation ledger for the renderer, quasi-deletion, and
   fragments import work.
 - The canonical current state lives in `docs/current-state.md`; active work is
-  tracked in `.beads/issues.jsonl` under `incubator-wave-wiab-core`.
+  tracked in GitHub Issues via the workflow documented in
+  `docs/github-issues.md`.
 - Core-smoke verification on this branch is green for
   `./gradlew -q :wave:compileJava` and `./gradlew -q :wave:smokeUi`, with
   `smokeUi` reporting `ROOT=302 WEBCLIENT=200` and `UI smoke OK`.
@@ -77,7 +78,7 @@ Status note (2026-03-18)
     merged branch,
   - keep the deeper blocks / snapshot gating follow-up in sync with
     `docs/blocks-adoption-plan.md`.
-- Use `docs/current-state.md` and Beads epic `incubator-wave-wiab-core` for the
+- Use `docs/current-state.md` and the live GitHub Issues tracker for the
   current backlog.
 
 

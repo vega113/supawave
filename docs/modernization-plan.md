@@ -20,8 +20,8 @@ Canonical status note (2026-03-18)
 - Keep this file as the detailed modernization task ledger and historical phase
   log.
 - This ledger is not the canonical source of truth for task status; use
-  `.beads/issues.jsonl` for live task execution and `docs/current-state.md` for
-  the current resume point.
+  GitHub Issues for live task execution and `docs/current-state.md` for the
+  current resume point.
 
 How we track task status and updates
 - Each task includes a Status field with one of: Planned | In Progress | Completed.
@@ -701,7 +701,7 @@ Task P6-T6: Retire legacy OAuth libraries
   - `./gradlew -q :wave:compileJava` passes on the Jakarta path after the OAuth quarantine.
 - DoD:
   - Legacy OAuth dependencies and repository URLs are removed from the default build.
-  - The docs and Beads trail explicitly call out the accepted OAuth breakage and the unsupported robot/Data API/import-export entrypoints.
+  - The docs and issue/PR trail explicitly call out the accepted OAuth breakage and the unsupported robot/Data API/import-export entrypoints.
 
 Task P6-T4: Guava upgrade strategy (scoped)
 - Status: Completed on the server path; client follow-up moved to Phase 8

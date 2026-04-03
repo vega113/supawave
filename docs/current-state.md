@@ -38,41 +38,45 @@ Cloudflare is optional and should be treated as an overlay, not as a baseline de
 Read these files first when resuming work:
 
 1. `README.md`
-   - Entry point for local setup, SBT notes, and legacy Gradle references.
-2. `docs/current-state.md`
+   - Entry point for local setup, SBT/Jakarta reality, and documentation links.
+2. `AGENTS.md` and `docs/agents/tool-usage.md`
+   - Repo operating rules plus Codex tool routing, model tiers, and MCP guidance.
+3. `docs/github-issues.md`
+   - Live GitHub Issues workflow, label/filter conventions, and Beads archive policy.
+4. `docs/current-state.md`
    - Verified current repository snapshot and prioritized backlog.
-3. `docs/architecture/jakarta-dual-source.md`
+5. `docs/architecture/jakarta-dual-source.md`
    - Jakarta override source-selection rules and editing guidance.
-4. `docs/architecture/runtime-entrypoints.md`
+6. `docs/architecture/runtime-entrypoints.md`
    - Server bootstrap, servlet routing, and runtime module seams.
-5. `docs/architecture/dev-persistence-topology.md`
+7. `docs/architecture/dev-persistence-topology.md`
    - Dev store layout and safe local persistence defaults.
-6. `docs/modernization-plan.md`
+8. `docs/modernization-plan.md`
    - Detailed modernization ledger for phases 0 through 8.
-7. `docs/j2cl-gwt3-inventory.md`
+9. `docs/j2cl-gwt3-inventory.md`
    - Measured inventory of the current GWT-specific migration surface.
-8. `docs/j2cl-gwt3-decision-memo.md`
+10. `docs/j2cl-gwt3-decision-memo.md`
    - Current go/no-go decision and dependency-ordered follow-on tasks for any future J2CL work.
-9. `docs/jetty-migration.md`
+11. `docs/jetty-migration.md`
    - Jetty / Jakarta migration ledger and test history.
-10. `docs/migrate-conversation-renderer-to-apache-wave.md`
+12. `docs/migrate-conversation-renderer-to-apache-wave.md`
    - Renderer, quasi-deletion, and fragment import log.
-11. `docs/blocks-adoption-plan.md`
+13. `docs/blocks-adoption-plan.md`
    - Server-first fragments and segment-state adoption log.
-12. `docs/BUILDING-sbt.md`
+14. `docs/BUILDING-sbt.md`
     - State of the additive SBT build port.
-13. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
+15. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
     - Canonical deployment documentation set and provider-neutral Linux host guidance.
-14. `docs/DEV_SETUP.md`
+16. `docs/DEV_SETUP.md`
     - Local development requirements and setup notes.
-15. `docs/SMOKE_TESTS.md`
+17. `docs/SMOKE_TESTS.md`
     - Manual and scripted smoke-test guidance.
-16. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
+18. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
     - Configuration behavior and fragments-specific settings.
-17. `docs/persistence-topology-audit.md`
+19. `docs/persistence-topology-audit.md`
     - Current persistence topology, Mongo coverage, and multi-instance blockers.
-18. `.beads/issues.jsonl`
-    - Live project backlog for epics and tasks.
+20. `docs/epics/README.md` and `.beads/README.md`
+    - Historical Beads epic/archive references only.
 
 Use `ORCHESTRATOR.md` for live operational state and lane context. Use the
 `docs/architecture/` references above for durable architecture guidance.
@@ -226,7 +230,7 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
 9. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
    the prerequisite reduction tasks for any future J2CL work are still open.
 10. The documentation surface is now intentionally split between one canonical
-   resume guide, a few live ledgers, and Beads tasks; do not re-open one-off
+   resume guide, a few live ledgers, and GitHub Issues; do not re-open one-off
    plan docs when the live backlog already captures the work.
 
 ### Wiab.pro product features that are still not imported
@@ -244,10 +248,11 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
 ### 1. Documentation and backlog foundation
 
 - Keep documentation current before additional implementation work.
-- Use the repo-local Beads backlog in `.beads/issues.jsonl` as the live task
-  source.
-- Treat this document as the written resumption guide and use Beads for live
-  execution tracking.
+- Use GitHub Issues as the live task source.
+- Treat this document as the written resumption guide and use
+  `docs/github-issues.md` for the current issue-tracking workflow.
+- Treat `.beads/` and `docs/epics/README.md` as historical archive material
+  only.
 
 ### 2. Modernization Phase 6 through 8
 
@@ -278,27 +283,19 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
   adopted or only selectively mined for ideas.~~
   (Decided 2026-03-24: not adopting. See `docs/snapshot-gating-decision.md`.)
 
-## Beads epics
+## GitHub Issues And Historical Epics
 
-The project backlog is tracked in `.beads/issues.jsonl` with these epic ids:
+The live backlog is now tracked in GitHub Issues, not in `.beads/issues.jsonl`.
+Use the workflow and label conventions in `docs/github-issues.md`.
 
-- `incubator-wave-docs`
-  - Documentation and backlog foundation.
-  - Closed by the documentation refresh that introduced this canonical resume
-    guide.
-- `incubator-wave-docs-maintenance`
-  - Documentation maintenance and ledger cleanup.
-  - Closed by the follow-up docs refresh that retired the one-off resume plan
-    and aligned the live documentation map with Beads.
-- `incubator-wave-modernization`
-  - Remaining modernization phase work.
-- `incubator-wave-wiab-core`
-  - Completion of already-imported Wiab renderer and fragments work.
-- `incubator-wave-wiab-product`
-  - Evaluation and import of remaining Wiab product features.
+Historical lineage from the former Beads archive remains available in:
 
-See `docs/epics/README.md` for the human-readable epic overview and
-`.beads/issues.jsonl` for the live task records.
+- `docs/epics/README.md`
+- `.beads/README.md`
+- `.beads/issues.jsonl`
+
+Use those files only for historical context or archive lookups, not for new
+task creation or progress updates.
 
 ## Documentation policy
 
@@ -307,5 +304,5 @@ See `docs/epics/README.md` for the human-readable epic overview and
 - Remove one-off or tool-specific documents once their actionable findings are
   folded into the canonical docs and backlog.
 - The one-off resumption plan was retired once its content was folded into this
-  document and the Beads backlog.
+  document and the live issue tracker.
 - Update `README.md` and this file whenever the canonical doc set changes.

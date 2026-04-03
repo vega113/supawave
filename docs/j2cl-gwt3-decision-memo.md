@@ -97,7 +97,7 @@ Track this task as completed once:
 - the inventory document exists
 - this memo exists
 - the modernization ledger points at both documents
-- the Beads task records the artifact paths and proposed follow-on task titles
+- the GitHub Issue records the artifact paths and proposed follow-on task titles
 
 The migration itself should remain a later follow-on effort, not an implied next
 commit.

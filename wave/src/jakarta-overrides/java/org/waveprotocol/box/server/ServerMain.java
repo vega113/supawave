@@ -508,15 +508,21 @@ public class ServerMain {
 
   /**
    * Pre-warms the wave map and, if an owner is configured, the owner's per-user
-   * view so that the first search request is fast rather than waiting for a lazy
-   * full-store scan on first access.
+   * view when {@code search.startup_wave_view_warmup} is enabled.
+   *
+   * <p>When the flag is disabled, the server preserves the lazy first-search
+   * behavior instead of blocking startup on this warmup step.
    *
    * <p>If {@code core.owner_address} is set, only {@code retrievePerUserWaveView}
    * is called — that call already triggers {@code loadAllWavelets()} internally
    * on cache miss, so a separate explicit load would double the startup I/O.
    * Without an owner, a direct {@code loadAllWavelets()} warms the WaveMap cache.
    */
-  private static void warmUpWaveView(Injector injector, Config config) {
+  static void warmUpWaveView(Injector injector, Config config) {
+    if (!config.hasPath("search.startup_wave_view_warmup")
+        || !config.getBoolean("search.startup_wave_view_warmup")) {
+      return;
+    }
     try {
       long warmupStart = System.currentTimeMillis();
       final String rawOwner = config.hasPath("core.owner_address")

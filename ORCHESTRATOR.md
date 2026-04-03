@@ -36,6 +36,13 @@ override source pattern for runtime-facing classes.
 - Central servlet routing: `ServerRpcProvider`
 - Default dev persistence remains file-backed under `_accounts/`,
   `_attachments/`, `_deltas/`, and `_certificates/`
+- Runtime-facing Jakarta overrides live under `wave/src/jakarta-overrides/java/`
+  and must be preferred over matching `wave/src/main/java/` sources when both
+  paths exist
+- Advisory guardrail: `scripts/jakarta-wrong-edit-guard.sh` warns when a diff
+  changes a runtime-shadowed `wave/src/main/java/` file without also touching
+  the matching Jakarta override; it remains advisory-only while issue `#589`
+  gathers false-positive and false-negative signal
 
 ## Current Reality
 

@@ -106,6 +106,23 @@ class JakartaWrongEditGuardTest(unittest.TestCase):
     self.assertEqual(0, result.returncode)
     self.assertNotIn("WARNING", result.stdout)
 
+  def test_does_not_warn_when_no_override_exists(self) -> None:
+    self._write(
+        "wave/src/main/java/org/example/MainOnly.java",
+        "class MainOnly {}\n",
+    )
+    run_git(self.repo, "add", "wave/src/main/java/org/example/MainOnly.java")
+    run_git(self.repo, "commit", "-m", "add main-only file")
+    self._write(
+        "wave/src/main/java/org/example/MainOnly.java",
+        "class MainOnly { int value = 1; }\n",
+    )
+
+    result = self._run_guard()
+
+    self.assertEqual(0, result.returncode)
+    self.assertNotIn("WARNING", result.stdout)
+
   def test_warns_for_directory_level_shadowed_files(self) -> None:
     self._write(
         "wave/src/main/java/org/example/dirshadow/DirShadow.java",

@@ -35,7 +35,7 @@ Cloudflare is optional and should be treated as an overlay, not as a baseline de
 
 ## Canonical documentation set
 
-Read these files first when resuming work:
+Read this document first, then review these companion files when resuming work:
 
 1. `README.md`
    - Entry point for local setup, SBT/Jakarta reality, and documentation links.
@@ -43,39 +43,37 @@ Read these files first when resuming work:
    - Repo operating rules plus Codex tool routing, model tiers, and MCP guidance.
 3. `docs/github-issues.md`
    - Live GitHub Issues workflow, label/filter conventions, and Beads archive policy.
-4. `docs/current-state.md`
-   - Verified current repository snapshot and prioritized backlog.
-5. `docs/architecture/jakarta-dual-source.md`
+4. `docs/architecture/jakarta-dual-source.md`
    - Jakarta override source-selection rules and editing guidance.
-6. `docs/architecture/runtime-entrypoints.md`
+5. `docs/architecture/runtime-entrypoints.md`
    - Server bootstrap, servlet routing, and runtime module seams.
-7. `docs/architecture/dev-persistence-topology.md`
+6. `docs/architecture/dev-persistence-topology.md`
    - Dev store layout and safe local persistence defaults.
-8. `docs/modernization-plan.md`
+7. `docs/modernization-plan.md`
    - Detailed modernization ledger for phases 0 through 8.
-9. `docs/j2cl-gwt3-inventory.md`
+8. `docs/j2cl-gwt3-inventory.md`
    - Measured inventory of the current GWT-specific migration surface.
-10. `docs/j2cl-gwt3-decision-memo.md`
+9. `docs/j2cl-gwt3-decision-memo.md`
    - Current go/no-go decision and dependency-ordered follow-on tasks for any future J2CL work.
-11. `docs/jetty-migration.md`
+10. `docs/jetty-migration.md`
    - Jetty / Jakarta migration ledger and test history.
-12. `docs/migrate-conversation-renderer-to-apache-wave.md`
+11. `docs/migrate-conversation-renderer-to-apache-wave.md`
    - Renderer, quasi-deletion, and fragment import log.
-13. `docs/blocks-adoption-plan.md`
+12. `docs/blocks-adoption-plan.md`
    - Server-first fragments and segment-state adoption log.
-14. `docs/BUILDING-sbt.md`
+13. `docs/BUILDING-sbt.md`
     - State of the additive SBT build port.
-15. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
+14. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
     - Canonical deployment documentation set and provider-neutral Linux host guidance.
-16. `docs/DEV_SETUP.md`
+15. `docs/DEV_SETUP.md`
     - Local development requirements and setup notes.
-17. `docs/SMOKE_TESTS.md`
+16. `docs/SMOKE_TESTS.md`
     - Manual and scripted smoke-test guidance.
-18. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
+17. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
     - Configuration behavior and fragments-specific settings.
-19. `docs/persistence-topology-audit.md`
+18. `docs/persistence-topology-audit.md`
     - Current persistence topology, Mongo coverage, and multi-instance blockers.
-20. `docs/epics/README.md` and `.beads/README.md`
+19. `docs/epics/README.md` and `.beads/README.md`
     - Historical Beads epic/archive references only.
 
 Use `ORCHESTRATOR.md` for live operational state and lane context. Use the

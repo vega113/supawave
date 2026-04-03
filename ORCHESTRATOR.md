@@ -116,7 +116,7 @@ Key runtime files:
 - `StatuszServlet` reflection is brittle against internal field renames
 - Fragment transport modes exist, but HTTP mode is metrics-only today
 
-## Current State Snapshot (2026-03-22)
+## Current State Snapshot (2026-04-03)
 
 ### What is working
 - Jakarta-only server/runtime path

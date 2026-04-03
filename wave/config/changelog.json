@@ -9,7 +9,7 @@
       {
         "type": "feature",
         "items": [
-          "Added README.md Documentation map links for the Jakarta dual-source rules, runtime entrypoints and wiring, and dev persistence topology references"
+          "Added links in the README.md Documentation map section for the Jakarta dual-source rules, runtime entrypoints and wiring, and dev persistence topology references"
         ]
       }
     ]

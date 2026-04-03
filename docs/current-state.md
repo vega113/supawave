@@ -54,11 +54,11 @@ Read these files first when resuming work:
 8. `docs/j2cl-gwt3-decision-memo.md`
    - Current go/no-go decision and dependency-ordered follow-on tasks for any future J2CL work.
 9. `docs/jetty-migration.md`
-   - Detailed Jetty / Jakarta migration ledger and test history.
+   - Jetty / Jakarta migration ledger and test history.
 10. `docs/migrate-conversation-renderer-to-apache-wave.md`
-    - Renderer, quasi-deletion, and fragment import log.
+   - Renderer, quasi-deletion, and fragment import log.
 11. `docs/blocks-adoption-plan.md`
-    - Server-first fragments and segment-state adoption log.
+   - Server-first fragments and segment-state adoption log.
 12. `docs/BUILDING-sbt.md`
     - State of the additive SBT build port.
 13. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
@@ -220,8 +220,8 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
 8. The repo now runs on a Jakarta-only server/runtime path, but dead
    compatibility branches and stale history references still need cleanup.
 9. SBT is still additive and server-only. Its bootstrap/runtime path now tracks
-   `wave/config/`, the jar name is stable, and Gradle remains the canonical
-   build.
+   `wave/config/`, the jar name is stable, and Gradle is now historical context
+   rather than the canonical build path.
 8. Packaging and DX verification still need a post-Jakarta pass.
 9. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
    the prerequisite reduction tasks for any future J2CL work are still open.

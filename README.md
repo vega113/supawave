@@ -66,6 +66,10 @@ Notes:
 ## Documentation map
 
 - Verified current status and prioritized backlog: `docs/current-state.md`
+- Stable architecture references:
+  - Jakarta dual-source rules: `docs/architecture/jakarta-dual-source.md`
+  - Runtime entrypoints and wiring: `docs/architecture/runtime-entrypoints.md`
+  - Dev persistence topology: `docs/architecture/dev-persistence-topology.md`
 - Deployment entry point: `docs/deployment/README.md`
 - Generic Linux host baseline: `docs/deployment/linux-host.md`
 - Supported deployment flavors: `docs/deployment/standalone.md`, `docs/deployment/caddy.md`

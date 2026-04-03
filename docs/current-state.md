@@ -38,35 +38,44 @@ Cloudflare is optional and should be treated as an overlay, not as a baseline de
 Read these files first when resuming work:
 
 1. `README.md`
-   - Entry point for local setup, Gradle usage, and documentation links.
+   - Entry point for local setup, SBT usage, and documentation links.
 2. `docs/current-state.md`
    - Verified current repository snapshot and prioritized backlog.
-3. `docs/modernization-plan.md`
+3. `docs/architecture/jakarta-dual-source.md`
+   - Jakarta override source-selection rules and editing guidance.
+4. `docs/architecture/runtime-entrypoints.md`
+   - Server bootstrap, servlet routing, and runtime module seams.
+5. `docs/architecture/dev-persistence-topology.md`
+   - Dev store layout and safe local persistence defaults.
+6. `docs/modernization-plan.md`
    - Detailed modernization ledger for phases 0 through 8.
-4. `docs/j2cl-gwt3-inventory.md`
+7. `docs/j2cl-gwt3-inventory.md`
    - Measured inventory of the current GWT-specific migration surface.
-5. `docs/j2cl-gwt3-decision-memo.md`
+8. `docs/j2cl-gwt3-decision-memo.md`
    - Current go/no-go decision and dependency-ordered follow-on tasks for any future J2CL work.
-6. `docs/jetty-migration.md`
+9. `docs/jetty-migration.md`
    - Detailed Jetty / Jakarta migration ledger and test history.
-7. `docs/migrate-conversation-renderer-to-apache-wave.md`
-   - Detailed renderer, quasi-deletion, and fragment import log.
-8. `docs/blocks-adoption-plan.md`
-   - Detailed server-first fragments and segment-state adoption log.
-9. `docs/BUILDING-sbt.md`
-   - State of the additive SBT build port.
-10. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
-   - Canonical deployment documentation set and provider-neutral Linux host guidance.
-11. `docs/DEV_SETUP.md`
-   - Local development requirements and setup notes.
-12. `docs/SMOKE_TESTS.md`
-   - Manual and scripted smoke-test guidance.
-13. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
-   - Configuration behavior and fragments-specific settings.
-13. `docs/persistence-topology-audit.md`
-   - Current persistence topology, Mongo coverage, and multi-instance blockers.
-14. `.beads/issues.jsonl`
-   - Live project backlog for epics and tasks.
+10. `docs/migrate-conversation-renderer-to-apache-wave.md`
+    - Detailed renderer, quasi-deletion, and fragment import log.
+11. `docs/blocks-adoption-plan.md`
+    - Detailed server-first fragments and segment-state adoption log.
+12. `docs/BUILDING-sbt.md`
+    - State of the additive SBT build port.
+13. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
+    - Canonical deployment documentation set and provider-neutral Linux host guidance.
+14. `docs/DEV_SETUP.md`
+    - Local development requirements and setup notes.
+15. `docs/SMOKE_TESTS.md`
+    - Manual and scripted smoke-test guidance.
+16. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
+    - Configuration behavior and fragments-specific settings.
+17. `docs/persistence-topology-audit.md`
+    - Current persistence topology, Mongo coverage, and multi-instance blockers.
+18. `.beads/issues.jsonl`
+    - Live project backlog for epics and tasks.
+
+Use `ORCHESTRATOR.md` for live operational state and lane context. Use the
+`docs/architecture/` references above for durable architecture guidance.
 
 ## Verified current state
 

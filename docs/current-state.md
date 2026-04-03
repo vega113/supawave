@@ -38,9 +38,9 @@ Cloudflare is optional and should be treated as an overlay, not as a baseline de
 
 Read these files first when resuming work:
 
-1. [docs/README.md](docs/README.md)
+1. [docs/README.md](README.md)
    - Top-level docs map and category index.
-2. [docs/current-state.md](docs/current-state.md)
+2. [docs/current-state.md](current-state.md)
    - Verified current repository snapshot and prioritized backlog.
 3. [README.md](../README.md)
    - Developer entry point for SBT/Jakarta local setup and the quick docs links.
@@ -48,7 +48,7 @@ Read these files first when resuming work:
    - Fast route for a new agent to the right docs and workflow surfaces.
 5. [docs/runbooks/README.md](docs/runbooks/README.md)
    - Operational, deployment, and local verification runbooks.
-6. [docs/architecture/README.md](docs/architecture/README.md)
+6. [docs/architecture/README.md](architecture/README.md)
    - Durable technical references and ledgers that stay in place.
 7. [docs/github-issues.md](docs/github-issues.md)
    - Live GitHub Issues workflow, label conventions, and execution-log expectations.

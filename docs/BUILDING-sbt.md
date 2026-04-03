@@ -10,13 +10,13 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 - SBT 1.10+ installed.
 - `protoc` is provided by `sbt-protoc` (embedded protoc v3.25.x).
 - `ant` is no longer needed (the legacy `testBackend` fallback has been removed).
-- `generatePstMessages`, `generateFlags`, and `generateGxp` remain manual tasks.
+- `generatePstMessages` and `generateFlags` remain manual tasks.
 
 ## Layout and decisions
 
 - Sources (Maven standard layout):
   - `wave/src/main/java/` (main server sources)
-  - `wave/src/jakarta-overrides/java/` (Jakarta servlet overrides, optional)
+  - `wave/src/jakarta-overrides/java/` (active Jakarta override path when a replacement exists)
   - `wave/src/test/java/` (JUnit tests)
   - `wave/src/proto/` (Protocol Buffer definitions)
   - `proto_src/` (generated Protobuf Java sources)
@@ -43,11 +43,19 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
     - `-Dwave.server.config=wave/config/application.conf`
     - `-Djava.util.logging.config.file=wave/config/wiab-logging.conf`
     - `-Djava.security.auth.login.config=wave/config/jaas.config`
-  - The SBT bootstrap path still needs the root `config/` directory because
-    `ServerMain` reads `config/application.conf` and `config/reference.conf`
-    today.
+  - `prepareServerConfig` still bootstraps the root `config/` directory because
+    some runtime helpers expect those copies even though the default `sbt run`
+    java options point at `wave/config/`.
   - To override, replace the relevant `Compile / javaOptions` entry with your
     own absolute path.
+
+- Build or refresh the web client:
+  - `sbt compileGwt`
+  - `sbt run`, `Universal/stage`, and `Universal/packageBin` already depend on
+    this task.
+  - The build has native GWT compilation support and keeps an optional bridge
+    path for a local executable `gradlew`, but the repo no longer ships Gradle
+    as the normal entry point.
 
 - WebSocket endpoint: `/socket` via JSR 356. Socket.IO `/socket.io/*` is disabled.
 - Status: `/statusz/socket` returns websocket/http address info (JSON)
@@ -55,7 +63,7 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
   - `/auth/signin` (GXP-backed login page)
   - `/` (Wave client page; redirects to signin when not authenticated)
   - `/static/*`, `/render/*`, `/webclient/*` (served by Jetty DefaultServlet;
-    GWT bundle not built in this phase)
+    web client assets are produced by `compileGwt`)
   - `/static/ws-test.html` (simple page to test WebSocket handshake at `/socket`)
 
 - Package fat JAR:
@@ -88,12 +96,14 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 
 ## Notes
 
-- GWT client is not compiled by SBT yet.
+- The GWT client is compiled through the `compileGwt` task, which runs natively
+  in the current repo and can optionally delegate if a local executable
+  `gradlew` is present.
 - Jetty gzip: migrated from deprecated `GzipFilter` to `GzipHandler`.
 - SBT automatically stages protobuf sources before `PB.generate`:
   - `.protodevel` files are rewritten into `target/proto-pb-src` as `.proto`.
   - `descriptor.proto` is resolved from `pst/src/main/proto/google/protobuf/descriptor.proto`.
-- PST, GXP, and client flags remain manual generation tasks.
+- PST and client flags remain manual generation tasks.
 - Stable project naming now produces `incubator-wave-server-0.1.0-SNAPSHOT.jar`
   instead of varying with the worktree directory.
 - `prepareServerConfig` now bootstraps the root `config/` directory from

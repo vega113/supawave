@@ -126,9 +126,9 @@ ssh session.
 
 ### Windows 10 (requires vagrant 1.8+)
 
-running `vagrant up win10` will setup a windows 10 environment for Apache Wave,
-this vm does not setup a dist but that can be done by following the steps below
-in the SBT Tasks section within the vm.
+running `vagrant up win10` will setup a windows 10 environment for Apache Wave.
+This VM does not set up a dist; if you still need it, use the SBT tasks listed
+below inside the VM.
 
 The virtual machine will make a copy of the current source into the users
 documents folder under Apache-Wave. Running the vagrant up command again will

@@ -1,12 +1,19 @@
-# Beads - Project Backlog
+# Beads - Historical Project Backlog
 
-This repository uses **Beads** for the live roadmap and task backlog.
+This repository no longer uses **Beads** as the live roadmap and task backlog.
+GitHub Issues are now the system of record for new planning and implementation
+work.
 
-## Source of truth
+## Current Source of Truth
 
-- Human-readable roadmap summary: `docs/current-state.md`
-- Epic overview: `docs/epics/README.md`
-- Live issue data: `.beads/issues.jsonl`
+- Live roadmap summary: `docs/current-state.md`
+- Live GitHub issue workflow: `docs/github-issues.md`
+- Live issue tracker: `https://github.com/vega113/incubator-wave/issues`
+
+## Archive Contents
+
+- Historical Beads issue data: `.beads/issues.jsonl`
+- Historical Beads epic overview: `docs/epics/README.md`
 
 ## Notes
 
@@ -14,3 +21,5 @@ This repository uses **Beads** for the live roadmap and task backlog.
   tracked directly in git without committing daemon state.
 - Runtime Beads files such as sockets, logs, SQLite databases, and daemon locks
   are intentionally ignored by `.beads/.gitignore`.
+- Keep the archive read-only for historical reference. Do not create or update
+  new tasks or comments here.

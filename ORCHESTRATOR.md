@@ -85,17 +85,47 @@ Key runtime files:
 
 ## Conventions & Rules
 
+### Code Style (from CODE_GUIDELINES.md; AGENTS.md keeps only concise repo addenda)
+- ASF Apache 2.0 license header on every new file
 - Java 17, 2-space indentation, 100-char line max
-- K&R braces, newline after `{` and before `}`
-- No fully qualified names in code
-- No one-line blocks
-- No inline comments; extract a function instead
-- Avoid mutable variables where practical
-- Use `org.waveprotocol.wave.util.logging.Log`
-- Follow `eclipse-formatter-style.xml`
-- Build checks: `sbt wave/compile`, `sbt compileGwt`, `sbt prepareServerConfig run`
-- Local server verification is required before PRs that affect app behavior
-- Work in isolated git worktrees under `${WORKTREE_ROOT}`
+- K&R braces, always newline after `{` and before `}`
+- No FQN imports — use regular imports
+- No one-line blocks: `if (foo) { bar(); }` is prohibited
+- No inline comments — extract to named functions instead
+- No mutable variables/parameters where avoidable
+- Self-documenting code; Javadoc on public classes/methods
+- Logger: `org.waveprotocol.wave.util.logging.Log`
+- Eclipse formatter profile: `eclipse-formatter-style.xml`
+
+### Build & Verify
+
+```bash
+sbt clean compile              # Full build
+sbt test                       # Build + tests
+sbt wave/compile               # Quick compile check
+sbt smokeInstalled             # Stage + smoke-test distribution
+sbt run                        # Run dev server on :9898
+```
+
+### Test Patterns
+- JUnit 4 + Mockito 2 (legacy, not JUnit 5)
+- Extensive use of stubs/fakes over mocks (FakeTimeSource, etc.)
+- Jakarta integration tests in `src/jakarta-test/java/` use `*IT.java` naming
+- Test compilation currently has known failures (legacy test debt)
+
+### Git & PR Workflow
+- Agents work in isolated git worktrees
+- Symlink file-store state via `scripts/worktree-file-store.sh`
+- Local server sanity check before PR (boot + health/auth endpoint)
+- PR review gate accepts either:
+  - `codex-reviewed` label
+  - Codex PR-level `+1` reaction after the latest successful current-head CodeRabbit completion
+  - automatic pass 5 minutes after the latest successful current-head CodeRabbit completion if Codex stays silent and no newer commit exists
+- PR requires one valid bot-review signal and zero unresolved review threads
+- Nitpicks are not optional by default; they need a fix or a reply that explains why no change is needed
+- Do not resolve review threads just to satisfy the gate; leave an explicit reply before resolving an already-addressed thread
+- Stacked PRs targeting non-default branches still need explicit Codex head-commit coverage before merge; labels alone are not enough
+- Commits should reference GitHub Issue IDs when the work is issue-scoped
 
 ## Critical Decisions Already Made
 
@@ -133,6 +163,8 @@ Key runtime files:
 - Deployment pipeline
 - File-based persistence
 - Search
+- GitHub Issues are the live tracker for new work; `.beads/` remains a
+  historical archive
 
 ### Active work fronts
 - JWT authentication
@@ -157,10 +189,13 @@ Key runtime files:
 - `jakarta-tls-origin`
 - `persistence-audit`
 
-### Open epics
-1. `incubator-wave-modernization`
-2. `incubator-wave-wiab-core`
-3. `incubator-wave-wiab-product`
+### Historical Epics (from Beads archive)
+1. `incubator-wave-modernization` — config hygiene, Mongo4 completion, library
+   upgrades, SBT parity, packaging/DX, J2CL inventory
+2. `incubator-wave-wiab-core` — renderer entrypoints, fragment transport,
+   blocks/segment-state
+3. `incubator-wave-wiab-product` — tags, archive, drafts, contacts, snapshot
+   history
 
 ## Decisions Made
 
@@ -198,10 +233,12 @@ Practical note:
 
 1. Production deploys can still flap the live host if a release bundle or
    release config points back to Mongo-backed core stores.
-2. Search/session topology is still not production-ready for true multi-instance
+2. Until the current route-fix lane lands, production may still differ from
+   the locally verified Jakarta route behavior.
+3. Search/session topology is still not production-ready for true multi-instance
    or zero-downtime deployments.
-3. The primary checkout is not on `main`; it is on `hotfix/deploy-layout` and
-   has a modified `.beads/issues.jsonl`.
+4. The repo still contains historical tracker/doc references that point at
+   `.beads/`; those should continue to be retired in favor of GitHub Issues.
 
 ## What Future Agents Should Do First
 
@@ -261,8 +298,8 @@ Conventions:
   - No FQN, no inline comments, no mutable vars
   - Check jakarta-overrides/ before editing any servlet
   - Logger: org.waveprotocol.wave.util.logging.Log
-Beads updates required:
-  - Post progress comments throughout execution
+Issue updates required:
+  - Post progress comments on the linked GitHub Issue throughout execution
   - Include every commit SHA and what each commit changed
   - Record review findings and how each was addressed
 Verify: <how to confirm the work is correct>

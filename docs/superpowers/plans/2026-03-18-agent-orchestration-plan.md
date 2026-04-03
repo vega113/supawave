@@ -1,12 +1,12 @@
 # Agent Orchestration Plan
 
-> **For agentic workers:** REQUIRED: Treat this document as the execution model for Beads task work in this repository. Use checkbox (`- [ ]`) steps when instantiating task-specific plans.
+> **For agentic workers:** REQUIRED: Treat this document as the execution model for GitHub Issue work in this repository. Use checkbox (`- [ ]`) steps when instantiating task-specific plans.
 
-**Goal:** Execute Beads tasks in parallel with clear ownership, reviewed plans, reviewed implementations, and predictable PR flow into `main`.
+**Goal:** Execute GitHub Issue slices in parallel with clear ownership, reviewed plans, reviewed implementations, and predictable PR flow into `main`.
 
-**Architecture:** Each ready Beads task gets its own team-lead agent and its own git worktree. The team lead owns routing and synthesis, not implementation. Inside each task, work flows through architect -> planner -> worker -> reviewer, with Claude review on the plan and on the implementation before PR creation.
+**Architecture:** Each ready GitHub Issue slice gets its own team-lead agent and its own git worktree. The team lead owns routing and synthesis, not implementation. Inside each task, work flows through architect -> planner -> worker -> reviewer, with Claude review on the plan and on the implementation before PR creation.
 
-**Tech Stack:** Codex agents, Beads task tracking, git worktrees under `/Users/vega/devroot/worktrees`, Claude review via `claude-review`, GitHub PRs against `main`.
+**Tech Stack:** Codex agents, GitHub Issue tracking, git worktrees under `/Users/vega/devroot/worktrees`, Claude review via `claude-review`, GitHub PRs against `main`.
 
 ---
 
@@ -16,18 +16,18 @@ in [2026-03-18-outstanding-task-batching-plan.md](/Users/vega/devroot/incubator-
 ## Operating Rules
 
 - `main` is the integration branch.
-- Each Beads task is implemented in its own worktree and branch.
+- Each GitHub Issue slice is implemented in its own worktree and branch.
 - The team-lead agent owns the task lifecycle and delegates actual work.
 - The architect and planner use `gpt-5.4` with `xhigh` reasoning.
 - Workers use `gpt-5.4-mini` with `high` reasoning.
 - Reviewers perform direct review and Claude review before the task is considered ready.
-- Beads is the live source of task state, comments, and traceability.
+- GitHub Issues are the live source of task state, comments, and traceability.
 
 ## Worktree And Branch Model
 
 - Worktree root: `/Users/vega/devroot/worktrees`
 - Branch naming: use a short task-oriented branch name, e.g. `fix-unread-shared-wave`
-- One task branch per Beads task.
+- One task branch per GitHub Issue slice.
 - One worktree per active task branch.
 - If the worktree needs realistic file-based persistence state, run:
 
@@ -39,7 +39,7 @@ scripts/worktree-file-store.sh --source /Users/vega/devroot/incubator-wave
 
 ## Parallelism Model
 
-- Parallelize across independent Beads tasks, not just within a single task.
+- Parallelize across independent GitHub Issue slices, not just within a single task.
 - Give each ready task one team-lead agent.
 - Inside a task, do not parallelize until the plan is stable.
 - After the plan is reviewed and accepted, the worker may spawn additional `gpt-5.4-mini`
@@ -50,10 +50,10 @@ scripts/worktree-file-store.sh --source /Users/vega/devroot/incubator-wave
 
 ### Phase 1: Intake
 
-- [ ] Confirm the Beads task exists and is the right unit of work.
+- [ ] Confirm the GitHub Issue exists and is the right unit of work.
 - [ ] Confirm the task is actually ready: blockers closed, dependencies satisfied.
 - [ ] Create the task worktree and branch.
-- [ ] Add a Beads comment noting the worktree path, branch name, and team-lead ownership.
+- [ ] Add a GitHub Issue comment noting the worktree path, branch name, and team-lead ownership.
 
 ### Phase 2: Architecture
 
@@ -72,7 +72,7 @@ Required architect output:
 
 - [ ] Spawn a planner agent after architect findings are available.
 - [ ] If no adequate task plan exists, create one under `docs/superpowers/plans/`.
-- [ ] Update the Beads task description or comments so the implementation plan is discoverable.
+- [ ] Update the GitHub Issue description or comments so the implementation plan is discoverable.
 - [ ] Review the plan with Claude via `claude-review`.
 - [ ] Address plan-review comments before implementation starts.
 
@@ -97,7 +97,7 @@ Implementation constraints:
 - No coding before a failing test
 - No unrelated cleanup
 - No cross-task edits
-- No hidden changes outside the plan without updating Beads comments
+- No hidden changes outside the plan without updating GitHub Issue comments
 
 ### Phase 5: Review
 
@@ -114,15 +114,15 @@ Required reviewer output:
 
 ### Phase 6: Task Closeout
 
-- [ ] Add a Beads comment listing all commit SHAs and what each commit does.
-- [ ] Add a Beads comment summarizing architect findings, plan-review feedback, code-review feedback, and how each important comment was addressed.
-- [ ] Run a local server sanity verification appropriate to the changed area before opening the PR, and record the exact command plus result in Beads.
+- [ ] Add a GitHub Issue comment listing all commit SHAs and what each commit does.
+- [ ] Add a GitHub Issue comment summarizing architect findings, plan-review feedback, code-review feedback, and how each important comment was addressed.
+- [ ] Run a local server sanity verification appropriate to the changed area before opening the PR, and record the exact command plus result in the linked GitHub Issue.
 - [ ] Run final verification on the agreed targeted test set.
 - [ ] Open a PR from the task branch into `main`.
-- [ ] Add the PR link or number to the Beads task comments.
-- [ ] Close the Beads task only after the implementation and review record are complete.
+- [ ] Add the PR link or number to the issue comments.
+- [ ] Close the GitHub Issue only after the implementation and review record are complete.
 
-## Beads Comment Template
+## GitHub Issue Comment Template
 
 Use this shape for task comments:
 
@@ -170,14 +170,14 @@ PR:
 
 ## Failure Handling
 
-- If Claude review is blocked by provider overload, record that in Beads comments and continue with direct review instead of stalling the task indefinitely.
-- If a worker cannot produce a failing test, stop and revisit the architect findings.
-- If a reviewer finds a broader architectural issue, reopen the architect phase before more coding.
+- Record provider overload in issue comments and continue with direct review instead of stalling the task indefinitely when Claude review is blocked.
+- Stop and revisit the architect findings when a worker cannot produce a failing test.
+- Reopen the architect phase before more coding when review finds a broader architectural issue.
 
 ## Definition Of Ready
 
 A task is ready to start when:
-- It is in Beads
+- It is in GitHub Issues
 - Dependencies are satisfied
 - A worktree can be assigned
 - The task has either an adequate plan already or a planner can write one immediately
@@ -189,5 +189,5 @@ A task is done when:
 - Targeted tests pass
 - Direct review is complete
 - Claude implementation review is complete or explicitly documented as blocked
-- Beads comments contain plan, commit, review, and PR traceability
+- GitHub Issue comments contain plan, commit, review, and PR traceability
 - A PR to `main` is open

@@ -70,6 +70,7 @@ Notes:
   - Jakarta dual-source rules: `docs/architecture/jakarta-dual-source.md`
   - Runtime entrypoints and wiring: `docs/architecture/runtime-entrypoints.md`
   - Dev persistence topology: `docs/architecture/dev-persistence-topology.md`
+- Repo operating rules and Codex tool guidance: `AGENTS.md`, `docs/agents/tool-usage.md`
 - Deployment entry point: `docs/deployment/README.md`
 - Generic Linux host baseline: `docs/deployment/linux-host.md`
 - Supported deployment flavors: `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
@@ -81,7 +82,8 @@ Notes:
 - Smoke-test guidance: `docs/SMOKE_TESTS.md`
 - SBT build notes: `docs/BUILDING-sbt.md`
 - Configuration and fragments flags: `docs/CONFIG_FLAGS.md`, `docs/fragments-config.md`
-- Beads epic index: `docs/epics/README.md`
+- Live GitHub Issues workflow: `docs/github-issues.md`
+- Historical Beads epic index: `docs/epics/README.md`
 - gpt-bot example robot: `docs/gpt-bot.md`
 
 SBT is now the sole build system. Gradle has been removed (Phase 8).
@@ -92,14 +94,15 @@ unsupported there for now while the replacement moves under the JWT-auth epic.
 
 ## Task tracking
 
-This repository now tracks its active roadmap in repo-local Beads files:
+This repository now tracks its active roadmap in GitHub Issues:
 
 - Human-readable overview: `docs/current-state.md`
-- Live backlog: `.beads/issues.jsonl`
-- Epic index: `docs/epics/README.md`
+- Live issue workflow and label conventions: `docs/github-issues.md`
+- Repository issue list: `https://github.com/vega113/incubator-wave/issues`
+- Historical Beads archive: `.beads/README.md`, `docs/epics/README.md`
 
-The `.beads/` directory is configured in no-db mode so the backlog can live in
-git without committing daemon state or SQLite runtime files.
+The `.beads/` directory remains in the repo as a read-only historical archive.
+Do not create or update new task records there.
 
 ## Setup with Vagrant
 

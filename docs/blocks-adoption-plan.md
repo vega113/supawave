@@ -11,13 +11,12 @@ Status note (2026-03-18)
 - The compat fetcher, fragment servlet, fragment requesters, and client applier
   implementations already exist in the active tree.
 - Treat the phase-by-phase statuses below as historical implementation detail
-  unless they are reaffirmed by `docs/current-state.md` or the live Beads
-  backlog.
+  unless they are reaffirmed by `docs/current-state.md` or the live GitHub
+  Issues tracker.
 - Remaining work is concentrated around end-to-end verification, snapshot
   gating, storage-backed segment-state decisions, and the follow-on relationship
   between blocks adoption and the renderer path.
-- Canonical tracking now lives in `docs/current-state.md` and
-  `.beads/issues.jsonl` under `incubator-wave-wiab-core`.
+- Canonical tracking now lives in `docs/current-state.md` and the live GitHub Issues workflow documented in `docs/github-issues.md`.
 
 -------------------------------------------------------------------------------
 

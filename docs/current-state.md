@@ -213,7 +213,7 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
    durability guidance are closed out. See `../deploy/mongo/README.md` for the
    operator follow-through.
 8. The repo now runs on a Jakarta-only server/runtime path, but dead
-   compatibility branches and stale history references still need cleanup.
+   compatibility seams and stale history references still need cleanup.
 9. SBT is the canonical build path. Its bootstrap/runtime path now tracks
    `wave/config/`, the jar name is stable, and build/run guidance lives in
    `docs/BUILDING-sbt.md`.

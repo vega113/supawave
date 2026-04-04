@@ -1,0 +1,175 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Rollback Contabo
+run-name: "Rollback production deploy"
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: rollback-contabo
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    environment: production
+    name: Rollback to previous slot
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      CANONICAL_HOST: supawave.ai
+      ROOT_HOST: wave.supawave.ai
+      WWW_HOST: www.supawave.ai
+      CONTABO_HOST_FINGERPRINT: ${{ vars.CONTABO_HOST_FINGERPRINT || secrets.CONTABO_HOST_FINGERPRINT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.CONTABO_SSH_KEY }}
+
+      - name: Trust Contabo host key
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          scanned_host_keys="$RUNNER_TEMP/contabo_known_hosts"
+          ssh-keyscan -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" -H "${{ secrets.CONTABO_SSH_HOST }}" > "$scanned_host_keys"
+          expected_fingerprint="${CONTABO_HOST_FINGERPRINT:-}"
+          actual_fingerprints="$(ssh-keygen -lf "$scanned_host_keys" | awk '{print $2}')"
+          if [ -z "$expected_fingerprint" ]; then
+            echo "CONTABO_HOST_FINGERPRINT must be set as a repo variable or secret" >&2
+            exit 1
+          fi
+          if [ -z "$actual_fingerprints" ]; then
+            echo "Failed to read SSH host key fingerprint for ${{ secrets.CONTABO_SSH_HOST }}" >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$actual_fingerprints" | grep -Fx -- "$expected_fingerprint" > /dev/null; then
+            echo "SSH host key fingerprint mismatch for ${{ secrets.CONTABO_SSH_HOST }}" >&2
+            echo "Expected: $expected_fingerprint" >&2
+            echo "Actual fingerprints:" >&2
+            printf '%s\n' "$actual_fingerprints" >&2
+            exit 1
+          fi
+          cat "$scanned_host_keys" >> "$HOME/.ssh/known_hosts"
+
+      - name: Upload rollback bundle
+        run: |
+          set -euo pipefail
+          bundle_dir="$RUNNER_TEMP/rollback-bundle"
+          mkdir -p "$bundle_dir"
+          cp deploy/caddy/deploy.sh "$bundle_dir/deploy.sh"
+          cp deploy/caddy/compose.yml "$bundle_dir/compose.yml"
+          cp deploy/caddy/Caddyfile "$bundle_dir/Caddyfile"
+          cp deploy/caddy/application.conf "$bundle_dir/application.conf"
+          chmod +x "$bundle_dir/deploy.sh"
+          tar -C "$bundle_dir" -czf "$RUNNER_TEMP/rollback-bundle.tgz" .
+          remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "mkdir -p '$remote_root/incoming/rollback'"
+          scp -P "${{ secrets.CONTABO_SSH_PORT || '22' }}" "$RUNNER_TEMP/rollback-bundle.tgz" \
+            "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}:$remote_root/incoming/rollback/bundle.tgz"
+
+      - name: Execute rollback
+        id: rollback
+        env:
+          SANITY_ADDRESS: ${{ secrets.SANITY_ADDRESS }}
+          SANITY_PASSWORD: ${{ secrets.SANITY_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
+        run: |
+          set -euo pipefail
+          remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
+          sanity_address_q=$(printf '%q' "${SANITY_ADDRESS:-}")
+          sanity_password_q=$(printf '%q' "${SANITY_PASSWORD:-}")
+          resend_api_key_q=$(printf '%q' "${RESEND_API_KEY:-}")
+          wave_email_from_q=$(printf '%q' "${WAVE_EMAIL_FROM:-}")
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "
+            set -euo pipefail
+            incoming='$remote_root/incoming/rollback'
+            rollback_dir='$remote_root/incoming/rollback-${{ github.run_id }}'
+            rm -rf \"\$rollback_dir\"
+            mkdir -p \"\$rollback_dir\"
+            tar -xzf \"\$incoming/bundle.tgz\" -C \"\$rollback_dir\"
+            chmod +x \"\$rollback_dir/deploy.sh\"
+            DEPLOY_ROOT='$remote_root' \
+            CANONICAL_HOST='$CANONICAL_HOST' \
+            ROOT_HOST='$ROOT_HOST' \
+            WWW_HOST='$WWW_HOST' \
+            RESEND_API_KEY=$resend_api_key_q \
+            WAVE_EMAIL_FROM=$wave_email_from_q \
+            SANITY_ADDRESS=$sanity_address_q \
+            SANITY_PASSWORD=$sanity_password_q \
+              bash \"\$rollback_dir/deploy.sh\" rollback
+          "
+
+      - name: Notify rollback result
+        if: always()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
+          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS }}
+        run: |
+          status="${{ steps.rollback.outcome }}"
+          if [ "$status" = "success" ]; then
+            subject="Rollback succeeded"
+            html="<h2>Production rollback succeeded</h2><p>Rolled back to previous blue-green slot.</p>"
+          else
+            subject="Rollback FAILED"
+            html="<h2>Production rollback FAILED</h2><p>Manual intervention may be required.</p>"
+          fi
+          recipients_json=$(python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          raw = os.getenv("NOTIFICATION_RECIPIENTS", "").strip()
+          if not raw:
+              print("")
+              sys.exit(0)
+
+          if raw.startswith("["):
+              try:
+                  recipients = [item.strip() for item in json.loads(raw) if isinstance(item, str) and item.strip()]
+                  print(json.dumps(recipients))
+                  sys.exit(0)
+              except Exception:
+                  pass
+
+          recipients = [item.strip() for item in raw.split(",") if item.strip()]
+          print(json.dumps(recipients))
+          PY
+          )
+          if [ -z "$recipients_json" ] || [ "$recipients_json" = "[]" ]; then
+            echo "No rollback notification recipients configured; skipping email notification."
+            exit 0
+          fi
+          curl -s --fail-with-body -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer ${RESEND_API_KEY:-}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"from\": \"Wave Deploy <${WAVE_EMAIL_FROM:-noreply@supawave.ai}>\",
+              \"to\": ${recipients_json},
+              \"subject\": \"$subject\",
+              \"html\": \"$html<p><a href='https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID'>View run</a></p>\"
+            }" || echo "Email notification failed (non-blocking)"

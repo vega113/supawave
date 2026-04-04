@@ -123,13 +123,27 @@ public class RobotsGateway implements WaveBus.Subscriber {
         continue;
       }
 
-      if (account != null && account.isRobot()) {
-        RobotAccountData robotAccount = account.asRobot();
-        if (robotAccount.isVerified() && !robotAccount.isPaused()) {
-          Robot robot = getOrCreateRobot(robotName, robotAccount);
-          updateRobot(robot, wavelet, deltas);
-        }
+      if (account == null) {
+        LOG.info("Robot candidate " + robotId.getAddress() + " has no account");
+        continue;
       }
+      if (!account.isRobot()) {
+        LOG.info("Account " + robotId.getAddress() + " exists but is not a robot");
+        continue;
+      }
+      RobotAccountData robotAccount = account.asRobot();
+      if (!robotAccount.isVerified()) {
+        LOG.info("Robot " + robotId.getAddress() + " is not verified, skipping");
+        continue;
+      }
+      if (robotAccount.isPaused()) {
+        LOG.info("Robot " + robotId.getAddress() + " is paused, skipping");
+        continue;
+      }
+      LOG.info("Dispatching to robot " + robotId.getAddress()
+          + " (url=" + robotAccount.getUrl() + ")");
+      Robot robot = getOrCreateRobot(robotName, robotAccount);
+      updateRobot(robot, wavelet, deltas);
     }
   }
 

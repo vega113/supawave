@@ -185,7 +185,10 @@ public final class WaveBasedDigest
 
   @Override
   public String getSnippet() {
-    updateSnippet(wave.getWave().getRoot());
+    ObservableWavelet root = wave.getWave().getRoot();
+    if (root != null) {
+      updateSnippet(root);
+    }
     return snippet;
   }
 

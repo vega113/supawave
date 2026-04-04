@@ -64,9 +64,18 @@ public class RobotConnectorTest extends TestCase {
   private static final String TEST_URL = "www.example.com/robot";
   private static final String TEST_RPC_ENDPOINT = TEST_URL + Robot.RPC_URL;
   private static final String TEST_CAPABILITIES_ENDPOINT = TEST_URL + Robot.CAPABILITIES_URL;
+  private static final String ABSOLUTE_BASE_URL = "http://www.example.com/myrobot";
+  private static final String ABSOLUTE_RPC_ENDPOINT = ABSOLUTE_BASE_URL + Robot.RPC_URL;
+  private static final String ABSOLUTE_CAPABILITIES_ENDPOINT =
+      ABSOLUTE_BASE_URL + Robot.CAPABILITIES_URL;
   private static final RobotAccountData ROBOT_ACCOUNT =
       new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME), TEST_URL, "secret",
           new RobotCapabilities(
+              Maps.<EventType, Capability> newHashMap(), "FakeHash", ProtocolVersion.DEFAULT),
+          true);
+  private static final RobotAccountData ABSOLUTE_ROBOT_ACCOUNT =
+      new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME), ABSOLUTE_RPC_ENDPOINT,
+          "secret", new RobotCapabilities(
               Maps.<EventType, Capability> newHashMap(), "FakeHash", ProtocolVersion.DEFAULT),
           true);
 
@@ -101,6 +110,53 @@ public class RobotConnectorTest extends TestCase {
     List<OperationRequest> operations =
         connector.sendMessageBundle(BUNDLE, robot, PROTOCOL_VERSION);
     assertEquals(expectedOperations, operations);
+  }
+
+  public void testSendMessageBundleAppendsRpcUrlWhenStoredUrlOnlyContainsRpcSubstring()
+      throws Exception {
+    final List<OperationRequest> expectedOperations = Collections.unmodifiableList(
+        Lists.newArrayList(new OperationRequest("wavelet.setTitle", "op1")));
+    final String storedUrl = "http://www.example.com/myrobot/_wave/robot/jsonrpc-extra";
+    final String expectedUrl = storedUrl + Robot.RPC_URL;
+    RobotAccountData account =
+        new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME), storedUrl, "secret",
+            new RobotCapabilities(
+                Maps.<EventType, Capability> newHashMap(), "FakeHash",
+                ProtocolVersion.DEFAULT), true);
+
+    when(robot.getAccount()).thenReturn(account);
+    when(serializer.serialize(BUNDLE, PROTOCOL_VERSION)).thenReturn(SERIALIZED_BUNDLE);
+    when(connection.postJson(storedUrl, SERIALIZED_BUNDLE)).thenReturn(RETURNED_OPERATION);
+    when(connection.postJson(expectedUrl, SERIALIZED_BUNDLE)).thenReturn(RETURNED_OPERATION);
+    when(serializer.deserializeOperations(RETURNED_OPERATION)).thenReturn(expectedOperations);
+
+    List<OperationRequest> operations =
+        connector.sendMessageBundle(BUNDLE, robot, PROTOCOL_VERSION);
+    assertEquals(expectedOperations, operations);
+    verify(connection).postJson(expectedUrl, SERIALIZED_BUNDLE);
+  }
+
+  public void testSendMessageBundleKeepsAbsoluteRpcEndpointWhenStoredUrlAlreadyIncludesIt()
+      throws Exception {
+    final List<OperationRequest> expectedOperations = Collections.unmodifiableList(
+        Lists.newArrayList(new OperationRequest("wavelet.setTitle", "op1")));
+    RobotAccountData account =
+        new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME),
+            ABSOLUTE_RPC_ENDPOINT, "secret",
+            new RobotCapabilities(
+                Maps.<EventType, Capability> newHashMap(), "FakeHash",
+                ProtocolVersion.DEFAULT), true);
+
+    when(robot.getAccount()).thenReturn(account);
+    when(serializer.serialize(BUNDLE, PROTOCOL_VERSION)).thenReturn(SERIALIZED_BUNDLE);
+    when(connection.postJson(ABSOLUTE_RPC_ENDPOINT, SERIALIZED_BUNDLE)).thenReturn(
+        RETURNED_OPERATION);
+    when(serializer.deserializeOperations(RETURNED_OPERATION)).thenReturn(expectedOperations);
+
+    List<OperationRequest> operations =
+        connector.sendMessageBundle(BUNDLE, robot, PROTOCOL_VERSION);
+    assertEquals(expectedOperations, operations);
+    verify(connection).postJson(ABSOLUTE_RPC_ENDPOINT, SERIALIZED_BUNDLE);
   }
 
   public void testConnectionFailsSafely() throws Exception {
@@ -142,5 +198,42 @@ public class RobotConnectorTest extends TestCase {
         capabilitiesMap.containsKey(EventType.OPERATION_ERROR));
     // Only one connection should be made
     verify(connection).get(TEST_CAPABILITIES_ENDPOINT);
+  }
+
+  public void testFetchCapabilitiesPreservesCustomBasePathWhenRobotUrlIncludesRpcEndpoint()
+      throws Exception {
+    when(connection.get(ABSOLUTE_CAPABILITIES_ENDPOINT)).thenReturn(CAPABILITIES_XML);
+    when(connection.get("http://www.example.com/_wave/capabilities.xml")).thenReturn(
+        CAPABILITIES_XML);
+
+    RobotAccountData accountData = connector.fetchCapabilities(ABSOLUTE_ROBOT_ACCOUNT, "");
+
+    RobotCapabilities capabilities = accountData.getCapabilities();
+    assertEquals("Expected capabilities hash as specified in the xml", CAPABILITIES_HASH,
+        capabilities.getCapabilitiesHash());
+    assertEquals("Expected protocol version as specified in the xml", ProtocolVersion.V2_2,
+        capabilities.getProtocolVersion());
+    verify(connection).get(ABSOLUTE_CAPABILITIES_ENDPOINT);
+  }
+
+  public void testFetchCapabilitiesPreservesAbsoluteBasePathWithoutRpcEndpoint()
+      throws Exception {
+    RobotAccountData account =
+        new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME), ABSOLUTE_BASE_URL,
+            "secret", new RobotCapabilities(
+                Maps.<EventType, Capability> newHashMap(), "FakeHash",
+                ProtocolVersion.DEFAULT), true);
+
+    when(connection.get(ABSOLUTE_BASE_URL)).thenReturn(CAPABILITIES_XML);
+    when(connection.get(ABSOLUTE_CAPABILITIES_ENDPOINT)).thenReturn(CAPABILITIES_XML);
+
+    RobotAccountData accountData = connector.fetchCapabilities(account, "");
+
+    RobotCapabilities capabilities = accountData.getCapabilities();
+    assertEquals("Expected capabilities hash as specified in the xml", CAPABILITIES_HASH,
+        capabilities.getCapabilitiesHash());
+    assertEquals("Expected protocol version as specified in the xml", ProtocolVersion.V2_2,
+        capabilities.getProtocolVersion());
+    verify(connection).get(ABSOLUTE_CAPABILITIES_ENDPOINT);
   }
 }

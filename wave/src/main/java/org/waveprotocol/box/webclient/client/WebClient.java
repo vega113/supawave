@@ -69,6 +69,7 @@ import org.waveprotocol.wave.client.doodad.attachment.AttachmentManagerProvider;
 import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.Log;
 import org.waveprotocol.wave.client.events.NetworkStatusEvent;
+import org.waveprotocol.wave.client.events.NetworkStatusEvent.ConnectionStatus;
 import org.waveprotocol.wave.client.events.NetworkStatusEventHandler;
 import org.waveprotocol.wave.client.events.WaveCreationEvent;
 import org.waveprotocol.wave.client.events.WaveCreationEventHandler;
@@ -641,6 +642,20 @@ public class WebClient implements EntryPoint {
 
       @Override
       public void onNetworkStatus(NetworkStatusEvent event) {
+        // After a prolonged disconnect (likely server restart / deploy),
+        // the client's channel state machines are stale.  Force a full
+        // page reload so the browser fetches the latest JS and opens
+        // fresh server-side subscriptions.  Short disconnects (< 5 s)
+        // are treated as network hiccups and not reloaded.
+        if (event.getStatus() == ConnectionStatus.RECONNECTED
+            && turbulenceStartTime > 0) {
+          double disconnectMs = new Date().getTime() - turbulenceStartTime;
+          if (disconnectMs > 5000) {
+            hideTurbulenceBanner(false);
+            Window.Location.replace(Window.Location.getHref());
+            return;
+          }
+        }
         Element element = Document.get().getElementById("netstatus");
         if (element != null) {
           switch (event.getStatus()) {
@@ -650,7 +665,6 @@ public class WebClient implements EntryPoint {
               element.setClassName("topbar-icon online");
               element.setTitle(messages.online());
               hideTurbulenceBanner(true);
-              // Dismiss the offline-while-editing toast when back online.
               ToastNotification.dismissPersistent(OFFLINE_EDITING_TOAST_ID);
               break;
             case DISCONNECTED:

@@ -37,7 +37,8 @@ public class RobotConnector implements RobotCapabilityFetcher {
                                                   ProtocolVersion version) {
     String serializedBundle = serializer.serialize(bundle, version);
     String storedUrl = robot.getAccount().getUrl();
-    String robotUrl = robotRpcUrl(storedUrl);
+    String robotUrl = storedUrl.contains("/_wave/robot/jsonrpc")
+        ? storedUrl : storedUrl + Robot.RPC_URL;
     LOG.info("Sending: " + serializedBundle + " to " + robotUrl);
     try {
       String response = connection.postJson(robotUrl, serializedBundle);
@@ -73,101 +74,16 @@ public class RobotConnector implements RobotCapabilityFetcher {
     if (callbackUrl == null || callbackUrl.isBlank()) {
       return "";
     }
-    URI uri = parseCallbackUrl(callbackUrl);
-    if (uri == null) {
-      return callbackUrl;
-    }
-    String scheme = uri.getScheme();
-    String authority = uri.getAuthority();
-    if (scheme == null || authority == null) {
-      return callbackUrl;
-    }
-    String path = uri.getPath();
-    if (path == null || path.isEmpty() || "/".equals(path)) {
-      return scheme + "://" + authority;
-    }
-    if (path.endsWith(Robot.RPC_URL)) {
-      return scheme + "://" + authority
-          + path.substring(0, path.length() - Robot.RPC_URL.length());
-    }
-    return scheme + "://" + authority + path;
-  }
-
-  /**
-   * Returns the passive robot RPC endpoint for the stored robot URL, appending
-   * {@link Robot#RPC_URL} only when the stored URL does not already point at it.
-   */
-  static String robotRpcUrl(String storedUrl) {
-    if (storedUrl == null || storedUrl.isBlank()) {
-      return "";
-    }
-    URI uri = parseCallbackUrl(storedUrl);
-    if (uri != null) {
-      String path = uri.getPath();
-      if (path != null && path.endsWith(Robot.RPC_URL)) {
-        return storedUrl;
-      }
-    }
-    return storedUrl + Robot.RPC_URL;
-  }
-
-  private static URI parseCallbackUrl(String callbackUrl) {
-    try {
-      return URI.create(callbackUrl);
-    } catch (IllegalArgumentException e) {
-      LOG.warning("Unable to parse robot callback URL: " + sanitizeCallbackUrl(callbackUrl), e);
-      return null;
-    }
-  }
-
-  static String sanitizeCallbackUrl(String callbackUrl) {
-    if (callbackUrl == null || callbackUrl.isBlank()) {
-      return "<blank callback URL>";
-    }
     try {
       URI uri = URI.create(callbackUrl);
-      StringBuilder sanitized = new StringBuilder();
       String scheme = uri.getScheme();
-      if (scheme != null) {
-        sanitized.append(scheme).append("://");
+      String authority = uri.getAuthority();
+      if (scheme != null && authority != null) {
+        return scheme + "://" + authority;
       }
-      String authority = sanitizeAuthority(uri);
-      if (!authority.isEmpty()) {
-        sanitized.append(authority);
-      }
-      String path = uri.getRawPath();
-      if (path != null && !path.isEmpty()) {
-        sanitized.append(path);
-      }
-      if (sanitized.length() > 0) {
-        return sanitized.toString();
-      }
-    } catch (IllegalArgumentException ignored) {
-      // Fall through to a generic placeholder.
+    } catch (IllegalArgumentException e) {
+      LOG.warning("Unable to parse robot callback URL: " + callbackUrl, e);
     }
-    return "<invalid callback URL>";
-  }
-
-  private static String sanitizeAuthority(URI uri) {
-    String host = uri.getHost();
-    if (host != null) {
-      StringBuilder authority = new StringBuilder();
-      if (host.contains(":") && !host.startsWith("[")) {
-        authority.append('[').append(host).append(']');
-      } else {
-        authority.append(host);
-      }
-      int port = uri.getPort();
-      if (port != -1) {
-        authority.append(':').append(port);
-      }
-      return authority.toString();
-    }
-    String rawAuthority = uri.getRawAuthority();
-    if (rawAuthority == null) {
-      return "";
-    }
-    int userInfoSeparator = rawAuthority.lastIndexOf('@');
-    return userInfoSeparator >= 0 ? rawAuthority.substring(userInfoSeparator + 1) : rawAuthority;
+    return callbackUrl;
   }
 }

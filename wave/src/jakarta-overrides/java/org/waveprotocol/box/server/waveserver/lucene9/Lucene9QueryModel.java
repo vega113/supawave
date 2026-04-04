@@ -74,13 +74,15 @@ public final class Lucene9QueryModel {
   }
 
   public boolean hasTextQuery() {
-    return hasToken(TokenQueryType.TITLE) || hasToken(TokenQueryType.CONTENT);
+    return hasToken(TokenQueryType.TITLE) || hasToken(TokenQueryType.CONTENT)
+        || hasToken(TokenQueryType.MENTIONS);
   }
 
   public String toLegacyQuery() {
     StringBuilder builder = new StringBuilder();
     for (Token token : tokens) {
-      if (token.getType() == TokenQueryType.TITLE || token.getType() == TokenQueryType.CONTENT) {
+      if (token.getType() == TokenQueryType.TITLE || token.getType() == TokenQueryType.CONTENT
+          || token.getType() == TokenQueryType.MENTIONS) {
         continue;
       }
       if (builder.length() > 0) {

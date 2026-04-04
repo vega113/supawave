@@ -39,6 +39,11 @@ concurrency:
 jobs:
   deploy:
     name: Build and deploy Wave to Contabo
+    # Skip auto-deploy on push when AUTO_DEPLOY_ENABLED is 'false'.
+    # Manual workflow_dispatch always runs regardless of the toggle.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      vars.AUTO_DEPLOY_ENABLED != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:

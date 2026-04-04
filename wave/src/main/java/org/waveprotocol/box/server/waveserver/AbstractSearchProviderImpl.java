@@ -77,18 +77,33 @@ public abstract class AbstractSearchProviderImpl implements SearchProvider {
     }
   }
 
-  // TODO (yurize) : Refactor this method. It does two things: filtering and
-  // building waves.
   protected LinkedHashMap<WaveId, WaveViewData> filterWavesViewBySearchCriteria(
       Function<ReadableWaveletData, Boolean> matchesFunction,
       LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView) {
     // Must use a map with stable ordering, since indices are meaningful.
-    LinkedHashMap<WaveId, WaveViewData> results = Maps.newLinkedHashMap();
+    LinkedHashMap<WaveId, WaveViewData> wavesView = buildWavesView(matchesFunction, currentUserWavesView);
+    return filterConversationalWaves(wavesView);
+  }
 
-    // Loop over the user waves view.
+  private LinkedHashMap<WaveId, WaveViewData> buildWavesView(
+      Function<ReadableWaveletData, Boolean> matchesFunction,
+      LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView) {
+    LinkedHashMap<WaveId, WaveViewData> wavesView = Maps.newLinkedHashMap();
     for (WaveId waveId : currentUserWavesView.keySet()) {
       Set<WaveletId> waveletIds = currentUserWavesView.get(waveId);
       WaveViewData view = buildWaveViewData(waveId, waveletIds, matchesFunction, waveMap);
+      if (view != null) {
+        wavesView.put(waveId, view);
+      }
+    }
+    return wavesView;
+  }
+
+  private LinkedHashMap<WaveId, WaveViewData> filterConversationalWaves(
+      LinkedHashMap<WaveId, WaveViewData> wavesView) {
+    LinkedHashMap<WaveId, WaveViewData> results = Maps.newLinkedHashMap();
+    for (Map.Entry<WaveId, WaveViewData> entry : wavesView.entrySet()) {
+      WaveViewData view = entry.getValue();
       Iterable<? extends ObservableWaveletData> wavelets = view.getWavelets();
       boolean hasConversation = false;
       for (ObservableWaveletData waveletData : wavelets) {
@@ -97,8 +112,8 @@ public abstract class AbstractSearchProviderImpl implements SearchProvider {
           break;
         }
       }
-      if ((view != null) && hasConversation) {
-        results.put(waveId, view);
+      if (hasConversation) {
+        results.put(entry.getKey(), view);
       }
     }
     return results;

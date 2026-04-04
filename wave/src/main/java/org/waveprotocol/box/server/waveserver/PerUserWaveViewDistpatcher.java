@@ -26,6 +26,7 @@ import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.wave.AddParticipant;
 import org.waveprotocol.wave.model.operation.wave.RemoveParticipant;
 import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
+import org.waveprotocol.wave.model.operation.wave.WaveletBlipOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperation;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -55,10 +56,13 @@ public class PerUserWaveViewDistpatcher implements WaveBus.Subscriber, PerUserWa
     }
 
     // Find whether participants were added/removed and update the views
-    // accordingly.
+    // accordingly. Also detect content changes for full-text index updates.
+    boolean hasParticipantChange = false;
+    boolean hasContentChange = false;
     for (TransformedWaveletDelta delta : deltas) {
       for (WaveletOperation op : delta) {
         if (op instanceof AddParticipant) {
+          hasParticipantChange = true;
           if(LOG.isInfoLoggable()) {
             LOG.info("Update contains AddParticipant for " + ((AddParticipant)op).getParticipantId());
           }
@@ -69,11 +73,23 @@ public class PerUserWaveViewDistpatcher implements WaveBus.Subscriber, PerUserWa
             listener.onParticipantAdded(waveletName, user);
           }
         } else if (op instanceof RemoveParticipant) {
+          hasParticipantChange = true;
           ParticipantId user = ((RemoveParticipant) op).getParticipantId();
           for (Listener listener : listeners) {
             listener.onParticipantRemoved(waveletName, user);
           }
+        } else if (op instanceof WaveletBlipOperation) {
+          // Blip document mutations affect searchable content.
+          hasContentChange = true;
         }
+      }
+    }
+
+    // If content changed but participants didn't, re-index the wavelet
+    // so the full-text CONTENT and TITLE fields stay current.
+    if (hasContentChange && !hasParticipantChange) {
+      for (Listener listener : listeners) {
+        listener.onWaveInit(waveletName);
       }
     }
   }

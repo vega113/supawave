@@ -37,6 +37,7 @@ public enum IndexFieldType {
   IS,
   TAG,
   LMT,
+  CONTENT,
   ;
 }
 

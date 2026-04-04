@@ -56,7 +56,6 @@ import org.waveprotocol.wave.client.editor.content.misc.AnnotationPaint;
 import org.waveprotocol.wave.client.editor.content.misc.StyleAnnotationHandler;
 import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.WaveSelectionEvent;
-import org.waveprotocol.wave.client.gadget.Gadget;
 import org.waveprotocol.wave.client.render.ReductionBasedRenderer;
 import org.waveprotocol.wave.client.render.RenderingRules;
 import org.waveprotocol.wave.client.scheduler.Scheduler.Task;
@@ -661,7 +660,6 @@ public interface StageTwo {
             DocumentRegistries doodads = installDoodads(DocumentRegistries.builder()) // \u2620
                     .use(InlineAnchorLiveRenderer.installer(getViewIdMapper(), replyManager,
                             domAsView))
-                    .use(Gadget.install(getProfileManager(), getSupplement(), getSignedInUser()))
                     .build();
 
             LiveConversationViewRenderer live =

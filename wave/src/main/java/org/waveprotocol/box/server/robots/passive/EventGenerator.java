@@ -350,15 +350,13 @@ public class EventGenerator {
             if (eventComponent.getType() == DocumentEvent.Type.ATTRIBUTES) {
               AttributesModified<N, E, T> attributesModified =
                   (AttributesModified<N, E, T>) eventComponent;
-              org.waveprotocol.wave.model.document.raw.impl.Element rawElement =
-                  (org.waveprotocol.wave.model.document.raw.impl.Element)
-                      attributesModified.getElement();
-              String tagName = rawElement.getTagName();
-              if (isFormElementTag(tagName)
+              E element = attributesModified.getElement();
+              String tagName = doc.getTagName(element);
+              if (isFormValueAttributeFormElement(tagName)
                   && attributesModified.getOldValues().containsKey("value")) {
-                String elementName = rawElement.getAttribute("name");
+                String elementName = doc.getAttribute(element, "name");
                 String oldValue = attributesModified.getOldValues().get("value");
-                String newValue = rawElement.getAttribute("value");
+                String newValue = doc.getAttribute(element, "value");
                 FormValueChangedEvent valueChangedEvent = new FormValueChangedEvent(
                     null, null, deltaAuthor.getAddress(), deltaTimestamp,
                     blip.getId(), elementName, tagName, oldValue, newValue);
@@ -407,6 +405,12 @@ public class EventGenerator {
       String ifr1 = rawElement.getAttribute("ifr");
       String ifr2 = element.getProperty("ifr");
       return (ifr1 != null && ifr1.equals(ifr2));
+    }
+
+    private boolean isFormValueAttributeFormElement(String tagName) {
+      return "check".equals(tagName)
+          || "password".equals(tagName)
+          || "radiogroup".equals(tagName);
     }
   }
 

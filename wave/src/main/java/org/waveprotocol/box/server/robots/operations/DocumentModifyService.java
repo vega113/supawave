@@ -436,7 +436,6 @@ public class DocumentModifyService implements OperationService {
 
   /**
    * Updates elements in the document.
-   * <b>Note</b>: Only gadget elements are supported, for now.
    *
    * @param operation the operation the operation that wants to update elements.
    * @param doc the document to update elements in.
@@ -555,18 +554,33 @@ public class DocumentModifyService implements OperationService {
     Preconditions.checkArgument(element.isFormElement(),
         "Called with non-form element type %s", element.getType());
 
+    FormElement currentElement =
+        (FormElement) ElementSerializer.xmlToApiElement(doc, existingElement, null);
+    Preconditions.checkArgument(currentElement != null,
+        "Unable to serialize existing form element of type %s", doc.getTagName(existingElement));
+
     String name = element.getProperty(FormElement.NAME);
-    if (name != null) {
-      doc.setElementAttribute(existingElement, "name", name);
+    if (isNonEmpty(name)) {
+      currentElement.setName(name);
     }
-    String value = element.getProperty(FormElement.VALUE);
-    if (value != null) {
-      doc.setElementAttribute(existingElement, "value", value);
-    }
+
     String defaultValue = element.getProperty(FormElement.DEFAULT_VALUE);
-    if (defaultValue != null) {
-      doc.setElementAttribute(existingElement, "defaultValue", defaultValue);
+    if (isNonEmpty(defaultValue)) {
+      currentElement.setDefaultValue(defaultValue);
     }
+
+    String value = element.getProperty(FormElement.VALUE);
+    if (isNonEmpty(value)) {
+      currentElement.setValue(value);
+    }
+
+    XmlStringBuilder xml = ElementSerializer.apiElementToXml(currentElement);
+    doc.insertXml(Point.before(doc, existingElement), xml);
+    doc.deleteNode(existingElement);
+  }
+
+  private boolean isNonEmpty(String value) {
+    return value != null && !value.isEmpty();
   }
 
   public static DocumentModifyService create() {

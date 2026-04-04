@@ -43,10 +43,15 @@ blip.append(new FormElement(ElementType.INPUT, "myField", "default text"));
 Robots can update form element values via the `document.modify` operation with `UPDATE_ELEMENT`:
 
 ```java
-// Find the element by type and name, then update its value
+// Find the element by type and name, then update just its current value.
+FormElement updated = new FormElement(ElementType.CHECK, "agree");
+updated.setValue("true");
 blip.first(ElementType.CHECK, FormElement.restrictByName("agree"))
-    .updateElement(new FormElement(ElementType.CHECK, "agree", "false", "true"));
+    .updateElement(updated);
 ```
+
+Use `setDefaultValue(...)` only when you want to change the element's on-wire
+default as well.
 
 ## Listening for Events
 
@@ -69,15 +74,16 @@ Declare in capabilities XML:
 
 ### FORM_VALUE_CHANGED
 
-Fired when a form element's value changes (input text, checkbox toggle, radio selection).
+Fired when an attribute-backed form element's value changes, such as a checkbox
+toggle, password update, or radio-group selection.
 
 ```java
 @Override
 public void onFormValueChanged(FormValueChangedEvent event) {
   String elementName = event.getElementName();  // e.g., "agree"
-  String elementType = event.getElementType();  // e.g., "check"
-  String oldValue = event.getOldValue();        // e.g., "false"
-  String newValue = event.getNewValue();        // e.g., "true"
+  String elementType = event.getElementType();   // e.g., "check"
+  String oldValue = event.getOldValue();         // e.g., "false"
+  String newValue = event.getNewValue();         // e.g., "true"
   // Handle value change
 }
 ```
@@ -86,6 +92,10 @@ Declare in capabilities XML:
 ```xml
 <w:capability name="FORM_VALUE_CHANGED"/>
 ```
+
+Form elements whose content is stored as child text, such as `input`,
+`textarea`, `button`, and `label`, are still updated through
+`UPDATE_ELEMENT`, but they do not currently emit `FORM_VALUE_CHANGED`.
 
 ## Example: Survey Robot
 

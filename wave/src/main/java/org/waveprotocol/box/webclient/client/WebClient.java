@@ -644,25 +644,6 @@ public class WebClient implements EntryPoint {
 
       @Override
       public void onNetworkStatus(NetworkStatusEvent event) {
-        // After a prolonged disconnect (likely server restart / deploy),
-        // reload only when no wave is currently open. That preserves
-        // in-memory edits when the user is actively working in a wave.
-        if (event.getStatus() == ConnectionStatus.RECONNECTED
-            && turbulenceStartTime > 0) {
-          double disconnectMs = new Date().getTime() - turbulenceStartTime;
-          if (ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(
-              wave != null, disconnectMs)) {
-            LOG.info("Prolonged disconnect (" + (int) disconnectMs
-                + "ms), reloading page to resync with server");
-            hideTurbulenceBanner(false);
-            Window.Location.replace(Window.Location.getHref());
-            return;
-          } else if (disconnectMs
-              > ReconnectReloadPolicy.PROLONGED_DISCONNECT_THRESHOLD_MS) {
-            LOG.info("Prolonged disconnect (" + (int) disconnectMs
-                + "ms) while a wave is open; preserving in-memory edits");
-          }
-        }
         Element element = Document.get().getElementById("netstatus");
         if (element != null) {
           switch (event.getStatus()) {

@@ -277,6 +277,50 @@ public class DocumentModifyServiceTest extends RobotsTestBase {
     assertNotNull("Check element should still exist", updatedCheck);
     assertEquals("true", updatedCheck.getValue());
     assertEquals("agree", updatedCheck.getName());
+    assertEquals("false", updatedCheck.getDefaultValue());
+  }
+
+  public void testUpdateButtonFormElement() throws Exception {
+    List<Element> insertElements = Lists.newArrayListWithCapacity(1);
+    insertElements.add(new FormElement(ElementType.BUTTON, "submit", "Send", "Send"));
+
+    OperationRequest insertOperation =
+        operationRequest(OperationType.DOCUMENT_MODIFY, rootBlipId,
+            Parameter.of(ParamsProperty.MODIFY_ACTION,
+                new DocumentModifyAction(ModifyHow.INSERT, NO_VALUES, NO_ANNOTATION_KEY,
+                    insertElements, NO_BUNDLED_ANNOTATIONS, false)),
+            Parameter.of(ParamsProperty.INDEX, CONTENT_START_TEXT));
+
+    service.execute(insertOperation, helper.getContext(), ALEX);
+
+    List<Element> updateElements = Lists.newArrayListWithCapacity(1);
+    FormElement updatedElement = new FormElement(ElementType.BUTTON, "submit");
+    updatedElement.setValue("Save");
+    updateElements.add(updatedElement);
+
+    OperationRequest updateOperation =
+        operationRequest(OperationType.DOCUMENT_MODIFY, rootBlipId,
+            Parameter.of(ParamsProperty.MODIFY_ACTION,
+                new DocumentModifyAction(ModifyHow.UPDATE_ELEMENT,
+                    NO_VALUES, NO_ANNOTATION_KEY, updateElements, NO_BUNDLED_ANNOTATIONS, false)),
+            Parameter.of(ParamsProperty.MODIFY_QUERY,
+                new DocumentModifyQuery(ElementType.BUTTON,
+                    ImmutableMap.of("name", "submit"), 1)));
+
+    service.execute(updateOperation, helper.getContext(), ALEX);
+
+    FormElement updatedButton = null;
+    for (ElementInfo info : getApiView().getElements()) {
+      if (info.element.isFormElement() && info.element.getType() == ElementType.BUTTON) {
+        updatedButton = (FormElement) info.element;
+        break;
+      }
+    }
+
+    assertNotNull("Button element should still exist", updatedButton);
+    assertEquals("submit", updatedButton.getName());
+    assertEquals("Save", updatedButton.getValue());
+    assertEquals("Save", updatedButton.getDefaultValue());
   }
 
   public void testDelete() throws Exception {

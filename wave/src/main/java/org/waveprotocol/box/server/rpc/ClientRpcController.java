@@ -27,11 +27,6 @@ import com.google.protobuf.RpcController;
  * Implements the client end-point of a wave server RPC connection. This class
  * implements {{@link #reset} and is reusable across multiple RPC calls backed
  * onto the same ClientRpcChannel.
- * 
- * TODO: This class is not currently thread-safe and has some
- * concurrency issues.
- * 
- *
  */
 class ClientRpcController implements RpcController {
 
@@ -78,14 +73,14 @@ class ClientRpcController implements RpcController {
    * Returns the current status of this class in terms of the {@link Status}
    * enum.
    */
-  Status status() {
+  synchronized Status status() {
     return state == null ? Status.PENDING : (state.complete ? Status.COMPLETE : Status.ACTIVE);
   }
   
   /**
    * Assert that this controller is in the given status.
    */
-  private void checkStatus(Status statusToAssert) {
+  private synchronized void checkStatus(Status statusToAssert) {
     Status currentStatus = status();
     if (!currentStatus.equals(statusToAssert)) {
       throw new IllegalStateException("Controller expected status " + statusToAssert + ", was "
@@ -96,7 +91,7 @@ class ClientRpcController implements RpcController {
   /**
    * Configure this RpcController with a new RpcStatus instance.
    */
-  void configure(RpcState state) {
+  synchronized void configure(RpcState state) {
     checkStatus(Status.PENDING);
     if (this.state != null) {
       throw new IllegalStateException("Can't configure this RPC, already configured.");
@@ -113,24 +108,28 @@ class ClientRpcController implements RpcController {
    * to the internal callback for the current RPC invocation.
    */
   void response(Message message) {
-    checkStatus(Status.ACTIVE);
-    // Any message will complete a normal RPC, whereas only a null message will
-    // end a streaming RPC.
-    if (!state.isStreamingRpc) {
-      if (message == null) {
-        // The server end-point should not actually allow non-streaming RPCs
-        // to call back with null messages - we should never get here.
-        throw new IllegalStateException("Normal RPCs should not be completed early.");
-      } else {
-        // Normal RPCs will complete on any valid incoming message.
+    RpcCallback<Message> callbackToRun;
+    synchronized (this) {
+      checkStatus(Status.ACTIVE);
+      // Any message will complete a normal RPC, whereas only a null message will
+      // end a streaming RPC.
+      if (!state.isStreamingRpc) {
+        if (message == null) {
+          // The server end-point should not actually allow non-streaming RPCs
+          // to call back with null messages - we should never get here.
+          throw new IllegalStateException("Normal RPCs should not be completed early.");
+        } else {
+          // Normal RPCs will complete on any valid incoming message.
+          state.complete = true;
+        }
+      } else if (message == null) {
+        // Complete this streaming RPC with this blank message.
         state.complete = true;
       }
-    } else if (message == null) {
-      // Complete this streaming RPC with this blank message.
-      state.complete = true;
+      callbackToRun = state.callback;
     }
     try {
-      state.callback.run(message);
+      callbackToRun.run(message);
     } catch (RuntimeException e) {
       e.printStackTrace();
     }
@@ -141,24 +140,28 @@ class ClientRpcController implements RpcController {
    * active, and marks this RPC as complete.
    */
   void failure(String errorText) {
-    checkStatus(Status.ACTIVE);
-    state.complete = true;
-    state.failed = true;
-    state.errorText = errorText;
+    RpcCallback<Message> callbackToRun;
+    synchronized (this) {
+      checkStatus(Status.ACTIVE);
+      state.complete = true;
+      state.failed = true;
+      state.errorText = errorText;
+      callbackToRun = state.callback;
+    }
 
     // Hint to the internal callback that this RPC is finished (Normal RPCs
     // will always understand this as an error case, whereas streaming RPCs
     // will have to check their controller).
-    state.callback.run(null);
+    callbackToRun.run(null);
   }
 
   @Override
-  public String errorText() {
+  public synchronized String errorText() {
     return failed() ? state.errorText : null;
   }
 
   @Override
-  public boolean failed() {
+  public synchronized boolean failed() {
     checkStatus(Status.COMPLETE);
     return state.failed;
   }
@@ -174,7 +177,7 @@ class ClientRpcController implements RpcController {
   }
 
   @Override
-  public void reset() {
+  public synchronized void reset() {
     checkStatus(Status.COMPLETE);
     state = null;
   }
@@ -186,15 +189,21 @@ class ClientRpcController implements RpcController {
 
   @Override
   public void startCancel() {
-    Status status = status();
-    if (status == Status.PENDING) {
-      throw new IllegalStateException("Can't cancel this RPC, not currently active.");
-    } else if (status == Status.COMPLETE) {
-      // We drop these requests silently - since there is no way for the client
-      // to know whether the RPC has finished while they are setting up their
-      // cancellation.
-    } else {
-      state.cancelRpc.run();
+    Runnable cancelAction = null;
+    synchronized (this) {
+      Status status = status();
+      if (status == Status.PENDING) {
+        throw new IllegalStateException("Can't cancel this RPC, not currently active.");
+      } else if (status == Status.COMPLETE) {
+        // We drop these requests silently - since there is no way for the client
+        // to know whether the RPC has finished while they are setting up their
+        // cancellation.
+      } else {
+        cancelAction = state.cancelRpc;
+      }
+    }
+    if (cancelAction != null) {
+      cancelAction.run();
     }
   }
 }

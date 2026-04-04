@@ -48,6 +48,7 @@ import org.waveprotocol.wave.client.doodad.diff.DiffAnnotationHandler;
 import org.waveprotocol.wave.client.doodad.diff.DiffDeleteRenderer;
 import org.waveprotocol.wave.client.doodad.link.LinkAnnotationHandler;
 import org.waveprotocol.wave.client.doodad.link.LinkAnnotationHandler.LinkAttributeAugmenter;
+import org.waveprotocol.wave.client.doodad.mention.MentionAnnotationHandler;
 import org.waveprotocol.wave.client.doodad.selection.SelectionAnnotationHandler;
 import org.waveprotocol.wave.client.doodad.title.TitleAnnotationHandler;
 import org.waveprotocol.wave.client.editor.content.ContentElement;
@@ -819,6 +820,7 @@ public interface StageTwo {
                     StyleAnnotationHandler.register(r);
                     TitleAnnotationHandler.register(r);
                     LinkAnnotationHandler.register(r, createLinkAttributeAugmenter());
+                    MentionAnnotationHandler.register(r);
                     SelectionAnnotationHandler.register(r, getSessionId(), getProfileManager());
                     ImageThumbnail.register(r.getElementHandlerRegistry(),
                             AttachmentManagerProvider.get(),

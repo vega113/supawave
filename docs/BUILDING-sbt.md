@@ -106,7 +106,7 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 - SBT automatically stages protobuf sources before `PB.generate`:
   - `.protodevel` files are rewritten into `target/proto-pb-src` as `.proto`.
   - `descriptor.proto` is resolved from `pst/src/main/proto/google/protobuf/descriptor.proto`.
-- `generatePstMessages` and `generateFlags`: see Prerequisites for the
+- `generatePstMessages` and `generateFlags`: see **Notes** below for the
   `sbt compile` wiring and manual regeneration guidance.
 - Stable project naming now produces `incubator-wave-server-0.1.0-SNAPSHOT.jar`
   instead of varying with the worktree directory.

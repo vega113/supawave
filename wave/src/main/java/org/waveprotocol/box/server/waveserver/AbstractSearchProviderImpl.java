@@ -82,7 +82,7 @@ public abstract class AbstractSearchProviderImpl implements SearchProvider {
       LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView) {
     // Must use a map with stable ordering, since indices are meaningful.
     LinkedHashMap<WaveId, WaveViewData> wavesView = buildWavesView(matchesFunction, currentUserWavesView);
-    return filterConversationalWaves(wavesView);
+    return retainConversationalWaves(wavesView);
   }
 
   private LinkedHashMap<WaveId, WaveViewData> buildWavesView(
@@ -99,24 +99,25 @@ public abstract class AbstractSearchProviderImpl implements SearchProvider {
     return wavesView;
   }
 
-  private LinkedHashMap<WaveId, WaveViewData> filterConversationalWaves(
+  private LinkedHashMap<WaveId, WaveViewData> retainConversationalWaves(
       LinkedHashMap<WaveId, WaveViewData> wavesView) {
-    LinkedHashMap<WaveId, WaveViewData> results = Maps.newLinkedHashMap();
-    for (Map.Entry<WaveId, WaveViewData> entry : wavesView.entrySet()) {
-      WaveViewData view = entry.getValue();
-      Iterable<? extends ObservableWaveletData> wavelets = view.getWavelets();
-      boolean hasConversation = false;
-      for (ObservableWaveletData waveletData : wavelets) {
-        if (IdUtil.isConversationalId(waveletData.getWaveletId())) {
-          hasConversation = true;
-          break;
-        }
-      }
-      if (hasConversation) {
-        results.put(entry.getKey(), view);
+    for (Iterator<Map.Entry<WaveId, WaveViewData>> iterator = wavesView.entrySet().iterator();
+        iterator.hasNext();) {
+      Map.Entry<WaveId, WaveViewData> entry = iterator.next();
+      if (!hasConversation(entry.getValue())) {
+        iterator.remove();
       }
     }
-    return results;
+    return wavesView;
+  }
+
+  private boolean hasConversation(WaveViewData view) {
+    for (ObservableWaveletData waveletData : view.getWavelets()) {
+      if (IdUtil.isConversationalId(waveletData.getWaveletId())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public static WaveViewData buildWaveViewData(WaveId waveId, Set<WaveletId> waveletIds,

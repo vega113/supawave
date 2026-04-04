@@ -260,6 +260,9 @@ public class WebClient implements EntryPoint {
   /** Whether turbulence banner is logically active (even if delay hasn't elapsed). */
   private boolean turbulencePending;
 
+  /** Latest connection status reported by the transport. */
+  private ConnectionStatus connectionStatus = ConnectionStatus.CONNECTED;
+
   /** Persistent-toast id for the offline-while-editing warning. */
   private static final String OFFLINE_EDITING_TOAST_ID = "offline-editing";
 
@@ -650,6 +653,7 @@ public class WebClient implements EntryPoint {
 
       @Override
       public void onNetworkStatus(NetworkStatusEvent event) {
+        connectionStatus = event.getStatus();
         // After a prolonged disconnect (likely server restart / deploy),
         // the client's channel state machines are stale.  Force a full
         // page reload so the browser fetches the latest JS and opens
@@ -745,9 +749,16 @@ public class WebClient implements EntryPoint {
 
           @Override
           public void onCancel() {
-            markConnectionRestored();
+            if (isConnectionRestored()) {
+              markConnectionRestored();
+            }
           }
         });
+  }
+
+  private boolean isConnectionRestored() {
+    return connectionStatus == ConnectionStatus.CONNECTED
+        || connectionStatus == ConnectionStatus.RECONNECTED;
   }
 
   private void setupStatistics() {

@@ -33,6 +33,22 @@
     ]
   },
   {
+    "releaseId": "2026-04-05-pr-611-prolonged-reconnect-reload",
+    "version": "PR #611",
+    "date": "2026-04-05",
+    "title": "Reload after prolonged reconnect to resync the client",
+    "summary": "The client now prompts before reloading after a long disconnect when a wave is open, and still reloads immediately when no wave is open.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Prompts to reload after a reconnect that follows a disconnect lasting longer than 5 seconds when a wave is open",
+          "Reloads immediately after a prolonged disconnect when no wave is open, while leaving shorter disconnects as normal hiccups"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-05-gptbot-document-changed-guard",
     "version": "PR #613",
     "date": "2026-04-05",

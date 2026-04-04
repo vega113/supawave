@@ -268,6 +268,14 @@ public class WebClient implements EntryPoint {
    */
   private static final double DEPLOY_DISCONNECT_THRESHOLD_MS = 5000;
 
+  /**
+   * Auto-reload only when there is no open wave to avoid discarding in-memory
+   * edits or queued operations during reconnect.
+   */
+  private boolean shouldReloadAfterProlongedDisconnect() {
+    return wave == null;
+  }
+
   /** Show the turbulence banner (called after the delay). */
   private void showTurbulenceBanner() {
     injectTurbulenceCss();
@@ -658,11 +666,16 @@ public class WebClient implements EntryPoint {
             && turbulenceStartTime > 0) {
           double disconnectMs = new Date().getTime() - turbulenceStartTime;
           if (disconnectMs > DEPLOY_DISCONNECT_THRESHOLD_MS) {
-            LOG.info("Prolonged disconnect (" + (int) disconnectMs
-                + "ms), reloading page to resync with server");
-            hideTurbulenceBanner(false);
-            Window.Location.replace(Window.Location.getHref());
-            return;
+            if (shouldReloadAfterProlongedDisconnect()) {
+              LOG.info("Prolonged disconnect (" + Math.round(disconnectMs)
+                  + "ms), reloading page to resync with server");
+              hideTurbulenceBanner(false);
+              Window.Location.replace(Window.Location.getHref());
+              return;
+            }
+            LOG.info("Prolonged disconnect (" + Math.round(disconnectMs)
+                + "ms) while editing a wave; skipping page reload to"
+                + " preserve in-memory edits");
           }
         }
         Element element = Document.get().getElementById("netstatus");

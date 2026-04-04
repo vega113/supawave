@@ -95,6 +95,10 @@
              <td>Waves where you are @mentioned</td>
            </tr>
            <tr>
+             <td><code>mentions:me</code></td>
+             <td>Waves where you are @mentioned</td>
+           </tr>
+           <tr>
              <td><em>free text</em></td>
              <td>Implicit <code>content:</code> search in wave content</td>
            </tr>

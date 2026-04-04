@@ -26,7 +26,6 @@ import com.google.wave.api.SearchResult;
 import com.google.wave.api.SearchResult.Digest;
 
 import org.waveprotocol.box.common.Snippets;
-import org.waveprotocol.wave.model.document.DocumentConstants;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl.WaveSupplementContext;
 import org.waveprotocol.wave.model.conversation.BlipIterators;
@@ -149,7 +148,7 @@ public class WaveDigester {
       WaveletId waveletId = conversationalWavelet.getWaveletId();
       int lastReadWaveletVersion = readState.getLastReadWaveletVersion(waveletId);
       for (String documentId : conversationalWavelet.getDocumentIds()) {
-        if (DocumentConstants.MANIFEST_DOCUMENT_ID.equals(documentId)) {
+        if (!IdUtil.isBlipId(documentId)) {
           continue;
         }
         ReadableBlipData blip = conversationalWavelet.getDocument(documentId);

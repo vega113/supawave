@@ -27,7 +27,6 @@ import com.google.wave.api.event.Event;
 import com.google.wave.api.event.EventHandler;
 import com.google.wave.api.event.EventType;
 import com.google.wave.api.event.FormButtonClickedEvent;
-import com.google.wave.api.event.FormValueChangedEvent;
 import com.google.wave.api.event.GadgetStateChangedEvent;
 import com.google.wave.api.event.OperationErrorEvent;
 import com.google.wave.api.event.WaveletBlipCreatedEvent;
@@ -342,9 +341,6 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
         case FORM_BUTTON_CLICKED:
           onFormButtonClicked(FormButtonClickedEvent.as(event));
           break;
-        case FORM_VALUE_CHANGED:
-          onFormValueChanged(FormValueChangedEvent.as(event));
-          break;
         case GADGET_STATE_CHANGED:
           onGadgetStateChanged(GadgetStateChangedEvent.as(event));
           break;
@@ -459,11 +455,6 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
 
   @Override
   public void onFormButtonClicked(FormButtonClickedEvent event) {
-    // No-op.
-  }
-
-  @Override
-  public void onFormValueChanged(FormValueChangedEvent event) {
     // No-op.
   }
 

@@ -22,7 +22,6 @@ package org.waveprotocol.box.server.robots.operations;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.wave.api.Element;
-import com.google.wave.api.FormElement;
 import com.google.wave.api.Gadget;
 import com.google.wave.api.InvalidRequestException;
 import com.google.wave.api.JsonRpcConstant.ParamsProperty;
@@ -436,6 +435,7 @@ public class DocumentModifyService implements OperationService {
 
   /**
    * Updates elements in the document.
+   * <b>Note</b>: Only gadget elements are supported, for now.
    *
    * @param operation the operation the operation that wants to update elements.
    * @param doc the document to update elements in.
@@ -455,13 +455,10 @@ public class DocumentModifyService implements OperationService {
           int xmlStart = view.transformToXmlOffset(range.getStart());
           Doc.E docElem = Point.elementAfter(doc, doc.locate(xmlStart));
           updateExistingGadgetElement(doc, docElem, element);
-        } else if (element.isFormElement()) {
-          int xmlStart = view.transformToXmlOffset(range.getStart());
-          Doc.E docElem = Point.elementAfter(doc, doc.locate(xmlStart));
-          updateExistingFormElement(doc, docElem, element);
         } else {
+          // TODO (Yuri Z.) Updating other elements.
           throw new UnsupportedOperationException(
-              "Can't update elements of type " + element.getType());
+              "Can't update other elements than gadgets at the moment");
         }
       }
     }
@@ -540,47 +537,6 @@ public class DocumentModifyService implements OperationService {
         }
       }
     }
-  }
-
-  /**
-   * Updates the existing form element properties.
-   *
-   * @param doc the document to update elements in.
-   * @param existingElement the form element to update.
-   * @param element the element that describes what existingElement should be
-   *        updated with.
-   */
-  private void updateExistingFormElement(Document doc, Doc.E existingElement, Element element) {
-    Preconditions.checkArgument(element.isFormElement(),
-        "Called with non-form element type %s", element.getType());
-
-    FormElement currentElement =
-        (FormElement) ElementSerializer.xmlToApiElement(doc, existingElement, null);
-    Preconditions.checkArgument(currentElement != null,
-        "Unable to serialize existing form element of type %s", doc.getTagName(existingElement));
-
-    String name = element.getProperty(FormElement.NAME);
-    if (isNonEmpty(name)) {
-      currentElement.setName(name);
-    }
-
-    String defaultValue = element.getProperty(FormElement.DEFAULT_VALUE);
-    if (isNonEmpty(defaultValue)) {
-      currentElement.setDefaultValue(defaultValue);
-    }
-
-    String value = element.getProperty(FormElement.VALUE);
-    if (isNonEmpty(value)) {
-      currentElement.setValue(value);
-    }
-
-    XmlStringBuilder xml = ElementSerializer.apiElementToXml(currentElement);
-    doc.insertXml(Point.before(doc, existingElement), xml);
-    doc.deleteNode(existingElement);
-  }
-
-  private boolean isNonEmpty(String value) {
-    return value != null && !value.isEmpty();
   }
 
   public static DocumentModifyService create() {

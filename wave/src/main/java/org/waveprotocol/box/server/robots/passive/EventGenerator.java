@@ -346,24 +346,6 @@ public class EventGenerator {
               }
             }
           }
-          if (capabilities.containsKey(EventType.FORM_VALUE_CHANGED)) {
-            if (eventComponent.getType() == DocumentEvent.Type.ATTRIBUTES) {
-              AttributesModified<N, E, T> attributesModified =
-                  (AttributesModified<N, E, T>) eventComponent;
-              E element = attributesModified.getElement();
-              String tagName = doc.getTagName(element);
-              if (isFormValueAttributeFormElement(tagName)
-                  && attributesModified.getOldValues().containsKey("value")) {
-                String elementName = doc.getAttribute(element, "name");
-                String oldValue = attributesModified.getOldValues().get("value");
-                String newValue = doc.getAttribute(element, "value");
-                FormValueChangedEvent valueChangedEvent = new FormValueChangedEvent(
-                    null, null, deltaAuthor.getAddress(), deltaTimestamp,
-                    blip.getId(), elementName, tagName, oldValue, newValue);
-                addEvent(valueChangedEvent, capabilities, blip.getId(), messages);
-              }
-            }
-          }
           if (capabilities.containsKey(EventType.DOCUMENT_CHANGED)
               && !documentChangedEventGenerated && !gadgetStateChangeEvent) {
             DocumentChangedEvent apiEvent =
@@ -405,12 +387,6 @@ public class EventGenerator {
       String ifr1 = rawElement.getAttribute("ifr");
       String ifr2 = element.getProperty("ifr");
       return (ifr1 != null && ifr1.equals(ifr2));
-    }
-
-    private boolean isFormValueAttributeFormElement(String tagName) {
-      return "check".equals(tagName)
-          || "password".equals(tagName)
-          || "radiogroup".equals(tagName);
     }
   }
 
@@ -624,14 +600,6 @@ public class EventGenerator {
         docHandler.setAuthorAndTimeStamp(deltaAuthor, timestamp);
       }
     }
-  }
-
-  /** Form element tag names that can have value changes. */
-  private static final Set<String> FORM_ELEMENT_TAGS = Set.of(
-      "input", "check", "password", "textarea", "radiogroup");
-
-  private static boolean isFormElementTag(String tagName) {
-    return FORM_ELEMENT_TAGS.contains(tagName);
   }
 
   /**

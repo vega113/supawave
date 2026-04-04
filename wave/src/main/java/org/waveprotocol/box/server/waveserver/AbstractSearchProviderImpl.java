@@ -77,47 +77,31 @@ public abstract class AbstractSearchProviderImpl implements SearchProvider {
     }
   }
 
+  // TODO (yurize) : Refactor this method. It does two things: filtering and
+  // building waves.
   protected LinkedHashMap<WaveId, WaveViewData> filterWavesViewBySearchCriteria(
       Function<ReadableWaveletData, Boolean> matchesFunction,
       LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView) {
     // Must use a map with stable ordering, since indices are meaningful.
-    LinkedHashMap<WaveId, WaveViewData> wavesView = buildWavesView(matchesFunction, currentUserWavesView);
-    return retainConversationalWaves(wavesView);
-  }
+    LinkedHashMap<WaveId, WaveViewData> results = Maps.newLinkedHashMap();
 
-  private LinkedHashMap<WaveId, WaveViewData> buildWavesView(
-      Function<ReadableWaveletData, Boolean> matchesFunction,
-      LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView) {
-    LinkedHashMap<WaveId, WaveViewData> wavesView = Maps.newLinkedHashMap();
+    // Loop over the user waves view.
     for (WaveId waveId : currentUserWavesView.keySet()) {
       Set<WaveletId> waveletIds = currentUserWavesView.get(waveId);
       WaveViewData view = buildWaveViewData(waveId, waveletIds, matchesFunction, waveMap);
-      if (view != null) {
-        wavesView.put(waveId, view);
+      Iterable<? extends ObservableWaveletData> wavelets = view.getWavelets();
+      boolean hasConversation = false;
+      for (ObservableWaveletData waveletData : wavelets) {
+        if (IdUtil.isConversationalId(waveletData.getWaveletId())) {
+          hasConversation = true;
+          break;
+        }
+      }
+      if ((view != null) && hasConversation) {
+        results.put(waveId, view);
       }
     }
-    return wavesView;
-  }
-
-  private LinkedHashMap<WaveId, WaveViewData> retainConversationalWaves(
-      LinkedHashMap<WaveId, WaveViewData> wavesView) {
-    for (Iterator<Map.Entry<WaveId, WaveViewData>> iterator = wavesView.entrySet().iterator();
-        iterator.hasNext();) {
-      Map.Entry<WaveId, WaveViewData> entry = iterator.next();
-      if (!hasConversation(entry.getValue())) {
-        iterator.remove();
-      }
-    }
-    return wavesView;
-  }
-
-  private boolean hasConversation(WaveViewData view) {
-    for (ObservableWaveletData waveletData : view.getWavelets()) {
-      if (IdUtil.isConversationalId(waveletData.getWaveletId())) {
-        return true;
-      }
-    }
-    return false;
+    return results;
   }
 
   public static WaveViewData buildWaveViewData(WaveId waveId, Set<WaveletId> waveletIds,

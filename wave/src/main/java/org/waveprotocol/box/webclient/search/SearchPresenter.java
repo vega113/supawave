@@ -555,6 +555,16 @@ public final class SearchPresenter
     }
 
     new ToolbarButtonViewBuilder()
+        .setTooltip("Mentions")
+        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            searchUi.getSearch().setQuery("mentions:me");
+            onQueryEntered();
+          }
+        }).setVisualElement(createSvgIcon(ICON_MENTIONS));
+
+    new ToolbarButtonViewBuilder()
         .setTooltip("Public waves")
         .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
           @Override

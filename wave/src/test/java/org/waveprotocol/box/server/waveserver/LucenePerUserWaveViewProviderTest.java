@@ -28,8 +28,18 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.waveprotocol.box.server.persistence.lucene.IndexDirectory;
 import org.waveprotocol.box.server.persistence.lucene.RAMIndexDirectory;
+import org.waveprotocol.wave.model.document.DocumentConstants;
+import org.waveprotocol.wave.model.document.Document;
+import org.waveprotocol.wave.model.document.operation.Attributes;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocOp;
+import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
+import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuilder;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.operation.SilentOperationSink;
+import org.waveprotocol.wave.model.wave.data.DocumentOperationSink;
+import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 
 import java.io.IOException;
@@ -105,5 +115,70 @@ public class LucenePerUserWaveViewProviderTest extends PerUserWaveViewProviderTe
     assertFalse(handler.retrievePerUserWaveView(PARTICIPANT).containsEntry(WAVE_ID, WAVELET_ID));
     assertTrue(handler.retrievePerUserWaveView(OTHER_PARTICIPANT).containsEntry(WAVE_ID,
         secondWaveletId));
+  }
+
+  public void testSearchByTextIndexesTitleFirstLineAndContent() throws Exception {
+    when(waveletData.getDocumentIds()).thenReturn(ImmutableSet.of(BLIP_ID));
+    ReadableBlipData rootBlip = blipWithContent(textDoc("alpha beta", "gamma delta"));
+    ReadableBlipData manifestBlip = blipWithContent(manifestDoc(BLIP_ID));
+    when(waveletData.getDocument(BLIP_ID)).thenReturn(rootBlip);
+    when(waveletData.getDocument(DocumentConstants.MANIFEST_DOCUMENT_ID)).thenReturn(manifestBlip);
+
+    handler.onParticipantAdded(WAVELET_NAME, PARTICIPANT).get();
+    postUpdateHook();
+
+    assertTrue(handler.searchByText(PARTICIPANT, "alpha beta", IndexFieldType.TITLE)
+        .contains(WAVE_ID));
+    assertFalse(handler.searchByText(PARTICIPANT, "gamma", IndexFieldType.TITLE)
+        .contains(WAVE_ID));
+    assertTrue(handler.searchByText(PARTICIPANT, "gamma", IndexFieldType.CONTENT)
+        .contains(WAVE_ID));
+  }
+
+  private static ReadableBlipData blipWithContent(DocInitialization content) {
+    ReadableBlipData blip = Mockito.mock(ReadableBlipData.class);
+    when(blip.getContent()).thenReturn(new DocumentOperationSink() {
+      @Override
+      public DocInitialization asOperation() {
+        return content;
+      }
+
+      @Override
+      public void consume(DocOp op) {
+      }
+
+      @Override
+      public Document getMutableDocument() {
+        return null;
+      }
+
+      @Override
+      public void init(SilentOperationSink<? super DocOp> outputSink) {
+      }
+    });
+    return blip;
+  }
+
+  private static DocInitialization textDoc(String firstLine, String secondLine) {
+    return new DocInitializationBuilder()
+        .elementStart(DocumentConstants.BODY, Attributes.EMPTY_MAP)
+        .elementStart(DocumentConstants.LINE, Attributes.EMPTY_MAP)
+        .elementEnd()
+        .characters(firstLine)
+        .elementStart(DocumentConstants.LINE, Attributes.EMPTY_MAP)
+        .elementEnd()
+        .characters(secondLine)
+        .elementEnd()
+        .build();
+  }
+
+  private static DocInitialization manifestDoc(String rootBlipId) {
+    return new DocInitializationBuilder()
+        .elementStart(DocumentConstants.CONVERSATION, Attributes.EMPTY_MAP)
+        .elementStart(DocumentConstants.BLIP, new AttributesImpl(DocumentConstants.BLIP_ID,
+            rootBlipId))
+        .elementEnd()
+        .elementEnd()
+        .build();
   }
 }

@@ -305,7 +305,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     if (!titleValues.isEmpty()) {
       LOG.info("Title filter active: required terms = " + titleValues
           + ", candidates before filter = " + results.size());
-      filterByTitle(results, titleValues);
+      filterByTextField(results, user, titleValues, IndexFieldType.TITLE, "title");
       LOG.info("After title filter: " + results.size() + " results remain");
     }
 
@@ -313,7 +313,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     if (!contentValues.isEmpty()) {
       LOG.info("Content filter active: required terms = " + contentValues
           + ", candidates before filter = " + results.size());
-      filterByContent(results, contentValues);
+      filterByTextField(results, user, contentValues, IndexFieldType.CONTENT, "content");
       LOG.info("After content filter: " + results.size() + " results remain");
     }
 
@@ -688,9 +688,52 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
   }
 
   /**
-   * Filters wave results by title. The title is the text content of the root blip
-   * (the first blip in the conversation manifest). Only waves whose title contains
-   * all of the requested search terms (case-insensitive substring match) are kept.
+   * Filters wave results using the Lucene full-text index on the specified field.
+   * Queries the index for waves matching all terms, then removes any results
+   * whose wave ID is not in the match set.
+   *
+   * <p>Falls back to in-memory scan only if the provider does not support
+   * text search (returns null). An empty set means "no matches" and is valid.
+   */
+  private void filterByTextField(List<WaveViewData> results, ParticipantId user,
+      Set<String> requiredTerms, IndexFieldType field, String label) {
+    // Combine all terms into a single query string.
+    StringBuilder queryBuilder = new StringBuilder();
+    for (String term : requiredTerms) {
+      if (queryBuilder.length() > 0) {
+        queryBuilder.append(' ');
+      }
+      queryBuilder.append(term);
+    }
+    String queryText = queryBuilder.toString();
+
+    Set<WaveId> matchingWaveIds = waveViewProvider.searchByText(user, queryText, field);
+
+    if (matchingWaveIds != null) {
+      // Lucene index was used — filter to matching wave IDs only.
+      // An empty set means no waves matched, so all results are removed.
+      Iterator<WaveViewData> it = results.iterator();
+      while (it.hasNext()) {
+        WaveViewData wave = it.next();
+        if (!matchingWaveIds.contains(wave.getWaveId())) {
+          it.remove();
+        }
+      }
+    } else {
+      // Provider does not support text search — fall back to in-memory scan.
+      LOG.info("Lucene " + label + " search not available, falling back to in-memory scan");
+      if (field == IndexFieldType.TITLE) {
+        filterByTitle(results, requiredTerms);
+      } else {
+        filterByContent(results, requiredTerms);
+      }
+    }
+  }
+
+  /**
+   * Filters wave results by title (in-memory fallback). The title is the text
+   * content of the root blip. Only waves whose title contains all of the
+   * requested search terms (case-insensitive substring match) are kept.
    *
    * @param results the mutable list of wave views to filter in place.
    * @param requiredTerms the set of title search terms that must all be present.

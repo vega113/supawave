@@ -35,6 +35,7 @@ import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.robots.RobotCapabilities;
 import org.waveprotocol.wave.util.logging.Log;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 
@@ -73,7 +74,9 @@ public class RobotConnector implements RobotCapabilityFetcher {
       EventMessageBundle bundle, Robot robot, ProtocolVersion version) {
     String serializedBundle = serializer.serialize(bundle, version);
 
-    String robotUrl = robot.getAccount().getUrl() + Robot.RPC_URL;
+    String storedUrl = robot.getAccount().getUrl();
+    String robotUrl = storedUrl.contains("/_wave/robot/jsonrpc")
+        ? storedUrl : storedUrl + Robot.RPC_URL;
     LOG.info("Sending: " + serializedBundle + " to " + robotUrl);
 
     try {
@@ -103,7 +106,7 @@ public class RobotConnector implements RobotCapabilityFetcher {
   public RobotAccountData fetchCapabilities(RobotAccountData account, String activeApiUrl)
       throws CapabilityFetchException {
     RobotCapabilitiesParser parser = new RobotCapabilitiesParser(
-        account.getUrl() + Robot.CAPABILITIES_URL, connection, activeApiUrl);
+        robotBaseUrl(account.getUrl()) + Robot.CAPABILITIES_URL, connection, activeApiUrl);
     RobotCapabilities capabilities = new RobotCapabilities(
         parser.getCapabilities(), parser.getCapabilitiesHash(), parser.getProtocolVersion());
 
@@ -111,5 +114,27 @@ public class RobotConnector implements RobotCapabilityFetcher {
         capabilities, account.isVerified(), account.getTokenExpirySeconds(),
         account.getOwnerAddress(), account.getDescription(), account.getCreatedAtMillis(),
         account.getUpdatedAtMillis(), account.isPaused());
+  }
+
+  /**
+   * Extracts the scheme + authority (origin) from a callback URL so that well-known
+   * paths like {@code /_wave/capabilities.xml} can be appended without duplicating
+   * the callback path component.
+   */
+  static String robotBaseUrl(String callbackUrl) {
+    if (callbackUrl == null || callbackUrl.isBlank()) {
+      return "";
+    }
+    try {
+      URI uri = URI.create(callbackUrl);
+      String scheme = uri.getScheme();
+      String authority = uri.getAuthority();
+      if (scheme != null && authority != null) {
+        return scheme + "://" + authority;
+      }
+    } catch (IllegalArgumentException e) {
+      LOG.warning("Unable to parse robot callback URL: " + callbackUrl, e);
+    }
+    return callbackUrl;
   }
 }

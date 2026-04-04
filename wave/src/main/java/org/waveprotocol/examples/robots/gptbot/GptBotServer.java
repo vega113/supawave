@@ -46,10 +46,17 @@ public final class GptBotServer {
 
   public static void main(String[] args) throws Exception {
     GptBotConfig config = GptBotConfig.fromEnvironment();
-    GptBotReplyPlanner replyPlanner = new GptBotReplyPlanner(config.getRobotName(),
-        new ProcessCodexClient(config.getCodexBinary(), config.getCodexModel(),
-            config.getCodexReasoningEffort(), config.getCodexTimeout(),
-            config.isCodexUnsafeBypassEnabled()));
+    String codexEngine = System.getenv("GPTBOT_CODEX_ENGINE");
+    CodexClient codexClient;
+    if ("echo".equalsIgnoreCase(codexEngine != null ? codexEngine.trim() : "")) {
+      LOG.info("Using echo engine (no external LLM required)");
+      codexClient = new EchoCodexClient();
+    } else {
+      codexClient = new ProcessCodexClient(config.getCodexBinary(), config.getCodexModel(),
+          config.getCodexReasoningEffort(), config.getCodexTimeout(),
+          config.isCodexUnsafeBypassEnabled());
+    }
+    GptBotReplyPlanner replyPlanner = new GptBotReplyPlanner(config.getRobotName(), codexClient);
     SupaWaveApiClient apiClient = new SupaWaveApiClient(config);
     GptBotRobot robot = new GptBotRobot(config, replyPlanner, apiClient);
     if (!config.getPublicBaseUrl().isBlank() && config.getCallbackToken().isBlank()) {

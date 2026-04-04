@@ -13,7 +13,7 @@
 
 - Java 17+
 - SBT 1.10+
-- the `codex` CLI on `PATH`
+- the `codex` CLI on `PATH` (only when using `GPTBOT_CODEX_ENGINE=codex`)
 - `cloudflared` if you want a public callback URL
 
 ## Local Run
@@ -37,7 +37,11 @@ The default listener is `0.0.0.0:8087`, so the local URLs are:
 - `http://localhost:8087/_wave/robot/profile`
 - `http://localhost:8087/_wave/robot/jsonrpc`
 
-The Codex subprocess path uses:
+Set `GPTBOT_CODEX_ENGINE=echo` to run without the Codex CLI. In echo mode, the robot
+mirrors back user prompts, which is useful for testing the callback pipeline without an
+external LLM dependency.
+
+The Codex subprocess path (default engine) uses:
 
 - model: `gpt-5.4-mini`
 - reasoning effort: `low`

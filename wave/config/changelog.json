@@ -1,10 +1,10 @@
 [
   {
-    "releaseId": "2026-04-04-robot-url-normalization-echo-engine",
-    "version": "PR #607",
+    "releaseId": "2026-04-04-gptbot-document-changed-guard",
+    "version": "PR #613",
     "date": "2026-04-04",
-    "title": "Fix gpt-bot robot URL handling and add echo engine",
-    "summary": "Keeps custom robot base paths intact when passive robots fetch capabilities or post callbacks, and adds an echo completion engine for local gpt-bot runs.",
+    "title": "Restore DOCUMENT_CHANGED replies behind editor-activity guards",
+    "summary": "Restores passive DOCUMENT_CHANGED handling only after editor annotations clear, while keeping the gpt-bot runtime and passive robot URL fixes in this branch aligned with PR #613.",
     "sections": [
       {
         "type": "feature",
@@ -15,8 +15,10 @@
       {
         "type": "fix",
         "items": [
+          "Passive DOCUMENT_CHANGED replies now wait for editor annotations to disappear before responding",
           "Passive capabilities fetches now preserve custom robot base paths instead of stripping them to the origin",
-          "Passive callback posts now only treat URLs as normalized when their path actually ends with /_wave/robot/jsonrpc"
+          "Passive callback posts now only treat URLs as normalized when their path actually ends with /_wave/robot/jsonrpc",
+          "gptbot-start.sh now reports a clean sbt-not-found error instead of exiting inside command substitution"
         ]
       }
     ]

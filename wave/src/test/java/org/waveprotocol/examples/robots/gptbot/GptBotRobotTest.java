@@ -20,6 +20,7 @@
 package org.waveprotocol.examples.robots.gptbot;
 
 import com.google.wave.api.BlipData;
+import com.google.wave.api.Annotation;
 import com.google.wave.api.BlipThread;
 import com.google.wave.api.event.DocumentChangedEvent;
 import com.google.wave.api.impl.EventMessageBundle;
@@ -31,6 +32,8 @@ import com.google.wave.api.event.WaveletBlipCreatedEvent;
 
 import junit.framework.TestCase;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -115,6 +118,32 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(0, codexClient.completeCalls);
   }
 
+  public void testDocumentChangedSkipsReplyWhileEditorAnnotationsArePresent() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Here is a helpful answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    String editingResponse = robot.handleEventBundle(exampleBundleJson(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " please answer",
+        Collections.singletonList(new Annotation("user/d/alice@example.com", "", 0, 1)),
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+    assertFalse(editingResponse.contains("Here is a helpful answer."));
+    assertFalse(editingResponse.contains("blip.createChild"));
+    assertEquals(0, apiClient.fetchCalls);
+    assertEquals(0, codexClient.completeCalls);
+
+    String settledResponse = robot.handleEventBundle(exampleBundleJson(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " please answer",
+        Collections.<Annotation>emptyList(),
+        new DocumentChangedEvent(null, null, "alice@example.com", 2L, "b+root")));
+    assertTrue(settledResponse.contains("Here is a helpful answer."));
+    assertTrue(settledResponse.contains("blip.createChild"));
+    assertEquals(1, apiClient.fetchCalls);
+    assertEquals(1, codexClient.completeCalls);
+  }
+
   public void testCallbackBundleDeduplicatesOverlappingBlipEvents() {
     RecordingCodexClient codexClient = new RecordingCodexClient();
     codexClient.response = "Here is a helpful answer.";
@@ -172,14 +201,23 @@ public class GptBotRobotTest extends TestCase {
   }
 
   private static String exampleBundleJson(GptBotConfig config, String content, Event... events) {
+    return exampleBundleJson(config, content, Collections.<Annotation>emptyList(), events);
+  }
+
+  private static String exampleBundleJson(GptBotConfig config, String content,
+      List<Annotation> annotations, Event... events) {
     EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
         "http://localhost:8087/_wave/robot/jsonrpc");
     WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
         "b+root", (BlipThread) null);
     waveletData.addParticipant("alice@example.com");
     bundle.setWaveletData(waveletData);
-    bundle.addBlip("b+root", new BlipData("example.com!w+abc123",
-        "example.com!conv+root", "b+root", content));
+    BlipData blipData = new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+root", content);
+    for (Annotation annotation : annotations) {
+      blipData.addAnnotation(annotation);
+    }
+    bundle.addBlip("b+root", blipData);
     for (Event event : events) {
       bundle.addEvent(event);
     }

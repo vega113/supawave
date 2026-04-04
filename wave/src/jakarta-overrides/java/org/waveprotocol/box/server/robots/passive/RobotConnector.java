@@ -65,9 +65,13 @@ public class RobotConnector implements RobotCapabilityFetcher {
   }
 
   /**
-   * Extracts the scheme + authority (origin) from a callback URL so that well-known
-   * paths like {@code /_wave/capabilities.xml} can be appended without duplicating
-   * the callback path component.
+   * Derives a base URL from a callback URL for appending well-known robot endpoints.
+   * <p>
+   * If the callback URL contains only an origin, this returns that origin. If it
+   * contains a non-root path, that path is preserved, except that a trailing
+   * {@code Robot.RPC_URL} suffix is removed so paths like
+   * {@code /_wave/capabilities.xml} can be appended without duplicating the RPC
+   * endpoint segment.
    */
   static String robotBaseUrl(String callbackUrl) {
     if (callbackUrl == null || callbackUrl.isBlank()) {
@@ -82,7 +86,7 @@ public class RobotConnector implements RobotCapabilityFetcher {
     if (scheme == null || authority == null) {
       return callbackUrl;
     }
-    String path = uri.getPath();
+    String path = uri.getRawPath();
     if (path == null || path.isEmpty() || "/".equals(path)) {
       return scheme + "://" + authority;
     }
@@ -103,7 +107,7 @@ public class RobotConnector implements RobotCapabilityFetcher {
     }
     URI uri = parseCallbackUrl(storedUrl);
     if (uri != null) {
-      String path = uri.getPath();
+      String path = uri.getRawPath();
       if (path != null && path.endsWith(Robot.RPC_URL)) {
         return storedUrl;
       }

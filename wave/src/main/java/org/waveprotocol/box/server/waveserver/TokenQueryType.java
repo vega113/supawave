@@ -37,6 +37,7 @@ public enum TokenQueryType {
   UNREAD("unread"),
   CONTENT("content"),
   TITLE("title"),
+  MENTIONS("mentions"),
   ;
 
   final String token;

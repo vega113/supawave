@@ -186,7 +186,6 @@ public class FlagConstants {
   public static final String PING_TYPE = "158";
   public static final String PLAYBACK_PREFETCH_DELAY = "159";
   public static final String PRESERVE_SELECTION_ON_EDIT = "160";
-  public static final String PROFILE_PICTURE_GADGET_URL = "161";
   public static final String RECONNECTION_FUDGE_TIME = "162";
   public static final String REFRESH_CONTACTS_DELAY_SECONDS = "163";
   public static final String REMOVE_PARTICIPANT_ACCESS_CHECK_MS = "164";
@@ -202,7 +201,6 @@ public class FlagConstants {
   public static final String SEARCH_EMAIL_CONTACTS = "174";
   public static final String SETTINGS_AVAILABLE_LANGUAGES = "175";
   public static final String SHOW_BI_DI_BUTTONS = "176";
-  public static final String SHOW_GADGET_SETTING = "177";
   public static final String SHOW_LANGUAGE_SETTING = "178";
   public static final String SHOW_PUBLIC_PARTICIPANT = "179";
   public static final String SHOW_SCROLLY_SETTING = "180";
@@ -233,7 +231,6 @@ public class FlagConstants {
   public static final String USE_PARTICIPANT_PANEL_DRAG_DROP = "205";
   public static final String USE_PARTICIPANT_SUGGESTION = "206";
   public static final String USE_PRESENTATION_MODEL = "207";
-  public static final String USE_PRIVATE_GADGET_STATES = "208";
   public static final String USE_PROFILE_WAVES = "209";
   public static final String USE_SEMANTIC_COPY_PASTE = "210";
   public static final String USE_WAVE_PAGING = "211";
@@ -441,7 +438,6 @@ public class FlagConstants {
     "pingType", "158",
     "playbackPrefetchDelay", "159",
     "preserveSelectionOnEdit", "160",
-    "profilePictureGadgetUrl", "161",
     "reconnectionFudgeTime", "162",
     "refreshContactsDelaySeconds", "163",
     "removeParticipantAccessCheckMs", "164",
@@ -457,7 +453,6 @@ public class FlagConstants {
     "searchEmailContacts", "174",
     "settingsAvailableLanguages", "175",
     "showBiDiButtons", "176",
-    "showGadgetSetting", "177",
     "showLanguageSetting", "178",
     "showPublicParticipant", "179",
     "showScrollySetting", "180",
@@ -488,7 +483,6 @@ public class FlagConstants {
     "useParticipantPanelDragDrop", "205",
     "useParticipantSuggestion", "206",
     "usePresentationModel", "207",
-    "usePrivateGadgetStates", "208",
     "useProfileWaves", "209",
     "useSemanticCopyPaste", "210",
     "useWavePaging", "211",

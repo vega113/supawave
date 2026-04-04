@@ -1,22 +1,24 @@
 # Apache Wave Current State and Resumption Guide
 
 Status: Canonical
-Updated: 2026-04-03
+Updated: 2026-04-04
 Owner: Project Maintainers
 
-This document is the single starting point for resuming work on the modernized
-`incubator-wave` tree. It replaces the stale one-off reconciliation and
-review notes that were useful during merge work but no longer reflect the live
-state of the repository.
+This document is the single starting point for resuming work on the current
+`incubator-wave` tree. It points new agents to the docs map, the live
+GitHub Issues workflow, and the current SBT/Jakarta entry points without
+depending on the older merge notes that are still preserved elsewhere in the
+repo.
 
 ## Repository map
 
 - `incubator-wave`
   - Active repository for resumed work.
-  - The `modernization` branch is the branch that already contains the Java 17,
-    Gradle 8, Jakarta, SBT-port, and partial Wiab.pro import work.
+  - Task branches should use git worktrees in the shared worktrees directory
+    described in `AGENTS.md`, keeping active implementation work isolated from
+    the main checkout.
 - `inc-wave-clone`
-  - Historical local staging clone used during the `pro-featues` merge stream.
+  - Historical local staging clone used during the `pro-features` merge stream.
   - Treat it as superseded by `incubator-wave` unless a specific file needs
     archaeological comparison.
 - `Wiab.pro`
@@ -35,66 +37,61 @@ Cloudflare is optional and should be treated as an overlay, not as a baseline de
 
 ## Canonical documentation set
 
-Read this document first, then review these companion files when resuming work:
+Read these files first when resuming work:
 
-1. `README.md`
-   - Entry point for local setup, SBT/Jakarta reality, and documentation links.
-2. `AGENTS.md` and `docs/agents/tool-usage.md`
+1. [docs/README.md](README.md)
+   - Top-level docs map and category index.
+2. [docs/current-state.md](current-state.md)
+   - Verified current repository snapshot and prioritized backlog.
+3. [README.md](../README.md)
+   - Developer entry point for SBT/Jakarta local setup and the quick docs links.
+4. [docs/agents/README.md](agents/README.md)
+   - Fast route for a new agent to the right docs and workflow surfaces.
+5. [docs/runbooks/README.md](runbooks/README.md)
+   - Operational, deployment, and local verification runbooks.
+6. [docs/architecture/README.md](architecture/README.md)
+   - Durable technical references and ledgers that stay in place.
+7. [docs/github-issues.md](github-issues.md)
+   - Live GitHub Issues workflow, label conventions, and execution-log expectations.
+8. [AGENTS.md](../AGENTS.md) and [docs/agents/tool-usage.md](agents/tool-usage.md)
    - Repo operating rules plus Codex tool routing, model tiers, and MCP guidance.
-3. `docs/github-issues.md`
-   - Live GitHub Issues workflow, label/filter conventions, and Beads archive policy.
-4. `docs/architecture/jakarta-dual-source.md`
-   - Jakarta override source-selection rules and editing guidance.
-5. `docs/architecture/runtime-entrypoints.md`
-   - Server bootstrap, servlet routing, and runtime module seams.
-6. `docs/architecture/dev-persistence-topology.md`
-   - Dev store layout and safe local persistence defaults.
-7. `docs/modernization-plan.md`
-   - Detailed modernization ledger for phases 0 through 8.
-8. `docs/j2cl-gwt3-inventory.md`
-   - Measured inventory of the current GWT-specific migration surface.
-9. `docs/j2cl-gwt3-decision-memo.md`
-   - Current go/no-go decision and dependency-ordered follow-on tasks for any future J2CL work.
-10. `docs/jetty-migration.md`
-   - Jetty / Jakarta migration ledger and test history.
-11. `docs/migrate-conversation-renderer-to-apache-wave.md`
-   - Renderer, quasi-deletion, and fragment import log.
-12. `docs/blocks-adoption-plan.md`
-   - Server-first fragments and segment-state adoption log.
-13. `docs/BUILDING-sbt.md`
-    - State of the additive SBT build port.
-14. `docs/deployment/README.md`, `docs/deployment/linux-host.md`, `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
-    - Canonical deployment documentation set and provider-neutral Linux host guidance.
-15. `docs/DEV_SETUP.md`
-    - Local development requirements and setup notes.
-16. `docs/SMOKE_TESTS.md`
-    - Manual and scripted smoke-test guidance.
-17. `docs/CONFIG_FLAGS.md` and `docs/fragments-config.md`
+9. [docs/BUILDING-sbt.md](BUILDING-sbt.md)
+   - Canonical SBT build notes and current caveats.
+10. [docs/deployment/README.md](deployment/README.md)
+   - Canonical deployment runbook entry point.
+11. [docs/CONFIG_FLAGS.md](CONFIG_FLAGS.md) and [docs/fragments-config.md](fragments-config.md)
     - Configuration behavior and fragments-specific settings.
-18. `docs/persistence-topology-audit.md`
-    - Current persistence topology, Mongo coverage, and multi-instance blockers.
-19. `docs/epics/README.md` and `.beads/README.md`
-    - Historical Beads epic/archive references only.
+12. [docs/persistence-topology-audit.md](persistence-topology-audit.md)
+   - Current persistence topology, Mongo coverage, and multi-instance blockers.
+13. [docs/architecture/jakarta-dual-source.md](architecture/jakarta-dual-source.md), [docs/architecture/runtime-entrypoints.md](architecture/runtime-entrypoints.md), and [docs/architecture/dev-persistence-topology.md](architecture/dev-persistence-topology.md)
+    - Durable source-selection, runtime wiring, and dev-persistence references.
+14. [docs/modernization-plan.md](modernization-plan.md), [docs/jetty-migration.md](jetty-migration.md), [docs/migrate-conversation-renderer-to-apache-wave.md](migrate-conversation-renderer-to-apache-wave.md), and [docs/blocks-adoption-plan.md](blocks-adoption-plan.md)
+    - Historical ledgers that still hold useful implementation detail.
+15. [docs/j2cl-gwt3-inventory.md](j2cl-gwt3-inventory.md) and [docs/j2cl-gwt3-decision-memo.md](j2cl-gwt3-decision-memo.md)
+    - Phase 8 inventory and no-go-for-now decision context.
+16. [docs/epics/README.md](epics/README.md) and [../.beads/README.md](../.beads/README.md)
+    - Historical Beads archive references only.
 
-Use `ORCHESTRATOR.md` for live operational state and lane context. Use the
-`docs/architecture/` references above for durable architecture guidance.
-
-## Verified current state snapshot (2026-03-22)
+## Verified current state
 
 ### Modernization work that is already in place
 
 - Java 17 is the baseline runtime and toolchain target.
-- Gradle 8 migration and the associated deprecation cleanup are in place.
+- SBT is the supported build system and the current developer entry point.
 - GWT 2.x on JDK 17 is already wired well enough to be tracked as completed in
   the modernization ledger.
 - Jakarta / Jetty 12 is the supported server profile.
 - The legacy `javax` / Jetty 9.4 fallback has been retired; the live
   server/runtime path is Jakarta-only.
-- The additive SBT build now uses stable jar naming and `wave/config/`-backed
-  runtime defaults, but it remains a server-only additive path with
-  remaining Java-compilation follow-up work.
-- Phase 6 protobuf and server-side Guava work are already closed on the Gradle
-  path.
+- `wave/src/jakarta-overrides/java/` is the active override path when a
+  Jakarta replacement exists for a class under `wave/src/main/java/`.
+- The SBT build now uses stable jar naming and `wave/config/`-backed runtime
+  defaults.
+- `sbt run` depends on `prepareServerConfig` and `compileGwt`, and
+  `compileGwt` can use a local executable `gradlew` as an internal bridge when
+  present. Treat that as build plumbing, not as the canonical user workflow.
+- Phase 6 protobuf and server-side Guava work are already closed in the
+  modernization ledger.
 - The Phase 8 planning artifacts now exist:
   - `docs/j2cl-gwt3-inventory.md`
   - `docs/j2cl-gwt3-decision-memo.md`
@@ -119,18 +116,14 @@ Use `ORCHESTRATOR.md` for live operational state and lane context. Use the
   - `ViewChannelFragmentRequester`
   - `RealRawFragmentsApplier`
 
-### Smoke verification on core-smoke
+### Smoke verification on the supported SBT path
 
-This branch's legacy core-smoke validation passed the main compile check and UI
-smoke check.
-
-The legacy test path still fails at `compileTestJava` with test debt in the
-server tree. The current failures include Jetty session API drift in
-`FragmentsHttpGatingTest`, stale
-  `ServerMain.applyFragmentsConfig(...)` references in
-  `ServerMainApplierConfigValidationTest` and `ServerMainConfigValidationTest`,
-  javax/jakarta servlet mismatches in `FragmentsServletViewportTest`, and
-  WebSession/HttpSession generic drift in `DataApiOAuthServletTest`.
+- `sbt compile` is the main compile entry point for the Jakarta-only server
+  path.
+- `sbt smokeInstalled` stages the distribution and runs the scripted smoke
+  checks.
+- `sbt test` still has legacy server-tree debt in the same areas called out in
+  the build notes.
 
 ### Wiab core smoke verification (2026-03-23)
 
@@ -202,11 +195,12 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
    `dynamicRendering(...)` methods (targeted navigation, not core windowing).
 3. The HTTP fragment requester still treats successful responses as metrics-only
    success and does not parse or apply returned fragment payloads.
-4. The default `:wave:test` path is blocked at `compileTestJava` by legacy test
+4. The default `sbt test` path is still blocked by legacy server-tree test
    debt, so it is not yet a reliable smoke gate.
 5. Remaining library-upgrade debt is now narrowed to MongoDB 2.x removal and
    SBT bootstrap/library-input cleanup. Commons multipart/CLI cleanup already
-   landed on `main`, and this branch removes `net.oauth` from the default build.
+   landed on `main`, and the current tree removes `net.oauth` from the default
+   build.
    Legacy robot, Data API, and import/export OAuth surfaces are intentionally
    unavailable there for now while the JWT replacement work moves under the
    `incubator-wave-jwt-auth` epic.
@@ -220,14 +214,15 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
    durability guidance are closed out. See `../deploy/mongo/README.md` for the
    operator follow-through.
 8. The repo now runs on a Jakarta-only server/runtime path, but dead
-   compatibility branches and stale history references still need cleanup.
-9. SBT is still additive and server-only. Its bootstrap/runtime path now tracks
-   `wave/config/`, the jar name is stable, and Gradle is now historical context
-   rather than the canonical build path.
-8. Packaging and DX verification still need a post-Jakarta pass.
-9. Phase 8 now has a measured inventory and a no-go-for-now decision memo, but
-   the prerequisite reduction tasks for any future J2CL work are still open.
-10. The documentation surface is now intentionally split between one canonical
+   compatibility seams and stale history references still need cleanup.
+9. SBT is the canonical build path. Its bootstrap/runtime path now tracks
+   `wave/config/`, the jar name is stable, and build/run guidance lives in
+   `docs/BUILDING-sbt.md`.
+10. Packaging and DX verification still need a post-Jakarta pass.
+11. Phase 8 now has a measured inventory and a no-go-for-now decision memo,
+   but the prerequisite reduction tasks for any future J2CL work are still
+   open.
+12. The documentation surface is now intentionally split between one canonical
    resume guide, a few live ledgers, and GitHub Issues; do not re-open one-off
    plan docs when the live backlog already captures the work.
 

@@ -1,8 +1,7 @@
 # Building with SBT
 
-SBT is the sole build system for Apache Wave (Gradle was removed in Phase 8).
-The SBT build compiles the server on JDK 17 with all dependencies managed via
-Coursier, and is aligned with the checked-in `wave/config/` layout.
+SBT is the canonical build system for Apache Wave. This document describes the
+supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 
 ## Prerequisites
 
@@ -11,17 +10,20 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
 - SBT 1.10+ installed.
 - `protoc` is provided by `sbt-protoc` (embedded protoc v3.25.x).
 - `ant` is no longer needed (the legacy `testBackend` fallback has been removed).
-- `generatePstMessages`, `generateFlags`, and `generateGxp` remain manual tasks.
+- `generatePstMessages` and `generateFlags` run automatically as part of
+  `sbt compile`; invoke them directly only when you want to regenerate those
+  sources without a full compile.
 
 ## Layout and decisions
 
 - Sources (Maven standard layout):
   - `wave/src/main/java/` (main server sources)
-  - `wave/src/jakarta-overrides/java/` (Jakarta servlet overrides, optional)
+  - `wave/src/jakarta-overrides/java/` (active Jakarta override path when a replacement exists)
   - `wave/src/test/java/` (JUnit tests)
   - `wave/src/proto/` (Protocol Buffer definitions)
   - `proto_src/` (generated Protobuf Java sources)
-  - `gen/gxp/`, `gen/messages/`, `gen/flags/` (generated sources)
+  - `gen/messages/`, `gen/flags/` (generated sources; `gen/gxp/` is historical
+    and no longer generated)
 - Dependencies: all managed via SBT `libraryDependencies` (Coursier).
 - Resources: `wave/war/` is added to the classpath for static content.
 - Main class: `org.waveprotocol.box.server.ServerMain`.
@@ -32,12 +34,8 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
 
 - Compile Java sources:
   - `sbt compile`
-  - Current state: WIP. Protobuf staging now succeeds and `compile` gets through
-    `protoc`, then fails later in Java compilation on remaining library-upgrade
-    debt plus a smaller set of SBT-only source and codegen gaps tracked outside
-    the original descriptor/bootstrap fix. Until `incubator-wave-modernization.3`
-    and the follow-on SBT-only cleanup close, this path is not a working build
-    for end users.
+  - This is the primary compile entry point for the Jakarta-only server path.
+    Some legacy client and persistence surfaces remain outside this build.
 
 - Run the server (from repo root):
   - First-time setup: `sbt prepareServerConfig`
@@ -48,19 +46,27 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
     - `-Dwave.server.config=wave/config/application.conf`
     - `-Djava.util.logging.config.file=wave/config/wiab-logging.conf`
     - `-Djava.security.auth.login.config=wave/config/jaas.config`
-  - The SBT bootstrap path still needs the root `config/` directory because
-    `ServerMain` reads `config/application.conf` and `config/reference.conf`
-    today.
+  - `prepareServerConfig` still bootstraps the root `config/` directory because
+    some runtime helpers expect those copies even though the default `sbt run`
+    java options point at `wave/config/`.
   - To override, replace the relevant `Compile / javaOptions` entry with your
     own absolute path.
+
+- Build or refresh the web client:
+  - `sbt compileGwt`
+  - `sbt run`, `Universal/stage`, and `Universal/packageBin` already depend on
+    this task.
+  - The build has native GWT compilation support and keeps an optional bridge
+    path for a local executable `gradlew`, but the repo no longer ships Gradle
+    as the normal entry point.
 
 - WebSocket endpoint: `/socket` via JSR 356. Socket.IO `/socket.io/*` is disabled.
 - Status: `/statusz/socket` returns websocket/http address info (JSON)
 - HTTP endpoints:
   - `/auth/signin` (GXP-backed login page)
-  - `/` (Wave client page; redirects to signin when not authenticated)
+  - `/` (Wave client page; redirects to sign in when not authenticated)
   - `/static/*`, `/render/*`, `/webclient/*` (served by Jetty DefaultServlet;
-    GWT bundle not built in this phase)
+    web client assets are produced by `compileGwt`)
   - `/static/ws-test.html` (simple page to test WebSocket handshake at `/socket`)
 
 - Package fat JAR:
@@ -93,12 +99,15 @@ Coursier, and is aligned with the checked-in `wave/config/` layout.
 
 ## Notes
 
-- GWT client is not compiled by SBT yet.
+- The GWT client is compiled through the `compileGwt` task, which runs natively
+  in the current repo and can optionally delegate if a local executable
+  `gradlew` is present.
 - Jetty gzip: migrated from deprecated `GzipFilter` to `GzipHandler`.
 - SBT automatically stages protobuf sources before `PB.generate`:
   - `.protodevel` files are rewritten into `target/proto-pb-src` as `.proto`.
   - `descriptor.proto` is resolved from `pst/src/main/proto/google/protobuf/descriptor.proto`.
-- PST, GXP, and client flags remain manual generation tasks.
+- `generatePstMessages` and `generateFlags`: see **Notes** below for the
+  `sbt compile` wiring and manual regeneration guidance.
 - Stable project naming now produces `incubator-wave-server-0.1.0-SNAPSHOT.jar`
   instead of varying with the worktree directory.
 - `prepareServerConfig` now bootstraps the root `config/` directory from
@@ -159,11 +168,10 @@ persistence/migration.
   `config/reference.conf` from `wave/config/`.
 - Protobuf staging now runs before `protoc`, and `descriptor.proto` is resolved
   from the bundled PST proto sources.
-- SBT compile now gets past `protoc` and fails later in Java compilation instead
-  of dying on the missing `google/protobuf/descriptor.proto` include.
+- `compile` depends on `generatePstMessages` and `generateFlags`, so the
+  generated sources stay in sync with the Java compile.
 - Simplified SBT task ordering to avoid races: `generatePstMessages` depends on
-  `Compile / PB.generate`; `compile` still keeps the manual generation tasks out
-  of the default path.
+  `Compile / PB.generate`; `generateFlags` follows the same compile-time path.
 - Removed an unused `raw.proto` import from `block-store.proto`, eliminating
   protoc warnings.
 - Jetty upgraded to 12 EE10 (Jakarta); the legacy Jetty 9.4 / javax path has
@@ -179,6 +187,5 @@ persistence/migration.
   access on first use unless local Ivy/Maven/Coursier caches are already warm;
   offline options are to pre-populate those caches or use a local SBT launcher
   and artifact proxy.
-- If `gen/` directories are missing, initial compile may still pass; features
-  depending on generated sources may be unavailable until you run the
-  corresponding manual tasks.
+- If `gen/messages/` or `gen/flags/` are missing, run `sbt compile` or the
+  individual generation tasks to recreate them.

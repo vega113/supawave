@@ -65,28 +65,19 @@ Notes:
 
 ## Documentation map
 
-- Verified current status and prioritized backlog: `docs/current-state.md`
-- Stable architecture references:
-  - Jakarta dual-source rules: `docs/architecture/jakarta-dual-source.md`
-  - Runtime entrypoints and wiring: `docs/architecture/runtime-entrypoints.md`
-  - Dev persistence topology: `docs/architecture/dev-persistence-topology.md`
-- Repo operating rules and Codex tool guidance: `AGENTS.md`, `docs/agents/tool-usage.md`
-- Deployment entry point: `docs/deployment/README.md`
-- Generic Linux host baseline: `docs/deployment/linux-host.md`
-- Supported deployment flavors: `docs/deployment/standalone.md`, `docs/deployment/caddy.md`
-- Persistence topology and multi-instance blockers: `docs/persistence-topology-audit.md`
-- Detailed modernization ledgers: `docs/modernization-plan.md`, `docs/jetty-migration.md`
-- Historical renderer / fragments import ledger: `docs/migrate-conversation-renderer-to-apache-wave.md`
-- Historical server-first blocks / segment-state ledger: `docs/blocks-adoption-plan.md`
-- Local development setup: `docs/DEV_SETUP.md`
-- Smoke-test guidance: `docs/SMOKE_TESTS.md`
-- SBT build notes: `docs/BUILDING-sbt.md`
-- Configuration and fragments flags: `docs/CONFIG_FLAGS.md`, `docs/fragments-config.md`
-- Live GitHub Issues workflow: `docs/github-issues.md`
-- Historical Beads epic index: `docs/epics/README.md`
-- gpt-bot example robot: `docs/gpt-bot.md`
+- Top-level docs map: [docs/README.md](docs/README.md)
+- Current status and prioritized backlog: [docs/current-state.md](docs/current-state.md)
+- Live GitHub Issues workflow: [docs/github-issues.md](docs/github-issues.md)
+- Agent onboarding and task routing: [docs/agents/README.md](docs/agents/README.md)
+- Codex-specific tool guidance: [docs/agents/tool-usage.md](docs/agents/tool-usage.md)
+- Architecture references and ledgers: [docs/architecture/README.md](docs/architecture/README.md)
+- Deployment and operational runbooks: [docs/runbooks/README.md](docs/runbooks/README.md)
+- SBT build notes: [docs/BUILDING-sbt.md](docs/BUILDING-sbt.md)
+- Historical Beads archive index: [docs/epics/README.md](docs/epics/README.md)
+- gpt-bot example robot: [docs/gpt-bot.md](docs/gpt-bot.md)
 
-SBT is now the sole build system. Gradle has been removed (Phase 8).
+SBT is the canonical build, run, and packaging entry point. Build details and caveats live in
+[docs/BUILDING-sbt.md](docs/BUILDING-sbt.md).
 
 The default Jakarta build now compiles without `net.oauth`, and the legacy
 robot, Data API, and import/export OAuth surfaces are intentionally
@@ -104,18 +95,19 @@ This repository now tracks its active roadmap in GitHub Issues:
 The `.beads/` directory remains in the repo as a read-only historical archive.
 Do not create or update new task records there.
 
-## Setup with Vagrant
+## Legacy Vagrant Notes
 
-A vagrant setup has been provided for automatic compile on a Ubuntu or Fedora
-linux box. A windows box is also provided for testing but only installs requirements,
-compilation and setup of the server require manual setup.
+The checked-in Vagrant files are historical convenience environments, not the
+canonical SBT/Jakarta setup path for this repo. Prefer the quick start above
+plus the docs map in [`docs/README.md`](docs/README.md) for current local
+setup, build, and deployment guidance.
 
 Note:
 
 - requires vagrant and virtual box to be installed and an internet
-connection.
-- these images use jdk v8 which isn't officially supported but is used to test
-for future compatibility.
+  connection.
+- these images predate the current Java 17 baseline and may lag the supported
+  SBT/Jakarta path.
 
 ### Ubuntu & Fedora ( recommended )
 
@@ -134,9 +126,9 @@ ssh session.
 
 ### Windows 10 (requires vagrant 1.8+)
 
-running `vagrant up win10` will setup a windows 10 environment for Apache Wave,
-this vm does not setup a dist but that can be done by following the steps below
-in the SBT Tasks section within the vm.
+Running `vagrant up win10` will set up a Windows 10 environment for Apache Wave.
+This VM does not set up a dist; if you still need it, use the SBT tasks listed
+below inside the VM.
 
 The virtual machine will make a copy of the current source into the users
 documents folder under Apache-Wave. Running the vagrant up command again will

@@ -4,6 +4,7 @@ const test = require("node:test");
 const {
   evaluateCodexReviewGate,
   publishCodexReviewGateHeadStatus,
+  requeueEligibleCodexReviewGate,
   shouldRequeueCodexReviewGate,
 } = require("./codex-review-gate");
 
@@ -271,4 +272,63 @@ test("publishes failure status on the PR head", async () => {
       state: "failure",
     },
   ]);
+});
+
+// --- requeueEligibleCodexReviewGate ---
+
+test("requeues an eligible PR by publishing a success status directly", async () => {
+  const calls = [];
+  const github = {
+    rest: {
+      repos: {
+        createCommitStatus: async (payload) => {
+          calls.push(payload);
+          return payload;
+        },
+      },
+    },
+  };
+
+  const requeued = await requeueEligibleCodexReviewGate(github, {
+    owner: "vega113",
+    nowMs: AFTER_WINDOW,
+    pullRequest: buildPullRequest(),
+    repo: "incubator-wave",
+  });
+
+  assert.equal(requeued, true);
+  assert.deepEqual(calls, [
+    {
+      context: "Codex Review Gate",
+      description: "Review gate passed: 5-minute window elapsed and no unresolved threads",
+      owner: "vega113",
+      repo: "incubator-wave",
+      sha: "head-oid",
+      state: "success",
+    },
+  ]);
+});
+
+test("does not publish a status when the PR is not eligible for requeue", async () => {
+  const calls = [];
+  const github = {
+    rest: {
+      repos: {
+        createCommitStatus: async (payload) => {
+          calls.push(payload);
+          return payload;
+        },
+      },
+    },
+  };
+
+  const requeued = await requeueEligibleCodexReviewGate(github, {
+    owner: "vega113",
+    nowMs: WITHIN_WINDOW,
+    pullRequest: buildPullRequest(),
+    repo: "incubator-wave",
+  });
+
+  assert.equal(requeued, false);
+  assert.deepEqual(calls, []);
 });

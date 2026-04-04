@@ -1,4 +1,6 @@
 const REVIEW_WINDOW_MS = 5 * 60 * 1000;
+const PASSED_REVIEW_GATE_DESCRIPTION =
+  "Review gate passed: 5-minute window elapsed and no unresolved threads";
 
 function evaluateCodexReviewGate({
   pullRequest,
@@ -40,7 +42,7 @@ function evaluatePullRequestGate({ pullRequest, nowMs }) {
   }
 
   return success(
-    "Review gate passed: 5-minute window elapsed and no unresolved threads",
+    PASSED_REVIEW_GATE_DESCRIPTION,
   );
 }
 
@@ -83,6 +85,31 @@ async function publishCodexReviewGateHeadStatus(github, {
   });
 }
 
+async function requeueEligibleCodexReviewGate(github, {
+  owner,
+  nowMs = Date.now(),
+  pullRequest,
+  repo,
+}) {
+  if (!shouldRequeueCodexReviewGate({ pullRequest, nowMs })) {
+    return false;
+  }
+
+  if (!pullRequest.headRefOid) {
+    return false;
+  }
+
+  await publishCodexReviewGateHeadStatus(github, {
+    description: PASSED_REVIEW_GATE_DESCRIPTION,
+    owner,
+    repo,
+    sha: pullRequest.headRefOid,
+    state: "success",
+  });
+
+  return true;
+}
+
 function getLatestCommit(pullRequest) {
   return pullRequest.commits?.nodes?.[0]?.commit ?? null;
 }
@@ -121,5 +148,6 @@ module.exports = {
   evaluatePullRequestGate,
   hasSuccessfulCodexReviewGateStatus,
   publishCodexReviewGateHeadStatus,
+  requeueEligibleCodexReviewGate,
   shouldRequeueCodexReviewGate,
 };

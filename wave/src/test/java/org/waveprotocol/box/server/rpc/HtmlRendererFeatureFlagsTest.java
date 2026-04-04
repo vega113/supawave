@@ -93,5 +93,9 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("return legacyUser ? { email: legacyUser, enabled: legacyEnabled } : null;"));
     assertTrue(html.contains("var entry = normalizeAllowedUserEntry(parts[i]);"));
     assertTrue(html.contains("href=\"/wave/admin\""));
+    assertTrue(html.contains("data-tab=\"analytics\">Analytics</button>"));
+    assertTrue(html.contains("id=\"panel-analytics\""));
+    assertTrue(html.contains("if (tab.dataset.tab === 'analytics' && !analyticsLoaded) { loadAnalyticsStatus(); }"));
+    assertTrue(html.contains("fetch('/admin/api/analytics/status')"));
   }
 }

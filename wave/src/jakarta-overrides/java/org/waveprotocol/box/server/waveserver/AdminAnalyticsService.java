@@ -42,6 +42,7 @@ import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 public final class AdminAnalyticsService {
   private static final long DAY_MS = 24L * 60L * 60L * 1000L;
   static final long CACHE_TTL_MS = 30L * 1000L;
+  static final long REFRESH_BUDGET_MS = 5L * 1000L;
 
   private final AccountStore accountStore;
   private final WaveletProvider waveletProvider;
@@ -49,6 +50,8 @@ public final class AdminAnalyticsService {
   private final PublicWaveViewTracker publicWaveViewTracker;
   private final ParticipantId sharedDomainParticipant;
   private final LongSupplier nowSupplier;
+  private final LongSupplier refreshTimeSupplier;
+  private final long refreshBudgetMs;
 
   private volatile AnalyticsSnapshot cachedSnapshot;
 
@@ -91,12 +94,34 @@ public final class AdminAnalyticsService {
       PublicWaveViewTracker publicWaveViewTracker,
       String waveDomain,
       LongSupplier nowSupplier) {
+    this(
+        accountStore,
+        waveletProvider,
+        deltaStore,
+        publicWaveViewTracker,
+        waveDomain,
+        nowSupplier,
+        nowSupplier,
+        REFRESH_BUDGET_MS);
+  }
+
+  AdminAnalyticsService(
+      AccountStore accountStore,
+      WaveletProvider waveletProvider,
+      DeltaStore deltaStore,
+      PublicWaveViewTracker publicWaveViewTracker,
+      String waveDomain,
+      LongSupplier nowSupplier,
+      LongSupplier refreshTimeSupplier,
+      long refreshBudgetMs) {
     this.accountStore = accountStore;
     this.waveletProvider = waveletProvider;
     this.deltaStore = deltaStore;
     this.publicWaveViewTracker = publicWaveViewTracker;
     this.sharedDomainParticipant = ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(waveDomain);
     this.nowSupplier = nowSupplier;
+    this.refreshTimeSupplier = refreshTimeSupplier;
+    this.refreshBudgetMs = refreshBudgetMs;
   }
 
   public AnalyticsSnapshot getAnalyticsSnapshot()
@@ -112,29 +137,40 @@ public final class AdminAnalyticsService {
       if (snapshot != null && now - snapshot.getGeneratedAtMs() < CACHE_TTL_MS) {
         return snapshot;
       }
-      AnalyticsSnapshot fresh = collectSnapshot(now);
-      cachedSnapshot = fresh;
-      return fresh;
+      long refreshStartedAt = refreshTimeSupplier.getAsLong();
+      try {
+        AnalyticsSnapshot fresh = collectSnapshot(now, refreshStartedAt);
+        cachedSnapshot = fresh;
+        return fresh;
+      } catch (RefreshBudgetExceededException e) {
+        return fallbackSnapshot(
+            snapshot,
+            now,
+            refreshStartedAt,
+            "Analytics refresh exceeded the 5s budget; serving the last good summary.");
+      } catch (PersistenceException | WaveServerException | IOException | RuntimeException e) {
+        return fallbackSnapshot(
+            snapshot,
+            now,
+            refreshStartedAt,
+            "Analytics refresh failed; serving the last good summary.");
+      }
     }
   }
 
-  private AnalyticsSnapshot collectSnapshot(long now)
-      throws PersistenceException, WaveServerException, IOException {
-    long startedAt = nowSupplier.getAsLong();
-
+  private AnalyticsSnapshot collectSnapshot(long now, long refreshStartedAt)
+      throws PersistenceException, WaveServerException, IOException, RefreshBudgetExceededException {
     MutableSummary summary = new MutableSummary();
     Map<String, MutableTopUser> userStats = new HashMap<>();
     Set<String> writers24h = new HashSet<>();
     Set<String> writers7d = new HashSet<>();
     Set<String> writers30d = new HashSet<>();
-    Map<String, MutableTopWave> waves = collectWaveSnapshotMetrics(now, summary);
+    Map<String, MutableTopWave> waves = collectWaveSnapshotMetrics(now, summary, refreshStartedAt);
 
-    collectAccountMetrics(summary);
-    collectDeltaMetrics(now, summary, userStats, writers24h, writers7d, writers30d);
-
-    summary.active24h = writers24h.size();
-    summary.active7d = writers7d.size();
-    summary.active30d = writers30d.size();
+    checkRefreshBudget(refreshStartedAt);
+    collectAccountMetrics(summary, now);
+    checkRefreshBudget(refreshStartedAt);
+    collectDeltaMetrics(now, summary, userStats, writers24h, writers7d, writers30d, refreshStartedAt);
     summary.writers24h = writers24h.size();
     summary.writers7d = writers7d.size();
     summary.writers30d = writers30d.size();
@@ -152,20 +188,57 @@ public final class AdminAnalyticsService {
         topParticipated,
         topUsers,
         liveViews,
-        startedAt,
-        Math.max(0L, nowSupplier.getAsLong() - startedAt),
+        now,
+        Math.max(0L, refreshTimeSupplier.getAsLong() - refreshStartedAt),
         false,
         Collections.emptyList());
   }
 
-  private void collectAccountMetrics(MutableSummary summary) throws PersistenceException {
-    long now = nowSupplier.getAsLong();
+  private AnalyticsSnapshot fallbackSnapshot(
+      AnalyticsSnapshot snapshot, long now, long refreshStartedAt, String warning) {
+    long scanDurationMs = Math.max(0L, refreshTimeSupplier.getAsLong() - refreshStartedAt);
+    if (snapshot == null) {
+      return warningSnapshot(now, scanDurationMs, warning);
+    }
+    List<String> warnings = new ArrayList<>(snapshot.getWarnings());
+    warnings.add(warning);
+    return new AnalyticsSnapshot(
+        snapshot.getSummary(),
+        snapshot.getTopViewedPublicWaves(),
+        snapshot.getTopParticipatedPublicWaves(),
+        snapshot.getTopUsers(),
+        liveViewsSnapshot(),
+        snapshot.getGeneratedAtMs(),
+        scanDurationMs,
+        true,
+        warnings);
+  }
+
+  private AnalyticsSnapshot warningSnapshot(long now, long scanDurationMs, String warning) {
+    return new AnalyticsSnapshot(
+        new MutableSummary().freeze(),
+        Collections.emptyList(),
+        Collections.emptyList(),
+        Collections.emptyList(),
+        liveViewsSnapshot(),
+        now,
+        scanDurationMs,
+        true,
+        List.of(warning));
+  }
+
+  private LiveViews liveViewsSnapshot() {
+    return new LiveViews(
+        publicWaveViewTracker.getTotalPageViews(), publicWaveViewTracker.getTotalApiViews());
+  }
+
+  private void collectAccountMetrics(MutableSummary summary, long now) throws PersistenceException {
     for (AccountData account : accountStore.getAllAccounts()) {
       if (account == null || !account.isHuman()) {
         continue;
       }
       HumanAccountData human = account.asHuman();
-      if (isWithin(now, human.getLastLoginTime(), 24L * DAY_MS / 24L)) {
+      if (isWithin(now, human.getLastLoginTime(), DAY_MS)) {
         summary.loggedIn24h++;
       }
       if (isWithin(now, human.getLastLoginTime(), 7L * DAY_MS)) {
@@ -174,14 +247,25 @@ public final class AdminAnalyticsService {
       if (isWithin(now, human.getLastLoginTime(), 30L * DAY_MS)) {
         summary.loggedIn30d++;
       }
+      if (isWithin(now, human.getLastActivityTime(), DAY_MS)) {
+        summary.active24h++;
+      }
+      if (isWithin(now, human.getLastActivityTime(), 7L * DAY_MS)) {
+        summary.active7d++;
+      }
+      if (isWithin(now, human.getLastActivityTime(), 30L * DAY_MS)) {
+        summary.active30d++;
+      }
     }
   }
 
-  private Map<String, MutableTopWave> collectWaveSnapshotMetrics(long now, MutableSummary summary)
-      throws WaveServerException {
+  private Map<String, MutableTopWave> collectWaveSnapshotMetrics(
+      long now, MutableSummary summary, long refreshStartedAt)
+      throws WaveServerException, RefreshBudgetExceededException {
     Map<String, MutableTopWave> waves = new HashMap<>();
     ExceptionalIterator<WaveId, WaveServerException> waveIds = waveletProvider.getWaveIds();
     while (waveIds.hasNext()) {
+      checkRefreshBudget(refreshStartedAt);
       WaveId waveId = waveIds.next();
       MutableTopWave wave = waves.computeIfAbsent(waveId.serialise(), key -> new MutableTopWave(waveId));
       summary.totalWaves++;
@@ -260,10 +344,12 @@ public final class AdminAnalyticsService {
       Map<String, MutableTopUser> userStats,
       Set<String> writers24h,
       Set<String> writers7d,
-      Set<String> writers30d)
-      throws PersistenceException, IOException {
+      Set<String> writers30d,
+      long refreshStartedAt)
+      throws PersistenceException, IOException, RefreshBudgetExceededException {
     ExceptionalIterator<WaveId, PersistenceException> waveIds = deltaStore.getWaveIdIterator();
     while (waveIds.hasNext()) {
+      checkRefreshBudget(refreshStartedAt);
       WaveId waveId = waveIds.next();
       for (WaveletId waveletId : deltaStore.lookup(waveId)) {
         if (!IdUtil.isConversationalId(waveletId)) {
@@ -277,7 +363,8 @@ public final class AdminAnalyticsService {
             userStats,
             writers24h,
             writers7d,
-            writers30d);
+            writers30d,
+            refreshStartedAt);
       }
     }
   }
@@ -290,8 +377,9 @@ public final class AdminAnalyticsService {
       Map<String, MutableTopUser> userStats,
       Set<String> writers24h,
       Set<String> writers7d,
-      Set<String> writers30d)
-      throws PersistenceException, IOException {
+      Set<String> writers30d,
+      long refreshStartedAt)
+      throws PersistenceException, IOException, RefreshBudgetExceededException {
     DeltaStore.DeltasAccess deltas = deltaStore.open(WaveletName.of(waveId, waveletId));
     try {
       if (deltas.isEmpty() || deltas.getEndVersion() == null) {
@@ -301,6 +389,7 @@ public final class AdminAnalyticsService {
       long version = 0L;
       long endVersion = deltas.getEndVersion().getVersion();
       while (version < endVersion) {
+        checkRefreshBudget(refreshStartedAt);
         WaveletDeltaRecord delta = deltas.getDelta(version);
         if (delta == null) {
           version++;
@@ -440,9 +529,13 @@ public final class AdminAnalyticsService {
   }
 
   private static boolean isCountedBlipId(String docId) {
-    return docId != null
-        && !DocumentConstants.MANIFEST_DOCUMENT_ID.equals(docId)
-        && !IdConstants.TAGS_DOC_ID.equals(docId);
+    return docId != null && IdUtil.isBlipId(docId);
+  }
+
+  private void checkRefreshBudget(long refreshStartedAt) throws RefreshBudgetExceededException {
+    if (refreshBudgetMs > 0L && refreshTimeSupplier.getAsLong() - refreshStartedAt > refreshBudgetMs) {
+      throw new RefreshBudgetExceededException();
+    }
   }
 
   private static boolean isWithin(long now, long timestamp, long windowMs) {
@@ -725,5 +818,9 @@ public final class AdminAnalyticsService {
     TopUser freeze() {
       return new TopUser(userId, writeCount, blipsCreated, waveIds.size(), lastWriteTime);
     }
+  }
+
+  private static final class RefreshBudgetExceededException extends Exception {
+    private static final long serialVersionUID = 1L;
   }
 }

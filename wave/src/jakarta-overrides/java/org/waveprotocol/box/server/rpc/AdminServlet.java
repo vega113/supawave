@@ -44,6 +44,7 @@ import org.waveprotocol.box.server.persistence.FeatureFlagSeeder;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
+import org.waveprotocol.box.server.waveserver.AdminAnalyticsService;
 import org.waveprotocol.box.server.waveserver.ReindexService;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
@@ -98,6 +99,7 @@ public final class AdminServlet extends HttpServlet {
   private final FeatureFlagStore featureFlagStore;
   private final @Nullable Lucene9WaveIndexerImpl lucene9Indexer;
   private final Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider;
+  private final AdminAnalyticsService adminAnalyticsService;
   private volatile int cachedWaveCount = -1;
   private volatile long lastWaveCountTimeMs;
   private final String publicBaseUrl;
@@ -114,7 +116,8 @@ public final class AdminServlet extends HttpServlet {
                       FeatureFlagService featureFlagService,
                       FeatureFlagStore featureFlagStore,
                       @Nullable Lucene9WaveIndexerImpl lucene9Indexer,
-                      Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider) {
+                      Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider,
+                      AdminAnalyticsService adminAnalyticsService) {
     this.accountStore = accountStore;
     this.sessionManager = sessionManager;
     this.contactMessageStore = contactMessageStore;
@@ -127,6 +130,7 @@ public final class AdminServlet extends HttpServlet {
     this.featureFlagStore = featureFlagStore;
     this.lucene9Indexer = lucene9Indexer;
     this.searchWaveletUpdaterProvider = searchWaveletUpdaterProvider;
+    this.adminAnalyticsService = adminAnalyticsService;
     this.publicBaseUrl = PublicBaseUrlResolver.resolve(config);
   }
 
@@ -138,6 +142,8 @@ public final class AdminServlet extends HttpServlet {
     String pathInfo = req.getPathInfo();
     if (pathInfo != null && pathInfo.equals("/api/ops/status")) {
       handleOpsStatus(resp);
+    } else if (pathInfo != null && pathInfo.equals("/api/analytics/status")) {
+      handleAnalyticsStatus(resp);
     } else if (pathInfo != null && pathInfo.equals("/api/ops/reindex/status")) {
       handleReindexStatus(resp);
     } else if (pathInfo != null && pathInfo.startsWith("/api/users")) {
@@ -676,6 +682,117 @@ public final class AdminServlet extends HttpServlet {
     return searchWaveletUpdater != null
         ? searchWaveletUpdater.getHighParticipantThreshold()
         : Math.max(1, getIntConfig("search.ot_search_high_participant_threshold", 25));
+  }
+
+  // =========================================================================
+  // GET /admin/api/analytics/status
+  // =========================================================================
+
+  private void handleAnalyticsStatus(HttpServletResponse resp) throws IOException {
+    try {
+      AdminAnalyticsService.AnalyticsSnapshot snapshot = adminAnalyticsService.getAnalyticsSnapshot();
+      setJsonUtf8(resp);
+      PrintWriter w = resp.getWriter();
+      writeAnalyticsSnapshotJson(w, snapshot);
+      w.flush();
+    } catch (PersistenceException | WaveServerException | IOException e) {
+      LOG.severe("Failed to compute analytics status", e);
+      sendJsonError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to compute analytics status");
+    }
+  }
+
+  private void writeAnalyticsSnapshotJson(
+      PrintWriter w, AdminAnalyticsService.AnalyticsSnapshot snapshot) {
+    AdminAnalyticsService.Summary summary = snapshot.getSummary();
+    w.append('{');
+    w.append("\"summary\":{");
+    w.append("\"totalWaves\":").append(String.valueOf(summary.getTotalWaves()));
+    w.append(",\"publicWaves\":").append(String.valueOf(summary.getPublicWaves()));
+    w.append(",\"privateWaves\":").append(String.valueOf(summary.getPrivateWaves()));
+    w.append(",\"totalBlipsCreated\":").append(String.valueOf(summary.getTotalBlipsCreated()));
+    w.append(",\"publicBlipsCurrent\":").append(String.valueOf(summary.getPublicBlipsCurrent()));
+    w.append(",\"privateBlipsCurrent\":").append(String.valueOf(summary.getPrivateBlipsCurrent()));
+    w.append(",\"loggedIn24h\":").append(String.valueOf(summary.getLoggedIn24h()));
+    w.append(",\"loggedIn7d\":").append(String.valueOf(summary.getLoggedIn7d()));
+    w.append(",\"loggedIn30d\":").append(String.valueOf(summary.getLoggedIn30d()));
+    w.append(",\"active24h\":").append(String.valueOf(summary.getActive24h()));
+    w.append(",\"active7d\":").append(String.valueOf(summary.getActive7d()));
+    w.append(",\"active30d\":").append(String.valueOf(summary.getActive30d()));
+    w.append(",\"writers24h\":").append(String.valueOf(summary.getWriters24h()));
+    w.append(",\"writers7d\":").append(String.valueOf(summary.getWriters7d()));
+    w.append(",\"writers30d\":").append(String.valueOf(summary.getWriters30d()));
+    w.append(",\"wavesCreated7d\":").append(String.valueOf(summary.getWavesCreated7d()));
+    w.append(",\"wavesUpdated7d\":").append(String.valueOf(summary.getWavesUpdated7d()));
+    w.append('}');
+
+    w.append(",\"generatedAtMs\":").append(String.valueOf(snapshot.getGeneratedAtMs()));
+    w.append(",\"scanDurationMs\":").append(String.valueOf(snapshot.getScanDurationMs()));
+    w.append(",\"stale\":").append(String.valueOf(snapshot.isStale()));
+
+    w.append(",\"warnings\":[");
+    for (int i = 0; i < snapshot.getWarnings().size(); i++) {
+      if (i > 0) {
+        w.append(',');
+      }
+      w.append(jsonStr(snapshot.getWarnings().get(i)));
+    }
+    w.append(']');
+
+    w.append(",\"windows\":{");
+    w.append("\"recentLogin\":[\"24h\",\"7d\",\"30d\"]");
+    w.append(",\"recentWriting\":[\"24h\",\"7d\",\"30d\"]");
+    w.append('}');
+
+    writeTopWavesJson(w, "topViewedPublicWaves", snapshot.getTopViewedPublicWaves());
+    writeTopWavesJson(w, "topParticipatedPublicWaves", snapshot.getTopParticipatedPublicWaves());
+    writeTopUsersJson(w, snapshot.getTopUsers());
+
+    AdminAnalyticsService.LiveViews liveViews = snapshot.getLiveViews();
+    w.append(",\"liveViews\":{");
+    w.append("\"pageViewsSinceStart\":").append(String.valueOf(liveViews.getPageViewsSinceStart()));
+    w.append(",\"apiViewsSinceStart\":").append(String.valueOf(liveViews.getApiViewsSinceStart()));
+    w.append('}');
+
+    w.append('}');
+  }
+
+  private void writeTopWavesJson(
+      PrintWriter w, String key, List<AdminAnalyticsService.TopWave> waves) {
+    w.append(',').append(jsonStr(key)).append(':').append('[');
+    for (int i = 0; i < waves.size(); i++) {
+      if (i > 0) {
+        w.append(',');
+      }
+      AdminAnalyticsService.TopWave wave = waves.get(i);
+      w.append('{');
+      w.append("\"waveId\":").append(jsonStr(wave.getWaveId()));
+      w.append(",\"title\":").append(jsonStr(wave.getTitle()));
+      w.append(",\"views\":").append(String.valueOf(wave.getViews()));
+      w.append(",\"participantCount\":").append(String.valueOf(wave.getParticipantCount()));
+      w.append(",\"contributorCount\":").append(String.valueOf(wave.getContributorCount()));
+      w.append(",\"blipCount\":").append(String.valueOf(wave.getBlipCount()));
+      w.append(",\"lastModifiedTime\":").append(String.valueOf(wave.getLastModifiedTime()));
+      w.append('}');
+    }
+    w.append(']');
+  }
+
+  private void writeTopUsersJson(PrintWriter w, List<AdminAnalyticsService.TopUser> users) {
+    w.append(",\"topUsers\":[");
+    for (int i = 0; i < users.size(); i++) {
+      if (i > 0) {
+        w.append(',');
+      }
+      AdminAnalyticsService.TopUser user = users.get(i);
+      w.append('{');
+      w.append("\"userId\":").append(jsonStr(user.getUserId()));
+      w.append(",\"writeCount\":").append(String.valueOf(user.getWriteCount()));
+      w.append(",\"blipsCreated\":").append(String.valueOf(user.getBlipsCreated()));
+      w.append(",\"wavesContributed\":").append(String.valueOf(user.getWavesContributed()));
+      w.append(",\"lastWriteTime\":").append(String.valueOf(user.getLastWriteTime()));
+      w.append('}');
+    }
+    w.append(']');
   }
 
   // =========================================================================

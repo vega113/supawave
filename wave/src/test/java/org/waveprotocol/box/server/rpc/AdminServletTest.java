@@ -18,8 +18,11 @@ import jakarta.servlet.http.HttpSession;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
+import java.util.List;
 import org.json.JSONObject;
 import org.junit.Test;
+import org.waveprotocol.box.common.ExceptionalIterator;
+import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.SessionManager;
@@ -29,14 +32,19 @@ import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
 import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
+import org.waveprotocol.box.server.waveserver.AdminAnalyticsService;
+import org.waveprotocol.box.server.waveserver.DeltaStore;
+import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
 import org.waveprotocol.box.server.waveserver.ReindexService;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletUpdater;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 public final class AdminServletTest {
   private static final ParticipantId ADMIN_ID = ParticipantId.ofUnsafe("owner@example.com");
+  private static final ParticipantId USER_ID = ParticipantId.ofUnsafe("user@example.com");
 
   @Test
   public void opsStatusUsesFeatureFlagStateAndExposesUpdaterMetrics() throws Exception {
@@ -95,8 +103,101 @@ public final class AdminServletTest {
     verify(searchWaveletUpdaterProvider, never()).get();
   }
 
+  @Test
+  public void analyticsStatusReturnsSnapshotForAdmin() throws Exception {
+    MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
+    JSONObject json =
+        invokeJsonApi(
+            "/api/analytics/status", ownerAccount(ADMIN_ID), featureFlagStore, newAnalyticsService());
+
+    assertTrue(json.has("summary"));
+    assertTrue(json.has("generatedAtMs"));
+    assertTrue(json.has("scanDurationMs"));
+    assertTrue(json.has("stale"));
+    assertTrue(json.has("warnings"));
+    assertTrue(json.has("topViewedPublicWaves"));
+    assertTrue(json.has("topParticipatedPublicWaves"));
+    assertTrue(json.has("topUsers"));
+    assertTrue(json.has("liveViews"));
+    assertEquals(0, json.getJSONObject("summary").getInt("totalWaves"));
+  }
+
+  @Test
+  public void analyticsStatusRejectsUnauthenticatedCaller() throws Exception {
+    MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
+    AccountStore accountStore = mock(AccountStore.class);
+    SessionManager sessionManager = mock(SessionManager.class);
+    ContactMessageStore contactMessageStore = mock(ContactMessageStore.class);
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    Lucene9WaveIndexerImpl lucene9Indexer = mock(Lucene9WaveIndexerImpl.class);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    PrintWriter writer = new PrintWriter(body);
+    FeatureFlagService featureFlagService = new FeatureFlagService(featureFlagStore);
+
+    when(request.getPathInfo()).thenReturn("/api/analytics/status");
+    when(response.getWriter()).thenReturn(writer);
+    when(sessionManager.getLoggedInUser(any())).thenReturn(null);
+
+    AdminServlet servlet =
+        new AdminServlet(
+            accountStore,
+            sessionManager,
+            contactMessageStore,
+            mock(org.waveprotocol.box.server.mail.MailProvider.class),
+            "wave.example.test",
+            new ReindexService(null),
+            analyticsConfig(),
+            waveletProvider,
+            featureFlagService,
+            featureFlagStore,
+            lucene9Indexer,
+            mockProvider(mock(SearchWaveletUpdater.class)),
+            newAnalyticsService());
+    try {
+      servlet.doGet(request, response);
+      writer.flush();
+    } finally {
+      featureFlagService.shutdown();
+    }
+
+    JSONObject json = new JSONObject(body.toString());
+    assertEquals("Not authenticated", json.getString("error"));
+  }
+
+  @Test
+  public void analyticsStatusRejectsNonAdminCaller() throws Exception {
+    MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
+    JSONObject json =
+        invokeJsonApi(
+            "/api/analytics/status", standardUserAccount(USER_ID), featureFlagStore, newAnalyticsService());
+
+    assertEquals("Access denied — admin role required", json.getString("error"));
+  }
+
   private static JSONObject invokeOpsStatus(
       FeatureFlagStore featureFlagStore,
+      Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider) throws Exception {
+    return invokeJsonApi(
+        "/api/ops/status", ownerAccount(ADMIN_ID), featureFlagStore, newAnalyticsService(),
+        searchWaveletUpdaterProvider);
+  }
+
+  private static JSONObject invokeJsonApi(
+      String pathInfo,
+      HumanAccountData account,
+      FeatureFlagStore featureFlagStore,
+      AdminAnalyticsService analyticsService) throws Exception {
+    return invokeJsonApi(
+        pathInfo, account, featureFlagStore, analyticsService, mockProvider(mock(SearchWaveletUpdater.class)));
+  }
+
+  private static JSONObject invokeJsonApi(
+      String pathInfo,
+      HumanAccountData account,
+      FeatureFlagStore featureFlagStore,
+      AdminAnalyticsService analyticsService,
       Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider) throws Exception {
     AccountStore accountStore = mock(AccountStore.class);
     SessionManager sessionManager = mock(SessionManager.class);
@@ -119,15 +220,13 @@ public final class AdminServletTest {
                 + "search.ot_search_public_batch_ms = -15000\n"
                 + "search.ot_search_public_fanout_threshold = 0\n"
                 + "search.ot_search_high_participant_threshold = 0");
-    HumanAccountData admin = new HumanAccountDataImpl(ADMIN_ID);
-    admin.setRole(HumanAccountData.ROLE_OWNER);
 
     when(lucene9Indexer.getLastRebuildWaveCount()).thenReturn(0);
     when(lucene9Indexer.getIndexedDocCount()).thenReturn(0);
     when(lucene9Indexer.getIncrementalIndexCount()).thenReturn(0L);
-    when(sessionManager.getLoggedInUser(any())).thenReturn(ADMIN_ID);
-    when(accountStore.getAccount(ADMIN_ID)).thenReturn(admin);
-    when(request.getPathInfo()).thenReturn("/api/ops/status");
+    when(sessionManager.getLoggedInUser(any())).thenReturn(account.getId());
+    when(accountStore.getAccount(account.getId())).thenReturn(account);
+    when(request.getPathInfo()).thenReturn(pathInfo);
     when(request.getSession(false)).thenReturn(session);
     when(response.getWriter()).thenReturn(writer);
 
@@ -144,7 +243,8 @@ public final class AdminServletTest {
             featureFlagService,
             featureFlagStore,
             lucene9Indexer,
-            searchWaveletUpdaterProvider);
+            searchWaveletUpdaterProvider,
+            analyticsService);
     try {
       servlet.doGet(request, response);
       writer.flush();
@@ -159,5 +259,42 @@ public final class AdminServletTest {
     Provider<SearchWaveletUpdater> provider = mock(Provider.class);
     when(provider.get()).thenReturn(updater);
     return provider;
+  }
+
+  private static HumanAccountData ownerAccount(ParticipantId id) {
+    HumanAccountData account = new HumanAccountDataImpl(id);
+    account.setRole(HumanAccountData.ROLE_OWNER);
+    return account;
+  }
+
+  private static HumanAccountData standardUserAccount(ParticipantId id) {
+    HumanAccountData account = new HumanAccountDataImpl(id);
+    account.setRole(HumanAccountData.ROLE_USER);
+    return account;
+  }
+
+  private static AdminAnalyticsService newAnalyticsService()
+      throws Exception {
+    AccountStore accountStore = mock(AccountStore.class);
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    DeltaStore deltaStore = mock(DeltaStore.class);
+    when(accountStore.getAllAccounts()).thenReturn(List.<AccountData>of());
+    when(waveletProvider.getWaveIds())
+        .thenReturn(ExceptionalIterator.FromIterator.create(List.<WaveId>of().iterator()));
+    when(deltaStore.getWaveIdIterator())
+        .thenReturn(ExceptionalIterator.FromIterator.create(List.<WaveId>of().iterator()));
+    return new AdminAnalyticsService(
+        accountStore, waveletProvider, deltaStore, new PublicWaveViewTracker(), "wave.example.test");
+  }
+
+  private static Config analyticsConfig() {
+    return ConfigFactory.parseString(
+        "core.search_type = \"lucene9\"\n"
+            + "core.public_url = \"https://wave.example.test\"\n"
+            + "search.ot_search_enabled = false\n"
+            + "search.ot_search_public_batching_enabled = true\n"
+            + "search.ot_search_public_batch_ms = -15000\n"
+            + "search.ot_search_public_fanout_threshold = 0\n"
+            + "search.ot_search_high_participant_threshold = 0");
   }
 }

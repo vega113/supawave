@@ -34,6 +34,7 @@ import org.waveprotocol.box.common.Snippets;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.rpc.PublicWaveBlipRenderer.BlipInfo;
+import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -63,16 +64,19 @@ public final class PublicWaveServlet extends HttpServlet {
   private final String siteUrl;
   private final String waveDomain;
   private final WaveletProvider waveletProvider;
+  private final PublicWaveViewTracker publicWaveViewTracker;
   private final ParticipantId sharedDomainParticipant;
 
   @Inject
   public PublicWaveServlet(
       Config config,
       @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String waveDomain,
-      WaveletProvider waveletProvider) {
+      WaveletProvider waveletProvider,
+      PublicWaveViewTracker publicWaveViewTracker) {
     this.siteUrl = RobotsServlet.resolveSiteUrl(config);
     this.waveDomain = waveDomain;
     this.waveletProvider = waveletProvider;
+    this.publicWaveViewTracker = publicWaveViewTracker;
     this.sharedDomainParticipant =
         ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(waveDomain);
   }
@@ -158,6 +162,8 @@ public final class PublicWaveServlet extends HttpServlet {
 
     // Render full blip content with author and thread structure
     List<BlipInfo> blips = PublicWaveBlipRenderer.renderBlips(snapshot);
+
+    publicWaveViewTracker.recordPageView(waveId);
 
     // Render the page
     String html = HtmlRenderer.renderPublicWavePageWithBlips(

@@ -27,6 +27,7 @@ import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.rpc.ProtoSerializer.SerializationException;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
+import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
@@ -71,15 +72,18 @@ public final class PublicWaveFetchServlet extends HttpServlet {
 
   private final WaveletProvider waveletProvider;
   private final ProtoSerializer serializer;
+  private final PublicWaveViewTracker publicWaveViewTracker;
   private final ParticipantId sharedDomainParticipantId;
 
   @Inject
   public PublicWaveFetchServlet(
       WaveletProvider waveletProvider,
       ProtoSerializer serializer,
-      @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String waveDomain) {
+      @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String waveDomain,
+      PublicWaveViewTracker publicWaveViewTracker) {
     this.waveletProvider = waveletProvider;
     this.serializer = serializer;
+    this.publicWaveViewTracker = publicWaveViewTracker;
     this.sharedDomainParticipantId =
         ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(waveDomain);
   }
@@ -156,6 +160,8 @@ public final class PublicWaveFetchServlet extends HttpServlet {
       dest.sendError(HttpServletResponse.SC_NOT_FOUND);
       return;
     }
+
+    publicWaveViewTracker.recordApiView(waveref.getWaveId());
 
     // Wave is public — serialize and return
     if (waveref.hasDocumentId()) {

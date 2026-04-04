@@ -25,7 +25,9 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSet;
 import junit.framework.TestCase;
+import com.typesafe.config.ConfigFactory;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
+import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuilder;
@@ -65,12 +67,19 @@ public class PublicWaveServletTest extends TestCase {
       ParticipantId.ofUnsafe("@" + DOMAIN);
 
   private WaveletProvider waveletProvider;
+  private PublicWaveViewTracker viewTracker;
   private PublicWaveServlet servlet;
 
   @Override
   protected void setUp() throws Exception {
     waveletProvider = mock(WaveletProvider.class);
-    servlet = new PublicWaveServlet(waveletProvider, DOMAIN);
+    viewTracker = new PublicWaveViewTracker();
+    servlet =
+        new PublicWaveServlet(
+            ConfigFactory.parseString("core.public_url = \"https://wave.example.test\""),
+            DOMAIN,
+            waveletProvider,
+            viewTracker);
   }
 
   // -------------------------------------------------------------------------
@@ -191,6 +200,7 @@ public class PublicWaveServletTest extends TestCase {
     servlet.doGet(request, response);
     // Must be 404 (not 403) to avoid leaking wave existence
     verify(response, times(1)).sendError(HttpServletResponse.SC_NOT_FOUND);
+    assertEquals(0L, viewTracker.getCombinedViews(WAVE_ID));
   }
 
   public void testPublicWaveReturnsHtml() throws Exception {
@@ -222,6 +232,8 @@ public class PublicWaveServletTest extends TestCase {
     assertTrue("Expected og:title meta tag", html.contains("og:title"));
     assertTrue("Expected og:description meta tag", html.contains("og:description"));
     assertTrue("Expected Read Only badge", html.contains("Read Only"));
+    assertEquals(1L, viewTracker.getCombinedViews(WAVE_ID));
+    assertEquals(1L, viewTracker.getTotalPageViews());
   }
 
   public void testPublicWaveContainsParticipantInfo() throws Exception {

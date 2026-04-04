@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
+import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -64,12 +65,14 @@ public class PublicWaveFetchServletTest extends TestCase {
   private static final ProtoSerializer protoSerializer = new ProtoSerializer();
 
   private WaveletProviderStub waveletProvider;
+  private PublicWaveViewTracker viewTracker;
   private PublicWaveFetchServlet servlet;
 
   @Override
   protected void setUp() throws Exception {
     waveletProvider = new WaveletProviderStub();
-    servlet = new PublicWaveFetchServlet(waveletProvider, protoSerializer, DOMAIN);
+    viewTracker = new PublicWaveViewTracker();
+    servlet = new PublicWaveFetchServlet(waveletProvider, protoSerializer, DOMAIN, viewTracker);
   }
 
   /**
@@ -113,6 +116,7 @@ public class PublicWaveFetchServletTest extends TestCase {
 
     // Should return 404, NOT 403, to avoid leaking wave existence
     verify(response, times(1)).sendError(HttpServletResponse.SC_NOT_FOUND);
+    assertEquals(0L, viewTracker.getCombinedViews(wavelet.getWaveId()));
   }
 
   /**
@@ -137,6 +141,8 @@ public class PublicWaveFetchServletTest extends TestCase {
     verify(response).getWriter();
     verify(response, never()).sendError(anyInt());
     assertTrue("Response should contain JSON data", writer.toString().length() > 0);
+    assertEquals(1L, viewTracker.getCombinedViews(wavelet.getWaveId()));
+    assertEquals(1L, viewTracker.getTotalApiViews());
   }
 
   /**

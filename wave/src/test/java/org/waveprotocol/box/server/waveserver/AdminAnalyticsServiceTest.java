@@ -12,7 +12,9 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import org.junit.Test;
 import org.waveprotocol.box.common.ExceptionalIterator;
 import org.waveprotocol.box.server.account.AccountData;
@@ -106,8 +108,10 @@ public final class AdminAnalyticsServiceTest {
     assertEquals(2, snapshot.getSummary().getPublicBlipsCurrent());
     assertEquals(1, snapshot.getSummary().getPrivateBlipsCurrent());
     assertEquals(2, snapshot.getSummary().getLoggedIn7d());
-    assertEquals(2, snapshot.getSummary().getActive7d());
+    assertEquals(3, snapshot.getSummary().getActive7d());
     assertEquals(2, snapshot.getSummary().getWriters24h());
+    assertEquals(2, snapshot.getSummary().getActive24h());
+    assertEquals(2, snapshot.getSummary().getWriters7d());
     assertEquals(1, snapshot.getTopViewedPublicWaves().size());
     assertEquals(publicWaveId.serialise(), snapshot.getTopViewedPublicWaves().get(0).getWaveId());
     assertEquals(3L, snapshot.getTopViewedPublicWaves().get(0).getViews());
@@ -185,6 +189,129 @@ public final class AdminAnalyticsServiceTest {
 
     assertSame(first, second);
     verify(accountStore, times(1)).getAllAccounts();
+  }
+
+  @Test
+  public void getAnalyticsSnapshotReturnsStaleLastGoodSnapshotWhenRefreshFails() throws Exception {
+    long now = 1_710_000_000_000L;
+    AtomicLong nowRef = new AtomicLong(now);
+
+    AccountStore accountStore = mock(AccountStore.class);
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    DeltaStore deltaStore = mock(DeltaStore.class);
+    when(accountStore.getAllAccounts())
+        .thenReturn(List.<AccountData>of())
+        .thenThrow(new PersistenceException("boom"));
+    when(waveletProvider.getWaveIds())
+        .thenReturn(ExceptionalIterator.FromIterator.create(List.<WaveId>of().iterator()));
+    when(deltaStore.getWaveIdIterator())
+        .thenReturn(ExceptionalIterator.FromIterator.create(List.<WaveId>of().iterator()));
+
+    AdminAnalyticsService service =
+        new AdminAnalyticsService(
+            accountStore,
+            waveletProvider,
+            deltaStore,
+            new PublicWaveViewTracker(),
+            DOMAIN,
+            nowRef::get,
+            nowRef::get,
+            5_000L);
+
+    AdminAnalyticsService.AnalyticsSnapshot first = service.getAnalyticsSnapshot();
+
+    nowRef.addAndGet(AdminAnalyticsService.CACHE_TTL_MS + 1L);
+    AdminAnalyticsService.AnalyticsSnapshot second = service.getAnalyticsSnapshot();
+
+    assertTrue(second.isStale());
+    assertFalse(second.getWarnings().isEmpty());
+    assertEquals(first.getSummary().getTotalWaves(), second.getSummary().getTotalWaves());
+    assertEquals(first.getGeneratedAtMs(), second.getGeneratedAtMs());
+  }
+
+  @Test
+  public void getAnalyticsSnapshotReturnsWarningSnapshotWhenRefreshBudgetExceeded() throws Exception {
+    long now = 1_710_000_000_000L;
+
+    AccountStore accountStore = mock(AccountStore.class);
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    DeltaStore deltaStore = mock(DeltaStore.class);
+    when(accountStore.getAllAccounts()).thenReturn(List.<AccountData>of());
+    when(waveletProvider.getWaveIds())
+        .thenReturn(ExceptionalIterator.FromIterator.create(List.<WaveId>of().iterator()));
+    when(deltaStore.getWaveIdIterator())
+        .thenReturn(ExceptionalIterator.FromIterator.create(List.<WaveId>of().iterator()));
+
+    AdminAnalyticsService service =
+        new AdminAnalyticsService(
+            accountStore,
+            waveletProvider,
+            deltaStore,
+            new PublicWaveViewTracker(),
+            DOMAIN,
+            () -> now,
+            sequence(0L, 6_001L, 6_001L),
+            5_000L);
+
+    AdminAnalyticsService.AnalyticsSnapshot snapshot = service.getAnalyticsSnapshot();
+
+    assertTrue(snapshot.isStale());
+    assertFalse(snapshot.getWarnings().isEmpty());
+    assertEquals(0, snapshot.getSummary().getTotalWaves());
+    assertEquals(0, snapshot.getSummary().getTotalBlipsCreated());
+  }
+
+  @Test
+  public void collectAnalyticsIgnoresNonBlipDocuments() throws Exception {
+    long now = 1_710_000_000_000L;
+
+    AccountStore accountStore = mock(AccountStore.class);
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    DeltaStore deltaStore = mock(DeltaStore.class);
+    when(accountStore.getAllAccounts()).thenReturn(List.<AccountData>of());
+
+    WaveId publicWaveId = WaveId.of(DOMAIN, "w+public");
+    WaveletId convRoot = WaveletId.of(DOMAIN, "conv+root");
+    WaveletName publicWaveletName = WaveletName.of(publicWaveId, convRoot);
+
+    WaveletData publicWavelet = publicWavelet(publicWaveletName, now);
+    publicWavelet.createDocument(
+        "m/attachment/123",
+        OWNER,
+        List.of(OWNER),
+        new DocInitializationBuilder()
+            .elementStart("body", Attributes.EMPTY_MAP)
+            .characters("metadata")
+            .elementEnd()
+            .build(),
+        now - minutes(20),
+        3L);
+
+    when(waveletProvider.getWaveIds())
+        .thenReturn(ExceptionalIterator.FromIterator.create(List.of(publicWaveId).iterator()));
+    when(waveletProvider.getWaveletIds(publicWaveId)).thenReturn(ImmutableSet.of(convRoot));
+    when(waveletProvider.getSnapshot(publicWaveletName))
+        .thenReturn(new CommittedWaveletSnapshot(publicWavelet, HashedVersion.unsigned(2)));
+
+    when(deltaStore.getWaveIdIterator())
+        .thenReturn(ExceptionalIterator.FromIterator.create(List.of(publicWaveId).iterator()));
+    when(deltaStore.lookup(publicWaveId)).thenReturn(ImmutableSet.of(convRoot));
+    DeltaStore.DeltasAccess publicDeltas = mock(DeltaStore.DeltasAccess.class);
+    when(publicDeltas.getEndVersion()).thenReturn(HashedVersion.unsigned(2));
+    when(publicDeltas.getDelta(0)).thenReturn(blipDelta(OWNER, 0, "b+public-root", now - hours(1)));
+    when(publicDeltas.getDelta(1)).thenReturn(blipDelta(OWNER, 1, "m/attachment/123", now - minutes(20)));
+    when(deltaStore.open(publicWaveletName)).thenReturn(publicDeltas);
+
+    AdminAnalyticsService service =
+        new AdminAnalyticsService(
+            accountStore, waveletProvider, deltaStore, new PublicWaveViewTracker(), DOMAIN, now);
+
+    AdminAnalyticsService.AnalyticsSnapshot snapshot = service.getAnalyticsSnapshot();
+
+    assertEquals(1, snapshot.getSummary().getTotalWaves());
+    assertEquals(1, snapshot.getSummary().getTotalBlipsCreated());
+    assertEquals(1, snapshot.getSummary().getPublicWaves());
+    assertEquals(2, snapshot.getSummary().getPublicBlipsCurrent());
   }
 
   private static HumanAccountData humanAccount(
@@ -276,5 +403,10 @@ public final class AdminAnalyticsServiceTest {
 
   private static long days(long value) {
     return value * 24L * 60L * 60L * 1000L;
+  }
+
+  private static LongSupplier sequence(long... values) {
+    AtomicInteger index = new AtomicInteger(0);
+    return () -> values[Math.min(index.getAndIncrement(), values.length - 1)];
   }
 }

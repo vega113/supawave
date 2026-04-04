@@ -1,10 +1,33 @@
 [
   {
-    "releaseId": "2026-04-04-gptbot-document-changed-guard",
+    "releaseId": "2026-04-05-gptbot-document-changed-guard",
     "version": "PR #613",
+    "date": "2026-04-05",
+    "title": "Use DOCUMENT_CHANGED with editor-activity guard for passive robot replies",
+    "summary": "The gpt-bot example robot now uses DOCUMENT_CHANGED (since BLIP_SUBMITTED is not implemented server-side) with an editor-annotation guard to avoid per-keystroke replies. Also adds OpenAI Chat Completions engine and diagnostic logging to RobotsGateway.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added OpenAI Chat Completions engine for gpt-bot (set GPTBOT_CODEX_ENGINE=openai)",
+          "Added diagnostic INFO logging to RobotsGateway passive dispatch path"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Passive DOCUMENT_CHANGED replies now wait for editor annotations (user/d/, user/e/) to clear before responding",
+          "Fixed null root wavelet crash in search panel snippet rendering (WaveBasedDigest)"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-04-robot-url-normalization-echo-engine",
+    "version": "PR #607",
     "date": "2026-04-04",
-    "title": "Restore DOCUMENT_CHANGED replies behind editor-activity guards",
-    "summary": "Restores passive DOCUMENT_CHANGED handling only after editor annotations clear, while keeping the gpt-bot runtime and passive robot URL fixes in this branch aligned with PR #613.",
+    "title": "Fix gpt-bot robot URL handling and add echo engine",
+    "summary": "Keeps custom robot base paths intact when passive robots fetch capabilities or post callbacks, and adds an echo completion engine for local gpt-bot runs.",
     "sections": [
       {
         "type": "feature",
@@ -15,10 +38,8 @@
       {
         "type": "fix",
         "items": [
-          "Passive DOCUMENT_CHANGED replies now wait for editor annotations to disappear before responding",
           "Passive capabilities fetches now preserve custom robot base paths instead of stripping them to the origin",
-          "Passive callback posts now only treat URLs as normalized when their path actually ends with /_wave/robot/jsonrpc",
-          "gptbot-start.sh now reports a clean sbt-not-found error instead of exiting inside command substitution"
+          "Passive callback posts now only treat URLs as normalized when their path actually ends with /_wave/robot/jsonrpc"
         ]
       }
     ]

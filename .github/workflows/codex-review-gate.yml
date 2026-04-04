@@ -32,8 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
       pull-requests: read
+      statuses: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -42,7 +42,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { shouldRequeueCodexReviewGate } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
+            const {
+              evaluateCodexReviewGate,
+              publishCodexReviewGateHeadStatus,
+              shouldRequeueCodexReviewGate,
+            } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/codex-review-gate`);
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const defaultBranchResult = await github.graphql(
@@ -121,11 +125,22 @@ jobs:
                 continue;
               }
 
-              await github.rest.issues.createComment({
+              const evaluation = evaluateCodexReviewGate({
+                pullRequest,
+              });
+
+              if (!evaluation.ok) {
+                core.warning(
+                  `Skipping PR #${pullRequestSummary.number}: ${evaluation.message}`,
+                );
+                continue;
+              }
+
+              await publishCodexReviewGateHeadStatus(github, {
                 owner,
                 repo,
-                issue_number: pullRequestSummary.number,
-                body: "/codex-review-gate\n\nScheduled reevaluation after the 5-minute review window.",
+                sha: pullRequest.headRefOid,
+                description: evaluation.message,
               });
             }
 

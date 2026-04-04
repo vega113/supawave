@@ -650,19 +650,22 @@ public class WebClient implements EntryPoint {
       @Override
       public void onNetworkStatus(NetworkStatusEvent event) {
         // After a prolonged disconnect (likely server restart / deploy),
-        // the client's channel state machines are stale.  Force a full
-        // page reload so the browser fetches the latest JS and opens
-        // fresh server-side subscriptions.  Short disconnects (< 5 s)
-        // are treated as network hiccups and not reloaded.
+        // reload list/home views so the browser fetches the latest JS and
+        // opens fresh server-side subscriptions. If a wave is open, keep the
+        // session alive and let the normal reconnect handling update the UI.
         if (event.getStatus() == ConnectionStatus.RECONNECTED
             && turbulenceStartTime > 0) {
           double disconnectMs = new Date().getTime() - turbulenceStartTime;
           if (disconnectMs > DEPLOY_DISCONNECT_THRESHOLD_MS) {
+            if (wave == null) {
+              LOG.info("Prolonged disconnect (" + (int) disconnectMs
+                  + "ms), reloading page to resync with server");
+              hideTurbulenceBanner(false);
+              Window.Location.replace(Window.Location.getHref());
+              return;
+            }
             LOG.info("Prolonged disconnect (" + (int) disconnectMs
-                + "ms), reloading page to resync with server");
-            hideTurbulenceBanner(false);
-            Window.Location.replace(Window.Location.getHref());
-            return;
+                + "ms) while a wave is open; skipping auto-reload");
           }
         }
         Element element = Document.get().getElementById("netstatus");

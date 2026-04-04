@@ -119,4 +119,14 @@ The bot responds when a blip explicitly mentions it, such as:
 - `gpt-bot`
 - `gpt bot`
 
-Text after the mention becomes the Codex prompt.
+Text after the mention becomes the prompt.
+
+## Event Handling
+
+The bot subscribes to `DOCUMENT_CHANGED` and `WAVELET_BLIP_CREATED`. The server-side
+`EventGenerator` does not implement `BLIP_SUBMITTED` (Google planned to phase out submit
+ops), so `DOCUMENT_CHANGED` is the primary content event.
+
+To avoid replying on every keystroke, the bot checks for active editor annotations
+(`user/d/` and `user/e/`) and skips blips that are still being edited. The reply fires
+once the user finishes editing and moves their cursor away.

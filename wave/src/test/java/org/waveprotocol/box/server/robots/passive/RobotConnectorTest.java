@@ -216,6 +216,12 @@ public class RobotConnectorTest extends TestCase {
     verify(connection).get(ABSOLUTE_CAPABILITIES_ENDPOINT);
   }
 
+  public void testRobotBaseUrlPreservesEncodedPathSegments() {
+    assertEquals("http://www.example.com/my%40robot",
+        RobotConnector.robotBaseUrl(
+            "http://www.example.com/my%40robot/_wave/robot/jsonrpc"));
+  }
+
   public void testFetchCapabilitiesPreservesAbsoluteBasePathWithoutRpcEndpoint()
       throws Exception {
     RobotAccountData account =

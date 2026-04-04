@@ -104,7 +104,7 @@ if ! command -v sbt >/dev/null 2>&1; then
     source "$HOME/.sdkman/bin/sdkman-init.sh"
   fi
 fi
-SBT="$(command -v sbt)"
+SBT="$(command -v sbt || true)"
 [[ -n "$SBT" ]] || { echo "sbt not found"; exit 1; }
 
 CLOUDFLARED="cloudflared"

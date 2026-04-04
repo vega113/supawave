@@ -263,12 +263,6 @@ public class WebClient implements EntryPoint {
   /** Persistent-toast id for the offline-while-editing warning. */
   private static final String OFFLINE_EDITING_TOAST_ID = "offline-editing";
 
-  /**
-   * If the WebSocket was disconnected for longer than this, assume a server
-   * restart (deploy) and force a full page reload on reconnect.
-   */
-  private static final double DEPLOY_DISCONNECT_THRESHOLD_MS = 5000;
-
   /** Show the turbulence banner (called after the delay). */
   private void showTurbulenceBanner() {
     injectTurbulenceCss();
@@ -650,22 +644,24 @@ public class WebClient implements EntryPoint {
 
       @Override
       public void onNetworkStatus(NetworkStatusEvent event) {
-        // The robot null-sink reconnect path needs a full reload after a
-        // prolonged disconnect. End any active edit session first so draft
-        // changes are saved, then reload to resync the client.
+        // After a prolonged disconnect (likely server restart / deploy),
+        // the client's channel state machines are stale. Reload only when
+        // no wave is open so we preserve in-memory edits during reconnects.
         if (event.getStatus() == ConnectionStatus.RECONNECTED
             && turbulenceStartTime > 0) {
           long disconnectMs = Math.round(new Date().getTime() - turbulenceStartTime);
-          if (ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(disconnectMs)) {
+          if (ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(
+              wave != null, disconnectMs)) {
             LOG.info("Prolonged disconnect (" + disconnectMs
                 + "ms), reloading page to resync with server");
-            if (wave != null) {
-              wave.destroy();
-              wave = null;
-            }
             hideTurbulenceBanner(false);
             Window.Location.replace(Window.Location.getHref());
             return;
+          }
+          if (disconnectMs > 5000) {
+            LOG.info("Prolonged disconnect (" + disconnectMs
+                + "ms) while editing a wave; skipping page reload to"
+                + " preserve in-memory edits");
           }
         }
         Element element = Document.get().getElementById("netstatus");

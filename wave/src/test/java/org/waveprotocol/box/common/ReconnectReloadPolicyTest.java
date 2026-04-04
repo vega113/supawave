@@ -1,14 +1,24 @@
 package org.waveprotocol.box.common;
 
-import junit.framework.TestCase;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-public class ReconnectReloadPolicyTest extends TestCase {
+import org.junit.Test;
 
-  public void testReloadsAfterLongDisconnect() {
-    assertTrue(ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(5001));
+public class ReconnectReloadPolicyTest {
+
+  @Test
+  public void reloadsAfterThresholdWhenNoWaveIsOpen() {
+    assertTrue(ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(false, 5001L));
   }
 
-  public void testDoesNotReloadForShortDisconnect() {
-    assertFalse(ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(5000));
+  @Test
+  public void skipsReloadWhenWaveIsOpen() {
+    assertFalse(ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(true, 5001L));
+  }
+
+  @Test
+  public void skipsReloadAtThreshold() {
+    assertFalse(ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(false, 5000L));
   }
 }

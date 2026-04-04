@@ -182,7 +182,7 @@ public class WaveDigester {
       PrimitiveSupplementImpl state = new PrimitiveSupplementImpl();
       // On public waves, seed as read so explicit participants without a UDW
       // don't see a stale unread badge in search results.
-      if (hasSharedDomainParticipant(participant, context.conversationalWavelets)) {
+      if (hasSharedDomainParticipant(context.conversationalWavelets)) {
         for (ObservableWaveletData wd : context.conversationalWavelets) {
           state.setLastReadWaveletVersion(wd.getWaveletId(), (int) wd.getVersion());
         }
@@ -469,7 +469,7 @@ public class WaveDigester {
       // Private waves are left alone: a newly-added participant without a
       // UDW should see all content as unread.
       if (!isExplicitParticipant(viewer, conversationalWavelets)
-          || hasSharedDomainParticipant(viewer, conversationalWavelets)) {
+          || hasSharedDomainParticipant(conversationalWavelets)) {
         for (ObservableWaveletData waveletData : conversationalWavelets) {
           emptyState.setLastReadWaveletVersion(waveletData.getWaveletId(),
               (int) waveletData.getVersion());
@@ -509,14 +509,12 @@ public class WaveDigester {
    * Returns true if any conversational wavelet contains the shared domain
    * participant (i.e., the wave is public).
    */
-  private static boolean hasSharedDomainParticipant(ParticipantId viewer,
+  private static boolean hasSharedDomainParticipant(
       List<ObservableWaveletData> conversationalWavelets) {
-    if (viewer == null) {
-      return false;
-    }
-    ParticipantId sharedDomainParticipant =
-        ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(viewer.getDomain());
     for (ObservableWaveletData waveletData : conversationalWavelets) {
+      ParticipantId sharedDomainParticipant =
+          ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(
+              waveletData.getWaveletId().getDomain());
       if (waveletData.getParticipants().contains(sharedDomainParticipant)) {
         return true;
       }

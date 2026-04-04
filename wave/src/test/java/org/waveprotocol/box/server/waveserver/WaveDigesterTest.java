@@ -22,7 +22,6 @@ package org.waveprotocol.box.server.waveserver;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.waveprotocol.box.server.util.testing.TestingConstants.DOMAIN;
 import static org.waveprotocol.box.server.util.testing.TestingConstants.PARTICIPANT;
 import static org.waveprotocol.box.server.util.testing.TestingConstants.WAVE_ID;
 
@@ -143,7 +142,7 @@ public class WaveDigesterTest extends TestCase {
 
   /**
    * An explicit participant on a PUBLIC wave with no UDW should see 0 unread.
-   * The shared domain participant (@host.com) makes the wave public.
+   * The wave is public because its own shared-domain participant is present.
    */
   public void testExplicitParticipantOnPublicWaveWithNoUdwHasZeroUnread() {
     TestingWaveletData data =
@@ -153,8 +152,9 @@ public class WaveDigesterTest extends TestCase {
     List<ObservableWaveletData> allData = data.copyWaveletData();
     ObservableWaveletData convData = allData.get(0);
 
-    // Add shared domain participant to make it public
-    ParticipantId sharedDomain = ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(DOMAIN);
+    // Add the wave's shared-domain participant to make it public.
+    ParticipantId sharedDomain = ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(
+        convData.getWaveletId().getDomain());
     convData.addParticipant(sharedDomain);
 
     // Build supplement with NO UDW (null), viewer IS explicit participant (PARTICIPANT is creator)
@@ -209,7 +209,8 @@ public class WaveDigesterTest extends TestCase {
     List<ObservableWaveletData> allData = data.copyWaveletData();
     ObservableWaveletData convData = allData.get(0);
 
-    ParticipantId sharedDomain = ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(DOMAIN);
+    ParticipantId sharedDomain = ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(
+        convData.getWaveletId().getDomain());
     convData.addParticipant(sharedDomain);
 
     ObservableWavelet wavelet = OpBasedWavelet.createReadOnly(convData);

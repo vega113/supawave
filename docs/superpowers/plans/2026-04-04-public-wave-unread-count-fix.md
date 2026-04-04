@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Add `hasSharedDomainParticipant` helper to WaveDigester
+## Task 1: Add `hasSharedDomainParticipant` helper to WaveDigester
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/waveserver/WaveDigester.java:485-493` (before closing brace)
@@ -66,7 +66,7 @@ participant (@domain) in the wavelet participant list."
 
 ---
 
-### Task 2: Fix `buildSupplement()` to seed read state for explicit participants on public waves
+## Task 2: Fix `buildSupplement()` to seed read state for explicit participants on public waves
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/waveserver/WaveDigester.java:448-466`
@@ -208,7 +208,7 @@ still see all blips as unread, as expected."
 
 ---
 
-### Task 3: Fix `createReadState()` parallel path
+## Task 3: Fix `createReadState()` parallel path
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/waveserver/WaveDigester.java:172-184`
@@ -312,7 +312,7 @@ wavelet versions as read for public waves."
 
 ---
 
-### Task 4: Fix client-side `PublicWaveReadStateBootstrap`
+## Task 4: Fix client-side `PublicWaveReadStateBootstrap`
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/wave/model/supplement/PublicWaveReadStateBootstrap.java:28-71`
@@ -421,7 +421,7 @@ read state rather than marking everything as unread."
 
 ---
 
-### Task 5: Integration verification
+## Task 5: Integration verification
 
 **Files:** None (verification only)
 
@@ -445,4 +445,10 @@ Expected: All tests pass.
 
 Run:
 `if [ -f wave/src/main/resources/config/changelog.json ]; then diff -u wave/config/changelog.json wave/src/main/resources/config/changelog.json; fi`
-Expected: no diff when the mirrored changelog file exists; if this checkout only carries the config source of truth, note that the second copy is absent in this branch.
+Expected: no diff when the mirrored changelog file exists; if the mirror is present and differs, fail the check and update both copies together.
+
+- [ ] **Step 5: Verify changelog alignment is explicit in the final check**
+
+Run:
+`if [ -f wave/src/main/resources/config/changelog.json ]; then cmp -s wave/config/changelog.json wave/src/main/resources/config/changelog.json; fi`
+Expected: exit 0 only when the mirrored changelog file is absent or the two copies are byte-for-byte identical; if the mirror exists and differs, stop and fix both changelog copies before landing.

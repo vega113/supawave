@@ -41,7 +41,7 @@ public final class PublicWaveReadStateBootstrap {
    */
   public static void seedIfPublicWave(
       ObservablePrimitiveSupplement state, ObservableWaveView wave, ParticipantId viewer) {
-    if (!isPublicWave(wave, viewer)) {
+    if (viewer == null || !isPublicWave(wave)) {
       return;
     }
     for (ObservableWavelet wavelet : wave.getWavelets()) {
@@ -55,13 +55,10 @@ public final class PublicWaveReadStateBootstrap {
    * Returns true if the wave has the shared domain participant on any
    * conversational wavelet, making it a public wave.
    */
-  private static boolean isPublicWave(ObservableWaveView wave, ParticipantId viewer) {
-    if (viewer == null) {
-      return false;
-    }
-    ParticipantId sharedParticipant =
-        ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(viewer.getDomain());
+  private static boolean isPublicWave(ObservableWaveView wave) {
     for (ObservableWavelet wavelet : wave.getWavelets()) {
+      ParticipantId sharedParticipant =
+          ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(wavelet.getId().getDomain());
       if (IdUtil.isConversationalId(wavelet.getId())
           && wavelet.getParticipantIds().contains(sharedParticipant)) {
         return true;

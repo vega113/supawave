@@ -5100,7 +5100,7 @@ public final class HtmlRenderer {
     sb.append("      document.getElementById('analyticsTotalWaves').textContent = s.totalWaves || 0;\n");
     sb.append("      document.getElementById('analyticsTotalBlips').textContent = s.totalBlipsCreated || 0;\n");
     sb.append("      document.getElementById('analyticsLoggedIn7d').textContent = s.loggedIn7d || 0;\n");
-    sb.append("      document.getElementById('analyticsActive7d').textContent = s.active7d || 0;\n");
+    sb.append("      document.getElementById('analyticsActive7d').textContent = s.writers7d || 0;\n");
     sb.append("      document.getElementById('analyticsPublicWaves').textContent = s.publicWaves || 0;\n");
     sb.append("      document.getElementById('analyticsPrivateWaves').textContent = s.privateWaves || 0;\n");
     sb.append("      document.getElementById('analyticsPublicBlips').textContent = s.publicBlipsCurrent || 0;\n");

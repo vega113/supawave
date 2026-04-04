@@ -269,25 +269,13 @@ public final class AdminAnalyticsService {
       WaveId waveId = waveIds.next();
       MutableTopWave wave = waves.computeIfAbsent(waveId.serialise(), key -> new MutableTopWave(waveId));
       summary.totalWaves++;
+      WaveletId rootWaveletId = WaveletId.of(waveId.getDomain(), "conv+root");
+      accumulateWaveletSnapshot(wave, waveId, rootWaveletId);
       for (WaveletId waveletId : waveletProvider.getWaveletIds(waveId)) {
-        if (!IdUtil.isConversationalId(waveletId)) {
+        if (waveletId.equals(rootWaveletId) || !IdUtil.isConversationalId(waveletId)) {
           continue;
         }
-        CommittedWaveletSnapshot committed =
-            waveletProvider.getSnapshot(WaveletName.of(waveId, waveletId));
-        if (committed == null || committed.snapshot == null) {
-          continue;
-        }
-        ReadableWaveletData snapshot = committed.snapshot;
-        boolean isPublic = WaveletDataUtil.isPublicWavelet(snapshot, sharedDomainParticipant);
-        wave.publicWave = wave.publicWave || isPublic;
-        wave.lastModifiedTime = Math.max(wave.lastModifiedTime, snapshot.getLastModifiedTime());
-        if (wave.createdTime == 0L || snapshot.getCreationTime() < wave.createdTime) {
-          wave.createdTime = snapshot.getCreationTime();
-        }
-        wave.title = chooseTitle(wave.title, waveId, snapshot);
-        collectWaveParticipants(wave, snapshot);
-        collectWaveBlips(wave, snapshot);
+        accumulateWaveletSnapshot(wave, waveId, waveletId);
       }
       wave.views = publicWaveViewTracker.getCombinedViews(waveId);
       if (wave.publicWave) {
@@ -305,6 +293,24 @@ public final class AdminAnalyticsService {
       }
     }
     return waves;
+  }
+
+  private void accumulateWaveletSnapshot(MutableTopWave wave, WaveId waveId, WaveletId waveletId)
+      throws WaveServerException {
+    CommittedWaveletSnapshot committed = waveletProvider.getSnapshot(WaveletName.of(waveId, waveletId));
+    if (committed == null || committed.snapshot == null) {
+      return;
+    }
+    ReadableWaveletData snapshot = committed.snapshot;
+    boolean isPublic = WaveletDataUtil.isPublicWavelet(snapshot, sharedDomainParticipant);
+    wave.publicWave = wave.publicWave || isPublic;
+    wave.lastModifiedTime = Math.max(wave.lastModifiedTime, snapshot.getLastModifiedTime());
+    if (wave.createdTime == 0L || snapshot.getCreationTime() < wave.createdTime) {
+      wave.createdTime = snapshot.getCreationTime();
+    }
+    wave.title = chooseTitle(wave.title, waveId, snapshot);
+    collectWaveParticipants(wave, snapshot);
+    collectWaveBlips(wave, snapshot);
   }
 
   private void collectWaveParticipants(MutableTopWave wave, ReadableWaveletData snapshot) {

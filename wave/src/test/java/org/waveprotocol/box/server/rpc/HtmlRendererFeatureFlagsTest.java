@@ -97,5 +97,6 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("id=\"panel-analytics\""));
     assertTrue(html.contains("if (tab.dataset.tab === 'analytics' && !analyticsLoaded) { loadAnalyticsStatus(); }"));
     assertTrue(html.contains("fetch('/admin/api/analytics/status')"));
+    assertTrue(html.contains("document.getElementById('analyticsActive7d').textContent = s.writers7d || 0;"));
   }
 }

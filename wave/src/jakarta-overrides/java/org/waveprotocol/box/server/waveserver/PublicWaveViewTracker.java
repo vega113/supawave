@@ -1,5 +1,6 @@
 package org.waveprotocol.box.server.waveserver;
 
+import com.google.inject.Singleton;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 /**
  * Tracks live public-wave traffic since process start.
  */
+@Singleton
 public final class PublicWaveViewTracker {
   private final ConcurrentMap<String, LongAdder> pageViewsByWave = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, LongAdder> apiViewsByWave = new ConcurrentHashMap<>();

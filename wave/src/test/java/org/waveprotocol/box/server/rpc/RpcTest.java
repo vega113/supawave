@@ -34,8 +34,10 @@ import org.mockito.Mockito;
 import org.waveprotocol.box.common.comms.WaveClientRpc;
 import org.waveprotocol.box.common.comms.WaveClientRpc.*;
 import org.waveprotocol.box.server.authentication.SessionManager;
+import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -174,6 +176,63 @@ public class RpcTest extends TestCase {
   }
 
   /**
+   * Tests that a non-streaming RPC completes after its first response and is
+   * removed from the active controller map.
+   */
+  public void testSubmitRpcCompletesAndCleansUp() throws Exception {
+    final int TIMEOUT_SECONDS = Integer.getInteger("test.rpc.timeoutSeconds", 5);
+    final CountDownLatch responseLatch = new CountDownLatch(1);
+    final ProtocolSubmitResponse cannedResponse =
+        ProtocolSubmitResponse.newBuilder().setOperationsApplied(1).build();
+
+    WaveClientRpc.ProtocolWaveClientRpc.Interface rpcImpl =
+        new WaveClientRpc.ProtocolWaveClientRpc.Interface() {
+      @Override
+      public void open(RpcController controller, ProtocolOpenRequest request,
+          RpcCallback<ProtocolWaveletUpdate> callback) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void submit(RpcController controller, ProtocolSubmitRequest request,
+          RpcCallback<ProtocolSubmitResponse> callback) {
+        callback.run(cannedResponse);
+      }
+
+      @Override
+      public void authenticate(RpcController controller, ProtocolAuthenticate request,
+          RpcCallback<ProtocolAuthenticationResult> done) {
+        throw new UnsupportedOperationException();
+      }
+    };
+
+    server.registerService(WaveClientRpc.ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
+    client = newClient();
+
+    WaveClientRpc.ProtocolWaveClientRpc.Stub stub =
+        WaveClientRpc.ProtocolWaveClientRpc.newStub(client);
+    RpcController controller = client.newRpcController();
+    ProtocolSubmitRequest request = ProtocolSubmitRequest.newBuilder()
+        .setDelta(ProtocolWaveletDelta.newBuilder().buildPartial())
+        .setWaveletName("wave://example.com/w+test")
+        .buildPartial();
+
+    stub.submit(controller, request, new RpcCallback<ProtocolSubmitResponse>() {
+      @Override
+      public void run(ProtocolSubmitResponse response) {
+        assertEquals(cannedResponse, response);
+        responseLatch.countDown();
+      }
+    });
+
+    assertTrue(responseLatch.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+    waitForActiveMethodMapToDrain(TIMEOUT_SECONDS);
+    assertEquals(ClientRpcController.Status.COMPLETE, ((ClientRpcController) controller).status());
+    assertFalse(controller.failed());
+    assertTrue(getActiveMethodMap().isEmpty());
+  }
+
+  /**
    * Tests a RPC that will fail.
    */
   public void testFailedRpc() throws Exception {
@@ -231,6 +290,23 @@ public class RpcTest extends TestCase {
     assertEquals(Collections.singletonList((ProtocolWaveletUpdate) null), responses);
     assertTrue(controller.failed());
     assertEquals(ERROR_TEXT, controller.errorText());
+  }
+
+  private Map<?, ?> getActiveMethodMap() throws Exception {
+    Field field = WebSocketClientRpcChannel.class.getDeclaredField("activeMethodMap");
+    field.setAccessible(true);
+    return (Map<?, ?>) field.get(client);
+  }
+
+  private void waitForActiveMethodMapToDrain(int timeoutSeconds) throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+    while (System.nanoTime() < deadline) {
+      if (getActiveMethodMap().isEmpty()) {
+        return;
+      }
+      Thread.sleep(10);
+    }
+    fail("Timed out waiting for activeMethodMap to drain");
   }
 
   /**

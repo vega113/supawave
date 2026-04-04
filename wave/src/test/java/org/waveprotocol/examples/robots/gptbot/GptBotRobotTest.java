@@ -154,7 +154,7 @@ public class GptBotRobotTest extends TestCase {
     String xml = robot.getCapabilitiesXml();
 
     assertTrue(xml.contains("BLIP_SUBMITTED"));
-    assertTrue(xml.contains("DOCUMENT_CHANGED"));
+    assertFalse(xml.contains("DOCUMENT_CHANGED"));
     assertTrue(xml.contains("WAVELET_BLIP_CREATED"));
     assertTrue(xml.contains("protocolversion"));
     assertTrue(xml.contains("context=\"SELF,SIBLINGS\""));

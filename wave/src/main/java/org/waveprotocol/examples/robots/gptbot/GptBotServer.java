@@ -47,14 +47,23 @@ public final class GptBotServer {
   public static void main(String[] args) throws Exception {
     GptBotConfig config = GptBotConfig.fromEnvironment();
     String codexEngine = System.getenv("GPTBOT_CODEX_ENGINE");
+    String engineName = codexEngine != null ? codexEngine.trim().toLowerCase() : "codex";
     CodexClient codexClient;
-    if ("echo".equalsIgnoreCase(codexEngine != null ? codexEngine.trim() : "")) {
-      LOG.info("Using echo engine (no external LLM required)");
-      codexClient = new EchoCodexClient();
-    } else {
-      codexClient = new ProcessCodexClient(config.getCodexBinary(), config.getCodexModel(),
-          config.getCodexReasoningEffort(), config.getCodexTimeout(),
-          config.isCodexUnsafeBypassEnabled());
+    switch (engineName) {
+      case "echo":
+        LOG.info("Using echo engine (no external LLM required)");
+        codexClient = new EchoCodexClient();
+        break;
+      case "openai":
+        LOG.info("Using OpenAI Chat Completions API engine");
+        codexClient = new OpenAiCodexClient();
+        break;
+      default:
+        LOG.info("Using Codex CLI engine");
+        codexClient = new ProcessCodexClient(config.getCodexBinary(), config.getCodexModel(),
+            config.getCodexReasoningEffort(), config.getCodexTimeout(),
+            config.isCodexUnsafeBypassEnabled());
+        break;
     }
     GptBotReplyPlanner replyPlanner = new GptBotReplyPlanner(config.getRobotName(), codexClient);
     SupaWaveApiClient apiClient = new SupaWaveApiClient(config);

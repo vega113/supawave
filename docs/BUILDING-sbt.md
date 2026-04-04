@@ -10,8 +10,9 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 - SBT 1.10+ installed.
 - `protoc` is provided by `sbt-protoc` (embedded protoc v3.25.x).
 - `ant` is no longer needed (the legacy `testBackend` fallback has been removed).
-- `generatePstMessages` and `generateFlags`: see Prerequisites above for the
-  `sbt compile` wiring and manual regeneration guidance.
+- `generatePstMessages` and `generateFlags` run automatically as part of
+  `sbt compile`; invoke them directly only when you want to regenerate those
+  sources without a full compile.
 
 ## Layout and decisions
 
@@ -63,7 +64,7 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 - Status: `/statusz/socket` returns websocket/http address info (JSON)
 - HTTP endpoints:
   - `/auth/signin` (GXP-backed login page)
-  - `/` (Wave client page; redirects to signin when not authenticated)
+  - `/` (Wave client page; redirects to sign in when not authenticated)
   - `/static/*`, `/render/*`, `/webclient/*` (served by Jetty DefaultServlet;
     web client assets are produced by `compileGwt`)
   - `/static/ws-test.html` (simple page to test WebSocket handshake at `/socket`)
@@ -105,9 +106,8 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 - SBT automatically stages protobuf sources before `PB.generate`:
   - `.protodevel` files are rewritten into `target/proto-pb-src` as `.proto`.
   - `descriptor.proto` is resolved from `pst/src/main/proto/google/protobuf/descriptor.proto`.
-- `generatePstMessages` and `generateFlags` run automatically as part of
-  `sbt compile`; invoke them directly only when you want to regenerate those
-  sources without a full compile.
+- `generatePstMessages` and `generateFlags`: see Prerequisites for the
+  `sbt compile` wiring and manual regeneration guidance.
 - Stable project naming now produces `incubator-wave-server-0.1.0-SNAPSHOT.jar`
   instead of varying with the worktree directory.
 - `prepareServerConfig` now bootstraps the root `config/` directory from

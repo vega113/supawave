@@ -89,6 +89,13 @@ public interface EventHandler {
   void onFormButtonClicked(FormButtonClickedEvent event);
 
   /**
+   * Handler for {@link FormValueChangedEvent}.
+   *
+   * @param event the form value changed event.
+   */
+  void onFormValueChanged(FormValueChangedEvent event);
+
+  /**
    * Handler for {@link GadgetStateChangedEvent}.
    *
    * @param event the gadget state changed event.

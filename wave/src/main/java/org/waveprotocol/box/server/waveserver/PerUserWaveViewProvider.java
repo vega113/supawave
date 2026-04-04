@@ -21,7 +21,6 @@ package org.waveprotocol.box.server.waveserver;
 
 import com.google.common.collect.Multimap;
 
-import java.util.Set;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -37,15 +36,4 @@ public interface PerUserWaveViewProvider {
    * Returns the per user waves view.
    */
   Multimap<WaveId, WaveletId> retrievePerUserWaveView(ParticipantId user);
-
-  /**
-   * Searches the index for waves matching a text query on the given field,
-   * filtered to only waves visible to the specified user.
-   *
-   * @return set of matching wave IDs, or null if text search is not supported
-   *         by this provider (triggers in-memory fallback).
-   */
-  default Set<WaveId> searchByText(ParticipantId user, String queryText, IndexFieldType field) {
-    return null;
-  }
 }

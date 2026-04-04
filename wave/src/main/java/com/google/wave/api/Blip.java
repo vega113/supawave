@@ -525,6 +525,62 @@ public class Blip implements Serializable {
   }
 
   /**
+   * Appends a button form element to the blip.
+   *
+   * @param name the name of the button (used in FormButtonClickedEvent).
+   * @param caption the display text on the button.
+   * @return an instance of {@link BlipContentRefs}.
+   */
+  public BlipContentRefs appendButton(String name, String caption) {
+    return append(new FormElement(ElementType.BUTTON, name, caption, caption));
+  }
+
+  /**
+   * Appends a text input form element to the blip.
+   *
+   * @param name the name of the input element.
+   * @param defaultValue the default/placeholder value.
+   * @return an instance of {@link BlipContentRefs}.
+   */
+  public BlipContentRefs appendTextInput(String name, String defaultValue) {
+    return append(new FormElement(ElementType.INPUT, name, defaultValue));
+  }
+
+  /**
+   * Appends a textarea form element to the blip.
+   *
+   * @param name the name of the textarea element.
+   * @param defaultValue the default/placeholder value.
+   * @return an instance of {@link BlipContentRefs}.
+   */
+  public BlipContentRefs appendTextArea(String name, String defaultValue) {
+    return append(new FormElement(ElementType.TEXTAREA, name, defaultValue));
+  }
+
+  /**
+   * Appends a checkbox form element to the blip.
+   *
+   * @param name the name of the checkbox element.
+   * @param defaultChecked whether the checkbox is initially checked.
+   * @return an instance of {@link BlipContentRefs}.
+   */
+  public BlipContentRefs appendCheckBox(String name, boolean defaultChecked) {
+    String value = String.valueOf(defaultChecked);
+    return append(new FormElement(ElementType.CHECK, name, value, value));
+  }
+
+  /**
+   * Appends a label form element to the blip.
+   *
+   * @param forElement the name of the form element this label is for.
+   * @param text the label text.
+   * @return an instance of {@link BlipContentRefs}.
+   */
+  public BlipContentRefs appendLabel(String forElement, String text) {
+    return append(new FormElement(ElementType.LABEL, forElement, text, text));
+  }
+
+  /**
    * Creates a reply to this blip.
    *
    * @return an instance of {@link Blip} that represents a reply to the blip.

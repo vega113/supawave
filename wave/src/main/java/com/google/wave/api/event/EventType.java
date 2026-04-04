@@ -40,6 +40,7 @@ public enum EventType {
   BLIP_SUBMITTED(BlipSubmittedEvent.class),
   DOCUMENT_CHANGED(DocumentChangedEvent.class),
   FORM_BUTTON_CLICKED(FormButtonClickedEvent.class),
+  FORM_VALUE_CHANGED(FormValueChangedEvent.class),
   GADGET_STATE_CHANGED(GadgetStateChangedEvent.class),
   ANNOTATED_TEXT_CHANGED(AnnotatedTextChangedEvent.class),
 

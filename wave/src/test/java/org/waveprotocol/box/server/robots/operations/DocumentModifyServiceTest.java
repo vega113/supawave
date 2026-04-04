@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.wave.api.Element;
 import com.google.wave.api.ElementType;
+import com.google.wave.api.FormElement;
 import com.google.wave.api.Gadget;
 import com.google.wave.api.InvalidRequestException;
 import com.google.wave.api.OperationRequest;
@@ -221,6 +222,105 @@ public class DocumentModifyServiceTest extends RobotsTestBase {
     assertNotNull(gadget.getProperty(newPropertyName));
     assertEquals(newPropertyValue, gadget.getProperty(newPropertyName));
     assertNull(gadget.getProperty(propertyNameToDelete));
+  }
+
+  public void testInsertAndUpdateFormElement() throws Exception {
+    // Step 1: Insert a check form element
+    List<Element> insertElements = Lists.newArrayListWithCapacity(1);
+    insertElements.add(new FormElement(ElementType.CHECK, "agree", "false", "false"));
+
+    OperationRequest insertOperation =
+        operationRequest(OperationType.DOCUMENT_MODIFY, rootBlipId,
+            Parameter.of(ParamsProperty.MODIFY_ACTION,
+                new DocumentModifyAction(ModifyHow.INSERT, NO_VALUES, NO_ANNOTATION_KEY,
+                    insertElements, NO_BUNDLED_ANNOTATIONS, false)),
+            Parameter.of(ParamsProperty.INDEX, CONTENT_START_TEXT));
+
+    service.execute(insertOperation, helper.getContext(), ALEX);
+
+    // Verify element was inserted
+    FormElement insertedCheck = null;
+    for (ApiView.ElementInfo info : getApiView().getElements()) {
+      if (info.element.isFormElement() && info.element.getType() == ElementType.CHECK) {
+        insertedCheck = (FormElement) info.element;
+        break;
+      }
+    }
+    assertNotNull("Check element should have been inserted", insertedCheck);
+    assertEquals("false", insertedCheck.getValue());
+
+    // Step 2: Update the check element value
+    List<Element> updateElements = Lists.newArrayListWithCapacity(1);
+    FormElement updatedElement = new FormElement(ElementType.CHECK, "agree");
+    updatedElement.setValue("true");
+    updateElements.add(updatedElement);
+
+    OperationRequest updateOperation =
+        operationRequest(OperationType.DOCUMENT_MODIFY, rootBlipId,
+            Parameter.of(ParamsProperty.MODIFY_ACTION,
+                new DocumentModifyAction(ModifyHow.UPDATE_ELEMENT,
+                    NO_VALUES, NO_ANNOTATION_KEY, updateElements, NO_BUNDLED_ANNOTATIONS, false)),
+            Parameter.of(ParamsProperty.MODIFY_QUERY,
+                new DocumentModifyQuery(ElementType.CHECK,
+                    ImmutableMap.of("name", "agree"), 1)));
+
+    service.execute(updateOperation, helper.getContext(), ALEX);
+
+    // Verify element was updated
+    FormElement updatedCheck = null;
+    for (ApiView.ElementInfo info : getApiView().getElements()) {
+      if (info.element.isFormElement() && info.element.getType() == ElementType.CHECK) {
+        updatedCheck = (FormElement) info.element;
+        break;
+      }
+    }
+    assertNotNull("Check element should still exist", updatedCheck);
+    assertEquals("true", updatedCheck.getValue());
+    assertEquals("agree", updatedCheck.getName());
+    assertEquals("false", updatedCheck.getDefaultValue());
+  }
+
+  public void testUpdateButtonFormElement() throws Exception {
+    List<Element> insertElements = Lists.newArrayListWithCapacity(1);
+    insertElements.add(new FormElement(ElementType.BUTTON, "submit", "Send", "Send"));
+
+    OperationRequest insertOperation =
+        operationRequest(OperationType.DOCUMENT_MODIFY, rootBlipId,
+            Parameter.of(ParamsProperty.MODIFY_ACTION,
+                new DocumentModifyAction(ModifyHow.INSERT, NO_VALUES, NO_ANNOTATION_KEY,
+                    insertElements, NO_BUNDLED_ANNOTATIONS, false)),
+            Parameter.of(ParamsProperty.INDEX, CONTENT_START_TEXT));
+
+    service.execute(insertOperation, helper.getContext(), ALEX);
+
+    List<Element> updateElements = Lists.newArrayListWithCapacity(1);
+    FormElement updatedElement = new FormElement(ElementType.BUTTON, "submit");
+    updatedElement.setValue("Save");
+    updateElements.add(updatedElement);
+
+    OperationRequest updateOperation =
+        operationRequest(OperationType.DOCUMENT_MODIFY, rootBlipId,
+            Parameter.of(ParamsProperty.MODIFY_ACTION,
+                new DocumentModifyAction(ModifyHow.UPDATE_ELEMENT,
+                    NO_VALUES, NO_ANNOTATION_KEY, updateElements, NO_BUNDLED_ANNOTATIONS, false)),
+            Parameter.of(ParamsProperty.MODIFY_QUERY,
+                new DocumentModifyQuery(ElementType.BUTTON,
+                    ImmutableMap.of("name", "submit"), 1)));
+
+    service.execute(updateOperation, helper.getContext(), ALEX);
+
+    FormElement updatedButton = null;
+    for (ElementInfo info : getApiView().getElements()) {
+      if (info.element.isFormElement() && info.element.getType() == ElementType.BUTTON) {
+        updatedButton = (FormElement) info.element;
+        break;
+      }
+    }
+
+    assertNotNull("Button element should still exist", updatedButton);
+    assertEquals("submit", updatedButton.getName());
+    assertEquals("Save", updatedButton.getValue());
+    assertEquals("Save", updatedButton.getDefaultValue());
   }
 
   public void testDelete() throws Exception {

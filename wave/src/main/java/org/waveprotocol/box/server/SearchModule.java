@@ -23,16 +23,9 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.store.FSDirectory;
 import org.waveprotocol.box.server.persistence.file.FileUtils;
+import org.waveprotocol.box.server.persistence.lucene.FSIndexDirectory;
 import org.waveprotocol.box.server.persistence.lucene.IndexDirectory;
-import org.waveprotocol.box.server.persistence.lucene.Lucene9SearchIndexDirectory;
 import org.waveprotocol.box.server.waveserver.*;
 
 /**
@@ -40,15 +33,13 @@ import org.waveprotocol.box.server.waveserver.*;
  */
 public class SearchModule extends AbstractModule {
 
-  private static final Logger LOG = Logger.getLogger(SearchModule.class.getName());
-
   private final String searchType;
-  private final String lucene9IndexDirectory;
+  private final String indexDirectory;
 
   @Inject
   public SearchModule(Config config) {
     this.searchType = config.getString("core.search_type");
-    this.lucene9IndexDirectory = config.getString("core.lucene9_index_directory");
+    this.indexDirectory = config.getString("core.index_directory");
   }
 
   @Override
@@ -61,11 +52,8 @@ public class SearchModule extends AbstractModule {
           Singleton.class);
       bind(PerUserWaveViewHandler.class).to(LucenePerUserWaveViewHandlerImpl.class).in(
           Singleton.class);
-      bind(IndexDirectory.class).to(Lucene9SearchIndexDirectory.class);
-      boolean needsRebuild = !FileUtils.isDirExistsAndNonEmpty(lucene9IndexDirectory)
-          || indexLacksContentField();
-      if (needsRebuild) {
-        LOG.info("Lucene index rebuild required (empty or missing CONTENT field)");
+      bind(IndexDirectory.class).to(FSIndexDirectory.class);
+      if (!FileUtils.isDirExistsAndNonEmpty(indexDirectory)) {
         bind(WaveIndexer.class).to(LuceneWaveIndexerImpl.class);
       } else {
         bind(WaveIndexer.class).to(NoOpWaveIndexerImpl.class);
@@ -89,38 +77,6 @@ public class SearchModule extends AbstractModule {
       bind(WaveIndexer.class).to(MemoryWaveIndexerImpl.class).in(Singleton.class);
     } else {
       throw new RuntimeException("Unknown search type: " + searchType);
-    }
-  }
-
-  /**
-   * Checks whether the existing Lucene9 index lacks the CONTENT field.
-   * Returns true if the index exists and has documents but none contain a
-   * CONTENT field — indicating the index was built before full-text indexing
-   * was added and needs a rebuild.
-   */
-  private boolean indexLacksContentField() {
-    Path indexPath = Paths.get(lucene9IndexDirectory);
-    if (!indexPath.toFile().isDirectory()) {
-      return false; // No index directory — will be caught by the empty check.
-    }
-    try (FSDirectory dir = FSDirectory.open(indexPath);
-         DirectoryReader reader = DirectoryReader.open(dir)) {
-      if (reader.numDocs() == 0) {
-        return false; // Empty index — will be rebuilt by the empty check.
-      }
-      // Check if any segment has the CONTENT field.
-      String contentFieldName = IndexFieldType.CONTENT.toString();
-      for (var leafCtx : reader.leaves()) {
-        var fieldInfo = leafCtx.reader().getFieldInfos().fieldInfo(contentFieldName);
-        if (fieldInfo != null) {
-          return false; // Found CONTENT field — no rebuild needed.
-        }
-      }
-      LOG.info("Existing Lucene index lacks CONTENT field, will trigger rebuild");
-      return true;
-    } catch (IOException e) {
-      LOG.log(Level.WARNING, "Failed to check Lucene index for CONTENT field, will trigger rebuild", e);
-      return true;
     }
   }
 }

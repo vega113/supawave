@@ -19,9 +19,7 @@
 
 package org.waveprotocol.box.server.waveserver;
 
-import static org.waveprotocol.box.server.waveserver.IndexFieldType.CONTENT;
 import static org.waveprotocol.box.server.waveserver.IndexFieldType.LMT;
-import static org.waveprotocol.box.server.waveserver.IndexFieldType.TITLE;
 import static org.waveprotocol.box.server.waveserver.IndexFieldType.WAVEID;
 import static org.waveprotocol.box.server.waveserver.IndexFieldType.WAVELETID;
 import static org.waveprotocol.box.server.waveserver.IndexFieldType.WITH;
@@ -38,9 +36,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -48,15 +44,10 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.BooleanClause;
-import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.SearcherFactory;
 import org.apache.lucene.search.SearcherManager;
@@ -200,17 +191,6 @@ public class LucenePerUserWaveViewHandlerImpl implements PerUserWaveViewHandler,
     for (ParticipantId participant : participants) {
       document.add(new StringField(WITH.toString(), participant.getAddress(), Store.YES));
     }
-
-    // Full-text content and title fields for BM25 search.
-    String contentText = WaveletTextExtractor.extractAllText(wavelet);
-    if (!contentText.isEmpty()) {
-      document.add(new TextField(CONTENT.toString(), contentText, Store.NO));
-    }
-    String titleText = WaveletTextExtractor.extractTitle(wavelet);
-    if (!titleText.isEmpty()) {
-      document.add(new TextField(TITLE.toString(), titleText, Store.NO));
-    }
-
     return document;
   }
 
@@ -243,47 +223,6 @@ public class LucenePerUserWaveViewHandlerImpl implements PerUserWaveViewHandler,
       release(indexSearcher, user);
     }
     return userWavesViewMap;
-  }
-
-  /**
-   * Searches the index for wavelets matching a text query on the given field,
-   * filtered to only wavelets visible to the specified user.
-   *
-   * @param user the participant whose wave view to search within.
-   * @param queryText the user's search terms.
-   * @param field the index field to search (CONTENT or TITLE).
-   * @return set of matching wave IDs, or null if the search cannot be completed.
-   */
-  @Override
-  public Set<WaveId> searchByText(ParticipantId user, String queryText, IndexFieldType field) {
-    Preconditions.checkNotNull(user);
-    Preconditions.checkNotNull(queryText);
-    Set<WaveId> result = new HashSet<>();
-    IndexSearcher indexSearcher = null;
-    try {
-      QueryParser parser = new QueryParser(field.toString(), analyzer);
-      parser.setDefaultOperator(QueryParser.Operator.AND);
-      Query textQuery = parser.parse(QueryParser.escape(queryText));
-
-      BooleanQuery combined = new BooleanQuery.Builder()
-          .add(new TermQuery(new Term(WITH.toString(), user.getAddress())), BooleanClause.Occur.MUST)
-          .add(textQuery, BooleanClause.Occur.MUST)
-          .build();
-
-      indexSearcher = searcherManager.acquire();
-      TopDocs hits = indexSearcher.search(combined, MAX_WAVES);
-      for (ScoreDoc hit : hits.scoreDocs) {
-        Document document = indexSearcher.storedFields().document(hit.doc);
-        WaveId waveId = WaveId.deserialise(document.get(WAVEID.toString()));
-        result.add(waveId);
-      }
-    } catch (Exception e) {
-      LOG.log(Level.WARNING, "Text search failed for user " + user + " query: " + queryText, e);
-      return null;
-    } finally {
-      release(indexSearcher, user);
-    }
-    return result;
   }
 
   private void release(IndexSearcher indexSearcher, ParticipantId user) {

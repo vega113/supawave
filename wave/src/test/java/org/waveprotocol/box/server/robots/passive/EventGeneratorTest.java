@@ -29,6 +29,7 @@ import com.google.wave.api.event.AnnotatedTextChangedEvent;
 import com.google.wave.api.event.DocumentChangedEvent;
 import com.google.wave.api.event.Event;
 import com.google.wave.api.event.EventType;
+import com.google.wave.api.event.FormValueChangedEvent;
 import com.google.wave.api.event.WaveletBlipCreatedEvent;
 import com.google.wave.api.event.WaveletBlipRemovedEvent;
 import com.google.wave.api.event.WaveletParticipantsChangedEvent;
@@ -44,6 +45,7 @@ import org.waveprotocol.wave.model.conversation.ObservableConversationBlip;
 import org.waveprotocol.wave.model.conversation.ObservableConversationThread;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
+import org.waveprotocol.wave.model.document.Document;
 import org.waveprotocol.wave.model.document.util.LineContainers;
 import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
@@ -419,7 +421,68 @@ public class EventGeneratorTest extends RobotsTestBase {
         EventType.WAVELET_BLIP_CREATED, EventType.WAVELET_SELF_REMOVED);
   }
 
+  public void testGenerateFormValueChangedEvent() throws Exception {
+    ObservableConversationView conversation = conversationUtil.buildConversation(wavelet);
+    ObservableConversationBlip rootBlip =
+        conversation.getRoot().getRootThread().getFirstBlip();
+
+    // Insert a check form element into the blip
+    String checkXml = "<check name=\"agree\" value=\"false\"/>";
+    LineContainers.appendToLastLine(
+        rootBlip.getContent(), XmlStringBuilder.createFromXmlString(checkXml));
+
+    // Clear ops from the insert — we only want to capture the value change
+    output.clear();
+
+    // Now change the value attribute on the check element to simulate user toggle
+    Document doc = rootBlip.getContent();
+    // Find the check element (may be nested inside body/line containers)
+    org.waveprotocol.wave.model.document.Doc.E checkElem =
+        findElementByTag(doc, doc.getDocumentElement(), "check");
+    assertNotNull("Should find the check element", checkElem);
+    doc.setElementAttribute(checkElem, "value", "true");
+
+    EventMessageBundle messages = generateAndCheckEvents(EventType.FORM_VALUE_CHANGED);
+    // Find the FORM_VALUE_CHANGED event in the bundle (DOCUMENT_CHANGED may also appear)
+    FormValueChangedEvent event = null;
+    for (com.google.wave.api.event.Event e : messages.getEvents()) {
+      if (e instanceof FormValueChangedEvent) {
+        event = (FormValueChangedEvent) e;
+        break;
+      }
+    }
+    assertNotNull("Expected a FORM_VALUE_CHANGED event", event);
+    assertEquals("agree", event.getElementName());
+    assertEquals("check", event.getElementType());
+    assertEquals("false", event.getOldValue());
+    assertEquals("true", event.getNewValue());
+  }
+
   // Helper Methods.
+
+  /**
+   * Recursively searches for the first element with the given tag name in the document tree.
+   */
+  private org.waveprotocol.wave.model.document.Doc.E findElementByTag(
+      Document doc,
+      org.waveprotocol.wave.model.document.Doc.E parent,
+      String tagName) {
+    org.waveprotocol.wave.model.document.Doc.N child = doc.getFirstChild(parent);
+    while (child != null) {
+      org.waveprotocol.wave.model.document.Doc.E el = doc.asElement(child);
+      if (el != null) {
+        if (tagName.equals(doc.getTagName(el))) {
+          return el;
+        }
+        org.waveprotocol.wave.model.document.Doc.E found = findElementByTag(doc, el, tagName);
+        if (found != null) {
+          return found;
+        }
+      }
+      child = doc.getNextSibling(child);
+    }
+    return null;
+  }
 
   /**
    * Collects the ops applied to wavelet and creates a delta for processing in

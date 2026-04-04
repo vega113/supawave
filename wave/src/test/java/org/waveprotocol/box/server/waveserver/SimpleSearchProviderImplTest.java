@@ -20,8 +20,6 @@
 package org.waveprotocol.box.server.waveserver;
 
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -197,8 +195,6 @@ public class SimpleSearchProviderImplTest extends TestCase {
     when(waveViewProvider.retrievePerUserWaveView(USER1)).thenReturn(wavesViewUser1);
     when(waveViewProvider.retrievePerUserWaveView(USER2)).thenReturn(wavesViewUser2);
     when(waveViewProvider.retrievePerUserWaveView(SHARED_USER)).thenReturn(wavesViewUser3);
-    when(waveViewProvider.searchByText(any(ParticipantId.class), anyString(),
-        any(IndexFieldType.class))).thenReturn(null);
 
     ConversationUtil conversationUtil = new ConversationUtil(idGenerator);
     WaveDigester digester = new WaveDigester(conversationUtil);
@@ -629,48 +625,6 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
     assertEquals(1, results.getNumResults());
     assertEquals("matching",
-        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
-  }
-
-  public void testSearchFilterByContentUsesLuceneMatchesWhenAvailable() throws Exception {
-    WaveletName matchingWave = WaveletName.of(WaveId.of(DOMAIN, "matching-lucene"), WAVELET_ID);
-    WaveletName otherWave = WaveletName.of(WaveId.of(DOMAIN, "other-lucene"), WAVELET_ID);
-
-    submitDeltaToNewWavelet(matchingWave, USER1, addParticipantToWavelet(USER1, matchingWave));
-    appendBlipToWavelet(matchingWave, USER1, "b+matching-lucene",
-        "meeting notes and action items");
-
-    submitDeltaToNewWavelet(otherWave, USER1, addParticipantToWavelet(USER1, otherWave));
-    appendBlipToWavelet(otherWave, USER1, "b+other-lucene", "meeting notes and action items");
-
-    when(waveViewProvider.searchByText(USER1, "meeting notes", IndexFieldType.CONTENT))
-        .thenReturn(java.util.Collections.singleton(matchingWave.waveId));
-
-    SearchResult results = searchProvider.search(USER1, "content:meeting notes", 0, 10);
-
-    assertEquals(1, results.getNumResults());
-    assertEquals("matching-lucene",
-        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
-  }
-
-  public void testSearchFilterByContentFallsBackWhenLuceneUnavailable() throws Exception {
-    WaveletName matchingWave = WaveletName.of(WaveId.of(DOMAIN, "matching-fallback"), WAVELET_ID);
-    WaveletName partialWave = WaveletName.of(WaveId.of(DOMAIN, "partial-fallback"), WAVELET_ID);
-
-    submitDeltaToNewWavelet(matchingWave, USER1, addParticipantToWavelet(USER1, matchingWave));
-    appendBlipToWavelet(matchingWave, USER1, "b+matching-fallback",
-        "meeting notes and action items");
-
-    submitDeltaToNewWavelet(partialWave, USER1, addParticipantToWavelet(USER1, partialWave));
-    appendBlipToWavelet(partialWave, USER1, "b+partial-fallback", "meeting recap only");
-
-    when(waveViewProvider.searchByText(USER1, "meeting notes", IndexFieldType.CONTENT))
-        .thenReturn(null);
-
-    SearchResult results = searchProvider.search(USER1, "content:meeting notes", 0, 10);
-
-    assertEquals(1, results.getNumResults());
-    assertEquals("matching-fallback",
         WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
   }
 

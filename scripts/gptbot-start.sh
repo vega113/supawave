@@ -104,7 +104,8 @@ if ! command -v sbt >/dev/null 2>&1; then
     source "$HOME/.sdkman/bin/sdkman-init.sh"
   fi
 fi
-command -v sbt >/dev/null 2>&1 || { echo "sbt not found"; exit 1; }
+SBT="$(command -v sbt)"
+[[ -n "$SBT" ]] || { echo "sbt not found"; exit 1; }
 
 CLOUDFLARED="cloudflared"
 if ! command -v cloudflared >/dev/null 2>&1; then
@@ -124,7 +125,7 @@ sleep 1
 
 # ── start bot ─────────────────────────────────────────────────────────
 echo "Starting gpt-bot (engine=$GPTBOT_CODEX_ENGINE, port=$GPTBOT_LISTEN_PORT)..."
-sbt "runMain org.waveprotocol.examples.robots.gptbot.GptBotServer" > "$PID_DIR/bot.log" 2>&1 &
+"$SBT" "runMain org.waveprotocol.examples.robots.gptbot.GptBotServer" > "$PID_DIR/bot.log" 2>&1 &
 BOT_PID=$!
 echo "$BOT_PID" > "$PID_DIR/sbt.pid"
 

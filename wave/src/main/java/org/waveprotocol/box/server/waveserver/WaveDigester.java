@@ -49,6 +49,7 @@ import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl.DefaultFollow
 import org.waveprotocol.wave.model.supplement.WaveletBasedSupplement;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
@@ -178,7 +179,15 @@ public class WaveDigester {
       return WaveletBasedSupplement.create(userDataWavelet);
     }
     if (isExplicitParticipant(participant, context.conversationalWavelets)) {
-      return new PrimitiveSupplementImpl();
+      PrimitiveSupplementImpl state = new PrimitiveSupplementImpl();
+      // On public waves, seed as read so explicit participants without a UDW
+      // don't see a stale unread badge in search results.
+      if (hasSharedDomainParticipant(participant, context.conversationalWavelets)) {
+        for (ObservableWaveletData wd : context.conversationalWavelets) {
+          state.setLastReadWaveletVersion(wd.getWaveletId(), (int) wd.getVersion());
+        }
+      }
+      return state;
     }
     return null;
   }
@@ -451,12 +460,16 @@ public class WaveDigester {
       udwState = WaveletBasedSupplement.create(getOrCreateReadOnlyWavelet(udw, waveletAdapters));
     } else {
       PrimitiveSupplementImpl emptyState = new PrimitiveSupplementImpl();
-      // When the viewer has no UDW and is not an explicit participant (i.e., they
-      // can see the wave only via the shared domain participant), treat all blips
-      // as read. Without this, public/shared waves always show a stale unread badge
-      // because the empty supplement has no read state and every blip version
+      // When the viewer has no UDW, seed all blips as read if:
+      //   (a) viewer is an implicit participant (sees wave via @domain), OR
+      //   (b) viewer is an explicit participant on a PUBLIC wave.
+      // Without this, public/shared waves show a stale unread badge because
+      // the empty supplement has no read state and every blip version
       // comparison falls through to "unread".
-      if (!isExplicitParticipant(viewer, conversationalWavelets)) {
+      // Private waves are left alone: a newly-added participant without a
+      // UDW should see all content as unread.
+      if (!isExplicitParticipant(viewer, conversationalWavelets)
+          || hasSharedDomainParticipant(viewer, conversationalWavelets)) {
         for (ObservableWaveletData waveletData : conversationalWavelets) {
           emptyState.setLastReadWaveletVersion(waveletData.getWaveletId(),
               (int) waveletData.getVersion());
@@ -486,6 +499,25 @@ public class WaveDigester {
       List<ObservableWaveletData> conversationalWavelets) {
     for (ObservableWaveletData waveletData : conversationalWavelets) {
       if (waveletData.getParticipants().contains(participant)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns true if any conversational wavelet contains the shared domain
+   * participant (i.e., the wave is public).
+   */
+  private static boolean hasSharedDomainParticipant(ParticipantId viewer,
+      List<ObservableWaveletData> conversationalWavelets) {
+    if (viewer == null) {
+      return false;
+    }
+    ParticipantId sharedDomainParticipant =
+        ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(viewer.getDomain());
+    for (ObservableWaveletData waveletData : conversationalWavelets) {
+      if (waveletData.getParticipants().contains(sharedDomainParticipant)) {
         return true;
       }
     }

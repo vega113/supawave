@@ -36,6 +36,9 @@ public class CenterPopupPositioner implements RelativePopupPositioner {
   /** Default height offset in PX. */
   private static final int MIN_OFFSET_HEIGHT_DEFAULT = 0;
 
+  /** Horizontal margin on each side when the popup is clamped to viewport width. */
+  private static final int HORIZONTAL_MARGIN = 16;
+
   /**
    * {@inheritDoc}
    */
@@ -44,7 +47,16 @@ public class CenterPopupPositioner implements RelativePopupPositioner {
     ScheduleCommand.addCommand(new Scheduler.Task() {
       @Override
       public void execute() {
-        p.getStyle().setLeft((RootPanel.get().getOffsetWidth() - p.getOffsetWidth()) / 2, Unit.PX);
+        int viewportWidth = RootPanel.get().getOffsetWidth();
+        int popupWidth = p.getOffsetWidth();
+
+        // Clamp popup width to viewport minus margins on small screens.
+        if (popupWidth > viewportWidth - 2 * HORIZONTAL_MARGIN) {
+          popupWidth = viewportWidth - 2 * HORIZONTAL_MARGIN;
+          p.getStyle().setWidth(popupWidth, Unit.PX);
+        }
+
+        p.getStyle().setLeft(Math.max((viewportWidth - popupWidth) / 2, HORIZONTAL_MARGIN), Unit.PX);
         int height = PositionUtil.boundHeightToScreen(p.getOffsetHeight());
         int top = (RootPanel.get().getOffsetHeight() - height) / 2;
         // Prevent negative top position.

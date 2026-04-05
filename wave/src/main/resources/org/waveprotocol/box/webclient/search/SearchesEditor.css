@@ -21,8 +21,9 @@
 
 .self {
   padding: 24px;
-  min-width: 460px;
+  min-width: 280px;
   max-width: 560px;
+  box-sizing: border-box;
 }
 
 .title {
@@ -63,6 +64,7 @@
   cursor: pointer;
   font-size: 13px;
   color: #2d3748;
+  flex-wrap: wrap;
 }
 
 .searchRowSelected {
@@ -74,6 +76,7 @@
   font-size: 13px;
   color: #2d3748;
   background: #e8f4fd;
+  flex-wrap: wrap;
 }
 
 .searchRowName {
@@ -143,6 +146,7 @@
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
 .addButton {

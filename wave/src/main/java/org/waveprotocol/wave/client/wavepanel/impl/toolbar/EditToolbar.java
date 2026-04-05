@@ -166,7 +166,7 @@ public class EditToolbar {
 
     group = toolbarUi.addGroup();
     createAlignButtons(group);
-    createDirectionButtons(group);
+    createRtlDirectionButton(group);
     createClearFormattingButton(group);
 
     group = toolbarUi.addGroup();
@@ -175,9 +175,6 @@ public class EditToolbar {
 
     group = toolbarUi.addGroup();
     createInsertAttachmentButton(group, user);
-
-    group = toolbarUi.addGroup();
-    createRtlDirectionButton(group);
   }
 
   private void createBoldButton(ToolbarView toolbar) {
@@ -516,18 +513,6 @@ public class EditToolbar {
           .setIcon(alignment.iconCss)
           .applyTo(b, createParagraphApplicationController(b, alignment.style));
     }
-  }
-
-  private void createDirectionButtons(ToolbarView toolbar) {
-    ToolbarToggleButton rtlButton = toolbar.addToggleButton();
-    new ToolbarButtonViewBuilder()
-        .setText("RTL")
-        .applyTo(rtlButton, createParagraphApplicationController(rtlButton, Paragraph.Direction.RTL));
-
-    ToolbarToggleButton ltrButton = toolbar.addToggleButton();
-    new ToolbarButtonViewBuilder()
-        .setText("LTR")
-        .applyTo(ltrButton, createParagraphApplicationController(ltrButton, Paragraph.Direction.LTR));
   }
 
   /**

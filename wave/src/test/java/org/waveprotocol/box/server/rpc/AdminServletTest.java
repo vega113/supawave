@@ -494,7 +494,8 @@ public final class AdminServletTest {
     when(deltaStore.getWaveIdIterator())
         .thenReturn(ExceptionalIterator.FromIterator.create(List.<WaveId>of().iterator()));
     return new AdminAnalyticsService(
-        accountStore, waveletProvider, deltaStore, new PublicWaveViewTracker(), "wave.example.test");
+        accountStore, waveletProvider, deltaStore, new PublicWaveViewTracker(), "wave.example.test",
+        analyticsConfig());
   }
 
   private static Config analyticsConfig() {

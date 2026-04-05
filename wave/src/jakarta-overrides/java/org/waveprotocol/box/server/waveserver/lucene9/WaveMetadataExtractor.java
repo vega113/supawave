@@ -201,7 +201,8 @@ public class WaveMetadataExtractor {
           for (int i = 0; i < map.changeSize(); i++) {
             String key = map.getChangeKey(i);
             String newValue = map.getNewValue(i);
-            if (AnnotationConstants.isMentionKey(key) && newValue != null && !newValue.isEmpty()) {
+            if (AnnotationConstants.MENTION_USER.equals(key)
+                && newValue != null && !newValue.isEmpty()) {
               mentions.add(newValue.toLowerCase(Locale.ROOT));
             }
           }

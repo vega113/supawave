@@ -15,6 +15,8 @@ public final class MemoryAnalyticsCounterStore implements AnalyticsCounterStore 
   private static final long HOUR_MS = 3_600_000L;
   private final ConcurrentMap<Long, MutableBucket> buckets = new ConcurrentHashMap<>();
 
+  @Override public String storageNote() { return "in-memory: resets on restart"; }
+
   @Override public void incrementWavesCreated(long timestampMs) { getBucket(timestampMs).wavesCreated.increment(); }
   @Override public void incrementBlipsCreated(long timestampMs, int count) { getBucket(timestampMs).blipsCreated.add(count); }
   @Override public void incrementUsersRegistered(long timestampMs) { getBucket(timestampMs).usersRegistered.increment(); }

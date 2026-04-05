@@ -310,21 +310,21 @@ jobs:
           CHANGELOG_HTML=""
           if [ -f wave/config/changelog.json ]; then
             CHANGELOG_HTML=$(python3 - <<'PY' 2>/dev/null
-import html
-import json
+          import html
+          import json
 
-with open('wave/config/changelog.json') as f:
-    entries = json.load(f)
+          with open('wave/config/changelog.json') as f:
+              entries = json.load(f)
 
-lines = []
-for entry in entries[:5]:
-    title = html.escape(entry.get('title', ''))
-    version = html.escape(entry.get('version', ''))
-    date = html.escape(entry.get('date', ''))
-    lines.append(f'<li><strong>{title}</strong> ({version}, {date})</li>')
+          lines = []
+          for entry in entries[:5]:
+              title = html.escape(entry.get('title', ''))
+              version = html.escape(entry.get('version', ''))
+              date = html.escape(entry.get('date', ''))
+              lines.append(f'<li><strong>{title}</strong> ({version}, {date})</li>')
 
-if lines:
-    print('<h3>Recent Changes</h3><ul>' + ''.join(lines) + '</ul>')
+          if lines:
+              print('<h3>Recent Changes</h3><ul>' + ''.join(lines) + '</ul>')
 PY
             ) || true
           fi

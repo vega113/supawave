@@ -1,7 +1,7 @@
 [
   {
     "releaseId": "2026-04-05-deploy-email-branding-changelog",
-    "version": "PR #611",
+    "version": "PR #622",
     "date": "2026-04-05",
     "title": "Brand deploy emails with SupaWave and include changelog",
     "summary": "Deploy notification emails now show SupaWave in the subject line and include the five most recent changelog entries in the body.",

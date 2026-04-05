@@ -21,7 +21,6 @@ package org.waveprotocol.box.server.waveserver.lucene9;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
-import java.util.Locale;
 import java.util.Optional;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.KnnFloatVectorField;
@@ -73,8 +72,7 @@ public class WaveDocumentBuilder {
     }
     for (String mentioned : metadata.getMentions()) {
       if (mentioned != null && !mentioned.isEmpty()) {
-        document.add(new StringField(Lucene9FieldNames.MENTIONED,
-            mentioned.toLowerCase(Locale.ROOT), Store.YES));
+        document.add(new StringField(Lucene9FieldNames.MENTIONED, mentioned, Store.YES));
       }
     }
     if (!metadata.getTitle().isEmpty()) {

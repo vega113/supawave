@@ -24,7 +24,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +44,7 @@ import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.waveserver.SearchProvider;
 import org.waveprotocol.box.server.waveserver.WaveBus;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
@@ -557,8 +557,8 @@ public final class SearchWaveletUpdaterTest extends TestCase {
     when(indexer.getAffectedSubscriptions(eq(waveId), eq(ImmutableSet.of(alice))))
         .thenReturn(Collections.emptySet());
 
-    // The wavelet doc mentions Bob
-    String mentionKey = "mention/" + bob.getAddress();
+    // The wavelet doc mentions Bob using the standard annotation key
+    String mentionKey = AnnotationConstants.MENTION_USER;
     DocInitialization docInit = mock(DocInitialization.class);
     doAnswer(invocation -> {
       DocInitializationCursor cursor = invocation.getArgument(0);

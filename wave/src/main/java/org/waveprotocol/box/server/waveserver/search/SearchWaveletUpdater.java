@@ -207,7 +207,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
             String value = map.getNewValue(i);
             if (AnnotationConstants.isMentionKey(key) && value != null && !value.isEmpty()) {
               try {
-                mentioned.add(ParticipantId.ofUnsafe(value.toLowerCase(Locale.ROOT)));
+                mentioned.add(ParticipantId.ofUnsafe(value.trim().toLowerCase(Locale.ROOT)));
               } catch (IllegalArgumentException e) {
                 LOG.warning("Skipping malformed mention annotation value: " + value);
               }

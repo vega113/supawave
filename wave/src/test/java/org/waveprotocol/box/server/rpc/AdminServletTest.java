@@ -155,7 +155,8 @@ public final class AdminServletTest {
             featureFlagStore,
             lucene9Indexer,
             mockProvider(mock(SearchWaveletUpdater.class)),
-            newAnalyticsService());
+            newAnalyticsService(),
+            new MemoryAnalyticsCounterStore());
     try {
       servlet.doGet(request, response);
       writer.flush();

@@ -20,7 +20,6 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.diff;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.editor.Editor;
 import org.waveprotocol.wave.client.wave.DocumentRegistry;
@@ -82,7 +81,6 @@ public final class DiffController extends ConversationListenerImpl implements Ed
       };
 
 
-  @VisibleForTesting
   DiffController(ObservableConversationView wave, ObservableSupplementedWave supplement,
       DocumentRegistry<? extends InteractiveDocument> documents, ModelAsViewProvider models) {
     this.wave = wave;

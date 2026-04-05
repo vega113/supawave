@@ -22,9 +22,6 @@ package org.waveprotocol.wave.model.supplement;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.CopyOnWriteSet;
-import org.waveprotocol.wave.model.util.Preconditions;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
-import org.waveprotocol.wave.model.util.StringMap;
 import org.waveprotocol.wave.model.version.HashedVersion;
 
 import java.util.Collections;
@@ -168,10 +165,6 @@ public final class PrimitiveSupplementImpl implements ObservablePrimitiveSupplem
   /** Maps wavelet ids to their notified version. */
   private final Map<WaveletId, Integer> waveletNotifiedVersions =
       new HashMap<WaveletId, Integer>();
-
-  /** Maps gadget ids to their state maps. */
-  private final StringMap<StringMap<String>> gadgetStates =
-      CollectionUtils.<StringMap<String>>createStringMap();
 
   private static int unboxVersion (Integer version) {
     return version == null ? NO_VERSION : version;
@@ -577,28 +570,4 @@ public final class PrimitiveSupplementImpl implements ObservablePrimitiveSupplem
     listeners.remove(listener);
   }
 
-  @Override
-  public ReadableStringMap<String> getGadgetState(String gadgetId) {
-    if (!gadgetStates.containsKey(gadgetId)) {
-      gadgetStates.put(gadgetId, CollectionUtils.<String> createStringMap());
-    }
-    return gadgetStates.get(gadgetId);
-  }
-
-  @Override
-  public void setGadgetState(String gadgetId, String key, String value) {
-    Preconditions.checkNotNull(key, "Private gadget state key is null.");
-    StringMap<String> gadgetState;
-    if (!gadgetStates.containsKey(gadgetId)) {
-      gadgetState = CollectionUtils.<String> createStringMap();
-      gadgetStates.put(gadgetId, gadgetState);
-    } else {
-      gadgetState = gadgetStates.get(gadgetId);
-    }
-    if (value != null) {
-      gadgetState.put(key, value);
-    } else {
-      gadgetState.remove(key);
-    }
-  }
 }

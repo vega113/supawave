@@ -51,8 +51,6 @@ import java.util.regex.Pattern;
 
 /**
  * Class to support serializing Elements from and to XML.
- *
- *
  */
 public abstract class ElementSerializer {
 

@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.paging;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.util.LinkedSequence;
 
@@ -435,7 +435,7 @@ public final class Traverser {
 
     // Rebase position.
     position -= point.origin();
-    Preconditions.checkArgument(point.location() < position);
+    Preconditions.checkArgument(point.location() < position, "point.location() < position");
     Block block = point.block;
 
     if (block.getEnd() >= position) {
@@ -496,7 +496,7 @@ public final class Traverser {
 
     // Rebase position.
     position -= point.origin();
-    Preconditions.checkArgument(point.location() > position);
+    Preconditions.checkArgument(point.location() > position, "point.location() > position");
     Block block = point.block;
 
     if (block.getStart() <= position) {

@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.concurrencycontrol;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.model.operation.Operation;
 import org.waveprotocol.wave.model.operation.SilentOperationSink;
@@ -59,7 +59,7 @@ public final class ProxyOperationSink<O extends Operation<?>> implements SilentO
    * @param target target to consume future operations
    */
   public void setTarget(SilentOperationSink<O> target) {
-    Preconditions.checkState(this.target == null);
+    Preconditions.checkState(this.target == null, "this.target == null");
     this.target = target;
 
     if (queue != null) {

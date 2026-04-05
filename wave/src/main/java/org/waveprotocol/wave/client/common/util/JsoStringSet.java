@@ -22,7 +22,6 @@ package org.waveprotocol.wave.client.common.util;
 import static org.waveprotocol.wave.client.common.util.JsoStringMap.escape;
 import static org.waveprotocol.wave.client.common.util.JsoStringMap.unescape;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.util.ReadableStringSet;
 import org.waveprotocol.wave.model.util.StringSet;
@@ -37,7 +36,6 @@ import java.util.Set;
  */
 public class JsoStringSet implements StringSet {
 
-  @VisibleForTesting
   public final JsoView backend;
 
   private static final Object AN_OBJECT = new Object();

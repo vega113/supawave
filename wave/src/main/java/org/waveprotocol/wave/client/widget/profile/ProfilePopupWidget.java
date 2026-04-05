@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.widget.profile;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.ImageElement;
@@ -127,14 +127,14 @@ public final class ProfilePopupWidget extends Composite
 
   @Override
   public void init(Listener listener) {
-    Preconditions.checkState(this.listener == null);
-    Preconditions.checkArgument(listener != null);
+    Preconditions.checkState(this.listener == null, "this.listener == null");
+    Preconditions.checkArgument(listener != null, "listener != null");
     this.listener = listener;
   }
 
   @Override
   public void reset() {
-    Preconditions.checkState(this.listener != null);
+    Preconditions.checkState(this.listener != null, "this.listener != null");
     this.listener = null;
     avatar.setSrc(null);
     name.setInnerText(null);

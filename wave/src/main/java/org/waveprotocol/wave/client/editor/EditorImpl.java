@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.Duration;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptException;
@@ -240,7 +239,7 @@ public class EditorImpl extends LogicalPanel.Impl implements
     void onIncomingOp(DocOp op);
   }
 
-  @VisibleForTesting final MiniBundle editorPackage = new MiniBundle() {
+  final MiniBundle editorPackage = new MiniBundle() {
 
     /** {@inheritDoc} */
     public TypingExtractor getTypingExtractor() {
@@ -1535,7 +1534,6 @@ public class EditorImpl extends LogicalPanel.Impl implements
   /**
    * Causes all pending operations to be fired as events.
    */
-  @VisibleForTesting
   void flushSynchronous() {
     if (content != null) {
       typing.flush();
@@ -2575,7 +2573,6 @@ public class EditorImpl extends LogicalPanel.Impl implements
   /**
    * Checks health if in debug build + logs errors
    */
-  @VisibleForTesting
   void debugCheckHealth() {
     if (LogLevel.showErrors()) {
       try {
@@ -2644,16 +2641,14 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
   @Override
   public CaretAnnotations getCaretAnnotations() {
-    Preconditions.checkState(caretStyles != null,
-        "Using the caret annotations of an editor not set up.");
+    Preconditions.checkState(caretStyles != null, "Using the caret annotations of an editor not set up.");
     checkContextConsistency();
     return caretStyles;
   }
 
   @Override
   public SelectionHelper getSelectionHelper() {
-    Preconditions.checkState(passiveSelectionHelper != null,
-        "Using the selection helper of an editor not set up.");
+    Preconditions.checkState(passiveSelectionHelper != null, "Using the selection helper of an editor not set up.");
     checkContextConsistency();
     return passiveSelectionHelper;
   }

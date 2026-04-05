@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.util.escapers;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import java.util.Objects;
 
 /**
  * A {@code UnicodeEscaper} that escapes some set of Java characters using
@@ -117,7 +117,7 @@ public class PercentEscaper extends UnicodeEscaper {
    * @throws IllegalArgumentException if any of the parameters were invalid
    */
   public PercentEscaper(String safeChars, boolean plusForSpace) {
-    checkNotNull(safeChars);  // eager for GWT.
+    Objects.requireNonNull(safeChars);  // eager for GWT.
 
     // Avoid any misunderstandings about the behavior of this escaper
     if (safeChars.matches(".*[0-9A-Za-z].*")) {
@@ -189,7 +189,7 @@ public class PercentEscaper extends UnicodeEscaper {
    */
   @Override
   public String escape(String s) {
-    checkNotNull(s);
+    Objects.requireNonNull(s);
     int slen = s.length();
     for (int index = 0; index < slen; index++) {
       char c = s.charAt(index);

@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.scheduler.Scheduler.IncrementalTask;
 import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
@@ -44,7 +43,6 @@ public final class BlipQueueRenderer implements IncrementalTask {
   private final PagingHandler pager;
   private final Queue<ConversationBlip> toPageIn = CollectionUtils.createQueue();
 
-  @VisibleForTesting
   BlipQueueRenderer(PagingHandler pager, TimerService timer) {
     this.pager = pager;
     this.timer = timer;

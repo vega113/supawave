@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor.content;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.waveprotocol.wave.client.editor.content.AnnotationPainter.BoundaryFunction;
 import org.waveprotocol.wave.client.editor.content.AnnotationPainter.PaintFunction;
 
@@ -159,12 +158,10 @@ public final class PainterRegistryImpl implements PainterRegistry {
     // they want to remove the function once no more keys are associated with it.
   }
 
-  @VisibleForTesting
   public double debugGetVersion() {
     return data.debugGetVersion();
   }
 
-  @VisibleForTesting
   public double debugGetKnownParentVersion() {
     return data.debugGetKnownParentVersion();
   }

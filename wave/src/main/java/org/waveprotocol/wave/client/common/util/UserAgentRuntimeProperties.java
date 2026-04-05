@@ -22,14 +22,12 @@ package org.waveprotocol.wave.client.common.util;
 import com.google.gwt.core.client.GWT;
 
 import org.waveprotocol.wave.model.util.Box;
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Class to contain run-time checks of a user-agent's capabilities.
  *
  *
  */
-@VisibleForTesting
 public class UserAgentRuntimeProperties {
   private static final UserAgentRuntimeProperties INSTANCE = createInstance();
 
@@ -38,7 +36,6 @@ public class UserAgentRuntimeProperties {
                           : new UserAgentRuntimeProperties("");
   }
 
-  @VisibleForTesting
   public static UserAgentRuntimeProperties get() {
     return INSTANCE;
   }
@@ -52,7 +49,6 @@ public class UserAgentRuntimeProperties {
   private final boolean isIe8;
   private final boolean isChrome;
 
-  @VisibleForTesting
   public UserAgentRuntimeProperties(String userAgent) {
     this.userAgent = userAgent;
     this.version = calculateVersion(userAgent);
@@ -64,37 +60,30 @@ public class UserAgentRuntimeProperties {
     this.isChrome = calculateIsChrome(userAgent);
   }
 
-  @VisibleForTesting
   public String getUserAgent() {
     return userAgent;
   }
 
-  @VisibleForTesting
   public boolean isMac() {
     return isMac;
   }
 
-  @VisibleForTesting
   public boolean isWin() {
     return isWin;
   }
 
-  @VisibleForTesting
   public boolean isLinux() {
     return isLinux;
   }
 
-  @VisibleForTesting
   public boolean isIe7() {
     return isIe7;
   }
 
-  @VisibleForTesting
   public boolean isIe8(){
     return isIe8;
   }
 
-  @VisibleForTesting
   public boolean isChrome() {
     return isChrome;
   }
@@ -103,7 +92,6 @@ public class UserAgentRuntimeProperties {
    * @return whether the current user agent version is at least the one given by
    *         the method parameters.
    */
-  @VisibleForTesting
   public boolean isAtLeastVersion(int major, int minor) {
     return version >= (major * 1000 + minor);
   }
@@ -112,7 +100,6 @@ public class UserAgentRuntimeProperties {
    * Do not use this for program logic - for debugging only. For program logic,
    * instead use {@link #isAtLeastVersion(int, int)}
    */
-  @VisibleForTesting
   public int getMajorVer() {
     return version / 1000;
   }
@@ -121,7 +108,6 @@ public class UserAgentRuntimeProperties {
    * Do not use this for program logic - for debugging only. For program logic,
    * instead use {@link #isAtLeastVersion(int, int)}
    */
-  @VisibleForTesting
   public int getMinorVer() {
     return version % 1000;
   }

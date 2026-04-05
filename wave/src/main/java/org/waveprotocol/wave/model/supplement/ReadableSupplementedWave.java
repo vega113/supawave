@@ -22,7 +22,6 @@ package org.waveprotocol.wave.model.supplement;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.Wavelet;
 
@@ -135,20 +134,4 @@ public interface ReadableSupplementedWave {
    */
   boolean hasPendingNotification();
 
-  /**
-   * Reads the value of the given key from the state of the given gadget.
-   *
-   * @param gadgetId ID of the gadget.
-   * @param key State key.
-   * @return Value for the given key or null if gadget or key is missing.
-   */
-  String getGadgetStateValue(String gadgetId, String key);
-
-  /**
-   * Gets the gadget state for the given gadget.
-   *
-   * @param gadgetId ID of the gadget to get the state of.
-   * @return Gadget state as StateMap.
-   */
-  ReadableStringMap<String> getGadgetState(String gadgetId);
 }

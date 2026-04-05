@@ -19,15 +19,16 @@
 
 package org.waveprotocol.wave.model.conversation;
 
-import com.google.common.collect.ImmutableSet;
-
 import org.waveprotocol.wave.model.document.MutableDocument;
 import org.waveprotocol.wave.model.document.util.Point;
 import org.waveprotocol.wave.model.document.util.Point.El;
 import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Provides an integrity-preserving interface for a document that stores tags
@@ -77,8 +78,8 @@ public class TagsDocument<N, E extends N, T extends N> {
    * @return an immutable set of tag names
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public static <N, E extends N, T extends N> ImmutableSet<String> getTags(MutableDocument<N, E, T> doc) {
-    final ImmutableSet.Builder<String> tags = ImmutableSet.builder();
+  public static <N, E extends N, T extends N> Set<String> getTags(MutableDocument<N, E, T> doc) {
+    final Set<String> tags = new LinkedHashSet<>();
     for (N node = doc.getFirstChild(doc.getDocumentElement());
          node != null;
          node = doc.getNextSibling(node)) {
@@ -87,7 +88,7 @@ public class TagsDocument<N, E extends N, T extends N> {
         tags.add(doc.getData(textNode));
       }
     }
-    return tags.build();
+    return Collections.unmodifiableSet(tags);
   }
 
   /**

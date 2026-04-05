@@ -19,7 +19,7 @@
 
 package org.waveprotocol.box.webclient.client;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.user.client.Command;
 
 import org.waveprotocol.wave.client.StageOne;
@@ -90,9 +90,9 @@ public class StageTwoProvider extends StageTwo.DefaultProvider {
       ProfileManager profiles, UnsavedDataListener unsavedDataListener,
       Set<ParticipantId> otherParticipants) {
     super(stageOne, unsavedDataListener);
-    Preconditions.checkArgument(stageOne != null);
-    Preconditions.checkArgument(waveRef != null);
-    Preconditions.checkArgument(waveRef.getWaveId() != null);
+    Preconditions.checkArgument(stageOne != null, "stageOne != null");
+    Preconditions.checkArgument(waveRef != null, "waveRef != null");
+    Preconditions.checkArgument(waveRef.getWaveId() != null, "waveRef.getWaveId() != null");
     this.waveRef = waveRef;
     this.channel = channel;
     this.isNewWave = isNewWave;

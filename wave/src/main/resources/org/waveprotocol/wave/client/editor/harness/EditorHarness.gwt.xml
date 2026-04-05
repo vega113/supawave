@@ -38,7 +38,7 @@
 
 <stylesheet src='EditorTest.css'/>
 
-<set-property name="loglevel" value="debug"/>
+<!-- TODO(j2cl): <set-property name="loglevel"> removed; LogLevel now uses runtime URL "ll" param. -->
 
 <!-- Uncomment the following to improve debug-ability of CSS: -->
 <!-- <set-property name="ResourceBundle.enableInlining" value="false"/> -->

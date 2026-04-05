@@ -20,7 +20,6 @@
 
 package org.waveprotocol.wave.model.id;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -178,7 +177,6 @@ public class IdGeneratorImpl implements IdGenerator, IdConstants {
    * Base-64 encodes a non-negative integer value in a minimum-length string.
    */
   @SuppressWarnings("fallthrough")
-  @VisibleForTesting
   public
   static String base64Encode(int intValue) {
     assert intValue >= 0;

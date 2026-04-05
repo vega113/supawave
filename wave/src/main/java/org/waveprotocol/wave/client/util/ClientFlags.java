@@ -21,7 +21,6 @@
 
 package org.waveprotocol.wave.client.util;
 
-import com.google.common.annotations.VisibleForTesting;
 
 
 /**
@@ -51,7 +50,6 @@ public final class ClientFlags extends ClientFlagsBase {
   /**
    * Inject a TypedSource object for the purpose of testing.
    */
-  @VisibleForTesting
   public static void resetWithSourceForTesting(TypedSource source) {
     ClientFlags.instance = new ClientFlags(new ClientFlagsBaseHelper(source));
   }

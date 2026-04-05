@@ -99,7 +99,9 @@ public interface EventHandler {
    * Handler for {@link GadgetStateChangedEvent}.
    *
    * @param event the gadget state changed event.
+   * @deprecated Gadget state events are no longer generated. This method is deprecated for removal.
    */
+  @Deprecated(forRemoval = true)
   void onGadgetStateChanged(GadgetStateChangedEvent event);
 
   /**

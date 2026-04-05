@@ -21,8 +21,7 @@ package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 
 import static org.waveprotocol.wave.client.uibuilder.BuilderHelper.compose;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
@@ -45,12 +44,11 @@ public final class InlineConversationViewBuilder implements IntrinsicInlineConve
       UiBuilder thread, UiBuilder tags) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
-    Preconditions.checkArgument(!id.contains("\'"));
+    Preconditions.checkArgument(!id.contains("\'"), "!id.contains(\"\\'\")");
     return new InlineConversationViewBuilder(CollapsibleBuilder.create(id,
         TypeCodes.kind(Type.INLINE_CONVERSATION), compose(participants, tags, thread)));
   }
 
-  @VisibleForTesting
   InlineConversationViewBuilder(CollapsibleBuilder impl) {
     this.impl = impl;
   }

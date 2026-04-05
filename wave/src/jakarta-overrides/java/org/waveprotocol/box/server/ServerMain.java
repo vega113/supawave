@@ -309,7 +309,6 @@ public class ServerMain {
   }
 
   private static void initializeServlets(ServerRpcProvider server, Config config) {
-    server.addServlet("/gadget/gadgetlist", GadgetProviderServlet.class);
     server.addServlet(AttachmentServlet.ATTACHMENT_URL + "/*", AttachmentServlet.class);
     server.addServlet(AttachmentServlet.THUMBNAIL_URL + "/*", AttachmentServlet.class);
     server.addServlet(AttachmentInfoServlet.ATTACHMENTS_INFO_URL, AttachmentInfoServlet.class);

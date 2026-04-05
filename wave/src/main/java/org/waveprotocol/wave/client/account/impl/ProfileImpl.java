@@ -20,7 +20,6 @@
 package org.waveprotocol.wave.client.account.impl;
 
 
-import com.google.common.base.Joiner;
 
 import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.model.util.CollectionUtils;
@@ -105,7 +104,7 @@ public final class ProfileImpl implements Profile {
       // ParticipantId normalization implies names can not be empty.
       assert !names.isEmpty();
       firstName = names.get(0);
-      fullName = Joiner.on(' ').join(names);
+      fullName = String.join(" ", names);
     } else {
       // Name can be empty in case of shared domain participant which has the the form:
       // @example.com.

@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.wave.undo;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.operation.OperationPair;
@@ -192,7 +191,6 @@ class WaveAggregateOp {
         new OpCreatorPair(transformed.serverOp(), s.creator));
   }
 
-  @VisibleForTesting
   WaveAggregateOp(AggregateOperation op, ParticipantId creator) {
     opPairs = Collections.singletonList(new OpCreatorPair(op, creator));
   }

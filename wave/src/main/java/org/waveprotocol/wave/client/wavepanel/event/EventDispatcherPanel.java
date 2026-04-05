@@ -22,8 +22,7 @@ package org.waveprotocol.wave.client.wavepanel.event;
 
 import static org.waveprotocol.wave.client.uibuilder.BuilderHelper.KIND_ATTRIBUTE;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ChangeEvent;
@@ -102,7 +101,6 @@ public final class EventDispatcherPanel extends ComplexPanel
    * @param <E> event type
    * @param <W> wave handler for that event type
    */
-  @VisibleForTesting
   static abstract class HandlerCollection<E, W> {
     /** Top element of the panel (where dispatch stops). */
     private final Element top;
@@ -371,7 +369,7 @@ public final class EventDispatcherPanel extends ComplexPanel
    * @param container panel to adopt the widgetification of {@code element}
    */
   public static EventDispatcherPanel inGwtContext(Element element, LogicalPanel container) {
-    Preconditions.checkArgument(container != null);
+    Preconditions.checkArgument(container != null, "container != null");
     EventDispatcherPanel panel = new EventDispatcherPanel(element);
     container.doAdopt(panel);
     return panel;

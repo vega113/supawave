@@ -27,7 +27,6 @@ import org.waveprotocol.wave.model.conversation.ConversationView;
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.Blip;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -499,18 +498,4 @@ public class SupplementedWaveImpl implements SupplementedWave {
     }
   }
 
-  @Override
-  public ReadableStringMap<String> getGadgetState(String gadgetId) {
-    return supplement.getGadgetState(gadgetId);
-  }
-
-  @Override
-  public String getGadgetStateValue(String gadgetId, String key) {
-    return supplement.getGadgetState(gadgetId).get(key);
-  }
-
-  @Override
-  public void setGadgetState(String gadgetId, String key, String value) {
-    supplement.setGadgetState(gadgetId, key, value);
-  }
 }

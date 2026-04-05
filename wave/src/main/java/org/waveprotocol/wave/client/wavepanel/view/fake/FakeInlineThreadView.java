@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.fake;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.util.LinkedSequence;
 import org.waveprotocol.wave.client.wavepanel.view.ContinuationIndicatorView;
@@ -61,7 +61,7 @@ public final class FakeInlineThreadView extends FakeThreadView implements Inline
   }
 
   void attachTo(FakeAnchor a) {
-    Preconditions.checkState(container == null);
+    Preconditions.checkState(container == null, "container == null");
     this.container = a;
   }
 

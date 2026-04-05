@@ -20,7 +20,6 @@
 
 package org.waveprotocol.wave.client.scheduler;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.core.client.impl.SchedulerImpl;
@@ -45,7 +44,6 @@ public abstract class IdempotentFinally implements ScheduledCommand {
   private final Scheduler scheduler;
   private State state = State.NONE;
 
-  @VisibleForTesting
   IdempotentFinally(Scheduler scheduler) {
     this.scheduler = scheduler;
   }

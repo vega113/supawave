@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.dom;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Element;
 
 /**
@@ -48,14 +48,14 @@ public final class AnchorDomImpl implements DomView {
   }
 
   public void setChild(Element e) {
-    Preconditions.checkArgument(e != null);
-    Preconditions.checkArgument(e.getParentElement() == null);
-    Preconditions.checkState(self.getFirstChildElement() == null);
+    Preconditions.checkArgument(e != null, "e != null");
+    Preconditions.checkArgument(e.getParentElement() == null, "e.getParentElement() == null");
+    Preconditions.checkState(self.getFirstChildElement() == null, "self.getFirstChildElement() == null");
     self.appendChild(e);
   }
 
   public void removeChild(Element e) {
-    Preconditions.checkArgument(e != null && e.getParentElement() == self);
+    Preconditions.checkArgument(e != null && e.getParentElement() == self, "e != null && e.getParentElement() == self");
     e.removeFromParent();
   }
 
@@ -89,10 +89,10 @@ public final class AnchorDomImpl implements DomView {
     // Only null -> non-null and non-null -> null transitions are permitted.
     // Other transitions are signs of bugs.
     if (self.hasAttribute("pid")) {
-      Preconditions.checkArgument(id == null);
+      Preconditions.checkArgument(id == null, "id == null");
       self.removeAttribute("pid");
     } else {
-      Preconditions.checkArgument(id != null && !id.isEmpty());
+      Preconditions.checkArgument(id != null && !id.isEmpty(), "id != null && !id.isEmpty()");
       self.setAttribute("pid", id);
     }
   }

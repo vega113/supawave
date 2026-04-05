@@ -58,6 +58,13 @@ public class QueryHelperTest extends TestCase {
     assertEquals(ImmutableSet.of("true"), queryParams.get(TokenQueryType.UNREAD));
   }
 
+  public void testParseQueryRecognizesMentionsFilter() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams = QueryHelper.parseQuery("mentions:me");
+
+    assertEquals(ImmutableSet.of("me"), queryParams.get(TokenQueryType.MENTIONS));
+    assertNull(queryParams.get(TokenQueryType.CONTENT));
+  }
+
   public void testParseQueryRejectsInvalidUnreadFilterValue() {
     try {
       QueryHelper.parseQuery("unread:maybe");

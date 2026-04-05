@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "wave-server",
-      "runtimeExecutable": "/opt/homebrew/bin/sbt",
+      "runtimeExecutable": "sbt",
       "runtimeArgs": ["--batch", "run"],
       "port": 9898
     }

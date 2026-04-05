@@ -31,6 +31,7 @@ import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
 import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
+import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -852,6 +853,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       try {
         Set<String> foundMentions = new HashSet<String>();
 
+        outer:
         for (ObservableWaveletData wd : wave.getWavelets()) {
           if (!IdUtil.isConversationalId(wd.getWaveletId())) {
             continue;
@@ -891,7 +893,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
             });
 
             if (foundMentions.containsAll(requiredMentions)) {
-              break;
+              break outer;
             }
           }
         }

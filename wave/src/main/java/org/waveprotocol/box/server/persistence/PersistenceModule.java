@@ -31,6 +31,8 @@ import org.waveprotocol.box.server.persistence.file.FileAttachmentStore;
 import org.waveprotocol.box.server.persistence.file.FileDeltaStore;
 import org.waveprotocol.box.server.persistence.file.FileSignerInfoStore;
 import org.waveprotocol.box.server.persistence.file.FileSnapshotStore;
+import org.waveprotocol.box.server.persistence.AnalyticsCounterStore;
+import org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryContactMessageStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
@@ -123,6 +125,7 @@ public class PersistenceModule extends AbstractModule {
     bindContactStore();
     bindContactMessageStore();
     bindFeatureFlagStore();
+    bindAnalyticsCounterStore();
   }
 
   /**
@@ -269,5 +272,19 @@ public class PersistenceModule extends AbstractModule {
           .to(MemoryFeatureFlagStore.class).in(Singleton.class);
     }
     bind(FeatureFlagService.class).in(Singleton.class);
+  }
+
+  /**
+   * Binds the AnalyticsCounterStore for incremental analytics counters.
+   * Uses MongoDB when available, otherwise falls back to in-memory.
+   */
+  private void bindAnalyticsCounterStore() {
+    if (accountStoreType.equalsIgnoreCase("mongodb") && "v4".equalsIgnoreCase(mongoDriver)) {
+      bind(AnalyticsCounterStore.class)
+          .toInstance(getMongo4Provider().provideMongoDbAnalyticsCounterStore());
+    } else {
+      bind(AnalyticsCounterStore.class)
+          .to(MemoryAnalyticsCounterStore.class).in(Singleton.class);
+    }
   }
 }

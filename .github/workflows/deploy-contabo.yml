@@ -313,7 +313,7 @@ jobs:
         run: |
           CHANGELOG_HTML=""
           if [ -f wave/config/changelog.json ]; then
-            CHANGELOG_HTML=$(python3 -c 'import html, json; from pathlib import Path; entries = json.loads(Path("wave/config/changelog.json").read_text()); lines = [f"<li><strong>{html.escape(entry.get(\"title\", \"\"))}</strong> ({html.escape(entry.get(\"version\", \"\"))}, {html.escape(entry.get(\"date\", \"\"))})</li>" for entry in entries[:5]]; print("<h3>Recent Changes</h3><ul>" + "".join(lines) + "</ul>") if lines else None' 2>/dev/null) || true
+            CHANGELOG_HTML=$(python3 -c 'import html, json; from pathlib import Path; entries = json.loads(Path("wave/config/changelog.json").read_text()); lines = ["<li><strong>%s</strong> (%s, %s)</li>" % (html.escape(entry.get("title", "")), html.escape(entry.get("version", "")), html.escape(entry.get("date", ""))) for entry in entries[:5]]; print("<h3>Recent Changes</h3><ul>" + "".join(lines) + "</ul>") if lines else None' 2>/dev/null) || true
           fi
           echo "$CHANGELOG_HTML" > /tmp/changelog_html.txt
 

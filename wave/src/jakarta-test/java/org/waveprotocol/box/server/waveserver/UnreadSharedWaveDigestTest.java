@@ -156,6 +156,16 @@ public final class UnreadSharedWaveDigestTest extends TestCase {
                 WaveletDataUtil.copyWavelet(conversationWavelet),
                 WaveletDataUtil.copyWavelet(viewerUserDataWavelet)));
 
+    boolean hasTagsDoc = false;
+    for (ObservableWaveletData w : wave.getWavelets()) {
+      if (IdUtil.isConversationRootWaveletId(w.getWaveletId())
+          && w.getDocumentIds().contains("tags")) {
+        hasTagsDoc = true;
+        break;
+      }
+    }
+    assertTrue("tags document must exist for this regression test to be valid", hasTagsDoc);
+
     WaveDigester digester = new WaveDigester(conversationUtil);
     java.util.Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters =
         new java.util.IdentityHashMap<>();

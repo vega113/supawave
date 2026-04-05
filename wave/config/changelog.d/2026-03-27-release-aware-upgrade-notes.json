@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-27-release-aware-upgrade-notes",
+  "version": "PR #405",
+  "date": "2026-03-27",
+  "title": "Release-Aware Upgrade Notes",
+  "summary": "Upgrade banners now map to the deployed release notes instead of always showing the newest changelog entry.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The upgrade banner now links to the exact deployed release notes when the release mapping is known",
+        "Deploy metadata now keeps changelog release mapping aligned across upgrades and rollbacks"
+      ]
+    }
+  ]
+}

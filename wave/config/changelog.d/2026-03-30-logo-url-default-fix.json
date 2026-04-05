@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-30-logo-url-default-fix",
+  "date": "2026-03-30",
+  "title": "Fix default logoUrl path after static asset restructure",
+  "summary": "Updates the default logoUrl client flag from static/images/logo.png to static/logo.png to prevent a 404 after the logo was moved out of the images/ subdirectory.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Corrected default logoUrl from static/images/logo.png to static/logo.png to match the new asset location and prevent runtime 404s."
+      ]
+    }
+  ],
+  "version": "PR #484"
+}

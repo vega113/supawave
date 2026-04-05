@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-ot-search-live-updates",
+  "version": "PR #384",
+  "date": "2026-03-27",
+  "title": "Realtime OT Search",
+  "summary": "SupaWave can subscribe to realtime search wavelets when the ot-search feature flag is enabled.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added OT-powered realtime search subscriptions behind the ot-search flag"
+      ]
+    }
+  ]
+}

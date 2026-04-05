@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-03-28-search-bootstrap-loading-ux",
+  "version": "PR #414",
+  "date": "2026-03-28",
+  "title": "Search Bootstrap Loading UX",
+  "summary": "The search panel now shows loading skeletons only for blank OT bootstrap loads and keeps direct-search results visible while OT overlay state times out cleanly.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The search panel now renders loading skeleton rows only when an OT-enabled bootstrap starts from an empty result set",
+        "Refreshing search results keeps the current result rows visible instead of blanking the panel while the next direct-search request is in flight",
+        "If OT overlay data never arrives, the client now clears that waiting state without blanking direct-search results or retrying OT reconnect forever"
+      ]
+    }
+  ]
+}

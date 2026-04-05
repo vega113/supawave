@@ -1,0 +1,26 @@
+{
+  "releaseId": "2026-04-05-rtl-support",
+  "version": "PR #635",
+  "date": "2026-04-05",
+  "title": "RTL language support with auto-detection and toolbar toggle",
+  "summary": "Paragraphs now use dir=\"auto\" for browser-native RTL auto-detection (Hebrew, Arabic). Added RTL/LTR toolbar buttons for manual override. Clicking an active direction button returns the paragraph to auto mode.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Paragraphs with no explicit direction render with dir=\"auto\" — the browser detects RTL from the first strong bidi character (same algorithm as Gmail)",
+        "RTL and LTR toggle buttons in the editor toolbar let users force a paragraph direction",
+        "Clicking an active direction button returns the paragraph to auto-detect mode",
+        "CSS uses text-align:start so RTL paragraphs naturally align right without an explicit alignment override",
+        "Explicit LTR stored as d=\"l\"; explicit RTL as d=\"r\"; auto state has no d attribute"
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "Toggling direction off now clears any alignment that was implicitly set by the direction toggle",
+        "Indentation uses margin-inline-start for bidi-correct indent on both auto-detected and explicit RTL paragraphs"
+      ]
+    }
+  ]
+}

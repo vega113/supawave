@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-04-admin-analytics-tab",
+  "version": "PR #605",
+  "date": "2026-04-04",
+  "title": "Add admin analytics tab",
+  "summary": "The admin dashboard now surfaces wave, blip, user activity, and public-wave engagement metrics in a new analytics tab with live view tracking.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added an Analytics tab to /admin with wave totals, blip totals, login/activity windows, private/public partitions, top public waves, and top active users",
+        "Live public-wave page/API views are now tracked since process start so the admin analytics view can rank public waves by actual observed traffic"
+      ]
+    }
+  ]
+}

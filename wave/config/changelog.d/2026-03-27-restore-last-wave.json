@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-27-restore-last-wave",
+  "version": "PR #394",
+  "date": "2026-03-27",
+  "title": "Restore Your Last Wave",
+  "summary": "SupaWave can reopen your last active wave after login or refresh and focus the next unread blip.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "When no URL fragment is present, SupaWave restores the last opened wave from local storage",
+        "Wave opens now focus the last unread blip before falling back to the last blip"
+      ]
+    }
+  ]
+}

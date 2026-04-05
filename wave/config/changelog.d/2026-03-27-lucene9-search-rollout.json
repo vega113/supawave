@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-lucene9-search-rollout",
+  "version": "PR #389",
+  "date": "2026-03-27",
+  "title": "Lucene 9 Search Rollout",
+  "summary": "A new Lucene 9 BM25 search backend is available behind the lucene9 feature flag.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added Lucene 9 full-text search with richer parsing and BM25 ranking behind the lucene9 flag"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-28-save-status-reliability",
+  "version": "PR #432",
+  "date": "2026-03-28",
+  "title": "Save Status Reliability",
+  "summary": "Save warnings now clear more reliably after reconnects and wavelet resets.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Fixed a case where the saving indicator could stay yellow and keep showing the slow-save warning after a disconnected wavelet was replaced."
+      ]
+    }
+  ]
+}

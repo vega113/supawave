@@ -1,0 +1,25 @@
+{
+  "releaseId": "2026-04-02-gpt-bot-example-robot",
+  "version": "PR #580",
+  "date": "2026-04-02",
+  "title": "Add the gpt-bot example robot",
+  "summary": "Adds a copyable Java gpt-bot example with Wave callback endpoints, mention-driven replies, and safer default runtime settings.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a standalone gpt-bot example server with capabilities.xml, profile, and callback handling",
+        "Local Codex invocation now powers mention-driven replies in the example robot",
+        "README.md and docs/gpt-bot.md document local run, Cloudflare tunnel, and robot registration steps"
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "Codex runs stay sandboxed by default unless GPTBOT_CODEX_UNSAFE_BYPASS=true is set",
+        "Mention handling now deduplicates overlapping blip events and fetches SupaWave context only for actionable mentions",
+        "HTTP worker threads now use caller-runs backpressure, callback tokens are redacted from status output, callback auth no longer depends on public URL exposure, and invalid env values fall back to defaults with warnings"
+      ]
+    }
+  ]
+}

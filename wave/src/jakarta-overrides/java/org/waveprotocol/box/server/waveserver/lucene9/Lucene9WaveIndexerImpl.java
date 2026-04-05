@@ -81,6 +81,7 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   private volatile int lastRebuildWaveCount = -1;
   private volatile ReindexStats lastReindexStats;
   private final IncrementalIndexStats incrementalStats = new IncrementalIndexStats();
+  private final IncrementalIndexStats queryStats = new IncrementalIndexStats();
 
   @Inject
   public Lucene9WaveIndexerImpl(WaveMap waveMap, WaveletProvider waveletProvider,
@@ -269,6 +270,7 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   }
 
   public Set<WaveId> searchWaveIds(Query query, Sort sort, int limit) {
+    long startNs = System.nanoTime();
     Set<WaveId> waveIds = new LinkedHashSet<>();
     IndexSearcher searcher = null;
     try {
@@ -284,6 +286,7 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
       throw new IndexException(e);
     } finally {
       release(searcher);
+      queryStats.record(System.nanoTime() - startNs);
     }
     return waveIds;
   }
@@ -338,6 +341,16 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     return incrementalStats.getCount();
   }
 
+  /** Returns the rolling average ms per search query. */
+  public double getQueryAvgMs() {
+    return queryStats.getAvgMs();
+  }
+
+  /** Returns the total number of search queries since startup. */
+  public long getQueryCount() {
+    return queryStats.getCount();
+  }
+
   private long upsertWaveTimed(WaveId waveId) throws WaveServerException, WaveletStateException,
       IOException {
     long startNs = System.nanoTime();
@@ -359,11 +372,11 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   static class IncrementalIndexStats {
     private static final int RING_SIZE = 100;
     private final long[] timesNs = new long[RING_SIZE];
-    private int pos = 0;
+    private long pos = 0;
     private long totalCount = 0;
 
     synchronized void record(long elapsedNs) {
-      timesNs[pos % RING_SIZE] = elapsedNs;
+      timesNs[Math.floorMod(pos, RING_SIZE)] = elapsedNs;
       pos++;
       totalCount++;
     }

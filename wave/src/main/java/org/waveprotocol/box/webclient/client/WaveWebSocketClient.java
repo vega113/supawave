@@ -141,6 +141,17 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   }
 
   /**
+   * Disconnects the underlying WebSocket. This triggers {@link #onDisconnect()}
+   * which fires a DISCONNECTED network status event and schedules a reconnect.
+   * Used to force a graceful reconnect when a fatal protocol error is detected.
+   */
+  public void disconnect() {
+    if (connected != ConnectState.DISCONNECTED) {
+      socket.disconnect();
+    }
+  }
+
+  /**
    * Opens this connection.
    */
   public void connect() {

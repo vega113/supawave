@@ -120,6 +120,12 @@ public class WebClient implements EntryPoint {
   private static final String DEFAULT_LOCALE = "default";
   private static final String LAST_WAVE_STORAGE_KEY = "supawave.lastWaveId";
 
+  /**
+   * Shared reference to the active WebSocket client, used by the static
+   * {@link ErrorHandler} to trigger a graceful reconnect on deploy errors.
+   */
+  private static WaveWebSocketClient currentWebSocket;
+
   // ---- Turbulence banner (ocean-themed, non-blocking) ----
 
   /** Injects the CSS keyframe animations for the turbulence banner once. */
@@ -395,6 +401,7 @@ public class WebClient implements EntryPoint {
     HistoryChangeListener.init();
 
     websocket = new WaveWebSocketClient(websocketNotAvailable(), getWebSocketBaseUrl());
+    currentWebSocket = websocket;
     websocket.connect();
 
     if (Session.get().isLoggedIn()) {
@@ -867,6 +874,14 @@ public class WebClient implements EntryPoint {
 
     @Override
     public void onUncaughtException(Throwable e) {
+      // If this looks like a server-restart deserialization error, trigger a
+      // graceful reconnect (shows the wavy banner) instead of the error dialog.
+      if (isServerRestartError(e) && currentWebSocket != null) {
+        LOG.warning("Wavelet deserialization error — likely server restart, triggering reconnect");
+        currentWebSocket.disconnect();
+        return;
+      }
+
       if (!hasFired) {
         hasFired = true;
         final ErrorIndicatorPresenter error =
@@ -883,6 +898,14 @@ public class WebClient implements EntryPoint {
       if (next != null) {
         next.onUncaughtException(e);
       }
+    }
+
+    private static boolean isServerRestartError(Throwable e) {
+      if (!(e instanceof IllegalStateException)) {
+        return false;
+      }
+      String msg = e.getMessage();
+      return msg == null || msg.contains("null history hash") || msg.contains("null wavelet name");
     }
 
     private void getStackTraceAsync(final Throwable t, final Accessor<SafeHtml> whenReady) {

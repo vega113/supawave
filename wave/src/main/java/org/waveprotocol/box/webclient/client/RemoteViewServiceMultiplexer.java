@@ -21,6 +21,7 @@ package org.waveprotocol.box.webclient.client;
 
 import org.waveprotocol.box.common.comms.ProtocolWaveletUpdate;
 import org.waveprotocol.wave.client.events.ClientEvents;
+import org.waveprotocol.wave.client.events.Log;
 import org.waveprotocol.wave.client.events.NetworkStatusEvent;
 import org.waveprotocol.wave.client.events.NetworkStatusEvent.ConnectionStatus;
 import org.waveprotocol.wave.client.events.NetworkStatusEventHandler;
@@ -42,6 +43,8 @@ import java.util.Map;
  * protocol) into per-wave streams.
  */
 public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback {
+
+  private static final Log LOG = Log.get(RemoteViewServiceMultiplexer.class);
 
   /** Per-wave streams. */
   private final Map<WaveId, WaveWebSocketCallback> streams = CollectionUtils.newHashMap();
@@ -102,20 +105,29 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
   /** Dispatches an update to the appropriate wave stream. */
   @Override
   public void onWaveletUpdate(ProtocolWaveletUpdate message) {
-    WaveletName wavelet = deserialize(message.getWaveletName());
+    try {
+      WaveletName wavelet = deserialize(message.getWaveletName());
 
-    // Route to the appropriate stream handler.
-    WaveWebSocketCallback stream = streams.get(wavelet.waveId);
-    if (stream != null) {
-      boolean drop = shouldDropUpdate(wavelet.waveId, message);
+      // Route to the appropriate stream handler.
+      WaveWebSocketCallback stream = streams.get(wavelet.waveId);
+      if (stream != null) {
+        boolean drop = shouldDropUpdate(wavelet.waveId, message);
 
-      if (!drop) {
-        stream.onWaveletUpdate(message);
+        if (!drop) {
+          stream.onWaveletUpdate(message);
+        }
+      } else {
+        // This is either a server error, or a message after a stream has been
+        // locally closed (there is no way to tell the server to stop sending
+        // updates).
       }
-    } else {
-      // This is either a server error, or a message after a stream has been
-      // locally closed (there is no way to tell the server to stop sending
-      // updates).
+    } catch (Exception e) {
+      // During server deploys, the server may send malformed or null-field messages
+      // that cause deserialization errors. Trigger a graceful reconnect rather than
+      // letting the exception bubble up to the uncaught exception handler (which
+      // would show the error banner).
+      LOG.warning("Error processing wavelet update (likely server restart): " + e.getMessage());
+      socket.disconnect();
     }
   }
 

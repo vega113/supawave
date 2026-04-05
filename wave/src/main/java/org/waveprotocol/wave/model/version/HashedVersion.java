@@ -61,7 +61,8 @@ public final class HashedVersion implements Comparable<HashedVersion> {
 
   private HashedVersion(long version, byte[] historyHash) {
     Preconditions.checkArgument(version >= 0, "negative version");
-    Preconditions.checkNotNull(historyHash, "null history hash");
+    // Treat null hash as empty — server may omit it during deploy/restart.
+    if (historyHash == null) historyHash = new byte[0];
     this.version = version;
     this.historyHash = historyHash;
   }

@@ -17,34 +17,25 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search;
+package org.waveprotocol.box.server.rpc;
 
-/**
- * View interface for the search area in a search panel..
- *
- * @author hearnden@google.com (David Hearnden)
- */
-public interface SearchView {
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import junit.framework.TestCase;
 
-  /**
-   * Handles UI gesture events.
-   */
-  interface Listener {
-    void onQueryEntered();
+public final class WaveClientServletTest extends TestCase {
+
+  public void testSupportsMentionSearchRejectsSolr() {
+    Config config = ConfigFactory.parseString("core.search_type = solr");
+
+    assertFalse(WaveClientServlet.supportsMentionSearch(config));
   }
 
-  /** Binds this view to a listener to handle UI gestures. */
-  void init(Listener listener);
+  public void testSupportsMentionSearchAllowsLuceneAndMemory() {
+    Config luceneConfig = ConfigFactory.parseString("core.search_type = lucene");
+    Config memoryConfig = ConfigFactory.parseString("core.search_type = memory");
 
-  /** Releases this view from its listener. */
-  void reset();
-
-  /** Sets the text in the query input. */
-  void setQuery(String text);
-
-  /** @return the text from the query input. */
-  String getQuery();
-
-  /** Shows or hides mention search affordances in the search help panel. */
-  void setMentionsSearchVisible(boolean visible);
+    assertTrue(WaveClientServlet.supportsMentionSearch(luceneConfig));
+    assertTrue(WaveClientServlet.supportsMentionSearch(memoryConfig));
+  }
 }

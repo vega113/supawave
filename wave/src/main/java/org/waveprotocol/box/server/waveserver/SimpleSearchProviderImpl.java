@@ -29,6 +29,7 @@ import com.google.wave.api.SearchResult;
 
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
+import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.id.IdUtil;
@@ -301,6 +302,17 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         ? queryParams.get(TokenQueryType.CONTENT)
         : Collections.<String>emptySet();
 
+    // Extract mentions filter values (e.g., "mentions:me" or "mentions:vega@example.com").
+    final Set<String> mentionValues;
+    if (queryParams.containsKey(TokenQueryType.MENTIONS)) {
+      mentionValues = new HashSet<String>();
+      for (String raw : queryParams.get(TokenQueryType.MENTIONS)) {
+        mentionValues.add(MentionQueryNormalizer.normalize(raw, user));
+      }
+    } else {
+      mentionValues = Collections.<String>emptySet();
+    }
+
     // Filter by title when the query specifies title: filters.
     if (!titleValues.isEmpty()) {
       LOG.info("Title filter active: required terms = " + titleValues
@@ -315,6 +327,14 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
           + ", candidates before filter = " + results.size());
       filterByContent(results, contentValues);
       LOG.info("After content filter: " + results.size() + " results remain");
+    }
+
+    // Filter by mentions when the query specifies mentions: filters.
+    if (!mentionValues.isEmpty()) {
+      LOG.info("Mentions filter active: required mentions = " + mentionValues
+          + ", candidates before filter = " + results.size());
+      filterByMentions(results, mentionValues);
+      LOG.info("After mentions filter: " + results.size() + " results remain");
     }
 
     if (isUnreadOnlyQuery) {
@@ -816,6 +836,67 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         }
       } catch (Exception e) {
         LOG.warning("Failed to check content for wave " + wave.getWaveId(), e);
+        it.remove();
+      }
+    }
+  }
+
+  /**
+   * Filters wave results by mention annotations. Only waves whose blip content
+   * contains mention annotations referencing all of the requested addresses are kept.
+   */
+  private void filterByMentions(List<WaveViewData> results, Set<String> requiredMentions) {
+    Iterator<WaveViewData> it = results.iterator();
+    while (it.hasNext()) {
+      WaveViewData wave = it.next();
+      try {
+        Set<String> foundMentions = new HashSet<String>();
+
+        for (ObservableWaveletData wd : wave.getWavelets()) {
+          if (!IdUtil.isConversationalId(wd.getWaveletId())) {
+            continue;
+          }
+
+          for (String docId : wd.getDocumentIds()) {
+            ReadableBlipData blip = wd.getDocument(docId);
+            if (blip == null) {
+              continue;
+            }
+
+            DocInitialization docOp = blip.getContent().asOperation();
+            docOp.apply(new DocInitializationCursor() {
+              @Override
+              public void annotationBoundary(AnnotationBoundaryMap map) {
+                for (int i = 0; i < map.changeSize(); i++) {
+                  String key = map.getChangeKey(i);
+                  String newValue = map.getNewValue(i);
+                  if (AnnotationConstants.isMentionKey(key) && newValue != null
+                      && !newValue.isEmpty()) {
+                    foundMentions.add(newValue.toLowerCase(Locale.ROOT));
+                  }
+                }
+              }
+
+              @Override
+              public void characters(String chars) {
+              }
+
+              @Override
+              public void elementStart(String type, Attributes attrs) {
+              }
+
+              @Override
+              public void elementEnd() {
+              }
+            });
+          }
+        }
+
+        if (!foundMentions.containsAll(requiredMentions)) {
+          it.remove();
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check mentions for wave " + wave.getWaveId(), e);
         it.remove();
       }
     }

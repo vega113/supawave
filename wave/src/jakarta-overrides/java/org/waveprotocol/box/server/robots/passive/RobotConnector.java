@@ -58,10 +58,12 @@ public class RobotConnector implements RobotCapabilityFetcher {
         robotBaseUrl(account.getUrl()) + Robot.CAPABILITIES_URL, connection, activeApiUrl);
     RobotCapabilities capabilities = new RobotCapabilities(
         parser.getCapabilities(), parser.getCapabilitiesHash(), parser.getProtocolVersion());
+    long updatedAtMillis = Math.max(account.getUpdatedAtMillis() + 1L,
+        System.currentTimeMillis());
     return new RobotAccountDataImpl(account.getId(), account.getUrl(), account.getConsumerSecret(),
         capabilities, account.isVerified(), account.getTokenExpirySeconds(),
         account.getOwnerAddress(), account.getDescription(), account.getCreatedAtMillis(),
-        account.getUpdatedAtMillis(), account.isPaused(), account.getTokenVersion());
+        updatedAtMillis, account.isPaused(), account.getTokenVersion());
   }
 
   /**

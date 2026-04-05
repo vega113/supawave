@@ -163,8 +163,9 @@ public class RobotsGateway implements WaveBus.Subscriber {
     } else {
       // Refresh the account so that capability updates (detected by
       // NotifyOperationService and persisted to the account store) take
-      // effect without a server restart.
-      robot.setAccount(account);
+      // effect without a server restart, but ignore stale snapshots that were
+      // fetched before a newer robot-thread update completed.
+      robot.updateAccountIfNewer(account);
     }
     return robot;
   }

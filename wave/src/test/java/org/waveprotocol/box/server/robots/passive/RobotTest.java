@@ -84,9 +84,13 @@ public class RobotTest extends TestCase {
   private static final ParticipantId ROBOT = ParticipantId.ofUnsafe(ROBOT_NAME.toEmailAddress());
   private static final RobotAccountData ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", null, true);
+  private static final RobotAccountData STALE_ACCOUNT =
+      new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", null, true, 0L, null, "",
+          0L, 10L, false);
   private static final RobotAccountData INITIALIZED_ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", new RobotCapabilities(
-          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT), true);
+          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT), true, 0L,
+          null, "", 0L, 20L, false);
 
   private RobotsGateway gateway;
   private RobotConnector connector;
@@ -187,6 +191,13 @@ public class RobotTest extends TestCase {
     enqueueEmptyWavelet();
     robot.run();
     assertEquals("The robot should be initialized", INITIALIZED_ACCOUNT, robot.getAccount());
+  }
+
+  public void testUpdateAccountIgnoresStaleSnapshots() {
+    robot.setAccount(INITIALIZED_ACCOUNT);
+
+    assertFalse(robot.updateAccountIfNewer(STALE_ACCOUNT));
+    assertEquals("The newer account should remain active", INITIALIZED_ACCOUNT, robot.getAccount());
   }
 
   public void testProcessSendsNoBundleWhenNoEvents() throws Exception {

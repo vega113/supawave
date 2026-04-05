@@ -704,8 +704,12 @@ Universal / mappings ++= {
 }
 
 // JVM args matching Gradle's applicationDefaultJvmArgs
+// NOTE: Heap sizing (-Xmx) is intentionally NOT set here so that the
+// production compose.yml command args (-J-Xmx20G) take full effect.
+// The SBT native-packager launcher treats these as defaults that get
+// overridden by later command-line -J flags.  For local development,
+// set JAVA_OPTS or pass -J-Xmx<size> on the command line.
 Universal / javaOptions ++= Seq(
-  "-J-Xmx1024M",
   "-Dorg.eclipse.jetty.LEVEL=DEBUG",
   "-Dlogback.configurationFile=config/logback.xml",
   "-Dguice_include_stack_traces=OFF",

@@ -118,27 +118,23 @@ services:
       start_period: 300s
     ports:
       - "127.0.0.1:9898:9898"
+    # -----------------------------------------------------------------------
+    # JVM Tuning (see RESOURCE_OPTIMIZATION_ANALYSIS.md for rationale)
+    # -----------------------------------------------------------------------
+    # -J flags are passed directly to the JVM by the SBT native-packager
+    # launcher. We use them here to keep the heap and GC configuration
+    # explicit and deterministic now that the packaging defaults no longer
+    # pin heap sizing.
+    # -----------------------------------------------------------------------
+    command:
+      - -J-Xmx20G
+      - -J-Xms6G
+      - -J-XX:+UseG1GC
+      - -J-XX:MaxGCPauseMillis=200
+      - -J-XX:+HeapDumpOnOutOfMemoryError
+      - -J-XX:HeapDumpPath=/opt/wave/logs/heapdump-blue.hprof
+      - -J-Xlog:gc*:file=/opt/wave/logs/gc-blue.log:time,uptime,level,tags:filecount=5,filesize=50m
     environment:
-      # -----------------------------------------------------------------------
-      # JVM Tuning (see RESOURCE_OPTIMIZATION_ANALYSIS.md for rationale)
-      # -----------------------------------------------------------------------
-      # -Xmx20G : Max heap sized for blue/green (two instances at 20 GiB each
-      #           fit comfortably in 94 GiB with room for MongoDB and OS).
-      # -Xms6G  : Initial heap. Keeps startup fast and lets G1 grow on demand.
-      #           Setting Xms = Xmx would pin 40 GiB immediately across both
-      #           instances, leaving less headroom during switchover.
-      # G1GC    : Recommended for heaps > 4 GiB. Provides predictable pause
-      #           times with MaxGCPauseMillis=200.
-      # GC logging: Writes to /opt/wave/logs/gc.log for post-incident analysis.
-      # -----------------------------------------------------------------------
-      JAVA_OPTS: >-
-        -Xmx20G
-        -Xms6G
-        -XX:+UseG1GC
-        -XX:MaxGCPauseMillis=200
-        -XX:+HeapDumpOnOutOfMemoryError
-        -XX:HeapDumpPath=/opt/wave/logs/heapdump-blue.hprof
-        -Xlog:gc*:file=/opt/wave/logs/gc-blue.log:time,uptime,level,tags:filecount=5,filesize=50m
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       WAVE_EMAIL_FROM: ${WAVE_EMAIL_FROM:-noreply@supawave.ai}
       WAVE_MAIL_PROVIDER: ${WAVE_MAIL_PROVIDER:-logging}
@@ -200,15 +196,15 @@ services:
     ports:
       # Different host port so both instances can run simultaneously.
       - "127.0.0.1:9899:9898"
+    command:
+      - -J-Xmx20G
+      - -J-Xms6G
+      - -J-XX:+UseG1GC
+      - -J-XX:MaxGCPauseMillis=200
+      - -J-XX:+HeapDumpOnOutOfMemoryError
+      - -J-XX:HeapDumpPath=/opt/wave/logs/heapdump-green.hprof
+      - -J-Xlog:gc*:file=/opt/wave/logs/gc-green.log:time,uptime,level,tags:filecount=5,filesize=50m
     environment:
-      JAVA_OPTS: >-
-        -Xmx20G
-        -Xms6G
-        -XX:+UseG1GC
-        -XX:MaxGCPauseMillis=200
-        -XX:+HeapDumpOnOutOfMemoryError
-        -XX:HeapDumpPath=/opt/wave/logs/heapdump-green.hprof
-        -Xlog:gc*:file=/opt/wave/logs/gc-green.log:time,uptime,level,tags:filecount=5,filesize=50m
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       WAVE_EMAIL_FROM: ${WAVE_EMAIL_FROM:-noreply@supawave.ai}
       WAVE_MAIL_PROVIDER: ${WAVE_MAIL_PROVIDER:-logging}

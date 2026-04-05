@@ -21,12 +21,18 @@ services:
     restart: unless-stopped
     command:
       - --bind_ip_all
+      - --wiredTigerCacheSizeGB=8
+      - --slowms=100
+      - --profile=1
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 10s
+    mem_limit: 12g
+    cpus: 4
+    mem_reservation: 10g
     volumes:
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/mongo/db:/data/db
 
@@ -44,6 +50,24 @@ services:
       start_period: 300s
     ports:
       - "127.0.0.1:9898:9898"
+    mem_limit: 22g
+    cpus: 8
+    mem_reservation: 20g
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 262144
+      nproc:
+        soft: 65536
+        hard: 65536
+    command:
+      - -J-Xmx20G
+      - -J-Xms6G
+      - -J-XX:+UseG1GC
+      - -J-XX:MaxGCPauseMillis=200
+      - -J-XX:+HeapDumpOnOutOfMemoryError
+      - -J-XX:HeapDumpPath=/opt/wave/logs/heapdump.hprof
+      - -J-Xlog:gc*:file=/opt/wave/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=50m
     volumes:
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/accounts:/opt/wave/_accounts
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/attachments:/opt/wave/_attachments
@@ -63,6 +87,16 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    mem_limit: 1g
+    cpus: 2
+    mem_reservation: 256m
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 262144
+      nproc:
+        soft: 65536
+        hard: 65536
     environment:
       CANONICAL_HOST: ${CANONICAL_HOST:?set CANONICAL_HOST before running compose}
       ROOT_HOST: ${ROOT_HOST:?set ROOT_HOST before running compose}

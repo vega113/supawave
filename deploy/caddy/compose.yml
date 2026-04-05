@@ -27,12 +27,20 @@ services:
     restart: unless-stopped
     command:
       - --bind_ip_all
+      # Cap WiredTiger cache to prevent MongoDB from starving the JVMs.
+      # Default is (totalRAM - 1 GiB) / 2 which over-allocates on large hosts.
+      - --wiredTigerCacheSizeGB=8
+      - --slowms=100
+      - --profile=1
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 10s
+    mem_limit: 12g
+    cpus: 4
+    mem_reservation: 10g
     volumes:
       - ${DEPLOY_ROOT:?set DEPLOY_ROOT before running compose}/shared/mongo/db:/data/db
 
@@ -51,6 +59,17 @@ services:
       start_period: 300s
     ports:
       - "127.0.0.1:9898:9898"
+    # 20 GiB heap + 2 GiB JVM overhead (metaspace, thread stacks, NIO, Lucene mmap)
+    mem_limit: 22g
+    cpus: 8
+    mem_reservation: 20g
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 262144
+      nproc:
+        soft: 65536
+        hard: 65536
     volumes:
       - ${DEPLOY_ROOT:?}/releases/blue/application.conf:/opt/wave/config/application.conf:ro
       - ${DEPLOY_ROOT:?}/shared/accounts:/opt/wave/_accounts
@@ -60,6 +79,17 @@ services:
       - ${DEPLOY_ROOT:?}/shared/indexes/blue:/opt/wave/_indexes
       - ${DEPLOY_ROOT:?}/shared/sessions/blue:/opt/wave/_sessions
       - ${DEPLOY_ROOT:?}/shared/logs:/opt/wave/logs
+    # -J flags are passed directly to the JVM by the SBT native-packager launcher.
+    # They keep the heap and GC settings explicit and deterministic now that
+    # the launcher no longer pins a default heap.
+    command:
+      - -J-Xmx20G
+      - -J-Xms6G
+      - -J-XX:+UseG1GC
+      - -J-XX:MaxGCPauseMillis=200
+      - -J-XX:+HeapDumpOnOutOfMemoryError
+      - -J-XX:HeapDumpPath=/opt/wave/logs/heapdump-blue.hprof
+      - -J-Xlog:gc*:file=/opt/wave/logs/gc-blue.log:time,uptime,level,tags:filecount=5,filesize=50m
     environment: *wave-env
 
   wave-green:
@@ -77,6 +107,16 @@ services:
       start_period: 300s
     ports:
       - "127.0.0.1:9899:9898"
+    mem_limit: 22g
+    cpus: 8
+    mem_reservation: 20g
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 262144
+      nproc:
+        soft: 65536
+        hard: 65536
     volumes:
       - ${DEPLOY_ROOT:?}/releases/green/application.conf:/opt/wave/config/application.conf:ro
       - ${DEPLOY_ROOT:?}/shared/accounts:/opt/wave/_accounts
@@ -86,6 +126,14 @@ services:
       - ${DEPLOY_ROOT:?}/shared/indexes/green:/opt/wave/_indexes
       - ${DEPLOY_ROOT:?}/shared/sessions/green:/opt/wave/_sessions
       - ${DEPLOY_ROOT:?}/shared/logs:/opt/wave/logs
+    command:
+      - -J-Xmx20G
+      - -J-Xms6G
+      - -J-XX:+UseG1GC
+      - -J-XX:MaxGCPauseMillis=200
+      - -J-XX:+HeapDumpOnOutOfMemoryError
+      - -J-XX:HeapDumpPath=/opt/wave/logs/heapdump-green.hprof
+      - -J-Xlog:gc*:file=/opt/wave/logs/gc-green.log:time,uptime,level,tags:filecount=5,filesize=50m
     environment: *wave-env
     profiles: ["green"]
 
@@ -95,6 +143,16 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    mem_limit: 1g
+    cpus: 2
+    mem_reservation: 256m
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 262144
+      nproc:
+        soft: 65536
+        hard: 65536
     environment:
       CANONICAL_HOST: ${CANONICAL_HOST:?set CANONICAL_HOST before running compose}
       ROOT_HOST: ${ROOT_HOST:?set ROOT_HOST before running compose}

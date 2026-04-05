@@ -22,7 +22,9 @@ package org.waveprotocol.box.server.waveserver.search;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +45,9 @@ import org.waveprotocol.box.server.frontend.WaveletInfo;
 import org.waveprotocol.box.server.waveserver.SearchProvider;
 import org.waveprotocol.box.server.waveserver.WaveBus;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -52,6 +57,8 @@ import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionFactoryImpl;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.data.DocumentOperationSink;
+import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 
@@ -516,6 +523,80 @@ public final class SearchWaveletUpdaterTest extends TestCase {
     } finally {
       updater.shutdown();
       scheduler.shutdownNow();
+    }
+  }
+
+  public void testWaveletCommittedTriggersMentionSubscriptionForNonParticipant() throws Exception {
+    SearchWaveletManager waveletManager = mock(SearchWaveletManager.class);
+    SearchIndexer indexer = mock(SearchIndexer.class);
+    SearchProvider searchProvider = mock(SearchProvider.class);
+    SearchWaveletDataProvider dataProvider = new SearchWaveletDataProvider();
+    SearchWaveletUpdater updater =
+        new SearchWaveletUpdater(waveletManager, indexer, searchProvider, dataProvider, null);
+
+    ParticipantId alice = ParticipantId.ofUnsafe("alice@example.com");
+    ParticipantId bob = ParticipantId.ofUnsafe("bob@example.com");
+    WaveId waveId = WaveId.of("example.com", "w+test");
+    WaveletId waveletId = WaveletId.of("example.com", "conv+root");
+    WaveletName waveletName = WaveletName.of(waveId, waveletId);
+
+    // Bob has a mentions subscription but is NOT a participant of the wave
+    String query = "mentions:me";
+    String queryHash = SearchWaveletManager.md5Hex(query);
+    SearchIndexer.SubscriptionKey bobKey = new SearchIndexer.SubscriptionKey(bob, queryHash);
+    WaveletName bobSearchWavelet = WaveletName.of(
+        WaveId.of("example.com", "search~bob"),
+        WaveletId.of("example.com", "search+" + queryHash));
+
+    ReadableWaveletData wavelet = mock(ReadableWaveletData.class);
+    when(wavelet.getWaveId()).thenReturn(waveId);
+    when(wavelet.getWaveletId()).thenReturn(waveletId);
+    when(wavelet.getParticipants()).thenReturn(ImmutableSet.of(alice));
+    when(waveletManager.isSearchWavelet(any(WaveletName.class))).thenReturn(false);
+    // No subscriptions triggered via participant path for Alice
+    when(indexer.getAffectedSubscriptions(eq(waveId), eq(ImmutableSet.of(alice))))
+        .thenReturn(Collections.emptySet());
+
+    // The wavelet doc mentions Bob
+    String mentionKey = "mention/" + bob.getAddress();
+    DocInitialization docInit = mock(DocInitialization.class);
+    doAnswer(invocation -> {
+      DocInitializationCursor cursor = invocation.getArgument(0);
+      cursor.annotationBoundary(new AnnotationBoundaryMap() {
+        @Override public int endSize() { return 0; }
+        @Override public String getEndKey(int i) { throw new IndexOutOfBoundsException(); }
+        @Override public int changeSize() { return 1; }
+        @Override public String getChangeKey(int i) { return mentionKey; }
+        @Override public String getOldValue(int i) { return null; }
+        @Override public String getNewValue(int i) { return bob.getAddress(); }
+      });
+      return null;
+    }).when(docInit).apply(any());
+    DocumentOperationSink content = mock(DocumentOperationSink.class);
+    when(content.asOperation()).thenReturn(docInit);
+    ReadableBlipData blip = mock(ReadableBlipData.class);
+    when(blip.getContent()).thenReturn(content);
+    when(wavelet.getDocumentIds()).thenReturn(ImmutableSet.of("b+1"));
+    when(wavelet.getDocument("b+1")).thenReturn(blip);
+
+    // After waveletCommitted, Bob's subscription should be triggered
+    when(indexer.getAffectedSubscriptions(eq(waveId), eq(ImmutableSet.of(bob))))
+        .thenReturn(ImmutableSet.of(bobKey));
+    when(indexer.getRawQuery(bobKey)).thenReturn(query);
+    when(searchProvider.search(eq(bob), eq(query), eq(0), eq(50)))
+        .thenReturn(new SearchResult(query));
+    when(waveletManager.getOrCreateSearchWavelet(eq(bob), eq(query))).thenReturn(bobSearchWavelet);
+
+    try {
+      updater.waveletUpdate(wavelet, DeltaSequence.empty());
+      updater.waveletCommitted(waveletName, HashedVersion.unsigned(1L));
+
+      waitForRecomputeCount(updater, 1L, 1500L);
+
+      verify(indexer).getAffectedSubscriptions(eq(waveId), eq(ImmutableSet.of(bob)));
+      verify(searchProvider).search(eq(bob), eq(query), eq(0), eq(50));
+    } finally {
+      updater.shutdown();
     }
   }
 

@@ -185,6 +185,7 @@ public final class AdminServletTest {
     JSONObject json = invokeAnalyticsHistory("24h");
 
     assertFalse(json.has("window"));
+    assertTrue(json.getBoolean("supported"));
     assertEquals("hourly", json.getString("granularity"));
     assertTrue(json.getJSONArray("series").isEmpty());
   }
@@ -202,6 +203,7 @@ public final class AdminServletTest {
   public void analyticsHistoryWithMemoryStore_hasStorageNote() throws Exception {
     JSONObject json = invokeAnalyticsHistoryWithStore("24h", new MemoryAnalyticsCounterStore());
 
+    assertTrue(json.getBoolean("supported"));
     assertEquals("in-memory: resets on restart", json.getString("storageNote"));
   }
 

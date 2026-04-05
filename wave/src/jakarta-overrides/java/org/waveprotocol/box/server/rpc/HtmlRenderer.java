@@ -5367,7 +5367,25 @@ public final class HtmlRenderer {
     sb.append("      .then(function(data) {\n");
     sb.append("        var notSupported = document.getElementById('analyticsNotSupportedBanner');\n");
     sb.append("        if (data.supported === false) {\n");
-    sb.append("          if (notSupported) notSupported.style.display = 'block';\n");
+    sb.append("          if (notSupported) {\n");
+    sb.append("            notSupported.textContent = data.reason || 'Analytics is not available for this configuration';\n");
+    sb.append("            notSupported.style.display = 'block';\n");
+    sb.append("          }\n");
+    // Clear stale charts
+    sb.append("          ['chartWaves','chartBlips','chartUsers','chartActive'].forEach(function(id) {\n");
+    sb.append("            var canvas = document.getElementById(id);\n");
+    sb.append("            if (canvas) { var ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }\n");
+    sb.append("          });\n");
+    sb.append("          if (chartWaves) { chartWaves.destroy(); chartWaves = null; }\n");
+    sb.append("          if (chartBlips) { chartBlips.destroy(); chartBlips = null; }\n");
+    sb.append("          if (chartUsers) { chartUsers.destroy(); chartUsers = null; }\n");
+    sb.append("          if (chartActive) { chartActive.destroy(); chartActive = null; }\n");
+    // Reset stat cards
+    sb.append("          ['histWavesCreated','histBlipsCreated','histUsersRegistered','histActiveUsers','histPageViews','histApiViews'].forEach(function(id) {\n");
+    sb.append("            var el = document.getElementById(id); if (el) el.textContent = '--';\n");
+    sb.append("          });\n");
+    sb.append("          var sb2 = document.getElementById('analyticsStorageBanner'); if (sb2) sb2.style.display = 'none';\n");
+    sb.append("          var db = document.getElementById('analyticsDisabledBanner'); if (db) db.style.display = 'none';\n");
     sb.append("          return;\n");
     sb.append("        }\n");
     sb.append("        if (notSupported) notSupported.style.display = 'none';\n");

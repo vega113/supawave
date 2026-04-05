@@ -4157,6 +4157,16 @@ public final class HtmlRenderer {
     sb.append(".filter-btn:hover { border-color: ").append(WAVE_PRIMARY).append("; color: ").append(WAVE_PRIMARY).append("; }\n");
     sb.append(".filter-btn.active { background: ").append(WAVE_PRIMARY).append("; color: #fff; border-color: ").append(WAVE_PRIMARY).append("; }\n");
 
+    // Window pill buttons for analytics time range selector
+    sb.append(".window-pills { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; padding:0 24px 12px; }\n");
+    sb.append(".window-pill {\n");
+    sb.append("  padding:4px 12px; border:1px solid #d1d5db; border-radius:20px;\n");
+    sb.append("  font-size:12px; font-weight:500; cursor:pointer; background:#fff;\n");
+    sb.append("  color:#374151; transition:all 0.15s; font-family:inherit;\n");
+    sb.append("}\n");
+    sb.append(".window-pill:hover { border-color:#0077b6; color:#0077b6; }\n");
+    sb.append(".window-pill.active { background:#0077b6; color:#fff; border-color:#0077b6; }\n");
+
     // Contact detail expand
     sb.append(".msg-expand { cursor: pointer; }\n");
     sb.append(".msg-expand:hover td { background: rgba(0,119,182,0.04); }\n");
@@ -4186,7 +4196,7 @@ public final class HtmlRenderer {
     sb.append("}\n");
     sb.append("</style>\n");
     sb.append("<style>\n").append(renderSharedTopBarCss()).append("</style>\n");
-    sb.append("<script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js\" integrity=\"sha384-09e8JU7bIiywWwLJXwgYV2aSXaNHhhCX+d8kS7uVqKfPWsQCAJQ7rU4GMY5lXgVk\" crossorigin=\"anonymous\"></script>\n");
+    sb.append("<script src=\"/static/chart.umd.min.js\"></script>\n");
     sb.append("</head>\n<body>\n");
 
     // Shared app header
@@ -4385,7 +4395,7 @@ public final class HtmlRenderer {
 
     // Time window pills
     sb.append("    <div style=\"display:flex;gap:6px;padding:0 24px 16px;flex-wrap:wrap;\">\n");
-    String[] windows = {"1h", "6h", "12h", "24h", "48h", "7d", "30d"};
+    String[] windows = {"1h", "6h", "12h", "24h", "48h", "7d", "30d", "60d", "90d", "6m", "1y", "ytd", "all"};
     for (String w : windows) {
       String active = w.equals("24h")
           ? "background:" + WAVE_PRIMARY + ";color:#fff;"
@@ -4687,6 +4697,13 @@ public final class HtmlRenderer {
     sb.append("      if (tab.dataset.tab === 'flags' && !flagsLoaded) { fetchFlags(); }\n");
     sb.append("      if (tab.dataset.tab === 'ops' && !opsLoaded) { loadOpsStatus(); }\n");
     sb.append("      if (tab.dataset.tab === 'analytics') { loadAnalyticsHistory(analyticsActiveWindow); loadAnalyticsStatus(); }\n");
+    sb.append("    });\n");
+    sb.append("  });\n");
+    sb.append("  document.querySelectorAll('.window-pill').forEach(function(pill) {\n");
+    sb.append("    pill.addEventListener('click', function() {\n");
+    sb.append("      document.querySelectorAll('.window-pill').forEach(function(p){p.classList.remove('active');});\n");
+    sb.append("      pill.classList.add('active');\n");
+    sb.append("      loadAnalyticsStatus(pill.dataset.window);\n");
     sb.append("    });\n");
     sb.append("  });\n");
 

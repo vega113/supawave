@@ -3,6 +3,7 @@ package org.waveprotocol.box.server.waveserver;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +41,7 @@ import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 public final class AdminAnalyticsService {
   private static final long DAY_MS = 24L * 60L * 60L * 1000L;
   static final long CACHE_TTL_MS = 30L * 1000L;
-  static final long REFRESH_BUDGET_MS = 5L * 1000L;
+  static final long REFRESH_BUDGET_MS = 30L * 1000L;
 
   private final AccountStore accountStore;
   private final WaveletProvider waveletProvider;
@@ -59,14 +60,19 @@ public final class AdminAnalyticsService {
       WaveletProvider waveletProvider,
       DeltaStore deltaStore,
       PublicWaveViewTracker publicWaveViewTracker,
-      @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String waveDomain) {
+      @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String waveDomain,
+      Config config) {
     this(
         accountStore,
         waveletProvider,
         deltaStore,
         publicWaveViewTracker,
         waveDomain,
-        System::currentTimeMillis);
+        System::currentTimeMillis,
+        System::currentTimeMillis,
+        config.hasPath("analytics.refresh_budget_ms")
+            ? config.getLong("analytics.refresh_budget_ms")
+            : REFRESH_BUDGET_MS);
   }
 
   AdminAnalyticsService(

@@ -631,6 +631,7 @@ public abstract class AbstractRobot extends HttpServlet implements EventHandler 
    *
    * @param events the incoming event bundle.
    */
+  @SuppressWarnings("deprecation")
   protected void processEvents(EventMessageBundle events) {
     for (Event event : events.getEvents()) {
       switch (event.getType()) {
@@ -860,6 +861,7 @@ public abstract class AbstractRobot extends HttpServlet implements EventHandler 
   }
 
   @Override
+  @Deprecated(forRemoval = true)
   public void onGadgetStateChanged(GadgetStateChangedEvent event) {
     // No-op.
   }

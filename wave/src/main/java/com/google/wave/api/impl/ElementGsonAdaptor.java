@@ -46,7 +46,9 @@ import java.util.Map.Entry;
  * Gson adaptor to serialize and deserialize {@link Element}.
  *
  * @author mprasetya@google.com (Marcel Prasetya)
+ * @deprecated Gadget element deserialization in this adaptor is deprecated for removal.
  */
+@Deprecated(forRemoval = true)
 public class ElementGsonAdaptor implements JsonDeserializer<Element>,
     JsonSerializer<Element> {
 

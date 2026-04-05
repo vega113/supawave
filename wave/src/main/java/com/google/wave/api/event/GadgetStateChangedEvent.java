@@ -27,7 +27,10 @@ import java.util.Map;
 
 /**
  * Event triggered when the state of a gadget has changed.
+ *
+ * @deprecated Gadget state events are no longer generated. This class is deprecated for removal.
  */
+@Deprecated(forRemoval = true)
 public class GadgetStateChangedEvent extends AbstractEvent {
 
   /** The index of the gadget that changed in the document. */

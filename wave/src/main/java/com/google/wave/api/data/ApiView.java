@@ -370,7 +370,10 @@ public class ApiView {
   /**
    * Legacy support method. Return the index of the element that looks like the
    * one we passed for some value of looks like.
+   *
+   * @deprecated Gadget element matching in this method is deprecated for removal.
    */
+  @Deprecated(forRemoval = true)
   public int locateElement(Element element) {
     int index = 0;
     for (Bit bit : bits) {

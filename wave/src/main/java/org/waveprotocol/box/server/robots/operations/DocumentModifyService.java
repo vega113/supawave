@@ -20,10 +20,8 @@
 package org.waveprotocol.box.server.robots.operations;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import com.google.wave.api.Element;
 import com.google.wave.api.FormElement;
-import com.google.wave.api.Gadget;
 import com.google.wave.api.InvalidRequestException;
 import com.google.wave.api.JsonRpcConstant.ParamsProperty;
 import com.google.wave.api.OperationRequest;
@@ -45,11 +43,9 @@ import org.waveprotocol.wave.model.document.RangedAnnotation;
 import org.waveprotocol.wave.model.document.util.LineContainers;
 import org.waveprotocol.wave.model.document.util.Point;
 import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
-import org.waveprotocol.wave.model.gadget.GadgetXmlUtil;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 
-import java.util.Map;
 
 /**
  * Implements the "document.modify" operations.
@@ -412,21 +408,13 @@ public class DocumentModifyService implements OperationService {
     } else {
       Element element = modifyAction.getElement(valueIndex);
       if (element != null) {
-        if (element.isGadget()) {
-          Gadget gadget = (Gadget) element;
-          XmlStringBuilder xml =
-              GadgetXmlUtil.constructXml(gadget.getUrl(), "", gadget.getAuthor(), null,
-                  gadget.getProperties());
-          // TODO (Yuri Z.) Make it possible to specify a location to insert the
-          // gadget and implement insertion at the specified location.
-          LineContainers.appendLine(doc, xml);
-        } else if (element.isFormElement()) {
+        if (element.isFormElement()) {
           XmlStringBuilder xml = ElementSerializer.apiElementToXml(element);
           LineContainers.appendLine(doc, xml);
         } else {
           // TODO(ljvderijk): Inserting other elements.
           throw new UnsupportedOperationException(
-              "Can't insert other elements than text and gadgets at the moment");
+              "Can't insert elements of type " + element.getType() + " at the moment");
         }
       }
       // should return 1 since elements have a length of 1 in the ApiView;
@@ -451,92 +439,13 @@ public class DocumentModifyService implements OperationService {
     for (int index = 0; ((range = hitIterator.next()) != null); ++index) {
       Element element = modifyAction.getElement(index);
       if (element != null) {
-        if (element.isGadget()) {
-          int xmlStart = view.transformToXmlOffset(range.getStart());
-          Doc.E docElem = Point.elementAfter(doc, doc.locate(xmlStart));
-          updateExistingGadgetElement(doc, docElem, element);
-        } else if (element.isFormElement()) {
+        if (element.isFormElement()) {
           int xmlStart = view.transformToXmlOffset(range.getStart());
           Doc.E docElem = Point.elementAfter(doc, doc.locate(xmlStart));
           updateExistingFormElement(doc, docElem, element);
         } else {
           throw new UnsupportedOperationException(
               "Can't update elements of type " + element.getType());
-        }
-      }
-    }
-  }
-
-  /**
-   * Updates the existing gadget element properties.
-   *
-   * @param doc the document to update elements in.
-   * @param existingElement the gadget element to update.
-   * @param element the element that describes what existingElement should be
-   *        updated with.
-   * @throws InvalidRequestException
-   */
-  private void updateExistingGadgetElement(Document doc, Doc.E existingElement,
-      Element element) throws InvalidRequestException {
-    Preconditions.checkArgument(element.isGadget(),
-        "Called with non-gadget element type %s", element.getType());
-
-    String url = element.getProperty("url");
-    if (url != null) {
-      doc.setElementAttribute(existingElement, "url", url);
-    }
-    Map<String, Doc.E> children = Maps.newHashMap();
-    for (Doc.N child = doc.getFirstChild(existingElement); child != null; child =
-        doc.getNextSibling(child)) {
-      Doc.E childAsElement = doc.asElement(child);
-      if (childAsElement != null) {
-        String key = doc.getTagName(childAsElement);
-        if (key.equals("state")) {
-          key = key + " " + doc.getAttributes(childAsElement).get("name");
-        }
-        children.put(key, childAsElement);
-      }
-    }
-
-    for (Map.Entry<String, String> property : element.getProperties().entrySet()) {
-      // TODO (Yuri Z.) Support updating gadget metadata (author, title, thumbnail...)
-      // and user preferences.
-      String key = null;
-      String tag = null;
-      if (property.getKey().equals("title") || property.getKey().equals("thumbnail")
-          || property.getKey().equals("author")) {
-        key = property.getKey();
-        tag = property.getKey();
-      } else if (!property.getKey().equals("name") && !property.getKey().equals("pref")
-          && !property.getKey().equals("url")) {
-        // A state variable.
-        key = "state " + property.getKey();
-        tag = "state";
-      } else {
-        continue;
-      }
-
-      String val = property.getValue();
-      Doc.E child = children.get(key);
-      if (val == null) {
-        // Delete the property if value is null.
-        if (child == null) {
-          // Property does not exist, skipping.
-          continue;
-        }
-        doc.deleteNode(child);
-      } else {
-        if (child != null) {
-          if (tag.equals("state")) {
-            doc.setElementAttribute(child, "value", val);
-          } else {
-            doc.emptyElement(child);
-            Point<Doc.N> point = Point.<Doc.N> inElement(child, null);
-            doc.insertText(point, val);
-          }
-        } else {
-          XmlStringBuilder xml = GadgetXmlUtil.constructStateXml(property.getKey(), val);
-          doc.insertXml(Point.<Doc.N> inElement(existingElement, null), xml);
         }
       }
     }

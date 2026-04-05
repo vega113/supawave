@@ -52,8 +52,9 @@ import java.util.regex.Pattern;
 /**
  * Class to support serializing Elements from and to XML.
  *
- *
+ * @deprecated Gadget serialization support in this class is deprecated for removal.
  */
+@Deprecated(forRemoval = true)
 public abstract class ElementSerializer {
 
   // Two maps to easily look up what to serialize

@@ -4188,11 +4188,30 @@ public final class HtmlRenderer {
     sb.append(".toggle-switch input:checked + .toggle-slider { background: ").append(WAVE_PRIMARY).append("; }\n");
     sb.append(".toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }\n");
 
+    // Sub-tab pills (used within Operations panel)
+    sb.append(".ops-subtabs { display: flex; gap: 6px; margin-bottom: 16px; }\n");
+    sb.append(".ops-subtab {\n");
+    sb.append("  padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 500;\n");
+    sb.append("  cursor: pointer; border: 1.5px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  background: #fff; color: ").append(WAVE_TEXT_MUTED).append(";\n");
+    sb.append("  transition: all 0.15s; font-family: inherit;\n");
+    sb.append("}\n");
+    sb.append(".ops-subtab:hover { border-color: ").append(WAVE_PRIMARY).append("; color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".ops-subtab.active { background: ").append(WAVE_PRIMARY).append("; color: #fff; border-color: ").append(WAVE_PRIMARY).append("; }\n");
+    sb.append(".ops-subpanel { display: none; }\n");
+    sb.append(".ops-subpanel.active { display: block; }\n");
+    sb.append(".stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }\n");
+    sb.append(".stat-card { background: #f8fafc; border: 1px solid ").append(WAVE_BORDER).append("; border-radius: 8px; padding: 14px 16px; }\n");
+    sb.append(".stat-card .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: ").append(WAVE_TEXT_MUTED).append("; margin-bottom: 4px; }\n");
+    sb.append(".stat-card .stat-value { font-size: 22px; font-weight: 700; color: ").append(WAVE_TEXT).append("; }\n");
+    sb.append(".stat-card .stat-sub { font-size: 11px; color: ").append(WAVE_TEXT_MUTED).append("; margin-top: 2px; }\n");
+
     sb.append("@media (max-width: 768px) {\n");
     sb.append("  .admin-container { padding: 0 12px; }\n");
     sb.append("  .admin-card-header { padding: 16px; }\n");
     sb.append("  .search-box { width: 100%; }\n");
     sb.append("  .admin-table td, .admin-table th { padding: 8px 10px; }\n");
+    sb.append("  .stat-grid { grid-template-columns: 1fr; }\n");
     sb.append("}\n");
     sb.append("</style>\n");
     sb.append("<style>\n").append(renderSharedTopBarCss()).append("</style>\n");
@@ -4331,24 +4350,65 @@ public final class HtmlRenderer {
     sb.append("  </div>\n");
     sb.append("  </div>\n"); // end panel-flags
 
-    // Operations tab panel
+    // Operations tab panel — with sub-tabs
     sb.append("  <div class=\"tab-panel\" id=\"panel-ops\">\n");
-    sb.append("    <div class=\"card\">\n");
-    sb.append("      <h2>Search Index</h2>\n");
-    sb.append("      <table class=\"admin-table\" style=\"max-width:500px\">\n");
-    sb.append("        <tbody>\n");
-    sb.append("          <tr><td>Search type</td><td id=\"opsSearchType\">—</td></tr>\n");
-    sb.append("          <tr><td>Lucene9 flag</td><td id=\"opsLucene9Flag\">—</td></tr>\n");
-    sb.append("          <tr><td>Waves in storage</td><td id=\"opsWavesStorage\">—</td></tr>\n");
-    sb.append("          <tr><td>Docs in Lucene index</td><td id=\"opsDocsIndex\">—</td></tr>\n");
-    sb.append("          <tr><td>Last rebuild count</td><td id=\"opsLastRebuild\">—</td></tr>\n");
-    sb.append("          <tr><td>Avg index time (incremental)</td><td id=\"opsIncrementalAvg\">—</td></tr>\n");
-    sb.append("          <tr><td>Incremental indexes</td><td id=\"opsIncrementalCount\">—</td></tr>\n");
-    sb.append("          <tr><td>Est. full reindex time</td><td id=\"opsEstReindex\">—</td></tr>\n");
-    sb.append("          <tr><td>Last reindex stats</td><td id=\"opsLastReindexStats\">—</td></tr>\n");
-    sb.append("        </tbody>\n");
-    sb.append("      </table>\n");
-    sb.append("      <div style=\"margin-top:12px\">\n");
+
+    // Sub-tab bar
+    sb.append("    <div class=\"ops-subtabs\">\n");
+    sb.append("      <button class=\"ops-subtab active\" data-ops=\"overview\">Overview</button>\n");
+    sb.append("      <button class=\"ops-subtab\" data-ops=\"lucene\">Lucene</button>\n");
+    sb.append("      <button class=\"ops-subtab\" data-ops=\"otsearch\">OT Search</button>\n");
+    sb.append("    </div>\n");
+
+    // ---- Overview sub-panel ----
+    sb.append("    <div class=\"ops-subpanel active\" id=\"ops-overview\">\n");
+    sb.append("      <div class=\"stat-grid\">\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Uptime</div><div class=\"stat-value\" id=\"opsUptime\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Heap Memory</div><div class=\"stat-value\" id=\"opsHeap\">\u2014</div><div class=\"stat-sub\" id=\"opsHeapPct\"></div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Java Version</div><div class=\"stat-value\" id=\"opsJava\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Search Type</div><div class=\"stat-value\" id=\"opsSearchType\">\u2014</div></div>\n");
+    sb.append("      </div>\n");
+    sb.append("      <div class=\"card\" style=\"margin-top:8px\">\n");
+    sb.append("        <h2>Configuration</h2>\n");
+    sb.append("        <table class=\"admin-table\" style=\"max-width:600px\">\n");
+    sb.append("          <tbody id=\"opsConfigBody\"></tbody>\n");
+    sb.append("        </table>\n");
+    sb.append("      </div>\n");
+    sb.append("    </div>\n");
+
+    // ---- Lucene sub-panel ----
+    sb.append("    <div class=\"ops-subpanel\" id=\"ops-lucene\">\n");
+    sb.append("      <div class=\"stat-grid\">\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Docs in Index</div><div class=\"stat-value\" id=\"opsDocsIndex\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Waves in Storage</div><div class=\"stat-value\" id=\"opsWavesStorage\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Lucene9 Flag</div><div class=\"stat-value\" id=\"opsLucene9Flag\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Last Rebuild Count</div><div class=\"stat-value\" id=\"opsLastRebuild\">\u2014</div></div>\n");
+    sb.append("      </div>\n");
+    // Indexing performance
+    sb.append("      <div class=\"card\" style=\"margin-top:8px\">\n");
+    sb.append("        <h2>Indexing Performance</h2>\n");
+    sb.append("        <table class=\"admin-table\" style=\"max-width:500px\">\n");
+    sb.append("          <tbody>\n");
+    sb.append("            <tr><td>Incremental index operations</td><td id=\"opsIncrementalCount\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Avg index time (incremental)</td><td id=\"opsIncrementalAvg\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Est. full reindex time</td><td id=\"opsEstReindex\">\u2014</td></tr>\n");
+    sb.append("          </tbody>\n");
+    sb.append("        </table>\n");
+    sb.append("      </div>\n");
+    // Search query stats
+    sb.append("      <div class=\"card\" style=\"margin-top:12px\">\n");
+    sb.append("        <h2>Search Queries</h2>\n");
+    sb.append("        <table class=\"admin-table\" style=\"max-width:500px\">\n");
+    sb.append("          <tbody>\n");
+    sb.append("            <tr><td>Queries since startup</td><td id=\"opsQueryCount\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Avg query time</td><td id=\"opsQueryAvg\">\u2014</td></tr>\n");
+    sb.append("          </tbody>\n");
+    sb.append("        </table>\n");
+    sb.append("      </div>\n");
+    // Reindex controls
+    sb.append("      <div class=\"card\" style=\"margin-top:12px\">\n");
+    sb.append("        <h2>Reindex</h2>\n");
+    sb.append("        <div id=\"opsLastReindexStats\" style=\"margin-bottom:10px;color:#555\">\u2014</div>\n");
     sb.append("        <button class=\"btn\" id=\"reindexBtn\" disabled>Rebuild Lucene Index</button>\n");
     sb.append("        <div id=\"reindexProgress\" style=\"margin-top:8px\">\n");
     sb.append("          <div id=\"reindexBar\" style=\"display:none;background:#e0e0e0;border-radius:4px;height:20px;max-width:400px;margin-bottom:4px\">\n");
@@ -4358,22 +4418,41 @@ public final class HtmlRenderer {
     sb.append("        </div>\n");
     sb.append("      </div>\n");
     sb.append("    </div>\n");
-    sb.append("    <div class=\"card\" style=\"margin-top:16px\">\n");
-    sb.append("      <h2>Server Info</h2>\n");
-    sb.append("      <table class=\"admin-table\" style=\"max-width:500px\">\n");
-    sb.append("        <tbody>\n");
-    sb.append("          <tr><td>Uptime</td><td id=\"opsUptime\">—</td></tr>\n");
-    sb.append("          <tr><td>Heap memory</td><td id=\"opsHeap\">—</td></tr>\n");
-    sb.append("          <tr><td>Java version</td><td id=\"opsJava\">—</td></tr>\n");
-    sb.append("        </tbody>\n");
-    sb.append("      </table>\n");
+
+    // ---- OT Search sub-panel ----
+    sb.append("    <div class=\"ops-subpanel\" id=\"ops-otsearch\">\n");
+    sb.append("      <div class=\"stat-grid\">\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Active Subscriptions</div><div class=\"stat-value\" id=\"otActiveSubscriptions\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Indexed Waves</div><div class=\"stat-value\" id=\"otIndexedWaves\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Wave Updates</div><div class=\"stat-value\" id=\"otWaveUpdates\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Search Recomputes</div><div class=\"stat-value\" id=\"otSearchRecomputes\">\u2014</div></div>\n");
+    sb.append("      </div>\n");
+    sb.append("      <div class=\"card\" style=\"margin-top:8px\">\n");
+    sb.append("        <h2>Update Paths</h2>\n");
+    sb.append("        <table class=\"admin-table\" style=\"max-width:500px\">\n");
+    sb.append("          <tbody>\n");
+    sb.append("            <tr><td>Low-latency updates</td><td id=\"otLowLatency\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Slow-path updates</td><td id=\"otSlowPath\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Slow-path flushes</td><td id=\"otSlowFlushes\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Slow-path queued subscriptions</td><td id=\"otSlowQueued\">\u2014</td></tr>\n");
+    sb.append("          </tbody>\n");
+    sb.append("        </table>\n");
+    sb.append("      </div>\n");
+    sb.append("      <div class=\"card\" style=\"margin-top:12px\">\n");
+    sb.append("        <h2>Configuration</h2>\n");
+    sb.append("        <table class=\"admin-table\" style=\"max-width:500px\">\n");
+    sb.append("          <tbody>\n");
+    sb.append("            <tr><td>OT Search enabled</td><td id=\"otEnabled\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Config enabled</td><td id=\"otConfigEnabled\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Public batching</td><td id=\"otPublicBatching\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Public batch interval</td><td id=\"otBatchMs\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>Public fanout threshold</td><td id=\"otFanoutThreshold\">\u2014</td></tr>\n");
+    sb.append("            <tr><td>High participant threshold</td><td id=\"otHighParticipant\">\u2014</td></tr>\n");
+    sb.append("          </tbody>\n");
+    sb.append("        </table>\n");
+    sb.append("      </div>\n");
     sb.append("    </div>\n");
-    sb.append("    <div class=\"card\" style=\"margin-top:16px\">\n");
-    sb.append("      <h2>Configuration</h2>\n");
-    sb.append("      <table class=\"admin-table\" style=\"max-width:500px\">\n");
-    sb.append("        <tbody id=\"opsConfigBody\"></tbody>\n");
-    sb.append("      </table>\n");
-    sb.append("    </div>\n");
+
     sb.append("  </div>\n"); // end panel-ops
 
     // Analytics tab panel
@@ -4704,7 +4783,7 @@ public final class HtmlRenderer {
     sb.append("      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');\n");
     sb.append("      if (tab.dataset.tab === 'contacts' && !contactsLoaded) { fetchContacts(); }\n");
     sb.append("      if (tab.dataset.tab === 'flags' && !flagsLoaded) { fetchFlags(); }\n");
-    sb.append("      if (tab.dataset.tab === 'ops' && !opsLoaded) { loadOpsStatus(); }\n");
+    sb.append("      if (tab.dataset.tab === 'ops') { loadOpsStatus(); }\n");
     sb.append("      if (tab.dataset.tab === 'analytics') { loadAnalyticsHistory(analyticsActiveWindow); loadAnalyticsStatus(); }\n");
     sb.append("    });\n");
     sb.append("  });\n");
@@ -5173,8 +5252,18 @@ public final class HtmlRenderer {
     sb.append("  };\n");
 
     // ---- Operations tab logic ----
-    sb.append("  var opsLoaded = false;\n");
     sb.append("  var reindexPollTimer = null;\n");
+
+    // Sub-tab switching
+    sb.append("  document.querySelectorAll('.ops-subtab').forEach(function(btn) {\n");
+    sb.append("    btn.addEventListener('click', function() {\n");
+    sb.append("      document.querySelectorAll('.ops-subtab').forEach(function(b) { b.classList.remove('active'); });\n");
+    sb.append("      document.querySelectorAll('.ops-subpanel').forEach(function(p) { p.classList.remove('active'); });\n");
+    sb.append("      btn.classList.add('active');\n");
+    sb.append("      document.getElementById('ops-' + btn.dataset.ops).classList.add('active');\n");
+    sb.append("      loadOpsStatus();\n");
+    sb.append("    });\n");
+    sb.append("  });\n");
 
     sb.append("  function formatUptime(ms) {\n");
     sb.append("    var s = Math.floor(ms/1000), m = Math.floor(s/60), h = Math.floor(m/60), d = Math.floor(h/24);\n");
@@ -5200,6 +5289,8 @@ public final class HtmlRenderer {
     sb.append("    var rs = Math.round(s % 60);\n");
     sb.append("    return m + 'm ' + rs + 's';\n");
     sb.append("  }\n");
+
+    sb.append("  function fmtNum(n) { return n != null && n >= 0 ? n.toLocaleString() : '\\u2014'; }\n");
 
     sb.append("  function updateReindexBar(ri) {\n");
     sb.append("    var bar = document.getElementById('reindexBar');\n");
@@ -5234,10 +5325,11 @@ public final class HtmlRenderer {
     sb.append("      return txt;\n");
     sb.append("    }\n");
     sb.append("    if (s === 'COMPLETED') {\n");
-    sb.append("      var dur = ri.endTimeMs && ri.startTimeMs ? formatDuration(ri.endTimeMs - ri.startTimeMs) : '?';\n");
+    sb.append("      var elapsed = (ri.endTimeMs && ri.startTimeMs) ? (ri.endTimeMs - ri.startTimeMs) : 0;\n");
+    sb.append("      var dur = elapsed > 0 ? formatDuration(elapsed) : '?';\n");
     sb.append("      var txt = (ri.waveCount || 0) + ' waves in ' + dur;\n");
-    sb.append("      if (ri.endTimeMs && ri.startTimeMs && ri.waveCount > 0) {\n");
-    sb.append("        var rate = (ri.waveCount * 1000 / (ri.endTimeMs - ri.startTimeMs)).toFixed(1);\n");
+    sb.append("      if (elapsed > 0 && ri.waveCount > 0) {\n");
+    sb.append("        var rate = (ri.waveCount * 1000 / elapsed).toFixed(1);\n");
     sb.append("        txt += ' (' + rate + '/sec';\n");
     sb.append("        if (ri.avgMsPerWave) txt += ', avg ' + ri.avgMsPerWave.toFixed(1) + 'ms';\n");
     sb.append("        if (ri.minMsPerWave !== undefined) txt += ', min ' + ri.minMsPerWave + 'ms';\n");
@@ -5253,16 +5345,30 @@ public final class HtmlRenderer {
 
     sb.append("  function loadOpsStatus() {\n");
     sb.append("    fetch('/admin/api/ops/status').then(function(r){return r.json();}).then(function(d){\n");
-    sb.append("      opsLoaded = true;\n");
     sb.append("      var si = d.searchIndex || {};\n");
+    // Overview
+    sb.append("      var srv = d.serverInfo || {};\n");
+    sb.append("      document.getElementById('opsUptime').textContent = formatUptime(srv.uptimeMs || 0);\n");
+    sb.append("      var heapUsed = srv.heapUsedBytes || 0; var heapMax = srv.heapMaxBytes || 1;\n");
+    sb.append("      document.getElementById('opsHeap').textContent = formatBytes(heapUsed) + ' / ' + formatBytes(heapMax);\n");
+    sb.append("      var pct = Math.round(100 * heapUsed / heapMax);\n");
+    sb.append("      document.getElementById('opsHeapPct').textContent = pct + '% used';\n");
+    sb.append("      document.getElementById('opsJava').textContent = srv.javaVersion || '\\u2014';\n");
     sb.append("      document.getElementById('opsSearchType').textContent = si.type || '\\u2014';\n");
-    sb.append("      document.getElementById('opsLucene9Flag').textContent = si.lucene9FlagEnabled ? 'enabled' : 'disabled';\n");
-    sb.append("      document.getElementById('opsWavesStorage').textContent = si.wavesInStorage >= 0 ? si.wavesInStorage : '\\u2014';\n");
-    sb.append("      document.getElementById('opsDocsIndex').textContent = si.docsInIndex >= 0 ? si.docsInIndex : 'N/A';\n");
-    sb.append("      document.getElementById('opsLastRebuild').textContent = si.lastRebuildWaveCount >= 0 ? si.lastRebuildWaveCount : '\\u2014';\n");
-    // Incremental indexing stats
-    sb.append("      document.getElementById('opsIncrementalAvg').textContent = si.incrementalAvgMs ? si.incrementalAvgMs.toFixed(1) + 'ms' : '\\u2014';\n");
-    sb.append("      document.getElementById('opsIncrementalCount').textContent = si.incrementalIndexCount || '\\u2014';\n");
+    sb.append("      var cfg = d.config || {};\n");
+    sb.append("      var html = '';\n");
+    sb.append("      for (var k in cfg) { html += '<tr><td>' + esc(k) + '</td><td>' + esc(String(cfg[k])) + '</td></tr>'; }\n");
+    sb.append("      document.getElementById('opsConfigBody').innerHTML = html || '<tr><td colspan=\"2\">No config</td></tr>';\n");
+    // Lucene
+    sb.append("      document.getElementById('opsDocsIndex').textContent = si.docsInIndex >= 0 ? fmtNum(si.docsInIndex) : 'N/A';\n");
+    sb.append("      document.getElementById('opsWavesStorage').textContent = si.wavesInStorage >= 0 ? fmtNum(si.wavesInStorage) : '\\u2014';\n");
+    sb.append("      document.getElementById('opsLucene9Flag').textContent = si.lucene9FlagEnabled ? 'Enabled' : 'Disabled';\n");
+    sb.append("      document.getElementById('opsLastRebuild').textContent = si.lastRebuildWaveCount >= 0 ? fmtNum(si.lastRebuildWaveCount) : '\\u2014';\n");
+    sb.append("      document.getElementById('opsIncrementalAvg').textContent = si.incrementalAvgMs != null ? si.incrementalAvgMs.toFixed(1) + ' ms' : '\\u2014';\n");
+    sb.append("      document.getElementById('opsIncrementalCount').textContent = si.incrementalIndexCount != null ? fmtNum(si.incrementalIndexCount) : '\\u2014';\n");
+    // Query stats
+    sb.append("      document.getElementById('opsQueryCount').textContent = si.queryCount ? fmtNum(si.queryCount) : '0';\n");
+    sb.append("      document.getElementById('opsQueryAvg').textContent = si.queryAvgMs != null ? si.queryAvgMs.toFixed(1) + ' ms' : '\\u2014';\n");
     // Estimated full reindex time
     sb.append("      var estMs = 0;\n");
     sb.append("      var ri = d.lastReindex || {};\n");
@@ -5272,26 +5378,29 @@ public final class HtmlRenderer {
     sb.append("        estMs = si.wavesInStorage * si.incrementalAvgMs;\n");
     sb.append("      }\n");
     sb.append("      document.getElementById('opsEstReindex').textContent = estMs > 0 ? '~' + formatDuration(estMs) : '\\u2014';\n");
-    // Last reindex stats summary
-    sb.append("      if (ri.state === 'COMPLETED' && ri.avgMsPerWave) {\n");
-    sb.append("        document.getElementById('opsLastReindexStats').textContent = fmtRI(ri);\n");
-    sb.append("      } else {\n");
-    sb.append("        document.getElementById('opsLastReindexStats').textContent = fmtRI(ri);\n");
-    sb.append("      }\n");
-    sb.append("      var srv = d.serverInfo || {};\n");
-    sb.append("      document.getElementById('opsUptime').textContent = formatUptime(srv.uptimeMs || 0);\n");
-    sb.append("      document.getElementById('opsHeap').textContent = formatBytes(srv.heapUsedBytes||0) + ' / ' + formatBytes(srv.heapMaxBytes||0);\n");
-    sb.append("      document.getElementById('opsJava').textContent = srv.javaVersion || '\\u2014';\n");
-    sb.append("      var cfg = d.config || {};\n");
-    sb.append("      var html = '';\n");
-    sb.append("      for (var k in cfg) { html += '<tr><td>' + esc(k) + '</td><td>' + esc(cfg[k]) + '</td></tr>'; }\n");
-    sb.append("      document.getElementById('opsConfigBody').innerHTML = html || '<tr><td colspan=\"2\">No config</td></tr>';\n");
+    sb.append("      document.getElementById('opsLastReindexStats').textContent = fmtRI(ri);\n");
     sb.append("      var btn = document.getElementById('reindexBtn');\n");
-    sb.append("      var reindexRunning = d.lastReindex && d.lastReindex.state === 'RUNNING';\n");
+    sb.append("      var reindexRunning = ri.state === 'RUNNING';\n");
     sb.append("      btn.disabled = si.type !== 'lucene' || reindexRunning;\n");
-    sb.append("      document.getElementById('reindexStatus').textContent = fmtRI(d.lastReindex);\n");
-    sb.append("      updateReindexBar(d.lastReindex);\n");
-    sb.append("      if (d.lastReindex && d.lastReindex.state === 'RUNNING') startReindexPoll();\n");
+    sb.append("      document.getElementById('reindexStatus').textContent = reindexRunning ? fmtRI(ri) : '';\n");
+    sb.append("      updateReindexBar(ri);\n");
+    sb.append("      if (reindexRunning) startReindexPoll();\n");
+    // OT Search
+    sb.append("      var ot = d.otSearch || {};\n");
+    sb.append("      document.getElementById('otActiveSubscriptions').textContent = fmtNum(ot.activeSubscriptions);\n");
+    sb.append("      document.getElementById('otIndexedWaves').textContent = fmtNum(ot.indexedWaves);\n");
+    sb.append("      document.getElementById('otWaveUpdates').textContent = fmtNum(ot.waveUpdateCount);\n");
+    sb.append("      document.getElementById('otSearchRecomputes').textContent = fmtNum(ot.searchRecomputeCount);\n");
+    sb.append("      document.getElementById('otLowLatency').textContent = fmtNum(ot.lowLatencyWaveUpdateCount);\n");
+    sb.append("      document.getElementById('otSlowPath').textContent = fmtNum(ot.slowPathWaveUpdateCount);\n");
+    sb.append("      document.getElementById('otSlowFlushes').textContent = fmtNum(ot.slowPathFlushCount);\n");
+    sb.append("      document.getElementById('otSlowQueued').textContent = fmtNum(ot.slowPathQueuedSubscriptionCount);\n");
+    sb.append("      document.getElementById('otEnabled').textContent = ot.enabled ? 'Yes' : 'No';\n");
+    sb.append("      document.getElementById('otConfigEnabled').textContent = ot.configEnabled ? 'Yes' : 'No';\n");
+    sb.append("      document.getElementById('otPublicBatching').textContent = ot.publicBatchingEnabled ? 'Enabled' : 'Disabled';\n");
+    sb.append("      document.getElementById('otBatchMs').textContent = ot.publicBatchMs != null ? ot.publicBatchMs + ' ms' : '\\u2014';\n");
+    sb.append("      document.getElementById('otFanoutThreshold').textContent = ot.publicFanoutThreshold != null ? ot.publicFanoutThreshold : '\\u2014';\n");
+    sb.append("      document.getElementById('otHighParticipant').textContent = ot.highParticipantThreshold != null ? ot.highParticipantThreshold : '\\u2014';\n");
     sb.append("    }).catch(function(e){\n");
     sb.append("      showToast('Failed to load ops status: ' + e.message, 'error');\n");
     sb.append("    });\n");

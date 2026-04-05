@@ -212,6 +212,7 @@ public class Mongo4DeltaStoreUtil {
     } else if (hashObj instanceof byte[]) {
       historyHash = (byte[]) hashObj;
     }
+    if (historyHash == null) historyHash = new byte[0];
     return HashedVersion.of((Long) document.get(FIELD_VERSION), historyHash);
   }
 

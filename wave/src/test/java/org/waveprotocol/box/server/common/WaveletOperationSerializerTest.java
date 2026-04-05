@@ -24,6 +24,9 @@ import com.google.common.collect.ImmutableMap;
 
 import junit.framework.TestCase;
 
+import com.google.protobuf.ByteString;
+
+import org.waveprotocol.wave.federation.Proto.ProtocolHashedVersion;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
 import org.waveprotocol.wave.model.document.operation.Attributes;
@@ -306,6 +309,24 @@ public class WaveletOperationSerializerTest extends TestCase {
     m.retain(4);
 
     assertReversible(makeBlipOp("emptyUpdateAttributes", m.build()));
+  }
+
+  /**
+   * A ProtocolHashedVersion with an empty history_hash (zero bytes) must deserialize
+   * to an empty-hash HashedVersion. Guards against GWT runtime where ByteString fields
+   * with empty content can be returned as null by the JS protobuf implementation.
+   */
+  public void testDeserializeHashedVersionWithEmptyProtobufHash() {
+    ProtocolHashedVersion proto = ProtocolHashedVersion.newBuilder()
+        .setVersion(1775379766698L)
+        .setHistoryHash(ByteString.EMPTY)
+        .build();
+
+    HashedVersion result = CoreWaveletOperationSerializer.deserialize(proto);
+
+    assertEquals(1775379766698L, result.getVersion());
+    assertNotNull(result.getHistoryHash());
+    assertEquals(0, result.getHistoryHash().length);
   }
 
   private static WaveletBlipOperation makeBlipOp(String blipId, DocOp mutation) {

@@ -335,7 +335,10 @@ public class CoreWaveletOperationSerializer {
   /** Deserializes a protobuf to a HashedVersion POJO. */
   public static HashedVersion deserialize(ProtocolHashedVersion hashedVersion) {
     final ByteString historyHash = hashedVersion.getHistoryHash();
-    return HashedVersion.of(hashedVersion.getVersion(), historyHash.toByteArray());
+    byte[] hashBytes = (historyHash == null || historyHash.isEmpty())
+        ? new byte[0]
+        : historyHash.toByteArray();
+    return HashedVersion.of(hashedVersion.getVersion(), hashBytes);
   }
 
   /** Serializes a HashedVersion POJO to a protobuf. */

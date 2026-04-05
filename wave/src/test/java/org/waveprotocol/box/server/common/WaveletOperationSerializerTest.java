@@ -24,6 +24,9 @@ import com.google.common.collect.ImmutableMap;
 
 import junit.framework.TestCase;
 
+import com.google.protobuf.ByteString;
+
+import org.waveprotocol.wave.federation.Proto.ProtocolHashedVersion;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
 import org.waveprotocol.wave.model.document.operation.Attributes;
@@ -306,6 +309,43 @@ public class WaveletOperationSerializerTest extends TestCase {
     m.retain(4);
 
     assertReversible(makeBlipOp("emptyUpdateAttributes", m.build()));
+  }
+
+  /**
+   * A ProtocolHashedVersion with an empty history_hash (zero bytes) must deserialize
+   * to an empty-hash HashedVersion. Guards against GWT runtime where ByteString fields
+   * with empty content can be returned as null by the JS protobuf implementation.
+   */
+  public void testDeserializeHashedVersionWithEmptyProtobufHash() {
+    ProtocolHashedVersion proto = ProtocolHashedVersion.newBuilder()
+        .setVersion(1775379766698L)
+        .setHistoryHash(ByteString.EMPTY)
+        .build();
+
+    HashedVersion result = CoreWaveletOperationSerializer.deserialize(proto);
+
+    assertEquals(1775379766698L, result.getVersion());
+    assertNotNull(result.getHistoryHash());
+    assertEquals(0, result.getHistoryHash().length);
+  }
+
+  /**
+   * A ProtocolHashedVersion with no history_hash set (default/unset field) must
+   * deserialize to an empty-hash HashedVersion without throwing. In standard Java
+   * protobuf, getHistoryHash() returns ByteString.EMPTY rather than null; the null
+   * guard in CoreWaveletOperationSerializer.deserialize() exists specifically for
+   * the GWT-JS runtime, which can return null for unset ByteString fields.
+   */
+  public void testDeserializeHashedVersionWithUnsetProtobufHash() {
+    ProtocolHashedVersion proto = ProtocolHashedVersion.newBuilder()
+        .setVersion(42L)
+        .build(); // historyHash not set → ByteString.EMPTY in JVM protobuf
+
+    HashedVersion result = CoreWaveletOperationSerializer.deserialize(proto);
+
+    assertEquals(42L, result.getVersion());
+    assertNotNull(result.getHistoryHash());
+    assertEquals(0, result.getHistoryHash().length);
   }
 
   private static WaveletBlipOperation makeBlipOp(String blipId, DocOp mutation) {

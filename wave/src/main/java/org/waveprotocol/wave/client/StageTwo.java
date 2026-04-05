@@ -61,7 +61,7 @@ import org.waveprotocol.wave.client.render.ReductionBasedRenderer;
 import org.waveprotocol.wave.client.render.RenderingRules;
 import org.waveprotocol.wave.client.scheduler.Scheduler.Task;
 import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
-import org.waveprotocol.wave.client.state.BlipReadStateMonitor;
+import org.waveprotocol.wave.model.document.BlipReadStateMonitor;
 import org.waveprotocol.wave.client.state.BlipReadStateMonitorImpl;
 import org.waveprotocol.wave.client.state.ThreadReadStateMonitor;
 import org.waveprotocol.wave.client.state.ThreadReadStateMonitorImpl;

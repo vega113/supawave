@@ -35,6 +35,7 @@ import org.waveprotocol.wave.model.supplement.ObservableSupplementedWave;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.CopyOnWriteSet;
 import org.waveprotocol.wave.model.util.IdentitySet;
+import org.waveprotocol.wave.model.document.BlipReadStateMonitor;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.Collection;

@@ -72,7 +72,7 @@ public class RobotConnectorTest extends TestCase {
       new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME), TEST_URL, "secret",
           new RobotCapabilities(
               Maps.<EventType, Capability> newHashMap(), "FakeHash", ProtocolVersion.DEFAULT),
-          true);
+          true, 0L, null, "", 0L, 1234L, false);
   private static final RobotAccountData ABSOLUTE_ROBOT_ACCOUNT =
       new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME), ABSOLUTE_RPC_ENDPOINT,
           "secret", new RobotCapabilities(
@@ -196,6 +196,8 @@ public class RobotConnectorTest extends TestCase {
         capabilitiesMap.containsKey(EventType.WAVELET_SELF_ADDED));
     assertTrue("Expected capabilities as specified in the xml",
         capabilitiesMap.containsKey(EventType.OPERATION_ERROR));
+    assertTrue("Expected a fresh update timestamp",
+        accountData.getUpdatedAtMillis() > ROBOT_ACCOUNT.getUpdatedAtMillis());
     // Only one connection should be made
     verify(connection).get(TEST_CAPABILITIES_ENDPOINT);
   }

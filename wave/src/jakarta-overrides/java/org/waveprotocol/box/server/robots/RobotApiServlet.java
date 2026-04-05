@@ -56,6 +56,7 @@ import java.util.Set;
  * PUT    /api/robots/{id}/description — update description
  * POST   /api/robots/{id}/rotate  — rotate consumer secret
  * POST   /api/robots/{id}/verify  — test bot (fetch capabilities)
+ * POST   /api/robots/{id}/refresh — clear cached capabilities (re-fetched on next event)
  * PUT    /api/robots/{id}/paused  — pause/unpause
  * DELETE /api/robots/{id}         — soft delete
  * </pre>
@@ -148,6 +149,8 @@ public final class RobotApiServlet extends HttpServlet {
         handleRotateSecret(resp, user, robotId);
       } else if ("verify".equals(action)) {
         handleVerify(resp, user, robotId);
+      } else if ("refresh".equals(action)) {
+        handleRefreshCapabilities(resp, user, robotId);
       } else {
         sendError(resp, 404, "Not found", "NOT_FOUND");
       }
@@ -460,6 +463,33 @@ public final class RobotApiServlet extends HttpServlet {
       sendError(resp, 400, e.getMessage(), "VERIFY_ERROR");
     } catch (PersistenceException e) {
       sendError(resp, 500, "Verification failed", "INTERNAL_ERROR");
+    }
+  }
+
+  private void handleRefreshCapabilities(HttpServletResponse resp, ParticipantId user,
+      String robotIdStr) throws IOException {
+    RobotAccountData robot;
+    try {
+      robot = findOwnedRobot(robotIdStr, user.getAddress());
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Lookup failed", "INTERNAL_ERROR");
+      return;
+    }
+    if (robot == null) {
+      sendError(resp, 404, "Robot not found or not owned by you", "NOT_FOUND");
+      return;
+    }
+    try {
+      RobotAccountData updated = robotRegistrar.refreshCapabilities(robot.getId());
+      if (updated == null) {
+        sendError(resp, 404, "Robot not found", "NOT_FOUND");
+        return;
+      }
+      sendJson(resp, 200, robotToJson(updated, true));
+    } catch (RobotRegistrationException e) {
+      sendError(resp, 400, e.getMessage(), "REFRESH_ERROR");
+    } catch (PersistenceException e) {
+      sendError(resp, 500, "Capability refresh failed", "INTERNAL_ERROR");
     }
   }
 

@@ -84,9 +84,13 @@ public class RobotTest extends TestCase {
   private static final ParticipantId ROBOT = ParticipantId.ofUnsafe(ROBOT_NAME.toEmailAddress());
   private static final RobotAccountData ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", null, true);
+  private static final RobotAccountData STALE_ACCOUNT =
+      new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", null, true, 0L, null, "",
+          0L, 10L, false);
   private static final RobotAccountData INITIALIZED_ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", new RobotCapabilities(
-          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT), true);
+          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT), true, 0L,
+          null, "", 0L, 20L, false);
 
   private RobotsGateway gateway;
   private RobotConnector connector;
@@ -105,6 +109,8 @@ public class RobotTest extends TestCase {
     waveletProvider = mock(WaveletProvider.class);
     eventGenerator = mock(EventGenerator.class);
     operationApplicator = mock(RobotOperationApplicator.class);
+    when(converterManager.getEventDataConverter(any(ProtocolVersion.class))).thenReturn(
+        mock(EventDataConverter.class));
 
     robot =
         new Robot(ROBOT_NAME, ACCOUNT, gateway, connector, converterManager, waveletProvider,
@@ -189,6 +195,33 @@ public class RobotTest extends TestCase {
     assertEquals("The robot should be initialized", INITIALIZED_ACCOUNT, robot.getAccount());
   }
 
+  public void testProcessDropsWaveletIfCapabilitiesStayUnavailableAfterRefresh()
+      throws Exception {
+    doAnswer(new Answer<Object>() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        robot.setAccount(STALE_ACCOUNT);
+        return null;
+      }
+    }).when(gateway).updateRobotAccount(robot);
+
+    enqueueEmptyWavelet();
+    robot.run();
+
+    verify(connector, never()).sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class));
+    verify(operationApplicator, never()).applyOperations(
+        anyListOf(OperationRequest.class), any(ReadableWaveletData.class),
+        any(HashedVersion.class), any(RobotAccountData.class));
+  }
+
+  public void testUpdateAccountIgnoresStaleSnapshots() {
+    robot.setAccount(INITIALIZED_ACCOUNT);
+
+    assertFalse(robot.updateAccountIfNewer(STALE_ACCOUNT));
+    assertEquals("The newer account should remain active", INITIALIZED_ACCOUNT, robot.getAccount());
+  }
+
   public void testProcessSendsNoBundleWhenNoEvents() throws Exception {
     enqueueEmptyWavelet();
     robot.run();
@@ -216,6 +249,31 @@ public class RobotTest extends TestCase {
 
     verify(connector).sendMessageBundle(
         any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class));
+    verify(operationApplicator).applyOperations(
+        eq(ops), any(ReadableWaveletData.class), any(HashedVersion.class), eq(INITIALIZED_ACCOUNT));
+  }
+
+  @SuppressWarnings("unchecked")
+  public void testProcessUsesSingleAccountSnapshotAcrossCapabilityRefresh() throws Exception {
+    EventMessageBundle messages = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
+    messages.addEvent(new DocumentChangedEvent(null, null, ALEX.getAddress(), 0L, "b+1234"));
+    when(eventGenerator.generateEvents(
+        any(), anyMap(), any())).thenReturn(messages);
+
+    OperationRequest op = new OperationRequest("wavelet.fetch", "op1");
+    List<OperationRequest> ops = Collections.singletonList(op);
+    doAnswer(new Answer<Object>() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        robot.setAccount(STALE_ACCOUNT);
+        return ops;
+      }
+    }).when(connector).sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class));
+
+    enqueueEmptyWavelet();
+    robot.run();
+
     verify(operationApplicator).applyOperations(
         eq(ops), any(ReadableWaveletData.class), any(HashedVersion.class), eq(INITIALIZED_ACCOUNT));
   }

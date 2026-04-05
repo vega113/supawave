@@ -43,6 +43,8 @@ import org.waveprotocol.wave.testing.DeferredExecutor;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 
+import java.lang.reflect.Method;
+
 /**
  * Unit tests for {@link RobotsGateway}.
  *
@@ -120,5 +122,44 @@ public class RobotsGatewayTest extends TestCase {
     pausedGateway.waveletUpdate(wavelet, DeltaSequence.empty());
 
     verify(pausedGateway, never()).ensureScheduled(org.mockito.ArgumentMatchers.any(Robot.class));
+  }
+
+  public void testExistingRobotGetsRefreshedFromNewerAccountSnapshot() throws Exception {
+    Method getOrCreateRobot = RobotsGateway.class.getDeclaredMethod(
+        "getOrCreateRobot", RobotName.class, RobotAccountData.class);
+    getOrCreateRobot.setAccessible(true);
+
+    RobotName robotName = RobotName.fromAddress("refresh-bot@example.com");
+    RobotAccountData initialAccount = new RobotAccountDataImpl(
+        ParticipantId.ofUnsafe(robotName.toEmailAddress()),
+        "https://robot.example.com/callback",
+        "secret",
+        null,
+        true,
+        0L,
+        null,
+        "initial",
+        111L,
+        200L,
+        false);
+    RobotAccountData refreshedAccount = new RobotAccountDataImpl(
+        ParticipantId.ofUnsafe(robotName.toEmailAddress()),
+        "https://robot.example.com/callback",
+        "secret",
+        null,
+        true,
+        0L,
+        null,
+        "refreshed",
+        111L,
+        300L,
+        false);
+
+    Robot robot = (Robot) getOrCreateRobot.invoke(gateway, robotName, initialAccount);
+    assertSame(initialAccount, robot.getAccount());
+
+    Robot refreshedRobot = (Robot) getOrCreateRobot.invoke(gateway, robotName, refreshedAccount);
+    assertSame(robot, refreshedRobot);
+    assertSame(refreshedAccount, refreshedRobot.getAccount());
   }
 }

@@ -51,8 +51,8 @@ import java.time.ZoneOffset;
  */
 public class RobotRegistrarImplTest extends TestCase {
 
-  private final static String LOCATION = "https://example.com:9898/robot/";
-  private final static String OTHER_LOCATION = "http://foo.com:9898/robot/";
+  private final static String LOCATION = "https://example.com:9898/robot";
+  private final static String OTHER_LOCATION = "http://foo.com:9898/robot";
   private final static ParticipantId ROBOT_ID = ParticipantId.ofUnsafe("robot@example.com");
   private final static ParticipantId HUMAN_ID = ParticipantId.ofUnsafe("human@example.com");
   private final static ParticipantId OWNER_ID = ParticipantId.ofUnsafe("owner@example.com");
@@ -94,8 +94,7 @@ public class RobotRegistrarImplTest extends TestCase {
     verify(tokenGenerator).generateToken(anyInt());
     assertTrue(resultAccountData.isRobot());
     RobotAccountData robotAccountData = resultAccountData.asRobot();
-    // Remove the last '/'.
-    assertEquals(LOCATION.substring(0, LOCATION.length() - 1), robotAccountData.getUrl());
+    assertEquals(LOCATION, robotAccountData.getUrl());
     assertEquals(ROBOT_ID, robotAccountData.getId());
     assertEquals(CONSUMER_TOKEN, robotAccountData.getConsumerSecret());
     assertEquals("", robotAccountData.getDescription());
@@ -182,9 +181,7 @@ public class RobotRegistrarImplTest extends TestCase {
     verify(accountStore).putAccount(any(RobotAccountData.class));
     assertTrue(unregisteredAccountData.isRobot());
     RobotAccountData robotAccountData = unregisteredAccountData.asRobot();
-    // Remove the last '/'.
-    assertEquals(OTHER_LOCATION.substring(0, OTHER_LOCATION.length() - 1),
-        robotAccountData.getUrl());
+    assertEquals(OTHER_LOCATION, robotAccountData.getUrl());
     assertEquals(ROBOT_ID, robotAccountData.getId());
     assertEquals(EXISTING_CONSUMER_TOKEN, robotAccountData.getConsumerSecret());
     assertEquals(OWNER_ID.getAddress(), robotAccountData.getOwnerAddress());
@@ -205,7 +202,7 @@ public class RobotRegistrarImplTest extends TestCase {
         registrar.registerOrUpdate(ROBOT_ID, OTHER_LOCATION, OWNER_ID.getAddress());
 
     assertEquals("pending-secret", updatedAccount.getConsumerSecret());
-    assertEquals(OTHER_LOCATION.substring(0, OTHER_LOCATION.length() - 1), updatedAccount.getUrl());
+    assertEquals(OTHER_LOCATION, updatedAccount.getUrl());
     // Activating a pending robot (empty URL -> real URL) should mark it as verified.
     assertTrue(updatedAccount.isVerified());
     assertEquals(3600L, updatedAccount.getTokenExpirySeconds());
@@ -221,7 +218,7 @@ public class RobotRegistrarImplTest extends TestCase {
     RobotAccountData legacyRobot =
         new RobotAccountDataImpl(
             ROBOT_ID,
-            LOCATION.substring(0, LOCATION.length() - 1),
+            LOCATION,
             EXISTING_CONSUMER_TOKEN,
             null,
             true,
@@ -231,7 +228,7 @@ public class RobotRegistrarImplTest extends TestCase {
 
     RobotAccountData claimedRobot =
         registrar.registerOrUpdate(
-            ROBOT_ID, LOCATION.substring(0, LOCATION.length() - 1), OWNER_ID.getAddress());
+            ROBOT_ID, LOCATION, OWNER_ID.getAddress());
 
     verify(accountStore).putAccount(any(RobotAccountData.class));
     assertEquals(OWNER_ID.getAddress(), claimedRobot.getOwnerAddress());
@@ -261,6 +258,63 @@ public class RobotRegistrarImplTest extends TestCase {
     assertTrue(updated.isPaused());
     assertEquals(1234L, updated.getCreatedAtMillis());
     assertEquals(CLOCK.millis(), updated.getUpdatedAtMillis());
+  }
+
+  public void testRefreshCapabilitiesClearsCapabilitiesAndPreservesRobotFields()
+      throws PersistenceException, RobotRegistrationException {
+    RobotCapabilities capabilities = mock(RobotCapabilities.class);
+    RobotAccountData refreshedSourceAccount =
+        new RobotAccountDataImpl(
+            ROBOT_ID,
+            LOCATION,
+            EXISTING_CONSUMER_TOKEN,
+            capabilities,
+            true,
+            0L,
+            OWNER_ID.getAddress(),
+            "existing description",
+            1234L,
+            5678L,
+            false);
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(refreshedSourceAccount);
+
+    RobotAccountData refreshed = registrar.refreshCapabilities(ROBOT_ID);
+
+    verify(accountStore).putAccount(any(RobotAccountData.class));
+    assertNull(refreshed.getCapabilities());
+    assertEquals(ROBOT_ID, refreshed.getId());
+    assertEquals(LOCATION, refreshed.getUrl());
+    assertEquals(EXISTING_CONSUMER_TOKEN, refreshed.getConsumerSecret());
+    assertEquals(OWNER_ID.getAddress(), refreshed.getOwnerAddress());
+    assertEquals("existing description", refreshed.getDescription());
+    assertEquals(1234L, refreshed.getCreatedAtMillis());
+    assertEquals(CLOCK.millis(), refreshed.getUpdatedAtMillis());
+    assertTrue(refreshed.isVerified());
+    assertFalse(refreshed.isPaused());
+  }
+
+  public void testRefreshCapabilitiesUsesStrictlyNewerTimestampWhenClockMatchesSnapshot()
+      throws PersistenceException, RobotRegistrationException {
+    RobotCapabilities capabilities = mock(RobotCapabilities.class);
+    RobotAccountData refreshedSourceAccount =
+        new RobotAccountDataImpl(
+            ROBOT_ID,
+            LOCATION,
+            EXISTING_CONSUMER_TOKEN,
+            capabilities,
+            true,
+            0L,
+            OWNER_ID.getAddress(),
+            "existing description",
+            1234L,
+            CLOCK.millis(),
+            false);
+    when(accountStore.getAccount(ROBOT_ID)).thenReturn(refreshedSourceAccount);
+
+    RobotAccountData refreshed = registrar.refreshCapabilities(ROBOT_ID);
+
+    assertEquals(CLOCK.millis() + 1L, refreshed.getUpdatedAtMillis());
+    assertTrue(refreshed.getUpdatedAtMillis() > refreshedSourceAccount.getUpdatedAtMillis());
   }
 
   public void testRegisterOrUpdateClearsCapabilitiesWhenUrlChanges() throws PersistenceException,
@@ -301,7 +355,7 @@ public class RobotRegistrarImplTest extends TestCase {
 
     verify(accountStore).putAccount(any(RobotAccountData.class));
     assertEquals(ROBOT_ID, rotatedAccountData.getId());
-    assertEquals(LOCATION.substring(0, LOCATION.length() - 1), rotatedAccountData.getUrl());
+    assertEquals(LOCATION, rotatedAccountData.getUrl());
     assertEquals(CONSUMER_TOKEN, rotatedAccountData.getConsumerSecret());
     assertEquals(OWNER_ID.getAddress(), rotatedAccountData.getOwnerAddress());
     assertEquals("existing description", rotatedAccountData.getDescription());

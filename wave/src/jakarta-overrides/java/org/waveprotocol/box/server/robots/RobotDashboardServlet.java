@@ -801,6 +801,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<tr><td class=\"method\">PUT</td><td class=\"path\">/api/robots/{id}/description</td><td>Update description</td></tr>");
     sb.append("<tr><td class=\"method\">POST</td><td class=\"path\">/api/robots/{id}/rotate</td><td>Rotate secret</td></tr>");
     sb.append("<tr><td class=\"method\">POST</td><td class=\"path\">/api/robots/{id}/verify</td><td>Test connectivity</td></tr>");
+    sb.append("<tr><td class=\"method\">POST</td><td class=\"path\">/api/robots/{id}/refresh</td><td>Refresh capabilities</td></tr>");
     sb.append("<tr><td class=\"method\">PUT</td><td class=\"path\">/api/robots/{id}/paused</td><td>Pause/unpause</td></tr>");
     sb.append("<tr><td class=\"method\">DELETE</td><td class=\"path\">/api/robots/{id}</td><td>Delete robot</td></tr>");
     sb.append("</tbody></table></div>");
@@ -988,6 +989,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("h+='<div class=\"rb-actions\">';");
     sb.append("var noUrl=!r.callbackUrl;");
     sb.append("h+='<button class=\"btn-p\" style=\"width:100%;justify-content:center'+(noUrl?';opacity:.5;cursor:not-allowed':'')+'\"'+(noUrl?' disabled title=\"Set a callback URL first\"':'')+' onclick=\"testBot('+i+')\">'+ICO.play+' Test Robot</button>';");
+    sb.append("h+='<button class=\"btn-o\" style=\"width:100%;justify-content:center\" onclick=\"refreshCaps('+i+')\">'+ICO.rotate+' Refresh Capabilities</button>';");
     sb.append("h+='<button class=\"btn-o\" style=\"width:100%;justify-content:center\" onclick=\"rotateSecret('+i+')\">'+ICO.rotate+' Rotate Secret</button>';");
     sb.append("h+='<button class=\"btn-s\" style=\"width:100%;justify-content:center\" onclick=\"togglePause('+i+')\">'+(p?ICO.play+' Unpause':ICO.pause+' Pause')+'</button>';");
     sb.append("h+='<button class=\"btn-o\" style=\"width:100%;justify-content:center\" onclick=\"copyText(\\''+escAttr(r.id)+'\\',\\'Address copied\\')\">'+ICO.copy+' Copy Address</button>';");
@@ -1020,6 +1022,9 @@ public final class RobotDashboardServlet extends HttpServlet {
 
     sb.append("function testBot(i){toast('Testing...','info');");
     sb.append("api('POST',robotsData[i].id+'/verify').then(function(d){robotsData[i]=d;toast('Bot verified');renderRobots();}).catch(function(e){if(e)toast(e.message,'err');});}");
+
+    sb.append("function refreshCaps(i){toast('Refreshing...','info');");
+    sb.append("api('POST',robotsData[i].id+'/refresh').then(function(d){robotsData[i]=d;toast('Capabilities cleared. Will re-fetch on next event.');renderRobots();}).catch(function(e){if(e)toast(e.message,'err');});}");
 
     sb.append("function rotateSecret(i){showConfirm(i,'rotate','The old secret stops working immediately.',function(){");
     sb.append("api('POST',robotsData[i].id+'/rotate').then(function(d){");

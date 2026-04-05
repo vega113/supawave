@@ -67,6 +67,17 @@ public interface RobotRegistrar {
       throws RobotRegistrationException, PersistenceException;
 
   /**
+   * Clears the cached capabilities for an existing robot, forcing the server
+   * to re-fetch them from the robot's {@code capabilities.xml} on the next
+   * event cycle.  Call this after deploying a new version of a robot that
+   * advertises different capabilities.
+   *
+   * @return the updated robot, or {@code null} when the robot account does not exist
+   */
+  RobotAccountData refreshCapabilities(ParticipantId robotId)
+      throws RobotRegistrationException, PersistenceException;
+
+  /**
    * Atomically marks a robot as verified with the given capabilities.
    * Re-reads from store to avoid stale-snapshot overwrites.
    *

@@ -48,6 +48,7 @@ public class CenterPopupPositioner implements RelativePopupPositioner {
       @Override
       public void execute() {
         int viewportWidth = RootPanel.get().getOffsetWidth();
+        p.getStyle().clearWidth();
         int popupWidth = p.getOffsetWidth();
 
         // Clamp popup width to viewport minus margins on small screens.

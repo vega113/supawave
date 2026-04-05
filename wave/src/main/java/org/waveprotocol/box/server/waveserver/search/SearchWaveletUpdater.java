@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -38,11 +39,17 @@ import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.waveserver.SearchProvider;
 import org.waveprotocol.box.server.waveserver.WaveBus;
+import org.waveprotocol.wave.model.conversation.AnnotationConstants;
+import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
+import org.waveprotocol.wave.model.document.operation.Attributes;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.util.logging.Log;
 
@@ -69,6 +76,8 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
   private final ConcurrentHashMap<String, UpdateCounter> userCounters =
       new ConcurrentHashMap<>();
   private final ConcurrentHashMap<WaveId, SlowPathBatchState> slowPathBatches =
+      new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<WaveletName, Set<ParticipantId>> pendingMentionedUsers =
       new ConcurrentHashMap<>();
   private final AtomicLong waveUpdateCount = new AtomicLong();
   private final AtomicLong lowLatencyWaveUpdateCount = new AtomicLong();
@@ -161,11 +170,65 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
           enqueueLowLatencyUpdates(affected);
         }
       }
+      if (IdUtil.isConversationalId(wavelet.getWaveletId())) {
+        Set<ParticipantId> mentioned = extractMentionedUsers(wavelet);
+        mentioned.removeAll(participants);
+        if (!mentioned.isEmpty()) {
+          pendingMentionedUsers.put(waveletName, mentioned);
+        }
+      }
     }
   }
 
   @Override
   public void waveletCommitted(WaveletName waveletName, HashedVersion version) {
+    Set<ParticipantId> mentioned = pendingMentionedUsers.remove(waveletName);
+    if (mentioned != null && !mentioned.isEmpty()) {
+      Set<SearchIndexer.SubscriptionKey> affected =
+          indexer.getAffectedSubscriptions(waveletName.waveId, mentioned);
+      if (!affected.isEmpty()) {
+        enqueueLowLatencyUpdates(affected);
+      }
+    }
+  }
+
+  private static Set<ParticipantId> extractMentionedUsers(ReadableWaveletData wavelet) {
+    Set<ParticipantId> mentioned = new HashSet<>();
+    for (String docId : wavelet.getDocumentIds()) {
+      ReadableBlipData blip = wavelet.getDocument(docId);
+      if (blip == null) {
+        continue;
+      }
+      blip.getContent().asOperation().apply(new DocInitializationCursor() {
+        @Override
+        public void annotationBoundary(AnnotationBoundaryMap map) {
+          for (int i = 0; i < map.changeSize(); i++) {
+            String key = map.getChangeKey(i);
+            String value = map.getNewValue(i);
+            if (AnnotationConstants.isMentionKey(key) && value != null && !value.isEmpty()) {
+              try {
+                mentioned.add(ParticipantId.ofUnsafe(value.trim().toLowerCase(Locale.ROOT)));
+              } catch (IllegalArgumentException e) {
+                LOG.warning("Skipping malformed mention annotation value: " + value);
+              }
+            }
+          }
+        }
+
+        @Override
+        public void characters(String s) {
+        }
+
+        @Override
+        public void elementStart(String type, Attributes attrs) {
+        }
+
+        @Override
+        public void elementEnd() {
+        }
+      });
+    }
+    return mentioned;
   }
 
   private void enqueueLowLatencyUpdates(Set<SearchIndexer.SubscriptionKey> affected) {
@@ -486,6 +549,7 @@ public class SearchWaveletUpdater implements WaveBus.Subscriber {
     scheduler.shutdownNow();
     pendingTasks.clear();
     slowPathBatches.clear();
+    pendingMentionedUsers.clear();
   }
 
   static final class SearchUpdateBatchingPolicy {

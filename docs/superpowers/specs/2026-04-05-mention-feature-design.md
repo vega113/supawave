@@ -5,7 +5,7 @@
 
 ## Overview
 
-Add Telegram-style @mention support to Apache Wave: typing `@` in a blip opens an autocomplete for participants/users, inserts annotated `@username` text, indexes mentions for Lucene search, and adds a "Mentions" toolbar button to the search panel.
+Add Telegram-style @mention support to Apache Wave: typing `@` in a blip opens an autocomplete for current wave participants, inserts annotated `@username` text, indexes mentions for Lucene search, and adds a "Mentions" toolbar button to the search panel.
 
 ## 1. Annotation Layer
 
@@ -32,11 +32,10 @@ Triggered when user types `@` in a blip editor.
 
 ### Autocomplete Data Source
 
-- **First:** current wave participants (from `Wavelet.getParticipantIds()`)
-- **Then:** all server users via existing profile/contacts service
+- Current wave participants only (from `Wavelet.getParticipantIds()`)
 - Filtered as user types characters after `@`
-- Debounced input (200ms) for server-side user lookup
-- The current implementation limits selection to existing participants; it does not auto-add new participants yet.
+- Debounced input (200ms) refreshes the local participant list
+- Selection stays limited to existing participants; it does not auto-add new participants yet.
 
 ### On Selection
 
@@ -123,8 +122,8 @@ The current implementation keeps the autocomplete scoped to existing wave partic
 | `TokenQueryType.java` | Add `MENTIONS` token |
 | `QueryHelper.java` | Parse `mentions:` with `me` resolution |
 | `SimpleSearchProviderImpl.java` | Mention filter stage |
-| `Lucene9SearchProviderImpl.java` | Lucene mention query |
-| `Lucene9QueryParser.java` | Mention query compilation |
+| `Lucene9QueryCompiler.java` | Lucene mention query compilation |
+| `Lucene9QueryModel.java` | Parsed mention query model |
 | `SearchPresenter.java` | Toolbar button |
 | `SearchWidget.ui.xml` | Help panel update |
 | `DoodadInstallers.java` | Register mention handler |

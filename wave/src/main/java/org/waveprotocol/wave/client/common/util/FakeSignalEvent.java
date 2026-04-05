@@ -48,8 +48,13 @@ public class FakeSignalEvent extends SignalEventImpl {
 
     public FakeNativeEvent(String type,
         int mouseButton, EnumSet<KeyModifier> modifiers) {
+      this(type, null, mouseButton, modifiers);
+    }
+
+    public FakeNativeEvent(String type, String key,
+        int mouseButton, EnumSet<KeyModifier> modifiers) {
       this.type = type;
-      this.key = null;
+      this.key = key;
       this.mouseButton = mouseButton;
       this.altKey = modifiers != null && modifiers.contains(KeyModifier.ALT);
       this.ctrlKey = modifiers != null && modifiers.contains(KeyModifier.CTRL);
@@ -116,15 +121,26 @@ public class FakeSignalEvent extends SignalEventImpl {
 
   public static <T extends FakeSignalEvent> T createEvent(
       SignalEventFactory<T> factory, String type) {
-    return createInner(factory.create(), new FakeNativeEvent(type, 0, null), null);
+    return createInner(factory.create(), new FakeNativeEvent(type, null, 0, null), null);
+  }
+
+  public static <T extends FakeSignalEvent> T createEvent(
+      SignalEventFactory<T> factory, String type, String key) {
+    return createInner(factory.create(), new FakeNativeEvent(type, key, 0, null), null);
   }
 
   public static <T extends FakeSignalEvent> T createKeyPress(SignalEventFactory<T> factory,
       KeySignalType type, int keyCode, EnumSet<KeyModifier> modifiers) {
+    return createKeyPress(factory, type, keyCode, null, modifiers);
+  }
+
+  public static <T extends FakeSignalEvent> T createKeyPress(SignalEventFactory<T> factory,
+      KeySignalType type, int keyCode, String key, EnumSet<KeyModifier> modifiers) {
     SignalKeyLogic.Result keyLogic = new SignalKeyLogic.Result();
     keyLogic.keyCode = keyCode;
     keyLogic.type = type;
-    return createInner(factory.create(), new FakeNativeEvent("keydown", 0, modifiers), keyLogic);
+    return createInner(factory.create(), new FakeNativeEvent("keydown", key, 0, modifiers),
+        keyLogic);
   }
 
   public static <T extends FakeSignalEvent> T createClick(SignalEventFactory<T> factory,

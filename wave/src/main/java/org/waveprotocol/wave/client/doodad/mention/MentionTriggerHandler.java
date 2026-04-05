@@ -33,6 +33,8 @@ import org.waveprotocol.wave.model.document.util.FocusedRange;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -129,10 +131,18 @@ public final class MentionTriggerHandler
     // Enter mention mode. The '@' will be inserted by the editor's default
     // handling AFTER this listener returns false, so we schedule the popup
     // to open on the next event loop tick.
+    if (editor.getSelectionHelper() == null) {
+      return false;
+    }
+    FocusedRange selection = editor.getSelectionHelper().getSelectionRange();
+    if (selection == null) {
+      return false;
+    }
+    final int triggerPosition = selection.getFocus();
     new Timer() {
       @Override
       public void run() {
-        enterMentionMode();
+        enterMentionMode(triggerPosition);
       }
     }.schedule(1);
 
@@ -232,17 +242,11 @@ public final class MentionTriggerHandler
   }
 
   /** Enters mention mode: records the '@' position and opens the popup. */
-  private void enterMentionMode() {
+  private void enterMentionMode(int triggerPosition) {
     if (editor == null || editor.getSelectionHelper() == null) {
       return;
     }
-    FocusedRange selection = editor.getSelectionHelper().getSelectionRange();
-    if (selection == null) {
-      return;
-    }
-
-    // The caret is now just after the '@' character.
-    atPosition = selection.getFocus() - 1;
+    atPosition = triggerPosition;
     if (atPosition < 0) {
       return;
     }
@@ -302,6 +306,13 @@ public final class MentionTriggerHandler
         filtered.add(p);
       }
     }
+
+    Collections.sort(filtered, new Comparator<ParticipantId>() {
+      @Override
+      public int compare(ParticipantId left, ParticipantId right) {
+        return left.getAddress().compareToIgnoreCase(right.getAddress());
+      }
+    });
 
     popup.update(filtered);
     popup.selectParticipant(selected);

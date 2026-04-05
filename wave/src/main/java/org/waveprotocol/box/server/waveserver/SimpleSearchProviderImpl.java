@@ -29,6 +29,7 @@ import com.google.wave.api.SearchResult;
 
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
+import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.id.IdUtil;
@@ -869,7 +870,8 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
                 for (int i = 0; i < map.changeSize(); i++) {
                   String key = map.getChangeKey(i);
                   String newValue = map.getNewValue(i);
-                  if (key.startsWith("mention/") && newValue != null && !newValue.isEmpty()) {
+                  if (AnnotationConstants.isMentionKey(key) && newValue != null
+                      && !newValue.isEmpty()) {
                     foundMentions.add(newValue.toLowerCase(Locale.ROOT));
                   }
                 }

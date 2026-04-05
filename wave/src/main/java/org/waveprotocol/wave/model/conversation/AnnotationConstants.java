@@ -104,6 +104,13 @@ public class AnnotationConstants {
   /** Denotes a user mention with value = participant address. */
   public static final String MENTION_USER = MENTION_PREFIX + "/user";
 
+  /**
+   * Returns true when the annotation key belongs to the mention namespace.
+   */
+  public static boolean isMentionKey(String key) {
+    return key != null && key.startsWith(MENTION_PREFIX + "/");
+  }
+
   // Other
 
   /** Prefix for spelling annotations. (e.g. Spelly) */

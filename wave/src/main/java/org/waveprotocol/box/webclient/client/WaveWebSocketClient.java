@@ -108,6 +108,16 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   }
 
   private ConnectState connected = ConnectState.DISCONNECTED;
+
+  /**
+   * Monotonically increasing counter incremented each time a new WaveSocket is
+   * created. Each socket's callback captures its generation at creation time
+   * and guards all callbacks with {@code gen == socketGeneration}. This
+   * prevents stale {@code onclose} / {@code onopen} events fired by an old
+   * socket (e.g. Android Chrome's delayed onclose after a server deploy) from
+   * corrupting the connection state of the newly-established socket.
+   */
+  private int socketGeneration = 0;
   private WaveWebSocketCallback callback;
   private int sequenceNo;
 
@@ -126,7 +136,7 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
     	ClientEvents.get().fireEvent(new NetworkStatusEvent(ConnectionStatus.NEVER_CONNECTED));
     	throw new RuntimeException("Websocket is not available");
     }
-    socket = WaveSocketFactory.create(urlBase, this);
+    socket = createSocket();
   }
 
   /**
@@ -196,11 +206,37 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   }
 
   /**
-   * Creates a new {@link WaveSocket}. Extracted so tests can override via
-   * subclass or reflection to supply a fake.
+   * Creates a new {@link WaveSocket} bound to a per-socket generation number.
+   * <p>
+   * Each call increments {@link #socketGeneration}. The socket's callback
+   * checks that its captured generation still matches the current value before
+   * forwarding any event. This prevents stale callbacks from old sockets
+   * (e.g. Android Chrome's delayed {@code onclose} that fires after the new
+   * socket's {@code onopen}) from mutating connection state.
    */
   WaveSocket createSocket() {
-    return WaveSocketFactory.create(urlBase, this);
+    final int gen = ++socketGeneration;
+    return createSocketWithCallback(new WaveSocket.WaveSocketCallback() {
+      @Override public void onConnect() {
+        if (gen == socketGeneration) WaveWebSocketClient.this.onConnect();
+      }
+      @Override public void onDisconnect() {
+        if (gen == socketGeneration) WaveWebSocketClient.this.onDisconnect();
+      }
+      @Override public void onMessage(String message) {
+        if (gen == socketGeneration) WaveWebSocketClient.this.onMessage(message);
+      }
+    });
+  }
+
+  /**
+   * Creates a {@link WaveSocket} using the provided callback. Extracted from
+   * {@link #createSocket()} so that tests can override this single method to
+   * supply a fake socket while still exercising the generation-gated callback
+   * logic in {@link #createSocket()}.
+   */
+  WaveSocket createSocketWithCallback(WaveSocket.WaveSocketCallback callback) {
+    return WaveSocketFactory.create(urlBase, callback);
   }
 
   @Override

@@ -105,29 +105,32 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
   /** Dispatches an update to the appropriate wave stream. */
   @Override
   public void onWaveletUpdate(ProtocolWaveletUpdate message) {
+    // Guard only the name deserialization. During server deploys the server may
+    // send a wavelet update with a null or malformed wavelet name. Catching here
+    // keeps the error contained and triggers a graceful reconnect; any other
+    // exception (e.g. from stream processing) is allowed to propagate so that
+    // the uncaught-exception handler can decide how to handle it.
+    WaveletName wavelet;
     try {
-      WaveletName wavelet = deserialize(message.getWaveletName());
-
-      // Route to the appropriate stream handler.
-      WaveWebSocketCallback stream = streams.get(wavelet.waveId);
-      if (stream != null) {
-        boolean drop = shouldDropUpdate(wavelet.waveId, message);
-
-        if (!drop) {
-          stream.onWaveletUpdate(message);
-        }
-      } else {
-        // This is either a server error, or a message after a stream has been
-        // locally closed (there is no way to tell the server to stop sending
-        // updates).
-      }
+      wavelet = deserialize(message.getWaveletName());
     } catch (Exception e) {
-      // During server deploys, the server may send malformed or null-field messages
-      // that cause deserialization errors. Trigger a graceful reconnect rather than
-      // letting the exception bubble up to the uncaught exception handler (which
-      // would show the error banner).
-      LOG.severe("Error processing wavelet update (likely server restart)", e);
+      LOG.severe("Wavelet name deserialization failed (likely server restart)", e);
       socket.disconnect();
+      return;
+    }
+
+    // Route to the appropriate stream handler.
+    WaveWebSocketCallback stream = streams.get(wavelet.waveId);
+    if (stream != null) {
+      boolean drop = shouldDropUpdate(wavelet.waveId, message);
+
+      if (!drop) {
+        stream.onWaveletUpdate(message);
+      }
+    } else {
+      // This is either a server error, or a message after a stream has been
+      // locally closed (there is no way to tell the server to stop sending
+      // updates).
     }
   }
 

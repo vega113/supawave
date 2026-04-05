@@ -25,6 +25,8 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.gwt.user.client.Timer;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
 
 public final class WaveWebSocketClientTest {
@@ -164,6 +166,57 @@ public final class WaveWebSocketClientTest {
     int delay10 = client.getReconnectDelay();
     assertTrue("Attempt 10 delay should be >= 30000, was " + delay10, delay10 >= 30000);
     assertTrue("Attempt 10 delay should be <= 36000, was " + delay10, delay10 <= 36000);
+  }
+
+  /**
+   * Regression test for the Android mobile green→yellow reconnect bug.
+   *
+   * <p>On Android Chrome, when the server deploys and the app is in the
+   * background, the WebSocket {@code onclose} event can fire AFTER the new
+   * socket's {@code onopen} (i.e. after the client has already marked itself
+   * CONNECTED). This stale {@code onclose} must be ignored; otherwise the
+   * client incorrectly transitions to DISCONNECTED and schedules a reconnect,
+   * making the connection indicator flip from green to yellow the first time
+   * the user types.
+   *
+   * <p>The fix is a per-socket generation counter in {@link WaveWebSocketClient}:
+   * each callback captures its generation at creation time and guards all
+   * forwarding with {@code gen == socketGeneration}.
+   */
+  @Test
+  public void staleSocketOnDisconnectIsIgnoredAfterNewSocketConnects() throws Exception {
+    final List<WaveSocket.WaveSocketCallback> callbacks = new ArrayList<>();
+    final FakeWaveSocket fakeSocket = new FakeWaveSocket();
+
+    WaveWebSocketClient client = new WaveWebSocketClient(false, "") {
+      @Override
+      WaveSocket createSocketWithCallback(WaveSocket.WaveSocketCallback callback) {
+        callbacks.add(callback);
+        return fakeSocket;
+      }
+    };
+
+    // gen=1 socket: initial connection
+    WaveSocket.WaveSocketCallback gen1 = callbacks.get(0);
+    gen1.onConnect();
+    assertEquals("CONNECTED", getConnectState(client));
+
+    // gen=1 disconnect → creates gen=2 socket and schedules reconnect
+    gen1.onDisconnect();
+    assertEquals("DISCONNECTED", getConnectState(client));
+    assertEquals(2, callbacks.size());
+
+    // gen=2 socket: reconnect succeeds (the user sees GREEN)
+    WaveSocket.WaveSocketCallback gen2 = callbacks.get(1);
+    gen2.onConnect();
+    assertEquals("CONNECTED", getConnectState(client));
+
+    // Stale gen=1 onclose fires (Android Chrome delayed event) — must be ignored
+    gen1.onDisconnect();
+
+    // Connection state must remain CONNECTED; no new socket should be created
+    assertEquals("Still CONNECTED after stale onDisconnect", "CONNECTED", getConnectState(client));
+    assertEquals("No extra socket should be created", 2, callbacks.size());
   }
 
   @Test

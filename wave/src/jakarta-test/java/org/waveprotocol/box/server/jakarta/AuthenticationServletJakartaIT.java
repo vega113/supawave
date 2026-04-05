@@ -18,6 +18,7 @@ import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
 import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.rpc.AuthenticationServlet;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import javax.security.auth.login.Configuration;
@@ -74,7 +75,8 @@ public class AuthenticationServletJakartaIT {
         "example.com",
         cfg,
         browserSessionJwtIssuer,
-        authEmailService
+        authEmailService,
+        Mockito.mock(AnalyticsRecorder.class)
     );
 
     ctx.addServlet(new ServletHolder(servlet), "/auth/signin");

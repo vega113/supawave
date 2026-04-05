@@ -146,11 +146,9 @@ import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.util.ReadableIdentitySet.Proc;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
-import java.util.Set;
 
 /**
  * The DOM structure for an editor is as follows:
@@ -607,9 +605,10 @@ public class EditorImpl extends LogicalPanel.Impl implements
   private BiasDirection currentSelectionBias = BiasDirection.LEFT;
 
   /**
-   * My keyboard listeners
+   * Keyboard listeners.  CopyOnWriteSet allows add/remove during dispatch
+   * (e.g. mention autocomplete on '@') without a ConcurrentModificationException.
    */
-  protected Set<KeySignalListener> keySignalListeners;
+  private final CopyOnWriteSet<KeySignalListener> keySignalListeners = CopyOnWriteSet.create();
 
   /**
    * Registries for everything
@@ -2323,15 +2322,11 @@ public class EditorImpl extends LogicalPanel.Impl implements
    */
   private boolean fireKeyboardEvent(SignalEvent evt) {
     boolean handled = false;
-    if (keySignalListeners != null) {
-      // Snapshot before iterating: listeners may be added (e.g. autocomplete on '@')
-      // or removed (e.g. on finish-edit / Shift+Enter) during onKeySignal, which
-      // would cause ConcurrentModificationException on the live set.
-      KeySignalListener[] snapshot = keySignalListeners.toArray(new KeySignalListener[0]);
-      for (KeySignalListener l : snapshot) {
-        // "|| handled" at end of line to avoid short circuiting
-        handled = l.onKeySignal(this, evt) || handled;
-      }
+    // CopyOnWriteSet: iteration is over a snapshot, so listeners may safely
+    // add/remove themselves during dispatch (e.g. mention autocomplete on '@').
+    for (KeySignalListener l : keySignalListeners) {
+      // "|| handled" at end of line to avoid short circuiting
+      handled = l.onKeySignal(this, evt) || handled;
     }
     return handled;
   }
@@ -2516,17 +2511,12 @@ public class EditorImpl extends LogicalPanel.Impl implements
    */
   @Override
   public void addKeySignalListener(KeySignalListener listener) {
-    if (keySignalListeners == null) {
-      keySignalListeners = new HashSet<KeySignalListener>();
-    }
     keySignalListeners.add(listener);
   }
 
   @Override
   public void removeKeySignalListener(KeySignalListener listener) {
-    if (keySignalListeners != null) {
-      keySignalListeners.remove(listener);
-    }
+    keySignalListeners.remove(listener);
   }
 
   private void onIncomingOp(DocOp operation) {

@@ -502,6 +502,8 @@ public final class SearchPresenter
    */
   private void initToolbarMenu() {
     GroupingToolbar.View toolbarUi = searchUi.getToolbar();
+    boolean mentionsSearchEnabled = Session.get().hasFeature("mentions-search");
+    searchUi.getSearch().setMentionsSearchVisible(mentionsSearchEnabled);
 
     // --- Group 1: New Wave ---
     ToolbarView newWaveGroup = toolbarUi.addGroup();
@@ -540,15 +542,17 @@ public final class SearchPresenter
           }
         }).setVisualElement(createSvgIcon(ICON_INBOX));
 
-    new ToolbarButtonViewBuilder()
-        .setTooltip("Mentions")
-        .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
-          @Override
-          public void onClicked() {
-            searchUi.getSearch().setQuery("mentions:me");
-            onQueryEntered();
-          }
-        }).setVisualElement(createSvgIcon(ICON_MENTIONS));
+    if (mentionsSearchEnabled) {
+      new ToolbarButtonViewBuilder()
+          .setTooltip("Mentions")
+          .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
+              searchUi.getSearch().setQuery("mentions:me");
+              onQueryEntered();
+            }
+          }).setVisualElement(createSvgIcon(ICON_MENTIONS));
+    }
 
     new ToolbarButtonViewBuilder()
         .setTooltip("Public waves")

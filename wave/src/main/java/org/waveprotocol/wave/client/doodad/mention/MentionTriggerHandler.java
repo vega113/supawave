@@ -34,7 +34,6 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Key signal listener that detects '@' typed in the editor and opens a mention
@@ -245,11 +244,10 @@ public final class MentionTriggerHandler
       filterTimer.cancel();
       filterTimer = null;
     }
-    if (popup != null) {
-      if (popup.isShowing()) {
-        popup.hide();
-      }
-      popup = null;
+    MentionPopupWidget currentPopup = popup;
+    popup = null;
+    if (currentPopup != null && currentPopup.isShowing()) {
+      currentPopup.hide();
     }
   }
 
@@ -336,12 +334,11 @@ public final class MentionTriggerHandler
     // Place the caret after the trailing space.
     editor.getSelectionHelper().setCaret(annoEnd + 1);
 
-    // Auto-add participant to conversation if not already present.
-    Set<ParticipantId> existing = conversation.getParticipantIds();
-    if (!existing.contains(participant)) {
-      conversation.addParticipant(participant);
-    }
+    exitMentionMode();
+  }
 
+  @Override
+  public void onDismiss() {
     exitMentionMode();
   }
 }

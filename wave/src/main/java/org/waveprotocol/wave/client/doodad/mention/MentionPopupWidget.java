@@ -49,11 +49,12 @@ public final class MentionPopupWidget extends Composite
   public interface Listener {
     /** Called when a participant is selected from the popup. */
     void onSelect(ParticipantId participant);
+
+    /** Called when the popup is dismissed without a selection. */
+    void onDismiss();
   }
 
   private static final String SELECTED_BG = "#E8F0FE";
-  private static final String HOVER_BG = "#F1F3F4";
-
   private final UniversalPopup popup;
   private final FlowPanel listPanel;
   private final List<ParticipantId> currentParticipants = new ArrayList<ParticipantId>();
@@ -98,7 +99,6 @@ public final class MentionPopupWidget extends Composite
     selectedIndex = participants.isEmpty() ? -1 : 0;
 
     for (int i = 0; i < participants.size(); i++) {
-      final int index = i;
       final ParticipantId participant = participants.get(i);
       Label item = new Label("@" + participant.getAddress());
       Style itemStyle = item.getElement().getStyle();
@@ -176,7 +176,9 @@ public final class MentionPopupWidget extends Composite
 
   @Override
   public void onHide(PopupEventSourcer source) {
-    // No-op.
+    if (listener != null) {
+      listener.onDismiss();
+    }
   }
 
   private void setSelectedIndex(int newIndex) {

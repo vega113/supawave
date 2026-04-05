@@ -4,7 +4,7 @@
 
 **Goal:** Add Telegram-style @mention support with annotation-based inline rendering, Lucene-indexed search, and a "Mentions" toolbar button.
 
-**Architecture:** New `mention/user` annotation (same pattern as `link/manual`) stores participant address as value. Server-side indexing extracts mentions into a `mentioned` Lucene field. New `mentions:` query token filters by that field. Client-side `@` keypress triggers autocomplete popup, selecting a user inserts annotated text and auto-adds them as participant.
+**Architecture:** New `mention/user` annotation (same pattern as `link/manual`) stores participant address as value. Server-side indexing extracts mentions into a `mentioned` Lucene field. New `mentions:` query token filters by that field. Client-side `@` keypress triggers autocomplete popup, selecting a user inserts annotated text and highlights the mention.
 
 **Tech Stack:** Java (server-side Lucene 9 indexing, query parsing), GWT (client-side editor annotations, popup widget, search panel)
 

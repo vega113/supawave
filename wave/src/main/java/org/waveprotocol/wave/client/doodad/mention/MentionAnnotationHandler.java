@@ -19,6 +19,7 @@
 package org.waveprotocol.wave.client.doodad.mention;
 
 import org.waveprotocol.wave.client.editor.content.AnnotationPainter.PaintFunction;
+import org.waveprotocol.wave.client.editor.content.AnnotationPainter;
 import org.waveprotocol.wave.client.editor.content.PainterRegistry;
 import org.waveprotocol.wave.client.editor.content.Registries;
 import org.waveprotocol.wave.model.conversation.AnnotationConstants;
@@ -59,12 +60,15 @@ public class MentionAnnotationHandler implements AnnotationMutationHandler {
     }
   };
 
-  private MentionAnnotationHandler() {
+  private final AnnotationPainter painter;
+
+  private MentionAnnotationHandler(AnnotationPainter painter) {
+    this.painter = painter;
   }
 
   public static void register(Registries registries) {
     PainterRegistry painterRegistry = registries.getPaintRegistry();
-    MentionAnnotationHandler handler = new MentionAnnotationHandler();
+    MentionAnnotationHandler handler = new MentionAnnotationHandler(painterRegistry.getPainter());
     registries.getAnnotationHandlerRegistry().registerHandler(
         AnnotationConstants.MENTION_PREFIX, handler);
     painterRegistry.registerPaintFunction(MENTION_KEYS, MENTION_PAINT_FUNC);
@@ -82,6 +86,6 @@ public class MentionAnnotationHandler implements AnnotationMutationHandler {
   @Override
   public <N, E extends N, T extends N> void handleAnnotationChange(
       DocumentContext<N, E, T> bundle, int start, int end, String key, Object newValue) {
-    // Paint update is handled by the PaintFunction registered above.
+    painter.scheduleRepaint(bundle, start, end);
   }
 }

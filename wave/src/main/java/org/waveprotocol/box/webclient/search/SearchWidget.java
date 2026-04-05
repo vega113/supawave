@@ -140,6 +140,8 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   SpanElement exContent;
   @UiField
   SpanElement exMentions;
+  @UiField
+  Element mentionsFilterRow;
 
   private Listener listener;
 
@@ -273,6 +275,12 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   @Override
   public String getQuery() {
     return query.getValue();
+  }
+
+  @Override
+  public void setMentionsSearchVisible(boolean visible) {
+    mentionsFilterRow.getStyle().setProperty("display", visible ? "table-row" : "none");
+    exMentions.getStyle().setProperty("display", visible ? "inline-block" : "none");
   }
 
   @Override

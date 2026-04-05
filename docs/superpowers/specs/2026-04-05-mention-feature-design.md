@@ -5,7 +5,7 @@
 
 ## Overview
 
-Add Telegram-style @mention support to Apache Wave: typing `@` in a blip opens an autocomplete for participants/users, inserts annotated `@username` text, auto-adds the mentioned user as a wave participant, indexes mentions for Lucene search, and adds a "Mentions" toolbar button to the search panel.
+Add Telegram-style @mention support to Apache Wave: typing `@` in a blip opens an autocomplete for participants/users, inserts annotated `@username` text, indexes mentions for Lucene search, and adds a "Mentions" toolbar button to the search panel.
 
 ## 1. Annotation Layer
 
@@ -36,12 +36,12 @@ Triggered when user types `@` in a blip editor.
 - **Then:** all server users via existing profile/contacts service
 - Filtered as user types characters after `@`
 - Debounced input (200ms) for server-side user lookup
+- The current implementation limits selection to existing participants; it does not auto-add new participants yet.
 
 ### On Selection
 
 - Insert `@username` text at cursor position
 - Apply `mention/user` annotation with value = full address over the `@username` text range
-- If mentioned user is not a wave participant, auto-add them via `Wavelet.addParticipant()`
 
 ### Dismiss
 
@@ -100,19 +100,9 @@ Triggered when user types `@` in a blip editor.
 - Add `mentions:` to the filter list with description "Waves where you are @mentioned"
 - Add clickable example: `mentions:me`
 
-## 6. Auto-Add Participant
+## 6. Participant Scope
 
-### MentionAnnotationHandler Behavior
-
-- When a `mention/user` annotation is created, check if the mentioned address is in `Wavelet.getParticipantIds()`
-- If not present, call `Wavelet.addParticipant(ParticipantId.of(address))`
-- Happens client-side as part of annotation mutation, generating an `AddParticipant` operation via OT
-
-### Edge Cases
-
-- **Invalid address:** validate via `ParticipantId.of()` — if it throws, skip auto-add
-- **Self-mention:** allowed (no-op for participant add since author is already participant)
-- **Removed mention (text deleted):** participant is NOT auto-removed (intentional — they were added to the wave)
+The current implementation keeps the autocomplete scoped to existing wave participants. Mentions are annotated and highlighted, but they do not auto-add new participants yet.
 
 ## 7. Files to Change
 
@@ -120,9 +110,8 @@ Triggered when user types `@` in a blip editor.
 
 | File | Purpose |
 |------|---------|
-| `MentionAnnotationHandler.java` | Annotation handler, paint function, auto-add logic |
+| `MentionAnnotationHandler.java` | Annotation handler and paint function |
 | `MentionPopupWidget.java` | Autocomplete popup UI |
-| `MentionConstants.java` | Annotation key constants |
 
 ### Modified Files
 

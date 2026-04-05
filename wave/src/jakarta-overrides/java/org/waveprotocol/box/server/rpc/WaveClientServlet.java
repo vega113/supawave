@@ -80,6 +80,10 @@ public class WaveClientServlet extends HttpServlet {
   private final WavePreRenderer wavePreRenderer;
   private final FeatureFlagService featureFlagService;
 
+  static boolean supportsMentionSearch(Config config) {
+    return !"solr".equals(config.getString("core.search_type"));
+  }
+
   @Inject
   public WaveClientServlet(
       @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
@@ -417,6 +421,9 @@ public class WaveClientServlet extends HttpServlet {
       // Add enabled feature flags for this user
       if (address != null) {
         List<String> enabledFlags = featureFlagService.getEnabledFlagNames(address);
+        if (supportsMentionSearch(config)) {
+          enabledFlags.add("mentions-search");
+        }
         json.put("features", new JSONArray(enabledFlags));
       }
       return json;

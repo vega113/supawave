@@ -5261,6 +5261,7 @@ public final class HtmlRenderer {
     sb.append("      document.querySelectorAll('.ops-subpanel').forEach(function(p) { p.classList.remove('active'); });\n");
     sb.append("      btn.classList.add('active');\n");
     sb.append("      document.getElementById('ops-' + btn.dataset.ops).classList.add('active');\n");
+    sb.append("      loadOpsStatus();\n");
     sb.append("    });\n");
     sb.append("  });\n");
 

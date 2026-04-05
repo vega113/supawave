@@ -103,6 +103,15 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("document.getElementById('analyticsActive7d').textContent = s.writers7d || 0;"));
     assertTrue(
         html.contains(
+            "document.querySelectorAll('.ops-subtab').forEach(function(btn) {\n"
+                + "    btn.addEventListener('click', function() {\n"
+                + "      document.querySelectorAll('.ops-subtab').forEach(function(b) { b.classList.remove('active'); });\n"
+                + "      document.querySelectorAll('.ops-subpanel').forEach(function(p) { p.classList.remove('active'); });\n"
+                + "      btn.classList.add('active');\n"
+                + "      document.getElementById('ops-' + btn.dataset.ops).classList.add('active');\n"
+                + "      loadOpsStatus();"));
+    assertTrue(
+        html.contains(
             "document.getElementById('opsIncrementalAvg').textContent = si.incrementalAvgMs != null ? si.incrementalAvgMs.toFixed(1) + ' ms' : '\\u2014';"));
     assertTrue(
         html.contains(

@@ -181,7 +181,6 @@ public class RobotRegistrarImplTest extends TestCase {
     verify(accountStore).putAccount(any(RobotAccountData.class));
     assertTrue(unregisteredAccountData.isRobot());
     RobotAccountData robotAccountData = unregisteredAccountData.asRobot();
-    // Remove the last '/'.
     assertEquals(OTHER_LOCATION, robotAccountData.getUrl());
     assertEquals(ROBOT_ID, robotAccountData.getId());
     assertEquals(EXISTING_CONSUMER_TOKEN, robotAccountData.getConsumerSecret());

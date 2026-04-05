@@ -125,12 +125,13 @@ public class Robot implements Runnable {
   }
 
   /**
-   * Updates the account only if the incoming snapshot is at least as fresh as
+   * Updates the account only if the incoming snapshot is strictly newer than
    * the current in-memory account.
    *
    * <p>
    * This prevents a stale account read on the WaveBus thread from overwriting a
    * newer account that was fetched or refreshed on the robot executor thread.
+   * Equal timestamps are treated as stale to avoid redundant writes.
    *
    * @param account the account snapshot to apply.
    * @return true if the account was applied, false if it was rejected as stale.

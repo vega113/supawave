@@ -1,0 +1,23 @@
+{
+  "releaseId": "2026-03-29-robot-control-room-upgrades",
+  "version": "PR #478",
+  "date": "2026-03-29",
+  "title": "Robot Control Room Upgrades",
+  "summary": "Robot owners can now manage richer robot metadata, pause unsafe automations, and keep secrets masked after the initial reveal.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added robot descriptions, created/updated timestamps, pause state, and owner-only dashboard actions for updating callback URLs, descriptions, and deleting robots",
+        "Kept newly created or rotated secrets available for one-time copy while masking secret previews in the dashboard and starter prompt",
+        "Added a dashboard Test Bot action that refreshes robot capabilities after a callback URL is configured"
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "Blocked paused robots from receiving client-credentials API tokens or passive runtime updates"
+      ]
+    }
+  ]
+}

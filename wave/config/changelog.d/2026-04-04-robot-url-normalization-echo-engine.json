@@ -1,0 +1,22 @@
+{
+  "releaseId": "2026-04-04-robot-url-normalization-echo-engine",
+  "version": "PR #607",
+  "date": "2026-04-04",
+  "title": "Fix gpt-bot robot URL handling and add echo engine",
+  "summary": "Keeps custom robot base paths intact when passive robots fetch capabilities or post callbacks, and adds an echo completion engine for local gpt-bot runs.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added an echo completion engine for gpt-bot local testing without a Codex CLI process"
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "Passive capabilities fetches now preserve custom robot base paths instead of stripping them to the origin",
+        "Passive callback posts now only treat URLs as normalized when their path actually ends with /_wave/robot/jsonrpc"
+      ]
+    }
+  ]
+}

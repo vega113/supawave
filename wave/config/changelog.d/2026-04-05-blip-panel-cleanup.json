@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-05-blip-panel-cleanup",
+  "version": "PR #634",
+  "date": "2026-04-05",
+  "title": "Clean up blip panel: remove ID display, hide edit hint on mobile",
+  "summary": "Removes the debugging blip-ID label from blip headers and hides the keyboard-shortcut hint on mobile viewports where it is irrelevant.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed the monospace blip-ID span and click-to-copy handler from blip headers",
+        "Edit-mode hint (Shift+Enter / Esc) is now hidden on viewports narrower than 768px"
+      ]
+    }
+  ]
+}

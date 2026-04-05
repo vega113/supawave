@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-05-saved-searches-popup-mobile-responsiveness",
+  "version": "PR #631",
+  "date": "2026-04-05",
+  "title": "Fit saved-searches popups on mobile",
+  "summary": "Saved-searches editor dialogs now clamp to the viewport and let their controls wrap on narrow screens, avoiding horizontal overflow on mobile.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Popup dialogs now shrink to fit smaller viewports instead of overflowing the screen",
+        "Saved-search toolbar and row layouts now wrap before they break the mobile layout"
+      ]
+    }
+  ]
+}

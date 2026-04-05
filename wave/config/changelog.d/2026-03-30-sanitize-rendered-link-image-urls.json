@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-03-30-sanitize-rendered-link-image-urls",
+  "version": "PR #486",
+  "date": "2026-03-30",
+  "title": "Harden rendered URL sanitizer",
+  "summary": "Replaces the URI-based link/image URL sanitizer with a permissive scheme-extraction check that handles URLs with spaces, adds wave:// support, and rejects protocol-relative URLs.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "URLs with unencoded spaces (e.g. search query strings) are no longer incorrectly dropped by the /render endpoint",
+        "Internal wave:// and waveid:// links remain navigable in rendered HTML output",
+        "Protocol-relative URLs (//host/path) are now rejected to prevent open-redirect attacks"
+      ]
+    }
+  ]
+}

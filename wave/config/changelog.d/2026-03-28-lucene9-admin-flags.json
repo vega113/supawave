@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-28-lucene9-admin-flags",
+  "version": "PR #421",
+  "date": "2026-03-28",
+  "title": "Rollout Flags Show Up Before First Enablement",
+  "summary": "Admin feature flags now list prepared rollout flags like lucene9 before they have been saved once.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "The admin feature flags screen now shows code-known rollout flags even when no stored flag record exists yet",
+        "Stored rollout flag settings still override the default placeholder entry once a flag has been saved"
+      ]
+    }
+  ]
+}

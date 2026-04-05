@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-28-save-recovery",
+  "version": "PR #419",
+  "date": "2026-03-28",
+  "title": "Save Recovery",
+  "summary": "Wave tabs recover cleanly after websocket reconnects instead of getting stuck in a long-saving state.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Reopened wave streams now accept the new websocket channel id instead of filtering against a stale one",
+        "Active wave views now fail fast on websocket disconnect so the client reconnect flow can resubscribe and clear stuck saving indicators"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "releaseId": "2026-04-05-gptbot-document-changed-guard",
+  "version": "PR #613",
+  "date": "2026-04-05",
+  "title": "Use DOCUMENT_CHANGED with editor-activity guard for passive robot replies",
+  "summary": "The gpt-bot example robot now uses DOCUMENT_CHANGED (since BLIP_SUBMITTED is not implemented server-side) with an editor-annotation guard to avoid per-keystroke replies. Also adds OpenAI Chat Completions engine and diagnostic logging to RobotsGateway.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added OpenAI Chat Completions engine for gpt-bot (set GPTBOT_CODEX_ENGINE=openai)",
+        "Added diagnostic INFO logging to RobotsGateway passive dispatch path"
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "Passive DOCUMENT_CHANGED replies now wait for editor annotations (user/d/, user/e/) to clear before responding",
+        "Fixed null root wavelet crash in search panel snippet rendering (WaveBasedDigest)"
+      ]
+    }
+  ]
+}

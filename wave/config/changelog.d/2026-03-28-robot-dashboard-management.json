@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-03-28-robot-dashboard-management",
+  "version": "PR #455",
+  "date": "2026-03-28",
+  "title": "Robot Dashboard Management",
+  "summary": "Added a new authenticated robot management dashboard to manage API tokens and callback URLs.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Robot management dashboard where users can see robots they own, update callback URLs, and rotate compromised secrets",
+        "Generated user and robot Data API JWTs from the new dashboard",
+        "Consolidated user top bar menu with grouped sections for easier access to Account, Automation / APIs, Product / Support, and Legal surfaces"
+      ]
+    }
+  ]
+}

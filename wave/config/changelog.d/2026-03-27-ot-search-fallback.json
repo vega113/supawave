@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-ot-search-fallback",
+  "version": "PR #388",
+  "date": "2026-03-27",
+  "title": "OT Search Fallback",
+  "summary": "Experimental OT search now falls back automatically when realtime search data does not arrive in time.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The search panel no longer stays blank when OT search is enabled but no search-wavelet data arrives"
+      ]
+    }
+  ]
+}

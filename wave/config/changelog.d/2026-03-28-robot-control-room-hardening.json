@@ -1,0 +1,22 @@
+{
+  "releaseId": "2026-03-28-robot-control-room-hardening",
+  "version": "PR #431",
+  "date": "2026-03-28",
+  "title": "Robot Control Room Hardening",
+  "summary": "Robot owners can now rotate secrets safely from the control room, and legacy robot claims keep working after the onboarding redesign.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added secret rotation to the authenticated /account/robots control room without forcing a callback URL change"
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "Robot registration now keeps its sign-in return path and requires an XSRF token before creating or claiming a robot",
+        "Legacy ownerless robots can be claimed during re-registration even when their callback URL is unchanged"
+      ]
+    }
+  ]
+}

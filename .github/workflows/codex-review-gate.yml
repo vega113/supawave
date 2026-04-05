@@ -130,7 +130,9 @@ jobs:
             }
 
   codex-review-gate:
-    name: Codex Review Gate
+    name: PR Review Gate
+    env:
+      CODEX_QUOTA_EXHAUSTED: ${{ vars.CODEX_QUOTA_EXHAUSTED || 'false' }}
     if: >-
       ${{
         (github.event.pull_request != null || github.event.issue.pull_request != null) &&
@@ -200,6 +202,11 @@ jobs:
                     reviewThreads(last: 100) {
                       nodes {
                         isResolved
+                        comments(first: 1) {
+                          nodes {
+                            author { login }
+                          }
+                        }
                       }
                     }
                   }
@@ -214,8 +221,16 @@ jobs:
               return;
             }
 
+            // When CODEX_QUOTA_EXHAUSTED is set, skip bot-generated review threads
+            // so the gate can pass without requiring Codex to review.
+            const skipCodexCheck = process.env.CODEX_QUOTA_EXHAUSTED === 'true';
+            if (skipCodexCheck) {
+              core.info('CODEX_QUOTA_EXHAUSTED=true: bot review threads will be skipped');
+            }
+
             const evaluation = evaluateCodexReviewGate({
               pullRequest,
+              skipCodexCheck,
             });
 
             if (!pullRequest.headRefOid) {

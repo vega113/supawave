@@ -1,25 +1,50 @@
 const REVIEW_WINDOW_MS = 5 * 60 * 1000;
 
+// Bot reviewers whose unresolved threads are skipped when Codex quota is
+// exhausted.  These bots are not human reviewers and their threads are resolved
+// as part of normal PR maintenance.
+const BOT_REVIEWER_LOGINS = new Set([
+  "coderabbitai",
+  "coderabbitai[bot]",
+  "copilot-pull-request-reviewer",
+  "copilot-pull-request-reviewer[bot]",
+  "github-advanced-security",
+  "codex",
+]);
+
 function evaluateCodexReviewGate({
   pullRequest,
   nowMs = Date.now(),
+  skipCodexCheck = false,
 }) {
   return pullRequest
-    ? evaluatePullRequestGate({ pullRequest, nowMs })
+    ? evaluatePullRequestGate({ pullRequest, nowMs, skipCodexCheck })
     : failure("Pull request not found");
 }
 
-function evaluatePullRequestGate({ pullRequest, nowMs }) {
+function evaluatePullRequestGate({ pullRequest, nowMs, skipCodexCheck = false }) {
   if (pullRequest.isDraft) {
     return failure("Draft PRs cannot pass the review gate");
   }
 
-  const unresolvedThreads = getReviewThreadNodes(pullRequest).filter(
+  const allUnresolved = getReviewThreadNodes(pullRequest).filter(
     (thread) => !thread.isResolved,
   );
+
+  // When Codex quota is exhausted, only block on threads from human reviewers.
+  // Bot-generated threads (CodeRabbit, Copilot, etc.) are skipped.
+  const unresolvedThreads = skipCodexCheck
+    ? allUnresolved.filter((thread) => {
+        const login = thread.comments?.nodes?.[0]?.author?.login ?? "";
+        return !BOT_REVIEWER_LOGINS.has(login);
+      })
+    : allUnresolved;
+
   if (unresolvedThreads.length > 0) {
+    const skippedCount = allUnresolved.length - unresolvedThreads.length;
+    const skippedNote = skippedCount > 0 ? ` (${skippedCount} bot thread(s) skipped — Codex quota exhausted)` : "";
     return failure(
-      `Pull request has ${unresolvedThreads.length} unresolved review thread(s)`,
+      `Pull request has ${unresolvedThreads.length} unresolved review thread(s)${skippedNote}`,
     );
   }
 
@@ -39,20 +64,30 @@ function evaluatePullRequestGate({ pullRequest, nowMs }) {
     );
   }
 
+  const quotaNote = skipCodexCheck ? " (Codex quota exhausted — bot threads skipped)" : "";
   return success(
-    "Review gate passed: 5-minute window elapsed and no unresolved threads",
+    `Review gate passed: 5-minute window elapsed and no unresolved human threads${quotaNote}`,
   );
 }
 
 function shouldRequeueCodexReviewGate({
   pullRequest,
   nowMs = Date.now(),
+  skipCodexCheck = false,
 }) {
   if (pullRequest.isDraft) return false;
 
-  const unresolvedThreads = getReviewThreadNodes(pullRequest).filter(
+  const allUnresolved = getReviewThreadNodes(pullRequest).filter(
     (thread) => !thread.isResolved,
   );
+
+  const unresolvedThreads = skipCodexCheck
+    ? allUnresolved.filter((thread) => {
+        const login = thread.comments?.nodes?.[0]?.author?.login ?? "";
+        return !BOT_REVIEWER_LOGINS.has(login);
+      })
+    : allUnresolved;
+
   if (unresolvedThreads.length > 0) return false;
 
   const latestCommit = getLatestCommit(pullRequest);

@@ -361,9 +361,29 @@ jobs:
           ) || true
           fi
 
-          # Fallback: if no new fragments found, show top 5 from assembled changelog
-          if [ -z "$CHANGELOG_HTML" ] && [ -f wave/config/changelog.json ]; then
-            CHANGELOG_HTML=$(python3 -c 'import html, json; from pathlib import Path; entries = json.loads(Path("wave/config/changelog.json").read_text()); lines = ["<li><strong>%s</strong> (%s, %s)</li>" % (html.escape(entry.get("title", "")), html.escape(entry.get("version", "")), html.escape(entry.get("date", ""))) for entry in entries[:5]]; print("<h3>Recent Changes</h3><ul>" + "".join(lines) + "</ul>") if lines else None' 2>/dev/null) || true
+          # No new fragments = hotfix or CI-only deploy.
+          # Show the git commit subjects between PREV_SHA and RELEASE_ID so the
+          # email still conveys what changed, even without a formal changelog entry.
+          if [ -z "$CHANGELOG_HTML" ] && [ -n "$PREV_SHA" ] && git cat-file -e "$PREV_SHA" 2>/dev/null; then
+            COMMIT_LOG=$(git log --oneline "$PREV_SHA".."$RELEASE_ID" \
+              --pretty=format:'%s' 2>/dev/null | head -10 || true)
+            if [ -n "$COMMIT_LOG" ]; then
+              CHANGELOG_HTML=$(COMMIT_LOG="$COMMIT_LOG" python3 - <<'PY'
+          import html, os
+          log = os.environ.get("COMMIT_LOG", "").strip()
+          if not log:
+              exit(0)
+          lines = ["<li>%s</li>" % html.escape(l.strip()) for l in log.splitlines() if l.strip()]
+          if lines:
+              print("<h3>Hotfix commits</h3><ul>" + "".join(lines) + "</ul>")
+          PY
+              ) || true
+            fi
+          fi
+
+          # Last resort: nothing useful to show
+          if [ -z "$CHANGELOG_HTML" ]; then
+            CHANGELOG_HTML="<p style='color:#888;font-size:13px;'>No changelog entry for this deploy.</p>"
           fi
 
           echo "$CHANGELOG_HTML" > /tmp/changelog_html.txt

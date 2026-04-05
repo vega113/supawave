@@ -21,7 +21,6 @@ package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.image;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
@@ -43,7 +42,6 @@ public final class ParticipantAvatarViewBuilder implements IntrinsicParticipantV
   private String name;
   private String address;
 
-  @VisibleForTesting
   ParticipantAvatarViewBuilder(String id, Css css) {
     this.id = id;
     this.css = css;

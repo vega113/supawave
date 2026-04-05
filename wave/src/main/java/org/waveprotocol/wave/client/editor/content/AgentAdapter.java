@@ -19,8 +19,7 @@
 
 package org.waveprotocol.wave.client.editor.content;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
@@ -200,7 +199,7 @@ public class AgentAdapter extends ContentElement implements
 
 
   /**  Public for testing purposes ONLY */
-  @VisibleForTesting public void debugSetNodeMutationHandler(
+  public void debugSetNodeMutationHandler(
       NodeMutationHandler<ContentNode, ContentElement> handler) {
     setNodeMutationHandler(handler);
   }

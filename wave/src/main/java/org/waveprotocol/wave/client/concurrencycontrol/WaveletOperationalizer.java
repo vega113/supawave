@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.concurrencycontrol;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -122,7 +122,7 @@ public final class WaveletOperationalizer {
 
   // Saves a bit of typing...
   private static <V> V putAndReturn(StringMap<V> map, String key, V value) {
-    Preconditions.checkState(!map.containsKey(key));
+    Preconditions.checkState(!map.containsKey(key), "!map.containsKey(key)");
     map.put(key, value);
     return value;
   }

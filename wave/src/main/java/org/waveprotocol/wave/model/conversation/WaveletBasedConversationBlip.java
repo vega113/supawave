@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.conversation;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation.ComponentHelper;
 import org.waveprotocol.wave.model.document.Document;
@@ -442,7 +441,6 @@ final class WaveletBasedConversationBlip implements ObservableConversationBlip,
   /**
    * Checks that this blip is safe to access.
    */
-  @VisibleForTesting
   void checkIsUsable() {
     if (!isUsable) {
       Preconditions.illegalState("Deleted blip is not usable: " + this);

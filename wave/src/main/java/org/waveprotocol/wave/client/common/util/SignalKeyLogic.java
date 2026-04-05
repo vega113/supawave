@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.common.util;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.user.client.Event;
 
@@ -118,13 +117,10 @@ public final class SignalKeyLogic {
     LINUX
   }
 
-  @VisibleForTesting
   public static class Result {
-    @VisibleForTesting
-    public int keyCode;
+      public int keyCode;
     // Sentinal by default for testing purposes
-    @VisibleForTesting
-    public KeySignalType type = KeySignalType.SENTINAL;
+      public KeySignalType type = KeySignalType.SENTINAL;
   }
 
   private final UserAgentType userAgent;

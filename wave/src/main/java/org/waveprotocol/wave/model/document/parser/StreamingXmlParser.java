@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.document.parser;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.Pair;
 import org.waveprotocol.wave.model.util.ReadableStringMap;
@@ -179,7 +178,6 @@ class StreamingXmlParser implements XmlPullParser {
     }
   }
 
-  @VisibleForTesting
   String name() throws XmlParseException {
     String ret;
     int start = buffer.getPosition();
@@ -194,7 +192,6 @@ class StreamingXmlParser implements XmlPullParser {
     return buffer.substring(start, end);
   }
 
-  @VisibleForTesting
   StringMap<String> attrList() throws XmlParseException {
     StringMap<String> ret = null;
     whitespace();
@@ -211,7 +208,6 @@ class StreamingXmlParser implements XmlPullParser {
     return ret;
   }
 
-  @VisibleForTesting
   Pair<String, String> attr() throws XmlParseException {
     String attrName = name();
     if (attrName == null) {
@@ -235,7 +231,6 @@ class StreamingXmlParser implements XmlPullParser {
 
   // AttValue ::= '"' ([^<&"] | Reference)* '"'
   //            | "'" ([^<&'] | Reference)* "'"
-  @VisibleForTesting
   String attrValue() throws XmlParseException {
     if (match(doubleQuote)) {
       return attrValueInner(doubleQuote);
@@ -277,7 +272,6 @@ class StreamingXmlParser implements XmlPullParser {
     }
   }
 
-  @VisibleForTesting
   String entityReference() throws XmlParseException {
     if (match('&')) {
       String entityName = name();
@@ -294,7 +288,6 @@ class StreamingXmlParser implements XmlPullParser {
     }
   }
 
-  @VisibleForTesting
   String reference() throws XmlParseException {
     String charReference = charReference();
     if (charReference != null) {
@@ -308,7 +301,6 @@ class StreamingXmlParser implements XmlPullParser {
     return null;
   }
 
-  @VisibleForTesting
   String charReference() throws XmlParseException {
     if (match(charReferenceStart)) {
       final int base;
@@ -344,7 +336,6 @@ class StreamingXmlParser implements XmlPullParser {
 
   // element   ::=      '<' Name (S Attribute)* S? '>'
   //                |   '<' Name (S Attribute)* S? '/>'
-  @VisibleForTesting
   Item startTag() throws XmlParseException {
     ensure(match(openAngle), "Matching <");
     String tagName = name();
@@ -362,7 +353,6 @@ class StreamingXmlParser implements XmlPullParser {
     }
   }
 
-  @VisibleForTesting
   Item endTag() throws XmlParseException {
     ensure(match(openAngleSlash), "Matching </");
     String closingName = name();
@@ -377,7 +367,6 @@ class StreamingXmlParser implements XmlPullParser {
     return Item.elementEnd(closingName);
   }
 
-  @VisibleForTesting
   Item processingInstruction() throws XmlParseException {
     ensure(match(piStart), "Matching <?");
     String name = name();
@@ -396,7 +385,6 @@ class StreamingXmlParser implements XmlPullParser {
     return Item.processingInstruction(name, buffer.substring(start, end));
   }
 
-  @VisibleForTesting
   String charData() throws XmlParseException {
     char except[] = {'<', '&'};
     int start = buffer.getPosition();
@@ -458,7 +446,6 @@ class StreamingXmlParser implements XmlPullParser {
     }
   }
 
-  @VisibleForTesting
   Item getTextChunk() throws XmlParseException {
     StringBuffer b = new StringBuffer();
     while (true) {
@@ -483,7 +470,6 @@ class StreamingXmlParser implements XmlPullParser {
     }
   }
 
-  @VisibleForTesting
   Item getItem() throws XmlParseException {
     if (buffer.startsWith(piStart)) {
       return processingInstruction();

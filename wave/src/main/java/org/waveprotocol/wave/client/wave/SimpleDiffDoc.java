@@ -20,8 +20,7 @@
 
 package org.waveprotocol.wave.client.wave;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocOp;
@@ -56,7 +55,7 @@ public final class SimpleDiffDoc implements DiffSink {
    * Creates a diff initialization.
    */
   public static SimpleDiffDoc create(DocInitialization base, DocOp diff) {
-    Preconditions.checkNotNull(base);
+    Preconditions.checkNotNull(base, "base");
     SimpleDiffDoc init = new SimpleDiffDoc(base);
     if (diff != null) {
       init.consumeAsDiff(diff);
@@ -107,7 +106,6 @@ public final class SimpleDiffDoc implements DiffSink {
     return state.size() == 0;
   }
 
-  @VisibleForTesting
   boolean isCompleteState() {
     return state.size() > 0 && (diff == null || diff.isEmpty());
   }

@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.reader;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.wave.DocumentRegistry;
 import org.waveprotocol.wave.client.wave.InteractiveDocument;
@@ -42,7 +41,6 @@ public final class Reader implements FocusFramePresenter.Listener, FocusOrder {
   private final ViewTraverser traverser;
   private final DocumentRegistry<? extends InteractiveDocument> documents;
 
-  @VisibleForTesting
   Reader(LocalSupplementedWave supplement, ModelAsViewProvider models,
       DocumentRegistry<? extends InteractiveDocument> documents, ViewTraverser traverser) {
     this.supplement = supplement;

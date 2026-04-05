@@ -20,7 +20,6 @@ package org.waveprotocol.wave.model.supplement;
 
 import org.waveprotocol.wave.model.conversation.InboxState;
 import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.version.HashedVersion;
 
 import java.util.Set;
@@ -168,11 +167,4 @@ public interface ReadableSupplement {
    */
   boolean hasPendingNotification(WaveletId waveletId);
 
-  /**
-   * Returns the gadget state as a String-to-String map.
-   *
-   * @param gadgetId ID of the gadget that owns the state.
-   * @return the gadget state as a String-to-String map.
-   */
-  public ReadableStringMap<String> getGadgetState(String gadgetId);
 }

@@ -460,8 +460,6 @@ public class ServerMain {
   }
 
   private static void initializeServlets(ServerRpcProvider server, Config config) {
-    server.addServlet("/gadget/gadgetlist", GadgetProviderServlet.class);
-
     server.addServlet(AttachmentServlet.ATTACHMENT_URL + "/*", AttachmentServlet.class);
     server.addServlet(AttachmentServlet.THUMBNAIL_URL + "/*", AttachmentServlet.class);
     server.addServlet(AttachmentInfoServlet.ATTACHMENTS_INFO_URL, AttachmentInfoServlet.class);
@@ -514,14 +512,6 @@ public class ServerMain {
       }
     } catch (Exception e) {
       LOG.warning("Failed to configure fragments transport/endpoints; leaving /fragments disabled", e);
-    }
-
-    if (!isJakarta(config)) {
-      String gadgetServerHostname = config.getString("core.gadget_server_hostname");
-      int gadgetServerPort = config.getInt("core.gadget_server_port");
-      LOG.info("Starting GadgetProxyServlet for " + gadgetServerHostname + ":" + gadgetServerPort);
-      server.addTransparentProxy("/gadgets/*",
-          "http://" + gadgetServerHostname + ":" + gadgetServerPort + "/gadgets", "/gadgets");
     }
 
     server.addServlet("/", WaveClientServlet.class);

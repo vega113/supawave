@@ -67,8 +67,6 @@ public final class WaveletBasedSupplementFolderListenerTest extends TestCase {
       public void onWantedEvaluationsChanged(WaveletId wid) {}
       @Override
       public void onThreadStateChanged(WaveletId wid, String tid, ThreadState oldState, ThreadState newState) {}
-      @Override
-      public void onGadgetStateChanged(String gadgetId, String key, String oldValue, String newValue) {}
     });
 
     // Add and remove folder id 5

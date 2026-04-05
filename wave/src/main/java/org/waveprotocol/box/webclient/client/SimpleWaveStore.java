@@ -19,7 +19,7 @@
 
 package org.waveprotocol.box.webclient.client;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.box.webclient.search.WaveStore;
 import org.waveprotocol.wave.model.document.WaveContext;
@@ -50,7 +50,7 @@ public final class SimpleWaveStore implements WaveStore {
   @Override
   public void add(WaveContext wave) {
     WaveId id = wave.getWave().getWaveId();
-    Preconditions.checkArgument(!waves.containsKey(id));
+    Preconditions.checkArgument(!waves.containsKey(id), "!waves.containsKey(id)");
     waves.put(id, wave);
     fireOnWaveOpened(wave);
   }
@@ -58,7 +58,7 @@ public final class SimpleWaveStore implements WaveStore {
   @Override
   public void remove(WaveContext wave) {
     WaveId id = wave.getWave().getWaveId();
-    Preconditions.checkArgument(waves.get(id) == wave);
+    Preconditions.checkArgument(waves.get(id) == wave, "waves.get(id) == wave");
     waves.remove(id);
     fireOnWaveClosed(wave);
   }

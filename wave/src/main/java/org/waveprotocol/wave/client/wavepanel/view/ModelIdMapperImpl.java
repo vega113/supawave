@@ -19,8 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.view;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.util.StringCodec;
 import org.waveprotocol.wave.model.conversation.Conversation;
@@ -70,7 +69,6 @@ public final class ModelIdMapperImpl implements ModelIdMapper {
   private final StringMap<String> shortIdToLongIdMap = CollectionUtils.createStringMap();
   private final StringMap<String> longIdToShortIdMap = CollectionUtils.createStringMap();
 
-  @VisibleForTesting
   ModelIdMapperImpl(ConversationView model, String prefix, int nextId) {
     this.model = model;
     this.prefix = prefix;
@@ -100,7 +98,7 @@ public final class ModelIdMapperImpl implements ModelIdMapper {
 
   @Override
   public String conversationsId(ConversationView cs) {
-    Preconditions.checkArgument(model.equals(cs));
+    Preconditions.checkArgument(model.equals(cs), "model.equals(cs)");
     return prefix;
   }
 
@@ -189,7 +187,6 @@ public final class ModelIdMapperImpl implements ModelIdMapper {
    * {@code longId}, the existing short id is returned. Otherwise, a new short
    * id is generated and returned.
    */
-  @VisibleForTesting
   public String shorten(String longId) {
     String shortId = longIdToShortIdMap.get(longId);
     if (shortId == null) {
@@ -202,7 +199,6 @@ public final class ModelIdMapperImpl implements ModelIdMapper {
   /**
    * Restores a shortId back to a longId.
    */
-  @VisibleForTesting
   public String restoreId(String shortId) {
     return shortIdToLongIdMap.get(shortId);
   }
@@ -214,8 +210,8 @@ public final class ModelIdMapperImpl implements ModelIdMapper {
    * @param longId long id (must conform to the grammar for model ids).
    */
   public void registerIdPair(String shortId, String longId) {
-    Preconditions.checkArgument(!shortIdToLongIdMap.containsKey(shortId) &&
-        !longIdToShortIdMap.containsKey(longId), "Id already exist");
+    Preconditions.checkArgument(!shortIdToLongIdMap.containsKey(shortId)
+        && !longIdToShortIdMap.containsKey(longId), "Id already exist");
     shortIdToLongIdMap.put(shortId, longId);
     longIdToShortIdMap.put(longId, shortId);
   }

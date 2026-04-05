@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.util;
 
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Utility base class for implementing chained data.
@@ -115,12 +114,10 @@ public class ChainedData<R, T extends R> {
     }
   }
 
-  @VisibleForTesting
   public double debugGetVersion() {
     return version;
   }
 
-  @VisibleForTesting
   public double debugGetKnownParentVersion() {
     return knownParentVersion;
   }

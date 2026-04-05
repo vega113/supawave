@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.uibuilder.OutputHelper;
@@ -47,7 +46,6 @@ public final class TagViewBuilder implements IntrinsicTagView, UiBuilder {
   private String hint;
   private final Css css;
 
-  @VisibleForTesting
   TagViewBuilder(String id, String name, TagState state, String hint, Css css) {
     this.id = id;
     this.name = name;

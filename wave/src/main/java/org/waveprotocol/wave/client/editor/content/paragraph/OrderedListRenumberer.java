@@ -21,7 +21,6 @@ package org.waveprotocol.wave.client.editor.content.paragraph;
 
 import static org.waveprotocol.wave.client.editor.content.paragraph.Line.DIRTY;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.editor.content.ContentElement;
 import org.waveprotocol.wave.client.editor.content.ContentNode;
@@ -143,7 +142,7 @@ public class OrderedListRenumberer {
 
 
   /** Used to avoid a short-circuit optimisation when testing */
-  @VisibleForTesting boolean updateHtmlEvenWhenNullImplNodelet = false;
+  boolean updateHtmlEvenWhenNullImplNodelet = false;
 
   OrderedListRenumberer(ParagraphHtmlRenderer htmlRenderer) {
     this.htmlRenderer = htmlRenderer;

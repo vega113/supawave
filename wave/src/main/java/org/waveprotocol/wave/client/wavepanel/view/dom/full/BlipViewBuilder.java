@@ -23,8 +23,7 @@ import static org.waveprotocol.wave.client.uibuilder.BuilderHelper.nonNull;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 
@@ -131,12 +130,11 @@ public class BlipViewBuilder implements UiBuilder, IntrinsicBlipView {
       UiBuilder privateReplies) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
-    Preconditions.checkArgument(!id.contains("\'"));
+    Preconditions.checkArgument(!id.contains("\'"), "!id.contains(\"\\'\")");
     return new BlipViewBuilder(id, nonNull(meta), nonNull(replies), nonNull(privateReplies),
         WavePanelResourceLoader.getBlip().css());
   }
 
-  @VisibleForTesting
   BlipViewBuilder(String id, UiBuilder meta, UiBuilder replies, UiBuilder privateReplies, Css css) {
     this.id = id;
     this.meta = meta;

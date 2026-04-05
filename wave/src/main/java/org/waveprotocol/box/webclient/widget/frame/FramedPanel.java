@@ -19,7 +19,7 @@
 
 package org.waveprotocol.box.webclient.widget.frame;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.StyleInjector;
@@ -156,7 +156,7 @@ public class FramedPanel extends Composite implements HasWidgets {
 
   @Override
   public void add(Widget w) {
-    Preconditions.checkState(contents == null);
+    Preconditions.checkState(contents == null, "contents == null");
     self.add(w, contentContainer);
     contents = w;
   }

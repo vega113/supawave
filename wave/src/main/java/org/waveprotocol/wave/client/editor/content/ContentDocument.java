@@ -768,10 +768,8 @@ public class ContentDocument {
 
     /** Set the persistence manager after construction - only can be called once. */
     void setPersistenceManager(LazyPersistenceManager persistenceManager) {
-      Preconditions.checkArgument(persistenceManager != null,
-          "Can't use a null persistence manager.");
-      Preconditions.checkState(this.persistenceManager == null,
-          "Can't set persistence manager twice.");
+      Preconditions.checkArgument(persistenceManager != null, "Can't use a null persistence manager.");
+      Preconditions.checkState(this.persistenceManager == null, "Can't set persistence manager twice.");
       this.persistenceManager = persistenceManager;
     }
 
@@ -1228,8 +1226,7 @@ public class ContentDocument {
 
   public void setOutgoingSink(SilentOperationSink<? super DocOp> outgoingOperationSink) {
     Preconditions.checkNotNull(outgoingOperationSink, "Outgoing operation sink cannot be null");
-    Preconditions.checkState(this.outgoingOperationSink == SilentOperationSink.Void.get(),
-        "Already has a sink");
+    Preconditions.checkState(this.outgoingOperationSink == SilentOperationSink.Void.get(), "Already has a sink");
     this.outgoingOperationSink = outgoingOperationSink;
   }
 
@@ -1336,8 +1333,7 @@ public class ContentDocument {
           break;
         case INTERACTIVE:
           assert logicalPanel != null;
-          Preconditions.checkState(fullRawSubstrate.getAffectHtml(),
-              "rendered or higher state should imply affectHtml");
+          Preconditions.checkState(fullRawSubstrate.getAffectHtml(), "rendered or higher state should imply affectHtml");
           break;
         case EDITING:
           // Most is done in attachEditor()
@@ -1438,12 +1434,10 @@ public class ContentDocument {
   // of editors altogether.
   public void attachEditor(MiniBundle editorBundle, LogicalPanel panel) {
     Preconditions.checkNotNull(editorBundle, "editorBundle must not be null");
-    Preconditions.checkState(level != Level.EDITING,
-        "Cannot attach editor to a document already with an editor");
+    Preconditions.checkState(level != Level.EDITING, "Cannot attach editor to a document already with an editor");
 
     if (panel == null) {
-      Preconditions.checkState(this.logicalPanel != null,
-          "Must either already have a logical panel, or one must be provided");
+      Preconditions.checkState(this.logicalPanel != null, "Must either already have a logical panel, or one must be provided");
     } else {
       this.logicalPanel = panel;
     }

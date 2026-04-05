@@ -23,8 +23,7 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.append;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.resources.client.ImageResource;
@@ -77,11 +76,10 @@ public final class ContinuationIndicatorViewBuilder implements UiBuilder,
         WavePanelResourceLoader.getContinuationIndicator().css(), id);
   }
 
-  @VisibleForTesting
   ContinuationIndicatorViewBuilder(Css css, String id) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
-    Preconditions.checkArgument(!id.contains("\'"));
+    Preconditions.checkArgument(!id.contains("\'"), "!id.contains(\"\\'\")");
     this.css = css;
     this.id = id;
   }

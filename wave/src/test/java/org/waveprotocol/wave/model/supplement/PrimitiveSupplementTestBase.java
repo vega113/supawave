@@ -62,9 +62,6 @@ public abstract class PrimitiveSupplementTestBase extends GenericTestBase<Primit
 
     // Default is that there is no pending notification.
     assertFalse(target.getPendingNotification());
-
-    // Gadget states are not defined.
-    assertTrue(target.getGadgetState("Gadget #1").isEmpty());
   }
 
   public void testInboxing() {
@@ -265,44 +262,6 @@ public abstract class PrimitiveSupplementTestBase extends GenericTestBase<Primit
     // Adding eval 1 again should have no actual effect
     target.addWantedEvaluation(eval1);
     assertEquals(all, target.getWantedEvaluations());
-  }
-
-  public void testGadgetStates() {
-    String gadget1 = "Gadget 1";
-    String gadget2 = "Gadget 2";
-
-    String state1 = "State 1";
-    String state2 = "State 2";
-
-    assertTrue(target.getGadgetState(gadget1).isEmpty());
-    assertTrue(target.getGadgetState(gadget2).isEmpty());
-
-    target.setGadgetState(gadget1, state1, "State 1 in gadget 1");
-    assertEquals(1, target.getGadgetState(gadget1).countEntries());
-    assertEquals("State 1 in gadget 1", target.getGadgetState(gadget1).get(state1));
-    assertTrue(target.getGadgetState(gadget2).isEmpty());
-
-    target.setGadgetState(gadget2, state1, "State 1 in gadget 2");
-    assertEquals(1, target.getGadgetState(gadget1).countEntries());
-    assertEquals("State 1 in gadget 1", target.getGadgetState(gadget1).get(state1));
-    assertEquals(1, target.getGadgetState(gadget2).countEntries());
-    assertEquals("State 1 in gadget 2", target.getGadgetState(gadget2).get(state1));
-
-    target.setGadgetState(gadget1, state2, "State 2 in gadget 1");
-    target.setGadgetState(gadget2, state2, "State 2 in gadget 2");
-    assertEquals(2, target.getGadgetState(gadget1).countEntries());
-    assertEquals("State 1 in gadget 1", target.getGadgetState(gadget1).get(state1));
-    assertEquals("State 2 in gadget 1", target.getGadgetState(gadget1).get(state2));
-    assertEquals(2, target.getGadgetState(gadget2).countEntries());
-    assertEquals("State 1 in gadget 2", target.getGadgetState(gadget2).get(state1));
-    assertEquals("State 2 in gadget 2", target.getGadgetState(gadget2).get(state2));
-
-    target.setGadgetState(gadget1, state1, null);
-    target.setGadgetState(gadget2, state2, null);
-    assertEquals(1, target.getGadgetState(gadget1).countEntries());
-    assertEquals("State 2 in gadget 1", target.getGadgetState(gadget1).get(state2));
-    assertEquals(1, target.getGadgetState(gadget2).countEntries());
-    assertEquals("State 1 in gadget 2", target.getGadgetState(gadget2).get(state1));
   }
 
   private static <T> void assertEquals(Iterable<? extends T> a, Iterable<? extends T> b) {

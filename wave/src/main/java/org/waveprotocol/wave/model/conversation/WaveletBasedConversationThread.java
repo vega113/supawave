@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.conversation;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.util.CollectionUtils;
@@ -291,7 +290,6 @@ final class WaveletBasedConversationThread implements ObservableConversationThre
   /**
    * Checks that this thread is safe to access.
    */
-  @VisibleForTesting
   void checkIsUsable() {
     if (!isUsable) {
       Preconditions.illegalState("Deleted thread is not usable: " + this);

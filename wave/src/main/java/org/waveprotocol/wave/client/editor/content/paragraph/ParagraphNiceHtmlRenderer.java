@@ -132,8 +132,7 @@ public class ParagraphNiceHtmlRenderer implements NiceHtmlRenderer {
       ContentNode firstItem, ContentNode stopAt, final Element destParent,
       SelectionMatcher selectionMatcher) {
 
-    Preconditions.checkArgument(firstItem instanceof ContentElement,
-        "firstItem must be an instance of ContentElement ", firstItem.getClass());
+    Preconditions.checkArgument(firstItem instanceof ContentElement, "firstItem must be an instance of ContentElement %s", firstItem.getClass());
 
     ContentNode prev = null;
     HtmlStack helper = new HtmlStack(destParent);

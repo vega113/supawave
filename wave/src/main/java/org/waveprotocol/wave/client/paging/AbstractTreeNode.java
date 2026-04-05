@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.paging;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 /**
  * A basic implementation of a tree node, that maintains parent, child, and
@@ -117,7 +117,7 @@ public abstract class AbstractTreeNode<T extends AbstractTreeNode<T>> implements
    * @param child node to insert
    */
   public T insertBefore(T ref, T child) {
-    Preconditions.checkArgument(ref == null || ref.parent == this);
+    Preconditions.checkArgument(ref == null || ref.parent == this, "ref == null || ref.parent == this");
     return ref == null ? append(child) // \u2620
         : ref == first ? prepend(child) // \u2620
             : (ref.prev.next = (ref.prev = child.set(self(), ref.prev, ref)));
@@ -130,7 +130,7 @@ public abstract class AbstractTreeNode<T extends AbstractTreeNode<T>> implements
    * @param child node to insert
    */
   public T insertAfter(T ref, T child) {
-    Preconditions.checkArgument(ref == null || ref.parent == this);
+    Preconditions.checkArgument(ref == null || ref.parent == this, "ref == null || ref.parent == this");
     return ref == null ? prepend(child) // \u2620
         : (ref == last ? append(child) // \u2620
             : (ref.next.prev = (ref.next = child.set(self(), ref, ref.next))));

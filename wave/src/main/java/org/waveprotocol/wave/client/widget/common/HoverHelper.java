@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.widget.common;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
 import com.google.gwt.event.dom.client.MouseOutEvent;
@@ -85,7 +84,6 @@ public final class HoverHelper {
    */
   private Hoverable last;
 
-  @VisibleForTesting
   HoverHelper() {
   }
 
@@ -135,7 +133,6 @@ public final class HoverHelper {
    *
    * @param hoverable  hoverable to which browser hover has moved
    */
-  @VisibleForTesting
   void enter(Hoverable hoverable) {
     // Mouse Enter
     if (last != hoverable) {
@@ -152,7 +149,6 @@ public final class HoverHelper {
    *
    * @param hoverable  hoverable away from which browser hover has moved
    */
-  @VisibleForTesting
   void exit(Hoverable hoverable) {
     // Mouse Leave
     if (last != hoverable) {

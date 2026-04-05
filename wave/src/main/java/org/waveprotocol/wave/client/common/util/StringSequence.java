@@ -19,8 +19,7 @@
 
 package org.waveprotocol.wave.client.common.util;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import java.util.Collection;
 
@@ -74,7 +73,6 @@ public final class StringSequence implements Sequence<String> {
    */
   private int recentIndex;
 
-  @VisibleForTesting
   StringSequence(String data) {
     this.data = data;
   }
@@ -87,7 +85,7 @@ public final class StringSequence implements Sequence<String> {
   /** Creates a string sequence on a string from another {@code StringSequence}. */
   public static StringSequence create(String serializedSequence) {
     Preconditions.checkArgument(serializedSequence.startsWith(DELIMITER)
-        && serializedSequence.endsWith(DELIMITER));
+        && serializedSequence.endsWith(DELIMITER), "Invalid serialized sequence");
     return new StringSequence(serializedSequence);
   }
 

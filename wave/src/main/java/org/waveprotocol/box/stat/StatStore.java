@@ -25,8 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import org.waveprotocol.wave.model.util.Pair;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Store for profiling statistic.
@@ -74,7 +75,7 @@ class StatStore {
   }
 
   synchronized List<ExecutionNode> getProfiledRequests() {
-    return ImmutableList.copyOf(profiledRequests);
+    return Collections.unmodifiableList(new ArrayList<>(profiledRequests));
   }
 
   synchronized void clear() {

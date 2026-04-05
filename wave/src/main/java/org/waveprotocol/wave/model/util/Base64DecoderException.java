@@ -19,13 +19,11 @@
 
 package org.waveprotocol.wave.model.util;
 
-import com.google.common.annotations.GwtCompatible;
 
 /**
  * Exception thrown when encountering an invalid Base64 input character.
  * 
  */
-@GwtCompatible
 public class Base64DecoderException extends Exception {
   public Base64DecoderException() {
     super();

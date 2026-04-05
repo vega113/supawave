@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.util;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import javax.annotation.Nullable;
 
@@ -316,7 +315,6 @@ public final class Preconditions {
    *     template. Arguments are converted to strings using
    *     {@link String#valueOf(Object)}. Arguments can be null.
    */
-  @VisibleForTesting
   static String format(String template,
       @Nullable Object... args) {
     template = String.valueOf(template); // null -> "null"

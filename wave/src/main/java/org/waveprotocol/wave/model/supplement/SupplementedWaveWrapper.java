@@ -22,7 +22,6 @@ package org.waveprotocol.wave.model.supplement;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.Wavelet;
 
@@ -238,22 +237,4 @@ public abstract class SupplementedWaveWrapper<T extends SupplementedWave>
     return delegate.haveParticipantsEverBeenRead(wavelet);
   }
 
-  //
-  // Gadgets.
-  //
-
-  @Override
-  public ReadableStringMap<String> getGadgetState(String gadgetId) {
-    return delegate.getGadgetState(gadgetId);
-  }
-
-  @Override
-  public String getGadgetStateValue(String gadgetId, String key) {
-    return delegate.getGadgetStateValue(gadgetId, key);
-  }
-
-  @Override
-  public void setGadgetState(String gadgetId, String key, String value) {
-    delegate.setGadgetState(gadgetId, key, value);
-  }
 }

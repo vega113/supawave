@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.common.util;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.user.client.Command;
 
 /**
@@ -61,7 +61,7 @@ public final class CountdownLatch {
    *         expected number of times.
    */
   public void tick() {
-    Preconditions.checkState(count > 0);
+    Preconditions.checkState(count > 0, "count > 0");
     count--;
     if (count == 0) {
       whenZero.execute();

@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
@@ -120,7 +119,6 @@ public final class TagsViewBuilder implements UiBuilder {
   private final HtmlClosureCollection tagUis;
   private final String id;
 
-  @VisibleForTesting
   TagsViewBuilder(Css css, String id, HtmlClosureCollection tagUis) {
     this.css = css;
     this.id = id;

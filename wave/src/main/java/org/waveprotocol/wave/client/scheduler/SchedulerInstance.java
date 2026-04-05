@@ -20,7 +20,6 @@
 
 package org.waveprotocol.wave.client.scheduler;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.user.client.ui.Widget;
 import org.waveprotocol.wave.client.scheduler.Scheduler.Priority;
 
@@ -38,7 +37,6 @@ public class SchedulerInstance {
   private static TimerService medium;
 
   /** Inject a default BrowserBackedScheduler */
-  @VisibleForTesting
   public static void setSchedulerInstance(BrowserBackedScheduler instance) {
     SchedulerInstance.instance = instance;
     setDefaultTimerService();

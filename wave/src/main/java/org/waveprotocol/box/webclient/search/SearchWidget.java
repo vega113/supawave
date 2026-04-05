@@ -19,7 +19,7 @@
 
 package org.waveprotocol.box.webclient.search;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
@@ -261,14 +261,14 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
 
   @Override
   public void init(Listener listener) {
-    Preconditions.checkState(this.listener == null);
-    Preconditions.checkArgument(listener != null);
+    Preconditions.checkState(this.listener == null, "this.listener == null");
+    Preconditions.checkArgument(listener != null, "listener != null");
     this.listener = listener;
   }
 
   @Override
   public void reset() {
-    Preconditions.checkState(listener != null);
+    Preconditions.checkState(listener != null, "listener != null");
     listener = null;
   }
 

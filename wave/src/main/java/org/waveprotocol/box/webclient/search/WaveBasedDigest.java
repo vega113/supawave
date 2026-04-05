@@ -20,7 +20,7 @@
 package org.waveprotocol.box.webclient.search;
 
 import org.waveprotocol.box.common.Snippets;
-import org.waveprotocol.wave.client.state.BlipReadStateMonitor;
+import org.waveprotocol.wave.model.document.BlipReadStateMonitor;
 import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationStructure;
 import org.waveprotocol.wave.model.conversation.TitleHelper;

@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.fake;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.wavepanel.view.AnchorView;
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
@@ -40,27 +40,27 @@ public final class FakeAnchor implements AnchorView {
   }
 
   void setContainer(FakeBlipView container) {
-    Preconditions.checkState(blip == null && meta == null);
+    Preconditions.checkState(blip == null && meta == null, "blip == null && meta == null");
     this.blip = container;
   }
 
   void setContainer(FakeBlipMetaView container) {
-    Preconditions.checkState(blip == null && meta == null);
+    Preconditions.checkState(blip == null && meta == null, "blip == null && meta == null");
     this.meta = container;
   }
 
   @Override
   public void attach(InlineThreadView view) {
-    Preconditions.checkState(attached == null);
-    Preconditions.checkArgument(view != null);
+    Preconditions.checkState(attached == null, "attached == null");
+    Preconditions.checkArgument(view != null, "view != null");
     attached = ((FakeInlineThreadView) view);
     attached.attachTo(this);
   }
 
   @Override
   public void detach(InlineThreadView view) {
-    Preconditions.checkArgument(view != null);
-    Preconditions.checkState(attached == view);
+    Preconditions.checkArgument(view != null, "view != null");
+    Preconditions.checkState(attached == view, "attached == view");
     attached.detach();
     attached = null;
   }

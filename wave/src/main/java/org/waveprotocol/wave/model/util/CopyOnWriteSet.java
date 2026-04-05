@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.util;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -77,7 +76,6 @@ public final class CopyOnWriteSet<T> implements Iterable<T> {
   /** True iff a copy is to be made on the next mutation. */
   private boolean stale = true;
 
-  @VisibleForTesting
   CopyOnWriteSet(CollectionFactory factory) {
     this.factory = factory;
   }

@@ -109,6 +109,8 @@ public class RobotTest extends TestCase {
     waveletProvider = mock(WaveletProvider.class);
     eventGenerator = mock(EventGenerator.class);
     operationApplicator = mock(RobotOperationApplicator.class);
+    when(converterManager.getEventDataConverter(any(ProtocolVersion.class))).thenReturn(
+        mock(EventDataConverter.class));
 
     robot =
         new Robot(ROBOT_NAME, ACCOUNT, gateway, connector, converterManager, waveletProvider,
@@ -227,6 +229,31 @@ public class RobotTest extends TestCase {
 
     verify(connector).sendMessageBundle(
         any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class));
+    verify(operationApplicator).applyOperations(
+        eq(ops), any(ReadableWaveletData.class), any(HashedVersion.class), eq(INITIALIZED_ACCOUNT));
+  }
+
+  @SuppressWarnings("unchecked")
+  public void testProcessUsesSingleAccountSnapshotAcrossCapabilityRefresh() throws Exception {
+    EventMessageBundle messages = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
+    messages.addEvent(new DocumentChangedEvent(null, null, ALEX.getAddress(), 0L, "b+1234"));
+    when(eventGenerator.generateEvents(
+        any(), anyMap(), any())).thenReturn(messages);
+
+    OperationRequest op = new OperationRequest("wavelet.fetch", "op1");
+    List<OperationRequest> ops = Collections.singletonList(op);
+    doAnswer(new Answer<Object>() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        robot.setAccount(STALE_ACCOUNT);
+        return ops;
+      }
+    }).when(connector).sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class));
+
+    enqueueEmptyWavelet();
+    robot.run();
+
     verify(operationApplicator).applyOperations(
         eq(ops), any(ReadableWaveletData.class), any(HashedVersion.class), eq(INITIALIZED_ACCOUNT));
   }

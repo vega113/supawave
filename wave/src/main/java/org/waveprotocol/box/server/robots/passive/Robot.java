@@ -264,10 +264,12 @@ public class Robot implements Runnable {
    * @param wavelet the {@link WaveletAndDeltas} to process.
    */
   private void process(WaveletAndDeltas wavelet) {
-    if (account.getCapabilities() == null) {
+    RobotAccountData currentAccount = account;
+    if (currentAccount.getCapabilities() == null) {
       try {
         LOG.info(robotName + ": Initializing capabilities");
         gateway.updateRobotAccount(this);
+        currentAccount = account;
       } catch (CapabilityFetchException e) {
         ReadableWaveletData snapshot = wavelet.getSnapshotAfterDeltas();
         LOG.info(
@@ -285,7 +287,7 @@ public class Robot implements Runnable {
       }
     }
 
-    RobotCapabilities capabilities = account.getCapabilities();
+    RobotCapabilities capabilities = currentAccount.getCapabilities();
     EventMessageBundle messages =
         eventGenerator.generateEvents(wavelet, capabilities.getCapabilitiesMap(),
             converterManager.getEventDataConverter(capabilities.getProtocolVersion()));
@@ -302,6 +304,6 @@ public class Robot implements Runnable {
     LOG.info(robotName + ": received operations");
 
     operationApplicator.applyOperations(
-        response, wavelet.getSnapshotAfterDeltas(), wavelet.getVersionAfterDeltas(), account);
+        response, wavelet.getSnapshotAfterDeltas(), wavelet.getVersionAfterDeltas(), currentAccount);
   }
 }

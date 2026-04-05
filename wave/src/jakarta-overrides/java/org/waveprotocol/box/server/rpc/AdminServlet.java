@@ -1144,7 +1144,6 @@ public final class AdminServlet extends HttpServlet {
     PrintWriter w = resp.getWriter();
     w.append('{');
     w.append("\"enabled\":").append(String.valueOf(analyticsCountersEnabled));
-    w.append(",\"window\":").append(jsonStr(window));
     w.append(",\"granularity\":").append(jsonStr(daily ? "daily" : "hourly"));
 
     // Compute totals

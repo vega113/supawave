@@ -27,6 +27,7 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore;
 import org.waveprotocol.box.server.persistence.ContactMessageStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore;
@@ -176,6 +177,15 @@ public final class AdminServletTest {
     assertEquals("Access denied — admin role required", json.getString("error"));
   }
 
+  @Test
+  public void analyticsHistoryDoesNotEchoWindowParameter() throws Exception {
+    JSONObject json = invokeAnalyticsHistory("24h");
+
+    assertFalse(json.has("window"));
+    assertEquals("hourly", json.getString("granularity"));
+    assertTrue(json.getJSONArray("series").isEmpty());
+  }
+
   private static JSONObject invokeOpsStatus(
       FeatureFlagStore featureFlagStore,
       Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider) throws Exception {
@@ -244,7 +254,67 @@ public final class AdminServletTest {
             featureFlagStore,
             lucene9Indexer,
             searchWaveletUpdaterProvider,
+            newAnalyticsService(),
             new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore());
+    try {
+      servlet.doGet(request, response);
+      writer.flush();
+    } finally {
+      featureFlagService.shutdown();
+    }
+    return new JSONObject(body.toString());
+  }
+
+  private static JSONObject invokeAnalyticsHistory(String window) throws Exception {
+    AccountStore accountStore = mock(AccountStore.class);
+    SessionManager sessionManager = mock(SessionManager.class);
+    ContactMessageStore contactMessageStore = mock(ContactMessageStore.class);
+    ReindexService reindexService = new ReindexService(null);
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
+    Lucene9WaveIndexerImpl lucene9Indexer = mock(Lucene9WaveIndexerImpl.class);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    HttpSession session = mock(HttpSession.class);
+    StringWriter body = new StringWriter();
+    PrintWriter writer = new PrintWriter(body);
+    FeatureFlagService featureFlagService = new FeatureFlagService(featureFlagStore);
+    Config config =
+        ConfigFactory.parseString(
+            "core.search_type = \"lucene9\"\n"
+                + "core.public_url = \"https://wave.example.test\"\n"
+                + "core.analytics_counters_enabled = true\n"
+                + "search.ot_search_enabled = false\n"
+                + "search.ot_search_public_batching_enabled = true\n"
+                + "search.ot_search_public_batch_ms = -15000\n"
+                + "search.ot_search_public_fanout_threshold = 0\n"
+                + "search.ot_search_high_participant_threshold = 0");
+    HumanAccountData admin = new HumanAccountDataImpl(ADMIN_ID);
+    admin.setRole(HumanAccountData.ROLE_OWNER);
+
+    when(sessionManager.getLoggedInUser(any())).thenReturn(ADMIN_ID);
+    when(accountStore.getAccount(ADMIN_ID)).thenReturn(admin);
+    when(request.getPathInfo()).thenReturn("/api/analytics/history");
+    when(request.getParameter("window")).thenReturn(window);
+    when(request.getSession(false)).thenReturn(session);
+    when(response.getWriter()).thenReturn(writer);
+
+    AdminServlet servlet =
+        new AdminServlet(
+            accountStore,
+            sessionManager,
+            contactMessageStore,
+            mock(org.waveprotocol.box.server.mail.MailProvider.class),
+            "wave.example.test",
+            reindexService,
+            config,
+            waveletProvider,
+            featureFlagService,
+            featureFlagStore,
+            lucene9Indexer,
+            mockProvider(mock(SearchWaveletUpdater.class)),
+            newAnalyticsService(),
+            new MemoryAnalyticsCounterStore());
     try {
       servlet.doGet(request, response);
       writer.flush();

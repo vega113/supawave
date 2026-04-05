@@ -27,6 +27,7 @@ import java.util.Map;
  * their gadget specification. Gadgets can also maintain state that both they
  * and Robots can modify.
  */
+@Deprecated(forRemoval = true)
 public class Gadget extends Element {
 
   public static final String AUTHOR = "author";

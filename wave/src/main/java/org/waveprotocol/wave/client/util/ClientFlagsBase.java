@@ -351,8 +351,6 @@ public class ClientFlagsBase {
 
   private final Boolean preserveSelectionOnEdit;
 
-  private final String profilePictureGadgetUrl;
-
   private final Integer reconnectionFudgeTime;
 
   private final Integer refreshContactsDelaySeconds;
@@ -382,8 +380,6 @@ public class ClientFlagsBase {
   private final String settingsAvailableLanguages;
 
   private final Boolean showBiDiButtons;
-
-  private final Boolean showGadgetSetting;
 
   private final Boolean showLanguageSetting;
 
@@ -444,8 +440,6 @@ public class ClientFlagsBase {
   private final Boolean useParticipantSuggestion;
 
   private final Boolean usePresentationModel;
-
-  private final Boolean usePrivateGadgetStates;
 
   private final Boolean useProfileWaves;
 
@@ -682,7 +676,6 @@ public class ClientFlagsBase {
         "pingType", pingType,
         "playbackPrefetchDelay", playbackPrefetchDelay,
         "preserveSelectionOnEdit", preserveSelectionOnEdit,
-        "profilePictureGadgetUrl", profilePictureGadgetUrl,
         "reconnectionFudgeTime", reconnectionFudgeTime,
         "refreshContactsDelaySeconds", refreshContactsDelaySeconds,
         "removeParticipantAccessCheckMs", removeParticipantAccessCheckMs,
@@ -698,7 +691,6 @@ public class ClientFlagsBase {
         "searchEmailContacts", searchEmailContacts,
         "settingsAvailableLanguages", settingsAvailableLanguages,
         "showBiDiButtons", showBiDiButtons,
-        "showGadgetSetting", showGadgetSetting,
         "showLanguageSetting", showLanguageSetting,
         "showPublicParticipant", showPublicParticipant,
         "showScrollySetting", showScrollySetting,
@@ -729,7 +721,6 @@ public class ClientFlagsBase {
         "useParticipantPanelDragDrop", useParticipantPanelDragDrop,
         "useParticipantSuggestion", useParticipantSuggestion,
         "usePresentationModel", usePresentationModel,
-        "usePrivateGadgetStates", usePrivateGadgetStates,
         "useProfileWaves", useProfileWaves,
         "useSemanticCopyPaste", useSemanticCopyPaste,
         "useWavePaging", useWavePaging,
@@ -938,7 +929,6 @@ public class ClientFlagsBase {
     pingType = helper.getString(FlagConstants.PING_TYPE, "DISABLED");
     playbackPrefetchDelay = helper.getInteger(FlagConstants.PLAYBACK_PREFETCH_DELAY, 1000);
     preserveSelectionOnEdit = helper.getBoolean(FlagConstants.PRESERVE_SELECTION_ON_EDIT, false);
-    profilePictureGadgetUrl = helper.getString(FlagConstants.PROFILE_PICTURE_GADGET_URL, "https://wave.google.com/wave/static/gadgets/onepick.xml");
     reconnectionFudgeTime = helper.getInteger(FlagConstants.RECONNECTION_FUDGE_TIME, 10000);
     refreshContactsDelaySeconds = helper.getInteger(FlagConstants.REFRESH_CONTACTS_DELAY_SECONDS, 30);
     removeParticipantAccessCheckMs = helper.getInteger(FlagConstants.REMOVE_PARTICIPANT_ACCESS_CHECK_MS, 10000);
@@ -954,7 +944,6 @@ public class ClientFlagsBase {
     searchEmailContacts = helper.getBoolean(FlagConstants.SEARCH_EMAIL_CONTACTS, true);
     settingsAvailableLanguages = helper.getString(FlagConstants.SETTINGS_AVAILABLE_LANGUAGES, "ar,bg,ca,cs,da,de,el,en,en_GB,es,fi,fil,fr,hi,hr,hu,id,it,iw,ja,ko,lt,lv,nl,no,pl,pt,pt_PT,ro,ru,sk,sl,sr,sv,th,tr,uk,vi,zh,zh_TW");
     showBiDiButtons = helper.getBoolean(FlagConstants.SHOW_BI_DI_BUTTONS, false);
-    showGadgetSetting = helper.getBoolean(FlagConstants.SHOW_GADGET_SETTING, false);
     showLanguageSetting = helper.getBoolean(FlagConstants.SHOW_LANGUAGE_SETTING, false);
     showPublicParticipant = helper.getBoolean(FlagConstants.SHOW_PUBLIC_PARTICIPANT, true);
     showScrollySetting = helper.getBoolean(FlagConstants.SHOW_SCROLLY_SETTING, false);
@@ -985,7 +974,6 @@ public class ClientFlagsBase {
     useParticipantPanelDragDrop = helper.getBoolean(FlagConstants.USE_PARTICIPANT_PANEL_DRAG_DROP, false);
     useParticipantSuggestion = helper.getBoolean(FlagConstants.USE_PARTICIPANT_SUGGESTION, false);
     usePresentationModel = helper.getBoolean(FlagConstants.USE_PRESENTATION_MODEL, false);
-    usePrivateGadgetStates = helper.getBoolean(FlagConstants.USE_PRIVATE_GADGET_STATES, true);
     useProfileWaves = helper.getBoolean(FlagConstants.USE_PROFILE_WAVES, true);
     useSemanticCopyPaste = helper.getBoolean(FlagConstants.USE_SEMANTIC_COPY_PASTE, true);
     useWavePaging = helper.getBoolean(FlagConstants.USE_WAVE_PAGING, false);
@@ -2191,13 +2179,6 @@ public class ClientFlagsBase {
   /**
    *
    */
-  public String profilePictureGadgetUrl() {
-    return profilePictureGadgetUrl;
-  }
-
-  /**
-   *
-   */
   public Integer reconnectionFudgeTime() {
     return reconnectionFudgeTime;
   }
@@ -2298,13 +2279,6 @@ public class ClientFlagsBase {
    */
   public Boolean showBiDiButtons() {
     return showBiDiButtons;
-  }
-
-  /**
-   *
-   */
-  public Boolean showGadgetSetting() {
-    return showGadgetSetting;
   }
 
   /**
@@ -2515,13 +2489,6 @@ public class ClientFlagsBase {
    */
   public Boolean usePresentationModel() {
     return usePresentationModel;
-  }
-
-  /**
-   *
-   */
-  public Boolean usePrivateGadgetStates() {
-    return usePrivateGadgetStates;
   }
 
   /**

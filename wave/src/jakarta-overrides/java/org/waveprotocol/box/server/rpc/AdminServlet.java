@@ -151,7 +151,7 @@ public final class AdminServlet extends HttpServlet {
     if (pathInfo != null && pathInfo.equals("/api/ops/status")) {
       handleOpsStatus(resp);
     } else if (pathInfo != null && pathInfo.equals("/api/analytics/status")) {
-      handleAnalyticsStatus(resp);
+      handleAnalyticsStatus(req, resp);
     } else if (pathInfo != null && pathInfo.equals("/api/ops/reindex/status")) {
       handleReindexStatus(resp);
     } else if (pathInfo != null && pathInfo.startsWith("/api/users")) {
@@ -698,12 +698,14 @@ public final class AdminServlet extends HttpServlet {
   // GET /admin/api/analytics/status
   // =========================================================================
 
-  private void handleAnalyticsStatus(HttpServletResponse resp) throws IOException {
+  private void handleAnalyticsStatus(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     try {
+      String windowParam = req.getParameter("window");
+      long windowStartMs = resolveWindowStart(windowParam != null ? windowParam : "7d");
       AdminAnalyticsService.AnalyticsSnapshot snapshot = adminAnalyticsService.getAnalyticsSnapshot();
       setJsonUtf8(resp);
       PrintWriter w = resp.getWriter();
-      writeAnalyticsSnapshotJson(w, snapshot);
+      writeAnalyticsSnapshotJson(w, snapshot, windowStartMs);
       w.flush();
     } catch (PersistenceException | WaveServerException | IOException e) {
       LOG.severe("Failed to compute analytics status", e);
@@ -712,7 +714,7 @@ public final class AdminServlet extends HttpServlet {
   }
 
   private void writeAnalyticsSnapshotJson(
-      PrintWriter w, AdminAnalyticsService.AnalyticsSnapshot snapshot) {
+      PrintWriter w, AdminAnalyticsService.AnalyticsSnapshot snapshot, long windowStartMs) {
     AdminAnalyticsService.Summary summary = snapshot.getSummary();
     w.append('{');
     w.append("\"summary\":{");
@@ -738,6 +740,7 @@ public final class AdminServlet extends HttpServlet {
     w.append(",\"generatedAtMs\":").append(String.valueOf(snapshot.getGeneratedAtMs()));
     w.append(",\"scanDurationMs\":").append(String.valueOf(snapshot.getScanDurationMs()));
     w.append(",\"stale\":").append(String.valueOf(snapshot.isStale()));
+    w.append(",\"windowStartMs\":").append(String.valueOf(windowStartMs));
 
     w.append(",\"warnings\":[");
     for (int i = 0; i < snapshot.getWarnings().size(); i++) {
@@ -748,10 +751,7 @@ public final class AdminServlet extends HttpServlet {
     }
     w.append(']');
 
-    w.append(",\"windows\":{");
-    w.append("\"recentLogin\":[\"24h\",\"7d\",\"30d\"]");
-    w.append(",\"recentWriting\":[\"24h\",\"7d\",\"30d\"]");
-    w.append('}');
+    w.append(",\"windows\":[\"24h\",\"48h\",\"7d\",\"30d\",\"60d\",\"90d\",\"6m\",\"1y\",\"ytd\",\"all\"]");
 
     writeTopWavesJson(w, "topViewedPublicWaves", snapshot.getTopViewedPublicWaves());
     writeTopWavesJson(w, "topParticipatedPublicWaves", snapshot.getTopParticipatedPublicWaves());
@@ -1109,6 +1109,32 @@ public final class AdminServlet extends HttpServlet {
     }
     sb.append('"');
     return sb.toString();
+  }
+
+  /**
+   * Resolves a named time window to an epoch-millisecond start timestamp.
+   * Returns 0 (epoch) for "all", or the millisecond offset from now for others.
+   */
+  private static long resolveWindowStart(String window) {
+    long now = System.currentTimeMillis();
+    switch (window == null ? "" : window.toLowerCase(java.util.Locale.ROOT)) {
+      case "24h":  return now - 1L  * 86_400_000L;
+      case "48h":  return now - 2L  * 86_400_000L;
+      case "7d":   return now - 7L  * 86_400_000L;
+      case "30d":  return now - 30L * 86_400_000L;
+      case "60d":  return now - 60L * 86_400_000L;
+      case "90d":  return now - 90L * 86_400_000L;
+      case "6m":   return now - 180L * 86_400_000L;
+      case "1y":   return now - 365L * 86_400_000L;
+      case "ytd": {
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+        return java.time.LocalDate.of(today.getYear(), 1, 1)
+            .atStartOfDay(java.time.ZoneOffset.UTC)
+            .toInstant().toEpochMilli();
+      }
+      case "all":  return 0L;
+      default:     return now - 7L  * 86_400_000L; // default: 7d
+    }
   }
 
   private static int parseIntOrDefault(String s, int defaultVal) {

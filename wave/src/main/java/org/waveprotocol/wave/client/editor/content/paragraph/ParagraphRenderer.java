@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor.content.paragraph;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.dom.client.Element;
 
 import org.waveprotocol.wave.client.editor.RenderingMutationHandler;
@@ -88,7 +87,6 @@ public class ParagraphRenderer extends RenderingMutationHandler {
     this(htmlRenderer, new OrderedListRenumberer(htmlRenderer), new FinalTaskRunnerImpl());
   }
 
-  @VisibleForTesting
   ParagraphRenderer(ParagraphHtmlRenderer htmlRenderer,
       OrderedListRenumberer renumberer, FinalTaskRunner finalTaskRunner) {
     Preconditions.checkNotNull(htmlRenderer, "Null html renderer");

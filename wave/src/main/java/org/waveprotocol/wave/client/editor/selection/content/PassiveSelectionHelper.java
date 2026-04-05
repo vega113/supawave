@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor.selection.content;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.dom.client.Node;
 
 import org.waveprotocol.wave.client.editor.EditorImpl;
@@ -408,7 +407,6 @@ public class PassiveSelectionHelper implements SelectionHelper {
    * @param point a possibly invalid selection point
    * @return a valid selection point, or null if one is neither found nor created
    */
-  @VisibleForTesting
   Point<ContentNode> findOrCreateValidSelectionPoint(Point.El<ContentNode> point) {
     // TODO(patcoleman): refactor this into cleaner code - possible separating find and create.
     ValidSelectionContainerView validContainerView =

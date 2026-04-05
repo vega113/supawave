@@ -152,7 +152,9 @@ public class BlipData {
    * Creates a deep copy/clone of a blip's data.
    *
    * @param blip The original blip to be copied.
+   * @deprecated Gadget element deserialization in this constructor is deprecated for removal.
    */
+  @Deprecated(forRemoval = true)
   public BlipData(BlipData blip) {
     // Deep copy annotations.
     annotations = new ArrayList<Annotation>();

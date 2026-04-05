@@ -26,8 +26,7 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpanWith;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
@@ -181,11 +180,10 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
         WavePanelResourceLoader.getBlipMessages(), id, nonNull(content));
   }
 
-  @VisibleForTesting
   BlipMetaViewBuilder(BlipViewBuilder.Css css, BlipMessages messages, String id, UiBuilder content) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
-    Preconditions.checkArgument(!id.contains("\'"));
+    Preconditions.checkArgument(!id.contains("\'"), "!id.contains(\"\\'\")");
     this.css = css;
     this.id = id;
     this.content = content;

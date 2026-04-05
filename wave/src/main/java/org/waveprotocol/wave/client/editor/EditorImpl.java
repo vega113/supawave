@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.Duration;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptException;
@@ -147,11 +146,9 @@ import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.model.util.ReadableIdentitySet.Proc;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
-import java.util.Set;
 
 /**
  * The DOM structure for an editor is as follows:
@@ -240,7 +237,7 @@ public class EditorImpl extends LogicalPanel.Impl implements
     void onIncomingOp(DocOp op);
   }
 
-  @VisibleForTesting final MiniBundle editorPackage = new MiniBundle() {
+  final MiniBundle editorPackage = new MiniBundle() {
 
     /** {@inheritDoc} */
     public TypingExtractor getTypingExtractor() {
@@ -608,9 +605,10 @@ public class EditorImpl extends LogicalPanel.Impl implements
   private BiasDirection currentSelectionBias = BiasDirection.LEFT;
 
   /**
-   * My keyboard listeners
+   * Keyboard listeners.  CopyOnWriteSet allows add/remove during dispatch
+   * (e.g. mention autocomplete on '@') without a ConcurrentModificationException.
    */
-  protected Set<KeySignalListener> keySignalListeners;
+  private final CopyOnWriteSet<KeySignalListener> keySignalListeners = CopyOnWriteSet.create();
 
   /**
    * Registries for everything
@@ -1535,7 +1533,6 @@ public class EditorImpl extends LogicalPanel.Impl implements
   /**
    * Causes all pending operations to be fired as events.
    */
-  @VisibleForTesting
   void flushSynchronous() {
     if (content != null) {
       typing.flush();
@@ -2325,11 +2322,11 @@ public class EditorImpl extends LogicalPanel.Impl implements
    */
   private boolean fireKeyboardEvent(SignalEvent evt) {
     boolean handled = false;
-    if (keySignalListeners != null) {
-      for (KeySignalListener l : keySignalListeners) {
-        // "|| handled" at end of line to avoid short circuiting
-        handled = l.onKeySignal(this, evt) || handled;
-      }
+    // CopyOnWriteSet: iteration is over a snapshot, so listeners may safely
+    // add/remove themselves during dispatch (e.g. mention autocomplete on '@').
+    for (KeySignalListener l : keySignalListeners) {
+      // "|| handled" at end of line to avoid short circuiting
+      handled = l.onKeySignal(this, evt) || handled;
     }
     return handled;
   }
@@ -2514,17 +2511,12 @@ public class EditorImpl extends LogicalPanel.Impl implements
    */
   @Override
   public void addKeySignalListener(KeySignalListener listener) {
-    if (keySignalListeners == null) {
-      keySignalListeners = new HashSet<KeySignalListener>();
-    }
     keySignalListeners.add(listener);
   }
 
   @Override
   public void removeKeySignalListener(KeySignalListener listener) {
-    if (keySignalListeners != null) {
-      keySignalListeners.remove(listener);
-    }
+    keySignalListeners.remove(listener);
   }
 
   private void onIncomingOp(DocOp operation) {
@@ -2571,7 +2563,6 @@ public class EditorImpl extends LogicalPanel.Impl implements
   /**
    * Checks health if in debug build + logs errors
    */
-  @VisibleForTesting
   void debugCheckHealth() {
     if (LogLevel.showErrors()) {
       try {
@@ -2640,16 +2631,14 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
   @Override
   public CaretAnnotations getCaretAnnotations() {
-    Preconditions.checkState(caretStyles != null,
-        "Using the caret annotations of an editor not set up.");
+    Preconditions.checkState(caretStyles != null, "Using the caret annotations of an editor not set up.");
     checkContextConsistency();
     return caretStyles;
   }
 
   @Override
   public SelectionHelper getSelectionHelper() {
-    Preconditions.checkState(passiveSelectionHelper != null,
-        "Using the selection helper of an editor not set up.");
+    Preconditions.checkState(passiveSelectionHelper != null, "Using the selection helper of an editor not set up.");
     checkContextConsistency();
     return passiveSelectionHelper;
   }

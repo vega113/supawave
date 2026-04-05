@@ -20,7 +20,6 @@
 package org.waveprotocol.wave.model.supplement;
 
 import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.version.HashedVersion;
 
 import java.util.HashSet;
@@ -302,13 +301,4 @@ public final class SupplementImpl implements Supplement {
     primitive.clearPendingNotification();
   }
 
-  @Override
-  public ReadableStringMap<String> getGadgetState(String gadgetId) {
-    return primitive.getGadgetState(gadgetId);
-  }
-
-  @Override
-  public void setGadgetState(String gadgetId, String key, String value) {
-    primitive.setGadgetState(gadgetId, key, value);
-  }
 }

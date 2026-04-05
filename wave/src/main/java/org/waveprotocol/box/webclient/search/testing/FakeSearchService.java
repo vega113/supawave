@@ -19,7 +19,6 @@
 
 package org.waveprotocol.box.webclient.search.testing;
 
-import com.google.common.base.Joiner;
 import com.google.gwt.http.client.Request;
 
 import org.waveprotocol.box.webclient.search.SearchService;
@@ -80,7 +79,7 @@ public final class FakeSearchService implements SearchService {
       for (int j = 0; j < words.length; j++) {
         words[j] = FAKE_WORDS[r.nextInt(FAKE_WORDS.length)];
       }
-      return Joiner.on(' ').join(words);
+      return String.join(" ", words);
     }
 
     private static <T> List<T> randomSubsequence(Random r, List<T> items) {

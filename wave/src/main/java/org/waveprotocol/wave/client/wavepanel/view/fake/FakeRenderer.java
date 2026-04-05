@@ -19,9 +19,6 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.fake;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-
 import org.waveprotocol.wave.client.common.util.LinkedSequence;
 import org.waveprotocol.wave.client.render.ReductionBasedRenderer;
 import org.waveprotocol.wave.client.render.RenderingRules;
@@ -53,6 +50,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -63,12 +61,22 @@ public final class FakeRenderer implements WaveRenderer<View>, ModelAsViewProvid
 
   /** Factory and registry of fake views. */
   class ViewStore {
-    final BiMap<ConversationBlip, FakeBlipView> blipUis = HashBiMap.create();
-    final BiMap<Conversation, FakeConversationView> convUis = HashBiMap.create();
-    final BiMap<ConversationThread, FakeRootThreadView> rootThreadUis = HashBiMap.create();
-    final BiMap<ConversationThread, FakeInlineThreadView> inlineThreadUis = HashBiMap.create();
-    final BiMap<ConversationThread, FakeAnchor> defaultAnchorUis = HashBiMap.create();
-    final BiMap<ConversationThread, FakeAnchor> inlineAnchorUis = HashBiMap.create();
+    final Map<ConversationBlip, FakeBlipView> blipUis = new HashMap<>();
+    final Map<FakeBlipView, ConversationBlip> blipUisInverse = new HashMap<>();
+    final Map<Conversation, FakeConversationView> convUis = new HashMap<>();
+    final Map<ConversationThread, FakeRootThreadView> rootThreadUis = new HashMap<>();
+    final Map<FakeRootThreadView, ConversationThread> rootThreadUisInverse = new HashMap<>();
+    final Map<ConversationThread, FakeInlineThreadView> inlineThreadUis = new HashMap<>();
+    final Map<FakeInlineThreadView, ConversationThread> inlineThreadUisInverse = new HashMap<>();
+    final Map<ConversationThread, FakeAnchor> defaultAnchorUis = new HashMap<>();
+    final Map<ConversationThread, FakeAnchor> inlineAnchorUis = new HashMap<>();
+
+    /** Puts a value in a forward/inverse map pair and returns it. */
+    private <K, V> V putBi(Map<K, V> forward, Map<V, K> inverse, K key, V value) {
+      forward.put(key, value);
+      inverse.put(value, key);
+      return value;
+    }
 
     /** Puts a value in a map and returns it. */
     private <K, V> V put(Map<? super K, ? super V> map, K key, V value) {
@@ -78,7 +86,7 @@ public final class FakeRenderer implements WaveRenderer<View>, ModelAsViewProvid
 
     FakeBlipView createBlipView(ConversationBlip blip, LinkedSequence<FakeAnchor> anchors,
         LinkedSequence<FakeInlineConversationView> convos) {
-      return put(blipUis, blip, new FakeBlipView(FakeRenderer.this, anchors, convos));
+      return putBi(blipUis, blipUisInverse, blip, new FakeBlipView(FakeRenderer.this, anchors, convos));
     }
 
     FakeConversationView createTopConversationView(Conversation conv, FakeRootThreadView thread) {
@@ -92,12 +100,12 @@ public final class FakeRenderer implements WaveRenderer<View>, ModelAsViewProvid
 
     FakeThreadView createRootThreadView(
         ConversationThread thread, LinkedSequence<FakeBlipView> blipUis) {
-      return put(rootThreadUis, thread, new FakeRootThreadView(FakeRenderer.this, blipUis));
+      return putBi(rootThreadUis, rootThreadUisInverse, thread, new FakeRootThreadView(FakeRenderer.this, blipUis));
     }
 
     FakeThreadView createInlineThreadView(
         ConversationThread thread, LinkedSequence<FakeBlipView> blipUis) {
-      return put(inlineThreadUis, thread, new FakeInlineThreadView(FakeRenderer.this, blipUis));
+      return putBi(inlineThreadUis, inlineThreadUisInverse, thread, new FakeInlineThreadView(FakeRenderer.this, blipUis));
     }
 
     FakeAnchor createDefaultAnchorView(ConversationThread thread) {
@@ -310,13 +318,13 @@ public final class FakeRenderer implements WaveRenderer<View>, ModelAsViewProvid
 
   @Override
   public ConversationBlip getBlip(BlipView blipUi) {
-    return views.blipUis.inverse().get(blipUi);
+    return views.blipUisInverse.get(blipUi);
   }
 
   @Override
   public ConversationThread getThread(ThreadView threadUi) {
-    ConversationThread inline = views.inlineThreadUis.inverse().get(threadUi);
-    return inline != null ? inline : views.rootThreadUis.inverse().get(threadUi);
+    ConversationThread inline = views.inlineThreadUisInverse.get(threadUi);
+    return inline != null ? inline : views.rootThreadUisInverse.get(threadUi);
   }
 
   @Override

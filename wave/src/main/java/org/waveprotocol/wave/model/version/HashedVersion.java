@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.version;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.util.CharBase64;
 import org.waveprotocol.wave.model.util.Preconditions;

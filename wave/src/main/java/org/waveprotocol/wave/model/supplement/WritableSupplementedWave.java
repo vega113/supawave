@@ -136,13 +136,4 @@ public interface WritableSupplementedWave {
    */
   void markAsNotified();
 
-  /**
-   * Sets or modifies the gadget state stored in the supplement. The value can
-   * be null. If value is null the key is removed from the state.
-   *
-   * @param gadgetId ID of the gadget to modify the state for.
-   * @param key State key.
-   * @param value State value. If null the key will be removed from the state.
-   */
-  void setGadgetState(String gadgetId, String key, String value);
 }

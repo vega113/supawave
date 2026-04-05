@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.communication;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 /**
  * Trivial encode/decoder of byte arrays and char arrays.
@@ -68,7 +68,7 @@ public final class Codec {
    */
   public static byte[] decode(String s) {
     char [] encoded = s.toCharArray();
-    Preconditions.checkArgument(encoded.length % 2 == 0);
+    Preconditions.checkArgument(encoded.length % 2 == 0, "Encoded string length must be even");
     byte[] decoded = new byte[encoded.length / 2];
     for (int i = 0; i < decoded.length; i++) {
       char hi = encoded[i * 2 + 0];

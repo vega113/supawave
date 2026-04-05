@@ -23,7 +23,6 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 
@@ -87,7 +86,6 @@ public final class RootThreadViewBuilder implements IntrinsicThreadView, UiBuild
   private final HtmlClosure blips;
   private final UiBuilder replyBox;
 
-  @VisibleForTesting
   RootThreadViewBuilder(String id, HtmlClosure blips, UiBuilder replyBox, Css css) {
     this.css = css;
     this.id = id;

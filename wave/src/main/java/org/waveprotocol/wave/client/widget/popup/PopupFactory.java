@@ -19,14 +19,15 @@
 
 package org.waveprotocol.wave.client.widget.popup;
 
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.user.client.ui.Panel;
 
 /**
- * Creates popups by deferring to a late-bound provider which may
- * change depending on platform.
+ * Creates popups by deferring to a provider.
  *
+ * <p>TODO(j2cl): deferred binding removed; always uses DesktopPopupProvider.
+ * Mobile popup support (MobilePopupProvider) was previously selected at compile
+ * time via GWT replace-with rules; that mechanism is incompatible with J2CL.
  */
 public class PopupFactory {
 
@@ -41,7 +42,7 @@ public class PopupFactory {
    */
   public static PopupProvider getProvider() {
     if (provider == null) {
-      provider = GWT.create(PopupProvider.class);
+      provider = new DesktopPopupProvider();
     }
     return provider;
   }

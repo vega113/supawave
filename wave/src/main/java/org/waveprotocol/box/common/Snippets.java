@@ -19,7 +19,7 @@
 
 package org.waveprotocol.box.common;
 
-import com.google.common.base.Function;
+import java.util.function.Function;
 
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
 import org.waveprotocol.wave.model.document.operation.Attributes;

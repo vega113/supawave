@@ -22,7 +22,6 @@ package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 
@@ -44,7 +43,6 @@ public final class ParticipantNameViewBuilder implements IntrinsicParticipantVie
   private String name;
   private String address;
 
-  @VisibleForTesting
   ParticipantNameViewBuilder(String id, Css css) {
     this.id = id;
     this.css = css;

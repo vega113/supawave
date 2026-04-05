@@ -23,5 +23,5 @@
 <module><inherits name="com.google.gwt.user.User" />
 <!-- Restricts permutations to reduce code compiled for GWT tests. -->
 
-<set-property name="loglevel" value="error" />
+<!-- TODO(j2cl): <set-property name="loglevel"> removed; LogLevel now uses runtime URL "ll" param. -->
 </module>

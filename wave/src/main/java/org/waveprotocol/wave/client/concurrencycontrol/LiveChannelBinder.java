@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.concurrencycontrol;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.user.client.Command;
 
 import org.waveprotocol.wave.client.wave.WaveDocuments;
@@ -168,7 +168,7 @@ public final class LiveChannelBinder
     WaveletId wid = snapshot.getWaveletId();
     String id = ModernIdSerialiser.INSTANCE.serialiseWaveletId(wid);
 
-    Preconditions.checkState(!channels.containsKey(id));
+    Preconditions.checkState(!channels.containsKey(id), "!channels.containsKey(id)");
     channels.put(id, channel);
 
     if (wave.getWavelet(wid) != null) {

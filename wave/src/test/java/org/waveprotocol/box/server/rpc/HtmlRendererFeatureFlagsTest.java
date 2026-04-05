@@ -95,9 +95,9 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("href=\"/wave/admin\""));
     assertTrue(html.contains("data-tab=\"analytics\">Analytics</button>"));
     assertTrue(html.contains("id=\"panel-analytics\""));
-    assertTrue(html.contains("if (tab.dataset.tab === 'analytics') { loadAnalyticsStatus(); }"));
+    assertTrue(html.contains("if (tab.dataset.tab === 'analytics') { loadAnalyticsHistory(analyticsActiveWindow); loadAnalyticsStatus(); }"));
     assertTrue(html.contains("href=\"/waveref/' + encodeURIComponent(wave.waveId) + '\""));
     assertTrue(html.contains("fetch('/admin/api/analytics/status')"));
-    assertTrue(html.contains("document.getElementById('analyticsActive7d').textContent = s.writers7d || 0;"));
+    assertTrue(html.contains("document.getElementById('analyticsTotalWaves')"));
   }
 }

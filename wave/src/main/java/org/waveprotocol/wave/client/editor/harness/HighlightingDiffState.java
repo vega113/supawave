@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.editor.harness;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.client.editor.Editor;
 import org.waveprotocol.wave.client.editor.content.ContentDocument;
 import org.waveprotocol.wave.client.editor.content.DiffHighlightingFilter;
@@ -67,7 +67,7 @@ public final class HighlightingDiffState {
   }
 
   private DiffHighlightingFilter getDiffFilter() {
-    Preconditions.checkNotNull(editor.getContent());
+    Preconditions.checkNotNull(editor.getContent(), "editor.getContent()");
     if (editor.getContent() != currentContentDoc) {
       currentContentDoc = editor.getContent();
       diffFilter = new DiffHighlightingFilter(currentContentDoc.getDiffTarget());

@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.document.util;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.document.AnnotationBehaviour;
 import org.waveprotocol.wave.model.document.AnnotationMutationHandler;
@@ -72,12 +71,10 @@ public class AnnotationRegistryImpl implements AnnotationRegistry {
 
   private final ChainedData<HandlerData, HandlerData> data;
 
-  @VisibleForTesting
   public AnnotationRegistryImpl() {
     data = new ChainedData<HandlerData, HandlerData>(handlerDataDomain);
   }
 
-  @VisibleForTesting
   private AnnotationRegistryImpl(AnnotationRegistryImpl parent) {
     data = new ChainedData<HandlerData, HandlerData>(parent.data);
   }

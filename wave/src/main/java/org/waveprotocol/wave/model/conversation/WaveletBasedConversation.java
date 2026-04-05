@@ -19,8 +19,6 @@
 
 package org.waveprotocol.wave.model.conversation;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 
 import org.waveprotocol.wave.model.document.Doc;
 import org.waveprotocol.wave.model.document.Document;
@@ -46,6 +44,7 @@ import org.waveprotocol.wave.model.wave.Wavelet;
 import org.waveprotocol.wave.model.wave.WaveletListener;
 import org.waveprotocol.wave.model.wave.opbased.WaveletListenerImpl;
 
+import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -296,7 +295,6 @@ public final class WaveletBasedConversation implements ObservableConversation {
   /**
    * Gets the document on which the conversation manifest is constructed.
    */
-  @VisibleForTesting
   static ObservableDocument getManifestDocument(Wavelet wavelet) {
     return wavelet.getDocument(IdConstants.MANIFEST_DOCUMENT_ID);
   }
@@ -420,7 +418,7 @@ public final class WaveletBasedConversation implements ObservableConversation {
   public Set<String> getTags() {
     ObservableDocument tagsDoc = wavelet.getDocument(IdConstants.TAGS_DOC_ID);
     if (tagsDoc == null) {
-      return ImmutableSet.of();
+      return Collections.emptySet();
     }
     return TagsDocument.getTags(tagsDoc);
   }
@@ -531,7 +529,6 @@ public final class WaveletBasedConversation implements ObservableConversation {
   /**
    * Gets the manifest describing this conversation.
    */
-  @VisibleForTesting
   ObservableManifest getManifest() {
     return manifest;
   }

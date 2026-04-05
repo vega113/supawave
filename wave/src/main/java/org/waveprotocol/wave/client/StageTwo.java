@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
@@ -57,12 +57,11 @@ import org.waveprotocol.wave.client.editor.content.misc.AnnotationPaint;
 import org.waveprotocol.wave.client.editor.content.misc.StyleAnnotationHandler;
 import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.WaveSelectionEvent;
-import org.waveprotocol.wave.client.gadget.Gadget;
 import org.waveprotocol.wave.client.render.ReductionBasedRenderer;
 import org.waveprotocol.wave.client.render.RenderingRules;
 import org.waveprotocol.wave.client.scheduler.Scheduler.Task;
 import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
-import org.waveprotocol.wave.client.state.BlipReadStateMonitor;
+import org.waveprotocol.wave.model.document.BlipReadStateMonitor;
 import org.waveprotocol.wave.client.state.BlipReadStateMonitorImpl;
 import org.waveprotocol.wave.client.state.ThreadReadStateMonitor;
 import org.waveprotocol.wave.client.state.ThreadReadStateMonitorImpl;
@@ -662,7 +661,6 @@ public interface StageTwo {
             DocumentRegistries doodads = installDoodads(DocumentRegistries.builder()) // \u2620
                     .use(InlineAnchorLiveRenderer.installer(getViewIdMapper(), replyManager,
                             domAsView))
-                    .use(Gadget.install(getProfileManager(), getSupplement(), getSignedInUser()))
                     .build();
 
             LiveConversationViewRenderer live =

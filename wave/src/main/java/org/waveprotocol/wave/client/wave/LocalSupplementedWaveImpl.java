@@ -20,8 +20,7 @@
 
 package org.waveprotocol.wave.client.wave;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.scheduler.Scheduler.IncrementalTask;
 import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
@@ -79,14 +78,12 @@ public final class LocalSupplementedWaveImpl extends SupplementedWaveWrapper<
     implements WaveViewListener, LocalSupplementedWave, IncrementalTask {
 
   /** How often to mark auto-read blips as read. */
-  @VisibleForTesting
   static final int REPEAT_MS = 10 * 1000;
 
   /**
    * Background auto-read is stopped for blips that have not changed for longer
    * than this.
    */
-  @VisibleForTesting
   static final int EVICT_TIME_MS = 60 * 1000;
 
   private final TimerService timer;
@@ -136,7 +133,6 @@ public final class LocalSupplementedWaveImpl extends SupplementedWaveWrapper<
     return supplement;
   }
 
-  @VisibleForTesting
   void init() {
     wave.addListener(this);
     for (ObservableWavelet wavelet : wave.getWavelets()) {
@@ -155,15 +151,15 @@ public final class LocalSupplementedWaveImpl extends SupplementedWaveWrapper<
 
   @Override
   public void startReading(ConversationBlip blip) {
-    Preconditions.checkState(reading == null);
+    Preconditions.checkState(reading == null, "reading == null");
     reading = blip;
     startAutoReading(reading);
   }
 
   @Override
   public void stopReading(ConversationBlip blip) {
-    Preconditions.checkState(reading != null);
-    Preconditions.checkArgument(reading == blip);
+    Preconditions.checkState(reading != null, "reading != null");
+    Preconditions.checkArgument(reading == blip, "reading == blip");
     // Continue marking this blip as read while the acks come in. Delay eviction
     // by refreshing its timestamp.
     assert autoRead.has(reading);

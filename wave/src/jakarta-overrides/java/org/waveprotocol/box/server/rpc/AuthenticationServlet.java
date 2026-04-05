@@ -41,6 +41,7 @@ import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.util.RegistrationSupport;
 import org.waveprotocol.wave.model.id.WaveIdentifiers;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
@@ -97,6 +98,7 @@ public class AuthenticationServlet extends HttpServlet {
   private final SessionManager sessionManager;
   private final BrowserSessionJwtIssuer browserSessionJwtIssuer;
   private final AuthEmailService authEmailService;
+  private final AnalyticsRecorder analyticsRecorder;
   private final String domain;
   private final boolean isClientAuthEnabled;
   private final String clientAuthCertDomain;
@@ -116,7 +118,8 @@ public class AuthenticationServlet extends HttpServlet {
                                @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
                                Config config,
                                BrowserSessionJwtIssuer browserSessionJwtIssuer,
-                               AuthEmailService authEmailService) {
+                               AuthEmailService authEmailService,
+                               AnalyticsRecorder analyticsRecorder) {
     Preconditions.checkNotNull(accountStore, "AccountStore is null");
     Preconditions.checkNotNull(configuration, "Configuration is null");
     Preconditions.checkNotNull(sessionManager, "Session manager is null");
@@ -126,6 +129,7 @@ public class AuthenticationServlet extends HttpServlet {
     this.sessionManager = sessionManager;
     this.browserSessionJwtIssuer = browserSessionJwtIssuer;
     this.authEmailService = authEmailService;
+    this.analyticsRecorder = analyticsRecorder;
     this.domain = domain.toLowerCase();
     this.isClientAuthEnabled = config.getBoolean("security.enable_clientauth");
     this.clientAuthCertDomain = config.getString("security.clientauth_cert_domain").toLowerCase();
@@ -364,6 +368,7 @@ public class AuthenticationServlet extends HttpServlet {
                 if (!RegistrationSupport.createAccount(accountStore, id, null)) {
                   return null;
                 }
+                analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
               } else {
                 throw new InvalidNameException(
                     "User doesn't already exist, and registration disabled by administrator");

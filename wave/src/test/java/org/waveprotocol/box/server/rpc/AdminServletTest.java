@@ -19,6 +19,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import org.json.JSONObject;
 import org.junit.Test;
 import org.waveprotocol.box.common.ExceptionalIterator;
@@ -104,6 +105,37 @@ public final class AdminServletTest {
     assertEquals(1, otSearch.getInt("highParticipantThreshold"));
     assertEquals(0L, otSearch.getLong("activeSubscriptions"));
     verify(searchWaveletUpdaterProvider, never()).get();
+  }
+
+  @Test
+  public void opsStatusIncludesLuceneQueryCountWithoutAverageWhenNoQueriesRecorded()
+      throws Exception {
+    MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
+    JSONObject json =
+        invokeOpsStatus(featureFlagStore, mockProvider(mock(SearchWaveletUpdater.class)), 0L, 0.0);
+
+    JSONObject searchIndex = json.getJSONObject("searchIndex");
+    assertEquals(0L, searchIndex.getLong("queryCount"));
+    assertFalse(searchIndex.has("queryAvgMs"));
+  }
+
+  @Test
+  public void opsStatusSerializesLuceneQueryStatsWithLocaleIndependentDecimalSeparator()
+      throws Exception {
+    Locale originalLocale = Locale.getDefault();
+    try {
+      Locale.setDefault(Locale.GERMANY);
+      MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
+      JSONObject json =
+          invokeOpsStatus(
+              featureFlagStore, mockProvider(mock(SearchWaveletUpdater.class)), 5L, 12.3);
+
+      JSONObject searchIndex = json.getJSONObject("searchIndex");
+      assertEquals(5L, searchIndex.getLong("queryCount"));
+      assertEquals(12.3, searchIndex.getDouble("queryAvgMs"), 0.0001);
+    } finally {
+      Locale.setDefault(originalLocale);
+    }
   }
 
   @Test
@@ -210,9 +242,22 @@ public final class AdminServletTest {
   private static JSONObject invokeOpsStatus(
       FeatureFlagStore featureFlagStore,
       Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider) throws Exception {
+    return invokeOpsStatus(featureFlagStore, searchWaveletUpdaterProvider, 0L, 0.0);
+  }
+
+  private static JSONObject invokeOpsStatus(
+      FeatureFlagStore featureFlagStore,
+      Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider,
+      long queryCount,
+      double queryAvgMs) throws Exception {
     return invokeJsonApi(
-        "/api/ops/status", ownerAccount(ADMIN_ID), featureFlagStore, newAnalyticsService(),
-        searchWaveletUpdaterProvider);
+        "/api/ops/status",
+        ownerAccount(ADMIN_ID),
+        featureFlagStore,
+        newAnalyticsService(),
+        searchWaveletUpdaterProvider,
+        queryCount,
+        queryAvgMs);
   }
 
   private static JSONObject invokeJsonApi(
@@ -221,7 +266,13 @@ public final class AdminServletTest {
       FeatureFlagStore featureFlagStore,
       AdminAnalyticsService analyticsService) throws Exception {
     return invokeJsonApi(
-        pathInfo, account, featureFlagStore, analyticsService, mockProvider(mock(SearchWaveletUpdater.class)));
+        pathInfo,
+        account,
+        featureFlagStore,
+        analyticsService,
+        mockProvider(mock(SearchWaveletUpdater.class)),
+        0L,
+        0.0);
   }
 
   private static JSONObject invokeJsonApi(
@@ -229,7 +280,9 @@ public final class AdminServletTest {
       HumanAccountData account,
       FeatureFlagStore featureFlagStore,
       AdminAnalyticsService analyticsService,
-      Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider) throws Exception {
+      Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider,
+      long queryCount,
+      double queryAvgMs) throws Exception {
     AccountStore accountStore = mock(AccountStore.class);
     SessionManager sessionManager = mock(SessionManager.class);
     ContactMessageStore contactMessageStore = mock(ContactMessageStore.class);
@@ -255,6 +308,10 @@ public final class AdminServletTest {
     when(lucene9Indexer.getLastRebuildWaveCount()).thenReturn(0);
     when(lucene9Indexer.getIndexedDocCount()).thenReturn(0);
     when(lucene9Indexer.getIncrementalIndexCount()).thenReturn(0L);
+    when(lucene9Indexer.getQueryCount()).thenReturn(queryCount);
+    if (queryCount > 0) {
+      when(lucene9Indexer.getQueryAvgMs()).thenReturn(queryAvgMs);
+    }
     when(sessionManager.getLoggedInUser(any())).thenReturn(account.getId());
     when(accountStore.getAccount(account.getId())).thenReturn(account);
     when(request.getPathInfo()).thenReturn(pathInfo);

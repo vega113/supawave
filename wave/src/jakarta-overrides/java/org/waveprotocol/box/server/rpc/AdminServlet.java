@@ -552,7 +552,7 @@ public final class AdminServlet extends HttpServlet {
       long incrCount = lucene9Indexer.getIncrementalIndexCount();
       if (incrCount > 0) {
         w.append(",\"incrementalAvgMs\":").append(
-            String.format("%.1f", lucene9Indexer.getIncrementalAvgMs()));
+            String.format(Locale.US, "%.1f", lucene9Indexer.getIncrementalAvgMs()));
         w.append(",\"incrementalIndexCount\":").append(String.valueOf(incrCount));
       }
       // Search query stats
@@ -560,7 +560,7 @@ public final class AdminServlet extends HttpServlet {
       w.append(",\"queryCount\":").append(String.valueOf(queryCount));
       if (queryCount > 0) {
         w.append(",\"queryAvgMs\":").append(
-            String.format("%.1f", lucene9Indexer.getQueryAvgMs()));
+            String.format(Locale.US, "%.1f", lucene9Indexer.getQueryAvgMs()));
       }
     }
     w.append('}');

@@ -372,11 +372,11 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   static class IncrementalIndexStats {
     private static final int RING_SIZE = 100;
     private final long[] timesNs = new long[RING_SIZE];
-    private int pos = 0;
+    private long pos = 0;
     private long totalCount = 0;
 
     synchronized void record(long elapsedNs) {
-      timesNs[pos % RING_SIZE] = elapsedNs;
+      timesNs[Math.floorMod(pos, RING_SIZE)] = elapsedNs;
       pos++;
       totalCount++;
     }

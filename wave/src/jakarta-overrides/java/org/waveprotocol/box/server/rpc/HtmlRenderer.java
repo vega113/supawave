@@ -5365,11 +5365,11 @@ public final class HtmlRenderer {
     sb.append("      document.getElementById('opsWavesStorage').textContent = si.wavesInStorage >= 0 ? fmtNum(si.wavesInStorage) : '\\u2014';\n");
     sb.append("      document.getElementById('opsLucene9Flag').textContent = si.lucene9FlagEnabled ? 'Enabled' : 'Disabled';\n");
     sb.append("      document.getElementById('opsLastRebuild').textContent = si.lastRebuildWaveCount >= 0 ? fmtNum(si.lastRebuildWaveCount) : '\\u2014';\n");
-    sb.append("      document.getElementById('opsIncrementalAvg').textContent = si.incrementalAvgMs ? si.incrementalAvgMs.toFixed(1) + ' ms' : '\\u2014';\n");
+    sb.append("      document.getElementById('opsIncrementalAvg').textContent = si.incrementalAvgMs != null ? si.incrementalAvgMs.toFixed(1) + ' ms' : '\\u2014';\n");
     sb.append("      document.getElementById('opsIncrementalCount').textContent = si.incrementalIndexCount ? fmtNum(si.incrementalIndexCount) : '\\u2014';\n");
     // Query stats
     sb.append("      document.getElementById('opsQueryCount').textContent = si.queryCount ? fmtNum(si.queryCount) : '0';\n");
-    sb.append("      document.getElementById('opsQueryAvg').textContent = si.queryAvgMs ? si.queryAvgMs.toFixed(1) + ' ms' : '\\u2014';\n");
+    sb.append("      document.getElementById('opsQueryAvg').textContent = si.queryAvgMs != null ? si.queryAvgMs.toFixed(1) + ' ms' : '\\u2014';\n");
     // Estimated full reindex time
     sb.append("      var estMs = 0;\n");
     sb.append("      var ri = d.lastReindex || {};\n");

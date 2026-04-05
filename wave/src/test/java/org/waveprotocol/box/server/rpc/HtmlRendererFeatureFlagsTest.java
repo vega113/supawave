@@ -99,5 +99,12 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("href=\"/waveref/' + encodeURIComponent(wave.waveId) + '\""));
     assertTrue(html.contains("fetch('/admin/api/analytics/status')"));
     assertTrue(html.contains("document.getElementById('analyticsTotalWaves')"));
+    assertTrue(html.contains("document.getElementById('analyticsActive7d').textContent = s.writers7d || 0;"));
+    assertTrue(
+        html.contains(
+            "document.getElementById('opsIncrementalAvg').textContent = si.incrementalAvgMs != null ? si.incrementalAvgMs.toFixed(1) + ' ms' : '\\u2014';"));
+    assertTrue(
+        html.contains(
+            "document.getElementById('opsQueryAvg').textContent = si.queryAvgMs != null ? si.queryAvgMs.toFixed(1) + ' ms' : '\\u2014';"));
   }
 }

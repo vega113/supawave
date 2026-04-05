@@ -1147,7 +1147,7 @@ public final class AdminServlet extends HttpServlet {
     w.append(",\"granularity\":").append(jsonStr(daily ? "daily" : "hourly"));
 
     // Compute totals
-    int totalWavesCreated = 0, totalBlipsCreated = 0, totalUsersRegistered = 0;
+    long totalWavesCreated = 0L, totalBlipsCreated = 0L, totalUsersRegistered = 0L;
     long totalPageViews = 0, totalApiViews = 0;
     java.util.Set<String> allActiveUsers = new java.util.HashSet<>();
     for (HourlyBucket b : hourlyBuckets) {
@@ -1208,12 +1208,12 @@ public final class AdminServlet extends HttpServlet {
       first = false;
       long[] agg = entry.getValue();
       int activeCount = dailyUsers.getOrDefault(entry.getKey(), java.util.Collections.emptySet()).size();
-      writeSeriesPoint(w, entry.getKey(), (int) agg[0], (int) agg[1], (int) agg[2], activeCount, agg[3], agg[4]);
+      writeSeriesPoint(w, entry.getKey(), agg[0], agg[1], agg[2], activeCount, agg[3], agg[4]);
     }
   }
 
-  private void writeSeriesPoint(PrintWriter w, long timeMs, int wavesCreated, int blipsCreated,
-      int usersRegistered, int activeUsers, long pageViews, long apiViews) {
+  private void writeSeriesPoint(PrintWriter w, long timeMs, long wavesCreated, long blipsCreated,
+      long usersRegistered, int activeUsers, long pageViews, long apiViews) {
     w.append("{\"time\":").append(String.valueOf(timeMs));
     w.append(",\"wavesCreated\":").append(String.valueOf(wavesCreated));
     w.append(",\"blipsCreated\":").append(String.valueOf(blipsCreated));

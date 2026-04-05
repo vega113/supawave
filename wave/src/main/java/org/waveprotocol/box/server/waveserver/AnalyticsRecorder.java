@@ -9,6 +9,7 @@ import org.waveprotocol.box.server.persistence.AnalyticsCounterStore;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
+import org.waveprotocol.wave.model.operation.wave.SubmitBlip;
 import org.waveprotocol.wave.model.operation.wave.WaveletBlipOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperation;
 import org.waveprotocol.wave.model.version.HashedVersion;
@@ -79,9 +80,11 @@ public final class AnalyticsRecorder implements WaveBus.Subscriber {
         Set<String> newBlipIds = new HashSet<>();
         for (WaveletOperation op : delta) {
           if (op instanceof WaveletBlipOperation blipOp) {
-            String blipId = blipOp.getBlipId();
-            if (blipId != null && IdUtil.isBlipId(blipId)) {
-              newBlipIds.add(blipId);
+            if (blipOp.getBlipOp() instanceof SubmitBlip) {
+              String blipId = blipOp.getBlipId();
+              if (blipId != null && IdUtil.isBlipId(blipId)) {
+                newBlipIds.add(blipId);
+              }
             }
           }
         }
@@ -90,7 +93,7 @@ public final class AnalyticsRecorder implements WaveBus.Subscriber {
         }
       }
     } catch (Exception e) {
-      LOG.warning("AnalyticsRecorder.waveletUpdate failed: " + e.getMessage());
+      LOG.warning("AnalyticsRecorder.waveletUpdate failed", e);
     }
   }
 

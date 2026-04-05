@@ -40,9 +40,9 @@ final class Mongo4AnalyticsCounterStore implements AnalyticsCounterStore {
     col.createIndex(Indexes.ascending(HOUR_FIELD), new IndexOptions().unique(true));
   }
 
-  @Override public void incrementWavesCreated(long timestampMs) { upsertInc(timestampMs, WAVES_CREATED, 1); }
+  @Override public void incrementWavesCreated(long timestampMs) { upsertInc(timestampMs, WAVES_CREATED, 1L); }
   @Override public void incrementBlipsCreated(long timestampMs, int count) { upsertInc(timestampMs, BLIPS_CREATED, count); }
-  @Override public void incrementUsersRegistered(long timestampMs) { upsertInc(timestampMs, USERS_REGISTERED, 1); }
+  @Override public void incrementUsersRegistered(long timestampMs) { upsertInc(timestampMs, USERS_REGISTERED, 1L); }
 
   @Override
   public void recordActiveUser(String userId, long timestampMs) {
@@ -54,13 +54,13 @@ final class Mongo4AnalyticsCounterStore implements AnalyticsCounterStore {
     }
   }
 
-  @Override public void incrementPageViews(long timestampMs) { upsertInc(timestampMs, PAGE_VIEWS, 1); }
-  @Override public void incrementApiViews(long timestampMs) { upsertInc(timestampMs, API_VIEWS, 1); }
+  @Override public void incrementPageViews(long timestampMs) { upsertInc(timestampMs, PAGE_VIEWS, 1L); }
+  @Override public void incrementApiViews(long timestampMs) { upsertInc(timestampMs, API_VIEWS, 1L); }
 
   @Override
   public List<HourlyBucket> getHourlyBuckets(long fromMs, long toMs) {
     Date fromHour = new Date(truncateToHour(fromMs));
-    Date toHour = new Date(truncateToHour(toMs));
+    Date toHour = new Date(exclusiveUpperHour(toMs));
     Bson filter = Filters.and(Filters.gte(HOUR_FIELD, fromHour), Filters.lt(HOUR_FIELD, toHour));
     List<HourlyBucket> result = new ArrayList<>();
     for (Document doc : col.find(filter).sort(new Document(HOUR_FIELD, 1))) {
@@ -69,7 +69,7 @@ final class Mongo4AnalyticsCounterStore implements AnalyticsCounterStore {
     return Collections.unmodifiableList(result);
   }
 
-  private void upsertInc(long timestampMs, String field, int amount) {
+  private void upsertInc(long timestampMs, String field, long amount) {
     try {
       Date hour = new Date(truncateToHour(timestampMs));
       col.updateOne(Filters.eq(HOUR_FIELD, hour), Updates.inc(field, amount), UPSERT);
@@ -82,23 +82,35 @@ final class Mongo4AnalyticsCounterStore implements AnalyticsCounterStore {
     Date hour = doc.getDate(HOUR_FIELD);
     @SuppressWarnings("unchecked")
     List<String> activeList = doc.getList(ACTIVE_USER_IDS, String.class, Collections.emptyList());
-    long pageViewsVal = 0L;
-    long apiViewsVal = 0L;
-    Object pvObj = doc.get(PAGE_VIEWS);
-    if (pvObj instanceof Number) pageViewsVal = ((Number) pvObj).longValue();
-    Object avObj = doc.get(API_VIEWS);
-    if (avObj instanceof Number) apiViewsVal = ((Number) avObj).longValue();
+    long wavesCreatedVal = numberValue(doc.get(WAVES_CREATED));
+    long blipsCreatedVal = numberValue(doc.get(BLIPS_CREATED));
+    long usersRegisteredVal = numberValue(doc.get(USERS_REGISTERED));
+    long pageViewsVal = numberValue(doc.get(PAGE_VIEWS));
+    long apiViewsVal = numberValue(doc.get(API_VIEWS));
     return new HourlyBucket(
         hour != null ? hour.getTime() : 0L,
-        doc.getInteger(WAVES_CREATED, 0),
-        doc.getInteger(BLIPS_CREATED, 0),
-        doc.getInteger(USERS_REGISTERED, 0),
+        wavesCreatedVal,
+        blipsCreatedVal,
+        usersRegisteredVal,
         new HashSet<>(activeList),
         pageViewsVal,
         apiViewsVal);
   }
 
+  private static long numberValue(Object value) {
+    return value instanceof Number ? ((Number) value).longValue() : 0L;
+  }
+
   static long truncateToHour(long timestampMs) {
     return timestampMs - (timestampMs % HOUR_MS);
+  }
+
+  private static long exclusiveUpperHour(long timestampMs) {
+    long toHour = truncateToHour(timestampMs);
+    if (timestampMs == toHour) {
+      return timestampMs;
+    }
+    long nextHour = toHour + HOUR_MS;
+    return nextHour < toHour ? Long.MAX_VALUE : nextHour;
   }
 }

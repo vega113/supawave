@@ -33,15 +33,15 @@ public interface AnalyticsCounterStore {
   /** A single hour of analytics data. */
   final class HourlyBucket {
     private final long hourMs;
-    private final int wavesCreated;
-    private final int blipsCreated;
-    private final int usersRegistered;
+    private final long wavesCreated;
+    private final long blipsCreated;
+    private final long usersRegistered;
     private final Set<String> activeUserIds;
     private final long pageViews;
     private final long apiViews;
 
-    public HourlyBucket(long hourMs, int wavesCreated, int blipsCreated,
-        int usersRegistered, Set<String> activeUserIds, long pageViews, long apiViews) {
+    public HourlyBucket(long hourMs, long wavesCreated, long blipsCreated,
+        long usersRegistered, Set<String> activeUserIds, long pageViews, long apiViews) {
       this.hourMs = hourMs;
       this.wavesCreated = wavesCreated;
       this.blipsCreated = blipsCreated;
@@ -52,9 +52,9 @@ public interface AnalyticsCounterStore {
     }
 
     public long getHourMs() { return hourMs; }
-    public int getWavesCreated() { return wavesCreated; }
-    public int getBlipsCreated() { return blipsCreated; }
-    public int getUsersRegistered() { return usersRegistered; }
+    public long getWavesCreated() { return wavesCreated; }
+    public long getBlipsCreated() { return blipsCreated; }
+    public long getUsersRegistered() { return usersRegistered; }
     public Set<String> getActiveUserIds() { return activeUserIds; }
     public long getPageViews() { return pageViews; }
     public long getApiViews() { return apiViews; }

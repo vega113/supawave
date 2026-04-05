@@ -25,7 +25,7 @@ public final class MemoryAnalyticsCounterStore implements AnalyticsCounterStore 
   @Override
   public List<HourlyBucket> getHourlyBuckets(long fromMs, long toMs) {
     long fromHour = truncateToHour(fromMs);
-    long toHour = truncateToHour(toMs);
+    long toHour = exclusiveUpperHour(toMs);
     List<HourlyBucket> result = new ArrayList<>();
     for (var entry : buckets.entrySet()) {
       long hour = entry.getKey();
@@ -45,6 +45,15 @@ public final class MemoryAnalyticsCounterStore implements AnalyticsCounterStore 
     return timestampMs - (timestampMs % HOUR_MS);
   }
 
+  private static long exclusiveUpperHour(long timestampMs) {
+    long toHour = truncateToHour(timestampMs);
+    if (timestampMs == toHour) {
+      return timestampMs;
+    }
+    long nextHour = toHour + HOUR_MS;
+    return nextHour < toHour ? Long.MAX_VALUE : nextHour;
+  }
+
   private static final class MutableBucket {
     final LongAdder wavesCreated = new LongAdder();
     final LongAdder blipsCreated = new LongAdder();
@@ -54,8 +63,8 @@ public final class MemoryAnalyticsCounterStore implements AnalyticsCounterStore 
     final LongAdder apiViews = new LongAdder();
 
     HourlyBucket freeze(long hourMs) {
-      return new HourlyBucket(hourMs, (int) wavesCreated.sum(), (int) blipsCreated.sum(),
-          (int) usersRegistered.sum(), new HashSet<>(activeUserIds), pageViews.sum(), apiViews.sum());
+      return new HourlyBucket(hourMs, wavesCreated.sum(), blipsCreated.sum(),
+          usersRegistered.sum(), new HashSet<>(activeUserIds), pageViews.sum(), apiViews.sum());
     }
   }
 }

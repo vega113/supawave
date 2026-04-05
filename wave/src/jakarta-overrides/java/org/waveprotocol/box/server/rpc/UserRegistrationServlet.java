@@ -42,6 +42,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * Jakarta-compatible user registration servlet. Mirrors the legacy behavior
@@ -88,7 +89,7 @@ public final class UserRegistrationServlet extends HttpServlet {
     this.emailRequired = this.emailConfirmationEnabled || configEmailRequired;
     this.authEmailService = authEmailService;
     this.welcomeWaveCreator = welcomeWaveCreator;
-    this.analyticsRecorder = analyticsRecorder;
+    this.analyticsRecorder = Objects.requireNonNull(analyticsRecorder, "analyticsRecorder");
   }
 
   @Override
@@ -175,7 +176,7 @@ public final class UserRegistrationServlet extends HttpServlet {
       if (!accountCreated) {
         return "An unexpected error occurred while trying to create the account";
       }
-      analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
+      recordUsersRegisteredAnalytics();
 
       // Send confirmation email to the provided email address
       authEmailService.sendConfirmationEmail(req, account);
@@ -192,7 +193,7 @@ public final class UserRegistrationServlet extends HttpServlet {
       if (!accountCreated) {
         return "An unexpected error occurred while trying to create the account";
       }
-      analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
+      recordUsersRegisteredAnalytics();
 
       try {
         welcomeWaveCreator.createWelcomeWave(id);
@@ -235,5 +236,13 @@ public final class UserRegistrationServlet extends HttpServlet {
     String safeMessage = (message == null) ? "" : message;
     dest.getWriter().write(HtmlRenderer.renderUserRegistrationPage(domain, safeMessage,
         responseType, registrationDisabled, analyticsAccount, emailRequired));
+  }
+
+  private void recordUsersRegisteredAnalytics() {
+    try {
+      analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
+    } catch (RuntimeException e) {
+      LOG.warning("Failed to record usersRegistered analytics", e);
+    }
   }
 }

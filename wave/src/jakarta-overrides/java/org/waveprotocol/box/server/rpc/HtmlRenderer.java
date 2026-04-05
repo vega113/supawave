@@ -4686,7 +4686,7 @@ public final class HtmlRenderer {
     sb.append("      if (tab.dataset.tab === 'contacts' && !contactsLoaded) { fetchContacts(); }\n");
     sb.append("      if (tab.dataset.tab === 'flags' && !flagsLoaded) { fetchFlags(); }\n");
     sb.append("      if (tab.dataset.tab === 'ops' && !opsLoaded) { loadOpsStatus(); }\n");
-    sb.append("      if (tab.dataset.tab === 'analytics' && !analyticsLoaded) { loadAnalyticsHistory('24h'); loadAnalyticsStatus(); }\n");
+    sb.append("      if (tab.dataset.tab === 'analytics') { loadAnalyticsHistory(analyticsActiveWindow); loadAnalyticsStatus(); }\n");
     sb.append("    });\n");
     sb.append("  });\n");
 
@@ -5311,7 +5311,6 @@ public final class HtmlRenderer {
     sb.append("  });\n");
 
     // ---- Analytics tab logic ----
-    sb.append("  var analyticsLoaded = false;\n");
     sb.append("  var analyticsActiveWindow = '24h';\n");
     sb.append("  var chartWaves = null, chartBlips = null, chartUsers = null, chartActive = null;\n");
 
@@ -5352,9 +5351,8 @@ public final class HtmlRenderer {
     sb.append("    });\n");
     sb.append("  }\n");
 
-    // Load analytics history
+  // Load analytics history
     sb.append("  function loadAnalyticsHistory(win) {\n");
-    sb.append("    analyticsLoaded = true;\n");
     sb.append("    fetch('/admin/api/analytics/history?window=' + encodeURIComponent(win))\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
@@ -5429,7 +5427,12 @@ public final class HtmlRenderer {
     sb.append("        function analyticsWaveCell(w) {\n");
     sb.append("          var id = w.waveId || w.id || '';\n");
     sb.append("          var title = w.title || id;\n");
-    sb.append("          return '<td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">' + esc(id) + '</td><td>' + esc(title) + '</td>';\n");
+    sb.append("          if (!id) {\n");
+    sb.append("            return '<td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">' + esc(id) + '</td><td>' + esc(title) + '</td>';\n");
+    sb.append("          }\n");
+    sb.append("          var href = (_ctx || '') + '/waveref/' + encodeURIComponent(id);\n");
+    sb.append("          var linkStyle = 'display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;text-decoration:none;';\n");
+    sb.append("          return '<td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\"><a href=\"' + href + '\" style=\"' + linkStyle + '\">' + esc(id) + '</a></td><td><a href=\"' + href + '\" style=\"' + linkStyle + '\">' + esc(title) + '</a></td>';\n");
     sb.append("        }\n");
     sb.append("        function analyticsRows(arr, valKey, tbody) {\n");
     sb.append("          if (!arr || arr.length === 0) { tbody.innerHTML = '<tr><td colspan=\"3\" style=\"text-align:center;color:#aaa\">No data</td></tr>'; return; }\n");

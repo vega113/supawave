@@ -39,7 +39,7 @@ One document per hour, upserted incrementally via `$inc` / `$addToSet`.
 
 ### Architecture
 
-```
+```text
 Event sources                    Storage              Query
 ─────────────                    ───────              ─────
 WaveServerImpl.submit()  ──┐

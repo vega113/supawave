@@ -42,6 +42,7 @@ import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.box.server.persistence.mongodb.MongoDbProvider;
 import org.waveprotocol.box.server.waveserver.DeltaStore;
 import org.waveprotocol.wave.crypto.CertPathStore;
+import org.waveprotocol.wave.util.logging.Log;
 
 /**
  * Module for setting up the different persistence stores.
@@ -58,6 +59,7 @@ import org.waveprotocol.wave.crypto.CertPathStore;
  * @author ljvderijk@google.com (Lennard de Rijk)
  */
 public class PersistenceModule extends AbstractModule {
+  private static final Log LOG = Log.get(PersistenceModule.class);
 
   private final String signerInfoStoreType;
 
@@ -292,6 +294,9 @@ public class PersistenceModule extends AbstractModule {
       bind(AnalyticsCounterStore.class)
           .toInstance(getMongo4Provider().provideMongoDbAnalyticsCounterStore());
     } else {
+      LOG.warning(
+          "Analytics counters are enabled but analytics persistence is using in-memory storage; "
+              + "analytics data will be lost on restart.");
       bind(AnalyticsCounterStore.class)
           .to(MemoryAnalyticsCounterStore.class).in(Singleton.class);
     }

@@ -171,11 +171,11 @@ public final class PublicWaveFetchServlet extends HttpServlet {
           break;
         }
       }
-      analyticsRecorder.incrementApiViews(System.currentTimeMillis());
+      recordApiView();
       serializeObjectToResponse(docSnapshot, dest);
     } else if (waveref.hasWaveletId()) {
       // Return the wavelet snapshot
-      analyticsRecorder.incrementApiViews(System.currentTimeMillis());
+      recordApiView();
       serializeObjectToResponse(
           SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()), dest);
     } else {
@@ -185,9 +185,13 @@ public final class PublicWaveFetchServlet extends HttpServlet {
           .addWavelet(
               SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()))
           .build();
-      analyticsRecorder.incrementApiViews(System.currentTimeMillis());
+      recordApiView();
       serializeObjectToResponse(waveSnapshot, dest);
     }
+  }
+
+  private void recordApiView() {
+    analyticsRecorder.incrementApiViews(System.currentTimeMillis());
   }
 
   private <P extends Message> void serializeObjectToResponse(P message, HttpServletResponse dest)

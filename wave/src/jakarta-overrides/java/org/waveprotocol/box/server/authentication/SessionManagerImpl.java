@@ -153,7 +153,11 @@ public final class SessionManagerImpl implements SessionManager {
         human.setLastActivityTime(now);
         accountStore.putAccount(account);
         session.setAttribute(LAST_ACTIVITY_UPDATE_FIELD, now);
-        analyticsRecorder.recordActiveUser(user.getAddress(), now);
+        try {
+          analyticsRecorder.recordActiveUser(user.getAddress(), now);
+        } catch (RuntimeException e) {
+          LOG.warning("Failed to record active user analytics for " + user, e);
+        }
       }
     } catch (PersistenceException e) {
       LOG.warning("Failed to track last activity for " + user, e);

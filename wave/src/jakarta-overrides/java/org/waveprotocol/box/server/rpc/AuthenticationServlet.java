@@ -368,7 +368,7 @@ public class AuthenticationServlet extends HttpServlet {
                 if (!RegistrationSupport.createAccount(accountStore, id, null)) {
                   return null;
                 }
-                analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
+                recordUsersRegisteredAnalytics();
               } else {
                 throw new InvalidNameException(
                     "User doesn't already exist, and registration disabled by administrator");
@@ -385,6 +385,14 @@ public class AuthenticationServlet extends HttpServlet {
           "Certificate does not contain a valid distinguished name");
     }
     return null;
+  }
+
+  private void recordUsersRegisteredAnalytics() {
+    try {
+      analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
+    } catch (RuntimeException e) {
+      LOG.warning("Failed to record usersRegistered analytics", e);
+    }
   }
 
   private String decodeEmailFromCertificate(byte[] encoded) throws UnsupportedEncodingException {

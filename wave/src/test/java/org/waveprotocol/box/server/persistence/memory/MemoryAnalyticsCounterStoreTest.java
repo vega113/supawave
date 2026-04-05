@@ -23,7 +23,7 @@ public class MemoryAnalyticsCounterStoreTest {
     store.incrementWavesCreated(BASE_TIME + 1000);
     List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
     assertEquals(1, buckets.size());
-    assertEquals(2, buckets.get(0).getWavesCreated());
+    assertEquals(2L, buckets.get(0).getWavesCreated());
   }
 
   @Test public void testIncrementBlipsCreated() {
@@ -31,7 +31,7 @@ public class MemoryAnalyticsCounterStoreTest {
     store.incrementBlipsCreated(BASE_TIME + 1000, 3);
     List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
     assertEquals(1, buckets.size());
-    assertEquals(8, buckets.get(0).getBlipsCreated());
+    assertEquals(8L, buckets.get(0).getBlipsCreated());
   }
 
   @Test public void testRecordActiveUser_deduplicatesWithinHour() {
@@ -50,8 +50,8 @@ public class MemoryAnalyticsCounterStoreTest {
     store.incrementWavesCreated(BASE_TIME + HOUR_MS);
     List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + 2 * HOUR_MS);
     assertEquals(2, buckets.size());
-    assertEquals(1, buckets.get(0).getWavesCreated());
-    assertEquals(1, buckets.get(1).getWavesCreated());
+    assertEquals(1L, buckets.get(0).getWavesCreated());
+    assertEquals(1L, buckets.get(1).getWavesCreated());
   }
 
   @Test public void testGetHourlyBuckets_emptyRangeReturnsEmpty() {
@@ -70,13 +70,20 @@ public class MemoryAnalyticsCounterStoreTest {
     assertTrue(buckets.get(1).getHourMs() < buckets.get(2).getHourMs());
   }
 
+  @Test public void testGetHourlyBuckets_includesCurrentPartialHour() {
+    store.incrementWavesCreated(BASE_TIME);
+    List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_TIME + 1);
+    assertEquals(1, buckets.size());
+    assertEquals(1L, buckets.get(0).getWavesCreated());
+  }
+
   @Test public void testIncrementPageAndApiViews() {
     store.incrementPageViews(BASE_TIME);
     store.incrementPageViews(BASE_TIME);
     store.incrementApiViews(BASE_TIME);
     List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
     assertEquals(1, buckets.size());
-    assertEquals(2, buckets.get(0).getPageViews());
-    assertEquals(1, buckets.get(0).getApiViews());
+    assertEquals(2L, buckets.get(0).getPageViews());
+    assertEquals(1L, buckets.get(0).getApiViews());
   }
 }

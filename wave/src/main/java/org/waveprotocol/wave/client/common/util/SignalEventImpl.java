@@ -199,6 +199,10 @@ public class SignalEventImpl implements SignalEvent {
 
   static class JsoNativeEvent extends Event implements NativeEvent {
     protected JsoNativeEvent() {}
+
+    public final native String getKey() /*-{
+      return this.key || '';
+    }-*/;
   }
 
   /**

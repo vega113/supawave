@@ -407,6 +407,13 @@ public final class EditorEventHandler {
       logger.error().log("State was already IME during a compositionstart event!");
     }
 
+    // On mobile browsers (e.g. Android Chrome), keydown with keyCode 229 fires
+    // before compositionstart. That keydown activates the typing extractor.
+    // We must flush it here so that the typing extractor and the IME composition
+    // handler are not both active simultaneously — otherwise the typing
+    // extractor's stale DOM tracking causes characters to be lost.
+    editorInteractor.forceFlush();
+
     Point<ContentNode> caret;
     if (cachedSelection == null) {
       logger.error().log("No selection during a composition start event? Maybe it's " +
@@ -570,6 +577,17 @@ public final class EditorEventHandler {
     // behaviour when handling them programmatically. The cursor appears
     // to lag a character behind, and there are selection half-disappearing
     // issues when deleting around annotation boundaries.
+    //
+    // When composition events are enabled and the key is IME (keyCode 229),
+    // let the composition handler manage the input — compositionstart will
+    // follow this keydown. Activating the typing extractor here would
+    // conflict with the IME composition flow and cause character loss on
+    // mobile browsers (Android Chrome) where every soft keyboard key
+    // produces keyCode 229.
+    if (event.isImeKeyEvent() && useCompositionEvents) {
+      return false;
+    }
+
     boolean useTypingExtractor = event.isImeKeyEvent() || UserAgent.isFirefox();
 
     if (useTypingExtractor) {

@@ -88,4 +88,7 @@ public interface WebClientMessages extends Messages {
 
   @DefaultMessage("Empty wave removed")
   String emptyWaveRemoved();
+
+  @DefaultMessage("Server updated \u2014 reloading to reconnect...")
+  String desyncReloading();
 }

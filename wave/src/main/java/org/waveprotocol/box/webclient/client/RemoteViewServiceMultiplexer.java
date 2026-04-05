@@ -46,6 +46,11 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
 
   private static final Log LOG = Log.get(RemoteViewServiceMultiplexer.class);
 
+  /** Callback invoked when a wavelet snapshot update fails to deserialize. */
+  public interface WaveletUpdateFailureHandler {
+    void onWaveletUpdateDesync(WaveId waveId, IllegalStateException e);
+  }
+
   /** Per-wave streams. */
   private final Map<WaveId, WaveWebSocketCallback> streams = CollectionUtils.newHashMap();
 
@@ -67,6 +72,13 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
 
   /** Identity, for authoring messages. */
   private final String userId;
+
+  private WaveletUpdateFailureHandler waveletUpdateFailureHandler;
+
+  /** Registers a handler for snapshot desync failures (safe to set after construction). */
+  public void setWaveletUpdateFailureHandler(WaveletUpdateFailureHandler handler) {
+    this.waveletUpdateFailureHandler = handler;
+  }
 
   /**
    * Creates a multiplexer.
@@ -105,29 +117,29 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
   /** Dispatches an update to the appropriate wave stream. */
   @Override
   public void onWaveletUpdate(ProtocolWaveletUpdate message) {
-    try {
-      WaveletName wavelet = deserialize(message.getWaveletName());
+    WaveletName wavelet = deserialize(message.getWaveletName());
 
-      // Route to the appropriate stream handler.
-      WaveWebSocketCallback stream = streams.get(wavelet.waveId);
-      if (stream != null) {
-        boolean drop = shouldDropUpdate(wavelet.waveId, message);
+    // Route to the appropriate stream handler.
+    WaveWebSocketCallback stream = streams.get(wavelet.waveId);
+    if (stream != null) {
+      boolean drop = shouldDropUpdate(wavelet.waveId, message);
 
-        if (!drop) {
+      if (!drop) {
+        try {
           stream.onWaveletUpdate(message);
+        } catch (IllegalStateException e) {
+          if (message.hasSnapshot() && waveletUpdateFailureHandler != null) {
+            LOG.severe("Snapshot desync for " + wavelet + ": " + e.getMessage());
+            waveletUpdateFailureHandler.onWaveletUpdateDesync(wavelet.waveId, e);
+            return;
+          }
+          throw e;
         }
-      } else {
-        // This is either a server error, or a message after a stream has been
-        // locally closed (there is no way to tell the server to stop sending
-        // updates).
       }
-    } catch (Exception e) {
-      // During server deploys, the server may send malformed or null-field messages
-      // that cause deserialization errors. Trigger a graceful reconnect rather than
-      // letting the exception bubble up to the uncaught exception handler (which
-      // would show the error banner).
-      LOG.severe("Error processing wavelet update (likely server restart)", e);
-      socket.disconnect();
+    } else {
+      // This is either a server error, or a message after a stream has been
+      // locally closed (there is no way to tell the server to stop sending
+      // updates).
     }
   }
 

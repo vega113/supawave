@@ -268,6 +268,9 @@ public class WebClient implements EntryPoint {
   /** Persistent-toast id for the offline-while-editing warning. */
   private static final String OFFLINE_EDITING_TOAST_ID = "offline-editing";
 
+  /** Guard to prevent multiple page reloads for the same snapshot-desync episode. */
+  private boolean desyncReloadFired;
+
   /** Show the turbulence banner (called after the delay). */
   private void showTurbulenceBanner() {
     injectTurbulenceCss();
@@ -719,6 +722,32 @@ public class WebClient implements EntryPoint {
   private void loginToServer() {
     assert loggedInUser != null;
     channel = new RemoteViewServiceMultiplexer(websocket, loggedInUser.getAddress());
+    channel.setWaveletUpdateFailureHandler(
+        new RemoteViewServiceMultiplexer.WaveletUpdateFailureHandler() {
+          @Override
+          public void onWaveletUpdateDesync(WaveId waveId, IllegalStateException e) {
+            reloadToResync();
+          }
+        });
+  }
+
+  /**
+   * Reloads the page to recover from a wavelet snapshot desync caused by a
+   * server deploy. Fires at most once per session to avoid reload loops.
+   */
+  private void reloadToResync() {
+    if (desyncReloadFired) return;
+    desyncReloadFired = true;
+    ToastNotification.showPersistent(
+        "desync-reload",
+        messages.desyncReloading(),
+        ToastNotification.Level.WARNING);
+    new Timer() {
+      @Override
+      public void run() {
+        Location.replace(Location.getHref());
+      }
+    }.schedule(3000);
   }
 
   private void restoreLastWaveFromStorage() {

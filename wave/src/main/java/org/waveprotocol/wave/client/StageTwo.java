@@ -820,7 +820,7 @@ public interface StageTwo {
                     StyleAnnotationHandler.register(r);
                     TitleAnnotationHandler.register(r);
                     LinkAnnotationHandler.register(r, createLinkAttributeAugmenter());
-                    MentionAnnotationHandler.register(r);
+                    MentionAnnotationHandler.register(r, getProfileManager());
                     SelectionAnnotationHandler.register(r, getSessionId(), getProfileManager());
                     ImageThumbnail.register(r.getElementHandlerRegistry(),
                             AttachmentManagerProvider.get(),

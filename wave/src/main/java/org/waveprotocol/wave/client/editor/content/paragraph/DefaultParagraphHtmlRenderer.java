@@ -218,6 +218,8 @@ public class DefaultParagraphHtmlRenderer implements ParagraphHtmlRenderer {
   }
 
   private Element createNodeletInner(boolean isListItem) {
-    return Document.get().createElement(isListItem ? LIST_IMPL_TAGNAME : implTagName);
+    Element el = Document.get().createElement(isListItem ? LIST_IMPL_TAGNAME : implTagName);
+    el.setAttribute("dir", "auto");
+    return el;
   }
 }

@@ -361,9 +361,11 @@ jobs:
           ) || true
           fi
 
-          # Fallback: if no new fragments found, show top 5 from assembled changelog
-          if [ -z "$CHANGELOG_HTML" ] && [ -f wave/config/changelog.json ]; then
-            CHANGELOG_HTML=$(python3 -c 'import html, json; from pathlib import Path; entries = json.loads(Path("wave/config/changelog.json").read_text()); lines = ["<li><strong>%s</strong> (%s, %s)</li>" % (html.escape(entry.get("title", "")), html.escape(entry.get("version", "")), html.escape(entry.get("date", ""))) for entry in entries[:5]]; print("<h3>Recent Changes</h3><ul>" + "".join(lines) + "</ul>") if lines else None' 2>/dev/null) || true
+          # No new fragments = no changelog entry for this deploy (e.g. CI-only or hotfix commit).
+          # Do NOT fall back to top-5 assembled changelog — that would show stale entries
+          # from previous deploys, which is the original bug this step was meant to fix.
+          if [ -z "$CHANGELOG_HTML" ]; then
+            CHANGELOG_HTML="<p style='color:#888;font-size:13px;'>No changelog entry for this deploy.</p>"
           fi
 
           echo "$CHANGELOG_HTML" > /tmp/changelog_html.txt

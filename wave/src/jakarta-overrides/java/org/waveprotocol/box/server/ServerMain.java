@@ -42,6 +42,7 @@ import org.waveprotocol.box.server.robots.agent.registration.RegistrationRobot;
 import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiTokenServlet;
 import org.waveprotocol.box.server.contact.ContactsRecorder;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.persistence.ContactStore;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
@@ -439,6 +440,9 @@ public class ServerMain {
     ContactsRecorder contactsRecorder = injector.getInstance(ContactsRecorder.class);
     waveBus.subscribe(contactsRecorder);
     LOG.info("ContactsRecorder subscribed to WaveBus");
+    AnalyticsRecorder analyticsRecorder = injector.getInstance(AnalyticsRecorder.class);
+    waveBus.subscribe(analyticsRecorder);
+    LOG.info("AnalyticsRecorder subscribed to WaveBus");
   }
 
   private static void initializeFrontend(Injector injector, ServerRpcProvider server,

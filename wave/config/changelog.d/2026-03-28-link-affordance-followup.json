@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-28-link-affordance-followup",
+  "version": "PR #435",
+  "date": "2026-03-28",
+  "title": "Wavier Link References",
+  "summary": "Wave links now use a distinct SupaWave accent treatment before hover.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Changed blip links to a wavy ocean underline with a tinted accent shade so they stand apart from ordinary blue text",
+        "Kept visited links clearly clickable with a separate lavender tint instead of blending back into body copy"
+      ]
+    }
+  ]
+}

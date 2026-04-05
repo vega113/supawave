@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-27-search-bootstrap-recovery",
+  "version": "PR #398",
+  "date": "2026-03-27",
+  "title": "Search Bootstrap Recovery",
+  "summary": "The left search panel now restores itself reliably even when OT search is enabled.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Search now performs an immediate direct bootstrap before depending on OT updates",
+        "Archive and inbox actions refresh search results correctly again"
+      ]
+    }
+  ]
+}

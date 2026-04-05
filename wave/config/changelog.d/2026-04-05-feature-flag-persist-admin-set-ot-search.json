@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-05-feature-flag-persist-admin-set-ot-search",
+  "version": "PR #636",
+  "date": "2026-04-05",
+  "title": "Preserve admin-set feature flags across restarts",
+  "summary": "Startup seeding now leaves an existing ot-search flag untouched, so admin-set enabled or disabled state survives restarts. Fresh deploys still initialize ot-search from the deployment default.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Startup seeding only creates ot-search when the flag is missing from the database",
+        "Fresh deployments continue to initialize ot-search from the configured default"
+      ]
+    }
+  ]
+}

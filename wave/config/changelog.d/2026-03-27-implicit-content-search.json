@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-implicit-content-search",
+  "version": "PR #392",
+  "date": "2026-03-27",
+  "title": "Implicit Content Search",
+  "summary": "Bare words in the search box now behave like content filters automatically.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Plain search terms such as hello or meeting notes now search wave content without requiring content:"
+      ]
+    }
+  ]
+}

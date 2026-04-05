@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-28-unread-search-read-state-fix",
+  "version": "PR #412",
+  "date": "2026-03-28",
+  "title": "Unread Search Read-State Fix",
+  "summary": "Unread-only searches now evaluate persisted read state so read waves stop leaking into unread results.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Unread-only searches now use wavelet read-state data instead of relying on the conversation-model supplement path",
+        "Read waves no longer remain in `unread:true` results when every matching wave has already been opened"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-05-robot-form-elements-update-fixes",
+  "version": "PR #616",
+  "date": "2026-04-05",
+  "title": "Refine robot form element updates",
+  "summary": "Robot form element updates now preserve the existing wire format, and the form-value event docs reflect the supported value-backed element types.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "UPDATE_ELEMENT now rewrites form elements through their XML serializer instead of setting invalid attributes",
+        "Checkbox updates keep the existing default value unless it is explicitly changed",
+        "FORM_VALUE_CHANGED is documented for value-attribute-backed form elements only"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-latest-activity-sort",
+  "version": "PR #386",
+  "date": "2026-03-27",
+  "title": "More Accurate Latest-Activity Sorting",
+  "summary": "Date-based sorting now reflects the most recent conversational activity across the whole wave.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Wave search ordering now uses the latest conversational wavelet activity instead of only the root wavelet"
+      ]
+    }
+  ]
+}

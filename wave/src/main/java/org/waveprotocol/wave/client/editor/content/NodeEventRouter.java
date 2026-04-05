@@ -26,6 +26,7 @@ import org.waveprotocol.wave.client.editor.NodeEventHandler;
 import org.waveprotocol.wave.client.editor.event.EditorEvent;
 import org.waveprotocol.wave.client.editor.extract.InconsistencyException.HtmlInserted;
 import org.waveprotocol.wave.client.editor.extract.InconsistencyException.HtmlMissing;
+import org.waveprotocol.wave.client.editor.extract.TypingExtractor;
 import org.waveprotocol.wave.model.document.util.Point;
 
 /**
@@ -333,7 +334,14 @@ public class NodeEventRouter {
       // definitely trigger errors if you backspace too quickly.
       implDataLength = node.getImplDataLength();
       if (implDataLength <= 1) {
-        node.getTypingExtractor().flush();
+        // Guard against race condition where the editor is shutting down and
+        // LowLevelEditingConcerns.STUB.getTypingExtractor() returns null.
+        TypingExtractor extractor =
+            node.getTypingExtractor();
+        if (extractor == null) {
+          return true;
+        }
+        extractor.flush();
       }
     } catch (HtmlMissing e1) {
       node.getRepairer().handleMissing(e1);
@@ -384,8 +392,12 @@ public class NodeEventRouter {
               .wrapperPointToNodeletPoint(caret.asPoint());
 
           if (htmlCaret != null) {
-            node.getTypingExtractor().somethingHappened(
-                htmlCaret);
+            TypingExtractor extractor =
+                node.getTypingExtractor();
+            if (extractor == null) {
+              return true;
+            }
+            extractor.somethingHappened(htmlCaret);
 
             // allow default
             return false;

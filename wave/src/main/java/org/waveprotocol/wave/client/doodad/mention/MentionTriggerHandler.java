@@ -371,6 +371,13 @@ public final class MentionTriggerHandler
     // Insert a trailing space after the mention.
     doc.insertText(annoEnd, " ");
 
+    // The inserted space inherits the MENTION_USER annotation from its left
+    // neighbour (the last character of the mention text) because the Wave
+    // annotation tree propagates annotations to newly inserted characters from
+    // the character immediately to their left.  Explicitly clear the annotation
+    // on the space so that text typed after the mention is not highlighted.
+    doc.setAnnotation(annoEnd, annoEnd + 1, AnnotationConstants.MENTION_USER, null);
+
     // Place the caret after the trailing space.
     editor.getSelectionHelper().setCaret(annoEnd + 1);
 

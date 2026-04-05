@@ -101,6 +101,22 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(1, codexClient.completeCalls);
   }
 
+  public void testDocumentChangedEventTriggersReplyWhenBotMentioned() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Here is a helpful answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJson(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " what can you do?",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertTrue(response.contains("Here is a helpful answer."));
+    assertTrue(response.contains("blip.createChild"));
+    assertEquals(1, codexClient.completeCalls);
+  }
+
   public void testCallbackBundleDoesNotFetchContextWithoutMention() {
     RecordingCodexClient codexClient = new RecordingCodexClient();
     RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
@@ -154,7 +170,7 @@ public class GptBotRobotTest extends TestCase {
     String xml = robot.getCapabilitiesXml();
 
     assertTrue(xml.contains("BLIP_SUBMITTED"));
-    assertFalse(xml.contains("DOCUMENT_CHANGED"));
+    assertTrue(xml.contains("DOCUMENT_CHANGED"));
     assertTrue(xml.contains("WAVELET_BLIP_CREATED"));
     assertTrue(xml.contains("protocolversion"));
     assertTrue(xml.contains("context=\"SELF,SIBLINGS\""));

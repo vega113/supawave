@@ -4494,6 +4494,11 @@ public final class HtmlRenderer {
     }
     sb.append("    </div>\n");
 
+    // No historical data banner (hidden by default, shown when all totals are 0)
+    sb.append("    <div id=\"analyticsNoDataBanner\" style=\"display:none;margin:0 24px 16px;padding:12px 16px;border-radius:10px;background:#f8fafc;border:1px dashed #cbd5e0;color:#718096;font-size:13px;text-align:center;\">\n");
+    sb.append("      No historical data available for this period. Analytics collection started recently.\n");
+    sb.append("    </div>\n");
+
     // Summary stat cards
     sb.append("    <div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:0 24px 16px;\">\n");
     String[][] statCards = {
@@ -5463,18 +5468,21 @@ public final class HtmlRenderer {
     sb.append("    });\n");
     sb.append("  });\n");
 
-    // Create chart helper
-    sb.append("  function createWaveChart(canvasId, label, color) {\n");
+    // Create chart helper — chartType is 'line' (default) or 'bar'
+    sb.append("  function createWaveChart(canvasId, label, color, chartType) {\n");
+    sb.append("    chartType = chartType || 'line';\n");
     sb.append("    var ctx = document.getElementById(canvasId).getContext('2d');\n");
+    sb.append("    var isBar = chartType === 'bar';\n");
     sb.append("    var gradient = ctx.createLinearGradient(0, 0, 0, 200);\n");
     sb.append("    gradient.addColorStop(0, color + '40');\n");
     sb.append("    gradient.addColorStop(1, color + '05');\n");
+    sb.append("    var dataset = isBar\n");
+    sb.append("      ? { label: label, data: [], backgroundColor: color + 'b3', borderColor: color, borderWidth: 1, borderRadius: 3 }\n");
+    sb.append("      : { label: label, data: [], borderColor: color, backgroundColor: gradient,\n");
+    sb.append("          fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 5, borderWidth: 2 };\n");
     sb.append("    return new Chart(ctx, {\n");
-    sb.append("      type: 'line',\n");
-    sb.append("      data: { labels: [], datasets: [{\n");
-    sb.append("        label: label, data: [], borderColor: color, backgroundColor: gradient,\n");
-    sb.append("        fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 5, borderWidth: 2\n");
-    sb.append("      }]},\n");
+    sb.append("      type: chartType,\n");
+    sb.append("      data: { labels: [], datasets: [dataset] },\n");
     sb.append("      options: {\n");
     sb.append("        responsive: true, maintainAspectRatio: false,\n");
     sb.append("        plugins: { legend: { display: false } },\n");
@@ -5512,6 +5520,7 @@ public final class HtmlRenderer {
     sb.append("          });\n");
     sb.append("          var sb2 = document.getElementById('analyticsStorageBanner'); if (sb2) sb2.style.display = 'none';\n");
     sb.append("          var db = document.getElementById('analyticsDisabledBanner'); if (db) db.style.display = 'none';\n");
+    sb.append("          var nd = document.getElementById('analyticsNoDataBanner'); if (nd) nd.style.display = 'none';\n");
     sb.append("          return;\n");
     sb.append("        }\n");
     sb.append("        if (notSupported) notSupported.style.display = 'none';\n");
@@ -5521,7 +5530,7 @@ public final class HtmlRenderer {
     sb.append("          else { storageBanner.style.display = 'none'; }\n");
     sb.append("        }\n");
     sb.append("        var banner = document.getElementById('analyticsDisabledBanner');\n");
-    sb.append("        if (banner) banner.style.display = data.enabled ? 'none' : 'block';\n");
+    sb.append("        if (banner) banner.style.display = (data.enabled === false) ? 'block' : 'none';\n");
     // Update summary cards from totals
     sb.append("        if (data.totals) {\n");
     sb.append("          var t = data.totals;\n");
@@ -5532,6 +5541,12 @@ public final class HtmlRenderer {
     sb.append("          el = document.getElementById('histActiveUsers'); if (el) el.textContent = (t.activeUsers || 0).toLocaleString();\n");
     sb.append("          el = document.getElementById('histPageViews'); if (el) el.textContent = (t.pageViews || 0).toLocaleString();\n");
     sb.append("          el = document.getElementById('histApiViews'); if (el) el.textContent = (t.apiViews || 0).toLocaleString();\n");
+    // Show "no historical data" banner when all totals are zero
+    sb.append("          var noDataBanner = document.getElementById('analyticsNoDataBanner');\n");
+    sb.append("          if (noDataBanner) {\n");
+    sb.append("            var allZero = !t.wavesCreated && !t.blipsCreated && !t.usersRegistered && !t.activeUsers && !t.pageViews && !t.apiViews;\n");
+    sb.append("            noDataBanner.style.display = allZero ? 'block' : 'none';\n");
+    sb.append("          }\n");
     sb.append("        }\n");
     // Format labels
     sb.append("        var labels = (data.series || []).map(function(pt) {\n");
@@ -5549,10 +5564,10 @@ public final class HtmlRenderer {
     sb.append("        var activeData = (data.series || []).map(function(pt) { return pt.activeUsers || 0; });\n");
     // Create or update charts
     sb.append("        if (!chartWaves) {\n");
-    sb.append("          chartWaves = createWaveChart('chartWaves', 'Waves Created', '#0077b6');\n");
+    sb.append("          chartWaves = createWaveChart('chartWaves', 'Waves Created', '#0077b6', 'bar');\n");
     sb.append("          chartBlips = createWaveChart('chartBlips', 'Blips Created', '#00b4d8');\n");
     sb.append("          chartUsers = createWaveChart('chartUsers', 'Users Registered', '#48cae4');\n");
-    sb.append("          chartActive = createWaveChart('chartActive', 'Active Users', '#0096c7');\n");
+    sb.append("          chartActive = createWaveChart('chartActive', 'Active Users', '#0096c7', 'bar');\n");
     sb.append("        }\n");
     sb.append("        chartWaves.data.labels = labels; chartWaves.data.datasets[0].data = wavesData; chartWaves.update();\n");
     sb.append("        chartBlips.data.labels = labels; chartBlips.data.datasets[0].data = blipsData; chartBlips.update();\n");
@@ -5565,18 +5580,34 @@ public final class HtmlRenderer {
 
     // Load analytics status (current state + top tables)
     sb.append("  function loadAnalyticsStatus() {\n");
+    // 10s timeout fallback: replace any still-loading table bodies with "Data unavailable"
+    sb.append("    var _statusDone = false;\n");
+    sb.append("    var _statusTimer = setTimeout(function() {\n");
+    sb.append("      if (_statusDone) return;\n");
+    sb.append("      ['analyticsTopViewedBody','analyticsTopParticipatedBody'].forEach(function(id) {\n");
+    sb.append("        var el = document.getElementById(id);\n");
+    sb.append("        if (el && el.textContent.indexOf('Loading') !== -1) {\n");
+    sb.append("          el.innerHTML = '<tr><td colspan=\"3\" style=\"text-align:center;color:#aaa\">Data unavailable</td></tr>';\n");
+    sb.append("        }\n");
+    sb.append("      });\n");
+    sb.append("      var tub = document.getElementById('analyticsTopUsersBody');\n");
+    sb.append("      if (tub && tub.textContent.indexOf('Loading') !== -1) {\n");
+    sb.append("        tub.innerHTML = '<tr><td colspan=\"2\" style=\"text-align:center;color:#aaa\">Data unavailable</td></tr>';\n");
+    sb.append("      }\n");
+    sb.append("    }, 10000);\n");
     sb.append("    fetch('/admin/api/analytics/status')\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
-    // Current state
-    sb.append("        if (data.partitions) {\n");
-    sb.append("          var p = data.partitions;\n");
+    sb.append("        _statusDone = true; clearTimeout(_statusTimer);\n");
+    // Current state — server sends `summary`, not `partitions`
+    sb.append("        if (data.summary) {\n");
+    sb.append("          var p = data.summary;\n");
     sb.append("          var el;\n");
     sb.append("          el = document.getElementById('analyticsTotalWaves'); if (el) el.textContent = ((p.publicWaves||0) + (p.privateWaves||0)).toLocaleString();\n");
     sb.append("          el = document.getElementById('analyticsPublicWaves'); if (el) el.textContent = (p.publicWaves||0).toLocaleString();\n");
     sb.append("          el = document.getElementById('analyticsPrivateWaves'); if (el) el.textContent = (p.privateWaves||0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('analyticsPublicBlips'); if (el) el.textContent = (p.publicBlips||0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('analyticsPrivateBlips'); if (el) el.textContent = (p.privateBlips||0).toLocaleString();\n");
+    sb.append("          el = document.getElementById('analyticsPublicBlips'); if (el) el.textContent = (p.publicBlipsCurrent||0).toLocaleString();\n");
+    sb.append("          el = document.getElementById('analyticsPrivateBlips'); if (el) el.textContent = (p.privateBlipsCurrent||0).toLocaleString();\n");
     sb.append("        }\n");
     // Warnings
     sb.append("        var warnEl = document.getElementById('analyticsWarnings');\n");
@@ -5587,7 +5618,7 @@ public final class HtmlRenderer {
     sb.append("            }).join('');\n");
     sb.append("          } else { warnEl.innerHTML = ''; }\n");
     sb.append("        }\n");
-    // Top waves by views
+    // Top waves by views — server sends `topViewedPublicWaves` / `topParticipatedPublicWaves`
     sb.append("        function analyticsWaveCell(w) {\n");
     sb.append("          var id = w.waveId || w.id || '';\n");
     sb.append("          var title = w.title || id;\n");
@@ -5605,18 +5636,20 @@ public final class HtmlRenderer {
     sb.append("          }).join('');\n");
     sb.append("        }\n");
     sb.append("        var tvb = document.getElementById('analyticsTopViewedBody');\n");
-    sb.append("        if (tvb && data.topWavesByViews) analyticsRows(data.topWavesByViews, 'views', tvb);\n");
+    sb.append("        if (tvb) analyticsRows(data.topViewedPublicWaves, 'views', tvb);\n");
     sb.append("        var tpb = document.getElementById('analyticsTopParticipatedBody');\n");
-    sb.append("        if (tpb && data.topWavesByParticipation) analyticsRows(data.topWavesByParticipation, 'participants', tpb);\n");
-    // Top users
+    sb.append("        if (tpb) analyticsRows(data.topParticipatedPublicWaves, 'participantCount', tpb);\n");
+    // Top users — server sends `topUsers`, not `topActiveUsers`; value field is `writeCount`
     sb.append("        var tub = document.getElementById('analyticsTopUsersBody');\n");
-    sb.append("        if (tub && data.topActiveUsers) {\n");
-    sb.append("          if (data.topActiveUsers.length === 0) { tub.innerHTML = '<tr><td colspan=\"2\" style=\"text-align:center;color:#aaa\">No data</td></tr>'; }\n");
-    sb.append("          else { tub.innerHTML = data.topActiveUsers.map(function(u) {\n");
-    sb.append("            return '<tr><td>' + esc(u.user || u.userId || '') + '</td><td>' + (u.actions||0) + '</td></tr>';\n");
+    sb.append("        if (tub) {\n");
+    sb.append("          var topUsers = data.topUsers || [];\n");
+    sb.append("          if (topUsers.length === 0) { tub.innerHTML = '<tr><td colspan=\"2\" style=\"text-align:center;color:#aaa\">No data</td></tr>'; }\n");
+    sb.append("          else { tub.innerHTML = topUsers.map(function(u) {\n");
+    sb.append("            return '<tr><td>' + esc(u.userId || '') + '</td><td>' + (u.writeCount||0) + '</td></tr>';\n");
     sb.append("          }).join(''); }\n");
     sb.append("        }\n");
     sb.append("      }).catch(function(e) {\n");
+    sb.append("        _statusDone = true; clearTimeout(_statusTimer);\n");
     sb.append("        showToast('Failed to load analytics status: ' + e.message, 'error');\n");
     sb.append("      });\n");
     sb.append("  }\n");

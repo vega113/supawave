@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-api-docs",
+  "version": "PR #387",
+  "date": "2026-03-27",
+  "title": "Built-In API Docs",
+  "summary": "SupaWave now ships human and LLM-friendly API documentation directly inside the app.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added /api-docs, /api/openapi.json, and /api/llm.txt for the Data and Robot APIs"
+      ]
+    }
+  ]
+}

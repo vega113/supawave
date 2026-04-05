@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-03-architecture-docs-links",
+  "version": "PR #592",
+  "date": "2026-04-03",
+  "title": "Extract durable architecture references",
+  "summary": "Moves long-lived architecture guidance into dedicated docs and surfaces those references from the README documentation map.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added links in the README.md Documentation map section for the Jakarta dual-source rules, runtime entrypoints and wiring, and dev persistence topology references"
+      ]
+    }
+  ]
+}

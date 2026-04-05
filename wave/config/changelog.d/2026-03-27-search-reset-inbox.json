@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-search-reset-inbox",
+  "version": "PR #390",
+  "date": "2026-03-27",
+  "title": "Smarter Empty Search Reset",
+  "summary": "Clearing the search box now returns you to the inbox instead of leaving the app in an empty-query state.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Empty or whitespace-only searches now normalize back to in:inbox"
+      ]
+    }
+  ]
+}

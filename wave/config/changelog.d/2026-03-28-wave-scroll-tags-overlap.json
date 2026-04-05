@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-28-wave-scroll-tags-overlap",
+  "version": "PR #425",
+  "date": "2026-03-28",
+  "title": "Tagged Wave Scroll Fix",
+  "summary": "The bottom of a wave now stays reachable above the tags bar.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Aligned the wave scroll offset with the full rendered tags-bar height so bottom content is no longer clipped behind it"
+      ]
+    }
+  ]
+}

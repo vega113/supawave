@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-28-inline-reply-refresh-placement",
+  "version": "PR #447",
+  "date": "2026-03-28",
+  "title": "Inline Reply Refresh Stability",
+  "summary": "Inline replies now preserve their anchor more reliably when created from the current selection.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Stabilized inline reply anchor placement by flushing the active editor before reading the current selection"
+      ]
+    }
+  ]
+}

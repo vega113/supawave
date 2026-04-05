@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-03-27-title-content-search",
+  "version": "PR #381",
+  "date": "2026-03-27",
+  "title": "Title and Content Search Filters",
+  "summary": "Search can now target wave titles or any blip content explicitly.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added title: search for root blip titles",
+        "Added content: search across conversational blips",
+        "Updated search help with clickable examples for the new filters"
+      ]
+    }
+  ]
+}

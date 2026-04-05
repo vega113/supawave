@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-inline-anchor-stability",
+  "version": "PR #402",
+  "date": "2026-03-27",
+  "title": "Inline Reply Stability",
+  "summary": "Inline replies no longer crash when SupaWave encounters a stale inline anchor reference.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Missing inline anchor references now fall back safely instead of throwing an Item not found client error"
+      ]
+    }
+  ]
+}

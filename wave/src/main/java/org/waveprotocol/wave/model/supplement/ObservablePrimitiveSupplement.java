@@ -101,10 +101,5 @@ public interface ObservablePrimitiveSupplement extends PrimitiveSupplement,
     void onThreadStateChanged(WaveletId wid, String tid,
         ThreadState oldState, ThreadState newState);
 
-    /**
-     * Notifies this listener that gadget state has been changed.
-     */
-    void onGadgetStateChanged(String gadgetId, String key, String oldValue, String newValue);
-
   }
 }

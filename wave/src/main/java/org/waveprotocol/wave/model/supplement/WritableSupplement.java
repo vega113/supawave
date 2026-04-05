@@ -191,12 +191,4 @@ public interface WritableSupplement {
    */
   void clearPendingNotification();
 
-  /**
-   * Saves a gadget state key-value pair.
-   *
-   * @param gadgetId ID of the gadget that owns the state.
-   * @param key The key.
-   * @param value The value for the key. If null, the key is removed.
-   */
-  void setGadgetState(String gadgetId, String key, String value);
 }

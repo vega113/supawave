@@ -21,7 +21,6 @@ package org.waveprotocol.wave.model.supplement;
 
 import org.waveprotocol.wave.model.conversation.InboxState;
 import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.version.HashedVersion;
 
 import java.util.Set;
@@ -366,24 +365,4 @@ public interface PrimitiveSupplement {
    */
   void clearPendingNotification();
 
-  //
-  // Gadgets.
-  //
-
-  /**
-   * Retrieves the gadget state as a String-to-String map.
-   *
-   * @param gadgetId ID of the gadget that owns the state.
-   * @return the gadget state.
-   */
-  public ReadableStringMap<String> getGadgetState(String gadgetId);
-
-  /**
-   * Stores the gadget state key-value pair.
-   *
-   * @param gadgetId ID of the gadget that owns the state.
-   * @param key The key.
-   * @param value A new value for the key. If null, the key is removed.
-   */
-  public void setGadgetState(String gadgetId, String key, String value);
 }

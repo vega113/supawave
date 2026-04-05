@@ -189,6 +189,9 @@ public final class GptBotRobot {
     return modifiedBy != null && modifiedBy.equalsIgnoreCase(config.getParticipantId());
   }
 
+  // To force the server to pick up new capabilities without restart:
+  // use the Admin panel → Robots → Test button, or POST /api/robots/gpt-bot@supawave.ai/verify
+  // The verify endpoint fetches /_wave/capabilities.xml and updates MongoDB.
   private String buildCapabilitiesXml() {
     StringBuilder xml = new StringBuilder();
     xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");

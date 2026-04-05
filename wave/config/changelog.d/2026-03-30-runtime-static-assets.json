@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-30-runtime-static-assets",
+  "version": "PR #482",
+  "date": "2026-03-30",
+  "title": "Restore runtime static assets under root war",
+  "summary": "Ensures favicons, authentication CSS, logo, and images are served correctly after relocating runtime static assets.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Move auth CSS, favicons, logo, and image assets into war/static to match the runtime asset root."
+      ]
+    }
+  ]
+}

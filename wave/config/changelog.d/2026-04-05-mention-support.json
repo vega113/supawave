@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-05-mention-support",
+  "version": "PR #623",
+  "date": "2026-04-05",
+  "title": "Add @mention support in the editor and search UI",
+  "summary": "Adds inline mention autocomplete and rendering, mention-aware search, and a backend capability gate so the search UI only advertises mentions where they are supported. The follow-up fix also rejects raw mentions queries on Solr so they fail closed instead of returning incorrect results.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Typing @ in the editor opens a participant autocomplete popup and inserts highlighted mention annotations",
+        "Search results can be filtered with mentions:me where the backend supports mention search",
+        "The search help panel and Mentions toolbar button are hidden on Solr deployments that do not support mention search",
+        "Raw mentions queries on Solr are rejected instead of producing incorrect results"
+      ]
+    }
+  ]
+}

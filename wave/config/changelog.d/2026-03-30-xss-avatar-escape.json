@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-30-xss-avatar-escape",
+  "version": "PR #485",
+  "date": "2026-03-30",
+  "title": "Security: Avatar XSS Fix",
+  "summary": "Escape avatar URL values in HTML attribute context to prevent stored XSS via attacker-controlled profile image URLs.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Escape avatar src attribute values in participant, blip author, and digest views to prevent stored XSS"
+      ]
+    }
+  ]
+}

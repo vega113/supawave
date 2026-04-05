@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-27-changelog-system",
+  "version": "PR #383",
+  "date": "2026-03-27",
+  "title": "Changelog System",
+  "summary": "You can now review recent SupaWave releases from the app and see what changed after a deploy.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added the /changelog page with release history",
+        "Added What's New links in the app menu and landing page"
+      ]
+    }
+  ]
+}

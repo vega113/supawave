@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-30-jakarta-session-websocket-auth-hardening",
+  "version": "PR #480",
+  "date": "2026-03-30",
+  "title": "Jakarta Session and WebSocket Auth Hardening",
+  "summary": "Jakarta session-token lookup now always resolves auth tokens, and invalid WebSocket auth closes with a policy-violation reason.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Enabled Jakarta session-token lookup for token-based auth without a feature flag",
+        "Closed invalid-auth WebSocket messages with a policy-violation reason and aligned the server log message"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-05-null-sink-reconnect-guard",
+  "version": "PR #627",
+  "date": "2026-04-05",
+  "title": "Save edits before prolonged reconnect reloads",
+  "summary": "Prolonged reconnects now end the active edit session before the client reloads, so the browser resyncs from a clean state without discarding draft changes.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Reloads after prolonged disconnects now always resync the client once the connection is restored",
+        "Any active edit session is ended before the reload so draft changes are saved first"
+      ]
+    }
+  ]
+}

@@ -54,6 +54,7 @@ reports/
 ### config
 wave/local.net.cfg.lua
 wave/config/wave.conf
+wave/config/changelog.json
 ### Vagrant
 .vagrant/
 

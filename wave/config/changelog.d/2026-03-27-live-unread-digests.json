@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-03-27-live-unread-digests",
+  "version": "PR #397",
+  "date": "2026-03-27",
+  "title": "Live Unread Digests",
+  "summary": "Unread counts stay accurate during polling and OT-driven search refreshes.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Search refreshes now preserve live unread digest proxies instead of replacing them with stale snapshots"
+      ]
+    }
+  ]
+}

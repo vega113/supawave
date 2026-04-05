@@ -51,7 +51,7 @@ Add two new mutually-exclusive toggle buttons after the existing alignment group
 
 Clicking the already-active button clears the `d` attribute (returns to auto-detection). Button highlight state reflects the current paragraph's `d` attribute. When no `d` attr is present, neither button is highlighted (auto state).
 
-Implementation follows the same pattern as the existing alignment buttons (`Paragraph.Alignment`), using `Paragraph.Direction` instead.
+Implementation follows the exact same pattern as the existing alignment buttons (`Paragraph.Alignment`), using `Paragraph.Direction` instead.
 
 ### 3. Toolbar Icons
 

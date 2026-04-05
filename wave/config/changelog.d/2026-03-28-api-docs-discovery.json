@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-03-28-api-docs-discovery",
+  "version": "PR #406",
+  "date": "2026-03-28",
+  "title": "API Docs Discovery",
+  "summary": "API consumers and LLM agents can now discover the SupaWave docs from dedicated llms entrypoints and direct links across the product.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Published `/llms.txt` and `/llms-full.txt` as LLM-friendly API docs entrypoints",
+        "Added direct `/api-docs` links in the landing-page navigation bar, hero section, footer, and signed-in app menu"
+      ]
+    }
+  ]
+}

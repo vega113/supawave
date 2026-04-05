@@ -46,7 +46,6 @@ import com.google.gwt.user.client.ui.UIObject;
 
 import org.waveprotocol.box.webclient.client.i18n.WebClientMessages;
 import org.waveprotocol.box.webclient.profile.RemoteProfileManagerImpl;
-import org.waveprotocol.box.common.ReconnectReloadPolicy;
 import org.waveprotocol.box.webclient.search.RemoteSearchService;
 import org.waveprotocol.box.webclient.search.Digest;
 import org.waveprotocol.box.webclient.search.Search;
@@ -262,12 +261,6 @@ public class WebClient implements EntryPoint {
 
   /** Persistent-toast id for the offline-while-editing warning. */
   private static final String OFFLINE_EDITING_TOAST_ID = "offline-editing";
-
-  /**
-   * If the WebSocket was disconnected for longer than this, assume a server
-   * restart (deploy) and force a full page reload on reconnect.
-   */
-  private static final double DEPLOY_DISCONNECT_THRESHOLD_MS = 5000;
 
   /** Show the turbulence banner (called after the delay). */
   private void showTurbulenceBanner() {
@@ -650,24 +643,6 @@ public class WebClient implements EntryPoint {
 
       @Override
       public void onNetworkStatus(NetworkStatusEvent event) {
-        // The robot null-sink reconnect path needs a full reload after a
-        // prolonged disconnect. End any active edit session first so draft
-        // changes are saved, then reload to resync the client.
-        if (event.getStatus() == ConnectionStatus.RECONNECTED
-            && turbulenceStartTime > 0) {
-          long disconnectMs = Math.round(new Date().getTime() - turbulenceStartTime);
-          if (ReconnectReloadPolicy.shouldReloadAfterProlongedDisconnect(disconnectMs)) {
-            LOG.info("Prolonged disconnect (" + disconnectMs
-                + "ms), reloading page to resync with server");
-            if (wave != null) {
-              wave.destroy();
-              wave = null;
-            }
-            hideTurbulenceBanner(false);
-            Window.Location.replace(Window.Location.getHref());
-            return;
-          }
-        }
         Element element = Document.get().getElementById("netstatus");
         if (element != null) {
           switch (event.getStatus()) {

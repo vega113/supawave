@@ -171,6 +171,11 @@ public interface SignalEvent {
   String getType();
 
   /**
+   * @return The key value reported by the browser, if any.
+   */
+  String getKey();
+
+  /**
    * @return The target element of the event
    */
   Element getTarget();

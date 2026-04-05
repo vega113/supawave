@@ -17,7 +17,14 @@
 
 package org.waveprotocol.box.server.waveserver;
 
+import com.google.common.collect.ImmutableMap;
 import junit.framework.TestCase;
+import com.google.wave.api.SearchResult;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import org.waveprotocol.box.server.robots.util.ConversationUtil;
+import org.waveprotocol.wave.model.id.IdGenerator;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 
 public class SolrSearchProviderImplTest extends TestCase {
 
@@ -26,5 +33,19 @@ public class SolrSearchProviderImplTest extends TestCase {
         "project https://example.com/unread:true update",
         SolrSearchProviderImpl.stripUnreadFilterTokens(
             "project https://example.com/unread:true unread:true update"));
+  }
+
+  public void testSearchRejectsMentionsQueries() {
+    Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
+        "core.wave_server_domain", "example.com",
+        "core.solr_base_url", "http://localhost:8983/solr"));
+    SolrSearchProviderImpl searchProvider = new SolrSearchProviderImpl(
+        new WaveDigester(new ConversationUtil((IdGenerator) null)), null, config);
+
+    SearchResult results = searchProvider.search(
+        ParticipantId.ofUnsafe("user@example.com"), "mentions:me", 0, 10);
+
+    assertEquals(0, results.getNumResults());
+    assertEquals(0, results.getDigests().size());
   }
 }

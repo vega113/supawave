@@ -186,6 +186,11 @@ public final class SearchPresenter
       + "<polyline points=\"23 4 23 10 17 10\"></polyline>"
       + "<path d=\"M20.49 15a9 9 0 11-2.12-9.36L23 10\"></path></svg>";
 
+  /** Mentions: at-sign icon. */
+  private static final String ICON_MENTIONS = SVG_OPEN
+      + "<circle cx=\"12\" cy=\"12\" r=\"4\"></circle>"
+      + "<path d=\"M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94\"></path></svg>";
+
   // External references
   private final TimerService scheduler;
   private final Search search;
@@ -497,6 +502,8 @@ public final class SearchPresenter
    */
   private void initToolbarMenu() {
     GroupingToolbar.View toolbarUi = searchUi.getToolbar();
+    boolean mentionsSearchEnabled = Session.get().hasFeature("mentions-search");
+    searchUi.getSearch().setMentionsSearchVisible(mentionsSearchEnabled);
 
     // --- Group 1: New Wave ---
     ToolbarView newWaveGroup = toolbarUi.addGroup();
@@ -534,6 +541,18 @@ public final class SearchPresenter
             onQueryEntered();
           }
         }).setVisualElement(createSvgIcon(ICON_INBOX));
+
+    if (mentionsSearchEnabled) {
+      new ToolbarButtonViewBuilder()
+          .setTooltip("Mentions")
+          .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
+              searchUi.getSearch().setQuery("mentions:me");
+              onQueryEntered();
+            }
+          }).setVisualElement(createSvgIcon(ICON_MENTIONS));
+    }
 
     new ToolbarButtonViewBuilder()
         .setTooltip("Public waves")

@@ -49,7 +49,10 @@ import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.IntrinsicBlipMetaView.MenuOption;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipMetaViewBuilder;
+import org.waveprotocol.wave.client.doodad.mention.MentionTriggerHandler;
 import org.waveprotocol.wave.model.util.CopyOnWriteSet;
+
+import javax.annotation.Nullable;
 
 /**
  * Interprets focus-frame movement as reading actions, and also provides an
@@ -92,20 +95,34 @@ public final class EditSession
   private Editor editor;
   /** Control the focus style on the editing blip **/
   private final BlipEditStatusListener blipEditStatusListener;
+  /** Optional @mention autocomplete handler. */
+  @Nullable
+  private final MentionTriggerHandler mentionHandler;
 
   EditSession(ModelAsViewProvider views, DocumentRegistry<? extends InteractiveDocument> documents,
-      LogicalPanel container, SelectionExtractor selectionExtractor, BlipEditStatusListener blipEditStatusListener) {
+      LogicalPanel container, SelectionExtractor selectionExtractor,
+      BlipEditStatusListener blipEditStatusListener,
+      @Nullable MentionTriggerHandler mentionHandler) {
     this.views = views;
     this.documents = documents;
     this.container = container;
     this.selectionExtractor = selectionExtractor;
     this.blipEditStatusListener = blipEditStatusListener;
+    this.mentionHandler = mentionHandler;
   }
 
   public static EditSession install(ModelAsViewProvider views,
       DocumentRegistry<? extends InteractiveDocument> documents,
       SelectionExtractor selectionExtractor, FocusFramePresenter focus, WavePanelImpl panel) {
-    EditSession edit = new EditSession(views, documents, panel.getGwtPanel(), selectionExtractor, focus);
+    return install(views, documents, selectionExtractor, focus, panel, null);
+  }
+
+  public static EditSession install(ModelAsViewProvider views,
+      DocumentRegistry<? extends InteractiveDocument> documents,
+      SelectionExtractor selectionExtractor, FocusFramePresenter focus, WavePanelImpl panel,
+      @Nullable MentionTriggerHandler mentionHandler) {
+    EditSession edit = new EditSession(views, documents, panel.getGwtPanel(),
+        selectionExtractor, focus, mentionHandler);
     focus.addListener(edit);
     if (panel.hasContents()) {
       edit.onInit();
@@ -167,6 +184,10 @@ public final class EditSession
     container.doAdopt(editor.getWidget());
     editor.init(null, KEY_BINDINGS, EDITOR_SETTINGS);
     editor.addKeySignalListener(this);
+    if (mentionHandler != null) {
+      mentionHandler.setEditor(editor);
+      editor.addKeySignalListener(mentionHandler);
+    }
     KEY_BINDINGS.registerAction(KeyCombo.ORDER_K, new EditorAction() {
       @Override
       public void execute(EditorContext context) {
@@ -194,6 +215,9 @@ public final class EditSession
     if (isEditing()) {
       if (editor.isDraftMode()) {
         editor.leaveDraftMode(true);
+      }
+      if (mentionHandler != null) {
+        mentionHandler.setEditor(null);
       }
       selectionExtractor.stop(editor);
       container.doOrphan(editor.getWidget());
@@ -244,17 +268,19 @@ public final class EditSession
   @Override
   public boolean onKeySignal(Widget sender, SignalEvent signal) {
     KeyCombo key = EventWrapper.getKeyCombo(signal);
-    switch (key) {
-      case SHIFT_ENTER:
-        endSession();
-        return true;
-      case ESC:
-        // TODO: undo.
-        endSession();
-        return true;
-      default:
-        return false;
+    boolean mentionPopupActive = mentionHandler != null && mentionHandler.isMentionMode();
+    if (shouldEndSession(key, mentionPopupActive)) {
+      endSession();
+      return true;
     }
+    return false;
+  }
+
+  static boolean shouldEndSession(KeyCombo key, boolean mentionPopupActive) {
+    if (mentionPopupActive && key == KeyCombo.ESC) {
+      return false;
+    }
+    return key == KeyCombo.SHIFT_ENTER || key == KeyCombo.ESC;
   }
 
   //

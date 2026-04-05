@@ -562,5 +562,9 @@ public final class SearchPresenterTest extends TestCase {
     public String getQuery() {
       return query;
     }
+
+    @Override
+    public void setMentionsSearchVisible(boolean visible) {
+    }
   }
 }

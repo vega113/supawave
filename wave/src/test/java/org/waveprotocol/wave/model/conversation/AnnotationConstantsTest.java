@@ -17,34 +17,16 @@
  * under the License.
  */
 
-package org.waveprotocol.box.webclient.search;
+package org.waveprotocol.wave.model.conversation;
 
-/**
- * View interface for the search area in a search panel..
- *
- * @author hearnden@google.com (David Hearnden)
- */
-public interface SearchView {
+import junit.framework.TestCase;
 
-  /**
-   * Handles UI gesture events.
-   */
-  interface Listener {
-    void onQueryEntered();
+public final class AnnotationConstantsTest extends TestCase {
+
+  public void testIsMentionKeyMatchesMentionNamespace() {
+    assertTrue(AnnotationConstants.isMentionKey(AnnotationConstants.MENTION_USER));
+    assertTrue(AnnotationConstants.isMentionKey("mention/custom"));
+    assertFalse(AnnotationConstants.isMentionKey("link/manual"));
+    assertFalse(AnnotationConstants.isMentionKey(null));
   }
-
-  /** Binds this view to a listener to handle UI gestures. */
-  void init(Listener listener);
-
-  /** Releases this view from its listener. */
-  void reset();
-
-  /** Sets the text in the query input. */
-  void setQuery(String text);
-
-  /** @return the text from the query input. */
-  String getQuery();
-
-  /** Shows or hides mention search affordances in the search help panel. */
-  void setMentionsSearchVisible(boolean visible);
 }

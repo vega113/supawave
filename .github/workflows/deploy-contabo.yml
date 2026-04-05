@@ -15,9 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Deploy Contabo
+name: Deploy to Contabo
 run-name: >-
-  ${{ github.event_name == 'push' && format('Deploy {0} @ {1}', github.ref_name, github.sha) || github.event_name == 'workflow_dispatch' && format('Deploy {0} @ {1}', github.ref_name, github.sha) || format('Deploy {0}', github.event_name) }}
+  ${{ github.event_name == 'push'
+      && format('Deploy main @ {0}', github.sha)
+      || github.event_name == 'workflow_dispatch'
+      && format('Deploy {0} @ {1}', github.ref_name, github.sha)
+      || format('Deploy {0}', github.event_name) }}
 
 on:
   workflow_dispatch:
@@ -38,12 +42,12 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and deploy Wave to Contabo
-    # Skip auto-deploy on push when AUTO_DEPLOY_ENABLED is 'false'.
-    # Manual workflow_dispatch always runs regardless of the toggle.
+    name: Deploy to Contabo
+    # Auto-deploy on push only runs for main and when AUTO_DEPLOY_ENABLED != 'false'.
+    # Manual workflow_dispatch always runs (any branch, for hotfixes).
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      vars.AUTO_DEPLOY_ENABLED != 'false'
+      (github.ref == 'refs/heads/main' && vars.AUTO_DEPLOY_ENABLED != 'false')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -303,36 +307,95 @@ jobs:
               labels: ['deploy-failure', 'agent-task']
             });
 
+      - name: Extract changelog for deploy email
+        if: always() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        id: changelog
+        run: |
+          CHANGELOG_HTML=""
+          if [ -f wave/config/changelog.json ]; then
+            CHANGELOG_HTML=$(python3 -c 'import html, json; from pathlib import Path; entries = json.loads(Path("wave/config/changelog.json").read_text()); lines = ["<li><strong>%s</strong> (%s, %s)</li>" % (html.escape(entry.get("title", "")), html.escape(entry.get("version", "")), html.escape(entry.get("date", ""))) for entry in entries[:5]]; print("<h3>Recent Changes</h3><ul>" + "".join(lines) + "</ul>") if lines else None' 2>/dev/null) || true
+          fi
+          echo "$CHANGELOG_HTML" > /tmp/changelog_html.txt
+
       - name: Notify deploy success
         if: success() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
+          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS }}
         run: |
-          WAVE_EMAIL_FROM_JSON=$(python3 -c 'import json, os; print(json.dumps(os.getenv("WAVE_EMAIL_FROM") or "noreply@supawave.ai"))')
+          CHANGELOG_HTML=$(cat /tmp/changelog_html.txt 2>/dev/null || true)
+          EMAIL_SUBJECT="SupaWave deployed: ${RELEASE_ID:0:8}"
+          EMAIL_HTML="<h2>Deploy succeeded</h2><table><tr><td>Commit</td><td><code>${RELEASE_ID:0:8}</code></td></tr><tr><td>Branch</td><td><code>${GITHUB_REF_NAME}</code></td></tr><tr><td>Image</td><td><code>$IMAGE_REF</code></td></tr><tr><td>Host</td><td>$CANONICAL_HOST</td></tr><tr><td>Run</td><td><a href='https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID'>View run</a></td></tr></table>${CHANGELOG_HTML}"
+          recipients_json=$(python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          raw = os.getenv("NOTIFICATION_RECIPIENTS", "").strip()
+          if not raw:
+              print("")
+              sys.exit(0)
+
+          if raw.startswith("["):
+              try:
+                  recipients = [item.strip() for item in json.loads(raw) if isinstance(item, str) and item.strip()]
+                  print(json.dumps(recipients))
+                  sys.exit(0)
+              except Exception:
+                  pass
+
+          recipients = [item.strip() for item in raw.split(",") if item.strip()]
+          print(json.dumps(recipients))
+          PY
+          )
+          if [ -z "$recipients_json" ] || [ "$recipients_json" = "[]" ]; then
+            echo "No deploy notification recipients configured; skipping email notification."
+            exit 0
+          fi
+          PAYLOAD=$(WAVE_EMAIL_FROM_VALUE="${WAVE_EMAIL_FROM:-noreply@supawave.ai}" RECIPIENTS_JSON="$recipients_json" EMAIL_SUBJECT="$EMAIL_SUBJECT" EMAIL_HTML="$EMAIL_HTML" python3 -c 'import json, os; print(json.dumps({"from": os.environ["WAVE_EMAIL_FROM_VALUE"], "to": json.loads(os.environ["RECIPIENTS_JSON"]), "subject": os.environ["EMAIL_SUBJECT"], "html": os.environ["EMAIL_HTML"]}))')
           RESPONSE=$(curl -s --fail-with-body -X POST https://api.resend.com/emails \
             -H "Authorization: Bearer $RESEND_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"from\": ${WAVE_EMAIL_FROM_JSON},
-              \"to\": [\"vega113@gmail.com\"],
-              \"subject\": \"✅ Deploy succeeded: ${RELEASE_ID:0:8}\",
-              \"html\": \"<h2>Deploy succeeded</h2><table><tr><td>Commit</td><td><code>${RELEASE_ID:0:8}</code></td></tr><tr><td>Image</td><td><code>$IMAGE_REF</code></td></tr><tr><td>Host</td><td>$CANONICAL_HOST</td></tr><tr><td>Run</td><td><a href='https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID'>View run</a></td></tr></table>\"
-            }") || echo "Email notification failed (non-blocking): $RESPONSE"
+            -d "$PAYLOAD") || echo "Email notification failed (non-blocking): $RESPONSE"
 
       - name: Notify deploy failure
         if: failure() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
+          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS }}
         run: |
-          WAVE_EMAIL_FROM_JSON=$(python3 -c 'import json, os; print(json.dumps(os.getenv("WAVE_EMAIL_FROM") or "noreply@supawave.ai"))')
+          EMAIL_SUBJECT="SupaWave deploy FAILED: ${RELEASE_ID:0:8}"
+          EMAIL_HTML="<h2>Deploy failed</h2><p>The production deploy failed and the previous version is still running.</p><table><tr><td>Commit</td><td><code>${RELEASE_ID:0:8}</code></td></tr><tr><td>Branch</td><td><code>${GITHUB_REF_NAME}</code></td></tr><tr><td>Image</td><td><code>$IMAGE_REF</code></td></tr><tr><td>Host</td><td>$CANONICAL_HOST</td></tr><tr><td>Logs</td><td><a href='https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID'>View full logs</a></td></tr></table><p><strong>Next steps:</strong> Check the deploy logs linked above. Previous version is auto-preserved.</p>"
+          recipients_json=$(python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          raw = os.getenv("NOTIFICATION_RECIPIENTS", "").strip()
+          if not raw:
+              print("")
+              sys.exit(0)
+
+          if raw.startswith("["):
+              try:
+                  recipients = [item.strip() for item in json.loads(raw) if isinstance(item, str) and item.strip()]
+                  print(json.dumps(recipients))
+                  sys.exit(0)
+              except Exception:
+                  pass
+
+          recipients = [item.strip() for item in raw.split(",") if item.strip()]
+          print(json.dumps(recipients))
+          PY
+          )
+          if [ -z "$recipients_json" ] || [ "$recipients_json" = "[]" ]; then
+            echo "No deploy notification recipients configured; skipping email notification."
+            exit 0
+          fi
+          PAYLOAD=$(WAVE_EMAIL_FROM_VALUE="${WAVE_EMAIL_FROM:-noreply@supawave.ai}" RECIPIENTS_JSON="$recipients_json" EMAIL_SUBJECT="$EMAIL_SUBJECT" EMAIL_HTML="$EMAIL_HTML" python3 -c 'import json, os; print(json.dumps({"from": os.environ["WAVE_EMAIL_FROM_VALUE"], "to": json.loads(os.environ["RECIPIENTS_JSON"]), "subject": os.environ["EMAIL_SUBJECT"], "html": os.environ["EMAIL_HTML"]}))')
           RESPONSE=$(curl -s --fail-with-body -X POST https://api.resend.com/emails \
             -H "Authorization: Bearer $RESEND_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"from\": ${WAVE_EMAIL_FROM_JSON},
-              \"to\": [\"vega113@gmail.com\"],
-              \"subject\": \"❌ Deploy FAILED: ${RELEASE_ID:0:8}\",
-              \"html\": \"<h2>Deploy failed</h2><p>The production deploy failed and the previous version is still running.</p><table><tr><td>Commit</td><td><code>${RELEASE_ID:0:8}</code></td></tr><tr><td>Image</td><td><code>$IMAGE_REF</code></td></tr><tr><td>Host</td><td>$CANONICAL_HOST</td></tr><tr><td>Logs</td><td><a href='https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID'>View full logs</a></td></tr></table><p><strong>Next steps:</strong> Check the deploy logs linked above. Previous version is auto-preserved.</p>\"
-            }") || echo "Email notification failed (non-blocking): $RESPONSE"
+            -d "$PAYLOAD") || echo "Email notification failed (non-blocking): $RESPONSE"

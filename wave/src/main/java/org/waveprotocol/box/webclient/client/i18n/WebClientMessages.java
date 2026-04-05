@@ -42,6 +42,18 @@ public interface WebClientMessages extends Messages {
   @DefaultMessage("Connecting...")
   String connecting();
 
+  @DefaultMessage("Reload to resync?")
+  String reconnectDialogTitle();
+
+  @DefaultMessage("You were disconnected for about {0} seconds. Reloading now can discard unsaved edits. Keep editing only if you are sure the current wave is safe.")
+  String reconnectDialogMessage(int disconnectSeconds);
+
+  @DefaultMessage("Reload")
+  String reconnectDialogReload();
+
+  @DefaultMessage("Keep editing")
+  String reconnectDialogKeepEditing();
+
   @DefaultMessage("Sign out")
   String signout();
 

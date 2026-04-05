@@ -263,6 +263,9 @@ public class WebClient implements EntryPoint {
   /** Latest connection status reported by the transport. */
   private ConnectionStatus connectionStatus = ConnectionStatus.CONNECTED;
 
+  /** Prevents multiple reconnect reload prompts from stacking up. */
+  private boolean reloadPromptOpen;
+
   /** Persistent-toast id for the offline-while-editing warning. */
   private static final String OFFLINE_EDITING_TOAST_ID = "offline-editing";
 
@@ -666,7 +669,9 @@ public class WebClient implements EntryPoint {
             LOG.info("Prolonged disconnect (" + (int) disconnectMs
                 + "ms), reloading page to resync with server");
             if (wave != null) {
-              promptReloadAfterProlongedDisconnect(disconnectMs);
+              if (!reloadPromptOpen) {
+                promptReloadAfterProlongedDisconnect(disconnectMs);
+              }
             } else {
               reloadAfterProlongedDisconnect();
             }
@@ -734,21 +739,26 @@ public class WebClient implements EntryPoint {
   }
 
   private void promptReloadAfterProlongedDisconnect(final double disconnectMs) {
+    if (reloadPromptOpen) {
+      return;
+    }
+    reloadPromptOpen = true;
     int disconnectSeconds = Math.max(1, (int) Math.round(disconnectMs / 1000.0));
     ConfirmDialog.show(
-        "Reload to resync?",
-        "You were disconnected for about " + disconnectSeconds
-            + " seconds. Reloading now can discard unsaved edits. Keep editing only if you"
-            + " are sure the current wave is safe.",
-        "Reload", "Keep editing",
+        messages.reconnectDialogTitle(),
+        messages.reconnectDialogMessage(disconnectSeconds),
+        messages.reconnectDialogReload(),
+        messages.reconnectDialogKeepEditing(),
         new ConfirmDialog.Listener() {
           @Override
           public void onConfirm() {
+            reloadPromptOpen = false;
             reloadAfterProlongedDisconnect();
           }
 
           @Override
           public void onCancel() {
+            reloadPromptOpen = false;
             if (isConnectionRestored()) {
               markConnectionRestored();
             }

@@ -2324,7 +2324,11 @@ public class EditorImpl extends LogicalPanel.Impl implements
   private boolean fireKeyboardEvent(SignalEvent evt) {
     boolean handled = false;
     if (keySignalListeners != null) {
-      for (KeySignalListener l : keySignalListeners) {
+      // Snapshot before iterating: listeners may be added (e.g. autocomplete on '@')
+      // or removed (e.g. on finish-edit / Shift+Enter) during onKeySignal, which
+      // would cause ConcurrentModificationException on the live set.
+      KeySignalListener[] snapshot = keySignalListeners.toArray(new KeySignalListener[0]);
+      for (KeySignalListener l : snapshot) {
         // "|| handled" at end of line to avoid short circuiting
         handled = l.onKeySignal(this, evt) || handled;
       }

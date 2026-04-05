@@ -35,6 +35,7 @@ import org.waveprotocol.wave.model.schema.SchemaCollection;
 import org.waveprotocol.wave.model.supplement.PrimitiveSupplement;
 import org.waveprotocol.wave.model.supplement.SupplementedWave;
 import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl;
+import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipationHelper;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
@@ -91,6 +92,7 @@ public final class UnreadSharedWaveDigestTest extends TestCase {
     org.waveprotocol.wave.model.conversation.ObservableConversation conversation =
         conversations.getRoot();
     conversation.addParticipant(VIEWER);
+    conversation.addTag("unread-filter-regression");
     org.waveprotocol.wave.model.conversation.ConversationBlip unreadBlip =
         conversation.getRootThread().appendBlip();
 
@@ -106,6 +108,15 @@ public final class UnreadSharedWaveDigestTest extends TestCase {
             java.util.Arrays.asList(
                 WaveletDataUtil.copyWavelet(conversationWavelet),
                 WaveletDataUtil.copyWavelet(viewerUserDataWavelet)));
+    boolean hasTagsDocument = false;
+    for (ObservableWaveletData wavelet : wave.getWavelets()) {
+      if (IdUtil.isConversationRootWaveletId(wavelet.getWaveletId())
+          && wavelet.getDocumentIds().contains(IdConstants.TAGS_DOC_ID)) {
+        hasTagsDocument = true;
+        break;
+      }
+    }
+    assertTrue("tags document must exist for this test to be valid", hasTagsDocument);
     Digest digest = new WaveDigester(conversationUtil).build(VIEWER, wave);
 
     assertEquals(0, digest.getUnreadCount());

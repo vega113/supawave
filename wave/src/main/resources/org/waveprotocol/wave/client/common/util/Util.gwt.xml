@@ -23,34 +23,10 @@
 <module>
  <inherits name="com.google.gwt.user.User"/>
  <inherits name="org.waveprotocol.wave.client.common.util.useragents"/> <inherits name="org.waveprotocol.wave.model.Model"/>
- 
+
  <source path=""/>
- 
- <!-- Allow for conditional compilation per user.agent with a single "if": -->
- 
- <replace-with class="org.waveprotocol.wave.client.common.util.UserAgentStaticProperties.FirefoxImpl">
- <when-type-is class="org.waveprotocol.wave.client.common.util.UserAgentStaticProperties"/>
- 
- <when-property-is name="user.agent" value="gecko1_8"/>
- </replace-with>
- 
- <!-- Following rules are order dependent: android and iphone have to come after "simple" safari -->
- <replace-with class="org.waveprotocol.wave.client.common.util.UserAgentStaticProperties.SafariImpl">
- <when-type-is class="org.waveprotocol.wave.client.common.util.UserAgentStaticProperties"/>
- 
- <when-property-is name="user.agent" value="safari"/>
- </replace-with>
- 
- <replace-with class="org.waveprotocol.wave.client.common.util.UserAgentStaticProperties.AndroidImpl">
- <when-type-is class="org.waveprotocol.wave.client.common.util.UserAgentStaticProperties"/>
- 
- <when-property-is name="mobile.user.agent" value="android"/>
- </replace-with>
- 
- <replace-with class="org.waveprotocol.wave.client.common.util.UserAgentStaticProperties.IPhoneImpl">
- <when-type-is class="org.waveprotocol.wave.client.common.util.UserAgentStaticProperties"/>
- 
- <when-property-is name="mobile.user.agent" value="iphone"/>
- </replace-with>
- 
+
+ <!-- TODO(j2cl): deferred binding removed; UserAgentStaticProperties now uses
+      runtime detection via navigator.userAgent instead of GWT.create() replace-with rules. -->
+
 </module>

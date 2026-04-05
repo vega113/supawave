@@ -19,12 +19,14 @@
 
 package org.waveprotocol.wave.client.widget.popup;
 
-import com.google.gwt.core.client.GWT;
+import org.waveprotocol.wave.client.widget.popup.desktopchrome.DesktopPopupChromeProvider;
 
 /**
- * Creates popup chrome by deferring to a late-bound provider which may
- * change depending on platform.
+ * Creates popup chrome by deferring to a provider.
  *
+ * <p>TODO(j2cl): deferred binding removed; always uses DesktopPopupChromeProvider.
+ * Mobile chrome support (MobilePopupChromeProvider) was previously selected at compile
+ * time via GWT replace-with rules; that mechanism is incompatible with J2CL.
  */
 public class PopupChromeFactory {
 
@@ -35,7 +37,7 @@ public class PopupChromeFactory {
    */
   public static PopupChromeProvider getProvider() {
     if (provider == null) {
-      provider = GWT.create(PopupChromeProvider.class);
+      provider = new DesktopPopupChromeProvider();
     }
     return provider;
   }

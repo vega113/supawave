@@ -631,6 +631,47 @@ public class EditorEventHandlerGwtTest
     interactor.checkExpectations();
   }
 
+  /**
+   * Composition start should use the refreshed selection after flushing the
+   * typing extractor, not the stale selection captured before the flush.
+   */
+  public void testCompositionStartRefreshesSelectionAfterFlush() {
+    FakeEditorEvent compositionStart = FakeEditorEvent.compositionSequence(0)[0];
+
+    final Point<ContentNode> staleCaret = Point.inText(
+        new ContentTextNode(Document.get().createTextNode("stale"), null), 1);
+    final Point<ContentNode> freshCaret = Point.inText(
+        new ContentTextNode(Document.get().createTextNode("fresh"), null), 3);
+
+    final FocusedContentRange staleSelection = new FocusedContentRange(staleCaret);
+    final FocusedContentRange freshSelection = new FocusedContentRange(freshCaret);
+    final Point<ContentNode>[] compositionCaret = new Point[1];
+
+    FakeEditorEventsSubHandler subHandler = new FakeEditorEventsSubHandler();
+    FakeEditorInteractor interactor = new FakeEditorInteractor() {
+      private int flushCount = 0;
+
+      @Override
+      public void forceFlush() {
+        flushCount++;
+      }
+
+      @Override
+      public FocusedContentRange getSelectionPoints() {
+        return flushCount >= 2 ? freshSelection : staleSelection;
+      }
+
+      @Override
+      public void compositionStart(Point<ContentNode> caret) {
+        compositionCaret[0] = caret;
+      }
+    };
+    EditorEventHandler handler = createEditorEventHandler(interactor, subHandler);
+
+    assertFalse(handler.handleEvent(compositionStart));
+    assertEquals(freshCaret, compositionCaret[0]);
+  }
+
   public void testIsAccelerator() {
     // Test alt+input and alt+shift+input keys - These are normal input on mac,
     // and accelerators on

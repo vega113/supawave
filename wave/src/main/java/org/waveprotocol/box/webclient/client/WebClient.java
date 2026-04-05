@@ -262,12 +262,6 @@ public class WebClient implements EntryPoint {
   /** Persistent-toast id for the offline-while-editing warning. */
   private static final String OFFLINE_EDITING_TOAST_ID = "offline-editing";
 
-  /**
-   * If the WebSocket was disconnected for longer than this, assume a server
-   * restart (deploy) and force a full page reload on reconnect.
-   */
-  private static final double DEPLOY_DISCONNECT_THRESHOLD_MS = 5000;
-
   /** Show the turbulence banner (called after the delay). */
   private void showTurbulenceBanner() {
     injectTurbulenceCss();
@@ -649,22 +643,6 @@ public class WebClient implements EntryPoint {
 
       @Override
       public void onNetworkStatus(NetworkStatusEvent event) {
-        // After a prolonged disconnect (likely server restart / deploy),
-        // the client's channel state machines are stale.  Force a full
-        // page reload so the browser fetches the latest JS and opens
-        // fresh server-side subscriptions.  Short disconnects (< 5 s)
-        // are treated as network hiccups and not reloaded.
-        if (event.getStatus() == ConnectionStatus.RECONNECTED
-            && turbulenceStartTime > 0) {
-          double disconnectMs = new Date().getTime() - turbulenceStartTime;
-          if (disconnectMs > DEPLOY_DISCONNECT_THRESHOLD_MS) {
-            LOG.info("Prolonged disconnect (" + (int) disconnectMs
-                + "ms), reloading page to resync with server");
-            hideTurbulenceBanner(false);
-            Window.Location.replace(Window.Location.getHref());
-            return;
-          }
-        }
         Element element = Document.get().getElementById("netstatus");
         if (element != null) {
           switch (event.getStatus()) {

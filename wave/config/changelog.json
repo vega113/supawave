@@ -42,6 +42,22 @@
     ]
   },
   {
+    "releaseId": "2026-04-05-blip-panel-cleanup",
+    "version": "PR #634",
+    "date": "2026-04-05",
+    "title": "Clean up the blip panel",
+    "summary": "Removes the debug blip ID from blip headers and hides the edit hint on mobile-sized screens.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Removed the blip ID display and click-to-copy affordance from blip headers",
+          "Hid the edit-mode keyboard hint on viewports 768px wide and below"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-05-saved-searches-popup-mobile-responsiveness",
     "version": "PR #631",
     "date": "2026-04-05",
@@ -104,99 +120,6 @@
           "UPDATE_ELEMENT now rewrites form elements through their XML serializer instead of setting invalid attributes",
           "Checkbox updates keep the existing default value unless it is explicitly changed",
           "FORM_VALUE_CHANGED is documented for value-attribute-backed form elements only"
-        ]
-      }
-    ]
-  },
-  {
-    "releaseId": "2026-04-05-prolonged-reconnect-reload",
-    "version": "PR #615",
-    "date": "2026-04-05",
-    "title": "Reload after prolonged reconnect to resync the client",
-    "summary": "The client now performs a hard reload after a long disconnect so it can recover cleanly from deploys or server restarts.",
-    "sections": [
-      {
-        "type": "fix",
-        "items": [
-          "Automatically reloads the page after a disconnect lasting longer than 5 seconds once the connection is restored",
-          "Preserves short disconnects as normal network hiccups without forcing a reload"
-        ]
-      }
-    ]
-  },
-  {
-    "releaseId": "2026-04-05-gptbot-document-changed-guard",
-    "version": "PR #613",
-    "date": "2026-04-05",
-    "title": "Use DOCUMENT_CHANGED with editor-activity guard for passive robot replies",
-    "summary": "The gpt-bot example robot now uses DOCUMENT_CHANGED (since BLIP_SUBMITTED is not implemented server-side) with an editor-annotation guard to avoid per-keystroke replies. Also adds OpenAI Chat Completions engine and diagnostic logging to RobotsGateway.",
-    "sections": [
-      {
-        "type": "feature",
-        "items": [
-          "Added OpenAI Chat Completions engine for gpt-bot (set GPTBOT_CODEX_ENGINE=openai)",
-          "Added diagnostic INFO logging to RobotsGateway passive dispatch path"
-        ]
-      },
-      {
-        "type": "fix",
-        "items": [
-          "Passive DOCUMENT_CHANGED replies now wait for editor annotations (user/d/, user/e/) to clear before responding",
-          "Fixed null root wavelet crash in search panel snippet rendering (WaveBasedDigest)"
-        ]
-      }
-    ]
-  },
-  {
-    "releaseId": "2026-04-04-robot-url-normalization-echo-engine",
-    "version": "PR #607",
-    "date": "2026-04-04",
-    "title": "Fix gpt-bot robot URL handling and add echo engine",
-    "summary": "Keeps custom robot base paths intact when passive robots fetch capabilities or post callbacks, and adds an echo completion engine for local gpt-bot runs.",
-    "sections": [
-      {
-        "type": "feature",
-        "items": [
-          "Added an echo completion engine for gpt-bot local testing without a Codex CLI process"
-        ]
-      },
-      {
-        "type": "fix",
-        "items": [
-          "Passive capabilities fetches now preserve custom robot base paths instead of stripping them to the origin",
-          "Passive callback posts now only treat URLs as normalized when their path actually ends with /_wave/robot/jsonrpc"
-        ]
-      }
-    ]
-  },
-  {
-    "releaseId": "2026-04-04-admin-analytics-tab",
-    "version": "PR #605",
-    "date": "2026-04-04",
-    "title": "Add admin analytics tab",
-    "summary": "The admin dashboard now surfaces wave, blip, user activity, and public-wave engagement metrics in a new analytics tab with live view tracking.",
-    "sections": [
-      {
-        "type": "feature",
-        "items": [
-          "Added an Analytics tab to /admin with wave totals, blip totals, login/activity windows, private/public partitions, top public waves, and top active users",
-          "Live public-wave page/API views are now tracked since process start so the admin analytics view can rank public waves by actual observed traffic"
-        ]
-      }
-    ]
-  },
-  {
-    "releaseId": "2026-04-03-search-startup-warmup-default-off",
-    "version": "PR #600",
-    "date": "2026-04-03",
-    "title": "Stop blocking startup on eager search warmup",
-    "summary": "Search startup no longer pre-builds the owner wave view by default, so deploys and reloads reach the app shell faster while real search requests keep the existing lazy rebuild path.",
-    "sections": [
-      {
-        "type": "fix",
-        "items": [
-          "Moved startup search warmup behind a new search.startup_wave_view_warmup config flag that defaults to false",
-          "Added focused Jakarta coverage for disabled startup warmup, owner normalization, fallback wave-map warmup, and non-fatal warmup failures"
         ]
       }
     ]

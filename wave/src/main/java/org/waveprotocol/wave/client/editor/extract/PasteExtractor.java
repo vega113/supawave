@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor.extract;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.Duration;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Node;
@@ -188,7 +187,7 @@ public class PasteExtractor {
     return busy;
   }
 
-  @VisibleForTesting  // For testing with p/line container.
+  // For testing with p/line container.
   void extract(Element srcContainer, ContentRange previousSelection, BiasDirection cursorBias) {
     final CMutableDocument destDoc = mutableDocument;
     final OperationSequencer<Nindo> destOperationSequencer =

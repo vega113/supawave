@@ -19,8 +19,7 @@
 
 package org.waveprotocol.wave.client.doodad.selection;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileListener;
@@ -126,7 +125,6 @@ public class SelectionAnnotationHandler implements AnnotationMutationHandler, Pr
     register(registries, SchedulerInstance.getLowPriorityTimer(), carets, sessionId, profiles);
   }
 
-  @VisibleForTesting
   static SelectionAnnotationHandler register(Registries registries, TimerService timer,
       CaretViewFactory carets, String sessionId, ProfileManager profiles) {
     Preconditions.checkNotNull(sessionId, "Session Id to ignore must not be null");
@@ -536,7 +534,7 @@ public class SelectionAnnotationHandler implements AnnotationMutationHandler, Pr
         }
       });
 
-  @VisibleForTesting CaretView getUiForSession(String session) {
+  CaretView getUiForSession(String session) {
     return sessions.get(session).ui;
   }
 

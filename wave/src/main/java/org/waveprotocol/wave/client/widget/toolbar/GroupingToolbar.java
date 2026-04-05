@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.widget.toolbar;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarButtonView;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarToggleButton;

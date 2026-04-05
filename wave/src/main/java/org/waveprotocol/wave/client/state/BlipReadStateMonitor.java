@@ -17,42 +17,19 @@
  * under the License.
  */
 
-
 package org.waveprotocol.wave.client.state;
 
-
 /**
- * Monitors the conversation for unread blips.
+ * Deprecated re-export — moved to
+ * {@link org.waveprotocol.wave.model.document.BlipReadStateMonitor}.
+ *
+ * <p>This stub is kept here because the server build explicitly compiles this
+ * path (see build.sbt).  All client code that only needs the interface should
+ * migrate to the model-package type.
+ *
+ * @deprecated Use {@link org.waveprotocol.wave.model.document.BlipReadStateMonitor} instead.
  */
-public interface BlipReadStateMonitor {
+@Deprecated
+public interface BlipReadStateMonitor
+    extends org.waveprotocol.wave.model.document.BlipReadStateMonitor {}
 
-  /**
-   * Listener interface for changes to read/unread blip counts.
-   */
-  interface Listener {
-    /**
-     * Called when the read/unread count changes.
-     */
-    void onReadStateChanged();
-  }
-
-  /**
-   * @return The current read blip count.
-   */
-  int getReadCount();
-
-  /**
-   * @return The current unread blip count.
-   */
-  int getUnreadCount();
-
-  /**
-   * Adds a listener to change events.
-   */
-  void addListener(Listener listener);
-
-  /**
-   * Removes a listener to change events.
-   */
-  void removeListener(Listener listener);
-}

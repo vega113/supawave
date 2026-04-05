@@ -324,6 +324,7 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
    *
    * @param events the incoming event bundle.
    */
+  @SuppressWarnings("deprecation")
   public void processEvents(EventMessageBundle events) {
     for (Event event : events.getEvents()) {
       switch (event.getType()) {
@@ -468,6 +469,7 @@ public abstract class AbstractRobot implements EventHandler, Serializable {
   }
 
   @Override
+  @Deprecated(forRemoval = true)
   public void onGadgetStateChanged(GadgetStateChangedEvent event) {
     // No-op.
   }

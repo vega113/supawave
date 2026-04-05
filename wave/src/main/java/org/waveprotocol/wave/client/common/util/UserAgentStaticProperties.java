@@ -19,14 +19,16 @@
 
 package org.waveprotocol.wave.client.common.util;
 
+import com.google.gwt.core.client.GWT;
+
 /**
  * Class to allow conditional compilation for different user agents.
  *
  * All methods should return values that are known at compile time.
- *  *
- * TODO(user): Should this ever be thrown in for free with GWT, rather use
- * their approach. A relevant thread is:
- * http://groups.google.com/group/Google-Web-Toolkit-Contributors/browse_thread/thread/6745dee7a85eb585/bd58d1a9f2344b34
+ *
+ * TODO(j2cl): deferred binding removed. Previously each implementation subclass was selected at
+ * compile time via GWT replace-with rules in Util.gwt.xml. Now the instance is chosen at runtime
+ * by inspecting navigator.userAgent directly, which is compatible with J2CL.
  *
  * FIXME: GWT superdev recompilation fails when this class is abstract
  *
@@ -40,28 +42,34 @@ public class UserAgentStaticProperties {
   private static final UserAgentStaticProperties INSTANCE = createInstance();
 
   /**
-   * Creates an instance of UserAgent.
+   * Creates an instance of UserAgentStaticProperties by detecting the browser at runtime.
    *
-   * NOTE(danilatos): This method is designed to be statically evaluable by
-   *                   the compiler, such that the compiler can determine that
-   *                   only one subclass of UserAgent is ever used within a
-   *                   given permutation. This is possible because
-   *                   GWT.isClient() is replaced with true by the compiler,
-   *                   even though it is executed normally in unit tests.
-   *                   Testing the return value of GWT.create() is not adequate
-   *                   because only boolean values can be statically evaluated
-   *                   by the compiler at this time.
-   *
-   * @return an instance of UserAgent.
+   * <p>In a GWT/J2CL client context {@code navigator.userAgent} is used. In non-GWT runtimes
+   * (e.g. unit tests) we fall back to a Firefox-like default, preserving the prior behaviour.
    */
   private static UserAgentStaticProperties createInstance() {
-    try {
-      return com.google.gwt.core.client.GWT.create(UserAgentStaticProperties.class);
-    } catch (Throwable t) {
+    if (!GWT.isClient()) {
       // Default to Firefox-like behavior in non-GWT runtimes/tests.
       return new FirefoxImpl();
     }
+    String ua = getNativeUserAgent().toLowerCase();
+    if (ua.contains("iphone") || ua.contains("ipod")) {
+      return new IPhoneImpl();
+    } else if (ua.contains("android")) {
+      return new AndroidImpl();
+    } else if (ua.contains("webkit") || ua.contains("safari") || ua.contains("chrome")) {
+      return new SafariImpl();
+    } else if (ua.contains("gecko") || ua.contains("firefox")) {
+      return new FirefoxImpl();
+    } else {
+      // Unknown browser — default to Safari/Webkit-like (most modern browsers are Webkit-based).
+      return new SafariImpl();
+    }
   }
+
+  private static native String getNativeUserAgent() /*-{
+    return $wnd.navigator.userAgent || "";
+  }-*/;
 
   final boolean isWebkit() {
     return isSafari() || isMobileWebkit();
@@ -74,14 +82,13 @@ public class UserAgentStaticProperties {
     return isAndroid() || isIPhone();
   }
 
-  // Default instance methods: most return false, since they are intended to be overriden.
+  // Default instance methods: most return false, since they are intended to be overridden.
   boolean isSafari()  { return false; }
   boolean isFirefox() { return false; }
   boolean isIE()      { return false; }
   boolean isAndroid() { return false; }
   boolean isIPhone()  { return false; }
 
-  // NOTE(user): Created via deferred binding
   public static class SafariImpl extends UserAgentStaticProperties {
     @Override
     protected boolean isSafari() {
@@ -89,7 +96,6 @@ public class UserAgentStaticProperties {
     }
   }
 
-  // NOTE(user): Created via deferred binding
   public static class FirefoxImpl extends UserAgentStaticProperties {
     @Override
     protected boolean isFirefox() {
@@ -97,7 +103,6 @@ public class UserAgentStaticProperties {
     }
   }
 
-  // NOTE(user): Created via deferred binding
   public static class IEImpl extends UserAgentStaticProperties {
     @Override
     protected boolean isIE() {
@@ -105,7 +110,6 @@ public class UserAgentStaticProperties {
     }
   }
 
-  // NOTE(user): Created via deferred binding
   public static class AndroidImpl extends UserAgentStaticProperties {
     @Override
     protected boolean isAndroid() {
@@ -113,7 +117,6 @@ public class UserAgentStaticProperties {
     }
   }
 
-  // NOTE(user): Created via deferred binding
   public static class IPhoneImpl extends UserAgentStaticProperties {
     @Override
     protected boolean isIPhone() {

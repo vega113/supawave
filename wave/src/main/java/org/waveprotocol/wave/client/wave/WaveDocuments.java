@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.wave;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
@@ -78,7 +78,7 @@ public final class WaveDocuments<BlipDocument extends DocumentOperationSink>
     if (IdUtil.isBlipId(blipId)) {
       BlipDocument document = blipDocFactory.create(waveletId, blipId, content);
       StringMap<BlipDocument> convDocuments = getConversationDocuments(waveletIdStr);
-      Preconditions.checkState(!convDocuments.containsKey(blipId));
+      Preconditions.checkState(!convDocuments.containsKey(blipId), "!convDocuments.containsKey(blipId)");
       convDocuments.put(blipId, document);
       return document;
     } else {

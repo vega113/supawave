@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.event;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.NativeEvent;
@@ -186,7 +186,7 @@ public final class FocusManager implements Focusable, KeySignalHandler {
    * @param focusable focusable to select
    */
   public void select(Focusable focusable) {
-    Preconditions.checkArgument(focusable == null || focusOrder.contains(focusable));
+    Preconditions.checkArgument(focusable == null || focusOrder.contains(focusable), "focusable == null || focusOrder.contains(focusable)");
     if (ValueUtils.equal(selected, focusable)) {
       // No-op.
       return;
@@ -203,7 +203,7 @@ public final class FocusManager implements Focusable, KeySignalHandler {
 
   @Override
   public void onFocus() {
-    Preconditions.checkState(!focused);
+    Preconditions.checkState(!focused, "!focused");
     focused = true;
     if (selected != null) {
       selected.onFocus();
@@ -212,7 +212,7 @@ public final class FocusManager implements Focusable, KeySignalHandler {
 
   @Override
   public void onBlur() {
-    Preconditions.checkState(focused);
+    Preconditions.checkState(focused, "focused");
     if (selected != null) {
       selected.onBlur();
     }

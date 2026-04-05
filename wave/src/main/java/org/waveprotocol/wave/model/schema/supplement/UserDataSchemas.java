@@ -47,7 +47,6 @@ public class UserDataSchemas implements SchemaProvider {
     schemas.put(WaveletBasedSupplement.PRESENTATION_DOCUMENT, UDW_PRESENTATION);
     schemas.put(WaveletBasedSupplement.CLEARED_DOCUMENT, UDW_CLEARED);
     schemas.put(WaveletBasedSupplement.SEEN_DOCUMENT, UDW_SEEN);
-    schemas.put(WaveletBasedSupplement.GADGETS_DOCUMENT, UDW_GADGET);
     schemas.put(WaveletBasedSupplement.ABUSE_DOCUMENT, UDW_ABUSE);
   }
 
@@ -188,21 +187,6 @@ public class UserDataSchemas implements SchemaProvider {
     }
   };
 
-
-  /**
-   * Gadget private (per user) state in User Data Wavelets.
-   */
-  public static final DocumentSchema UDW_GADGET = new AbstractXmlSchemaConstraints() {
-    {
-      addChildren(null, WaveletBasedSupplement.GADGET_TAG);
-      addAttrs(WaveletBasedSupplement.GADGET_TAG, WaveletBasedSupplement.ID_ATTR,
-          WaveletBasedSupplement.PERMISSIONS_ATTR);
-
-      addChildren(WaveletBasedSupplement.GADGET_TAG, WaveletBasedSupplement.STATE_TAG);
-      addAttrs(WaveletBasedSupplement.STATE_TAG, WaveletBasedSupplement.NAME_ATTR,
-          WaveletBasedSupplement.VALUE_ATTR);
-    }
-  };
 
   /**
    * User Data Wavelet constraints on the abuse document.

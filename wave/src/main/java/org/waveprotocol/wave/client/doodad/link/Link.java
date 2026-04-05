@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.doodad.link;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
 import org.waveprotocol.wave.client.common.util.WaveRefConstants;
@@ -129,7 +129,7 @@ public final class Link {
    */
   @SuppressWarnings("deprecation")
   public static String normalizeLink(String rawLinkValue) throws InvalidLinkException {
-    Preconditions.checkNotNull(rawLinkValue);
+    Preconditions.checkNotNull(rawLinkValue, "rawLinkValue");
     rawLinkValue = rawLinkValue.trim();
     String[] parts = splitUri(rawLinkValue);
     String scheme = parts != null ? parts[0] : null;

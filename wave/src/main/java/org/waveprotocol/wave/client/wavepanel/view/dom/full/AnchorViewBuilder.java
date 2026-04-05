@@ -21,8 +21,7 @@ package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 
 import static org.waveprotocol.wave.client.uibuilder.BuilderHelper.nonNull;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.uibuilder.OutputHelper;
@@ -54,11 +53,10 @@ public final class AnchorViewBuilder implements UiBuilder {
    */
   public static AnchorViewBuilder create(String id, UiBuilder thread) {
     // Cheap semi-reliable check of escapedness.
-    Preconditions.checkArgument(id == null || !id.contains("\'"));
+    Preconditions.checkArgument(id == null || !id.contains("\'"), "id == null || !id.contains(\"\\'\")");
     return new AnchorViewBuilder(id, nonNull(thread));
   }
 
-  @VisibleForTesting
   AnchorViewBuilder(String id, UiBuilder thread) {
     this.id = id;
     this.thread = thread;

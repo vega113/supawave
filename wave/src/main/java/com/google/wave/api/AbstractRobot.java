@@ -652,9 +652,6 @@ public abstract class AbstractRobot extends HttpServlet implements EventHandler 
         case FORM_VALUE_CHANGED:
           onFormValueChanged(FormValueChangedEvent.as(event));
           break;
-        case GADGET_STATE_CHANGED:
-          onGadgetStateChanged(GadgetStateChangedEvent.as(event));
-          break;
         case WAVELET_BLIP_CREATED:
           onWaveletBlipCreated(WaveletBlipCreatedEvent.as(event));
           break;
@@ -860,6 +857,7 @@ public abstract class AbstractRobot extends HttpServlet implements EventHandler 
   }
 
   @Override
+  @Deprecated(forRemoval = true)
   public void onGadgetStateChanged(GadgetStateChangedEvent event) {
     // No-op.
   }

@@ -20,7 +20,6 @@
 
 package org.waveprotocol.wave.client.scroll;
 
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * A target-based scroller that tries to be smart by making aesthetically
@@ -103,7 +102,6 @@ public final class SmartScroller<M> implements TargetScroller<M> {
   /** Last element brought in to view. Used for smart scrolling. */
   private M previousTarget;
 
-  @VisibleForTesting
   SmartScroller(ScrollPanel<? super M> scroller) {
     this.scroller = scroller;
   }

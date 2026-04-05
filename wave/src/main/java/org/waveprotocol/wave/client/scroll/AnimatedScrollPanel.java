@@ -20,7 +20,6 @@
 
 package org.waveprotocol.wave.client.scroll;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.Duration;
 
 import org.waveprotocol.wave.client.common.util.MathUtil;
@@ -51,7 +50,6 @@ public final class AnimatedScrollPanel<T> implements ScrollPanel<T>, Task {
    * @param scheduler scheduler for running animations
    * @param target underlying scroller
    */
-  @VisibleForTesting
   AnimatedScrollPanel(TimerService scheduler, ScrollPanel<? super T> target) {
     this.scheduler = scheduler;
     this.target = target;

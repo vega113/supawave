@@ -26,7 +26,7 @@ import static org.waveprotocol.wave.communication.gwt.JsonHelper.setPropertyAsIn
 import static org.waveprotocol.wave.communication.gwt.JsonHelper.setPropertyAsObject;
 import static org.waveprotocol.wave.communication.gwt.JsonHelper.setPropertyAsString;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.user.client.Cookies;
 
 import org.waveprotocol.box.common.comms.jso.ProtocolAuthenticateJsoImpl;
@@ -135,8 +135,8 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
    * {@link #connect()}.
    */
   public void attachHandler(WaveWebSocketCallback callback) {
-    Preconditions.checkState(this.callback == null);
-    Preconditions.checkArgument(callback != null);
+    Preconditions.checkState(this.callback == null, "this.callback == null");
+    Preconditions.checkArgument(callback != null, "callback != null");
     this.callback = callback;
   }
 

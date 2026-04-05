@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.state;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.debug.logger.DomLogger;
 import org.waveprotocol.wave.model.conversation.BlipIterators;
@@ -35,6 +35,7 @@ import org.waveprotocol.wave.model.supplement.ObservableSupplementedWave;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.CopyOnWriteSet;
 import org.waveprotocol.wave.model.util.IdentitySet;
+import org.waveprotocol.wave.model.document.BlipReadStateMonitor;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.Collection;

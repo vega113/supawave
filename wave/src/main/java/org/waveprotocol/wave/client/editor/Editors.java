@@ -21,7 +21,7 @@ package org.waveprotocol.wave.client.editor;
 
 import static org.waveprotocol.wave.client.editor.Editor.ROOT_HANDLER_REGISTRY;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 
@@ -72,9 +72,9 @@ public final class Editors {
    */
   public static Editor attachTo(ContentDocument doc) {
     Element e = doc.getFullContentView().getDocumentElement().getImplNodelet();
-    Preconditions.checkArgument(e != null);
+    Preconditions.checkArgument(e != null, "e != null");
     e = e.getParentElement();
-    Preconditions.checkArgument(e != null);
+    Preconditions.checkArgument(e != null, "e != null");
     EditorImpl editor =
         UserAgent.isMobileWebkit() ? new EditorImplWebkitMobile(false, e) : new EditorImpl(
             false, e);

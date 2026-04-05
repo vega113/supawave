@@ -19,8 +19,7 @@
 
 package org.waveprotocol.box.webclient.search;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.http.client.Request;
 
 import org.waveprotocol.box.common.DigestStateMerging;
@@ -69,7 +68,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
     private final DigestStateMerging digestStateMerging = new DigestStateMerging();
 
     DigestProxy(DigestSnapshot staticDigest) {
-      Preconditions.checkArgument(staticDigest != null);
+      Preconditions.checkArgument(staticDigest != null, "staticDigest != null");
       this.staticDigest = staticDigest;
     }
 
@@ -87,7 +86,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
      * event.
      */
     void activate(WaveContext wave) {
-      Preconditions.checkState(dynamicDigest == null);
+      Preconditions.checkState(dynamicDigest == null, "dynamicDigest == null");
       digestStateMerging.reset();
       dynamicDigest = WaveBasedDigest.create(wave);
       dynamicDigest.addListener(this);
@@ -100,7 +99,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
      * cause any change to the digest state, and so does not fire a change event.
      */
     void deactivate() {
-      Preconditions.checkState(dynamicDigest != null);
+      Preconditions.checkState(dynamicDigest != null, "dynamicDigest != null");
       staticDigest =
           new DigestSnapshot(getTitle(), getSnippet(), getWaveId(), getAuthor(),
               getParticipantsSnippet(), getLastModifiedTime(), getUnreadCount(), getBlipCount());
@@ -242,7 +241,6 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
 
   private int previousSize;
 
-  @VisibleForTesting
   SimpleSearch(SearchService searcher, WaveStore store) {
     this.searcher = searcher;
     this.waveStore = store;
@@ -451,7 +449,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
 
   @Override
   public DigestProxy getDigest(int index) {
-    Preconditions.checkState(outstanding == null);
+    Preconditions.checkState(outstanding == null, "outstanding == null");
     DigestSnapshot result = results.get(index);
     if (result == null) {
       return null;  // unfetched placeholder
@@ -475,7 +473,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
 
   @Override
   public int getTotal() {
-    Preconditions.checkState(outstanding == null);
+    Preconditions.checkState(outstanding == null, "outstanding == null");
     return total;
   }
 

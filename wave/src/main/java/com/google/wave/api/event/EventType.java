@@ -41,6 +41,7 @@ public enum EventType {
   DOCUMENT_CHANGED(DocumentChangedEvent.class),
   FORM_BUTTON_CLICKED(FormButtonClickedEvent.class),
   FORM_VALUE_CHANGED(FormValueChangedEvent.class),
+  @Deprecated(forRemoval = true)
   GADGET_STATE_CHANGED(GadgetStateChangedEvent.class),
   ANNOTATED_TEXT_CHANGED(AnnotatedTextChangedEvent.class),
 

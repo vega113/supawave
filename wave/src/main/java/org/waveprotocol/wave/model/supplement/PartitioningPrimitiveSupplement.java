@@ -20,9 +20,7 @@
 package org.waveprotocol.wave.model.supplement;
 
 import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.CopyOnWriteSet;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.version.HashedVersion;
 
 import java.util.Set;
@@ -30,8 +28,7 @@ import java.util.Set;
 /**
  * A wrapper around primitive supplement to allow for dummy POJO versions
  * to sit in place of the presentation model when the usePresentationModel
- * flag is disabled and to suppress all private gadget state requests when
- * the usePrivateGadgetStates flag is disabled.
+ * flag is disabled.
  *
  */
 public final class PartitioningPrimitiveSupplement implements ObservablePrimitiveSupplement {
@@ -47,12 +44,9 @@ public final class PartitioningPrimitiveSupplement implements ObservablePrimitiv
    */
   private ObservablePrimitiveSupplement presentationPrimitive;
 
-  private final boolean usePrivateGadgetStates;
-
-  public PartitioningPrimitiveSupplement (ObservablePrimitiveSupplement realPrimitive,
-      boolean usePresentationModel, boolean usePrivateGadgetStates) {
+  public PartitioningPrimitiveSupplement(ObservablePrimitiveSupplement realPrimitive,
+      boolean usePresentationModel) {
     this.realPrimitive = realPrimitive;
-    this.usePrivateGadgetStates = usePrivateGadgetStates;
     presentationPrimitive = !usePresentationModel ? new PrimitiveSupplementImpl() : realPrimitive;
   }
 
@@ -295,16 +289,4 @@ public final class PartitioningPrimitiveSupplement implements ObservablePrimitiv
     }
   }
 
-  @Override
-  public ReadableStringMap<String> getGadgetState(String gadgetId) {
-    return usePrivateGadgetStates ?
-        realPrimitive.getGadgetState(gadgetId) : CollectionUtils.<String> emptyMap();
-  }
-
-  @Override
-  public void setGadgetState(String gadgetId, String key, String value) {
-    if (usePrivateGadgetStates) {
-      realPrimitive.setGadgetState(gadgetId, key, value);
-    }
-  }
 }

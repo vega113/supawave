@@ -140,11 +140,6 @@ public final class LiveSupplementedWaveImpl extends SupplementedWaveWrapper<Supp
           }
         }
 
-        @Override
-        public void onGadgetStateChanged(String gadgetId, String key, String oldValue,
-            String newValue) {
-          triggerOnMaybeGadgetStateChanged(gadgetId);
-        }
       };
 
   private final WaveletListener waveletListener = new WaveletListenerImpl() {
@@ -261,12 +256,6 @@ public final class LiveSupplementedWaveImpl extends SupplementedWaveWrapper<Supp
   private void triggerOnThreadStateChanged(ObservableConversationThread thread) {
     for (Listener listener : listeners) {
       listener.onThreadStateChanged(thread);
-    }
-  }
-
-  private void triggerOnMaybeGadgetStateChanged(String gadgetId) {
-    for (Listener listener : listeners) {
-      listener.onMaybeGadgetStateChanged(gadgetId);
     }
   }
 

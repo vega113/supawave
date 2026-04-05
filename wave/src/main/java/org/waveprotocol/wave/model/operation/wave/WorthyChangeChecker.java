@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.operation.wave;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
@@ -43,7 +42,6 @@ public class WorthyChangeChecker {
   private WorthyChangeChecker() {}
 
   // Copied from Blips.
-  @VisibleForTesting
   public static final String THREAD_INLINE_ANCHOR_TAGNAME = "reply";
 
   public interface ReusableWorthyChangeChecker {

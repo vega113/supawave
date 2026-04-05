@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.util;
 
-import com.google.common.annotations.GwtCompatible;
 
 
 // This code was converted from code at http://iharder.sourceforge.net/base64/
@@ -47,7 +46,6 @@ import com.google.common.annotations.GwtCompatible;
  * GWT-compatible.
  *
  */
-@GwtCompatible
 public final class CharBase64 {
   /** Specify encoding (value is {@code true}). */
   public final static boolean ENCODE = true;

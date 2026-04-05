@@ -19,12 +19,8 @@
 
 package org.waveprotocol.wave.util.escapers;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkPositionIndexes;
-
-import com.google.common.annotations.GwtCompatible;
-
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * An {@link Escaper} that converts literal text into a format safe for
@@ -55,7 +51,6 @@ import java.io.IOException;
  * CharEscapers}. To create your own escapers extend this class and implement
  * the {@link #escape(int)} method.
  */
-@GwtCompatible
 public abstract class UnicodeEscaper {
   /** The amount of padding (chars) to use when growing the escape buffer. */
   private static final int DEST_PAD = 32;
@@ -145,7 +140,7 @@ public abstract class UnicodeEscaper {
    *         encountered
    */
   public String escape(String string) {
-    checkNotNull(string);
+    Objects.requireNonNull(string);
     int end = string.length();
     int index = nextEscapeIndex(string, 0, end);
     return index == end ? string : escapeSlow(string, index);
@@ -262,7 +257,7 @@ public abstract class UnicodeEscaper {
    * TODO: Maybe return a Writer here so we have a close() method
    */
   public Appendable escape(final Appendable out) {
-    checkNotNull(out);
+    Objects.requireNonNull(out);
 
     return new Appendable() {
       char pendingHighSurrogate = 0;
@@ -275,8 +270,10 @@ public abstract class UnicodeEscaper {
       @Override
       public Appendable append(CharSequence csq, int start, int end)
           throws IOException {
-        checkNotNull(csq);
-        checkPositionIndexes(start, end, csq.length());
+        Objects.requireNonNull(csq);
+        if (start < 0 || end < start || end > csq.length()) {
+          throw new IndexOutOfBoundsException();
+        }
 
         // If there is a pending high surrogate, handle it and start at the
         // next character.

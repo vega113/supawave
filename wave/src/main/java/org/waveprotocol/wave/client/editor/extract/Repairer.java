@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor.extract;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Node;
@@ -51,7 +50,7 @@ import org.waveprotocol.wave.model.document.util.Point;
 public class Repairer {
 
   /** For testing/debug purposes, treat repairs as fatal errors */
-  @VisibleForTesting public static boolean debugRepairIsFatal = getAssertionsOn();
+  public static boolean debugRepairIsFatal = getAssertionsOn();
 
   private static boolean getAssertionsOn() {
     try {

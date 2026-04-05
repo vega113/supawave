@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.fake;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.wavepanel.view.BlipLinkPopupView;
 
@@ -40,8 +40,8 @@ public final class FakeBlipLinkPopupView implements BlipLinkPopupView {
 
   @Override
   public void init(Listener listener) {
-    Preconditions.checkState(this.listener == null);
-    Preconditions.checkArgument(listener != null);
+    Preconditions.checkState(this.listener == null, "this.listener == null");
+    Preconditions.checkArgument(listener != null, "listener != null");
     this.listener = listener;
   }
 

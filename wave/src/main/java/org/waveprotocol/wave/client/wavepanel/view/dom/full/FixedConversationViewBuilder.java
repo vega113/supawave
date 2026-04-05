@@ -23,7 +23,6 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.append;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
@@ -41,7 +40,6 @@ public final class FixedConversationViewBuilder extends TopConversationViewBuild
   private final UiBuilder participants;
   private final UiBuilder tags;
 
-  @VisibleForTesting
   FixedConversationViewBuilder(
       Css css, String id, UiBuilder rootThread, UiBuilder participants, UiBuilder tags) {
     this.css = css;

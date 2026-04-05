@@ -18,10 +18,9 @@
  */
 package org.waveprotocol.box.stat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,8 +44,8 @@ class ExecutionNode {
     this.name = name;
     this.module = module;
     this.isRequest = isRequest;
-    this.children = Lists.newArrayList();
-    this.childMap = Maps.newHashMap();
+    this.children = new ArrayList<>();
+    this.childMap = new HashMap<>();
     this.measurement = new Measurement();
     measurement.setThreshold(threshold);
   }
@@ -94,6 +93,6 @@ class ExecutionNode {
   }
 
   synchronized Iterable<ExecutionNode> getChildren() {
-    return ImmutableList.copyOf(children);
+    return Collections.unmodifiableList(new ArrayList<>(children));
   }
 }

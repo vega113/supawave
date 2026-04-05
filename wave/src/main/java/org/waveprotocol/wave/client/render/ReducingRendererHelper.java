@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.render;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
@@ -165,7 +165,7 @@ public final class ReducingRendererHelper<R> implements ResultProducingRenderHel
 
   public void end() {
     result = leave();
-    Preconditions.checkState(scopes.isEmpty());
+    Preconditions.checkState(scopes.isEmpty(), "scopes.isEmpty()");
   }
 
   @Override

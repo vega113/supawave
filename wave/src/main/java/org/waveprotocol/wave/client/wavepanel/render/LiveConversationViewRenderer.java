@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.render;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.scheduler.TimerService;
@@ -389,14 +389,14 @@ public class LiveConversationViewRenderer
   @Override
   public void pageIn(ConversationBlip blip) {
     LiveConversationRenderer renderer = conversationRenderers.get(blip.getConversation());
-    Preconditions.checkState(renderer != null);
+    Preconditions.checkState(renderer != null, "renderer != null");
     renderer.pageIn(blip);
   }
 
   @Override
   public void pageOut(ConversationBlip blip) {
     LiveConversationRenderer renderer = conversationRenderers.get(blip.getConversation());
-    Preconditions.checkState(renderer != null);
+    Preconditions.checkState(renderer != null, "renderer != null");
     renderer.pageOut(blip);
   }
 

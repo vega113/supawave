@@ -27,7 +27,7 @@ import static org.waveprotocol.wave.client.wavepanel.view.dom.DomViewHelper.getB
 import static org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes.kind;
 import static org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes.type;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Style.Display;
@@ -182,8 +182,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
         @Override
         public BlipMetaView.DraftModeControls attachDraftModeControlsWidget(BlipMetaDomImpl impl) {
-          Preconditions.checkArgument(draftModeControls == null,
-              "Draft mode controls widget is already attached");
+          Preconditions.checkArgument(draftModeControls == null, "Draft mode controls widget is already attached");
           draftModeControls = new DraftModeControlsWidget(impl.getDraftModeControls());
           draftModeControlsOwner = impl;
           return draftModeControls;
@@ -191,10 +190,8 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
         @Override
         public void detachDraftModeControlsWidget(BlipMetaDomImpl impl) {
-          Preconditions.checkNotNull(draftModeControls,
-              "Draft mode controls widget is not attached");
-          Preconditions.checkArgument(draftModeControlsOwner == impl,
-              "Draft mode controls widget attached to a different blip meta");
+          Preconditions.checkNotNull(draftModeControls, "Draft mode controls widget is not attached");
+          Preconditions.checkArgument(draftModeControlsOwner == impl, "Draft mode controls widget attached to a different blip meta");
           draftModeControls = null;
           draftModeControlsOwner = null;
           impl.getDraftModeControls().removeAllChildren();
@@ -653,8 +650,8 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
   @Override
   public void setRenderer(DomRenderer renderer) {
-    Preconditions.checkArgument(renderer != null);
-    Preconditions.checkState(this.renderer == null);
+    Preconditions.checkArgument(renderer != null, "renderer != null");
+    Preconditions.checkState(this.renderer == null, "this.renderer == null");
     this.renderer = renderer;
   }
 
@@ -818,73 +815,73 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
   @Override
   public RootThreadViewImpl<RootThreadDomImpl> asRootThread(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.ROOT_THREAD);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.ROOT_THREAD, "e == null || typeOf(e) == Type.ROOT_THREAD");
     return asRootThreadUnchecked(e);
   }
 
   @Override
   public ReplyBoxViewImpl<ReplyBoxDomImpl> asReplyBox(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.REPLY_BOX);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.REPLY_BOX, "e == null || typeOf(e) == Type.REPLY_BOX");
     return asRootThreadIndicatorUnchecked(e);
   }
 
   @Override
   public InlineThreadViewImpl<InlineThreadDomImpl> asInlineThread(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.INLINE_THREAD);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.INLINE_THREAD, "e == null || typeOf(e) == Type.INLINE_THREAD");
     return asInlineThreadUnchecked(e);
   }
 
   @Override
   public ContinuationIndicatorView asContinuationIndicator(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.CONTINUATION_INDICATOR);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.CONTINUATION_INDICATOR, "e == null || typeOf(e) == Type.CONTINUATION_INDICATOR");
     return asContinuationIndicatorUnchecked(e);
   }
 
   @Override
   public BlipViewImpl<BlipViewDomImpl> asBlip(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.BLIP);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.BLIP, "e == null || typeOf(e) == Type.BLIP");
     return asBlipUnchecked(e);
   }
 
   @Override
   public ParticipantView asParticipant(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.PARTICIPANT);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.PARTICIPANT, "e == null || typeOf(e) == Type.PARTICIPANT");
     return asParticipantUnchecked(e);
   }
 
   @Override
   public ParticipantsView asParticipants(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.PARTICIPANTS);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.PARTICIPANTS, "e == null || typeOf(e) == Type.PARTICIPANTS");
     return asParticipantsUnchecked(e);
   }
 
   @Override
   public BlipMetaViewImpl<BlipMetaDomImpl> asBlipMeta(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.META);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.META, "e == null || typeOf(e) == Type.META");
     return asBlipMetaUnchecked(e);
   }
 
   @Override
   public BlipMenuItemViewImpl<BlipMenuItemDomImpl> asBlipMenuItem(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.MENU_ITEM);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.MENU_ITEM, "e == null || typeOf(e) == Type.MENU_ITEM");
     return asBlipMenuItemUnchecked(e);
   }
 
   @Override
   public AnchorViewImpl<AnchorDomImpl> asAnchor(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.ANCHOR);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.ANCHOR, "e == null || typeOf(e) == Type.ANCHOR");
     return asAnchorUnchecked(e);
   }
 
   @Override
   public TopConversationViewImpl<TopConversationDomImpl> asTopConversation(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.ROOT_CONVERSATION);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.ROOT_CONVERSATION, "e == null || typeOf(e) == Type.ROOT_CONVERSATION");
     return asTopConversationUnchecked(e);
   }
 
   @Override
   public InlineConversationViewImpl<InlineConversationDomImpl> asInlineConversation(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.INLINE_CONVERSATION);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.INLINE_CONVERSATION, "e == null || typeOf(e) == Type.INLINE_CONVERSATION");
     return asInlineConversationUnchecked(e);
   }
 
@@ -907,14 +904,14 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
   @Override
   public InlineThreadView fromToggle(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE, "e == null || typeOf(e) == Type.TOGGLE");
     return e == null ? null : new InlineThreadViewImpl<InlineThreadDomImpl>(
         inlineThreadHelper, InlineThreadDomImpl.ofToggle(e, cssProvider.getCollapsibleCss()));
   }
 
   @Override
   public ParticipantsView fromAddButton(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.ADD_PARTICIPANT);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.ADD_PARTICIPANT, "e == null || typeOf(e) == Type.ADD_PARTICIPANT");
     while (e != null && !hasKnownType(e)) {
       e = e.getParentElement();
     }
@@ -925,7 +922,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
   @Override
   public ParticipantsView fromNewWaveWithParticipantsButton(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.NEW_WAVE_WITH_PARTICIPANTS);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.NEW_WAVE_WITH_PARTICIPANTS, "e == null || typeOf(e) == Type.NEW_WAVE_WITH_PARTICIPANTS");
     while (e != null && !hasKnownType(e)) {
       e = e.getParentElement();
     }
@@ -946,7 +943,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
   @Override
   public TagsView tagsFromAddButton(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.ADD_TAG);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.ADD_TAG, "e == null || typeOf(e) == Type.ADD_TAG");
     if (e != null && typeOf(e) == Type.ADD_TAG) {
       e = e.getParentElement();
     }
@@ -961,7 +958,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
   @Override
   public ParticipantsView fromTogglePublicButton(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE_PUBLIC);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE_PUBLIC, "e == null || typeOf(e) == Type.TOGGLE_PUBLIC");
     while (e != null && !hasKnownType(e)) {
       e = e.getParentElement();
     }
@@ -970,7 +967,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
   @Override
   public ParticipantsView fromShareLinkButton(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.SHARE_LINK);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.SHARE_LINK, "e == null || typeOf(e) == Type.SHARE_LINK");
     while (e != null && !hasKnownType(e)) {
       e = e.getParentElement();
     }
@@ -979,7 +976,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
   @Override
   public ParticipantsView fromToggleLockButton(Element e) {
-    Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE_LOCK);
+    Preconditions.checkArgument(e == null || typeOf(e) == Type.TOGGLE_LOCK, "e == null || typeOf(e) == Type.TOGGLE_LOCK");
     while (e != null && !hasKnownType(e)) {
       e = e.getParentElement();
     }
@@ -988,39 +985,38 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
 
 
   private AnchorView asAnchor(View v) {
-    Preconditions.checkArgument(v == null || v.getType() == Type.ANCHOR);
+    Preconditions.checkArgument(v == null || v.getType() == Type.ANCHOR, "v == null || v.getType() == Type.ANCHOR");
     return (AnchorView) v;
   }
 
   private BlipView asBlip(View v) {
-    Preconditions.checkArgument(v == null || v.getType() == Type.BLIP);
+    Preconditions.checkArgument(v == null || v.getType() == Type.BLIP, "v == null || v.getType() == Type.BLIP");
     return (BlipView) v;
   }
 
   private BlipMetaView asBlipMeta(View v) {
-    Preconditions.checkArgument(v == null || v.getType() == Type.META);
+    Preconditions.checkArgument(v == null || v.getType() == Type.META, "v == null || v.getType() == Type.META");
     return (BlipMetaView) v;
   }
 
   private ThreadView asThread(View v) {
     Preconditions.checkArgument(
-        v == null || v.getType() == Type.INLINE_THREAD || v.getType() == Type.ROOT_THREAD);
+        v == null || v.getType() == Type.INLINE_THREAD || v.getType() == Type.ROOT_THREAD, "Not a thread view");
     return (ThreadView) v;
   }
 
   private RootThreadView asRootThread(View v) {
-    Preconditions.checkArgument(v == null || v.getType() == Type.ROOT_THREAD);
+    Preconditions.checkArgument(v == null || v.getType() == Type.ROOT_THREAD, "v == null || v.getType() == Type.ROOT_THREAD");
     return (RootThreadView) v;
   }
 
   private InlineThreadView asInlineThread(View v) {
-    Preconditions.checkArgument(v == null || v.getType() == Type.INLINE_THREAD);
+    Preconditions.checkArgument(v == null || v.getType() == Type.INLINE_THREAD, "v == null || v.getType() == Type.INLINE_THREAD");
     return (InlineThreadView) v;
   }
 
   private ConversationView asConversation(View v) {
-    Preconditions.checkArgument(v == null || v.getType() == Type.ROOT_CONVERSATION
-        || v.getType() == Type.INLINE_CONVERSATION);
+    Preconditions.checkArgument(v == null || v.getType() == Type.ROOT_CONVERSATION || v.getType() == Type.INLINE_CONVERSATION, "v == null || v.getType() == Type.ROOT_CONVERSATION || v.getType() == Type.INLINE_CONVERSATION");
     return (ConversationView) v;
   }
 

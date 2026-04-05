@@ -36,6 +36,8 @@ import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.box.server.mail.MailException;
 import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.AnalyticsCounterStore;
+import org.waveprotocol.box.server.persistence.AnalyticsCounterStore.HourlyBucket;
 import org.waveprotocol.box.server.persistence.ContactMessageStore;
 import org.waveprotocol.box.server.persistence.ContactMessageStore.ContactMessage;
 import org.waveprotocol.box.server.persistence.ContactMessageStore.ContactReply;
@@ -100,6 +102,7 @@ public final class AdminServlet extends HttpServlet {
   private final @Nullable Lucene9WaveIndexerImpl lucene9Indexer;
   private final Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider;
   private final AdminAnalyticsService adminAnalyticsService;
+  private final AnalyticsCounterStore analyticsCounterStore;
   private volatile int cachedWaveCount = -1;
   private volatile long lastWaveCountTimeMs;
   private final String publicBaseUrl;
@@ -117,7 +120,8 @@ public final class AdminServlet extends HttpServlet {
                       FeatureFlagStore featureFlagStore,
                       @Nullable Lucene9WaveIndexerImpl lucene9Indexer,
                       Provider<SearchWaveletUpdater> searchWaveletUpdaterProvider,
-                      AdminAnalyticsService adminAnalyticsService) {
+                      AdminAnalyticsService adminAnalyticsService,
+                      AnalyticsCounterStore analyticsCounterStore) {
     this.accountStore = accountStore;
     this.sessionManager = sessionManager;
     this.contactMessageStore = contactMessageStore;
@@ -131,6 +135,7 @@ public final class AdminServlet extends HttpServlet {
     this.lucene9Indexer = lucene9Indexer;
     this.searchWaveletUpdaterProvider = searchWaveletUpdaterProvider;
     this.adminAnalyticsService = adminAnalyticsService;
+    this.analyticsCounterStore = analyticsCounterStore;
     this.publicBaseUrl = PublicBaseUrlResolver.resolve(config);
   }
 
@@ -150,6 +155,8 @@ public final class AdminServlet extends HttpServlet {
       handleGetUsers(req, resp, caller);
     } else if (pathInfo != null && pathInfo.startsWith("/api/contacts")) {
       handleGetContacts(req, resp);
+    } else if (pathInfo != null && pathInfo.equals("/api/analytics/history")) {
+      handleAnalyticsHistory(req, resp);
     } else {
       // Serve the admin page HTML
       resp.setContentType("text/html;charset=utf-8");
@@ -1105,6 +1112,126 @@ public final class AdminServlet extends HttpServlet {
     } catch (NumberFormatException e) {
       return defaultVal;
     }
+  }
+
+  // =========================================================================
+  // GET /admin/api/analytics/history?window=24h
+  // =========================================================================
+
+  private void handleAnalyticsHistory(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    String window = req.getParameter("window");
+    if (window == null || window.isEmpty()) {
+      window = "24h";
+    }
+    long now = System.currentTimeMillis();
+    long fromMs = resolveWindowStart(now, window);
+    if (fromMs < 0) {
+      sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST,
+          "Invalid window. Use: 1h, 6h, 12h, 24h, 48h, 7d, 30d");
+      return;
+    }
+
+    List<HourlyBucket> hourlyBuckets = analyticsCounterStore.getHourlyBuckets(fromMs, now);
+
+    // Decide granularity: hourly for <=48h, daily for >48h
+    long windowMs = now - fromMs;
+    boolean daily = windowMs > 48L * 3_600_000L;
+
+    setJsonUtf8(resp);
+    PrintWriter w = resp.getWriter();
+    w.append('{');
+    w.append("\"window\":").append(jsonStr(window));
+    w.append(",\"granularity\":").append(jsonStr(daily ? "daily" : "hourly"));
+
+    // Compute totals
+    int totalWavesCreated = 0, totalBlipsCreated = 0, totalUsersRegistered = 0;
+    long totalPageViews = 0, totalApiViews = 0;
+    java.util.Set<String> allActiveUsers = new java.util.HashSet<>();
+    for (HourlyBucket b : hourlyBuckets) {
+      totalWavesCreated += b.getWavesCreated();
+      totalBlipsCreated += b.getBlipsCreated();
+      totalUsersRegistered += b.getUsersRegistered();
+      totalPageViews += b.getPageViews();
+      totalApiViews += b.getApiViews();
+      allActiveUsers.addAll(b.getActiveUserIds());
+    }
+    w.append(",\"totals\":{");
+    w.append("\"wavesCreated\":").append(String.valueOf(totalWavesCreated));
+    w.append(",\"blipsCreated\":").append(String.valueOf(totalBlipsCreated));
+    w.append(",\"usersRegistered\":").append(String.valueOf(totalUsersRegistered));
+    w.append(",\"activeUsers\":").append(String.valueOf(allActiveUsers.size()));
+    w.append(",\"pageViews\":").append(String.valueOf(totalPageViews));
+    w.append(",\"apiViews\":").append(String.valueOf(totalApiViews));
+    w.append('}');
+
+    // Build series
+    w.append(",\"series\":[");
+    if (daily) {
+      writeDailySeries(w, hourlyBuckets);
+    } else {
+      writeHourlySeries(w, hourlyBuckets);
+    }
+    w.append(']');
+    w.append('}');
+    w.flush();
+  }
+
+  private void writeHourlySeries(PrintWriter w, List<HourlyBucket> buckets) {
+    for (int i = 0; i < buckets.size(); i++) {
+      if (i > 0) w.append(',');
+      HourlyBucket b = buckets.get(i);
+      writeSeriesPoint(w, b.getHourMs(), b.getWavesCreated(), b.getBlipsCreated(),
+          b.getUsersRegistered(), b.getActiveUserIds().size(), b.getPageViews(), b.getApiViews());
+    }
+  }
+
+  private void writeDailySeries(PrintWriter w, List<HourlyBucket> buckets) {
+    java.util.Map<Long, long[]> daily = new java.util.LinkedHashMap<>();
+    java.util.Map<Long, java.util.Set<String>> dailyUsers = new java.util.HashMap<>();
+    long dayMs = 86_400_000L;
+    for (HourlyBucket b : buckets) {
+      long dayKey = b.getHourMs() - (b.getHourMs() % dayMs);
+      long[] agg = daily.computeIfAbsent(dayKey, k -> new long[5]);
+      agg[0] += b.getWavesCreated();
+      agg[1] += b.getBlipsCreated();
+      agg[2] += b.getUsersRegistered();
+      agg[3] += b.getPageViews();
+      agg[4] += b.getApiViews();
+      dailyUsers.computeIfAbsent(dayKey, k -> new java.util.HashSet<>()).addAll(b.getActiveUserIds());
+    }
+    boolean first = true;
+    for (var entry : daily.entrySet()) {
+      if (!first) w.append(',');
+      first = false;
+      long[] agg = entry.getValue();
+      int activeCount = dailyUsers.getOrDefault(entry.getKey(), java.util.Collections.emptySet()).size();
+      writeSeriesPoint(w, entry.getKey(), (int) agg[0], (int) agg[1], (int) agg[2], activeCount, agg[3], agg[4]);
+    }
+  }
+
+  private void writeSeriesPoint(PrintWriter w, long timeMs, int wavesCreated, int blipsCreated,
+      int usersRegistered, int activeUsers, long pageViews, long apiViews) {
+    w.append("{\"time\":").append(String.valueOf(timeMs));
+    w.append(",\"wavesCreated\":").append(String.valueOf(wavesCreated));
+    w.append(",\"blipsCreated\":").append(String.valueOf(blipsCreated));
+    w.append(",\"usersRegistered\":").append(String.valueOf(usersRegistered));
+    w.append(",\"activeUsers\":").append(String.valueOf(activeUsers));
+    w.append(",\"pageViews\":").append(String.valueOf(pageViews));
+    w.append(",\"apiViews\":").append(String.valueOf(apiViews));
+    w.append('}');
+  }
+
+  private static long resolveWindowStart(long now, String window) {
+    return switch (window) {
+      case "1h" -> now - 3_600_000L;
+      case "6h" -> now - 6L * 3_600_000L;
+      case "12h" -> now - 12L * 3_600_000L;
+      case "24h" -> now - 24L * 3_600_000L;
+      case "48h" -> now - 48L * 3_600_000L;
+      case "7d" -> now - 7L * 86_400_000L;
+      case "30d" -> now - 30L * 86_400_000L;
+      default -> -1L;
+    };
   }
 
   // =========================================================================

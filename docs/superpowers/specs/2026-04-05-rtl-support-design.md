@@ -18,7 +18,7 @@ Wave already stores paragraph direction as a `d` attribute on paragraph elements
 
 The change extends the rendering to use the HTML `dir` attribute instead of (or alongside) the CSS property, and introduces `dir="auto"` when no explicit direction is stored:
 
-```
+```text
 Paragraph element in doc model
   ├── d="r" (explicit RTL)  → render dir="rtl"
   ├── d="l" (explicit LTR)  → render dir="ltr"

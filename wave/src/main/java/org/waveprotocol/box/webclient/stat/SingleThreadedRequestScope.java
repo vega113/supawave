@@ -18,11 +18,11 @@
  */
 package org.waveprotocol.box.webclient.stat;
 
-import com.google.common.collect.Maps;
 
 import org.waveprotocol.box.stat.ExecutionTree;
 import org.waveprotocol.box.stat.RequestScope;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -40,13 +40,13 @@ public class SingleThreadedRequestScope implements RequestScope {
 
   @Override
   public void enter() {
-    values = Maps.<Class, Value>newHashMap();
+    values = new HashMap<>();
     values.put(ExecutionTree.class, new ExecutionTree());
   }
 
   @Override
   public void enter(Map<Class, Value> values) {
-    this.values = Maps.<Class, Value>newHashMap(values);
+    this.values = new HashMap<>(values);
   }
 
   @Override
@@ -75,7 +75,7 @@ public class SingleThreadedRequestScope implements RequestScope {
   @Override
   public Map<Class, Value> cloneValues() {
     checkScoping();
-    Map<Class, Value> map = Maps.<Class, Value>newHashMap();
+    Map<Class, Value> map = new HashMap<>();
     for (Map.Entry<Class, Value> entry : values.entrySet()) {
       map.put(entry.getKey(), entry.getValue().clone());
     }

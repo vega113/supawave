@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.common.util;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.model.util.CollectionUtils;
 
@@ -73,7 +73,7 @@ public interface AsyncHolder<T> {
 
     @Override
     public void use(T x) {
-      Preconditions.checkState(value == null && waiting != null);
+      Preconditions.checkState(value == null && waiting != null, "value == null && waiting != null");
       value = x;
       for (Accessor<T> waiter : waiting) {
         waiter.use(value);

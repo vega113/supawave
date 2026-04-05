@@ -35,7 +35,6 @@ import org.waveprotocol.wave.model.document.util.DocumentEventRouter;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletIdSerializer;
 import org.waveprotocol.wave.model.util.CopyOnWriteSet;
-import org.waveprotocol.wave.model.util.ReadableStringMap;
 import org.waveprotocol.wave.model.util.Serializer;
 import org.waveprotocol.wave.model.util.ValueUtils;
 import org.waveprotocol.wave.model.version.HashedVersion;
@@ -145,7 +144,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
   public static final String CLEARED_DOCUMENT = "m/cleared";
   public static final String ABUSE_DOCUMENT = "m/abuse";
   public static final String SEEN_DOCUMENT = "m/seen";
-  public static final String GADGETS_DOCUMENT = "m/gadgets";
 
   public static final String SEEN_VERSION_TAG = "seen";
   public static final String NOTIFIED_VERSION_TAG = "notified";
@@ -169,11 +167,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
   public static final String STATE_ATTR = "state";
   public static final String NOTIFICATION_TAG = "notification";
   public static final String PENDING_NOTIFICATION_ATTR = "pending";
-  public static final String GADGET_TAG = "gadget";
-  public static final String PERMISSIONS_ATTR = "p";
-  public static final String STATE_TAG = "state";
-  public static final String NAME_ATTR = "name";
-  public static final String VALUE_ATTR = "value";
 
   /** Collection of per-wavelet read states. */
   private final WaveletReadStateCollection<?> read;
@@ -201,9 +194,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
 
   /** Raw wanted evaluation data. */
   private final ObservableAbuseStore abuseStore;
-
-  /** Gadget states. **/
-  private final GadgetStateCollection<?> gadgetStates;
 
   /**
    * This boolean overrides the waveletArchiveVersions whenever a new archive
@@ -278,12 +268,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
     @Override
     public void onWantedEvaluationsChanged(WaveletId waveletId) {
     }
-
-    @Override
-    public void onGadgetStateChanged(
-        String gadgetId, String key, String oldValue, String newValue) {
-      triggerOnGadgetStateChanged(gadgetId, key, oldValue, newValue);
-    }
   };
 
   /**
@@ -306,8 +290,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
     notifiedVersion = fungeCreateNotifiedVersion(userData.getDocument(SEEN_DOCUMENT));
     pendingNotification = fungeCreatePendingNotification(
         userData.getDocument(SEEN_DOCUMENT));
-    gadgetStates =
-        fungeCreateGadgetStates(userData.getDocument(GADGETS_DOCUMENT), forwardingListener);
 
     hackCleanup(); // Cleanup before installing listeners, so we start from
                    // clean state.
@@ -643,20 +625,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
   }
 
   //
-  // Gadget states
-  //
-
-  @Override
-  public ReadableStringMap<String> getGadgetState(String gadgetId) {
-    return gadgetStates.getGadgetState(gadgetId);
-  }
-
-  @Override
-  public void setGadgetState(String gadgetId, String key, String value) {
-    gadgetStates.setGadgetState(gadgetId, key, value);
-  }
-
-  //
   // Observable aspect
   //
 
@@ -755,13 +723,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
       ThreadState oldState, ThreadState newState) {
     for (Listener listener : listeners) {
       listener.onThreadStateChanged(waveletId, threadId, oldState, newState);
-    }
-  }
-
-  private void triggerOnGadgetStateChanged(
-      String gadgetId, String key, String oldValue, String newValue) {
-    for (Listener listener : listeners) {
-      listener.onGadgetStateChanged(gadgetId, key, oldValue, newValue);
     }
   }
 
@@ -882,20 +843,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
   }
 
   /**
-   * Exposes a document as a map of maps of gadget states.
-   *
-   * @param router router for the gadget state document.
-   * @param listener event listener.
-   * @return gadget state collection object to access gadgets states by gadget
-   *         ID and state name.
-   */
-  private static <E> GadgetStateCollection<E> createGadgetStatesDoc(
-      DocumentEventRouter<? super E, E, ?> router, Listener listener) {
-    return GadgetStateCollection.create(router,
-        router.getDocument().getDocumentElement(), listener);
-  }
-
-  /**
    * Exposes a document as a set of {@link WantedEvaluation}s.
    *
    * @param router abuse document
@@ -958,11 +905,6 @@ public final class WaveletBasedSupplement implements ObservablePrimitiveSuppleme
   private static <N, E extends N, T extends N> ObservableAbuseStore fungeCreateAbuseStore(
       ObservableMutableDocument<N, E, T> doc) {
     return createAbuseStore(DefaultDocumentEventRouter.create(doc));
-  }
-
-  private static <N, E extends N, T extends N> GadgetStateCollection<?> fungeCreateGadgetStates(
-      ObservableMutableDocument<N, E, T> doc, Listener listener) {
-    return createGadgetStatesDoc(DefaultDocumentEventRouter.create(doc), listener);
   }
 
 }

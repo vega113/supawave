@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.edit;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.user.client.ui.Widget;
 
 import org.waveprotocol.wave.client.common.util.EventWrapper;
@@ -153,7 +153,7 @@ public final class EditSession
    * @param blipUi blip to edit
    */
   public void startEditing(BlipView blipUi) {
-    Preconditions.checkArgument(blipUi != null);
+    Preconditions.checkArgument(blipUi != null, "blipUi != null");
     endSession();
     startNewSession(blipUi);
   }

@@ -26,7 +26,6 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpan;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpanWith;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
@@ -109,13 +108,11 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   private final boolean isPublic;
   private final boolean isDm;
   private final WaveLockState lockState;
-  @VisibleForTesting
   ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis,
       boolean isPublic, boolean isDm) {
     this(css, id, participantUis, isPublic, isDm, WaveLockState.UNLOCKED);
   }
 
-  @VisibleForTesting
   ParticipantsViewBuilder(Css css, String id, HtmlClosureCollection participantUis,
       boolean isPublic, boolean isDm, WaveLockState lockState) {
     this.css = css;

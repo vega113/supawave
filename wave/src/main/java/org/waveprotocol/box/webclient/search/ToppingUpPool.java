@@ -19,7 +19,6 @@
 
 package org.waveprotocol.box.webclient.search;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.scheduler.Scheduler.IncrementalTask;
 import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
@@ -58,7 +57,6 @@ public final class ToppingUpPool<T> implements Pool<T>, IncrementalTask {
   /** Number of items created. */
   private int created;
 
-  @VisibleForTesting
   ToppingUpPool(TimerService timer, Factory<? extends T> factory, int minimumFreeCount) {
     this.timer = timer;
     this.factory = factory;

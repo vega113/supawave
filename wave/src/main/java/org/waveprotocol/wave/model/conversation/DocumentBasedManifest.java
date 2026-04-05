@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.conversation;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.adt.ObservableStructuredValue;
 import org.waveprotocol.wave.model.adt.docbased.DocumentBasedStructuredValue;
@@ -158,7 +157,6 @@ public final class DocumentBasedManifest implements ObservableManifest {
    * @param doc the document on which to base the manifest
    * @precondition {@code !documentHasManifest(doc)}
    */
-  @VisibleForTesting
   public static <E> DocumentBasedManifest createNew(
       ObservableMutableDocument<? super E, E, ?> doc) {
     // If the precondition holds then the document must be empty.

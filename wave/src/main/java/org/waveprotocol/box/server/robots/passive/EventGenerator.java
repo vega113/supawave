@@ -23,9 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.wave.api.BlipData;
 import com.google.wave.api.Context;
-import com.google.wave.api.Gadget;
 import com.google.wave.api.data.converter.ContextResolver;
 import com.google.wave.api.data.converter.EventDataConverter;
 import com.google.wave.api.event.*;
@@ -44,7 +42,6 @@ import org.waveprotocol.wave.model.document.indexed.DocumentEvent;
 import org.waveprotocol.wave.model.document.indexed.DocumentEvent.AnnotationChanged;
 import org.waveprotocol.wave.model.document.indexed.DocumentEvent.AttributesModified;
 import org.waveprotocol.wave.model.document.indexed.DocumentEvent.ContentInserted;
-import org.waveprotocol.wave.model.document.raw.impl.Node;
 import org.waveprotocol.wave.model.operation.OperationException;
 import org.waveprotocol.wave.model.operation.SilentOperationSink;
 import org.waveprotocol.wave.model.operation.wave.BasicWaveletOperationContextFactory;
@@ -56,7 +53,6 @@ import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.model.wave.opbased.WaveletListenerImpl;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -74,7 +70,6 @@ import java.util.Set;
  * <li>DocumentChanged (DONE)</li>
  * <li>AnnotatedTextChanged (DONE)</li>
  * <li>FormButtonClicked (TBD)</li>
- * <li>GadgetStateChanged (DONE)</li>
  * <li>BlipContributorChanged (TBD)</li>
  * <li>WaveletTagsChanged (TBD)</li>
  * <li>WaveletTitleChanged (TBD)</li>
@@ -276,60 +271,6 @@ public class EventGenerator {
             addEvent(apiEvent, capabilities, blip.getId(), messages);
           }
         } else {
-          // used to distinguish between attribute changes and gadget state
-          // changes
-          Boolean gadgetStateChangeEvent = false;
-          if (eventComponent.getType() == DocumentEvent.Type.ATTRIBUTES) {
-            if (capabilities.containsKey(EventType.GADGET_STATE_CHANGED)) {
-              Map<String, String> oldState = new HashMap<>();
-              Integer index = -1;
-              try {
-                AttributesModified<N, E, T> attributesModified =
-                    (AttributesModified<N, E, T>) eventComponent;
-                // When a gadget state changes, the AttributesModifies event has
-                // always
-                // an oldValue map of the form {"value", something} (key is
-                // always value).
-                // To obtain the key of the changed state, the attribute "name"
-                // has to be obtained
-                // from the Element of the AttributesModified event.
-                String name =
-                    ((org.waveprotocol.wave.model.document.raw.impl.Element) attributesModified
-                        .getElement()).getAttribute("name");
-                String oldValue = attributesModified.getOldValues().get("value");
-                if (name != null || oldValue != null) {
-                  oldState.put(name, oldValue);
-                }
-                BlipData b = converter.toBlipData(blip, wavelet, messages);
-                Map<Integer, com.google.wave.api.Element> elements = b.getElements();
-                Set<Integer> keys = elements.keySet();
-                // The gadget element provided by the eventComponent
-                org.waveprotocol.wave.model.document.raw.impl.Element rawGadget =
-                    ((Node) attributesModified.getElement()).getParentElement();
-                for (Integer key : keys) {
-                  try {
-                    Gadget gadget = (Gadget) elements.get(key);
-                    if (sameGadgets(rawGadget, gadget)) {
-                      index = key;
-                      break;
-                    }
-                  } catch (ClassCastException e) {
-                    // if it is not a gadget we do not compare them
-                  }
-                }
-              } catch (ClassCastException e) {
-                e.printStackTrace();
-              }
-              if (oldState.size() != 0 && index != -1) {
-                // if the attribute changed belongs to a gadget
-                gadgetStateChangeEvent = true;
-                final GadgetStateChangedEvent gadgetEvent =
-                    new GadgetStateChangedEvent(null, messages, deltaAuthor.getAddress(),
-                        deltaTimestamp, blip.getId(), index, oldState);
-                addEvent(gadgetEvent, capabilities, blip.getId(), messages);
-              }
-            }
-          }
           if (capabilities.containsKey(EventType.FORM_BUTTON_CLICKED)) {
             if (eventComponent.getType() == DocumentEvent.Type.CONTENT_INSERTED) {
               ContentInserted<N, E, T> contentInserted = (ContentInserted<N, E, T>) eventComponent;
@@ -365,7 +306,7 @@ public class EventGenerator {
             }
           }
           if (capabilities.containsKey(EventType.DOCUMENT_CHANGED)
-              && !documentChangedEventGenerated && !gadgetStateChangeEvent) {
+              && !documentChangedEventGenerated) {
             DocumentChangedEvent apiEvent =
                 new DocumentChangedEvent(null, null, deltaAuthor.getAddress(), deltaTimestamp,
                     blip.getId());
@@ -390,21 +331,6 @@ public class EventGenerator {
       Preconditions.checkNotNull(timestamp, "Timestamp should not be null");
       this.deltaAuthor = author;
       this.deltaTimestamp = timestamp;
-    }
-
-    /**
-     * Check if an {@link org.waveprotocol.wave.model.document.raw.impl.Element}
-     * is and a {@link Gadget}
-     *
-     * @param rawElement
-     * @param element
-     * @return
-     */
-    private boolean sameGadgets(org.waveprotocol.wave.model.document.raw.impl.Element rawElement,
-        Gadget element) {
-      String ifr1 = rawElement.getAttribute("ifr");
-      String ifr2 = element.getProperty("ifr");
-      return (ifr1 != null && ifr1.equals(ifr2));
     }
 
     private boolean isFormValueAttributeFormElement(String tagName) {

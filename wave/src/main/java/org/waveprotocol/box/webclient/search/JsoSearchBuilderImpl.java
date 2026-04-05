@@ -19,7 +19,7 @@
 
 package org.waveprotocol.box.webclient.search;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
@@ -92,8 +92,7 @@ public final class JsoSearchBuilderImpl implements SearchBuilder {
 
   @Override
   public Request search(final Callback callback) {
-    Preconditions.checkArgument(searchRequest != null,
-        "call SearchBuilder.newSearch method to construct a new query");
+    Preconditions.checkArgument(searchRequest != null, "call SearchBuilder.newSearch method to construct a new query");
     Preconditions.checkArgument(searchRequest.getQuery() != null, "new query should be set");
 
     String url = getUrl(searchRequest);

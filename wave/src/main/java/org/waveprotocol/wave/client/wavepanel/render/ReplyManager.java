@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.render;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.wavepanel.render.InlineAnchorLiveRenderer.ReplyDoodad;
 import org.waveprotocol.wave.client.wavepanel.view.AnchorView;

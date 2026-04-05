@@ -19,8 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.focus;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.util.KeyCombo;
 import org.waveprotocol.wave.client.scroll.SmartScroller;
@@ -73,7 +72,6 @@ public final class FocusFramePresenter
   /**
    * Creates a focus-frame presenter.
    */
-  @VisibleForTesting
   FocusFramePresenter(
       FocusFrameView view, SmartScroller<? super BlipView> scroller, ViewTraverser traverser) {
     this.view = view;
@@ -102,8 +100,8 @@ public final class FocusFramePresenter
    * Puts the focus frame on a blip.
    */
   public void focus(BlipView blip) {
-    Preconditions.checkState(scroller != null);
-    Preconditions.checkArgument(blip != null);
+    Preconditions.checkState(scroller != null, "scroller != null");
+    Preconditions.checkArgument(blip != null, "blip != null");
     focus(blip, true);
   }
 
@@ -111,8 +109,8 @@ public final class FocusFramePresenter
    * Puts the focus frame on a blip, without forcing it into view.
    */
   public void focusWithoutScroll(BlipView blip) {
-    Preconditions.checkState(scroller != null);
-    Preconditions.checkArgument(blip != null);
+    Preconditions.checkState(scroller != null, "scroller != null");
+    Preconditions.checkArgument(blip != null, "blip != null");
     focus(blip, false);
   }
 
@@ -222,7 +220,7 @@ public final class FocusFramePresenter
    */
   public void focusNext() {
     // Real condition is that blip != null implies scroller != null.
-    Preconditions.checkState(blip == null || scroller != null);
+    Preconditions.checkState(blip == null || scroller != null, "blip == null || scroller != null");
     if (blip != null && order != null) {
       BlipView next = order.getNext(blip);
       if (next != null) {
@@ -240,7 +238,7 @@ public final class FocusFramePresenter
    */
   public void focusPrevious() {
     // Real condition is that blip != null implies scroller != null.
-    Preconditions.checkState(blip == null || scroller != null);
+    Preconditions.checkState(blip == null || scroller != null, "blip == null || scroller != null");
     if (blip != null && order != null) {
       BlipView next = order.getPrevious(blip);
       if (next != null) {

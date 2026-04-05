@@ -46,8 +46,8 @@
 
   <!-- Only build supported clients. -->
   <set-property name="user.agent" value="safari,gecko1_8"/>
-  <set-property name="mobile.user.agent" value="not_mobile" />
-  <set-property name="loglevel" value="none" />
+  <!-- TODO(j2cl): mobile.user.agent removed; UserAgentStaticProperties uses runtime detection. -->
+  <!-- TODO(j2cl): loglevel removed; LogLevel now uses runtime URL "ll" param. -->
 
   <extend-property name="locale" values="en,ru,sl,fr,es"/>
 </module>

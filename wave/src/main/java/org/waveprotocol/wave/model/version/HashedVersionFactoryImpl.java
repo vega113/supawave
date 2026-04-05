@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.version;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
 
@@ -34,7 +33,6 @@ public class HashedVersionFactoryImpl extends HashedVersionZeroFactoryImpl {
   /** The first N bits of a SHA-256 hash are stored in the hash must be <= 256 */
   private static final int HASH_SIZE_BITS = 160;
 
-  @VisibleForTesting
   // Allow override for unit testing.
   static int hashSizeBits = HASH_SIZE_BITS;
 

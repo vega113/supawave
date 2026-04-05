@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.dom;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 
@@ -71,7 +71,7 @@ public final class DomViewHelper {
   }
 
   public static Element getBefore(Element container, Element ref) {
-    Preconditions.checkArgument(ref == null || ref.getParentElement().equals(container));
+    Preconditions.checkArgument(ref == null || ref.getParentElement().equals(container), "ref == null || ref.getParentElement().equals(container)");
     if (ref == null) {
       return getLastChildElement(container);
     } else {
@@ -80,7 +80,7 @@ public final class DomViewHelper {
   }
 
   public static Element getAfter(Element container, Element ref) {
-    Preconditions.checkArgument(ref == null || ref.getParentElement().equals(container));
+    Preconditions.checkArgument(ref == null || ref.getParentElement().equals(container), "ref == null || ref.getParentElement().equals(container)");
     if (ref == null) {
       return container.getFirstChildElement();
     } else {
@@ -89,8 +89,8 @@ public final class DomViewHelper {
   }
 
   public static void attachAfter(Element container, Element ref, Element target) {
-    Preconditions.checkArgument(ref == null || ref.getParentElement().equals(container));
-    Preconditions.checkArgument(target.getParentElement() == null);
+    Preconditions.checkArgument(ref == null || ref.getParentElement().equals(container), "ref == null || ref.getParentElement().equals(container)");
+    Preconditions.checkArgument(target.getParentElement() == null, "target.getParentElement() == null");
     if (ref == null) {
       container.insertFirst(target);
     } else {
@@ -99,8 +99,8 @@ public final class DomViewHelper {
   }
 
   public static void attachBefore(Element container, Element ref, Element target) {
-    Preconditions.checkArgument(ref == null || ref.getParentElement().equals(container));
-    Preconditions.checkArgument(target.getParentElement() == null);
+    Preconditions.checkArgument(ref == null || ref.getParentElement().equals(container), "ref == null || ref.getParentElement().equals(container)");
+    Preconditions.checkArgument(target.getParentElement() == null, "target.getParentElement() == null");
     if (ref == null) {
       container.appendChild(target);
     } else {
@@ -109,7 +109,7 @@ public final class DomViewHelper {
   }
 
   public static void detach(Element container, Element target) {
-    Preconditions.checkArgument(target != null && target.getParentElement().equals(container));
+    Preconditions.checkArgument(target != null && target.getParentElement().equals(container), "target != null && target.getParentElement().equals(container)");
     target.removeFromParent();
   }
 

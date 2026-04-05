@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.paging;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.util.LinkedSequence;
 import org.waveprotocol.wave.client.common.util.MathUtil;

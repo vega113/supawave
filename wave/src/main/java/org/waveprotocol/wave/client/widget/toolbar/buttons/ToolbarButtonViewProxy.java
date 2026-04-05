@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.widget.toolbar.buttons;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.user.client.ui.Widget;
 import org.waveprotocol.wave.model.util.CollectionUtils;

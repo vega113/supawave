@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor;
 
-import com.google.common.annotations.VisibleForTesting;
 
 import org.waveprotocol.wave.client.editor.content.paragraph.LineRendering;
 import org.waveprotocol.wave.client.editor.extract.Repairer;
@@ -31,7 +30,6 @@ import org.waveprotocol.wave.model.document.util.LineContainers;
  *
  * @author patcoleman@google.com (Pat Coleman)
  */
-@VisibleForTesting
 public class EditorTestingUtil {
   /** Util class, private constructor. */
   private EditorTestingUtil() {}

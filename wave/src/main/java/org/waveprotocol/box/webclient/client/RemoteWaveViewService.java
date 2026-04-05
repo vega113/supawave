@@ -19,8 +19,7 @@
 
 package org.waveprotocol.box.webclient.client;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.box.common.comms.DocumentSnapshot;
 import org.waveprotocol.box.common.comms.ProtocolSubmitResponse;
@@ -260,7 +259,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
         return serialize(HASHER.createVersionZero(wavelet));
       } else {
         ProtocolHashedVersion current = versions.get(wavelet);
-        Preconditions.checkNotNull(current);
+        Preconditions.checkNotNull(current, "current");
         double prevVersion = current.getVersion();
         double deltaVersion = delta.getTargetVersion().getVersion();
         if (deltaVersion != prevVersion) {
@@ -384,7 +383,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
 
   @Override
   public void viewClose(final WaveId waveId, final String channelId, final CloseCallback callback) {
-    Preconditions.checkArgument(this.waveId.equals(waveId));
+    Preconditions.checkArgument(this.waveId.equals(waveId), "this.waveId.equals(waveId)");
     LOG.info("closing channel " + waveId);
     stopOpenContext();
     disconnectTracker.onStreamClosed();
@@ -470,7 +469,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
   /** @return the target wavelet of an update. */
   private WaveletName getTarget(ProtocolWaveletUpdate update) {
     WaveletName name = deserialize(update.getWaveletName());
-    Preconditions.checkState(name.waveId.equals(waveId));
+    Preconditions.checkState(name.waveId.equals(waveId), "name.waveId.equals(waveId)");
     return name;
   }
 
@@ -567,7 +566,7 @@ public final class RemoteWaveViewService implements WaveViewService, WaveWebSock
             .getDocumentOperation()));
     String docId = docSnapshot.getDocumentId();
     ParticipantId author = ParticipantId.ofUnsafe(docSnapshot.getAuthor());
-    List<ParticipantId> contributors = Lists.newArrayList();
+    List<ParticipantId> contributors = new ArrayList<>();
     for (String contributor : docSnapshot.getContributor()) {
       contributors.add(ParticipantId.ofUnsafe(contributor));
     }

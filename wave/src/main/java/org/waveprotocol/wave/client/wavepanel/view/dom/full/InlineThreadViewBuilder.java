@@ -22,8 +22,7 @@ package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.common.util.UserAgent;
@@ -60,8 +59,7 @@ public final class InlineThreadViewBuilder implements IntrinsicInlineThreadView,
       return new InlineThreadStructure(blips, continuationIndicator);
     }
 
-    @VisibleForTesting
-    InlineThreadStructure(HtmlClosure blips, UiBuilder continnuationIndicator) {
+      InlineThreadStructure(HtmlClosure blips, UiBuilder continnuationIndicator) {
       this.blips = blips;
       this.continuationIndicator = continnuationIndicator;
     }
@@ -114,7 +112,7 @@ public final class InlineThreadViewBuilder implements IntrinsicInlineThreadView,
       UiBuilder continuationIndicator, int depth, boolean legacyDeep) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
-    Preconditions.checkArgument(!id.contains("\'"));
+    Preconditions.checkArgument(!id.contains("\'"), "!id.contains(\"\\'\")");
     InlineThreadStructure structure = InlineThreadStructure.create(blips, continuationIndicator);
     CollapsibleBuilder collapsible =
         CollapsibleBuilder.create(id, TypeCodes.kind(Type.INLINE_THREAD), structure);
@@ -127,7 +125,6 @@ public final class InlineThreadViewBuilder implements IntrinsicInlineThreadView,
     return new InlineThreadViewBuilder(id, collapsible);
   }
 
-  @VisibleForTesting
   InlineThreadViewBuilder(String id, CollapsibleBuilder impl) {
     this.id = id;
     this.impl = impl;

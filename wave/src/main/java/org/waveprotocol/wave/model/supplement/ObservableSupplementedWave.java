@@ -110,12 +110,6 @@ public interface ObservableSupplementedWave extends SupplementedWave,
      */
     void onWantedEvaluationsChanged(WaveletId waveletId);
 
-    /**
-     * Notifies this listener that the gadget state may have changed.
-     *
-     * @param gadgetId changed gadget
-     */
-    void onMaybeGadgetStateChanged(String gadgetId);
   }
 
   /**
@@ -160,10 +154,6 @@ public interface ObservableSupplementedWave extends SupplementedWave,
 
     @Override
     public void onWantedEvaluationsChanged(WaveletId waveletId) {
-    }
-
-    @Override
-    public void onMaybeGadgetStateChanged(String gadgetId) {
     }
   }
 }

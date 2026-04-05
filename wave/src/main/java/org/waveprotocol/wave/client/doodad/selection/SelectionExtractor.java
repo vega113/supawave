@@ -19,8 +19,7 @@
 
 package org.waveprotocol.wave.client.doodad.selection;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.editor.EditorContext;
 import org.waveprotocol.wave.client.editor.EditorUpdateEvent;
@@ -99,7 +98,6 @@ public class SelectionExtractor implements EditorUpdateListener {
     writeSelection(document, selection, compositionState, currentTimeMillis);
   }
 
-  @VisibleForTesting
   void writeSelection(MutableAnnotationSet.Persistent document, FocusedRange selection,
       String compositionState, double currentTimeMillis) {
     // TODO(danilatos): Use focus and not end

@@ -20,7 +20,6 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.edit;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.dom.client.Element;
 
 import org.waveprotocol.wave.client.editor.HtmlSelectionHelperImpl;
@@ -92,7 +91,6 @@ public final class DocumentUtil {
     return DocumentUtil.getLocationNearSelection(document, view, selectionPoints);
   }
 
-  @VisibleForTesting
   static <N, E extends N, T extends N> int getLocationNearSelection(
       MutableDocument<N, E, T> document, ReadableDocumentView<N, E, T> view,
       PointRange<N> selectionPoints) {

@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.wave;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.editor.content.ContentDocument;
 import org.waveprotocol.wave.client.editor.content.DiffHighlightingFilter;
@@ -58,7 +58,7 @@ public final class DiffContentDocument implements DiffSink {
 
   @Override
   public void consume(DocOp op) {
-    Preconditions.checkState(!hasDiffs);
+    Preconditions.checkState(!hasDiffs, "!hasDiffs");
     document.consume(op);
   }
 

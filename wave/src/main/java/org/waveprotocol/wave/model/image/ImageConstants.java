@@ -39,9 +39,6 @@ public final class ImageConstants {
   /** Caption element tag. */
   public static final String CAPTION_TAGNAME = "caption";
 
-  /** Gadget element tag. */
-  public static final String GADGET_TAGNAME = "gadget";
-
   /** Full style attribute value */
   public static final String STYLE_FULL_VALUE = "full";
 

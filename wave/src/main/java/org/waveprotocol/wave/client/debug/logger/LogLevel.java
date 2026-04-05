@@ -26,19 +26,17 @@ import com.google.gwt.core.client.GWT;
  *
  * <pre>NONE < ERROR < DEBUG</pre>
  *
- * Deferred-binding property "loglevel" determines at which level the system
- * is logging, allowing for unused code to be compiled out in production.
+ * The log level is determined at runtime by reading the {@code ll} URL query parameter
+ * (values: {@code none}, {@code error}, {@code debug}).  If absent the level defaults to
+ * {@code none}, preserving the previous production behaviour.
  *
- * e.g. anything logged at level DEBUG will only be logged when the
- *      "loglevel" deferred-binding property is set to "debug".
- *      If "loglevel" is "none", nothing should be logged.
- *
+ * <p>TODO(j2cl): deferred binding removed. Previously a "loglevel" GWT property and
+ * replace-with rules selected NoneImpl/ErrorImpl/DebugImpl at compile time. That mechanism is
+ * incompatible with J2CL.  The runtime URL-parameter approach below is equivalent for
+ * development use and has no overhead in production (the default is "none").
  */
-// TODO(user): Consider rather using the GWT logging API throughout:
-//     http://code.google.com/p/google-web-toolkit-incubator/wiki/Logging
 public abstract class LogLevel {
-  private static final LogLevel INSTANCE = GWT.isClient()
-      ? GWT.<LogLevel>create(LogLevel.class) : new ErrorImpl();
+  private static final LogLevel INSTANCE = createInstance();
 
   // NOTE(user): LogLevel must *not* have a clinit method (i.e. any static
   //               initialisation code), otherwise each inlining of shouldX()
@@ -49,6 +47,41 @@ public abstract class LogLevel {
   //               Hence the comparisons against the enum values do not get
   //               inlined (which is an essential goal of the "#ifdef" style
   //               methods below).
+
+  private static LogLevel createInstance() {
+    if (!GWT.isClient()) {
+      return new ErrorImpl();
+    }
+    String logLevel = readLogLevelFromUrl();
+    if ("debug".equals(logLevel)) {
+      return new DebugImpl();
+    } else if ("error".equals(logLevel)) {
+      return new ErrorImpl();
+    } else {
+      return new NoneImpl();
+    }
+  }
+
+  /**
+   * Reads the "ll" query parameter from the current page URL and returns its
+   * lower-case value, or {@code "none"} if absent.
+   */
+  private static native String readLogLevelFromUrl() /*-{
+    var args = $wnd.location.search;
+    var idx = args.indexOf("ll=");
+    // Advance past any match that is a substring of another parameter name
+    // (e.g. "spell=debug" must not trigger the "ll=" match).
+    while (idx > 0 && args.charAt(idx - 1) !== '?' && args.charAt(idx - 1) !== '&') {
+      idx = args.indexOf("ll=", idx + 1);
+    }
+    if (idx >= 0) {
+      var val = args.substring(idx + 3);
+      var end = val.indexOf("&");
+      if (end !== -1) { val = val.substring(0, end); }
+      return val.toLowerCase();
+    }
+    return "none";
+  }-*/;
 
   /**
    * Should an entry with level ERROR be logged?
@@ -69,27 +102,27 @@ public abstract class LogLevel {
   protected abstract boolean showDebugInstance();
 
   /**
-   * Deferred-binding replacement for LogLevel used for production.
+   * Log level used for production (no logging).
    */
-  @SuppressWarnings("unused")  // NOTE(user): Created via deferred binding
+  @SuppressWarnings("unused")
   private static class NoneImpl extends LogLevel {
     @Override protected boolean showErrorsInstance() { return false; }
     @Override protected boolean showDebugInstance()  { return false; }
   }
 
   /**
-   * Deferred-binding replacement for LogLevel used for logging errors.
+   * Log level used for logging errors only.
    */
-  @SuppressWarnings("unused")  // NOTE(user): Created via deferred binding
+  @SuppressWarnings("unused")
   private static class ErrorImpl extends LogLevel {
     @Override protected boolean showErrorsInstance() { return true; }
     @Override protected boolean showDebugInstance()  { return false; }
   }
 
   /**
-   * Deferred-binding replacement for LogLevel used for debugging errors.
+   * Log level used for full debug logging.
    */
-  @SuppressWarnings("unused")  // NOTE(user): Created via deferred binding
+  @SuppressWarnings("unused")
   private static class DebugImpl extends LogLevel {
     @Override protected boolean showErrorsInstance() { return true; }
     @Override protected boolean showDebugInstance()  { return true; }

@@ -20,7 +20,7 @@
 
 package org.waveprotocol.wave.client.scroll;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.wavepanel.WavePanel;
 import org.waveprotocol.wave.client.wavepanel.WavePanel.LifecycleListener;

@@ -643,8 +643,7 @@ public class TypingExtractor {
    */
   public void somethingHappened(Point<Node> previousSelectionStart)
       throws HtmlMissing, HtmlInserted {
-    Preconditions.checkNotNull(previousSelectionStart,
-        "Typing extractor notified with null selection");
+    Preconditions.checkNotNull(previousSelectionStart, "Typing extractor notified with null selection");
     Text node = previousSelectionStart.isInTextNode()
       ? previousSelectionStart.getContainer().<Text>cast()
       : null;
@@ -673,13 +672,11 @@ public class TypingExtractor {
       t = getFreshTypingState();
       if (node != null) {
         // check the selection is in a text point, and start the sequence
-        Preconditions.checkNotNull(previousSelectionStart.asTextPoint(),
-            "previousSelectionStart must be a text point");
+        Preconditions.checkNotNull(previousSelectionStart.asTextPoint(), "previousSelectionStart must be a text point");
         t.startTypingSequence(previousSelectionStart.asTextPoint());
       } else {
         // otherwise make sure we're not in a text point, and start the sequence
-        Preconditions.checkState(!previousSelectionStart.isInTextNode(),
-            "previousSelectionStart must not be a text point");
+        Preconditions.checkState(!previousSelectionStart.isInTextNode(), "previousSelectionStart must not be a text point");
         t.startTypingSequence(previousSelectionStart.asElementPoint());
       }
     } else {

@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.model.document;
 
-import org.waveprotocol.wave.client.state.BlipReadStateMonitor;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.supplement.ObservableSupplementedWave;
 import org.waveprotocol.wave.model.wave.opbased.ObservableWaveView;

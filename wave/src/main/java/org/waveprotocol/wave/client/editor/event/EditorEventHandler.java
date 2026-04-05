@@ -19,7 +19,6 @@
 
 package org.waveprotocol.wave.client.editor.event;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Node;
 import com.google.gwt.dom.client.Text;
@@ -712,7 +711,6 @@ public final class EditorEventHandler {
    * @param isMac
    * @param quirksHasOldSchoolClipboardShortcuts
    */
-  @VisibleForTesting
   static boolean isAcceleratorInner(SignalEvent event, boolean isMac,
       boolean quirksHasOldSchoolClipboardShortcuts) {
     switch (event.getKeySignalType()) {

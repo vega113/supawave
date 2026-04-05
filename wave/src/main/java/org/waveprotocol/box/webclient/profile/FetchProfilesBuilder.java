@@ -19,8 +19,7 @@
 
 package org.waveprotocol.box.webclient.profile;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
@@ -79,12 +78,12 @@ public final class FetchProfilesBuilder {
   }
 
   public void fetchProfiles(final Callback callback) {
-    Preconditions.checkState(profileRequest != null);
-    Preconditions.checkState(profileRequest.getAddresses() != null);
+    Preconditions.checkState(profileRequest != null, "profileRequest != null");
+    Preconditions.checkState(profileRequest.getAddresses() != null, "profileRequest.getAddresses() != null");
 
     String url = getUrl(profileRequest);
     LOG.trace().log(
-        "Fetching profiles for: [" + Joiner.on(",").join(profileRequest.getAddresses()) + "]");
+        "Fetching profiles for: [" + String.join(",", profileRequest.getAddresses()) + "]");
 
     RequestBuilder requestBuilder = new RequestBuilder(RequestBuilder.GET, url);
     requestBuilder.setCallback(new RequestCallback() {
@@ -121,12 +120,12 @@ public final class FetchProfilesBuilder {
   }
 
   private static String getUrl(ProfileRequest profileRequest) {
-    String params = "?addresses=" + Joiner.on(",").join(profileRequest.getAddresses());
+    String params = "?addresses=" + String.join(",", profileRequest.getAddresses());
     return SEARCH_URL_BASE + "/" + URL.encode(params);
   }
 
   @Override
   public String toString() {
-    return "[Fetch profiles: " + Joiner.on(",").join(profileRequest.getAddresses()) + "]";
+    return "[Fetch profiles: " + String.join(",", profileRequest.getAddresses()) + "]";
   }
 }

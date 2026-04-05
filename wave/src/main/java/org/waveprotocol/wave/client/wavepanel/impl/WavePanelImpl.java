@@ -19,7 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl;
 
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Element;
 
 import org.waveprotocol.wave.client.common.util.KeyCombo;
@@ -77,7 +77,7 @@ public final class WavePanelImpl implements WavePanel, Focusable {
    */
   public static WavePanelImpl create(
       DomAsViewProvider views, Element panelDom, LogicalPanel container) {
-    Preconditions.checkArgument(panelDom != null);
+    Preconditions.checkArgument(panelDom != null, "panelDom != null");
     EventDispatcherPanel events =
         (container != null) ? EventDispatcherPanel.inGwtContext(panelDom, container)
             : EventDispatcherPanel.of(panelDom);
@@ -125,7 +125,7 @@ public final class WavePanelImpl implements WavePanel, Focusable {
 
   @Override
   public TopConversationView getContents() {
-    Preconditions.checkState(main != null);
+    Preconditions.checkState(main != null, "main != null");
     return main;
   }
 
@@ -151,7 +151,7 @@ public final class WavePanelImpl implements WavePanel, Focusable {
   //
 
   public void init(Element main) {
-    Preconditions.checkState(!initialized);
+    Preconditions.checkState(!initialized, "!initialized");
 
     boolean fireEvent;  // true if onInit should be fired before exiting.
     if (main != null) {
@@ -171,7 +171,7 @@ public final class WavePanelImpl implements WavePanel, Focusable {
   }
 
   public void reset() {
-    Preconditions.checkState(initialized);
+    Preconditions.checkState(initialized, "initialized");
 
     boolean fireEvent;  // true if onInit should be fired before exiting.
     initialized = false;

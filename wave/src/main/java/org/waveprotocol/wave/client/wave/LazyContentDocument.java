@@ -20,8 +20,7 @@
 
 package org.waveprotocol.wave.client.wave;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 
 import org.waveprotocol.wave.client.common.util.LogicalPanel;
 import org.waveprotocol.wave.client.editor.content.AnnotationPainter;
@@ -64,7 +63,6 @@ public final class LazyContentDocument extends MutableDocumentProxy<Doc.N, Doc.E
    */
   private boolean isCompleteDiff;
 
-  @VisibleForTesting
   LazyContentDocument(Registries base, SimpleDiffDoc initial, boolean isCompleteDiff) {
     this.base = base;
     this.spec = initial;
@@ -173,7 +171,7 @@ public final class LazyContentDocument extends MutableDocumentProxy<Doc.N, Doc.E
 
   @Override
   public void stopRendering() {
-    Preconditions.checkState(isLoaded());
+    Preconditions.checkState(isLoaded(), "isLoaded()");
     document.getDocument().setShelved();
   }
 

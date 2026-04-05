@@ -244,7 +244,6 @@ libraryDependencies ++= Seq(
 
   // --- Guava & Guice ---
   "com.google.guava"               % "guava"                      % GuavaV,
-  // guava-gwt excluded: only needed for GWT client compilation, causes errors with Guava 32.x
   "com.google.inject"              % "guice"                      % GuiceV,
   "com.google.inject.extensions"   % "guice-servlet"              % GuiceV,
   "com.google.inject.extensions"   % "guice-assistedinject"       % GuiceV,
@@ -1147,8 +1146,7 @@ lazy val GwtVersion = "2.10.0"
 libraryDependencies ++= Seq(
   "org.gwtproject" % "gwt-dev"        % GwtVersion % Gwt,
   "org.gwtproject" % "gwt-user"       % GwtVersion % Gwt,
-  "org.gwtproject" % "gwt-codeserver" % GwtVersion % Gwt,
-  "com.google.guava" % "guava-gwt"    % "20.0"     % Gwt
+  "org.gwtproject" % "gwt-codeserver" % GwtVersion % Gwt
 )
 
 // Setting to control whether compileGwt is wired into stage/package tasks.
@@ -1233,7 +1231,7 @@ ThisBuild / compileGwt := {
         base / "gen" / "flags"
       ).filter(_.exists)
 
-      // Resolve the isolated Gwt configuration (gwt-dev, gwt-user, gwt-codeserver, guava-gwt)
+      // Resolve the isolated Gwt configuration (gwt-dev, gwt-user, gwt-codeserver)
       val gwtJars = resolved.select(configurationFilter(Gwt.name))
 
       // Full classpath: source dirs (first, for GWT source lookup) + GWT jars + compile classpath

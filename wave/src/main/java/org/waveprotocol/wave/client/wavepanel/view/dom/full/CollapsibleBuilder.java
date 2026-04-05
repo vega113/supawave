@@ -28,8 +28,7 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpan;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpanWith;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.resources.client.ImageResource;
@@ -170,12 +169,11 @@ public final class CollapsibleBuilder implements UiBuilder {
   public static CollapsibleBuilder create(String id, String kind, HtmlClosure contents) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
-    Preconditions.checkArgument(!id.contains("\'"));
+    Preconditions.checkArgument(!id.contains("\'"), "!id.contains(\"\\'\")");
     return new CollapsibleBuilder(
         id, nonNull(contents), WavePanelResourceLoader.getCollapsible().css(), kind);
   }
 
-  @VisibleForTesting
   CollapsibleBuilder(String id, HtmlClosure content, Css css, String kind) {
     this.id = id;
     this.content = content;

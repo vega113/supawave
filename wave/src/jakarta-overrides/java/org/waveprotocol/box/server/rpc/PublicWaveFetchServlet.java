@@ -27,7 +27,7 @@ import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.rpc.ProtoSerializer.SerializationException;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
-import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
@@ -72,20 +72,20 @@ public final class PublicWaveFetchServlet extends HttpServlet {
 
   private final WaveletProvider waveletProvider;
   private final ProtoSerializer serializer;
-  private final PublicWaveViewTracker publicWaveViewTracker;
   private final ParticipantId sharedDomainParticipantId;
+  private final AnalyticsRecorder analyticsRecorder;
 
   @Inject
   public PublicWaveFetchServlet(
       WaveletProvider waveletProvider,
       ProtoSerializer serializer,
       @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String waveDomain,
-      PublicWaveViewTracker publicWaveViewTracker) {
+      AnalyticsRecorder analyticsRecorder) {
     this.waveletProvider = waveletProvider;
     this.serializer = serializer;
-    this.publicWaveViewTracker = publicWaveViewTracker;
     this.sharedDomainParticipantId =
         ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(waveDomain);
+    this.analyticsRecorder = analyticsRecorder;
   }
 
   @Override
@@ -171,15 +171,13 @@ public final class PublicWaveFetchServlet extends HttpServlet {
           break;
         }
       }
-      if (serializeObjectToResponse(docSnapshot, dest)) {
-        publicWaveViewTracker.recordApiView(waveref.getWaveId());
-      }
+      recordApiView();
+      serializeObjectToResponse(docSnapshot, dest);
     } else if (waveref.hasWaveletId()) {
       // Return the wavelet snapshot
-      if (serializeObjectToResponse(
-          SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()), dest)) {
-        publicWaveViewTracker.recordApiView(waveref.getWaveId());
-      }
+      recordApiView();
+      serializeObjectToResponse(
+          SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()), dest);
     } else {
       // Return the full wave view (just conv+root for now)
       WaveViewSnapshot waveSnapshot = WaveViewSnapshot.newBuilder()
@@ -187,17 +185,19 @@ public final class PublicWaveFetchServlet extends HttpServlet {
           .addWavelet(
               SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()))
           .build();
-      if (serializeObjectToResponse(waveSnapshot, dest)) {
-        publicWaveViewTracker.recordApiView(waveref.getWaveId());
-      }
+      recordApiView();
+      serializeObjectToResponse(waveSnapshot, dest);
     }
   }
 
-  private <P extends Message> boolean serializeObjectToResponse(P message, HttpServletResponse dest)
+  private void recordApiView() {
+    analyticsRecorder.incrementApiViews(System.currentTimeMillis());
+  }
+
+  private <P extends Message> void serializeObjectToResponse(P message, HttpServletResponse dest)
       throws IOException {
     if (message == null) {
       dest.sendError(HttpServletResponse.SC_NOT_FOUND);
-      return false;
     } else {
       dest.setStatus(HttpServletResponse.SC_OK);
       dest.setContentType("application/json");
@@ -210,11 +210,9 @@ public final class PublicWaveFetchServlet extends HttpServlet {
       try (var w = dest.getWriter()) {
         w.append(serializer.toJson(message).toString());
         w.flush();
-        return true;
       } catch (SerializationException ex) {
         LOG.warning("Failed to serialize public wave response", ex);
         dest.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        return false;
       }
     }
   }

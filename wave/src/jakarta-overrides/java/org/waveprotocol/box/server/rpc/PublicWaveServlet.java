@@ -34,7 +34,7 @@ import org.waveprotocol.box.common.Snippets;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.rpc.PublicWaveBlipRenderer.BlipInfo;
-import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -64,21 +64,21 @@ public final class PublicWaveServlet extends HttpServlet {
   private final String siteUrl;
   private final String waveDomain;
   private final WaveletProvider waveletProvider;
-  private final PublicWaveViewTracker publicWaveViewTracker;
   private final ParticipantId sharedDomainParticipant;
+  private final AnalyticsRecorder analyticsRecorder;
 
   @Inject
   public PublicWaveServlet(
       Config config,
       @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String waveDomain,
       WaveletProvider waveletProvider,
-      PublicWaveViewTracker publicWaveViewTracker) {
+      AnalyticsRecorder analyticsRecorder) {
     this.siteUrl = RobotsServlet.resolveSiteUrl(config);
     this.waveDomain = waveDomain;
     this.waveletProvider = waveletProvider;
-    this.publicWaveViewTracker = publicWaveViewTracker;
     this.sharedDomainParticipant =
         ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(waveDomain);
+    this.analyticsRecorder = analyticsRecorder;
   }
 
   @Override
@@ -163,8 +163,6 @@ public final class PublicWaveServlet extends HttpServlet {
     // Render full blip content with author and thread structure
     List<BlipInfo> blips = PublicWaveBlipRenderer.renderBlips(snapshot);
 
-    publicWaveViewTracker.recordPageView(waveId);
-
     // Render the page
     String html = HtmlRenderer.renderPublicWavePageWithBlips(
         title, description, canonicalUrl, siteUrl, waveIdStr,
@@ -177,6 +175,7 @@ public final class PublicWaveServlet extends HttpServlet {
     // cached content for up to 5 minutes.
     resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     resp.setHeader("Pragma", "no-cache");
+    analyticsRecorder.incrementPageViews(System.currentTimeMillis());
     resp.getWriter().write(html);
   }
 

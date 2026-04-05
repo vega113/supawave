@@ -267,6 +267,37 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
   }
 
   @Override
+  public RobotAccountData refreshCapabilities(ParticipantId robotId)
+      throws RobotRegistrationException, PersistenceException {
+    Preconditions.checkNotNull(robotId);
+    AccountData account = accountStore.getAccount(robotId);
+    if (account == null) {
+      return null;
+    }
+    throwExceptionIfNotRobot(account);
+    RobotAccountData robotAccount = account.asRobot();
+    long updatedAtMillis = Math.max(robotAccount.getUpdatedAtMillis() + 1L, clock.millis());
+    RobotAccountData updated = new RobotAccountDataImpl(
+        robotAccount.getId(),
+        robotAccount.getUrl(),
+        robotAccount.getConsumerSecret(),
+        null /* capabilities — null forces re-fetch on next event */,
+        robotAccount.isVerified(),
+        robotAccount.getTokenExpirySeconds(),
+        robotAccount.getOwnerAddress(),
+        robotAccount.getDescription(),
+        robotAccount.getCreatedAtMillis(),
+        updatedAtMillis,
+        robotAccount.isPaused(),
+        robotAccount.getTokenVersion());
+    accountStore.putAccount(updated);
+    for (Listener listener : listeners) {
+      listener.onRegistrationSuccess(updated);
+    }
+    return updated;
+  }
+
+  @Override
   public RobotAccountData markVerified(ParticipantId robotId, RobotCapabilities capabilities)
       throws RobotRegistrationException, PersistenceException {
     Preconditions.checkNotNull(robotId);

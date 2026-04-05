@@ -44,4 +44,7 @@ public interface SearchView {
 
   /** @return the text from the query input. */
   String getQuery();
+
+  /** Shows or hides mention search affordances in the search help panel. */
+  void setMentionsSearchVisible(boolean visible);
 }

@@ -90,6 +90,10 @@
              <td><code>content:text</code></td>
              <td>Waves containing text in any blip</td>
            </tr>
+           <tr ui:field='mentionsFilterRow'>
+             <td><code>mentions:me</code></td>
+             <td>Waves where you are @mentioned</td>
+           </tr>
            <tr>
              <td><em>free text</em></td>
              <td>Implicit <code>content:</code> search in wave content</td>
@@ -154,6 +158,7 @@
        <span ui:field='exCreatorArchive' class='{css.helpExample}'>creator:bob in:archive</span>
        <span ui:field='exTitle' class='{css.helpExample}'>title:meeting</span>
        <span ui:field='exContent' class='{css.helpExample}'>content:agenda</span>
+       <span ui:field='exMentions' class='{css.helpExample}'>mentions:me</span>
      </div>
    </div>
   </g:HTMLPanel>

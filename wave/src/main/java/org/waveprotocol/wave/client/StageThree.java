@@ -24,6 +24,7 @@ import com.google.gwt.core.client.GWT;
 import org.waveprotocol.wave.client.account.ContactManager;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.common.util.AsyncHolder;
+import org.waveprotocol.wave.client.doodad.mention.MentionTriggerHandler;
 import org.waveprotocol.wave.client.doodad.selection.SelectionExtractor;
 import org.waveprotocol.wave.client.editor.EditorStaticDeps;
 import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
@@ -55,6 +56,7 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.DraftModeController;
 import org.waveprotocol.wave.client.widget.popup.PopupChromeFactory;
 import org.waveprotocol.wave.client.widget.popup.PopupFactory;
+import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationView;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
@@ -167,7 +169,16 @@ public interface StageThree {
       String sessionId = stageTwo.getSessionId();
 
       SelectionExtractor selectionExtractor = new SelectionExtractor(clock, address, sessionId);
-      return EditSession.install(views, documents, selectionExtractor, focus, panel);
+
+      // Create the @mention autocomplete handler if a root conversation exists.
+      MentionTriggerHandler mentionHandler = null;
+      Conversation rootConversation = stageTwo.getConversations().getRoot();
+      if (rootConversation != null) {
+        mentionHandler = new MentionTriggerHandler(rootConversation);
+      }
+
+      return EditSession.install(views, documents, selectionExtractor, focus, panel,
+          mentionHandler);
     }
 
     protected EditToolbar createEditToolbar() {

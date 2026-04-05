@@ -28,6 +28,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -79,6 +80,10 @@ public class WaveClientServlet extends HttpServlet {
   private final boolean prerenderingEnabled;
   private final WavePreRenderer wavePreRenderer;
   private final FeatureFlagService featureFlagService;
+
+  static boolean supportsMentionSearch(Config config) {
+    return !"solr".equals(config.getString("core.search_type"));
+  }
 
   @Inject
   public WaveClientServlet(
@@ -416,7 +421,13 @@ public class WaveClientServlet extends HttpServlet {
           .put(SessionConstants.ROLE, userRole);
       // Add enabled feature flags for this user
       if (address != null) {
-        List<String> enabledFlags = featureFlagService.getEnabledFlagNames(address);
+        List<String> enabledFlags =
+            new ArrayList<>(featureFlagService.getEnabledFlagNames(address));
+        if (supportsMentionSearch(config)) {
+          if (!enabledFlags.contains("mentions-search")) {
+            enabledFlags.add("mentions-search");
+          }
+        }
         json.put("features", new JSONArray(enabledFlags));
       }
       return json;

@@ -114,7 +114,8 @@ public class AuthenticationServletTest extends TestCase {
         config);
 
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
-        manager, "examPLe.com", config, browserSessionJwtIssuer, authEmailService);
+        manager, "examPLe.com", config, browserSessionJwtIssuer, authEmailService,
+        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
     AccountStoreHolder.init(store, "eXaMple.com");
   }
 
@@ -221,7 +222,8 @@ public class AuthenticationServletTest extends TestCase {
         Clock.fixed(Instant.parse("2026-03-28T08:00:00Z"), ZoneOffset.UTC),
         config);
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
-        manager, "example.com", config, browserSessionJwtIssuer, authEmailService);
+        manager, "example.com", config, browserSessionJwtIssuer, authEmailService,
+        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
     when(emailTokenIssuer.issueEmailConfirmToken(USER)).thenReturn("confirm-token");
 
     PercentEscaper escaper = new PercentEscaper(PercentEscaper.SAFECHARS_URLENCODER, true);
@@ -276,7 +278,8 @@ public class AuthenticationServletTest extends TestCase {
         Clock.fixed(Instant.parse("2026-03-28T08:00:00Z"), ZoneOffset.UTC),
         config);
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
-        manager, "example.com", config, browserSessionJwtIssuer, authEmailService);
+        manager, "example.com", config, browserSessionJwtIssuer, authEmailService,
+        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
 
     PercentEscaper escaper = new PercentEscaper(PercentEscaper.SAFECHARS_URLENCODER, true);
     String data = "address=" + escaper.escape("frodo@example.com")

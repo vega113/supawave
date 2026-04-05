@@ -57,7 +57,8 @@ public class SessionManagerTest extends TestCase {
     account = new HumanAccountDataImpl(ParticipantId.ofUnsafe("tubes@example.com"));
     store.putAccount(account);
     config = ConfigFactory.parseMap(ImmutableMap.of("experimental.jetty12_session_lookup", false));
-    sessionManager = new SessionManagerImpl(store, jettySessionManager, config);
+    sessionManager = new SessionManagerImpl(store, jettySessionManager,
+        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
   }
 
   public void testSessionFetchesAddress() {

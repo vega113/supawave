@@ -67,7 +67,7 @@ public class Robot implements Runnable {
   // This is not final because it needs to be updated when the capabilities
   // change.
   // TODO(ljvderijk): Keep up to date with other updates to account?
-  private RobotAccountData account;
+  private volatile RobotAccountData account;
   private final RobotsGateway gateway;
   private final RobotConnector connector;
   private final EventDataConverterManager converterManager;
@@ -117,11 +117,35 @@ public class Robot implements Runnable {
    *
    * @param account the account to set.
    */
-  void setAccount(RobotAccountData account) {
+  synchronized void setAccount(RobotAccountData account) {
     Preconditions.checkArgument(robotName.toEmailAddress().equals(account.getId().getAddress()),
         String.format("The given RobotAccountData doesn't match the RobotName. %s != %s",
             account.getId(), robotName.toEmailAddress()));
     this.account = account;
+  }
+
+  /**
+   * Updates the account only if the incoming snapshot is strictly newer than
+   * the current in-memory account.
+   *
+   * <p>
+   * This prevents a stale account read on the WaveBus thread from overwriting a
+   * newer account that was fetched or refreshed on the robot executor thread.
+   * Equal timestamps are treated as stale to avoid redundant writes.
+   *
+   * @param account the account snapshot to apply.
+   * @return true if the account was applied, false if it was rejected as stale.
+   */
+  synchronized boolean updateAccountIfNewer(RobotAccountData account) {
+    Preconditions.checkArgument(robotName.toEmailAddress().equals(account.getId().getAddress()),
+        String.format("The given RobotAccountData doesn't match the RobotName. %s != %s",
+            account.getId(), robotName.toEmailAddress()));
+    if (this.account != null
+        && account.getUpdatedAtMillis() <= this.account.getUpdatedAtMillis()) {
+      return false;
+    }
+    this.account = account;
+    return true;
   }
 
   /**
@@ -241,10 +265,12 @@ public class Robot implements Runnable {
    * @param wavelet the {@link WaveletAndDeltas} to process.
    */
   private void process(WaveletAndDeltas wavelet) {
-    if (account.getCapabilities() == null) {
+    RobotAccountData currentAccount = account;
+    if (currentAccount.getCapabilities() == null) {
       try {
         LOG.info(robotName + ": Initializing capabilities");
         gateway.updateRobotAccount(this);
+        currentAccount = account;
       } catch (CapabilityFetchException e) {
         ReadableWaveletData snapshot = wavelet.getSnapshotAfterDeltas();
         LOG.info(
@@ -260,9 +286,18 @@ public class Robot implements Runnable {
                 + ") at version " + wavelet.getVersionAfterDeltas(), e);
         return;
       }
+      if (currentAccount.getCapabilities() == null) {
+        ReadableWaveletData snapshot = wavelet.getSnapshotAfterDeltas();
+        LOG.info(
+            "Couldn't initialize the capabilities of robot(" + robotName
+                + "), dropping its wavelet(" + WaveletDataUtil.waveletNameOf(snapshot)
+                + ") at version " + wavelet.getVersionAfterDeltas()
+                + " because the refreshed account still has no capabilities");
+        return;
+      }
     }
 
-    RobotCapabilities capabilities = account.getCapabilities();
+    RobotCapabilities capabilities = currentAccount.getCapabilities();
     EventMessageBundle messages =
         eventGenerator.generateEvents(wavelet, capabilities.getCapabilitiesMap(),
             converterManager.getEventDataConverter(capabilities.getProtocolVersion()));
@@ -279,6 +314,6 @@ public class Robot implements Runnable {
     LOG.info(robotName + ": received operations");
 
     operationApplicator.applyOperations(
-        response, wavelet.getSnapshotAfterDeltas(), wavelet.getVersionAfterDeltas(), account);
+        response, wavelet.getSnapshotAfterDeltas(), wavelet.getVersionAfterDeltas(), currentAccount);
   }
 }

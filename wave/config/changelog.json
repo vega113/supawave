@@ -1,5 +1,81 @@
 [
   {
+    "releaseId": "2026-04-05-feature-flag-persist-admin-set-ot-search",
+    "version": "PR #636",
+    "date": "2026-04-05",
+    "title": "Preserve admin-set feature flags across restarts",
+    "summary": "Startup seeding now leaves an existing ot-search flag untouched, so admin-set enabled or disabled state survives restarts. Fresh deploys still initialize ot-search from the deployment default.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Startup seeding only creates ot-search when the flag is missing from the database",
+          "Fresh deployments continue to initialize ot-search from the configured default"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-05-rtl-support",
+    "version": "PR #635",
+    "date": "2026-04-05",
+    "title": "RTL language support with auto-detection and toolbar toggle",
+    "summary": "Paragraphs now use dir=\"auto\" for browser-native RTL auto-detection (Hebrew, Arabic). Added RTL/LTR toolbar buttons for manual override. Clicking an active direction button returns the paragraph to auto mode.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Paragraphs with no explicit direction render with dir=\"auto\" \u2014 the browser detects RTL from the first strong bidi character (same algorithm as Gmail)",
+          "RTL and LTR toggle buttons in the editor toolbar let users force a paragraph direction",
+          "Clicking an active direction button returns the paragraph to auto-detect mode",
+          "CSS uses text-align:start so RTL paragraphs naturally align right without an explicit alignment override",
+          "Explicit LTR stored as d=\"l\"; explicit RTL as d=\"r\"; auto state has no d attribute"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Toggling direction off now clears any alignment that was implicitly set by the direction toggle",
+          "Indentation uses margin-inline-start for bidi-correct indent on both auto-detected and explicit RTL paragraphs"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-05-saved-searches-popup-mobile-responsiveness",
+    "version": "PR #631",
+    "date": "2026-04-05",
+    "title": "Fit saved-searches popups on mobile",
+    "summary": "Saved-searches editor dialogs now clamp to the viewport and let their controls wrap on narrow screens, avoiding horizontal overflow on mobile.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Popup dialogs now shrink to fit smaller viewports instead of overflowing the screen",
+          "Saved-search toolbar and row layouts now wrap before they break the mobile layout"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-05-mention-support",
+    "version": "PR #623",
+    "date": "2026-04-05",
+    "title": "Add @mention support in the editor and search UI",
+    "summary": "Adds inline mention autocomplete and rendering, mention-aware search, and a backend capability gate so the search UI only advertises mentions where they are supported. The follow-up fix also rejects raw mentions queries on Solr so they fail closed instead of returning incorrect results.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Typing @ in the editor opens a participant autocomplete popup and inserts highlighted mention annotations",
+          "Search results can be filtered with mentions:me where the backend supports mention search",
+          "The search help panel and Mentions toolbar button are hidden on Solr deployments that do not support mention search",
+          "Raw mentions queries on Solr are rejected instead of producing incorrect results"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-05-null-sink-reconnect-guard",
     "version": "PR #627",
     "date": "2026-04-05",

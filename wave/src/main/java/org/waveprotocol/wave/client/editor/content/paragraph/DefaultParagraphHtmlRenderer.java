@@ -180,23 +180,31 @@ public class DefaultParagraphHtmlRenderer implements ParagraphHtmlRenderer {
       style.clearProperty("textAlign");
     }
 
+    // Use HTML dir attribute for bidi; dir="auto" enables browser-native RTL detection.
+    style.clearProperty("direction"); // clear any legacy CSS direction value
     if (direction != null) {
-      style.setProperty("direction", direction.cssValue());
+      implNodelet.setAttribute("dir", direction.cssValue());
     } else {
-      style.clearProperty("direction");
+      implNodelet.setAttribute("dir", "auto");
     }
 
     if (margin == 0) {
       style.clearMarginLeft();
       style.clearMarginRight();
+      style.clearProperty("marginInlineStart");
     } else {
+      // Physical fallback for browsers without logical-property support.
+      // For explicit RTL, indent from the right; otherwise default to left.
       if (direction == Direction.RTL) {
-        style.setMarginRight(margin, Unit.PX);
         style.clearMarginLeft();
+        style.setMarginRight(margin, Unit.PX);
       } else {
         style.setMarginLeft(margin, Unit.PX);
         style.clearMarginRight();
       }
+      // Logical property overrides physical in modern browsers, ensuring correct
+      // indentation side for dir="auto" auto-detected RTL as well.
+      style.setProperty("marginInlineStart", margin + "px");
     }
   }
 
@@ -217,6 +225,8 @@ public class DefaultParagraphHtmlRenderer implements ParagraphHtmlRenderer {
   }
 
   private Element createNodeletInner(boolean isListItem) {
-    return Document.get().createElement(isListItem ? LIST_IMPL_TAGNAME : implTagName);
+    Element el = Document.get().createElement(isListItem ? LIST_IMPL_TAGNAME : implTagName);
+    el.setAttribute("dir", "auto");
+    return el;
   }
 }

@@ -70,6 +70,11 @@ public class WaveDocumentBuilder {
     for (String tag : metadata.getTags()) {
       document.add(new StringField(Lucene9FieldNames.TAG, tag, Store.YES));
     }
+    for (String mentioned : metadata.getMentions()) {
+      if (mentioned != null && !mentioned.isEmpty()) {
+        document.add(new StringField(Lucene9FieldNames.MENTIONED, mentioned, Store.YES));
+      }
+    }
     if (!metadata.getTitle().isEmpty()) {
       document.add(new TextField(Lucene9FieldNames.TITLE_TEXT, metadata.getTitle(), Store.NO));
     }

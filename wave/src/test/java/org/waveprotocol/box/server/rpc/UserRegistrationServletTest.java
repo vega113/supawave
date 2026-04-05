@@ -148,14 +148,16 @@ public class UserRegistrationServletTest extends TestCase {
       "administration.analytics_account", "UA-someid")
     );
     UserRegistrationServlet enabledServlet =
-        new UserRegistrationServlet(store, "example.com", config1, authEmailService, welcomeWaveCreator);
+        new UserRegistrationServlet(store, "example.com", config1, authEmailService, welcomeWaveCreator,
+            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
 
     Config config2 = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "administration.disable_registration", true,
       "administration.analytics_account", "UA-someid")
     );
     UserRegistrationServlet disabledServlet =
-        new UserRegistrationServlet(store, "example.com", config2, authEmailService, welcomeWaveCreator);
+        new UserRegistrationServlet(store, "example.com", config2, authEmailService, welcomeWaveCreator,
+            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
 
     when(req.getParameter("address")).thenReturn(address);
     when(req.getParameter("password")).thenReturn(password);

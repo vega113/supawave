@@ -74,6 +74,7 @@ public class SignalEventImpl implements SignalEvent {
 
   interface NativeEvent {
     String getType();
+    String getKey();
     int getButton();
     boolean getCtrlKey();
     boolean getMetaKey();
@@ -198,6 +199,10 @@ public class SignalEventImpl implements SignalEvent {
 
   static class JsoNativeEvent extends Event implements NativeEvent {
     protected JsoNativeEvent() {}
+
+    public final native String getKey() /*-{
+      return this.key || '';
+    }-*/;
   }
 
   /**
@@ -337,6 +342,11 @@ public class SignalEventImpl implements SignalEvent {
    */
   public final String getType() {
     return nativeEvent.getType();
+  }
+
+  @Override
+  public final String getKey() {
+    return nativeEvent.getKey();
   }
 
   /**

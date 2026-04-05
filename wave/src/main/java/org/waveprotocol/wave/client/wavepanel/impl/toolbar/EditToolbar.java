@@ -166,6 +166,7 @@ public class EditToolbar {
 
     group = toolbarUi.addGroup();
     createAlignButtons(group);
+    createDirectionButtons(group);
     createClearFormattingButton(group);
 
     group = toolbarUi.addGroup();
@@ -176,6 +177,9 @@ public class EditToolbar {
 
     group = toolbarUi.addGroup();
     createInsertAttachmentButton(group, user);
+
+    group = toolbarUi.addGroup();
+    createRtlDirectionButton(group);
   }
 
   private void createBoldButton(ToolbarView toolbar) {
@@ -404,6 +408,14 @@ public class EditToolbar {
         });
 }
 
+  private void createRtlDirectionButton(ToolbarView toolbar) {
+    ToolbarToggleButton rtlButton = toolbar.addToggleButton();
+    new ToolbarButtonViewBuilder()
+        .setIcon(css.directionRtl())
+        .setTooltip("Right-to-left text direction")
+        .applyTo(rtlButton, createParagraphApplicationController(rtlButton, Paragraph.Direction.RTL));
+  }
+
   private void createInsertLinkButton(ToolbarView toolbar) {
     // TODO (Yuri Z.) use createTextSelectionController when the full
     // link doodad is incorporated
@@ -506,6 +518,18 @@ public class EditToolbar {
           .setIcon(alignment.iconCss)
           .applyTo(b, createParagraphApplicationController(b, alignment.style));
     }
+  }
+
+  private void createDirectionButtons(ToolbarView toolbar) {
+    ToolbarToggleButton rtlButton = toolbar.addToggleButton();
+    new ToolbarButtonViewBuilder()
+        .setText("RTL")
+        .applyTo(rtlButton, createParagraphApplicationController(rtlButton, Paragraph.Direction.RTL));
+
+    ToolbarToggleButton ltrButton = toolbar.addToggleButton();
+    new ToolbarButtonViewBuilder()
+        .setText("LTR")
+        .applyTo(ltrButton, createParagraphApplicationController(ltrButton, Paragraph.Direction.LTR));
   }
 
   /**

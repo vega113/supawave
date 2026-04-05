@@ -33,9 +33,10 @@
                           * stacking context.  Conventionally, editors default
                           * to z-index 0.
                           */
-    text-align: left;    /* Default alignment for text users enter without
-                          * specifying an alignment. This is needed so such text
-                          * will have the same alignment for LTR and RTL UIs.
+    text-align: left;    /* Fallback for browsers without text-align:start support */
+    text-align: start;   /* Direction-aware default alignment: left for LTR
+                          * paragraphs, right for RTL (Hebrew, Arabic, etc.).
+                          * dir="auto" on paragraphs determines the direction.
                           */
     direction: ltr;      /* Same logic as text-align above */
   }
@@ -52,9 +53,9 @@
   }
 
   .document {
-    text-align: left;    /* Default alignment for text users enter without
-                          * specifying an alignment. This is needed so such text
-                          * will have the same alignment for LTR and RTL UIs.
+    text-align: left;    /* Fallback for browsers without text-align:start support */
+    text-align: start;   /* Direction-aware default alignment: left for LTR
+                          * paragraphs, right for RTL (Hebrew, Arabic, etc.).
                           */
     direction: ltr;      /* Same logic as text-align above */
   }

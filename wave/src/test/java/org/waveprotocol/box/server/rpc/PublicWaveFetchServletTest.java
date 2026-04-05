@@ -28,7 +28,9 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
-import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
+import org.waveprotocol.box.server.persistence.AnalyticsCounterStore.HourlyBucket;
+import org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.id.WaveId;
@@ -65,14 +67,15 @@ public class PublicWaveFetchServletTest extends TestCase {
   private static final ProtoSerializer protoSerializer = new ProtoSerializer();
 
   private WaveletProviderStub waveletProvider;
-  private PublicWaveViewTracker viewTracker;
+  private MemoryAnalyticsCounterStore analyticsCounterStore;
   private PublicWaveFetchServlet servlet;
 
   @Override
   protected void setUp() throws Exception {
     waveletProvider = new WaveletProviderStub();
-    viewTracker = new PublicWaveViewTracker();
-    servlet = new PublicWaveFetchServlet(waveletProvider, protoSerializer, DOMAIN, viewTracker);
+    analyticsCounterStore = new MemoryAnalyticsCounterStore();
+    servlet = new PublicWaveFetchServlet(waveletProvider, protoSerializer, DOMAIN,
+        new AnalyticsRecorder(analyticsCounterStore));
   }
 
   /**
@@ -116,8 +119,7 @@ public class PublicWaveFetchServletTest extends TestCase {
 
     // Should return 404, NOT 403, to avoid leaking wave existence
     verify(response, times(1)).sendError(HttpServletResponse.SC_NOT_FOUND);
-    assertEquals(0L, viewTracker.getCombinedViews(wavelet.getWaveId()));
-    assertEquals(0L, viewTracker.getTotalApiViews());
+    assertEquals(0L, totalApiViews());
   }
 
   /**
@@ -142,8 +144,7 @@ public class PublicWaveFetchServletTest extends TestCase {
     verify(response).getWriter();
     verify(response, never()).sendError(anyInt());
     assertTrue("Response should contain JSON data", writer.toString().length() > 0);
-    assertEquals(1L, viewTracker.getCombinedViews(wavelet.getWaveId()));
-    assertEquals(1L, viewTracker.getTotalApiViews());
+    assertEquals(1L, totalApiViews());
   }
 
   /**
@@ -195,6 +196,14 @@ public class PublicWaveFetchServletTest extends TestCase {
     servlet.doDelete(request, response);
     verify(response, times(1)).sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED,
         "Public wave access is read-only");
+  }
+
+  private long totalApiViews() {
+    long total = 0L;
+    for (HourlyBucket bucket : analyticsCounterStore.getHourlyBuckets(0L, Long.MAX_VALUE)) {
+      total += bucket.getApiViews();
+    }
+    return total;
   }
 
   /**

@@ -23,6 +23,7 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
 import org.waveprotocol.wave.model.document.DocumentConstants;
+import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.box.common.Snippets;
 import org.waveprotocol.wave.model.conversation.TitleHelper;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
@@ -48,6 +49,7 @@ public class WaveMetadataExtractor {
     Set<String> participants = new LinkedHashSet<>();
     Set<String> creatorFilters = new LinkedHashSet<>();
     Set<String> tags = new LinkedHashSet<>();
+    Set<String> mentions = new LinkedHashSet<>();
     String title = "";
     String rootWaveletId = "";
     String creatorSort = UNKNOWN_CREATOR;
@@ -66,6 +68,7 @@ public class WaveMetadataExtractor {
       if (IdUtil.isConversationalId(wavelet.getWaveletId())) {
         lastModifiedSort = Math.max(lastModifiedSort, wavelet.getLastModifiedTime());
         appendContent(content, Snippets.collateTextForWavelet(wavelet));
+        extractMentions(wavelet, mentions);
       }
       if (IdUtil.isConversationRootWaveletId(wavelet.getWaveletId())) {
         rootWaveletId = wavelet.getWaveletId().serialise();
@@ -82,7 +85,7 @@ public class WaveMetadataExtractor {
     String contentText = content.toString().trim();
     String allText = (title + " " + contentText).trim();
     return new WaveMetadata(wave.getWaveId(), rootWaveletId, participants, creatorFilters,
-        creatorSort, tags, title, contentText, allText, createdSort, lastModifiedSort);
+        creatorSort, tags, mentions, title, contentText, allText, createdSort, lastModifiedSort);
   }
 
   private static void appendContent(StringBuilder builder, String text) {
@@ -185,6 +188,40 @@ public class WaveMetadataExtractor {
     return tags;
   }
 
+  private static void extractMentions(ObservableWaveletData wavelet, Set<String> mentions) {
+    for (String docId : wavelet.getDocumentIds()) {
+      ReadableBlipData blip = wavelet.getDocument(docId);
+      if (blip == null) {
+        continue;
+      }
+      DocInitialization docOp = blip.getContent().asOperation();
+      docOp.apply(new DocInitializationCursor() {
+        @Override
+        public void annotationBoundary(AnnotationBoundaryMap map) {
+          for (int i = 0; i < map.changeSize(); i++) {
+            String key = map.getChangeKey(i);
+            String newValue = map.getNewValue(i);
+            if (AnnotationConstants.isMentionKey(key) && newValue != null && !newValue.isEmpty()) {
+              mentions.add(newValue.toLowerCase(Locale.ROOT));
+            }
+          }
+        }
+
+        @Override
+        public void characters(String chars) {
+        }
+
+        @Override
+        public void elementStart(String type, Attributes attrs) {
+        }
+
+        @Override
+        public void elementEnd() {
+        }
+      });
+    }
+  }
+
   public static final class WaveMetadata {
     private final WaveId waveId;
     private final String rootWaveletId;
@@ -192,6 +229,7 @@ public class WaveMetadataExtractor {
     private final Set<String> creatorFilters;
     private final String creatorSort;
     private final Set<String> tags;
+    private final Set<String> mentions;
     private final String title;
     private final String content;
     private final String allText;
@@ -199,14 +237,15 @@ public class WaveMetadataExtractor {
     private final long lastModifiedSort;
 
     WaveMetadata(WaveId waveId, String rootWaveletId, Set<String> participants,
-        Set<String> creatorFilters, String creatorSort, Set<String> tags, String title,
-        String content, String allText, long createdSort, long lastModifiedSort) {
+        Set<String> creatorFilters, String creatorSort, Set<String> tags, Set<String> mentions,
+        String title, String content, String allText, long createdSort, long lastModifiedSort) {
       this.waveId = waveId;
       this.rootWaveletId = rootWaveletId;
       this.participants = participants;
       this.creatorFilters = creatorFilters;
       this.creatorSort = creatorSort;
       this.tags = tags;
+      this.mentions = mentions;
       this.title = title;
       this.content = content;
       this.allText = allText;
@@ -236,6 +275,10 @@ public class WaveMetadataExtractor {
 
     public Set<String> getTags() {
       return tags;
+    }
+
+    public Set<String> getMentions() {
+      return mentions;
     }
 
     public String getTitle() {

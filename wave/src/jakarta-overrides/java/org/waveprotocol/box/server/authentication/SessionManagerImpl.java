@@ -29,6 +29,7 @@ import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.escapers.PercentEscaper;
 import org.waveprotocol.wave.util.logging.Log;
@@ -44,14 +45,17 @@ public final class SessionManagerImpl implements SessionManager {
   private final AccountStore accountStore;
   private static final Log LOG = Log.get(SessionManagerImpl.class);
   private final SessionHandler sessionHandler;
+  private final AnalyticsRecorder analyticsRecorder;
 
   @Inject
   public SessionManagerImpl(AccountStore accountStore,
-                            SessionHandler sessionHandler) {
+                            SessionHandler sessionHandler,
+                            AnalyticsRecorder analyticsRecorder) {
     Preconditions.checkNotNull(accountStore, "Null account store");
     Preconditions.checkNotNull(sessionHandler, "Null session handler");
     this.accountStore = accountStore;
     this.sessionHandler = sessionHandler;
+    this.analyticsRecorder = analyticsRecorder;
   }
 
   @Override
@@ -149,6 +153,11 @@ public final class SessionManagerImpl implements SessionManager {
         human.setLastActivityTime(now);
         accountStore.putAccount(account);
         session.setAttribute(LAST_ACTIVITY_UPDATE_FIELD, now);
+        try {
+          analyticsRecorder.recordActiveUser(user.getAddress(), now);
+        } catch (RuntimeException e) {
+          LOG.warning("Failed to record active user analytics for " + user, e);
+        }
       }
     } catch (PersistenceException e) {
       LOG.warning("Failed to track last activity for " + user, e);

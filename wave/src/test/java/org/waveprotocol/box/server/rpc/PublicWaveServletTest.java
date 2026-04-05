@@ -24,10 +24,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSet;
-import junit.framework.TestCase;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import junit.framework.TestCase;
+import org.waveprotocol.box.server.persistence.AnalyticsCounterStore.HourlyBucket;
+import org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore;
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
-import org.waveprotocol.box.server.waveserver.PublicWaveViewTracker;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuilder;
@@ -67,19 +70,20 @@ public class PublicWaveServletTest extends TestCase {
       ParticipantId.ofUnsafe("@" + DOMAIN);
 
   private WaveletProvider waveletProvider;
-  private PublicWaveViewTracker viewTracker;
+  private MemoryAnalyticsCounterStore analyticsCounterStore;
   private PublicWaveServlet servlet;
 
   @Override
   protected void setUp() throws Exception {
     waveletProvider = mock(WaveletProvider.class);
-    viewTracker = new PublicWaveViewTracker();
-    servlet =
-        new PublicWaveServlet(
-            ConfigFactory.parseString("core.public_url = \"https://wave.example.test\""),
-            DOMAIN,
-            waveletProvider,
-            viewTracker);
+    analyticsCounterStore = new MemoryAnalyticsCounterStore();
+    Config config = ConfigFactory.parseMap(
+        java.util.Collections.singletonMap("core.public_url", "https://wave.example.com"));
+    servlet = new PublicWaveServlet(
+        config,
+        DOMAIN,
+        waveletProvider,
+        new AnalyticsRecorder(analyticsCounterStore));
   }
 
   // -------------------------------------------------------------------------
@@ -200,7 +204,7 @@ public class PublicWaveServletTest extends TestCase {
     servlet.doGet(request, response);
     // Must be 404 (not 403) to avoid leaking wave existence
     verify(response, times(1)).sendError(HttpServletResponse.SC_NOT_FOUND);
-    assertEquals(0L, viewTracker.getCombinedViews(WAVE_ID));
+    assertEquals(0L, totalPageViews());
   }
 
   public void testPublicWaveReturnsHtml() throws Exception {
@@ -232,8 +236,7 @@ public class PublicWaveServletTest extends TestCase {
     assertTrue("Expected og:title meta tag", html.contains("og:title"));
     assertTrue("Expected og:description meta tag", html.contains("og:description"));
     assertTrue("Expected Read Only badge", html.contains("Read Only"));
-    assertEquals(1L, viewTracker.getCombinedViews(WAVE_ID));
-    assertEquals(1L, viewTracker.getTotalPageViews());
+    assertEquals(1L, totalPageViews());
   }
 
   public void testPublicWaveContainsParticipantInfo() throws Exception {
@@ -306,5 +309,13 @@ public class PublicWaveServletTest extends TestCase {
 
     String html = writer.toString();
     assertTrue("Expected https URL to be preserved", html.contains("href=\"https://example.com/docs\""));
+  }
+
+  private long totalPageViews() {
+    long total = 0L;
+    for (HourlyBucket bucket : analyticsCounterStore.getHourlyBuckets(0L, Long.MAX_VALUE)) {
+      total += bucket.getPageViews();
+    }
+    return total;
   }
 }

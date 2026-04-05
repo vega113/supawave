@@ -82,7 +82,7 @@ public class DirectionTest extends TestCase {
 - [ ] **Step 2: Run test to verify it compiles and passes (tests enum constants, no model mocking needed)**
 
 ```
-cd /Users/vega/devroot/incubator-wave && sbt "wave/testOnly *DirectionTest"
+sbt "wave/testOnly *DirectionTest"
 ```
 
 Expected: PASS (these test pure enum state, no GWT runtime needed).
@@ -140,7 +140,7 @@ Explanation: With `d=null` (auto state), `fromValue(null)` returns `null`, and `
 - [ ] **Step 5: Verify existing paragraph tests still pass**
 
 ```
-cd /Users/vega/devroot/incubator-wave && sbt "wave/testOnly *Renumberer*"
+sbt "wave/testOnly *Renumberer*"
 ```
 
 Expected: All PASS. These tests don't involve Direction so they should be unaffected.
@@ -221,7 +221,7 @@ Note: `direction.cssValue()` returns `"ltr"` or `"rtl"` — these are the valid 
 - [ ] **Step 2: Verify the file compiles**
 
 ```
-cd /Users/vega/devroot/incubator-wave && sbt "wave/compile"
+sbt "wave/compile"
 ```
 
 Expected: BUILD SUCCESS (no new imports needed — `setAttribute` is already available on GWT's `Element`).
@@ -288,7 +288,7 @@ Find the block in `init()` that creates the alignment group (lines 167-169):
 - [ ] **Step 3: Compile to verify no errors**
 
 ```
-cd /Users/vega/devroot/incubator-wave && sbt "wave/compile"
+sbt "wave/compile"
 ```
 
 Expected: BUILD SUCCESS.
@@ -313,7 +313,7 @@ Neither button highlights when direction is auto-detected."
 - [ ] **Step 1: Run full test suite**
 
 ```
-cd /Users/vega/devroot/incubator-wave && sbt test
+sbt test
 ```
 
 Expected: All tests pass. Note: GWT compilation tests may be slow.
@@ -321,7 +321,7 @@ Expected: All tests pass. Note: GWT compilation tests may be slow.
 - [ ] **Step 2: Start dev server**
 
 ```
-cd /Users/vega/devroot/incubator-wave && sbt run
+sbt run
 ```
 
 Wait for "Server started" message (port 9898).

@@ -146,6 +146,9 @@ public class RobotDashboardServletTest extends TestCase {
     assertTrue(outputWriter.toString().contains("Test Bot"));
     // Table also has an inline Test button for robots with callback URL
     assertTrue(outputWriter.toString().contains(">Test</button>"));
+    assertTrue(outputWriter.toString().contains("Refresh Capabilities"));
+    assertTrue(outputWriter.toString().contains("refreshCaps("));
+    assertTrue(outputWriter.toString().contains("/refresh"));
   }
 
   public void testDoGetRendersMaskedSecretPreviewAndTimestamps() throws Exception {

@@ -135,6 +135,10 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     // added.
     final boolean isAllQuery = isAllQuery(query);
     final boolean isUnreadOnlyQuery = queryParams.containsKey(TokenQueryType.UNREAD);
+    if (queryParams.containsKey(TokenQueryType.MENTIONS)) {
+      LOG.warning("Mentions queries are not supported by Solr search.");
+      return new SearchResult(query);
+    }
 
     LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView = LinkedHashMultimap.create();
 

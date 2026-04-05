@@ -42,6 +42,7 @@ import org.waveprotocol.box.server.robots.agent.registration.RegistrationRobot;
 import org.waveprotocol.box.server.robots.dataapi.DataApiServlet;
 import org.waveprotocol.box.server.robots.dataapi.DataApiTokenServlet;
 import org.waveprotocol.box.server.contact.ContactsRecorder;
+import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.persistence.ContactStore;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
@@ -439,6 +440,15 @@ public class ServerMain {
     ContactsRecorder contactsRecorder = injector.getInstance(ContactsRecorder.class);
     waveBus.subscribe(contactsRecorder);
     LOG.info("ContactsRecorder subscribed to WaveBus");
+    Config config = injector.getInstance(Config.class);
+    if (config.hasPath("core.analytics_counters_enabled")
+        && config.getBoolean("core.analytics_counters_enabled")) {
+      AnalyticsRecorder analyticsRecorder = injector.getInstance(AnalyticsRecorder.class);
+      waveBus.subscribe(analyticsRecorder);
+      LOG.info("AnalyticsRecorder subscribed to WaveBus");
+    } else {
+      LOG.info("Analytics counters disabled (core.analytics_counters_enabled=false)");
+    }
   }
 
   private static void initializeFrontend(Injector injector, ServerRpcProvider server,

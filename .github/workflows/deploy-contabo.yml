@@ -322,7 +322,7 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
-          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS }}
+          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS || 'vega113@gmail.com' }}
         run: |
           CHANGELOG_HTML=$(cat /tmp/changelog_html.txt 2>/dev/null || true)
           EMAIL_SUBJECT="SupaWave deployed: ${RELEASE_ID:0:8}"
@@ -364,7 +364,7 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
-          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS }}
+          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS || 'vega113@gmail.com' }}
         run: |
           EMAIL_SUBJECT="SupaWave deploy FAILED: ${RELEASE_ID:0:8}"
           EMAIL_HTML="<h2>Deploy failed</h2><p>The production deploy failed and the previous version is still running.</p><table><tr><td>Commit</td><td><code>${RELEASE_ID:0:8}</code></td></tr><tr><td>Branch</td><td><code>${GITHUB_REF_NAME}</code></td></tr><tr><td>Image</td><td><code>$IMAGE_REF</code></td></tr><tr><td>Host</td><td>$CANONICAL_HOST</td></tr><tr><td>Logs</td><td><a href='https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID'>View full logs</a></td></tr></table><p><strong>Next steps:</strong> Check the deploy logs linked above. Previous version is auto-preserved.</p>"

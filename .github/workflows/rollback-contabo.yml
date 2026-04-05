@@ -128,7 +128,7 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
-          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS }}
+          NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS || 'vega113@gmail.com' }}
         run: |
           status="${{ steps.rollback.outcome }}"
           if [ "$status" = "success" ]; then

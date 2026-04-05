@@ -122,9 +122,9 @@ services:
     # JVM Tuning (see RESOURCE_OPTIMIZATION_ANALYSIS.md for rationale)
     # -----------------------------------------------------------------------
     # -J flags are passed directly to the JVM by the SBT native-packager
-    # launcher. We use them here to keep the heap and GC configuration
-    # explicit and deterministic now that the packaging defaults no longer
-    # pin heap sizing.
+    # launcher and have HIGHER precedence than the hardcoded defaults in
+    # bin/wave.  JAVA_OPTS has LOWER precedence and cannot override the
+    # baked-in -Xmx1024M, so we use command-line -J flags instead.
     # -----------------------------------------------------------------------
     command:
       - -J-Xmx20G

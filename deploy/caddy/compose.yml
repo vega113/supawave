@@ -79,9 +79,9 @@ services:
       - ${DEPLOY_ROOT:?}/shared/indexes/blue:/opt/wave/_indexes
       - ${DEPLOY_ROOT:?}/shared/sessions/blue:/opt/wave/_sessions
       - ${DEPLOY_ROOT:?}/shared/logs:/opt/wave/logs
-    # -J flags are passed directly to the JVM by the SBT native-packager launcher.
-    # They keep the heap and GC settings explicit and deterministic now that
-    # the launcher no longer pins a default heap.
+    # -J flags are passed directly to the JVM by the SBT native-packager launcher
+    # and have HIGHER precedence than the hardcoded defaults in bin/wave.
+    # JAVA_OPTS has LOWER precedence and cannot override the baked-in -Xmx1024M.
     command:
       - -J-Xmx20G
       - -J-Xms6G

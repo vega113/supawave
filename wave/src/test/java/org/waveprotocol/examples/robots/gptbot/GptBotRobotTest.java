@@ -31,6 +31,7 @@ import com.google.wave.api.event.WaveletBlipCreatedEvent;
 
 import junit.framework.TestCase;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -101,6 +102,38 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(1, codexClient.completeCalls);
   }
 
+  public void testDocumentChangedEventTriggersReplyWhenBotMentioned() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Here is a helpful answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJson(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " what can you do?",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertTrue(response.contains("Here is a helpful answer."));
+    assertTrue(response.contains("blip.createChild"));
+    assertEquals(1, codexClient.completeCalls);
+  }
+
+  public void testDocumentChangedEventTriggersReplyWhenBotMentionedEvenWithChildBlips() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Here is a helpful answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJsonWithChildBlip(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " what can you do?",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertTrue(response.contains("Here is a helpful answer."));
+    assertTrue(response.contains("blip.createChild"));
+    assertEquals(1, codexClient.completeCalls);
+  }
+
   public void testCallbackBundleDoesNotFetchContextWithoutMention() {
     RecordingCodexClient codexClient = new RecordingCodexClient();
     RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
@@ -154,7 +187,7 @@ public class GptBotRobotTest extends TestCase {
     String xml = robot.getCapabilitiesXml();
 
     assertTrue(xml.contains("BLIP_SUBMITTED"));
-    assertFalse(xml.contains("DOCUMENT_CHANGED"));
+    assertTrue(xml.contains("DOCUMENT_CHANGED"));
     assertTrue(xml.contains("WAVELET_BLIP_CREATED"));
     assertTrue(xml.contains("protocolversion"));
     assertTrue(xml.contains("context=\"SELF,SIBLINGS\""));
@@ -180,6 +213,26 @@ public class GptBotRobotTest extends TestCase {
     bundle.setWaveletData(waveletData);
     bundle.addBlip("b+root", new BlipData("example.com!w+abc123",
         "example.com!conv+root", "b+root", content));
+    for (Event event : events) {
+      bundle.addEvent(event);
+    }
+    return new GsonFactory().create().toJson(bundle);
+  }
+
+  private static String exampleBundleJsonWithChildBlip(GptBotConfig config, String content,
+      Event... events) {
+    EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
+        "http://localhost:8087/_wave/robot/jsonrpc");
+    WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
+        "b+root", (BlipThread) null);
+    waveletData.addParticipant("alice@example.com");
+    bundle.setWaveletData(waveletData);
+    BlipData rootBlip = new BlipData("example.com!w+abc123", "example.com!conv+root",
+        "b+root", content);
+    rootBlip.setChildBlipIds(Arrays.asList("b+child"));
+    bundle.addBlip("b+root", rootBlip);
+    bundle.addBlip("b+child", new BlipData("example.com!w+abc123", "example.com!conv+root",
+        "b+child", "\nExisting child reply"));
     for (Event event : events) {
       bundle.addEvent(event);
     }

@@ -26,6 +26,7 @@ import com.google.wave.api.OperationRequest;
 import com.google.wave.api.ParticipantProfile;
 import com.google.wave.api.ProtocolVersion;
 import com.google.wave.api.event.BlipSubmittedEvent;
+import com.google.wave.api.event.DocumentChangedEvent;
 import com.google.wave.api.event.Event;
 import com.google.wave.api.event.WaveletBlipCreatedEvent;
 import com.google.wave.api.impl.EventMessageBundle;
@@ -119,6 +120,13 @@ public final class GptBotRobot {
             handleBlip(BlipSubmittedEvent.as(event).getBlip(), event.getModifiedBy(),
                 handledBlipIds);
             break;
+          case DOCUMENT_CHANGED: {
+            Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
+            if (changedBlip != null) {
+              handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
+            }
+            break;
+          }
           case WAVELET_BLIP_CREATED:
             handleBlip(WaveletBlipCreatedEvent.as(event).getNewBlip(), event.getModifiedBy(),
                 handledBlipIds);
@@ -174,6 +182,7 @@ public final class GptBotRobot {
         .append("</w:protocolversion>\n");
     xml.append("  <w:capabilities>\n");
     xml.append(capabilityXml("BLIP_SUBMITTED", "SELF,SIBLINGS"));
+    xml.append(capabilityXml("DOCUMENT_CHANGED", "SELF,SIBLINGS"));
     xml.append(capabilityXml("WAVELET_BLIP_CREATED", "SELF,SIBLINGS"));
     xml.append("  </w:capabilities>\n");
     xml.append("</w:robot>\n");
@@ -188,6 +197,7 @@ public final class GptBotRobot {
     String payload = String.join("|",
         config.getRobotName(),
         "BLIP_SUBMITTED:SELF,SIBLINGS",
+        "DOCUMENT_CHANGED:SELF,SIBLINGS",
         "WAVELET_BLIP_CREATED:SELF,SIBLINGS");
     String hash = "sha256:";
     try {

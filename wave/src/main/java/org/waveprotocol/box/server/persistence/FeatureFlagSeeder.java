@@ -36,15 +36,16 @@ public final class FeatureFlagSeeder {
     if (store == null || config == null || !config.hasPath(OT_SEARCH_CONFIG_KEY)) {
       return;
     }
-    FeatureFlag existingFlag = store.get(OT_SEARCH_FLAG_NAME);
-    // FeatureFlagSeeder.seedSearchFeatureFlags upserts OT_SEARCH_FLAG_NAME from OT_SEARCH_CONFIG_KEY
-    // while preserving any existing allowedUsers overrides.
-    store.save(
-        new FeatureFlag(
-            OT_SEARCH_FLAG_NAME,
-            OT_SEARCH_DESCRIPTION,
-            config.getBoolean(OT_SEARCH_CONFIG_KEY),
-            existingFlag != null ? existingFlag.getAllowedUsers() : Collections.emptyMap()));
+    if (store.get(OT_SEARCH_FLAG_NAME) == null) {
+      // Flag not yet in DB — initialize from config so fresh deploys start with the right default.
+      // If a flag already exists (admin set it via the API), leave it untouched.
+      store.save(
+          new FeatureFlag(
+              OT_SEARCH_FLAG_NAME,
+              OT_SEARCH_DESCRIPTION,
+              config.getBoolean(OT_SEARCH_CONFIG_KEY),
+              Collections.emptyMap()));
+    }
   }
 
   public static boolean isSearchWaveletUpdaterEnabled(FeatureFlagStore store)

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.typesafe.config.ConfigFactory;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -56,6 +57,25 @@ public final class FeatureFlagSeederTest {
     FeatureFlagService service = new FeatureFlagService(store);
 
     assertFalse(service.getEnabledFlagNames(null).contains("ot-search"));
+  }
+
+  @Test
+  public void preservesExistingEnabledStateWhenSeedingOtSearchFlag() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(
+        new FeatureFlag(
+            "ot-search",
+            "Real-time search wavelets (replaces 15s polling)",
+            true,
+            Collections.emptyMap()));
+
+    FeatureFlagSeeder.seedSearchFeatureFlags(
+        store, ConfigFactory.parseString("search.ot_search_enabled = false"));
+
+    FeatureFlagService service = new FeatureFlagService(store);
+
+    assertTrue(store.get("ot-search").isEnabled());
+    assertTrue(service.getEnabledFlagNames(null).contains("ot-search"));
   }
 
   @Test

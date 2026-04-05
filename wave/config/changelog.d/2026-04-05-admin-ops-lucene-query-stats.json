@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-05-admin-ops-lucene-query-stats",
+  "version": "PR #633",
+  "date": "2026-04-05",
+  "title": "Add Lucene query stats to Operations",
+  "summary": "The admin Operations page now shows Lucene query counts and rolling average query time in a dedicated sub-tab, alongside the existing overview and OT Search metrics. The ops status API now emits locale-stable Lucene timing fields so the page keeps loading across JVM locales.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a Lucene sub-tab to the Operations page for query stats and related search-index metrics",
+        "Exposed Lucene query count and average query time from the ops status API",
+        "Kept the admin UI's timing displays stable across JVM locales"
+      ]
+    }
+  ]
+}

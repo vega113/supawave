@@ -552,8 +552,15 @@ public final class AdminServlet extends HttpServlet {
       long incrCount = lucene9Indexer.getIncrementalIndexCount();
       if (incrCount > 0) {
         w.append(",\"incrementalAvgMs\":").append(
-            String.format("%.1f", lucene9Indexer.getIncrementalAvgMs()));
+            String.format(Locale.US, "%.1f", lucene9Indexer.getIncrementalAvgMs()));
         w.append(",\"incrementalIndexCount\":").append(String.valueOf(incrCount));
+      }
+      // Search query stats
+      long queryCount = lucene9Indexer.getQueryCount();
+      w.append(",\"queryCount\":").append(String.valueOf(queryCount));
+      if (queryCount > 0) {
+        w.append(",\"queryAvgMs\":").append(
+            String.format(Locale.US, "%.1f", lucene9Indexer.getQueryAvgMs()));
       }
     }
     w.append('}');
@@ -878,7 +885,7 @@ public final class AdminServlet extends HttpServlet {
       if (soFar > 0) {
         long elapsedMs = System.currentTimeMillis() - reindexService.getStartTimeMs();
         double avgMs = (double) elapsedMs / soFar;
-        w.append(",\"avgMsPerWave\":").append(String.format("%.1f", avgMs));
+        w.append(",\"avgMsPerWave\":").append(String.format(Locale.US, "%.1f", avgMs));
         if (estTotal > soFar) {
           long remainingMs = Math.round((estTotal - soFar) * avgMs);
           w.append(",\"estimatedRemainingMs\":").append(String.valueOf(remainingMs));
@@ -889,7 +896,7 @@ public final class AdminServlet extends HttpServlet {
     if (st == ReindexService.State.COMPLETED) {
       double avg = reindexService.getLastAvgMsPerWave();
       if (avg > 0) {
-        w.append(",\"avgMsPerWave\":").append(String.format("%.1f", avg));
+        w.append(",\"avgMsPerWave\":").append(String.format(Locale.US, "%.1f", avg));
         w.append(",\"minMsPerWave\":").append(String.valueOf(reindexService.getLastMinMsPerWave()));
         w.append(",\"maxMsPerWave\":").append(String.valueOf(reindexService.getLastMaxMsPerWave()));
       }

@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05  
 **Status:** Approved  
-**Scope:** Right-to-left toolbar override for editor paragraphs, with renderer and auto-detection follow-up work tracked separately
+**Scope:** Right-to-left language rendering (Hebrew, Arabic, etc.) with auto-detection and manual override
 
 ## Problem
 
@@ -14,15 +14,15 @@ Auto-detect RTL paragraphs and render them correctly, with a manual override in 
 
 ## Architecture & Data Flow
 
-Wave stores paragraph direction as a `d` attribute on paragraph elements (`d="r"` for RTL, `d="l"` for LTR). The `Direction` enum and `DIRECTION_ATTR` constant exist in `Paragraph.java`. The renderer (`DefaultParagraphHtmlRenderer.java`) reads this attribute and sets the HTML `dir` attribute (not CSS `direction`) on the rendered paragraph element. Any legacy CSS `direction` property is explicitly cleared.
+Wave already stores paragraph direction as a `d` attribute on paragraph elements (`d="r"` for RTL, `d="l"` for LTR). The `Direction` enum and `DIRECTION_ATTR` constant exist in `Paragraph.java`. The renderer (`DefaultParagraphHtmlRenderer.java`) already reads this attribute and applies CSS `direction` property.
 
-The current rendering behavior:
+The change extends the rendering to use the HTML `dir` attribute instead of (or alongside) the CSS property, and introduces `dir="auto"` when no explicit direction is stored:
 
 ```
 Paragraph element in doc model
   ├── d="r" (explicit RTL)  → render dir="rtl"
   ├── d="l" (explicit LTR)  → render dir="ltr"
-  └── (no d attr, default)  → render dir="auto"
+  └── (no d attr, default)  → render dir="auto"   ← new behavior
 ```
 
 `dir="auto"` is a native HTML attribute that instructs the browser to determine direction from the first strong Unicode bidi character in the element's text — exactly the algorithm Gmail uses. No custom detection logic is required.
@@ -31,28 +31,31 @@ Paragraph element in doc model
 
 ### 1. `DefaultParagraphHtmlRenderer.java`
 
-**Behavior:** Clears any CSS `style.direction` property (legacy), then sets the HTML `dir` attribute:
-- `Direction.RTL` → `dir="rtl"`
-- `Direction.LTR` → `dir="ltr"`
-- `null` (no stored direction) → `dir="auto"`
+**Current behavior:** When `direction != null`, sets CSS `style.direction = "rtl"/"ltr"`. When null, clears the property.
+
+**New behavior:**
+- `Direction.RTL` → set HTML attribute `dir="rtl"`, clear CSS `direction` (the `dir` attribute implies it)
+- `Direction.LTR` → set HTML attribute `dir="ltr"`, clear CSS `direction`
+- `null` (no stored direction) → set HTML attribute `dir="auto"`
 
 The element reference in the renderer already supports `setAttribute`/`removeAttribute` via GWT's DOM API.
 
 ### 2. `EditToolbar.java`
 
-Add a single RTL toggle button after the existing alignment group:
+Add two new mutually-exclusive toggle buttons after the existing alignment group:
 
 | Button | Label/Icon | Action |
 |--------|-----------|--------|
 | RTL    | ⇐A        | Set `d="r"` on current paragraph(s) |
+| LTR    | A⇒        | Set `d="l"` on current paragraph(s) |
 
-Clicking the already-active button clears the `d` attribute. Button highlight state reflects the current paragraph's `d` attribute.
+Clicking the already-active button clears the `d` attribute (returns to auto-detection). Button highlight state reflects the current paragraph's `d` attribute. When no `d` attr is present, neither button is highlighted (auto state).
 
-Implementation follows the same pattern as the existing alignment buttons (`Paragraph.Alignment`), using `Paragraph.Direction` instead.
+Implementation follows the exact same pattern as the existing alignment buttons (`Paragraph.Alignment`), using `Paragraph.Direction` instead.
 
 ### 3. Toolbar Icons
 
-Add one text-direction icon to the existing GWT `Images` interface/bundle. SVG inline or simple Unicode text labels are acceptable for the initial implementation.
+Add two text-direction icons to the existing GWT `Images` interface/bundle. SVG inline or simple Unicode text labels are acceptable for the initial implementation.
 
 ### 4. Files with No Changes Needed
 

@@ -18,10 +18,13 @@
  */
 package org.waveprotocol.wave.client.editor.content.paragraph;
 
-import junit.framework.TestCase;
+import org.waveprotocol.wave.client.editor.content.ContentDocument;
+import org.waveprotocol.wave.client.editor.content.ContentElement;
+import org.waveprotocol.wave.client.editor.content.ContentTestBase;
+import org.waveprotocol.wave.client.editor.testing.TestEditors;
 import org.waveprotocol.wave.client.editor.content.paragraph.Paragraph.Direction;
 
-public class DirectionTest extends TestCase {
+public class DirectionTest extends ContentTestBase {
 
   // fromValue("l") must return LTR
   public void testFromValueLtr() {
@@ -33,20 +36,20 @@ public class DirectionTest extends TestCase {
     assertEquals(Direction.RTL, Direction.fromValue("r"));
   }
 
-  // fromValue(null) must return null (auto state — no d attribute)
+  // fromValue(null) must return null (auto state - no d attribute)
   public void testFromValueNull() {
     assertNull(Direction.fromValue(null));
   }
 
-  // In auto state the d attribute is absent (null), so fromValue(null) returns null.
-  // isApplied() is implemented as: this == fromValue(e.getAttribute(DIRECTION_ATTR))
-  // — when the attribute is absent, fromValue(null) == null, so both directions return false,
-  // ensuring neither toolbar button lights up in auto-detect mode.
   public void testIsAppliedInAutoState() {
-    Direction resolved = Direction.fromValue(null);
-    assertNull("absent attribute maps to null (auto state)", resolved);
-    assertNotSame("LTR.isApplied() must return false in auto state", Direction.LTR, resolved);
-    assertNotSame("RTL.isApplied() must return false in auto state", Direction.RTL, resolved);
+    ContentDocument dom = TestEditors.createTestDocument();
+    c = dom.debugGetRawDocument();
+
+    ContentElement paragraph =
+        c.createElement(Paragraph.TAGNAME, c.getDocumentElement(), null);
+
+    assertFalse(Direction.LTR.isApplied(paragraph));
+    assertFalse(Direction.RTL.isApplied(paragraph));
   }
 
   // cssValue() returns the HTML dir attribute string

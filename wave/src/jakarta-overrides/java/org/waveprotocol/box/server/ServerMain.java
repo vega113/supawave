@@ -506,6 +506,11 @@ public class ServerMain {
 
     // Register OT search wavelet updater AFTER PerUserWaveViewDistpatcher
     // so that the per-user wave view index is current before search updates.
+    // ORDERING DEPENDENCY: SearchWaveletUpdater must be subscribed AFTER lucene9Indexer.
+    // SearchWaveletUpdater.waveletCommitted() triggers mention-subscription recomputes only
+    // after Lucene9 has committed its MENTIONED field update in its own waveletCommitted().
+    // WaveletNotificationDispatcher iterates subscribers via CopyOnWriteArraySet, which
+    // preserves insertion order; SearchWaveletUpdater is therefore notified after lucene9Indexer.
     FeatureFlagStore featureFlagStore = injector.getInstance(FeatureFlagStore.class);
     initializeSearchWaveletUpdater(injector, waveBus, featureFlagStore);
 

@@ -177,6 +177,9 @@ public class EditToolbar {
 
     group = toolbarUi.addGroup();
     createInsertAttachmentButton(group, user);
+
+    group = toolbarUi.addGroup();
+    createRtlDirectionButton(group);
   }
 
   private void createBoldButton(ToolbarView toolbar) {
@@ -404,6 +407,14 @@ public class EditToolbar {
           }
         });
 }
+
+  private void createRtlDirectionButton(ToolbarView toolbar) {
+    ToolbarToggleButton rtlButton = toolbar.addToggleButton();
+    new ToolbarButtonViewBuilder()
+        .setIcon(css.directionRtl())
+        .setTooltip("Right-to-left text direction")
+        .applyTo(rtlButton, createParagraphApplicationController(rtlButton, Paragraph.Direction.RTL));
+  }
 
   private void createInsertLinkButton(ToolbarView toolbar) {
     // TODO (Yuri Z.) use createTextSelectionController when the full

@@ -121,3 +121,7 @@
   gwt-image: 'insertAttachment';
   margin-top: 3px;
 }
+
+@sprite .directionRtl {
+  gwt-image: 'directionRtl';
+}

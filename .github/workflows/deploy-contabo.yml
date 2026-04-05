@@ -309,9 +309,63 @@ jobs:
         id: changelog
         run: |
           CHANGELOG_HTML=""
-          if [ -f wave/config/changelog.json ]; then
+          # Find fragment files added since the previous commit on this branch.
+          # For push events github.event.before is the SHA before this push;
+          # for workflow_dispatch fall back to HEAD~1.
+          PREV_SHA="${{ github.event.before }}"
+          if [ -z "$PREV_SHA" ] || [ "$PREV_SHA" = "0000000000000000000000000000000000000000" ]; then
+            PREV_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          fi
+
+          NEW_FRAGMENTS=""
+          if [ -n "$PREV_SHA" ] && git cat-file -e "$PREV_SHA" 2>/dev/null; then
+            # List fragment files added (A) or modified (M) since the previous SHA
+            NEW_FRAGMENTS=$(git diff --name-only --diff-filter=AM "$PREV_SHA"..HEAD -- wave/config/changelog.d/ 2>/dev/null || true)
+          fi
+
+          if [ -n "$NEW_FRAGMENTS" ]; then
+            # Build HTML from only the newly added/changed fragments
+            CHANGELOG_HTML=$(NEW_FRAGMENTS="$NEW_FRAGMENTS" python3 - <<'PY'
+          import html, json, os, sys
+          from pathlib import Path
+
+          fragments_raw = os.environ.get("NEW_FRAGMENTS", "").strip()
+          if not fragments_raw:
+              sys.exit(0)
+
+          entries = []
+          for fpath in fragments_raw.splitlines():
+              p = Path(fpath.strip())
+              if p.exists() and p.suffix == ".json":
+                  try:
+                      entry = json.loads(p.read_text())
+                      if isinstance(entry, dict) and entry.get("title"):
+                          entries.append(entry)
+                  except Exception:
+                      pass
+
+          # Sort newest first by date then releaseId
+          entries.sort(key=lambda e: (e.get("date", ""), e.get("releaseId", "")), reverse=True)
+
+          if entries:
+              lines = [
+                  "<li><strong>%s</strong> (%s, %s)</li>" % (
+                      html.escape(e.get("title", "")),
+                      html.escape(e.get("version", "")),
+                      html.escape(e.get("date", "")),
+                  )
+                  for e in entries
+              ]
+              print("<h3>Changes in this deploy</h3><ul>" + "".join(lines) + "</ul>")
+          PY
+          ) || true
+          fi
+
+          # Fallback: if no new fragments found, show top 5 from assembled changelog
+          if [ -z "$CHANGELOG_HTML" ] && [ -f wave/config/changelog.json ]; then
             CHANGELOG_HTML=$(python3 -c 'import html, json; from pathlib import Path; entries = json.loads(Path("wave/config/changelog.json").read_text()); lines = ["<li><strong>%s</strong> (%s, %s)</li>" % (html.escape(entry.get("title", "")), html.escape(entry.get("version", "")), html.escape(entry.get("date", ""))) for entry in entries[:5]]; print("<h3>Recent Changes</h3><ul>" + "".join(lines) + "</ul>") if lines else None' 2>/dev/null) || true
           fi
+
           echo "$CHANGELOG_HTML" > /tmp/changelog_html.txt
 
       - name: Notify deploy success

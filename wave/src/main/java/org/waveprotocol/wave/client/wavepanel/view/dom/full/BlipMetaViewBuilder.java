@@ -34,6 +34,7 @@ import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.uibuilder.BuilderHelper.Component;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.wavepanel.view.IntrinsicBlipMetaView;
 import org.waveprotocol.wave.client.wavepanel.view.View.Type;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.i18n.BlipMessages;
@@ -343,8 +344,8 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
           out.append(MENU_ICONS.get(option));
           closeSpan(out);
         }
-        // Show a subtle keyboard hint when in edit mode
-        if (options.contains(MenuOption.EDIT_DONE)) {
+        // Show a subtle keyboard hint when in edit mode (desktop only — not useful on mobile)
+        if (options.contains(MenuOption.EDIT_DONE) && !MobileDetector.isMobile()) {
           out.appendHtmlConstant(
               "<span class='" + EDIT_HINT_CLASS + "'>Shift+Enter to finish, Esc to exit</span>");
         }

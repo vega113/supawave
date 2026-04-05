@@ -36,10 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-<<<<<<< HEAD
 import java.util.Locale;
-=======
->>>>>>> c730d68bb (fix(editor): fix GWT compilation errors in mention handler)
 import java.util.Set;
 
 /**

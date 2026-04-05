@@ -195,6 +195,26 @@ public class RobotTest extends TestCase {
     assertEquals("The robot should be initialized", INITIALIZED_ACCOUNT, robot.getAccount());
   }
 
+  public void testProcessDropsWaveletIfCapabilitiesStayUnavailableAfterRefresh()
+      throws Exception {
+    doAnswer(new Answer<Object>() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        robot.setAccount(STALE_ACCOUNT);
+        return null;
+      }
+    }).when(gateway).updateRobotAccount(robot);
+
+    enqueueEmptyWavelet();
+    robot.run();
+
+    verify(connector, never()).sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class));
+    verify(operationApplicator, never()).applyOperations(
+        anyListOf(OperationRequest.class), any(ReadableWaveletData.class),
+        any(HashedVersion.class), any(RobotAccountData.class));
+  }
+
   public void testUpdateAccountIgnoresStaleSnapshots() {
     robot.setAccount(INITIALIZED_ACCOUNT);
 

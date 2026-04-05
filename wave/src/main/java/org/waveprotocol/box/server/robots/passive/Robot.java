@@ -286,6 +286,15 @@ public class Robot implements Runnable {
                 + ") at version " + wavelet.getVersionAfterDeltas(), e);
         return;
       }
+      if (currentAccount.getCapabilities() == null) {
+        ReadableWaveletData snapshot = wavelet.getSnapshotAfterDeltas();
+        LOG.info(
+            "Couldn't initialize the capabilities of robot(" + robotName
+                + "), dropping its wavelet(" + WaveletDataUtil.waveletNameOf(snapshot)
+                + ") at version " + wavelet.getVersionAfterDeltas()
+                + " because the refreshed account still has no capabilities");
+        return;
+      }
     }
 
     RobotCapabilities capabilities = currentAccount.getCapabilities();

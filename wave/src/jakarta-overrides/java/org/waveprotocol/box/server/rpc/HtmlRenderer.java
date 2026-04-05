@@ -4378,6 +4378,15 @@ public final class HtmlRenderer {
     sb.append("      <path d=\"M0,30 C200,60 400,0 600,30 C800,60 1000,0 1200,30 L1200,60 L0,60 Z\" fill=\"url(#waveGrad)\"/>\n");
     sb.append("    </svg>\n");
 
+    // Not-supported banner (shown when persistence backend does not support analytics)
+    sb.append("    <div id=\"analyticsNotSupportedBanner\" style=\"display:none;margin:0 24px 16px;padding:16px 20px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;font-size:14px;text-align:center;\">\n");
+    sb.append("      Analytics not available \u2014 requires MongoDB persistence.\n");
+    sb.append("    </div>\n");
+
+    // Storage note banner (shown for in-memory store, hidden by default)
+    sb.append("    <div id=\"analyticsStorageBanner\" style=\"display:none;margin:0 24px 16px;padding:10px 16px;border-radius:8px;background:#fefce8;border:1px solid #fde047;color:#854d0e;font-size:13px;\">\n");
+    sb.append("    </div>\n");
+
     // Disabled banner (hidden by default, shown when analytics counters are off)
     sb.append("    <div id=\"analyticsDisabledBanner\" style=\"display:none;margin:0 24px 16px;padding:12px 16px;border-radius:10px;background:").append(WAVE_BG).append(";border:1px solid ").append(WAVE_BORDER).append(";color:").append(WAVE_TEXT_MUTED).append(";font-size:13px;\">\n");
     sb.append("      Analytics counters are disabled. Set <code style=\"background:#e2e8f0;padding:2px 6px;border-radius:4px;\">core.analytics_counters_enabled = true</code> in your config to start collecting historical data.\n");
@@ -5356,6 +5365,35 @@ public final class HtmlRenderer {
     sb.append("    fetch('/admin/api/analytics/history?window=' + encodeURIComponent(win))\n");
     sb.append("      .then(function(r) { return r.json(); })\n");
     sb.append("      .then(function(data) {\n");
+    sb.append("        var notSupported = document.getElementById('analyticsNotSupportedBanner');\n");
+    sb.append("        if (data.supported === false) {\n");
+    sb.append("          if (notSupported) {\n");
+    sb.append("            notSupported.textContent = data.reason || 'Analytics is not available for this configuration';\n");
+    sb.append("            notSupported.style.display = 'block';\n");
+    sb.append("          }\n");
+    // Clear stale charts
+    sb.append("          ['chartWaves','chartBlips','chartUsers','chartActive'].forEach(function(id) {\n");
+    sb.append("            var canvas = document.getElementById(id);\n");
+    sb.append("            if (canvas) { var ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }\n");
+    sb.append("          });\n");
+    sb.append("          if (chartWaves) { chartWaves.destroy(); chartWaves = null; }\n");
+    sb.append("          if (chartBlips) { chartBlips.destroy(); chartBlips = null; }\n");
+    sb.append("          if (chartUsers) { chartUsers.destroy(); chartUsers = null; }\n");
+    sb.append("          if (chartActive) { chartActive.destroy(); chartActive = null; }\n");
+    // Reset stat cards
+    sb.append("          ['histWavesCreated','histBlipsCreated','histUsersRegistered','histActiveUsers','histPageViews','histApiViews'].forEach(function(id) {\n");
+    sb.append("            var el = document.getElementById(id); if (el) el.textContent = '--';\n");
+    sb.append("          });\n");
+    sb.append("          var sb2 = document.getElementById('analyticsStorageBanner'); if (sb2) sb2.style.display = 'none';\n");
+    sb.append("          var db = document.getElementById('analyticsDisabledBanner'); if (db) db.style.display = 'none';\n");
+    sb.append("          return;\n");
+    sb.append("        }\n");
+    sb.append("        if (notSupported) notSupported.style.display = 'none';\n");
+    sb.append("        var storageBanner = document.getElementById('analyticsStorageBanner');\n");
+    sb.append("        if (storageBanner) {\n");
+    sb.append("          if (data.storageNote) { storageBanner.textContent = '\\u26a0\\ufe0f ' + data.storageNote; storageBanner.style.display = 'block'; }\n");
+    sb.append("          else { storageBanner.style.display = 'none'; }\n");
+    sb.append("        }\n");
     sb.append("        var banner = document.getElementById('analyticsDisabledBanner');\n");
     sb.append("        if (banner) banner.style.display = data.enabled ? 'none' : 'block';\n");
     // Update summary cards from totals

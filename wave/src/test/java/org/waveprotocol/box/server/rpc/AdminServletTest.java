@@ -27,7 +27,9 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.AnalyticsCounterStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore;
+import org.waveprotocol.box.server.persistence.memory.NoOpAnalyticsCounterStore;
 import org.waveprotocol.box.server.persistence.ContactMessageStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore;
@@ -183,8 +185,26 @@ public final class AdminServletTest {
     JSONObject json = invokeAnalyticsHistory("24h");
 
     assertFalse(json.has("window"));
+    assertTrue(json.getBoolean("supported"));
     assertEquals("hourly", json.getString("granularity"));
     assertTrue(json.getJSONArray("series").isEmpty());
+  }
+
+  @Test
+  public void analyticsHistoryWithUnsupportedStore_returnsSupportedFalse() throws Exception {
+    JSONObject json = invokeAnalyticsHistoryWithStore("24h", new NoOpAnalyticsCounterStore());
+
+    assertFalse(json.getBoolean("supported"));
+    assertTrue(json.has("reason"));
+    assertFalse(json.has("series"));
+  }
+
+  @Test
+  public void analyticsHistoryWithMemoryStore_hasStorageNote() throws Exception {
+    JSONObject json = invokeAnalyticsHistoryWithStore("24h", new MemoryAnalyticsCounterStore());
+
+    assertTrue(json.getBoolean("supported"));
+    assertEquals("in-memory: resets on restart", json.getString("storageNote"));
   }
 
   private static JSONObject invokeOpsStatus(
@@ -267,6 +287,11 @@ public final class AdminServletTest {
   }
 
   private static JSONObject invokeAnalyticsHistory(String window) throws Exception {
+    return invokeAnalyticsHistoryWithStore(window, new MemoryAnalyticsCounterStore());
+  }
+
+  private static JSONObject invokeAnalyticsHistoryWithStore(
+      String window, AnalyticsCounterStore store) throws Exception {
     AccountStore accountStore = mock(AccountStore.class);
     SessionManager sessionManager = mock(SessionManager.class);
     ContactMessageStore contactMessageStore = mock(ContactMessageStore.class);
@@ -315,7 +340,7 @@ public final class AdminServletTest {
             lucene9Indexer,
             mockProvider(mock(SearchWaveletUpdater.class)),
             newAnalyticsService(),
-            new MemoryAnalyticsCounterStore());
+            store);
     try {
       servlet.doGet(request, response);
       writer.flush();

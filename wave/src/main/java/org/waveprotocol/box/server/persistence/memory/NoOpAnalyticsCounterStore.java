@@ -18,4 +18,6 @@ public final class NoOpAnalyticsCounterStore implements AnalyticsCounterStore {
   @Override public List<HourlyBucket> getHourlyBuckets(long fromMs, long toMs) {
     return Collections.emptyList();
   }
+
+  @Override public boolean isSupported() { return false; }
 }

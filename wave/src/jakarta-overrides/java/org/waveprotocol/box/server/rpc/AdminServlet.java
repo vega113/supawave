@@ -1137,6 +1137,16 @@ public final class AdminServlet extends HttpServlet {
       return;
     }
 
+    // Only guard on isSupported() when analytics is enabled; when disabled, fall through so the
+    // UI shows the "analytics disabled" banner (via enabled:false) rather than "not supported".
+    if (analyticsCountersEnabled && !analyticsCounterStore.isSupported()) {
+      setJsonUtf8(resp);
+      PrintWriter w = resp.getWriter();
+      w.append("{\"supported\":false,\"reason\":\"Analytics requires MongoDB persistence\"}");
+      w.flush();
+      return;
+    }
+
     List<HourlyBucket> hourlyBuckets = analyticsCounterStore.getHourlyBuckets(fromMs, now);
 
     // Decide granularity: hourly for <=48h, daily for >48h
@@ -1146,7 +1156,12 @@ public final class AdminServlet extends HttpServlet {
     setJsonUtf8(resp);
     PrintWriter w = resp.getWriter();
     w.append('{');
-    w.append("\"enabled\":").append(String.valueOf(analyticsCountersEnabled));
+    w.append("\"supported\":true");
+    w.append(",\"enabled\":").append(String.valueOf(analyticsCountersEnabled));
+    String storageNote = analyticsCounterStore.storageNote();
+    if (storageNote != null) {
+      w.append(",\"storageNote\":").append(jsonStr(storageNote));
+    }
     w.append(",\"granularity\":").append(jsonStr(daily ? "daily" : "hourly"));
 
     // Compute totals

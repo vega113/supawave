@@ -1,6 +1,7 @@
 package org.waveprotocol.box.server.persistence.memory;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -85,5 +86,15 @@ public class MemoryAnalyticsCounterStoreTest {
     assertEquals(1, buckets.size());
     assertEquals(2L, buckets.get(0).getPageViews());
     assertEquals(1L, buckets.get(0).getApiViews());
+  }
+
+  @Test public void testIsSupported_returnsTrue() {
+    assertTrue(store.isSupported());
+  }
+
+  @Test public void testStorageNote_mentionsRestart() {
+    String note = store.storageNote();
+    assertNotNull(note);
+    assertTrue("storageNote should mention restart", note.contains("restart"));
   }
 }

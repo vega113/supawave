@@ -30,6 +30,18 @@ public interface AnalyticsCounterStore {
   /** Returns hourly buckets in [fromMs, toMs) range, ordered by hour ascending. */
   List<HourlyBucket> getHourlyBuckets(long fromMs, long toMs);
 
+  /**
+   * Returns true if this store can collect and serve analytics data.
+   * Returns false when the persistence backend does not support analytics (e.g., file store).
+   */
+  default boolean isSupported() { return true; }
+
+  /**
+   * Returns a human-readable note about storage limitations, or null if none.
+   * For example, the in-memory store returns a note that data resets on restart.
+   */
+  default String storageNote() { return null; }
+
   /** A single hour of analytics data. */
   final class HourlyBucket {
     private final long hourMs;

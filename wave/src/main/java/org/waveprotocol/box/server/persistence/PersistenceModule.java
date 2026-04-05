@@ -293,6 +293,12 @@ public class PersistenceModule extends AbstractModule {
     if (accountStoreType.equalsIgnoreCase("mongodb") && "v4".equalsIgnoreCase(mongoDriver)) {
       bind(AnalyticsCounterStore.class)
           .toInstance(getMongo4Provider().provideMongoDbAnalyticsCounterStore());
+    } else if (accountStoreType.equalsIgnoreCase("file")) {
+      LOG.warning(
+          "Analytics counters are enabled but file-based storage does not support analytics persistence; "
+              + "analytics will be unavailable.");
+      bind(AnalyticsCounterStore.class)
+          .to(NoOpAnalyticsCounterStore.class).in(Singleton.class);
     } else {
       LOG.warning(
           "Analytics counters are enabled but analytics persistence is using in-memory storage; "

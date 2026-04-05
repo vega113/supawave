@@ -29,6 +29,9 @@ jobs:
       - name: Set up sbt
         uses: sbt/setup-sbt@v1
 
+      - name: Assemble changelog from fragments
+        run: python3 scripts/assemble-changelog.py
+
       - name: Compile PST and Wave
         run: sbt --batch pst/compile wave/compile
 

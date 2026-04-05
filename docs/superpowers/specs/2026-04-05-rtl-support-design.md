@@ -14,22 +14,27 @@ Auto-detect RTL paragraphs and render them correctly, with a manual override in 
 
 ## Architecture & Data Flow
 
-Wave already stores paragraph direction as a `d` attribute on paragraph elements (`d="r"` for RTL, `d="l"` for LTR). The `Direction` enum and `DIRECTION_ATTR` constant exist in `Paragraph.java`. The renderer (`DefaultParagraphHtmlRenderer.java`) still uses CSS `direction` today.
+Wave stores paragraph direction as a `d` attribute on paragraph elements (`d="r"` for RTL, `d="l"` for LTR). The `Direction` enum and `DIRECTION_ATTR` constant exist in `Paragraph.java`. The renderer (`DefaultParagraphHtmlRenderer.java`) reads this attribute and sets the HTML `dir` attribute (not CSS `direction`) on the rendered paragraph element. Any legacy CSS `direction` property is explicitly cleared.
 
-This PR does not change rendering or introduce browser auto-detection. It only adds the toolbar affordance for setting explicit RTL direction; renderer auto-detection and any `dir="auto"` follow-up remain future work.
+The current rendering behavior:
+
+```
+Paragraph element in doc model
+  ├── d="r" (explicit RTL)  → render dir="rtl"
+  ├── d="l" (explicit LTR)  → render dir="ltr"
+  └── (no d attr, default)  → render dir="auto"
+```
+
+`dir="auto"` is a native HTML attribute that instructs the browser to determine direction from the first strong Unicode bidi character in the element's text — exactly the algorithm Gmail uses. No custom detection logic is required.
 
 ## Components & Changes
 
 ### 1. `DefaultParagraphHtmlRenderer.java`
 
-**Current behavior:** When `direction != null`, sets CSS `style.direction = "rtl"/"ltr"`. When null, clears the property.
-
-**New behavior:**
-- `Direction.RTL` → set HTML attribute `dir="rtl"`, clear CSS `direction` (the `dir` attribute implies it)
-- `Direction.LTR` → set HTML attribute `dir="ltr"`, clear CSS `direction`
-- `null` (no stored direction) → set HTML attribute `dir="auto"`
-
-The element reference in the renderer already supports `setAttribute`/`removeAttribute` via GWT's DOM API.
+**Behavior:** Clears any CSS `style.direction` property (legacy), then sets the HTML `dir` attribute:
+- `Direction.RTL` → `dir="rtl"`
+- `Direction.LTR` → `dir="ltr"`
+- `null` (no stored direction) → `dir="auto"`
 
 ### 2. `EditToolbar.java`
 

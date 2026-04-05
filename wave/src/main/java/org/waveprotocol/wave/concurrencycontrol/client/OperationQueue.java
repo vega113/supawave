@@ -19,8 +19,6 @@
 
 package org.waveprotocol.wave.concurrencycontrol.client;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import org.waveprotocol.wave.concurrencycontrol.common.DeltaPair;
 import org.waveprotocol.wave.model.operation.TransformException;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperation;
@@ -44,7 +42,6 @@ class OperationQueue {
    * Helper for transforming a client delta against a server delta in such a way
    * that can be substituted out for testing.
    */
-  @VisibleForTesting
   interface Transformer {
     /**
      * Transforms a client delta against a server delta in a manner which can be
@@ -121,7 +118,6 @@ class OperationQueue {
    * Creates an empty {@link OperationQueue} which will use the given
    * {@link Transformer}.
    */
-  @VisibleForTesting
   OperationQueue(Transformer transformer) {
     this.transformer = transformer;
     queue = new LinkedList<Item>();

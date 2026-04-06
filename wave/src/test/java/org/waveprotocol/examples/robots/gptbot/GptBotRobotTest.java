@@ -388,9 +388,9 @@ public class GptBotRobotTest extends TestCase {
     BlipData blipData = new BlipData("example.com!w+abc123", "example.com!conv+root", "b+root",
         content);
     blipData.setAnnotations(java.util.Arrays.asList(
-        new Annotation("user/d/alice@example.com", "alice@example.com,1111,2222", 0,
+        new Annotation("user/d/session-1111", "alice@example.com,1111,2222", 0,
             content.length()),  // finished session
-        new Annotation("user/d/alice@example.com", "alice@example.com,3333,", 0,
+        new Annotation("user/d/session-3333", "alice@example.com,3333,", 0,
             content.length())   // active session — still editing
     ));
     bundle.addBlip("b+root", blipData);

@@ -21,6 +21,7 @@ package org.waveprotocol.examples.robots.gptbot;
 
 import com.google.gson.Gson;
 import com.google.wave.api.Annotation;
+import com.google.wave.api.Annotations;
 import com.google.wave.api.Blip;
 import com.google.wave.api.BlipThread;
 import com.google.wave.api.OperationQueue;
@@ -288,24 +289,35 @@ public final class GptBotRobot {
 
 
   /**
-   * Returns true if the blip is still being actively edited by a user.
+   * Returns true if any participant is CURRENTLY actively editing this blip.
    *
-   * <p>The {@code user/d/{sessionId}} annotation value has the format
-   * {@code {userId},{startTimeMs},{endTimeMs}}. While the user is typing the
-   * endTimeMs segment is empty (value ends with a comma). When the user
-   * submits (Shift+Enter or clicks away) Wave fills in the end timestamp —
-   * that is the definitive signal that the blip has been submitted.
+   * In Wave's document model, when a user is editing a blip, a "user/d/{sessionId}"
+   * annotation is added whose VALUE is "{userId},{startTimeMs},{endTimeMs}".
+   * While editing is in progress, {endTimeMs} is EMPTY (trailing comma).
+   * When editing ends (user submits or clicks away), {endTimeMs} is set to a non-empty timestamp.
+   *
+   * Note: "user/d/" annotations are PERMANENT — they remain on the blip after editing ends.
+   * The presence of the annotation alone does NOT indicate ongoing editing.
+   * Only annotations with an empty end timestamp indicate active editing.
    */
   private boolean isBlipBeingEdited(Blip blip) {
     if (blip == null) return false;
-    for (Annotation annotation : blip.getAnnotations()) {
-      if (annotation.getName() != null && annotation.getName().startsWith("user/d/")) {
-        String val = annotation.getValue() == null ? "" : annotation.getValue();
-        String[] parts = val.split(",", -1);
-        // Still editing: endTimeMs (last segment) is empty.
-        if (parts.length >= 3 && parts[parts.length - 1].isEmpty()) {
-          return true;
+    Annotations annotations = blip.getAnnotations();
+    if (annotations == null) return false;
+    for (Annotation annotation : annotations) {
+      String name = annotation.getName();
+      if (name == null || !name.startsWith("user/d/")) continue;
+      // Value format: "{userId},{startTimeMs},{endTimeMs}"
+      // Editing in progress = endTimeMs is empty (value ends with comma)
+      String value = annotation.getValue();
+      if (value == null) continue;
+      String[] parts = value.split(",", -1);  // -1 keeps trailing empty strings
+      if (parts.length >= 3 && parts[parts.length - 1].isEmpty()) {
+        if (LOG.isFineLoggable()) {
+          LOG.fine("isBlipBeingEdited: blipId=" + blip.getBlipId()
+              + " annotation=" + name + " active edit session (no endTimeMs)");
         }
+        return true;
       }
     }
     return false;

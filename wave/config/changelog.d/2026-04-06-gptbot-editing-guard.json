@@ -1,14 +1,14 @@
 {
   "releaseId": "2026-04-06-gptbot-editing-guard",
-  "version": "PR #682",
+  "version": "PR #683",
   "date": "2026-04-06",
-  "title": "gpt-bot waits for blip editing to complete before replying",
-  "summary": "The bot no longer replies to intermediate editing deltas. It checks for the 'user/d/' annotation (set while a user is actively editing) and skips handleBlip() until editing is complete.",
+  "title": "GPT Bot Editing Guard Fix",
+  "summary": "The GPT bot now correctly detects when a user has finished editing, so it replies after editing ends instead of being permanently silenced.",
   "sections": [
     {
       "type": "fix",
       "items": [
-        "gpt-bot no longer generates a reply for every keystroke — waits until the user finishes editing (user/d/ annotation absent) before responding"
+        "Fixed GPT bot editing guard: bot was checking annotation existence instead of value, causing it to never reply to @mentions"
       ]
     }
   ]

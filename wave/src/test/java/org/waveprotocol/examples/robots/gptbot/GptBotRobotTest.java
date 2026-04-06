@@ -320,8 +320,9 @@ public class GptBotRobotTest extends TestCase {
   }
 
   /**
-   * Regression: DOCUMENT_CHANGED fires on every committed delta while the user types.
-   * When the blip has a "user/d/" annotation the user is still editing — bot must not reply.
+   * Regression: DOCUMENT_CHANGED must be suppressed when the blip has a user/d/ annotation
+   * whose value has an EMPTY endTimeMs, indicating the user is still actively editing.
+   * Value format: "{userId},{startTimeMs},{endTimeMs}" — trailing comma means endTimeMs is empty.
    */
   public void testDocumentChangedSkipsReplyWhileUserIsStillEditing() {
     RecordingCodexClient codexClient = new RecordingCodexClient();
@@ -330,10 +331,10 @@ public class GptBotRobotTest extends TestCase {
     GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
         new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
 
-    // Blip contains a bot @mention but has a user/d/ annotation — user is still typing
+    // Value ends with comma → endTimeMs is empty → still editing
     String response = robot.handleEventBundle(exampleBundleJsonWithEditingAnnotation(TEST_CONFIG,
-        "\n@" + TEST_CONFIG.getRobotName() + " what can you do?",
-        "user/d/sessionId123",
+        "\n@" + TEST_CONFIG.getRobotName() + " help me",
+        "alice@example.com,1775485999253,",
         new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
 
     assertFalse("Bot must not reply while user/d/ annotation is present",
@@ -341,6 +342,64 @@ public class GptBotRobotTest extends TestCase {
     assertFalse(response.contains("blip.createChild"));
     assertEquals("No completion must be requested while editing", 0, codexClient.completeCalls);
     assertEquals("No context fetch while editing", 0, apiClient.fetchCalls);
+  }
+
+  /**
+   * The user/d/ annotation is PERMANENT — it stays on the blip forever.
+   * When endTimeMs is non-empty, editing is DONE and the bot MUST reply.
+   * Regression: the old code checked annotation existence (always true) and blocked all replies.
+   */
+  public void testDocumentChangedRepliesWhenEditingAnnotationHasEndTime() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Edit done answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    // Value has non-empty endTimeMs → editing is complete → bot should reply
+    String response = robot.handleEventBundle(exampleBundleJsonWithEditingAnnotation(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " help me",
+        "alice@example.com,1775485999253,1775486001215",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertTrue("Bot must reply when editing annotation shows editing is complete",
+        response.contains("wavelet.appendBlip"));
+    assertEquals("Completion must be requested after editing ends", 1, codexClient.completeCalls);
+  }
+
+  /**
+   * A blip with BOTH a finished user/d/ annotation (endTimeMs set) and an active one
+   * (endTimeMs empty) must still suppress replies — one active session is enough to block.
+   */
+  public void testDocumentChangedSkipsReplyWhenOneOfMultipleAnnotationsIsActive() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Should not appear.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    String content = "\n@" + TEST_CONFIG.getRobotName() + " help me";
+    EventMessageBundle bundle = new EventMessageBundle(TEST_CONFIG.getParticipantId(),
+        "http://localhost:8087/_wave/robot/jsonrpc");
+    WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
+        "b+root", (BlipThread) null);
+    waveletData.addParticipant("alice@example.com");
+    bundle.setWaveletData(waveletData);
+    BlipData blipData = new BlipData("example.com!w+abc123", "example.com!conv+root", "b+root",
+        content);
+    blipData.setAnnotations(java.util.Arrays.asList(
+        new Annotation("user/d/alice@example.com", "alice@example.com,1111,2222", 0,
+            content.length()),  // finished session
+        new Annotation("user/d/alice@example.com", "alice@example.com,3333,", 0,
+            content.length())   // active session — still editing
+    ));
+    bundle.addBlip("b+root", blipData);
+    bundle.addEvent(new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root"));
+    String response = robot.handleEventBundle(new GsonFactory().create().toJson(bundle));
+
+    assertFalse("Bot must not reply when any session is still active",
+        response.contains("Should not appear."));
+    assertEquals("No completion while any session is active", 0, codexClient.completeCalls);
   }
 
   /** Capabilities XML must declare PARENT context so the server includes parent blips. */
@@ -517,11 +576,12 @@ public class GptBotRobotTest extends TestCase {
   }
 
   /**
-   * Bundle where b+root has an editing annotation (user/d/...) indicating the user is still
-   * actively editing the blip.
+   * Bundle where b+root has a {@code user/d/...} annotation with the given value.
+   * Value format: "{userId},{startTimeMs},{endTimeMs}" — use empty endTimeMs (trailing comma)
+   * to simulate an in-progress edit, or a non-empty endTimeMs to simulate editing complete.
    */
-  private static String exampleBundleJsonWithEditingAnnotation(GptBotConfig config, String content,
-      String editingAnnotationName, Event... events) {
+  private static String exampleBundleJsonWithEditingAnnotation(GptBotConfig config,
+      String content, String annotationValue, Event... events) {
     EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
         "http://localhost:8087/_wave/robot/jsonrpc");
     WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
@@ -530,10 +590,8 @@ public class GptBotRobotTest extends TestCase {
     bundle.setWaveletData(waveletData);
     BlipData blipData = new BlipData("example.com!w+abc123",
         "example.com!conv+root", "b+root", content);
-    // Simulate an in-progress edit: value format is "{userId},{startMs},{endMs}" where
-    // endMs is empty while the user is actively composing (filled in on submission).
     blipData.setAnnotations(java.util.Arrays.asList(
-        new Annotation(editingAnnotationName, "alice@example.com,1775485999253,", 0, content.length())));
+        new Annotation("user/d/alice@example.com", annotationValue, 0, content.length())));
     bundle.addBlip("b+root", blipData);
     for (Event event : events) {
       bundle.addEvent(event);

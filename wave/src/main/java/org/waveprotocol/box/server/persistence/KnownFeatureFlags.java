@@ -36,6 +36,7 @@ public final class KnownFeatureFlags {
     // registered here so admins can see and toggle it via the feature-flags UI; a future PR will
     // wire isEnabled("grafana-log-export") into the Java-side log-export path when added.
     defaults.add(new FeatureFlag("grafana-log-export", "Allow forwarding remote logs to Grafana/Loki pipeline", false, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("new-blip-indicator", "Show floating pill when new messages arrive below viewport", false, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }
 

@@ -24,6 +24,7 @@ import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.scheduler.TimerService;
 import org.waveprotocol.wave.client.state.ThreadReadStateMonitor;
+import org.waveprotocol.wave.client.wavepanel.impl.NewBlipIndicatorPresenter;
 import org.waveprotocol.wave.client.wavepanel.view.BlipMetaView;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.ConversationView;
@@ -133,9 +134,21 @@ public class LiveConversationViewRenderer
         ConversationBlip ref = findBefore(blip, parentThread.getBlips());
         BlipView refView = viewOf(ref);
 
+        // Snapshot scroll state BEFORE insertion so the pill doesn't false-trigger
+        // when the new blip pushes the user past the near-bottom threshold.
+        boolean shouldNotify = newBlipIndicatorPresenter != null
+            && parentThread == conversation.getRootThread()
+            && conversation.getAnchor() == null;
+        if (shouldNotify) {
+          newBlipIndicatorPresenter.snapshotNearBottom();
+        }
+
         // Render the new blip.
         threadView.insertBlipAfter(refView, blip);
         bubbleBlipCountUpdate(blip);
+        if (shouldNotify) {
+          newBlipIndicatorPresenter.onNewBlip(blip);
+        }
       } else {
         throw new IllegalStateException("threadView not present");
       }
@@ -287,6 +300,7 @@ public class LiveConversationViewRenderer
   private final LiveSupplementRenderer supplementRenderer;
   private final IdentityMap<Conversation, LiveConversationRenderer> conversationRenderers =
       CollectionUtils.createIdentityMap();
+  private NewBlipIndicatorPresenter newBlipIndicatorPresenter;
 
   LiveConversationViewRenderer(TimerService timer, ObservableConversationView wave,
       ModelAsViewProvider views, ShallowBlipRenderer blipRenderer, ReplyManager replyHandler,
@@ -300,6 +314,14 @@ public class LiveConversationViewRenderer
     this.readMonitor = readMonitor;
     this.profiles = profiles;
     this.supplementRenderer = supplementRenderer;
+  }
+
+  /**
+   * Sets the presenter that shows a floating pill when new blips arrive
+   * below the viewport. May be {@code null} to disable.
+   */
+  public void setNewBlipIndicatorPresenter(NewBlipIndicatorPresenter presenter) {
+    this.newBlipIndicatorPresenter = presenter;
   }
 
   /**

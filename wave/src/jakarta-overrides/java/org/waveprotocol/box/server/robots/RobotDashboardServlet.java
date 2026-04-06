@@ -509,8 +509,18 @@ public final class RobotDashboardServlet extends HttpServlet {
     resp.setContentType("text/html; charset=UTF-8");
     String baseUrl = derivePublicBaseUrl(req);
     String contextPath = Strings.nullToEmpty(req.getContextPath());
+    // Look up the user's role so the Admin link appears in the top bar for owners/admins.
+    String userRole = org.waveprotocol.box.server.account.HumanAccountData.ROLE_USER;
+    try {
+      org.waveprotocol.box.server.account.AccountData acct = accountStore.getAccount(user);
+      if (acct != null && acct.isHuman()) {
+        userRole = acct.asHuman().getRole();
+      }
+    } catch (org.waveprotocol.box.server.persistence.PersistenceException e) {
+      // fall back to ROLE_USER — Admin link won't appear but page still renders
+    }
     resp.getWriter().write(renderDashboardPage(user.getAddress(), robotsToRender, message,
-        getOrGenerateXsrfToken(user), baseUrl, revealedSecret, contextPath));
+        getOrGenerateXsrfToken(user), baseUrl, revealedSecret, contextPath, userRole));
   }
 
   private List<RobotAccountData> loadOwnedRobots(String ownerAddress) {
@@ -546,6 +556,13 @@ public final class RobotDashboardServlet extends HttpServlet {
 
   private String renderDashboardPage(String userAddress, List<RobotAccountData> robots,
       String message, String xsrfToken, String baseUrl, String revealedSecret, String contextPath) {
+    return renderDashboardPage(userAddress, robots, message, xsrfToken, baseUrl, revealedSecret,
+        contextPath, null);
+  }
+
+  private String renderDashboardPage(String userAddress, List<RobotAccountData> robots,
+      String message, String xsrfToken, String baseUrl, String revealedSecret, String contextPath,
+      String userRole) {
     String safeUser = HtmlRenderer.escapeHtml(userAddress);
     String safeDomain = HtmlRenderer.escapeHtml(domain);
     String safeCtx = HtmlRenderer.escapeHtml(contextPath);
@@ -727,7 +744,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</style>\n<style>").append(HtmlRenderer.renderSharedTopBarCss()).append("</style></head><body>");
 
     // ——— Shared app header ———
-    sb.append(HtmlRenderer.renderSharedTopBarHtml(userAddress, contextPath, null));
+    sb.append(HtmlRenderer.renderSharedTopBarHtml(userAddress, contextPath, userRole));
 
     // ——— Main content area ———
     sb.append("<div class=\"main\">");

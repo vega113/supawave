@@ -26,6 +26,12 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.IntConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -78,6 +84,12 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   private final boolean rebuildOnStartup;
   private final IndexWriter indexWriter;
   private final SearcherManager searcherManager;
+  // Bounded queue to prevent unbounded growth; uses coalescing with pendingWaves set to avoid
+  // redundant re-indexing of the same wave multiple times within the queue.
+  private static final int MAX_QUEUE_SIZE = 10000;
+  private final BlockingQueue<WaveId> indexQueue;
+  private final ConcurrentHashMap<WaveId, Boolean> pendingWaves;
+  private final ExecutorService indexWriterExecutor;
   private volatile int lastRebuildWaveCount = -1;
   private volatile ReindexStats lastReindexStats;
   private final IncrementalIndexStats incrementalStats = new IncrementalIndexStats();
@@ -104,12 +116,38 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
       }
       throw new IndexException(e);
     }
+    this.indexQueue = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
+    this.pendingWaves = new ConcurrentHashMap<>();
+    this.indexWriterExecutor = Executors.newSingleThreadExecutor(
+        r -> { Thread t = new Thread(r, "lucene9-index-writer"); t.setDaemon(true); return t; });
+    indexWriterExecutor.submit(this::runIndexWriter);
   }
 
   @Override
   public void close() throws IOException {
-    searcherManager.close();
-    indexWriter.close();
+    // Interrupt the writer thread and wait for it to drain remaining queue items before
+    // closing the underlying Lucene resources it depends on.
+    indexWriterExecutor.shutdownNow();
+    boolean terminated = false;
+    try {
+      terminated = indexWriterExecutor.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+    if (!terminated) {
+      LOG.warning("Lucene9 index writer thread did not terminate within 10 seconds; " +
+          "proceeding to close resources under lock to prevent race condition");
+    }
+    // Synchronize on `this` to ensure no writer thread is mid-operation in processIndexUpdate()
+    // before closing the shared Lucene resources it uses, matching the lock held during
+    // incremental indexing (processIndexUpdate) and rebuild operations (remakeIndex, forceRemakeIndex).
+    synchronized (this) {
+      try {
+        searcherManager.close();
+      } finally {
+        indexWriter.close();
+      }
+    }
   }
 
   @Override
@@ -253,19 +291,85 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
 
   @Override
   public void waveletCommitted(WaveletName waveletName, HashedVersion version) {
+    // Enqueue asynchronously to decouple from the StorageContinuationExecutor thread, which may
+    // already hold Lucene's write lock — calling indexWriter.updateDocument() on that thread
+    // causes IllegalStateException: should not hold write lock.
+    WaveId waveId = waveletName.waveId;
+    // Only enqueue if not already pending to coalesce duplicate updates for the same wave.
+    if (pendingWaves.putIfAbsent(waveId, Boolean.TRUE) == null) {
+      // Use offer with a brief timeout rather than add to avoid blocking if queue is full.
+      // If queue is full, the update will be retried on the next commit.
+      try {
+        if (!indexQueue.offer(waveId, 100, TimeUnit.MILLISECONDS)) {
+          // Remove from pending if offer failed; it will be re-added on next commit.
+          pendingWaves.remove(waveId);
+          LOG.log(Level.WARNING, "Index queue full, deferring update for " + waveId.serialise());
+        }
+      } catch (InterruptedException e) {
+        // Restore interrupt flag and remove from pending; will retry on next commit.
+        Thread.currentThread().interrupt();
+        pendingWaves.remove(waveId);
+      }
+    }
+  }
+
+  /** Background writer loop: processes queued wave IDs on a dedicated single thread. */
+  private void runIndexWriter() {
+    while (!Thread.currentThread().isInterrupted()) {
+      try {
+        WaveId waveId = indexQueue.poll(1, TimeUnit.SECONDS);
+        if (waveId == null) {
+          continue;
+        }
+        processIndexUpdate(waveId);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      } catch (RuntimeException e) {
+        // Guard against unexpected exceptions killing the writer thread permanently.
+        LOG.log(Level.SEVERE, "Unexpected error in Lucene9 index writer loop", e);
+      }
+    }
+    // Drain any remaining queue items before exiting so shutdown doesn't lose pending updates.
+    WaveId waveId;
+    while ((waveId = indexQueue.poll()) != null) {
+      try {
+        processIndexUpdate(waveId);
+      } catch (RuntimeException e) {
+        // Guard drain loop against exceptions as well; log but continue draining remaining items.
+        LOG.log(Level.WARNING, "Error processing queued update during shutdown drain", e);
+      } finally {
+        // Always clean up the pending entry after processing (whether successful or not).
+        pendingWaves.remove(waveId);
+      }
+    }
+  }
+
+  /**
+   * Processes a single incremental index update. Synchronized on {@code this} to serialize with
+   * {@link #remakeIndex()} and {@link #forceRemakeIndex()}, which also hold this lock during
+   * deleteAll/rebuild — preventing concurrent IndexWriter writes that would corrupt a partial index.
+   */
+  private void processIndexUpdate(WaveId waveId) {
     try {
-      long elapsedNs = upsertWaveTimed(waveletName.waveId);
+      long elapsedNs;
+      synchronized (this) {
+        elapsedNs = upsertWaveTimed(waveId);
+        indexWriter.commit();
+        searcherManager.maybeRefreshBlocking();
+      }
       incrementalStats.record(elapsedNs);
-      indexWriter.commit();
-      searcherManager.maybeRefreshBlocking();
       if (LOG.isLoggable(Level.FINE)) {
-        LOG.fine("Indexed wave " + waveletName.waveId.serialise()
+        LOG.fine("Indexed wave " + waveId.serialise()
             + " in " + (elapsedNs / 1_000_000) + "ms (incremental)");
       }
     } catch (IOException e) {
-      LOG.log(Level.WARNING, "Failed to refresh lucene9 search index for " + waveletName, e);
+      LOG.log(Level.WARNING, "Failed to refresh lucene9 search index for wave " + waveId, e);
     } catch (WaveServerException e) {
-      LOG.log(Level.WARNING, "Failed to update lucene9 search index for " + waveletName, e);
+      LOG.log(Level.WARNING, "Failed to update lucene9 search index for wave " + waveId, e);
+    } finally {
+      // Always remove from pending set after processing (success or failure).
+      pendingWaves.remove(waveId);
     }
   }
 

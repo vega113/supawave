@@ -1,0 +1,8 @@
+{
+  "releaseId": "2026-04-06-lucene-realtime-index-fix",
+  "version": "PR #672",
+  "date": "2026-04-06",
+  "title": "Fix Lucene search index not updating for tags, mentions, content",
+  "summary": "Search results for tags, mentions, and content now update in real-time after editing. Previously, a write lock conflict in the Lucene indexer silently dropped all index updates after the first concurrent write.",
+  "sections": [{"type": "fix", "items": ["Tags, mentions, and content changes now appear in search results immediately", "Fixed concurrency bug in Lucene indexer that caused silent index update failures"]}]
+}

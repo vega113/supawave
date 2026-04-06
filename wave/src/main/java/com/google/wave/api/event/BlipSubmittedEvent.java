@@ -29,7 +29,7 @@ import com.google.wave.api.impl.EventMessageBundle;
  *             Use {@link com.google.wave.api.event.DocumentChangedEvent} instead.
  *             To detect when a user has finished editing a blip (as opposed to
  *             intermediate typing deltas), check for the absence of the
- *             {@code user/d/{sessionId}} annotation on the blip:
+ *             {@code user/d/}{@literal {sessionId}} annotation on the blip:
  *             if no annotation whose name starts with {@code "user/d/"} is present,
  *             the blip editing session has ended and it is safe to respond.
  *             Example:

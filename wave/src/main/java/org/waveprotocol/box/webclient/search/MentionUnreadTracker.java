@@ -97,10 +97,10 @@ public final class MentionUnreadTracker {
   }
 
   /**
-   * Returns the server-reported total number of unread mention waves.
-   * The navigation set is populated by paginating up to MAX_PAGES pages, so
-   * for accounts with more than MAX_PAGES * PAGE_SIZE unread mentions the
-   * badge may still exceed the navigable set.
+   * Returns the number of unread mention waves collected across all fetched pages.
+   * This equals the size of the navigable set, so the badge is always consistent
+   * with what {@link #getNextUnreadMentionWaveId()} can reach. Pagination is
+   * capped at MAX_PAGES * PAGE_SIZE waves.
    */
   public int getUnreadMentionCount() {
     return totalUnreadCount;
@@ -181,12 +181,11 @@ public final class MentionUnreadTracker {
     }
 
     unreadMentionWaves = Collections.unmodifiableList(newUnread);
-    // Use the server-reported total so the badge is accurate even when there
-    // are more matching waves than the PAGE_SIZE fetch window.
-    totalUnreadCount = total;
+    // Use the collected count so the badge exactly matches the navigable set.
+    totalUnreadCount = newUnread.size();
 
-    if (oldCount != total && listener != null) {
-      listener.onUnreadMentionCountChanged(total);
+    if (oldCount != totalUnreadCount && listener != null) {
+      listener.onUnreadMentionCountChanged(totalUnreadCount);
     }
   }
 

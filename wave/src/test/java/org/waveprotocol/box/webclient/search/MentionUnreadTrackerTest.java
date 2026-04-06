@@ -87,7 +87,7 @@ public final class MentionUnreadTrackerTest extends TestCase {
     tracker.start();
     scheduler.runPending();
 
-    // total=2: server says 2 unread mention waves; badge uses server total
+    // 3 snapshots returned; only the 2 with unread > 0 count toward the badge
     searchService.respondSuccess(2, makeSnapshots(
         snap("example.com/w+aaa", 5),
         snap("example.com/w+bbb", 0),
@@ -98,17 +98,26 @@ public final class MentionUnreadTrackerTest extends TestCase {
     assertEquals(2, lastNotifiedCount);
   }
 
-  public void testBadgeUsesServerTotalWhenResultsAreTruncated() {
+  public void testPaginationCollectsAllWaves() {
     MentionUnreadTracker tracker = createTracker(true, true);
     tracker.start();
     scheduler.runPending();
 
-    // Server reports 150 matches but only returns 2 snapshots (simulating truncation)
-    searchService.respondSuccess(150, makeSnapshots(
-        snap("example.com/w+aaa", 3),
-        snap("example.com/w+bbb", 1)
-    ));
+    // First page: exactly PAGE_SIZE=100 results → tracker should request next page
+    SnapSpec[] page1Specs = new SnapSpec[100];
+    for (int i = 0; i < 100; i++) {
+      page1Specs[i] = snap(String.format("example.com/w+p1%03d", i), 1);
+    }
+    searchService.respondSuccess(150, makeSnapshots(page1Specs));
 
+    // Tracker should now have issued a second search; provide the remainder
+    SnapSpec[] page2Specs = new SnapSpec[50];
+    for (int i = 0; i < 50; i++) {
+      page2Specs[i] = snap(String.format("example.com/w+p2%03d", i), 1);
+    }
+    searchService.respondSuccess(150, makeSnapshots(page2Specs));
+
+    // Badge and navigable set must both equal the total collected (150)
     assertEquals(150, tracker.getUnreadMentionCount());
     assertEquals(150, lastNotifiedCount);
   }

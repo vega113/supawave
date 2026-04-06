@@ -19,6 +19,7 @@
 
 package org.waveprotocol.examples.robots.gptbot;
 
+import com.google.wave.api.Annotation;
 import com.google.wave.api.BlipData;
 import com.google.wave.api.BlipThread;
 import com.google.wave.api.event.DocumentChangedEvent;
@@ -53,7 +54,7 @@ public class GptBotRobotTest extends TestCase {
         new BlipSubmittedEvent(null, null, "alice@example.com", 1L, "b+root")));
 
     assertTrue(response.contains("Here is a helpful answer."));
-    assertTrue(response.contains("blip.createChild"));
+    assertTrue(response.contains("wavelet.appendBlip"));
     assertEquals(0, apiClient.appendCalls);
     assertEquals(1, apiClient.fetchCalls);
     assertEquals(1, codexClient.completeCalls);
@@ -114,7 +115,7 @@ public class GptBotRobotTest extends TestCase {
         new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
 
     assertTrue(response.contains("Here is a helpful answer."));
-    assertTrue(response.contains("blip.createChild"));
+    assertTrue(response.contains("wavelet.appendBlip"));
     assertEquals(1, codexClient.completeCalls);
   }
 
@@ -130,7 +131,7 @@ public class GptBotRobotTest extends TestCase {
         new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
 
     assertTrue(response.contains("Here is a helpful answer."));
-    assertTrue(response.contains("blip.createChild"));
+    assertTrue(response.contains("wavelet.appendBlip"));
     assertEquals(1, codexClient.completeCalls);
   }
 
@@ -220,7 +221,7 @@ public class GptBotRobotTest extends TestCase {
         new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+followup")));
 
     assertTrue("Bot should reply to follow-up in bot thread", response.contains("3+3 is 6."));
-    assertTrue(response.contains("blip.createChild"));
+    assertTrue(response.contains("wavelet.appendBlip"));
     assertEquals(1, codexClient.completeCalls);
   }
 
@@ -264,7 +265,7 @@ public class GptBotRobotTest extends TestCase {
 
     assertTrue("Bot should reply even if later edited by human",
         response.contains("Edited answer."));
-    assertTrue(response.contains("blip.createChild"));
+    assertTrue(response.contains("wavelet.appendBlip"));
     assertEquals(1, codexClient.completeCalls);
   }
 
@@ -290,7 +291,7 @@ public class GptBotRobotTest extends TestCase {
 
     assertTrue("Bot should reply even if human edited parent",
         response.contains("Answer to follow-up."));
-    assertTrue(response.contains("blip.createChild"));
+    assertTrue(response.contains("wavelet.appendBlip"));
     assertEquals(1, codexClient.completeCalls);
   }
 
@@ -314,8 +315,32 @@ public class GptBotRobotTest extends TestCase {
         new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+userblip")));
 
     assertTrue("Bot should reply to sibling in bot thread", response.contains("Sibling thread answer."));
-    assertTrue(response.contains("blip.createChild"));
+    assertTrue(response.contains("wavelet.appendBlip"));
     assertEquals(1, codexClient.completeCalls);
+  }
+
+  /**
+   * Regression: DOCUMENT_CHANGED fires on every committed delta while the user types.
+   * When the blip has a "user/d/" annotation the user is still editing — bot must not reply.
+   */
+  public void testDocumentChangedSkipsReplyWhileUserIsStillEditing() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Should not be generated.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    // Blip contains a bot @mention but has a user/d/ annotation — user is still typing
+    String response = robot.handleEventBundle(exampleBundleJsonWithEditingAnnotation(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " what can you do?",
+        "user/d/sessionId123",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertFalse("Bot must not reply while user/d/ annotation is present",
+        response.contains("Should not be generated."));
+    assertFalse(response.contains("blip.createChild"));
+    assertEquals("No completion must be requested while editing", 0, codexClient.completeCalls);
+    assertEquals("No context fetch while editing", 0, apiClient.fetchCalls);
   }
 
   /** Capabilities XML must declare PARENT context so the server includes parent blips. */
@@ -484,6 +509,28 @@ public class GptBotRobotTest extends TestCase {
     // Add the inline thread to the bundle so Blip.getThread() returns it.
     bundle.addThread("t+inline", new BlipThread("t+inline", 5,
         java.util.Arrays.asList("b+botsibling", "b+userblip"), null));
+    for (Event event : events) {
+      bundle.addEvent(event);
+    }
+    return new GsonFactory().create().toJson(bundle);
+  }
+
+  /**
+   * Bundle where b+root has an editing annotation (user/d/...) indicating the user is still
+   * actively editing the blip.
+   */
+  private static String exampleBundleJsonWithEditingAnnotation(GptBotConfig config, String content,
+      String editingAnnotationName, Event... events) {
+    EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
+        "http://localhost:8087/_wave/robot/jsonrpc");
+    WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
+        "b+root", (BlipThread) null);
+    waveletData.addParticipant("alice@example.com");
+    bundle.setWaveletData(waveletData);
+    BlipData blipData = new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+root", content);
+    blipData.addAnnotation(new Annotation(editingAnnotationName, "", 0, 1));
+    bundle.addBlip("b+root", blipData);
     for (Event event : events) {
       bundle.addEvent(event);
     }

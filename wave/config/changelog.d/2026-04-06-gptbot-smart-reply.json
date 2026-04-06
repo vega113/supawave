@@ -1,0 +1,25 @@
+{
+  "releaseId": "2026-04-06-gptbot-smart-reply",
+  "version": "PR #680",
+  "date": "2026-04-06",
+  "title": "GPT Bot Smart Reply Improvements",
+  "summary": "Four improvements to the gpt-bot: editing guard, root-thread replies, per-wave conversation memory, and web search.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Bot now waits for editing to finish (user/d annotation cleared) before responding to DOCUMENT_CHANGED events",
+        "Bot replies are appended to the root thread instead of as inline child blips",
+        "Per-wave conversation history with token-based pruning (len/4 estimate, drops oldest turns when >80 000 tokens)",
+        "Web search tool via OpenAI function calling backed by DuckDuckGo instant answers"
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "Sibling follow-up heuristic restricted to non-root threads to prevent over-triggering after root-thread replies",
+        "Conversation history reads are now properly synchronized against concurrent pruning"
+      ]
+    }
+  ]
+}

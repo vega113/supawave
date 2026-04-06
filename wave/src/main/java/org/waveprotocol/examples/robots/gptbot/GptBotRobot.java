@@ -20,6 +20,7 @@
 package org.waveprotocol.examples.robots.gptbot;
 
 import com.google.gson.Gson;
+import com.google.wave.api.Annotation;
 import com.google.wave.api.Blip;
 import com.google.wave.api.BlipThread;
 import com.google.wave.api.OperationQueue;
@@ -141,7 +142,12 @@ public final class GptBotRobot {
           // whether submittedOnly mode is configured.
           Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
           if (changedBlip != null) {
-            handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
+            if (isBlipBeingEdited(changedBlip)) {
+              LOG.fine("processEvents: DOCUMENT_CHANGED blipId=" + changedBlip.getBlipId()
+                  + " still being edited, skipping");
+            } else {
+              handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
+            }
           } else {
             LOG.info("processEvents: DOCUMENT_CHANGED blip is null — skipping");
           }
@@ -180,6 +186,9 @@ public final class GptBotRobot {
       LOG.info("handleBlip: already handled blipId=" + blipId + " — skipping duplicate");
       return;
     }
+    if (isBlipBeingEdited(blip)) {
+      return;
+    }
 
     String waveId = blip.getWaveId() == null ? "" : blip.getWaveId().toString();
     String waveletId = blip.getWaveletId() == null ? "" : blip.getWaveletId().toString();
@@ -208,7 +217,7 @@ public final class GptBotRobot {
       String waveContext = apiClient.fetchWaveContext(waveId, waveletId).orElse("");
       LOG.info("handleBlip: waveContextLen=" + waveContext.length());
 
-      Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext);
+      Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext, waveId);
       if (!reply.isPresent()) {
         LOG.warning("handleBlip: replyForPrompt returned empty — LLM may have failed");
         return;
@@ -228,7 +237,7 @@ public final class GptBotRobot {
           LOG.info("handleBlip: ACTIVE appendReply succeeded for blipId=" + blipId);
         }
       } else {
-        blip.reply().append(replyText);
+        blip.getWavelet().reply("\n" + replyText);
         LOG.info("handleBlip: PASSIVE reply appended for blipId=" + blipId);
       }
     } catch (Exception e) {
@@ -246,10 +255,12 @@ public final class GptBotRobot {
     if (parent != null && hasBotContributor(parent)) {
       return true;
     }
-    // Check if any sibling blip in the same thread has the bot as a contributor (inline reply threads
-    // where the bot's reply and the user's follow-up share the same containing thread).
+    // Check if any sibling blip in the same non-root thread has the bot as a contributor (inline
+    // reply threads where the bot's reply and the user's follow-up share the same containing
+    // thread). The root thread (id="" or null) is excluded: the bot now posts there too, and
+    // treating every root-thread blip as a follow-up would over-trigger the bot.
     BlipThread thread = blip.getThread();
-    if (thread != null) {
+    if (thread != null && thread.getId() != null && !thread.getId().isEmpty()) {
       for (String siblingId : thread.getBlipIds()) {
         if (siblingId != null && !siblingId.equals(blip.getBlipId())) {
           Blip sibling = blip.getWavelet() != null ? blip.getWavelet().getBlip(siblingId) : null;
@@ -273,6 +284,16 @@ public final class GptBotRobot {
         .anyMatch(c -> c != null && c.equalsIgnoreCase(config.getParticipantId()));
   }
 
+
+  private boolean isBlipBeingEdited(Blip blip) {
+    if (blip == null) return false;
+    for (Annotation annotation : blip.getAnnotations()) {
+      if (annotation.getName() != null && annotation.getName().startsWith("user/d/")) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   private boolean shouldHandle(Blip blip, Set<String> handledBlipIds) {
     String blipId = blip.getBlipId();

@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-06-gptbot-mention-fix",
+  "version": "PR #664",
+  "date": "2026-04-06",
+  "title": "Fix gpt-bot @mention handling and reply-thread continuations",
+  "summary": "The gpt-bot now reliably responds to @mentions and to follow-up messages sent in its reply threads without requiring a re-typed @mention. Three root causes were addressed: missing DOCUMENT_CHANGED capability causing the server to stop dispatching events, a missing PARENT context causing the parent-blip lookup to fail in production, and an empty-blip guard to prevent premature replies when new thread blips are created.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Declare DOCUMENT_CHANGED capability in the bot XML so the server delivers @mention events after a capability refresh",
+        "Changed capability context from SELF,SIBLINGS to SELF,SIBLINGS,PARENT so parent blips are included in event bundles",
+        "Bot now replies to follow-up messages in its reply threads without requiring a re-typed @mention",
+        "Guard against empty WAVELET_BLIP_CREATED events triggering premature bot replies before the user has typed"
+      ]
+    }
+  ]
+}

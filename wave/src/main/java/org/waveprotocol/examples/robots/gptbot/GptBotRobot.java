@@ -143,6 +143,22 @@ public final class GptBotRobot {
       String waveId = blip.getWaveId() == null ? "" : blip.getWaveId().toString();
       String waveletId = blip.getWaveletId() == null ? "" : blip.getWaveletId().toString();
       Optional<String> prompt = replyPlanner.extractPrompt(blip.getContent());
+      if (!prompt.isPresent()) {
+        // No @mention — check if this is a direct reply to a bot blip. When a user continues
+        // a conversation in the bot's reply thread, treat the content as the prompt directly.
+        Blip parent = blip.getParentBlip();
+        if (parent != null) {
+          List<String> parentContributors = parent.getContributors();
+          String lastContributor = (parentContributors != null && !parentContributors.isEmpty())
+              ? parentContributors.get(parentContributors.size() - 1) : null;
+          if (config.getParticipantId().equalsIgnoreCase(lastContributor)) {
+            String content = blip.getContent() == null ? "" : blip.getContent().strip();
+            if (!content.isEmpty()) {
+              prompt = Optional.of(content);
+            }
+          }
+        }
+      }
       if (prompt.isPresent()) {
         String waveContext = apiClient.fetchWaveContext(waveId, waveletId).orElse("");
         Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext);
@@ -173,6 +189,9 @@ public final class GptBotRobot {
     return modifiedBy != null && modifiedBy.equalsIgnoreCase(config.getParticipantId());
   }
 
+  // To force the server to pick up new capabilities without restart:
+  // use the Admin panel → Robots → Test button, or POST /api/robots/gpt-bot@supawave.ai/verify
+  // The verify endpoint fetches /_wave/capabilities.xml and updates MongoDB.
   private String buildCapabilitiesXml() {
     StringBuilder xml = new StringBuilder();
     xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -181,9 +200,9 @@ public final class GptBotRobot {
     xml.append("  <w:protocolversion>").append(ProtocolVersion.DEFAULT.getVersionString())
         .append("</w:protocolversion>\n");
     xml.append("  <w:capabilities>\n");
-    xml.append(capabilityXml("BLIP_SUBMITTED", "SELF,SIBLINGS"));
-    xml.append(capabilityXml("DOCUMENT_CHANGED", "SELF,SIBLINGS"));
-    xml.append(capabilityXml("WAVELET_BLIP_CREATED", "SELF,SIBLINGS"));
+    xml.append(capabilityXml("DOCUMENT_CHANGED", "SELF,SIBLINGS,PARENT"));
+    xml.append(capabilityXml("BLIP_SUBMITTED", "SELF,SIBLINGS,PARENT"));
+    xml.append(capabilityXml("WAVELET_BLIP_CREATED", "SELF,SIBLINGS,PARENT"));
     xml.append("  </w:capabilities>\n");
     xml.append("</w:robot>\n");
     return xml.toString();
@@ -196,9 +215,9 @@ public final class GptBotRobot {
   private String capabilitiesHash() {
     String payload = String.join("|",
         config.getRobotName(),
-        "BLIP_SUBMITTED:SELF,SIBLINGS",
-        "DOCUMENT_CHANGED:SELF,SIBLINGS",
-        "WAVELET_BLIP_CREATED:SELF,SIBLINGS");
+        "DOCUMENT_CHANGED:SELF,SIBLINGS,PARENT",
+        "BLIP_SUBMITTED:SELF,SIBLINGS,PARENT",
+        "WAVELET_BLIP_CREATED:SELF,SIBLINGS,PARENT");
     String hash = "sha256:";
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");

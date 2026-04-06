@@ -134,7 +134,12 @@ public final class MentionUnreadTracker {
   }
 
   private void poll() {
-    cancelPending();
+    if (pendingRequest != null) {
+      // A multi-page scan is already in flight; let it complete rather than
+      // canceling and restarting from page 0, which would prevent the badge
+      // from ever refreshing on slow connections with many mention waves.
+      return;
+    }
     fetchPage(0, new ArrayList<SearchService.DigestSnapshot>());
   }
 

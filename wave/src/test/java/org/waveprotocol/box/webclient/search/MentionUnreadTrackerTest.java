@@ -206,6 +206,21 @@ public final class MentionUnreadTrackerTest extends TestCase {
     assertEquals("mentions:me unread:true", searchService.lastQuery);
   }
 
+  public void testPollSkipsWhenScanInFlight() {
+    MentionUnreadTracker tracker = createTracker(true, true);
+    tracker.start();
+    scheduler.runPending(); // fires first poll → search in flight
+
+    // Second poll tick fires while first request is still pending
+    scheduler.runPending(); // should be a no-op (scan in flight)
+
+    // The original in-flight request is still the active one; responding to it
+    // should update the badge normally.
+    searchService.respondSuccess(1, makeSnapshots(snap("example.com/w+aaa", 3)));
+    assertEquals(1, tracker.getUnreadMentionCount());
+    assertEquals(1, lastNotifiedCount);
+  }
+
   public void testDestroyStopsPolling() {
     MentionUnreadTracker tracker = createTracker(true, true);
     tracker.start();

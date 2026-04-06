@@ -287,11 +287,25 @@ public final class GptBotRobot {
   }
 
 
+  /**
+   * Returns true if the blip is still being actively edited by a user.
+   *
+   * <p>The {@code user/d/{sessionId}} annotation value has the format
+   * {@code {userId},{startTimeMs},{endTimeMs}}. While the user is typing the
+   * endTimeMs segment is empty (value ends with a comma). When the user
+   * submits (Shift+Enter or clicks away) Wave fills in the end timestamp —
+   * that is the definitive signal that the blip has been submitted.
+   */
   private boolean isBlipBeingEdited(Blip blip) {
     if (blip == null) return false;
     for (Annotation annotation : blip.getAnnotations()) {
       if (annotation.getName() != null && annotation.getName().startsWith("user/d/")) {
-        return true;
+        String val = annotation.getValue() == null ? "" : annotation.getValue();
+        String[] parts = val.split(",", -1);
+        // Still editing: endTimeMs (last segment) is empty.
+        if (parts.length >= 3 && parts[parts.length - 1].isEmpty()) {
+          return true;
+        }
       }
     }
     return false;

@@ -530,7 +530,10 @@ public class GptBotRobotTest extends TestCase {
     bundle.setWaveletData(waveletData);
     BlipData blipData = new BlipData("example.com!w+abc123",
         "example.com!conv+root", "b+root", content);
-    blipData.addAnnotation(new Annotation(editingAnnotationName, "", 0, 1));
+    // Simulate an in-progress edit: value format is "{userId},{startMs},{endMs}" where
+    // endMs is empty while the user is actively composing (filled in on submission).
+    blipData.setAnnotations(java.util.Arrays.asList(
+        new Annotation(editingAnnotationName, "alice@example.com,1775485999253,", 0, content.length())));
     bundle.addBlip("b+root", blipData);
     for (Event event : events) {
       bundle.addEvent(event);

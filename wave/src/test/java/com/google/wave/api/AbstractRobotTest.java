@@ -35,7 +35,7 @@ import com.google.wave.api.OperationRequest.Parameter;
 import com.google.wave.api.WaveService.HttpFetcher;
 import com.google.wave.api.WaveService.HttpResponse;
 import com.google.wave.api.event.BlipContributorsChangedEvent;
-import com.google.wave.api.event.BlipSubmittedEvent;
+import com.google.wave.api.event.BlipEditingDoneEvent;
 import com.google.wave.api.event.DocumentChangedEvent;
 import com.google.wave.api.event.EventType;
 import com.google.wave.api.event.WaveletTagsChangedEvent;
@@ -107,7 +107,7 @@ public class AbstractRobotTest extends TestCase {
 
     @Capability(contexts = {Context.PARENT, Context.SELF, Context.CHILDREN}, filter=".*")
     @Override
-    public void onBlipSubmitted(BlipSubmittedEvent e) {
+    public void onBlipEditingDone(BlipEditingDoneEvent e) {
       calledEvents.add(e.getType());
     }
 
@@ -178,7 +178,7 @@ public class AbstractRobotTest extends TestCase {
     String capabilitiesXml = writer.getString();
 
     String expectedCapabilityTag =
-        "<w:capability name=\"BLIP_SUBMITTED\" context=\"PARENT,SELF,CHILDREN\" filter=\".*\"/>\n";
+        "<w:capability name=\"BLIP_EDITING_DONE\" context=\"PARENT,SELF,CHILDREN\" filter=\".*\"/>\n";
     assertTrue(capabilitiesXml.contains(expectedCapabilityTag));
 
     expectedCapabilityTag =
@@ -238,7 +238,7 @@ public class AbstractRobotTest extends TestCase {
       }
 
       @Override
-      public void onBlipSubmitted(BlipSubmittedEvent e) {
+      public void onBlipEditingDone(BlipEditingDoneEvent e) {
         calledEvents.add(e.getType());
       }
 
@@ -261,7 +261,7 @@ public class AbstractRobotTest extends TestCase {
     WaveletData waveletData = new WaveletData("google.com!wave1", "google.com!conv+root", "blip1",
         null);
     waveletData.addParticipant("foo@google.com");
-    BlipSubmittedEvent event1 = new BlipSubmittedEvent(null, null, "foo@test.com", 1l, "blip1");
+    BlipEditingDoneEvent event1 = new BlipEditingDoneEvent(null, null, "foo@test.com", 1l, "blip1");
     DocumentChangedEvent event2 = new DocumentChangedEvent(null, null, "foo@test.com", 1l, "blip1");
     WaveletTagsChangedEvent event3 = new WaveletTagsChangedEvent(null, null, "foo@test.com", 1l,
         "blip1");
@@ -279,7 +279,7 @@ public class AbstractRobotTest extends TestCase {
         makeMockResponse(mockWriter));
 
     assertEquals(3, calledEvents.size());
-    assertEquals(EventType.BLIP_SUBMITTED, calledEvents.get(0));
+    assertEquals(EventType.BLIP_EDITING_DONE, calledEvents.get(0));
     assertEquals(EventType.DOCUMENT_CHANGED, calledEvents.get(1));
     assertEquals(EventType.WAVELET_TAGS_CHANGED, calledEvents.get(2));
 

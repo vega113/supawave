@@ -241,6 +241,27 @@ public final class WaveWebSocketClientTest {
     assertTrue("Delay should be <= 1200ms, was " + delay, delay <= 1200);
   }
 
+  @Test
+  public void wasRecentlyReconnectedFalseOnFreshClient() throws Exception {
+    WaveWebSocketClient client = createClient(new FakeWaveSocket());
+    assertFalse(client.wasRecentlyReconnected());
+  }
+
+  @Test
+  public void wasRecentlyReconnectedTrueWithinWindow() throws Exception {
+    WaveWebSocketClient client = createClient(new FakeWaveSocket());
+    setField(client, "lastReconnectTimeMs", System.currentTimeMillis());
+    assertTrue(client.wasRecentlyReconnected());
+  }
+
+  @Test
+  public void wasRecentlyReconnectedFalseAfterWindowExpires() throws Exception {
+    WaveWebSocketClient client = createClient(new FakeWaveSocket());
+    // Simulate a reconnect that happened 11 seconds ago (outside 10s window)
+    setField(client, "lastReconnectTimeMs", System.currentTimeMillis() - 11_000L);
+    assertFalse(client.wasRecentlyReconnected());
+  }
+
   private static WaveWebSocketClient createClient(FakeWaveSocket socket) throws Exception {
     WaveWebSocketClient client = new WaveWebSocketClient(false, "") {
       @Override

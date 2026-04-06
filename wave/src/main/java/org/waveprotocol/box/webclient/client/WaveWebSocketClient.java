@@ -125,6 +125,8 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
 
   private boolean connectedAtLeastOnce = false;
   private long connectTry = 0;
+  /** Timestamp (ms) of the most recent successful reconnect; 0 if never reconnected. */
+  private long lastReconnectTimeMs = 0;
   private boolean reconnectScheduled = false;
   private com.google.gwt.user.client.Timer reconnectTimer;
   private final String urlBase;
@@ -174,6 +176,9 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   public void onConnect() {
     boolean wasReconnection = connectedAtLeastOnce;
     resetReconnectStateAfterConnect();
+    if (wasReconnection) {
+      lastReconnectTimeMs = System.currentTimeMillis();
+    }
 
     // Sends the session cookie to the server via an RPC to work around browser bugs.
     // See: http://code.google.com/p/wave-protocol/issues/detail?id=119
@@ -359,6 +364,16 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
       reconnectTimer = null;
     }
     reconnectScheduled = false;
+  }
+
+  /**
+   * Returns true if the socket reconnected within the last 10 seconds.
+   * Used by ErrorHandler to detect uncaught exceptions that are likely
+   * caused by a failed post-reconnect re-sync, warranting a clean reload.
+   */
+  public boolean wasRecentlyReconnected() {
+    return lastReconnectTimeMs > 0
+        && (System.currentTimeMillis() - lastReconnectTimeMs) < 10_000;
   }
 
 }

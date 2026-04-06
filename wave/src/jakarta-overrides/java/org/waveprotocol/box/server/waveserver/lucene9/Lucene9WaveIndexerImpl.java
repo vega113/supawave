@@ -304,7 +304,7 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
           // Remove from pending if offer failed; it will be re-added on next commit.
           pendingWaves.remove(waveId);
           LOG.log(Level.WARNING, "Index queue full, deferring update for " + waveId.serialise());
-        } else {
+        } else if (LOG.isLoggable(Level.FINE)) {
           LOG.fine("waveletCommitted: queued waveId=" + waveId.serialise()
               + " queueSize=" + indexQueue.size());
         }

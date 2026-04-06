@@ -328,6 +328,98 @@ public class EventGeneratorTest extends RobotsTestBase {
     assertEquals("Expected the value of the annotation", annotationValue, event.getValue());
   }
 
+  /**
+   * Tests that BLIP_EDITING_DONE is synthesized when a user/d/ annotation gets its
+   * end timestamp filled in (all editing sessions closed).
+   */
+  public void testGenerateBlipEditingDoneEventWhenEditingCompletes() throws Exception {
+    ConversationBlip rootBlip =
+        conversationUtil.buildConversation(wavelet).getRoot().getRootThread().getFirstBlip();
+
+    // Simulate a user/d/ annotation with end timestamp filled in (editing complete).
+    rootBlip.getContent().setAnnotation(0, 1, "user/d/session-1234",
+        "alice@example.com,1775485999253,1775486001215");
+
+    EventMessageBundle messages = generateAndCheckEvents(EventType.BLIP_EDITING_DONE);
+    boolean found = false;
+    for (Event event : messages.getEvents()) {
+      if (event.getType() == EventType.BLIP_EDITING_DONE) {
+        found = true;
+        assertEquals(ALEX.getAddress(), event.getModifiedBy());
+      }
+    }
+    assertTrue("Expected BLIP_EDITING_DONE event", found);
+  }
+
+  /**
+   * Tests that BLIP_EDITING_DONE is NOT fired when the user/d/ annotation still has
+   * an empty end timestamp (user is still editing).
+   */
+  public void testNoBlipEditingDoneWhileStillEditing() throws Exception {
+    ConversationBlip rootBlip =
+        conversationUtil.buildConversation(wavelet).getRoot().getRootThread().getFirstBlip();
+
+    // Simulate a user/d/ annotation with empty end timestamp (still editing).
+    rootBlip.getContent().setAnnotation(0, 1, "user/d/session-1234",
+        "alice@example.com,1775485999253,");
+
+    List<WaveletOperation> ops = output.getOps();
+    HashedVersion endVersion = HashedVersion.unsigned(waveletData.getVersion());
+    TransformedWaveletDelta delta = makeDeltaFromCapturedOps(ALEX, ops, endVersion, 0L);
+    WaveletAndDeltas waveletAndDeltas =
+        WaveletAndDeltas.create(waveletData, DeltaSequence.of(delta));
+
+    Map<EventType, Capability> capabilities = Maps.newHashMap();
+    capabilities.put(EventType.BLIP_EDITING_DONE, new Capability(EventType.BLIP_EDITING_DONE));
+
+    EventMessageBundle messages =
+        eventGenerator.generateEvents(waveletAndDeltas, capabilities, CONVERTER);
+
+    for (Event event : messages.getEvents()) {
+      assertFalse("BLIP_EDITING_DONE must not fire while editing is in progress",
+          event.getType() == EventType.BLIP_EDITING_DONE);
+    }
+  }
+
+  /**
+   * Tests that BLIP_EDITING_DONE is NOT fired when one of multiple user/d/ annotations
+   * still has an empty end timestamp (one user still editing).
+   */
+  public void testNoBlipEditingDoneWhenOneSessionStillActive() throws Exception {
+    ConversationBlip rootBlip =
+        conversationUtil.buildConversation(wavelet).getRoot().getRootThread().getFirstBlip();
+
+    // Seed two active sessions.
+    rootBlip.getContent().setAnnotation(0, 1, "user/d/session-1111",
+        "alice@example.com,1111,");
+    rootBlip.getContent().setAnnotation(0, 1, "user/d/session-3333",
+        "bob@example.com,3333,");
+
+    // Only capture the "close one session" transition in this delta.
+    output.clear();
+
+    // Close first session; second remains active — exercises allEditingSessionsClosed branch.
+    rootBlip.getContent().setAnnotation(0, 1, "user/d/session-1111",
+        "alice@example.com,1111,2222");
+
+    List<WaveletOperation> ops = output.getOps();
+    HashedVersion endVersion = HashedVersion.unsigned(waveletData.getVersion());
+    TransformedWaveletDelta delta = makeDeltaFromCapturedOps(ALEX, ops, endVersion, 0L);
+    WaveletAndDeltas waveletAndDeltas =
+        WaveletAndDeltas.create(waveletData, DeltaSequence.of(delta));
+
+    Map<EventType, Capability> capabilities = Maps.newHashMap();
+    capabilities.put(EventType.BLIP_EDITING_DONE, new Capability(EventType.BLIP_EDITING_DONE));
+
+    EventMessageBundle messages =
+        eventGenerator.generateEvents(waveletAndDeltas, capabilities, CONVERTER);
+
+    for (Event event : messages.getEvents()) {
+      assertFalse("BLIP_EDITING_DONE must not fire when any session is still active",
+          event.getType() == EventType.BLIP_EDITING_DONE);
+    }
+  }
+
   public void testSelfEventsAreFiltered() throws Exception {
     // Robot receives two deltas, it is not participant in wavelet before deltas.
     waveletData.removeParticipant(ROBOT);

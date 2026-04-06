@@ -76,8 +76,8 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     capabilities.put(EventType.DOCUMENT_CHANGED,
         new Capability(EventType.DOCUMENT_CHANGED, CollectionUtils.newArrayList(Context.SIBLINGS)));
 
-    capabilities.put(EventType.BLIP_SUBMITTED,
-        new Capability(EventType.BLIP_SUBMITTED,
+    capabilities.put(EventType.BLIP_EDITING_DONE,
+        new Capability(EventType.BLIP_EDITING_DONE,
             CollectionUtils.newArrayList(Context.SIBLINGS, Context.PARENT), "blah"));
 
     robotAccountWithCapabilities =

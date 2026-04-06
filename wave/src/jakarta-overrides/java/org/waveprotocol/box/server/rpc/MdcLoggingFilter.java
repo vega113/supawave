@@ -57,18 +57,24 @@ public class MdcLoggingFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpSession session = httpRequest.getSession(false);
         if (session != null) {
-          ParticipantId participant =
-              (ParticipantId) session.getAttribute(SessionManager.USER_FIELD);
-          if (participant != null) {
+          Object participantAttr = session.getAttribute(SessionManager.USER_FIELD);
+          if (participantAttr instanceof ParticipantId) {
+            ParticipantId participant = (ParticipantId) participantAttr;
             MDC.put("participantId", participant.getAddress());
           }
-          MDC.put("sessionId", session.getId());
+          String sessionId = session.getId();
+          if (sessionId != null && sessionId.length() > 8) {
+            sessionId = sessionId.substring(0, 8);
+          }
+          MDC.put("sessionId", sessionId);
         }
       }
       chain.doFilter(request, response);
     } finally {
       MDC.remove("participantId");
       MDC.remove("sessionId");
+      MDC.remove("waveId");
+      MDC.remove("waveletId");
     }
   }
 

@@ -137,6 +137,7 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
     if (loggedInUser != null) {
       MDC.put("participantId", loggedInUser.getAddress());
     }
+    try {
     frontend.openRequest(loggedInUser, waveId, waveletIdFilter, request.getKnownWaveletList(),
         new ClientFrontend.OpenListener() {
           @Override
@@ -269,6 +270,10 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
             done.run(builder.build());
           }
         });
+    } finally {
+      MDC.remove("waveId");
+      MDC.remove("participantId");
+    }
   }
 
   /** Returns true if the wavelet id represents a synthetic open/marker wavelet. */
@@ -392,45 +397,51 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       MDC.put("participantId", loggedInUser.getAddress());
     }
 
-    // Enforce read-only mode for banned users
-    if (loggedInUser != null) {
-      try {
-        org.waveprotocol.box.server.persistence.AccountStore store =
-            org.waveprotocol.box.server.authentication.AccountStoreHolder.getAccountStore();
-        org.waveprotocol.box.server.account.AccountData acct = store.getAccount(loggedInUser);
-        if (acct != null && acct.isHuman()
-            && "banned".equals(acct.asHuman().getStatus())) {
-          done.run(ProtocolSubmitResponse.newBuilder()
-              .setOperationsApplied(0)
-              .setErrorMessage("Your account is in read-only mode.")
-              .build());
-          return;
-        }
-      } catch (Exception e) {
-        LOG.warning("Failed to check ban status for " + loggedInUser, e);
-        // Allow submission to proceed if ban check fails
-      }
-    }
-
-    frontend.submitRequest(loggedInUser, waveletName, request.getDelta(), channelId,
-        new SubmitRequestListener() {
-          @Override
-          public void onFailure(String error) {
+    try {
+      // Enforce read-only mode for banned users
+      if (loggedInUser != null) {
+        try {
+          org.waveprotocol.box.server.persistence.AccountStore store =
+              org.waveprotocol.box.server.authentication.AccountStoreHolder.getAccountStore();
+          org.waveprotocol.box.server.account.AccountData acct = store.getAccount(loggedInUser);
+          if (acct != null && acct.isHuman()
+              && "banned".equals(acct.asHuman().getStatus())) {
             done.run(ProtocolSubmitResponse.newBuilder()
-                .setOperationsApplied(0).setErrorMessage(error).build());
-          }
-
-          @Override
-          public void onSuccess(int operationsApplied,
-              HashedVersion hashedVersionAfterApplication, long applicationTimestamp) {
-            done.run(ProtocolSubmitResponse.newBuilder()
-                .setOperationsApplied(operationsApplied)
-                .setHashedVersionAfterApplication(
-                    CoreWaveletOperationSerializer.serialize(hashedVersionAfterApplication))
+                .setOperationsApplied(0)
+                .setErrorMessage("Your account is in read-only mode.")
                 .build());
-            // TODO(arb): applicationTimestamp??
+            return;
           }
-        });
+        } catch (Exception e) {
+          LOG.warning("Failed to check ban status for " + loggedInUser, e);
+          // Allow submission to proceed if ban check fails
+        }
+      }
+
+      frontend.submitRequest(loggedInUser, waveletName, request.getDelta(), channelId,
+          new SubmitRequestListener() {
+            @Override
+            public void onFailure(String error) {
+              done.run(ProtocolSubmitResponse.newBuilder()
+                  .setOperationsApplied(0).setErrorMessage(error).build());
+            }
+
+            @Override
+            public void onSuccess(int operationsApplied,
+                HashedVersion hashedVersionAfterApplication, long applicationTimestamp) {
+              done.run(ProtocolSubmitResponse.newBuilder()
+                  .setOperationsApplied(operationsApplied)
+                  .setHashedVersionAfterApplication(
+                      CoreWaveletOperationSerializer.serialize(hashedVersionAfterApplication))
+                  .build());
+              // TODO(arb): applicationTimestamp??
+            }
+          });
+    } finally {
+      MDC.remove("waveId");
+      MDC.remove("waveletId");
+      MDC.remove("participantId");
+    }
   }
 
   @Override

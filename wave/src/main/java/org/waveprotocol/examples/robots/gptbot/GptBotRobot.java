@@ -105,68 +105,129 @@ public final class GptBotRobot {
     }
 
     OperationQueue operationQueue = bundle.getWavelet().getOperationQueue();
-    operationQueue.notifyRobotInformation(ProtocolVersion.DEFAULT, capabilitiesHash());
+    String hash = capabilitiesHash();
+    LOG.info("handleEventBundle: sending capabilities hash=" + hash);
+    operationQueue.notifyRobotInformation(ProtocolVersion.DEFAULT, hash);
     processEvents(bundle);
     List<OperationRequest> operations = operationQueue.drainPendingOperations();
+    LOG.info("handleEventBundle: returning " + operations.size() + " operation(s)");
     return gson.toJson(operations, GsonFactory.OPERATION_REQUEST_LIST_TYPE);
   }
 
   private void processEvents(EventMessageBundle bundle) {
     List<Event> events = bundle.getEvents();
-    if (events != null) {
-      Set<String> handledBlipIds = new HashSet<String>();
-      for (Event event : events) {
-        switch (event.getType()) {
-          case BLIP_SUBMITTED:
-            handleBlip(BlipSubmittedEvent.as(event).getBlip(), event.getModifiedBy(),
-                handledBlipIds);
-            break;
-          case DOCUMENT_CHANGED: {
-            if (!config.isSubmittedOnly()) {
-              Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
-              if (changedBlip != null) {
-                handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
-              }
+    if (events == null) {
+      LOG.info("processEvents: events list is null — nothing to process");
+      return;
+    }
+    LOG.info("processEvents: received " + events.size() + " event(s)");
+    Set<String> handledBlipIds = new HashSet<String>();
+    for (Event event : events) {
+      if (LOG.isFineLoggable()) {
+        LOG.fine("processEvents: event type=" + event.getType() + " modifiedBy=" + event.getModifiedBy());
+      }
+      switch (event.getType()) {
+        case BLIP_SUBMITTED:
+          handleBlip(BlipSubmittedEvent.as(event).getBlip(), event.getModifiedBy(),
+              handledBlipIds);
+          break;
+        case DOCUMENT_CHANGED: {
+          if (!config.isSubmittedOnly()) {
+            Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
+            if (changedBlip != null) {
+              handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
+            } else {
+              LOG.info("processEvents: DOCUMENT_CHANGED blip is null — skipping");
             }
-            break;
           }
-          case WAVELET_BLIP_CREATED:
-            handleBlip(WaveletBlipCreatedEvent.as(event).getNewBlip(), event.getModifiedBy(),
-                handledBlipIds);
-            break;
-          default:
-            break;
+          break;
         }
+        case WAVELET_BLIP_CREATED:
+          handleBlip(WaveletBlipCreatedEvent.as(event).getNewBlip(), event.getModifiedBy(),
+              handledBlipIds);
+          break;
+        default:
+          LOG.info("processEvents: unhandled event type=" + event.getType());
+          break;
       }
     }
   }
 
   private void handleBlip(Blip blip, String modifiedBy, Set<String> handledBlipIds) {
-    if (blip != null && !shouldIgnore(modifiedBy) && shouldHandle(blip, handledBlipIds)) {
-      String waveId = blip.getWaveId() == null ? "" : blip.getWaveId().toString();
-      String waveletId = blip.getWaveletId() == null ? "" : blip.getWaveletId().toString();
-      Optional<String> prompt = replyPlanner.extractPrompt(blip.getContent());
-      if (!prompt.isPresent() && isBotThreadReply(blip)) { // No @mention but this is a reply in a bot thread
-        // No @mention but this is a reply in a bot thread — use the full content as the prompt.
-        String content = blip.getContent() == null ? "" : blip.getContent().strip();
-        if (!content.isEmpty()) {
-          prompt = Optional.of(content);
-        }
+    if (blip == null) {
+      LOG.info("handleBlip: blip is null — skipping");
+      return;
+    }
+    String blipId = blip.getBlipId();
+    String content = blip.getContent();
+    LOG.info("handleBlip: blipId=" + blipId + " modifiedBy=" + modifiedBy
+        + " contentLen=" + (content == null ? 0 : content.length()));
+    if (LOG.isFineLoggable()) {
+      LOG.fine("handleBlip: blipId=" + blipId + " contentLen=" + (content == null ? 0 : content.length()));
+    }
+
+    if (shouldIgnore(modifiedBy)) {
+      LOG.info("handleBlip: ignoring — modifiedBy=" + modifiedBy
+          + " matches bot participantId=" + config.getParticipantId());
+      return;
+    }
+    if (!shouldHandle(blip, handledBlipIds)) {
+      LOG.info("handleBlip: already handled blipId=" + blipId + " — skipping duplicate");
+      return;
+    }
+
+    String waveId = blip.getWaveId() == null ? "" : blip.getWaveId().toString();
+    String waveletId = blip.getWaveletId() == null ? "" : blip.getWaveletId().toString();
+    LOG.info("handleBlip: waveId=" + waveId + " waveletId=" + waveletId);
+
+    Optional<String> prompt = replyPlanner.extractPrompt(content);
+    if (!prompt.isPresent() && isBotThreadReply(blip)) {
+      // No @mention but this is a reply in a bot thread — use the full content as the prompt.
+      String stripped = content == null ? "" : content.strip();
+      if (!stripped.isEmpty()) {
+        prompt = Optional.of(stripped);
+        LOG.info("handleBlip: bot-thread reply fallback triggered, promptLen=" + stripped.length());
       }
-      if (prompt.isPresent()) {
-        String waveContext = apiClient.fetchWaveContext(waveId, waveletId).orElse("");
-        Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext);
-        if (reply.isPresent()) {
-          String replyText = reply.get();
-          if (config.getReplyMode() == GptBotConfig.ReplyMode.ACTIVE) {
-            if (!apiClient.appendReply(waveId, waveletId, blip.getBlipId(), replyText)) {
-              LOG.warning("Active API reply delivery failed; not falling back to passive reply");
-            }
-          } else {
-            blip.reply().append(replyText);
-          }
-        }
+    }
+    if (!prompt.isPresent()) {
+      LOG.info("handleBlip: no bot mention and no parent-blip fallback — no reply generated");
+      return;
+    }
+    LOG.info("handleBlip: mention detected blipId=" + blipId
+        + " promptLen=" + prompt.get().length());
+    if (LOG.isFineLoggable()) {
+      LOG.fine("handleBlip: blipId=" + blipId + " promptLen=" + prompt.get().length());
+    }
+
+    try {
+      String waveContext = apiClient.fetchWaveContext(waveId, waveletId).orElse("");
+      LOG.info("handleBlip: waveContextLen=" + waveContext.length());
+
+      Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext);
+      if (!reply.isPresent()) {
+        LOG.warning("handleBlip: replyForPrompt returned empty — LLM may have failed");
+        return;
       }
+      String replyText = reply.get();
+      LOG.info("handleBlip: reply generated, replyLen=" + replyText.length() + " for blipId=" + blipId);
+      if (LOG.isFineLoggable()) {
+        LOG.fine("handleBlip: blipId=" + blipId + " replyLen=" + replyText.length());
+      }
+
+      if (config.getReplyMode() == GptBotConfig.ReplyMode.ACTIVE) {
+        LOG.info("handleBlip: ACTIVE mode — calling appendReply for blipId=" + blipId);
+        if (!apiClient.appendReply(waveId, waveletId, blipId, replyText)) {
+          LOG.warning("handleBlip: ACTIVE appendReply failed for blipId=" + blipId
+              + " waveId=" + waveId + " waveletId=" + waveletId);
+        } else {
+          LOG.info("handleBlip: ACTIVE appendReply succeeded for blipId=" + blipId);
+        }
+      } else {
+        blip.reply().append(replyText);
+        LOG.info("handleBlip: PASSIVE reply appended for blipId=" + blipId);
+      }
+    } catch (Exception e) {
+      LOG.warning("handleBlip: exception during reply generation for blipId=" + blipId, e);
     }
   }
 
@@ -206,6 +267,7 @@ public final class GptBotRobot {
     return contributors != null && contributors.stream()
         .anyMatch(c -> c != null && c.equalsIgnoreCase(config.getParticipantId()));
   }
+
 
   private boolean shouldHandle(Blip blip, Set<String> handledBlipIds) {
     String blipId = blip.getBlipId();

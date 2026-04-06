@@ -51,34 +51,23 @@ public final class MentionDetector {
     }
     if (LOG.isFineLoggable()) {
       LOG.fine("MentionDetector.extractPrompt: pattern=" + mentionPattern.pattern()
-          + " textLength=" + text.length()
-          + " textPreview=" + escapeForLog(text, 150));
+          + " textLength=" + text.length());
     }
     Matcher matcher = mentionPattern.matcher(text);
     if (matcher.find()) {
       String remainder = text.substring(matcher.end());
       remainder = trimPromptPrefix(remainder);
       LOG.info("MentionDetector.extractPrompt: match at [" + matcher.start() + "," + matcher.end()
-          + "] matched='" + escapeForLog(matcher.group(), 50) + "' promptLength=" + remainder.length());
+          + "] promptLength=" + remainder.length());
       if (LOG.isFineLoggable()) {
-        LOG.fine("MentionDetector.extractPrompt: prompt=" + escapeForLog(remainder, 100));
+        LOG.fine("MentionDetector.extractPrompt: matchLen=" + matcher.group().length()
+            + " promptLen=" + remainder.length());
       }
       prompt = Optional.of(remainder);
     } else {
       LOG.info("MentionDetector.extractPrompt: NO match — bot name not detected in blip");
     }
     return prompt;
-  }
-
-  /**
-   * Escapes newlines and carriage returns for safe log output and truncates to limit characters.
-   */
-  private static String escapeForLog(String text, int limit) {
-    String s = text == null ? "" : text;
-    if (s.length() > limit) {
-      s = s.substring(0, limit) + "…";
-    }
-    return s.replace("\\", "\\\\").replace("\r", "\\r").replace("\n", "\\n");
   }
 
   private static String buildMentionRegex(String robotName) {

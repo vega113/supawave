@@ -163,7 +163,7 @@ public final class GptBotRobot {
     LOG.info("handleBlip: blipId=" + blipId + " modifiedBy=" + modifiedBy
         + " contentLen=" + (content == null ? 0 : content.length()));
     if (LOG.isFineLoggable()) {
-      LOG.fine("handleBlip: content=" + escapeForLog(content == null ? "" : content, 200));
+      LOG.fine("handleBlip: blipId=" + blipId + " contentLen=" + (content == null ? 0 : content.length()));
     }
 
     if (shouldIgnore(modifiedBy)) {
@@ -196,7 +196,7 @@ public final class GptBotRobot {
     LOG.info("handleBlip: mention detected blipId=" + blipId
         + " promptLen=" + prompt.get().length());
     if (LOG.isFineLoggable()) {
-      LOG.fine("handleBlip: prompt=" + escapeForLog(prompt.get(), 200));
+      LOG.fine("handleBlip: blipId=" + blipId + " promptLen=" + prompt.get().length());
     }
 
     try {
@@ -211,7 +211,7 @@ public final class GptBotRobot {
       String replyText = reply.get();
       LOG.info("handleBlip: reply generated, replyLen=" + replyText.length() + " for blipId=" + blipId);
       if (LOG.isFineLoggable()) {
-        LOG.fine("handleBlip: reply preview=" + escapeForLog(replyText, 100));
+        LOG.fine("handleBlip: blipId=" + blipId + " replyLen=" + replyText.length());
       }
 
       if (config.getReplyMode() == GptBotConfig.ReplyMode.ACTIVE) {
@@ -268,16 +268,6 @@ public final class GptBotRobot {
         .anyMatch(c -> c != null && c.equalsIgnoreCase(config.getParticipantId()));
   }
 
-  /**
-   * Escapes newlines and carriage returns for safe log output and truncates to limit characters.
-   */
-  private static String escapeForLog(String text, int limit) {
-    String s = text == null ? "" : text;
-    if (s.length() > limit) {
-      s = s.substring(0, limit) + "…";
-    }
-    return s.replace("\\", "\\\\").replace("\r", "\\r").replace("\n", "\\n");
-  }
 
   private boolean shouldHandle(Blip blip, Set<String> handledBlipIds) {
     String blipId = blip.getBlipId();

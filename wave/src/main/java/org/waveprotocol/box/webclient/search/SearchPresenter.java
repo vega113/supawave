@@ -757,11 +757,16 @@ public final class SearchPresenter
     boolean totalKnown = total != Search.UNKNOWN_SIZE;
     int loaded = search.getMinimumTotal();
     int unread = 0;
-    for (int i = 0; i < loaded; i++) {
-      Digest digest = search.getDigest(i);
-      if (digest != null && digest.getUnreadCount() > 0) {
+    // Iterate via the view chain so that optimistic UI overrides stored in
+    // digestUis (e.g. the zeroUnread wrapper written by onOpened) are
+    // reflected immediately without waiting for the search model to update.
+    DigestView view = searchUi.getFirst();
+    while (view != null) {
+      Digest d = digestUis.get(view);
+      if (d != null && d.getUnreadCount() > 0) {
         unread++;
       }
+      view = searchUi.getNext(view);
     }
     String text;
     if (totalKnown && total <= 0) {
@@ -1057,8 +1062,8 @@ public final class SearchPresenter
   public void onOpened(WaveContext wave) {
     // Optimistically clear the unread badge for the opened wave so the search
     // panel does not flash "1 unread" while the OT read-mark is in flight.
-    // The correct unread count will be applied once the BlipReadStateMonitor
-    // fires (via WaveBasedDigest → onDigestReady) or the next poll cycle.
+    // The correct unread count is restored once the BlipReadStateMonitor
+    // fires (via WaveBasedDigest → onDigestReady) or the next OT/poll update.
     final WaveId openedWaveId = wave.getWave().getWaveId();
     DigestView targetView = searchUi.getFirst();
     while (targetView != null) {
@@ -1084,6 +1089,9 @@ public final class SearchPresenter
           @Override public boolean isPinned() { return digest.isPinned(); }
         };
         searchUi.renderDigest(targetView, zeroUnread);
+        // Also update the digestUis map so renderWaveCount()'s view-chain
+        // iteration sees the zero-unread wrapper instead of the original.
+        digestUis.put(targetView, zeroUnread);
         renderWaveCount();
         break;
       }

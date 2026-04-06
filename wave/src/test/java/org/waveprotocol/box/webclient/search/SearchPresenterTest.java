@@ -33,6 +33,8 @@ import org.waveprotocol.wave.model.document.util.DocProviders;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.client.scheduler.Scheduler.IncrementalTask;
+import org.waveprotocol.wave.client.scheduler.Scheduler.Task;
 import org.waveprotocol.wave.client.scheduler.testing.FakeTimerService;
 import org.waveprotocol.wave.client.account.ProfileListener;
 import org.waveprotocol.wave.client.events.NetworkStatusEvent;
@@ -311,8 +313,12 @@ public final class SearchPresenterTest extends TestCase {
 
     presenter.bootstrapOtSearch();
 
-    // Only the OT timeout task should be scheduled; the repeating 15-s poll must NOT be running.
-    assertEquals(1, scheduler.countTasksScheduled());
+    Task otSearchTimeoutTask = (Task) getObjectField(presenter, "otSearchTimeoutTask");
+    IncrementalTask searchUpdater = (IncrementalTask) getObjectField(presenter, "searchUpdater");
+    // The OT timeout task must be pending so it can start polling if OT never delivers.
+    assertTrue("otSearchTimeoutTask must be scheduled", scheduler.isScheduled(otSearchTimeoutTask));
+    // The repeating poll must NOT be running while OT subscription is active.
+    assertFalse("searchUpdater must not be scheduled", scheduler.isScheduled(searchUpdater));
   }
 
   /**
@@ -334,9 +340,15 @@ public final class SearchPresenterTest extends TestCase {
     // Advance past OT_SEARCH_TIMEOUT_MS (5000 ms) so the timeout task fires.
     scheduler.tick(6000);
 
-    assertTrue(getBooleanField(presenter, "otSearchTimedOut"));
-    // After timeout, the repeating poll must be running.
-    assertEquals(1, scheduler.countTasksScheduled());
+    Task otSearchTimeoutTask = (Task) getObjectField(presenter, "otSearchTimeoutTask");
+    IncrementalTask searchUpdater = (IncrementalTask) getObjectField(presenter, "searchUpdater");
+    assertTrue("otSearchTimedOut must be set", getBooleanField(presenter, "otSearchTimedOut"));
+    // The timeout task must have fired and be gone.
+    assertFalse("otSearchTimeoutTask must not be scheduled after firing",
+        scheduler.isScheduled(otSearchTimeoutTask));
+    // The repeating poll must now be running so results continue to refresh.
+    assertTrue("searchUpdater must be scheduled after OT timeout",
+        scheduler.isScheduled(searchUpdater));
   }
 
   public void testReconnectKeepsVisibleDigestsInsteadOfShowingSkeleton() throws Exception {
@@ -383,6 +395,13 @@ public final class SearchPresenterTest extends TestCase {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.set(presenter, value);
+  }
+
+  private static Object getObjectField(SearchPresenter presenter, String fieldName)
+      throws Exception {
+    Field field = SearchPresenter.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    return field.get(presenter);
   }
 
   private static void invokeNetworkStatus(

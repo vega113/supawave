@@ -98,8 +98,8 @@ jobs:
           for attempt in 1 2 3; do
             echo "Build attempt $attempt/3"
             log_file="$(mktemp)"
-            sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage" >"$log_file" 2>&1
-            status=$?
+            status=0
+            sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage" >"$log_file" 2>&1 || status=$?
             cat "$log_file"
             if [ "$status" -eq 0 ]; then
               rm -f "$log_file"

@@ -68,13 +68,12 @@ jobs:
           docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
 
       - name: Compile PST and Wave
-        timeout-minutes: 40
         run: |
           for attempt in 1 2 3; do
             echo "Compile attempt $attempt/3"
             log_file="$(mktemp)"
-            sbt --batch pst/compile wave/compile >"$log_file" 2>&1
-            status=$?
+            status=0
+            sbt --batch pst/compile wave/compile >"$log_file" 2>&1 || status=$?
             cat "$log_file"
             if [ "$status" -eq 0 ]; then
               rm -f "$log_file"

@@ -134,6 +134,28 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(1, codexClient.completeCalls);
   }
 
+  /**
+   * Regression: DOCUMENT_CHANGED must be processed even when submittedOnly=true.
+   * BLIP_SUBMITTED is phased out in modern Wave, so DOCUMENT_CHANGED is the only
+   * authoritative blip-committed signal.
+   */
+  public void testDocumentChangedTriggersReplyWhenSubmittedOnlyIsTrue() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Here is a helpful answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotConfig submittedOnlyConfig = TEST_CONFIG.withSubmittedOnly(true);
+    GptBotRobot robot = new GptBotRobot(submittedOnlyConfig,
+        new GptBotReplyPlanner(submittedOnlyConfig.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJson(submittedOnlyConfig,
+        "\n@" + submittedOnlyConfig.getRobotName() + " what can you do?",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertTrue("submittedOnly=true must not suppress DOCUMENT_CHANGED replies",
+        response.contains("Here is a helpful answer."));
+    assertEquals(1, codexClient.completeCalls);
+  }
+
   public void testCallbackBundleDoesNotFetchContextWithoutMention() {
     RecordingCodexClient codexClient = new RecordingCodexClient();
     RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();

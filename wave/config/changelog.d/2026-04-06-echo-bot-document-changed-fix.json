@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-06-echo-bot-document-changed-fix",
+  "version": "PR #679",
+  "date": "2026-04-06",
+  "title": "Fix Echo-Bot Not Responding to Messages",
+  "summary": "Echo-bot now processes DOCUMENT_CHANGED events regardless of the submittedOnly setting, restoring replies after BLIP_SUBMITTED was phased out.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "GptBotRobot now handles DOCUMENT_CHANGED events when submittedOnly=true — BLIP_SUBMITTED is phased out in modern Wave, so DOCUMENT_CHANGED is the authoritative blip-committed signal"
+      ]
+    }
+  ]
+}

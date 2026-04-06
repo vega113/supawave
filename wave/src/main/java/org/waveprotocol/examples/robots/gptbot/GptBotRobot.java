@@ -68,6 +68,10 @@ public final class GptBotRobot {
     this.apiClient = apiClient;
     this.gson = new GsonFactory().create();
     this.capabilitiesXml = buildCapabilitiesXml();
+    if (config.isSubmittedOnly()) {
+      LOG.warning("GPTBOT_SUBMITTED_ONLY=true is set but has no effect: BLIP_SUBMITTED events are "
+          + "phased out in modern Wave. DOCUMENT_CHANGED will be processed regardless.");
+    }
     this.profileJson = gson.toJson(new ParticipantProfile(config.getParticipantId(),
         config.getRobotName(), config.getAvatarUrl(), config.getProfilePageUrl()));
   }
@@ -132,13 +136,14 @@ public final class GptBotRobot {
               handledBlipIds);
           break;
         case DOCUMENT_CHANGED: {
-          if (!config.isSubmittedOnly()) {
-            Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
-            if (changedBlip != null) {
-              handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
-            } else {
-              LOG.info("processEvents: DOCUMENT_CHANGED blip is null — skipping");
-            }
+          // Always process DOCUMENT_CHANGED — BLIP_SUBMITTED is phased out in modern Wave,
+          // so DOCUMENT_CHANGED is the authoritative "blip committed" signal regardless of
+          // whether submittedOnly mode is configured.
+          Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
+          if (changedBlip != null) {
+            handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
+          } else {
+            LOG.info("processEvents: DOCUMENT_CHANGED blip is null — skipping");
           }
           break;
         }

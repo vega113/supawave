@@ -25,4 +25,32 @@ package org.waveprotocol.examples.robots.gptbot;
 public interface CodexClient {
 
   String complete(String prompt);
+
+  /**
+   * Completes a chat exchange given a pre-built messages list.
+   * Each map must have "role" and "content" keys; missing keys throw {@link IllegalArgumentException}.
+   * The default implementation flattens the messages into a single prompt string.
+   */
+  default String completeMessages(java.util.List<java.util.Map<String, String>> messages) {
+    if (messages == null) {
+      throw new IllegalArgumentException("messages must not be null");
+    }
+    StringBuilder sb = new StringBuilder();
+    for (java.util.Map<String, String> msg : messages) {
+      if (msg == null || !msg.containsKey("role") || !msg.containsKey("content")) {
+        throw new IllegalArgumentException("Each message must have 'role' and 'content' keys");
+      }
+      String role = msg.get("role");
+      String content = msg.get("content");
+      if (!content.isEmpty()) {
+        sb.append(role).append(": ").append(content).append("\n");
+      }
+    }
+    // Strip trailing newline only — do not trim leading/internal whitespace
+    int len = sb.length();
+    if (len > 0 && sb.charAt(len - 1) == '\n') {
+      sb.setLength(len - 1);
+    }
+    return complete(sb.toString());
+  }
 }

@@ -62,8 +62,11 @@ sudo env \
   GCLOUD_HOSTED_LOGS_ID='123456' \
   GCLOUD_RW_API_KEY='glc_***' \
   GCLOUD_SCRAPE_INTERVAL='60s' \
+  WAVE_LOG_PATH='/home/deploy/supawave/shared/logs/wave*.log' \
   ./configure-grafana-alloy.sh
 ```
+
+`WAVE_LOG_PATH` defaults to `/home/*/supawave/shared/logs/wave*.log` and controls which application log files Alloy tails for Loki ingestion.
 
 ## Troubleshooting
 

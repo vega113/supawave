@@ -1,11 +1,8 @@
 package org.waveprotocol.box.server.rpc;
 
-import com.google.inject.Inject;
-import com.typesafe.config.Config;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
@@ -18,27 +15,9 @@ import java.nio.charset.StandardCharsets;
  */
 public class RemoteLoggingJakartaServlet extends HttpServlet {
   private static final Log LOG = Log.get(RemoteLoggingJakartaServlet.class);
-  private static final String GRAFANA_LOG_EXPORT_FLAG = "grafana-log-export";
-
-  private final FeatureFlagService featureFlagService;
-  private final boolean grafanaLogExportEnabled;
-
-  @Inject
-  public RemoteLoggingJakartaServlet(FeatureFlagService featureFlagService, Config config) {
-    this.featureFlagService = featureFlagService;
-    this.grafanaLogExportEnabled = config.hasPath("core.grafana_log_export_enabled")
-        && config.getBoolean("core.grafana_log_export_enabled");
-  }
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    if (!shouldExport()) {
-      if (LOG.isFineLoggable()) {
-        LOG.fine("[remote_log] dropped: grafana log export disabled by config or feature flag");
-      }
-      resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
-      return;
-    }
     // Read body upto 32 KiB to avoid unbounded growth
     final int max = 32 * 1024; // 32 KiB hard cap
     int cl = req.getContentLength();
@@ -121,12 +100,5 @@ public class RemoteLoggingJakartaServlet extends HttpServlet {
     s = s.replace('\r', ' ').replace('\n', ' ');
     if (s.length() > 2000) s = s.substring(0, 2000) + "…";
     return s;
-  }
-
-  private boolean shouldExport() {
-    if (!grafanaLogExportEnabled) {
-      return false;
-    }
-    return featureFlagService.isEnabled(GRAFANA_LOG_EXPORT_FLAG, null);
   }
 }

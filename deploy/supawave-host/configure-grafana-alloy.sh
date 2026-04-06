@@ -8,6 +8,7 @@ GCLOUD_HOSTED_LOGS_URL=${GCLOUD_HOSTED_LOGS_URL:-}
 GCLOUD_HOSTED_LOGS_ID=${GCLOUD_HOSTED_LOGS_ID:-}
 GCLOUD_RW_API_KEY=${GCLOUD_RW_API_KEY:-}
 GCLOUD_SCRAPE_INTERVAL=${GCLOUD_SCRAPE_INTERVAL:-60s}
+WAVE_LOG_PATH=${WAVE_LOG_PATH:-/home/*/supawave/shared/logs/wave*.log}
 
 required=(
   GCLOUD_HOSTED_METRICS_URL
@@ -173,6 +174,46 @@ discovery.relabel \"logs_integrations_integrations_node_exporter_journal_scrape\
 loki.source.file \"logs_integrations_integrations_node_exporter_direct_scrape\" {
   targets    = local.file_match.logs_integrations_integrations_node_exporter_direct_scrape.targets
   forward_to = [loki.write.grafana_cloud_loki.receiver]
+}
+
+// ── SupaWave application logs ──────────────────────────────────────────
+local.file_match \"supawave_logs\" {
+  path_targets = [{
+    address  = \"localhost\",
+    path     = \"$WAVE_LOG_PATH\",
+    job      = \"supawave/wave\",
+    instance = constants.hostname,
+  }]
+}
+
+loki.process \"supawave_logs\" {
+  forward_to = [loki.write.grafana_cloud_loki.receiver]
+
+  stage.regex {
+    expression = \"^(?P<timestamp>\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}[^\\\\s]+)\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<level>\\\\w+)\\\\s+(?P<logger>\\\\S+)\\\\s+-\\\\s+(?P<message>.*)\"
+  }
+
+  stage.labels {
+    values = {
+      level  = \"\",
+      logger = \"\",
+      thread = \"\",
+    }
+  }
+
+  stage.timestamp {
+    source = \"timestamp\"
+    format = \"2006-01-02T15:04:05.000Z07:00\"
+  }
+
+  stage.label_drop {
+    values = [\"timestamp\"]
+  }
+}
+
+loki.source.file \"supawave_logs\" {
+  targets    = local.file_match.supawave_logs.targets
+  forward_to = [loki.process.supawave_logs.receiver]
 }
 EOF"
 

@@ -208,6 +208,7 @@ jobs:
                   GCLOUD_HOSTED_LOGS_ID=$gcloud_logs_id_q \
                   GCLOUD_RW_API_KEY=$gcloud_rw_api_key_q \
                   GCLOUD_SCRAPE_INTERVAL=$gcloud_scrape_interval_q \
+                  WAVE_LOG_PATH='$remote_root/shared/logs/wave*.log' \
                   \"\$incoming/supawave-host/configure-grafana-alloy.sh\"
               else
                 echo '[deploy] Skipping Grafana Alloy setup (GRAFANA_ALLOY_ENABLE=false)'

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-06-upgrade-banner-status-messages",
+  "version": "PR #665",
+  "date": "2026-04-06",
+  "title": "Smarter Upgrade Banner Messages",
+  "summary": "The upgrade popup now shows context-appropriate messages instead of a generic 'new version' notice for minor deploys.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Minor deploys (no changelog fragment) now show 'A minor update has been applied.' instead of the misleading generic update message",
+        "Partial changelog deploys now show the first release title with 'and other updates.' for better clarity"
+      ]
+    }
+  ]
+}

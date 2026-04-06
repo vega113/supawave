@@ -53,6 +53,25 @@ public final class HtmlRendererChangelogTest {
   }
 
   @Test
+  public void upgradeBannerIncludesStatusSpecificMessages() {
+    String html = HtmlRenderer.renderWaveClientPage(
+        new JSONObject("{\"id\":\"u\"}"),
+        new JSONObject(),
+        "localhost:9898",
+        HtmlRenderer.renderTopBar("alice", "example.com", "user"),
+        "",
+        "abc123build",
+        1700000000000L,
+        "2026-03-27-unread-only-search-filter",
+        null);
+
+    assertTrue("missing same_release message", html.contains("'A minor update has been applied.'"));
+    assertTrue("missing partial fallback message", html.contains("'Multiple updates have been applied.'"));
+    assertTrue("missing partial with title message", html.contains("firstRelease.title + ' and other updates.'"));
+    assertTrue("missing generic fallback message", html.contains("'A new version of SupaWave is available.'"));
+  }
+
+  @Test
   public void changelogPageRendersEntriesAndFallback() {
     JSONArray entries = new JSONArray(
         "[{\"releaseId\":\"2026-03-27-changelog-system\",\"version\":\"2026-03-27\","

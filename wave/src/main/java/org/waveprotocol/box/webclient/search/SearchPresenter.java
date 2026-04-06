@@ -1162,7 +1162,8 @@ public final class SearchPresenter
   @Override
   public void onOpened(WaveContext wave) {
     // Track the currently-open wave so the @N button can skip it.
-    if (mentionTracker != null && wave != null && wave.getWave() != null) {
+    if (mentionTracker != null && wave != null && wave.getWave() != null
+        && wave.getWave().getWaveId() != null) {
       mentionTracker.setCurrentWaveId(wave.getWave().getWaveId());
     }
   }

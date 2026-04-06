@@ -159,6 +159,13 @@ jobs:
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
           SANITY_ADDRESS: ${{ secrets.SANITY_ADDRESS }}
           SANITY_PASSWORD: ${{ secrets.SANITY_PASSWORD }}
+          GRAFANA_ALLOY_ENABLE: ${{ vars.GRAFANA_ALLOY_ENABLE }}
+          GCLOUD_HOSTED_METRICS_URL: ${{ secrets.GCLOUD_HOSTED_METRICS_URL }}
+          GCLOUD_HOSTED_METRICS_ID: ${{ secrets.GCLOUD_HOSTED_METRICS_ID }}
+          GCLOUD_HOSTED_LOGS_URL: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          GCLOUD_HOSTED_LOGS_ID: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          GCLOUD_RW_API_KEY: ${{ secrets.GCLOUD_RW_API_KEY }}
+          GCLOUD_SCRAPE_INTERVAL: ${{ vars.GCLOUD_SCRAPE_INTERVAL }}
         run: |
           set -euo pipefail
           remote_root="${{ secrets.CONTABO_DEPLOY_ROOT || format('/home/{0}/supawave', secrets.CONTABO_SSH_USER) }}"
@@ -167,6 +174,13 @@ jobs:
           wave_email_from_q=$(printf '%q' "${WAVE_EMAIL_FROM:-}")
           sanity_address_q=$(printf '%q' "${SANITY_ADDRESS:-}")
           sanity_password_q=$(printf '%q' "${SANITY_PASSWORD:-}")
+          grafana_alloy_enable="${GRAFANA_ALLOY_ENABLE:-false}"
+          gcloud_metrics_url_q=$(printf '%q' "${GCLOUD_HOSTED_METRICS_URL:-}")
+          gcloud_metrics_id_q=$(printf '%q' "${GCLOUD_HOSTED_METRICS_ID:-}")
+          gcloud_logs_url_q=$(printf '%q' "${GCLOUD_HOSTED_LOGS_URL:-}")
+          gcloud_logs_id_q=$(printf '%q' "${GCLOUD_HOSTED_LOGS_ID:-}")
+          gcloud_rw_api_key_q=$(printf '%q' "${GCLOUD_RW_API_KEY:-}")
+          gcloud_scrape_interval_q=$(printf '%q' "${GCLOUD_SCRAPE_INTERVAL:-60s}")
           ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" "${{ secrets.CONTABO_SSH_USER }}@${{ secrets.CONTABO_SSH_HOST }}" "
             set -euo pipefail
             incoming='$remote_root/incoming/$RELEASE_ID'
@@ -177,6 +191,27 @@ jobs:
             if [ \"$action\" = \"deploy\" ]; then
               echo '[deploy] Applying supawave host tuning'
               sudo -n env BACKUP_DIR='/var/backups/wave-supawave' \"\$incoming/supawave-host/provision.sh\"
+              if [ "${grafana_alloy_enable,,}" = "true" ]; then
+                echo '[deploy] Installing and configuring Grafana Alloy'
+                sudo -n env \
+                  GCLOUD_HOSTED_METRICS_URL=$gcloud_metrics_url_q \
+                  GCLOUD_HOSTED_METRICS_ID=$gcloud_metrics_id_q \
+                  GCLOUD_HOSTED_LOGS_URL=$gcloud_logs_url_q \
+                  GCLOUD_HOSTED_LOGS_ID=$gcloud_logs_id_q \
+                  GCLOUD_RW_API_KEY=$gcloud_rw_api_key_q \
+                  GCLOUD_SCRAPE_INTERVAL=$gcloud_scrape_interval_q \
+                  \"\$incoming/supawave-host/install-grafana-alloy.sh\"
+                sudo -n env \
+                  GCLOUD_HOSTED_METRICS_URL=$gcloud_metrics_url_q \
+                  GCLOUD_HOSTED_METRICS_ID=$gcloud_metrics_id_q \
+                  GCLOUD_HOSTED_LOGS_URL=$gcloud_logs_url_q \
+                  GCLOUD_HOSTED_LOGS_ID=$gcloud_logs_id_q \
+                  GCLOUD_RW_API_KEY=$gcloud_rw_api_key_q \
+                  GCLOUD_SCRAPE_INTERVAL=$gcloud_scrape_interval_q \
+                  \"\$incoming/supawave-host/configure-grafana-alloy.sh\"
+              else
+                echo '[deploy] Skipping Grafana Alloy setup (GRAFANA_ALLOY_ENABLE=false)'
+              fi
             fi
             DEPLOY_ROOT='$remote_root' \
             WAVE_IMAGE='$IMAGE_REF' \

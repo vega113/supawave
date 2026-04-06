@@ -31,6 +31,7 @@ public final class KnownFeatureFlags {
     List<FeatureFlag> defaults = new ArrayList<>();
     defaults.add(new FeatureFlag("lucene9", "Lucene 9.x full-text search", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("ot-search", "Real-time search wavelets (replaces 15s polling)", false, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("grafana-log-export", "Allow forwarding remote logs to Grafana/Loki pipeline", true, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }
 

@@ -421,7 +421,7 @@ jobs:
           echo "$CHANGELOG_HTML" > /tmp/changelog_html.txt
 
       - name: Notify deploy success
-        if: steps.deploy.outcome == 'success' && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: always() && steps.deploy.outcome == 'success' && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}

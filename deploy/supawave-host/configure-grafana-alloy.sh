@@ -197,6 +197,7 @@ loki.process \"supawave_logs\" {
       message = \"message\",
       participant = \"participantId\",
       wave    = \"waveId\",
+      ts      = \"@timestamp\",
     }
   }
 
@@ -211,7 +212,7 @@ loki.process \"supawave_logs\" {
   }
 
   stage.timestamp {
-    source = \"@timestamp\"
+    source = \"ts\"
     format = \"2006-01-02T15:04:05.000Z07:00\"
   }
 }

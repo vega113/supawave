@@ -320,22 +320,25 @@ public class GptBotRobotTest extends TestCase {
   }
 
   /**
-   * Regression: DOCUMENT_CHANGED must be suppressed when the blip has a user/d/ annotation
-   * indicating the user is still actively editing. The bot must not reply mid-edit.
+   * Regression: DOCUMENT_CHANGED fires on every committed delta while the user types.
+   * When the blip has a "user/d/" annotation the user is still editing — bot must not reply.
    */
-  public void testDocumentChangedSkipsReplyWhenBlipBeingEdited() {
+  public void testDocumentChangedSkipsReplyWhileUserIsStillEditing() {
     RecordingCodexClient codexClient = new RecordingCodexClient();
-    codexClient.response = "Should not appear.";
+    codexClient.response = "Should not be generated.";
     RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
     GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
         new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
 
+    // Blip contains a bot @mention but has a user/d/ annotation — user is still typing
     String response = robot.handleEventBundle(exampleBundleJsonWithEditingAnnotation(TEST_CONFIG,
-        "\n@" + TEST_CONFIG.getRobotName() + " help me",
+        "\n@" + TEST_CONFIG.getRobotName() + " what can you do?",
+        "user/d/sessionId123",
         new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
 
-    assertFalse("Bot must not reply while user is still editing",
-        response.contains("Should not appear."));
+    assertFalse("Bot must not reply while user/d/ annotation is present",
+        response.contains("Should not be generated."));
+    assertFalse(response.contains("blip.createChild"));
     assertEquals("No completion must be requested while editing", 0, codexClient.completeCalls);
     assertEquals("No context fetch while editing", 0, apiClient.fetchCalls);
   }
@@ -513,11 +516,11 @@ public class GptBotRobotTest extends TestCase {
   }
 
   /**
-   * Bundle where b+root has a {@code user/d/...} annotation, simulating an in-progress edit.
-   * A DOCUMENT_CHANGED event on this blip should be suppressed by the editing guard.
+   * Bundle where b+root has an editing annotation (user/d/...) indicating the user is still
+   * actively editing the blip.
    */
-  private static String exampleBundleJsonWithEditingAnnotation(GptBotConfig config,
-      String content, Event... events) {
+  private static String exampleBundleJsonWithEditingAnnotation(GptBotConfig config, String content,
+      String editingAnnotationName, Event... events) {
     EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
         "http://localhost:8087/_wave/robot/jsonrpc");
     WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
@@ -526,10 +529,7 @@ public class GptBotRobotTest extends TestCase {
     bundle.setWaveletData(waveletData);
     BlipData blipData = new BlipData("example.com!w+abc123",
         "example.com!conv+root", "b+root", content);
-    // Simulate an in-progress edit: a user/d/ annotation is present when the user's cursor
-    // is actively composing text.
-    blipData.setAnnotations(java.util.Arrays.asList(
-        new Annotation("user/d/alice@example.com", "1", 0, content.length())));
+    blipData.addAnnotation(new Annotation(editingAnnotationName, "", 0, 1));
     bundle.addBlip("b+root", blipData);
     for (Event event : events) {
       bundle.addEvent(event);

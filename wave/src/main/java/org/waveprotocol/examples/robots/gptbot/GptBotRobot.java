@@ -143,7 +143,7 @@ public final class GptBotRobot {
           Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
           if (changedBlip != null) {
             if (isBlipBeingEdited(changedBlip)) {
-              LOG.info("processEvents: DOCUMENT_CHANGED blipId=" + changedBlip.getBlipId()
+              LOG.fine("processEvents: DOCUMENT_CHANGED blipId=" + changedBlip.getBlipId()
                   + " still being edited, skipping");
             } else {
               handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
@@ -184,6 +184,9 @@ public final class GptBotRobot {
     }
     if (!shouldHandle(blip, handledBlipIds)) {
       LOG.info("handleBlip: already handled blipId=" + blipId + " — skipping duplicate");
+      return;
+    }
+    if (isBlipBeingEdited(blip)) {
       return;
     }
 

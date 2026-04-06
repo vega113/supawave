@@ -57,6 +57,7 @@ public interface EditorToolbarResources extends ClientBundle {
     String removeLink();
     String insertGadget();
     String insertAttachment();
+    String rtlDirection();
   }
 
   @Source("images/edit/backcolor.png") ImageResource backcolor();
@@ -84,6 +85,7 @@ public interface EditorToolbarResources extends ClientBundle {
   @Source("images/edit/removeLink.png") ImageResource removeLink();
   @Source("images/edit/gadget.png") ImageResource insertGadget();
   @Source("images/edit/attachment.png") ImageResource insertAttachment();
+  @Source("images/edit/rtl_direction.png") ImageResource rtlDirection();
 
   @Source("EditToolbar.css")
   Css css();

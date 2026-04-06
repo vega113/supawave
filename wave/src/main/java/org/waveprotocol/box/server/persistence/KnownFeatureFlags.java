@@ -31,6 +31,11 @@ public final class KnownFeatureFlags {
     List<FeatureFlag> defaults = new ArrayList<>();
     defaults.add(new FeatureFlag("lucene9", "Lucene 9.x full-text search", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("ot-search", "Real-time search wavelets (replaces 15s polling)", false, Collections.emptyMap()));
+    // "grafana-log-export": log forwarding is currently handled at the infrastructure level by the
+    // Grafana Alloy agent (see deploy/supawave-host/configure-grafana-alloy.sh). This flag is
+    // registered here so admins can see and toggle it via the feature-flags UI; a future PR will
+    // wire isEnabled("grafana-log-export") into the Java-side log-export path when added.
+    defaults.add(new FeatureFlag("grafana-log-export", "Allow forwarding remote logs to Grafana/Loki pipeline", false, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }
 

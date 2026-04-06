@@ -154,7 +154,7 @@ fi
 
 # ── start tunnel ──────────────────────────────────────────────────────
 echo "Starting Cloudflare tunnel..."
-TUNNEL_LOG=$(mktemp /tmp/cf-tunnel-XXXXXXXX.log)
+TUNNEL_LOG=$(mktemp /tmp/cf-tunnel-XXXXXXXXXXXX.log)
 if [[ -n "${CLOUDFLARE_TUNNEL_NAME:-}" ]]; then
   # Named tunnel: requires prior cloudflared tunnel login && cloudflared tunnel create $NAME
   "$CLOUDFLARED" tunnel run --url "http://127.0.0.1:$GPTBOT_LISTEN_PORT" "$CLOUDFLARE_TUNNEL_NAME" \
@@ -166,22 +166,26 @@ CF_PID=$!
 echo "$CF_PID" > "$PID_DIR/cloudflared.pid"
 cp "$TUNNEL_LOG" "$PID_DIR/tunnel.log"
 
-echo -n "Waiting for tunnel URL"
+echo -n "Waiting for tunnel"
 TUNNEL_URL=""
-for i in $(seq 1 20); do
+TUNNEL_DOMAIN="${CLOUDFLARE_TUNNEL_DOMAIN:-supawave.ai}"
+for i in $(seq 1 30); do
   cp "$TUNNEL_LOG" "$PID_DIR/tunnel.log" 2>/dev/null || true
   if [[ -n "${CLOUDFLARE_TUNNEL_NAME:-}" ]]; then
-    TUNNEL_URL=$(grep -o 'https://[a-z0-9-]*\.cfargotunnel\.com\|https://[a-z0-9-]*\.trycloudflare\.com' \
-      "$PID_DIR/tunnel.log" 2>/dev/null | head -1)
+    if grep -q "Registered tunnel connection" "$PID_DIR/tunnel.log" 2>/dev/null; then
+      TUNNEL_URL="https://${CLOUDFLARE_TUNNEL_NAME}.${TUNNEL_DOMAIN}"
+      echo " connected (permanent URL)!"
+      break
+    fi
   else
     TUNNEL_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$PID_DIR/tunnel.log" 2>/dev/null | head -1)
-  fi
-  if [[ -n "$TUNNEL_URL" ]]; then
-    echo " got it!"
-    break
+    if [[ -n "$TUNNEL_URL" ]]; then
+      echo " got temporary URL!"
+      break
+    fi
   fi
   echo -n "."
-  sleep 1
+  sleep 2
 done
 rm -f "$TUNNEL_LOG"
 if [[ -z "$TUNNEL_URL" ]]; then

@@ -405,16 +405,10 @@ public class EditToolbar {
 
   private void createRtlDirectionButton(ToolbarView toolbar) {
     ToolbarToggleButton rtlButton = toolbar.addToggleButton();
-    rtlButton.setVisualElement(createRtlIconElement());
     new ToolbarButtonViewBuilder()
+        .setIcon(css.rtlDirection())
         .setTooltip("Right-to-left text direction")
         .applyTo(rtlButton, createParagraphApplicationController(rtlButton, Paragraph.Direction.RTL));
-  }
-
-  private Element createRtlIconElement() {
-    Element e = Document.get().createSpanElement();
-    e.setInnerText("\u00B6\u2190");
-    return e;
   }
 
   private void createInsertLinkButton(ToolbarView toolbar) {

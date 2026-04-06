@@ -41,6 +41,8 @@ import org.waveprotocol.wave.client.events.NetworkStatusEvent;
 import org.waveprotocol.wave.model.wave.SourcesEvents;
 import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 
+import org.waveprotocol.wave.model.document.WaveContext;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -351,6 +353,28 @@ public final class SearchPresenterTest extends TestCase {
         scheduler.isScheduled(searchUpdater));
   }
 
+  /**
+   * Regression test: onOpened() must be a no-op.
+   * The old implementation zeroed unread counts in-place, causing the badge to disappear before
+   * the user had actually read those blips. After the fix, neither a search refresh nor a
+   * digest re-render must occur when a wave is opened.
+   */
+  public void testOnOpenedIsNoOpAndDoesNotClearUnreadBadge() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    FakeSearchPanelView view = new FakeSearchPanelView();
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, view, NO_OP_ACTION_HANDLER, new FakeProfiles(), null);
+
+    view.setHasVisibleDigests(true);
+
+    presenter.onOpened(new WaveContext(null, null, null, null));
+
+    assertEquals("onOpened must not trigger a search refresh", 0, search.findCalls);
+    assertEquals("onOpened must not re-render any digest (premature unread clear)",
+        0, view.renderDigestCalls);
+  }
+
   public void testReconnectKeepsVisibleDigestsInsteadOfShowingSkeleton() throws Exception {
     FakeTimerService scheduler = new FakeTimerService();
     FakeSearch search = new FakeSearch();
@@ -495,6 +519,7 @@ public final class SearchPresenterTest extends TestCase {
   private static final class FakeSearchPanelView implements SearchPanelView {
     private final FakeSearchView searchView = new FakeSearchView();
     private DigestView firstDigest;
+    int renderDigestCalls;
 
     @Override
     public void init(Listener listener) {
@@ -554,6 +579,7 @@ public final class SearchPresenterTest extends TestCase {
 
     @Override
     public void renderDigest(DigestView digestUi, Digest digest) {
+      renderDigestCalls++;
     }
 
     @Override

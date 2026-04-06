@@ -413,8 +413,8 @@ public final class SearchPresenter
     }
     subscribeToSearchWavelet(queryText);
     doSearch();
-    scheduler.cancel(searchUpdater);
-    scheduler.scheduleRepeating(searchUpdater, POLLING_INTERVAL_MS, POLLING_INTERVAL_MS);
+    // Do NOT start the repeating poll here. OT handles live updates;
+    // otSearchTimeoutTask starts polling if OT times out or falls back.
   }
 
   /**
@@ -1288,10 +1288,11 @@ public final class SearchPresenter
     }
     otSearchTimedOut = true;
     OT_SEARCH_LOG.warning(
-        "OT search timed out for query '" + queryText + "'; keeping direct-search results active");
+        "OT search timed out for query '" + queryText + "'; falling back to HTTP polling");
     unsubscribeFromSearchWavelet();
     otSearchDocument = null;
     otSearchSnapshot = OtSearchSnapshot.empty();
+    startPolling();
   }
 
   static WaveletName computeSearchWaveletName(String address, String query) {

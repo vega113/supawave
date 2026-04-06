@@ -291,6 +291,54 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, scheduler.countTasksScheduled());
   }
 
+  /**
+   * When OT-search subscribes successfully (channel present, non-tag query),
+   * bootstrapOtSearch must NOT start a repeating HTTP poll immediately.
+   * Only the OT timeout task should be pending; polling starts only when OT fails/times out.
+   */
+  public void testBootstrapOtSearchDoesNotStartRepeatingPollWhenOtSubscriptionSucceeds()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
+    RemoteViewServiceMultiplexer channel =
+        new RemoteViewServiceMultiplexer(socket, "alice@example.com");
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        channel);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+
+    presenter.bootstrapOtSearch();
+
+    // Only the OT timeout task should be scheduled; the repeating 15-s poll must NOT be running.
+    assertEquals(1, scheduler.countTasksScheduled());
+  }
+
+  /**
+   * When OT data never arrives, the timeout task must start the repeating HTTP poll
+   * so that results continue to update.
+   */
+  public void testOtSearchTimeoutStartsPollingWhenOtDataNeverArrives() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
+    RemoteViewServiceMultiplexer channel =
+        new RemoteViewServiceMultiplexer(socket, "alice@example.com");
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        channel);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+    presenter.bootstrapOtSearch();
+    // Advance past OT_SEARCH_TIMEOUT_MS (5000 ms) so the timeout task fires.
+    scheduler.tick(6000);
+
+    assertTrue(getBooleanField(presenter, "otSearchTimedOut"));
+    // After timeout, the repeating poll must be running.
+    assertEquals(1, scheduler.countTasksScheduled());
+  }
+
   public void testReconnectKeepsVisibleDigestsInsteadOfShowingSkeleton() throws Exception {
     FakeTimerService scheduler = new FakeTimerService();
     FakeSearch search = new FakeSearch();

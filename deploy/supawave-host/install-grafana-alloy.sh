@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ARCH=${ARCH:-amd64}
+GCLOUD_HOSTED_METRICS_URL=${GCLOUD_HOSTED_METRICS_URL:-}
+GCLOUD_HOSTED_METRICS_ID=${GCLOUD_HOSTED_METRICS_ID:-}
+GCLOUD_HOSTED_LOGS_URL=${GCLOUD_HOSTED_LOGS_URL:-}
+GCLOUD_HOSTED_LOGS_ID=${GCLOUD_HOSTED_LOGS_ID:-}
+GCLOUD_RW_API_KEY=${GCLOUD_RW_API_KEY:-}
+GCLOUD_SCRAPE_INTERVAL=${GCLOUD_SCRAPE_INTERVAL:-60s}
+
+required=(
+  GCLOUD_HOSTED_METRICS_URL
+  GCLOUD_HOSTED_METRICS_ID
+  GCLOUD_HOSTED_LOGS_URL
+  GCLOUD_HOSTED_LOGS_ID
+  GCLOUD_RW_API_KEY
+)
+
+for key in "${required[@]}"; do
+  if [[ -z "${!key:-}" ]]; then
+    echo "Missing required environment variable: $key" >&2
+    exit 1
+  fi
+done
+
+echo "[grafana-alloy] Installing Grafana Alloy"
+ARCH="$ARCH" \
+GCLOUD_HOSTED_METRICS_URL="$GCLOUD_HOSTED_METRICS_URL" \
+GCLOUD_HOSTED_METRICS_ID="$GCLOUD_HOSTED_METRICS_ID" \
+GCLOUD_SCRAPE_INTERVAL="$GCLOUD_SCRAPE_INTERVAL" \
+GCLOUD_HOSTED_LOGS_URL="$GCLOUD_HOSTED_LOGS_URL" \
+GCLOUD_HOSTED_LOGS_ID="$GCLOUD_HOSTED_LOGS_ID" \
+GCLOUD_RW_API_KEY="$GCLOUD_RW_API_KEY" \
+  /bin/sh -c "$(curl -fsSL https://storage.googleapis.com/cloud-onboarding/alloy/scripts/install-linux.sh)"

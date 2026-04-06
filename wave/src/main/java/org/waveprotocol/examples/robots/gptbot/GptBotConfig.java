@@ -62,6 +62,7 @@ public final class GptBotConfig {
   private final Duration codexTimeout;
   private final int httpWorkerThreads;
   private final boolean codexUnsafeBypass;
+  private final boolean submittedOnly;
   private final String callbackToken;
   private final ContextMode contextMode;
   private final ReplyMode replyMode;
@@ -72,7 +73,7 @@ public final class GptBotConfig {
       String publicBaseUrl, String profilePageUrl, String avatarUrl, String listenHost,
       int listenPort, String codexBinary, String codexModel, String codexReasoningEffort,
       Duration codexTimeout, int httpWorkerThreads, boolean codexUnsafeBypass,
-      String callbackToken,
+      boolean submittedOnly, String callbackToken,
       ContextMode contextMode, ReplyMode replyMode, String apiRobotId, String apiRobotSecret) {
     this.robotName = robotName;
     this.participantId = participantId;
@@ -88,6 +89,7 @@ public final class GptBotConfig {
     this.codexTimeout = codexTimeout;
     this.httpWorkerThreads = httpWorkerThreads;
     this.codexUnsafeBypass = codexUnsafeBypass;
+    this.submittedOnly = submittedOnly;
     this.callbackToken = callbackToken;
     this.contextMode = contextMode;
     this.replyMode = replyMode;
@@ -112,6 +114,7 @@ public final class GptBotConfig {
         120, 1, 3600));
     int httpWorkerThreads = readInt("GPTBOT_HTTP_WORKERS", null, 4, 1, 128);
     boolean codexUnsafeBypass = readBoolean("GPTBOT_CODEX_UNSAFE_BYPASS", null, false);
+    boolean submittedOnly = readBoolean("GPTBOT_SUBMITTED_ONLY", null, false);
     String callbackToken = readString("GPTBOT_CALLBACK_TOKEN", null, "");
     ContextMode contextMode = ContextMode.from(readString("GPTBOT_CONTEXT_MODE", null,
         DEFAULT_CONTEXT_MODE), "GPTBOT_CONTEXT_MODE", DEFAULT_CONTEXT_MODE);
@@ -121,15 +124,15 @@ public final class GptBotConfig {
     String apiRobotSecret = readString("GPTBOT_API_ROBOT_SECRET", null, "");
     return new GptBotConfig(robotName, participantId, baseUrl, publicBaseUrl, profilePageUrl,
         avatarUrl, listenHost, listenPort, codexBinary, codexModel, codexReasoningEffort,
-        codexTimeout, httpWorkerThreads, codexUnsafeBypass, callbackToken, contextMode,
-        replyMode, apiRobotId, apiRobotSecret);
+        codexTimeout, httpWorkerThreads, codexUnsafeBypass, submittedOnly, callbackToken,
+        contextMode, replyMode, apiRobotId, apiRobotSecret);
   }
 
   static GptBotConfig forTest() {
     return new GptBotConfig(DEFAULT_BOT_NAME, DEFAULT_PARTICIPANT_ID, DEFAULT_BASE_URL, "",
         DEFAULT_PROFILE_URL, DEFAULT_AVATAR_URL, "0.0.0.0", 8087, DEFAULT_CODEX_BINARY,
         DEFAULT_CODEX_MODEL, DEFAULT_CODEX_REASONING_EFFORT, Duration.ofSeconds(120), 4, false,
-        "", ContextMode.NONE, ReplyMode.PASSIVE, "test-robot", "test-secret");
+        false, "", ContextMode.NONE, ReplyMode.PASSIVE, "test-robot", "test-secret");
   }
 
   public String getRobotName() {
@@ -204,6 +207,15 @@ public final class GptBotConfig {
     return codexUnsafeBypass;
   }
 
+  /**
+   * When true, the robot should ignore DOCUMENT_CHANGED events and only reply
+   * to BLIP_SUBMITTED events. This ensures the echo bot responds once per
+   * completed message rather than once per keystroke.
+   */
+  public boolean isSubmittedOnly() {
+    return submittedOnly;
+  }
+
   public String getCallbackToken() {
     return callbackToken;
   }
@@ -235,15 +247,15 @@ public final class GptBotConfig {
   public GptBotConfig withReplyMode(ReplyMode newReplyMode) {
     return new GptBotConfig(robotName, participantId, baseUrl, publicBaseUrl, profilePageUrl,
         avatarUrl, listenHost, listenPort, codexBinary, codexModel, codexReasoningEffort,
-        codexTimeout, httpWorkerThreads, codexUnsafeBypass, callbackToken, contextMode,
-        newReplyMode, apiRobotId, apiRobotSecret);
+        codexTimeout, httpWorkerThreads, codexUnsafeBypass, submittedOnly, callbackToken,
+        contextMode, newReplyMode, apiRobotId, apiRobotSecret);
   }
 
   public GptBotConfig withCallbackToken(String newCallbackToken) {
     return new GptBotConfig(robotName, participantId, baseUrl, publicBaseUrl, profilePageUrl,
         avatarUrl, listenHost, listenPort, codexBinary, codexModel, codexReasoningEffort,
-        codexTimeout, httpWorkerThreads, codexUnsafeBypass, newCallbackToken, contextMode,
-        replyMode, apiRobotId, apiRobotSecret);
+        codexTimeout, httpWorkerThreads, codexUnsafeBypass, submittedOnly, newCallbackToken,
+        contextMode, replyMode, apiRobotId, apiRobotSecret);
   }
 
   public String getCallbackUrl(String rpcPath) {

@@ -21,6 +21,8 @@ package org.waveprotocol.examples.robots.gptbot;
 
 import junit.framework.TestCase;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -105,6 +107,51 @@ public class GptBotReplyPlannerTest extends TestCase {
     assertTrue(codexClient.lastPrompt.contains("\"secret\":\"[redacted]\""));
     assertTrue(codexClient.lastPrompt.contains("\"password\":\"[redacted]\""));
     assertTrue(codexClient.lastPrompt.contains("\"Authorization\":\"Bearer [redacted]\""));
+  }
+
+  public void testConversationHistoryIncludesPriorTurns() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "first answer";
+    GptBotReplyPlanner planner = new GptBotReplyPlanner("gpt-bot", codexClient);
+    String waveId = "example.com!w+histtest";
+
+    planner.replyForPrompt("first question", "", waveId);
+
+    codexClient.response = "second answer";
+    planner.replyForPrompt("second question", "", waveId);
+
+    // The second call's flattened prompt must include the first turn's Q&A.
+    assertTrue("Prior user turn must appear in second call",
+        codexClient.lastPrompt.contains("first question"));
+    assertTrue("Prior assistant turn must appear in second call",
+        codexClient.lastPrompt.contains("first answer"));
+  }
+
+  public void testPruningDropsOldestTurnsWhenBudgetExceeded() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "ok";
+    // Budget of 100 tokens. Each user message is 400 chars = 100 tokens (len/4 heuristic).
+    // After two turns the running total is 200 tokens > 100, so the oldest pair is pruned.
+    GptBotReplyPlanner planner = new GptBotReplyPlanner("gpt-bot", codexClient, 100);
+    String waveId = "example.com!w+prunetest";
+    String largeContent = "x".repeat(400); // 400 chars → 100 tokens
+
+    // First turn — fits within budget.
+    planner.replyForPrompt(largeContent, "", waveId);
+    // Second turn — 200 tokens total after adding; pruning must drop the first pair.
+    planner.replyForPrompt(largeContent, "", waveId);
+
+    // Third call: the prompt is built from history before this turn is added.
+    // After pruning in call 2, only the second turn pair remains, so largeContent
+    // must appear exactly once in call 3's flattened prompt.
+    codexClient.response = "final";
+    planner.replyForPrompt("probe", "", waveId);
+
+    int firstOccurrence = codexClient.lastPrompt.indexOf(largeContent);
+    int lastOccurrence = codexClient.lastPrompt.lastIndexOf(largeContent);
+    assertTrue("At least one large-content turn must remain in history", firstOccurrence >= 0);
+    assertEquals("Only the most recent large turn should remain after pruning",
+        firstOccurrence, lastOccurrence);
   }
 
   private static final class RecordingCodexClient implements CodexClient {

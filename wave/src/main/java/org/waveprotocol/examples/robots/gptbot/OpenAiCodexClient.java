@@ -56,6 +56,7 @@ public final class OpenAiCodexClient implements CodexClient {
   private final String baseUrl;
   private final String model;
   private final HttpClient httpClient;
+  private final boolean webSearchEnabled;
 
   public OpenAiCodexClient() {
     this.apiKey = requireEnv("OPENAI_API_KEY");
@@ -63,15 +64,20 @@ public final class OpenAiCodexClient implements CodexClient {
     this.baseUrl = (base != null && !base.isBlank()) ? stripTrailingSlash(base) : "https://api.openai.com/v1";
     String envModel = System.getenv("GPTBOT_OPENAI_MODEL");
     this.model = (envModel != null && !envModel.isBlank()) ? envModel.trim() : "gpt-4o-mini";
+    String webSearch = System.getenv("GPTBOT_WEB_SEARCH_ENABLED");
+    this.webSearchEnabled = "true".equalsIgnoreCase(webSearch == null ? "" : webSearch.trim());
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
-    LOG.info("OpenAI client initialized (model=" + model + ", base=" + baseUrl + ")");
+    LOG.info("OpenAI client initialized (model=" + model + ", base=" + baseUrl
+        + ", webSearch=" + webSearchEnabled + ")");
   }
 
-  OpenAiCodexClient(String apiKey, String baseUrl, String model, HttpClient httpClient) {
+  OpenAiCodexClient(String apiKey, String baseUrl, String model, HttpClient httpClient,
+      boolean webSearchEnabled) {
     this.apiKey = apiKey;
     this.baseUrl = stripTrailingSlash(baseUrl);
     this.model = model;
     this.httpClient = httpClient;
+    this.webSearchEnabled = webSearchEnabled;
   }
 
   @Override
@@ -119,8 +125,10 @@ public final class OpenAiCodexClient implements CodexClient {
       body.add("messages", messagesArray);
       body.addProperty("max_tokens", 512);
       body.addProperty("temperature", 0.7);
-      body.add("tools", JsonParser.parseString(WEB_SEARCH_TOOL_JSON));
-      body.addProperty("tool_choice", "auto");
+      if (webSearchEnabled) {
+        body.add("tools", JsonParser.parseString(WEB_SEARCH_TOOL_JSON));
+        body.addProperty("tool_choice", "auto");
+      }
 
       HttpRequest request = HttpRequest.newBuilder()
           .uri(URI.create(baseUrl + "/chat/completions"))
@@ -136,9 +144,11 @@ public final class OpenAiCodexClient implements CodexClient {
             + truncate(response.body(), 200));
         return "I'm having trouble generating a response right now.";
       }
-      String toolCallResult = handleToolCalls(response.body());
-      if (toolCallResult != null) {
-        return completWithToolResult(messagesArray, response.body(), toolCallResult);
+      if (webSearchEnabled) {
+        String toolCallResult = handleToolCalls(response.body());
+        if (toolCallResult != null) {
+          return completeWithToolResult(messagesArray, response.body(), toolCallResult);
+        }
       }
       return extractContent(response.body());
     } catch (IOException | InterruptedException e) {
@@ -237,7 +247,7 @@ public final class OpenAiCodexClient implements CodexClient {
     }
   }
 
-  private String completWithToolResult(JsonArray originalMessages, String assistantResponseBody,
+  private String completeWithToolResult(JsonArray originalMessages, String assistantResponseBody,
       String toolResult) {
     try {
       // Reconstruct messages: original + assistant tool_call message + tool result message

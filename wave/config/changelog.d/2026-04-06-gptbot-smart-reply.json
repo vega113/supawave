@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-06-gptbot-smart-reply",
-  "version": "PR #678",
+  "version": "PR #680",
   "date": "2026-04-06",
   "title": "GPT Bot Smart Reply Improvements",
   "summary": "Four improvements to the gpt-bot: editing guard, root-thread replies, per-wave conversation memory, and web search.",

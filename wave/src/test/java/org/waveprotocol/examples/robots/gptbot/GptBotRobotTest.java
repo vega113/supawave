@@ -19,6 +19,7 @@
 
 package org.waveprotocol.examples.robots.gptbot;
 
+import com.google.wave.api.Annotation;
 import com.google.wave.api.BlipData;
 import com.google.wave.api.BlipThread;
 import com.google.wave.api.event.DocumentChangedEvent;
@@ -318,6 +319,27 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(1, codexClient.completeCalls);
   }
 
+  /**
+   * Regression: DOCUMENT_CHANGED must be suppressed when the blip has a user/d/ annotation
+   * indicating the user is still actively editing. The bot must not reply mid-edit.
+   */
+  public void testDocumentChangedSkipsReplyWhenBlipBeingEdited() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Should not appear.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJsonWithEditingAnnotation(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " help me",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertFalse("Bot must not reply while user is still editing",
+        response.contains("Should not appear."));
+    assertEquals("No completion must be requested while editing", 0, codexClient.completeCalls);
+    assertEquals("No context fetch while editing", 0, apiClient.fetchCalls);
+  }
+
   /** Capabilities XML must declare PARENT context so the server includes parent blips. */
   public void testCapabilitiesXmlIncludesParentContext() {
     GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
@@ -484,6 +506,31 @@ public class GptBotRobotTest extends TestCase {
     // Add the inline thread to the bundle so Blip.getThread() returns it.
     bundle.addThread("t+inline", new BlipThread("t+inline", 5,
         java.util.Arrays.asList("b+botsibling", "b+userblip"), null));
+    for (Event event : events) {
+      bundle.addEvent(event);
+    }
+    return new GsonFactory().create().toJson(bundle);
+  }
+
+  /**
+   * Bundle where b+root has a {@code user/d/...} annotation, simulating an in-progress edit.
+   * A DOCUMENT_CHANGED event on this blip should be suppressed by the editing guard.
+   */
+  private static String exampleBundleJsonWithEditingAnnotation(GptBotConfig config,
+      String content, Event... events) {
+    EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
+        "http://localhost:8087/_wave/robot/jsonrpc");
+    WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
+        "b+root", (BlipThread) null);
+    waveletData.addParticipant("alice@example.com");
+    bundle.setWaveletData(waveletData);
+    BlipData blipData = new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+root", content);
+    // Simulate an in-progress edit: a user/d/ annotation is present when the user's cursor
+    // is actively composing text.
+    blipData.setAnnotations(java.util.Arrays.asList(
+        new Annotation("user/d/alice@example.com", "1", 0, content.length())));
+    bundle.addBlip("b+root", blipData);
     for (Event event : events) {
       bundle.addEvent(event);
     }

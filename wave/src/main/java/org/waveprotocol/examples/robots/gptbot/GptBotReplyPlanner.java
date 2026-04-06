@@ -21,12 +21,12 @@ package org.waveprotocol.examples.robots.gptbot;
 
 import org.waveprotocol.wave.util.logging.Log;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Turns an explicit mention into a Codex-generated reply.
@@ -37,20 +37,35 @@ public final class GptBotReplyPlanner {
   private static final int MAX_CONTEXT_CHARS = 2000;
   private static final int MAX_PROMPT_CHARS = 3000;
   /** Drop oldest history turns when estimated token count exceeds this threshold. */
-  private static final int MAX_HISTORY_TOKENS = 80000;
+  private static final int DEFAULT_MAX_HISTORY_TOKENS = 80000;
+  /** Evict least-recently-added waves when the map exceeds this size to bound memory. */
+  private static final int MAX_WAVE_COUNT = 500;
   private static final String CLARIFYING_PROMPT =
       "The user mentioned you without asking a clear question. Ask a short clarifying question.";
 
   private final String robotName;
   private final MentionDetector mentionDetector;
   private final CodexClient codexClient;
-  private final ConcurrentHashMap<String, List<Map<String, String>>> conversationHistory =
-      new ConcurrentHashMap<>();
+  private final int maxHistoryTokens;
+  // Guards both conversationHistory map and all WaveHistory objects within it.
+  private final Object historyLock = new Object();
+  private final Map<String, WaveHistory> conversationHistory =
+      new LinkedHashMap<String, WaveHistory>(16, 0.75f, false) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, WaveHistory> eldest) {
+          return size() > MAX_WAVE_COUNT;
+        }
+      };
 
   public GptBotReplyPlanner(String robotName, CodexClient codexClient) {
+    this(robotName, codexClient, DEFAULT_MAX_HISTORY_TOKENS);
+  }
+
+  GptBotReplyPlanner(String robotName, CodexClient codexClient, int maxHistoryTokens) {
     this.robotName = robotName;
     this.mentionDetector = new MentionDetector(robotName);
     this.codexClient = codexClient;
+    this.maxHistoryTokens = maxHistoryTokens;
   }
 
   public Optional<String> replyFor(String text, String waveContext) {
@@ -91,14 +106,11 @@ public final class GptBotReplyPlanner {
     messages.add(systemMsg);
 
     // Add history turns (token-budget pruning applied at store time).
-    // Take a synchronized snapshot to avoid races with concurrent write/prune.
     if (waveId != null && !waveId.isEmpty()) {
-      List<Map<String, String>> history = conversationHistory.get(waveId);
-      if (history != null) {
-        synchronized (history) {
-          if (!history.isEmpty()) {
-            messages.addAll(new ArrayList<>(history));
-          }
+      synchronized (historyLock) {
+        WaveHistory history = conversationHistory.get(waveId);
+        if (history != null && !history.turns.isEmpty()) {
+          messages.addAll(new ArrayList<>(history.turns));
         }
       }
     }
@@ -125,20 +137,14 @@ public final class GptBotReplyPlanner {
 
     // Update conversation history
     if (waveId != null && !waveId.isEmpty()) {
-      List<Map<String, String>> history =
-          conversationHistory.computeIfAbsent(waveId, k -> new ArrayList<>());
-      synchronized (history) {
+      synchronized (historyLock) {
+        WaveHistory history = conversationHistory.computeIfAbsent(waveId, k -> new WaveHistory());
         history.add(userMsg);
         Map<String, String> assistantMsg = new LinkedHashMap<>();
         assistantMsg.put("role", "assistant");
         assistantMsg.put("content", response);
         history.add(assistantMsg);
-        // Token-based pruning: estimate tokens as len(content)/4.
-        // Drop oldest turn pairs until estimated total fits within MAX_HISTORY_TOKENS.
-        while (estimateHistoryTokens(history) > MAX_HISTORY_TOKENS && history.size() >= 2) {
-          history.remove(0);
-          history.remove(0);
-        }
+        history.pruneToFit(maxHistoryTokens);
       }
     }
 
@@ -163,14 +169,31 @@ public final class GptBotReplyPlanner {
     return prompt.toString();
   }
 
-  /** Estimates total token count for a list of messages using the len/4 heuristic. */
-  private static int estimateHistoryTokens(List<Map<String, String>> history) {
-    int total = 0;
-    for (Map<String, String> msg : history) {
-      String content = msg.getOrDefault("content", "");
-      total += content.length() / 4;
+  /**
+   * Per-wave conversation history with O(1) append and O(1) amortized pruning.
+   * Uses an ArrayDeque for O(1) head removal and a running token estimate to
+   * avoid rescanning the entire history on each prune iteration.
+   */
+  private static final class WaveHistory {
+    final ArrayDeque<Map<String, String>> turns = new ArrayDeque<>();
+    private int tokens = 0;
+
+    void add(Map<String, String> msg) {
+      turns.addLast(msg);
+      tokens += estimateTokens(msg);
     }
-    return total;
+
+    /** Drops the oldest turn-pairs until the running token estimate is within budget. */
+    void pruneToFit(int maxTokens) {
+      while (tokens > maxTokens && turns.size() >= 2) {
+        tokens -= estimateTokens(turns.pollFirst());
+        tokens -= estimateTokens(turns.pollFirst());
+      }
+    }
+
+    private static int estimateTokens(Map<String, String> msg) {
+      return msg.getOrDefault("content", "").length() / 4;
+    }
   }
 
   private static String sanitize(String text, int limit) {

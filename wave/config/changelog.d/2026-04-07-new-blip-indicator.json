@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-07-new-blip-indicator",
+  "version": "PR #696",
+  "date": "2026-04-07",
+  "title": "New Messages Pill Indicator",
+  "summary": "A floating pill appears when new messages arrive below the viewport, letting you jump to unread content with one click.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added floating 'N new messages' pill when scrolled up in a conversation",
+        "Clicking the pill scrolls to the new content and dismisses it",
+        "Pill auto-dismisses when scrolling near the bottom",
+        "Feature-flagged via 'new-blip-indicator' server flag (off by default)"
+      ]
+    }
+  ]
+}

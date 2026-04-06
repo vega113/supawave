@@ -52,6 +52,8 @@ public final class WavePanelResourceLoader {
       GWT.create(ParticipantsViewBuilder.Resources.class);
   private final static TagsViewBuilder.Resources tags =
       GWT.create(TagsViewBuilder.Resources.class);
+  private final static NewBlipIndicatorBuilder.Resources newBlipIndicator =
+      GWT.create(NewBlipIndicatorBuilder.Resources.class);
   private final static Dialog.Resources dialog =
       GWT.create(Dialog.Resources.class);
 
@@ -80,6 +82,7 @@ public final class WavePanelResourceLoader {
     StyleInjector.inject(conversation.css().getText(), isSynchronous);
     StyleInjector.inject(participants.css().getText(), isSynchronous);
     StyleInjector.inject(tags.css().getText(), isSynchronous);
+    StyleInjector.inject(newBlipIndicator.css().getText(), isSynchronous);
     StyleInjector.inject(dialog.css().getText(), isSynchronous);
 
     // Load thread navigation CSS (slide transitions, breadcrumb, depth lines).
@@ -120,6 +123,10 @@ public final class WavePanelResourceLoader {
 
   public static TagsViewBuilder.Resources getTags() {
     return tags;
+  }
+
+  public static NewBlipIndicatorBuilder.Resources getNewBlipIndicator() {
+    return newBlipIndicator;
   }
 
   public static Dialog.Resources getDialog() {

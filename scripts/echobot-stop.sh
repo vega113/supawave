@@ -10,7 +10,13 @@ matches_command() {
   local needle="$2"
   local command
   command="$(ps -p "$pid" -o command= 2>/dev/null || true)"
-  [[ -n "$command" && "$command" == *"$needle"* ]]
+  [[ -n "$command" && "$command" == *"$needle"* ]] && return 0
+  # Java processes launched by sbt use @args-file; the class name is inside the file.
+  local args_file="${command##* @}"
+  if [[ "$command" == *" @"* && -f "$args_file" ]]; then
+    grep -q "$needle" "$args_file" 2>/dev/null && return 0
+  fi
+  return 1
 }
 
 terminate_pid() {

@@ -206,8 +206,6 @@ loki.process \"supawave_logs\" {
       level       = \"\",
       logger      = \"\",
       thread      = \"\",
-      participant = \"\",
-      wave        = \"\",
     }
   }
 

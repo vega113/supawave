@@ -248,7 +248,7 @@ jobs:
           "
 
       - name: Close deploy-failure issues on success
-        if: success() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: steps.deploy.outcome == 'success' && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         continue-on-error: true
         uses: actions/github-script@v7
         with:
@@ -276,7 +276,7 @@ jobs:
             }
 
       - name: Create GitHub issue on deploy failure
-        if: failure() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: always() && (steps.deploy.outcome == 'failure' || steps.deploy.outcome == 'skipped') && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         uses: actions/github-script@v7
         with:
           script: |
@@ -446,7 +446,7 @@ jobs:
           echo "$CHANGELOG_HTML" > /tmp/changelog_html.txt
 
       - name: Notify deploy success
-        if: success() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: always() && steps.deploy.outcome == 'success' && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
@@ -488,7 +488,7 @@ jobs:
             -d "$PAYLOAD") || echo "Email notification failed (non-blocking): $RESPONSE"
 
       - name: Notify deploy failure
-        if: failure() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: always() && (steps.deploy.outcome == 'failure' || steps.deploy.outcome == 'skipped') && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}

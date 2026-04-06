@@ -109,11 +109,11 @@ prometheus.exporter.unix \"integrations_node_exporter\" {
   }
 
   netclass {
-    ignored_devices = \"^(veth.|cali.|[a-f0-9]{15})$\"
+    ignored_devices = \"^(veth.|cali.|[a-f0-9]{15})\\$\"
   }
 
   netdev {
-    device_exclude = \"^(veth.|cali.|[a-f0-9]{15})$\"
+    device_exclude = \"^(veth.|cali.|[a-f0-9]{15})\\$\"
   }
 }
 
@@ -216,6 +216,8 @@ loki.source.file \"supawave_logs\" {
   forward_to = [loki.process.supawave_logs.receiver]
 }
 EOF"
+
+sudo chmod 600 "$CONFIG_PATH"
 
 sudo systemctl restart alloy.service
 sudo systemctl status --no-pager alloy.service

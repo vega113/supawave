@@ -193,23 +193,19 @@ jobs:
               sudo -n env BACKUP_DIR='/var/backups/wave-supawave' \"\$incoming/supawave-host/provision.sh\"
               if [ "${grafana_alloy_enable,,}" = "true" ]; then
                 echo '[deploy] Installing and configuring Grafana Alloy'
-                sudo -n env \
+                export \
                   GCLOUD_HOSTED_METRICS_URL=$gcloud_metrics_url_q \
                   GCLOUD_HOSTED_METRICS_ID=$gcloud_metrics_id_q \
                   GCLOUD_HOSTED_LOGS_URL=$gcloud_logs_url_q \
                   GCLOUD_HOSTED_LOGS_ID=$gcloud_logs_id_q \
                   GCLOUD_RW_API_KEY=$gcloud_rw_api_key_q \
-                  GCLOUD_SCRAPE_INTERVAL=$gcloud_scrape_interval_q \
+                  GCLOUD_SCRAPE_INTERVAL=$gcloud_scrape_interval_q
+                sudo -n --preserve-env=GCLOUD_HOSTED_METRICS_URL,GCLOUD_HOSTED_METRICS_ID,GCLOUD_HOSTED_LOGS_URL,GCLOUD_HOSTED_LOGS_ID,GCLOUD_RW_API_KEY,GCLOUD_SCRAPE_INTERVAL \
                   \"\$incoming/supawave-host/install-grafana-alloy.sh\"
-                sudo -n env \
-                  GCLOUD_HOSTED_METRICS_URL=$gcloud_metrics_url_q \
-                  GCLOUD_HOSTED_METRICS_ID=$gcloud_metrics_id_q \
-                  GCLOUD_HOSTED_LOGS_URL=$gcloud_logs_url_q \
-                  GCLOUD_HOSTED_LOGS_ID=$gcloud_logs_id_q \
-                  GCLOUD_RW_API_KEY=$gcloud_rw_api_key_q \
-                  GCLOUD_SCRAPE_INTERVAL=$gcloud_scrape_interval_q \
-                  WAVE_LOG_PATH='$remote_root/shared/logs/wave*.log' \
+                export WAVE_LOG_PATH='$remote_root/shared/logs/wave*.log'
+                sudo -n --preserve-env=GCLOUD_HOSTED_METRICS_URL,GCLOUD_HOSTED_METRICS_ID,GCLOUD_HOSTED_LOGS_URL,GCLOUD_HOSTED_LOGS_ID,GCLOUD_RW_API_KEY,GCLOUD_SCRAPE_INTERVAL,WAVE_LOG_PATH \
                   \"\$incoming/supawave-host/configure-grafana-alloy.sh\"
+                unset GCLOUD_HOSTED_METRICS_URL GCLOUD_HOSTED_METRICS_ID GCLOUD_HOSTED_LOGS_URL GCLOUD_HOSTED_LOGS_ID GCLOUD_RW_API_KEY GCLOUD_SCRAPE_INTERVAL WAVE_LOG_PATH
               else
                 echo '[deploy] Skipping Grafana Alloy setup (GRAFANA_ALLOY_ENABLE=false)'
               fi

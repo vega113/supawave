@@ -120,6 +120,11 @@ public final class MentionUnreadTrackerTest extends TestCase {
     // Badge and navigable set must both equal the total collected (150)
     assertEquals(150, tracker.getUnreadMentionCount());
     assertEquals(150, lastNotifiedCount);
+
+    // Verify the tracker fetched page 1 at offset 0 and page 2 at offset 100
+    assertEquals(2, searchService.requestedOffsets.size());
+    assertEquals(Integer.valueOf(0), searchService.requestedOffsets.get(0));
+    assertEquals(Integer.valueOf(100), searchService.requestedOffsets.get(1));
   }
 
   public void testEmptyResultsGivesZero() {
@@ -286,10 +291,12 @@ public final class MentionUnreadTrackerTest extends TestCase {
   private static final class FakeSearchService implements SearchService {
     private Callback pendingCallback;
     private String lastQuery;
+    final List<Integer> requestedOffsets = new ArrayList<Integer>();
 
     @Override
     public Request search(String query, int index, int numResults, Callback callback) {
       this.lastQuery = query;
+      this.requestedOffsets.add(index);
       this.pendingCallback = callback;
       return new Request() {
         @Override public void cancel() { pendingCallback = null; }

@@ -121,9 +121,11 @@ public final class GptBotRobot {
                 handledBlipIds);
             break;
           case DOCUMENT_CHANGED: {
-            Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
-            if (changedBlip != null) {
-              handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
+            if (!config.isSubmittedOnly()) {
+              Blip changedBlip = DocumentChangedEvent.as(event).getBlip();
+              if (changedBlip != null) {
+                handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
+              }
             }
             break;
           }

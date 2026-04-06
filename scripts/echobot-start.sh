@@ -1,27 +1,31 @@
 #!/usr/bin/env bash
-# Start the gpt-bot example robot with a Cloudflare tunnel.
-# Usage:  scripts/gptbot-start.sh
-# Stop:   scripts/gptbot-stop.sh  (or kill the process group)
+# Start the echo-bot example robot with a Cloudflare tunnel.
+# Usage:  scripts/echobot-start.sh
+# Stop:   scripts/echobot-stop.sh  (or kill the process group)
+#
+# The echo-bot responds only when a blip is submitted (editing is complete),
+# echoing the final message text once rather than on every keystroke.
 #
 # Requires: sbt (via sdkman or PATH), cloudflared, curl
 # Secrets:  source your .env first, or set GPTBOT_MANAGEMENT_TOKEN
 #
 # For persistent URL: set CLOUDFLARE_TUNNEL_NAME to a pre-created named tunnel.
-# Run once: cloudflared tunnel login && cloudflared tunnel create gpt-bot
-# Then set CLOUDFLARE_TUNNEL_NAME=gpt-bot before starting.
+# Run once: cloudflared tunnel login && cloudflared tunnel create echo-bot
+# Then set CLOUDFLARE_TUNNEL_NAME=echo-bot before starting.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # ── defaults ──────────────────────────────────────────────────────────
-export GPTBOT_ROBOT_NAME="${GPTBOT_ROBOT_NAME:-gpt-bot}"
-export GPTBOT_PARTICIPANT_ID="${GPTBOT_PARTICIPANT_ID:-gpt-bot@supawave.ai}"
-export GPTBOT_LISTEN_PORT="${GPTBOT_LISTEN_PORT:-8087}"
+export GPTBOT_ROBOT_NAME="${GPTBOT_ROBOT_NAME:-echo-bot}"
+export GPTBOT_PARTICIPANT_ID="${GPTBOT_PARTICIPANT_ID:-echo-bot@supawave.ai}"
+export GPTBOT_LISTEN_PORT="${GPTBOT_LISTEN_PORT:-8088}"
 export GPTBOT_REPLY_MODE="${GPTBOT_REPLY_MODE:-passive}"
 export GPTBOT_CONTEXT_MODE="${GPTBOT_CONTEXT_MODE:-none}"
 export GPTBOT_CODEX_ENGINE="${GPTBOT_CODEX_ENGINE:-echo}"
+export GPTBOT_SUBMITTED_ONLY="${GPTBOT_SUBMITTED_ONLY:-true}"
 export SUPAWAVE_BASE_URL="${SUPAWAVE_BASE_URL:-https://supawave.ai}"
 
-PID_DIR="/tmp/gptbot"
+PID_DIR="/tmp/echobot"
 mkdir -p "$PID_DIR"
 
 matches_command() {
@@ -128,7 +132,7 @@ done < <(lsof -ti:"$GPTBOT_LISTEN_PORT" 2>/dev/null || true)
 sleep 1
 
 # ── start bot ─────────────────────────────────────────────────────────
-echo "Starting gpt-bot (engine=$GPTBOT_CODEX_ENGINE, port=$GPTBOT_LISTEN_PORT)..."
+echo "Starting echo-bot (engine=$GPTBOT_CODEX_ENGINE, submitted_only=$GPTBOT_SUBMITTED_ONLY, port=$GPTBOT_LISTEN_PORT)..."
 "$SBT" "runMain org.waveprotocol.examples.robots.gptbot.GptBotServer" > "$PID_DIR/bot.log" 2>&1 &
 BOT_PID=$!
 echo "$BOT_PID" > "$PID_DIR/sbt.pid"
@@ -215,7 +219,7 @@ fi
 # ── summary ───────────────────────────────────────────────────────────
 echo ""
 echo "════════════════════════════════════════════════════"
-echo "  gpt-bot is running"
+echo "  echo-bot is running"
 echo "  Local:   http://127.0.0.1:$GPTBOT_LISTEN_PORT"
 echo "  Tunnel:  $TUNNEL_URL"
 echo "  Health:  $TUNNEL_URL/healthz"

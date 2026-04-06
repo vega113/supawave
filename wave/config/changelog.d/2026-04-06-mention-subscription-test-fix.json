@@ -1,6 +1,6 @@
 {
-  "releaseId": "2026-04-06-archive-search-fix",
-  "version": "PR",
+  "releaseId": "2026-04-06-mention-subscription-test-fix",
+  "version": "PR #676",
   "date": "2026-04-06",
   "title": "Fix mention-subscription test for non-participants",
   "summary": "Fixes a failing unit test that verified mention subscriptions are triggered for non-participant users at waveletCommitted.",

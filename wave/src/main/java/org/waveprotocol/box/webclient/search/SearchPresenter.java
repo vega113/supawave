@@ -757,9 +757,6 @@ public final class SearchPresenter
     boolean totalKnown = total != Search.UNKNOWN_SIZE;
     int loaded = search.getMinimumTotal();
     int unread = 0;
-    // Iterate via the view chain so that optimistic UI overrides stored in
-    // digestUis (e.g. the zeroUnread wrapper written by onOpened) are
-    // reflected immediately without waiting for the search model to update.
     DigestView view = searchUi.getFirst();
     while (view != null) {
       Digest d = digestUis.get(view);
@@ -1060,43 +1057,9 @@ public final class SearchPresenter
 
   @Override
   public void onOpened(WaveContext wave) {
-    // Optimistically clear the unread badge for the opened wave so the search
-    // panel does not flash "1 unread" while the OT read-mark is in flight.
-    // The correct unread count is restored once the BlipReadStateMonitor
-    // fires (via WaveBasedDigest → onDigestReady) or the next OT/poll update.
-    final WaveId openedWaveId = wave.getWave().getWaveId();
-    DigestView targetView = searchUi.getFirst();
-    while (targetView != null) {
-      final Digest digest = digestUis.get(targetView);
-      if (digest != null && openedWaveId.equals(digest.getWaveId())) {
-        // Wrap the digest to report zero unread, then re-render in-place.
-        final Digest zeroUnread = new Digest() {
-          @Override public WaveId getWaveId() { return digest.getWaveId(); }
-          @Override public ParticipantId getAuthor() { return digest.getAuthor(); }
-          @Override public List<ParticipantId> getParticipantsSnippet() {
-            return digest.getParticipantsSnippet();
-          }
-          @Override public String getTitle() { return digest.getTitle(); }
-          @Override public String getSnippet() { return digest.getSnippet(); }
-          @Override public int getBlipCount() { return digest.getBlipCount(); }
-          @Override public int getUnreadCount() { return 0; }
-          @Override public double getLastModifiedTime() {
-            return digest.getLastModifiedTime();
-          }
-          @Override public InboxState getInboxState() {
-            return digest.getInboxState();
-          }
-          @Override public boolean isPinned() { return digest.isPinned(); }
-        };
-        searchUi.renderDigest(targetView, zeroUnread);
-        // Also update the digestUis map so renderWaveCount()'s view-chain
-        // iteration sees the zero-unread wrapper instead of the original.
-        digestUis.put(targetView, zeroUnread);
-        renderWaveCount();
-        break;
-      }
-      targetView = searchUi.getNext(targetView);
-    }
+    // No action — unread state updates via BlipReadStateMonitor → supplement → search refresh.
+    // Eagerly zeroing the badge here also clears unread counts for blips from bots and other
+    // participants that the user has not actually read yet, causing the badge to vanish prematurely.
   }
 
   @Override

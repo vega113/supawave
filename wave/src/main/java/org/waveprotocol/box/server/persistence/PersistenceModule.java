@@ -267,10 +267,12 @@ public class PersistenceModule extends AbstractModule {
 
   /**
    * Binds the FeatureFlagStore for feature flag management.
-   * Uses the same backend type as the account store (mongodb or memory).
+   * Uses MongoDB when the v4 driver is configured (regardless of account store type),
+   * since mongodb_driver=v4 explicitly means MongoDB is available.
+   * Falls back to an in-memory store when using the legacy v2 driver.
    */
   private void bindFeatureFlagStore() {
-    if (accountStoreType.equalsIgnoreCase("mongodb") && "v4".equalsIgnoreCase(mongoDriver)) {
+    if ("v4".equalsIgnoreCase(mongoDriver)) {
       bind(FeatureFlagStore.class)
           .toInstance(getMongo4Provider().provideMongoDbFeatureFlagStore());
     } else {

@@ -20,9 +20,12 @@ package org.waveprotocol.box.server.persistence;
 
 import com.typesafe.config.Config;
 import java.util.Collections;
+import java.util.logging.Logger;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
 
 public final class FeatureFlagSeeder {
+  private static final Logger LOG = Logger.getLogger(FeatureFlagSeeder.class.getName());
+
   private static final String OT_SEARCH_FLAG_NAME = "ot-search";
   private static final String OT_SEARCH_DESCRIPTION =
       "Real-time search wavelets (replaces 15s polling)";
@@ -39,12 +42,16 @@ public final class FeatureFlagSeeder {
     if (store.get(OT_SEARCH_FLAG_NAME) == null) {
       // Flag not yet in DB — initialize from config so fresh deploys start with the right default.
       // If a flag already exists (admin set it via the API), leave it untouched.
+      boolean enabled = config.getBoolean(OT_SEARCH_CONFIG_KEY);
       store.save(
           new FeatureFlag(
               OT_SEARCH_FLAG_NAME,
               OT_SEARCH_DESCRIPTION,
-              config.getBoolean(OT_SEARCH_CONFIG_KEY),
+              enabled,
               Collections.emptyMap()));
+      LOG.info("Seeded ot-search feature flag: enabled=" + enabled);
+    } else {
+      LOG.info("ot-search feature flag already present in store — preserving existing value");
     }
   }
 

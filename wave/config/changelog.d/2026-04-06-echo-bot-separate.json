@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-06-echo-bot-separate",
-  "version": "PR #667",
+  "version": "PR #673",
   "date": "2026-04-06",
   "title": "Echo Bot Separation and Smarter Echo Timing",
   "summary": "The echo bot is now a separate robot registration (echo-bot@supawave.ai) and replies only once when you finish editing a message, not on every keystroke.",

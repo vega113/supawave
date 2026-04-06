@@ -134,6 +134,50 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(1, codexClient.completeCalls);
   }
 
+  /**
+   * When GPTBOT_SUBMITTED_ONLY is true, DOCUMENT_CHANGED events must be ignored,
+   * even when the bot is mentioned. Only BLIP_SUBMITTED should trigger replies.
+   */
+  public void testDocumentChangedEventIgnoredWhenSubmittedOnlyIsTrue() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Here is a helpful answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotConfig config = TEST_CONFIG.withSubmittedOnly(true);
+    GptBotRobot robot = new GptBotRobot(config,
+        new GptBotReplyPlanner(config.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJson(config,
+        "\n@" + config.getRobotName() + " what can you do?",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertFalse("DOCUMENT_CHANGED should not produce a reply in submitted-only mode",
+        response.contains("blip.createChild"));
+    assertEquals("No API calls should be made for DOCUMENT_CHANGED in submitted-only mode",
+        0, codexClient.completeCalls);
+  }
+
+  /**
+   * When GPTBOT_SUBMITTED_ONLY is true, BLIP_SUBMITTED events should still trigger replies.
+   */
+  public void testBlipSubmittedEventTriggersReplyWhenSubmittedOnlyIsTrue() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Here is a helpful answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotConfig config = TEST_CONFIG.withSubmittedOnly(true);
+    GptBotRobot robot = new GptBotRobot(config,
+        new GptBotReplyPlanner(config.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJson(config,
+        "\n@" + config.getRobotName() + " what can you do?",
+        new BlipSubmittedEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertTrue("BLIP_SUBMITTED should produce a reply in submitted-only mode",
+        response.contains("blip.createChild"));
+    assertTrue(response.contains("Here is a helpful answer."));
+    assertEquals("One completion call should be made for BLIP_SUBMITTED",
+        1, codexClient.completeCalls);
+  }
+
   public void testCallbackBundleDoesNotFetchContextWithoutMention() {
     RecordingCodexClient codexClient = new RecordingCodexClient();
     RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();

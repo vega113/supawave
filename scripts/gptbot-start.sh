@@ -150,27 +150,25 @@ fi
 
 # ── start tunnel ──────────────────────────────────────────────────────
 echo "Starting Cloudflare tunnel..."
-TUNNEL_LOG=$(mktemp /tmp/cf-tunnel-XXXXXXXX.log)
 if [[ -n "${CLOUDFLARE_TUNNEL_NAME:-}" ]]; then
   # Named tunnel: requires prior cloudflared tunnel login && cloudflared tunnel create $NAME
   "$CLOUDFLARED" tunnel run --url "http://127.0.0.1:$GPTBOT_LISTEN_PORT" "$CLOUDFLARE_TUNNEL_NAME" \
-    > "$TUNNEL_LOG" 2>&1 &
+    > "$PID_DIR/tunnel.log" 2>&1 &
 else
-  "$CLOUDFLARED" tunnel --url "http://127.0.0.1:$GPTBOT_LISTEN_PORT" > "$TUNNEL_LOG" 2>&1 &
+  "$CLOUDFLARED" tunnel --url "http://127.0.0.1:$GPTBOT_LISTEN_PORT" > "$PID_DIR/tunnel.log" 2>&1 &
 fi
 CF_PID=$!
 echo "$CF_PID" > "$PID_DIR/cloudflared.pid"
-cp "$TUNNEL_LOG" "$PID_DIR/tunnel.log"
 
 echo -n "Waiting for tunnel URL"
 TUNNEL_URL=""
 for i in $(seq 1 20); do
-  cp "$TUNNEL_LOG" "$PID_DIR/tunnel.log" 2>/dev/null || true
   if [[ -n "${CLOUDFLARE_TUNNEL_NAME:-}" ]]; then
-    TUNNEL_URL=$(grep -o 'https://[a-z0-9-]*\.cfargotunnel\.com\|https://[a-z0-9-]*\.trycloudflare\.com' \
+    TUNNEL_URL=$(grep -Eo 'https://[a-z0-9-]+\.(cfargotunnel|trycloudflare)\.com' \
       "$PID_DIR/tunnel.log" 2>/dev/null | head -1)
   else
-    TUNNEL_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$PID_DIR/tunnel.log" 2>/dev/null | head -1)
+    TUNNEL_URL=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' \
+      "$PID_DIR/tunnel.log" 2>/dev/null | head -1)
   fi
   if [[ -n "$TUNNEL_URL" ]]; then
     echo " got it!"
@@ -179,7 +177,6 @@ for i in $(seq 1 20); do
   echo -n "."
   sleep 1
 done
-rm -f "$TUNNEL_LOG"
 if [[ -z "$TUNNEL_URL" ]]; then
   echo " FAILED (check $PID_DIR/tunnel.log)"
   exit 1

@@ -208,12 +208,19 @@ public final class GptBotConfig {
   }
 
   /**
-   * When true, the robot should ignore DOCUMENT_CHANGED events and only reply
-   * to BLIP_SUBMITTED events. This ensures the echo bot responds once per
-   * completed message rather than once per keystroke.
+   * When true, the robot ignores DOCUMENT_CHANGED events so it only replies
+   * to BLIP_SUBMITTED (and WAVELET_BLIP_CREATED) events. This ensures the
+   * echo bot responds once per completed message rather than once per keystroke.
    */
   public boolean isSubmittedOnly() {
     return submittedOnly;
+  }
+
+  public GptBotConfig withSubmittedOnly(boolean newSubmittedOnly) {
+    return new GptBotConfig(robotName, participantId, baseUrl, publicBaseUrl, profilePageUrl,
+        avatarUrl, listenHost, listenPort, codexBinary, codexModel, codexReasoningEffort,
+        codexTimeout, httpWorkerThreads, codexUnsafeBypass, newSubmittedOnly, callbackToken,
+        contextMode, replyMode, apiRobotId, apiRobotSecret);
   }
 
   public String getCallbackToken() {

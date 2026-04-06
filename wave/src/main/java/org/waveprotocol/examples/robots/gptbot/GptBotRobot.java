@@ -110,6 +110,11 @@ public final class GptBotRobot {
     return gson.toJson(operations, GsonFactory.OPERATION_REQUEST_LIST_TYPE);
   }
 
+  /**
+   * Process all events in the bundle. When {@link GptBotConfig#isSubmittedOnly()} is true,
+   * DOCUMENT_CHANGED events are ignored (skip keyboard-while-typing), but BLIP_SUBMITTED
+   * and WAVELET_BLIP_CREATED events are still processed.
+   */
   private void processEvents(EventMessageBundle bundle) {
     List<Event> events = bundle.getEvents();
     if (events != null) {

@@ -24,6 +24,7 @@ import org.waveprotocol.wave.model.util.Preconditions;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.scheduler.TimerService;
 import org.waveprotocol.wave.client.state.ThreadReadStateMonitor;
+import org.waveprotocol.wave.client.wavepanel.impl.NewBlipIndicatorPresenter;
 import org.waveprotocol.wave.client.wavepanel.view.BlipMetaView;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.ConversationView;
@@ -136,6 +137,11 @@ public class LiveConversationViewRenderer
         // Render the new blip.
         threadView.insertBlipAfter(refView, blip);
         bubbleBlipCountUpdate(blip);
+        // Only notify the pill for blips appended to the root thread (not inline replies).
+        if (newBlipIndicatorPresenter != null
+            && parentThread == conversation.getRootThread()) {
+          newBlipIndicatorPresenter.onNewBlip(blip);
+        }
       } else {
         throw new IllegalStateException("threadView not present");
       }
@@ -287,6 +293,7 @@ public class LiveConversationViewRenderer
   private final LiveSupplementRenderer supplementRenderer;
   private final IdentityMap<Conversation, LiveConversationRenderer> conversationRenderers =
       CollectionUtils.createIdentityMap();
+  private NewBlipIndicatorPresenter newBlipIndicatorPresenter;
 
   LiveConversationViewRenderer(TimerService timer, ObservableConversationView wave,
       ModelAsViewProvider views, ShallowBlipRenderer blipRenderer, ReplyManager replyHandler,
@@ -300,6 +307,14 @@ public class LiveConversationViewRenderer
     this.readMonitor = readMonitor;
     this.profiles = profiles;
     this.supplementRenderer = supplementRenderer;
+  }
+
+  /**
+   * Sets the presenter that shows a floating pill when new blips arrive
+   * below the viewport. May be {@code null} to disable.
+   */
+  public void setNewBlipIndicatorPresenter(NewBlipIndicatorPresenter presenter) {
+    this.newBlipIndicatorPresenter = presenter;
   }
 
   /**

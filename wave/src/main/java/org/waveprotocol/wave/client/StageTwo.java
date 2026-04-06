@@ -21,6 +21,7 @@
 package org.waveprotocol.wave.client;
 
 import org.waveprotocol.wave.model.util.Preconditions;
+import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
@@ -74,6 +75,8 @@ import org.waveprotocol.wave.client.wave.LocalSupplementedWaveImpl;
 import org.waveprotocol.wave.client.wave.RegistriesHolder;
 import org.waveprotocol.wave.client.wave.SimpleDiffDoc;
 import org.waveprotocol.wave.client.wave.WaveDocuments;
+import org.waveprotocol.box.webclient.client.Session;
+import org.waveprotocol.wave.client.wavepanel.impl.NewBlipIndicatorPresenter;
 import org.waveprotocol.wave.client.wavepanel.impl.diff.DiffController;
 import org.waveprotocol.wave.client.wavepanel.impl.reader.Reader;
 import org.waveprotocol.wave.client.wavepanel.render.BlipPager;
@@ -283,6 +286,7 @@ public interface StageTwo {
         private DiffController diffController;
         private Reader reader;
 
+        private NewBlipIndicatorPresenter newBlipPresenter;
         private final UnsavedDataListener unsavedDataListener;
 
         public DefaultProvider(StageOne stageOne, UnsavedDataListener unsavedDataListener) {
@@ -669,6 +673,12 @@ public interface StageTwo {
                             replyManager,
                             getThreadReadStateMonitor(), getProfileManager(), getSupplement());
             live.init();
+
+            // Install new blip indicator pill (feature-flagged via server-side flags).
+            if (Session.get().hasFeature("new-blip-indicator")) {
+                newBlipPresenter = new NewBlipIndicatorPresenter(getSignedInUser());
+                live.setNewBlipIndicatorPresenter(newBlipPresenter);
+            }
 
             // Hook quasi-deletion UI: mark blip DOM prior to removal.
             if (Boolean.TRUE.equals(ClientFlags.get().enableQuasiDeletionUi())) {
@@ -1194,6 +1204,20 @@ public interface StageTwo {
 
             // Wire collapse/expand persistence into the user-data wavelet.
             stageOne.getCollapser().init(getSupplement(), getModelAsViewProvider());
+
+            // Attach new-blip indicator pill to the conversation scroll container.
+            // DOM is guaranteed to exist after ensureRendered().
+            if (newBlipPresenter != null) {
+                String convDomId = getViewIdMapper().conversationOf(
+                    getConversations().getRoot());
+                Element threadContainer = Document.get().getElementById(
+                    org.waveprotocol.wave.client.wavepanel.view.dom.full
+                        .TopConversationViewBuilder.Components.THREAD_CONTAINER
+                        .getDomId(convDomId));
+                if (threadContainer != null) {
+                    newBlipPresenter.attach(threadContainer);
+                }
+            }
         }
     }
 }

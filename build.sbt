@@ -268,6 +268,7 @@ libraryDependencies ++= Seq(
   // --- Logging (SLF4J 2.x + Logback) ---
   "org.slf4j"                      % "slf4j-api"                  % Slf4jV,
   "ch.qos.logback"                 % "logback-classic"            % LogbackV,
+  "net.logstash.logback"           % "logstash-logback-encoder"   % "8.0",
   "org.slf4j"                      % "jcl-over-slf4j"             % Slf4jV,
   "org.slf4j"                      % "jul-to-slf4j"               % Slf4jV,
   "org.slf4j"                      % "log4j-over-slf4j"           % Slf4jV,

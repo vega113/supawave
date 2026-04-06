@@ -618,6 +618,11 @@ public class ServerRpcProvider {
                             + "sessions will not auto-restore after deploys", jwtEx);
                 }
 
+                // MDC logging: populates participantId/sessionId on every request for Grafana/Loki.
+                org.eclipse.jetty.ee10.servlet.FilterHolder mdcHolder =
+                        new org.eclipse.jetty.ee10.servlet.FilterHolder(new MdcLoggingFilter());
+                context.addFilter(mdcHolder, "/*", java.util.EnumSet.allOf(DispatcherType.class));
+
                 // Request scope captures session context for Timing/Statusz compatibility.
                 org.eclipse.jetty.ee10.servlet.FilterHolder scopeHolder =
                         new org.eclipse.jetty.ee10.servlet.FilterHolder(new RequestScopeFilter(sessionManager));

@@ -22,12 +22,31 @@
     </encoder>
   </appender>
 
+  <!-- JSON structured logs for Grafana/Loki ingestion via Alloy -->
+  <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>logs/wave-json.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>logs/wave-json.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>50MB</maxFileSize>
+      <maxHistory>7</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <includeCallerData>false</includeCallerData>
+      <fieldNames>
+        <timestamp>timestamp</timestamp>
+        <version>[ignore]</version>
+      </fieldNames>
+    </encoder>
+  </appender>
+
   <!-- Keep Jetty logs at INFO by default; adjust if needed -->
   <logger name="org.eclipse.jetty" level="INFO"/>
 
   <root level="INFO">
     <appender-ref ref="CONSOLE"/>
     <appender-ref ref="FILE"/>
+    <appender-ref ref="JSON_FILE"/>
   </root>
 </configuration>
 

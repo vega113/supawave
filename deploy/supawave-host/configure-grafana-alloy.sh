@@ -8,7 +8,7 @@ GCLOUD_HOSTED_LOGS_URL=${GCLOUD_HOSTED_LOGS_URL:-}
 GCLOUD_HOSTED_LOGS_ID=${GCLOUD_HOSTED_LOGS_ID:-}
 GCLOUD_RW_API_KEY=${GCLOUD_RW_API_KEY:-}
 GCLOUD_SCRAPE_INTERVAL=${GCLOUD_SCRAPE_INTERVAL:-60s}
-WAVE_LOG_PATH=${WAVE_LOG_PATH:-/home/*/supawave/shared/logs/wave*.log}
+WAVE_LOG_PATH=${WAVE_LOG_PATH:-/home/*/supawave/shared/logs/wave-json*.log}
 
 required=(
   GCLOUD_HOSTED_METRICS_URL
@@ -189,25 +189,29 @@ local.file_match \"supawave_logs\" {
 loki.process \"supawave_logs\" {
   forward_to = [loki.write.grafana_cloud_loki.receiver]
 
-  stage.regex {
-    expression = \"^(?P<timestamp>\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}[^\\\\s]+)\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<level>\\\\w+)\\\\s+(?P<logger>\\\\S+)\\\\s+-\\\\s+(?P<message>.*)\"
+  stage.json {
+    expressions = {
+      level   = \"level\",
+      logger  = \"logger_name\",
+      thread  = \"thread_name\",
+      message = \"message\",
+      participant = \"participantId\",
+      wave    = \"waveId\",
+      timestamp = \"\",
+    }
   }
 
   stage.labels {
     values = {
-      level  = \"\",
-      logger = \"\",
-      thread = \"\",
+      level       = \"\",
+      logger      = \"\",
+      thread      = \"\",
     }
   }
 
   stage.timestamp {
     source = \"timestamp\"
     format = \"2006-01-02T15:04:05.000Z07:00\"
-  }
-
-  stage.label_drop {
-    values = [\"timestamp\"]
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-07-mention-unread-badge",
-  "version": "PR #691",
+  "version": "PR #698",
   "date": "2026-04-07",
   "title": "Unread Mentions Badge",
   "summary": "See at a glance how many waves have unread @mentions of you, and jump to the next one with a single click.",

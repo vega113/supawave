@@ -144,10 +144,14 @@ public final class MentionUnreadTracker {
   }
 
   private void fetchPage(final int offset, final List<SearchService.DigestSnapshot> accumulated) {
-    pendingRequest = searchService.search("mentions:me unread:true", offset, PAGE_SIZE,
+    final Request[] thisRequest = new Request[1];
+    thisRequest[0] = searchService.search("mentions:me unread:true", offset, PAGE_SIZE,
         new SearchService.Callback() {
           @Override
           public void onSuccess(int total, List<SearchService.DigestSnapshot> snapshots) {
+            if (pendingRequest != thisRequest[0]) {
+              return; // This request was superseded (e.g. by cancelPending); ignore results.
+            }
             pendingRequest = null;
             accumulated.addAll(snapshots);
             boolean hasMore = accumulated.size() < total && snapshots.size() == PAGE_SIZE;
@@ -161,10 +165,14 @@ public final class MentionUnreadTracker {
 
           @Override
           public void onFailure(String message) {
+            if (pendingRequest != thisRequest[0]) {
+              return; // This request was superseded; ignore stale failure.
+            }
             pendingRequest = null;
             // Keep last known state on failure; next poll will retry.
           }
         });
+    pendingRequest = thisRequest[0];
   }
 
   private void handleResults(int total, List<SearchService.DigestSnapshot> snapshots) {

@@ -73,7 +73,8 @@ import java.util.Set;
  * <li>BlipContributorChanged (TBD)</li>
  * <li>WaveletTagsChanged (TBD)</li>
  * <li>WaveletTitleChanged (TBD)</li>
- * <li>BlipSubmitted (Will not be supported, submit ops will be phased out)</li>
+ * <li>BlipSubmitted (Deprecated and never generated — use DocumentChanged with
+ *     a {@code user/d/} annotation check to detect editing completion)</li>
  *
  * @author ljvderijk@google.com (Lennard de Rijk)
  */

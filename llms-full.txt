@@ -88,8 +88,8 @@ Common event types from: `com.google.wave.api.event.EventType`
 | `WAVELET_BLIP_REMOVED` | Blip removed |
 | `WAVELET_PARTICIPANTS_CHANGED` | Participant list changed |
 | `WAVELET_TITLE_CHANGED` | Wave title changed *(not emitted by passive event generator — robots never receive this)* |
-| `WAVELET_CREATED` | Wave created |
-| `WAVELET_FETCHED` | Wave fetched via Data API |
+| `WAVELET_CREATED` | Wave created *(operation-response only — not emitted by passive event generator; robots never receive this as a webhook callback)* |
+| `WAVELET_FETCHED` | Wave fetched via Data API *(operation-response only — not emitted by passive event generator; robots never receive this as a webhook callback)* |
 | `WAVELET_TAGS_CHANGED` | Tags changed *(not emitted by passive event generator — robots never receive this)* |
 | `BLIP_CONTRIBUTORS_CHANGED` | Blip contributor list changed *(not emitted by passive event generator — robots never receive this)* |
 | **`BLIP_EDITING_DONE`** | **All users finished editing a blip — use this** |
@@ -97,7 +97,7 @@ Common event types from: `com.google.wave.api.event.EventType`
 | `ANNOTATED_TEXT_CHANGED` | Annotation changed |
 | `FORM_BUTTON_CLICKED` | Form button clicked |
 | `FORM_VALUE_CHANGED` | Form value changed |
-| `OPERATION_ERROR` | Operation failed |
+| `OPERATION_ERROR` | Operation failed *(operation-response only — never delivered via passive webhook; `EventGenerator` does not synthesize this event)* |
 | `BLIP_SUBMITTED` | **DEPRECATED — never fires, do not use** |
 
 ### BLIP_EDITING_DONE

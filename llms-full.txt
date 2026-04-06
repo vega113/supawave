@@ -74,11 +74,11 @@ The robot must serve `GET /_wave/capabilities.xml`:
 </w:robot>
 ```
 
-`context` values: `SELF` (waves the robot is in), `ROOT` (root wavelet only), `ALL` (all wavelets).
+`context` values: `ROOT` (root wavelet only), `PARENT` (parent blip/wavelet context), `SIBLINGS` (sibling blips), `CHILDREN` (child blips), `SELF` (the matching blip or waves the robot is in), and `ALL` (all wavelets). Multiple values may be combined as a comma-separated list, for example `SELF,SIBLINGS,PARENT`.
 
 ### Event Types
 
-Full enum: `com.google.wave.api.event.EventType`
+Common event types from: `com.google.wave.api.event.EventType`
 
 | Event | Description |
 |-------|-------------|
@@ -241,9 +241,9 @@ runtime-defined defaults with stored overrides. Check against the enum before as
 
 ## Code Style (summary)
 
-- ASF Apache 2.0 header on every new file
+- ASF Apache 2.0 header on new source files
 - Java 17, 2-space indent, 100-char line max, K&R braces
-- No FQN imports, no inline comments (extract to named functions), no mutable vars where avoidable
+- No FQN imports, use explanatory comments when needed, no mutable vars where avoidable
 - Logger: `org.waveprotocol.wave.util.logging.Log`
 - Jakarta override copy is authoritative — check `wave/src/jakarta-overrides/` before editing servlets
 

@@ -38,7 +38,7 @@ is_pane_idle() {
 
 get_unresolved_threads() {
   local pr=$1
-  gh api graphql -f query='{ repository(owner:"vega113", name:"incubator-wave") { pullRequest(number:'$pr') { reviewThreads(first:100) { nodes { isResolved } } } } }' \
+  gh api graphql -f query="{ repository(owner:\"vega113\", name:\"incubator-wave\") { pullRequest(number:${pr}) { reviewThreads(first:100) { nodes { isResolved } } } } }" \
     -q '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false)) | length' 2>/dev/null || echo "0"
 }
 
@@ -155,7 +155,12 @@ while true; do
         # Create new lane
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Creating lane for PR#$pr ($title)"
         worktree_path="$WORKTREE_BASE/pr-$pr-lane"
-        git -C "$REPO_PATH" worktree add "$worktree_path" --track -b "pr-$pr" "origin/$branch" 2>/dev/null || true
+        if [ -d "$worktree_path" ]; then
+          # Worktree already exists (orphaned from a previous run) — fetch to avoid stale code
+          git -C "$worktree_path" fetch origin 2>/dev/null || true
+        else
+          git -C "$REPO_PATH" worktree add "$worktree_path" --track -b "pr-$pr" "origin/$branch" 2>/dev/null || true
+        fi
 
         if [ ! -d "$worktree_path" ]; then
           echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: worktree for PR#$pr could not be created at $worktree_path — skipping lane creation"
@@ -178,8 +183,12 @@ while true; do
         tmux select-pane -t "$WAVE_SESSION.$pane_idx" -T "PR#$pr $title_short" 2>/dev/null || true
       fi
 
-      # Send instructions based on PR status
-      send_instructions "$pane_idx" "$pr" "$branch" "$mergeable"
+      # Send instructions only when a pane is available
+      if [ -n "$pane_idx" ]; then
+        send_instructions "$pane_idx" "$pr" "$branch" "$mergeable"
+      else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: no pane available for PR#$pr — skipping instructions"
+      fi
     done
   fi
 

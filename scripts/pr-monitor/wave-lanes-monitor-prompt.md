@@ -44,7 +44,7 @@ For EACH pane:
 ### Step A: Get open PRs and current panes
 
 ```bash
-gh pr list --repo vega113/incubator-wave --state open --json number,title,headRefName,mergeable --limit 30 2>/dev/null
+gh pr list --repo vega113/incubator-wave --state open --json number,title,headRefName,mergeable --limit 50 2>/dev/null
 tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}: #{pane_title} | #{pane_current_path}" 2>/dev/null
 ```
 
@@ -53,7 +53,7 @@ tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}: #{pane_title} | #{pan
 For each open PR, gather status:
 ```bash
 # Get review threads — count unresolved
-gh api graphql -f query='{ repository(owner:"vega113", name:"incubator-wave") { pullRequest(number:NNN) { reviewThreads(first:50) { nodes { isResolved } } } } }' -q '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false)) | length'
+gh api graphql -f query='{ repository(owner:"vega113", name:"incubator-wave") { pullRequest(number:NNN) { reviewThreads(first:100) { nodes { isResolved } } } } }' -q '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false)) | length'
 
 # Get mergeable status (from the PR list output above)
 # Get CI checks
@@ -91,7 +91,7 @@ tmux send-keys -t "vibe-code:wave-lanes.<PANE_INDEX>" "<INSTRUCTIONS>" Enter
 The instructions should be specific based on what you found in Step B:
 
 **If there are unresolved review threads (count > 0):**
-```
+```text
 PRIORITY: PR #NNN has <COUNT> unresolved review threads. For each thread:
 1. Read the review comment with: gh api repos/vega113/incubator-wave/pulls/NNN/comments
 2. Fix the code issue or reply explaining why no change is needed
@@ -100,7 +100,7 @@ All threads must be resolved for CI to pass.
 ```
 
 **If there are merge conflicts (mergeable != MERGEABLE):**
-```
+```text
 PRIORITY: PR #NNN has merge conflicts. Rebase onto main:
 1. git fetch origin main && git rebase origin/main
 2. For EACH conflict: read BOTH sides carefully. Do NOT blindly accept --ours/--theirs. New features may have been added to main. Merge intelligently preserving both sides.
@@ -109,7 +109,7 @@ PRIORITY: PR #NNN has merge conflicts. Rebase onto main:
 ```
 
 **If CI checks are failing:**
-```
+```text
 PRIORITY: PR #NNN has failing CI checks. Run: gh pr checks NNN --repo vega113/incubator-wave
 Then: cd wave && sbt compile 2>&1 | tail -30
 If build fails, fix the errors. Do NOT comment out code or skip tests.

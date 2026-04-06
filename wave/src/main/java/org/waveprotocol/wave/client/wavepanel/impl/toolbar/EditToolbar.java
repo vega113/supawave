@@ -73,6 +73,8 @@ import org.waveprotocol.wave.client.doodad.attachment.render.ImageThumbnailWrapp
  */
 public class EditToolbar {
 
+  private static final String RTL_DIRECTION_GLYPH = "\u00B6\u2190";
+
   /**
    * Handler for click buttons added with {@link EditToolbar#addClickButton}.
    */
@@ -413,7 +415,7 @@ public class EditToolbar {
 
   private Element createRtlIconElement() {
     Element e = Document.get().createSpanElement();
-    e.setInnerText("\u00B6\u2190");
+    e.setInnerText(RTL_DIRECTION_GLYPH);
     return e;
   }
 

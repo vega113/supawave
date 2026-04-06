@@ -1170,6 +1170,9 @@ public final class SearchPresenter
 
   @Override
   public void onClosed(WaveContext wave) {
+    if (mentionTracker != null) {
+      mentionTracker.setCurrentWaveId(null);
+    }
     scheduler.scheduleDelayed(waveClosedRefreshTask, WAVE_CLOSED_REFRESH_DELAY_MS);
   }
 

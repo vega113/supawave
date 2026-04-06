@@ -589,6 +589,30 @@ public class RobotDashboardServletTest extends TestCase {
     assertTrue(outputWriter.toString().contains("SUPAWAVE_ROBOT_SECRET=new-\u2026cret"));
   }
 
+  public void testErrorToastAutoDismissesAfterTwentySeconds() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+
+    servlet.doGet(req, resp);
+
+    // Error toasts must stay visible for 20 seconds; non-error toasts stay at 3500ms
+    String output = outputWriter.toString();
+    assertTrue(output.contains("type==='err'?20000:3500"));
+  }
+
+  public void testErrorToastIncludesCopyButton() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+
+    servlet.doGet(req, resp);
+
+    // Error toasts must create and wire a copy-to-clipboard button using the shared copyText() helper
+    String output = outputWriter.toString();
+    assertTrue(output.contains("createElement('button')"));
+    assertTrue(output.contains("className='toast-copy'"));
+    assertTrue(output.contains("copyText(msg,"));
+  }
+
   public void testDoGetRendersAdminLinkForOwner() throws Exception {
     HumanAccountDataImpl ownerAccount = new HumanAccountDataImpl(OWNER);
     ownerAccount.setRole(HumanAccountData.ROLE_OWNER);

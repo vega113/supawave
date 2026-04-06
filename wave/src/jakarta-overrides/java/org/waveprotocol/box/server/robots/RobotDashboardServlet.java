@@ -721,6 +721,8 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append(".toast.err{background:#7f1d1d;border-left:3px solid var(--err)}");
     sb.append(".toast.info{background:#1e3a5f;border-left:3px solid var(--pc)}");
     sb.append("@keyframes si{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}");
+    sb.append(".toast-copy{margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0}");
+    sb.append(".toast-copy:hover{background:rgba(255,255,255,.25)}");
     // Empty + loading
     sb.append(".empty{text-align:center;padding:48px 20px;color:var(--txt3)}");
     sb.append(".empty svg{width:40px;height:40px;margin-bottom:12px;color:var(--bdr)}");
@@ -923,8 +925,15 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Toast notification
     sb.append("function toast(msg,type){type=type||'ok';");
     sb.append("var tc=document.getElementById('tc'),d=document.createElement('div');");
-    sb.append("d.className='toast '+type;d.textContent=(type==='ok'?'\\u2713 ':type==='err'?'\\u2715 ':'\\u2139 ')+msg;");
-    sb.append("tc.prepend(d);setTimeout(function(){d.remove()},3500);}");
+    sb.append("d.className='toast '+type;");
+    sb.append("var sp=document.createElement('span');");
+    sb.append("sp.textContent=(type==='ok'?'\\u2713 ':type==='err'?'\\u2715 ':'\\u2139 ')+msg;");
+    sb.append("d.appendChild(sp);");
+    sb.append("if(type==='err'){");
+    sb.append("var cb=document.createElement('button');cb.className='toast-copy';cb.textContent='Copy';");
+    sb.append("cb.onclick=function(){copyText(msg,'Error copied');cb.textContent='Copied!';setTimeout(function(){cb.textContent='Copy'},2000)};");
+    sb.append("d.appendChild(cb);}");
+    sb.append("tc.prepend(d);setTimeout(function(){d.remove()},type==='err'?20000:3500);}");
 
     // HTML escape
     sb.append("function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}");

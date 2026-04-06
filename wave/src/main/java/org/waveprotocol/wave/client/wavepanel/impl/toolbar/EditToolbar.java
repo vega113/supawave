@@ -406,7 +406,7 @@ public class EditToolbar {
   private void createRtlDirectionButton(ToolbarView toolbar) {
     ToolbarToggleButton rtlButton = toolbar.addToggleButton();
     new ToolbarButtonViewBuilder()
-        .setIcon(css.directionRtl())
+        .setText("\u00B6\u2190")
         .setTooltip("Right-to-left text direction")
         .applyTo(rtlButton, createParagraphApplicationController(rtlButton, Paragraph.Direction.RTL));
   }

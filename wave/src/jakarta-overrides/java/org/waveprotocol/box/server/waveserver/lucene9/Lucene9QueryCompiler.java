@@ -35,7 +35,6 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.index.Term;
-import org.waveprotocol.box.server.waveserver.MentionQueryNormalizer;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
 import org.waveprotocol.box.server.waveserver.QueryHelper.OrderByValueType;
 import org.waveprotocol.box.server.waveserver.TokenQueryType;
@@ -64,10 +63,6 @@ public class Lucene9QueryCompiler {
     for (String tag : model.values(TokenQueryType.TAG)) {
       builder.add(new TermQuery(new Term(Lucene9FieldNames.TAG,
           tag.toLowerCase(Locale.ROOT))), Occur.MUST);
-    }
-    for (String mentionValue : model.values(TokenQueryType.MENTIONS)) {
-      builder.add(new TermQuery(new Term(Lucene9FieldNames.MENTIONED,
-          MentionQueryNormalizer.normalize(mentionValue, user))), Occur.MUST);
     }
     addTextQueries(builder, Lucene9FieldNames.TITLE_TEXT, model.values(TokenQueryType.TITLE));
     addTextQueries(builder, Lucene9FieldNames.CONTENT_TEXT, model.values(TokenQueryType.CONTENT));

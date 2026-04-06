@@ -46,8 +46,22 @@ public final class GptBotServer {
 
   public static void main(String[] args) throws Exception {
     GptBotConfig config = GptBotConfig.fromEnvironment();
+
+    // Startup diagnostics — log all key configuration so failures are immediately visible in logs
+    String logConfigFile = System.getProperty("java.util.logging.config.file");
+    LOG.info("gpt-bot startup: java.util.logging config="
+        + (logConfigFile != null ? logConfigFile : "default (console/stderr)"));
+    LOG.info("gpt-bot startup: robotName=" + config.getRobotName()
+        + " participantId=" + config.getParticipantId());
+    LOG.info("gpt-bot startup: replyMode=" + config.getReplyMode().name().toLowerCase()
+        + " contextMode=" + config.getContextMode().name().toLowerCase());
+    LOG.info("gpt-bot startup: apiRobotId=" + config.getApiRobotId()
+        + " apiCredentialsPresent=" + config.hasApiCredentials());
+    LOG.info("gpt-bot startup: supaWaveBaseUrl=" + config.getBaseUrl());
+
     String codexEngine = System.getenv("GPTBOT_CODEX_ENGINE");
     String engineName = codexEngine != null ? codexEngine.trim().toLowerCase() : "codex";
+    LOG.info("gpt-bot startup: LLM engine=" + engineName);
     String openAiKey = System.getenv("OPENAI_API_KEY");
     CodexClient codexClient = selectCodexClient(engineName, openAiKey != null ? openAiKey : "",
         config);
@@ -169,7 +183,11 @@ public final class GptBotServer {
         LOG.info("Using OpenAI Chat Completions API engine");
         return new OpenAiCodexClient();
       default:
-        LOG.info("Using Codex CLI engine");
+        LOG.info("Using Codex CLI engine: binary=" + config.getCodexBinary()
+            + " model=" + config.getCodexModel()
+            + " reasoningEffort=" + config.getCodexReasoningEffort()
+            + " timeoutSeconds=" + config.getCodexTimeout().getSeconds()
+            + " unsafeBypass=" + config.isCodexUnsafeBypassEnabled());
         return new ProcessCodexClient(config.getCodexBinary(), config.getCodexModel(),
             config.getCodexReasoningEffort(), config.getCodexTimeout(),
             config.isCodexUnsafeBypassEnabled());

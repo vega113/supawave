@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-06-fix-mentions-me-search",
+  "version": "fix/mentions-me-search",
+  "date": "2026-04-06",
+  "title": "Fix mentions:me search returning all waves",
+  "summary": "The mentions:me search query was returning all waves instead of only waves where the user was mentioned. The Lucene9 search provider was stripping the mentions: token from the legacy query, bypassing filterByMentions in SimpleSearchProviderImpl. The Lucene MENTIONED field is also unreliable for waves indexed before the mentions feature was deployed. Fix routes mentions: filters back through the legacy annotation-based filterByMentions path, which reads directly from wave data and is always authoritative.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "mentions:me search now correctly returns only waves where the current user has a mention annotation, instead of returning all accessible waves"
+      ]
+    }
+  ]
+}

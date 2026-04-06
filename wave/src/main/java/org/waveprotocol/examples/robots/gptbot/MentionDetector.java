@@ -19,6 +19,8 @@
 
 package org.waveprotocol.examples.robots.gptbot;
 
+import org.waveprotocol.wave.util.logging.Log;
+
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -29,6 +31,7 @@ import java.util.regex.Pattern;
  */
 public final class MentionDetector {
 
+  private static final Log LOG = Log.get(MentionDetector.class);
   private static final Pattern LEADING_PROMPT_SEPARATORS = Pattern.compile("^[\\s,;:!?-]+");
 
   private final Pattern mentionPattern;
@@ -42,13 +45,27 @@ public final class MentionDetector {
 
   public Optional<String> extractPrompt(String text) {
     Optional<String> prompt = Optional.empty();
-    if (text != null) {
-      Matcher matcher = mentionPattern.matcher(text);
-      if (matcher.find()) {
-        String remainder = text.substring(matcher.end());
-        remainder = trimPromptPrefix(remainder);
-        prompt = Optional.of(remainder);
+    if (text == null) {
+      LOG.info("MentionDetector.extractPrompt: text is null — no match possible");
+      return prompt;
+    }
+    if (LOG.isFineLoggable()) {
+      LOG.fine("MentionDetector.extractPrompt: pattern=" + mentionPattern.pattern()
+          + " textLength=" + text.length());
+    }
+    Matcher matcher = mentionPattern.matcher(text);
+    if (matcher.find()) {
+      String remainder = text.substring(matcher.end());
+      remainder = trimPromptPrefix(remainder);
+      LOG.info("MentionDetector.extractPrompt: match at [" + matcher.start() + "," + matcher.end()
+          + "] promptLength=" + remainder.length());
+      if (LOG.isFineLoggable()) {
+        LOG.fine("MentionDetector.extractPrompt: matchLen=" + matcher.group().length()
+            + " promptLen=" + remainder.length());
       }
+      prompt = Optional.of(remainder);
+    } else {
+      LOG.info("MentionDetector.extractPrompt: NO match — bot name not detected in blip");
     }
     return prompt;
   }

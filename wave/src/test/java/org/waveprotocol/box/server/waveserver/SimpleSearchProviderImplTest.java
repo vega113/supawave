@@ -42,7 +42,9 @@ import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl.WaveSupplementContext;
+import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.document.operation.Attributes;
+import org.waveprotocol.wave.model.document.operation.impl.AnnotationBoundaryMapImpl;
 import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignedDelta;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
@@ -747,7 +749,52 @@ public class SimpleSearchProviderImplTest extends TestCase {
         WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
   }
 
+  public void testSearchFilterByMentionsReturnsOnlyMentionedWaves() throws Exception {
+    WaveletName mentionedWave = WaveletName.of(WaveId.of(DOMAIN, "mentioned"), WAVELET_ID);
+    WaveletName unmentionedWave = WaveletName.of(WaveId.of(DOMAIN, "unmentioned"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(mentionedWave, USER1, addParticipantToWavelet(USER1, mentionedWave));
+    addMentionAnnotationToBlip(mentionedWave, USER1, "b+1", "@user1", USER1);
+
+    submitDeltaToNewWavelet(unmentionedWave, USER1, addParticipantToWavelet(USER1, unmentionedWave));
+
+    SearchResult results = searchProvider.search(USER1, "mentions:me", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("mentioned",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchMentionsOfOtherUserNotReturnedForCurrentUser() throws Exception {
+    WaveletName wave = WaveletName.of(WaveId.of(DOMAIN, "wave1"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(wave, USER1, addParticipantToWavelet(USER1, wave));
+    // Mention USER2, not USER1
+    addMentionAnnotationToBlip(wave, USER1, "b+1", "@user2", USER2);
+
+    SearchResult results = searchProvider.search(USER1, "mentions:me", 0, 10);
+
+    assertEquals(0, results.getNumResults());
+  }
+
   // *** Helpers
+
+  private void addMentionAnnotationToBlip(WaveletName name, ParticipantId author,
+      String blipId, String text, ParticipantId mentionedUser) throws Exception {
+    WaveletOperationContext context = new WaveletOperationContext(author, 0, 1);
+    WaveletOperation blipOp = new WaveletBlipOperation(blipId, new BlipContentOperation(context,
+        new DocOpBuilder()
+            .annotationBoundary(AnnotationBoundaryMapImpl.builder()
+                .initializationValues(AnnotationConstants.MENTION_USER,
+                    mentionedUser.getAddress())
+                .build())
+            .characters(text)
+            .annotationBoundary(AnnotationBoundaryMapImpl.builder()
+                .initializationEnd(AnnotationConstants.MENTION_USER)
+                .build())
+            .build()));
+    submitDeltaToExistingWavelet(name, author, blipOp);
+  }
 
   private SearchProvider newUnreadAwareSearchProvider(final Map<String, Integer> unreadCounts) {
     ConversationUtil conversationUtil = new ConversationUtil(idGenerator);

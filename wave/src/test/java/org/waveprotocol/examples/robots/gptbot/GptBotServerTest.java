@@ -21,6 +21,11 @@ package org.waveprotocol.examples.robots.gptbot;
 
 import junit.framework.TestCase;
 
+import org.waveprotocol.examples.robots.gptbot.CodexClient;
+import org.waveprotocol.examples.robots.gptbot.EchoCodexClient;
+import org.waveprotocol.examples.robots.gptbot.GptBotConfig;
+import org.waveprotocol.examples.robots.gptbot.GptBotServer;
+
 public class GptBotServerTest extends TestCase {
 
   public void testCallbackAuthorizationAllowsRequestsWithoutTokenWhenNoTokenConfigured() {
@@ -45,5 +50,25 @@ public class GptBotServerTest extends TestCase {
 
     assertEquals("http://127.0.0.1:8087/_wave/robot/jsonrpc?token=<redacted>",
         config.getRedactedCallbackUrl("/_wave/robot/jsonrpc"));
+  }
+
+  /** When engine=openai and API key is blank, selectCodexClient must return EchoCodexClient. */
+  public void testOpenaiEngineWithoutApiKeyFallsBackToEchoClient() {
+    CodexClient client = GptBotServer.selectCodexClient("openai", "", GptBotConfig.forTest());
+    assertTrue("Expected EchoCodexClient fallback when OPENAI_API_KEY is absent",
+        client instanceof EchoCodexClient);
+  }
+
+  /** When engine=openai and API key is null, selectCodexClient must also fall back to echo. */
+  public void testOpenaiEngineWithNullApiKeyFallsBackToEchoClient() {
+    CodexClient client = GptBotServer.selectCodexClient("openai", null, GptBotConfig.forTest());
+    assertTrue("Expected EchoCodexClient fallback when OPENAI_API_KEY is null",
+        client instanceof EchoCodexClient);
+  }
+
+  /** engine=echo always returns EchoCodexClient regardless of API key. */
+  public void testEchoEngineAlwaysReturnsEchoClient() {
+    CodexClient client = GptBotServer.selectCodexClient("echo", "some-key", GptBotConfig.forTest());
+    assertTrue(client instanceof EchoCodexClient);
   }
 }

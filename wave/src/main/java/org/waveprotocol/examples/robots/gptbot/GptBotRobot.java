@@ -21,6 +21,7 @@ package org.waveprotocol.examples.robots.gptbot;
 
 import com.google.gson.Gson;
 import com.google.wave.api.Blip;
+import com.google.wave.api.BlipThread;
 import com.google.wave.api.OperationQueue;
 import com.google.wave.api.OperationRequest;
 import com.google.wave.api.ParticipantProfile;
@@ -145,20 +146,11 @@ public final class GptBotRobot {
       String waveId = blip.getWaveId() == null ? "" : blip.getWaveId().toString();
       String waveletId = blip.getWaveletId() == null ? "" : blip.getWaveletId().toString();
       Optional<String> prompt = replyPlanner.extractPrompt(blip.getContent());
-      if (!prompt.isPresent()) {
-        // No @mention — check if this is a direct reply to a bot blip. When a user continues
-        // a conversation in the bot's reply thread, treat the content as the prompt directly.
-        Blip parent = blip.getParentBlip();
-        if (parent != null) {
-          List<String> parentContributors = parent.getContributors();
-          String lastContributor = (parentContributors != null && !parentContributors.isEmpty())
-              ? parentContributors.get(parentContributors.size() - 1) : null;
-          if (config.getParticipantId().equalsIgnoreCase(lastContributor)) {
-            String content = blip.getContent() == null ? "" : blip.getContent().strip();
-            if (!content.isEmpty()) {
-              prompt = Optional.of(content);
-            }
-          }
+      if (!prompt.isPresent() && isBotThreadReply(blip)) { // No @mention but this is a reply in a bot thread
+        // No @mention but this is a reply in a bot thread — use the full content as the prompt.
+        String content = blip.getContent() == null ? "" : blip.getContent().strip();
+        if (!content.isEmpty()) {
+          prompt = Optional.of(content);
         }
       }
       if (prompt.isPresent()) {
@@ -176,6 +168,43 @@ public final class GptBotRobot {
         }
       }
     }
+  }
+
+  /**
+   * Returns true if {@code blip} is a reply in a thread where the bot previously participated,
+   * so that a non-@mention follow-up message should be treated as a prompt.
+   */
+  private boolean isBotThreadReply(Blip blip) {
+    // Check if the immediate parent blip has the bot as a contributor (direct reply or inline thread).
+    Blip parent = blip.getParentBlip();
+    if (parent != null && hasBotContributor(parent)) {
+      return true;
+    }
+    // Check if any sibling blip in the same thread has the bot as a contributor (inline reply threads
+    // where the bot's reply and the user's follow-up share the same containing thread).
+    BlipThread thread = blip.getThread();
+    if (thread != null) {
+      for (String siblingId : thread.getBlipIds()) {
+        if (siblingId != null && !siblingId.equals(blip.getBlipId())) {
+          Blip sibling = blip.getWavelet() != null ? blip.getWavelet().getBlip(siblingId) : null;
+          if (sibling != null && hasBotContributor(sibling)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns true if the bot is listed as a contributor to the blip.
+   * This covers cases where the bot authored the blip or contributed to edits,
+   * ensuring that follow-up replies in bot-threaded conversations are treated as prompts.
+   */
+  private boolean hasBotContributor(Blip blip) {
+    List<String> contributors = blip.getContributors();
+    return contributors != null && contributors.stream()
+        .anyMatch(c -> c != null && c.equalsIgnoreCase(config.getParticipantId()));
   }
 
   private boolean shouldHandle(Blip blip, Set<String> handledBlipIds) {

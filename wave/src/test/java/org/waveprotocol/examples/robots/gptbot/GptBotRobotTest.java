@@ -221,6 +221,81 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(0, codexClient.completeCalls);
   }
 
+  /**
+   * Regression: when the bot is an earlier contributor and a human becomes the last contributor
+   * (e.g., human edits a bot-authored blip), the anyMatch check must still detect bot participation.
+   */
+  public void testBotAsEarlierContributorWithHumanLastContributorIsDetected() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Edited answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    // b+botreply was created by bot, then edited by alice (alice becomes last contributor).
+    // b+followup is alice's follow-up with no @mention.
+    String response = robot.handleEventBundle(exampleBundleJsonWithMultipleContributors(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " what is 2+2?",
+        "2+2 = 4.",
+        "and what is 3+3?",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+followup")));
+
+    assertTrue("Bot should reply even if later edited by human",
+        response.contains("Edited answer."));
+    assertTrue(response.contains("blip.createChild"));
+    assertEquals(1, codexClient.completeCalls);
+  }
+
+  /**
+   * Test that hasBotContributor correctly identifies bot participation via contributors list.
+   * This verifies the renamed method from isCreatedByBot accurately reflects its behavior.
+   * The method checks all contributors, not just the creator, so editing by humans doesn't change detection.
+   */
+  public void testBotContributorDetectionAcrossMultipleEdits() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Answer to follow-up.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    // b+botreply has contributors [bot, human] — human edited after bot, so human is last contributor.
+    // Previous heuristic (last contributor only) would miss this; anyMatch catches it.
+    String response = robot.handleEventBundle(exampleBundleJsonWithMultipleContributors(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " what is 2+2?",
+        "2+2 = 4.",
+        "and what is 3+3?",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+followup")));
+
+    assertTrue("Bot should reply even if human edited parent",
+        response.contains("Answer to follow-up."));
+    assertTrue(response.contains("blip.createChild"));
+    assertEquals(1, codexClient.completeCalls);
+  }
+
+  /**
+   * Regression: when the bot authored a sibling blip in the same BlipThread (inline reply thread)
+   * a user's new message in that same thread should trigger the bot even without an @mention and
+   * without the user's blip having the bot blip as a direct parent.
+   */
+  public void testSiblingInSameThreadAsBotBlipTriggersReply() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "Sibling thread answer.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    // b+botsibling is in thread "t+inline" and was authored by the bot.
+    // b+userblip is also in thread "t+inline" but its parent is b+root (not a bot blip).
+    // The sibling scan must find b+botsibling and trigger the bot for b+userblip.
+    String response = robot.handleEventBundle(exampleBundleJsonWithSiblingThread(TEST_CONFIG,
+        "anything", "3+3 is six?",
+        new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+userblip")));
+
+    assertTrue("Bot should reply to sibling in bot thread", response.contains("Sibling thread answer."));
+    assertTrue(response.contains("blip.createChild"));
+    assertEquals(1, codexClient.completeCalls);
+  }
+
   /** Capabilities XML must declare PARENT context so the server includes parent blips. */
   public void testCapabilitiesXmlIncludesParentContext() {
     GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
@@ -317,6 +392,76 @@ public class GptBotRobotTest extends TestCase {
     followUp.setParentBlipId("b+botreply");
     followUp.setContributors(java.util.Arrays.asList("alice@example.com"));
     bundle.addBlip("b+followup", followUp);
+    for (Event event : events) {
+      bundle.addEvent(event);
+    }
+    return new GsonFactory().create().toJson(bundle);
+  }
+
+  /**
+   * Bundle where b+botreply has multiple contributors: bot first, then human (human as last).
+   * Tests that anyMatch detection works even when human is the last contributor.
+   */
+  private static String exampleBundleJsonWithMultipleContributors(GptBotConfig config,
+      String rootContent, String botReplyContent, String followUpContent, Event... events) {
+    EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
+        "http://localhost:8087/_wave/robot/jsonrpc");
+    WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
+        "b+root", (BlipThread) null);
+    waveletData.addParticipant("alice@example.com");
+    bundle.setWaveletData(waveletData);
+    bundle.addBlip("b+root", new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+root", rootContent));
+    BlipData botReply = new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+botreply", botReplyContent);
+    botReply.setParentBlipId("b+root");
+    // Bot authored, then human edited — human is now last contributor
+    botReply.setContributors(java.util.Arrays.asList(config.getParticipantId(), "alice@example.com"));
+    bundle.addBlip("b+botreply", botReply);
+    BlipData followUp = new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+followup", followUpContent);
+    followUp.setParentBlipId("b+botreply");
+    followUp.setContributors(java.util.Arrays.asList("alice@example.com"));
+    bundle.addBlip("b+followup", followUp);
+    for (Event event : events) {
+      bundle.addEvent(event);
+    }
+    return new GsonFactory().create().toJson(bundle);
+  }
+
+
+  /**
+   * Bundle where b+botsibling and b+userblip are both in BlipThread "t+inline".
+   * b+botsibling is authored by the bot; b+userblip's parent is b+root (NOT a bot blip).
+   * The event fires for b+userblip. The sibling thread scan should trigger the bot.
+   */
+  private static String exampleBundleJsonWithSiblingThread(GptBotConfig config,
+      String botSiblingContent, String userBlipContent, Event... events) {
+    EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
+        "http://localhost:8087/_wave/robot/jsonrpc");
+    WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
+        "b+root", (BlipThread) null);
+    waveletData.addParticipant("alice@example.com");
+    bundle.setWaveletData(waveletData);
+    bundle.addBlip("b+root", new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+root", "\nroot content"));
+    // Bot sibling blip — same thread as user blip, bot as contributor.
+    BlipData botSibling = new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+botsibling", botSiblingContent);
+    botSibling.setParentBlipId("b+root");
+    botSibling.setThreadId("t+inline");
+    botSibling.setContributors(java.util.Arrays.asList(config.getParticipantId()));
+    bundle.addBlip("b+botsibling", botSibling);
+    // User blip — same thread, parent is b+root (NOT the bot blip).
+    BlipData userBlip = new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+userblip", userBlipContent);
+    userBlip.setParentBlipId("b+root");
+    userBlip.setThreadId("t+inline");
+    userBlip.setContributors(java.util.Arrays.asList("alice@example.com"));
+    bundle.addBlip("b+userblip", userBlip);
+    // Add the inline thread to the bundle so Blip.getThread() returns it.
+    bundle.addThread("t+inline", new BlipThread("t+inline", 5,
+        java.util.Arrays.asList("b+botsibling", "b+userblip"), null));
     for (Event event : events) {
       bundle.addEvent(event);
     }

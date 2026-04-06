@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-06-gptbot-behavior-fix",
+  "version": "PR #675",
+  "date": "2026-04-06",
+  "title": "gpt-bot: reply to bot-thread continuations and default to OpenAI engine",
+  "summary": "The gpt-bot now responds to all messages in threads where it has previously replied, not just explicit @mentions. Inline-reply siblings are also covered via a thread-scan. The startup default engine is changed from echo to openai (with graceful fallback to echo when OPENAI_API_KEY is absent), and the contributor check now uses anyMatch instead of only the last contributor.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Bot now responds to follow-up replies in threads it participated in even when @mention is absent",
+        "Added isBotThreadReply helper that uses anyMatch across all contributors (not just last) for correctness",
+        "Inline-reply thread siblings are scanned so inline continuations inside a bot blip also trigger replies",
+        "gptbot-start.sh default engine changed from echo to openai; falls back to echo with a warning when OPENAI_API_KEY is not set"
+      ]
+    }
+  ]
+}

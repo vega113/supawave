@@ -18,7 +18,9 @@ export GPTBOT_PARTICIPANT_ID="${GPTBOT_PARTICIPANT_ID:-gpt-bot@supawave.ai}"
 export GPTBOT_LISTEN_PORT="${GPTBOT_LISTEN_PORT:-8087}"
 export GPTBOT_REPLY_MODE="${GPTBOT_REPLY_MODE:-passive}"
 export GPTBOT_CONTEXT_MODE="${GPTBOT_CONTEXT_MODE:-none}"
-export GPTBOT_CODEX_ENGINE="${GPTBOT_CODEX_ENGINE:-echo}"
+export GPTBOT_CODEX_ENGINE="${GPTBOT_CODEX_ENGINE:-openai}"
+# GPTBOT_CODEX_ENGINE=openai requires OPENAI_API_KEY.
+# Use GPTBOT_CODEX_ENGINE=echo for local testing without an API key.
 export SUPAWAVE_BASE_URL="${SUPAWAVE_BASE_URL:-https://supawave.ai}"
 
 PID_DIR="/tmp/gptbot"

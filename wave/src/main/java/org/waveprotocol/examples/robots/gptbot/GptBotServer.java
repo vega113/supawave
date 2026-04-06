@@ -48,23 +48,9 @@ public final class GptBotServer {
     GptBotConfig config = GptBotConfig.fromEnvironment();
     String codexEngine = System.getenv("GPTBOT_CODEX_ENGINE");
     String engineName = codexEngine != null ? codexEngine.trim().toLowerCase() : "codex";
-    CodexClient codexClient;
-    switch (engineName) {
-      case "echo":
-        LOG.info("Using echo engine (no external LLM required)");
-        codexClient = new EchoCodexClient();
-        break;
-      case "openai":
-        LOG.info("Using OpenAI Chat Completions API engine");
-        codexClient = new OpenAiCodexClient();
-        break;
-      default:
-        LOG.info("Using Codex CLI engine");
-        codexClient = new ProcessCodexClient(config.getCodexBinary(), config.getCodexModel(),
-            config.getCodexReasoningEffort(), config.getCodexTimeout(),
-            config.isCodexUnsafeBypassEnabled());
-        break;
-    }
+    String openAiKey = System.getenv("OPENAI_API_KEY");
+    CodexClient codexClient = selectCodexClient(engineName, openAiKey != null ? openAiKey : "",
+        config);
     GptBotReplyPlanner replyPlanner = new GptBotReplyPlanner(config.getRobotName(), codexClient);
     SupaWaveApiClient apiClient = new SupaWaveApiClient(config);
     GptBotRobot robot = new GptBotRobot(config, replyPlanner, apiClient);
@@ -157,6 +143,36 @@ public final class GptBotServer {
         }
       }
       return tooLarge;
+    }
+  }
+
+  /**
+   * Selects and creates the appropriate {@link CodexClient} based on the engine name and
+   * available credentials. Exposed package-private for testing.
+   *
+   * @param engineName   one of "echo", "openai", or anything else (Codex CLI)
+   * @param openAiKey    the OpenAI API key, or blank/null when not configured
+   * @param config       the bot configuration (used for Codex CLI parameters)
+   * @return the appropriate {@link CodexClient} — never null
+   */
+  static CodexClient selectCodexClient(String engineName, String openAiKey, GptBotConfig config) {
+    switch (engineName == null ? "" : engineName) {
+      case "echo":
+        LOG.info("Using echo engine (no external LLM required)");
+        return new EchoCodexClient();
+      case "openai":
+        if (openAiKey == null || openAiKey.isBlank()) {
+          LOG.warning("OPENAI_API_KEY is not set — falling back to echo engine. "
+              + "Set OPENAI_API_KEY or use GPTBOT_CODEX_ENGINE=echo to suppress this warning.");
+          return new EchoCodexClient();
+        }
+        LOG.info("Using OpenAI Chat Completions API engine");
+        return new OpenAiCodexClient();
+      default:
+        LOG.info("Using Codex CLI engine");
+        return new ProcessCodexClient(config.getCodexBinary(), config.getCodexModel(),
+            config.getCodexReasoningEffort(), config.getCodexTimeout(),
+            config.isCodexUnsafeBypassEnabled());
     }
   }
 

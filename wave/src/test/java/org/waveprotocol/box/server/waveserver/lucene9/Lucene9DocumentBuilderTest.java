@@ -184,6 +184,8 @@ public final class Lucene9DocumentBuilderTest {
       writer.commit();
 
       try (DirectoryReader reader = DirectoryReader.open(dir)) {
+        assertEquals("reindex must replace existing doc, not insert duplicate",
+            1, reader.numDocs());
         IndexSearcher searcher = new IndexSearcher(reader);
         TopDocs results = searcher.search(
             new TermQuery(new Term(Lucene9FieldNames.TAG, "meeting")), 10);

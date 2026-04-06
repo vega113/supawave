@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-06-lucene-realtime-index-fix",
-  "version": "PR #685",
+  "version": "PR #686",
   "date": "2026-04-06",
   "title": "Fix Lucene real-time indexer: consumer thread diagnostics and field regression tests",
   "summary": "Adds consumer thread health logging (startup, per-enqueue at FINE, heartbeat every 100 updates) to diagnose silent index-stall after startup. Adds 7 regression tests validating that tag and mention fields are stored and queryable via in-memory Lucene round-trips.",

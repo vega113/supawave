@@ -26,6 +26,8 @@ import static org.mockito.Mockito.when;
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
+import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.authentication.SessionManager;
@@ -585,5 +587,29 @@ public class RobotDashboardServletTest extends TestCase {
     verify(robotRegistrar).registerNew(ROBOT, "", OWNER.getAddress(), 3600L);
     assertTrue(outputWriter.toString().contains("Copy this robot secret now: <strong>new-secret</strong>"));
     assertTrue(outputWriter.toString().contains("SUPAWAVE_ROBOT_SECRET=new-\u2026cret"));
+  }
+
+  public void testDoGetRendersAdminLinkForOwner() throws Exception {
+    HumanAccountDataImpl ownerAccount = new HumanAccountDataImpl(OWNER);
+    ownerAccount.setRole(HumanAccountData.ROLE_OWNER);
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+    when(accountStore.getAccount(OWNER)).thenReturn(ownerAccount);
+
+    servlet.doGet(req, resp);
+
+    assertTrue(outputWriter.toString().contains("href=\"/admin\""));
+  }
+
+  public void testDoGetOmitsAdminLinkForUser() throws Exception {
+    HumanAccountDataImpl userAccount = new HumanAccountDataImpl(OWNER);
+    // role defaults to ROLE_USER — no setRole call needed
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+    when(accountStore.getAccount(OWNER)).thenReturn(userAccount);
+
+    servlet.doGet(req, resp);
+
+    assertFalse(outputWriter.toString().contains("href=\"/admin\""));
   }
 }

@@ -30,6 +30,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.authentication.SessionManager;
@@ -509,8 +510,18 @@ public final class RobotDashboardServlet extends HttpServlet {
     resp.setContentType("text/html; charset=UTF-8");
     String baseUrl = derivePublicBaseUrl(req);
     String contextPath = Strings.nullToEmpty(req.getContextPath());
+    // Look up the user's role so the Admin link appears in the top bar for owners/admins.
+    String userRole = HumanAccountData.ROLE_USER;
+    try {
+      AccountData acct = accountStore.getAccount(user);
+      if (acct != null && acct.isHuman()) {
+        userRole = acct.asHuman().getRole();
+      }
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to look up role for top bar in RobotDashboard: " + user.getAddress(), e);
+    }
     resp.getWriter().write(renderDashboardPage(user.getAddress(), robotsToRender, message,
-        getOrGenerateXsrfToken(user), baseUrl, revealedSecret, contextPath));
+        getOrGenerateXsrfToken(user), baseUrl, revealedSecret, contextPath, userRole));
   }
 
   private List<RobotAccountData> loadOwnedRobots(String ownerAddress) {
@@ -546,6 +557,13 @@ public final class RobotDashboardServlet extends HttpServlet {
 
   private String renderDashboardPage(String userAddress, List<RobotAccountData> robots,
       String message, String xsrfToken, String baseUrl, String revealedSecret, String contextPath) {
+    return renderDashboardPage(userAddress, robots, message, xsrfToken, baseUrl, revealedSecret,
+        contextPath, null);
+  }
+
+  private String renderDashboardPage(String userAddress, List<RobotAccountData> robots,
+      String message, String xsrfToken, String baseUrl, String revealedSecret, String contextPath,
+      String userRole) {
     String safeUser = HtmlRenderer.escapeHtml(userAddress);
     String safeDomain = HtmlRenderer.escapeHtml(domain);
     String safeCtx = HtmlRenderer.escapeHtml(contextPath);
@@ -727,7 +745,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</style>\n<style>").append(HtmlRenderer.renderSharedTopBarCss()).append("</style></head><body>");
 
     // ——— Shared app header ———
-    sb.append(HtmlRenderer.renderSharedTopBarHtml(userAddress, contextPath, null));
+    sb.append(HtmlRenderer.renderSharedTopBarHtml(userAddress, contextPath, userRole));
 
     // ——— Main content area ———
     sb.append("<div class=\"main\">");

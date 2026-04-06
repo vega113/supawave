@@ -111,12 +111,18 @@ public final class OpenAiCodexClient implements CodexClient {
 
   @Override
   public String completeMessages(List<Map<String, String>> messages) {
+    if (messages == null) {
+      throw new IllegalArgumentException("messages must not be null");
+    }
     try {
       JsonArray messagesArray = new JsonArray();
       for (Map<String, String> msg : messages) {
+        if (msg == null || !msg.containsKey("role") || !msg.containsKey("content")) {
+          throw new IllegalArgumentException("Each message must have 'role' and 'content' keys");
+        }
         JsonObject m = new JsonObject();
-        m.addProperty("role", msg.getOrDefault("role", "user"));
-        m.addProperty("content", msg.getOrDefault("content", ""));
+        m.addProperty("role", msg.get("role"));
+        m.addProperty("content", msg.get("content"));
         messagesArray.add(m);
       }
 

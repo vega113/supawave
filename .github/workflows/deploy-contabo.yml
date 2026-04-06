@@ -93,8 +93,19 @@ jobs:
 
       - name: Build distribution
         if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
-        timeout-minutes: 10
-        run: sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage"
+        timeout-minutes: 30
+        run: |
+          for attempt in 1 2 3; do
+            echo "Build attempt $attempt/3"
+            sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage" && break
+            if [ $attempt -lt 3 ]; then
+              echo "Attempt $attempt failed, retrying in 30s..."
+              sleep 30
+            else
+              echo "All 3 build attempts failed"
+              exit 1
+            fi
+          done
 
       - name: Verify staged changelog asset
         if: github.event_name == 'push' || github.event.inputs.action == 'deploy'

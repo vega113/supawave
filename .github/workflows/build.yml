@@ -68,7 +68,19 @@ jobs:
           docker compose -f deploy/caddy/compose.yml config >/tmp/caddy-compose.out
 
       - name: Compile PST and Wave
-        run: sbt --batch pst/compile wave/compile
+        timeout-minutes: 20
+        run: |
+          for attempt in 1 2 3; do
+            echo "Compile attempt $attempt/3"
+            sbt --batch pst/compile wave/compile && break
+            if [ $attempt -lt 3 ]; then
+              echo "Attempt $attempt failed, retrying in 30s..."
+              sleep 30
+            else
+              echo "All 3 compile attempts failed"
+              exit 1
+            fi
+          done
 
       - name: GWT compilation check
         run: sbt --batch compileGwt

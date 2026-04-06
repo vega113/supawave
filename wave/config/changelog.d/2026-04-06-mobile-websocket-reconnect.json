@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-06-mobile-websocket-reconnect",
+  "version": "PR #663",
+  "date": "2026-04-06",
+  "title": "Fix Android mobile reconnect after server deploy",
+  "summary": "Android Chrome users no longer see the connection indicator flip from green to yellow when they start writing after a server deploy.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Android: stale WebSocket onclose from old socket no longer triggers false reconnect after successful reconnection"
+      ]
+    }
+  ]
+}

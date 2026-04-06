@@ -235,8 +235,8 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
    * supply a fake socket while still exercising the generation-gated callback
    * logic in {@link #createSocket()}.
    */
-  WaveSocket createSocketWithCallback(WaveSocket.WaveSocketCallback callback) {
-    return WaveSocketFactory.create(urlBase, callback);
+  WaveSocket createSocketWithCallback(WaveSocket.WaveSocketCallback socketCallback) {
+    return WaveSocketFactory.create(urlBase, socketCallback);
   }
 
   @Override

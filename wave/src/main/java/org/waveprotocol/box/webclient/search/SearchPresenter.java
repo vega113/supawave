@@ -1106,7 +1106,7 @@ public final class SearchPresenter
     }
 
     searchUi.renderDigest(digestUi, digest);
-    if (isMentionQuery && mentionTracker != null) {
+    if (queryText != null && queryText.contains("mentions:") && mentionTracker != null) {
       int mentionCount = mentionTracker.getUnreadCountForWave(digest.getWaveId());
       digestUi.setMentionCount(mentionCount);
     }

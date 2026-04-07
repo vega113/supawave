@@ -29,6 +29,8 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.util.regex.Pattern;
+
 import org.apache.commons.text.StringEscapeUtils;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSessions;
@@ -68,6 +70,7 @@ public final class FolderServlet extends HttpServlet {
   private static final Log LOG = Log.get(FolderServlet.class);
   private static final WaveletProvider.SubmitRequestListener LOGGING_REQUEST_LISTENER =
       new LoggingRequestListener(LOG);
+  private static final Pattern VERSION_SUFFIX = Pattern.compile(":\\d+$");
 
   private final SessionManager sessionManager;
   private final WaveletProvider waveletProvider;
@@ -104,7 +107,8 @@ public final class FolderServlet extends HttpServlet {
         boolean anyFailure = false;
         for (String wave : waves) {
           try {
-            WaveId waveId = WaveId.deserialise(StringEscapeUtils.unescapeHtml4(wave));
+            WaveId waveId = WaveId.deserialise(
+                stripVersionSuffix(StringEscapeUtils.unescapeHtml4(wave)));
             moveToFolder(waveId, folder, user);
           } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Move to " + folder + " error ", ex);
@@ -123,7 +127,8 @@ public final class FolderServlet extends HttpServlet {
         boolean anyFailure = false;
         for (String wave : waves) {
           try {
-            WaveId waveId = WaveId.deserialise(StringEscapeUtils.unescapeHtml4(wave));
+            WaveId waveId = WaveId.deserialise(
+                stripVersionSuffix(StringEscapeUtils.unescapeHtml4(wave)));
             setPinState(waveId, pinning, user);
           } catch (Exception ex) {
             LOG.log(Level.SEVERE, (pinning ? "Pin" : "Unpin") + " error ", ex);
@@ -217,6 +222,20 @@ public final class FolderServlet extends HttpServlet {
     } catch (WaveServerException e) {
       throw new InvalidRequestException("Wavelet " + userDataWaveletName + " couldn't be retrieved");
     }
+  }
+
+  /**
+   * Strips a trailing {@code :N} version suffix from a serialized wave ID.
+   * Some client code paths append a version number (e.g. {@code :1}) to the
+   * wave ID for cache or OT versioning purposes.  The suffix is not part of
+   * the canonical wave-ID format and must be removed before deserialization.
+   */
+  @VisibleForTesting
+  static String stripVersionSuffix(String waveIdStr) {
+    if (waveIdStr == null) {
+      return null;
+    }
+    return VERSION_SUFFIX.matcher(waveIdStr).replaceFirst("");
   }
 
   private void verifyWaveVisibleToParticipant(WaveId waveId, ParticipantId participant)

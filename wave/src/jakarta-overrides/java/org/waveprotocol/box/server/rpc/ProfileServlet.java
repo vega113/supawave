@@ -272,7 +272,8 @@ public final class ProfileServlet extends HttpServlet {
       accountStore.putAccount(caller);
 
       setJsonUtf8(resp);
-      resp.getWriter().write("{\"ok\":true,\"imageUrl\":" + jsonStr(dataUrl) + "}");
+      String proxyUrl = "/userprofile/image/" + caller.getId().getAddress();
+      resp.getWriter().write("{\"ok\":true,\"imageUrl\":" + jsonStr(proxyUrl) + "}");
     } catch (PersistenceException e) {
       LOG.severe("Failed to store profile image for " + caller.getId(), e);
       resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to store image");
@@ -433,9 +434,9 @@ public final class ProfileServlet extends HttpServlet {
 
   private String resolveImageUrl(HumanAccountData account) {
     String profileImageId = account.getProfileImageAttachmentId();
-    if (profileImageId != null && !profileImageId.isEmpty()) {
+    if (profileImageId != null && !profileImageId.trim().isEmpty()) {
       // We always return the proxy URL instead of the raw data URL.
-      // This ensures the image is served as a proper binary file, 
+      // This ensures the image is served as a proper binary file,
       // which is more compatible with UI components and better for caching.
       return "/userprofile/image/" + account.getId().getAddress();
     }

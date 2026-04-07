@@ -22,16 +22,15 @@ package org.waveprotocol.box.server.rpc;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.wave.api.ParticipantProfile;
+
 import junit.framework.TestCase;
 
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
-import org.waveprotocol.box.server.rpc.profiles.ProfilesFetcher;
-import org.waveprotocol.box.server.rpc.profiles.ProfileImage;
+import org.waveprotocol.box.server.robots.operations.FetchProfilesService.ProfilesFetcher;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.lang.reflect.Method;
@@ -48,7 +47,7 @@ public class ProfileServletTest extends TestCase {
   protected void setUp() throws Exception {
     store = new MemoryStore();
     profilesFetcher = mock(ProfilesFetcher.class);
-    servlet = new ProfileServlet(store, profilesFetcher);
+    servlet = new ProfileServlet(store, null, "example.com", profilesFetcher);
   }
 
   public void testResolveImageUrlWithCustomImage() throws Exception {
@@ -67,9 +66,9 @@ public class ProfileServletTest extends TestCase {
     account.setProfileImageAttachmentId("");
     store.putAccount(account);
 
-    ProfileImage mockImage = mock(ProfileImage.class);
-    when(mockImage.getImageUrl()).thenReturn("http://gravatar.com/avatar");
-    when(profilesFetcher.fetchProfile(pid.getAddress())).thenReturn(mockImage);
+    ParticipantProfile mockProfile = mock(ParticipantProfile.class);
+    when(mockProfile.getImageUrl()).thenReturn("http://gravatar.com/avatar");
+    when(profilesFetcher.fetchProfile(pid.getAddress())).thenReturn(mockProfile);
 
     String url = invokeResolveImageUrl(account);
     assertEquals("http://gravatar.com/avatar", url);
@@ -81,9 +80,9 @@ public class ProfileServletTest extends TestCase {
     account.setProfileImageAttachmentId("   ");
     store.putAccount(account);
 
-    ProfileImage mockImage = mock(ProfileImage.class);
-    when(mockImage.getImageUrl()).thenReturn("http://gravatar.com/avatar");
-    when(profilesFetcher.fetchProfile(pid.getAddress())).thenReturn(mockImage);
+    ParticipantProfile mockProfile = mock(ParticipantProfile.class);
+    when(mockProfile.getImageUrl()).thenReturn("http://gravatar.com/avatar");
+    when(profilesFetcher.fetchProfile(pid.getAddress())).thenReturn(mockProfile);
 
     String url = invokeResolveImageUrl(account);
     assertEquals("http://gravatar.com/avatar", url);

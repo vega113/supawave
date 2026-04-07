@@ -35,6 +35,7 @@
       -->
       </div>
       <div class='{css.info}'>
+        <span ui:field='pinIcon' class='{css.pinIcon}'>&#x1F4CC;</span>
         <div ui:field='time'/>
         <div ui:field='msgs'/>
       </div>

@@ -620,6 +620,10 @@ public final class SearchPresenterTest extends TestCase {
     }
 
     @Override
+    public void setPinned(boolean pinned) {
+    }
+
+    @Override
     public void setTitleText(String text) {
     }
 

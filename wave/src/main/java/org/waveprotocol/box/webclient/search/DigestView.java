@@ -34,6 +34,8 @@ public interface DigestView {
 
   void setTimestamp(String time);
 
+  void setPinned(boolean pinned);
+
   // Note: setTitle is a widget method.
   void setTitleText(String text);
 

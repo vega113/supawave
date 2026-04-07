@@ -109,6 +109,7 @@ public class SearchServlet extends AbstractSearchServlet {
         digestBuilder.addParticipants(participants.get(i));
       }
     }
+    digestBuilder.setPinned(searchResultDigest.isPinned());
     SearchResponse.Digest digest = digestBuilder.build();
     return digest;
   }

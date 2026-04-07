@@ -143,6 +143,52 @@ public class WaveDigesterTest extends TestCase {
     assertEquals(2, digest.getUnreadCount());
   }
 
+  public void testPinnedWaveDigestReflectsSupplementIsPinned() {
+    TestingWaveletData data =
+        new TestingWaveletData(WAVE_ID, CONVERSATION_WAVELET_ID, PARTICIPANT, true);
+    data.appendBlipWithText("pinned wave title");
+    ObservableWaveletData observableWaveletData = data.copyWaveletData().get(0);
+    ObservableWavelet wavelet = OpBasedWavelet.createReadOnly(observableWaveletData);
+    ObservableConversationView conversation = conversationUtil.buildConversation(wavelet);
+
+    SupplementedWave supplement = mock(SupplementedWave.class);
+    when(supplement.isUnread(any(ConversationBlip.class))).thenReturn(false);
+    when(supplement.isPinned()).thenReturn(true);
+
+    Digest digest =
+        digester.generateDigest(
+            conversation,
+            supplement,
+            observableWaveletData,
+            Collections.singletonList(observableWaveletData));
+
+    assertTrue("digest.isPinned() should be true when supplement.isPinned() is true",
+        digest.isPinned());
+  }
+
+  public void testUnpinnedWaveDigestReturnsFalseForIsPinned() {
+    TestingWaveletData data =
+        new TestingWaveletData(WAVE_ID, CONVERSATION_WAVELET_ID, PARTICIPANT, true);
+    data.appendBlipWithText("regular wave");
+    ObservableWaveletData observableWaveletData = data.copyWaveletData().get(0);
+    ObservableWavelet wavelet = OpBasedWavelet.createReadOnly(observableWaveletData);
+    ObservableConversationView conversation = conversationUtil.buildConversation(wavelet);
+
+    SupplementedWave supplement = mock(SupplementedWave.class);
+    when(supplement.isUnread(any(ConversationBlip.class))).thenReturn(false);
+    when(supplement.isPinned()).thenReturn(false);
+
+    Digest digest =
+        digester.generateDigest(
+            conversation,
+            supplement,
+            observableWaveletData,
+            Collections.singletonList(observableWaveletData));
+
+    assertFalse("digest.isPinned() should be false when supplement.isPinned() is false",
+        digest.isPinned());
+  }
+
   /**
    * An explicit participant on a PUBLIC wave with no UDW should see 0 unread.
    * The wave is public because its own shared-domain participant is present.

@@ -242,6 +242,7 @@ public class SearchServlet extends HttpServlet {
         b.setAuthor(parts.get(0));
         for (int i = 1; i < parts.size(); i++) b.addParticipants(parts.get(i));
       }
+      b.setPinned(d.isPinned());
       searchBuilder.addDigests(b.build());
     }
     return searchBuilder.build();

@@ -64,5 +64,6 @@ public final class SearchPanelRenderer {
     digestUi.setMessageCounts(digest.getUnreadCount(), digest.getBlipCount());
     digestUi.setTimestamp(
         DateUtils.getInstance().formatPastDate((long) digest.getLastModifiedTime()));
+    digestUi.setPinned(digest.isPinned());
   }
 }

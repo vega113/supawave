@@ -460,6 +460,7 @@ public class ServerMain {
     org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.Interface rpcImpl =
         WaveClientRpcImpl.create(frontend, false);
     server.registerService(org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
+    new StaleAnnotationSweeper(provider).start();
   }
 
   /**

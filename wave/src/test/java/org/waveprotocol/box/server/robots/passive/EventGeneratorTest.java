@@ -401,23 +401,29 @@ public class EventGeneratorTest extends RobotsTestBase {
   /**
    * Tests that BLIP_EDITING_DONE is NOT fired when one of multiple user/d/ annotations
    * still has an empty end timestamp (one user still editing).
+   * Uses recent startTimeMs values so that neither session is treated as stale by the TTL check.
    */
   public void testNoBlipEditingDoneWhenOneSessionStillActive() throws Exception {
     ConversationBlip rootBlip =
         conversationUtil.buildConversation(wavelet).getRoot().getRootThread().getFirstBlip();
 
+    // Use recent timestamps (well within the 30-minute staleness window).
+    long startMs1 = System.currentTimeMillis() - 2000L; // 2 seconds ago
+    long startMs2 = System.currentTimeMillis() - 3000L; // 3 seconds ago
+    long endMs1 = System.currentTimeMillis() - 1000L;   // closed 1 second ago
+
     // Seed two active sessions.
     rootBlip.getContent().setAnnotation(0, 1, "user/d/session-1111",
-        "alice@example.com,1111,");
+        "alice@example.com," + startMs1 + ",");
     rootBlip.getContent().setAnnotation(0, 1, "user/d/session-3333",
-        "bob@example.com,3333,");
+        "bob@example.com," + startMs2 + ",");
 
     // Only capture the "close one session" transition in this delta.
     output.clear();
 
     // Close first session; second remains active — exercises allEditingSessionsClosed branch.
     rootBlip.getContent().setAnnotation(0, 1, "user/d/session-1111",
-        "alice@example.com,1111,2222");
+        "alice@example.com," + startMs1 + "," + endMs1);
 
     List<WaveletOperation> ops = output.getOps();
     HashedVersion endVersion = HashedVersion.unsigned(waveletData.getVersion());
@@ -435,6 +441,55 @@ public class EventGeneratorTest extends RobotsTestBase {
       assertFalse("BLIP_EDITING_DONE must not fire when any session is still active",
           event.getType() == EventType.BLIP_EDITING_DONE);
     }
+  }
+
+  /**
+   * Tests that BLIP_EDITING_DONE fires when the last non-stale editing session closes, even if
+   * another session has an empty end timestamp but a very old startTimeMs (stale/crashed client).
+   * Without the TTL fix, the stale session would permanently block BLIP_EDITING_DONE.
+   */
+  public void testBlipEditingDoneFiresWhenOnlyStaleSessionsRemainOpen() throws Exception {
+    ConversationBlip rootBlip =
+        conversationUtil.buildConversation(wavelet).getRoot().getRootThread().getFirstBlip();
+
+    // Seed a STALE session: startTimeMs is epoch+1s, well beyond the 30-minute threshold.
+    long staleStartMs = 1000L;
+    rootBlip.getContent().setAnnotation(0, 1, "user/d/session-stale",
+        "alice@example.com," + staleStartMs + ",");
+
+    // Seed an active (non-stale) session that started 1 second ago.
+    long activeStartMs = System.currentTimeMillis() - 1000L;
+    rootBlip.getContent().setAnnotation(0, 1, "user/d/session-active",
+        "bob@example.com," + activeStartMs + ",");
+
+    // Only capture the "close active session" transition in this delta.
+    output.clear();
+
+    long endMs = System.currentTimeMillis();
+    // Close the active session by filling in endTimeMs.
+    rootBlip.getContent().setAnnotation(0, 1, "user/d/session-active",
+        "bob@example.com," + activeStartMs + "," + endMs);
+
+    List<WaveletOperation> ops = output.getOps();
+    HashedVersion endVersion = HashedVersion.unsigned(waveletData.getVersion());
+    TransformedWaveletDelta delta = makeDeltaFromCapturedOps(ALEX, ops, endVersion, 0L);
+    WaveletAndDeltas waveletAndDeltas =
+        WaveletAndDeltas.create(waveletData, DeltaSequence.of(delta));
+
+    Map<EventType, Capability> capabilities = Maps.newHashMap();
+    capabilities.put(EventType.BLIP_EDITING_DONE, new Capability(EventType.BLIP_EDITING_DONE));
+
+    EventMessageBundle messages =
+        eventGenerator.generateEvents(waveletAndDeltas, capabilities, CONVERTER);
+
+    boolean found = false;
+    for (Event event : messages.getEvents()) {
+      if (event.getType() == EventType.BLIP_EDITING_DONE) {
+        found = true;
+      }
+    }
+    assertTrue("BLIP_EDITING_DONE must fire when only stale (crashed-client) sessions remain",
+        found);
   }
 
   public void testSelfEventsAreFiltered() throws Exception {

@@ -71,6 +71,7 @@ import org.waveprotocol.box.server.stat.RequestScopeFilter;
 import org.waveprotocol.box.server.stat.StatuszServlet;
 import org.waveprotocol.box.server.stat.TimingFilter;
 import org.waveprotocol.box.server.waveserver.*;
+import org.waveprotocol.box.server.waveserver.StaleAnnotationSweeper;
 import org.waveprotocol.box.stat.StatService;
 import org.waveprotocol.wave.crypto.CertPathStore;
 import org.waveprotocol.box.server.dev.ClientApplierStatsServlet;
@@ -635,6 +636,7 @@ public class ServerMain {
     applyFragmentsConfig(injector.getInstance(com.typesafe.config.Config.class));
     wireFragmentsHandler(injector, provider);
     wireFragmentsFetchBridge(injector, provider);
+    new StaleAnnotationSweeper(provider).start();
   }
 
   /** Sets the FragmentsViewChannelHandler used to emit ProtocolFragments in updates. */

@@ -358,10 +358,20 @@ public class EventGenerator {
     }
 
     /**
-     * Returns true if all {@code user/d/} annotations on the document have their
-     * end timestamps filled in (no active editing sessions remain).
+     * Editing sessions open for longer than this threshold are considered stale (client crashed
+     * without cleaning up). Stale sessions are treated as closed so BLIP_EDITING_DONE is not
+     * blocked by a browser crash.
+     */
+    private static final long STALE_EDITING_THRESHOLD_MS = 30 * 60 * 1000L; // 30 minutes
+
+    /**
+     * Returns true if all {@code user/d/} annotations on the document have their end timestamps
+     * filled in (no active editing sessions remain). Sessions whose startTimeMs is older than
+     * {@link #STALE_EDITING_THRESHOLD_MS} are treated as closed even if endTimeMs is empty,
+     * since the client likely crashed without sending a cleanup delta.
      */
     private boolean allEditingSessionsClosed(ObservableDocument doc) {
+      long now = System.currentTimeMillis();
       final boolean[] allClosed = {true};
       doc.knownKeys().each(key -> {
         if (!allClosed[0]) return;
@@ -372,7 +382,21 @@ public class EventGenerator {
             if (value != null) {
               String[] parts = value.split(",", 3);
               if (parts.length < 3 || parts[2].isEmpty()) {
-                allClosed[0] = false;
+                // endTimeMs empty — check if session is stale
+                boolean stale = false;
+                if (parts.length >= 2 && !parts[1].isEmpty()) {
+                  try {
+                    double parsed = Double.parseDouble(parts[1]);
+                    if (!Double.isFinite(parsed)) throw new NumberFormatException("Non-finite timestamp");
+                    long startTimeMs = (long) parsed;
+                    stale = (now - startTimeMs > STALE_EDITING_THRESHOLD_MS);
+                  } catch (NumberFormatException e) {
+                    // Cannot parse startTimeMs — treat as active (safe default)
+                  }
+                }
+                if (!stale) {
+                  allClosed[0] = false; // Active non-stale session found
+                }
               }
             }
           }

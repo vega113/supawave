@@ -282,6 +282,12 @@ public final class GptBotRobot {
 
 
   /**
+   * Editing sessions open for longer than this are considered stale (client crashed/disconnected
+   * without closing the session). Stale sessions are treated as closed so bots are not blocked.
+   */
+  static final long STALE_EDITING_THRESHOLD_MS = 30 * 60 * 1000L; // 30 minutes
+
+  /**
    * Returns true if any participant is CURRENTLY actively editing this blip.
    *
    * In Wave's document model, when a user is editing a blip, a "user/d/{sessionId}"
@@ -292,11 +298,16 @@ public final class GptBotRobot {
    * Note: "user/d/" annotations are PERMANENT — they remain on the blip after editing ends.
    * The presence of the annotation alone does NOT indicate ongoing editing.
    * Only annotations with an empty end timestamp indicate active editing.
+   *
+   * Sessions whose startTimeMs is older than {@link #STALE_EDITING_THRESHOLD_MS} are treated as
+   * closed even if endTimeMs is empty. This handles the case where the client crashed or the
+   * browser tab was force-closed mid-edit without sending a cleanup delta.
    */
   private boolean isBlipBeingEdited(Blip blip) {
     if (blip == null) return false;
     Annotations annotations = blip.getAnnotations();
     if (annotations == null) return false;
+    long now = System.currentTimeMillis();
     for (Annotation annotation : annotations) {
       String name = annotation.getName();
       if (name == null || !name.startsWith("user/d/")) continue;
@@ -306,6 +317,25 @@ public final class GptBotRobot {
       if (value == null) continue;
       String[] parts = value.split(",", -1);  // -1 keeps trailing empty strings
       if (parts.length >= 3 && parts[parts.length - 1].isEmpty()) {
+        // endTimeMs is empty — check if session is stale (crashed client)
+        boolean stale = false;
+        if (parts.length >= 2 && !parts[1].isEmpty()) {
+          try {
+            double parsed = Double.parseDouble(parts[1]);
+            if (!Double.isFinite(parsed)) throw new NumberFormatException("Non-finite timestamp");
+            long startTimeMs = (long) parsed;
+            stale = (now - startTimeMs > STALE_EDITING_THRESHOLD_MS);
+          } catch (NumberFormatException e) {
+            // Cannot parse startTimeMs — treat as active (safe default)
+          }
+        }
+        if (stale) {
+          if (LOG.isFineLoggable()) {
+            LOG.fine("isBlipBeingEdited: blipId=" + blip.getBlipId()
+                + " annotation=" + name + " session is stale (exceeded threshold), ignoring");
+          }
+          continue; // Skip stale session
+        }
         if (LOG.isFineLoggable()) {
           LOG.fine("isBlipBeingEdited: blipId=" + blip.getBlipId()
               + " annotation=" + name + " active edit session (no endTimeMs)");

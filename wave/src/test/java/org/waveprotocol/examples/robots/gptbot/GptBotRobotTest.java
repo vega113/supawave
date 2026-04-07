@@ -330,10 +330,10 @@ public class GptBotRobotTest extends TestCase {
     GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
         new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
 
-    // Value ends with comma → endTimeMs is empty → still editing
+    // Value ends with comma → endTimeMs is empty → still editing (use fresh timestamp)
     String response = robot.handleEventBundle(exampleBundleJsonWithEditingAnnotation(TEST_CONFIG,
         "\n@" + TEST_CONFIG.getRobotName() + " help me",
-        "alice@example.com,1775485999253,",
+        "alice@example.com," + System.currentTimeMillis() + ",",
         new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root")));
 
     assertFalse("Bot must not reply while user/d/ annotation is present",
@@ -386,11 +386,12 @@ public class GptBotRobotTest extends TestCase {
     bundle.setWaveletData(waveletData);
     BlipData blipData = new BlipData("example.com!w+abc123", "example.com!conv+root", "b+root",
         content);
+    long activeStart = System.currentTimeMillis() - 1000L;
     blipData.setAnnotations(java.util.Arrays.asList(
-        new Annotation("user/d/session-1111", "alice@example.com,1111,2222", 0,
-            content.length()),  // finished session
-        new Annotation("user/d/session-3333", "alice@example.com,3333,", 0,
-            content.length())   // active session — still editing
+        new Annotation("user/d/session-done", "alice@example.com,1000,2000", 0,
+            content.length()),  // finished session (endTimeMs non-empty)
+        new Annotation("user/d/session-active", "alice@example.com," + activeStart + ",", 0,
+            content.length())   // active session — still editing (fresh timestamp)
     ));
     bundle.addBlip("b+root", blipData);
     bundle.addEvent(new DocumentChangedEvent(null, null, "alice@example.com", 1L, "b+root"));

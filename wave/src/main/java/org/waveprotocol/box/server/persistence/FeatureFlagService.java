@@ -103,8 +103,11 @@ public final class FeatureFlagService {
   /** Evaluates a flag against a participant without re-reading the volatile cache. */
   private static boolean isEnabledInSnapshot(FeatureFlag flag, String participantId) {
     if (flag == null) return false;
-    if (participantId != null && flag.getAllowedUsers().containsKey(participantId)) {
-      return Boolean.TRUE.equals(flag.getAllowedUsers().get(participantId));
+    if (participantId != null) {
+      Boolean allowed = flag.getAllowedUsers().get(participantId);
+      if (allowed != null) {
+        return allowed;
+      }
     }
     return flag.isEnabled();
   }

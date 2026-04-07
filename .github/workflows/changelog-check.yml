@@ -32,7 +32,7 @@ jobs:
       - name: Check for changelog fragment
         if: "!contains(github.event.pull_request.labels.*.name, 'skip-changelog')"
         run: |
-          CHANGED=$(git diff --name-only --diff-filter=A origin/main...HEAD -- 'wave/config/changelog.d/')
+          CHANGED=$(git diff --name-only --diff-filter=A origin/main...HEAD -- 'wave/config/changelog.d/*.json')
           if [ -z "$CHANGED" ]; then
             echo "::error::This PR is missing a changelog fragment. Please add one at wave/config/changelog.d/YYYY-MM-DD-short-description.json"
             echo ""

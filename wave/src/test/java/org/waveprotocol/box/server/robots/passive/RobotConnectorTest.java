@@ -166,7 +166,7 @@ public class RobotConnectorTest extends TestCase {
 
     List<OperationRequest> operations =
         connector.sendMessageBundle(BUNDLE, robot, PROTOCOL_VERSION);
-    assertTrue("Expected no operations to be returned", operations.isEmpty());
+    assertNull("Expected null on connection failure to distinguish from empty response", operations);
   }
 
   public void testDeserializationFailsSafely() throws Exception {
@@ -177,7 +177,8 @@ public class RobotConnectorTest extends TestCase {
 
     List<OperationRequest> operations =
         connector.sendMessageBundle(BUNDLE, robot, PROTOCOL_VERSION);
-    assertTrue("Expected no operations to be returned", operations.isEmpty());
+    assertNull("Expected null on deserialization failure to distinguish from empty response",
+        operations);
   }
 
   public void testFetchCapabilities() throws Exception {

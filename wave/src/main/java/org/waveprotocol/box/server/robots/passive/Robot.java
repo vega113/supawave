@@ -311,6 +311,10 @@ public class Robot implements Runnable {
     LOG.info(robotName + ": sending events");
     List<OperationRequest> response =
         connector.sendMessageBundle(messages, this, capabilities.getProtocolVersion());
+    if (response == null) {
+      LOG.info(robotName + ": delivery failed, skipping last-active update");
+      return;
+    }
     LOG.info(robotName + ": received operations");
     gateway.touchLastActive(this);
 

@@ -306,8 +306,12 @@ public class StaleAnnotationSweeper {
             .setRetainItemCount(stale.docSize - stale.end));
       }
 
+      // Use the wavelet creator as the delta author rather than the user ID extracted from the
+      // annotation value. The creator is a server-validated field; using parts[0] from the
+      // annotation would allow a malicious participant to submit a cleanup delta attributed to
+      // any participant by crafting a fake user/d/ annotation value.
       ProtocolWaveletDelta delta = ProtocolWaveletDelta.newBuilder()
-          .setAuthor(stale.userId)
+          .setAuthor(snapshot.getCreator().getAddress())
           .setHashedVersion(CoreWaveletOperationSerializer.serialize(snapshot.getHashedVersion()))
           .addOperation(ProtocolWaveletOperation.newBuilder()
               .setMutateDocument(ProtocolWaveletOperation.MutateDocument.newBuilder()

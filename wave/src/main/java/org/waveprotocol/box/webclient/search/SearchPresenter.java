@@ -1438,7 +1438,8 @@ public final class SearchPresenter
           participants,
           parseLong(attrs.get("modified")),
           parseInt(attrs.get("unread"), 0),
-          parseInt(attrs.get("blips"), 0));
+          parseInt(attrs.get("blips"), 0),
+          false);
     } catch (RuntimeException e) {
       OT_SEARCH_LOG.log(Level.WARNING, "Failed to parse OT search digest", e);
       return null;

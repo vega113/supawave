@@ -32,6 +32,8 @@ import org.waveprotocol.wave.model.document.ObservableDocument;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.BlipData;
 import org.waveprotocol.wave.model.wave.data.DocumentOperationSink;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
@@ -40,6 +42,7 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -190,6 +193,8 @@ public class StaleAnnotationSweeper {
     }
 
     // Collect stale annotations before submitting deltas (avoid iterator/state issues).
+    // Pre-capture the participant set for security validation inside the lambda.
+    Set<ParticipantId> participants = snapshot.getParticipants();
     List<StaleAnnotation> staleAnnotations = new ArrayList<>();
     doc.knownKeys().each(key -> {
       if (!key.startsWith("user/d/")) return;
@@ -217,6 +222,26 @@ public class StaleAnnotationSweeper {
             long startTimeMs = Long.parseLong(parts[1]);
             if (now - startTimeMs > STALE_EDITING_THRESHOLD_MS) {
               String userId = parts[0];
+              // Validate userId is a known wavelet participant. Annotation values come from
+              // document content and could be forged by a malicious participant. Submitting
+              // a cleanup delta as an arbitrary userId would let the server impersonate any
+              // user — only proceed if the extracted userId is actually in this wavelet.
+              ParticipantId authorId;
+              try {
+                authorId = ParticipantId.of(userId);
+              } catch (InvalidParticipantAddress e) {
+                LOG.warning("StaleAnnotationSweeper: skipping stale annotation " + key
+                    + " — malformed userId '" + userId + "'");
+                searchFrom = annotEnd;
+                continue;
+              }
+              if (!participants.contains(authorId)) {
+                LOG.warning("StaleAnnotationSweeper: skipping stale annotation " + key
+                    + " — userId '" + userId + "' is not a wavelet participant"
+                    + " (possible forged annotation)");
+                searchFrom = annotEnd;
+                continue;
+              }
               staleAnnotations.add(new StaleAnnotation(key, userId, value, pos, annotEnd, docSize));
             }
           } catch (NumberFormatException e) {
@@ -256,8 +281,7 @@ public class StaleAnnotationSweeper {
           ProtocolDocumentOperation.Component.AnnotationBoundary.newBuilder()
               .addChange(ProtocolDocumentOperation.Component.KeyValueUpdate.newBuilder()
                   .setKey(stale.key)
-                  // oldValue intentionally omitted: allow unconditional close even if already
-                  // closed by a concurrent client delta (keeps the sweeper idempotent).
+                  .setOldValue(stale.oldValue)
                   .setNewValue(closedValue));
 
       ProtocolDocumentOperation.Component.AnnotationBoundary.Builder closeBoundary =

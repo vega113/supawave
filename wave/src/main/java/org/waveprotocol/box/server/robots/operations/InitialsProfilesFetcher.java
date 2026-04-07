@@ -93,7 +93,7 @@ public class InitialsProfilesFetcher implements ProfilesFetcher {
         // Custom profile image takes priority
         String profileImageId = human.getProfileImageAttachmentId();
         if (profileImageId != null && !profileImageId.isEmpty()) {
-          imageUrl = "/userprofile/image/" + profileImageId;
+          imageUrl = "/userprofile/image/" + address;
         }
 
         // Only expose last seen if user allows it

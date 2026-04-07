@@ -20,6 +20,7 @@
 package org.waveprotocol.box.server.robots.passive;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -106,6 +107,24 @@ public class RobotsGatewayTest extends TestCase {
     gateway.updateRobotAccount(robot);
 
     verify(accountStore).putAccount(newAccount);
+  }
+
+  public void testTouchLastActiveUsesStoreUpdateAndRefreshesRobotAccount() throws Exception {
+    Robot robot = mock(Robot.class);
+    ParticipantId robotId = ParticipantId.ofUnsafe("robot@example.com");
+    RobotAccountData currentAccount = new RobotAccountDataImpl(
+        robotId, "https://robot.example.com", "secret", null, true, 0L, "owner@example.com",
+        "desc", 10L, 20L, false);
+    RobotAccountData refreshedAccount = new RobotAccountDataImpl(
+        robotId, "https://robot.example.com", "secret", null, true, 0L, "owner@example.com",
+        "desc", 10L, 20L, false, 0L, 12345L);
+    when(robot.getAccount()).thenReturn(currentAccount);
+    when(accountStore.getAccount(robotId)).thenReturn(refreshedAccount);
+
+    gateway.touchLastActive(robot);
+
+    verify(accountStore).updateRobotLastActive(eq(robotId), anyLong());
+    verify(robot).setAccount(refreshedAccount);
   }
 
   public void testPausedRobotIsSkippedDuringWaveletUpdate() throws Exception {

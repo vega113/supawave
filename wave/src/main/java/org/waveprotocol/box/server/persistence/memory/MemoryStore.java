@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.persistence.memory;
 
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
+import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.contact.Contact;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.ContactStore;
@@ -95,6 +96,30 @@ public class MemoryStore implements SignerInfoStore, AccountStore, ContactStore 
   @Override
   public void putAccount(AccountData account) {
     accountStore.put(account.getId(), account);
+  }
+
+  @Override
+  public void updateRobotLastActive(ParticipantId id, long lastActiveAtMillis) {
+    accountStore.computeIfPresent(id, (ignored, accountData) -> {
+      if (!accountData.isRobot()) {
+        return accountData;
+      }
+      RobotAccountData current = accountData.asRobot();
+      return new RobotAccountDataImpl(
+          current.getId(),
+          current.getUrl(),
+          current.getConsumerSecret(),
+          current.getCapabilities(),
+          current.isVerified(),
+          current.getTokenExpirySeconds(),
+          current.getOwnerAddress(),
+          current.getDescription(),
+          current.getCreatedAtMillis(),
+          current.getUpdatedAtMillis(),
+          current.isPaused(),
+          current.getTokenVersion(),
+          lastActiveAtMillis);
+    });
   }
 
   @Override

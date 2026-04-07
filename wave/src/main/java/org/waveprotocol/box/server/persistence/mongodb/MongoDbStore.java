@@ -324,6 +324,16 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   }
 
   @Override
+  public void updateRobotLastActive(ParticipantId id, long lastActiveAtMillis) {
+    DBObject query = new BasicDBObject("_id", id.getAddress())
+        .append(ACCOUNT_ROBOT_DATA_FIELD, new BasicDBObject("$exists", true));
+    DBObject update = new BasicDBObject("$set",
+        new BasicDBObject(ACCOUNT_ROBOT_DATA_FIELD + "." + ROBOT_LAST_ACTIVE_AT_FIELD,
+            lastActiveAtMillis));
+    getAccountCollection().update(query, update);
+  }
+
+  @Override
   public void removeAccount(ParticipantId id) {
     DBObject object = getDBObjectForParticipant(id);
     getAccountCollection().remove(object);

@@ -72,7 +72,7 @@ public class RobotConnectorTest extends TestCase {
       new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME), TEST_URL, "secret",
           new RobotCapabilities(
               Maps.<EventType, Capability> newHashMap(), "FakeHash", ProtocolVersion.DEFAULT),
-          true, 0L, null, "", 0L, 1234L, false);
+          true, 0L, null, "", 0L, 1234L, false, 7L, 5678L);
   private static final RobotAccountData ABSOLUTE_ROBOT_ACCOUNT =
       new RobotAccountDataImpl(ParticipantId.ofUnsafe(ROBOT_ACCOUNT_NAME), ABSOLUTE_RPC_ENDPOINT,
           "secret", new RobotCapabilities(
@@ -198,6 +198,10 @@ public class RobotConnectorTest extends TestCase {
         capabilitiesMap.containsKey(EventType.OPERATION_ERROR));
     assertTrue("Expected a fresh update timestamp",
         accountData.getUpdatedAtMillis() > ROBOT_ACCOUNT.getUpdatedAtMillis());
+    assertEquals("Expected token version to be preserved", ROBOT_ACCOUNT.getTokenVersion(),
+        accountData.getTokenVersion());
+    assertEquals("Expected last-active timestamp to be preserved",
+        ROBOT_ACCOUNT.getLastActiveAtMillis(), accountData.getLastActiveAtMillis());
     // Only one connection should be made
     verify(connection).get(TEST_CAPABILITIES_ENDPOINT);
   }

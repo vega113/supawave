@@ -32,7 +32,6 @@ import com.google.wave.api.robot.RobotName;
 import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
-import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.operations.NotifyOperationService;
@@ -254,28 +253,13 @@ public class RobotsGateway implements WaveBus.Subscriber {
    * swallows PersistenceException so that event processing is not blocked.
    */
   public void touchLastActive(Robot robot) {
+    ParticipantId robotId = robot.getAccount().getId();
     try {
-      AccountData accountData = accountStore.getAccount(robot.getAccount().getId());
-      if (accountData == null || !accountData.isRobot()) {
-        return;
+      accountStore.updateRobotLastActive(robotId, System.currentTimeMillis());
+      AccountData updatedAccount = accountStore.getAccount(robotId);
+      if (updatedAccount != null && updatedAccount.isRobot()) {
+        robot.setAccount(updatedAccount.asRobot());
       }
-      RobotAccountData current = accountData.asRobot();
-      RobotAccountData updated = new RobotAccountDataImpl(
-          current.getId(),
-          current.getUrl(),
-          current.getConsumerSecret(),
-          current.getCapabilities(),
-          current.isVerified(),
-          current.getTokenExpirySeconds(),
-          current.getOwnerAddress(),
-          current.getDescription(),
-          current.getCreatedAtMillis(),
-          current.getUpdatedAtMillis(),
-          current.isPaused(),
-          current.getTokenVersion(),
-          System.currentTimeMillis());
-      accountStore.putAccount(updated);
-      robot.setAccount(updated);
     } catch (PersistenceException e) {
       LOG.warning("Failed to update lastActiveAtMillis for robot "
           + robot.getRobotName() + ": " + e.getMessage());

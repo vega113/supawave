@@ -24,9 +24,6 @@ import com.google.wave.api.RobotSerializer;
 import com.google.wave.api.data.converter.EventDataConverterManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.waveprotocol.box.server.account.AccountData;
-import org.waveprotocol.box.server.account.RobotAccountData;
-import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
 import org.waveprotocol.box.server.authentication.jwt.JwtInsufficientScopeException;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
@@ -123,26 +120,7 @@ public final class DataApiServlet extends BaseApiServlet {
 
   private void touchLastActive(ParticipantId robotId) {
     try {
-      AccountData accountData = accountStore.getAccount(robotId);
-      if (accountData == null || !accountData.isRobot()) {
-        return;
-      }
-      RobotAccountData current = accountData.asRobot();
-      RobotAccountData updated = new RobotAccountDataImpl(
-          current.getId(),
-          current.getUrl(),
-          current.getConsumerSecret(),
-          current.getCapabilities(),
-          current.isVerified(),
-          current.getTokenExpirySeconds(),
-          current.getOwnerAddress(),
-          current.getDescription(),
-          current.getCreatedAtMillis(),
-          current.getUpdatedAtMillis(),
-          current.isPaused(),
-          current.getTokenVersion(),
-          System.currentTimeMillis());
-      accountStore.putAccount(updated);
+      accountStore.updateRobotLastActive(robotId, System.currentTimeMillis());
     } catch (PersistenceException e) {
       LOG.warning("Failed to update lastActiveAtMillis for Data API call by "
           + robotId.getAddress() + ": " + e.getMessage());

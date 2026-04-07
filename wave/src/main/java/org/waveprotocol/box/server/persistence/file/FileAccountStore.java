@@ -25,6 +25,7 @@ import com.google.inject.Inject;
 import com.typesafe.config.Config;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
+import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountDataSerializer;
@@ -89,6 +90,35 @@ public class FileAccountStore implements AccountStore {
       removeIndexedEmail(accounts.get(account.getId()));
       accounts.put(account.getId(), account);
       indexAccountEmail(account);
+    }
+  }
+
+  @Override
+  public void updateRobotLastActive(ParticipantId id, long lastActiveAtMillis)
+      throws PersistenceException {
+    synchronized (accounts) {
+      AccountData account = accounts.get(id);
+      if (account == null) {
+        account = readAccount(id);
+      }
+      if (account == null || !account.isRobot()) {
+        return;
+      }
+      RobotAccountData current = account.asRobot();
+      putAccount(new RobotAccountDataImpl(
+          current.getId(),
+          current.getUrl(),
+          current.getConsumerSecret(),
+          current.getCapabilities(),
+          current.isVerified(),
+          current.getTokenExpirySeconds(),
+          current.getOwnerAddress(),
+          current.getDescription(),
+          current.getCreatedAtMillis(),
+          current.getUpdatedAtMillis(),
+          current.isPaused(),
+          current.getTokenVersion(),
+          lastActiveAtMillis));
     }
   }
 

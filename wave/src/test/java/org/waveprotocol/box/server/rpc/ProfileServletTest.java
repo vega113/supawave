@@ -61,9 +61,10 @@ public class ProfileServletTest extends TestCase {
     assertEquals("/userprofile/image/" + pid.getAddress(), url);
   }
 
-  public void testResolveImageUrlWithNoCustomImage() throws Exception {
+  public void testResolveImageUrlWithEmptyCustomImage() throws Exception {
     ParticipantId pid = ParticipantId.ofUnsafe("user@example.com");
     HumanAccountData account = new HumanAccountDataImpl(pid, null);
+    account.setProfileImageAttachmentId("");
     store.putAccount(account);
 
     ProfileImage mockImage = mock(ProfileImage.class);
@@ -74,10 +75,10 @@ public class ProfileServletTest extends TestCase {
     assertEquals("http://gravatar.com/avatar", url);
   }
 
-  public void testResolveImageUrlWithEmptyCustomImage() throws Exception {
+  public void testResolveImageUrlWithWhitespaceCustomImage() throws Exception {
     ParticipantId pid = ParticipantId.ofUnsafe("user@example.com");
     HumanAccountData account = new HumanAccountDataImpl(pid, null);
-    account.setProfileImageAttachmentId("");
+    account.setProfileImageAttachmentId("   ");
     store.putAccount(account);
 
     ProfileImage mockImage = mock(ProfileImage.class);

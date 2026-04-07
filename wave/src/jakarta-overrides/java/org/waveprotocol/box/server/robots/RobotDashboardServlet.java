@@ -1301,8 +1301,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Init
     sb.append("loadRobots();");
     if (!com.google.common.base.Strings.isNullOrEmpty(message)) {
-      String escapedMsg = message.replace("\\", "\\\\").replace("'", "\\'");
-      sb.append("toast('").append(escapedMsg).append("','err');");
+      sb.append("toast('").append(escapeJsString(message)).append("','err');");
     }
     sb.append("</script>");
     sb.append(HtmlRenderer.renderSharedTopBarJs(contextPath));
@@ -1411,6 +1410,29 @@ public final class RobotDashboardServlet extends HttpServlet {
     } catch (Exception e) {
       return defaultVal;
     }
+  }
+
+  private static String escapeJsString(String value) {
+    if (value == null) return "";
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      switch (c) {
+        case '\\': sb.append("\\\\"); break;
+        case '\'': sb.append("\\'"); break;
+        case '\n': sb.append("\\n"); break;
+        case '\r': sb.append("\\r"); break;
+        case '\t': sb.append("\\t"); break;
+        case '<': sb.append("\\x3c"); break;  // Prevents </script> injection
+        default:
+          if (c < 0x20) {
+            sb.append(String.format("\\x%02x", (int) c));
+          } else {
+            sb.append(c);
+          }
+      }
+    }
+    return sb.toString();
   }
 
   private static String escapeJsonValue(String value) {

@@ -136,7 +136,7 @@ public class ServerRpcProvider {
                              boolean sslEnabled, String sslKeystorePath, String sslKeystorePassword,
                              boolean enableForwardedHeaders) {
         this.config = null;
-        this.constructorHttpAddresses = httpAddresses;
+        this.constructorHttpAddresses = httpAddresses != null ? java.util.Arrays.copyOf(httpAddresses, httpAddresses.length) : null;
         this.threadPool = threadPool;
         this.sessionManager = sessionManager;
         this.sessionHandler = sessionHandler;
@@ -152,7 +152,7 @@ public class ServerRpcProvider {
                              boolean sslEnabled, String sslKeystorePath, String sslKeystorePassword,
                              Executor executor) {
         this.config = null;
-        this.constructorHttpAddresses = httpAddresses;
+        this.constructorHttpAddresses = httpAddresses != null ? java.util.Arrays.copyOf(httpAddresses, httpAddresses.length) : null;
         this.threadPool = executor;
         this.sessionManager = sessionManager;
         this.sessionHandler = sessionHandler;

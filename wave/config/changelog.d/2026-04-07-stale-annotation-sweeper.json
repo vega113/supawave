@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-07-stale-annotation-sweeper",
+  "version": "PR #711",
+  "date": "2026-04-07",
+  "title": "Server-side sweeper clears stale editor annotations from crashed sessions",
+  "summary": "A new background StaleAnnotationSweeper service runs every 10 minutes and submits cleanup deltas to close any user/d/ or user/e/ editor-session annotations older than 30 minutes, preventing crashed-session stale annotations from blocking bots indefinitely.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "New StaleAnnotationSweeper service sweeps all wavelets every 10 minutes and closes stale open editor-session annotations (user/d/ and user/e/) older than 30 minutes",
+        "GptBotRobot isBlipBeingEdited() now treats sessions with startTimeMs older than 30 minutes as stale so the GPT bot no longer skips blips with lingering crashed-session annotations",
+        "EventGenerator allEditingSessionsClosed() uses the same 30-minute TTL so BLIP_EDITING_DONE fires correctly even when stale sessions remain on a blip",
+        "Cleanup deltas are attributed to the first current participant rather than the annotation-derived user ID, closing a potential identity-spoofing vector"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "releaseId": "2026-04-07-search-help-clickable-examples",
+  "version": "PR #713",
+  "date": "2026-04-07",
+  "title": "Clickable Examples in Search Help Panel",
+  "summary": "All search examples in the help panel are now clickable and execute the search immediately.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Concrete filter rows (in:inbox, in:archive, in:all, in:pinned, with:@, unread:true, mentions:me) are now clickable spans that execute the search when clicked",
+        "Abstract filter rows (with:user@domain, creator:user@domain, tag:name, title:text, content:text) now show a clickable 'try:' example in the description column",
+        "All sort-option rows (orderby:datedesc, orderby:dateasc, etc.) are now clickable",
+        "Combination examples (in:inbox tag:important, mentions:me unread:true, and more) are shown as a clickable grid in the Combinations section",
+        "Removed the separate 'Examples — click to search' section; all examples are now integrated into the reference tables"
+      ]
+    }
+  ]
+}

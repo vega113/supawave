@@ -143,7 +143,7 @@
            <span ui:field='exPinnedCreator' class='{css.helpExample}'>in:pinned orderby:creatordesc</span>
            <span ui:field='exCreatorArchive' class='{css.helpExample}'>creator:bob in:archive</span>
            <span ui:field='exMentionsUnread' class='{css.helpExample}'>mentions:me unread:true</span>
-           <span ui:field='exMentionsAll' class='{css.helpExample}'>mentions:me unread:all</span>
+           <span ui:field='exMentionsAll' class='{css.helpExample}'>mentions:me</span>
          </div>
        </div>
      </div>

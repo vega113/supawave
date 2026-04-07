@@ -222,8 +222,7 @@ public class StaleAnnotationSweeper {
 
         String[] parts = value.split(",", 3);
         // endTimeMs must be empty for the session to be "open"
-        if (parts.length >= 3 && parts[2].isEmpty()
-            && parts.length >= 2 && !parts[1].isEmpty()) {
+        if (parts.length >= 3 && parts[2].isEmpty() && !parts[1].isEmpty()) {
           try {
             long startTimeMs = (long) Double.parseDouble(parts[1]);
             if (now - startTimeMs > STALE_EDITING_THRESHOLD_MS) {
@@ -351,9 +350,15 @@ public class StaleAnnotationSweeper {
       // as the author, since a malicious participant could forge an annotation value containing
       // another participant's address and cause the sweeper to attribute cleanup deltas to them.
       ParticipantId creatorId = snapshot.getCreator();
-      String deltaAuthor = snapshot.getParticipants().contains(creatorId)
+      Set<ParticipantId> participants = snapshot.getParticipants();
+      if (participants.isEmpty()) {
+        LOG.warning("StaleAnnotationSweeper: skipping stale annotation " + stale.key
+            + " in " + waveletName + "/" + docId + " — wavelet has no participants");
+        return false;
+      }
+      String deltaAuthor = participants.contains(creatorId)
           ? creatorId.getAddress()
-          : snapshot.getParticipants().iterator().next().getAddress();
+          : participants.iterator().next().getAddress();
       ProtocolWaveletDelta delta = ProtocolWaveletDelta.newBuilder()
           .setAuthor(deltaAuthor)
           .setHashedVersion(CoreWaveletOperationSerializer.serialize(snapshot.getHashedVersion()))

@@ -339,7 +339,7 @@ public class WaveletOperationSerializerTest extends TestCase {
   public void testDeserializeHashedVersionWithUnsetProtobufHash() {
     ProtocolHashedVersion proto = ProtocolHashedVersion.newBuilder()
         .setVersion(42L)
-        .build(); // historyHash not set → ByteString.EMPTY in JVM protobuf
+        .buildPartial(); // historyHash not set → ByteString.EMPTY in JVM protobuf; buildPartial() skips required-field check
 
     HashedVersion result = CoreWaveletOperationSerializer.deserialize(proto);
 

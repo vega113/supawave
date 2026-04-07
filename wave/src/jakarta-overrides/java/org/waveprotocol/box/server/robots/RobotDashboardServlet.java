@@ -758,6 +758,19 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</div>");
     sb.append("<button class=\"btn-p\" onclick=\"openModal()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg> Register New Robot</button>");
     sb.append("</div>");
+
+    // ——— Revealed secret banner (shown once after register/rotate-secret) ———
+    if (!com.google.common.base.Strings.isNullOrEmpty(revealedSecret)) {
+      String safeSecret = HtmlRenderer.escapeHtml(revealedSecret);
+      String masked = maskSecret(revealedSecret);
+      String safeMasked = HtmlRenderer.escapeHtml(masked);
+      sb.append("<div style=\"background:#fff8e1;border:1px solid #ffd54f;border-radius:4px;padding:12px 16px;margin-bottom:16px\">");
+      sb.append("Copy this robot secret now: <strong>").append(safeSecret).append("</strong>");
+      sb.append(" \u2014 this secret will not be shown again.");
+      sb.append("<div style=\"font-size:11px;margin-top:8px\">AI prompt config: <code>SUPAWAVE_ROBOT_SECRET=").append(safeMasked).append("</code></div>");
+      sb.append("</div>");
+    }
+
     // Tabs — 3 tabs, no duplication
     sb.append("<div class=\"tabs\">");
     sb.append("<div class=\"tab on\" data-tab=\"robots\" onclick=\"switchTab('robots')\">My Robots<span class=\"tbadge\" id=\"rcnt\"></span></div>");
@@ -1287,6 +1300,10 @@ public final class RobotDashboardServlet extends HttpServlet {
 
     // Init
     sb.append("loadRobots();");
+    if (!com.google.common.base.Strings.isNullOrEmpty(message)) {
+      String escapedMsg = message.replace("\\", "\\\\").replace("'", "\\'");
+      sb.append("toast('").append(escapedMsg).append("','err');");
+    }
     sb.append("</script>");
     sb.append(HtmlRenderer.renderSharedTopBarJs(contextPath));
     sb.append("</body></html>");

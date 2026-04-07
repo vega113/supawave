@@ -92,4 +92,12 @@ public interface RobotAccountData extends AccountData {
   default long getTokenVersion() {
     return 0L;
   }
+
+  /**
+   * Returns the last time the robot processed events or made Data API calls,
+   * in milliseconds since epoch. Returns 0 for robots that have never been active.
+   */
+  default long getLastActiveAtMillis() {
+    return 0L;
+  }
 }

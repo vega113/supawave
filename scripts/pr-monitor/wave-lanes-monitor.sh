@@ -60,16 +60,26 @@ close_pane() {
   tmux select-layout -t "$WAVE_SESSION" tiled 2>/dev/null || true
 }
 
+launch_interactive_agent() {
+  # Launch claude in INTERACTIVE mode so it stays running and user can see/steer it.
+  # Send the initial prompt as a message after claude starts up.
+  local pane_idx=$1
+  local worktree_path=$2
+  local initial_prompt=$3
+
+  tmux send-keys -t "$WAVE_SESSION.$pane_idx" \
+    "cd '$worktree_path' && claude --model claude-sonnet-4-6 --dangerously-skip-permissions" Enter
+  # Wait for claude to fully initialize before sending the first message
+  sleep 10
+  tmux send-keys -t "$WAVE_SESSION.$pane_idx" "$initial_prompt" Enter
+}
+
 send_instructions() {
   local pane_idx=$1
   local pr=$2
   local branch=$3
   local mergeable=$4
-
-  # Skip if agent is busy
-  if ! is_pane_idle "$pane_idx"; then
-    return
-  fi
+  local title=$5
 
   # Check unresolved threads
   local threads
@@ -81,20 +91,32 @@ send_instructions() {
     ci_failing=true
   fi
 
+  # Determine what's wrong
+  local msg=""
   if [[ "$threads" -gt 0 ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] PR#$pr has $threads unresolved threads — sending instructions"
-    tmux send-keys -t "$WAVE_SESSION.$pane_idx" \
-      "PRIORITY: PR #$pr has $threads unresolved review threads. Read each with: gh api repos/$REPO/pulls/$pr/comments. Fix the issue or reply, then RESOLVE each thread via: gh api graphql -f query='mutation { resolveReviewThread(input:{threadId:\"THREAD_ID\"}) { thread { isResolved } } }'. All threads must be resolved for CI to pass." Enter
+    msg="PR #$pr has $threads unresolved review threads. Read comments: gh api repos/$REPO/pulls/$pr/comments. Fix each issue, then resolve threads via GraphQL resolveReviewThread. All threads must be resolved for CI."
   elif [[ "$mergeable" != "MERGEABLE" ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] PR#$pr has conflicts — sending rebase instructions"
-    tmux send-keys -t "$WAVE_SESSION.$pane_idx" \
-      "PRIORITY: PR #$pr has merge conflicts. git fetch origin main && git rebase origin/main. For EACH conflict read BOTH sides carefully — do NOT blindly --ours/--theirs. Preserve features from both. After resolving: git push --force-with-lease origin $branch" Enter
+    msg="PR #$pr has merge conflicts. Rebase: git fetch origin main && git rebase origin/main. Examine BOTH sides of each conflict carefully. Push with --force-with-lease."
   elif [[ "$ci_failing" == "true" ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] PR#$pr has CI failures — sending fix instructions"
-    tmux send-keys -t "$WAVE_SESSION.$pane_idx" \
-      "PRIORITY: PR #$pr has failing CI. Run: cd wave && sbt compile 2>&1 | tail -30. Fix build errors. Then: cd wave && sbt test 2>&1 | tail -50. Fix test failures at root cause. Do NOT skip tests. Push when green." Enter
+    msg="PR #$pr has failing CI. Build: cd wave && sbt compile. Test: cd wave && sbt test. Fix root causes. Push when green."
   else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] PR#$pr is clean — ready to merge"
+    return
+  fi
+
+  # Check if pane has a running claude agent or is idle zsh
+  if is_pane_idle "$pane_idx"; then
+    # No agent running — launch interactive claude first, then send prompt
+    local worktree_path="$WORKTREE_BASE/pr-$pr-lane"
+    if [ -d "$worktree_path" ]; then
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] PR#$pr — launching interactive agent with instructions"
+      launch_interactive_agent "$pane_idx" "$worktree_path" \
+        "You are fixing PR #$pr ($title). Branch: $branch. Repo: $REPO. $msg Steps: 1) Fix issues. 2) Resolve all review threads via GraphQL. 3) Rebase if needed. 4) Build and test. 5) Push when clean."
+    fi
+  else
+    # Agent is already running — send the message directly (it goes into claude's input)
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] PR#$pr — sending message to running agent"
+    tmux send-keys -t "$WAVE_SESSION.$pane_idx" "$msg" Enter
   fi
 }
 
@@ -142,10 +164,13 @@ while true; do
     pane_info=$(tmux list-panes -t "$WAVE_SESSION" -F "#{pane_index}: #{pane_title} | #{pane_current_path}" 2>/dev/null || echo "")
 
     echo "$pr_json" | jq -r '.[] | "\(.number)|\(.title)|\(.headRefName)|\(.mergeable)"' | while IFS='|' read -r pr title branch mergeable; do
-      # Check if any pane covers this PR
+      # Check if any pane covers this PR (by title, path with branch, or worktree name pr-NNN-lane)
       pane_idx=""
       if [ -n "$pane_info" ]; then
         pane_idx=$(echo "$pane_info" | grep -E "PR#${pr}\b" | head -1 | cut -d: -f1 | tr -d ' ')
+        if [ -z "$pane_idx" ]; then
+          pane_idx=$(echo "$pane_info" | grep -F -- "pr-${pr}-lane" | head -1 | cut -d: -f1 | tr -d ' ')
+        fi
         if [ -z "$pane_idx" ]; then
           pane_idx=$(echo "$pane_info" | grep -F -- "$branch" | head -1 | cut -d: -f1 | tr -d ' ')
         fi
@@ -172,9 +197,8 @@ while true; do
         if [ -n "$new_pane" ]; then
           tmux select-pane -t "$WAVE_SESSION.$new_pane" -T "PR#$pr $title_short" 2>/dev/null || true
           tmux select-layout -t "$WAVE_SESSION" tiled 2>/dev/null || true
-          tmux send-keys -t "$WAVE_SESSION.$new_pane" \
-            "cd '$worktree_path' && claude --model claude-sonnet-4-6 --dangerously-skip-permissions" Enter
-          sleep 5
+          launch_interactive_agent "$new_pane" "$worktree_path" \
+            "You are fixing PR #$pr ($title_short). Branch: $branch. Repo: $REPO. Address all PR issues: unresolved review threads, conflicts, CI failures. Steps: 1) Read review comments. 2) Fix issues and resolve threads via GraphQL. 3) Rebase if conflicts. 4) Build: cd wave && sbt compile. 5) Test: cd wave && sbt test. 6) Push when clean."
           pane_idx="$new_pane"
         fi
       else
@@ -185,7 +209,7 @@ while true; do
 
       # Send instructions only when a pane is available
       if [ -n "$pane_idx" ]; then
-        send_instructions "$pane_idx" "$pr" "$branch" "$mergeable"
+        send_instructions "$pane_idx" "$pr" "$branch" "$mergeable" "$title"
       else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: no pane available for PR#$pr — skipping instructions"
       fi

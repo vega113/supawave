@@ -3203,7 +3203,7 @@ public final class HtmlRenderer {
     sb.append("    var summary = document.createElement('div');\n");
     sb.append("    summary.style.cssText = 'font-size:13px;line-height:1.5;opacity:0.92;margin-bottom:10px;';\n");
     sb.append("    var firstRelease = null;\n");
-    sb.append("    if (status === 'exact' && releaseNotes.length > 0) {\n");
+    sb.append("    if ((status === 'exact' || status === 'current_only') && releaseNotes.length > 0) {\n");
     sb.append("      firstRelease = releaseNotes[0];\n");
     sb.append("      summary.textContent = firstRelease.title ? firstRelease.title + ': ' + firstRelease.summary : firstRelease.summary;\n");
     sb.append("    } else if (status === 'same_release') {\n");
@@ -3230,7 +3230,7 @@ public final class HtmlRenderer {
     sb.append("    actions.style.cssText = 'display:flex;gap:14px;align-items:center;flex-wrap:wrap;';\n");
     sb.append("    actions.appendChild(reload);\n");
     sb.append("    var whatsNew = document.createElement('a');\n");
-    sb.append("    if (status === 'exact' && releaseNotes.length > 0 && releaseNotes[0].releaseId) {\n");
+    sb.append("    if ((status === 'exact' || status === 'current_only') && releaseNotes.length > 0 && releaseNotes[0].releaseId) {\n");
     sb.append("      whatsNew.href = '/changelog#release-' + encodeURIComponent(releaseNotes[0].releaseId);\n");
     sb.append("    } else {\n");
     sb.append("      whatsNew.href = '/changelog';\n");

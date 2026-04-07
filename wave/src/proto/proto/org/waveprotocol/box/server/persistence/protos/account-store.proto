@@ -86,6 +86,7 @@ message ProtoRobotAccountData {
 	optional int64 updated_at_millis = 9 [default = 0];
 	optional bool paused = 10 [default = false];
 	optional int64 token_version = 11 [default = 0];
+	optional int64 last_active_at_millis = 12 [default = 0];
 }
 
 // Data found in a RobotCapabilities instance

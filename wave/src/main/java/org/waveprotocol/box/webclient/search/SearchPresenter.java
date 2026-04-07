@@ -306,6 +306,13 @@ public final class SearchPresenter
   SourcesEvents<ProfileListener> profiles;
   private boolean isRenderingInProgress = false;
 
+  /** Tracks unread @mention waves in the background (feature-flag gated). */
+  private MentionUnreadTracker mentionTracker;
+  /** Badge element overlaid on the @ toolbar icon. */
+  private Element mentionBadgeEl;
+  /** Floating "@N" navigation button at the bottom of the search panel. */
+  private Element nextMentionButton;
+
   SearchPresenter(TimerService scheduler, Search search, SearchPanelView searchUi,
       WaveActionHandler actionHandler, SourcesEvents<ProfileListener> profiles,
       RemoteViewServiceMultiplexer channel) {
@@ -358,6 +365,13 @@ public final class SearchPresenter
       presenter.waveStore = waveStore;
       waveStore.addListener(presenter);
     }
+    boolean mentionBadgeEnabled = Session.get().hasFeature("mention-unread-badge");
+    boolean mentionsSearchEnabled = Session.get().hasFeature("mentions-search");
+    presenter.mentionTracker = new MentionUnreadTracker(
+        RemoteSearchService.create(),
+        SchedulerInstance.getHighPriorityTimer(),
+        mentionBadgeEnabled, mentionsSearchEnabled);
+    presenter.mentionTracker.setListener(count -> presenter.updateMentionBadge(count));
     presenter.init();
     return presenter;
   }
@@ -437,6 +451,7 @@ public final class SearchPresenter
     } else {
       startPolling();
     }
+    initMentionTracker();
   }
 
   /**
@@ -460,6 +475,14 @@ public final class SearchPresenter
       networkStatusHandlerRegistration = null;
     }
     unsubscribeFromSearchWavelet();
+    if (mentionTracker != null) {
+      mentionTracker.destroy();
+    }
+    if (nextMentionButton != null) {
+      com.google.gwt.user.client.Event.setEventListener(nextMentionButton, null);
+      nextMentionButton.removeFromParent();
+      nextMentionButton = null;
+    }
   }
 
   /** The current user's saved searches. */
@@ -544,6 +567,23 @@ public final class SearchPresenter
         }).setVisualElement(createSvgIcon(ICON_INBOX));
 
     if (mentionsSearchEnabled) {
+      boolean badgeEnabled = mentionTracker != null && mentionTracker.isEnabled();
+      Element mentionVisual;
+      if (badgeEnabled) {
+        // Wrap icon in a relative container so the badge overlay moves with it
+        Element wrapper = DOM.createSpan();
+        wrapper.getStyle().setProperty("position", "relative");
+        wrapper.getStyle().setProperty("display", "inline-block");
+        wrapper.setInnerHTML(ICON_MENTIONS);
+        mentionBadgeEl = DOM.createSpan();
+        mentionBadgeEl.setClassName(SearchPanelWidget.css.mentionBadge());
+        mentionBadgeEl.getStyle().setDisplay(
+            com.google.gwt.dom.client.Style.Display.NONE);
+        wrapper.appendChild(mentionBadgeEl);
+        mentionVisual = wrapper;
+      } else {
+        mentionVisual = createSvgIcon(ICON_MENTIONS);
+      }
       new ToolbarButtonViewBuilder()
           .setTooltip("Mentions")
           .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
@@ -552,7 +592,7 @@ public final class SearchPresenter
               searchUi.getSearch().setQuery("mentions:me");
               onQueryEntered();
             }
-          }).setVisualElement(createSvgIcon(ICON_MENTIONS));
+          }).setVisualElement(mentionVisual);
     }
 
     new ToolbarButtonViewBuilder()
@@ -596,6 +636,66 @@ public final class SearchPresenter
 
     // Saved searches are loaded lazily after the first search result arrives
     // (see onStateChanged) to avoid competing with the critical /search request.
+  }
+
+  /**
+   * Starts the mention unread tracker and creates the floating "@N" button.
+   */
+  private void initMentionTracker() {
+    if (mentionTracker == null || !mentionTracker.isEnabled()) {
+      return;
+    }
+    mentionTracker.start();
+
+    // Create floating "@N" button anchored to the panel root.
+    // Using a native <button> element makes it keyboard-focusable and operable
+    // via Enter/Space without extra ARIA attributes.
+    Element panelRoot = searchUi.getPanelRoot();
+    if (panelRoot != null) {
+      nextMentionButton = DOM.createButton();
+      nextMentionButton.setClassName(SearchPanelWidget.css.nextMentionButton());
+      nextMentionButton.setAttribute("aria-label", "Navigate to next unread mention");
+      nextMentionButton.getStyle().setDisplay(
+          com.google.gwt.dom.client.Style.Display.NONE);
+      panelRoot.appendChild(nextMentionButton);
+      com.google.gwt.user.client.Event.sinkEvents(nextMentionButton,
+          com.google.gwt.user.client.Event.ONCLICK);
+      com.google.gwt.user.client.Event.setEventListener(nextMentionButton,
+          event -> onNextMentionClicked());
+    }
+  }
+
+  /**
+   * Updates the mention badge and floating button to reflect the current count.
+   */
+  private void updateMentionBadge(int count) {
+    String text = count > 99 ? "99+" : String.valueOf(count);
+    if (mentionBadgeEl != null) {
+      mentionBadgeEl.setInnerText(text);
+      mentionBadgeEl.getStyle().setDisplay(count > 0
+          ? com.google.gwt.dom.client.Style.Display.BLOCK
+          : com.google.gwt.dom.client.Style.Display.NONE);
+    }
+    if (nextMentionButton != null) {
+      nextMentionButton.setInnerText("@" + text);
+      nextMentionButton.getStyle().setDisplay(count > 0
+          ? com.google.gwt.dom.client.Style.Display.BLOCK
+          : com.google.gwt.dom.client.Style.Display.NONE);
+    }
+  }
+
+  /**
+   * Navigates to the next wave with an unread @mention.
+   */
+  private void onNextMentionClicked() {
+    if (mentionTracker == null) {
+      return;
+    }
+    WaveId nextWave = mentionTracker.getNextUnreadMentionWaveId();
+    if (nextWave != null) {
+      mentionTracker.setCurrentWaveId(nextWave);
+      actionHandler.onWaveSelected(nextWave);
+    }
   }
 
   /**
@@ -844,6 +944,10 @@ public final class SearchPresenter
   @Override
   public void onClicked(DigestView digestUi) {
     setSelected(digestUi);
+    Digest d = digestUis.get(digestUi);
+    if (d != null && mentionTracker != null) {
+      mentionTracker.setCurrentWaveId(d.getWaveId());
+    }
     openSelected();
   }
 
@@ -1057,13 +1161,18 @@ public final class SearchPresenter
 
   @Override
   public void onOpened(WaveContext wave) {
-    // No action — unread state updates via BlipReadStateMonitor → supplement → search refresh.
-    // Eagerly zeroing the badge here also clears unread counts for blips from bots and other
-    // participants that the user has not actually read yet, causing the badge to vanish prematurely.
+    // Track the currently-open wave so the @N button can skip it.
+    if (mentionTracker != null && wave != null && wave.getWave() != null
+        && wave.getWave().getWaveId() != null) {
+      mentionTracker.setCurrentWaveId(wave.getWave().getWaveId());
+    }
   }
 
   @Override
   public void onClosed(WaveContext wave) {
+    if (mentionTracker != null) {
+      mentionTracker.setCurrentWaveId(null);
+    }
     scheduler.scheduleDelayed(waveClosedRefreshTask, WAVE_CLOSED_REFRESH_DELAY_MS);
   }
 

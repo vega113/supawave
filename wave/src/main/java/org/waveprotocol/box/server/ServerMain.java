@@ -66,6 +66,7 @@ import org.waveprotocol.box.server.rpc.*;
 import org.waveprotocol.box.server.shutdown.ShutdownManager;
 import org.waveprotocol.box.server.shutdown.ShutdownPriority;
 import org.waveprotocol.box.server.shutdown.Shutdownable;
+import org.waveprotocol.box.server.rpc.MdcLoggingFilter;
 import org.waveprotocol.box.server.stat.RequestScopeFilter;
 import org.waveprotocol.box.server.stat.StatuszServlet;
 import org.waveprotocol.box.server.stat.TimingFilter;
@@ -529,6 +530,7 @@ public class ServerMain {
 
   /** Adds request-scoped metrics and status endpoints when profiling is enabled. */
   private static void addProfiling(ServerRpcProvider server, Config config) {
+    server.addFilter("/*", MdcLoggingFilter.class);
     server.addFilter("/*", RequestScopeFilter.class);
     boolean enableProfiling = config.getBoolean("core.enable_profiling");
     if (enableProfiling) {

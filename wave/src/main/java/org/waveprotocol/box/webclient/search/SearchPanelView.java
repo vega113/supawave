@@ -85,6 +85,9 @@ public interface SearchPanelView {
   /** Removes all digest views. */
   void clearDigests();
 
+  /** @return the panel root element for attaching floating overlays. */
+  com.google.gwt.dom.client.Element getPanelRoot();
+
   /** Shows a loading skeleton while no real digest rows are available yet. */
   void showLoadingSkeleton();
 

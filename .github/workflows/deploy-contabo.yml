@@ -227,7 +227,7 @@ jobs:
                   GCLOUD_SCRAPE_INTERVAL=$gcloud_scrape_interval_q
                 sudo -n --preserve-env=GCLOUD_HOSTED_METRICS_URL,GCLOUD_HOSTED_METRICS_ID,GCLOUD_HOSTED_LOGS_URL,GCLOUD_HOSTED_LOGS_ID,GCLOUD_RW_API_KEY,GCLOUD_SCRAPE_INTERVAL \
                   \"\$incoming/supawave-host/install-grafana-alloy.sh\"
-                export WAVE_LOG_PATH='$remote_root/shared/logs/wave*.log'
+                export WAVE_LOG_PATH='$remote_root/shared/logs/wave-json*.log'
                 sudo -n --preserve-env=GCLOUD_HOSTED_METRICS_URL,GCLOUD_HOSTED_METRICS_ID,GCLOUD_HOSTED_LOGS_URL,GCLOUD_HOSTED_LOGS_ID,GCLOUD_RW_API_KEY,GCLOUD_SCRAPE_INTERVAL,WAVE_LOG_PATH \
                   \"\$incoming/supawave-host/configure-grafana-alloy.sh\"
                 unset GCLOUD_HOSTED_METRICS_URL GCLOUD_HOSTED_METRICS_ID GCLOUD_HOSTED_LOGS_URL GCLOUD_HOSTED_LOGS_ID GCLOUD_RW_API_KEY GCLOUD_SCRAPE_INTERVAL WAVE_LOG_PATH

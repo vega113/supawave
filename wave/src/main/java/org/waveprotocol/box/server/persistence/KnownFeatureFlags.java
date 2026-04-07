@@ -37,6 +37,7 @@ public final class KnownFeatureFlags {
     // wire isEnabled("grafana-log-export") into the Java-side log-export path when added.
     defaults.add(new FeatureFlag("grafana-log-export", "Allow forwarding remote logs to Grafana/Loki pipeline", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("new-blip-indicator", "Show floating pill when new messages arrive below viewport", false, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("mention-unread-badge", "Show unread @mention count badge and next-mention navigation", false, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }
 

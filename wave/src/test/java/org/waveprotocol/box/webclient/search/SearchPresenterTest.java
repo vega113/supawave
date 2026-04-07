@@ -596,6 +596,11 @@ public final class SearchPresenterTest extends TestCase {
     public void setShowMoreVisible(boolean visible) {
     }
 
+    @Override
+    public com.google.gwt.dom.client.Element getPanelRoot() {
+      return null;
+    }
+
     private void setHasVisibleDigests(boolean hasVisibleDigests) {
       firstDigest = hasVisibleDigests ? new FakeDigestView() : null;
     }

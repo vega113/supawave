@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-07-mention-unread-badge",
+  "version": "PR #698",
+  "date": "2026-04-07",
+  "title": "Unread Mentions Badge",
+  "summary": "See at a glance how many waves have unread @mentions of you, and jump to the next one with a single click.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added unread mentions badge on the @ toolbar icon showing count of mentioned waves with unread messages",
+        "Added floating @N navigation button to cycle through waves with unread mentions",
+        "New feature flag: mention-unread-badge (requires mentions-search to also be enabled)"
+      ]
+    }
+  ]
+}

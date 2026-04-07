@@ -74,6 +74,10 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
     String list();
 
     String showMore();
+
+    String mentionBadge();
+
+    String nextMentionButton();
   }
 
   /**
@@ -271,6 +275,11 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
 
   public ToplevelToolbarWidget getToolbar() {
     return toolbar;
+  }
+
+  @Override
+  public com.google.gwt.dom.client.Element getPanelRoot() {
+    return self.getElement();
   }
 
   @Override

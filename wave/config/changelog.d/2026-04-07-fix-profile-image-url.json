@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-07-fix-profile-image-url",
-  "version": "PR #700",
+  "version": "PR #703",
   "date": "2026-04-07",
   "title": "Fix Profile Image URL Construction",
   "summary": "Profile avatars now display correctly for users who have uploaded a custom profile photo.",

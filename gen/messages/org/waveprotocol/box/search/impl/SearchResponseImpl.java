@@ -797,7 +797,7 @@ public class SearchResponseImpl implements SearchResponse {
 
     @Override
     public boolean getPinned() {
-      return pinned;
+      return pinned != null ? pinned : false;
     }
 
     @Override

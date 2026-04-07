@@ -327,7 +327,7 @@ public interface SearchResponse {
     /** Clears the value of pinned. */
     void clearPinned();
 
-    /** Returns pinned, or null if hasn't been set. */
+    /** Returns pinned, or false if hasn't been set. */
     boolean getPinned();
 
     /** Sets pinned. */

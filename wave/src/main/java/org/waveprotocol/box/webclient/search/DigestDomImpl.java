@@ -125,6 +125,7 @@ public final class DigestDomImpl implements DigestView {
     time.setInnerText("");
     msgs.setInnerHTML("");
     self.removeClassName(css.selected());
+    setPinned(false);
   }
 
   @Override

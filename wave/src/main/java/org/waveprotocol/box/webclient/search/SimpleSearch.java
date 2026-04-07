@@ -103,7 +103,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
       staticDigest =
           new DigestSnapshot(getTitle(), getSnippet(), getWaveId(), getAuthor(),
               getParticipantsSnippet(), getLastModifiedTime(), getUnreadCount(), getBlipCount(),
-              isPinned());
+              staticDigest.isPinned());
       dynamicDigest.destroy();
       dynamicDigest = null;
       digestStateMerging.reset();

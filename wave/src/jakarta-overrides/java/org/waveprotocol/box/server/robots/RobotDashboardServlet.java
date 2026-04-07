@@ -521,7 +521,7 @@ public final class RobotDashboardServlet extends HttpServlet {
       LOG.warning("Failed to look up role for top bar in RobotDashboard: " + user.getAddress(), e);
     }
     resp.getWriter().write(renderDashboardPage(user.getAddress(), robotsToRender, message,
-        getOrGenerateXsrfToken(user), baseUrl, revealedSecret, contextPath, userRole));
+        getOrGenerateXsrfToken(user), baseUrl, revealedSecret, contextPath, userRole, statusCode));
   }
 
   private List<RobotAccountData> loadOwnedRobots(String ownerAddress) {
@@ -558,12 +558,12 @@ public final class RobotDashboardServlet extends HttpServlet {
   private String renderDashboardPage(String userAddress, List<RobotAccountData> robots,
       String message, String xsrfToken, String baseUrl, String revealedSecret, String contextPath) {
     return renderDashboardPage(userAddress, robots, message, xsrfToken, baseUrl, revealedSecret,
-        contextPath, null);
+        contextPath, null, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
   }
 
   private String renderDashboardPage(String userAddress, List<RobotAccountData> robots,
       String message, String xsrfToken, String baseUrl, String revealedSecret, String contextPath,
-      String userRole) {
+      String userRole, int statusCode) {
     String safeUser = HtmlRenderer.escapeHtml(userAddress);
     String safeDomain = HtmlRenderer.escapeHtml(domain);
     String safeCtx = HtmlRenderer.escapeHtml(contextPath);
@@ -758,6 +758,19 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("</div>");
     sb.append("<button class=\"btn-p\" onclick=\"openModal()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg> Register New Robot</button>");
     sb.append("</div>");
+
+    // ——— Revealed secret banner (shown once after register/rotate-secret) ———
+    if (!com.google.common.base.Strings.isNullOrEmpty(revealedSecret)) {
+      String safeSecret = HtmlRenderer.escapeHtml(revealedSecret);
+      String masked = maskSecret(revealedSecret);
+      String safeMasked = HtmlRenderer.escapeHtml(masked);
+      sb.append("<div style=\"background:#fff8e1;border:1px solid #ffd54f;border-radius:4px;padding:12px 16px;margin-bottom:16px\">");
+      sb.append("Copy this robot secret now: <strong>").append(safeSecret).append("</strong>");
+      sb.append(" \u2014 this secret will not be shown again.");
+      sb.append("<div style=\"font-size:11px;margin-top:8px\">AI prompt config: <code>SUPAWAVE_ROBOT_SECRET=").append(safeMasked).append("</code></div>");
+      sb.append("</div>");
+    }
+
     // Tabs — 3 tabs, no duplication
     sb.append("<div class=\"tabs\">");
     sb.append("<div class=\"tab on\" data-tab=\"robots\" onclick=\"switchTab('robots')\">My Robots<span class=\"tbadge\" id=\"rcnt\"></span></div>");
@@ -1287,6 +1300,10 @@ public final class RobotDashboardServlet extends HttpServlet {
 
     // Init
     sb.append("loadRobots();");
+    if (!com.google.common.base.Strings.isNullOrEmpty(message)) {
+      String toastType = (statusCode >= 200 && statusCode < 300) ? "ok" : "err";
+      sb.append("toast('").append(escapeJsString(message)).append("','").append(toastType).append("');");
+    }
     sb.append("</script>");
     sb.append(HtmlRenderer.renderSharedTopBarJs(contextPath));
     sb.append("</body></html>");
@@ -1394,6 +1411,29 @@ public final class RobotDashboardServlet extends HttpServlet {
     } catch (Exception e) {
       return defaultVal;
     }
+  }
+
+  private static String escapeJsString(String value) {
+    if (value == null) return "";
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      switch (c) {
+        case '\\': sb.append("\\\\"); break;
+        case '\'': sb.append("\\'"); break;
+        case '\n': sb.append("\\n"); break;
+        case '\r': sb.append("\\r"); break;
+        case '\t': sb.append("\\t"); break;
+        case '<': sb.append("\\x3c"); break;  // Prevents </script> injection
+        default:
+          if (c < 0x20) {
+            sb.append(String.format("\\x%02x", (int) c));
+          } else {
+            sb.append(c);
+          }
+      }
+    }
+    return sb.toString();
   }
 
   private static String escapeJsonValue(String value) {

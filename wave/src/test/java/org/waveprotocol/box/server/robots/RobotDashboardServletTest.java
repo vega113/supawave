@@ -117,7 +117,7 @@ public class RobotDashboardServletTest extends TestCase {
     servlet.doGet(req, resp);
 
     assertTrue(outputWriter.toString().contains("Robot Control Center"));
-    assertTrue(outputWriter.toString().contains("robot-bot@example.com"));
+    // Robot list is loaded via JS API — not server-rendered
     assertTrue(outputWriter.toString().contains("ChatGPT, Claude"));
     assertTrue(outputWriter.toString().contains("SUPAWAVE_MANAGEMENT_TOKEN"));
   }
@@ -130,9 +130,9 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    // Modal contains rotate-secret form and Regenerate Secret button
-    assertTrue(outputWriter.toString().contains("action\" value=\"rotate-secret\""));
-    assertTrue(outputWriter.toString().contains("Regenerate Secret"));
+    // Rotate-secret is invoked via JS — not an HTML form
+    assertTrue(outputWriter.toString().contains("rotateSecret("));
+    assertTrue(outputWriter.toString().contains("Rotate Secret"));
   }
 
   public void testDoGetRendersVerifyControlForOwnedRobotWithCallbackUrl() throws Exception {
@@ -143,11 +143,9 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    // Modal contains verify form and Test Bot button
-    assertTrue(outputWriter.toString().contains("action\" value=\"verify\""));
-    assertTrue(outputWriter.toString().contains("Test Bot"));
-    // Table also has an inline Test button for robots with callback URL
-    assertTrue(outputWriter.toString().contains(">Test</button>"));
+    // Verify is invoked via JS — not an HTML form
+    assertTrue(outputWriter.toString().contains("testBot("));
+    assertTrue(outputWriter.toString().contains("Test Robot"));
     assertTrue(outputWriter.toString().contains("Refresh Capabilities"));
     assertTrue(outputWriter.toString().contains("refreshCaps("));
     assertTrue(outputWriter.toString().contains("/refresh"));
@@ -162,14 +160,12 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    // Modal shows description, masked secret, timestamps, and paused status
-    assertTrue(outputWriter.toString().contains("Dashboard helper"));
-    assertTrue(outputWriter.toString().contains("supe\u2026" + "3456"));
+    // Description, timestamps, and paused status are loaded via JS API — not server-rendered
+    // Security: the full secret must never appear in the page HTML
     assertFalse(outputWriter.toString().contains("super-secret-token-123456"));
+    // Security: revealed-secret banner must not appear on a regular GET (no revealedSecret param)
     assertFalse(outputWriter.toString().contains("Copy this robot secret now"));
-    assertTrue(outputWriter.toString().contains("Paused"));
-    assertTrue(outputWriter.toString().contains("1970-01-01T00:00:00.111Z"));
-    assertTrue(outputWriter.toString().contains("1970-01-01T00:00:00.222Z"));
+    assertTrue(outputWriter.toString().contains("Robot Control Center"));
   }
 
   public void testDoGetRendersModalWithCorrectId() throws Exception {
@@ -180,11 +176,10 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    // Modal ID is derived from robot address
-    String modalId = "robot-bot_at_example_dot_com";
-    assertTrue(outputWriter.toString().contains("id=\"modal-" + modalId + "\""));
-    assertTrue(outputWriter.toString().contains("openModal('" + modalId + "')"));
-    assertTrue(outputWriter.toString().contains("closeModal('" + modalId + "')"));
+    // There is a single shared registration modal (no per-robot modals)
+    assertTrue(outputWriter.toString().contains("id=\"reg-modal\""));
+    assertTrue(outputWriter.toString().contains("openModal()"));
+    assertTrue(outputWriter.toString().contains("closeModal()"));
   }
 
   public void testDoGetRendersEditButtonAsModalOpener() throws Exception {
@@ -194,8 +189,8 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    // Edit button opens modal, not a separate page
-    assertTrue(outputWriter.toString().contains("openModal('robot-bot_at_example_dot_com')"));
+    // Register button opens the shared modal; robot editing is inline in JS-rendered content
+    assertTrue(outputWriter.toString().contains("openModal()"));
     assertFalse(outputWriter.toString().contains("?edit="));
   }
 
@@ -207,8 +202,9 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_BASE_URL=http://localhost:9898"));
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_API_DOCS_URL=http://localhost:9898/api-docs"));
+    // BASE variable is set server-side; the prompt template references it via JS concatenation
+    assertTrue(outputWriter.toString().contains("BASE='http://localhost:9898'"));
+    assertTrue(outputWriter.toString().contains("SUPAWAVE_LLM_DOCS_URL="));
   }
 
   public void testDoGetUsesTrustedIpv6LoopbackOriginInAiPrompt() throws Exception {
@@ -219,8 +215,8 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_BASE_URL=http://[::1]:9898"));
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_API_DOCS_URL=http://[::1]:9898/api-docs"));
+    assertTrue(outputWriter.toString().contains("BASE='http://[::1]:9898'"));
+    assertTrue(outputWriter.toString().contains("SUPAWAVE_LLM_DOCS_URL="));
   }
 
   public void testDoPostRejectsMissingXsrfToken() throws Exception {
@@ -262,8 +258,8 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_BASE_URL=https://example.com"));
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_API_DOCS_URL=https://example.com/api-docs"));
+    assertTrue(outputWriter.toString().contains("BASE='https://example.com'"));
+    assertTrue(outputWriter.toString().contains("SUPAWAVE_LLM_DOCS_URL="));
   }
 
   public void testDoGetDefaultsPublicPromptUrlsToHttpsWithoutForwardedProto() throws Exception {
@@ -275,8 +271,8 @@ public class RobotDashboardServletTest extends TestCase {
 
     servlet.doGet(req, resp);
 
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_BASE_URL=https://example.com"));
-    assertTrue(outputWriter.toString().contains("SUPAWAVE_API_DOCS_URL=https://example.com/api-docs"));
+    assertTrue(outputWriter.toString().contains("BASE='https://example.com'"));
+    assertTrue(outputWriter.toString().contains("SUPAWAVE_LLM_DOCS_URL="));
   }
 
   public void testDoPostRejectsCallbackUpdateFromDifferentOwner() throws Exception {
@@ -361,8 +357,8 @@ public class RobotDashboardServletTest extends TestCase {
 
     verify(robotRegistrar).registerOrUpdate(ROBOT, "https://robot.example.com/callback",
         OWNER.getAddress());
-    assertTrue(outputWriter.toString().contains("https://robot.example.com/callback"));
-    assertTrue(outputWriter.toString().contains("se\u2026et"));
+    // Callback URL is in the toast message, not in the robot list (JS-loaded)
+    assertTrue(outputWriter.toString().contains("Callback URL updated for"));
     assertFalse(outputWriter.toString().contains("SUPAWAVE_ROBOT_SECRET=secret"));
   }
 
@@ -386,7 +382,8 @@ public class RobotDashboardServletTest extends TestCase {
     servlet.doPost(req, resp);
 
     verify(robotRegistrar).updateDescription(ROBOT, "New dashboard description");
-    assertTrue(outputWriter.toString().contains("New dashboard description"));
+    // Description appears in the toast message (robot list is JS-loaded)
+    assertTrue(outputWriter.toString().contains("Description updated for"));
   }
 
   public void testDoPostTogglesPauseForOwnedRobot() throws Exception {

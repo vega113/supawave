@@ -126,6 +126,8 @@ public class ServerRpcProvider {
     private final java.util.List<PendingServlet> pendingServlets = new java.util.ArrayList<>();
     private final java.util.List<PendingFilter> pendingFilters = new java.util.ArrayList<>();
     private final String[] resourceBases;
+    /** Addresses supplied via constructor; used as fallback when config has no http_frontend_addresses. */
+    private final InetSocketAddress[] constructorHttpAddresses;
 
     public ServerRpcProvider(InetSocketAddress[] httpAddresses,
                              String[] resourceBases, Executor threadPool,
@@ -134,6 +136,7 @@ public class ServerRpcProvider {
                              boolean sslEnabled, String sslKeystorePath, String sslKeystorePassword,
                              boolean enableForwardedHeaders) {
         this.config = null;
+        this.constructorHttpAddresses = httpAddresses != null ? java.util.Arrays.copyOf(httpAddresses, httpAddresses.length) : null;
         this.threadPool = threadPool;
         this.sessionManager = sessionManager;
         this.sessionHandler = sessionHandler;
@@ -149,6 +152,7 @@ public class ServerRpcProvider {
                              boolean sslEnabled, String sslKeystorePath, String sslKeystorePassword,
                              Executor executor) {
         this.config = null;
+        this.constructorHttpAddresses = httpAddresses != null ? java.util.Arrays.copyOf(httpAddresses, httpAddresses.length) : null;
         this.threadPool = executor;
         this.sessionManager = sessionManager;
         this.sessionHandler = sessionHandler;
@@ -163,6 +167,7 @@ public class ServerRpcProvider {
                              SessionManager sessionManager, SessionHandler sessionHandler,
                              @org.waveprotocol.box.server.executor.ExecutorAnnotations.ClientServerExecutor Executor executorService) {
         this.config = config;
+        this.constructorHttpAddresses = null;
         this.sessionHandler = sessionHandler;
         this.sessionManager = sessionManager;
         this.threadPool = executorService;
@@ -427,6 +432,14 @@ public class ServerRpcProvider {
             }
             java.util.List<String> invalidAddrs = new java.util.ArrayList<>();
             java.util.List<InetSocketAddress> validAddrs = new java.util.ArrayList<>();
+            // Prefer constructor-supplied addresses when config has no http_frontend_addresses.
+            if (constructorHttpAddresses != null && constructorHttpAddresses.length > 0
+                    && (config == null || !config.hasPath("core.http_frontend_addresses"))) {
+                for (InetSocketAddress addr : constructorHttpAddresses) {
+                    if (addr != null) validAddrs.add(addr);
+                }
+            }
+            if (validAddrs.isEmpty()) {
             List<String> addrs = (config != null && config.hasPath("core.http_frontend_addresses"))
                     ? config.getStringList("core.http_frontend_addresses")
                     : java.util.Collections.singletonList("127.0.0.1:9898");
@@ -463,6 +476,7 @@ public class ServerRpcProvider {
                     validAddrs.add(new InetSocketAddress("127.0.0.1", 9898));
                 }
             }
+            } // end if (validAddrs.isEmpty()) for config-based parsing
 
             List<Connector> boundConnectors = buildConnectors(httpServer,
                     validAddrs.toArray(new InetSocketAddress[0]),

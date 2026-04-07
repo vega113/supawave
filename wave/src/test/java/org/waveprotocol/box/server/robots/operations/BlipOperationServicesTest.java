@@ -302,13 +302,13 @@ public class BlipOperationServicesTest extends RobotsTestBase {
     Document doc = rootBlip.getContent();
     Doc.E lastLine = DocHelper.getLastElementWithTagName(doc, LineContainers.LINE_TAGNAME);
     int lastLineLocation = doc.getLocation(Point.after(doc, lastLine));
-    ObservableConversationBlip firstInlineBlip =
-        rootBlip.addReplyThread(lastLineLocation).appendBlip();
+    ObservableConversationThread firstInlineThread = rootBlip.addReplyThread(lastLineLocation);
+    ObservableConversationBlip firstInlineBlip = firstInlineThread.appendBlip();
 
     // Append the inline blip to the root blip
     String rootBlipId = ConversationUtil.getRootBlipId(conversation);
     Element inlineBlipElement = new Element(ElementType.INLINE_BLIP);
-    inlineBlipElement.setProperty("id", firstInlineBlip.getId());
+    inlineBlipElement.setProperty("id", firstInlineThread.getId());
     OperationRequest operation = operationRequest(
         OperationType.DOCUMENT_INSERT_INLINE_BLIP_AFTER_ELEMENT, rootBlipId,
         Parameter.of(ParamsProperty.BLIP_DATA, blipData),

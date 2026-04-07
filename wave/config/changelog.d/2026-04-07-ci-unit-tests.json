@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-07-ci-unit-tests",
+  "version": "PR #700",
+  "date": "2026-04-07",
+  "title": "CI: Unit Tests in PR Build Pipeline",
+  "summary": "Unit tests now run automatically on every pull request, catching regressions before merge.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added sbt unit test execution to the GitHub Actions PR build pipeline",
+        "Test/update step retries up to 3 times to avoid transient dependency resolution failures"
+      ]
+    }
+  ]
+}

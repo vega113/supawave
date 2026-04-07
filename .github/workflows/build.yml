@@ -95,6 +95,23 @@ jobs:
             fi
           done
 
+      - name: Run Unit Tests
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Pre-resolving Test-scoped dependencies (attempt $attempt/3)"
+            if sbt --batch Test/update; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Failed to resolve Test-scoped dependencies after 3 attempts"
+              exit 1
+            fi
+            echo "Transient failure while resolving Test-scoped dependencies; retrying in 30s"
+            sleep 30
+          done
+          sbt --batch test
+
       - name: GWT compilation check
         run: sbt --batch compileGwt
 

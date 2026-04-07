@@ -7,6 +7,9 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   check-changelog:
     name: Require changelog fragment

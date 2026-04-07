@@ -352,11 +352,15 @@ public class StaleAnnotationSweeper {
             companion.key, companion.oldValue, null));
         ops.add(new AnnotationOp(companion.end, AnnotationOp.Kind.END, companion.key, null, null));
       }
-      // Sort by position; at equal positions emit END before CHANGE (Wave spec requirement).
+      // Sort by position; at equal positions emit END before CHANGE; within same position+kind
+      // sort by key so DocOpAutomaton.checkAnnotationBoundary sees strictly monotonic key order.
       ops.sort((a, b) -> {
         int cmp = Integer.compare(a.position, b.position);
         if (cmp != 0) return cmp;
-        return (a.kind == AnnotationOp.Kind.END ? 0 : 1) - (b.kind == AnnotationOp.Kind.END ? 0 : 1);
+        int kindCmp = (a.kind == AnnotationOp.Kind.END ? 0 : 1)
+            - (b.kind == AnnotationOp.Kind.END ? 0 : 1);
+        if (kindCmp != 0) return kindCmp;
+        return a.key.compareTo(b.key);
       });
 
       // Walk sorted events and build one DocOp covering the entire document.

@@ -133,7 +133,6 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   @UiField SpanElement exPinnedCreator;
   @UiField SpanElement exCreatorArchive;
   @UiField SpanElement exMentionsUnread;
-  @UiField SpanElement exMentionsAll;
   @UiField
   Element mentionsFilterRow;
 
@@ -233,7 +232,6 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     wireExample(exPinnedCreator);
     wireExample(exCreatorArchive);
     wireExample(exMentionsUnread);
-    wireExample(exMentionsAll);
   }
 
   /** Stacks help columns vertically on narrow viewports (≤600 px). */
@@ -287,7 +285,6 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
     mentionsFilterRow.getStyle().setProperty("display", visible ? "table-row" : "none");
     exMentions.getStyle().setProperty("display", visible ? "inline-block" : "none");
     exMentionsUnread.getStyle().setProperty("display", visible ? "inline-block" : "none");
-    exMentionsAll.getStyle().setProperty("display", visible ? "inline-block" : "none");
   }
 
   @Override

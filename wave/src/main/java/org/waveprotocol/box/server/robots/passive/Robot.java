@@ -312,6 +312,7 @@ public class Robot implements Runnable {
     List<OperationRequest> response =
         connector.sendMessageBundle(messages, this, capabilities.getProtocolVersion());
     LOG.info(robotName + ": received operations");
+    gateway.touchLastActive(this);
 
     operationApplicator.applyOperations(
         response, wavelet.getSnapshotAfterDeltas(), wavelet.getVersionAfterDeltas(), currentAccount);

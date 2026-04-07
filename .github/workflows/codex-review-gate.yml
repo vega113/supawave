@@ -125,7 +125,7 @@ jobs:
                 owner,
                 repo,
                 issue_number: pullRequestSummary.number,
-                body: "/codex-review-gate\n\nScheduled reevaluation after the 5-minute review window.",
+                body: "/codex-review-gate\n\nScheduled reevaluation on the next run after the 10-minute review window elapses.",
               });
             }
 

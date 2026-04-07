@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-07-review-gate-quiet-window",
+  "version": "PR #706",
+  "date": "2026-04-07",
+  "title": "Review Gate Quiet Window Extended to 10 Minutes",
+  "summary": "Increased the Codex review gate quiet window from 5 minutes to 10 minutes to prevent post-merge review bot comments from being missed.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Extended REVIEW_WINDOW_MS from 5 minutes to 10 minutes in the codex review gate script to ensure review bot comments arriving shortly after merge are captured",
+        "Updated all user-facing messages, test constants, and workflow comments to reflect the new 10-minute window"
+      ]
+    }
+  ]
+}

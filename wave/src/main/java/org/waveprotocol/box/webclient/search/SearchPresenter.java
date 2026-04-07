@@ -648,13 +648,39 @@ public final class SearchPresenter
   }
 
   /**
-   * Updates the mention red dot indicator to reflect whether there are unread mentions.
+   * Updates the mention red dot indicator and refreshes per-wave mention badges
+   * on currently rendered digests so they clear after the user reads a wave.
    */
   private void updateMentionBadge(int count) {
     if (mentionBadgeEl != null) {
       mentionBadgeEl.getStyle().setDisplay(count > 0
           ? com.google.gwt.dom.client.Style.Display.BLOCK
           : com.google.gwt.dom.client.Style.Display.NONE);
+    }
+    refreshPerWaveMentionBadges();
+  }
+
+  /**
+   * Walks all currently rendered digest views and updates their per-wave
+   * mention counts from the tracker. Called on every tracker poll so badges
+   * clear once the user reads the mentioned blip.
+   */
+  private void refreshPerWaveMentionBadges() {
+    if (mentionTracker == null) {
+      return;
+    }
+    boolean isMentionQuery = queryText != null && queryText.contains("mentions:");
+    if (!isMentionQuery) {
+      return;
+    }
+    DigestView view = searchUi.getFirst();
+    while (view != null) {
+      Digest d = digestUis.get(view);
+      if (d != null) {
+        int mentionCount = mentionTracker.getUnreadCountForWave(d.getWaveId());
+        view.setMentionCount(mentionCount);
+      }
+      view = searchUi.getNext(view);
     }
   }
 

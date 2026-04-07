@@ -434,7 +434,7 @@ public final class ProfileServlet extends HttpServlet {
 
   private String resolveImageUrl(HumanAccountData account) {
     String profileImageId = account.getProfileImageAttachmentId();
-    if (profileImageId != null && !profileImageId.trim().isEmpty()) {
+    if (profileImageId != null && profileImageId.trim().startsWith("data:")) {
       // We always return the proxy URL instead of the raw data URL.
       // This ensures the image is served as a proper binary file,
       // which is more compatible with UI components and better for caching.

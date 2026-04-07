@@ -27,6 +27,7 @@ import org.waveprotocol.box.webclient.folder.FolderOperationServiceImpl;
 import org.waveprotocol.wave.client.debug.logger.DomLogger;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusBlipSelector;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFramePresenter;
+import org.waveprotocol.wave.client.wavepanel.impl.focus.MentionFocusOrder;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.ViewTraverser;
 import org.waveprotocol.wave.client.wavepanel.impl.reader.Reader;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.i18n.ToolbarMessages;
@@ -40,6 +41,7 @@ import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
 import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.model.conversation.ConversationView;
 import org.waveprotocol.wave.model.id.WaveId;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 
 /**
  * Attaches actions that can be performed in a Wave's "view mode" to a toolbar.
@@ -63,6 +65,7 @@ public final class ViewToolbar {
   private final Reader reader;
   private final WaveId waveId;
   private final FolderOperationService folderService;
+  private final MentionFocusOrder mentionFocusOrder;
 
   /** Listener for the history toolbar button. */
   private ToolbarClickButton.Listener historyButtonListener;
@@ -81,13 +84,15 @@ public final class ViewToolbar {
 
   private ViewToolbar(ToplevelToolbarWidget toolbarUi, FocusFramePresenter focusFrame,
       ModelAsViewProvider views, ConversationView wave, Reader reader, WaveId waveId,
-      boolean initiallyPinned) {
+      boolean initiallyPinned, ParticipantId signedInUser) {
     this.toolbarUi = toolbarUi;
     this.focusFrame = focusFrame;
     this.reader = reader;
     this.waveId = waveId;
     this.folderService = new FolderOperationServiceImpl();
     this.pinned = initiallyPinned;
+    this.mentionFocusOrder = signedInUser != null
+        ? new MentionFocusOrder(new ViewTraverser(), views, signedInUser) : null;
     blipSelector = FocusBlipSelector.create(wave, views, reader, new ViewTraverser());
     focusActions = new ViewToolbarFocusActions(new ViewToolbarFocusActions.FocusFrameControl() {
       @Override
@@ -107,18 +112,24 @@ public final class ViewToolbar {
     }, blipSelector, reader);
   }
 
-  public static ViewToolbar create(FocusFramePresenter focus,  ModelAsViewProvider views,
-  ConversationView wave, Reader reader, WaveId waveId, boolean isPinned) {
+  public static ViewToolbar create(FocusFramePresenter focus, ModelAsViewProvider views,
+      ConversationView wave, Reader reader, WaveId waveId, boolean isPinned,
+      ParticipantId signedInUser) {
     return new ViewToolbar(new ToplevelToolbarWidget(), focus, views, wave, reader, waveId,
-        isPinned);
+        isPinned, signedInUser);
+  }
+
+  public static ViewToolbar create(FocusFramePresenter focus, ModelAsViewProvider views,
+      ConversationView wave, Reader reader, WaveId waveId, boolean isPinned) {
+    return create(focus, views, wave, reader, waveId, isPinned, null);
   }
 
   /**
    * Overload for backward compatibility (assumes not pinned).
    */
-  public static ViewToolbar create(FocusFramePresenter focus,  ModelAsViewProvider views,
-  ConversationView wave, Reader reader, WaveId waveId) {
-    return create(focus, views, wave, reader, waveId, false);
+  public static ViewToolbar create(FocusFramePresenter focus, ModelAsViewProvider views,
+      ConversationView wave, Reader reader, WaveId waveId) {
+    return create(focus, views, wave, reader, waveId, false, null);
   }
 
   public void init() {
@@ -139,6 +150,38 @@ public final class ViewToolbar {
             focusActions.focusNextUnread();
           }
         });
+
+    new ToolbarButtonViewBuilder().setText(messages.prevMention()).applyTo(
+        group.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            if (mentionFocusOrder != null) {
+              BlipView current = focusFrame.getFocusedBlip();
+              if (current != null) {
+                BlipView prev = mentionFocusOrder.getPrevious(current);
+                if (prev != null) {
+                  focusFrame.focus(prev);
+                }
+              }
+            }
+          }
+        });
+    new ToolbarButtonViewBuilder().setText(messages.nextMention()).applyTo(
+        group.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            if (mentionFocusOrder != null) {
+              BlipView current = focusFrame.getFocusedBlip();
+              if (current != null) {
+                BlipView next = mentionFocusOrder.getNext(current);
+                if (next != null) {
+                  focusFrame.focus(next);
+                }
+              }
+            }
+          }
+        });
+
     new ToolbarButtonViewBuilder().setText(messages.previous()).applyTo(
         group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
@@ -319,6 +362,25 @@ public final class ViewToolbar {
    */
   public void addClickButton(String iconCss, ToolbarClickButton.Listener listener) {
     new ToolbarButtonViewBuilder().setIcon(iconCss).applyTo(toolbarUi.addClickButton(), listener);
+  }
+
+  /**
+   * Focuses the first blip that mentions the signed-in user, starting from
+   * the currently focused blip (or the root blip if none is focused).
+   */
+  public void focusFirstMention() {
+    if (mentionFocusOrder == null) {
+      return;
+    }
+    BlipView start = focusFrame.getFocusedBlip();
+    if (start == null) {
+      return;
+    }
+    // Try from the very beginning by walking from root
+    BlipView first = mentionFocusOrder.getFirstFrom(blipSelector.getOrFindRootBlip());
+    if (first != null) {
+      focusFrame.focus(first);
+    }
   }
 
   /**

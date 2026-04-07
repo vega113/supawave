@@ -63,6 +63,12 @@ public interface ToolbarMessages extends Messages {
   @DefaultMessage("Version History (H)")
   String historyTooltip();
 
+  @DefaultMessage("Prev @")
+  String prevMention();
+
+  @DefaultMessage("Next @")
+  String nextMention();
+
   @DefaultMessage("Wave pinned")
   String pinConfirmation();
 

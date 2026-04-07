@@ -88,6 +88,7 @@ public class StagesProvider extends Stages {
   private final ContactManager contactManager;
 
   private boolean closed;
+  private boolean pendingMentionFocus;
   private StageOne one;
   private StageTwo two;
   private StageThree three;
@@ -274,6 +275,10 @@ public class StagesProvider extends Stages {
     blipQueue.flush();
     selectAndFocusOnBlip(two.getReader(), two.getModelAsViewProvider(), two.getConversations(),
         one.getFocusFrame(), waveRef);
+    if (pendingMentionFocus) {
+      pendingMentionFocus = false;
+      three.getViewToolbar().focusFirstMention();
+    }
   }
 
   /**
@@ -542,6 +547,14 @@ public class StagesProvider extends Stages {
     if (blipUi != null) {
       focusFrame.focus(blipUi);
     }
+  }
+
+  /**
+   * Sets a flag so that when the wave finishes loading, the focus will
+   * jump to the first blip that mentions the current user.
+   */
+  public void setPendingMentionFocus(boolean pending) {
+    this.pendingMentionFocus = pending;
   }
 
   /**

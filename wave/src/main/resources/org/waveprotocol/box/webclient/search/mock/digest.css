@@ -125,5 +125,16 @@
   font-weight: 600;
 }
 
+.mentionCount {
+  display: inline-block;
+  background-color: #e53e3e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 4px;
+}
+
 /* Note: @media queries are not supported by GWT CssResource; responsive
    overrides for .digest/.inner/.title/.snippet are not applicable here */

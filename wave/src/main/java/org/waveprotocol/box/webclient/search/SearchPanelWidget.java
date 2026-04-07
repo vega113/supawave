@@ -76,8 +76,6 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
     String showMore();
 
     String mentionBadge();
-
-    String nextMentionButton();
   }
 
   /**

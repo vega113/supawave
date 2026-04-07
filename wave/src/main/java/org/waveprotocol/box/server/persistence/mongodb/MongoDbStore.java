@@ -106,6 +106,7 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   private static final String ROBOT_UPDATED_AT_FIELD = "updatedAtMillis";
   private static final String ROBOT_PAUSED_FIELD = "paused";
   private static final String ROBOT_TOKEN_VERSION_FIELD = "tokenVersion";
+  private static final String ROBOT_LAST_ACTIVE_AT_FIELD = "lastActiveAtMillis";
 
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
@@ -323,6 +324,22 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   }
 
   @Override
+  public void updateRobotLastActive(ParticipantId id, long lastActiveAtMillis)
+      throws PersistenceException {
+    try {
+      DBObject query = new BasicDBObject("_id", id.getAddress())
+          .append(ACCOUNT_ROBOT_DATA_FIELD, new BasicDBObject("$exists", true));
+      DBObject update = new BasicDBObject("$set",
+          new BasicDBObject(ACCOUNT_ROBOT_DATA_FIELD + "." + ROBOT_LAST_ACTIVE_AT_FIELD,
+              lastActiveAtMillis));
+      getAccountCollection().update(query, update);
+    } catch (MongoException e) {
+      throw new PersistenceException("Failed to update lastActiveAtMillis for robot "
+          + id.getAddress(), e);
+    }
+  }
+
+  @Override
   public void removeAccount(ParticipantId id) {
     DBObject object = getDBObjectForParticipant(id);
     getAccountCollection().remove(object);
@@ -434,7 +451,8 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
         .append(ROBOT_CREATED_AT_FIELD, account.getCreatedAtMillis())
         .append(ROBOT_UPDATED_AT_FIELD, account.getUpdatedAtMillis())
         .append(ROBOT_PAUSED_FIELD, account.isPaused())
-        .append(ROBOT_TOKEN_VERSION_FIELD, account.getTokenVersion());
+        .append(ROBOT_TOKEN_VERSION_FIELD, account.getTokenVersion())
+        .append(ROBOT_LAST_ACTIVE_AT_FIELD, account.getLastActiveAtMillis());
   }
 
   private DBObject capabilitiesToObject(RobotCapabilities capabilities) {
@@ -480,9 +498,12 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     boolean paused = Boolean.TRUE.equals(robot.get(ROBOT_PAUSED_FIELD));
     Object tokenVersionObj = robot.get(ROBOT_TOKEN_VERSION_FIELD);
     long tokenVersion = tokenVersionObj instanceof Number ? ((Number) tokenVersionObj).longValue() : 0L;
+    Object lastActiveAtObj = robot.get(ROBOT_LAST_ACTIVE_AT_FIELD);
+    long lastActiveAtMillis =
+        lastActiveAtObj instanceof Number ? ((Number) lastActiveAtObj).longValue() : 0L;
     return new RobotAccountDataImpl(id, url, secret, capabilities, verified, tokenExpirySeconds,
         ownerAddress, description != null ? description : "",
-        createdAtMillis, updatedAtMillis, paused, tokenVersion);
+        createdAtMillis, updatedAtMillis, paused, tokenVersion, lastActiveAtMillis);
   }
 
   @SuppressWarnings("unchecked")

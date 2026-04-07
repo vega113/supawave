@@ -40,6 +40,7 @@ import org.waveprotocol.wave.model.operation.OperationException;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.util.logging.Log;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
@@ -312,6 +313,11 @@ public class Robot implements Runnable {
     List<OperationRequest> response =
         connector.sendMessageBundle(messages, this, capabilities.getProtocolVersion());
     LOG.info(robotName + ": received operations");
+    if (response != null) {
+      gateway.touchLastActive(this);
+    } else {
+      response = Collections.emptyList();
+    }
 
     operationApplicator.applyOperations(
         response, wavelet.getSnapshotAfterDeltas(), wavelet.getVersionAfterDeltas(), currentAccount);

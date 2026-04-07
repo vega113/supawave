@@ -292,6 +292,8 @@ public final class RobotApiServlet extends HttpServlet {
       json.append(",\"description\":").append(jv(Strings.nullToEmpty(registered.getDescription())));
       json.append(",\"tokenExpirySeconds\":").append(registered.getTokenExpirySeconds());
       json.append(",\"createdAt\":").append(jv(formatTimestamp(registered.getCreatedAtMillis())));
+      json.append(",\"lastActiveAt\":")
+          .append(jv(formatTimestamp(registered.getLastActiveAtMillis())));
       json.append("}");
       sendJson(resp, 201, json.toString());
     } catch (RobotRegistrationException e) {
@@ -626,6 +628,7 @@ public final class RobotApiServlet extends HttpServlet {
     json.append(",\"verified\":").append(robot.isVerified());
     json.append(",\"createdAt\":").append(jv(formatTimestamp(robot.getCreatedAtMillis())));
     json.append(",\"updatedAt\":").append(jv(formatTimestamp(robot.getUpdatedAtMillis())));
+    json.append(",\"lastActiveAt\":").append(jv(formatTimestamp(robot.getLastActiveAtMillis())));
     if (detailed) {
       json.append(",\"tokenExpirySeconds\":").append(robot.getTokenExpirySeconds());
       json.append(",\"maskedSecret\":").append(jv(maskSecret(robot.getConsumerSecret())));

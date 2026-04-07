@@ -48,7 +48,7 @@ public class RobotConnector implements RobotCapabilityFetcher {
     } catch (InvalidRequestException e) {
       LOG.info("Failed to deserialize passive API response", e);
     }
-    return Collections.emptyList();
+    return null;
   }
 
   @Override
@@ -63,7 +63,8 @@ public class RobotConnector implements RobotCapabilityFetcher {
     return new RobotAccountDataImpl(account.getId(), account.getUrl(), account.getConsumerSecret(),
         capabilities, account.isVerified(), account.getTokenExpirySeconds(),
         account.getOwnerAddress(), account.getDescription(), account.getCreatedAtMillis(),
-        updatedAtMillis, account.isPaused(), account.getTokenVersion());
+        updatedAtMillis, account.isPaused(), account.getTokenVersion(),
+        account.getLastActiveAtMillis());
   }
 
   /**

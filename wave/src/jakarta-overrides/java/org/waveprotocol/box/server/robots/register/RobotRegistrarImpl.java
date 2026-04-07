@@ -245,7 +245,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
         robotAccount.getCreatedAtMillis(),
         clock.millis(),
         paused,
-        tokenVersion);
+        tokenVersion,
+        robotAccount.getLastActiveAtMillis());
     accountStore.putAccount(updated);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updated);
@@ -289,7 +290,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
         robotAccount.getCreatedAtMillis(),
         updatedAtMillis,
         robotAccount.isPaused(),
-        robotAccount.getTokenVersion());
+        robotAccount.getTokenVersion(),
+        robotAccount.getLastActiveAtMillis());
     accountStore.putAccount(updated);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updated);
@@ -319,7 +321,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
         robotAccount.getCreatedAtMillis(),
         clock.millis(),
         robotAccount.isPaused(),
-        robotAccount.getTokenVersion());
+        robotAccount.getTokenVersion(),
+        robotAccount.getLastActiveAtMillis());
     accountStore.putAccount(updated);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updated);
@@ -351,7 +354,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
         robotAccount.getCreatedAtMillis(),
         clock.millis(),
         true,
-        newTokenVersion);
+        newTokenVersion,
+        robotAccount.getLastActiveAtMillis());
     accountStore.putAccount(updated);
     for (Listener listener : listeners) {
       listener.onUnregistrationSuccess(updated);
@@ -385,7 +389,7 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
     boolean verifiedRobot = verified && !robotLocation.isEmpty();
     RobotAccountData robotAccount = new RobotAccountDataImpl(robotId, robotLocation,
         consumerSecret, capabilities, verifiedRobot, tokenExpirySeconds, ownerAddress,
-        description, createdAtMillis, updatedAtMillis, paused);
+        description, createdAtMillis, updatedAtMillis, paused, 0L, 0L);
     accountStore.putAccount(robotAccount);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(robotAccount);
@@ -428,7 +432,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
             createdAtMillis,
             updatedAtMillis,
             paused,
-            existingAccount.getTokenVersion());
+            existingAccount.getTokenVersion(),
+            existingAccount.getLastActiveAtMillis());
     accountStore.putAccount(updatedAccount);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updatedAccount);
@@ -454,7 +459,8 @@ public final class RobotRegistrarImpl implements RobotRegistrar {
             existingAccount.getCreatedAtMillis(),
             clock.millis(),
             existingAccount.isPaused(),
-            newTokenVersion);
+            newTokenVersion,
+            existingAccount.getLastActiveAtMillis());
     accountStore.putAccount(updatedAccount);
     for (Listener listener : listeners) {
       listener.onRegistrationSuccess(updatedAccount);

@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.persistence;
 
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
+import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.List;
@@ -56,6 +57,42 @@ public interface AccountStore {
    * @param account to store.
    */
   void putAccount(AccountData account) throws PersistenceException;
+
+  /**
+   * Updates the robot last-active timestamp for the given account.
+   *
+   * <p>The intent is to update only {@code lastActiveAtMillis} without touching
+   * other account fields. The default implementation performs a non-atomic
+   * read-modify-write via {@link #getAccount} and {@link #putAccount}, which
+   * may overwrite concurrent updates to other fields. Implementations backed
+   * by a database (e.g. MongoDB) should override this with an atomic field-level
+   * update to avoid that race.
+   *
+   * @param id robot participant id.
+   * @param lastActiveAtMillis milliseconds since epoch.
+   */
+  default void updateRobotLastActive(ParticipantId id, long lastActiveAtMillis)
+      throws PersistenceException {
+    AccountData account = getAccount(id);
+    if (account == null || !account.isRobot()) {
+      return;
+    }
+    RobotAccountData current = account.asRobot();
+    putAccount(new RobotAccountDataImpl(
+        current.getId(),
+        current.getUrl(),
+        current.getConsumerSecret(),
+        current.getCapabilities(),
+        current.isVerified(),
+        current.getTokenExpirySeconds(),
+        current.getOwnerAddress(),
+        current.getDescription(),
+        current.getCreatedAtMillis(),
+        current.getUpdatedAtMillis(),
+        current.isPaused(),
+        current.getTokenVersion(),
+        lastActiveAtMillis));
+  }
 
   /**
    * Removes an account from storage.

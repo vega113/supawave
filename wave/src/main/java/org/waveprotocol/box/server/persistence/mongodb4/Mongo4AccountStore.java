@@ -25,8 +25,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static com.mongodb.client.model.Filters.and;
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Filters.exists;
+import static com.mongodb.client.model.Updates.set;
 
 /** MongoDB 4.x AccountStore implementation (human + robot). */
 final class Mongo4AccountStore implements AccountStore {
@@ -68,6 +70,7 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String ROBOT_UPDATED_AT_FIELD = "updatedAtMillis";
   private static final String ROBOT_PAUSED_FIELD = "paused";
   private static final String ROBOT_TOKEN_VERSION_FIELD = "tokenVersion";
+  private static final String ROBOT_LAST_ACTIVE_AT_FIELD = "lastActiveAtMillis";
 
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
@@ -111,6 +114,18 @@ final class Mongo4AccountStore implements AccountStore {
         throw new IllegalStateException("Account is neither human nor robot");
       }
       col.replaceOne(eq("_id", account.getId().getAddress()), doc, new com.mongodb.client.model.ReplaceOptions().upsert(true));
+    } catch (RuntimeException e) {
+      throw new PersistenceException(e);
+    }
+  }
+
+  @Override
+  public void updateRobotLastActive(ParticipantId id, long lastActiveAtMillis)
+      throws PersistenceException {
+    try {
+      col.updateOne(
+          and(eq("_id", id.getAddress()), exists(ACCOUNT_ROBOT_DATA_FIELD)),
+          set(ACCOUNT_ROBOT_DATA_FIELD + "." + ROBOT_LAST_ACTIVE_AT_FIELD, lastActiveAtMillis));
     } catch (RuntimeException e) {
       throw new PersistenceException(e);
     }
@@ -347,7 +362,8 @@ final class Mongo4AccountStore implements AccountStore {
         .append(ROBOT_CREATED_AT_FIELD, account.getCreatedAtMillis())
         .append(ROBOT_UPDATED_AT_FIELD, account.getUpdatedAtMillis())
         .append(ROBOT_PAUSED_FIELD, account.isPaused())
-        .append(ROBOT_TOKEN_VERSION_FIELD, account.getTokenVersion());
+        .append(ROBOT_TOKEN_VERSION_FIELD, account.getTokenVersion())
+        .append(ROBOT_LAST_ACTIVE_AT_FIELD, account.getLastActiveAtMillis());
   }
 
   private static Document capabilitiesToObject(RobotCapabilities caps) {
@@ -380,11 +396,12 @@ final class Mongo4AccountStore implements AccountStore {
     boolean paused = Boolean.TRUE.equals(robot.getBoolean(ROBOT_PAUSED_FIELD));
     Long tokenVer = robot.getLong(ROBOT_TOKEN_VERSION_FIELD);
     long tokenVersion = tokenVer != null ? tokenVer : 0L;
+    Long lastActiveAt = robot.getLong(ROBOT_LAST_ACTIVE_AT_FIELD);
     return new RobotAccountDataImpl(id, url, secret, caps, verified, tokenExpirySeconds,
         ownerAddress, description != null ? description : "",
         createdAt != null ? createdAt : 0L,
         updatedAt != null ? updatedAt : 0L,
-        paused, tokenVersion);
+        paused, tokenVersion, lastActiveAt != null ? lastActiveAt : 0L);
   }
 
   private static RobotCapabilities objectToCapabilities(Document obj) {

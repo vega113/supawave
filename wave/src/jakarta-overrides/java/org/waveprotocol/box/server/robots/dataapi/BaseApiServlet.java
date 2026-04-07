@@ -92,9 +92,9 @@ public abstract class BaseApiServlet extends HttpServlet {
    * @param participant the authenticated participant
    * @param tokenScopes the scopes granted by the caller's JWT token
    */
-  protected final void processOpsRequest(HttpServletRequest req, HttpServletResponse resp,
-                                         ParticipantId participant,
-                                         Set<String> tokenScopes) throws IOException {
+  protected final boolean processOpsRequest(HttpServletRequest req, HttpServletResponse resp,
+                                            ParticipantId participant,
+                                            Set<String> tokenScopes) throws IOException {
     String apiRequest;
     try {
       BufferedReader reader = req.getReader();
@@ -116,7 +116,7 @@ public abstract class BaseApiServlet extends HttpServlet {
           + apiRequest.length() + ")");
       resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
           "Unable to parse Json to list of OperationRequests");
-      return;
+      return false;
     }
 
     // Enforce per-operation scope checks before executing any operation.
@@ -127,7 +127,7 @@ public abstract class BaseApiServlet extends HttpServlet {
             + " (opType=" + opType + ") with token scopes " + tokenScopes);
         resp.sendError(HttpServletResponse.SC_FORBIDDEN,
             "Insufficient scopes for operation: " + operation.getMethod());
-        return;
+        return false;
       }
     }
 
@@ -137,6 +137,7 @@ public abstract class BaseApiServlet extends HttpServlet {
 
     executeOperations(context, requestOperations, participant);
     handleResults(context, resp, requestOperations, version);
+    return true;
   }
 
   /**

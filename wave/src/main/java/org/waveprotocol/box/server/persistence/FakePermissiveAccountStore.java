@@ -21,6 +21,8 @@ package org.waveprotocol.box.server.persistence;
 
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
+import org.waveprotocol.box.server.account.RobotAccountData;
+import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -59,6 +61,31 @@ public class FakePermissiveAccountStore implements AccountStore {
   @Override
   public void putAccount(AccountData account) {
     accounts.put(account.getId(), account);
+  }
+
+  @Override
+  public void updateRobotLastActive(ParticipantId id, long lastActiveAtMillis) {
+    synchronized (accounts) {
+      AccountData account = accounts.get(id);
+      if (account == null || !account.isRobot()) {
+        return;
+      }
+      RobotAccountData current = account.asRobot();
+      accounts.put(id, new RobotAccountDataImpl(
+          current.getId(),
+          current.getUrl(),
+          current.getConsumerSecret(),
+          current.getCapabilities(),
+          current.isVerified(),
+          current.getTokenExpirySeconds(),
+          current.getOwnerAddress(),
+          current.getDescription(),
+          current.getCreatedAtMillis(),
+          current.getUpdatedAtMillis(),
+          current.isPaused(),
+          current.getTokenVersion(),
+          lastActiveAtMillis));
+    }
   }
 
   @Override

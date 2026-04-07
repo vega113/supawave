@@ -42,6 +42,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   private final boolean paused;
   private final String ownerAddress;
   private final long tokenVersion;
+  private final long lastActiveAtMillis;
 
   /**
    * Creates a new {@link RobotAccountData} with default token expiry (0 = no expiry).
@@ -59,7 +60,8 @@ public final class RobotAccountDataImpl implements RobotAccountData {
    */
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
       RobotCapabilities capabilities, boolean isVerified) {
-    this(id, url, consumerSecret, capabilities, isVerified, 0L, null, "", 0L, 0L, false);
+    this(id, url, consumerSecret, capabilities, isVerified, 0L, null, "", 0L, 0L, false, 0L,
+        0L);
   }
 
   /**
@@ -77,14 +79,14 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
       RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds) {
     this(id, url, consumerSecret, capabilities, isVerified, tokenExpirySeconds, null, "", 0L,
-        0L, false);
+        0L, false, 0L, 0L);
   }
 
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
       RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds,
       String ownerAddress) {
     this(id, url, consumerSecret, capabilities, isVerified, tokenExpirySeconds, ownerAddress, "",
-        0L, 0L, false);
+        0L, 0L, false, 0L, 0L);
   }
 
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
@@ -92,13 +94,21 @@ public final class RobotAccountDataImpl implements RobotAccountData {
       String ownerAddress, String description, long createdAtMillis, long updatedAtMillis,
       boolean paused) {
     this(id, url, consumerSecret, capabilities, isVerified, tokenExpirySeconds, ownerAddress,
-        description, createdAtMillis, updatedAtMillis, paused, 0L);
+        description, createdAtMillis, updatedAtMillis, paused, 0L, 0L);
   }
 
   public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
       RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds,
       String ownerAddress, String description, long createdAtMillis, long updatedAtMillis,
       boolean paused, long tokenVersion) {
+    this(id, url, consumerSecret, capabilities, isVerified, tokenExpirySeconds, ownerAddress,
+        description, createdAtMillis, updatedAtMillis, paused, tokenVersion, 0L);
+  }
+
+  public RobotAccountDataImpl(ParticipantId id, String url, String consumerSecret,
+      RobotCapabilities capabilities, boolean isVerified, long tokenExpirySeconds,
+      String ownerAddress, String description, long createdAtMillis, long updatedAtMillis,
+      boolean paused, long tokenVersion, long lastActiveAtMillis) {
     Preconditions.checkNotNull(id, "Id can not be null");
     Preconditions.checkNotNull(url, "Url can not be null");
     Preconditions.checkNotNull(consumerSecret, "Consumer secret can not be null");
@@ -116,6 +126,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     this.paused = paused;
     this.ownerAddress = ownerAddress;
     this.tokenVersion = tokenVersion;
+    this.lastActiveAtMillis = lastActiveAtMillis;
   }
 
   @Override
@@ -199,6 +210,11 @@ public final class RobotAccountDataImpl implements RobotAccountData {
   }
 
   @Override
+  public long getLastActiveAtMillis() {
+    return lastActiveAtMillis;
+  }
+
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
@@ -214,6 +230,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     result = prime * result + ((url == null) ? 0 : url.hashCode());
     result = prime * result + Long.hashCode(tokenExpirySeconds);
     result = prime * result + Long.hashCode(tokenVersion);
+    result = prime * result + Long.hashCode(lastActiveAtMillis);
     return result;
   }
 
@@ -289,6 +306,9 @@ public final class RobotAccountDataImpl implements RobotAccountData {
     if (tokenVersion != other.tokenVersion) {
       return false;
     }
+    if (lastActiveAtMillis != other.lastActiveAtMillis) {
+      return false;
+    }
     return true;
   }
 
@@ -306,6 +326,7 @@ public final class RobotAccountDataImpl implements RobotAccountData {
         ",paused=" + paused +
 	",ownerAddress=<redacted>" +
 	",tokenExpirySeconds=" + tokenExpirySeconds +
-	",tokenVersion=" + tokenVersion + "]";
+	",tokenVersion=" + tokenVersion +
+        ",lastActiveAtMillis=" + lastActiveAtMillis + "]";
   }
 }

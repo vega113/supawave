@@ -85,7 +85,7 @@ public class ProtoAccountDataSerializerTest extends TestCase {
             capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true);
     robotAccountWithMetadata = new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret",
         new RobotCapabilities(capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true, 3600L,
-        "owner@example.com", "A helpful robot", 123456L, 234567L, true);
+        "owner@example.com", "A helpful robot", 123456L, 234567L, true, 0L, 345678L);
 
     humanAccount = new HumanAccountDataImpl(HUMAN_ID);
     humanAccountWithDigest = new HumanAccountDataImpl(HUMAN_ID,
@@ -189,5 +189,18 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     assertEquals(0L, robot.getCreatedAtMillis());
     assertEquals(0L, robot.getUpdatedAtMillis());
     assertFalse(robot.isPaused());
+  }
+
+  public final void testRobotAccountWithLastActiveAtMillis() {
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccountWithMetadata);
+    AccountData account = ProtoAccountDataSerializer.deserialize(data);
+    assertTrue(account.isRobot());
+    assertEquals(345678L, account.asRobot().getLastActiveAtMillis());
+  }
+
+  public final void testRobotAccountLastActiveLegacyDefaultsToZero() {
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccount);
+    AccountData account = ProtoAccountDataSerializer.deserialize(data);
+    assertEquals(0L, account.asRobot().getLastActiveAtMillis());
   }
 }

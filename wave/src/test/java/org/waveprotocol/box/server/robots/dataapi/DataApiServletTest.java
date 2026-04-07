@@ -20,15 +20,14 @@
 package org.waveprotocol.box.server.robots.dataapi;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Maps;
 import com.google.wave.api.OperationRequest;
 import com.google.wave.api.OperationType;
 import com.google.wave.api.ProtocolVersion;
@@ -38,8 +37,11 @@ import com.google.wave.api.data.converter.EventDataConverterManager;
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.server.authentication.jwt.JwtAudience;
+import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
+import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
+import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.robots.OperationContext;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.operations.OperationService;
@@ -54,7 +56,6 @@ import java.io.StringWriter;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -76,6 +77,8 @@ public class DataApiServletTest extends TestCase {
   private OperationServiceRegistry operationRegistry;
   private DataApiServlet servlet;
   private JwtRequestAuthenticator jwtAuthenticator;
+  private JwtKeyRing keyRing;
+  private AccountStore accountStore;
   private HttpServletRequest req;
   private HttpServletResponse resp;
   private StringWriter stringWriter;
@@ -88,6 +91,8 @@ public class DataApiServletTest extends TestCase {
     operationRegistry = mock(OperationServiceRegistry.class);
     ConversationUtil conversationUtil = mock(ConversationUtil.class);
     jwtAuthenticator = mock(JwtRequestAuthenticator.class);
+    keyRing = mock(JwtKeyRing.class);
+    accountStore = mock(AccountStore.class);
 
     req = mock(HttpServletRequest.class);
     when(req.getRequestURL()).thenReturn(new StringBuffer("www.example.com"));
@@ -102,7 +107,7 @@ public class DataApiServletTest extends TestCase {
 
     servlet =
         new DataApiServlet(robotSerializer, converterManager, waveletProvider, operationRegistry,
-            conversationUtil, jwtAuthenticator);
+            conversationUtil, jwtAuthenticator, keyRing, accountStore);
   }
 
   public void testDoPostExecutesAndWritesResponse() throws Exception {
@@ -131,35 +136,24 @@ public class DataApiServletTest extends TestCase {
         stringWriter.toString());
   }
 
-
   public void testDoPostUnauthorizedWhenMissingToken() throws Exception {
-    servlet.doPost(req, resp);
-    Map<String, String[]> emptyMap = Collections.emptyMap();
-    when(req.getParameterMap()).thenReturn(emptyMap);
-
-    verify(resp).sendError(eq(HttpServletResponse.SC_UNAUTHORIZED), anyString());
-  }
-
-  public void testDoPostUnauthorizedWhenValidationFails() throws Exception {
-    doThrow(new OAuthException("")).when(validator).validateMessage(
-        any(OAuthMessage.class), any(OAuthAccessor.class));
-    Map<String, String[]> params = getOAuthParams();
-    when(req.getParameterMap()).thenReturn(params);
+    when(req.getHeader("Authorization")).thenReturn(null);
+    doThrow(new JwtValidationException("Missing token"))
+        .when(jwtAuthenticator).authenticateAndExtractScopes(
+            isNull(), eq(JwtTokenType.DATA_API_ACCESS), eq(JwtAudience.DATA_API));
 
     servlet.doPost(req, resp);
 
-    verify(validator).validateMessage(any(OAuthMessage.class), any(OAuthAccessor.class));
     verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
   }
 
-  /** Sets the list of parameters needed to test exchanging a request token */
-  private Map<String, String[]> getOAuthParams() throws Exception {
-    OAuthAccessor requestAccessor = tokenContainer.generateRequestToken(consumer);
-    tokenContainer.authorizeRequestToken(requestAccessor.requestToken, ALEX);
-    OAuthAccessor authorizedAccessor =
-        tokenContainer.generateAccessToken(requestAccessor.requestToken);
-    Map<String, String[]> params = Maps.newHashMap();
-    params.put(OAuth.OAUTH_TOKEN, new String[] {authorizedAccessor.accessToken});
-    return params;
+  public void testDoPostUnauthorizedWhenValidationFails() throws Exception {
+    doThrow(new JwtValidationException("Invalid token"))
+        .when(jwtAuthenticator).authenticateAndExtractScopes(
+            anyString(), eq(JwtTokenType.DATA_API_ACCESS), eq(JwtAudience.DATA_API));
+
+    servlet.doPost(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
   }
 }

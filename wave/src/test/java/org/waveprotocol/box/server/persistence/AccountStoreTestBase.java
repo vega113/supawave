@@ -81,7 +81,7 @@ public abstract class AccountStoreTestBase extends TestCase {
             capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true);
     robotAccountWithMetadata = new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret",
         new RobotCapabilities(capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true, 3600L,
-        "owner@example.com", "robot description", 111L, 222L, true);
+        "owner@example.com", "robot description", 111L, 222L, true, 0L, 333L);
     convertedRobot = new HumanAccountDataImpl(ROBOT_ID);
   }
 
@@ -125,6 +125,21 @@ public abstract class AccountStoreTestBase extends TestCase {
     assertEquals(111L, retrievedAccount.getCreatedAtMillis());
     assertEquals(222L, retrievedAccount.getUpdatedAtMillis());
     assertTrue(retrievedAccount.isPaused());
+    assertEquals(333L, retrievedAccount.getLastActiveAtMillis());
+  }
+
+  public final void testUpdateRobotLastActivePreservesOtherFields() throws Exception {
+    AccountStore accountStore = newAccountStore();
+
+    accountStore.putAccount(robotAccountWithMetadata);
+    accountStore.updateRobotLastActive(ROBOT_ID, 444L);
+
+    RobotAccountData retrievedAccount = accountStore.getAccount(ROBOT_ID).asRobot();
+    assertEquals("robot description", retrievedAccount.getDescription());
+    assertEquals(111L, retrievedAccount.getCreatedAtMillis());
+    assertEquals(222L, retrievedAccount.getUpdatedAtMillis());
+    assertTrue(retrievedAccount.isPaused());
+    assertEquals(444L, retrievedAccount.getLastActiveAtMillis());
   }
 
   public final void testGetMissingAccountReturnsNull() throws Exception {

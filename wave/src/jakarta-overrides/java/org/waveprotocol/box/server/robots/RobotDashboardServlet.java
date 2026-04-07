@@ -457,7 +457,8 @@ public final class RobotDashboardServlet extends HttpServlet {
         refreshedRobot.getCreatedAtMillis(),
         clock.millis(),
         refreshedRobot.isPaused(),
-        refreshedRobot.getTokenVersion());
+        refreshedRobot.getTokenVersion(),
+        refreshedRobot.getLastActiveAtMillis());
     accountStore.putAccount(verifiedRobot);
     return verifiedRobot;
   }
@@ -1001,6 +1002,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("var updated=r.updatedAt?timeAgo(r.updatedAt):'--';");
     sb.append("var created=r.createdAt?shortDate(r.createdAt):'--';");
     sb.append("var expiry=r.tokenExpirySeconds===0||r.tokenExpirySeconds>=3153600000?'Never':r.tokenExpirySeconds+'s';");
+    sb.append("var lastActive=r.lastActiveAt?timeAgo(r.lastActiveAt):'\\u2014';");
     // Collapsed summary row
     sb.append("h+='<div class=\"ri\">';");
     sb.append("h+='<div class=\"rh\" onclick=\"tog(this)\">';");
@@ -1017,10 +1019,11 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("h+='<div class=\"fg\"><label class=\"fl\">Description</label><div style=\"display:flex;gap:4px\"><input class=\"ied\" id=\"desc-'+i+'\" value=\"'+escAttr(r.description||'')+'\" placeholder=\"What does this bot do?\" style=\"max-width:none;flex:1\" /><button class=\"btn-icon\" onclick=\"saveDesc('+i+')\" title=\"Save\">'+ICO.save+'</button></div></div>';");
     sb.append("h+='<div class=\"fg\"><label class=\"fl\">Callback URL</label><div style=\"display:flex;gap:4px\"><input class=\"ied\" id=\"url-'+i+'\" value=\"'+escAttr(r.callbackUrl||'')+'\" placeholder=\"https://your-server/callback\" style=\"max-width:none;flex:1\" /><button class=\"btn-icon\" onclick=\"saveUrl('+i+')\" title=\"Save\">'+ICO.save+'</button></div></div>';");
     sb.append("h+='<div class=\"fg\"><label class=\"fl\">Consumer Secret</label><div style=\"display:flex;gap:4px;align-items:center\"><span class=\"mono\" style=\"font-size:11px;color:var(--txt2)\">'+esc(r.secret||r.maskedSecret||'...')+'</span><button class=\"btn-icon\" data-copy=\"'+escAttr(r.secret||r.maskedSecret||'')+'\" onclick=\"copyText(this.dataset.copy,\\'Secret copied\\')\" title=\"Copy\">'+ICO.copy+'</button></div></div>';");
-    sb.append("h+='<div style=\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:4px\">';");
+    sb.append("h+='<div style=\"display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-top:4px\">';");
     sb.append("h+='<div class=\"fg\"><label class=\"fl\">API Key Expiry</label><span class=\"hint\">'+esc(expiry)+'</span></div>';");
     sb.append("h+='<div class=\"fg\"><label class=\"fl\">Created</label><span class=\"hint\">'+esc(created)+'</span></div>';");
     sb.append("h+='<div class=\"fg\"><label class=\"fl\">Last Updated</label><span class=\"hint\">'+esc(updated)+'</span></div>';");
+    sb.append("h+='<div class=\"fg\"><label class=\"fl\">Last Active</label><span class=\"hint\">'+esc(lastActive)+'</span></div>';");
     sb.append("h+='</div>';");
     // Verified flag removed — it's a historical "capabilities once fetched" flag,
     // not current connectivity. The Test Robot button provides real-time verification.

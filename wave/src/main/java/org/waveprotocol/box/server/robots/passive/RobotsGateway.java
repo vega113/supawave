@@ -252,4 +252,26 @@ public class RobotsGateway implements WaveBus.Subscriber {
     accountStore.putAccount(newAccount);
     robot.setAccount(newAccount);
   }
+
+  /**
+   * Updates the lastActiveAtMillis timestamp for the robot in the account
+   * store. Called after the robot successfully processes a wave event. Logs and
+   * swallows all exceptions so that event processing is not blocked.
+   */
+  public void touchLastActive(Robot robot) {
+    ParticipantId robotId = robot.getAccount().getId();
+    try {
+      accountStore.updateRobotLastActive(robotId, System.currentTimeMillis());
+      AccountData updatedAccount = accountStore.getAccount(robotId);
+      if (updatedAccount != null && updatedAccount.isRobot()) {
+        robot.setAccount(updatedAccount.asRobot());
+      }
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to update lastActiveAtMillis for robot "
+          + robot.getRobotName() + ": " + e.getMessage(), e);
+    } catch (RuntimeException e) {
+      LOG.warning("Unexpected error refreshing account for robot "
+          + robot.getRobotName() + ": " + e.getMessage(), e);
+    }
+  }
 }

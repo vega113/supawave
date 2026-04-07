@@ -30,10 +30,13 @@ import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
 import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
+import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.OperationServiceRegistry;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.robots.util.OperationUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
@@ -51,6 +54,7 @@ public final class DataApiServlet extends BaseApiServlet {
 
   private final JwtRequestAuthenticator jwtAuthenticator;
   private final JwtKeyRing keyRing;
+  private final AccountStore accountStore;
 
   @Inject
   public DataApiServlet(RobotSerializer robotSerializer,
@@ -59,10 +63,12 @@ public final class DataApiServlet extends BaseApiServlet {
                         @Named("DataApiRegistry") OperationServiceRegistry operationRegistry,
                         ConversationUtil conversationUtil,
                         JwtRequestAuthenticator jwtAuthenticator,
-                        JwtKeyRing keyRing) {
+                        JwtKeyRing keyRing,
+                        AccountStore accountStore) {
     super(robotSerializer, converterManager, waveletProvider, operationRegistry, conversationUtil);
     this.jwtAuthenticator = jwtAuthenticator;
     this.keyRing = keyRing;
+    this.accountStore = accountStore;
   }
 
   /**
@@ -99,7 +105,9 @@ public final class DataApiServlet extends BaseApiServlet {
       var auth = jwtAuthenticator.authenticateAndExtractScopes(
           req.getHeader("Authorization"), JwtTokenType.DATA_API_ACCESS, JwtAudience.DATA_API);
 
-      processOpsRequest(req, resp, auth.participant(), auth.scopes());
+      if (processOpsRequest(req, resp, auth.participant(), auth.scopes())) {
+        touchLastActive(auth.participant());
+      }
     } catch (JwtInsufficientScopeException e) {
       LOG.info("Insufficient scope for Data API", e);
       resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
@@ -108,6 +116,15 @@ public final class DataApiServlet extends BaseApiServlet {
       LOG.info("JWT authentication failed for Data API", e);
       resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
       return;
+    }
+  }
+
+  private void touchLastActive(ParticipantId robotId) {
+    try {
+      accountStore.updateRobotLastActive(robotId, System.currentTimeMillis());
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to update lastActiveAtMillis for Data API call by "
+          + robotId.getAddress() + ": " + e.getMessage());
     }
   }
 }

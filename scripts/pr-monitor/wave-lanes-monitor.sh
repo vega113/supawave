@@ -173,17 +173,18 @@ while true; do
   if [ "$pr_json" != "[]" ]; then
     echo "$pr_json" | jq -r '.[] | [.number, .title, .headRefName, .mergeable] | @tsv' | while IFS=$'\t' read -r pr title branch mergeable; do
       # Re-read pane list EACH iteration to see panes created in previous iterations
-      pane_info=$(tmux list-panes -t "$WAVE_SESSION" -F "#{pane_index}: #{pane_title} | #{pane_current_path}" 2>/dev/null || echo "")
+      # Use tab as delimiter — safe since pane titles and paths cannot contain tabs
+      pane_info=$(tmux list-panes -t "$WAVE_SESSION" -F "#{pane_index}"$'\t'"#{pane_title}"$'\t'"#{pane_current_path}" 2>/dev/null || echo "")
 
       # Check if any pane covers this PR (by title, path with branch, or worktree name pr-NNN-lane)
       pane_idx=""
       if [ -n "$pane_info" ]; then
-        pane_idx=$(echo "$pane_info" | grep -E "PR#${pr}\b" | head -1 | cut -d: -f1 | tr -d ' ')
+        pane_idx=$(echo "$pane_info" | grep -E "PR#${pr}\b" | head -1 | cut -f1)
         if [ -z "$pane_idx" ]; then
-          pane_idx=$(echo "$pane_info" | grep -F -- "pr-${pr}-lane" | head -1 | cut -d: -f1 | tr -d ' ')
+          pane_idx=$(echo "$pane_info" | grep -F -- "pr-${pr}-lane" | head -1 | cut -f1)
         fi
         if [ -z "$pane_idx" ]; then
-          pane_idx=$(echo "$pane_info" | grep -F -- "$branch" | head -1 | cut -d: -f1 | tr -d ' ')
+          pane_idx=$(echo "$pane_info" | grep -F -- "$branch" | head -1 | cut -f1)
         fi
       fi
 

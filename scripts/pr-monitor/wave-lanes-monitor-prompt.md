@@ -51,7 +51,7 @@ If state is MERGED or CLOSED → kill the pane completely:
 
 ```bash
 gh pr list --repo vega113/incubator-wave --state open --json number,title,headRefName,mergeable --limit 50 2>/dev/null
-tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}: #{pane_title} | #{pane_current_path}" 2>/dev/null
+tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}"$'\t'"#{pane_title}"$'\t'"#{pane_current_path}" 2>/dev/null
 ```
 
 ### Step B: For each open PR, check its status

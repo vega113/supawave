@@ -128,10 +128,12 @@ public class EventGeneratorTest extends RobotsTestBase {
   private CapturingOperationSink<WaveletOperation> output;
   private ConversationUtil conversationUtil;
 
+  private static final String TEST_RPC_SERVER_URL = "https://example.com/robot/dataapi/rpc";
+
   @Override
   protected void setUp() throws Exception {
     conversationUtil = new ConversationUtil(FakeIdGenerator.create());
-    eventGenerator = new EventGenerator(ROBOT_NAME, conversationUtil);
+    eventGenerator = new EventGenerator(ROBOT_NAME, conversationUtil, TEST_RPC_SERVER_URL);
 
     waveletData = WaveletDataImpl.Factory.create(DOCUMENT_FACTORY).create(
         new EmptyWaveletSnapshot(WAVELET_NAME.waveId, WAVELET_NAME.waveletId, ALEX,
@@ -154,6 +156,21 @@ public class EventGeneratorTest extends RobotsTestBase {
     WaveletBasedConversation.makeWaveletConversational(wavelet);
     conversationUtil.buildConversation(wavelet).getRoot().getRootThread().appendBlip();
     output.clear();
+  }
+
+  public void testGenerateEventsPopulatesRpcServerUrl() throws Exception {
+    wavelet.addParticipant(BOB);
+    List<WaveletOperation> ops = output.getOps();
+    HashedVersion endVersion = HashedVersion.unsigned(waveletData.getVersion());
+    TransformedWaveletDelta delta = makeDeltaFromCapturedOps(ALEX, ops, endVersion, 0L);
+    WaveletAndDeltas waveletAndDeltas =
+        WaveletAndDeltas.create(waveletData, DeltaSequence.of(delta));
+
+    EventMessageBundle bundle =
+        eventGenerator.generateEvents(waveletAndDeltas, ALL_CAPABILITIES, CONVERTER);
+
+    assertEquals("rpcServerUrl must be populated in the event bundle",
+        TEST_RPC_SERVER_URL, bundle.getRpcServerUrl());
   }
 
   public void testGenerateWaveletParticipantsChangedEventOnAdd() throws Exception {

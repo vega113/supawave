@@ -52,7 +52,10 @@ import java.util.Map;
  */
 public class FetchWaveService implements OperationService {
 
-  private FetchWaveService() {
+  private final String rpcServerUrl;
+
+  private FetchWaveService(String rpcServerUrl) {
+    this.rpcServerUrl = rpcServerUrl;
   }
 
   @Override
@@ -93,14 +96,14 @@ public class FetchWaveService implements OperationService {
    */
   private EventMessageBundle mapWaveletToMessageBundle(EventDataConverter converter,
       ParticipantId participant, Wavelet wavelet, Conversation conversation) {
-    EventMessageBundle messages = new EventMessageBundle(participant.getAddress(), "");
+    EventMessageBundle messages = new EventMessageBundle(participant.getAddress(), rpcServerUrl);
     WaveletData waveletData = converter.toWaveletData(wavelet, conversation, messages);
     messages.setWaveletData(waveletData);
     ContextResolver.addAllBlipsToEventMessages(messages, conversation, wavelet, converter);
     return messages;
   }
 
-  public static FetchWaveService create() {
-    return new FetchWaveService();
+  public static FetchWaveService create(String rpcServerUrl) {
+    return new FetchWaveService(rpcServerUrl);
   }
 }

@@ -140,6 +140,7 @@ public interface SearchService {
       result = prime * result + ((title == null) ? 0 : title.hashCode());
       result = prime * result + unreadCount;
       result = prime * result + waveId.hashCode();
+      result = prime * result + (pinned ? 1 : 0);
       return result;
     }
 
@@ -156,7 +157,8 @@ public interface SearchService {
           && ValueUtils.equal(snippet, other.snippet) //
           && blipCount == other.blipCount //
           && unreadCount == other.unreadCount //
-          && lastModified == other.lastModified;
+          && lastModified == other.lastModified //
+          && pinned == other.pinned;
     }
   }
 

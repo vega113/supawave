@@ -131,6 +131,7 @@ public final class DigestDomImpl implements DigestView {
     msgs.setInnerHTML("");
     mentionCountEl = null;
     self.removeClassName(css.selected());
+    setPinned(false);
   }
 
   @Override

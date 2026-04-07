@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import com.google.wave.api.RobotSerializer;
 import com.google.wave.api.data.converter.EventDataConverterManager;
 import com.google.wave.api.robot.RobotName;
+import com.typesafe.config.Config;
 
 import junit.framework.TestCase;
 
@@ -62,6 +63,7 @@ public class RobotsGatewayTest extends TestCase {
   private DeferredExecutor executor;
   private ConversationUtil conversationUtil;
   private NotifyOperationService notifyOpService;
+  private Config config;
 
   @Override
   protected void setUp() {
@@ -73,10 +75,13 @@ public class RobotsGatewayTest extends TestCase {
     executor = new DeferredExecutor();
     conversationUtil = mock(ConversationUtil.class);
     notifyOpService = mock(NotifyOperationService.class);
+    config = mock(Config.class);
+    when(config.hasPath("core.public_url")).thenReturn(true);
+    when(config.getString("core.public_url")).thenReturn("https://wave.example.com");
 
     gateway =
         new RobotsGateway(waveletProvider, robotConnector, accountStore, serializer,
-            converterManager, executor, conversationUtil, notifyOpService);
+            converterManager, executor, conversationUtil, notifyOpService, config);
   }
 
   public void testWaveletUpdate() throws Exception {

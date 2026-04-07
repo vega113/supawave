@@ -22,9 +22,12 @@ package org.waveprotocol.box.server.robots.active;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.wave.api.OperationType;
+import com.typesafe.config.Config;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 
 import org.waveprotocol.box.server.robots.AbstractOperationServiceRegistry;
 import org.waveprotocol.box.server.robots.operations.*;
+import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 
 /**
  * A registry of {@link OperationService}s for the active robot API.
@@ -39,6 +42,8 @@ public final class ActiveApiOperationServiceRegistry extends AbstractOperationSe
   @Inject
   public ActiveApiOperationServiceRegistry(Injector injector) {
     super();
+    Config config = injector.getInstance(Config.class);
+    String rpcServerUrl = PublicBaseUrlResolver.resolve(config) + RobotsGateway.DATA_API_RPC_PATH;
     NotifyOperationService notifyOpService = injector.getInstance(NotifyOperationService.class);
     // Register all the OperationProviders
     register(OperationType.ROBOT_NOTIFY, notifyOpService);
@@ -55,7 +60,7 @@ public final class ActiveApiOperationServiceRegistry extends AbstractOperationSe
     register(OperationType.DOCUMENT_INSERT_INLINE_BLIP_AFTER_ELEMENT,
         BlipOperationServices.create());
     register(OperationType.ROBOT_CREATE_WAVELET, CreateWaveletService.create());
-    register(OperationType.ROBOT_FETCH_WAVE, FetchWaveService.create());
+    register(OperationType.ROBOT_FETCH_WAVE, FetchWaveService.create(rpcServerUrl));
     register(OperationType.DOCUMENT_MODIFY, DocumentModifyService.create());
     register(OperationType.ROBOT_SEARCH, injector.getInstance(SearchService.class));
     register(OperationType.WAVELET_SET_TITLE, WaveletSetTitleService.create());

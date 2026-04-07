@@ -4,14 +4,19 @@ package org.waveprotocol.box.server.robots.active;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.wave.api.OperationType;
+import com.typesafe.config.Config;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.robots.AbstractOperationServiceRegistry;
 import org.waveprotocol.box.server.robots.operations.*;
 import org.waveprotocol.box.server.robots.operations.NotifyOperationService;
+import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 
 public final class ActiveApiOperationServiceRegistry extends AbstractOperationServiceRegistry {
   @SuppressWarnings("deprecation")
   @Inject
   public ActiveApiOperationServiceRegistry(Injector injector) {
+    Config config = injector.getInstance(Config.class);
+    String rpcServerUrl = PublicBaseUrlResolver.resolve(config) + RobotsGateway.DATA_API_RPC_PATH;
     NotifyOperationService notifyOpService = injector.getInstance(NotifyOperationService.class);
     register(OperationType.ROBOT_NOTIFY, notifyOpService);
     register(OperationType.ROBOT_NOTIFY_CAPABILITIES_HASH, notifyOpService);
@@ -26,7 +31,7 @@ public final class ActiveApiOperationServiceRegistry extends AbstractOperationSe
     register(OperationType.DOCUMENT_INSERT_INLINE_BLIP, BlipOperationServices.create());
     register(OperationType.DOCUMENT_INSERT_INLINE_BLIP_AFTER_ELEMENT, BlipOperationServices.create());
     register(OperationType.ROBOT_CREATE_WAVELET, CreateWaveletService.create());
-    register(OperationType.ROBOT_FETCH_WAVE, FetchWaveService.create());
+    register(OperationType.ROBOT_FETCH_WAVE, FetchWaveService.create(rpcServerUrl));
     register(OperationType.DOCUMENT_MODIFY, DocumentModifyService.create());
     register(OperationType.ROBOT_SEARCH, injector.getInstance(SearchService.class));
     register(OperationType.WAVELET_SET_TITLE, WaveletSetTitleService.create());

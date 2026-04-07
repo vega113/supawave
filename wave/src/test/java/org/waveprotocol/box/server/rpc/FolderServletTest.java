@@ -79,4 +79,45 @@ public class FolderServletTest extends TestCase {
 
     verify(waveletProvider, never()).submitRequest(eq(USER_DATA_WAVELET_NAME), any(), any());
   }
+
+  // --- stripVersionSuffix tests ---
+
+  public void testStripVersionSuffix_noSuffix() {
+    assertEquals("example.com/w+abc", FolderServlet.stripVersionSuffix("example.com/w+abc"));
+  }
+
+  public void testStripVersionSuffix_withSuffix() {
+    assertEquals("example.com/w+abc", FolderServlet.stripVersionSuffix("example.com/w+abc:1"));
+  }
+
+  public void testStripVersionSuffix_withLargeVersion() {
+    assertEquals("example.com/w+abc", FolderServlet.stripVersionSuffix("example.com/w+abc:12345"));
+  }
+
+  public void testStripVersionSuffix_null() {
+    assertNull(FolderServlet.stripVersionSuffix(null));
+  }
+
+  public void testStripVersionSuffix_emptyString() {
+    assertEquals("", FolderServlet.stripVersionSuffix(""));
+  }
+
+  public void testStripVersionSuffix_colonWithoutDigits() {
+    assertEquals("example.com/w+abc:xyz", FolderServlet.stripVersionSuffix("example.com/w+abc:xyz"));
+  }
+
+  public void testStripVersionSuffix_multipleColons() {
+    // For modern slash-form IDs, only the trailing :N should be stripped
+    assertEquals("example.com/w+a:b:c", FolderServlet.stripVersionSuffix("example.com/w+a:b:c:42"));
+  }
+
+  public void testStripVersionSuffix_colonInMiddle() {
+    // Colon not at the end followed by digits - should not be stripped
+    assertEquals("example.com/w+abc:1:b", FolderServlet.stripVersionSuffix("example.com/w+abc:1:b"));
+  }
+
+  public void testStripVersionSuffix_legacyIdUnchanged() {
+    // Legacy IDs use '!' as separator - do not strip even if they end in :N
+    assertEquals("example.com!w+abc:1", FolderServlet.stripVersionSuffix("example.com!w+abc:1"));
+  }
 }

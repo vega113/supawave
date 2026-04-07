@@ -257,35 +257,55 @@ public class StaleAnnotationSweeper {
       }
     });
 
-    // Also collect companion user/e/sessionId annotations for each stale user/d/ session.
+    // Collect companion user/e/sessionId annotations that should be nulled out.
     // user/e/ stores the cursor end-position marker (value = user address string, no timestamp),
-    // so it cannot be detected as stale independently — instead we null it out when the
-    // corresponding user/d/ session is swept.
-    Set<String> staleSessionIds = new java.util.HashSet<>();
-    for (StaleAnnotation sa : staleAnnotations) {
-      staleSessionIds.add(sa.key.substring("user/d/".length()));
-    }
+    // so it cannot be detected as stale independently. Null out any user/e/sessionId where the
+    // corresponding user/d/sessionId has no currently open, non-stale interval — this covers:
+    // (a) sessions that are stale in this sweep, and (b) orphaned user/e/ annotations left
+    // behind when a previous user/d/ cleanup succeeded but the companion null-out failed on a
+    // version conflict (the closed user/d/ session would not appear as stale on the next sweep).
     List<StaleAnnotation> companionAnnotations = new ArrayList<>();
-    if (!staleSessionIds.isEmpty()) {
-      doc.knownKeys().each(key -> {
-        if (!key.startsWith("user/e/")) return;
-        String sessionId = key.substring("user/e/".length());
-        if (!staleSessionIds.contains(sessionId)) return;
-        int searchFrom = 0;
-        while (searchFrom < docSize) {
-          int pos = doc.firstAnnotationChange(searchFrom, docSize, key, null);
-          if (pos < 0) break;
-          String value = doc.getAnnotation(pos, key);
-          if (value == null) { searchFrom = pos + 1; continue; }
-          int annotEnd = doc.firstAnnotationChange(pos, docSize, key, value);
-          if (annotEnd < 0) annotEnd = docSize;
-          // userId is not meaningful for user/e/ (no security check needed — we only reach here
-          // because the companion user/d/ sessionId was already validated above).
-          companionAnnotations.add(new StaleAnnotation(key, null, value, pos, annotEnd, docSize));
-          searchFrom = annotEnd;
+    doc.knownKeys().each(key -> {
+      if (!key.startsWith("user/e/")) return;
+      String sessionId = key.substring("user/e/".length());
+      String dKey = "user/d/" + sessionId;
+
+      // Check whether user/d/sessionId has any open, non-stale interval.
+      boolean hasActiveSession = false;
+      int dSearchFrom = 0;
+      while (dSearchFrom < docSize) {
+        int dPos = doc.firstAnnotationChange(dSearchFrom, docSize, dKey, null);
+        if (dPos < 0) break;
+        String dValue = doc.getAnnotation(dPos, dKey);
+        if (dValue == null) { dSearchFrom = dPos + 1; continue; }
+        String[] dParts = dValue.split(",", 3);
+        if (dParts.length >= 3 && dParts[2].isEmpty() && !dParts[1].isEmpty()) {
+          try {
+            long startTimeMs = (long) Double.parseDouble(dParts[1]);
+            if (now - startTimeMs <= STALE_EDITING_THRESHOLD_MS) {
+              hasActiveSession = true;
+              break;
+            }
+          } catch (NumberFormatException ignored) {}
         }
-      });
-    }
+        int dEnd = doc.firstAnnotationChange(dPos, docSize, dKey, dValue);
+        dSearchFrom = (dEnd < 0) ? docSize : dEnd;
+      }
+      if (hasActiveSession) return;
+
+      // Collect all non-null intervals for this user/e/ key.
+      int searchFrom = 0;
+      while (searchFrom < docSize) {
+        int pos = doc.firstAnnotationChange(searchFrom, docSize, key, null);
+        if (pos < 0) break;
+        String value = doc.getAnnotation(pos, key);
+        if (value == null) { searchFrom = pos + 1; continue; }
+        int annotEnd = doc.firstAnnotationChange(pos, docSize, key, value);
+        if (annotEnd < 0) annotEnd = docSize;
+        companionAnnotations.add(new StaleAnnotation(key, null, value, pos, annotEnd, docSize));
+        searchFrom = annotEnd;
+      }
+    });
 
     // Submit cleanup deltas for all stale annotations found. All deltas reference the same
     // snapshot hash; if more than one succeeds, the second will fail with a version conflict
@@ -430,14 +450,18 @@ public class StaleAnnotationSweeper {
       }
 
       ParticipantId creatorId = snapshot.getCreator();
-      if (!snapshot.getParticipants().contains(creatorId)) {
+      Set<ParticipantId> participants = snapshot.getParticipants();
+      if (participants.isEmpty()) {
         LOG.warning("StaleAnnotationSweeper: skipping null-out for " + companion.key
-            + " — wavelet creator is not a participant");
+            + " — wavelet has no participants");
         return;
       }
+      String deltaAuthor = participants.contains(creatorId)
+          ? creatorId.getAddress()
+          : participants.iterator().next().getAddress();
 
       ProtocolWaveletDelta delta = ProtocolWaveletDelta.newBuilder()
-          .setAuthor(creatorId.getAddress())
+          .setAuthor(deltaAuthor)
           .setHashedVersion(CoreWaveletOperationSerializer.serialize(snapshot.getHashedVersion()))
           .addOperation(ProtocolWaveletOperation.newBuilder()
               .setMutateDocument(ProtocolWaveletOperation.MutateDocument.newBuilder()

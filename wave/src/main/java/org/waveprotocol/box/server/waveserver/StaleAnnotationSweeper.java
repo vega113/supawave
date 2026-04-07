@@ -32,7 +32,6 @@ import org.waveprotocol.wave.model.document.ObservableDocument;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
-import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.BlipData;
 import org.waveprotocol.wave.model.wave.data.DocumentOperationSink;
@@ -199,8 +198,6 @@ public class StaleAnnotationSweeper {
     }
 
     // Collect stale annotations before submitting deltas (avoid iterator/state issues).
-    // Pre-capture the participant set for security validation inside the lambda.
-    Set<ParticipantId> participants = snapshot.getParticipants();
     List<StaleAnnotation> staleAnnotations = new ArrayList<>();
     doc.knownKeys().each(key -> {
       if (!key.startsWith("user/d/")) return;
@@ -227,26 +224,9 @@ public class StaleAnnotationSweeper {
             long startTimeMs = (long) Double.parseDouble(parts[1]);
             if (now - startTimeMs > STALE_EDITING_THRESHOLD_MS) {
               String userId = parts[0];
-              // Validate userId is a known wavelet participant. Annotation values come from
-              // document content and could be forged by a malicious participant. Submitting
-              // a cleanup delta as an arbitrary userId would let the server impersonate any
-              // user — only proceed if the extracted userId is actually in this wavelet.
-              ParticipantId authorId;
-              try {
-                authorId = ParticipantId.of(userId);
-              } catch (InvalidParticipantAddress e) {
-                LOG.warning("StaleAnnotationSweeper: skipping stale annotation " + key
-                    + " — malformed userId '" + userId + "'");
-                searchFrom = annotEnd;
-                continue;
-              }
-              if (!participants.contains(authorId)) {
-                LOG.warning("StaleAnnotationSweeper: skipping stale annotation " + key
-                    + " — userId '" + userId + "' is not a wavelet participant"
-                    + " (possible forged annotation)");
-                searchFrom = annotEnd;
-                continue;
-              }
+              // Note: userId is from annotation content but is only used for logging.
+              // The cleanup delta author is set from server-validated participants in
+              // submitCleanupDelta, so ex-participants' stale annotations are swept correctly.
               staleAnnotations.add(new StaleAnnotation(key, userId, value, pos, annotEnd, docSize));
             }
           } catch (NumberFormatException e) {

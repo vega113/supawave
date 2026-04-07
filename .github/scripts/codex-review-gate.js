@@ -1,4 +1,5 @@
-const REVIEW_WINDOW_MS = 5 * 60 * 1000;
+const REVIEW_WINDOW_MS = 10 * 60 * 1000;
+const REVIEW_WINDOW_MINUTES = REVIEW_WINDOW_MS / 60000;
 
 // Bot reviewers whose unresolved threads are skipped when Codex quota is
 // exhausted.  These bots are not human reviewers and their threads are resolved
@@ -60,13 +61,13 @@ function evaluatePullRequestGate({ pullRequest, nowMs, skipCodexCheck = false })
       (REVIEW_WINDOW_MS - commitAgeMs) / 60000,
     );
     return failure(
-      `Waiting for 5-minute review window (${remainingMinutes} minute(s) remaining)`,
+      `Waiting for ${REVIEW_WINDOW_MINUTES}-minute review window (${remainingMinutes} minute(s) remaining)`,
     );
   }
 
   const quotaNote = skipCodexCheck ? " (Codex quota exhausted — bot threads skipped)" : "";
   return success(
-    `Review gate passed: 5-minute window elapsed and no unresolved human threads${quotaNote}`,
+    `Review gate passed: ${REVIEW_WINDOW_MINUTES}-minute window elapsed and no unresolved human threads${quotaNote}`,
   );
 }
 

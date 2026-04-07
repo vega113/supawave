@@ -363,6 +363,30 @@ public class StaleAnnotationSweeper {
         return a.key.compareTo(b.key);
       });
 
+      // Deduplicate: if adjacent intervals share a boundary, the same key can have both an END
+      // and a CHANGE at the same position. DocOpAutomaton rejects duplicate keys in a single
+      // AnnotationBoundary, so drop the END — the CHANGE already transitions the annotation.
+      List<AnnotationOp> deduped = new ArrayList<>(ops.size());
+      {
+        int j = 0;
+        while (j < ops.size()) {
+          int pos = ops.get(j).position;
+          Set<String> changeKeysAtPos = new java.util.HashSet<>();
+          for (int k = j; k < ops.size() && ops.get(k).position == pos; k++) {
+            if (ops.get(k).kind == AnnotationOp.Kind.CHANGE) {
+              changeKeysAtPos.add(ops.get(k).key);
+            }
+          }
+          while (j < ops.size() && ops.get(j).position == pos) {
+            AnnotationOp op = ops.get(j++);
+            if (op.kind != AnnotationOp.Kind.END || !changeKeysAtPos.contains(op.key)) {
+              deduped.add(op);
+            }
+          }
+        }
+        ops = deduped;
+      }
+
       // Walk sorted events and build one DocOp covering the entire document.
       ProtocolDocumentOperation.Builder docOp = ProtocolDocumentOperation.newBuilder();
       int currentPos = 0;

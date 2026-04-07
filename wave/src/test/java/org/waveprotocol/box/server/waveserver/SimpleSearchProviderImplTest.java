@@ -66,8 +66,11 @@ import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionZeroFactoryImpl;
+import org.waveprotocol.wave.model.supplement.PrimitiveSupplement;
 import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl;
 import org.waveprotocol.wave.model.supplement.WaveletBasedSupplement;
+import org.waveprotocol.box.server.robots.RobotWaveletData;
+import org.waveprotocol.box.server.robots.util.RobotsUtil;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
@@ -321,6 +324,107 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(1, archiveResults.getNumResults());
     assertEquals(
         WAVELET_NAME.waveId.serialise(), archiveResults.getDigests().get(0).getWaveId());
+  }
+
+  /**
+   * Verifies that the robot framework path (RobotWaveletData + WaveletBasedSupplement)
+   * used by FolderServlet actually produces deltas for pin operations.
+   */
+  public void testRobotFrameworkPinProducesDeltas() throws Exception {
+    WaveletName udwName = userDataWaveletName(WAVE_ID, USER1);
+    RobotWaveletData robotWavelet =
+        RobotsUtil.createEmptyRobotWavelet(USER1, udwName);
+    OpBasedWavelet udw = robotWavelet.getOpBasedWavelet(USER1);
+
+    PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
+    udwState.addFolder(SupplementedWaveImpl.PINNED_FOLDER);
+
+    java.util.List<WaveletDelta> deltas = robotWavelet.getDeltas();
+    assertFalse("Expected non-empty deltas from pin operation, but got none", deltas.isEmpty());
+  }
+
+  /**
+   * Verifies that the robot framework path produces deltas for archive operations.
+   */
+  public void testRobotFrameworkArchiveProducesDeltas() throws Exception {
+    WaveletName udwName = userDataWaveletName(WAVE_ID, USER1);
+    RobotWaveletData robotWavelet =
+        RobotsUtil.createEmptyRobotWavelet(USER1, udwName);
+    OpBasedWavelet udw = robotWavelet.getOpBasedWavelet(USER1);
+
+    PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
+    udwState.archiveAtVersion(WAVELET_ID, 5);
+
+    java.util.List<WaveletDelta> deltas = robotWavelet.getDeltas();
+    assertFalse("Expected non-empty deltas from archive operation, but got none", deltas.isEmpty());
+  }
+
+  /**
+   * End-to-end test: pin via robot framework (like FolderServlet), then search for in:pinned.
+   * This exercises the full path: create deltas via WaveletBasedSupplement → serialize →
+   * submit to WaveMap → search reads the UDW.
+   */
+  public void testPinViaRobotFrameworkThenSearchFindsIt() throws Exception {
+    submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
+
+    WaveletName udwName = userDataWaveletName(WAVE_ID, USER1);
+    RobotWaveletData robotWavelet = RobotsUtil.createEmptyRobotWavelet(USER1, udwName);
+    OpBasedWavelet udw = robotWavelet.getOpBasedWavelet(USER1);
+
+    PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
+    udwState.addFolder(SupplementedWaveImpl.PINNED_FOLDER);
+
+    java.util.List<WaveletDelta> deltas = robotWavelet.getDeltas();
+    assertFalse("Pin should produce deltas", deltas.isEmpty());
+
+    LocalWaveletContainer pinUdwContainer = waveMap.getOrCreateLocalWavelet(udwName);
+    for (WaveletDelta delta : deltas) {
+      ProtocolWaveletDelta protoDelta = CoreWaveletOperationSerializer.serialize(delta);
+      ProtocolSignedDelta signedDelta =
+          ProtocolSignedDelta.newBuilder().setDelta(protoDelta.toByteString()).build();
+      pinUdwContainer.submitRequest(udwName, signedDelta);
+    }
+
+    addWaveletToUserView(udwName, USER1);
+
+    SearchResult pinnedResults = searchProvider.search(USER1, "in:pinned", 0, 20);
+    assertEquals("Expected 1 pinned wave", 1, pinnedResults.getNumResults());
+    assertEquals(WAVE_ID.serialise(), pinnedResults.getDigests().get(0).getWaveId());
+  }
+
+  /**
+   * End-to-end test: archive via robot framework (like FolderServlet), then search.
+   */
+  public void testArchiveViaRobotFrameworkThenSearchFindsIt() throws Exception {
+    submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
+
+    WaveletName udwName = userDataWaveletName(WAVE_ID, USER1);
+    long convVersion = waveMap.getOrCreateLocalWavelet(WAVELET_NAME).copyWaveletData().getVersion();
+
+    RobotWaveletData robotWavelet = RobotsUtil.createEmptyRobotWavelet(USER1, udwName);
+    OpBasedWavelet udw = robotWavelet.getOpBasedWavelet(USER1);
+
+    PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
+    udwState.archiveAtVersion(WAVELET_ID, Math.toIntExact(convVersion));
+
+    java.util.List<WaveletDelta> deltas = robotWavelet.getDeltas();
+    assertFalse("Archive should produce deltas", deltas.isEmpty());
+
+    LocalWaveletContainer archiveUdwContainer = waveMap.getOrCreateLocalWavelet(udwName);
+    for (WaveletDelta delta : deltas) {
+      ProtocolWaveletDelta protoDelta = CoreWaveletOperationSerializer.serialize(delta);
+      ProtocolSignedDelta signedDelta =
+          ProtocolSignedDelta.newBuilder().setDelta(protoDelta.toByteString()).build();
+      archiveUdwContainer.submitRequest(udwName, signedDelta);
+    }
+
+    addWaveletToUserView(udwName, USER1);
+
+    SearchResult inboxResults = searchProvider.search(USER1, "in:inbox", 0, 20);
+    SearchResult archiveResults = searchProvider.search(USER1, "in:archive", 0, 20);
+    assertEquals("Wave should not be in inbox", 0, inboxResults.getNumResults());
+    assertEquals("Wave should be in archive", 1, archiveResults.getNumResults());
+    assertEquals(WAVE_ID.serialise(), archiveResults.getDigests().get(0).getWaveId());
   }
 
   public void testSearchInboxDoesNotReturnWaveWithoutUser() throws Exception {

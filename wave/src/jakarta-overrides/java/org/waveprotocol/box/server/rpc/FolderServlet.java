@@ -155,9 +155,6 @@ public final class FolderServlet extends HttpServlet {
         WaveletId.of(waveId.getDomain(), IdConstants.CONVERSATION_ROOT_WAVELET), participant);
     ConversationView conversationView = context.getConversationUtil().buildConversation(wavelet);
 
-    WaveletId udwId =
-        WaveletId.of(waveId.getDomain(),
-            IdUtil.join(IdConstants.USER_DATA_WAVELET_PREFIX, participant.getAddress()));
     OpBasedWavelet udw = openParticipantUserDataWavelet(context, waveId, participant);
 
     PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);

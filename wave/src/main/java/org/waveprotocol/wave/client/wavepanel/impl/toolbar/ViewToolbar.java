@@ -151,11 +151,11 @@ public final class ViewToolbar {
           }
         });
 
-    new ToolbarButtonViewBuilder().setText(messages.prevMention()).applyTo(
-        group.addClickButton(), new ToolbarClickButton.Listener() {
-          @Override
-          public void onClicked() {
-            if (mentionFocusOrder != null) {
+    if (mentionFocusOrder != null) {
+      new ToolbarButtonViewBuilder().setText(messages.prevMention()).applyTo(
+          group.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
               BlipView current = focusFrame.getFocusedBlip();
               if (current != null) {
                 BlipView prev = mentionFocusOrder.getPrevious(current);
@@ -164,13 +164,11 @@ public final class ViewToolbar {
                 }
               }
             }
-          }
-        });
-    new ToolbarButtonViewBuilder().setText(messages.nextMention()).applyTo(
-        group.addClickButton(), new ToolbarClickButton.Listener() {
-          @Override
-          public void onClicked() {
-            if (mentionFocusOrder != null) {
+          });
+      new ToolbarButtonViewBuilder().setText(messages.nextMention()).applyTo(
+          group.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
               BlipView current = focusFrame.getFocusedBlip();
               if (current != null) {
                 BlipView next = mentionFocusOrder.getNext(current);
@@ -179,8 +177,8 @@ public final class ViewToolbar {
                 }
               }
             }
-          }
-        });
+          });
+    }
 
     new ToolbarButtonViewBuilder().setText(messages.previous()).applyTo(
         group.addClickButton(), new ToolbarClickButton.Listener() {

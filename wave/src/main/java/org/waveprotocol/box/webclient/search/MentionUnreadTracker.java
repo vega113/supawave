@@ -200,7 +200,11 @@ public final class MentionUnreadTracker {
     for (SearchService.DigestSnapshot snapshot : snapshots) {
       if (snapshot.getUnreadCount() > 0) {
         newUnread.add(snapshot.getWaveId());
-        newPerWaveCounts.put(snapshot.getWaveId(), snapshot.getUnreadCount());
+        // Use 1 per wave: the query is "mentions:me unread:true" so the wave
+        // qualifies as a mention-wave; unreadCount is the general unread-blip
+        // total, not a mention-specific count, so it must not be used as the
+        // per-wave @N value.
+        newPerWaveCounts.put(snapshot.getWaveId(), 1);
       }
     }
 

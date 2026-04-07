@@ -104,42 +104,35 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   Element helpCloseButton;
   @UiField
   Element helpColumnsDiv;
-  @UiField
-  SpanElement exInbox;
-  @UiField
-  SpanElement exArchive;
-  @UiField
-  SpanElement exAll;
-  @UiField
-  SpanElement exPinned;
-  @UiField
-  SpanElement exWith;
-  @UiField
-  SpanElement exPublic;
-  @UiField
-  SpanElement exCreator;
-  @UiField
-  SpanElement exTag;
-  @UiField
-  SpanElement exUnread;
-  @UiField
-  SpanElement exFreeText;
-  @UiField
-  SpanElement exInboxTag;
-  @UiField
-  SpanElement exAllOldest;
-  @UiField
-  SpanElement exWithTag;
-  @UiField
-  SpanElement exPinnedCreator;
-  @UiField
-  SpanElement exCreatorArchive;
-  @UiField
-  SpanElement exTitle;
-  @UiField
-  SpanElement exContent;
-  @UiField
-  SpanElement exMentions;
+  // Concrete filter examples (clickable in-place in filter column)
+  @UiField SpanElement exInbox;
+  @UiField SpanElement exArchive;
+  @UiField SpanElement exAll;
+  @UiField SpanElement exPinned;
+  @UiField SpanElement exPublic;
+  @UiField SpanElement exUnread;
+  @UiField SpanElement exMentions;
+  // Abstract filter rows: clickable "try:" examples in the description column
+  @UiField SpanElement exWithTry;
+  @UiField SpanElement exCreatorTry;
+  @UiField SpanElement exTagTry;
+  @UiField SpanElement exTitleTry;
+  @UiField SpanElement exContentTry;
+  @UiField SpanElement exFreeTextTry;
+  // Sort option examples (clickable in sort column)
+  @UiField SpanElement exSortDateDesc;
+  @UiField SpanElement exSortDateAsc;
+  @UiField SpanElement exSortCreatedDesc;
+  @UiField SpanElement exSortCreatedAsc;
+  @UiField SpanElement exSortCreatorDesc;
+  @UiField SpanElement exSortCreatorAsc;
+  // Combination examples in the Combining section
+  @UiField SpanElement exInboxTag;
+  @UiField SpanElement exAllOldest;
+  @UiField SpanElement exWithTag;
+  @UiField SpanElement exPinnedCreator;
+  @UiField SpanElement exCreatorArchive;
+  @UiField SpanElement exMentionsUnread;
   @UiField
   Element mentionsFilterRow;
 
@@ -210,25 +203,35 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
       }
     });
 
-    // Clickable examples: fill the search box and trigger search
+    // Clickable filter examples
     wireExample(exInbox);
     wireExample(exArchive);
     wireExample(exAll);
     wireExample(exPinned);
-    wireExample(exWith);
     wireExample(exPublic);
-    wireExample(exCreator);
-    wireExample(exTag);
     wireExample(exUnread);
-    wireExample(exFreeText);
+    wireExample(exMentions);
+    // "Try:" examples for abstract filter rows
+    wireExample(exWithTry);
+    wireExample(exCreatorTry);
+    wireExample(exTagTry);
+    wireExample(exTitleTry);
+    wireExample(exContentTry);
+    wireExample(exFreeTextTry);
+    // Sort option examples
+    wireExample(exSortDateDesc);
+    wireExample(exSortDateAsc);
+    wireExample(exSortCreatedDesc);
+    wireExample(exSortCreatedAsc);
+    wireExample(exSortCreatorDesc);
+    wireExample(exSortCreatorAsc);
+    // Combination examples
     wireExample(exInboxTag);
     wireExample(exAllOldest);
     wireExample(exWithTag);
     wireExample(exPinnedCreator);
     wireExample(exCreatorArchive);
-    wireExample(exTitle);
-    wireExample(exContent);
-    wireExample(exMentions);
+    wireExample(exMentionsUnread);
   }
 
   /** Stacks help columns vertically on narrow viewports (≤600 px). */
@@ -281,6 +284,7 @@ public class SearchWidget extends Composite implements SearchView, ChangeHandler
   public void setMentionsSearchVisible(boolean visible) {
     mentionsFilterRow.getStyle().setProperty("display", visible ? "table-row" : "none");
     exMentions.getStyle().setProperty("display", visible ? "inline-block" : "none");
+    exMentionsUnread.getStyle().setProperty("display", visible ? "inline-block" : "none");
   }
 
   @Override

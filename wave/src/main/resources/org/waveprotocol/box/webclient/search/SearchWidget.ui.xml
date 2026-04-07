@@ -47,56 +47,56 @@
              <th>Filter</th><th>Description</th>
            </tr>
            <tr>
-             <td><code>in:inbox</code></td>
+             <td><span ui:field='exInbox' class='{css.helpExample}'>in:inbox</span></td>
              <td>Waves in your inbox</td>
            </tr>
            <tr>
-             <td><code>in:archive</code></td>
+             <td><span ui:field='exArchive' class='{css.helpExample}'>in:archive</span></td>
              <td>Archived waves</td>
            </tr>
            <tr>
-             <td><code>in:all</code></td>
+             <td><span ui:field='exAll' class='{css.helpExample}'>in:all</span></td>
              <td>All waves including public</td>
            </tr>
            <tr>
-             <td><code>in:pinned</code></td>
+             <td><span ui:field='exPinned' class='{css.helpExample}'>in:pinned</span></td>
              <td>Pinned waves</td>
            </tr>
            <tr>
              <td><code>with:user@domain</code></td>
-             <td>Waves with specific participant</td>
+             <td>Waves with a participant &#x2014; try: <span ui:field='exWithTry' class='{css.helpExample}'>with:alice@example.com</span></td>
            </tr>
            <tr>
-             <td><code>with:@</code></td>
+             <td><span ui:field='exPublic' class='{css.helpExample}'>with:@</span></td>
              <td>Public waves (shared domain)</td>
            </tr>
            <tr>
              <td><code>creator:user@domain</code></td>
-             <td>Waves created by someone</td>
+             <td>Waves created by someone &#x2014; try: <span ui:field='exCreatorTry' class='{css.helpExample}'>creator:bob@example.com</span></td>
            </tr>
            <tr>
              <td><code>tag:name</code></td>
-             <td>Waves with a specific tag</td>
+             <td>Waves with a specific tag &#x2014; try: <span ui:field='exTagTry' class='{css.helpExample}'>tag:important</span></td>
            </tr>
            <tr>
-             <td><code>unread:true</code></td>
+             <td><span ui:field='exUnread' class='{css.helpExample}'>unread:true</span></td>
              <td>Only waves with unread blips</td>
            </tr>
            <tr>
              <td><code>title:text</code></td>
-             <td>Waves whose title contains text</td>
+             <td>Waves whose title contains text &#x2014; try: <span ui:field='exTitleTry' class='{css.helpExample}'>title:meeting</span></td>
            </tr>
            <tr>
              <td><code>content:text</code></td>
-             <td>Waves containing text in any blip</td>
+             <td>Waves containing text in any blip &#x2014; try: <span ui:field='exContentTry' class='{css.helpExample}'>content:agenda</span></td>
            </tr>
            <tr ui:field='mentionsFilterRow'>
-             <td><code>mentions:me</code></td>
+             <td><span ui:field='exMentions' class='{css.helpExample}'>mentions:me</span></td>
              <td>Waves where you are @mentioned</td>
            </tr>
            <tr>
              <td><em>free text</em></td>
-             <td>Implicit <code>content:</code> search in wave content</td>
+             <td>Implicit content: search &#x2014; try: <span ui:field='exFreeTextTry' class='{css.helpExample}'>meeting notes</span></td>
            </tr>
          </table>
        </div>
@@ -108,57 +108,43 @@
              <th>Sort</th><th>Description</th>
            </tr>
            <tr>
-             <td><code>orderby:datedesc</code></td>
+             <td><span ui:field='exSortDateDesc' class='{css.helpExample}'>orderby:datedesc</span></td>
              <td>Last modified, newest first (default)</td>
            </tr>
            <tr>
-             <td><code>orderby:dateasc</code></td>
+             <td><span ui:field='exSortDateAsc' class='{css.helpExample}'>orderby:dateasc</span></td>
              <td>Last modified, oldest first</td>
            </tr>
            <tr>
-             <td><code>orderby:createddesc</code></td>
+             <td><span ui:field='exSortCreatedDesc' class='{css.helpExample}'>orderby:createddesc</span></td>
              <td>Created time, newest first</td>
            </tr>
            <tr>
-             <td><code>orderby:createdasc</code></td>
+             <td><span ui:field='exSortCreatedAsc' class='{css.helpExample}'>orderby:createdasc</span></td>
              <td>Created time, oldest first</td>
            </tr>
            <tr>
-             <td><code>orderby:creatordesc</code></td>
+             <td><span ui:field='exSortCreatorDesc' class='{css.helpExample}'>orderby:creatordesc</span></td>
              <td>Creator email Z&#x2192;A</td>
            </tr>
            <tr>
-             <td><code>orderby:creatorasc</code></td>
+             <td><span ui:field='exSortCreatorAsc' class='{css.helpExample}'>orderby:creatorasc</span></td>
              <td>Creator email A&#x2192;Z</td>
            </tr>
          </table>
-         <div class='{css.helpSectionTitle}' style='margin-top:10px'>Combining</div>
+         <div class='{css.helpSectionTitle}' style='margin-top:10px'>Combinations</div>
          <div class='{css.helpCombiningText}'>
-           Filters can be combined freely. Plain text searches content: <code>hello world</code> finds waves containing those words. The default sort is <code>orderby:datedesc</code> (newest first).
+           Filters combine freely. The default sort is <code>orderby:datedesc</code> (newest first).
+         </div>
+         <div class='{css.helpExamplesGrid}' style='margin-top:6px'>
+           <span ui:field='exInboxTag' class='{css.helpExample}'>in:inbox tag:important</span>
+           <span ui:field='exAllOldest' class='{css.helpExample}'>in:all orderby:createdasc</span>
+           <span ui:field='exWithTag' class='{css.helpExample}'>with:alice@example.com tag:project</span>
+           <span ui:field='exPinnedCreator' class='{css.helpExample}'>in:pinned orderby:creatordesc</span>
+           <span ui:field='exCreatorArchive' class='{css.helpExample}'>creator:bob in:archive</span>
+           <span ui:field='exMentionsUnread' class='{css.helpExample}'>mentions:me unread:true</span>
          </div>
        </div>
-     </div>
-     <!-- Examples section spanning full width -->
-     <div class='{css.helpSectionTitle}' style='margin-top:8px'>Examples &#x2014; click to search</div>
-     <div class='{css.helpExamplesGrid}'>
-       <span ui:field='exInbox' class='{css.helpExample}'>in:inbox</span>
-       <span ui:field='exArchive' class='{css.helpExample}'>in:archive</span>
-       <span ui:field='exAll' class='{css.helpExample}'>in:all</span>
-       <span ui:field='exPinned' class='{css.helpExample}'>in:pinned</span>
-       <span ui:field='exWith' class='{css.helpExample}'>with:alice@example.com</span>
-       <span ui:field='exPublic' class='{css.helpExample}'>with:@</span>
-       <span ui:field='exCreator' class='{css.helpExample}'>creator:bob</span>
-       <span ui:field='exTag' class='{css.helpExample}'>tag:important</span>
-       <span ui:field='exUnread' class='{css.helpExample}'>unread:true</span>
-       <span ui:field='exFreeText' class='{css.helpExample}'>meeting notes</span>
-       <span ui:field='exInboxTag' class='{css.helpExample}'>in:inbox tag:important</span>
-       <span ui:field='exAllOldest' class='{css.helpExample}'>in:all orderby:createdasc</span>
-       <span ui:field='exWithTag' class='{css.helpExample}'>with:alice@example.com tag:project</span>
-       <span ui:field='exPinnedCreator' class='{css.helpExample}'>in:pinned orderby:creatordesc</span>
-       <span ui:field='exCreatorArchive' class='{css.helpExample}'>creator:bob in:archive</span>
-       <span ui:field='exTitle' class='{css.helpExample}'>title:meeting</span>
-       <span ui:field='exContent' class='{css.helpExample}'>content:agenda</span>
-       <span ui:field='exMentions' class='{css.helpExample}'>mentions:me</span>
      </div>
    </div>
   </g:HTMLPanel>

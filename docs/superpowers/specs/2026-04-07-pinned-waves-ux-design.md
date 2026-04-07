@@ -28,7 +28,7 @@ The fix threads pin state all the way from the UDW supplement → proto wire for
 
 ## Data Flow
 
-```
+```text
 UDW (supplement folder 9)
   └── WaveDigester.generateDigest(supplement)
         supplement.isPinned()  [ReadableSupplementedWave]

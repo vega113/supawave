@@ -193,33 +193,38 @@ public class StaleAnnotationSweeper {
     List<StaleAnnotation> staleAnnotations = new ArrayList<>();
     doc.knownKeys().each(key -> {
       if (!key.startsWith("user/d/")) return;
-      int pos = doc.firstAnnotationChange(0, docSize, key, null);
-      if (pos < 0) return;
-      String value = doc.getAnnotation(pos, key);
-      if (value == null) return;
-      String[] parts = value.split(",", 3);
-      // endTimeMs must be empty for the session to be "open"
-      if (parts.length < 3 || !parts[2].isEmpty()) return;
+      // Iterate all disjoint non-null intervals for this key. A single session key can
+      // appear in multiple ranges if the same session annotated non-contiguous spans.
+      int searchFrom = 0;
+      while (searchFrom < docSize) {
+        int pos = doc.firstAnnotationChange(searchFrom, docSize, key, null);
+        if (pos < 0) break; // no more non-null intervals
+        String value = doc.getAnnotation(pos, key);
+        if (value == null) {
+          // Annotation is still null; advance to avoid an infinite loop.
+          searchFrom = pos + 1;
+          continue;
+        }
+        // Find end of this interval.
+        int annotEnd = doc.firstAnnotationChange(pos, docSize, key, value);
+        if (annotEnd < 0) annotEnd = docSize;
 
-      // Parse startTimeMs and check staleness
-      if (parts.length < 2 || parts[1].isEmpty()) return;
-      long startTimeMs;
-      try {
-        startTimeMs = Long.parseLong(parts[1]);
-      } catch (NumberFormatException e) {
-        return;
+        String[] parts = value.split(",", 3);
+        // endTimeMs must be empty for the session to be "open"
+        if (parts.length >= 3 && parts[2].isEmpty()
+            && parts.length >= 2 && !parts[1].isEmpty()) {
+          try {
+            long startTimeMs = Long.parseLong(parts[1]);
+            if (now - startTimeMs > STALE_EDITING_THRESHOLD_MS) {
+              String userId = parts[0];
+              staleAnnotations.add(new StaleAnnotation(key, userId, value, pos, annotEnd, docSize));
+            }
+          } catch (NumberFormatException e) {
+            // Malformed startTimeMs; skip this interval.
+          }
+        }
+        searchFrom = annotEnd;
       }
-      if (now - startTimeMs <= STALE_EDITING_THRESHOLD_MS) return; // Not yet stale
-
-      // Find the end of this annotation range
-      int annotStart = pos;
-      int annotEnd = doc.firstAnnotationChange(pos, docSize, key, value);
-      if (annotEnd < 0) {
-        annotEnd = docSize;
-      }
-
-      String userId = parts[0];
-      staleAnnotations.add(new StaleAnnotation(key, userId, value, annotStart, annotEnd, docSize));
     });
 
     // Submit cleanup deltas for all stale annotations found. All deltas reference the same

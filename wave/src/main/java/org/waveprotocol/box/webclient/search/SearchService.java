@@ -62,9 +62,11 @@ public interface SearchService {
     private final int blipCount;
     private final ParticipantId author;
     private final List<ParticipantId> participants;
+    private final boolean pinned;
 
     public DigestSnapshot(String title, String snippet, WaveId waveId, ParticipantId author,
-        List<ParticipantId> participants, double lastModified, int unreadCount, int blipCount) {
+        List<ParticipantId> participants, double lastModified, int unreadCount, int blipCount,
+        boolean pinned) {
       this.title = title;
       this.snippet = snippet;
       this.waveId = waveId;
@@ -73,6 +75,7 @@ public interface SearchService {
       this.lastModified = lastModified;
       this.unreadCount = unreadCount;
       this.blipCount = blipCount;
+      this.pinned = pinned;
     }
 
     @Override
@@ -122,7 +125,7 @@ public interface SearchService {
 
     @Override
     public boolean isPinned() {
-      return false; // Pin state determined server-side for ordering
+      return pinned;
     }
 
     @Override
@@ -137,6 +140,7 @@ public interface SearchService {
       result = prime * result + ((title == null) ? 0 : title.hashCode());
       result = prime * result + unreadCount;
       result = prime * result + waveId.hashCode();
+      result = prime * result + (pinned ? 1 : 0);
       return result;
     }
 
@@ -153,7 +157,8 @@ public interface SearchService {
           && ValueUtils.equal(snippet, other.snippet) //
           && blipCount == other.blipCount //
           && unreadCount == other.unreadCount //
-          && lastModified == other.lastModified;
+          && lastModified == other.lastModified //
+          && pinned == other.pinned;
     }
   }
 

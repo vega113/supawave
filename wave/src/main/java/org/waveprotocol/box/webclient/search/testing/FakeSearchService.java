@@ -69,7 +69,7 @@ public final class FakeSearchService implements SearchService {
         participants.remove(author);
         WaveId wid = WaveId.of(domain, "fake" + i);
         double lmt = now - r.nextDouble() * week;
-        digests.add(new DigestSnapshot(title, snippet, wid, author, participants, lmt, unread, msgs));
+        digests.add(new DigestSnapshot(title, snippet, wid, author, participants, lmt, unread, msgs, false));
       }
       return digests;
     }

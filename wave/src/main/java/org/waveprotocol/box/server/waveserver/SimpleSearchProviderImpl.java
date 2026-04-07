@@ -345,9 +345,10 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
     List<WaveViewData> sortedResults = sort(queryParams, results);
 
-    // Promote pinned waves to the top of results only when no explicit sort order is requested.
-    // If the user specified orderby:dateasc/datedesc etc., respect that ordering exactly —
-    // pinned waves must not override an explicit sort.
+    // Promote pinned waves to the top of results (unless the query is specifically
+    // for pinned waves, in which case all results are already pinned).
+    // Also skip promotion if an explicit orderby: modifier is present — the user
+    // chose a sort order so we must respect it rather than forcing pinned-first.
     final boolean hasExplicitOrderBy = queryParams.containsKey(TokenQueryType.ORDERBY);
     if (!isPinnedQuery && !hasExplicitOrderBy) {
       // Reuse supplement cache from filter stages if available, otherwise create fresh ones.

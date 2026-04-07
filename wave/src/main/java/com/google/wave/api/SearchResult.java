@@ -40,9 +40,17 @@ public class SearchResult {
     private final int unreadCount;
     private final int blipCount;
     private final List<String> participants;
+    private final boolean pinned;
 
     public Digest(String title, String snippet, String waveId, List<String> participants,
                   long lastModified, long created, int unreadCount, int blipCount) {
+      this(title, snippet, waveId, participants, lastModified, created, unreadCount, blipCount,
+          false);
+    }
+
+    public Digest(String title, String snippet, String waveId, List<String> participants,
+                  long lastModified, long created, int unreadCount, int blipCount,
+                  boolean pinned) {
       this.title = title;
       this.snippet = snippet;
       this.waveId = waveId;
@@ -51,6 +59,7 @@ public class SearchResult {
       this.created = created;
       this.unreadCount = unreadCount;
       this.blipCount = blipCount;
+      this.pinned = pinned;
     }
 
     public String getTitle() {
@@ -83,6 +92,10 @@ public class SearchResult {
 
     public int getBlipCount() {
       return blipCount;
+    }
+
+    public boolean isPinned() {
+      return pinned;
     }
   }
 

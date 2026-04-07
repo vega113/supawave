@@ -55,6 +55,8 @@ message SearchResponse {
 	repeated string participants = 7;
 	// The wave author.
 	required string author = 8;
+    // Whether the wave is pinned by this user.
+    optional bool pinned = 9;
   }
 
   // The search query.

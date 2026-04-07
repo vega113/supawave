@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-07-pinned-waves-inbox-top",
+  "version": "PR #719",
+  "date": "2026-04-07",
+  "title": "Pinned Waves Sort to Top in Inbox",
+  "summary": "Pinned waves are promoted to the top of the inbox and displayed with a pin icon. Explicit sort orders (orderby:) are respected and suppress pin promotion.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Pinned waves appear at the top of in:inbox results (no orderby), sorted date-desc within each group",
+        "Pin icon shown next to pinned waves in all search result views",
+        "Explicit orderby: modifier disables pin promotion to respect user-chosen sort order"
+      ]
+    }
+  ]
+}

@@ -164,7 +164,8 @@ public final class JsoSearchBuilderImpl implements SearchBuilder {
       DigestSnapshot digestSnapshot =
           new DigestSnapshot(digest.getTitle(), digest.getSnippet(), WaveId.deserialise(digest
               .getWaveId()), ParticipantId.ofUnsafe(digest.getAuthor()), participantIds,
-              digest.getLastModified(), digest.getUnreadCount(), digest.getBlipCount());
+              digest.getLastModified(), digest.getUnreadCount(), digest.getBlipCount(),
+              digest.getPinned());
       return digestSnapshot;
     }
   }

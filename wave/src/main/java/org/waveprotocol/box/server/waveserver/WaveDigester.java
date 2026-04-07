@@ -332,7 +332,7 @@ public class WaveDigester {
       }
     }
     return new Digest(title, snippet, waveId, participants, lastModified,
-        rawWaveletData.getCreationTime(), unreadCount, blipCount);
+        rawWaveletData.getCreationTime(), unreadCount, blipCount, supplement.isPinned());
   }
 
   private int countUnread(WaveletData convWavelet,

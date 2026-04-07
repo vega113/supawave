@@ -74,6 +74,8 @@ public final class DigestDomImpl implements DigestView {
     String selected();
 
     String mentionCount();
+
+    String pinIcon();
   }
 
   @UiField(provided = true)
@@ -97,6 +99,8 @@ public final class DigestDomImpl implements DigestView {
   Element time;
   @UiField
   Element msgs;
+  @UiField
+  Element pinIcon;
 
   private Element mentionCountEl;
 
@@ -127,6 +131,7 @@ public final class DigestDomImpl implements DigestView {
     msgs.setInnerHTML("");
     mentionCountEl = null;
     self.removeClassName(css.selected());
+    setPinned(false);
   }
 
   @Override
@@ -160,6 +165,13 @@ public final class DigestDomImpl implements DigestView {
     if (time == null ? existingTime != null : !time.equals(existingTime)) {
       this.time.setInnerText(time);
     }
+  }
+
+  @Override
+  public void setPinned(boolean pinned) {
+    pinIcon.getStyle().setDisplay(pinned
+        ? com.google.gwt.dom.client.Style.Display.INLINE
+        : com.google.gwt.dom.client.Style.Display.NONE);
   }
 
   @Override

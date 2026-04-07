@@ -255,6 +255,27 @@ public final class SearchResponseUtil {
        * under the License.
        */
       if (!m1.getAuthor().equals(m2.getAuthor())) return false;
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License"); you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      if (m1.hasPinned() != m2.hasPinned()) return false;
+      if (m1.hasPinned() && (m1.getPinned() != m2.getPinned())) return false;
       return true;
     }
 
@@ -440,6 +461,27 @@ public final class SearchResponseUtil {
        * under the License.
        */
       result = (31 * result) + message.getAuthor().hashCode();
+
+      /**
+       * Licensed to the Apache Software Foundation (ASF) under one
+       * or more contributor license agreements. See the NOTICE file
+       * distributed with this work for additional information
+       * regarding copyright ownership. The ASF licenses this file
+       * to you under the Apache License, Version 2.0 (the
+       * "License");
+       you may not use this file except in compliance
+       * with the License. You may obtain a copy of the License at
+       *
+       * http://www.apache.org/licenses/LICENSE-2.0
+       *
+       * Unless required by applicable law or agreed to in writing,
+       * software distributed under the License is distributed on an
+       * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       * KIND, either express or implied. See the License for the
+       * specific language governing permissions and limitations
+       * under the License.
+       */
+      result = (31 * result) + (message.hasPinned() ? Boolean.valueOf(message.getPinned()).hashCode() : 0);
       return result;
     }
 

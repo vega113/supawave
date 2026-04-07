@@ -136,5 +136,13 @@
   margin-left: 4px;
 }
 
+.pinIcon {
+  display: none;
+  font-size: 11px;
+  color: #888;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
 /* Note: @media queries are not supported by GWT CssResource; responsive
    overrides for .digest/.inner/.title/.snippet are not applicable here */

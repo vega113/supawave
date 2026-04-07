@@ -1135,4 +1135,50 @@ public class SimpleSearchProviderImplTest extends TestCase {
       wavesViews.get(user).put(name.waveId, name.waveletId);
     }
   }
+
+  /**
+   * Verifies pinned waves appear first in a plain in:inbox query.
+   */
+  public void testPinnedWavesAppearFirstInPlainInbox() throws Exception {
+    // Wave A — older, will be pinned
+    WaveletName olderPinned = WaveletName.of(WaveId.of(DOMAIN, "old-pinned"), WAVELET_ID);
+    submitDeltaToNewWavelet(olderPinned, USER1, addParticipantToWavelet(USER1, olderPinned));
+    pinWaveForUser(olderPinned, USER1);
+
+    waitForDistinctTimestamp();
+
+    // Wave B — newer, not pinned
+    WaveletName newerUnpinned = WaveletName.of(WaveId.of(DOMAIN, "new-unpinned"), WAVELET_ID);
+    submitDeltaToNewWavelet(newerUnpinned, USER1, addParticipantToWavelet(USER1, newerUnpinned));
+
+    SearchResult results = searchProvider.search(USER1, "in:inbox", 0, 10);
+
+    assertEquals(2, results.getNumResults());
+    // Pinned wave must be first regardless of date.
+    assertEquals(olderPinned.waveId.serialise(), results.getDigests().get(0).getWaveId());
+  }
+
+  /**
+   * Verifies pinned waves are NOT forced to the top when orderby: is present.
+   */
+  public void testPinnedWavesNotPromotedWhenOrderByPresent() throws Exception {
+    // Wave A — older, pinned
+    WaveletName olderPinned = WaveletName.of(WaveId.of(DOMAIN, "old-pinned-ob"), WAVELET_ID);
+    submitDeltaToNewWavelet(olderPinned, USER1, addParticipantToWavelet(USER1, olderPinned));
+    pinWaveForUser(olderPinned, USER1);
+
+    waitForDistinctTimestamp();
+
+    // Wave B — newer, not pinned
+    WaveletName newerUnpinned = WaveletName.of(WaveId.of(DOMAIN, "new-unpinned-ob"), WAVELET_ID);
+    submitDeltaToNewWavelet(newerUnpinned, USER1, addParticipantToWavelet(USER1, newerUnpinned));
+
+    // With orderby:datedesc, newest should be first regardless of pin state.
+    SearchResult results = searchProvider.search(USER1, "in:inbox orderby:datedesc", 0, 10);
+
+    assertEquals(2, results.getNumResults());
+    // Newer wave must come first because orderby:datedesc is specified.
+    assertEquals(newerUnpinned.waveId.serialise(), results.getDigests().get(0).getWaveId());
+  }
+
 }

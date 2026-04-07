@@ -35,7 +35,7 @@
       -->
       </div>
       <div class='{css.info}'>
-        <div ui:field='time'/>
+        <span ui:field='pinIcon' class='{css.pinIcon}'>&#x1F4CC;</span><span ui:field='time'/>
         <div ui:field='msgs'/>
       </div>
       <div ui:field='title' class='{css.title}'/>

@@ -37,11 +37,11 @@ import java.util.logging.Logger;
  * Service layer for feature flags providing cached lookups and periodic refresh.
  *
  * <p>Call {@link #isEnabled(String, String)} to check whether a flag is active
- * for a given participant. A flag is considered enabled for a user if:
+ * for a given participant. Evaluation order:
  * <ol>
- *   <li>The flag's {@code enabled} field is {@code true} (global toggle), OR</li>
- *   <li>The user's participant address is in the flag's {@code allowedUsers} map with a
- *       {@code true} value.</li>
+ *   <li>If the user has an explicit entry in {@code allowedUsers}, that value wins
+ *       (regardless of the global toggle).</li>
+ *   <li>Otherwise, the flag's global {@code enabled} field is used.</li>
  * </ol>
  */
 @Singleton
@@ -78,29 +78,38 @@ public final class FeatureFlagService {
    *
    * @param flagName      the feature flag name
    * @param participantId the participant address (e.g. "user@example.com")
-   * @return true if the flag is globally enabled or the participant has an enabled override
+   * @return true if the participant has an enabled override, or if no override exists and the
+   *         flag is globally enabled
    */
   public boolean isEnabled(String flagName, String participantId) {
-    FeatureFlag flag = cache.get(flagName);
-    if (flag == null) return false;
-    if (flag.isEnabled()) return true;
-    return participantId != null
-        && Boolean.TRUE.equals(flag.getAllowedUsers().get(participantId));
+    return isEnabledInSnapshot(cache.get(flagName), participantId);
   }
 
   /**
    * Returns the names of all flags that are enabled for the given participant.
    */
   public List<String> getEnabledFlagNames(String participantId) {
+    // Snapshot the volatile to avoid mixing cache generations during iteration.
+    Map<String, FeatureFlag> snapshot = cache;
     List<String> result = new ArrayList<>();
-    for (FeatureFlag flag : cache.values()) {
-      if (flag.isEnabled()
-          || (participantId != null
-              && Boolean.TRUE.equals(flag.getAllowedUsers().get(participantId)))) {
+    for (FeatureFlag flag : snapshot.values()) {
+      if (isEnabledInSnapshot(flag, participantId)) {
         result.add(flag.getName());
       }
     }
     return result;
+  }
+
+  /** Evaluates a flag against a participant without re-reading the volatile cache. */
+  private static boolean isEnabledInSnapshot(FeatureFlag flag, String participantId) {
+    if (flag == null) return false;
+    if (participantId != null) {
+      Boolean allowed = flag.getAllowedUsers().get(participantId);
+      if (allowed != null) {
+        return allowed;
+      }
+    }
+    return flag.isEnabled();
   }
 
   /**

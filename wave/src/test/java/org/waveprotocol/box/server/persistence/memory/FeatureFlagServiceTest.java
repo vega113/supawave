@@ -96,6 +96,54 @@ public final class FeatureFlagServiceTest {
     assertTrue(service.isEnabled("new-ui", "vega@supawave.ai"));
   }
 
+  @Test
+  public void globallyEnabledFlagReturnsTrueForUnknownUser() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    Map<String, Boolean> overrides = new LinkedHashMap<>();
+    overrides.put("vega@supawave.ai", true);
+    store.save(new FeatureFlag("lucene9", "Lucene 9.x search", true, overrides));
+
+    service = new FeatureFlagService(store);
+
+    assertTrue(service.isEnabled("lucene9", "newuser@supawave.ai"));
+  }
+
+  @Test
+  public void globallyEnabledFlagAppearsInEnabledFlagNamesForUnknownUser() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    Map<String, Boolean> overrides = new LinkedHashMap<>();
+    overrides.put("vega@supawave.ai", true);
+    store.save(new FeatureFlag("ot-search", "Real-time search", true, overrides));
+
+    service = new FeatureFlagService(store);
+
+    assertTrue(service.getEnabledFlagNames("newuser@supawave.ai").contains("ot-search"));
+  }
+
+  @Test
+  public void userOverrideDisabledWinsOverGlobalEnabled() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    Map<String, Boolean> overrides = new LinkedHashMap<>();
+    overrides.put("blocked@supawave.ai", false);
+    store.save(new FeatureFlag("lucene9", "Lucene 9.x search", true, overrides));
+
+    service = new FeatureFlagService(store);
+
+    assertFalse(service.isEnabled("lucene9", "blocked@supawave.ai"));
+  }
+
+  @Test
+  public void userOverrideDisabledExcludesFromEnabledFlagNames() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    Map<String, Boolean> overrides = new LinkedHashMap<>();
+    overrides.put("blocked@supawave.ai", false);
+    store.save(new FeatureFlag("lucene9", "Lucene 9.x search", true, overrides));
+
+    service = new FeatureFlagService(store);
+
+    assertFalse(service.getEnabledFlagNames("blocked@supawave.ai").contains("lucene9"));
+  }
+
   private static Map<String, Boolean> allowedUsers(boolean enabled) {
     Map<String, Boolean> allowedUsers = new LinkedHashMap<>();
     allowedUsers.put("vega@supawave.ai", enabled);

@@ -98,6 +98,21 @@ public class FeatureFlaggedSearchProviderImplTest extends TestCase {
     verify(legacyProvider, never()).search(any(), anyString(), anyInt(), anyInt());
   }
 
+  public void testGloballyEnabledRoutesAllUsersToLucene9() throws Exception {
+    Map<String, Boolean> allowedUsers = new HashMap<>();
+    allowedUsers.put("vega@example.com", true);
+    flagStore.save(new FeatureFlag("lucene9", "test", true, allowedUsers));
+    flagService.refreshCache();
+
+    // User WITHOUT an explicit override should still get Lucene9
+    ParticipantId newUser = ParticipantId.ofUnsafe("newuser@example.com");
+    SearchResult result = provider.search(newUser, QUERY, START, NUM);
+
+    assertSame(lucene9Result, result);
+    verify(lucene9Provider).search(newUser, QUERY, START, NUM);
+    verify(legacyProvider, never()).search(eq(newUser), anyString(), anyInt(), anyInt());
+  }
+
   public void testPerUserRouting() throws Exception {
     Map<String, Boolean> allowedUsers = new HashMap<>();
     allowedUsers.put(FLAGGED_USER.getAddress(), true);

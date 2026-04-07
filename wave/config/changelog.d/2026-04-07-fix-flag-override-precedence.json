@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-07-fix-flag-override-precedence",
+  "version": "PR #704",
+  "date": "2026-04-07",
+  "title": "Feature Flag Override Precedence Fix",
+  "summary": "User-specific feature flag overrides now take precedence over global enabled state, ensuring admins can disable features for individual users even when globally enabled.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Feature flag user overrides now take precedence over global enabled state — a user-specific disabled override correctly disables the flag even when globally enabled",
+        "Fixed thread-safety issue in getEnabledFlagNames() that could mix cache generations during concurrent refresh"
+      ]
+    }
+  ]
+}

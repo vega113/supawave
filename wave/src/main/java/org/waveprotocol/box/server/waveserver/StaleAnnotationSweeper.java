@@ -32,6 +32,7 @@ import org.waveprotocol.wave.model.document.ObservableDocument;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.BlipData;
 import org.waveprotocol.wave.model.wave.data.DocumentOperationSink;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
@@ -40,6 +41,7 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -281,12 +283,19 @@ public class StaleAnnotationSweeper {
             .setRetainItemCount(stale.docSize - stale.end));
       }
 
-      // Use the wavelet creator as the delta author rather than the user ID extracted from the
-      // annotation value. The creator is a server-validated field; using parts[0] from the
-      // annotation would allow a malicious participant to submit a cleanup delta attributed to
-      // any participant by crafting a fake user/d/ annotation value.
+      // Use the first current participant as the delta author. The wavelet creator may have
+      // left the wavelet and would fail the participant check in WaveServerImpl.submitDelta.
+      // Using annotation-provided userId is unsafe (a malicious participant could craft a fake
+      // user/d/ annotation to submit deltas attributed to arbitrary users).
+      Set<ParticipantId> participants = snapshot.getParticipants();
+      if (participants.isEmpty()) {
+        LOG.warning("StaleAnnotationSweeper: no participants on " + waveletName
+            + "; skipping cleanup delta for " + stale.key);
+        return false;
+      }
+      String authorAddress = participants.iterator().next().getAddress();
       ProtocolWaveletDelta delta = ProtocolWaveletDelta.newBuilder()
-          .setAuthor(snapshot.getCreator().getAddress())
+          .setAuthor(authorAddress)
           .setHashedVersion(CoreWaveletOperationSerializer.serialize(snapshot.getHashedVersion()))
           .addOperation(ProtocolWaveletOperation.newBuilder()
               .setMutateDocument(ProtocolWaveletOperation.MutateDocument.newBuilder()

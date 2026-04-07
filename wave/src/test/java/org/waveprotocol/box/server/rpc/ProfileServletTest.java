@@ -74,6 +74,20 @@ public class ProfileServletTest extends TestCase {
     assertEquals("http://gravatar.com/avatar", url);
   }
 
+  public void testResolveImageUrlWithEmptyCustomImage() throws Exception {
+    ParticipantId pid = ParticipantId.ofUnsafe("user@example.com");
+    HumanAccountData account = new HumanAccountDataImpl(pid, null);
+    account.setProfileImageAttachmentId("");
+    store.putAccount(account);
+
+    ProfileImage mockImage = mock(ProfileImage.class);
+    when(mockImage.getImageUrl()).thenReturn("http://gravatar.com/avatar");
+    when(profilesFetcher.fetchProfile(pid.getAddress())).thenReturn(mockImage);
+
+    String url = invokeResolveImageUrl(account);
+    assertEquals("http://gravatar.com/avatar", url);
+  }
+
   private String invokeResolveImageUrl(HumanAccountData account) throws Exception {
     Method method = ProfileServlet.class.getDeclaredMethod("resolveImageUrl", HumanAccountData.class);
     method.setAccessible(true);

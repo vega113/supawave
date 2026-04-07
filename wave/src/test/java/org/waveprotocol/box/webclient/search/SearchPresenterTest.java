@@ -632,6 +632,10 @@ public final class SearchPresenterTest extends TestCase {
     }
 
     @Override
+    public void setMentionCount(int count) {
+    }
+
+    @Override
     public void select() {
     }
 

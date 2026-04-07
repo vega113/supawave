@@ -27,8 +27,9 @@ import org.waveprotocol.wave.model.id.WaveId;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tracks unread mention counts by periodically querying the search service
@@ -58,6 +59,7 @@ public final class MentionUnreadTracker {
   private Request pendingRequest;
   private double pendingRequestStartTime;
   private List<WaveId> unreadMentionWaves = Collections.emptyList();
+  private Map<WaveId, Integer> perWaveUnreadCounts = Collections.emptyMap();
   private int totalUnreadCount = 0;
   private int cursor = -1;
   private WaveId currentWaveId;
@@ -131,6 +133,14 @@ public final class MentionUnreadTracker {
     return null;
   }
 
+  /**
+   * Returns the unread mention count for a specific wave, or 0 if unknown.
+   */
+  public int getUnreadCountForWave(WaveId id) {
+    Integer count = perWaveUnreadCounts.get(id);
+    return count != null ? count : 0;
+  }
+
   /** Informs the tracker which wave the user is currently viewing. */
   public void setCurrentWaveId(WaveId id) {
     this.currentWaveId = id;
@@ -185,13 +195,18 @@ public final class MentionUnreadTracker {
   }
 
   private void handleResults(List<SearchService.DigestSnapshot> snapshots) {
-    LinkedHashSet<WaveId> seen = new LinkedHashSet<>();
+    List<WaveId> newUnread = new ArrayList<>();
+    Map<WaveId, Integer> newPerWaveCounts = new HashMap<>();
     for (SearchService.DigestSnapshot snapshot : snapshots) {
       if (snapshot.getUnreadCount() > 0) {
-        seen.add(snapshot.getWaveId());
+        newUnread.add(snapshot.getWaveId());
+        // Use 1 per wave: the query is "mentions:me unread:true" so the wave
+        // qualifies as a mention-wave; unreadCount is the general unread-blip
+        // total, not a mention-specific count, so it must not be used as the
+        // per-wave @N value.
+        newPerWaveCounts.put(snapshot.getWaveId(), 1);
       }
     }
-    List<WaveId> newUnread = new ArrayList<>(seen);
 
     int oldCount = totalUnreadCount;
     // Adjust cursor: if current wave is still in the new list, keep position
@@ -204,6 +219,7 @@ public final class MentionUnreadTracker {
     }
 
     unreadMentionWaves = Collections.unmodifiableList(newUnread);
+    perWaveUnreadCounts = Collections.unmodifiableMap(newPerWaveCounts);
     // Use the collected count so the badge exactly matches the navigable set.
     totalUnreadCount = newUnread.size();
 

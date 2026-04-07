@@ -93,39 +93,14 @@
 
 .mentionBadge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
   background-color: #e53e3e;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 8px;
-  min-width: 14px;
-  text-align: center;
-  line-height: 14px;
+  border-radius: 50%;
   z-index: 1;
   pointer-events: none;
-}
-
-.nextMentionButton {
-  position: absolute;
-  bottom: 12px;
-  right: 24px;
-  background-color: #0077b6;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 20px;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-  z-index: 10;
-  transition: background 0.15s ease, opacity 0.2s ease;
-}
-
-.nextMentionButton:hover {
-  background-color: #005f8a;
 }
 
 @sprite .showMore {

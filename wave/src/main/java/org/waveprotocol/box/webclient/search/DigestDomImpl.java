@@ -21,6 +21,7 @@ package org.waveprotocol.box.webclient.search;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.Style;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -71,6 +72,8 @@ public final class DigestDomImpl implements DigestView {
     String snippet();
 
     String selected();
+
+    String mentionCount();
   }
 
   @UiField(provided = true)
@@ -94,6 +97,8 @@ public final class DigestDomImpl implements DigestView {
   Element time;
   @UiField
   Element msgs;
+
+  private Element mentionCountEl;
 
   DigestDomImpl(SearchPanelWidget container) {
     this.container = container;
@@ -120,6 +125,7 @@ public final class DigestDomImpl implements DigestView {
     snippet.setInnerText("");
     time.setInnerText("");
     msgs.setInnerHTML("");
+    mentionCountEl = null;
     self.removeClassName(css.selected());
   }
 
@@ -167,6 +173,10 @@ public final class DigestDomImpl implements DigestView {
       title.addClassName(css.unread());
       time.addClassName(css.unread());
     }
+    // setInnerHTML clears all child nodes, so re-attach the mention badge if present.
+    if (mentionCountEl != null) {
+      msgs.appendChild(mentionCountEl);
+    }
   }
 
   private SafeHtml renderUnreadMessages(int unread, int total) {
@@ -196,6 +206,23 @@ public final class DigestDomImpl implements DigestView {
     html.appendHtmlConstant("' title='");
     html.appendEscaped(name);
     html.appendHtmlConstant("'>");
+  }
+
+  @Override
+  public void setMentionCount(int count) {
+    if (mentionCountEl == null) {
+      mentionCountEl = com.google.gwt.user.client.DOM.createSpan();
+      mentionCountEl.setClassName(css.mentionCount());
+      msgs.appendChild(mentionCountEl);
+    }
+    if (count <= 0) {
+      mentionCountEl.getStyle().setDisplay(Style.Display.NONE);
+      mentionCountEl.setInnerText("");
+    } else {
+      String text = count > 99 ? "@99+" : "@" + count;
+      mentionCountEl.setInnerText(text);
+      mentionCountEl.getStyle().setDisplay(Style.Display.INLINE_BLOCK);
+    }
   }
 
   @Override

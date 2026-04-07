@@ -824,6 +824,9 @@ public class WebClient implements EntryPoint {
             profiles, waveStore, isNewWave, isDirectMessage, Session.get().getDomain(),
             participants, contactManager);
     this.wave = wave;
+    if (!isNewWave && SearchPresenter.consumePendingMentionFocus()) {
+      wave.setPendingMentionFocus(true);
+    }
     wave.load(new Command() {
       @Override
       public void execute() {

@@ -138,7 +138,7 @@ public final class MentionUnreadTracker {
 
   private void poll() {
     if (pendingRequest != null) {
-      double elapsed = com.google.gwt.core.client.Duration.currentTimeMillis() - pendingRequestStartTime;
+      double elapsed = scheduler.currentTimeMillis() - pendingRequestStartTime;
       if (elapsed < STALE_REQUEST_TIMEOUT_MS) {
         // A multi-page scan is already in flight; let it complete rather than
         // canceling and restarting from page 0, which would prevent the badge
@@ -167,7 +167,7 @@ public final class MentionUnreadTracker {
             if (hasMore && withinCap) {
               fetchPage(offset + PAGE_SIZE, accumulated);
             } else {
-              handleResults(total, accumulated);
+              handleResults(accumulated);
             }
           }
 
@@ -181,12 +181,10 @@ public final class MentionUnreadTracker {
           }
         });
     pendingRequest = thisRequest[0];
-    if (offset == 0) {
-      pendingRequestStartTime = com.google.gwt.core.client.Duration.currentTimeMillis();
-    }
+    pendingRequestStartTime = scheduler.currentTimeMillis();
   }
 
-  private void handleResults(int total, List<SearchService.DigestSnapshot> snapshots) {
+  private void handleResults(List<SearchService.DigestSnapshot> snapshots) {
     LinkedHashSet<WaveId> seen = new LinkedHashSet<>();
     for (SearchService.DigestSnapshot snapshot : snapshots) {
       if (snapshot.getUnreadCount() > 0) {

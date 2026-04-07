@@ -1,0 +1,19 @@
+{
+  "releaseId": "2026-04-07-mention-ux-overhaul",
+  "version": "PR #718",
+  "date": "2026-04-07",
+  "title": "Mention UX Overhaul",
+  "summary": "Redesigned mention indicators with a red dot badge, per-wave unread counts, and in-wave navigation to the first @mention blip.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Red dot badge on the @ toolbar icon now shows accurate unread mention count using deduplicated wave IDs",
+        "Per-wave @N badges in mention-search results correctly survive polling updates without disappearing",
+        "Prev @/Next @ toolbar buttons now navigate directly to the first mention blip within a wave",
+        "Legacy toolbar callers without a signed-in user no longer render non-functional Prev @/Next @ buttons",
+        "Mention focus falls back to root blip when no blip is focused on initial wave load"
+      ]
+    }
+  ]
+}

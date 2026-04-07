@@ -321,7 +321,9 @@ public final class GptBotRobot {
         boolean stale = false;
         if (parts.length >= 2 && !parts[1].isEmpty()) {
           try {
-            long startTimeMs = (long) Double.parseDouble(parts[1]);
+            double parsed = Double.parseDouble(parts[1]);
+            if (!Double.isFinite(parsed)) throw new NumberFormatException("Non-finite timestamp");
+            long startTimeMs = (long) parsed;
             stale = (now - startTimeMs > STALE_EDITING_THRESHOLD_MS);
           } catch (NumberFormatException e) {
             // Cannot parse startTimeMs — treat as active (safe default)

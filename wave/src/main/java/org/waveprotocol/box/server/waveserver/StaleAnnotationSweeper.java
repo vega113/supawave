@@ -221,7 +221,9 @@ public class StaleAnnotationSweeper {
         // endTimeMs must be empty for the session to be "open"
         if (parts.length >= 3 && parts[2].isEmpty() && !parts[1].isEmpty()) {
           try {
-            long startTimeMs = (long) Double.parseDouble(parts[1]);
+            double parsed = Double.parseDouble(parts[1]);
+            if (!Double.isFinite(parsed)) throw new NumberFormatException("Non-finite timestamp");
+            long startTimeMs = (long) parsed;
             if (now - startTimeMs > STALE_EDITING_THRESHOLD_MS) {
               String userId = parts[0];
               // Note: userId is from annotation content but is only used for logging.
@@ -261,7 +263,9 @@ public class StaleAnnotationSweeper {
         String[] dParts = dValue.split(",", 3);
         if (dParts.length >= 3 && dParts[2].isEmpty() && !dParts[1].isEmpty()) {
           try {
-            long startTimeMs = (long) Double.parseDouble(dParts[1]);
+            double parsed = Double.parseDouble(dParts[1]);
+            if (!Double.isFinite(parsed)) throw new NumberFormatException("Non-finite timestamp");
+            long startTimeMs = (long) parsed;
             if (now - startTimeMs <= STALE_EDITING_THRESHOLD_MS) {
               hasActiveSession = true;
               break;

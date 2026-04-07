@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-07-fix-editor-cursor",
+  "version": "PR #fix",
+  "date": "2026-04-07",
+  "title": "Fix Editor Cursor Corruption During Typing",
+  "summary": "Fixed an intermittent bug where characters could be inserted at incorrect positions mid-word during typing in the blip editor.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Fixed cursor corruption in the OT editor caused by AnnotationPainter's async transparentSlice DOM mutations displacing the browser caret without saving/restoring the selection",
+        "transparentSlice in ContentDocument.FullContent now wraps DOM mutations with selectionMaintainer.saveSelection/restoreSelection, consistent with all other transparent DOM operations"
+      ]
+    }
+  ]
+}

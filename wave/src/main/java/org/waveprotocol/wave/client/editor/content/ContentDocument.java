@@ -722,7 +722,12 @@ public class ContentDocument {
 
     @Override
     public ContentNode transparentSlice(ContentNode splitAt) {
-      return persistentContentView.transparentSlice(splitAt);
+      selectionMaintainer.saveSelection();
+      try {
+        return persistentContentView.transparentSlice(splitAt);
+      } finally {
+        selectionMaintainer.restoreSelection();
+      }
     }
 
     @Override

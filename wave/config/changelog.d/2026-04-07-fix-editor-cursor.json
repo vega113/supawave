@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-07-fix-editor-cursor",
-  "version": "PR #fix",
+  "version": "PR #708",
   "date": "2026-04-07",
   "title": "Fix Editor Cursor Corruption During Typing",
   "summary": "Fixed an intermittent bug where characters could be inserted at incorrect positions mid-word during typing in the blip editor.",

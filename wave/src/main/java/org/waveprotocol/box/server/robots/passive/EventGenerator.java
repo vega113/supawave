@@ -469,16 +469,22 @@ public class EventGenerator {
 
   private final ParticipantId robotId;
 
+  /** The server's Data API RPC endpoint URL sent to robots so they know where to call back. */
+  private final String rpcServerUrl;
+
   /**
    * Constructs a new {@link EventGenerator} for the robot with the given name.
    *
    * @param robotName the name of the robot.
    * @param conversationUtil used to create conversations.
+   * @param rpcServerUrl the server's Data API RPC endpoint URL.
    */
-  public EventGenerator(RobotName robotName, ConversationUtil conversationUtil) {
+  public EventGenerator(RobotName robotName, ConversationUtil conversationUtil,
+      String rpcServerUrl) {
     this.robotName = robotName;
     this.conversationUtil = conversationUtil;
     this.robotId = ParticipantId.ofUnsafe(robotName.toParticipantAddress());
+    this.rpcServerUrl = rpcServerUrl;
   }
 
   /**
@@ -492,7 +498,7 @@ public class EventGenerator {
    */
   public EventMessageBundle generateEvents(WaveletAndDeltas waveletAndDeltas,
       Map<EventType, Capability> capabilities, EventDataConverter converter) {
-    EventMessageBundle messages = new EventMessageBundle(robotName.toEmailAddress(), "");
+    EventMessageBundle messages = new EventMessageBundle(robotName.toEmailAddress(), rpcServerUrl);
     ObservableWaveletData snapshot =
         WaveletDataUtil.copyWavelet(waveletAndDeltas.getSnapshotBeforeDeltas());
     isEventProcessingSuspended = !snapshot.getParticipants().contains(robotId);

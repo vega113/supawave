@@ -46,7 +46,7 @@ public class FetchWaveServiceTest extends RobotsTestBase {
 
   @Override
   protected void setUp() throws Exception {
-    service = FetchWaveService.create();
+    service = FetchWaveService.create("https://example.com/robot/dataapi/rpc");
     helper = new OperationServiceHelper(WAVELET_NAME, ALEX);
   }
 

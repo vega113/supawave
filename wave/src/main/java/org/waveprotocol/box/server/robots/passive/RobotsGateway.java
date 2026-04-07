@@ -28,10 +28,12 @@ import com.google.wave.api.RobotSerializer;
 import com.google.wave.api.data.converter.EventDataConverterManager;
 import com.google.wave.api.robot.CapabilityFetchException;
 import com.google.wave.api.robot.RobotName;
+import com.typesafe.config.Config;
 
 import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.operations.NotifyOperationService;
@@ -63,6 +65,8 @@ public class RobotsGateway implements WaveBus.Subscriber {
 
   private static final Log LOG = Log.get(RobotsGateway.class);
 
+  private static final String DATA_API_RPC_PATH = "/robot/dataapi/rpc";
+
   private final WaveletProvider waveletProvider;
   private final AccountStore accountStore;
   private final EventDataConverterManager converterManager;
@@ -72,13 +76,14 @@ public class RobotsGateway implements WaveBus.Subscriber {
   private final Executor executor;
   private final ConversationUtil conversationUtil;
   private final NotifyOperationService notifyOpService;
+  private final String rpcServerUrl;
 
   @Inject
   @VisibleForTesting
   RobotsGateway(WaveletProvider waveletProvider, RobotConnector connector,
       AccountStore accountStore, RobotSerializer serializer,
       EventDataConverterManager converterManager, @Named("GatewayExecutor") Executor executor,
-      ConversationUtil conversationUtil, NotifyOperationService notifyOpService) {
+      ConversationUtil conversationUtil, NotifyOperationService notifyOpService, Config config) {
     this.waveletProvider = waveletProvider;
     this.accountStore = accountStore;
     this.converterManager = converterManager;
@@ -86,6 +91,7 @@ public class RobotsGateway implements WaveBus.Subscriber {
     this.executor = executor;
     this.conversationUtil = conversationUtil;
     this.notifyOpService = notifyOpService;
+    this.rpcServerUrl = PublicBaseUrlResolver.resolve(config) + DATA_API_RPC_PATH;
   }
 
   @Override
@@ -178,7 +184,7 @@ public class RobotsGateway implements WaveBus.Subscriber {
    *        {@link RobotName}.
    */
   private Robot createNewRobot(RobotName robotName, RobotAccountData account) {
-    EventGenerator eventGenerator = new EventGenerator(robotName, conversationUtil);
+    EventGenerator eventGenerator = new EventGenerator(robotName, conversationUtil, rpcServerUrl);
     RobotOperationApplicator operationApplicator =
         new RobotOperationApplicator(converterManager, waveletProvider,
             new OperationServiceRegistryImpl(notifyOpService), conversationUtil);

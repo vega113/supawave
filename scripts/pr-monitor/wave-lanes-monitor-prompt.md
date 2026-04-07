@@ -14,13 +14,19 @@ Every cycle:
 ## Part 1: Close lanes for merged/closed PRs
 
 ```bash
-tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}: #{pane_title} | #{pane_current_path}" 2>/dev/null
+tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}"$'\t'"#{pane_title}"$'\t'"#{pane_current_path}" 2>/dev/null
 ```
 
-For EACH pane:
-1. If title contains PR#NNN, check: `gh pr view NNN --repo vega113/incubator-wave --json state -q .state`
-2. ALSO check by branch: `git -C <PATH> branch --show-current` then `gh pr list --repo vega113/incubator-wave --state all --head <BRANCH> --json number,state -q '.[0].state'`
-3. If state is MERGED or CLOSED → kill the pane completely:
+For EACH pane, extract the PR number using THREE methods:
+1. **From title:** If title contains `PR#NNN`, extract the number
+2. **From path:** If path contains `pr-NNN-lane` (e.g. `/Users/vega/devroot/worktrees/pr-700-lane`), extract NNN
+3. **From branch:** `git -C <PATH> branch --show-current` then `gh pr list --repo vega113/incubator-wave --state all --head <BRANCH> --json number,state -q '.[0]'`
+
+IMPORTANT: Many panes have generic titles like "Claude Code" — you MUST check the path, not just the title.
+
+Once you have the PR number, check: `gh pr view NNN --repo vega113/incubator-wave --json state -q .state`
+
+If state is MERGED or CLOSED → kill the pane completely:
    ```bash
    # First send Ctrl-C to stop any running claude agent inside the pane
    tmux send-keys -t "vibe-code:wave-lanes.<INDEX>" C-c 2>/dev/null
@@ -45,7 +51,7 @@ For EACH pane:
 
 ```bash
 gh pr list --repo vega113/incubator-wave --state open --json number,title,headRefName,mergeable --limit 50 2>/dev/null
-tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}: #{pane_title} | #{pane_current_path}" 2>/dev/null
+tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}"$'\t'"#{pane_title}"$'\t'"#{pane_current_path}" 2>/dev/null
 ```
 
 ### Step B: For each open PR, check its status
@@ -62,7 +68,11 @@ gh pr checks NNN --repo vega113/incubator-wave 2>/dev/null | head -10
 
 ### Step C: For each open PR — create lane if missing, send instructions if issues exist
 
-**If NO pane covers this PR** (no pane title contains "#NNN" and no pane path ends with the branch name):
+IMPORTANT: At the start of EACH PR iteration, re-run:
+`tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}"$'\t'"#{pane_title}"$'\t'"#{pane_current_path}" 2>/dev/null`
+and compute coverage from this fresh snapshot before deciding to create a lane.
+
+**If NO pane covers this PR** (no pane title contains `PR#NNN`, no pane path contains `pr-NNN-lane`, and branch lookup from `pane_current_path` does not map to PR `#NNN`):
 
 Create a new lane:
 1. `git -C /Users/vega/devroot/incubator-wave worktree add /Users/vega/devroot/worktrees/pr-NNN-lane --track -b pr-NNN origin/<BRANCH> 2>/dev/null || true`
@@ -82,10 +92,16 @@ Update the pane title if needed: `tmux select-pane -t vibe-code:wave-lanes.<INDE
 
 ### Step D: Send instructions to ALL PR lanes every cycle
 
-For every open PR that has a pane (whether just created or already existing), compose and send instructions based on the PR's current status:
+For every open PR that has a pane (whether just created or already existing), compose and send instructions based on the PR's current status.
 
+IMPORTANT: Do NOT use `tmux send-keys` for long prompts — it truncates text. Instead, write the prompt to a temp file and use tmux's paste-buffer:
 ```bash
-tmux send-keys -t "vibe-code:wave-lanes.<PANE_INDEX>" "<INSTRUCTIONS>" Enter
+PROMPT_FILE=$(mktemp /tmp/wave-lane-prompt-XXXXXX.txt)
+printf '%s' "<INSTRUCTIONS>" > "$PROMPT_FILE"
+tmux load-buffer "$PROMPT_FILE"
+tmux paste-buffer -t "vibe-code:wave-lanes.<PANE_INDEX>"
+tmux send-keys -t "vibe-code:wave-lanes.<PANE_INDEX>" Enter
+rm -f "$PROMPT_FILE"
 ```
 
 The instructions should be specific based on what you found in Step B:

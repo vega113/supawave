@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-07-pr-monitor-path-detection",
+  "version": "PR #707",
+  "date": "2026-04-07",
+  "title": "PR Monitor Path-Based PR Number Detection",
+  "summary": "PR monitor now extracts PR numbers from worktree paths when pane titles lack a PR# marker, preventing unbounded accumulation of stale panes.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Detect PR numbers from pane worktree paths (pr-NNN-lane) as fallback when title has no PR# marker — panes with generic 'Claude Code' titles are now correctly identified and cleaned up",
+        "Re-read pane list inside the PART 2 loop each iteration to prevent duplicate lane creation when launch_interactive_agent sleeps during startup"
+      ]
+    }
+  ]
+}

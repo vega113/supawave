@@ -457,7 +457,8 @@ public final class RobotDashboardServlet extends HttpServlet {
         refreshedRobot.getCreatedAtMillis(),
         clock.millis(),
         refreshedRobot.isPaused(),
-        refreshedRobot.getTokenVersion());
+        refreshedRobot.getTokenVersion(),
+        refreshedRobot.getLastActiveAtMillis());
     accountStore.putAccount(verifiedRobot);
     return verifiedRobot;
   }

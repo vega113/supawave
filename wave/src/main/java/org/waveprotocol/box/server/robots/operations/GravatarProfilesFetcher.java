@@ -140,9 +140,11 @@ public class GravatarProfilesFetcher implements ProfilesFetcher {
           }
         }
 
-        // Custom profile image takes priority over Gravatar
+        // Custom profile image takes priority over Gravatar.
+        // Only use the proxy URL for data: URLs; legacy non-data IDs would cause
+        // a redirect loop in ProfileServlet.handleGetProfileImage.
         String profileImageId = human.getProfileImageAttachmentId();
-        if (profileImageId != null && !profileImageId.trim().isEmpty()) {
+        if (profileImageId != null && profileImageId.startsWith("data:")) {
           imageUrl = "/userprofile/image/" + address;
         }
 

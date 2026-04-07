@@ -90,9 +90,11 @@ public class InitialsProfilesFetcher implements ProfilesFetcher {
           }
         }
 
-        // Custom profile image takes priority
+        // Custom profile image takes priority.
+        // Only use the proxy URL for data: URLs; legacy non-data IDs would cause
+        // a redirect loop in ProfileServlet.handleGetProfileImage.
         String profileImageId = human.getProfileImageAttachmentId();
-        if (profileImageId != null && !profileImageId.trim().isEmpty()) {
+        if (profileImageId != null && profileImageId.startsWith("data:")) {
           imageUrl = "/userprofile/image/" + address;
         }
 

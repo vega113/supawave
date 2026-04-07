@@ -27,6 +27,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -47,6 +48,7 @@ public final class MentionUnreadTracker {
   private static final int PAGE_SIZE = 100;
   private static final int MAX_PAGES = 10; // cap navigation set at 1000 waves
   private static final int POLL_INTERVAL_MS = 15000;
+  private static final int STALE_REQUEST_TIMEOUT_MS = 30000;
 
   private final SearchService searchService;
   private final TimerService scheduler;
@@ -54,6 +56,7 @@ public final class MentionUnreadTracker {
 
   private Listener listener;
   private Request pendingRequest;
+  private double pendingRequestStartTime;
   private List<WaveId> unreadMentionWaves = Collections.emptyList();
   private int totalUnreadCount = 0;
   private int cursor = -1;
@@ -135,10 +138,15 @@ public final class MentionUnreadTracker {
 
   private void poll() {
     if (pendingRequest != null) {
-      // A multi-page scan is already in flight; let it complete rather than
-      // canceling and restarting from page 0, which would prevent the badge
-      // from ever refreshing on slow connections with many mention waves.
-      return;
+      double elapsed = scheduler.currentTimeMillis() - pendingRequestStartTime;
+      if (elapsed < STALE_REQUEST_TIMEOUT_MS) {
+        // A multi-page scan is already in flight; let it complete rather than
+        // canceling and restarting from page 0, which would prevent the badge
+        // from ever refreshing on slow connections with many mention waves.
+        return;
+      }
+      // Request has been in flight too long — treat as stale and start fresh.
+      cancelPending();
     }
     fetchPage(0, new ArrayList<SearchService.DigestSnapshot>());
   }
@@ -159,7 +167,7 @@ public final class MentionUnreadTracker {
             if (hasMore && withinCap) {
               fetchPage(offset + PAGE_SIZE, accumulated);
             } else {
-              handleResults(total, accumulated);
+              handleResults(accumulated);
             }
           }
 
@@ -173,15 +181,17 @@ public final class MentionUnreadTracker {
           }
         });
     pendingRequest = thisRequest[0];
+    pendingRequestStartTime = scheduler.currentTimeMillis();
   }
 
-  private void handleResults(int total, List<SearchService.DigestSnapshot> snapshots) {
-    List<WaveId> newUnread = new ArrayList<>();
+  private void handleResults(List<SearchService.DigestSnapshot> snapshots) {
+    LinkedHashSet<WaveId> seen = new LinkedHashSet<>();
     for (SearchService.DigestSnapshot snapshot : snapshots) {
       if (snapshot.getUnreadCount() > 0) {
-        newUnread.add(snapshot.getWaveId());
+        seen.add(snapshot.getWaveId());
       }
     }
+    List<WaveId> newUnread = new ArrayList<>(seen);
 
     int oldCount = totalUnreadCount;
     // Adjust cursor: if current wave is still in the new list, keep position

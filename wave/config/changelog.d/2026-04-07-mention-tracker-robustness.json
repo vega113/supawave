@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-07-mention-tracker-robustness",
+  "version": "PR #705",
+  "date": "2026-04-07",
+  "title": "Mention Tracker Robustness",
+  "summary": "Fixes a loop where multi-page mention scans on slow connections were perpetually cancelled before completing.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Stale-request watchdog now resets per page fetch so slow-but-progressing multi-page scans are not incorrectly cancelled",
+        "Watchdog timer now uses the injected TimerService for consistency and testability",
+        "Duplicate wave IDs across paginated results are now deduplicated before updating the badge count"
+      ]
+    }
+  ]
+}

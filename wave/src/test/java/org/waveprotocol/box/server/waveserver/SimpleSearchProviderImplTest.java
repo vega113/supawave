@@ -66,6 +66,7 @@ import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionZeroFactoryImpl;
+import org.waveprotocol.wave.model.supplement.SupplementedWaveImpl;
 import org.waveprotocol.wave.model.supplement.WaveletBasedSupplement;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
@@ -777,6 +778,50 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(0, results.getNumResults());
   }
 
+  public void testSearchOrderByDateAscRespectsSortOrderEvenWithPinnedWave() throws Exception {
+    WaveletName oldest = WaveletName.of(WaveId.of(DOMAIN, "oldest"), WAVELET_ID);
+    WaveletName middle = WaveletName.of(WaveId.of(DOMAIN, "middle"), WAVELET_ID);
+    WaveletName newest = WaveletName.of(WaveId.of(DOMAIN, "newest"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(oldest, USER1, addParticipantToWavelet(USER1, oldest));
+    waitForDistinctTimestamp();
+    submitDeltaToNewWavelet(middle, USER1, addParticipantToWavelet(USER1, middle));
+    waitForDistinctTimestamp();
+    submitDeltaToNewWavelet(newest, USER1, addParticipantToWavelet(USER1, newest));
+
+    // Pin the newest wave — without the fix it would be promoted to front, breaking dateasc order.
+    pinWaveForUser(newest, USER1);
+
+    SearchResult ascResults = searchProvider.search(USER1, "in:inbox orderby:dateasc", 0, 10);
+    assertEquals(3, ascResults.getNumResults());
+    // The pinned wave must NOT be promoted when orderby: is explicit.
+    assertEquals("oldest", WaveId.deserialise(ascResults.getDigests().get(0).getWaveId()).getId());
+    assertEquals("newest", WaveId.deserialise(ascResults.getDigests().get(2).getWaveId()).getId());
+  }
+
+  public void testSearchOrderByDateDescRespectsSortOrderEvenWithPinnedWave() throws Exception {
+    WaveletName oldest = WaveletName.of(WaveId.of(DOMAIN, "oldest2"), WAVELET_ID);
+    WaveletName middle = WaveletName.of(WaveId.of(DOMAIN, "middle2"), WAVELET_ID);
+    WaveletName newest = WaveletName.of(WaveId.of(DOMAIN, "newest2"), WAVELET_ID);
+
+    // Pin oldest2 immediately after creation so its UDW timestamp is older than middle2/newest2,
+    // avoiding timestamp contamination in unknownDigest (which includes all wavelet LMTs).
+    submitDeltaToNewWavelet(oldest, USER1, addParticipantToWavelet(USER1, oldest));
+    pinWaveForUser(oldest, USER1);
+    waitForDistinctTimestamp();
+    submitDeltaToNewWavelet(middle, USER1, addParticipantToWavelet(USER1, middle));
+    waitForDistinctTimestamp();
+    submitDeltaToNewWavelet(newest, USER1, addParticipantToWavelet(USER1, newest));
+
+    SearchResult descResults = searchProvider.search(USER1, "in:inbox orderby:datedesc", 0, 10);
+    assertEquals(3, descResults.getNumResults());
+    // The pinned wave must NOT be promoted when orderby: is explicit.
+    assertEquals("newest2",
+        WaveId.deserialise(descResults.getDigests().get(0).getWaveId()).getId());
+    assertEquals("oldest2",
+        WaveId.deserialise(descResults.getDigests().get(2).getWaveId()).getId());
+  }
+
   // *** Helpers
 
   private void addMentionAnnotationToBlip(WaveletName name, ParticipantId author,
@@ -953,6 +998,23 @@ public class SimpleSearchProviderImplTest extends TestCase {
                     .elementEnd()
                     .build()));
     submitDeltaToExistingWavelet(userDataWaveletName, user, clearOperation);
+  }
+
+  private void pinWaveForUser(WaveletName name, ParticipantId user) throws Exception {
+    WaveletOperation pinOperation =
+        new WaveletBlipOperation(
+            WaveletBasedSupplement.FOLDERS_DOCUMENT,
+            new BlipContentOperation(
+                new WaveletOperationContext(user, 0, 1),
+                new DocOpBuilder()
+                    .elementStart(
+                        WaveletBasedSupplement.FOLDER_TAG,
+                        new AttributesImpl(
+                            WaveletBasedSupplement.ID_ATTR,
+                            String.valueOf(SupplementedWaveImpl.PINNED_FOLDER)))
+                    .elementEnd()
+                    .build()));
+    submitDeltaToNewWaveletWithoutView(userDataWaveletName(name.waveId, user), user, pinOperation);
   }
 
   private WaveletName userDataWaveletName(WaveId waveId, ParticipantId user) {

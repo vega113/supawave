@@ -233,6 +233,46 @@ public final class MentionUnreadTrackerTest extends TestCase {
     assertFalse(scheduler.hasPending());
   }
 
+  public void testStaleRequestWatchdogCancelsHungScan() {
+    MentionUnreadTracker tracker = createTracker(true, true);
+    tracker.start();
+    scheduler.runPending(); // fires first poll → request in flight
+
+    // Poll while in-flight but not yet stale — no additional request issued
+    scheduler.runPending();
+    assertEquals(1, searchService.requestedOffsets.size());
+
+    // Advance time past the stale threshold
+    scheduler.advanceTime(31000);
+
+    // Next poll should cancel the stale request and issue a fresh one at offset 0
+    scheduler.runPending();
+    assertEquals(2, searchService.requestedOffsets.size());
+    assertEquals(Integer.valueOf(0), searchService.requestedOffsets.get(1));
+
+    // The fresh request resolves normally and updates the badge
+    searchService.respondSuccess(1, makeSnapshots(snap("example.com/w+fresh", 2)));
+    assertEquals(1, tracker.getUnreadMentionCount());
+    assertEquals(1, lastNotifiedCount);
+  }
+
+  public void testDeduplicationRemovesDuplicateWaveIds() {
+    MentionUnreadTracker tracker = createTracker(true, true);
+    tracker.start();
+    scheduler.runPending();
+
+    // Same wave ID returned twice (e.g. appears on two overlapping pages)
+    searchService.respondSuccess(3, makeSnapshots(
+        snap("example.com/w+aaa", 3),
+        snap("example.com/w+aaa", 3),  // duplicate
+        snap("example.com/w+bbb", 1)
+    ));
+
+    // Badge and navigable set must count unique waves only
+    assertEquals(2, tracker.getUnreadMentionCount());
+    assertEquals(2, lastNotifiedCount);
+  }
+
   // --- Helpers ---
 
   private static SnapSpec snap(String waveId, int unread) {
@@ -266,6 +306,7 @@ public final class MentionUnreadTrackerTest extends TestCase {
   /** Minimal timer service that captures tasks for manual execution. */
   private static final class SimpleTimerService implements TimerService {
     private final List<IncrementalTask> pendingTasks = new ArrayList<IncrementalTask>();
+    private double fakeTime = 0;
 
     @Override public void schedule(Task task) { }
     @Override public void schedule(IncrementalTask process) { pendingTasks.add(process); }
@@ -278,6 +319,10 @@ public final class MentionUnreadTrackerTest extends TestCase {
     }
     @Override public void cancel(Schedulable job) { pendingTasks.remove(job); }
     @Override public boolean isScheduled(Schedulable job) { return pendingTasks.contains(job); }
+    @Override public double currentTimeMillis() { return fakeTime; }
+    @Override public int elapsedMillis() { return (int) fakeTime; }
+
+    void advanceTime(double ms) { fakeTime += ms; }
 
     void runPending() {
       List<IncrementalTask> snapshot = new ArrayList<IncrementalTask>(pendingTasks);

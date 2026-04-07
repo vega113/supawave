@@ -202,6 +202,14 @@ public class OperationContextImplTest extends TestCase {
     }
   }
 
+  public void testPutNullBlipId() throws Exception {
+    // putBlip with null blipId should silently return without NPE
+    ConversationBlip blip = mock(ConversationBlip.class);
+    when(blip.getId()).thenReturn("b+1234");
+    // Should not throw NullPointerException
+    operationContext.putBlip(null, blip);
+  }
+
   public void testPutNonTemporaryBlip() throws Exception {
     // Non temporary blip is ignored
     Conversation conversation = mock(Conversation.class);

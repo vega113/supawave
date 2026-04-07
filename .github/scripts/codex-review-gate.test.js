@@ -8,8 +8,9 @@ const {
 } = require("./codex-review-gate");
 
 const BASE_TIME = Date.parse("2026-03-28T13:00:00Z");
-const AFTER_WINDOW = Date.parse("2026-03-28T13:06:00Z");
-const WITHIN_WINDOW = Date.parse("2026-03-28T13:03:00Z");
+const AFTER_WINDOW = Date.parse("2026-03-28T13:11:00Z");
+const WITHIN_WINDOW = Date.parse("2026-03-28T13:07:00Z");
+const EXACT_BOUNDARY = BASE_TIME + 10 * 60 * 1000;
 
 function buildPullRequest(overrides = {}) {
   return {
@@ -83,14 +84,14 @@ test("fails when there are unresolved review threads", () => {
   assert.match(result.message, /unresolved review thread/);
 });
 
-test("fails when inside the 5-minute window", () => {
+test("fails when inside the 10-minute window", () => {
   const result = evaluateCodexReviewGate({
     defaultBranchName: "main",
     nowMs: WITHIN_WINDOW,
     pullRequest: buildPullRequest(),
   });
   assert.equal(result.ok, false);
-  assert.match(result.message, /5-minute review window/);
+  assert.match(result.message, /10-minute review window/);
 });
 
 test("reports remaining minutes when inside window", () => {
@@ -103,14 +104,24 @@ test("reports remaining minutes when inside window", () => {
   assert.match(result.message, /\d+ minute/);
 });
 
-test("passes after the 5-minute window with no unresolved threads", () => {
+test("passes at exactly the 10-minute boundary", () => {
+  const result = evaluateCodexReviewGate({
+    defaultBranchName: "main",
+    nowMs: EXACT_BOUNDARY,
+    pullRequest: buildPullRequest(),
+  });
+  assert.equal(result.ok, true);
+  assert.match(result.message, /10-minute window elapsed/);
+});
+
+test("passes after the 10-minute window with no unresolved threads", () => {
   const result = evaluateCodexReviewGate({
     defaultBranchName: "main",
     nowMs: AFTER_WINDOW,
     pullRequest: buildPullRequest(),
   });
   assert.equal(result.ok, true);
-  assert.match(result.message, /5-minute window elapsed/);
+  assert.match(result.message, /10-minute window elapsed/);
 });
 
 test("passes for stacked PRs after the window (no special requirement)", () => {
@@ -160,7 +171,7 @@ test("shouldRequeue: true after window, no unresolved threads, not yet passed", 
   );
 });
 
-test("shouldRequeue: false when still inside the 5-minute window", () => {
+test("shouldRequeue: false when still inside the 10-minute window", () => {
   assert.equal(
     shouldRequeueCodexReviewGate({
       defaultBranchName: "main",
@@ -222,7 +233,7 @@ test("publishes success status on the PR head", async () => {
   };
 
   await publishCodexReviewGateHeadStatus(github, {
-    description: "Review gate passed: 5-minute window elapsed and no unresolved threads",
+    description: "Review gate passed: 10-minute window elapsed and no unresolved threads",
     owner: "vega113",
     repo: "incubator-wave",
     sha: "head-oid",
@@ -231,7 +242,7 @@ test("publishes success status on the PR head", async () => {
   assert.deepEqual(calls, [
     {
       context: "Codex Review Gate",
-      description: "Review gate passed: 5-minute window elapsed and no unresolved threads",
+      description: "Review gate passed: 10-minute window elapsed and no unresolved threads",
       owner: "vega113",
       repo: "incubator-wave",
       sha: "head-oid",

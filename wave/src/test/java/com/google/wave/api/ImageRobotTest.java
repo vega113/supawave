@@ -103,4 +103,12 @@ public class ImageRobotTest extends TestCase {
       // Expected.
     }
   }
+
+  public void testDisplaySizeAccessors() {
+    Image image = new Image();
+    assertNull(image.getDisplaySize());
+
+    image.setDisplaySize(Image.DISPLAY_SIZE_MEDIUM);
+    assertEquals(Image.DISPLAY_SIZE_MEDIUM, image.getDisplaySize());
+  }
 }

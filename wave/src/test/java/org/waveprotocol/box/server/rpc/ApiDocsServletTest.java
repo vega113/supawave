@@ -47,6 +47,22 @@ public final class ApiDocsServletTest {
   }
 
   @Test
+  public void apiDocsHtmlDocumentsAttachmentBackedInlineImageFlow() throws Exception {
+    ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
+    StringWriter body = new StringWriter();
+    ResponseRecorder recorder = new ResponseRecorder();
+    HttpServletRequest request = request("/api-docs", "https", "docs.example.com");
+    HttpServletResponse response = response(recorder, body);
+
+    servlet.doGet(request, response);
+
+    assertTrue(recorder.status == HttpServletResponse.SC_OK);
+    assertTrue(body.toString().contains("attachment-backed inline image"));
+    assertTrue(body.toString().contains("display-size"));
+    assertTrue(body.toString().contains("attachmentId"));
+  }
+
+  @Test
   public void llmsIndexEndpointReturnsRootLevelPointers() throws Exception {
     ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
     StringWriter body = new StringWriter();

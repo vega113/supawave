@@ -1697,7 +1697,7 @@ public final class ApiDocsServlet extends HttpServlet {
                         "useMarkup", false),
                 "range", orderedMap("start", 1, "end", 8)),
             orderedMap(),
-            "Use range, index, or modifyQuery to target the document region. Successful responses are empty."));
+            "Use range, index, or modifyQuery to target the document region. To insert an attachment-backed inline image after robot.importAttachment, send modifyHow=INSERT with an IMAGE element whose properties include attachmentId, caption, and optional display-size=small|medium|large. Successful responses are empty."));
     operations.add(
         operation(
             "Wave and conversation",
@@ -1883,7 +1883,7 @@ public final class ApiDocsServlet extends HttpServlet {
                         "creator", "alice@example.com",
                         "data", "BASE64_ATTACHMENT_BYTES")),
             orderedMap(),
-            "Successful responses are empty."));
+            "Successful responses are empty. After import, insert an attachment-backed inline image with document.modify using an IMAGE element whose properties include attachmentId, caption, and optional display-size."));
     return Collections.unmodifiableList(operations);
   }
 

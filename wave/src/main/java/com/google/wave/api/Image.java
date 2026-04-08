@@ -31,6 +31,10 @@ public class Image extends Element {
 
   public static final String ATTACHMENT_ID = "attachmentId";
   public static final String CAPTION = "caption";
+  public static final String DISPLAY_SIZE = "display-size";
+  public static final String DISPLAY_SIZE_SMALL = "small";
+  public static final String DISPLAY_SIZE_MEDIUM = "medium";
+  public static final String DISPLAY_SIZE_LARGE = "large";
   public static final String HEIGHT = "height";
   public static final String URL = "url";
   public static final String WIDTH = "width";
@@ -180,6 +184,27 @@ public class Image extends Element {
    */
   public String getCaption() {
     return getProperty(CAPTION);
+  }
+
+  /**
+   * Sets the display size for an attachment-backed image.
+   *
+   * <p>Supported values are {@link #DISPLAY_SIZE_SMALL}, {@link #DISPLAY_SIZE_MEDIUM}, and
+   * {@link #DISPLAY_SIZE_LARGE}.
+   *
+   * @param displaySize the display size to use.
+   */
+  public void setDisplaySize(String displaySize) {
+    setProperty(DISPLAY_SIZE, displaySize);
+  }
+
+  /**
+   * Returns the display size for an attachment-backed image.
+   *
+   * @return the configured display size, or {@code null} if unset.
+   */
+  public String getDisplaySize() {
+    return getProperty(DISPLAY_SIZE);
   }
 
   /**

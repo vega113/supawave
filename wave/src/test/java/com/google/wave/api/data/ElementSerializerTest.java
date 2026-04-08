@@ -124,6 +124,24 @@ public class ElementSerializerTest extends TestCase {
     assertEquals(ATTACHMENT_URL, ((Attachment) element).getAttachmentUrl());
   }
 
+  public void testAttachmentImageSerializationSupportsDisplaySize() {
+    Image image = new Image("id", "caption");
+    image.setDisplaySize(Image.DISPLAY_SIZE_MEDIUM);
+
+    assertEquals(
+        "<image attachment=\"id\" display-size=\"medium\"><caption>caption</caption></image>",
+        ElementSerializer.apiElementToXml(image).getXmlString());
+  }
+
+  public void testAttachmentSerializationPreservesDisplaySize() {
+    String xml =
+        "<image attachment=\"id\" display-size=\"medium\"><caption>caption</caption></image>";
+
+    Attachment element = (Attachment) createApiElementFromXml(xml, createWavelet("id"));
+    assertEquals(Image.DISPLAY_SIZE_MEDIUM, element.getProperty(Image.DISPLAY_SIZE));
+    assertEquals(xml, ElementSerializer.apiElementToXml(element).getXmlString());
+  }
+
   public void testLineSerialization() {
     convertBackAndForth("<line i=\"2\" d=\"r\"></line>");
   }

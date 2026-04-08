@@ -412,9 +412,7 @@ public class DocumentModifyService implements OperationService {
           XmlStringBuilder xml = ElementSerializer.apiElementToXml(element);
           LineContainers.appendLine(doc, xml);
         } else {
-          // TODO(ljvderijk): Inserting other elements.
-          throw new UnsupportedOperationException(
-              "Can't insert elements of type " + element.getType() + " at the moment");
+          view.insert(insertAt, element);
         }
       }
       // should return 1 since elements have a length of 1 in the ApiView;

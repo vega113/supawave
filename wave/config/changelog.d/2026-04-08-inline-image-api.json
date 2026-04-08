@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-08-inline-image-api",
+  "version": "Issue #740",
+  "date": "2026-04-08",
+  "title": "Support Attachment-Backed Inline Images In The Robot API",
+  "summary": "Robots can now author attachment-backed inline images with optional display sizing through the Java/Data API surface.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Java robots can insert attachment-backed inline images with Image(attachmentId, caption) and optional display-size values of small, medium, or large",
+        "document.modify now accepts non-form elements for inline image insertion instead of rejecting IMAGE elements server-side",
+        "The published API docs now describe the importAttachment plus document.modify flow for attachment-backed inline images"
+      ]
+    }
+  ]
+}

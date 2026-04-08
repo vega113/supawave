@@ -194,15 +194,19 @@ public class ApiView {
     if (index == bits.size()) {
       // outside. append.
       Bit last = bits.get(bits.size() - 1);
+      int xmlInsertPos = last.xmlPos + last.xmlSize;
       Point<Doc.N> point = doc.locate(last.xmlPos + last.xmlSize);
       doc.insertXml(point, xml);
-      bits.add(new Bit(element, last.xmlPos + last.xmlSize, doc.size() - beforeSize));
+      bits.add(new Bit(normalizeInsertedElement(xmlInsertPos, element), xmlInsertPos,
+          doc.size() - beforeSize));
       return;
     }
     int offset = where.second;
     Bit bit = bits.get(index);
+    int xmlInsertPos = bit.xmlPos + offset;
     Point<Doc.N> point = doc.locate(bit.xmlPos + offset);
     doc.insertXml(point, xml);
+    Element normalizedElement = normalizeInsertedElement(xmlInsertPos, element);
     int xmlSize = doc.size() - beforeSize;
     if (bit.string != null && offset > 0) {
       shift(index + 1, xmlSize);
@@ -210,13 +214,19 @@ public class ApiView {
       bit.string = bit.string.substring(0, offset);
       bit.xmlSize = offset;
       int nextIndex = bit.xmlPos + bit.xmlSize;
-      bits.add(index + 1, new Bit(element, nextIndex, xmlSize));
+      bits.add(index + 1, new Bit(normalizedElement, nextIndex, xmlSize));
       nextIndex += xmlSize;
       bits.add(index + 2, new Bit(leftOver, nextIndex));
     } else {
-      bits.add(index, new Bit(element, bits.get(index).xmlPos, xmlSize));
+      bits.add(index, new Bit(normalizedElement, bits.get(index).xmlPos, xmlSize));
       shift(index + 1, xmlSize);
     }
+  }
+
+  private Element normalizeInsertedElement(int xmlInsertPos, Element element) {
+    Doc.E insertedElement = Point.elementAfter(doc, doc.locate(xmlInsertPos));
+    Element normalizedElement = ElementSerializer.xmlToApiElement(doc, insertedElement, wavelet);
+    return normalizedElement == null ? element : normalizedElement;
   }
 
   public void insert(int pos, String content) {

@@ -62,6 +62,7 @@ public abstract class ElementSerializer {
   private static final String CLICK_TAG = "click";
   private static final String ATTACHMENT_STR = "attachment";
   private static final String CAPTION_STR = "caption";
+  private static final String DISPLAY_SIZE_STR = Image.DISPLAY_SIZE;
 
   /** The attachment URL regular expression */
   private static final Pattern ATTACHMENT_URL_PATTERN = Pattern.compile(
@@ -130,6 +131,22 @@ public abstract class ElementSerializer {
   private static void register(ElementSerializer serializer) {
     typeToSerializer.put(serializer.elementType, serializer);
     tagToSerializer.put(serializer.tagName, serializer);
+  }
+
+  private static XmlStringBuilder attachmentImageToXml(Element element) {
+    XmlStringBuilder res = XmlStringBuilder.createEmpty();
+    if (element.getProperty(CAPTION_STR) != null) {
+      res.append(XmlStringBuilder.createText(element.getProperty(CAPTION_STR)).wrap(CAPTION_TAG));
+    }
+
+    List<String> attributes = Lists.newArrayList(ATTACHMENT_STR, element.getProperty(Image.ATTACHMENT_ID));
+    if (element.getProperty(DISPLAY_SIZE_STR) != null) {
+      attributes.add(DISPLAY_SIZE_STR);
+      attributes.add(element.getProperty(DISPLAY_SIZE_STR));
+    }
+    String[] asArray = new String[attributes.size()];
+    attributes.toArray(asArray);
+    return res.wrap("image", asArray);
   }
 
   static {
@@ -415,6 +432,9 @@ public abstract class ElementSerializer {
     register(new ElementSerializer("img", ElementType.IMAGE) {
       @Override
       public XmlStringBuilder toXml(Element element) {
+        if (element.getProperty(Image.ATTACHMENT_ID) != null) {
+          return attachmentImageToXml(element);
+        }
         XmlStringBuilder res = XmlStringBuilder.createEmpty();
         List<String> attributes = Lists.newArrayList("src", element.getProperty("url"));
         if (element.getProperty("width") != null) {
@@ -458,15 +478,10 @@ public abstract class ElementSerializer {
     register(new ElementSerializer("image", ElementType.ATTACHMENT) {
       @Override
       public XmlStringBuilder toXml(Element element) {
-        XmlStringBuilder res = XmlStringBuilder.createEmpty();
         if (element.getProperties().containsKey("attachmentId")) {
-          if (element.getProperty(CAPTION_STR) != null) {
-            res.append(XmlStringBuilder.createText(element.getProperty(CAPTION_STR))
-                .wrap("caption"));
-          }
-          return res.wrap("image", ATTACHMENT_STR, element.getProperty("attachmentId"));
+          return attachmentImageToXml(element);
         }
-        return res;
+        return XmlStringBuilder.createEmpty();
       }
 
       @Override
@@ -480,6 +495,10 @@ public abstract class ElementSerializer {
         String caption = getCaption(doc, element);
         if (caption != null) {
           properties.put(Attachment.CAPTION, caption);
+        }
+        String displaySize = doc.getAttribute(element, DISPLAY_SIZE_STR);
+        if (displaySize != null) {
+          properties.put(DISPLAY_SIZE_STR, displaySize);
         }
         if (wavelet != null && attachmentId != null) {
           Document attachmentDataDoc =

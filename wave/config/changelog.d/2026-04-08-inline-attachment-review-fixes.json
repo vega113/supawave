@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-08-inline-attachment-review-fixes",
+  "version": "PR #741",
+  "date": "2026-04-08",
+  "title": "Fix Inline Attachment Display Regressions",
+  "summary": "Follow-up fixes to PR #738 addressing source-selection regressions, thumbnail flicker, and premature attachment URL loads.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Legacy style=\"full\" attachments now correctly use attachment source even when content metadata is temporarily unavailable (fullMode check precedes contentImage guard)",
+        "Thumbnail size callbacks no longer trigger redundant URL reloads when the attachment source is already active",
+        "Attachment size callbacks only trigger image loads when the attachment is the active source, reducing premature requests before the malware guard runs"
+      ]
+    }
+  ]
+}

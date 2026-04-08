@@ -277,6 +277,9 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   private final List<FileEntry> pendingFiles = new ArrayList<>();
   private boolean isUploading = false;
   private boolean batchFailed = false;
+  private String uploadDisplaySize = "medium";
+  private boolean uploadCompressionEnabled = true;
+  private int nextStoreIndex = 0;
 
   public AttachmentPopupWidget() {
     initWidget(BINDER.createAndBindUi(this));
@@ -304,6 +307,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     addMoreBtn.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
+        if (isUploading) return;
         nativeClickFileInput(fileUpload.getElement());
       }
     });
@@ -331,10 +335,15 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
         }
         batchFailed = false;
         isUploading = true;
+        uploadDisplaySize = selectedDisplaySize;
+        uploadCompressionEnabled = compressionEnabled;
         uploadBtn.setEnabled(false);
         cancelBtn.setEnabled(false);
         addMoreBtn.setEnabled(false);
-        isUploading = true;
+        sizeBtnSmall.setEnabled(false);
+        sizeBtnMedium.setEnabled(false);
+        sizeBtnLarge.setEnabled(false);
+        compressToggleBtn.setEnabled(false);
         batchFailed = false;
         setElementDisabled(fileUpload.getElement(), true);
         // Disable per-card remove buttons and caption inputs during upload
@@ -382,19 +391,19 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
 
   private void onFilesSelected() {
     if (isUploading) return;
-    int count = getFileCount(fileUpload.getElement());
-    previewGrid.clear();
-    pendingFiles.clear();
-
-    for (int i = 0; i < count; i++) {
-      String name = getFileName(fileUpload.getElement(), i);
-      String type = getMimeType(fileUpload.getElement(), i);
-      double size = getFileSize(fileUpload.getElement(), i);
-      FileEntry entry = buildPreviewCard(i, name, type, size);
+    int added = appendFilesToStore(fileUpload.getElement());
+    int startIndex = nextStoreIndex;
+    nextStoreIndex += added;
+    for (int i = 0; i < added; i++) {
+      int storeIndex = startIndex + i;
+      String name = getStoreFileName(storeIndex);
+      String type = getStoreMimeType(storeIndex);
+      double size = getStoreFileSize(storeIndex);
+      FileEntry entry = buildPreviewCard(storeIndex, name, type, size);
       pendingFiles.add(entry);
       previewGrid.add(entry.card);
       if (isImageMime(type) || isImageFileName(name)) {
-        readPreviewAsync(fileUpload.getElement(), i);
+        readPreviewAsync(storeIndex);
       }
     }
     updateUploadButton();
@@ -513,6 +522,10 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
       uploadBtn.setEnabled(false);
       cancelBtn.setEnabled(true);
       addMoreBtn.setEnabled(true);
+      sizeBtnSmall.setEnabled(true);
+      sizeBtnMedium.setEnabled(true);
+      sizeBtnLarge.setEnabled(true);
+      compressToggleBtn.setEnabled(true);
       for (FileEntry fe : pendingFiles) {
         setCardControlsEnabled(fe, true);
       }
@@ -531,7 +544,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     entry.setProgressWidth(0);
 
     int maxDim;
-    switch (selectedDisplaySize) {
+    switch (uploadDisplaySize) {
       case "large":  maxDim = 1920; break;
       case "medium": maxDim = 800;  break;
       default:       maxDim = 200;  break;
@@ -539,11 +552,10 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
 
     boolean isImage = isImageMime(entry.mimeType) || isImageFileName(entry.fileName);
     uploadFileWithXhr(
-        fileUpload.getElement(),
         entry.fileIndex,
         entry.attachmentId.getId(),
         waveRefStr,
-        compressionEnabled && isImage,
+        uploadCompressionEnabled && isImage,
         maxDim,
         0.8,
         UPLOAD_ACTION_URL + entry.attachmentId.getId());
@@ -591,7 +603,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
       String caption = entry.captionInput.getText().trim();
       if (caption.isEmpty()) caption = entry.fileName;
       listener.onDoneWithSizeAndCaption(waveRefStr, entry.attachmentId.getId(),
-          entry.fileName, selectedDisplaySize, caption);
+          entry.fileName, uploadDisplaySize, caption);
     } else {
       batchFailed = true;
       entry.showError();
@@ -728,37 +740,52 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     el.click();
   }-*/;
 
-  private static native int getFileCount(Element fileInput) /*-{
-    return (fileInput.files) ? fileInput.files.length : 0;
+  /** Initializes (or resets) the JS-side file store on this instance. */
+  private native void initFileStore() /*-{
+    this._fileStore = [];
   }-*/;
 
-  private static native String getFileName(Element fileInput, int index) /*-{
-    return fileInput.files[index].name;
+  /**
+   * Appends all files currently in fileInput.files to the store.
+   * Returns the number of files appended.
+   */
+  private native int appendFilesToStore(Element fileInput) /*-{
+    if (!this._fileStore) this._fileStore = [];
+    var files = fileInput.files;
+    if (!files) return 0;
+    for (var i = 0; i < files.length; i++) {
+        this._fileStore.push(files[i]);
+    }
+    return files.length;
   }-*/;
 
-  private static native String getMimeType(Element fileInput, int index) /*-{
-    return fileInput.files[index].type || '';
+  private native String getStoreFileName(int index) /*-{
+    return this._fileStore[index].name;
   }-*/;
 
-  private static native double getFileSize(Element fileInput, int index) /*-{
-    return fileInput.files[index].size || 0;
+  private native String getStoreMimeType(int index) /*-{
+    return this._fileStore[index].type || '';
   }-*/;
 
-  private native void readPreviewAsync(Element fileInput, int index) /*-{
+  private native double getStoreFileSize(int index) /*-{
+    return this._fileStore[index].size || 0;
+  }-*/;
+
+  private native void readPreviewAsync(int storeIndex) /*-{
     var self = this;
-    var file = fileInput.files[index];
+    var file = this._fileStore[storeIndex];
     if (!file) return;
     var reader = new $wnd.FileReader();
     reader.onload = function(e) {
-      self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::onPreviewReady(ILjava/lang/String;)(index, e.target.result);
+      self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::onPreviewReady(ILjava/lang/String;)(storeIndex, e.target.result);
     };
     reader.readAsDataURL(file);
   }-*/;
 
-  private native void uploadFileWithXhr(Element fileInput, int fileIndex, String attachmentId,
+  private native void uploadFileWithXhr(int fileIndex, String attachmentId,
       String waveRef, boolean compress, int maxDim, double quality, String uploadUrl) /*-{
     var self = this;
-    var file = fileInput.files[fileIndex];
+    var file = this._fileStore[fileIndex];
     if (!file) {
       self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::onFileUploadComplete(IZ)(fileIndex, false);
       return;
@@ -892,6 +919,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     previewGrid.clear();
     isUploading = false;
     batchFailed = false;
+    nextStoreIndex = 0;
+    initFileStore();
     updateUploadButton();
     spinnerPanel.setVisible(false);
     showStatus("", false);

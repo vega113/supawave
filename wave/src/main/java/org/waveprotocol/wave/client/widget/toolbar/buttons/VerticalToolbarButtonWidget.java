@@ -137,6 +137,7 @@ public final class VerticalToolbarButtonWidget extends Composite implements Tool
   @Override
   public void setTooltip(String tooltip) {
     setTitle(tooltip);
+    getElement().setAttribute("aria-label", tooltip);
   }
 
   @Override

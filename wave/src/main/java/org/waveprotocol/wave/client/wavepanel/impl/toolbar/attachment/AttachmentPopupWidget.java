@@ -275,6 +275,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   private String selectedDisplaySize = "medium";
   private boolean compressionEnabled = true;
   private final List<FileEntry> pendingFiles = new ArrayList<>();
+  private boolean isUploading = false;
+  private boolean batchFailed = false;
 
   public AttachmentPopupWidget() {
     initWidget(BINDER.createAndBindUi(this));
@@ -294,6 +296,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     dropZone.addDomHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
+        if (isUploading) return;
         nativeClickFileInput(fileUpload.getElement());
       }
     }, ClickEvent.getType());
@@ -326,6 +329,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
           showStatus("Please select at least one file.", true);
           return;
         }
+        batchFailed = false;
+        isUploading = true;
         uploadBtn.setEnabled(false);
         cancelBtn.setEnabled(false);
         addMoreBtn.setEnabled(false);
@@ -373,6 +378,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   // ─────────────────────────────────────────────
 
   private void onFilesSelected() {
+    if (isUploading) return;
     int count = getFileCount(fileUpload.getElement());
     previewGrid.clear();
     pendingFiles.clear();
@@ -499,10 +505,17 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
 
   private void uploadNext(int index) {
     if (index >= pendingFiles.size()) {
-      showStatus("All uploads complete!", false);
-      new Timer() {
-        @Override public void run() { hide(); }
-      }.schedule(600);
+      isUploading = false;
+      if (batchFailed) {
+        showStatus("Some uploads failed. Check highlighted files.", true);
+        cancelBtn.setEnabled(true);
+        addMoreBtn.setEnabled(true);
+      } else {
+        showStatus("All uploads complete!", false);
+        new Timer() {
+          @Override public void run() { hide(); }
+        }.schedule(600);
+      }
       return;
     }
     FileEntry entry = pendingFiles.get(index);
@@ -570,6 +583,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
       listener.onDoneWithSizeAndCaption(waveRefStr, entry.attachmentId.getId(),
           entry.fileName, selectedDisplaySize, caption);
     } else {
+      batchFailed = true;
       entry.showError();
       showStatus("Upload failed: " + truncateName(entry.fileName, 20), true);
     }
@@ -860,6 +874,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   public void show() {
     pendingFiles.clear();
     previewGrid.clear();
+    isUploading = false;
+    batchFailed = false;
     updateUploadButton();
     spinnerPanel.setVisible(false);
     showStatus("", false);

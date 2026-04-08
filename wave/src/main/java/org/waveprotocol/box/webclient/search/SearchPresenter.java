@@ -767,8 +767,8 @@ public final class SearchPresenter
     if (taskTracker == null) {
       return;
     }
-    boolean isTaskQuery = queryText != null && queryText.contains("tasks:");
-    if (!isTaskQuery) {
+    boolean isTrackedTaskQuery = queryText != null && queryText.contains("tasks:me");
+    if (!isTrackedTaskQuery) {
       return;
     }
     DigestView view = searchUi.getFirst();
@@ -982,7 +982,7 @@ public final class SearchPresenter
     digestUis.clear();
     setSelected(null);
     boolean isMentionQuery = queryText != null && queryText.contains("mentions:");
-    boolean isTaskQuery = queryText != null && queryText.contains("tasks:");
+    boolean isTaskQuery = queryText != null && queryText.contains("tasks:me");
     for (int i = 0, size = search.getMinimumTotal(); i < size; i++) {
       Digest digest = search.getDigest(i);
       if (digest == null) {
@@ -1255,7 +1255,7 @@ public final class SearchPresenter
       int mentionCount = mentionTracker.getUnreadCountForWave(digest.getWaveId());
       digestUi.setMentionCount(mentionCount);
     }
-    if (queryText != null && queryText.contains("tasks:") && taskTracker != null) {
+    if (queryText != null && queryText.contains("tasks:me") && taskTracker != null) {
       int taskCount = taskTracker.getUnreadCountForWave(digest.getWaveId());
       digestUi.setTaskCount(taskCount);
     }

@@ -585,10 +585,10 @@ public final class ProfileServlet extends HttpServlet {
    */
   private static String normalizeBio(String bio) {
     if (bio == null) return null;
-    if (bio.indexOf('\n') != -1) return bio;      // already has real newlines
-    if (bio.indexOf("\\n") == -1) return bio;     // no escaped newlines to fix
-    if (bio.indexOf("\\\\n") != -1) return bio;  // ambiguous: \\n present, skip
-    return bio.replace("\\n", "\n");
+    if (bio.indexOf('\n') != -1 || bio.indexOf('\r') != -1) return bio;  // already has real line breaks
+    if (bio.indexOf("\\n") == -1 && bio.indexOf("\\r") == -1) return bio;  // no escaped line breaks
+    if (bio.indexOf("\\\\n") != -1 || bio.indexOf("\\\\r") != -1) return bio;  // ambiguous: skip
+    return bio.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n");
   }
 
   private static void setJsonUtf8(HttpServletResponse resp) {

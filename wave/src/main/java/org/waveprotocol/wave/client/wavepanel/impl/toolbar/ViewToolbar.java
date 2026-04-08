@@ -366,17 +366,11 @@ public final class ViewToolbar {
       @Override
       public void onSuccess() {
         LOG.trace().log("Successfully moved wave to: ", targetFolder);
-        // Update local state first so the UI is consistent whether or not
-        // the listener navigates away.
         archived = !archived;
         archiveButton.setState(ToolbarButtonView.State.ENABLED);
         updateArchiveButtonState();
         if (folderActionListener != null) {
           folderActionListener.onFolderActionCompleted(targetFolder);
-        } else {
-          archived = !archived;
-          archiveButton.setState(ToolbarButtonView.State.ENABLED);
-          updateArchiveButtonState();
         }
       }
 

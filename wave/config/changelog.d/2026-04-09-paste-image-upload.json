@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-09-paste-image-upload",
+  "version": "PR #750",
+  "date": "2026-04-09",
+  "title": "Paste-to-Upload Images in Wave Editor",
+  "summary": "Adds clipboard image paste support to the wave editor: Ctrl+V/Cmd+V with an image on the clipboard automatically uploads and inserts the image inline at the cursor position.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Paste an image from clipboard directly into the wave editor via Ctrl+V/Cmd+V",
+        "Spinner toast appears during upload; image renders inline at paste cursor on success",
+        "Error toast shown if upload fails or times out after 60 seconds",
+        "Text paste behaviour is unaffected — falls through normally when no image is present"
+      ]
+    }
+  ]
+}

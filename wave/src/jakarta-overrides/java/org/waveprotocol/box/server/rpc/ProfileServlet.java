@@ -448,7 +448,7 @@ public final class ProfileServlet extends HttpServlet {
     w.append("{\"address\":").append(jsonStr(h.getId().getAddress()));
     w.append(",\"firstName\":").append(jsonStr(h.getFirstName()));
     w.append(",\"lastName\":").append(jsonStr(h.getLastName()));
-    w.append(",\"bio\":").append(jsonStr(normalizeBio(h.getBio())));
+    w.append(",\"bio\":").append(jsonStr(h.getBio()));
     w.append(",\"imageUrl\":").append(jsonStr(resolveImageUrl(h)));
     if (includeSensitive) {
       w.append(",\"email\":").append(jsonStr(h.getEmail()));
@@ -573,22 +573,6 @@ public final class ProfileServlet extends HttpServlet {
       return null; // null value
     }
     return null;
-  }
-
-  /**
-   * Normalizes a bio that may have been stored with literal \n sequences
-   * (artifact of the old broken JSON parser) to real newline characters.
-   *
-   * <p>Only normalizes when the value looks like legacy broken data: it contains
-   * literal "\n" sequences, has no real newline characters already, and does not
-   * contain double-backslash sequences that would be partially mangled.
-   */
-  private static String normalizeBio(String bio) {
-    if (bio == null) return null;
-    if (bio.indexOf('\n') != -1 || bio.indexOf('\r') != -1) return bio;  // already has real line breaks
-    if (bio.indexOf("\\n") == -1 && bio.indexOf("\\r") == -1) return bio;  // no escaped line breaks
-    if (bio.indexOf("\\\\n") != -1 || bio.indexOf("\\\\r") != -1) return bio;  // ambiguous: skip
-    return bio.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n");
   }
 
   private static void setJsonUtf8(HttpServletResponse resp) {

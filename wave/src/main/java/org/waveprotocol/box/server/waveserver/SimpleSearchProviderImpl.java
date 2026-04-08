@@ -196,6 +196,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
   @Override
   public SearchResult search(final ParticipantId user, String query, int startAt, int numResults) {
+    long startMs = System.currentTimeMillis();
     LOG.fine("Search query '" + query + "' from user: " + user + " [" + startAt + ", "
         + ((startAt + numResults) - 1) + "]");
     Map<TokenQueryType, Set<String>> queryParams = null;
@@ -262,6 +263,10 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         Lists.newArrayList(filterWavesViewBySearchCriteria(filterWaveletsFunction,
             currentUserWavesView).values());
     expandConversationalWavelets(results, filterWaveletsFunction);
+    int candidatesBefore = results.size();
+
+    // Per-filter result counts for the combined summary log (-1 means filter was not active).
+    int tagsAfter = -1, titleAfter = -1, contentAfter = -1, mentionsAfter = -1, unreadAfter = -1;
 
     // Shared caches for supplement-building across all filter stages.
     // This prevents creating duplicate OpBasedWavelet adapters for the same
@@ -286,10 +291,10 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
     // Filter by tags when the query specifies tag: filters.
     if (!tagValues.isEmpty()) {
-      LOG.info("Tag filter active: required tags = " + tagValues
-          + ", candidates before filter = " + results.size());
+      LOG.fine("Tag filter: required=" + tagValues + ", candidates=" + results.size());
       filterByTags(results, tagValues);
-      LOG.info("After tag filter: " + results.size() + " results remain");
+      tagsAfter = results.size();
+      LOG.fine("Tag filter result: " + tagsAfter + " remain");
     }
 
     // Extract title filter values (e.g., "title:meeting").
@@ -315,32 +320,33 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
     // Filter by title when the query specifies title: filters.
     if (!titleValues.isEmpty()) {
-      LOG.info("Title filter active: required terms = " + titleValues
-          + ", candidates before filter = " + results.size());
+      LOG.fine("Title filter: required=" + titleValues + ", candidates=" + results.size());
       filterByTitle(results, titleValues);
-      LOG.info("After title filter: " + results.size() + " results remain");
+      titleAfter = results.size();
+      LOG.fine("Title filter result: " + titleAfter + " remain");
     }
 
     // Filter by content when the query specifies content: filters.
     if (!contentValues.isEmpty()) {
-      LOG.info("Content filter active: required terms = " + contentValues
-          + ", candidates before filter = " + results.size());
+      LOG.fine("Content filter: required=" + contentValues + ", candidates=" + results.size());
       filterByContent(results, contentValues);
-      LOG.info("After content filter: " + results.size() + " results remain");
+      contentAfter = results.size();
+      LOG.fine("Content filter result: " + contentAfter + " remain");
     }
 
     // Filter by mentions when the query specifies mentions: filters.
     if (!mentionValues.isEmpty()) {
-      LOG.info("Mentions filter active: required mentions = " + mentionValues
-          + ", candidates before filter = " + results.size());
+      LOG.fine("Mentions filter: required=" + mentionValues + ", candidates=" + results.size());
       filterByMentions(results, mentionValues);
-      LOG.info("After mentions filter: " + results.size() + " results remain");
+      mentionsAfter = results.size();
+      LOG.fine("Mentions filter result: " + mentionsAfter + " remain");
     }
 
     if (isUnreadOnlyQuery) {
-      LOG.info("Unread filter active: candidates before filter = " + results.size());
+      LOG.fine("Unread filter: candidates=" + results.size());
       filterByUnreadState(results, user, supplementCache, waveletAdapters);
-      LOG.info("After unread filter: " + results.size() + " results remain");
+      unreadAfter = results.size();
+      LOG.fine("Unread filter result: " + unreadAfter + " remain");
     }
 
     List<WaveViewData> sortedResults = sort(queryParams, results);
@@ -364,8 +370,25 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
     Collection<WaveViewData> searchResult =
         computeSearchResult(user, startAt, numResults, sortedResults);
-    LOG.info("Search response to '" + query + "': " + searchResult.size() + " results"
-        + " (total " + totalBeforePagination + "), user: " + user);
+    long elapsedMs = System.currentTimeMillis() - startMs;
+    StringBuilder summary = new StringBuilder("Search: user=");
+    summary.append(user.getAddress());
+    summary.append(", query=\"").append(query).append("\"");
+    summary.append(", results=").append(searchResult.size()).append("/").append(candidatesBefore);
+    boolean hasFilters = tagsAfter >= 0 || titleAfter >= 0 || contentAfter >= 0
+        || mentionsAfter >= 0 || unreadAfter >= 0;
+    if (hasFilters) {
+      summary.append(" (");
+      String sep = "";
+      if (tagsAfter >= 0) { summary.append(sep).append("tags:").append(tagsAfter); sep = ", "; }
+      if (titleAfter >= 0) { summary.append(sep).append("title:").append(titleAfter); sep = ", "; }
+      if (contentAfter >= 0) { summary.append(sep).append("content:").append(contentAfter); sep = ", "; }
+      if (mentionsAfter >= 0) { summary.append(sep).append("mentions:").append(mentionsAfter); sep = ", "; }
+      if (unreadAfter >= 0) { summary.append(sep).append("unread:").append(unreadAfter); }
+      summary.append(")");
+    }
+    summary.append(", took ").append(elapsedMs).append("ms");
+    LOG.info(summary.toString());
     SearchResult result = digester.generateSearchResult(user, query, searchResult);
     result.setTotalResults(totalBeforePagination);
     return result;

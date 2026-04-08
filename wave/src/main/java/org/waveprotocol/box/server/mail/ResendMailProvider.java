@@ -58,11 +58,23 @@ public class ResendMailProvider implements MailProvider {
 
   @Override
   public void sendEmail(String to, String subject, String htmlBody) throws MailException {
+    sendEmail(to, subject, htmlBody, null);
+  }
+
+  @Override
+  public void sendEmail(String to, String subject, String htmlBody, String replyTo)
+      throws MailException {
     // Build JSON payload manually to avoid extra dependencies.
-    String jsonPayload = "{\"from\":" + jsonString(fromAddress)
-        + ",\"to\":[" + jsonString(to) + "]"
-        + ",\"subject\":" + jsonString(subject)
-        + ",\"html\":" + jsonString(htmlBody) + "}";
+    StringBuilder payloadBuilder = new StringBuilder();
+    payloadBuilder.append("{\"from\":").append(jsonString(fromAddress))
+        .append(",\"to\":[").append(jsonString(to)).append("]")
+        .append(",\"subject\":").append(jsonString(subject))
+        .append(",\"html\":").append(jsonString(htmlBody));
+    if (replyTo != null && !replyTo.isEmpty()) {
+      payloadBuilder.append(",\"reply_to\":[").append(jsonString(replyTo)).append("]");
+    }
+    payloadBuilder.append("}");
+    String jsonPayload = payloadBuilder.toString();
 
     HttpRequest request = HttpRequest.newBuilder()
         .uri(URI.create(RESEND_API_URL))

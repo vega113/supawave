@@ -42,4 +42,19 @@ public interface MailProvider {
    * @throws MailException if the email could not be sent
    */
   void sendEmail(String to, String subject, String htmlBody) throws MailException;
+
+  /**
+   * Sends an email with an optional Reply-To header so that mail clients route
+   * replies to the submitter rather than to the admin inbox.
+   *
+   * @param to        the recipient email address
+   * @param subject   the email subject line
+   * @param htmlBody  the email body in HTML format
+   * @param replyTo   the Reply-To address, or {@code null} to omit the header
+   * @throws MailException if the email could not be sent
+   */
+  default void sendEmail(String to, String subject, String htmlBody, String replyTo)
+      throws MailException {
+    sendEmail(to, subject, htmlBody);
+  }
 }

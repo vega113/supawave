@@ -256,8 +256,6 @@ public final class ContactServlet extends HttpServlet {
 
       // Send notification email to admin (best-effort)
       try {
-        // Note: MailProvider.sendEmail does not support Reply-To SMTP headers.
-        // The submitter's contact address is included in the body so the admin can reply manually.
         String adminSubject = "[SupaWave Contact] " + subject + " from " + name;
         String senderDisplay = email.isEmpty() ? userId : email;
         String htmlBody = "<h3>New Contact Form Submission</h3>"
@@ -267,7 +265,9 @@ public final class ContactServlet extends HttpServlet {
             + "<p><strong>Message:</strong></p>"
             + "<div style=\"padding:12px;background:#f5f5f5;border-radius:8px;\">"
             + HtmlRenderer.escapeHtml(message).replace("\n", "<br>") + "</div>";
-        mailProvider.sendEmail("admin@" + domain, adminSubject, htmlBody);
+        // Pass submitter email as real Reply-To header so mail clients route admin replies correctly.
+        String replyTo = email.isEmpty() ? null : email;
+        mailProvider.sendEmail("admin@" + domain, adminSubject, htmlBody, replyTo);
       } catch (MailException e) {
         LOG.warning("Failed to send contact notification email: " + e.getMessage());
       }

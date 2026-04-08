@@ -33,8 +33,16 @@ public class LoggingMailProvider implements MailProvider {
 
   @Override
   public void sendEmail(String to, String subject, String htmlBody) {
+    sendEmail(to, subject, htmlBody, null);
+  }
+
+  @Override
+  public void sendEmail(String to, String subject, String htmlBody, String replyTo) {
     LOG.info("========== EMAIL ==========");
     LOG.info("To: " + to);
+    if (replyTo != null && !replyTo.isEmpty()) {
+      LOG.info("Reply-To: " + replyTo);
+    }
     LOG.info("Subject: " + subject);
     LOG.info("Body: " + htmlBody);
     LOG.info("===========================");

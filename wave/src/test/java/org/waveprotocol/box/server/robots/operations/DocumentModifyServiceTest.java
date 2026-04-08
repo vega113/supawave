@@ -150,6 +150,8 @@ public class DocumentModifyServiceTest extends RobotsTestBase {
         getRootBlip().getContent(),
         ElementSerializer.apiElementToXml(new Image("att+two", CAPTION)));
 
+    assertEquals(2, countOccurrences(getRootBlip().getContent().toXmlString(), "<image "));
+
     OperationRequest operation =
         operationRequest(
             OperationType.DOCUMENT_MODIFY,

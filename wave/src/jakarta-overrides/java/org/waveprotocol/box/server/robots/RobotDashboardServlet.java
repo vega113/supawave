@@ -1308,7 +1308,7 @@ public final class RobotDashboardServlet extends HttpServlet {
       sb.append("toast('").append(escapeJsString(message)).append("','").append(toastType).append("');");
     }
     sb.append("</script>");
-    sb.append(HtmlRenderer.renderSharedTopBarJs(contextPath));
+    sb.append(HtmlRenderer.renderSharedTopBarJs(contextPath, userRole));
     sb.append("</body></html>");
     return sb.toString();
   }

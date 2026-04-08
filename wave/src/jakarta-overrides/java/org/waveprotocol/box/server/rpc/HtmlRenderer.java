@@ -2549,6 +2549,22 @@ public final class HtmlRenderer {
     sb.append("@keyframes prerender-fade-in {\n");
     sb.append("  from { opacity: 0; } to { opacity: 1; }\n");
     sb.append("}\n");
+    // Admin contact notification badge CSS (same as renderSharedTopBarCss)
+    sb.append(".admin-msg-btn { cursor: pointer; text-decoration: none; }\n");
+    sb.append(".admin-badge {\n");
+    sb.append("  position: absolute; top: -4px; right: -4px;\n");
+    sb.append("  min-width: 16px; height: 16px; padding: 0 4px;\n");
+    sb.append("  background: #e53e3e; color: white;\n");
+    sb.append("  border-radius: 8px; font-size: 10px; font-weight: 700;\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  line-height: 1; border: 1.5px solid rgba(0,50,100,0.6);\n");
+    sb.append("}\n");
+    sb.append(".admin-badge.hidden { display: none; }\n");
+    sb.append(".admin-msg-btn.has-unread { animation: admin-glow 2s ease-in-out infinite; }\n");
+    sb.append("@keyframes admin-glow {\n");
+    sb.append("  0%, 100% { box-shadow: 0 0 0 0 rgba(229,62,62,0); }\n");
+    sb.append("  50% { box-shadow: 0 0 8px 4px rgba(229,62,62,0.5); }\n");
+    sb.append("}\n");
     sb.append("</style>\n");
     // GWT stats + nocache JS
     sb.append("<script type=\"text/javascript\">\n");
@@ -2774,6 +2790,8 @@ public final class HtmlRenderer {
     appendLightboxFragment(sb);
     // -- Version upgrade detection polling --
     appendVersionCheckScript(sb, buildCommit, serverBuildTime, currentReleaseId);
+    // -- Admin contact notification polling (only activates for admin/owner via __session.role) --
+    appendAdminContactPollingScript(sb);
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -3045,6 +3063,43 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
+  }
+
+  /**
+   * Appends a script block that polls for unread admin contact messages and updates
+   * the admin notification icon in the top bar. Only activates if the page's
+   * {@code window.__session.role} is "admin" or "owner".
+   */
+  private static void appendAdminContactPollingScript(StringBuilder sb) {
+    sb.append("<script>\n(function(){\n");
+    sb.append("  var role=window.__session&&window.__session.role;\n");
+    sb.append("  if(role!=='admin'&&role!=='owner')return;\n");
+    sb.append("  var btn=document.getElementById('adminMsgBtn');\n");
+    sb.append("  var badge=document.getElementById('adminMsgBadge');\n");
+    sb.append("  if(!btn||!badge)return;\n");
+    sb.append("  function pollAdmin(){\n");
+    sb.append("    fetch('/admin/api/contacts?status=new&limit=0')\n");
+    sb.append("      .then(function(r){return r.json();})\n");
+    sb.append("      .then(function(d){\n");
+    sb.append("        var n=d.total||0;\n");
+    sb.append("        if(n>0){\n");
+    sb.append("          badge.textContent=n;\n");
+    sb.append("          badge.classList.remove('hidden');\n");
+    sb.append("          btn.classList.add('has-unread');\n");
+    sb.append("          var label=n+' unread contact message'+(n===1?'':'s');\n");
+    sb.append("          btn.title=label;\n");
+    sb.append("          btn.setAttribute('aria-label',label);\n");
+    sb.append("        }else{\n");
+    sb.append("          badge.classList.add('hidden');\n");
+    sb.append("          btn.classList.remove('has-unread');\n");
+    sb.append("          btn.title='Contact messages';\n");
+    sb.append("          btn.setAttribute('aria-label','Contact messages');\n");
+    sb.append("        }\n");
+    sb.append("      }).catch(function(){});\n");
+    sb.append("  }\n");
+    sb.append("  pollAdmin();\n");
+    sb.append("  setInterval(pollAdmin,30000);\n");
+    sb.append("})();\n</script>\n");
   }
 
   /**
@@ -3394,6 +3449,22 @@ public final class HtmlRenderer {
     sb.append("  .topbar-icon svg { width: 16px; height: 16px; }\n");
     sb.append("  .user-avatar { width: 24px; height: 24px; font-size: 11px; }\n");
     sb.append("}\n");
+    // Admin contact notification badge
+    sb.append(".admin-msg-btn { cursor: pointer; text-decoration: none; }\n");
+    sb.append(".admin-badge {\n");
+    sb.append("  position: absolute; top: -4px; right: -4px;\n");
+    sb.append("  min-width: 16px; height: 16px; padding: 0 4px;\n");
+    sb.append("  background: #e53e3e; color: white;\n");
+    sb.append("  border-radius: 8px; font-size: 10px; font-weight: 700;\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  line-height: 1; border: 1.5px solid rgba(0,50,100,0.6);\n");
+    sb.append("}\n");
+    sb.append(".admin-badge.hidden { display: none; }\n");
+    sb.append(".admin-msg-btn.has-unread { animation: admin-glow 2s ease-in-out infinite; }\n");
+    sb.append("@keyframes admin-glow {\n");
+    sb.append("  0%, 100% { box-shadow: 0 0 0 0 rgba(229,62,62,0); }\n");
+    sb.append("  50% { box-shadow: 0 0 8px 4px rgba(229,62,62,0.5); }\n");
+    sb.append("}\n");
     return sb.toString();
   }
 
@@ -3433,6 +3504,13 @@ public final class HtmlRenderer {
     sb.append("      <span class=\"net-icon net-icon-online\">").append(ICON_WIFI).append("</span>\n");
     sb.append("      <span class=\"net-icon net-icon-offline\">").append(ICON_WIFI_OFF).append("</span>\n");
     sb.append("    </span>\n");
+    // Admin contact notification icon (admin/owner only)
+    if ("owner".equals(userRole) || "admin".equals(userRole)) {
+      sb.append("    <a id=\"adminMsgBtn\" class=\"topbar-icon admin-msg-btn\" href=\"").append(safeCtx).append("/admin#contacts\" title=\"Contact messages\" aria-label=\"Contact messages\">\n");
+      sb.append("      ").append(ICON_MAIL).append("\n");
+      sb.append("      <span id=\"adminMsgBadge\" class=\"admin-badge hidden\" aria-hidden=\"true\">0</span>\n");
+      sb.append("    </a>\n");
+    }
     // User menu
     sb.append("    <div class=\"user-menu\">\n");
     sb.append("      <button id=\"topbarUserMenuToggle\" type=\"button\" class=\"user-menu-toggle\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-controls=\"topbarUserMenu\" aria-label=\"Open user menu for ").append(safeAddrFull).append("\" title=\"").append(safeAddrFull).append("\">\n");
@@ -3475,6 +3553,17 @@ public final class HtmlRenderer {
    * @param contextPath servlet context path, typically "" for root deployments
    */
   public static String renderSharedTopBarJs(String contextPath) {
+    return renderSharedTopBarJs(contextPath, null);
+  }
+
+  /**
+   * Returns a script block for the shared topbar. If userRole is "admin" or "owner",
+   * also includes the admin contact notification polling script.
+   *
+   * @param contextPath servlet context path, typically "" for root deployments
+   * @param userRole    the user's role; null or "user" omits admin polling
+   */
+  public static String renderSharedTopBarJs(String contextPath, String userRole) {
     StringBuilder sb = new StringBuilder(1024);
     sb.append("<script>\n(function(){\n");
     sb.append("var _ctx=").append(escapeJsonString(contextPath == null ? "" : contextPath)).append(";\n");
@@ -3508,6 +3597,38 @@ public final class HtmlRenderer {
     sb.append("fetch(_ctx+'/locale',{method:'POST',body:fd}).catch(function(){});\n");
     sb.append("if(lc)lc.textContent=ls.value.toUpperCase();});}\n");
     sb.append("})();\n</script>\n");
+    // Admin contact notification polling (admin/owner only)
+    if ("owner".equals(userRole) || "admin".equals(userRole)) {
+      String ctx = escapeJsonString(contextPath == null ? "" : contextPath);
+      sb.append("<script>\n(function(){\n");
+      sb.append("var _c=").append(ctx).append(";\n");
+      sb.append("var btn=document.getElementById('adminMsgBtn');\n");
+      sb.append("var badge=document.getElementById('adminMsgBadge');\n");
+      sb.append("if(!btn||!badge){return;}\n");
+      sb.append("function pollAdmin(){\n");
+      sb.append("  fetch(_c+'/admin/api/contacts?status=new&limit=0')\n");
+      sb.append("    .then(function(r){return r.json();})\n");
+      sb.append("    .then(function(d){\n");
+      sb.append("      var n=d.total||0;\n");
+      sb.append("      if(n>0){\n");
+      sb.append("        badge.textContent=n;\n");
+      sb.append("        badge.classList.remove('hidden');\n");
+      sb.append("        btn.classList.add('has-unread');\n");
+      sb.append("        var label=n+' unread contact message'+(n===1?'':'s');\n");
+      sb.append("        btn.title=label;\n");
+      sb.append("        btn.setAttribute('aria-label',label);\n");
+      sb.append("      }else{\n");
+      sb.append("        badge.classList.add('hidden');\n");
+      sb.append("        btn.classList.remove('has-unread');\n");
+      sb.append("        btn.title='Contact messages';\n");
+      sb.append("        btn.setAttribute('aria-label','Contact messages');\n");
+      sb.append("      }\n");
+      sb.append("    }).catch(function(){});\n");
+      sb.append("}\n");
+      sb.append("pollAdmin();\n");
+      sb.append("setInterval(pollAdmin,30000);\n");
+      sb.append("})();\n</script>\n");
+    }
     return sb.toString();
   }
 
@@ -3548,6 +3669,13 @@ public final class HtmlRenderer {
       // -- Connection status: wifi-off icon for initial offline state, updated by GWT --
       sb.append("    <span id=\"netstatus\" class=\"topbar-icon offline\" title=\"Offline\">");
       sb.append(ICON_WIFI_OFF).append("</span>\n");
+      // -- Admin contact notification icon (admin/owner only) --
+      if ("owner".equals(userRole) || "admin".equals(userRole)) {
+        sb.append("    <a id=\"adminMsgBtn\" class=\"topbar-icon admin-msg-btn\" href=\"/admin#contacts\" title=\"Contact messages\" aria-label=\"Contact messages\">\n");
+        sb.append("      ").append(ICON_MAIL).append("\n");
+        sb.append("      <span id=\"adminMsgBadge\" class=\"admin-badge hidden\" aria-hidden=\"true\">0</span>\n");
+        sb.append("    </a>\n");
+      }
       // -- User menu with avatar --
       sb.append("    <div class=\"user-menu\">\n");
       sb.append("      <button class=\"user-menu-toggle\" title=\"").append(fullAddress).append("\">\n");
@@ -3623,6 +3751,13 @@ public final class HtmlRenderer {
       + "<path d=\"M1.42 9a15.91 15.91 0 0 1 4.7-2.88\"/>"
       + "<path d=\"M8.53 16.11a6 6 0 0 1 6.95 0\"/>"
       + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
+      + "</svg>";
+
+  /** Envelope icon for admin contact notification — white on dark topbar. */
+  private static final String ICON_MAIL =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      + "<path d=\"M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z\"/>"
+      + "<polyline points=\"22,6 12,13 2,6\"/>"
       + "</svg>";
 
   // =========================================================================
@@ -4845,6 +4980,23 @@ public final class HtmlRenderer {
     sb.append("      if (tab.dataset.tab === 'analytics') { loadAnalyticsHistory(analyticsActiveWindow); loadAnalyticsStatus(); }\n");
     sb.append("    });\n");
     sb.append("  });\n");
+    // Hash-based tab navigation: /admin#contacts auto-activates contacts tab.
+    // activateHashTab is called both on load (deferred via setTimeout so all tab state is ready)
+    // and on hashchange so clicking the envelope icon while already on /admin works without a reload.
+    // Uses tabs.forEach + dataset comparison to avoid CSS selector injection from hostile hashes.
+    sb.append("  function activateHashTab(hash) {\n");
+    sb.append("    var targetTab = null;\n");
+    sb.append("    tabs.forEach(function(tab) {\n");
+    sb.append("      if (!targetTab && tab.dataset.tab === hash) { targetTab = tab; }\n");
+    sb.append("    });\n");
+    sb.append("    if (targetTab) { targetTab.click(); }\n");
+    sb.append("  }\n");
+    sb.append("  var initialHash = window.location.hash ? window.location.hash.slice(1) : '';\n");
+    sb.append("  if (initialHash) { setTimeout(function() { activateHashTab(initialHash); }, 0); }\n");
+    sb.append("  window.addEventListener('hashchange', function() {\n");
+    sb.append("    var h = window.location.hash ? window.location.hash.slice(1) : '';\n");
+    sb.append("    if (h) { activateHashTab(h); }\n");
+    sb.append("  });\n");
     sb.append("  document.querySelectorAll('.window-pill').forEach(function(pill) {\n");
     sb.append("    pill.addEventListener('click', function() {\n");
     sb.append("      document.querySelectorAll('.window-pill').forEach(function(p){p.classList.remove('active');});\n");
@@ -5709,7 +5861,7 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
-    sb.append(renderSharedTopBarJs(contextPath));
+    sb.append(renderSharedTopBarJs(contextPath, callerRole));
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -8179,7 +8331,7 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
-    sb.append(renderSharedTopBarJs(contextPath));
+    sb.append(renderSharedTopBarJs(contextPath, account.getRole()));
 
     sb.append("</body>\n</html>\n");
     return sb.toString();
@@ -8494,7 +8646,7 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
-    sb.append(renderSharedTopBarJs(contextPath));
+    sb.append(renderSharedTopBarJs(contextPath, account.getRole()));
 
     sb.append("</body>\n</html>\n");
     return sb.toString();

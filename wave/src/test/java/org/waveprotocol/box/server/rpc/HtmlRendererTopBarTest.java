@@ -17,6 +17,7 @@
 package org.waveprotocol.box.server.rpc;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import junit.framework.TestCase;
 
@@ -66,5 +67,84 @@ public final class HtmlRendererTopBarTest extends TestCase {
 
     assertTrue(js.contains("var _ctx=\"\\/wave\";"));
     assertTrue(js.contains("fetch(_ctx+'/locale'"));
+  }
+
+  public void testRenderSharedTopBarCssIncludesAdminBadge() {
+    String css = HtmlRenderer.renderSharedTopBarCss();
+
+    assertTrue(css.contains(".admin-msg-btn"));
+    assertTrue(css.contains(".admin-badge"));
+    assertTrue(css.contains("admin-glow"));
+  }
+
+  public void testRenderSharedTopBarHtmlAdminShowsEnvelopeIcon() {
+    String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "", "admin");
+
+    assertTrue(html.contains("id=\"adminMsgBtn\""));
+    assertTrue(html.contains("id=\"adminMsgBadge\""));
+    assertTrue(html.contains("href=\"/admin#contacts\""));
+  }
+
+  public void testRenderSharedTopBarHtmlUserHasNoEnvelopeIcon() {
+    String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "", "user");
+
+    assertFalse(html.contains("id=\"adminMsgBtn\""));
+    assertFalse(html.contains("id=\"adminMsgBadge\""));
+  }
+
+  public void testRenderSharedTopBarHtmlOwnerShowsEnvelopeIcon() {
+    String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "/wave", "owner");
+
+    assertTrue(html.contains("id=\"adminMsgBtn\""));
+    assertTrue(html.contains("href=\"/wave/admin#contacts\""));
+  }
+
+  public void testRenderTopBarAdminShowsEnvelopeIcon() {
+    String html = HtmlRenderer.renderTopBar("vega", "example.com", "admin");
+
+    assertTrue(html.contains("id=\"adminMsgBtn\""));
+    assertTrue(html.contains("id=\"adminMsgBadge\""));
+    assertTrue(html.contains("href=\"/admin#contacts\""));
+  }
+
+  public void testRenderTopBarUserHasNoEnvelopeIcon() {
+    String html = HtmlRenderer.renderTopBar("vega", "example.com", "user");
+
+    assertFalse(html.contains("id=\"adminMsgBtn\""));
+  }
+
+  public void testRenderTopBarOwnerShowsEnvelopeIcon() {
+    String html = HtmlRenderer.renderTopBar("vega", "example.com", "owner");
+
+    assertTrue(html.contains("id=\"adminMsgBtn\""));
+  }
+
+  public void testRenderSharedTopBarJsAdminIncludesPolling() {
+    String js = HtmlRenderer.renderSharedTopBarJs("/wave", "admin");
+
+    assertTrue(js.contains("adminMsgBtn"));
+    assertTrue(js.contains("/admin/api/contacts?status=new&limit=0"));
+    assertTrue(js.contains("setInterval"));
+  }
+
+  public void testRenderSharedTopBarJsOwnerIncludesPolling() {
+    String js = HtmlRenderer.renderSharedTopBarJs("", "owner");
+
+    assertTrue(js.contains("adminMsgBtn"));
+    assertTrue(js.contains("/admin/api/contacts?status=new&limit=0"));
+  }
+
+  public void testRenderSharedTopBarJsUserNoPolling() {
+    String js = HtmlRenderer.renderSharedTopBarJs("", "user");
+
+    assertFalse(js.contains("adminMsgBtn"));
+    assertFalse(js.contains("/admin/api/contacts"));
+  }
+
+  public void testRenderSharedTopBarJsOneArgNoPolling() {
+    // One-arg overload should not include admin polling
+    String js = HtmlRenderer.renderSharedTopBarJs("/wave");
+
+    assertFalse(js.contains("adminMsgBtn"));
   }
 }

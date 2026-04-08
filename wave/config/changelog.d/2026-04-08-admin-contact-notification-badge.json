@@ -1,0 +1,19 @@
+{
+  "releaseId": "2026-04-08-admin-contact-notification-badge",
+  "version": "PR #734",
+  "date": "2026-04-08",
+  "title": "Admin Contact Notification Badge",
+  "summary": "Admin and owner users now see an envelope icon in the top bar with a real-time badge showing unread contact message counts.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Envelope icon appears in the top bar for admin and owner roles, between the wifi icon and user avatar",
+        "Red badge with unread contact message count, updated every 30 seconds via polling",
+        "Pulsating red glow animation when there are unread messages",
+        "Clicking the icon navigates to /admin#contacts and auto-activates the Contact Messages tab",
+        "Admin page supports hash-based deep-linking for contacts, users, and other tabs"
+      ]
+    }
+  ]
+}

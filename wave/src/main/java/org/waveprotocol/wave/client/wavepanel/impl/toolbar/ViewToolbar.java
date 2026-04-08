@@ -20,6 +20,8 @@
 package org.waveprotocol.wave.client.wavepanel.impl.toolbar;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Element;
+import com.google.gwt.user.client.DOM;
 import org.waveprotocol.box.webclient.folder.FolderOperationBuilder;
 import org.waveprotocol.box.webclient.folder.FolderOperationBuilderImpl;
 import org.waveprotocol.box.webclient.folder.FolderOperationService;
@@ -51,6 +53,70 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 public final class ViewToolbar {
   private static final LoggerBundle LOG = new DomLogger("ViewToolbar");
   private final static ToolbarMessages messages = GWT.create(ToolbarMessages.class);
+
+  // Inline SVG icon constants (Lucide icon set, MIT license).
+  // Explicit close tags used for GWT HTML-parser compatibility.
+  private static final String SVG_OPEN =
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" "
+      + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
+      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
+
+  /** Recent: rotate-ccw — counterclockwise arrow around a clock face. */
+  private static final String ICON_RECENT = SVG_OPEN
+      + "<polyline points=\"1 4 1 10 7 10\"></polyline>"
+      + "<path d=\"M3.51 15a9 9 0 1 0 .49-3.51\"></path></svg>";
+
+  /** Next Unread: bell — notification alert. */
+  private static final String ICON_NEXT_UNREAD = SVG_OPEN
+      + "<path d=\"M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9\"></path>"
+      + "<path d=\"M13.73 21a2 2 0 01-3.46 0\"></path></svg>";
+
+  /** Previous: chevron-up. */
+  private static final String ICON_PREV = SVG_OPEN
+      + "<polyline points=\"18 15 12 9 6 15\"></polyline></svg>";
+
+  /** Next: chevron-down. */
+  private static final String ICON_NEXT = SVG_OPEN
+      + "<polyline points=\"6 9 12 15 18 9\"></polyline></svg>";
+
+  /** Last: chevrons-down — double downward chevron. */
+  private static final String ICON_LAST = SVG_OPEN
+      + "<polyline points=\"7 13 12 18 17 13\"></polyline>"
+      + "<polyline points=\"7 6 12 11 17 6\"></polyline></svg>";
+
+  /** Prev @: chevron-left + at-sign composite. */
+  private static final String ICON_PREV_MENTION = SVG_OPEN
+      + "<polyline points=\"9 7 5 12 9 17\"></polyline>"
+      + "<g transform=\"translate(8,0)\">"
+      + "<circle cx=\"8\" cy=\"12\" r=\"3.5\"></circle>"
+      + "<path d=\"M11.5 9.5v2.5a1.5 1.5 0 01-3 0V11a3.5 3.5 0 10-1.37 2.78\"></path>"
+      + "</g></svg>";
+
+  /** Next @: at-sign + chevron-right composite. */
+  private static final String ICON_NEXT_MENTION = SVG_OPEN
+      + "<g transform=\"translate(-2,0)\">"
+      + "<circle cx=\"8\" cy=\"12\" r=\"3.5\"></circle>"
+      + "<path d=\"M11.5 9.5v2.5a1.5 1.5 0 01-3 0V11a3.5 3.5 0 10-1.37 2.78\"></path>"
+      + "</g>"
+      + "<polyline points=\"15 7 19 12 15 17\"></polyline></svg>";
+
+  /** Archive: archive box. */
+  private static final String ICON_ARCHIVE = SVG_OPEN
+      + "<polyline points=\"21 8 21 21 3 21 3 8\"></polyline>"
+      + "<rect x=\"1\" y=\"3\" width=\"22\" height=\"5\"></rect>"
+      + "<line x1=\"10\" y1=\"12\" x2=\"14\" y2=\"12\"></line></svg>";
+
+  /** Pin: thumbtack. */
+  private static final String ICON_PIN = SVG_OPEN
+      + "<line x1=\"12\" y1=\"17\" x2=\"12\" y2=\"22\"></line>"
+      + "<path d=\"M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0015 10.76V6h1"
+      + " a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005"
+      + " 15.24z\"></path></svg>";
+
+  /** History: clock face. */
+  private static final String ICON_HISTORY = SVG_OPEN
+      + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
+      + "<polyline points=\"12 6 12 12 16 14\"></polyline></svg>";
 
   /** Listener notified when a folder move operation completes. */
   public interface FolderActionListener {
@@ -145,28 +211,74 @@ public final class ViewToolbar {
     return create(focus, views, wave, reader, waveId, false, false, null);
   }
 
+  /**
+   * Creates an icon element from inline SVG markup for use in toolbar buttons.
+   */
+  private static Element createSvgIcon(String svgHtml) {
+    Element wrapper = DOM.createDiv();
+    wrapper.setInnerHTML(svgHtml);
+    return wrapper;
+  }
+
   public void init() {
+    // Group 1 — Navigation
     ToolbarView group = toolbarUi.addGroup();
 
-    new ToolbarButtonViewBuilder().setText(messages.recent()).applyTo(
-        group.addClickButton(), new ToolbarClickButton.Listener() {
+    new ToolbarButtonViewBuilder()
+        .setTooltip(messages.recent())
+        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
             focusActions.focusMostRecentlyModified();
           }
-        });
+        }).setVisualElement(createSvgIcon(ICON_RECENT));
 
-    new ToolbarButtonViewBuilder().setText(messages.nextUnread()).applyTo(
-        group.addClickButton(), new ToolbarClickButton.Listener() {
+    new ToolbarButtonViewBuilder()
+        .setTooltip(messages.nextUnread())
+        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
             focusActions.focusNextUnread();
           }
-        });
+        }).setVisualElement(createSvgIcon(ICON_NEXT_UNREAD));
 
+    new ToolbarButtonViewBuilder()
+        .setTooltip(messages.previous())
+        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            focusFrame.moveUp();
+          }
+        }).setVisualElement(createSvgIcon(ICON_PREV));
+
+    new ToolbarButtonViewBuilder()
+        .setTooltip(messages.next())
+        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            focusFrame.moveDown();
+          }
+        }).setVisualElement(createSvgIcon(ICON_NEXT));
+
+    new ToolbarButtonViewBuilder()
+        .setTooltip(messages.lastTooltip())
+        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            BlipView lastBlip = blipSelector.selectLast();
+            if (lastBlip != null) {
+              focusFrame.focus(lastBlip);
+            }
+          }
+        }).setVisualElement(createSvgIcon(ICON_LAST));
+
+    // Group 2 — Mentions (only when signed-in user is available)
     if (mentionFocusOrder != null) {
-      new ToolbarButtonViewBuilder().setText(messages.prevMention()).applyTo(
-          group.addClickButton(), new ToolbarClickButton.Listener() {
+      ToolbarView mentionsGroup = toolbarUi.addGroup();
+
+      new ToolbarButtonViewBuilder()
+          .setTooltip(messages.prevMention())
+          .applyTo(mentionsGroup.addClickButton(), new ToolbarClickButton.Listener() {
             @Override
             public void onClicked() {
               BlipView current = focusFrame.getFocusedBlip();
@@ -177,9 +289,11 @@ public final class ViewToolbar {
                 }
               }
             }
-          });
-      new ToolbarButtonViewBuilder().setText(messages.nextMention()).applyTo(
-          group.addClickButton(), new ToolbarClickButton.Listener() {
+          }).setVisualElement(createSvgIcon(ICON_PREV_MENTION));
+
+      new ToolbarButtonViewBuilder()
+          .setTooltip(messages.nextMention())
+          .applyTo(mentionsGroup.addClickButton(), new ToolbarClickButton.Listener() {
             @Override
             public void onClicked() {
               BlipView current = focusFrame.getFocusedBlip();
@@ -190,67 +304,37 @@ public final class ViewToolbar {
                 }
               }
             }
-          });
+          }).setVisualElement(createSvgIcon(ICON_NEXT_MENTION));
     }
 
-    new ToolbarButtonViewBuilder().setText(messages.previous()).applyTo(
-        group.addClickButton(), new ToolbarClickButton.Listener() {
-          @Override
-          public void onClicked() {
-            focusFrame.moveUp();
-          }
-        });
-    new ToolbarButtonViewBuilder().setText(messages.next()).applyTo(
-        group.addClickButton(), new ToolbarClickButton.Listener() {
-          @Override
-          public void onClicked() {
-            focusFrame.moveDown();
-          }
-        });
-    new ToolbarButtonViewBuilder()
-        .setText(messages.last())
-        .setTooltip(messages.lastTooltip())
-        .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
-          @Override
-          public void onClicked() {
-            BlipView lastBlip = blipSelector.selectLast();
-            if (lastBlip != null) {
-              focusFrame.focus(lastBlip);
-            }
-          }
-        });
-
-    // Archive / Inbox / Pin buttons
+    // Group 3 — Actions (archive toggle, pin toggle, history)
     if (waveId != null) {
-      group = toolbarUi.addGroup();
-      new ToolbarButtonViewBuilder().setText(messages.toArchive()).applyTo(
-          group.addClickButton(), new ToolbarClickButton.Listener() {
+      ToolbarView actionsGroup = toolbarUi.addGroup();
+
+      archiveButton = new ToolbarButtonViewBuilder()
+          .applyTo(actionsGroup.addClickButton(), new ToolbarClickButton.Listener() {
             @Override
             public void onClicked() {
-              moveToFolder(FolderOperationBuilder.FOLDER_ARCHIVE);
+              toggleArchive();
             }
           });
-      new ToolbarButtonViewBuilder().setText(messages.toInbox()).applyTo(
-          group.addClickButton(), new ToolbarClickButton.Listener() {
-            @Override
-            public void onClicked() {
-              moveToFolder(FolderOperationBuilder.FOLDER_INBOX);
-            }
-          });
+      archiveButton.setVisualElement(createSvgIcon(ICON_ARCHIVE));
+      updateArchiveButtonState();
+
       pinButton = new ToolbarButtonViewBuilder()
-          .setText(pinned ? messages.unpin() : messages.pin())
-          .applyTo(group.addClickButton(), new ToolbarClickButton.Listener() {
+          .applyTo(actionsGroup.addClickButton(), new ToolbarClickButton.Listener() {
             @Override
             public void onClicked() {
               togglePin();
             }
           });
+      pinButton.setVisualElement(createSvgIcon(ICON_PIN));
+      updatePinButtonState();
     }
 
-    // History button group
+    // History button (always shown; visibility toggled externally via setHistoryButtonVisible)
     ToolbarView historyGroup = toolbarUi.addGroup();
     historyButton = new ToolbarButtonViewBuilder()
-        .setText(messages.history())
         .setTooltip(messages.historyTooltip())
         .applyTo(historyGroup.addClickButton(), new ToolbarClickButton.Listener() {
           @Override
@@ -260,36 +344,52 @@ public final class ViewToolbar {
             }
           }
         });
-
-    // Fake group
-    group = toolbarUi.addGroup();
-    new ToolbarButtonViewBuilder().setText("").applyTo(group.addClickButton(), null);
+    historyButton.setVisualElement(createSvgIcon(ICON_HISTORY));
   }
 
   /**
-   * Moves the currently open wave to the specified folder via the FolderServlet.
+   * Toggles the archive state of the currently open wave.
+   * Moves the wave to Archive (if in inbox) or back to Inbox (if archived).
    */
-  private void moveToFolder(final String folder) {
+  private void toggleArchive() {
+    final String targetFolder = archived
+        ? FolderOperationBuilder.FOLDER_INBOX
+        : FolderOperationBuilder.FOLDER_ARCHIVE;
     String url = new FolderOperationBuilderImpl()
         .addParameter(FolderOperationBuilder.PARAM_OPERATION, FolderOperationBuilder.OPERATION_MOVE)
-        .addParameter(FolderOperationBuilder.PARAM_FOLDER, folder)
+        .addParameter(FolderOperationBuilder.PARAM_FOLDER, targetFolder)
         .addParameter(FolderOperationBuilder.PARAM_WAVE_ID, waveId.serialise())
         .getUrl();
-    LOG.trace().log("Moving wave ", waveId.serialise(), " to folder: ", folder);
+    LOG.trace().log(archived ? "Moving to inbox" : "Archiving", " wave ", waveId.serialise());
+    archiveButton.setState(ToolbarButtonView.State.DISABLED);
     folderService.execute(url, new FolderOperationService.Callback() {
       @Override
       public void onSuccess() {
-        LOG.trace().log("Successfully moved wave to folder: ", folder);
+        LOG.trace().log("Successfully moved wave to: ", targetFolder);
         if (folderActionListener != null) {
-          folderActionListener.onFolderActionCompleted(folder);
+          folderActionListener.onFolderActionCompleted(targetFolder);
         }
+        // Note: folderActionListener navigates away (History.newItem), so no
+        // need to re-enable or update local state on success.
       }
 
       @Override
       public void onFailure(String message) {
-        LOG.error().log("Failed to move wave to folder ", folder, ": ", message);
+        archiveButton.setState(ToolbarButtonView.State.ENABLED);
+        LOG.error().log("Failed to move wave to ", targetFolder, ": ", message);
       }
     });
+  }
+
+  /**
+   * Updates the archive button visual state (pressed/unpressed) and tooltip to
+   * reflect the current archived/inbox state.
+   */
+  private void updateArchiveButtonState() {
+    if (archiveButton != null) {
+      archiveButton.getButton().setDown(archived);
+      archiveButton.setTooltip(archived ? messages.toInbox() : messages.toArchive());
+    }
   }
 
   /**
@@ -310,7 +410,7 @@ public final class ViewToolbar {
       @Override
       public void onSuccess() {
         pinned = newPinState;
-        updatePinButtonLabel();
+        updatePinButtonState();
         pinButton.setState(ToolbarButtonView.State.ENABLED);
         LOG.trace().log("Successfully ", pinned ? "pinned" : "unpinned", " wave");
       }
@@ -324,11 +424,13 @@ public final class ViewToolbar {
   }
 
   /**
-   * Updates the pin button text to reflect the current pin state.
+   * Updates the pin button visual state (pressed/unpressed) and tooltip to
+   * reflect the current pin state. Uses setDown() since the button is icon-only.
    */
-  private void updatePinButtonLabel() {
+  private void updatePinButtonState() {
     if (pinButton != null) {
-      pinButton.setText(pinned ? messages.unpin() : messages.pin());
+      pinButton.getButton().setDown(pinned);
+      pinButton.setTooltip(pinned ? messages.unpin() : messages.pin());
     }
   }
 
@@ -338,7 +440,7 @@ public final class ViewToolbar {
    */
   public void setPinned(boolean pinned) {
     this.pinned = pinned;
-    updatePinButtonLabel();
+    updatePinButtonState();
   }
 
   /**

@@ -62,11 +62,11 @@ sudo env \
   GCLOUD_HOSTED_LOGS_ID='123456' \
   GCLOUD_RW_API_KEY='glc_***' \
   GCLOUD_SCRAPE_INTERVAL='60s' \
-  WAVE_LOG_PATH='/home/deploy/supawave/shared/logs/wave*.log' \
+  WAVE_LOG_PATH='/home/deploy/supawave/shared/logs/wave-json*.log' \
   ./configure-grafana-alloy.sh
 ```
 
-`WAVE_LOG_PATH` defaults to `/home/*/supawave/shared/logs/wave*.log` and controls which application log files Alloy tails for Loki ingestion.
+`WAVE_LOG_PATH` defaults to `/home/*/supawave/shared/logs/wave-json*.log` and controls which JSON-structured application log files Alloy tails for Loki ingestion. Only `wave-json*.log` files contain structured JSON; tailing `wave*.log` would mix plain-text and JSON lines, breaking Alloy's `stage.json` parsing.
 
 ## Troubleshooting
 

@@ -521,7 +521,8 @@ public final class ProfileServlet extends HttpServlet {
     if (colon < 0) return null;
     // Skip whitespace after colon
     int pos = colon + 1;
-    while (pos < json.length() && json.charAt(pos) == ' ') pos++;
+    while (pos < json.length() && (json.charAt(pos) == ' ' || json.charAt(pos) == '\t'
+        || json.charAt(pos) == '\n' || json.charAt(pos) == '\r')) pos++;
     if (pos >= json.length()) return null;
     char next = json.charAt(pos);
     if (next == '"') {

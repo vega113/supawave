@@ -108,7 +108,7 @@ archived = true (archive state)
   → on click: toggleArchive() → moves to FOLDER_INBOX → wave navigates away on success
 ```
 
-Button is disabled during async request, re-enabled on failure. Since `onFolderActionCompleted()` calls `History.newItem("", true)` (navigates away), no post-success state update is needed in `ViewToolbar`.
+Button is disabled during async request, re-enabled on failure. On success: if `folderActionListener` is set it navigates away (no local update needed); if null, `archived` is toggled and `updateArchiveButtonState()` is called to keep the UI consistent.
 
 New fields:
 ```java

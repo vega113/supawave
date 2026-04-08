@@ -192,6 +192,17 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
     private HandlerRegistration onErrorHandlerRegistration;
 
     /**
+     * Set when the owning widget has entered dead-image state (malware / failure).
+     * Prevents a racing async load from overwriting the dead-image UI.
+     */
+    private boolean cancelled = false;
+
+    /** Cancel any pending async load so it does not overwrite a dead-image state. */
+    public void cancel() {
+      cancelled = true;
+    }
+
+    /**
      * Handler for load + error events used by the double buffered image.
      */
     private class DoubleLoadHandler implements LoadHandler, ErrorHandler {
@@ -215,7 +226,7 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
 
       /** {@inheritDoc}) */
       public void onLoad(LoadEvent e) {
-        if (completed) {
+        if (completed || cancelled) {
           return;
         }
         cleanUp();
@@ -446,6 +457,9 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
   /** Current display size: "small", "medium", or "large". */
   private String displaySize = ImageThumbnail.DISPLAY_SIZE_SMALL;
 
+  /** Set once displayDeadImage() is called; prevents future loads from overwriting the dead state. */
+  private boolean deadImageDisplayed = false;
+
   /** File type icon overlay element, used for non-image attachments. */
   private Element fileTypeOverlay;
 
@@ -462,6 +476,10 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
 
   @Override
   public void displayDeadImage(String toolTip) {
+    deadImageDisplayed = true;
+    if (doubleBufferLoader != null) {
+      doubleBufferLoader.cancel();
+    }
     this.hideUploadProgress();
     this.spin.setVisible(false);
     this.errorLabel.setTitle(toolTip);
@@ -485,7 +503,7 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
     // This handles the case where setFullSizeMode(true) fired before the URL
     // was set (e.g. 'style' attribute processed before 'attachment'), and the
     // setThumbnailSize guard would otherwise skip the relayout.
-    if (AttachmentDisplayLayout.decide(displaySize, isFullSize, isContentImage())
+    if (url != null && AttachmentDisplayLayout.decide(displaySize, isFullSize, isContentImage())
         .getSourceKind() == AttachmentDisplayLayout.SourceKind.ATTACHMENT) {
       setImageSize();
     }
@@ -598,7 +616,7 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
     String url =
         decision.getSourceKind() == AttachmentDisplayLayout.SourceKind.ATTACHMENT
             ? attachmentUrl : thumbnailUrl;
-    if (url != null) {
+    if (url != null && !deadImageDisplayed) {
       if (doubleBufferLoader == null) {
         doubleBufferLoader = new DoubleBufferImage(spin, errorLabel, image);
       }

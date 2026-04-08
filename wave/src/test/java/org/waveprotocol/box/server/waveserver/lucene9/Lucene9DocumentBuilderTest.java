@@ -46,7 +46,7 @@ public final class Lucene9DocumentBuilderTest {
         waveId, "conv+root",
         new LinkedHashSet<>(Arrays.asList("user@example.com")),
         new LinkedHashSet<>(Arrays.asList("user@example.com")),
-        "user@example.com", tagSet, new LinkedHashSet<>(),
+        "user@example.com", tagSet, new LinkedHashSet<>(), new LinkedHashSet<>(),
         "", "", "", 1000L, 2000L);
   }
 
@@ -57,7 +57,18 @@ public final class Lucene9DocumentBuilderTest {
         waveId, "conv+root",
         new LinkedHashSet<>(Arrays.asList("user@example.com")),
         new LinkedHashSet<>(Arrays.asList("user@example.com")),
-        "user@example.com", new LinkedHashSet<>(), mentionSet,
+        "user@example.com", new LinkedHashSet<>(), mentionSet, new LinkedHashSet<>(),
+        "", "", "", 1000L, 2000L);
+  }
+
+  private static WaveMetadataExtractor.WaveMetadata metadataWithTaskAssignees(
+      WaveId waveId, String... assignees) {
+    Set<String> assigneeSet = new LinkedHashSet<>(Arrays.asList(assignees));
+    return new WaveMetadataExtractor.WaveMetadata(
+        waveId, "conv+root",
+        new LinkedHashSet<>(Arrays.asList("user@example.com")),
+        new LinkedHashSet<>(Arrays.asList("user@example.com")),
+        "user@example.com", new LinkedHashSet<>(), new LinkedHashSet<>(), assigneeSet,
         "", "", "", 1000L, 2000L);
   }
 
@@ -159,6 +170,54 @@ public final class Lucene9DocumentBuilderTest {
         TopDocs results = searcher.search(
             new TermQuery(new Term(Lucene9FieldNames.MENTIONED, "alice@example.com")), 10);
         assertEquals("MENTIONED field should find wave mentioning alice",
+            1L, results.totalHits.value);
+      }
+    }
+  }
+
+  @Test
+  public void taskAssigneeFieldIsStoredInDocument() {
+    WaveDocumentBuilder builder = newBuilder();
+    WaveId waveId = WaveId.of("example.com", "w+task");
+    Document doc = builder.build(
+        metadataWithTaskAssignees(waveId, "alice@example.com", "bob@example.com"), null);
+
+    IndexableField[] fields = doc.getFields(Lucene9FieldNames.TASK_ASSIGNEE);
+    assertEquals(2, fields.length);
+    Set<String> storedAssignees = new HashSet<>();
+    for (IndexableField f : fields) storedAssignees.add(f.stringValue());
+    assertTrue(storedAssignees.contains("alice@example.com"));
+    assertTrue(storedAssignees.contains("bob@example.com"));
+  }
+
+  @Test
+  public void emptyTaskAssigneesAreNotIndexed() {
+    WaveDocumentBuilder builder = newBuilder();
+    WaveId waveId = WaveId.of("example.com", "w+emptytask");
+    Document doc = builder.build(
+        metadataWithTaskAssignees(waveId, "", "bob@example.com"), null);
+
+    IndexableField[] fields = doc.getFields(Lucene9FieldNames.TASK_ASSIGNEE);
+    assertEquals(1, fields.length);
+    assertEquals("bob@example.com", fields[0].stringValue());
+  }
+
+  @Test
+  public void taskAssigneeTermQueryFindsIndexedWave() throws Exception {
+    WaveDocumentBuilder builder = newBuilder();
+    WaveId waveId = WaveId.of("example.com", "w+taskquery");
+    Document doc = builder.build(
+        metadataWithTaskAssignees(waveId, "alice@example.com"), null);
+
+    try (ByteBuffersDirectory dir = new ByteBuffersDirectory();
+        IndexWriter writer = new IndexWriter(dir, new IndexWriterConfig(new StandardAnalyzer()))) {
+      writer.addDocument(doc);
+      writer.commit();
+      try (DirectoryReader reader = DirectoryReader.open(dir)) {
+        IndexSearcher searcher = new IndexSearcher(reader);
+        TopDocs results = searcher.search(
+            new TermQuery(new Term(Lucene9FieldNames.TASK_ASSIGNEE, "alice@example.com")), 10);
+        assertEquals("TASK_ASSIGNEE field should find wave with task assigned to alice",
             1L, results.totalHits.value);
       }
     }

@@ -38,6 +38,7 @@ import org.apache.lucene.index.Term;
 import org.waveprotocol.box.server.waveserver.QueryHelper.InvalidQueryException;
 import org.waveprotocol.box.server.waveserver.QueryHelper.OrderByValueType;
 import org.waveprotocol.box.server.waveserver.TokenQueryType;
+import org.waveprotocol.box.server.waveserver.TaskQueryNormalizer;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
@@ -66,6 +67,10 @@ public class Lucene9QueryCompiler {
     }
     addTextQueries(builder, Lucene9FieldNames.TITLE_TEXT, model.values(TokenQueryType.TITLE));
     addTextQueries(builder, Lucene9FieldNames.CONTENT_TEXT, model.values(TokenQueryType.CONTENT));
+    for (String taskAssignee : normalizeTaskAssignees(model.values(TokenQueryType.TASKS), user)) {
+      builder.add(new TermQuery(new Term(Lucene9FieldNames.TASK_ASSIGNEE, taskAssignee)),
+          Occur.MUST);
+    }
     return builder.build();
   }
 
@@ -152,6 +157,15 @@ public class Lucene9QueryCompiler {
       default:
         return new SortField(Lucene9FieldNames.LAST_MODIFIED_SORT, SortField.Type.LONG, true);
     }
+  }
+
+  private List<String> normalizeTaskAssignees(List<String> rawValues, ParticipantId user)
+      throws InvalidQueryException {
+    List<String> normalized = new java.util.ArrayList<>();
+    for (String raw : rawValues) {
+      normalized.add(TaskQueryNormalizer.normalize(raw, user));
+    }
+    return normalized;
   }
 
   private List<ParticipantId> normalizeParticipants(List<String> rawValues, String localDomain)

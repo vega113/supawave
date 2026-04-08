@@ -1263,6 +1263,98 @@ public class SimpleSearchProviderImplTest extends TestCase {
   }
 
   /**
+   * Verifies unread mentioned waves appear before read mentioned waves in mentions:me results,
+   * even when the unread wave is older (i.e., would normally sort lower by date).
+   */
+  public void testUnreadMentionsAppearFirstInMentionsSearch() throws Exception {
+    // Wave A — older, mentioned, unread
+    WaveletName olderUnread = WaveletName.of(WaveId.of(DOMAIN, "older-unread-mention"), WAVELET_ID);
+    submitDeltaToNewWavelet(olderUnread, USER1, addParticipantToWavelet(USER1, olderUnread));
+    addMentionAnnotationToBlip(olderUnread, USER1, "b+1", "@user1", USER1);
+
+    waitForDistinctTimestamp();
+
+    // Wave B — newer, mentioned, read (0 unread)
+    WaveletName newerRead = WaveletName.of(WaveId.of(DOMAIN, "newer-read-mention"), WAVELET_ID);
+    submitDeltaToNewWavelet(newerRead, USER1, addParticipantToWavelet(USER1, newerRead));
+    addMentionAnnotationToBlip(newerRead, USER1, "b+2", "@user1", USER1);
+
+    SearchProvider provider = newUnreadAwareSearchProvider(
+        ImmutableMap.of("older-unread-mention", 2, "newer-read-mention", 0));
+
+    SearchResult results = provider.search(USER1, "mentions:me", 0, 10);
+
+    assertEquals(2, results.getNumResults());
+    // Unread mention wave must appear first even though it is older.
+    assertEquals("older-unread-mention",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+    assertEquals("newer-read-mention",
+        WaveId.deserialise(results.getDigests().get(1).getWaveId()).getId());
+  }
+
+  /**
+   * Verifies unread mentions are NOT promoted when an explicit orderby: is present.
+   */
+  public void testMentionsUnreadNotPromotedWhenOrderByPresent() throws Exception {
+    // Wave A — older, mentioned, unread
+    WaveletName olderUnread = WaveletName.of(WaveId.of(DOMAIN, "older-unread-ob"), WAVELET_ID);
+    submitDeltaToNewWavelet(olderUnread, USER1, addParticipantToWavelet(USER1, olderUnread));
+    addMentionAnnotationToBlip(olderUnread, USER1, "b+1", "@user1", USER1);
+
+    waitForDistinctTimestamp();
+
+    // Wave B — newer, mentioned, read
+    WaveletName newerRead = WaveletName.of(WaveId.of(DOMAIN, "newer-read-ob"), WAVELET_ID);
+    submitDeltaToNewWavelet(newerRead, USER1, addParticipantToWavelet(USER1, newerRead));
+    addMentionAnnotationToBlip(newerRead, USER1, "b+2", "@user1", USER1);
+
+    SearchProvider provider = newUnreadAwareSearchProvider(
+        ImmutableMap.of("older-unread-ob", 2, "newer-read-ob", 0));
+
+    // Explicit orderby:datedesc — no unread promotion should occur.
+    SearchResult results = provider.search(USER1, "mentions:me orderby:datedesc", 0, 10);
+
+    assertEquals(2, results.getNumResults());
+    // Newer wave must be first because explicit orderby overrides promotion.
+    assertEquals("newer-read-ob",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+    assertEquals("older-unread-ob",
+        WaveId.deserialise(results.getDigests().get(1).getWaveId()).getId());
+  }
+
+  /**
+   * Verifies that unread promotion is NOT applied when the mentions query targets a different
+   * participant — only self-mentions (mentions:me) should trigger unread-first reordering.
+   * Results must stay in default date order.
+   */
+  public void testNonSelfMentionSearchDoesNotPromoteUnread() throws Exception {
+    // Wave A — older, mentions USER2, USER1 has unread on it
+    WaveletName olderUnread = WaveletName.of(WaveId.of(DOMAIN, "older-unread-other"), WAVELET_ID);
+    submitDeltaToNewWavelet(olderUnread, USER1, addParticipantToWavelet(USER1, olderUnread));
+    addMentionAnnotationToBlip(olderUnread, USER1, "b+1", "@user2", USER2);
+
+    waitForDistinctTimestamp();
+
+    // Wave B — newer, mentions USER2, USER1 has 0 unread on it
+    WaveletName newerRead = WaveletName.of(WaveId.of(DOMAIN, "newer-read-other"), WAVELET_ID);
+    submitDeltaToNewWavelet(newerRead, USER1, addParticipantToWavelet(USER1, newerRead));
+    addMentionAnnotationToBlip(newerRead, USER1, "b+2", "@user2", USER2);
+
+    SearchProvider provider = newUnreadAwareSearchProvider(
+        ImmutableMap.of("older-unread-other", 2, "newer-read-other", 0));
+
+    // USER1 searches for waves mentioning USER2; unread promotion must not apply.
+    SearchResult results = provider.search(USER1, "mentions:user2@" + DOMAIN, 0, 10);
+
+    assertEquals(2, results.getNumResults());
+    // Results must remain in date order (newer first), not re-ranked by USER1's unread state.
+    assertEquals("newer-read-other",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+    assertEquals("older-unread-other",
+        WaveId.deserialise(results.getDigests().get(1).getWaveId()).getId());
+  }
+
+  /**
    * Verifies pinned waves are NOT forced to the top when orderby: is present.
    */
   public void testPinnedWavesNotPromotedWhenOrderByPresent() throws Exception {

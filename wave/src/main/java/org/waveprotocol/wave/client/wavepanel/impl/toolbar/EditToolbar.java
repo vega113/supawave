@@ -434,7 +434,7 @@ public class EditToolbar {
         .setTooltip("Font size")
         .applyTo(submenu, null);
     submenu.setVisualElement(createSvgIcon(ICON_FONT_SIZE));
-    submenu.setShowDropdownArrow(false); // Icon already has dropdown arrow.
+    submenu.setShowDropdownArrow(true);
     // TODO(kalman): default text size option.
     ToolbarView group = submenu.addGroup();
     for (int size : asArray(8, 9, 10, 11, 12, 14, 16, 18, 21, 24, 28, 32, 36, 42, 48, 56, 64, 72)) {
@@ -458,7 +458,7 @@ public class EditToolbar {
         .setTooltip("Font family")
         .applyTo(submenu, null);
     submenu.setVisualElement(createSvgIcon(ICON_FONT_FAMILY));
-    submenu.setShowDropdownArrow(false); // Icon already has dropdown arrow.
+    submenu.setShowDropdownArrow(true);
     createFontFamilyGroup(submenu.addGroup(), new FontFamily("Default", null));
     createFontFamilyGroup(submenu.addGroup(),
         new FontFamily("Sans Serif", "sans-serif"),
@@ -675,7 +675,7 @@ public class EditToolbar {
         .setTooltip("Heading")
         .applyTo(submenu, null);
     submenu.setVisualElement(createSvgIcon(ICON_HEADING));
-    submenu.setShowDropdownArrow(false); // Icon already has dropdown arrow.
+    submenu.setShowDropdownArrow(true);
     ToolbarClickButton defaultButton = submenu.addClickButton();
     new ToolbarButtonViewBuilder()
         .setText("Default")
@@ -735,7 +735,7 @@ public class EditToolbar {
         .setTooltip("Text alignment")
         .applyTo(submenu, null);
     submenu.setVisualElement(createSvgIcon(ICON_ALIGN_LEFT));
-    submenu.setShowDropdownArrow(false); // Icon already has dropdown arrow.
+    submenu.setShowDropdownArrow(true);
     ToolbarView group = submenu.addGroup();
     String[] alignIcons = {ICON_ALIGN_LEFT, ICON_ALIGN_CENTER, ICON_ALIGN_RIGHT};
     Alignment[] alignments = asArray(

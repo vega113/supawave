@@ -6667,7 +6667,7 @@ public final class HtmlRenderer {
 
     // Submit
     sb.append("      <button type=\"submit\" class=\"btn-submit\" id=\"submitBtn\">Send Message</button>\n");
-    sb.append("      <div id=\"formError\" style=\"display:none;margin-top:12px;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:14px;\"></div>\n");
+    sb.append("      <div id=\"formError\" role=\"alert\" aria-live=\"polite\" style=\"display:none;margin-top:12px;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:14px;\"></div>\n");
     sb.append("    </form>\n");
 
     // Success message (shown after submit)

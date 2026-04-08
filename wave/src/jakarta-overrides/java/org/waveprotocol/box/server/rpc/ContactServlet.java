@@ -174,7 +174,7 @@ public final class ContactServlet extends HttpServlet {
       }
       if (!email.isEmpty()) {
         email = sanitize(email, 254);
-        if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+        if (!isValidEmail(email)) {
           LOG.warning("Account email for " + userId + " failed format check — using empty");
           email = "";
         }
@@ -186,9 +186,9 @@ public final class ContactServlet extends HttpServlet {
         sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Email is required");
         return;
       }
-      submittedEmail = submittedEmail.trim();
-      // Basic email format validation
-      if (!submittedEmail.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+      submittedEmail = sanitize(submittedEmail.trim(), 254);
+      // Basic email format validation (linear check — avoids ReDoS)
+      if (!isValidEmail(submittedEmail)) {
         sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid email address");
         return;
       }
@@ -220,16 +220,17 @@ public final class ContactServlet extends HttpServlet {
       // Send notification email to admin (best-effort)
       try {
         String adminSubject = "[SupaWave Contact] " + subject + " from " + name;
-        String replyAddr = email.isEmpty() ? "admin@" + domain : email;
+        String senderDisplay = email.isEmpty() ? userId : email;
         String htmlBody = "<h3>New Contact Form Submission</h3>"
             + "<p><strong>From:</strong> " + HtmlRenderer.escapeHtml(name)
-            + " (" + HtmlRenderer.escapeHtml(email.isEmpty() ? userId : email) + ")</p>"
+            + " (" + HtmlRenderer.escapeHtml(senderDisplay) + ")</p>"
+            + "<p><strong>Reply-To:</strong> " + HtmlRenderer.escapeHtml(senderDisplay) + "</p>"
             + "<p><strong>Subject:</strong> " + HtmlRenderer.escapeHtml(subject) + "</p>"
             + "<p><strong>Message:</strong></p>"
             + "<div style=\"padding:12px;background:#f5f5f5;border-radius:8px;\">"
             + HtmlRenderer.escapeHtml(message).replace("\n", "<br>") + "</div>"
             + "<p style=\"color:#888;font-size:12px;\">IP: " + HtmlRenderer.escapeHtml(clientIp) + "</p>";
-        mailProvider.sendEmail(replyAddr, adminSubject, htmlBody);
+        mailProvider.sendEmail("admin@" + domain, adminSubject, htmlBody);
       } catch (MailException e) {
         LOG.warning("Failed to send contact notification email: " + e.getMessage());
       }
@@ -255,7 +256,7 @@ public final class ContactServlet extends HttpServlet {
       while (!deque.isEmpty() && deque.peekFirst() < cutoff) {
         deque.pollFirst();
       }
-      // Only record when not already over the limit to bound deque size
+      // Cap the deque at RATE_LIMIT_MAX+1 to bound memory; rejected requests don't extend window
       if (deque.size() <= RATE_LIMIT_MAX) {
         deque.addLast(now);
       }
@@ -323,6 +324,21 @@ public final class ContactServlet extends HttpServlet {
     // Unescape basic sequences
     return raw.replace("\\n", "\n").replace("\\t", "\t")
         .replace("\\\"", "\"").replace("\\\\", "\\");
+  }
+
+  /**
+   * Linear email format check — avoids ReDoS from backtracking regex on user-supplied input.
+   * Accepts only strings with exactly one '@', a non-empty local part, and a domain containing
+   * at least one '.' with a non-empty TLD.
+   */
+  static boolean isValidEmail(String email) {
+    if (email == null || email.isEmpty()) return false;
+    int atIdx = email.indexOf('@');
+    if (atIdx <= 0) return false;                          // no '@' or starts with '@'
+    if (email.indexOf('@', atIdx + 1) >= 0) return false; // multiple '@'
+    String domainPart = email.substring(atIdx + 1);
+    int dotIdx = domainPart.lastIndexOf('.');
+    return dotIdx > 0 && dotIdx < domainPart.length() - 1;
   }
 
   private static void setJsonUtf8(HttpServletResponse resp) {

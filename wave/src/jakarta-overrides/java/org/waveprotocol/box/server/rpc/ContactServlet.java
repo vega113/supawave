@@ -43,6 +43,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Servlet for the Contact Us feature.
@@ -64,6 +67,18 @@ public final class ContactServlet extends HttpServlet {
   // IP → timestamps of recent submissions
   private static final ConcurrentHashMap<String, ArrayDeque<Long>>
       IP_SUBMIT_TIMES = new ConcurrentHashMap<>();
+
+  // Daemon executor that sweeps stale IP entries hourly to prevent unbounded map growth
+  private static final ScheduledExecutorService RATE_LIMIT_SWEEPER;
+  static {
+    ScheduledExecutorService svc = Executors.newSingleThreadScheduledExecutor(r -> {
+      Thread t = new Thread(r, "contact-rate-limit-sweeper");
+      t.setDaemon(true);
+      return t;
+    });
+    svc.scheduleAtFixedRate(ContactServlet::evictStaleRateLimitEntries, 1, 1, TimeUnit.HOURS);
+    RATE_LIMIT_SWEEPER = svc;
+  }
 
   private final SessionManager sessionManager;
   private final AccountStore accountStore;
@@ -173,7 +188,7 @@ public final class ContactServlet extends HttpServlet {
         LOG.warning("Failed to load account for contact form submit", e);
       }
       if (!email.isEmpty()) {
-        email = sanitize(email, 254);
+        email = sanitizeHeader(email, 254);
         if (!isValidEmail(email)) {
           LOG.warning("Account email for " + userId + " failed format check — clearing");
           email = "";
@@ -183,7 +198,7 @@ public final class ContactServlet extends HttpServlet {
       if (email.isEmpty()) {
         String submittedEmail = extractJsonField(body, "email");
         if (submittedEmail != null && !submittedEmail.trim().isEmpty()) {
-          submittedEmail = sanitize(submittedEmail.trim(), 254);
+          submittedEmail = sanitizeHeader(submittedEmail.trim(), 254);
           if (isValidEmail(submittedEmail)) {
             email = submittedEmail;
           }
@@ -196,7 +211,7 @@ public final class ContactServlet extends HttpServlet {
         sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Email is required");
         return;
       }
-      submittedEmail = sanitize(submittedEmail.trim(), 254);
+      submittedEmail = sanitizeHeader(submittedEmail.trim(), 254);
       // Basic email format validation (linear check — avoids ReDoS)
       if (!isValidEmail(submittedEmail)) {
         sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid email address");
@@ -205,11 +220,24 @@ public final class ContactServlet extends HttpServlet {
       email = submittedEmail;
     }
 
-    // Sanitize inputs (strip control characters, limit lengths)
-    name = sanitize(name.trim(), 200);
-    subject = sanitize(subject.trim(), 200);
-    message = sanitize(message.trim(), 8000);
-    email = sanitize(email, 254);
+    // Sanitize inputs; use strict header sanitizer for fields that appear in mail headers/logs
+    name = sanitizeHeader(name.trim(), 200);
+    subject = sanitizeHeader(subject.trim(), 200);
+    message = sanitize(message.trim(), 8000);   // message body may contain newlines
+    email = sanitizeHeader(email, 254);
+
+    // Re-validate after sanitization — control-char-only payloads collapse to empty
+    if (name.isEmpty()) {
+      sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Name is required");
+      return;
+    }
+    if (message.isEmpty()) {
+      sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Message is required");
+      return;
+    }
+    if (subject.isEmpty()) {
+      subject = "General Inquiry";
+    }
 
     // Store the message
     ContactMessage msg = new ContactMessage();
@@ -224,22 +252,21 @@ public final class ContactServlet extends HttpServlet {
 
     try {
       String id = contactMessageStore.storeMessage(msg);
-      LOG.info("Contact message stored: id=" + id + " from=" + userId
-          + " ip=" + clientIp + " subject=" + subject);
+      LOG.info("Contact message stored: id=" + id);
 
       // Send notification email to admin (best-effort)
       try {
+        // Note: MailProvider.sendEmail does not support Reply-To SMTP headers.
+        // The submitter's contact address is included in the body so the admin can reply manually.
         String adminSubject = "[SupaWave Contact] " + subject + " from " + name;
         String senderDisplay = email.isEmpty() ? userId : email;
         String htmlBody = "<h3>New Contact Form Submission</h3>"
-            + "<p><strong>From:</strong> " + HtmlRenderer.escapeHtml(name)
-            + " (" + HtmlRenderer.escapeHtml(senderDisplay) + ")</p>"
-            + "<p><strong>Reply-To:</strong> " + HtmlRenderer.escapeHtml(senderDisplay) + "</p>"
+            + "<p><strong>From:</strong> " + HtmlRenderer.escapeHtml(name) + "</p>"
+            + "<p><strong>Contact email:</strong> " + HtmlRenderer.escapeHtml(senderDisplay) + "</p>"
             + "<p><strong>Subject:</strong> " + HtmlRenderer.escapeHtml(subject) + "</p>"
             + "<p><strong>Message:</strong></p>"
             + "<div style=\"padding:12px;background:#f5f5f5;border-radius:8px;\">"
-            + HtmlRenderer.escapeHtml(message).replace("\n", "<br>") + "</div>"
-            + "<p style=\"color:#888;font-size:12px;\">IP: " + HtmlRenderer.escapeHtml(clientIp) + "</p>";
+            + HtmlRenderer.escapeHtml(message).replace("\n", "<br>") + "</div>";
         mailProvider.sendEmail("admin@" + domain, adminSubject, htmlBody);
       } catch (MailException e) {
         LOG.warning("Failed to send contact notification email: " + e.getMessage());
@@ -277,10 +304,29 @@ public final class ContactServlet extends HttpServlet {
     return countHolder[0] > RATE_LIMIT_MAX;
   }
 
-  /** Strips control characters and truncates to maxLen. */
+  /**
+   * Strips all ASCII control characters and truncates to maxLen.
+   * Use for header-bound fields (name, subject, email) where newlines are dangerous
+   * (email header injection) and tabs are unexpected.
+   */
+  private static String sanitizeHeader(String s, int maxLen) {
+    if (s == null) return "";
+    StringBuilder sb = new StringBuilder(Math.min(s.length(), maxLen));
+    for (int i = 0; i < s.length() && sb.length() < maxLen; i++) {
+      char c = s.charAt(i);
+      if (c >= 0x20 && c != 0x7F) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Strips control characters and truncates to maxLen, preserving newline and tab.
+   * Use for the message body where newlines are meaningful.
+   */
   private static String sanitize(String s, int maxLen) {
     if (s == null) return "";
-    // Remove ASCII control chars (keep newline/tab for message body readability).
     // Uses a char-by-char loop instead of regex to avoid any potential ReDoS on user-supplied data.
     StringBuilder sb = new StringBuilder(Math.min(s.length(), maxLen));
     for (int i = 0; i < s.length() && sb.length() < maxLen; i++) {
@@ -291,6 +337,20 @@ public final class ContactServlet extends HttpServlet {
       }
     }
     return sb.toString();
+  }
+
+  /** Removes map entries whose deques have no timestamps within the rate-limit window. */
+  private static void evictStaleRateLimitEntries() {
+    long cutoff = System.currentTimeMillis() - RATE_LIMIT_WINDOW_MS;
+    for (String ip : IP_SUBMIT_TIMES.keySet()) {
+      IP_SUBMIT_TIMES.compute(ip, (k, deque) -> {
+        if (deque == null) return null;
+        while (!deque.isEmpty() && deque.peekFirst() < cutoff) {
+          deque.pollFirst();
+        }
+        return deque.isEmpty() ? null : deque;
+      });
+    }
   }
 
   private static String getClientIp(HttpServletRequest req) {

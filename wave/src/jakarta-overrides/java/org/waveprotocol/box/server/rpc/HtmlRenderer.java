@@ -6627,7 +6627,7 @@ public final class HtmlRenderer {
       sb.append("        <label for=\"contactEmail\">Email address <span style=\"color:#dc2626\">*</span></label>\n");
       sb.append("        <input type=\"email\" id=\"contactEmail\" required placeholder=\"your@email.com\">\n");
     } else {
-      sb.append("        <label>Sending as</label>\n");
+      sb.append("        <label for=\"contactEmail\">Sending as</label>\n");
       sb.append("        <input type=\"email\" id=\"contactEmail\" value=\"").append(escapeHtml(email)).append("\" readonly>\n");
     }
     sb.append("      </div>\n");

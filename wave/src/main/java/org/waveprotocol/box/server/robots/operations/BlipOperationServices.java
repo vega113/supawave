@@ -395,8 +395,27 @@ public class BlipOperationServices implements OperationService {
       // contains a newline.
       content = content.substring(1);
     }
-    XmlStringBuilder builder = XmlStringBuilder.createText(content);
+    XmlStringBuilder builder = buildMultilineContent(content);
     LineContainers.appendToLastLine(newBlip.getContent(), builder);
+  }
+
+  /**
+   * Builds an {@link XmlStringBuilder} from a content string that may contain
+   * newline characters. Each {@code \n} is converted to a {@code <line/>}
+   * element so that line breaks are preserved in the Wave document model.
+   */
+  static XmlStringBuilder buildMultilineContent(String content) {
+    String[] lines = content.split("\n", -1);
+    XmlStringBuilder builder = XmlStringBuilder.createEmpty();
+    for (int i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        builder.append(XmlStringBuilder.createEmpty().wrap(LineContainers.LINE_TAGNAME));
+      }
+      if (!lines[i].isEmpty()) {
+        builder.append(XmlStringBuilder.createText(lines[i]));
+      }
+    }
+    return builder;
   }
 
   /**

@@ -168,7 +168,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   private double simulatedProgress;
 
   /** Currently selected display size. */
-  private String selectedDisplaySize = "small";
+  private String selectedDisplaySize = "medium";
 
   /** Whether image compression is enabled. */
   private boolean compressionEnabled = true;
@@ -292,7 +292,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
       }
     });
     // Default selection
-    selectDisplaySize("small");
+    selectDisplaySize("medium");
 
     // Compression toggle
     compressToggleBtn.addClickHandler(new ClickHandler() {
@@ -597,7 +597,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     status.setText("");
     status.removeStyleName("error");
     status.removeStyleName("success");
-    selectDisplaySize("small");
+    selectDisplaySize("medium");
     compressionEnabled = true;
     compressToggleBtn.setText("Compress: ON");
     popup.show();

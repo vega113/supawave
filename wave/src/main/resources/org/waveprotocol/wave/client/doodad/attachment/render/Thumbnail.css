@@ -26,6 +26,11 @@
   display: inline-block;
 }
 
+.imageThumbnail.inline-image {
+  display: block;
+  margin: 8px 0;
+}
+
 
 .wave-editor-off .thumbSizeButton {
   display:none;
@@ -279,6 +284,16 @@
   padding: 4px;
   color: black;  /* Can't assume font color is not changed by the page theme. */
   background-color: white;
+}
+
+.imageThumbnail.inline-image .ittt {
+  margin: 0;
+}
+
+.imageThumbnail.inline-image .w-caption {
+  text-align: left;
+  padding: 8px 0 0;
+  background-color: transparent;
 }
 
 /* Rules for Table-based thumbnails. */

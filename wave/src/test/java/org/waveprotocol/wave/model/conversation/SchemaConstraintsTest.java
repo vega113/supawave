@@ -57,6 +57,14 @@ public class SchemaConstraintsTest extends TestCase {
         BLIP_SCHEMA_CONSTRAINTS.permitsAttribute("image", "attachment"));
     assertTrue(
         BLIP_SCHEMA_CONSTRAINTS.permitsAttribute("image", "attachment", "blahblah"));
+    assertTrue(
+        BLIP_SCHEMA_CONSTRAINTS.permitsAttribute("image", "display-size", "small"));
+    assertTrue(
+        BLIP_SCHEMA_CONSTRAINTS.permitsAttribute("image", "display-size", "medium"));
+    assertTrue(
+        BLIP_SCHEMA_CONSTRAINTS.permitsAttribute("image", "display-size", "large"));
+    assertFalse(
+        BLIP_SCHEMA_CONSTRAINTS.permitsAttribute("image", "display-size", "giant"));
     assertFalse(
         BLIP_SCHEMA_CONSTRAINTS.permitsAttribute("image", "something"));
     assertFalse(

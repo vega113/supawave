@@ -86,6 +86,7 @@ public final class ConversationSchemas implements SchemaProvider {
       addChildren("image", "caption");
       addAttrWithValues("image", "attachment");
       addAttrWithValues("image", "style", "full");
+      addAttrWithValues("image", "display-size", "small", "medium", "large");
       addChildren("image", "gadget");
 
       oneLiner("caption");

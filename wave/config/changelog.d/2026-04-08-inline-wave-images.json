@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-08-inline-wave-images",
+  "version": "Issue #185",
+  "date": "2026-04-08",
+  "title": "Render Medium And Large Attachments As Inline Images",
+  "summary": "Image attachments now use true inline rendering for medium and large display modes instead of just enlarging thumbnail cards.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Medium and large image attachments now render from the original attachment image for a more Telegram-like inline photo experience",
+        "Image attachments keep their attachment-backed document model while preserving thumbnail mode for compact displays",
+        "New image uploads now default to medium display size instead of small thumbnails"
+      ]
+    }
+  ]
+}

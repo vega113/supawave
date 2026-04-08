@@ -7871,9 +7871,16 @@ public final class HtmlRenderer {
   /**
    * Normalizes a bio that may have been stored with literal \n sequences
    * (artifact of the old broken JSON parser) to real newline characters.
+   *
+   * <p>Only normalizes when the value looks like legacy broken data: it contains
+   * literal "\n" sequences, has no real newline characters already, and does not
+   * contain double-backslash sequences that would be partially mangled.
    */
   private static String normalizeStoredBio(String bio) {
     if (bio == null) return null;
+    if (bio.indexOf('\n') != -1) return bio;      // already has real newlines
+    if (bio.indexOf("\\n") == -1) return bio;     // no escaped newlines to fix
+    if (bio.indexOf("\\\\n") != -1) return bio;  // ambiguous: \\n present, skip
     return bio.replace("\\n", "\n");
   }
 

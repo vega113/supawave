@@ -22,6 +22,7 @@
 
 .self {
   height: value('buttonDown.getHeight', 'px');
+  min-height: 36px;
   display: inline;
   float: left;
   font-size: 8pt;
@@ -37,7 +38,7 @@
 }
 
 .self.compact {
-  padding: 0 4px;
+  padding: 0 10px;
 }
 
 .self.enabled {
@@ -80,7 +81,7 @@
 
 .visualElement {
   float: left;
-  margin-top: 1px;
+  margin-top: 10px;
 }
 
 .textElement {

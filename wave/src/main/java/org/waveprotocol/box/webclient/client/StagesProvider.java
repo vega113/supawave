@@ -219,6 +219,7 @@ public class StagesProvider extends Stages {
     waveStore.add(wave);
     wireToolbarButtons(x);
     wirePinState(x);
+    wireArchiveState(x);
     install();
     wireHistoryMode();
     whenReady.use(x);
@@ -255,6 +256,20 @@ public class StagesProvider extends Stages {
       viewToolbar.setPinned(pinned);
     } catch (Exception e) {
       // Supplement may not be available for all waves; default to unpinned.
+    }
+  }
+
+  /**
+   * Sets the initial archive state on the view toolbar so the Archive button
+   * visual is correct when the wave first opens.
+   */
+  private void wireArchiveState(StageThree three) {
+    ViewToolbar viewToolbar = three.getViewToolbar();
+    try {
+      boolean archived = two.getSupplement().isArchived();
+      viewToolbar.setArchived(archived);
+    } catch (Exception e) {
+      // Supplement may not be available for all waves; default to not archived.
     }
   }
 

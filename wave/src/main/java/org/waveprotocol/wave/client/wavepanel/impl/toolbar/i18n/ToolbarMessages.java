@@ -30,7 +30,7 @@ public interface ToolbarMessages extends Messages {
   @DefaultMessage("Recent")
   String recent();
 
-  @DefaultMessage("NextUnread")
+  @DefaultMessage("Next Unread")
   String nextUnread();
 
   @DefaultMessage("Previous")

@@ -190,9 +190,10 @@ public interface StageThree {
       ModelAsViewProvider views = stageTwo.getModelAsViewProvider();
       ConversationView wave = stageTwo.getConversations();
       boolean isPinned = stageTwo.getSupplement().isPinned();
+      boolean isArchived = stageTwo.getSupplement().isArchived();
       ParticipantId signedInUser = stageTwo.getSignedInUser();
       return ViewToolbar.create(stageTwo.getStageOne().getFocusFrame(), views, wave,
-          stageTwo.getReader(), stageTwo.getWave().getWaveId(), isPinned, signedInUser);
+          stageTwo.getReader(), stageTwo.getWave().getWaveId(), isPinned, isArchived, signedInUser);
     }
 
     protected String getLocalDomain() {

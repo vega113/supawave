@@ -23,6 +23,7 @@ import org.waveprotocol.wave.model.util.Preconditions;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.InputElement;
+import com.google.gwt.dom.client.NodeList;
 import com.google.gwt.dom.client.SpanElement;
 
 import org.waveprotocol.wave.client.common.util.DomHelper;
@@ -31,7 +32,6 @@ import org.waveprotocol.wave.client.editor.NodeEventHandler;
 import org.waveprotocol.wave.client.editor.NodeEventHandlerImpl;
 import org.waveprotocol.wave.client.editor.RenderingMutationHandler;
 import org.waveprotocol.wave.client.editor.content.ContentElement;
-import org.waveprotocol.wave.client.editor.content.ContentNode;
 import org.waveprotocol.wave.client.editor.event.EditorEvent;
 import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
 
@@ -115,24 +115,17 @@ public class CheckBox {
       }
     }
 
-    @Override
-    public void onDeactivated(ContentElement element) {
-      // When a checked task checkbox is removed, clean up the task-completed class on its
-      // enclosing paragraph so the styling does not linger after deletion.
-      String name = element.getAttribute(ContentElement.NAME);
-      if (name != null && name.startsWith(TaskDocumentUtil.TASK_NAME_PREFIX)
-          && getChecked(element) && !hasAnyCheckedTaskSibling(element)) {
-        Element implNodelet = element.getImplNodelet();
-        if (implNodelet != null) {
-          Element paragraph = implNodelet.getParentElement();
-          if (paragraph != null) {
-            paragraph.removeClassName(TASK_COMPLETED_CLASS);
-          }
-        }
-      }
-    }
-
     private static final String TASK_COMPLETED_CLASS = "task-completed";
+    /**
+     * Marker CSS class added to the span wrapper of every task checkbox.
+     * Not styled — used only to identify task checkbox spans in DOM queries.
+     */
+    private static final String TASK_SPAN_CLASS = "task-check-span";
+    /**
+     * Property key used to store the enclosing paragraph DOM element on the
+     * checkbox's span nodelet so it can be retrieved after DOM detachment.
+     */
+    private static final String PARAGRAPH_PROPERTY = "__waveTaskParagraph";
 
     private void updateCheckboxDom(ContentElement checkbox, boolean isChecked) {
       Element implNodelet = checkbox.getImplNodelet();
@@ -142,39 +135,61 @@ public class CheckBox {
       // Apply/remove strikethrough styling on the enclosing paragraph for task checkboxes.
       String name = checkbox.getAttribute(ContentElement.NAME);
       if (name != null && name.startsWith(TaskDocumentUtil.TASK_NAME_PREFIX)) {
+        // Mark the span so DOM-based sibling queries can identify task checkboxes.
+        implNodelet.addClassName(TASK_SPAN_CLASS);
         Element paragraph = implNodelet.getParentElement();
         if (paragraph != null) {
+          // Cache the paragraph reference on the span: onDeactivated fires after the
+          // nodelet is detached from the DOM, so getParentElement() would return null there.
+          implNodelet.setPropertyObject(PARAGRAPH_PROPERTY, paragraph);
           if (isChecked) {
             paragraph.addClassName(TASK_COMPLETED_CLASS);
-          } else if (!hasAnyCheckedTaskSibling(checkbox)) {
+          } else if (!hasAnyOtherCheckedTaskSpan(paragraph, implNodelet)) {
             paragraph.removeClassName(TASK_COMPLETED_CLASS);
           }
         }
       }
     }
 
-    /**
-     * Returns true if the paragraph containing {@code checkbox} has at least one
-     * other task checkbox that is still checked. Used to guard against
-     * prematurely removing the task-completed class when multiple task
-     * checkboxes share a paragraph.
-     */
-    private boolean hasAnyCheckedTaskSibling(ContentElement checkbox) {
-      ContentElement parent = checkbox.getParentElement();
-      if (parent == null) {
-        return false;
+    @Override
+    public void onDeactivated(ContentElement element) {
+      // When a checked task checkbox is removed from the document, clean up the
+      // task-completed class on its enclosing paragraph.
+      // NOTE: By the time onDeactivated fires the nodelet is already detached from
+      // the DOM, so we rely on the paragraph reference cached in PARAGRAPH_PROPERTY
+      // rather than on implNodelet.getParentElement() (which returns null here).
+      String name = element.getAttribute(ContentElement.NAME);
+      if (name == null || !name.startsWith(TaskDocumentUtil.TASK_NAME_PREFIX)) {
+        return;
       }
-      for (ContentNode node = parent.getFirstChild(); node != null; node = node.getNextSibling()) {
-        if (node == checkbox || !(node instanceof ContentElement)) {
+      if (!getChecked(element)) {
+        return;
+      }
+      Element implNodelet = element.getImplNodelet();
+      if (implNodelet == null) {
+        return;
+      }
+      Element paragraph = (Element) implNodelet.getPropertyObject(PARAGRAPH_PROPERTY);
+      if (paragraph != null && !hasAnyOtherCheckedTaskSpan(paragraph, implNodelet)) {
+        paragraph.removeClassName(TASK_COMPLETED_CLASS);
+      }
+    }
+
+    /**
+     * Returns true if {@code paragraph} contains any task checkbox span other than
+     * {@code excludeSpan} whose input is currently checked. Uses DOM-based detection
+     * (via {@link #TASK_SPAN_CLASS}) so it works both during normal edits and inside
+     * {@link #onDeactivated} where the content model parent is no longer available.
+     */
+    private boolean hasAnyOtherCheckedTaskSpan(Element paragraph, Element excludeSpan) {
+      NodeList<Element> spans = DomHelper.getElementsByClassName(paragraph, TASK_SPAN_CLASS);
+      for (int i = 0; i < spans.getLength(); i++) {
+        Element span = spans.getItem(i);
+        if (span.equals(excludeSpan)) {
           continue;
         }
-        ContentElement sibling = (ContentElement) node;
-        if (!isCheckBox(sibling)) {
-          continue;
-        }
-        String sibName = sibling.getAttribute(ContentElement.NAME);
-        if (sibName != null && sibName.startsWith(TaskDocumentUtil.TASK_NAME_PREFIX)
-            && getChecked(sibling)) {
+        Element firstChild = span.getFirstChildElement();
+        if (firstChild != null && InputElement.as(firstChild).isChecked()) {
           return true;
         }
       }

@@ -67,4 +67,12 @@ public final class HtmlRendererTopBarTest extends TestCase {
     assertTrue(js.contains("var _ctx=\"\\/wave\";"));
     assertTrue(js.contains("fetch(_ctx+'/locale'"));
   }
+
+  public void testRenderSharedTopBarCssIncludesAdminBadge() {
+    String css = HtmlRenderer.renderSharedTopBarCss();
+
+    assertTrue(css.contains(".admin-msg-btn"));
+    assertTrue(css.contains(".admin-badge"));
+    assertTrue(css.contains("admin-glow"));
+  }
 }

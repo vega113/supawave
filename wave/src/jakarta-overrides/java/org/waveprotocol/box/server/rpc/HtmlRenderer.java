@@ -2549,6 +2549,22 @@ public final class HtmlRenderer {
     sb.append("@keyframes prerender-fade-in {\n");
     sb.append("  from { opacity: 0; } to { opacity: 1; }\n");
     sb.append("}\n");
+    // Admin contact notification badge CSS (same as renderSharedTopBarCss)
+    sb.append(".admin-msg-btn { cursor: pointer; text-decoration: none; }\n");
+    sb.append(".admin-badge {\n");
+    sb.append("  position: absolute; top: -4px; right: -4px;\n");
+    sb.append("  min-width: 16px; height: 16px; padding: 0 4px;\n");
+    sb.append("  background: #e53e3e; color: white;\n");
+    sb.append("  border-radius: 8px; font-size: 10px; font-weight: 700;\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  line-height: 1; border: 1.5px solid rgba(0,50,100,0.6);\n");
+    sb.append("}\n");
+    sb.append(".admin-badge.hidden { display: none; }\n");
+    sb.append(".admin-msg-btn.has-unread { animation: admin-glow 2s ease-in-out infinite; }\n");
+    sb.append("@keyframes admin-glow {\n");
+    sb.append("  0%, 100% { box-shadow: 0 0 0 0 rgba(229,62,62,0); }\n");
+    sb.append("  50% { box-shadow: 0 0 8px 4px rgba(229,62,62,0.5); }\n");
+    sb.append("}\n");
     sb.append("</style>\n");
     // GWT stats + nocache JS
     sb.append("<script type=\"text/javascript\">\n");
@@ -3394,6 +3410,22 @@ public final class HtmlRenderer {
     sb.append("  .topbar-icon svg { width: 16px; height: 16px; }\n");
     sb.append("  .user-avatar { width: 24px; height: 24px; font-size: 11px; }\n");
     sb.append("}\n");
+    // Admin contact notification badge
+    sb.append(".admin-msg-btn { cursor: pointer; text-decoration: none; }\n");
+    sb.append(".admin-badge {\n");
+    sb.append("  position: absolute; top: -4px; right: -4px;\n");
+    sb.append("  min-width: 16px; height: 16px; padding: 0 4px;\n");
+    sb.append("  background: #e53e3e; color: white;\n");
+    sb.append("  border-radius: 8px; font-size: 10px; font-weight: 700;\n");
+    sb.append("  display: inline-flex; align-items: center; justify-content: center;\n");
+    sb.append("  line-height: 1; border: 1.5px solid rgba(0,50,100,0.6);\n");
+    sb.append("}\n");
+    sb.append(".admin-badge.hidden { display: none; }\n");
+    sb.append(".admin-msg-btn.has-unread { animation: admin-glow 2s ease-in-out infinite; }\n");
+    sb.append("@keyframes admin-glow {\n");
+    sb.append("  0%, 100% { box-shadow: 0 0 0 0 rgba(229,62,62,0); }\n");
+    sb.append("  50% { box-shadow: 0 0 8px 4px rgba(229,62,62,0.5); }\n");
+    sb.append("}\n");
     return sb.toString();
   }
 
@@ -3623,6 +3655,13 @@ public final class HtmlRenderer {
       + "<path d=\"M1.42 9a15.91 15.91 0 0 1 4.7-2.88\"/>"
       + "<path d=\"M8.53 16.11a6 6 0 0 1 6.95 0\"/>"
       + "<circle cx=\"12\" cy=\"19.5\" r=\"1\"/>"
+      + "</svg>";
+
+  /** Envelope icon for admin contact notification — white on dark topbar. */
+  private static final String ICON_MAIL =
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      + "<path d=\"M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z\"/>"
+      + "<polyline points=\"22,6 12,13 2,6\"/>"
       + "</svg>";
 
   // =========================================================================

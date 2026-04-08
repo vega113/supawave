@@ -334,6 +334,9 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
         uploadBtn.setEnabled(false);
         cancelBtn.setEnabled(false);
         addMoreBtn.setEnabled(false);
+        isUploading = true;
+        batchFailed = false;
+        setElementDisabled(fileUpload.getElement(), true);
         // Disable per-card remove buttons and caption inputs during upload
         for (FileEntry fe : pendingFiles) {
           setCardControlsEnabled(fe, false);
@@ -506,10 +509,15 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   private void uploadNext(int index) {
     if (index >= pendingFiles.size()) {
       isUploading = false;
+      setElementDisabled(fileUpload.getElement(), false);
+      uploadBtn.setEnabled(false);
+      cancelBtn.setEnabled(true);
+      addMoreBtn.setEnabled(true);
+      for (FileEntry fe : pendingFiles) {
+        setCardControlsEnabled(fe, true);
+      }
       if (batchFailed) {
-        showStatus("Some uploads failed. Check highlighted files.", true);
-        cancelBtn.setEnabled(true);
-        addMoreBtn.setEnabled(true);
+        showStatus("Some uploads failed. Please close and try again, or remove failed files.", true);
       } else {
         showStatus("All uploads complete!", false);
         new Timer() {
@@ -565,6 +573,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     if (entry == null) {
       // Entry was removed while its upload was in progress.
       // Re-enable controls and start from the beginning of the (now-shorter) queue.
+      isUploading = false;
+      setElementDisabled(fileUpload.getElement(), false);
       showStatus("A file was removed; remaining files will be uploaded.", false);
       uploadBtn.setEnabled(false);
       cancelBtn.setEnabled(true);
@@ -585,6 +595,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     } else {
       batchFailed = true;
       entry.showError();
+      batchFailed = true;
       showStatus("Upload failed: " + truncateName(entry.fileName, 20), true);
     }
     // Always continue to next file
@@ -709,6 +720,10 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     el.setAttribute('multiple', 'multiple');
   }-*/;
 
+  private static native void setElementDisabled(Element el, boolean disabled) /*-{
+    el.disabled = disabled;
+  }-*/;
+
   private static native void nativeClickFileInput(Element el) /*-{
     el.click();
   }-*/;
@@ -827,6 +842,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     dropZoneEl.addEventListener('drop', function(e) {
       e.preventDefault(); e.stopPropagation();
       dropZoneEl.classList.remove('dragover');
+      if (self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::isUploading) return;
       var files = e.dataTransfer.files;
       if (files && files.length > 0) {
         // Feature-detect whether DataTransfer is constructible before attempting it.
@@ -884,6 +900,9 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     compressToggleBtn.setText("Compress: ON");
     cancelBtn.setEnabled(true);
     addMoreBtn.setEnabled(true);
+    isUploading = false;
+    batchFailed = false;
+    setElementDisabled(fileUpload.getElement(), false);
     popup.show();
   }
 

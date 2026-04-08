@@ -391,7 +391,7 @@ public class BlipOperationServices implements OperationService {
   private void putContentForNewBlip(ConversationBlip newBlip, String content) {
     // Normalize CR/CRLF to LF before stripping the auto-prefixed leading newline so that
     // Windows-style \r\n prefixes from robot clients are handled consistently.
-    content = content.replace("\r\n", "\n").replace("\r", "\n");
+    content = normalizeNewlines(content);
     if (content.length() > 0 && content.charAt(0) == '\n') {
       // While the client libraries force a newline to be sent as the first
       // character we'll remove it here since the new blip we created already
@@ -402,13 +402,17 @@ public class BlipOperationServices implements OperationService {
     LineContainers.appendToLastLine(newBlip.getContent(), builder);
   }
 
+  static String normalizeNewlines(String content) {
+    return content.replace("\r\n", "\n").replace("\r", "\n");
+  }
+
   /**
    * Builds an {@link XmlStringBuilder} from a content string that may contain
    * newline characters. Each {@code \n} is converted to a {@code <line/>}
    * element so that line breaks are preserved in the Wave document model.
    */
   static XmlStringBuilder buildMultilineContent(String content) {
-    content = content.replace("\r\n", "\n").replace("\r", "\n");
+    content = normalizeNewlines(content);
     String[] lines = content.split("\n", -1);
     XmlStringBuilder builder = XmlStringBuilder.createEmpty();
     for (int i = 0; i < lines.length; i++) {

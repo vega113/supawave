@@ -97,7 +97,7 @@ public final class ViewToolbar {
   private static final String ICON_NEXT_MENTION = SVG_OPEN
       + "<circle cx=\"12\" cy=\"12\" r=\"4\"></circle>"
       + "<path d=\"M16 8v5a3 3 0 0 0 6 0V12a10 10 0 1 0-4 8\"></path>"
-      + "<path d=\"M21 12l3 3v-6z\" fill=\"currentColor\" stroke=\"none\"></path></svg>";
+      + "<path d=\"M24 12l-3-3v6z\" fill=\"currentColor\" stroke=\"none\"></path></svg>";
 
   /** Archive: clean archive box (Lucide archive). */
   private static final String ICON_ARCHIVE = SVG_OPEN

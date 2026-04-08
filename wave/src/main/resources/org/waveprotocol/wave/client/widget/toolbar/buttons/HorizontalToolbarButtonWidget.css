@@ -86,6 +86,10 @@
   justify-content: center;
 }
 
+.visualElement svg {
+  display: block;
+}
+
 .textElement {
 }
 

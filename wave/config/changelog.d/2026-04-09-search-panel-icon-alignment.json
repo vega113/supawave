@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-09-search-panel-icon-alignment",
+  "version": "PR #749",
+  "date": "2026-04-09",
+  "title": "Fix vertical centering of toolbar icons",
+  "summary": "Switches toolbar button layout from float/margin centering to flexbox and adds a universal CSS rule to suppress the inline SVG baseline gap.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replace float/margin-top centering in HorizontalToolbarButtonWidget with inline-flex + align-items:center for robust vertical alignment",
+        "Add .visualElement svg { display: block } CSS rule to eliminate the inline baseline/descender gap for all toolbar SVG icons universally"
+      ]
+    }
+  ]
+}

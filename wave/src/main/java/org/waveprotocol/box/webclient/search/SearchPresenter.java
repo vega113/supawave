@@ -138,8 +138,7 @@ public final class SearchPresenter
   private static final String SVG_OPEN =
       "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" "
       + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
-      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" "
-      + "style=\"display:block\">";
+      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
 
   /** New Wave: pencil-square / compose icon. */
   private static final String ICON_NEW_WAVE = SVG_OPEN

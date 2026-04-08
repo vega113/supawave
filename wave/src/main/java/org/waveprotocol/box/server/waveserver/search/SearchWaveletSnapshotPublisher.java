@@ -189,7 +189,8 @@ public final class SearchWaveletSnapshotPublisher {
           creator,
           participants != null ? participants.size() : 0,
           digest.getUnreadCount(),
-          digest.getBlipCount()));
+          digest.getBlipCount(),
+          digest.isPinned()));
     }
     return entries;
   }

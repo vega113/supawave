@@ -78,10 +78,16 @@ import org.waveprotocol.wave.model.wave.data.WaveViewData;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 /**
  * @author yurize@apache.org (Yuri Zelikov)
@@ -1134,6 +1140,46 @@ public class SimpleSearchProviderImplTest extends TestCase {
     if (!wavesView.containsEntry(name.waveId, name.waveletId)) {
       wavesViews.get(user).put(name.waveId, name.waveletId);
     }
+  }
+
+  /**
+   * Verifies that a search with active filters emits exactly one INFO log line (the combined
+   * summary) rather than separate before/after lines for each filter stage.
+   */
+  public void testSearchEmitsExactlyOneInfoLogLinePerQuery() throws Exception {
+    // Add a wave so there is at least one candidate going through the filter pipeline.
+    submitDeltaToNewWavelet(WAVELET_NAME, USER1, addParticipantToWavelet(USER1, WAVELET_NAME));
+
+    Logger logger = Logger.getLogger(SimpleSearchProviderImpl.class.getName());
+    final List<LogRecord> infoRecords = new ArrayList<>();
+    Handler captureHandler = new Handler() {
+      @Override public void publish(LogRecord record) {
+        if (Level.INFO.equals(record.getLevel())) infoRecords.add(record);
+      }
+      @Override public void flush() {}
+      @Override public void close() throws SecurityException {}
+    };
+    Level savedLevel = logger.getLevel();
+    boolean savedUseParent = logger.getUseParentHandlers();
+    logger.addHandler(captureHandler);
+    logger.setLevel(Level.ALL);
+    logger.setUseParentHandlers(false);
+
+    try {
+      // "mentions:me unread:true" would normally emit 4 per-filter INFO lines plus a summary = 5.
+      // After the fix it should emit exactly 1 (the combined summary).
+      searchProvider.search(USER1, "mentions:me unread:true", 0, 20);
+    } finally {
+      logger.removeHandler(captureHandler);
+      logger.setLevel(savedLevel);
+      logger.setUseParentHandlers(savedUseParent);
+    }
+
+    assertEquals("Search must emit exactly one INFO log line per query",
+        1, infoRecords.size());
+    String msg = infoRecords.get(0).getMessage();
+    assertTrue("Summary must contain user address; got: " + msg, msg.contains(USER1.getAddress()));
+    assertTrue("Summary must contain query text; got: " + msg, msg.contains("mentions:me"));
   }
 
   /**

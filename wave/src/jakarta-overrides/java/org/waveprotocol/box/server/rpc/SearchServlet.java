@@ -120,7 +120,7 @@ public class SearchServlet extends HttpServlet {
         ", remote=" + String.valueOf(req.getRemoteAddr());
     serializeObjectToServlet(searchResponse, ctx, response);
     long elapsedMs = System.currentTimeMillis() - startMs;
-    LOG.info("SearchServlet.doGet: " + ctx + ", took " + elapsedMs + " ms");
+    LOG.fine("SearchServlet.doGet: " + ctx + ", took " + elapsedMs + " ms");
   }
 
   private static SearchRequest parseSearchRequest(HttpServletRequest req) {

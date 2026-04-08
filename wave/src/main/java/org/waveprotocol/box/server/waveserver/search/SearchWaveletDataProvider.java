@@ -68,9 +68,15 @@ public class SearchWaveletDataProvider {
     private final int participants;
     private final int unread;
     private final int blips;
+    private final boolean pinned;
 
     public SearchResultEntry(String waveId, String title, String snippet,
         long modified, String creator, int participants, int unread, int blips) {
+      this(waveId, title, snippet, modified, creator, participants, unread, blips, false);
+    }
+
+    public SearchResultEntry(String waveId, String title, String snippet,
+        long modified, String creator, int participants, int unread, int blips, boolean pinned) {
       this.waveId = waveId;
       this.title = title;
       this.snippet = snippet;
@@ -79,6 +85,7 @@ public class SearchWaveletDataProvider {
       this.participants = participants;
       this.unread = unread;
       this.blips = blips;
+      this.pinned = pinned;
     }
 
     public String getWaveId() { return waveId; }
@@ -89,6 +96,7 @@ public class SearchWaveletDataProvider {
     public int getParticipants() { return participants; }
     public int getUnread() { return unread; }
     public int getBlips() { return blips; }
+    public boolean isPinned() { return pinned; }
 
     /**
      * Checks whether this entry's attributes differ from another entry
@@ -102,7 +110,8 @@ public class SearchWaveletDataProvider {
           || !Objects.equals(creator, other.creator)
           || participants != other.participants
           || unread != other.unread
-          || blips != other.blips;
+          || blips != other.blips
+          || pinned != other.pinned;
     }
 
     @Override
@@ -114,6 +123,7 @@ public class SearchWaveletDataProvider {
           && participants == that.participants
           && unread == that.unread
           && blips == that.blips
+          && pinned == that.pinned
           && Objects.equals(waveId, that.waveId)
           && Objects.equals(title, that.title)
           && Objects.equals(snippet, that.snippet)
@@ -122,7 +132,7 @@ public class SearchWaveletDataProvider {
 
     @Override
     public int hashCode() {
-      return Objects.hash(waveId, title, snippet, modified, creator, participants, unread, blips);
+      return Objects.hash(waveId, title, snippet, modified, creator, participants, unread, blips, pinned);
     }
   }
 
@@ -487,6 +497,7 @@ public class SearchWaveletDataProvider {
         "id", entry.getWaveId(),
         "modified", String.valueOf(entry.getModified()),
         "participants", String.valueOf(entry.getParticipants()),
+        "pinned", String.valueOf(entry.isPinned()),
         "snippet", entry.getSnippet(),
         "title", entry.getTitle(),
         "unread", String.valueOf(entry.getUnread()));

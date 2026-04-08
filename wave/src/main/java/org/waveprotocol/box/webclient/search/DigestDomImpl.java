@@ -222,19 +222,21 @@ public final class DigestDomImpl implements DigestView {
 
   @Override
   public void setMentionCount(int count) {
+    if (count <= 0) {
+      if (mentionCountEl != null) {
+        mentionCountEl.getStyle().setDisplay(Style.Display.NONE);
+        mentionCountEl.setInnerText("");
+      }
+      return;
+    }
     if (mentionCountEl == null) {
       mentionCountEl = com.google.gwt.user.client.DOM.createSpan();
       mentionCountEl.setClassName(css.mentionCount());
       msgs.appendChild(mentionCountEl);
     }
-    if (count <= 0) {
-      mentionCountEl.getStyle().setDisplay(Style.Display.NONE);
-      mentionCountEl.setInnerText("");
-    } else {
-      String text = count > 99 ? "@99+" : "@" + count;
-      mentionCountEl.setInnerText(text);
-      mentionCountEl.getStyle().setDisplay(Style.Display.INLINE_BLOCK);
-    }
+    String text = count > 99 ? "@99+" : "@" + count;
+    mentionCountEl.setInnerText(text);
+    mentionCountEl.getStyle().setDisplay(Style.Display.INLINE_BLOCK);
   }
 
   @Override

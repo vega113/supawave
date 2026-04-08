@@ -199,12 +199,19 @@ public final class MentionUnreadTracker {
     Map<WaveId, Integer> newPerWaveCounts = new HashMap<>();
     for (SearchService.DigestSnapshot snapshot : snapshots) {
       if (snapshot.getUnreadCount() > 0) {
-        newUnread.add(snapshot.getWaveId());
-        // Use 1 per wave: the query is "mentions:me unread:true" so the wave
-        // qualifies as a mention-wave; unreadCount is the general unread-blip
-        // total, not a mention-specific count, so it must not be used as the
-        // per-wave @N value.
-        newPerWaveCounts.put(snapshot.getWaveId(), 1);
+        WaveId waveId = snapshot.getWaveId();
+        // Deduplicate: paginated scans can return the same wave on two pages when
+        // results reorder between requests. The map put is idempotent, but the
+        // list add is not — skip waves already tracked to keep totalUnreadCount
+        // consistent with the navigable set size.
+        if (!newPerWaveCounts.containsKey(waveId)) {
+          newUnread.add(waveId);
+          // Use 1 per wave: the query is "mentions:me unread:true" so the wave
+          // qualifies as a mention-wave; unreadCount is the general unread-blip
+          // total, not a mention-specific count, so it must not be used as the
+          // per-wave @N value.
+          newPerWaveCounts.put(waveId, 1);
+        }
       }
     }
 
@@ -223,7 +230,7 @@ public final class MentionUnreadTracker {
     // Use the collected count so the badge exactly matches the navigable set.
     totalUnreadCount = newUnread.size();
 
-    if (oldCount != totalUnreadCount && listener != null) {
+    if (listener != null) {
       listener.onUnreadMentionCountChanged(totalUnreadCount);
     }
   }

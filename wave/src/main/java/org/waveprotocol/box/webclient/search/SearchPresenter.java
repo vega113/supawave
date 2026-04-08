@@ -192,6 +192,11 @@ public final class SearchPresenter
       + "<circle cx=\"12\" cy=\"12\" r=\"4\"></circle>"
       + "<path d=\"M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94\"></path></svg>";
 
+  /** Tasks: check-square icon. */
+  private static final String ICON_TASKS = SVG_OPEN
+      + "<polyline points=\"9 11 12 14 22 4\"></polyline>"
+      + "<path d=\"M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11\"></path></svg>";
+
   // External references
   private final TimerService scheduler;
   private final Search search;
@@ -317,6 +322,11 @@ public final class SearchPresenter
   /** Red dot element overlaid on the @ toolbar icon. */
   private Element mentionBadgeEl;
 
+  /** Tracks unread task waves in the background (feature-flag gated). */
+  private TaskUnreadTracker taskTracker;
+  /** Blue dot element overlaid on the tasks toolbar icon. */
+  private Element taskBadgeEl;
+
   SearchPresenter(TimerService scheduler, Search search, SearchPanelView searchUi,
       WaveActionHandler actionHandler, SourcesEvents<ProfileListener> profiles,
       RemoteViewServiceMultiplexer channel) {
@@ -376,6 +386,13 @@ public final class SearchPresenter
         SchedulerInstance.getHighPriorityTimer(),
         mentionBadgeEnabled, mentionsSearchEnabled);
     presenter.mentionTracker.setListener(count -> presenter.updateMentionBadge(count));
+    boolean taskBadgeEnabled = Session.get().hasFeature("task-unread-badge");
+    boolean taskSearchEnabled = Session.get().hasFeature("task-search");
+    presenter.taskTracker = new TaskUnreadTracker(
+        RemoteSearchService.create(),
+        SchedulerInstance.getHighPriorityTimer(),
+        taskBadgeEnabled, taskSearchEnabled);
+    presenter.taskTracker.setListener(count -> presenter.updateTaskBadge(count));
     presenter.init();
     return presenter;
   }
@@ -456,6 +473,7 @@ public final class SearchPresenter
       startPolling();
     }
     initMentionTracker();
+    initTaskTracker();
   }
 
   /**
@@ -481,6 +499,9 @@ public final class SearchPresenter
     unsubscribeFromSearchWavelet();
     if (mentionTracker != null) {
       mentionTracker.destroy();
+    }
+    if (taskTracker != null) {
+      taskTracker.destroy();
     }
   }
 
@@ -526,7 +547,9 @@ public final class SearchPresenter
   private void initToolbarMenu() {
     GroupingToolbar.View toolbarUi = searchUi.getToolbar();
     boolean mentionsSearchEnabled = Session.get().hasFeature("mentions-search");
+    boolean taskSearchEnabled = Session.get().hasFeature("task-search");
     searchUi.getSearch().setMentionsSearchVisible(mentionsSearchEnabled);
+    searchUi.getSearch().setTasksSearchVisible(taskSearchEnabled);
 
     // --- Group 1: New Wave ---
     ToolbarView newWaveGroup = toolbarUi.addGroup();
@@ -592,6 +615,34 @@ public final class SearchPresenter
               onQueryEntered();
             }
           }).setVisualElement(mentionVisual);
+    }
+
+    if (taskSearchEnabled) {
+      boolean taskBadgeOn = taskTracker != null && taskTracker.isEnabled();
+      Element taskVisual;
+      if (taskBadgeOn) {
+        Element wrapper = DOM.createSpan();
+        wrapper.getStyle().setProperty("position", "relative");
+        wrapper.getStyle().setProperty("display", "inline-block");
+        wrapper.setInnerHTML(ICON_TASKS);
+        taskBadgeEl = DOM.createSpan();
+        taskBadgeEl.setClassName(SearchPanelWidget.css.mentionBadge());
+        taskBadgeEl.getStyle().setDisplay(
+            com.google.gwt.dom.client.Style.Display.NONE);
+        wrapper.appendChild(taskBadgeEl);
+        taskVisual = wrapper;
+      } else {
+        taskVisual = createSvgIcon(ICON_TASKS);
+      }
+      new ToolbarButtonViewBuilder()
+          .setTooltip("Tasks")
+          .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
+            @Override
+            public void onClicked() {
+              searchUi.getSearch().setQuery("tasks:me unread:true");
+              onQueryEntered();
+            }
+          }).setVisualElement(taskVisual);
     }
 
     new ToolbarButtonViewBuilder()
@@ -661,6 +712,29 @@ public final class SearchPresenter
   }
 
   /**
+   * Starts the task unread tracker.
+   */
+  private void initTaskTracker() {
+    if (taskTracker == null || !taskTracker.isEnabled()) {
+      return;
+    }
+    taskTracker.start();
+  }
+
+  /**
+   * Updates the task dot indicator and refreshes per-wave task badges
+   * on currently rendered digests so they clear after the user reads a wave.
+   */
+  private void updateTaskBadge(int count) {
+    if (taskBadgeEl != null) {
+      taskBadgeEl.getStyle().setDisplay(count > 0
+          ? com.google.gwt.dom.client.Style.Display.BLOCK
+          : com.google.gwt.dom.client.Style.Display.NONE);
+    }
+    refreshPerWaveTaskBadges();
+  }
+
+  /**
    * Walks all currently rendered digest views and updates their per-wave
    * mention counts from the tracker. Called on every tracker poll result so
    * badges stay in sync with the latest known tracker state.
@@ -679,6 +753,30 @@ public final class SearchPresenter
       if (d != null) {
         int mentionCount = mentionTracker.getUnreadCountForWave(d.getWaveId());
         view.setMentionCount(mentionCount);
+      }
+      view = searchUi.getNext(view);
+    }
+  }
+
+  /**
+   * Walks all currently rendered digest views and updates their per-wave
+   * task counts from the tracker. Called on every tracker poll result so
+   * badges stay in sync with the latest known tracker state.
+   */
+  private void refreshPerWaveTaskBadges() {
+    if (taskTracker == null) {
+      return;
+    }
+    boolean isTaskQuery = queryText != null && queryText.contains("tasks:");
+    if (!isTaskQuery) {
+      return;
+    }
+    DigestView view = searchUi.getFirst();
+    while (view != null) {
+      Digest d = digestUis.get(view);
+      if (d != null) {
+        int taskCount = taskTracker.getUnreadCountForWave(d.getWaveId());
+        view.setTaskCount(taskCount);
       }
       view = searchUi.getNext(view);
     }
@@ -884,6 +982,7 @@ public final class SearchPresenter
     digestUis.clear();
     setSelected(null);
     boolean isMentionQuery = queryText != null && queryText.contains("mentions:");
+    boolean isTaskQuery = queryText != null && queryText.contains("tasks:");
     for (int i = 0, size = search.getMinimumTotal(); i < size; i++) {
       Digest digest = search.getDigest(i);
       if (digest == null) {
@@ -897,6 +996,10 @@ public final class SearchPresenter
       if (isMentionQuery && mentionTracker != null) {
         int mentionCount = mentionTracker.getUnreadCountForWave(digest.getWaveId());
         digestUi.setMentionCount(mentionCount);
+      }
+      if (isTaskQuery && taskTracker != null) {
+        int taskCount = taskTracker.getUnreadCountForWave(digest.getWaveId());
+        digestUi.setTaskCount(taskCount);
       }
     }
     isRenderingInProgress = false;
@@ -938,6 +1041,9 @@ public final class SearchPresenter
     Digest d = digestUis.get(digestUi);
     if (d != null && mentionTracker != null) {
       mentionTracker.setCurrentWaveId(d.getWaveId());
+    }
+    if (d != null && taskTracker != null) {
+      taskTracker.setCurrentWaveId(d.getWaveId());
     }
     pendingMentionFocus = queryText != null && queryText.contains("mentions:me");
     openSelected();
@@ -1149,6 +1255,10 @@ public final class SearchPresenter
       int mentionCount = mentionTracker.getUnreadCountForWave(digest.getWaveId());
       digestUi.setMentionCount(mentionCount);
     }
+    if (queryText != null && queryText.contains("tasks:") && taskTracker != null) {
+      int taskCount = taskTracker.getUnreadCountForWave(digest.getWaveId());
+      digestUi.setTaskCount(taskCount);
+    }
   }
 
   @Override
@@ -1180,10 +1290,14 @@ public final class SearchPresenter
 
   @Override
   public void onOpened(WaveContext wave) {
-    // Track the currently-open wave so the @N button can skip it.
+    // Track the currently-open wave so the @N / task button can skip it.
     if (mentionTracker != null && wave != null && wave.getWave() != null
         && wave.getWave().getWaveId() != null) {
       mentionTracker.setCurrentWaveId(wave.getWave().getWaveId());
+    }
+    if (taskTracker != null && wave != null && wave.getWave() != null
+        && wave.getWave().getWaveId() != null) {
+      taskTracker.setCurrentWaveId(wave.getWave().getWaveId());
     }
   }
 
@@ -1191,6 +1305,9 @@ public final class SearchPresenter
   public void onClosed(WaveContext wave) {
     if (mentionTracker != null) {
       mentionTracker.setCurrentWaveId(null);
+    }
+    if (taskTracker != null) {
+      taskTracker.setCurrentWaveId(null);
     }
     scheduler.scheduleDelayed(waveClosedRefreshTask, WAVE_CLOSED_REFRESH_DELAY_MS);
   }

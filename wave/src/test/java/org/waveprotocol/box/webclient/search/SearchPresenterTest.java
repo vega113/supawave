@@ -678,6 +678,10 @@ public final class SearchPresenterTest extends TestCase {
     }
 
     @Override
+    public void setTaskCount(int count) {
+    }
+
+    @Override
     public void select() {
     }
 
@@ -709,6 +713,10 @@ public final class SearchPresenterTest extends TestCase {
 
     @Override
     public void setMentionsSearchVisible(boolean visible) {
+    }
+
+    @Override
+    public void setTasksSearchVisible(boolean visible) {
     }
   }
 }

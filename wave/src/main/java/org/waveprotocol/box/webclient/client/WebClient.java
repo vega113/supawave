@@ -128,6 +128,33 @@ public class WebClient implements EntryPoint {
 
   // ---- Turbulence banner (ocean-themed, non-blocking) ----
 
+  /** Injects CSS for polished SVG toolbar icons (hover, transitions, touch). */
+  private static boolean toolbarIconCssInjected = false;
+  private static void injectToolbarIconCss() {
+    if (toolbarIconCssInjected) return;
+    toolbarIconCssInjected = true;
+    String css =
+        ".toolbar-svg-icon {"
+      + "  display: inline-flex;"
+      + "  align-items: center;"
+      + "  justify-content: center;"
+      + "  color: #4a5568;"
+      + "  transition: color 0.15s ease, transform 0.15s ease;"
+      + "}"
+      + ".toolbar-svg-icon:hover {"
+      + "  color: #0077b6;"
+      + "}"
+      + ".toolbar-svg-icon:active {"
+      + "  transform: scale(0.92);"
+      + "}"
+      + ".toolbar-svg-icon svg {"
+      + "  display: block;"
+      + "}";
+    Element style = Document.get().createStyleElement();
+    style.setInnerHTML(css);
+    Document.get().getHead().appendChild(style);
+  }
+
   /** Injects the CSS keyframe animations for the turbulence banner once. */
   private static boolean turbulenceCssInjected = false;
   private static void injectTurbulenceCss() {
@@ -412,6 +439,7 @@ public class WebClient implements EntryPoint {
       // arrives (see setupSearchPanel) so it does not block wave list display.
     }
 
+    injectToolbarIconCss();
     setupUi();
     setupStatistics();
 

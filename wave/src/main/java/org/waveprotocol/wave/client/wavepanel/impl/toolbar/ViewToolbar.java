@@ -54,69 +54,67 @@ public final class ViewToolbar {
   private static final LoggerBundle LOG = new DomLogger("ViewToolbar");
   private final static ToolbarMessages messages = GWT.create(ToolbarMessages.class);
 
-  // Inline SVG icon constants (Lucide icon set, MIT license).
+  // Inline SVG icon constants (Lucide-inspired, clean rounded strokes).
   // Explicit close tags used for GWT HTML-parser compatibility.
+  // 18px display size, 24-unit viewBox, 1.75 stroke for refined weight.
   private static final String SVG_OPEN =
-      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" "
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" "
       + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
-      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
+      + "stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" "
+      + "style=\"display:block\">";
 
-  /** Recent: rotate-ccw — counterclockwise arrow around a clock face. */
+  /** Recent: rotate-ccw — counterclockwise refresh arrow. */
   private static final String ICON_RECENT = SVG_OPEN
-      + "<polyline points=\"1 4 1 10 7 10\"></polyline>"
-      + "<path d=\"M3.51 15a9 9 0 1 0 .49-3.51\"></path></svg>";
+      + "<path d=\"M1 4v6h6\"></path>"
+      + "<path d=\"M3.51 15a9 9 0 1 0 2.13-9.36L1 10\"></path></svg>";
 
-  /** Next Unread: bell — notification alert. */
+  /** Next Unread: bell with a small dot indicator. */
   private static final String ICON_NEXT_UNREAD = SVG_OPEN
-      + "<path d=\"M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9\"></path>"
-      + "<path d=\"M13.73 21a2 2 0 01-3.46 0\"></path></svg>";
+      + "<path d=\"M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9\"></path>"
+      + "<path d=\"M13.73 21a2 2 0 0 1-3.46 0\"></path>"
+      + "<circle cx=\"18\" cy=\"5\" r=\"2.5\" fill=\"currentColor\" stroke=\"none\"></circle></svg>";
 
   /** Previous: chevron-up. */
   private static final String ICON_PREV = SVG_OPEN
-      + "<polyline points=\"18 15 12 9 6 15\"></polyline></svg>";
+      + "<path d=\"M18 15l-6-6-6 6\"></path></svg>";
 
   /** Next: chevron-down. */
   private static final String ICON_NEXT = SVG_OPEN
-      + "<polyline points=\"6 9 12 15 18 9\"></polyline></svg>";
+      + "<path d=\"M6 9l6 6 6-6\"></path></svg>";
 
   /** Last: chevrons-down — double downward chevron. */
   private static final String ICON_LAST = SVG_OPEN
-      + "<polyline points=\"7 13 12 18 17 13\"></polyline>"
-      + "<polyline points=\"7 6 12 11 17 6\"></polyline></svg>";
+      + "<path d=\"M7 13l5 5 5-5\"></path>"
+      + "<path d=\"M7 6l5 5 5-5\"></path></svg>";
 
-  /** Prev @: chevron-left + at-sign composite. */
+  /** Prev @: at-sign with left-pointing triangle indicator. */
   private static final String ICON_PREV_MENTION = SVG_OPEN
-      + "<polyline points=\"9 7 5 12 9 17\"></polyline>"
-      + "<g transform=\"translate(8,0)\">"
-      + "<circle cx=\"8\" cy=\"12\" r=\"3.5\"></circle>"
-      + "<path d=\"M11.5 9.5v2.5a1.5 1.5 0 01-3 0V11a3.5 3.5 0 10-1.37 2.78\"></path>"
-      + "</g></svg>";
+      + "<circle cx=\"12\" cy=\"12\" r=\"4\"></circle>"
+      + "<path d=\"M16 8v5a3 3 0 0 0 6 0V12a10 10 0 1 0-4 8\"></path>"
+      + "<path d=\"M2 12l3-3v6z\" fill=\"currentColor\" stroke=\"none\"></path></svg>";
 
-  /** Next @: at-sign + chevron-right composite. */
+  /** Next @: at-sign with right-pointing triangle indicator. */
   private static final String ICON_NEXT_MENTION = SVG_OPEN
-      + "<g transform=\"translate(-2,0)\">"
-      + "<circle cx=\"8\" cy=\"12\" r=\"3.5\"></circle>"
-      + "<path d=\"M11.5 9.5v2.5a1.5 1.5 0 01-3 0V11a3.5 3.5 0 10-1.37 2.78\"></path>"
-      + "</g>"
-      + "<polyline points=\"15 7 19 12 15 17\"></polyline></svg>";
+      + "<circle cx=\"12\" cy=\"12\" r=\"4\"></circle>"
+      + "<path d=\"M16 8v5a3 3 0 0 0 6 0V12a10 10 0 1 0-4 8\"></path>"
+      + "<path d=\"M22 12l3 3v-6z\" fill=\"currentColor\" stroke=\"none\"></path></svg>";
 
-  /** Archive: archive box. */
+  /** Archive: clean archive box (Lucide archive). */
   private static final String ICON_ARCHIVE = SVG_OPEN
-      + "<polyline points=\"21 8 21 21 3 21 3 8\"></polyline>"
-      + "<rect x=\"1\" y=\"3\" width=\"22\" height=\"5\"></rect>"
-      + "<line x1=\"10\" y1=\"12\" x2=\"14\" y2=\"12\"></line></svg>";
+      + "<rect x=\"2\" y=\"3\" width=\"20\" height=\"5\" rx=\"1\"></rect>"
+      + "<path d=\"M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8\"></path>"
+      + "<path d=\"M10 12h4\"></path></svg>";
 
-  /** Pin: thumbtack. */
+  /** Pin: map-pin style (cleaner than thumbtack). */
   private static final String ICON_PIN = SVG_OPEN
-      + "<line x1=\"12\" y1=\"17\" x2=\"12\" y2=\"22\"></line>"
-      + "<path d=\"M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0015 10.76V6h1"
-      + " a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005"
-      + " 15.24z\"></path></svg>";
+      + "<path d=\"M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z\"></path>"
+      + "<circle cx=\"12\" cy=\"9\" r=\"2.5\" fill=\"currentColor\" "
+      + "stroke=\"none\"></circle></svg>";
 
   /** History: clock face. */
   private static final String ICON_HISTORY = SVG_OPEN
       + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
-      + "<polyline points=\"12 6 12 12 16 14\"></polyline></svg>";
+      + "<path d=\"M12 6v6l4 2\"></path></svg>";
 
   /** Listener notified when a folder move operation completes. */
   public interface FolderActionListener {
@@ -213,9 +211,11 @@ public final class ViewToolbar {
 
   /**
    * Creates an icon element from inline SVG markup for use in toolbar buttons.
+   * The wrapper div has a class for CSS targeting (hover effects, transitions).
    */
   private static Element createSvgIcon(String svgHtml) {
     Element wrapper = DOM.createDiv();
+    wrapper.setClassName("toolbar-svg-icon");
     wrapper.setInnerHTML(svgHtml);
     return wrapper;
   }

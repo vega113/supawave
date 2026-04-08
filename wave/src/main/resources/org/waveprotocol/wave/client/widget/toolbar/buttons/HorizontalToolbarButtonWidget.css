@@ -39,13 +39,15 @@
 }
 
 .self.compact {
-  padding: 0 10px;
+  padding: 0 8px;
+  min-width: 36px;
+  justify-content: center;
 }
 
 .self.enabled {
   opacity: 1;
   cursor: pointer;
-  cursor: hand;
+  transition: opacity 0.15s ease;
 }
 
 @sprite .self.enabled:active, .self.enabled.down {
@@ -70,14 +72,17 @@
   top: 0;
   right: 0;
   bottom: 0;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
 }
 
 .enabled.down > .overlay {
-  border: 1px solid #aaaaaa;
+  background-color: rgba(0, 119, 182, 0.1);
+  border: 1px solid rgba(0, 119, 182, 0.25);
 }
 
 .enabled > .overlay:hover {
-  border: 1px solid #7f7f7f;
+  background-color: rgba(0, 119, 182, 0.08);
 }
 
 .visualElement {
@@ -91,6 +96,8 @@
 }
 
 .textElement {
+  display: inline-flex;
+  align-items: center;
 }
 
 .textElementWithVisualElement {
@@ -99,6 +106,8 @@
 
 @sprite .dropdownArrow {
   gwt-image: 'dropdownArrow';
+  display: inline-flex;
+  align-items: center;
   margin-left: 5px;
 }
 

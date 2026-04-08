@@ -32,6 +32,9 @@
   gwt-image: 'fillImage';
   /* Hide the buttons that overflow. */
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 @sprite .overflowButton {

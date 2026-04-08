@@ -61,7 +61,7 @@ public class FeatureFlaggedSearchProviderImplTest extends TestCase {
     lucene9Provider = mock(Lucene9SearchProviderImpl.class);
 
     legacyResult = new SearchResult("legacy");
-    lucene9Result = new SearchResult("lucene9");
+    lucene9Result = new SearchResult("ot-search");
 
     when(legacyProvider.search(any(), anyString(), anyInt(), anyInt())).thenReturn(legacyResult);
     when(lucene9Provider.search(any(), anyString(), anyInt(), anyInt())).thenReturn(lucene9Result);
@@ -78,7 +78,7 @@ public class FeatureFlaggedSearchProviderImplTest extends TestCase {
   }
 
   public void testRoutesToLegacyWhenFlagDisabledGlobally() throws Exception {
-    flagStore.save(new FeatureFlag("lucene9", "test", false, new HashMap<>()));
+    flagStore.save(new FeatureFlag("ot-search", "test", false, new HashMap<>()));
     flagService.refreshCache();
 
     SearchResult result = provider.search(USER, QUERY, START, NUM);
@@ -88,7 +88,7 @@ public class FeatureFlaggedSearchProviderImplTest extends TestCase {
   }
 
   public void testRoutesToLucene9WhenFlagEnabledGlobally() throws Exception {
-    flagStore.save(new FeatureFlag("lucene9", "test", true, new HashMap<>()));
+    flagStore.save(new FeatureFlag("ot-search", "test", true, new HashMap<>()));
     flagService.refreshCache();
 
     SearchResult result = provider.search(USER, QUERY, START, NUM);
@@ -101,7 +101,7 @@ public class FeatureFlaggedSearchProviderImplTest extends TestCase {
   public void testGloballyEnabledRoutesAllUsersToLucene9() throws Exception {
     Map<String, Boolean> allowedUsers = new HashMap<>();
     allowedUsers.put("vega@example.com", true);
-    flagStore.save(new FeatureFlag("lucene9", "test", true, allowedUsers));
+    flagStore.save(new FeatureFlag("ot-search", "test", true, allowedUsers));
     flagService.refreshCache();
 
     // User WITHOUT an explicit override should still get Lucene9
@@ -113,10 +113,22 @@ public class FeatureFlaggedSearchProviderImplTest extends TestCase {
     verify(legacyProvider, never()).search(eq(newUser), anyString(), anyInt(), anyInt());
   }
 
+  public void testRoutesToLucene9WhenLegacyLucene9FlagEnabled() throws Exception {
+    // Installations that previously enabled the old "lucene9" flag must not silently regress.
+    flagStore.save(new FeatureFlag("lucene9", "test", true, new HashMap<>()));
+    flagService.refreshCache();
+
+    SearchResult result = provider.search(USER, QUERY, START, NUM);
+
+    assertSame(lucene9Result, result);
+    verify(lucene9Provider).search(USER, QUERY, START, NUM);
+    verify(legacyProvider, never()).search(any(), anyString(), anyInt(), anyInt());
+  }
+
   public void testPerUserRouting() throws Exception {
     Map<String, Boolean> allowedUsers = new HashMap<>();
     allowedUsers.put(FLAGGED_USER.getAddress(), true);
-    flagStore.save(new FeatureFlag("lucene9", "test", false, allowedUsers));
+    flagStore.save(new FeatureFlag("ot-search", "test", false, allowedUsers));
     flagService.refreshCache();
 
     SearchResult unflaggedResult = provider.search(USER, QUERY, START, NUM);

@@ -513,7 +513,7 @@ public final class HtmlRenderer {
       + "#app .imageThumbnail {\n"
       + "  display: inline-block;\n"
       + "  margin: 8px 4px;\n"
-      + "  border-radius: 10px;\n"
+      + "  border-radius: 6px;\n"
       + "  overflow: hidden;\n"
       + "  box-shadow: 0 2px 8px rgba(0,0,0,0.10);\n"
       + "  background: #fff;\n"
@@ -537,7 +537,7 @@ public final class HtmlRenderer {
       + "#app .imageThumbnail .itse {\n"
       + "  display: none !important;\n"
       + "}\n"
-      // Clean image display
+      // Clean image display — no own border-radius; container's overflow:hidden clips corners
       + "#app .imageThumbnail .itimg,\n"
       + "#app .imageThumbnail img {\n"
       + "  display: block;\n"
@@ -547,7 +547,7 @@ public final class HtmlRenderer {
       + "  height: auto;\n"
       + "  object-fit: contain;\n"
       + "  cursor: pointer;\n"
-      + "  border-radius: 8px 8px 0 0;\n"
+      + "  border-radius: 0;\n"
       + "  transition: filter 0.2s ease;\n"
       + "}\n"
       + "#app .imageThumbnail img:hover {\n"

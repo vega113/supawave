@@ -74,6 +74,7 @@
   bottom: 0;
   border-radius: 4px;
   transition: background-color 0.15s ease;
+  pointer-events: none;
 }
 
 .enabled.down > .overlay {
@@ -81,7 +82,7 @@
   border: 1px solid rgba(0, 119, 182, 0.25);
 }
 
-.enabled > .overlay:hover {
+.enabled:hover > .overlay {
   background-color: rgba(0, 119, 182, 0.08);
 }
 

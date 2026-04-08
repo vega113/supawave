@@ -370,11 +370,26 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
 
     List<WaveViewData> sortedResults = sort(queryParams, results);
 
-    // Promote pinned waves to the top of results (unless the query is specifically
-    // for pinned waves, in which case all results are already pinned).
-    // Also skip promotion if an explicit orderby: modifier is present — the user
-    // chose a sort order so we must respect it rather than forcing pinned-first.
     final boolean hasExplicitOrderBy = queryParams.containsKey(TokenQueryType.ORDERBY);
+
+    // Promote unread waves to the top when searching for self-mentions (mentions:me) so that
+    // unread mentions appear before read ones. Restricted to self-mention queries to avoid
+    // re-ranking searches for other users' mentions. Also skipped when unread:true is already
+    // present, since filterByUnreadState has already removed all read waves — re-sorting would
+    // be redundant and wastes an extra supplement pass on the hot polling path.
+    final boolean isSelfMentionOnly = mentionValues.size() == 1
+        && mentionValues.contains(user.getAddress().toLowerCase(Locale.ROOT));
+    if (isSelfMentionOnly && !hasExplicitOrderBy && !isUnreadOnlyQuery) {
+      if (supplementCache == null) {
+        supplementCache = new HashMap<WaveId, WaveSupplementContext>();
+        waveletAdapters = new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>();
+      }
+      sortedResults = promoteUnreadMentionWaves(sortedResults, user, supplementCache, waveletAdapters);
+    }
+
+    // Promote pinned waves to the top of results (after unread promotion so pinned waves
+    // always sit above unpinned unread waves). Skip if the query is specifically for pinned
+    // waves, or if an explicit orderby: modifier is present.
     if (!isPinnedQuery && !hasExplicitOrderBy) {
       // Reuse supplement cache from filter stages if available, otherwise create fresh ones.
       if (supplementCache == null) {
@@ -382,16 +397,6 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         waveletAdapters = new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>();
       }
       sortedResults = promotePinnedWaves(sortedResults, user, supplementCache, waveletAdapters);
-    }
-
-    // When searching by mentions, promote waves with unread content to the top so that
-    // unread mentions appear before read ones. Skip if an explicit orderby: is present.
-    if (!mentionValues.isEmpty() && !hasExplicitOrderBy) {
-      if (supplementCache == null) {
-        supplementCache = new HashMap<WaveId, WaveSupplementContext>();
-        waveletAdapters = new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>();
-      }
-      sortedResults = promoteUnreadMentionWaves(sortedResults, user, supplementCache, waveletAdapters);
     }
 
     // Capture the total count BEFORE pagination so the client knows the full result set size.

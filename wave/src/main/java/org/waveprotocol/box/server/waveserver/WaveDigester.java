@@ -130,15 +130,19 @@ public class WaveDigester {
     if (context == null) {
       return 0;
     }
+    // Prefer supplement-based counting when available — this matches the
+    // counting used by digest generation and correctly iterates only blips
+    // in the conversation tree (rather than all blip-id documents in the
+    // wavelet, which may include orphaned or non-tree documents).
+    if (context.supplement != null && context.conversations != null) {
+      return countUnread(context.convWavelet, context.conversationalWavelets, context.supplement,
+          context.conversations, waveletAdapters);
+    }
     PrimitiveSupplement readState = createReadState(participant, context, waveletAdapters);
     if (readState != null) {
       return countUnreadFromReadState(readState, context.conversationalWavelets);
     }
-    if (context.supplement == null || context.conversations == null) {
-      return 0;
-    }
-    return countUnread(context.convWavelet, context.conversationalWavelets, context.supplement,
-        context.conversations, waveletAdapters);
+    return 0;
   }
 
   private int countUnreadFromReadState(PrimitiveSupplement readState,

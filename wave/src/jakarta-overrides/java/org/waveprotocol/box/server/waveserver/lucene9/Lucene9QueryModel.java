@@ -80,8 +80,7 @@ public final class Lucene9QueryModel {
   public String toLegacyQuery() {
     StringBuilder builder = new StringBuilder();
     for (Token token : tokens) {
-      if (token.getType() == TokenQueryType.TITLE || token.getType() == TokenQueryType.CONTENT
-          || token.getType() == TokenQueryType.TASKS) {
+      if (token.getType() == TokenQueryType.TITLE || token.getType() == TokenQueryType.CONTENT) {
         continue;
       }
       if (builder.length() > 0) {

@@ -80,9 +80,9 @@ public class Lucene9QueryModelTest extends TestCase {
     assertEquals("", model.toLegacyQuery());
   }
 
-  public void testTasksQueryIsExcludedFromLegacyQuery() throws InvalidQueryException {
+  public void testTasksQueryPassesThroughToLegacy() throws InvalidQueryException {
     Lucene9QueryModel model = parser.parse("tasks:me");
-    assertEquals("", model.toLegacyQuery());
+    assertEquals("tasks:me", model.toLegacyQuery());
   }
 
   public void testTasksQueryHasNoTextQuery() throws InvalidQueryException {
@@ -90,8 +90,8 @@ public class Lucene9QueryModelTest extends TestCase {
     assertFalse("tasks:me should not be a Lucene text query", model.hasTextQuery());
   }
 
-  public void testTasksWithInboxPassesInboxToLegacy() throws InvalidQueryException {
+  public void testTasksWithInboxPassesBothToLegacy() throws InvalidQueryException {
     Lucene9QueryModel model = parser.parse("tasks:me in:inbox");
-    assertEquals("in:inbox", model.toLegacyQuery());
+    assertEquals("tasks:me in:inbox", model.toLegacyQuery());
   }
 }

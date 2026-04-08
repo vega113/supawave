@@ -740,7 +740,7 @@ public final class SearchResponseBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setPinned(pinned);
+      if (pinned != null) { message.setPinned(pinned); }
       return message;
     }
 

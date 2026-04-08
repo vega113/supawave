@@ -93,19 +93,19 @@ public final class FeatureFlagServletTest {
   }
 
   @Test
-  public void storedUnrelatedFlagCoexistsWithOtSearchDefault() throws Exception {
+  public void storedCustomFlagCoexistsWithKnownDefaults() throws Exception {
     FeatureFlagStore store = mock(FeatureFlagStore.class);
     when(store.getAll()).thenReturn(Collections.singletonList(
         new FeatureFlag(
-            "grafana-log-export",
-            "Log forwarding",
+            "custom-experimental-feature",
+            "A custom admin-created flag not in KnownFeatureFlags",
             false,
             Collections.emptyMap())));
 
     String body = fetchFlagsJson(store);
 
     assertTrue(body.contains("\"name\":\"ot-search\""));
-    assertTrue(body.contains("\"name\":\"grafana-log-export\""));
+    assertTrue(body.contains("\"name\":\"custom-experimental-feature\""));
   }
 
   private String fetchFlagsJson(FeatureFlagStore store) throws Exception {

@@ -113,6 +113,18 @@ public class FeatureFlaggedSearchProviderImplTest extends TestCase {
     verify(legacyProvider, never()).search(eq(newUser), anyString(), anyInt(), anyInt());
   }
 
+  public void testRoutesToLucene9WhenLegacyLucene9FlagEnabled() throws Exception {
+    // Installations that previously enabled the old "lucene9" flag must not silently regress.
+    flagStore.save(new FeatureFlag("lucene9", "test", true, new HashMap<>()));
+    flagService.refreshCache();
+
+    SearchResult result = provider.search(USER, QUERY, START, NUM);
+
+    assertSame(lucene9Result, result);
+    verify(lucene9Provider).search(USER, QUERY, START, NUM);
+    verify(legacyProvider, never()).search(any(), anyString(), anyInt(), anyInt());
+  }
+
   public void testPerUserRouting() throws Exception {
     Map<String, Boolean> allowedUsers = new HashMap<>();
     allowedUsers.put(FLAGGED_USER.getAddress(), true);

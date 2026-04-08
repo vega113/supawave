@@ -170,7 +170,7 @@ public class SearchServlet extends AbstractSearchServlet {
         ", remote=" + String.valueOf(req.getRemoteAddr());
     serializeObjectToServlet(searchResponse, ctx, response);
     long elapsedMs = System.currentTimeMillis() - startMs;
-    LOG.info("SearchServlet.doGet: took " + elapsedMs + " ms");
+    LOG.fine("SearchServlet.doGet: took " + elapsedMs + " ms");
   }
 
   @Nullable

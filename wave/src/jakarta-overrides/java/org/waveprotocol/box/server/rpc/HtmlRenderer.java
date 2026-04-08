@@ -4433,7 +4433,7 @@ public final class HtmlRenderer {
     sb.append("      <div class=\"stat-grid\">\n");
     sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Docs in Index</div><div class=\"stat-value\" id=\"opsDocsIndex\">\u2014</div></div>\n");
     sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Waves in Storage</div><div class=\"stat-value\" id=\"opsWavesStorage\">\u2014</div></div>\n");
-    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Lucene9 Flag</div><div class=\"stat-value\" id=\"opsLucene9Flag\">\u2014</div></div>\n");
+    sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">OT Search Flag</div><div class=\"stat-value\" id=\"opsOtSearchFlag\">\u2014</div></div>\n");
     sb.append("        <div class=\"stat-card\"><div class=\"stat-label\">Last Rebuild Count</div><div class=\"stat-value\" id=\"opsLastRebuild\">\u2014</div></div>\n");
     sb.append("      </div>\n");
     // Indexing performance
@@ -5420,7 +5420,7 @@ public final class HtmlRenderer {
     // Lucene
     sb.append("      document.getElementById('opsDocsIndex').textContent = si.docsInIndex >= 0 ? fmtNum(si.docsInIndex) : 'N/A';\n");
     sb.append("      document.getElementById('opsWavesStorage').textContent = si.wavesInStorage >= 0 ? fmtNum(si.wavesInStorage) : '\\u2014';\n");
-    sb.append("      document.getElementById('opsLucene9Flag').textContent = si.lucene9FlagEnabled ? 'Enabled' : 'Disabled';\n");
+    sb.append("      document.getElementById('opsOtSearchFlag').textContent = si.otSearchFlagEnabled ? 'Enabled' : 'Disabled';\n");
     sb.append("      document.getElementById('opsLastRebuild').textContent = si.lastRebuildWaveCount >= 0 ? fmtNum(si.lastRebuildWaveCount) : '\\u2014';\n");
     sb.append("      document.getElementById('opsIncrementalAvg').textContent = si.incrementalAvgMs != null ? si.incrementalAvgMs.toFixed(1) + ' ms' : '\\u2014';\n");
     sb.append("      document.getElementById('opsIncrementalCount').textContent = si.incrementalIndexCount != null ? fmtNum(si.incrementalIndexCount) : '\\u2014';\n");

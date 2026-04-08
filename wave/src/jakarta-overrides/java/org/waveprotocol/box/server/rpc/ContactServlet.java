@@ -41,6 +41,8 @@ import org.waveprotocol.wave.util.logging.Log;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayDeque;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Servlet for the Contact Us feature.
@@ -60,8 +62,8 @@ public final class ContactServlet extends HttpServlet {
   private static final long RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000L;
 
   // IP → timestamps of recent submissions
-  private static final java.util.concurrent.ConcurrentHashMap<String, java.util.ArrayDeque<Long>>
-      IP_SUBMIT_TIMES = new java.util.concurrent.ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, ArrayDeque<Long>>
+      IP_SUBMIT_TIMES = new ConcurrentHashMap<>();
 
   private final SessionManager sessionManager;
   private final AccountStore accountStore;
@@ -170,6 +172,13 @@ public final class ContactServlet extends HttpServlet {
       } catch (PersistenceException e) {
         LOG.warning("Failed to load account for contact form submit", e);
       }
+      if (!email.isEmpty()) {
+        email = sanitize(email, 254);
+        if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+          LOG.warning("Account email for " + userId + " failed format check — using empty");
+          email = "";
+        }
+      }
     } else {
       // Anonymous: email comes from the submitted form field
       String submittedEmail = extractJsonField(body, "email");
@@ -238,17 +247,17 @@ public final class ContactServlet extends HttpServlet {
   private static boolean isRateLimited(String ip) {
     long now = System.currentTimeMillis();
     long cutoff = now - RATE_LIMIT_WINDOW_MS;
+    int[] countHolder = {0};
     IP_SUBMIT_TIMES.compute(ip, (k, deque) -> {
-      if (deque == null) deque = new java.util.ArrayDeque<>();
-      // Remove timestamps outside the window
+      if (deque == null) deque = new ArrayDeque<>();
       while (!deque.isEmpty() && deque.peekFirst() < cutoff) {
         deque.pollFirst();
       }
       deque.addLast(now);
+      countHolder[0] = deque.size();
       return deque;
     });
-    java.util.ArrayDeque<Long> times = IP_SUBMIT_TIMES.get(ip);
-    return times != null && times.size() > RATE_LIMIT_MAX;
+    return countHolder[0] > RATE_LIMIT_MAX;
   }
 
   /** Strips control characters and truncates to maxLen. */
@@ -261,6 +270,7 @@ public final class ContactServlet extends HttpServlet {
   }
 
   private static String getClientIp(HttpServletRequest req) {
+    // NOTE: Trusts X-Forwarded-For from reverse proxy. Direct exposure bypasses rate limiting.
     String forwarded = req.getHeader("X-Forwarded-For");
     if (forwarded != null && !forwarded.isEmpty()) {
       return forwarded.split(",")[0].trim();

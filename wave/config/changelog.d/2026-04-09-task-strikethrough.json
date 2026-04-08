@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-09-task-strikethrough",
+  "version": "PR #752",
+  "date": "2026-04-09",
+  "title": "Strikethrough Styling for Completed Task Lines",
+  "summary": "Completed wave tasks now render with strikethrough text and a dimmed color, providing clear visual feedback on task status. Styling is applied on toggle and on document load, and cleaned up correctly when a task checkbox is removed.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Apply text-decoration: line-through and color: #767676 to the enclosing paragraph when a task checkbox is checked",
+        "Remove styling when the checkbox is unchecked (guarded against multiple task checkboxes per paragraph)",
+        "Clean up stale task-completed class via onDeactivated when a checked task checkbox is deleted",
+        "Only affects task checkboxes (name prefixed with task:); generic form checkboxes are unaffected"
+      ]
+    }
+  ]
+}

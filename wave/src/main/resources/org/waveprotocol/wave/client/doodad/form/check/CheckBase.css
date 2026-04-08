@@ -21,7 +21,14 @@
  * Author: lars@google.com (Lars Rasmussen)
  */
 
+@external task-completed;
+
 .check, .radio {
   padding:4px;
   cursor: pointer;
+}
+
+.task-completed {
+  text-decoration: line-through;
+  color: #767676;
 }

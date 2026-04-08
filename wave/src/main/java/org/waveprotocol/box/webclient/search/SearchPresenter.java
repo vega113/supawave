@@ -1021,6 +1021,13 @@ public final class SearchPresenter
         render();
       } else {
         renderTitle();
+        // Rebuild digest list when result count changed (e.g. new query
+        // returned different results or empty set). Skip rebuild when the
+        // count matches to avoid tearing down and re-creating DOM elements
+        // on every polling refresh, which causes visible flicker.
+        if (digestUis.size() != search.getMinimumTotal()) {
+          renderDigests();
+        }
         renderWaveCount();
         renderShowMore();
       }

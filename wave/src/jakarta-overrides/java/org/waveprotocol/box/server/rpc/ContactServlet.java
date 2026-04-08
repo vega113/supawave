@@ -159,7 +159,7 @@ public final class ContactServlet extends HttpServlet {
     String email = "";
     String userId = "anonymous";
     if (user != null) {
-      // Authenticated: pull email from account store
+      // Authenticated: prefer account-store email; fall back to submitted email if missing/invalid
       userId = user.getAddress();
       try {
         AccountData acct = accountStore.getAccount(user);
@@ -175,8 +175,18 @@ public final class ContactServlet extends HttpServlet {
       if (!email.isEmpty()) {
         email = sanitize(email, 254);
         if (!isValidEmail(email)) {
-          LOG.warning("Account email for " + userId + " failed format check — using empty");
+          LOG.warning("Account email for " + userId + " failed format check — clearing");
           email = "";
+        }
+      }
+      // If account email is still empty, accept a submitted email from the form
+      if (email.isEmpty()) {
+        String submittedEmail = extractJsonField(body, "email");
+        if (submittedEmail != null && !submittedEmail.trim().isEmpty()) {
+          submittedEmail = sanitize(submittedEmail.trim(), 254);
+          if (isValidEmail(submittedEmail)) {
+            email = submittedEmail;
+          }
         }
       }
     } else {
@@ -261,7 +271,8 @@ public final class ContactServlet extends HttpServlet {
         deque.addLast(now);
       }
       countHolder[0] = deque.size();
-      return deque;
+      // Return null to remove the map entry when the deque is empty (all timestamps expired)
+      return deque.isEmpty() ? null : deque;
     });
     return countHolder[0] > RATE_LIMIT_MAX;
   }
@@ -269,10 +280,17 @@ public final class ContactServlet extends HttpServlet {
   /** Strips control characters and truncates to maxLen. */
   private static String sanitize(String s, int maxLen) {
     if (s == null) return "";
-    // Remove ASCII control chars (keep newline/tab for message body readability)
-    s = s.replaceAll("[\\x00-\\x08\\x0B-\\x0D\\x0E-\\x1F\\x7F]", "");
-    if (s.length() > maxLen) s = s.substring(0, maxLen);
-    return s;
+    // Remove ASCII control chars (keep newline/tab for message body readability).
+    // Uses a char-by-char loop instead of regex to avoid any potential ReDoS on user-supplied data.
+    StringBuilder sb = new StringBuilder(Math.min(s.length(), maxLen));
+    for (int i = 0; i < s.length() && sb.length() < maxLen; i++) {
+      char c = s.charAt(i);
+      // Allow tab (0x09), newline (0x0A); strip other control chars below 0x20 and DEL (0x7F)
+      if (c == '\t' || c == '\n' || (c >= 0x20 && c != 0x7F)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 
   private static String getClientIp(HttpServletRequest req) {

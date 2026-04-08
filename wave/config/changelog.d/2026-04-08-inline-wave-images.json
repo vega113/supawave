@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-08-inline-wave-images",
-  "version": "Issue #185",
+  "version": "PR #738",
   "date": "2026-04-08",
   "title": "Render Medium And Large Attachments As Inline Images",
   "summary": "Image attachments now use true inline rendering for medium and large display modes instead of just enlarging thumbnail cards.",

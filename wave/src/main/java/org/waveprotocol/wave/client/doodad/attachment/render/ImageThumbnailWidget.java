@@ -487,14 +487,25 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
   public void setThumbnailSize(int width, int height) {
     this.thumbnailWidth = width;
     this.thumbnailHeight = height;
-    setImageSize();
+    // Only re-layout when thumbnail is the active source; skip when attachment
+    // source is in use to avoid redundant loads and visible flicker.
+    if (AttachmentDisplayLayout.decide(displaySize, isFullSize, isContentImage())
+        .getSourceKind() != AttachmentDisplayLayout.SourceKind.ATTACHMENT) {
+      setImageSize();
+    }
   }
 
   @Override
   public void setAttachmentSize(int width, int height) {
     this.attachmentWidth = width;
     this.attachmentHeight = height;
-    setImageSize();
+    // Only re-layout when attachment is the active source. This prevents
+    // loading the attachment URL before the malware guard in onThumbnailUpdated()
+    // runs for display modes that use thumbnail source.
+    if (AttachmentDisplayLayout.decide(displaySize, isFullSize, isContentImage())
+        .getSourceKind() == AttachmentDisplayLayout.SourceKind.ATTACHMENT) {
+      setImageSize();
+    }
   }
 
   @Override

@@ -47,6 +47,17 @@ public class AttachmentDisplayLayoutTest extends TestCase {
     assertTrue(full.hideChrome());
   }
 
+  // Regression: fullMode=true must use ATTACHMENT even when contentImage=false (i.e. content
+  // metadata is temporarily unavailable). This guards the ordering fix in decide() where the
+  // fullMode check must precede the !contentImage guard.
+  public void testDecideUsesAttachmentForFullModeEvenWhenContentImageUnavailable() {
+    AttachmentDisplayLayout.Decision decision =
+        AttachmentDisplayLayout.decide(null, true, false);
+
+    assertEquals(AttachmentDisplayLayout.SourceKind.ATTACHMENT, decision.getSourceKind());
+    assertTrue(decision.hideChrome());
+  }
+
   public void testDecideKeepsNonImageAttachmentsOnCardPath() {
     AttachmentDisplayLayout.Decision decision =
         AttachmentDisplayLayout.decide("large", false, false);

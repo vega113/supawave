@@ -91,11 +91,11 @@ public final class AttachmentDisplayLayout {
   }
 
   public static Decision decide(String displaySize, boolean fullMode, boolean contentImage) {
-    if (!contentImage) {
-      return new Decision(SourceKind.THUMBNAIL, false);
-    }
     if (fullMode) {
       return new Decision(SourceKind.ATTACHMENT, true);
+    }
+    if (!contentImage) {
+      return new Decision(SourceKind.THUMBNAIL, false);
     }
     String normalizedDisplaySize = normalizeDisplaySize(displaySize);
     boolean inlineImage = DISPLAY_SIZE_MEDIUM.equals(normalizedDisplaySize)

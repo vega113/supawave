@@ -260,7 +260,7 @@ public final class DigestDomImpl implements DigestView {
       taskCountEl.setClassName(css.taskCount());
       msgs.appendChild(taskCountEl);
     }
-    String text = count > 99 ? "\u2611 99+" : "\u2611 " + count;
+    String text = "\u2611";
     taskCountEl.setInnerText(text);
     taskCountEl.getStyle().setDisplay(Style.Display.INLINE_BLOCK);
   }

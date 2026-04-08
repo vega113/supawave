@@ -611,7 +611,7 @@ public final class SearchPresenter
           .applyTo(filterGroup.addClickButton(), new ToolbarClickButton.Listener() {
             @Override
             public void onClicked() {
-              searchUi.getSearch().setQuery("mentions:me unread:true");
+              searchUi.getSearch().setQuery("mentions:me");
               onQueryEntered();
             }
           }).setVisualElement(mentionVisual);

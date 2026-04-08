@@ -28,7 +28,7 @@ public final class FeatureFlagSeeder {
 
   private static final String OT_SEARCH_FLAG_NAME = "ot-search";
   private static final String OT_SEARCH_DESCRIPTION =
-      "Real-time search wavelets (replaces 15s polling)";
+      "OT/Lucene search (real-time wavelets + full-text indexing)";
   private static final String OT_SEARCH_CONFIG_KEY = "search.ot_search_enabled";
 
   private FeatureFlagSeeder() {

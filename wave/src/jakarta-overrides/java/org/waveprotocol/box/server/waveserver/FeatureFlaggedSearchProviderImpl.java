@@ -43,7 +43,10 @@ public class FeatureFlaggedSearchProviderImpl implements SearchProvider {
 
   @Override
   public SearchResult search(ParticipantId user, String query, int startAt, int numResults) {
-    if (featureFlagService.isEnabled("lucene9", user.getAddress())) {
+    // Check both "ot-search" (current flag) and the legacy "lucene9" alias so that
+    // installations that previously enabled "lucene9" via the UI don't silently fall back.
+    if (featureFlagService.isEnabled("ot-search", user.getAddress())
+        || featureFlagService.isEnabled("lucene9", user.getAddress())) {
       return lucene9SearchProvider.search(user, query, startAt, numResults);
     }
     return legacySearchProvider.search(user, query, startAt, numResults);

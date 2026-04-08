@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-07-mention-ux-overhaul",
-  "version": "PR #718",
+  "version": "PR #726",
   "date": "2026-04-07",
   "title": "Mention UX Overhaul",
   "summary": "Redesigned mention indicators with a red dot badge, per-wave unread counts, and in-wave navigation to the first @mention blip.",

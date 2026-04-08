@@ -662,8 +662,8 @@ public final class SearchPresenter
 
   /**
    * Walks all currently rendered digest views and updates their per-wave
-   * mention counts from the tracker. Called on every tracker poll so badges
-   * clear once the user reads the mentioned blip.
+   * mention counts from the tracker. Called on every tracker poll result so
+   * badges stay in sync with the latest known tracker state.
    */
   private void refreshPerWaveMentionBadges() {
     if (mentionTracker == null) {
@@ -939,7 +939,7 @@ public final class SearchPresenter
     if (d != null && mentionTracker != null) {
       mentionTracker.setCurrentWaveId(d.getWaveId());
     }
-    pendingMentionFocus = queryText != null && queryText.contains("mentions:");
+    pendingMentionFocus = queryText != null && queryText.contains("mentions:me");
     openSelected();
   }
 

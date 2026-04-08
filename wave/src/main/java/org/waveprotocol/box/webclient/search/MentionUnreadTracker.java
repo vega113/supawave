@@ -230,7 +230,7 @@ public final class MentionUnreadTracker {
     // Use the collected count so the badge exactly matches the navigable set.
     totalUnreadCount = newUnread.size();
 
-    if (oldCount != totalUnreadCount && listener != null) {
+    if (listener != null) {
       listener.onUnreadMentionCountChanged(totalUnreadCount);
     }
   }

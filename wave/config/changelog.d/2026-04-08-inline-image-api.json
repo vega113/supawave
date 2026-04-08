@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-08-inline-image-api",
-  "version": "Issue #740",
+  "version": "PR #744",
   "date": "2026-04-08",
   "title": "Support Attachment-Backed Inline Images In The Robot API",
   "summary": "Robots can now author attachment-backed inline images with optional display sizing through the Java/Data API surface.",

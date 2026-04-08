@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.robots.operations;
 
 import com.google.common.base.Preconditions;
 import com.google.wave.api.Element;
+import com.google.wave.api.ElementType;
 import com.google.wave.api.FormElement;
 import com.google.wave.api.InvalidRequestException;
 import com.google.wave.api.JsonRpcConstant.ParamsProperty;
@@ -411,8 +412,12 @@ public class DocumentModifyService implements OperationService {
         if (element.isFormElement()) {
           XmlStringBuilder xml = ElementSerializer.apiElementToXml(element);
           LineContainers.appendLine(doc, xml);
-        } else {
+        } else if (element.getType() == ElementType.IMAGE) {
           view.insert(insertAt, element);
+        } else {
+          throw new InvalidRequestException(
+              "Can't insert elements of type " + element.getType() + " via document.modify",
+              operation);
         }
       }
       // should return 1 since elements have a length of 1 in the ApiView;

@@ -156,6 +156,7 @@ public final class HorizontalToolbarButtonWidget extends Composite implements To
   @Override
   public void setTooltip(String tooltip) {
     setTitle(tooltip);
+    getElement().setAttribute("aria-label", tooltip);
   }
 
   @Override

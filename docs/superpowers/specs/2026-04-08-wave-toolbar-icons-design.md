@@ -43,7 +43,7 @@ No new files. Four targeted file changes:
 | Action | Icon | Tooltip |
 |--------|------|---------|
 | Recent | clock (rotate-ccw) | "Recent" |
-| Next Unread | inbox-arrow-down / bell | "Next Unread" |
+| Next Unread | bell | "Next Unread" |
 | Previous | chevron-up | "Previous" |
 | Next | chevron-down | "Next" |
 | Last | chevrons-down | "Go to last message (End)" |
@@ -57,9 +57,9 @@ No new files. Four targeted file changes:
 ### Group 3 — Actions (only when `waveId != null`)
 | Action | Icon | Tooltip |
 |--------|------|---------|
-| Archive (toggle) | archive box | "Archive" (default) / "Move to Inbox" (when archived) |
+| Archive (toggle) | archive box | "To Archive" (default) / "To Inbox" (when archived) |
 | Pin (toggle) | pin/thumbtack | "Pin" (default) / "Unpin" (when pinned) |
-| History | clock-rewind | "Version History (H)" |
+| History | clock | "Version History (H)" |
 
 ---
 
@@ -99,13 +99,13 @@ Icons:
 ```
 archived = false (inbox state)
   → archiveButton shows normal (not down)
-  → tooltip: "Archive"
-  → on click: moveToFolder(FOLDER_ARCHIVE) → wave navigates away on success
+  → tooltip: "To Archive"
+  → on click: toggleArchive() → moves to FOLDER_ARCHIVE → wave navigates away on success
 
 archived = true (archive state)
   → archiveButton shows highlighted (setDown(true))
-  → tooltip: "Move to Inbox"
-  → on click: moveToFolder(FOLDER_INBOX) → wave navigates away on success
+  → tooltip: "To Inbox"
+  → on click: toggleArchive() → moves to FOLDER_INBOX → wave navigates away on success
 ```
 
 Button is disabled during async request, re-enabled on failure. Since `onFolderActionCompleted()` calls `History.newItem("", true)` (navigates away), no post-success state update is needed in `ViewToolbar`.

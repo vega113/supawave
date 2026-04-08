@@ -373,6 +373,10 @@ public final class ViewToolbar {
         updateArchiveButtonState();
         if (folderActionListener != null) {
           folderActionListener.onFolderActionCompleted(targetFolder);
+        } else {
+          archived = !archived;
+          archiveButton.setState(ToolbarButtonView.State.ENABLED);
+          updateArchiveButtonState();
         }
       }
 

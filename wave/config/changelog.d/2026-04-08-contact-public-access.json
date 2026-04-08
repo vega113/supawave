@@ -1,0 +1,20 @@
+{
+  "releaseId": "2026-04-08-contact-public-access",
+  "version": "PR #732",
+  "date": "2026-04-08",
+  "title": "Contact Form Accessible to Unauthenticated Users",
+  "summary": "The /contact page is now publicly accessible — anonymous visitors can view and submit the contact form without signing in.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed auth redirect from ContactServlet.doGet so unauthenticated users receive the contact form instead of being sent to sign-in",
+        "Anonymous POST submissions are now accepted; email is read from the request body and validated for format",
+        "Added IP-based rate limiting (max 3 submissions per IP per hour) to prevent abuse",
+        "Added honeypot field to silently discard bot submissions",
+        "Sanitized all input fields: control characters stripped (including \\r for SMTP header injection prevention) and field lengths capped",
+        "Updated HTML form: email field is editable and required for anonymous users, pre-filled and read-only for authenticated users; file attachment zone removed"
+      ]
+    }
+  ]
+}

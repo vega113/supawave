@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-08-fix-attachment-rectangle-shape",
+  "version": "PR #747",
+  "date": "2026-04-08",
+  "title": "Fix Image Attachment Ellipse Shape",
+  "summary": "Image attachments were rendered with an oval/ellipse appearance due to an overly large border-radius on the thumbnail container. Reduced container border-radius to 6px and removed separate image border-radius so the container's overflow:hidden cleanly clips corners to a proper rectangle.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Image attachment thumbnails now display as rectangles with subtle 6px rounded corners instead of oval/ellipse shapes",
+        "Removed asymmetric border-radius (8px top only) from the image element; container overflow:hidden now handles corner clipping consistently"
+      ]
+    }
+  ]
+}

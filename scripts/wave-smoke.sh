@@ -22,6 +22,7 @@ fi
 PID_FILE="$INSTALL_DIR/wave_server.pid"
 PORT="${PORT:-9898}"
 [[ "$PORT" =~ ^[0-9]+$ ]] || { echo "PORT must be numeric, got: $PORT" >&2; exit 1; }
+(( PORT >= 1 && PORT <= 65535 )) || { echo "PORT must be between 1 and 65535, got: $PORT" >&2; exit 1; }
 # Hard timeout (seconds) for the stop command to prevent CI hangs
 STOP_TIMEOUT=${STOP_TIMEOUT:-30}
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 PORT=9898
 SHARED_FILE_STORE=false
-FILE_STORE_SOURCE="/Users/vega/devroot/incubator-wave"
+FILE_STORE_SOURCE="${HOME}/devroot/incubator-wave"
 
 usage() {
   cat <<'EOF'
@@ -90,6 +90,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ "$PORT" =~ ^[0-9]+$ ]] || fail "--port must be numeric"
+(( PORT >= 1 && PORT <= 65535 )) || fail "--port must be between 1 and 65535"
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
 [[ -n "$ROOT" ]] || fail "Run this helper from inside an incubator-wave git worktree"
@@ -139,9 +140,11 @@ if [[ -d "$ROOT/target/universal/stage" ]]; then
 else
   STAGED_CONFIG="$ROOT/wave/build/install/wave/config/application.conf"
 fi
-if [[ -f "$STAGED_CONFIG" ]]; then
-  cp "$RUNTIME_CONFIG" "$STAGED_CONFIG"
+if [[ ! -f "$STAGED_CONFIG" ]]; then
+  echo "Error: staged config not found at '$STAGED_CONFIG' after staging; port-specific config was generated at '$RUNTIME_CONFIG' but the staged distribution was not updated for port $PORT." >&2
+  exit 1
 fi
+cp "$RUNTIME_CONFIG" "$STAGED_CONFIG"
 
 DATE_STAMP=$(date +%F)
 ISSUE_NUMBER=""

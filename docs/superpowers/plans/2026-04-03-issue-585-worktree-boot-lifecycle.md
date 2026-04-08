@@ -34,7 +34,7 @@
 - The repo already has multiple boot paths (`wave-bootstrap.sh`, `wave-smoke.sh`, direct `sbt`), so the runbook must clarify ownership rather than duplicate every existing command reference.
 - The new helper should avoid assuming a free port, but it also must not kill non-Wave processes automatically.
 - The helper should only adjust staged/runtime config for routine lane boot, not rewrite tracked repo config just to switch ports.
-- The helper must reject the primary checkout path `/Users/vega/devroot/incubator-wave`; a plain git-worktree check is not sufficient for this repo.
+- The helper must reject execution from the primary checkout by requiring a linked/non-primary incubator-wave git worktree; the plan does not require a hard-coded absolute-path check.
 - This change does not standardize browser verification, collect diagnostic bundles, or replace task-specific runtime verification.
 
 ## Chunk 1: Runbook And Evidence Contract

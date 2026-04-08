@@ -45,8 +45,8 @@
 - Create: `scripts/worktree-boot.sh`
 - Modify: `scripts/wave-smoke.sh`
 
-- [ ] Add `scripts/worktree-boot.sh` with a small CLI: `--port`, `--source-worktree`, `--skip-file-store`, and `--help` are sufficient for this issue.
-- [ ] Have the script verify it is running from a git checkout, stage the distribution with `sbt Universal/stage`, and optionally run `scripts/worktree-file-store.sh --source <path>` before startup when the lane needs shared local state.
+- [ ] Add `scripts/worktree-boot.sh` with a small CLI: `--port`, `--shared-file-store`, `--file-store-source`, and `--help` are sufficient for this issue.
+- [ ] Have the script verify it is running from a git checkout, stage the distribution with `sbt Universal/stage`, and optionally enable shared local state with `--shared-file-store --file-store-source <path>` before startup when the lane needs reused file-store contents.
 - [ ] Rewrite only the staged `target/universal/stage/config/application.conf` port binding so alternate ports do not require tracked config edits.
 - [ ] Reuse `scripts/wave-smoke.sh` for `start` and `check`, and print the exact base URL, log path, and stop command at the end of boot.
 - [ ] Update `scripts/wave-smoke.sh` to honor `PORT` from the environment so the helper and the runbook can use non-`9898` ports routinely.

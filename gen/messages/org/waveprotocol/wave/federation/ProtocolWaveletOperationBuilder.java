@@ -495,7 +495,9 @@ public final class ProtocolWaveletOperationBuilder {
      * specific language governing permissions and limitations
      * under the License.
      */
-    message.setAddParticipant(addParticipant);
+    if (addParticipant != null) {
+      message.setAddParticipant(addParticipant);
+    }
 
     /**
      * Licensed to the Apache Software Foundation (ASF) under one
@@ -503,8 +505,7 @@ public final class ProtocolWaveletOperationBuilder {
      * distributed with this work for additional information
      * regarding copyright ownership. The ASF licenses this file
      * to you under the Apache License, Version 2.0 (the
-     * "License");
-     you may not use this file except in compliance
+     * "License"); you may not use this file except in compliance
      * with the License. You may obtain a copy of the License at
      *
      * http://www.apache.org/licenses/LICENSE-2.0
@@ -516,7 +517,9 @@ public final class ProtocolWaveletOperationBuilder {
      * specific language governing permissions and limitations
      * under the License.
      */
-    message.setRemoveParticipant(removeParticipant);
+    if (removeParticipant != null) {
+      message.setRemoveParticipant(removeParticipant);
+    }
 
     /**
      * Licensed to the Apache Software Foundation (ASF) under one
@@ -524,8 +527,7 @@ public final class ProtocolWaveletOperationBuilder {
      * distributed with this work for additional information
      * regarding copyright ownership. The ASF licenses this file
      * to you under the Apache License, Version 2.0 (the
-     * "License");
-     you may not use this file except in compliance
+     * "License"); you may not use this file except in compliance
      * with the License. You may obtain a copy of the License at
      *
      * http://www.apache.org/licenses/LICENSE-2.0
@@ -537,7 +539,9 @@ public final class ProtocolWaveletOperationBuilder {
      * specific language governing permissions and limitations
      * under the License.
      */
-    message.setMutateDocument(mutateDocument);
+    if (mutateDocument != null) {
+      message.setMutateDocument(mutateDocument);
+    }
 
     /**
      * Licensed to the Apache Software Foundation (ASF) under one
@@ -545,8 +549,7 @@ public final class ProtocolWaveletOperationBuilder {
      * distributed with this work for additional information
      * regarding copyright ownership. The ASF licenses this file
      * to you under the Apache License, Version 2.0 (the
-     * "License");
-     you may not use this file except in compliance
+     * "License"); you may not use this file except in compliance
      * with the License. You may obtain a copy of the License at
      *
      * http://www.apache.org/licenses/LICENSE-2.0
@@ -558,7 +561,9 @@ public final class ProtocolWaveletOperationBuilder {
      * specific language governing permissions and limitations
      * under the License.
      */
-    message.setNoOp(noOp);
+    if (noOp != null) {
+      message.setNoOp(noOp);
+    }
     return message;
   }
 

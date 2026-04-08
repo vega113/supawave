@@ -1317,7 +1317,7 @@ public class ProtocolDocumentOperationImpl implements ProtocolDocumentOperation 
 
       @Override
       public boolean getEmpty() {
-        return empty;
+        return empty != null ? empty : false;
       }
 
       @Override
@@ -1674,7 +1674,7 @@ public class ProtocolDocumentOperationImpl implements ProtocolDocumentOperation 
 
       @Override
       public boolean getEmpty() {
-        return empty;
+        return empty != null ? empty : false;
       }
 
       @Override
@@ -1997,7 +1997,7 @@ public class ProtocolDocumentOperationImpl implements ProtocolDocumentOperation 
 
       @Override
       public boolean getEmpty() {
-        return empty;
+        return empty != null ? empty : false;
       }
 
       @Override
@@ -2802,7 +2802,7 @@ public class ProtocolDocumentOperationImpl implements ProtocolDocumentOperation 
 
     @Override
     public boolean getElementEnd() {
-      return elementEnd;
+      return elementEnd != null ? elementEnd : false;
     }
 
     @Override
@@ -2841,7 +2841,7 @@ public class ProtocolDocumentOperationImpl implements ProtocolDocumentOperation 
 
     @Override
     public int getRetainItemCount() {
-      return retainItemCount;
+      return retainItemCount != null ? retainItemCount : 0;
     }
 
     @Override
@@ -2958,7 +2958,7 @@ public class ProtocolDocumentOperationImpl implements ProtocolDocumentOperation 
 
     @Override
     public boolean getDeleteElementEnd() {
-      return deleteElementEnd;
+      return deleteElementEnd != null ? deleteElementEnd : false;
     }
 
     @Override

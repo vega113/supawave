@@ -229,7 +229,9 @@ public final class RpcFinishedBuilder {
      * specific language governing permissions and limitations
      * under the License.
      */
-    message.setErrorText(errorText);
+    if (errorText != null) {
+      message.setErrorText(errorText);
+    }
     return message;
   }
 

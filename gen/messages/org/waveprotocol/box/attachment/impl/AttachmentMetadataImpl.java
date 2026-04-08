@@ -894,7 +894,7 @@ public class AttachmentMetadataImpl implements AttachmentMetadata {
 
   @Override
   public boolean getMalware() {
-    return malware;
+    return malware != null ? malware : false;
   }
 
   @Override

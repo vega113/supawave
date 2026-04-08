@@ -596,7 +596,9 @@ public final class ProfileResponseBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setProfileUrl(profileUrl);
+      if (profileUrl != null) {
+        message.setProfileUrl(profileUrl);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -604,8 +606,7 @@ public final class ProfileResponseBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -617,7 +618,9 @@ public final class ProfileResponseBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setFirstName(firstName);
+      if (firstName != null) {
+        message.setFirstName(firstName);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -625,8 +628,7 @@ public final class ProfileResponseBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -638,7 +640,9 @@ public final class ProfileResponseBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setLastName(lastName);
+      if (lastName != null) {
+        message.setLastName(lastName);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -646,8 +650,7 @@ public final class ProfileResponseBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -659,7 +662,9 @@ public final class ProfileResponseBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setBio(bio);
+      if (bio != null) {
+        message.setBio(bio);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -667,8 +672,7 @@ public final class ProfileResponseBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -680,7 +684,9 @@ public final class ProfileResponseBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setLastSeenTime(lastSeenTime);
+      if (lastSeenTime != null) {
+        message.setLastSeenTime(lastSeenTime);
+      }
       return message;
     }
 

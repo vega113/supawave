@@ -684,7 +684,7 @@ public class ProtocolWaveletOperationImpl implements ProtocolWaveletOperation {
 
   @Override
   public boolean getNoOp() {
-    return noOp;
+    return noOp != null ? noOp : false;
   }
 
   @Override

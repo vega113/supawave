@@ -101,6 +101,12 @@ $else$
   public $f.javaType$ $f.getter$() {
     $if (f.message)$
       return new $f.javaType$($f.name$);
+    $elseif (f.optional)$
+      $if (f.primitive)$
+        return $f.name$ != null ? $f.name$ : $f.defaultValue$;
+      $else$
+        return $f.name$;
+      $endif$
     $else$
       return $f.name$;
     $endif$

@@ -399,7 +399,7 @@ public class SubmitDeltaResponseImpl implements SubmitDeltaResponse {
 
   @Override
   public long getTimestampAfterApplication() {
-    return timestampAfterApplication;
+    return timestampAfterApplication != null ? timestampAfterApplication : 0L;
   }
 
   @Override

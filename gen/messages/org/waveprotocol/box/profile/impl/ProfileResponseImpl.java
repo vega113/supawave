@@ -756,7 +756,7 @@ public class ProfileResponseImpl implements ProfileResponse {
 
     @Override
     public long getLastSeenTime() {
-      return lastSeenTime;
+      return lastSeenTime != null ? lastSeenTime : 0L;
     }
 
     @Override

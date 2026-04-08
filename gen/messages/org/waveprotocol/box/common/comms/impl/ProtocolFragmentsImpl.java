@@ -352,7 +352,7 @@ public class ProtocolFragmentsImpl implements ProtocolFragments {
 
   @Override
   public long getSnapshotVersion() {
-    return snapshotVersion;
+    return snapshotVersion != null ? snapshotVersion : 0L;
   }
 
   @Override
@@ -391,7 +391,7 @@ public class ProtocolFragmentsImpl implements ProtocolFragments {
 
   @Override
   public long getStartVersion() {
-    return startVersion;
+    return startVersion != null ? startVersion : 0L;
   }
 
   @Override
@@ -430,7 +430,7 @@ public class ProtocolFragmentsImpl implements ProtocolFragments {
 
   @Override
   public long getEndVersion() {
-    return endVersion;
+    return endVersion != null ? endVersion : 0L;
   }
 
   @Override

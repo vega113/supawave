@@ -280,7 +280,9 @@ public final class FetchDiffResponseBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setSnapshot(snapshot);
+      if (snapshot != null) {
+        message.setSnapshot(snapshot);
+      }
       return message;
     }
 

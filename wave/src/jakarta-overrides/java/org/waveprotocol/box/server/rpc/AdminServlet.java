@@ -533,9 +533,10 @@ public final class AdminServlet extends HttpServlet {
     String searchType = config.getString("core.search_type");
     w.append("\"searchIndex\":{");
     w.append("\"type\":").append(jsonStr(searchType));
-    // Match routing predicate in FeatureFlaggedSearchProviderImpl: either flag activates Lucene.
-    boolean otSearchFlagEnabled = featureFlagService.isEnabled("ot-search", null)
-        || featureFlagService.isEnabled("lucene9", null);
+    // True if Lucene is active for anyone: global flag or per-user allowlist on either the
+    // canonical "ot-search" flag or the legacy "lucene9" alias, matching the routing predicate.
+    boolean otSearchFlagEnabled = featureFlagService.isEnabledForAnyone("ot-search")
+        || featureFlagService.isEnabledForAnyone("lucene9");
     w.append(",\"otSearchFlagEnabled\":").append(String.valueOf(otSearchFlagEnabled));
     // Use lastRebuildWaveCount for accurate persistent store count (set during full rebuild)
     if (lucene9Indexer != null && lucene9Indexer.getLastRebuildWaveCount() >= 0) {

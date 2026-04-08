@@ -687,7 +687,7 @@ public class ProtocolWaveletUpdateImpl implements ProtocolWaveletUpdate {
 
   @Override
   public boolean getMarker() {
-    return marker;
+    return marker != null ? marker : false;
   }
 
   @Override

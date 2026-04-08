@@ -295,7 +295,9 @@ public final class ProtocolSubmitRequestBuilder {
      * specific language governing permissions and limitations
      * under the License.
      */
-    message.setChannelId(channelId);
+    if (channelId != null) {
+      message.setChannelId(channelId);
+    }
     return message;
   }
 

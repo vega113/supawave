@@ -676,7 +676,7 @@ public class ProtocolOpenRequestImpl implements ProtocolOpenRequest {
 
   @Override
   public int getViewportLimit() {
-    return viewportLimit;
+    return viewportLimit != null ? viewportLimit : 0;
   }
 
   @Override

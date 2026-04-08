@@ -643,7 +643,9 @@ public final class ProtocolDocumentOperationBuilder {
          * specific language governing permissions and limitations
          * under the License.
          */
-        message.setOldValue(oldValue);
+        if (oldValue != null) {
+          message.setOldValue(oldValue);
+        }
 
         /**
          * Licensed to the Apache Software Foundation (ASF) under one
@@ -651,8 +653,7 @@ public final class ProtocolDocumentOperationBuilder {
          * distributed with this work for additional information
          * regarding copyright ownership. The ASF licenses this file
          * to you under the Apache License, Version 2.0 (the
-         * "License");
-         you may not use this file except in compliance
+         * "License"); you may not use this file except in compliance
          * with the License. You may obtain a copy of the License at
          *
          * http://www.apache.org/licenses/LICENSE-2.0
@@ -664,7 +665,9 @@ public final class ProtocolDocumentOperationBuilder {
          * specific language governing permissions and limitations
          * under the License.
          */
-        message.setNewValue(newValue);
+        if (newValue != null) {
+          message.setNewValue(newValue);
+        }
         return message;
       }
 
@@ -1067,7 +1070,9 @@ public final class ProtocolDocumentOperationBuilder {
          * specific language governing permissions and limitations
          * under the License.
          */
-        message.setEmpty(empty);
+        if (empty != null) {
+          message.setEmpty(empty);
+        }
 
         /**
          * Licensed to the Apache Software Foundation (ASF) under one
@@ -1075,8 +1080,7 @@ public final class ProtocolDocumentOperationBuilder {
          * distributed with this work for additional information
          * regarding copyright ownership. The ASF licenses this file
          * to you under the Apache License, Version 2.0 (the
-         * "License");
-         you may not use this file except in compliance
+         * "License"); you may not use this file except in compliance
          * with the License. You may obtain a copy of the License at
          *
          * http://www.apache.org/licenses/LICENSE-2.0
@@ -1097,8 +1101,7 @@ public final class ProtocolDocumentOperationBuilder {
          * distributed with this work for additional information
          * regarding copyright ownership. The ASF licenses this file
          * to you under the Apache License, Version 2.0 (the
-         * "License");
-         you may not use this file except in compliance
+         * "License"); you may not use this file except in compliance
          * with the License. You may obtain a copy of the License at
          *
          * http://www.apache.org/licenses/LICENSE-2.0
@@ -1274,7 +1277,9 @@ public final class ProtocolDocumentOperationBuilder {
          * specific language governing permissions and limitations
          * under the License.
          */
-        message.setEmpty(empty);
+        if (empty != null) {
+          message.setEmpty(empty);
+        }
 
         /**
          * Licensed to the Apache Software Foundation (ASF) under one
@@ -1282,8 +1287,7 @@ public final class ProtocolDocumentOperationBuilder {
          * distributed with this work for additional information
          * regarding copyright ownership. The ASF licenses this file
          * to you under the Apache License, Version 2.0 (the
-         * "License");
-         you may not use this file except in compliance
+         * "License"); you may not use this file except in compliance
          * with the License. You may obtain a copy of the License at
          *
          * http://www.apache.org/licenses/LICENSE-2.0
@@ -1517,7 +1521,9 @@ public final class ProtocolDocumentOperationBuilder {
          * specific language governing permissions and limitations
          * under the License.
          */
-        message.setEmpty(empty);
+        if (empty != null) {
+          message.setEmpty(empty);
+        }
 
         /**
          * Licensed to the Apache Software Foundation (ASF) under one
@@ -1525,8 +1531,7 @@ public final class ProtocolDocumentOperationBuilder {
          * distributed with this work for additional information
          * regarding copyright ownership. The ASF licenses this file
          * to you under the Apache License, Version 2.0 (the
-         * "License");
-         you may not use this file except in compliance
+         * "License"); you may not use this file except in compliance
          * with the License. You may obtain a copy of the License at
          *
          * http://www.apache.org/licenses/LICENSE-2.0
@@ -1547,8 +1552,7 @@ public final class ProtocolDocumentOperationBuilder {
          * distributed with this work for additional information
          * regarding copyright ownership. The ASF licenses this file
          * to you under the Apache License, Version 2.0 (the
-         * "License");
-         you may not use this file except in compliance
+         * "License"); you may not use this file except in compliance
          * with the License. You may obtain a copy of the License at
          *
          * http://www.apache.org/licenses/LICENSE-2.0
@@ -2071,7 +2075,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setAnnotationBoundary(annotationBoundary);
+      if (annotationBoundary != null) {
+        message.setAnnotationBoundary(annotationBoundary);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2079,8 +2085,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2092,7 +2097,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setCharacters(characters);
+      if (characters != null) {
+        message.setCharacters(characters);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2100,8 +2107,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2113,7 +2119,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setElementStart(elementStart);
+      if (elementStart != null) {
+        message.setElementStart(elementStart);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2121,8 +2129,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2134,7 +2141,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setElementEnd(elementEnd);
+      if (elementEnd != null) {
+        message.setElementEnd(elementEnd);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2142,8 +2151,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2155,7 +2163,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setRetainItemCount(retainItemCount);
+      if (retainItemCount != null) {
+        message.setRetainItemCount(retainItemCount);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2163,8 +2173,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2176,7 +2185,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setDeleteCharacters(deleteCharacters);
+      if (deleteCharacters != null) {
+        message.setDeleteCharacters(deleteCharacters);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2184,8 +2195,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2197,7 +2207,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setDeleteElementStart(deleteElementStart);
+      if (deleteElementStart != null) {
+        message.setDeleteElementStart(deleteElementStart);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2205,8 +2217,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2218,7 +2229,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setDeleteElementEnd(deleteElementEnd);
+      if (deleteElementEnd != null) {
+        message.setDeleteElementEnd(deleteElementEnd);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2226,8 +2239,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2239,7 +2251,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setReplaceAttributes(replaceAttributes);
+      if (replaceAttributes != null) {
+        message.setReplaceAttributes(replaceAttributes);
+      }
 
       /**
        * Licensed to the Apache Software Foundation (ASF) under one
@@ -2247,8 +2261,7 @@ public final class ProtocolDocumentOperationBuilder {
        * distributed with this work for additional information
        * regarding copyright ownership. The ASF licenses this file
        * to you under the Apache License, Version 2.0 (the
-       * "License");
-       you may not use this file except in compliance
+       * "License"); you may not use this file except in compliance
        * with the License. You may obtain a copy of the License at
        *
        * http://www.apache.org/licenses/LICENSE-2.0
@@ -2260,7 +2273,9 @@ public final class ProtocolDocumentOperationBuilder {
        * specific language governing permissions and limitations
        * under the License.
        */
-      message.setUpdateAttributes(updateAttributes);
+      if (updateAttributes != null) {
+        message.setUpdateAttributes(updateAttributes);
+      }
       return message;
     }
 

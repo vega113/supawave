@@ -86,6 +86,18 @@ public final class FeatureFlagService {
   }
 
   /**
+   * Returns true if the flag is active for anyone: either globally enabled, or explicitly
+   * enabled for at least one user in the allowedUsers map. Use this for ops/admin telemetry
+   * where a partial rollout (flag globally off but enabled for specific users) should still
+   * report as "active".
+   */
+  public boolean isEnabledForAnyone(String flagName) {
+    FeatureFlag flag = cache.get(flagName);
+    if (flag == null) return false;
+    return flag.isEnabled() || flag.getAllowedUsers().containsValue(Boolean.TRUE);
+  }
+
+  /**
    * Returns the names of all flags that are enabled for the given participant.
    */
   public List<String> getEnabledFlagNames(String participantId) {

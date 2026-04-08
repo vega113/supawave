@@ -2790,6 +2790,8 @@ public final class HtmlRenderer {
     appendLightboxFragment(sb);
     // -- Version upgrade detection polling --
     appendVersionCheckScript(sb, buildCommit, serverBuildTime, currentReleaseId);
+    // -- Admin contact notification polling (only activates for admin/owner via __session.role) --
+    appendAdminContactPollingScript(sb);
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -3061,6 +3063,43 @@ public final class HtmlRenderer {
 
     sb.append("})();\n");
     sb.append("</script>\n");
+  }
+
+  /**
+   * Appends a script block that polls for unread admin contact messages and updates
+   * the admin notification icon in the top bar. Only activates if the page's
+   * {@code window.__session.role} is "admin" or "owner".
+   */
+  private static void appendAdminContactPollingScript(StringBuilder sb) {
+    sb.append("<script>\n(function(){\n");
+    sb.append("  var role=window.__session&&window.__session.role;\n");
+    sb.append("  if(role!=='admin'&&role!=='owner')return;\n");
+    sb.append("  var btn=document.getElementById('adminMsgBtn');\n");
+    sb.append("  var badge=document.getElementById('adminMsgBadge');\n");
+    sb.append("  if(!btn||!badge)return;\n");
+    sb.append("  function pollAdmin(){\n");
+    sb.append("    fetch('/admin/api/contacts?status=new&limit=0')\n");
+    sb.append("      .then(function(r){return r.json();})\n");
+    sb.append("      .then(function(d){\n");
+    sb.append("        var n=d.total||0;\n");
+    sb.append("        if(n>0){\n");
+    sb.append("          badge.textContent=n;\n");
+    sb.append("          badge.classList.remove('hidden');\n");
+    sb.append("          btn.classList.add('has-unread');\n");
+    sb.append("          var label=n+' unread contact message'+(n===1?'':'s');\n");
+    sb.append("          btn.title=label;\n");
+    sb.append("          btn.setAttribute('aria-label',label);\n");
+    sb.append("        }else{\n");
+    sb.append("          badge.classList.add('hidden');\n");
+    sb.append("          btn.classList.remove('has-unread');\n");
+    sb.append("          btn.title='Contact messages';\n");
+    sb.append("          btn.setAttribute('aria-label','Contact messages');\n");
+    sb.append("        }\n");
+    sb.append("      }).catch(function(){});\n");
+    sb.append("  }\n");
+    sb.append("  pollAdmin();\n");
+    sb.append("  setInterval(pollAdmin,30000);\n");
+    sb.append("})();\n</script>\n");
   }
 
   /**
@@ -4941,6 +4980,12 @@ public final class HtmlRenderer {
     sb.append("      if (tab.dataset.tab === 'analytics') { loadAnalyticsHistory(analyticsActiveWindow); loadAnalyticsStatus(); }\n");
     sb.append("    });\n");
     sb.append("  });\n");
+    // Hash-based tab navigation: /admin#contacts auto-activates contacts tab
+    sb.append("  var initialHash = window.location.hash ? window.location.hash.slice(1) : '';\n");
+    sb.append("  if (initialHash) {\n");
+    sb.append("    var targetTab = document.querySelector('.admin-tab[data-tab=\"' + initialHash + '\"]');\n");
+    sb.append("    if (targetTab) { targetTab.click(); }\n");
+    sb.append("  }\n");
     sb.append("  document.querySelectorAll('.window-pill').forEach(function(pill) {\n");
     sb.append("    pill.addEventListener('click', function() {\n");
     sb.append("      document.querySelectorAll('.window-pill').forEach(function(p){p.classList.remove('active');});\n");

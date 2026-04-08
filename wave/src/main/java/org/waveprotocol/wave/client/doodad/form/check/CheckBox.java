@@ -114,10 +114,25 @@ public class CheckBox {
       }
     }
 
+    private static final String TASK_COMPLETED_CLASS = "task-completed";
+
     private void updateCheckboxDom(ContentElement checkbox, boolean isChecked) {
       Element implNodelet = checkbox.getImplNodelet();
       InputElement checkboxElem = (InputElement) implNodelet.getFirstChild();
       checkboxElem.setChecked(isChecked);
+
+      // Apply/remove strikethrough styling on the enclosing paragraph for task checkboxes.
+      String name = checkbox.getAttribute(ContentElement.NAME);
+      if (name != null && name.startsWith(TaskDocumentUtil.TASK_NAME_PREFIX)) {
+        Element paragraph = implNodelet.getParentElement();
+        if (paragraph != null) {
+          if (isChecked) {
+            paragraph.addClassName(TASK_COMPLETED_CLASS);
+          } else {
+            paragraph.removeClassName(TASK_COMPLETED_CLASS);
+          }
+        }
+      }
     }
   }
 

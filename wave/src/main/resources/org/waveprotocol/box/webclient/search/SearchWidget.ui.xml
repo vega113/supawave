@@ -94,6 +94,10 @@
              <td><span ui:field='exMentions' class='{css.helpExample}'>mentions:me</span></td>
              <td>Waves where you are @mentioned</td>
            </tr>
+           <tr ui:field='tasksFilterRow'>
+             <td><span ui:field='exTasks' class='{css.helpExample}'>tasks:me</span></td>
+             <td>Waves with tasks assigned to you</td>
+           </tr>
            <tr>
              <td><em>free text</em></td>
              <td>Implicit content: search &#x2014; try: <span ui:field='exFreeTextTry' class='{css.helpExample}'>meeting notes</span></td>

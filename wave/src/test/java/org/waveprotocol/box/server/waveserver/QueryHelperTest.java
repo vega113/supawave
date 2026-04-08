@@ -65,6 +65,13 @@ public class QueryHelperTest extends TestCase {
     assertNull(queryParams.get(TokenQueryType.CONTENT));
   }
 
+  public void testParseQueryRecognizesTasksFilter() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams = QueryHelper.parseQuery("tasks:me");
+
+    assertEquals(ImmutableSet.of("me"), queryParams.get(TokenQueryType.TASKS));
+    assertNull(queryParams.get(TokenQueryType.CONTENT));
+  }
+
   public void testParseQueryRejectsInvalidUnreadFilterValue() {
     try {
       QueryHelper.parseQuery("unread:maybe");

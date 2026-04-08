@@ -75,6 +75,11 @@ public class WaveDocumentBuilder {
         document.add(new StringField(Lucene9FieldNames.MENTIONED, mentioned, Store.YES));
       }
     }
+    for (String assignee : metadata.getTaskAssignees()) {
+      if (assignee != null && !assignee.isEmpty()) {
+        document.add(new StringField(Lucene9FieldNames.TASK_ASSIGNEE, assignee, Store.YES));
+      }
+    }
     if (!metadata.getTitle().isEmpty()) {
       document.add(new TextField(Lucene9FieldNames.TITLE_TEXT, metadata.getTitle(), Store.NO));
     }

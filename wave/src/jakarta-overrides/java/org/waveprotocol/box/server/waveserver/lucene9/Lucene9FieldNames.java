@@ -35,6 +35,7 @@ public final class Lucene9FieldNames {
   public static final String EMBEDDING = "embedding";
   public static final String EMBEDDING_MODEL = "embedding_model";
   public static final String MENTIONED = "mentioned";
+  public static final String TASK_ASSIGNEE = "task_assignee";
 
   private Lucene9FieldNames() {
   }

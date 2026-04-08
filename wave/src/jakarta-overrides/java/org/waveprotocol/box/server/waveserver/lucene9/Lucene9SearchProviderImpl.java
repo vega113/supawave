@@ -66,7 +66,7 @@ public class Lucene9SearchProviderImpl implements SearchProvider {
 
     SearchResult legacyResult = legacySearchProvider.search(user, model.toLegacyQuery(), 0,
         MAX_CANDIDATES);
-    if (!model.hasTextQuery()) {
+    if (!model.hasTextQuery() && !model.hasTaskQuery()) {
       return paginate(query, legacyResult.getDigests(), startAt, numResults);
     }
 

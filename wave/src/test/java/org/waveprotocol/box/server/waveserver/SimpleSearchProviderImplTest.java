@@ -951,6 +951,23 @@ public class SimpleSearchProviderImplTest extends TestCase {
     submitDeltaToExistingWavelet(name, author, blipOp);
   }
 
+  private void addTaskAnnotationToBlip(WaveletName name, ParticipantId author,
+      String blipId, String text, ParticipantId assignee) throws Exception {
+    WaveletOperationContext context = new WaveletOperationContext(author, 0, 1);
+    WaveletOperation blipOp = new WaveletBlipOperation(blipId, new BlipContentOperation(context,
+        new DocOpBuilder()
+            .annotationBoundary(AnnotationBoundaryMapImpl.builder()
+                .initializationValues(AnnotationConstants.TASK_ASSIGNEE,
+                    assignee.getAddress())
+                .build())
+            .characters(text)
+            .annotationBoundary(AnnotationBoundaryMapImpl.builder()
+                .initializationEnd(AnnotationConstants.TASK_ASSIGNEE)
+                .build())
+            .build()));
+    submitDeltaToExistingWavelet(name, author, blipOp);
+  }
+
   private SearchProvider newUnreadAwareSearchProvider(final Map<String, Integer> unreadCounts) {
     ConversationUtil conversationUtil = new ConversationUtil(idGenerator);
     WaveDigester digester = new WaveDigester(conversationUtil) {
@@ -1202,6 +1219,47 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(2, results.getNumResults());
     // Pinned wave must be first regardless of date.
     assertEquals(olderPinned.waveId.serialise(), results.getDigests().get(0).getWaveId());
+  }
+
+  public void testSearchFilterByTasksReturnsOnlyWavesWithTaskAssignee() throws Exception {
+    WaveletName taskWave = WaveletName.of(WaveId.of(DOMAIN, "task-wave"), WAVELET_ID);
+    WaveletName noTaskWave = WaveletName.of(WaveId.of(DOMAIN, "no-task-wave"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(taskWave, USER1, addParticipantToWavelet(USER1, taskWave));
+    addTaskAnnotationToBlip(taskWave, USER1, "b+1", "do the thing", USER1);
+
+    submitDeltaToNewWavelet(noTaskWave, USER1, addParticipantToWavelet(USER1, noTaskWave));
+
+    SearchResult results = searchProvider.search(USER1, "tasks:me", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("task-wave",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchFilterByTasksOfOtherUserNotReturnedForCurrentUser() throws Exception {
+    WaveletName wave = WaveletName.of(WaveId.of(DOMAIN, "wave-other"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(wave, USER1, addParticipantToWavelet(USER1, wave));
+    // Task assigned to USER2, not USER1
+    addTaskAnnotationToBlip(wave, USER1, "b+1", "do the thing", USER2);
+
+    SearchResult results = searchProvider.search(USER1, "tasks:me", 0, 10);
+
+    assertEquals(0, results.getNumResults());
+  }
+
+  public void testSearchFilterByTasksWithExplicitAddress() throws Exception {
+    WaveletName taskWave = WaveletName.of(WaveId.of(DOMAIN, "task-explicit"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(taskWave, USER1, addParticipantToWavelet(USER1, taskWave));
+    addTaskAnnotationToBlip(taskWave, USER1, "b+1", "review this", USER2);
+
+    SearchResult results = searchProvider.search(USER1, "tasks:" + USER2.getAddress(), 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("task-explicit",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
   }
 
   /**

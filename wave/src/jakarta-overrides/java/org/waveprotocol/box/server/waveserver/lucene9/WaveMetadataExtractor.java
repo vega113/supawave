@@ -37,6 +37,7 @@ import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
+import org.waveprotocol.box.server.waveserver.TaskDocumentExtractor;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 
@@ -50,6 +51,7 @@ public class WaveMetadataExtractor {
     Set<String> creatorFilters = new LinkedHashSet<>();
     Set<String> tags = new LinkedHashSet<>();
     Set<String> mentions = new LinkedHashSet<>();
+    Set<String> taskAssignees = new LinkedHashSet<>();
     String title = "";
     String rootWaveletId = "";
     String creatorSort = UNKNOWN_CREATOR;
@@ -69,6 +71,7 @@ public class WaveMetadataExtractor {
         lastModifiedSort = Math.max(lastModifiedSort, wavelet.getLastModifiedTime());
         appendContent(content, Snippets.collateTextForWavelet(wavelet));
         extractMentions(wavelet, mentions);
+        TaskDocumentExtractor.extractTaskAssigneesFromWavelet(wavelet, taskAssignees);
       }
       if (IdUtil.isConversationRootWaveletId(wavelet.getWaveletId())) {
         rootWaveletId = wavelet.getWaveletId().serialise();
@@ -85,7 +88,8 @@ public class WaveMetadataExtractor {
     String contentText = content.toString().trim();
     String allText = (title + " " + contentText).trim();
     return new WaveMetadata(wave.getWaveId(), rootWaveletId, participants, creatorFilters,
-        creatorSort, tags, mentions, title, contentText, allText, createdSort, lastModifiedSort);
+        creatorSort, tags, mentions, taskAssignees, title, contentText, allText, createdSort,
+        lastModifiedSort);
   }
 
   private static void appendContent(StringBuilder builder, String text) {
@@ -231,6 +235,7 @@ public class WaveMetadataExtractor {
     private final String creatorSort;
     private final Set<String> tags;
     private final Set<String> mentions;
+    private final Set<String> taskAssignees;
     private final String title;
     private final String content;
     private final String allText;
@@ -239,6 +244,7 @@ public class WaveMetadataExtractor {
 
     WaveMetadata(WaveId waveId, String rootWaveletId, Set<String> participants,
         Set<String> creatorFilters, String creatorSort, Set<String> tags, Set<String> mentions,
+        Set<String> taskAssignees,
         String title, String content, String allText, long createdSort, long lastModifiedSort) {
       this.waveId = waveId;
       this.rootWaveletId = rootWaveletId;
@@ -247,6 +253,7 @@ public class WaveMetadataExtractor {
       this.creatorSort = creatorSort;
       this.tags = tags;
       this.mentions = mentions;
+      this.taskAssignees = taskAssignees;
       this.title = title;
       this.content = content;
       this.allText = allText;
@@ -280,6 +287,10 @@ public class WaveMetadataExtractor {
 
     public Set<String> getMentions() {
       return mentions;
+    }
+
+    public Set<String> getTaskAssignees() {
+      return taskAssignees;
     }
 
     public String getTitle() {

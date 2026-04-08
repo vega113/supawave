@@ -181,6 +181,40 @@ public final class SearchWaveletUpdaterTest extends TestCase {
     }
   }
 
+  public void testExecuteUpdatePreservesRawTasksQuery() throws Exception {
+    SearchWaveletManager waveletManager = mock(SearchWaveletManager.class);
+    SearchIndexer indexer = mock(SearchIndexer.class);
+    SearchProvider searchProvider = mock(SearchProvider.class);
+    SearchWaveletDataProvider dataProvider = new SearchWaveletDataProvider();
+    SearchWaveletUpdater updater =
+        new SearchWaveletUpdater(waveletManager, indexer, searchProvider, dataProvider, null);
+
+    ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
+    String query = "tasks:me";
+    String queryHash = SearchWaveletManager.md5Hex(query);
+    SearchIndexer.SubscriptionKey key = new SearchIndexer.SubscriptionKey(user, queryHash);
+    WaveletName searchWaveletName = WaveletName.of(
+        WaveId.of("example.com", "search~alice"),
+        WaveletId.of("example.com", "search+" + queryHash));
+    SearchResult searchResult = new SearchResult(query);
+    searchResult.setTotalResults(0);
+
+    when(indexer.getRawQuery(key)).thenReturn(query);
+    when(searchProvider.search(user, query, 0, 50)).thenReturn(searchResult);
+    when(waveletManager.getOrCreateSearchWavelet(user, query)).thenReturn(searchWaveletName);
+
+    try {
+      Method executeUpdate = SearchWaveletUpdater.class.getDeclaredMethod(
+          "executeUpdate", SearchIndexer.SubscriptionKey.class, String.class);
+      executeUpdate.setAccessible(true);
+      executeUpdate.invoke(updater, key, key.toString());
+
+      verify(searchProvider).search(user, query, 0, 50);
+    } finally {
+      updater.shutdown();
+    }
+  }
+
   public void testExecuteUpdatePushesSnapshotToSubscribedSearchWavelet() throws Exception {
     WaveletProvider waveletProvider = mock(WaveletProvider.class);
     when(waveletProvider.getWaveletIds(any())).thenReturn(ImmutableSet.of());

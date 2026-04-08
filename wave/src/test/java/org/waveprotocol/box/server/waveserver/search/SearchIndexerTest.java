@@ -99,4 +99,50 @@ public final class SearchIndexerTest {
 
     assertFalse(affected.contains(key));
   }
+
+  @Test
+  public void testTasksSubscriptionIsTrackedAndTriggered() {
+    SearchIndexer indexer = new SearchIndexer();
+    ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
+    WaveId changedWave = WaveId.of("example.com", "w+task1");
+    String query = "tasks:me";
+    SearchIndexer.SubscriptionKey key =
+        new SearchIndexer.SubscriptionKey(user, SearchWaveletManager.md5Hex(query));
+
+    indexer.registerSubscription(
+        user,
+        query,
+        key.getQueryHash(),
+        ImmutableSet.of(changedWave));
+
+    Set<SearchIndexer.SubscriptionKey> affected =
+        indexer.getAffectedSubscriptions(changedWave, ImmutableSet.of(user));
+
+    assertTrue("tasks:me subscription should be affected", affected.contains(key));
+  }
+
+  @Test
+  public void testTasksSubscriptionCoexistsWithInboxSubscription() {
+    SearchIndexer indexer = new SearchIndexer();
+    ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
+    WaveId changedWave = WaveId.of("example.com", "w+task1");
+
+    String tasksQuery = "tasks:me";
+    SearchIndexer.SubscriptionKey tasksKey =
+        new SearchIndexer.SubscriptionKey(user, SearchWaveletManager.md5Hex(tasksQuery));
+    indexer.registerSubscription(user, tasksQuery, tasksKey.getQueryHash(),
+        ImmutableSet.of(changedWave));
+
+    String inboxQuery = "in:inbox";
+    SearchIndexer.SubscriptionKey inboxKey =
+        new SearchIndexer.SubscriptionKey(user, SearchWaveletManager.md5Hex(inboxQuery));
+    indexer.registerSubscription(user, inboxQuery, inboxKey.getQueryHash(),
+        ImmutableSet.of(changedWave));
+
+    Set<SearchIndexer.SubscriptionKey> affected =
+        indexer.getAffectedSubscriptions(changedWave, ImmutableSet.of(user));
+
+    assertTrue("tasks:me subscription should be affected", affected.contains(tasksKey));
+    assertTrue("in:inbox subscription should be affected", affected.contains(inboxKey));
+  }
 }

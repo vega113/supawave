@@ -110,6 +110,31 @@ public class AnnotationConstants {
   public static boolean isMentionKey(String key) {
     return key != null && key.startsWith(MENTION_PREFIX + "/");
   }
+
+  // Tasks
+
+  /** Prefix for task annotations. */
+  public static final String TASK_PREFIX = "task";
+
+  /** Task unique identifier annotation. */
+  public static final String TASK_ID = TASK_PREFIX + "/id";
+
+  /** Task assignee annotation (value = participant address). */
+  public static final String TASK_ASSIGNEE = TASK_PREFIX + "/assignee";
+
+  /** Task due date annotation (value = epoch millis as string). */
+  public static final String TASK_DUE_TS = TASK_PREFIX + "/dueTs";
+
+  /** Task reminder offsets annotation (value = comma-separated minute offsets). */
+  public static final String TASK_REMINDERS = TASK_PREFIX + "/reminders";
+
+  /**
+   * Returns true when the annotation key belongs to the task namespace.
+   */
+  public static boolean isTaskKey(String key) {
+    return key != null && key.startsWith(TASK_PREFIX + "/");
+  }
+
   // Other
 
   /** Prefix for spelling annotations. (e.g. Spelly) */

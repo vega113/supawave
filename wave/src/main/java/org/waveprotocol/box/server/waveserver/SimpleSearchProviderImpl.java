@@ -266,7 +266,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     int candidatesBefore = results.size();
 
     // Per-filter result counts for the combined summary log (-1 means filter was not active).
-    int tagsAfter = -1, titleAfter = -1, contentAfter = -1, mentionsAfter = -1, unreadAfter = -1;
+    int tagsAfter = -1, titleAfter = -1, contentAfter = -1, mentionsAfter = -1, tasksAfter = -1, unreadAfter = -1;
 
     // Shared caches for supplement-building across all filter stages.
     // This prevents creating duplicate OpBasedWavelet adapters for the same
@@ -318,6 +318,17 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       mentionValues = Collections.<String>emptySet();
     }
 
+    // Extract tasks filter values (e.g., "tasks:me" or "tasks:alice@example.com").
+    final Set<String> taskValues;
+    if (queryParams.containsKey(TokenQueryType.TASKS)) {
+      taskValues = new HashSet<String>();
+      for (String raw : queryParams.get(TokenQueryType.TASKS)) {
+        taskValues.add(TaskQueryNormalizer.normalize(raw, user));
+      }
+    } else {
+      taskValues = Collections.<String>emptySet();
+    }
+
     // Filter by title when the query specifies title: filters.
     if (!titleValues.isEmpty()) {
       LOG.fine("Title filter: required=" + titleValues + ", candidates=" + results.size());
@@ -340,6 +351,14 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       filterByMentions(results, mentionValues);
       mentionsAfter = results.size();
       LOG.fine("Mentions filter result: " + mentionsAfter + " remain");
+    }
+
+    // Filter by tasks when the query specifies tasks: filters.
+    if (!taskValues.isEmpty()) {
+      LOG.fine("Tasks filter: required=" + taskValues + ", candidates=" + results.size());
+      filterByTasks(results, taskValues);
+      tasksAfter = results.size();
+      LOG.fine("Tasks filter result: " + tasksAfter + " remain");
     }
 
     if (isUnreadOnlyQuery) {
@@ -377,7 +396,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     summary.append(", results=").append(searchResult.size()).append("/").append(totalBeforePagination);
     summary.append(", candidatesBefore=").append(candidatesBefore);
     boolean hasFilters = tagsAfter >= 0 || titleAfter >= 0 || contentAfter >= 0
-        || mentionsAfter >= 0 || unreadAfter >= 0;
+        || mentionsAfter >= 0 || tasksAfter >= 0 || unreadAfter >= 0;
     if (hasFilters) {
       summary.append(" (");
       String sep = "";
@@ -385,6 +404,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       if (titleAfter >= 0) { summary.append(sep).append("title:").append(titleAfter); sep = ", "; }
       if (contentAfter >= 0) { summary.append(sep).append("content:").append(contentAfter); sep = ", "; }
       if (mentionsAfter >= 0) { summary.append(sep).append("mentions:").append(mentionsAfter); sep = ", "; }
+      if (tasksAfter >= 0) { summary.append(sep).append("tasks:").append(tasksAfter); sep = ", "; }
       if (unreadAfter >= 0) { summary.append(sep).append("unread:").append(unreadAfter); }
       summary.append(")");
     }
@@ -929,6 +949,26 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         }
       } catch (Exception e) {
         LOG.warning("Failed to check mentions for wave " + wave.getWaveId(), e);
+        it.remove();
+      }
+    }
+  }
+
+  /**
+   * Filters wave results by task assignee annotations. Only waves whose blip content
+   * contains task/assignee annotations matching all of the requested addresses are kept.
+   */
+  private void filterByTasks(List<WaveViewData> results, Set<String> requiredAssignees) {
+    Iterator<WaveViewData> it = results.iterator();
+    while (it.hasNext()) {
+      WaveViewData wave = it.next();
+      try {
+        Set<String> foundAssignees = TaskDocumentExtractor.extractTaskAssignees(wave);
+        if (!foundAssignees.containsAll(requiredAssignees)) {
+          it.remove();
+        }
+      } catch (Exception e) {
+        LOG.warning("Failed to check tasks for wave " + wave.getWaveId(), e);
         it.remove();
       }
     }

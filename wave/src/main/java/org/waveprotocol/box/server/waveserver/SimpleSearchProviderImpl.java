@@ -374,7 +374,8 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     StringBuilder summary = new StringBuilder("Search: user=");
     summary.append(user.getAddress());
     summary.append(", query=\"").append(query).append("\"");
-    summary.append(", results=").append(searchResult.size()).append("/").append(candidatesBefore);
+    summary.append(", results=").append(searchResult.size()).append("/").append(totalBeforePagination);
+    summary.append(", candidatesBefore=").append(candidatesBefore);
     boolean hasFilters = tagsAfter >= 0 || titleAfter >= 0 || contentAfter >= 0
         || mentionsAfter >= 0 || unreadAfter >= 0;
     if (hasFilters) {

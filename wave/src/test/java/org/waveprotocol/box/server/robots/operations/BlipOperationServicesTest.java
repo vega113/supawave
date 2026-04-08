@@ -47,6 +47,7 @@ import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuil
 import org.waveprotocol.wave.model.document.util.DocHelper;
 import org.waveprotocol.wave.model.document.util.LineContainers;
 import org.waveprotocol.wave.model.document.util.Point;
+import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 
 import java.util.Iterator;
@@ -147,6 +148,122 @@ public class BlipOperationServicesTest extends RobotsTestBase {
         conversation.getRootThread().getBlips().iterator();
     it.next(); // skip, root
     assertEquals("New blip should be the second blip in the root thread", newBlip, it.next());
+  }
+
+  public void testAppendBlipWithNewlines() throws Exception {
+    BlipData multilineBlipData = new BlipData(s(WAVE_ID), s(WAVELET_ID), TEMP_BLIP_ID,
+        "Hello\nWorld");
+    multilineBlipData.setBlipId(TEMP_BLIP_ID);
+
+    OperationRequest operation = operationRequest(OperationType.WAVELET_APPEND_BLIP,
+        Parameter.of(ParamsProperty.BLIP_DATA, multilineBlipData));
+
+    OperationContextImpl context = helper.getContext();
+    service.execute(operation, context, ALEX);
+
+    assertFalse(context.getResponse(OPERATION_ID).isError());
+
+    ObservableConversation conversation =
+        context.openConversation(WAVE_ID, WAVELET_ID, ALEX).getRoot();
+    ConversationBlip newBlip = context.getBlip(conversation, TEMP_BLIP_ID);
+    String xml = newBlip.getContent().toXmlString();
+    assertTrue("Expected Hello in blip content", xml.contains("Hello"));
+    assertTrue("Expected World in blip content", xml.contains("World"));
+    assertTrue("Expected <line/> element for newline break", xml.contains("<line"));
+    int helloIdx = xml.indexOf("Hello");
+    int lineIdx = xml.indexOf("<line", helloIdx);
+    int worldIdx = xml.indexOf("World");
+    assertTrue("Expected <line> element between Hello and World",
+        helloIdx >= 0 && lineIdx > helloIdx && worldIdx > lineIdx);
+  }
+
+  public void testBuildMultilineContent_singleLine() {
+    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("Hello World");
+    assertEquals("Hello World", result.getXmlString());
+  }
+
+  public void testBuildMultilineContent_withNewlines() {
+    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("Hello\nWorld");
+    String xml = result.getXmlString();
+    int helloIdx = xml.indexOf("Hello");
+    int lineIdx = xml.indexOf("<line", helloIdx);
+    int worldIdx = xml.indexOf("World", lineIdx);
+    assertTrue("Expected <line/> element between Hello and World",
+        helloIdx >= 0 && lineIdx > helloIdx && worldIdx > lineIdx);
+  }
+
+  public void testBuildMultilineContent_trailingNewline() {
+    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("Hello\n");
+    String xml = result.getXmlString();
+    int helloIdx = xml.indexOf("Hello");
+    int lineIdx = xml.indexOf("<line", helloIdx);
+    assertTrue("Expected trailing <line/> element after Hello",
+        helloIdx >= 0 && lineIdx > helloIdx);
+  }
+
+  public void testBuildMultilineContent_crOnlyNormalization() {
+    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("Hello\rWorld");
+    String xml = result.getXmlString();
+    int helloIdx = xml.indexOf("Hello");
+    int lineIdx = xml.indexOf("<line", helloIdx);
+    int worldIdx = xml.indexOf("World", lineIdx);
+    assertTrue("Expected <line/> element for CR newline",
+        helloIdx >= 0 && lineIdx > helloIdx && worldIdx > lineIdx);
+  }
+
+  public void testBuildMultilineContent_consecutiveNewlines() {
+    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("A\n\nB");
+    String xml = result.getXmlString();
+    int first = xml.indexOf("<line");
+    int second = xml.indexOf("<line", first + 1);
+    assertTrue("Expected two <line> elements for double newline", first >= 0 && second > first);
+  }
+
+  public void testBuildMultilineContent_emptyString() {
+    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("");
+    assertEquals("", result.getXmlString());
+  }
+
+  public void testBuildMultilineContent_crlfNormalization() {
+    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("Hello\r\nWorld\rFoo");
+    String xml = result.getXmlString();
+    assertTrue("Expected Hello in output", xml.contains("Hello"));
+    assertTrue("Expected World in output", xml.contains("World"));
+    assertTrue("Expected Foo in output", xml.contains("Foo"));
+    assertTrue("Expected <line/> elements for CRLF and CR breaks", xml.contains("<line"));
+    assertFalse("Expected no stray \\r characters after normalization", xml.contains("\r"));
+  }
+
+  public void testAppendBlipWithCrlfPrefix() throws Exception {
+    // Robot clients on Windows may send \r\n as the leading auto-prefix.
+    // The prefix should be stripped, not converted to an extra <line/>.
+    // Use setContent() to bypass BlipData constructor normalization so the raw
+    // CRLF prefix reaches putContentForNewBlip, as Gson deserialization would.
+    BlipData crlfBlipData = new BlipData(s(WAVE_ID), s(WAVELET_ID), TEMP_BLIP_ID, "\r\nHello");
+    crlfBlipData.setBlipId(TEMP_BLIP_ID);
+    crlfBlipData.setContent("\r\nHello");
+
+    OperationRequest operation = operationRequest(OperationType.WAVELET_APPEND_BLIP,
+        Parameter.of(ParamsProperty.BLIP_DATA, crlfBlipData));
+
+    OperationContextImpl context = helper.getContext();
+    service.execute(operation, context, ALEX);
+
+    assertFalse(context.getResponse(OPERATION_ID).isError());
+
+    ObservableConversation conversation =
+        context.openConversation(WAVE_ID, WAVELET_ID, ALEX).getRoot();
+    ConversationBlip newBlip = context.getBlip(conversation, TEMP_BLIP_ID);
+    String xml = newBlip.getContent().toXmlString();
+    assertTrue("Expected Hello in blip content", xml.contains("Hello"));
+    // The leading \r\n prefix must be stripped, not produce a blank first line.
+    // A correct blip has exactly one <line/> before "Hello" (the document's
+    // own opening element). If the prefix was not stripped, there would be two.
+    String beforeHello = xml.substring(0, xml.indexOf("Hello"));
+    int firstLine = beforeHello.indexOf("<line");
+    assertTrue("Blip should have an opening <line/> before content", firstLine >= 0);
+    assertEquals("CRLF prefix must not add an extra blank <line/> before content",
+        -1, beforeHello.indexOf("<line", firstLine + 1));
   }
 
   public void testAppendBadMarkup() throws Exception {

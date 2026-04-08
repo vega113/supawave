@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-08-search-stale-results-unread-filter",
+  "version": "PR #733",
+  "date": "2026-04-08",
+  "title": "Fix Stale Search Results and Unread Filter",
+  "summary": "Empty search queries now clear the wave list, and the unread:true filter correctly excludes read waves.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Fixed wave list not clearing when search returns zero results — header showed '0-0 of 0' but previous results remained visible",
+        "Fixed unread:true filter returning read waves due to readState-based path iterating orphaned blip documents; now uses supplement-based counting consistent with digest generation"
+      ]
+    }
+  ]
+}

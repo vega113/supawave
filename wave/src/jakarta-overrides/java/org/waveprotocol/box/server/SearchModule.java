@@ -59,7 +59,7 @@ public class SearchModule extends AbstractModule {
 
     if ("lucene".equals(searchType)) {
       // FeatureFlaggedSearchProviderImpl routes between legacy (SimpleSearch)
-      // and Lucene9 based on the "lucene9" per-user feature flag.
+      // and Lucene9 based on the "ot-search" feature flag.
       // The legacy fallback uses the fixed in-memory per-user view so there
       // is no async bootstrap race on clean deploys.
       bind(SimpleSearchProviderImpl.class).in(Singleton.class);

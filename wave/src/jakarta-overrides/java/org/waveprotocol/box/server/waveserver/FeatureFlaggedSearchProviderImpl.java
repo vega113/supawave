@@ -43,7 +43,7 @@ public class FeatureFlaggedSearchProviderImpl implements SearchProvider {
 
   @Override
   public SearchResult search(ParticipantId user, String query, int startAt, int numResults) {
-    if (featureFlagService.isEnabled("lucene9", user.getAddress())) {
+    if (featureFlagService.isEnabled("ot-search", user.getAddress())) {
       return lucene9SearchProvider.search(user, query, startAt, numResults);
     }
     return legacySearchProvider.search(user, query, startAt, numResults);

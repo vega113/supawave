@@ -46,22 +46,22 @@ public final class FeatureFlagServletTest {
   private static final ParticipantId OWNER = ParticipantId.ofUnsafe("owner@example.com");
 
   @Test
-  public void listIncludesLucene9WhenStoreIsEmpty() throws Exception {
+  public void listIncludesOtSearchWhenStoreIsEmpty() throws Exception {
     FeatureFlagStore store = mock(FeatureFlagStore.class);
     when(store.getAll()).thenReturn(Collections.emptyList());
 
     String body = fetchFlagsJson(store);
 
-    assertTrue(body.contains("\"name\":\"lucene9\""));
-    assertTrue(body.contains("\"description\":\"Lucene 9.x full-text search\""));
+    assertTrue(body.contains("\"name\":\"ot-search\""));
+    assertTrue(body.contains("OT/Lucene search"));
   }
 
   @Test
-  public void storedLucene9OverridesDefaultEntry() throws Exception {
+  public void storedOtSearchOverridesDefaultEntry() throws Exception {
     FeatureFlagStore store = mock(FeatureFlagStore.class);
     when(store.getAll()).thenReturn(Collections.singletonList(
         new FeatureFlag(
-            "lucene9",
+            "ot-search",
             "Persisted rollout state",
             true,
             Collections.singletonMap("vega@supawave.ai", true))));
@@ -74,12 +74,12 @@ public final class FeatureFlagServletTest {
   }
 
   @Test
-  public void deleteRejectsKnownLucene9Flag() throws Exception {
+  public void deleteRejectsKnownOtSearchFlag() throws Exception {
     FeatureFlagStore store = mock(FeatureFlagStore.class);
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpSession session = mock(HttpSession.class);
     when(request.getSession(false)).thenReturn(session);
-    when(request.getParameter("name")).thenReturn("lucene9");
+    when(request.getParameter("name")).thenReturn("ot-search");
 
     StringWriter body = new StringWriter();
     HttpServletResponse response = mock(HttpServletResponse.class);
@@ -87,25 +87,25 @@ public final class FeatureFlagServletTest {
 
     deleteFlag(request, response, store);
 
-    verify(store, never()).delete("lucene9");
+    verify(store, never()).delete("ot-search");
     verify(response).setStatus(HttpServletResponse.SC_CONFLICT);
     assertTrue(body.toString().contains("Known feature flags cannot be deleted"));
   }
 
   @Test
-  public void storedUnrelatedFlagCoexistsWithLucene9Placeholder() throws Exception {
+  public void storedUnrelatedFlagCoexistsWithOtSearchDefault() throws Exception {
     FeatureFlagStore store = mock(FeatureFlagStore.class);
     when(store.getAll()).thenReturn(Collections.singletonList(
         new FeatureFlag(
-            "ot-search",
-            "Operational transform search updates",
+            "grafana-log-export",
+            "Log forwarding",
             false,
             Collections.emptyMap())));
 
     String body = fetchFlagsJson(store);
 
-    assertTrue(body.contains("\"name\":\"lucene9\""));
     assertTrue(body.contains("\"name\":\"ot-search\""));
+    assertTrue(body.contains("\"name\":\"grafana-log-export\""));
   }
 
   private String fetchFlagsJson(FeatureFlagStore store) throws Exception {

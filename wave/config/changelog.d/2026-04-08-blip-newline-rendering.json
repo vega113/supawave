@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-08-blip-newline-rendering",
+  "version": "PR #729",
+  "date": "2026-04-08",
+  "title": "Fix Robot Blip Newline Rendering",
+  "summary": "Newlines in robot-authored blip content are now converted to <line/> elements so they render correctly in the wave editor.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Robot blip content containing literal \\n characters is now split into proper <line/> elements on insert",
+        "Fixes #725: robot-generated multi-line blips were displayed as a single collapsed line"
+      ]
+    }
+  ]
+}

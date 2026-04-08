@@ -116,7 +116,7 @@ Required reviewer output:
 
 - [ ] Add a GitHub Issue comment listing all commit SHAs and what each commit does.
 - [ ] Add a GitHub Issue comment summarizing architect findings, plan-review feedback, code-review feedback, and how each important comment was addressed.
-- [ ] Run a local server sanity verification appropriate to the changed area before opening the PR, and record the exact command plus result in the linked GitHub Issue.
+- [ ] Run a local server sanity verification appropriate to the changed area before opening the PR, and record the exact command plus result in the linked GitHub Issue or, for GitHub-Issues workflow lanes without Beads, in `journal/local-verification/<date>-issue-<number>-<slug>.md`.
 - [ ] Run final verification on the agreed targeted test set.
 - [ ] Open a PR from the task branch into `main`.
 - [ ] Add the PR link or number to the issue comments.
@@ -159,6 +159,10 @@ Local server sanity:
 PR:
 - <url or PR number>
 ```
+
+For GitHub-Issues workflow lanes that do not use Beads, keep the same fields in
+`journal/local-verification/<date>-issue-<number>-<slug>.md` and copy the
+important verification and review outcomes into the PR body and issue comment.
 
 ## Efficiency Rules
 

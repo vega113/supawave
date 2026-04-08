@@ -8,6 +8,8 @@ setup, smoke checks, deployment, and operational routines.
 
 ## Local Development
 
+- [`worktree-lane-lifecycle.md`](worktree-lane-lifecycle.md)
+  - Existing-worktree boot lifecycle for GitHub-Issues lanes.
 - [`../DEV_SETUP.md`](../DEV_SETUP.md)
   - Local requirements and setup notes.
 - [`../BUILDING-sbt.md`](../BUILDING-sbt.md)

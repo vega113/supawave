@@ -6,7 +6,7 @@ set -euo pipefail
 #   ./scripts/wave-smoke.sh start   # starts server from install dir and waits for readiness
 #   ./scripts/wave-smoke.sh status  # prints HTTP status of root endpoint
 #   ./scripts/wave-smoke.sh check   # runs a few endpoint checks
-#   ./scripts/wave-smoke.sh stop    # stops server listening on port 9898
+#   PORT=9899 ./scripts/wave-smoke.sh stop  # stops server listening on the selected port
 #
 # Notes:
 # - Expects the distribution staged at target/universal/stage (SBT) or wave/build/install/wave (legacy)
@@ -20,7 +20,9 @@ else
   INSTALL_DIR="${INSTALL_DIR:-wave/build/install/wave}"
 fi
 PID_FILE="$INSTALL_DIR/wave_server.pid"
-PORT=9898
+PORT="${PORT:-9898}"
+[[ "$PORT" =~ ^[0-9]+$ ]] || { echo "PORT must be numeric, got: $PORT" >&2; exit 1; }
+(( PORT >= 1 && PORT <= 65535 )) || { echo "PORT must be between 1 and 65535, got: $PORT" >&2; exit 1; }
 # Hard timeout (seconds) for the stop command to prevent CI hangs
 STOP_TIMEOUT=${STOP_TIMEOUT:-30}
 

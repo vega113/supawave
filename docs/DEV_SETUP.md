@@ -20,8 +20,16 @@ Quick start (server only)
 - From repo root:
   - sbt pst/compile wave/compile
   - sbt Universal/stage
-  - ./target/universal/stage/bin/incubator-wave
+  - ./target/universal/stage/bin/wave
 - Visit http://localhost:9898/
+
+Existing-worktree lane bootstrap
+- For GitHub issue lanes, create the worktree first and then follow
+  [docs/runbooks/worktree-lane-lifecycle.md](runbooks/worktree-lane-lifecycle.md).
+- The standard lane prep command is `bash scripts/worktree-boot.sh --port 9899`.
+- The helper stages the app, creates a port-specific runtime config, and
+  initializes the gitignored local-verification record under
+  `journal/local-verification/`.
 
 Troubleshooting
 - If SBT cannot find a suitable JDK, ensure JAVA_HOME is set to a JDK 17 and/or install via sdkman.

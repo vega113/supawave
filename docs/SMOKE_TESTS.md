@@ -19,6 +19,17 @@ distribution:
    - Expected: `ROOT_STATUS=302`, `WEBCLIENT_STATUS=200`
 4. Stop: `bash scripts/wave-smoke.sh stop`
 
+For issue worktrees, use
+[docs/runbooks/worktree-lane-lifecycle.md](runbooks/worktree-lane-lifecycle.md)
+to prepare the staged app and runtime config first. If port `9898` is busy,
+rerun `bash scripts/worktree-boot.sh --port 9899` and then carry the same
+override into the smoke commands:
+
+1. `PORT=9899 JAVA_OPTS='...' bash scripts/wave-smoke.sh start`
+2. `PORT=9899 bash scripts/wave-smoke.sh check`
+3. `curl -sS http://localhost:9899/healthz`
+4. `PORT=9899 bash scripts/wave-smoke.sh stop`
+
 ## SBT-level smoke
 
 - `sbt wave/compile` -- passes.

@@ -64,6 +64,52 @@ For detailed role behavior and sequencing, follow:
 - Summarize review findings and resolution notes.
 - Provide the PR number/URL.
 
+## Git Worktrees And PRs
+- Every agent that edits code or docs must work in its own git worktree.
+- Prefer multiple worktrees with multiple agents over single-threaded work in
+  the main tree whenever the task can be parallelized safely.
+- When a new worktree needs access to the existing file-based persistence
+  state, use the Codex skill `incubator-wave-worktree-file-store`.
+- That skill should run `scripts/worktree-file-store.sh --source $HOME/devroot/incubator-wave`
+  from the target worktree before testing.
+- Prefer the script's default `symlink` mode so worktrees reuse the same
+  `_accounts`, `_attachments`, and `_deltas` state. Use `--mode copy` only
+  when isolated persistence state is explicitly needed.
+- Do not mix agent edits in the main working tree.
+- Use `$HOME/devroot/worktrees` as the shared root for local worktrees.
+- **CRITICAL — tmux lanes must always be launched FROM the worktree directory, never from
+  the main repo checkout or any subdirectory (e.g. `war/static`).** Any
+  `git checkout` or `git switch` run inside the main repo changes the shared HEAD and flips
+  the branch for every open Claude Code session. The canonical launch sequence is:
+  ```bash
+  git worktree add $HOME/devroot/worktrees/<branch-name> -b <branch-name>
+  # then launch claude from that directory:
+  tmux send-keys -t "<session>:<window>.<pane>" \
+    "cd $HOME/devroot/worktrees/<branch-name> && claude --model <model> --dangerously-skip-permissions < /tmp/lane-prompt.txt" Enter
+  ```
+- **NEVER** create worktrees under `.claude/worktrees/` inside the main repo tree. Always
+  use `$HOME/devroot/worktrees/<branch-name>` as the target path for `git worktree add`.
+- For the standard existing-worktree boot flow, follow
+  `docs/runbooks/worktree-lane-lifecycle.md` from the assigned worktree.
+- Before opening a PR for app-affecting changes, run a local server sanity
+  verification appropriate to the area changed and record the exact command
+  plus result in Beads, or in `journal/local-verification/<date>-issue-<number>-<slug>.md`
+  for GitHub-Issues workflow lanes that are not using Beads.
+- Keep that check narrow and relevant: boot the app and hit a local health or
+  auth endpoint for server/runtime changes, or exercise the affected UI against
+  the local server for client changes.
+- Before merge, clear review conversations by actually addressing them. Nitpicks
+  need an explicit fix or reply; they are not silently ignorable.
+- Do not resolve review threads just to bypass monitoring or branch protection.
+  If a thread is already addressed, reply with the fix commit or technical
+  reasoning before resolving it.
+- When implementation is complete and review is resolved, create a pull request
+  from the reviewed worktree.
+- Keep Beads, commits, and PRs aligned so the task status is always traceable.
+- When Beads is not part of the workflow, mirror the important local
+  verification commands and results from the journal record into the PR body
+  and issue comment.
+
 Use `docs/github-issues.md` as the canonical evidence format and workflow reference.
 
 ## Changelog And Code Rules

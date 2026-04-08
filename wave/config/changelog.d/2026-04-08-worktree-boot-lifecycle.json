@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-08-worktree-boot-lifecycle",
+  "version": "PR #736",
+  "date": "2026-04-08",
+  "title": "Standardized Worktree Lane Boot Lifecycle",
+  "summary": "Adds a worktree boot helper script and runbook so agent lanes can reliably start, verify, and shut down isolated development environments without tribal knowledge.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Add scripts/worktree-boot.sh: stages the app, detects port conflicts, writes a port-specific runtime config, and initializes the local-verification journal entry",
+        "Add docs/runbooks/worktree-lane-lifecycle.md: single runbook covering worktree creation through shutdown",
+        "Update scripts/wave-smoke.sh to honor PORT from the environment with numeric validation",
+        "Document the journal/local-verification/ evidence contract in AGENTS.md and the agent orchestration plan"
+      ]
+    }
+  ]
+}

@@ -584,6 +584,9 @@ public class EditorImpl extends LogicalPanel.Impl implements
    */
   private PasteExtractor pasteExtractor;
 
+  /** Optional handler that intercepts image data in paste events. */
+  private ImagePasteHandler imagePasteHandler;
+
   /**
    * The thing that makes the content match the html or vice versa
    */
@@ -883,6 +886,10 @@ public class EditorImpl extends LogicalPanel.Impl implements
     @Override
     public boolean handlePaste(EditorEvent event) {
       editorUndoManager.maybeCheckpoint();
+      if (imagePasteHandler != null
+          && imagePasteHandler.handleImagePaste(event.asEvent())) {
+        return true;
+      }
       EditorStaticDeps.logger.trace().log("handling paste");
       return pasteExtractor.handlePasteEvent(currentSelectionBias);
     }
@@ -2657,6 +2664,16 @@ public class EditorImpl extends LogicalPanel.Impl implements
    */
   public PasteExtractor debugGetPasteExtractor() {
     return pasteExtractor;
+  }
+
+  /**
+   * Registers a handler that intercepts clipboard image data on paste.
+   * When set, the handler is checked before the normal text-paste path.
+   *
+   * @param handler the handler, or {@code null} to clear
+   */
+  public void setImagePasteHandler(ImagePasteHandler handler) {
+    this.imagePasteHandler = handler;
   }
 
   /**

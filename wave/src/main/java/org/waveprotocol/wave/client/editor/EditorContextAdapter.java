@@ -39,6 +39,9 @@ public class EditorContextAdapter implements EditorContext {
   /** Editor instance being wrapped. */
   private EditorContext editor;
 
+  /** Handler forwarded to the wrapped editor whenever it is set or swapped. */
+  private ImagePasteHandler imagePasteHandler;
+
   /** Constructs a context, taking the initial editor to wrap. */
   public EditorContextAdapter(EditorContext editor) {
     this.editor = editor;
@@ -52,9 +55,25 @@ public class EditorContextAdapter implements EditorContext {
     Preconditions.checkState(this.editor == editor, "wrong editor");
   }
 
+  /**
+   * Sets the image paste handler and forwards it to the currently wrapped
+   * editor if that editor is an {@link EditorImpl}.
+   */
+  public void setImagePasteHandler(ImagePasteHandler handler) {
+    this.imagePasteHandler = handler;
+    forwardImagePasteHandler(editor);
+  }
+
   /** Silently switches the wrapped editor with a new instance. */
   public void switchEditor(EditorContext newEditor) {
     this.editor = newEditor;
+    forwardImagePasteHandler(newEditor);
+  }
+
+  private void forwardImagePasteHandler(EditorContext ctx) {
+    if (ctx instanceof EditorImpl) {
+      ((EditorImpl) ctx).setImagePasteHandler(imagePasteHandler);
+    }
   }
 
   @Override

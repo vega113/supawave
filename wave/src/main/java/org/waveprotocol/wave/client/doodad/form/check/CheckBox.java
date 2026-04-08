@@ -20,6 +20,7 @@
 package org.waveprotocol.wave.client.doodad.form.check;
 
 import org.waveprotocol.wave.model.util.Preconditions;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.InputElement;
@@ -109,10 +110,11 @@ public class CheckBox {
 
     @Override
     public void onActivatedSubtree(ContentElement element) {
-      // ContentDocument.setupBehaviour calls onActivationStart (via fanoutAttrs → updateCheckboxDom)
-      // BEFORE reInsertImpl attaches the nodelet to its DOM parent. If the task was already
-      // checked at that point, updateCheckboxDom silently skipped styling because
-      // implNodelet.getParentElement() was null. Now that reInsertImpl has run, retry.
+      // setupBehaviour calls triggerChildrenReady() (→ onActivatedSubtree) on each child
+      // BEFORE the parent's reInsertImpl() inserts that child's span into the parent's
+      // DOM container.  So implNodelet.getParentElement() is still null here during the
+      // initial bootstrap pass.  Defer to a scheduleFinally task that runs after the full
+      // setupBehaviour tree — and therefore all parent reInsertImpl() calls — completes.
       String name = element.getAttribute(ContentElement.NAME);
       if (name == null || !name.startsWith(TaskDocumentUtil.TASK_NAME_PREFIX)) {
         return;
@@ -120,20 +122,34 @@ public class CheckBox {
       if (!getChecked(element)) {
         return;
       }
-      Element implNodelet = element.getImplNodelet();
+      final Element implNodelet = element.getImplNodelet();
       if (implNodelet == null) {
         return;
       }
-      // PARAGRAPH_PROPERTY is set by updateCheckboxDom only when paragraph != null.
-      // If it is still unset here, the initial styling pass was a no-op.
+      // PARAGRAPH_PROPERTY is set by updateCheckboxDom whenever paragraph != null.
+      // If already set, the initial pass succeeded; no deferred work needed.
       if (implNodelet.getPropertyObject(PARAGRAPH_PROPERTY) != null) {
         return;
       }
-      Element paragraph = implNodelet.getParentElement();
-      if (paragraph != null) {
-        implNodelet.setPropertyObject(PARAGRAPH_PROPERTY, paragraph);
-        paragraph.addClassName(TASK_COMPLETED_CLASS);
-      }
+      Scheduler.get().scheduleFinally(new Scheduler.ScheduledCommand() {
+        @Override
+        public void execute() {
+          // Guard: user may have toggled the checkbox before the deferred task ran.
+          Element firstChild = implNodelet.getFirstChildElement();
+          if (firstChild == null || !InputElement.as(firstChild).isChecked()) {
+            return;
+          }
+          // Guard: a later updateCheckboxDom call may have already set this.
+          if (implNodelet.getPropertyObject(PARAGRAPH_PROPERTY) != null) {
+            return;
+          }
+          Element paragraph = implNodelet.getParentElement();
+          if (paragraph != null) {
+            implNodelet.setPropertyObject(PARAGRAPH_PROPERTY, paragraph);
+            paragraph.addClassName(TASK_COMPLETED_CLASS);
+          }
+        }
+      });
     }
 
     @Override

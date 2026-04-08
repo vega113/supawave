@@ -481,6 +481,14 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
   @Override
   public void setAttachmentUrl(String url) {
     this.attachmentUrl = url;
+    // Trigger layout when the URL arrives and attachment is the active source.
+    // This handles the case where setFullSizeMode(true) fired before the URL
+    // was set (e.g. 'style' attribute processed before 'attachment'), and the
+    // setThumbnailSize guard would otherwise skip the relayout.
+    if (AttachmentDisplayLayout.decide(displaySize, isFullSize, isContentImage())
+        .getSourceKind() == AttachmentDisplayLayout.SourceKind.ATTACHMENT) {
+      setImageSize();
+    }
   }
 
   @Override

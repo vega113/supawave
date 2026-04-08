@@ -618,7 +618,7 @@ public final class SearchPresenter
     }
 
     if (taskSearchEnabled) {
-      boolean taskBadgeOn = taskTracker != null && taskTracker.isEnabled();
+      boolean taskBadgeOn = taskTracker != null && taskTracker.isBadgeEnabled();
       Element taskVisual;
       if (taskBadgeOn) {
         Element wrapper = DOM.createSpan();
@@ -767,7 +767,7 @@ public final class SearchPresenter
     if (taskTracker == null) {
       return;
     }
-    boolean isTrackedTaskQuery = queryText != null && queryText.contains("tasks:me");
+    boolean isTrackedTaskQuery = isTrackedTasksQuery(queryText);
     if (!isTrackedTaskQuery) {
       return;
     }
@@ -775,11 +775,28 @@ public final class SearchPresenter
     while (view != null) {
       Digest d = digestUis.get(view);
       if (d != null) {
-        int taskCount = taskTracker.getUnreadCountForWave(d.getWaveId());
-        view.setTaskCount(taskCount);
+        boolean hasUnread = taskTracker.hasUnreadTasksForWave(d.getWaveId());
+        view.setTaskUnread(hasUnread);
       }
       view = searchUi.getNext(view);
     }
+  }
+
+  /**
+   * Returns true when the query text matches the tracked tasks scope exactly
+   * ("tasks:me" as a whole token). Prevents "tasks:megan@example.com" from
+   * being misclassified as the self-task query.
+   */
+  private static boolean isTrackedTasksQuery(String queryText) {
+    if (queryText == null) {
+      return false;
+    }
+    int idx = queryText.indexOf("tasks:me");
+    if (idx < 0) {
+      return false;
+    }
+    int end = idx + 8; // length of "tasks:me"
+    return end >= queryText.length() || queryText.charAt(end) == ' ';
   }
 
   /**
@@ -982,7 +999,7 @@ public final class SearchPresenter
     digestUis.clear();
     setSelected(null);
     boolean isMentionQuery = queryText != null && queryText.contains("mentions:");
-    boolean isTaskQuery = queryText != null && queryText.contains("tasks:me");
+    boolean isTaskQuery = isTrackedTasksQuery(queryText);
     for (int i = 0, size = search.getMinimumTotal(); i < size; i++) {
       Digest digest = search.getDigest(i);
       if (digest == null) {
@@ -998,8 +1015,8 @@ public final class SearchPresenter
         digestUi.setMentionCount(mentionCount);
       }
       if (isTaskQuery && taskTracker != null) {
-        int taskCount = taskTracker.getUnreadCountForWave(digest.getWaveId());
-        digestUi.setTaskCount(taskCount);
+        boolean hasUnread = taskTracker.hasUnreadTasksForWave(digest.getWaveId());
+        digestUi.setTaskUnread(hasUnread);
       }
     }
     isRenderingInProgress = false;
@@ -1255,9 +1272,11 @@ public final class SearchPresenter
       int mentionCount = mentionTracker.getUnreadCountForWave(digest.getWaveId());
       digestUi.setMentionCount(mentionCount);
     }
-    if (queryText != null && queryText.contains("tasks:me") && taskTracker != null) {
-      int taskCount = taskTracker.getUnreadCountForWave(digest.getWaveId());
-      digestUi.setTaskCount(taskCount);
+    if (isTrackedTasksQuery(queryText) && taskTracker != null) {
+      boolean hasUnread = taskTracker.hasUnreadTasksForWave(digest.getWaveId());
+      digestUi.setTaskUnread(hasUnread);
+    } else {
+      digestUi.setTaskUnread(false);
     }
   }
 

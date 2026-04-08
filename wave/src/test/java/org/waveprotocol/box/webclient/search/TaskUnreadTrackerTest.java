@@ -69,17 +69,24 @@ public final class TaskUnreadTrackerTest extends TestCase {
     return tracker;
   }
 
-  public void testDisabledTrackerReturnsZero() {
-    TaskUnreadTracker tracker = createTracker(false, true);
-    tracker.start();
-    assertEquals(0, tracker.getUnreadTaskCount());
-    assertNull(tracker.getNextUnreadTaskWaveId());
+  public void testDisabledWhenBothFlagsOff() {
+    TaskUnreadTracker tracker = createTracker(false, false);
     assertFalse(tracker.isEnabled());
+    assertFalse(tracker.isBadgeEnabled());
   }
 
-  public void testDisabledWhenTaskSearchOff() {
+  public void testEnabledWhenTaskSearchOnlyOn() {
+    // Tracker polls for per-wave badges even when the toolbar badge is off.
+    TaskUnreadTracker tracker = createTracker(false, true);
+    assertTrue(tracker.isEnabled());
+    assertFalse(tracker.isBadgeEnabled());
+  }
+
+  public void testEnabledWhenBadgeOnlyOn() {
+    // Tracker polls to drive the toolbar badge even when task-search is off.
     TaskUnreadTracker tracker = createTracker(true, false);
-    assertFalse(tracker.isEnabled());
+    assertTrue(tracker.isEnabled());
+    assertTrue(tracker.isBadgeEnabled());
   }
 
   public void testCountsUnreadTaskWaves() {

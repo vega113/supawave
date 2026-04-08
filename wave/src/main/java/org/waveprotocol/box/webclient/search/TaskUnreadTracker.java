@@ -27,9 +27,9 @@ import org.waveprotocol.wave.model.id.WaveId;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
  * Tracks unread task counts by periodically querying the search service
@@ -54,12 +54,13 @@ public final class TaskUnreadTracker {
   private final SearchService searchService;
   private final TimerService scheduler;
   private final boolean enabled;
+  private final boolean badgeEnabled;
 
   private Listener listener;
   private Request pendingRequest;
   private double pendingRequestStartTime;
   private List<WaveId> unreadTaskWaves = Collections.emptyList();
-  private Map<WaveId, Integer> perWaveUnreadCounts = Collections.emptyMap();
+  private Set<WaveId> wavesWithUnreadTasks = Collections.emptySet();
   private int totalUnreadCount = 0;
   private int cursor = -1;
   private WaveId currentWaveId;
@@ -76,7 +77,8 @@ public final class TaskUnreadTracker {
       boolean taskBadgeEnabled, boolean taskSearchEnabled) {
     this.searchService = searchService;
     this.scheduler = scheduler;
-    this.enabled = taskBadgeEnabled && taskSearchEnabled;
+    this.enabled = taskBadgeEnabled || taskSearchEnabled;
+    this.badgeEnabled = taskBadgeEnabled;
   }
 
   /** Starts the polling loop. No-op if the feature is disabled. */
@@ -95,6 +97,10 @@ public final class TaskUnreadTracker {
 
   public boolean isEnabled() {
     return enabled;
+  }
+
+  public boolean isBadgeEnabled() {
+    return badgeEnabled;
   }
 
   public void setListener(Listener listener) {
@@ -134,11 +140,10 @@ public final class TaskUnreadTracker {
   }
 
   /**
-   * Returns the unread task count for a specific wave, or 0 if unknown.
+   * Returns true if the given wave has unread tasks assigned to the current user.
    */
-  public int getUnreadCountForWave(WaveId id) {
-    Integer count = perWaveUnreadCounts.get(id);
-    return count != null ? count : 0;
+  public boolean hasUnreadTasksForWave(WaveId id) {
+    return wavesWithUnreadTasks.contains(id);
   }
 
   /** Informs the tracker which wave the user is currently viewing. */
@@ -196,21 +201,17 @@ public final class TaskUnreadTracker {
 
   private void handleResults(List<SearchService.DigestSnapshot> snapshots) {
     List<WaveId> newUnread = new ArrayList<>();
-    Map<WaveId, Integer> newPerWaveCounts = new HashMap<>();
+    Set<WaveId> newWavesWithUnread = new HashSet<>();
     for (SearchService.DigestSnapshot snapshot : snapshots) {
       if (snapshot.getUnreadCount() > 0) {
         WaveId waveId = snapshot.getWaveId();
         // Deduplicate: paginated scans can return the same wave on two pages when
-        // results reorder between requests. The map put is idempotent, but the
+        // results reorder between requests. The set add is idempotent, but the
         // list add is not -- skip waves already tracked to keep totalUnreadCount
         // consistent with the navigable set size.
-        if (!newPerWaveCounts.containsKey(waveId)) {
+        if (!newWavesWithUnread.contains(waveId)) {
           newUnread.add(waveId);
-          // Use 1 per wave: the query is "tasks:me unread:true" so the wave
-          // qualifies as a task-wave; unreadCount is the general unread-blip
-          // total, not a task-specific count, so it must not be used as the
-          // per-wave badge value.
-          newPerWaveCounts.put(waveId, 1);
+          newWavesWithUnread.add(waveId);
         }
       }
     }
@@ -225,7 +226,7 @@ public final class TaskUnreadTracker {
     }
 
     unreadTaskWaves = Collections.unmodifiableList(newUnread);
-    perWaveUnreadCounts = Collections.unmodifiableMap(newPerWaveCounts);
+    wavesWithUnreadTasks = Collections.unmodifiableSet(newWavesWithUnread);
     // Use the collected count so the badge exactly matches the navigable set.
     totalUnreadCount = newUnread.size();
 

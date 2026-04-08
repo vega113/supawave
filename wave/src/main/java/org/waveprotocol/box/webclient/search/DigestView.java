@@ -45,7 +45,7 @@ public interface DigestView {
 
   void setMentionCount(int count);
 
-  void setTaskCount(int count);
+  void setTaskUnread(boolean hasUnread);
 
   /** Renders this view in the selected state. */
   void select();

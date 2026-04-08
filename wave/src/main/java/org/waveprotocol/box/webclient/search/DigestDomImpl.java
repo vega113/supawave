@@ -247,8 +247,8 @@ public final class DigestDomImpl implements DigestView {
   }
 
   @Override
-  public void setTaskCount(int count) {
-    if (count <= 0) {
+  public void setTaskUnread(boolean hasUnread) {
+    if (!hasUnread) {
       if (taskCountEl != null) {
         taskCountEl.getStyle().setDisplay(Style.Display.NONE);
         taskCountEl.setInnerText("");
@@ -260,8 +260,7 @@ public final class DigestDomImpl implements DigestView {
       taskCountEl.setClassName(css.taskCount());
       msgs.appendChild(taskCountEl);
     }
-    String text = "\u2611";
-    taskCountEl.setInnerText(text);
+    taskCountEl.setInnerText("\u2611");
     taskCountEl.getStyle().setDisplay(Style.Display.INLINE_BLOCK);
   }
 

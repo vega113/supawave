@@ -26,8 +26,6 @@ import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.document.util.Point;
 import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
 
-import java.util.Locale;
-
 /**
  * Utility for inserting task checkboxes into wave documents.
  *
@@ -48,9 +46,11 @@ public final class TaskDocumentUtil {
    * The resulting ID is short and URL-safe (base-36 encoded).
    */
   public static String generateTaskId() {
-    // Use current time millis in base36 + 6-digit ASCII random suffix for collision resistance
-    return "t" + Long.toString(System.currentTimeMillis(), 36)
-        + String.format(Locale.ROOT, "%06d", (int) (Math.random() * 999999));
+    // Use current time millis in base36 + 30-bit random suffix (base36) for collision resistance.
+    // Integer.toString(r + 0x40000000, 36) gives 7 base-36 chars with 30 bits of entropy.
+    // Both Long.toString and Integer.toString with radix are GWT JRE-emulation compatible.
+    int r = (int) (Math.random() * 0x7FFFFFFF);
+    return "t" + Long.toString(System.currentTimeMillis(), 36) + Integer.toString(r + 0x40000000, 36);
   }
 
   /**

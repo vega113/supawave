@@ -678,7 +678,7 @@ public final class SearchPresenterTest extends TestCase {
     }
 
     @Override
-    public void setTaskCount(int count) {
+    public void setTaskUnread(boolean hasUnread) {
     }
 
     @Override

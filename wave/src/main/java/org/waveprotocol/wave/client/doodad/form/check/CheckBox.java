@@ -108,6 +108,35 @@ public class CheckBox {
     }
 
     @Override
+    public void onActivatedSubtree(ContentElement element) {
+      // ContentDocument.setupBehaviour calls onActivationStart (via fanoutAttrs → updateCheckboxDom)
+      // BEFORE reInsertImpl attaches the nodelet to its DOM parent. If the task was already
+      // checked at that point, updateCheckboxDom silently skipped styling because
+      // implNodelet.getParentElement() was null. Now that reInsertImpl has run, retry.
+      String name = element.getAttribute(ContentElement.NAME);
+      if (name == null || !name.startsWith(TaskDocumentUtil.TASK_NAME_PREFIX)) {
+        return;
+      }
+      if (!getChecked(element)) {
+        return;
+      }
+      Element implNodelet = element.getImplNodelet();
+      if (implNodelet == null) {
+        return;
+      }
+      // PARAGRAPH_PROPERTY is set by updateCheckboxDom only when paragraph != null.
+      // If it is still unset here, the initial styling pass was a no-op.
+      if (implNodelet.getPropertyObject(PARAGRAPH_PROPERTY) != null) {
+        return;
+      }
+      Element paragraph = implNodelet.getParentElement();
+      if (paragraph != null) {
+        implNodelet.setPropertyObject(PARAGRAPH_PROPERTY, paragraph);
+        paragraph.addClassName(TASK_COMPLETED_CLASS);
+      }
+    }
+
+    @Override
     public void onAttributeModified(ContentElement element, String name, String oldValue,
         String newValue) {
       if (CheckConstants.VALUE.equalsIgnoreCase(name)) {

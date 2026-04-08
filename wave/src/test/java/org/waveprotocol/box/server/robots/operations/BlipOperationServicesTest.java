@@ -201,13 +201,13 @@ public class BlipOperationServicesTest extends RobotsTestBase {
         helloIdx >= 0 && lineIdx > helloIdx);
   }
 
-  public void testBuildMultilineContent_crlfNormalization() {
-    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("Hello\r\nWorld");
+  public void testBuildMultilineContent_crOnlyNormalization() {
+    XmlStringBuilder result = BlipOperationServices.buildMultilineContent("Hello\rWorld");
     String xml = result.getXmlString();
     int helloIdx = xml.indexOf("Hello");
     int lineIdx = xml.indexOf("<line", helloIdx);
     int worldIdx = xml.indexOf("World", lineIdx);
-    assertTrue("Expected <line/> element for CRLF newline",
+    assertTrue("Expected <line/> element for CR newline",
         helloIdx >= 0 && lineIdx > helloIdx && worldIdx > lineIdx);
   }
 

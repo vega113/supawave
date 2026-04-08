@@ -389,6 +389,9 @@ public class BlipOperationServices implements OperationService {
    * @param content the content to add.
    */
   private void putContentForNewBlip(ConversationBlip newBlip, String content) {
+    // Normalize CR/CRLF to LF before stripping the auto-prefixed leading newline so that
+    // Windows-style \r\n prefixes from robot clients are handled consistently.
+    content = content.replace("\r\n", "\n").replace("\r", "\n");
     if (content.length() > 0 && content.charAt(0) == '\n') {
       // While the client libraries force a newline to be sent as the first
       // character we'll remove it here since the new blip we created already

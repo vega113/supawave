@@ -3465,6 +3465,13 @@ public final class HtmlRenderer {
     sb.append("      <span class=\"net-icon net-icon-online\">").append(ICON_WIFI).append("</span>\n");
     sb.append("      <span class=\"net-icon net-icon-offline\">").append(ICON_WIFI_OFF).append("</span>\n");
     sb.append("    </span>\n");
+    // Admin contact notification icon (admin/owner only)
+    if ("owner".equals(userRole) || "admin".equals(userRole)) {
+      sb.append("    <a id=\"adminMsgBtn\" class=\"topbar-icon admin-msg-btn\" href=\"").append(safeCtx).append("/admin#contacts\" title=\"Contact messages\" aria-label=\"Contact messages\">\n");
+      sb.append("      ").append(ICON_MAIL).append("\n");
+      sb.append("      <span id=\"adminMsgBadge\" class=\"admin-badge hidden\" aria-hidden=\"true\">0</span>\n");
+      sb.append("    </a>\n");
+    }
     // User menu
     sb.append("    <div class=\"user-menu\">\n");
     sb.append("      <button id=\"topbarUserMenuToggle\" type=\"button\" class=\"user-menu-toggle\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-controls=\"topbarUserMenu\" aria-label=\"Open user menu for ").append(safeAddrFull).append("\" title=\"").append(safeAddrFull).append("\">\n");
@@ -3580,6 +3587,13 @@ public final class HtmlRenderer {
       // -- Connection status: wifi-off icon for initial offline state, updated by GWT --
       sb.append("    <span id=\"netstatus\" class=\"topbar-icon offline\" title=\"Offline\">");
       sb.append(ICON_WIFI_OFF).append("</span>\n");
+      // -- Admin contact notification icon (admin/owner only) --
+      if ("owner".equals(userRole) || "admin".equals(userRole)) {
+        sb.append("    <a id=\"adminMsgBtn\" class=\"topbar-icon admin-msg-btn\" href=\"/admin#contacts\" title=\"Contact messages\" aria-label=\"Contact messages\">\n");
+        sb.append("      ").append(ICON_MAIL).append("\n");
+        sb.append("      <span id=\"adminMsgBadge\" class=\"admin-badge hidden\" aria-hidden=\"true\">0</span>\n");
+        sb.append("    </a>\n");
+      }
       // -- User menu with avatar --
       sb.append("    <div class=\"user-menu\">\n");
       sb.append("      <button class=\"user-menu-toggle\" title=\"").append(fullAddress).append("\">\n");

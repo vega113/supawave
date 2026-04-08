@@ -17,6 +17,7 @@
 package org.waveprotocol.box.server.rpc;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import junit.framework.TestCase;
 
@@ -74,5 +75,47 @@ public final class HtmlRendererTopBarTest extends TestCase {
     assertTrue(css.contains(".admin-msg-btn"));
     assertTrue(css.contains(".admin-badge"));
     assertTrue(css.contains("admin-glow"));
+  }
+
+  public void testRenderSharedTopBarHtmlAdminShowsEnvelopeIcon() {
+    String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "", "admin");
+
+    assertTrue(html.contains("id=\"adminMsgBtn\""));
+    assertTrue(html.contains("id=\"adminMsgBadge\""));
+    assertTrue(html.contains("href=\"/admin#contacts\""));
+  }
+
+  public void testRenderSharedTopBarHtmlUserHasNoEnvelopeIcon() {
+    String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "", "user");
+
+    assertFalse(html.contains("id=\"adminMsgBtn\""));
+    assertFalse(html.contains("id=\"adminMsgBadge\""));
+  }
+
+  public void testRenderSharedTopBarHtmlOwnerShowsEnvelopeIcon() {
+    String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "/wave", "owner");
+
+    assertTrue(html.contains("id=\"adminMsgBtn\""));
+    assertTrue(html.contains("href=\"/wave/admin#contacts\""));
+  }
+
+  public void testRenderTopBarAdminShowsEnvelopeIcon() {
+    String html = HtmlRenderer.renderTopBar("vega", "example.com", "admin");
+
+    assertTrue(html.contains("id=\"adminMsgBtn\""));
+    assertTrue(html.contains("id=\"adminMsgBadge\""));
+    assertTrue(html.contains("href=\"/admin#contacts\""));
+  }
+
+  public void testRenderTopBarUserHasNoEnvelopeIcon() {
+    String html = HtmlRenderer.renderTopBar("vega", "example.com", "user");
+
+    assertFalse(html.contains("id=\"adminMsgBtn\""));
+  }
+
+  public void testRenderTopBarOwnerShowsEnvelopeIcon() {
+    String html = HtmlRenderer.renderTopBar("vega", "example.com", "owner");
+
+    assertTrue(html.contains("id=\"adminMsgBtn\""));
   }
 }

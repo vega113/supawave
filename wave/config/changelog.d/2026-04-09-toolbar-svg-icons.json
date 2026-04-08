@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-09-toolbar-svg-icons",
+  "version": "PR #748",
+  "date": "2026-04-09",
+  "title": "Toolbar SVG Icon Polish and Hover Effects",
+  "summary": "Replaces toolbar PNG sprites with refined SVG icons and adds smooth hover and press visual feedback.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replaced edit toolbar PNG sprites with polished SVG icons using lighter 18px strokes",
+        "Added smooth hover color transition and press scale effect on toolbar icon buttons",
+        "Scoped icon hover effects to enabled buttons only to avoid misleading disabled state feedback",
+        "Converted toolbar button layout to flex-based for improved vertical centering and touch sizing"
+      ]
+    }
+  ]
+}

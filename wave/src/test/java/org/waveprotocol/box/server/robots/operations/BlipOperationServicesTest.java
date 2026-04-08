@@ -237,9 +237,11 @@ public class BlipOperationServicesTest extends RobotsTestBase {
   public void testAppendBlipWithCrlfPrefix() throws Exception {
     // Robot clients on Windows may send \r\n as the leading auto-prefix.
     // The prefix should be stripped, not converted to an extra <line/>.
-    BlipData crlfBlipData = new BlipData(s(WAVE_ID), s(WAVELET_ID), TEMP_BLIP_ID,
-        "\r\nHello");
+    // Use setContent() to bypass BlipData constructor normalization so the raw
+    // CRLF prefix reaches putContentForNewBlip, as Gson deserialization would.
+    BlipData crlfBlipData = new BlipData(s(WAVE_ID), s(WAVELET_ID), TEMP_BLIP_ID, "\r\nHello");
     crlfBlipData.setBlipId(TEMP_BLIP_ID);
+    crlfBlipData.setContent("\r\nHello");
 
     OperationRequest operation = operationRequest(OperationType.WAVELET_APPEND_BLIP,
         Parameter.of(ParamsProperty.BLIP_DATA, crlfBlipData));

@@ -66,6 +66,7 @@ public class Lucene9QueryCompiler {
     }
     addTextQueries(builder, Lucene9FieldNames.TITLE_TEXT, model.values(TokenQueryType.TITLE));
     addTextQueries(builder, Lucene9FieldNames.CONTENT_TEXT, model.values(TokenQueryType.CONTENT));
+    addTaskAssigneeQuery(builder, model.values(TokenQueryType.TASKS), user);
     return builder.build();
   }
 
@@ -152,6 +153,41 @@ public class Lucene9QueryCompiler {
       default:
         return new SortField(Lucene9FieldNames.LAST_MODIFIED_SORT, SortField.Type.LONG, true);
     }
+  }
+
+  private void addTaskAssigneeQuery(BooleanQuery.Builder builder, List<String> taskValues,
+      ParticipantId user) throws InvalidQueryException {
+    if (taskValues.isEmpty()) {
+      return;
+    }
+    BooleanQuery.Builder assigneeBuilder = new BooleanQuery.Builder();
+    for (ParticipantId assignee : normalizeTaskAssignees(taskValues, user)) {
+      assigneeBuilder.add(new TermQuery(new Term(Lucene9FieldNames.TASK_ASSIGNEE,
+          assignee.getAddress())), Occur.SHOULD);
+    }
+    assigneeBuilder.setMinimumNumberShouldMatch(1);
+    builder.add(assigneeBuilder.build(), Occur.MUST);
+  }
+
+  private List<ParticipantId> normalizeTaskAssignees(List<String> rawValues, ParticipantId user)
+      throws InvalidQueryException {
+    List<ParticipantId> assignees = new java.util.ArrayList<>();
+    for (String raw : rawValues) {
+      try {
+        if ("me".equalsIgnoreCase(raw)) {
+          assignees.add(user);
+        } else if (!raw.contains("@")) {
+          assignees.add(ParticipantId.of(raw + "@" + user.getDomain()));
+        } else {
+          assignees.add(ParticipantId.of(raw));
+        }
+      } catch (IllegalArgumentException e) {
+        throw new InvalidQueryException("Invalid task assignee: " + raw + " — " + e.getMessage());
+      } catch (InvalidParticipantAddress e) {
+        throw new InvalidQueryException("Invalid task assignee address: " + raw);
+      }
+    }
+    return assignees;
   }
 
   private List<ParticipantId> normalizeParticipants(List<String> rawValues, String localDomain)

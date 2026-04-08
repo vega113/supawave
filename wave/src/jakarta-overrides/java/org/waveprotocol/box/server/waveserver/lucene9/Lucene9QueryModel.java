@@ -77,6 +77,10 @@ public final class Lucene9QueryModel {
     return hasToken(TokenQueryType.TITLE) || hasToken(TokenQueryType.CONTENT);
   }
 
+  public boolean hasTaskQuery() {
+    return hasToken(TokenQueryType.TASKS);
+  }
+
   public String toLegacyQuery() {
     StringBuilder builder = new StringBuilder();
     for (Token token : tokens) {

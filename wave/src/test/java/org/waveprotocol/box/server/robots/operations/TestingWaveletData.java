@@ -99,6 +99,19 @@ public class TestingWaveletData {
     TitleHelper.maybeFindAndSetImplicitTitle(blip.getContent());
   }
 
+  /**
+   * Appends a blip whose body content is constructed from raw XML. Use this
+   * to inject elements like {@code <check value="true"/>} into test blips.
+   *
+   * @param xmlContent inline XML fragment (e.g. {@code "<check value=\"true\"/>Task text"})
+   */
+  public void appendBlipWithXml(String xmlContent) {
+    ConversationBlip blip = conversation.getRootThread().appendBlip();
+    LineContainers.appendToLastLine(
+        blip.getContent(), XmlStringBuilder.createFromXmlString(xmlContent));
+    TitleHelper.maybeFindAndSetImplicitTitle(blip.getContent());
+  }
+
   public List<ObservableWaveletData> copyWaveletData() {
     // This data object already has an op-based owner on top. Must copy it.
     return ImmutableList.of(WaveletDataUtil.copyWavelet(waveletData),

@@ -47,4 +47,7 @@ public interface SearchView {
 
   /** Shows or hides mention search affordances in the search help panel. */
   void setMentionsSearchVisible(boolean visible);
+
+  /** Shows or hides task search affordances in the search help panel. */
+  void setTasksSearchVisible(boolean visible);
 }

@@ -63,6 +63,7 @@ import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
 import org.waveprotocol.wave.client.editor.content.FocusedContentRange;
 import org.waveprotocol.wave.client.doodad.attachment.ImageThumbnail;
 import org.waveprotocol.wave.client.doodad.attachment.render.ImageThumbnailWrapper;
+import org.waveprotocol.wave.client.doodad.form.check.TaskDocumentUtil;
 
 /**
  * Attaches actions that can be performed in a Wave's "edit mode" to a toolbar.
@@ -175,6 +176,9 @@ public class EditToolbar {
 
     group = toolbarUi.addGroup();
     createInsertAttachmentButton(group, user);
+
+    group = toolbarUi.addGroup();
+    createInsertTaskButton(group);
   }
 
   private void createBoldButton(ToolbarView toolbar) {
@@ -402,6 +406,38 @@ public class EditToolbar {
           }
         });
 }
+
+  private void createInsertTaskButton(ToolbarView toolbar) {
+    new ToolbarButtonViewBuilder()
+        .setIcon(css.unorderedlist())
+        .setTooltip("Insert task")
+        .applyTo(toolbar.addClickButton(), new ToolbarClickButton.Listener() {
+          @Override
+          public void onClicked() {
+            CMutableDocument doc = editor.getDocument();
+            if (doc == null) {
+              return;
+            }
+            FocusedContentRange selection = editor.getSelectionHelper().getSelectionPoints();
+            Point<ContentNode> point;
+            if (selection != null) {
+              point = selection.getFocus();
+            } else {
+              // Focus was probably lost.  Bring it back.
+              editor.focus(false);
+              selection = editor.getSelectionHelper().getSelectionPoints();
+              if (selection != null) {
+                point = selection.getFocus();
+              } else {
+                // Still no selection.  Put it at the end.
+                point = doc.locate(doc.size() - 1);
+              }
+            }
+            String taskId = TaskDocumentUtil.generateTaskId();
+            TaskDocumentUtil.insertTask(doc, point, taskId, user.getAddress());
+          }
+        });
+  }
 
   private void createRtlDirectionButton(ToolbarView toolbar) {
     ToolbarToggleButton rtlButton = toolbar.addToggleButton();

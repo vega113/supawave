@@ -407,6 +407,18 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
       return;
     }
 
+    // Checkbox (task check element)
+    if ("check".equals(tag)) {
+      String value = attrs != null ? attrs.get("value") : null;
+      boolean checked = "true".equalsIgnoreCase(value);
+      sb.append("<input type=\"checkbox\" disabled");
+      if (checked) {
+        sb.append(" checked");
+      }
+      sb.append(" />");
+      return;
+    }
+
     // Image
     if ("image".equals(tag) || "img".equals(tag)) {
       String src = attrs != null ? attrs.get("src") : null;

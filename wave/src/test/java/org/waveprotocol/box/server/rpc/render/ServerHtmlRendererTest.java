@@ -185,4 +185,52 @@ public class ServerHtmlRendererTest extends TestCase {
     assertTrue("Expected blip div", html.contains("class=\"blip\""));
     assertTrue("Expected author", html.contains("alice@example.com"));
   }
+
+  // =========================================================================
+  // Tests for check element rendering (task checkboxes)
+  // =========================================================================
+
+  public void testRenderWaveWithCheckedCheckbox() {
+    TestingWaveletData data =
+        new TestingWaveletData(WAVE_ID, CONV_WAVELET_ID, AUTHOR, true);
+    data.appendBlipWithXml("<check value=\"true\"/>Buy groceries");
+    WaveViewData viewData = data.copyViewData();
+
+    String html = ServerHtmlRenderer.renderWave(viewData, VIEWER);
+
+    assertNotNull(html);
+    assertTrue("Expected checked disabled checkbox",
+        html.contains("<input type=\"checkbox\" disabled checked />"));
+    assertTrue("Expected task text", html.contains("Buy groceries"));
+  }
+
+  public void testRenderWaveWithUncheckedCheckbox() {
+    TestingWaveletData data =
+        new TestingWaveletData(WAVE_ID, CONV_WAVELET_ID, AUTHOR, true);
+    data.appendBlipWithXml("<check value=\"false\"/>Write report");
+    WaveViewData viewData = data.copyViewData();
+
+    String html = ServerHtmlRenderer.renderWave(viewData, VIEWER);
+
+    assertNotNull(html);
+    assertTrue("Expected unchecked disabled checkbox",
+        html.contains("<input type=\"checkbox\" disabled />"));
+    assertFalse("Should not be checked",
+        html.contains("<input type=\"checkbox\" disabled checked"));
+    assertTrue("Expected task text", html.contains("Write report"));
+  }
+
+  public void testRenderWaveWithCheckboxNoValueAttribute() {
+    TestingWaveletData data =
+        new TestingWaveletData(WAVE_ID, CONV_WAVELET_ID, AUTHOR, true);
+    data.appendBlipWithXml("<check/>Review PR");
+    WaveViewData viewData = data.copyViewData();
+
+    String html = ServerHtmlRenderer.renderWave(viewData, VIEWER);
+
+    assertNotNull(html);
+    assertTrue("Expected unchecked disabled checkbox when no value attribute",
+        html.contains("<input type=\"checkbox\" disabled />"));
+    assertTrue("Expected task text", html.contains("Review PR"));
+  }
 }

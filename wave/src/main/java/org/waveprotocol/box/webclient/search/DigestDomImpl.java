@@ -75,6 +75,8 @@ public final class DigestDomImpl implements DigestView {
 
     String mentionCount();
 
+    String taskCount();
+
     String pinIcon();
   }
 
@@ -103,6 +105,7 @@ public final class DigestDomImpl implements DigestView {
   Element pinIcon;
 
   private Element mentionCountEl;
+  private Element taskCountEl;
 
   DigestDomImpl(SearchPanelWidget container) {
     this.container = container;
@@ -130,6 +133,7 @@ public final class DigestDomImpl implements DigestView {
     time.setInnerText("");
     msgs.setInnerHTML("");
     mentionCountEl = null;
+    taskCountEl = null;
     self.removeClassName(css.selected());
     setPinned(false);
   }
@@ -185,9 +189,12 @@ public final class DigestDomImpl implements DigestView {
       title.addClassName(css.unread());
       time.addClassName(css.unread());
     }
-    // setInnerHTML clears all child nodes, so re-attach the mention badge if present.
+    // setInnerHTML clears all child nodes, so re-attach badges if present.
     if (mentionCountEl != null) {
       msgs.appendChild(mentionCountEl);
+    }
+    if (taskCountEl != null) {
+      msgs.appendChild(taskCountEl);
     }
   }
 
@@ -237,6 +244,24 @@ public final class DigestDomImpl implements DigestView {
     String text = count > 99 ? "@99+" : "@" + count;
     mentionCountEl.setInnerText(text);
     mentionCountEl.getStyle().setDisplay(Style.Display.INLINE_BLOCK);
+  }
+
+  @Override
+  public void setTaskUnread(boolean hasUnread) {
+    if (!hasUnread) {
+      if (taskCountEl != null) {
+        taskCountEl.getStyle().setDisplay(Style.Display.NONE);
+        taskCountEl.setInnerText("");
+      }
+      return;
+    }
+    if (taskCountEl == null) {
+      taskCountEl = com.google.gwt.user.client.DOM.createSpan();
+      taskCountEl.setClassName(css.taskCount());
+      msgs.appendChild(taskCountEl);
+    }
+    taskCountEl.setInnerText("\u2611");
+    taskCountEl.getStyle().setDisplay(Style.Display.INLINE_BLOCK);
   }
 
   @Override

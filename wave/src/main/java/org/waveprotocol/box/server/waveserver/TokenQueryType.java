@@ -38,6 +38,7 @@ public enum TokenQueryType {
   CONTENT("content"),
   TITLE("title"),
   MENTIONS("mentions"),
+  TASKS("tasks"),
   ;
 
   final String token;

@@ -333,6 +333,26 @@ public final class PublicWaveBlipRenderer {
           return;
         }
 
+        // Checkbox (task check element) — render as disabled HTML checkbox.
+        if ("check".equals(type)) {
+          if (!inBody[0]) {
+            return;
+          }
+          // Ensure we are inside a paragraph-level tag.
+          if (currentTag[0] == null) {
+            currentTag[0] = "p";
+            html.append("<p>");
+          }
+          String value = attrs != null ? attrs.get("value") : null;
+          boolean checked = "true".equalsIgnoreCase(value);
+          html.append("<input type=\"checkbox\" disabled");
+          if (checked) {
+            html.append(" checked");
+          }
+          html.append(" />");
+          return;
+        }
+
         // Skip reply anchors and head elements.
         if ("reply".equals(type) || "head".equals(type)) {
           return;

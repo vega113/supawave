@@ -1,0 +1,20 @@
+{
+  "releaseId": "2026-04-08-wave-tasks",
+  "version": "PR #739",
+  "date": "2026-04-08",
+  "title": "Wave Tasks: assignable inline tasks with due dates and task search",
+  "summary": "Introduces inline tasks within wave documents — assignable to participants, searchable via `tasks:me`, and tracked with a badge in the search panel.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Inline task creation via Insert Task toolbar button — inserts a checkbox element with task annotations (id, assignee, due date, reminders)",
+        "Task search via `tasks:me` and `tasks:user@domain` tokens in both legacy and Lucene9 search paths",
+        "Search panel toolbar badge showing count of open tasks assigned to the current user",
+        "Per-wave task count badge in the search digest list",
+        "Reminder offsets stored in document model (`task/reminders` annotation) for future in-app surfacing",
+        "Server and public HTML renderers emit disabled checkboxes for task elements"
+      ]
+    }
+  ]
+}

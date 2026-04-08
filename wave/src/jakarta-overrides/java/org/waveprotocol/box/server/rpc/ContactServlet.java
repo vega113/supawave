@@ -180,17 +180,19 @@ public final class ContactServlet extends HttpServlet {
         }
       }
     } else {
-      // Anonymous: email comes from the submitted form field
+      // Anonymous: email is required (no account to reply to)
       String submittedEmail = extractJsonField(body, "email");
-      if (submittedEmail != null && !submittedEmail.trim().isEmpty()) {
-        submittedEmail = submittedEmail.trim();
-        // Basic email format validation
-        if (!submittedEmail.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
-          sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid email address");
-          return;
-        }
-        email = submittedEmail;
+      if (submittedEmail == null || submittedEmail.trim().isEmpty()) {
+        sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Email is required");
+        return;
       }
+      submittedEmail = submittedEmail.trim();
+      // Basic email format validation
+      if (!submittedEmail.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+        sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid email address");
+        return;
+      }
+      email = submittedEmail;
     }
 
     // Sanitize inputs (strip control characters, limit lengths)
@@ -253,7 +255,10 @@ public final class ContactServlet extends HttpServlet {
       while (!deque.isEmpty() && deque.peekFirst() < cutoff) {
         deque.pollFirst();
       }
-      deque.addLast(now);
+      // Only record when not already over the limit to bound deque size
+      if (deque.size() <= RATE_LIMIT_MAX) {
+        deque.addLast(now);
+      }
       countHolder[0] = deque.size();
       return deque;
     });

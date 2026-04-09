@@ -2657,6 +2657,10 @@ public class EditorImpl extends LogicalPanel.Impl implements
   }
 
   void debugStartImeComposition() {
+    // Guard against calls when content is not yet initialized.
+    if (content == null) {
+      return;
+    }
     // Guard against re-entering composition when one is already active, which would leave
     // ignoreMutations in an inconsistent state.
     if (imeExtractor.isActive()) {
@@ -2670,8 +2674,12 @@ public class EditorImpl extends LogicalPanel.Impl implements
     } else if (passiveSelectionHelper != null) {
       caret = passiveSelectionHelper.getLastValidSelectionPoint();
     }
-    if (caret == null && content != null) {
+    if (caret == null) {
       caret = Point.<ContentNode>end(content.getMutableDoc().getDocumentElement());
+    }
+    // Guard against calls when no valid caret can be determined.
+    if (caret == null) {
+      return;
     }
     new EditorInteractorImpl().compositionStart(caret);
   }

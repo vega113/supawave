@@ -24,6 +24,7 @@ import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
+import com.google.gwt.http.client.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +39,7 @@ import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.communication.gwt.JsonMessage;
 import org.waveprotocol.wave.communication.json.JsonException;
 import org.waveprotocol.wave.media.model.Attachment;
+import org.waveprotocol.wave.media.model.AttachmentInfoRequestBuilder;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 
 /**
@@ -54,6 +56,14 @@ public class AttachmentManagerImpl implements SimpleAttachmentManager {
   }
 
   private static final String ATTACHMENTS_INFO_URL_BASE = "/attachmentsInfo";
+
+  private static final AttachmentInfoRequestBuilder.Encoder ATTACHMENT_ID_QUERY_ENCODER =
+      new AttachmentInfoRequestBuilder.Encoder() {
+        @Override
+        public String encode(String value) {
+          return URL.encodeQueryString(value);
+        }
+      };
 
   private static final LoggerBundle LOG = new DomLogger(AttachmentManagerImpl.class.getName());
 
@@ -134,14 +144,9 @@ public class AttachmentManagerImpl implements SimpleAttachmentManager {
 
     LOG.trace().log("Getting attachments info");
 
-    String request = ATTACHMENTS_INFO_URL_BASE + "?attachmentIds=";
-
-    for (String attacmentId : pendingQueue) {
-      if (!request.endsWith("=")) {
-        request += ",";
-      }
-      request += attacmentId;
-    }
+    String request =
+        AttachmentInfoRequestBuilder.build(
+            ATTACHMENTS_INFO_URL_BASE, pendingQueue, ATTACHMENT_ID_QUERY_ENCODER);
     final List<String> requestedAttachments = new ArrayList<String>(pendingQueue);
     pendingQueue.clear();
 

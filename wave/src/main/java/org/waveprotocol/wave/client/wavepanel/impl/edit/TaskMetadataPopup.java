@@ -295,6 +295,7 @@ public final class TaskMetadataPopup extends Composite {
   }
 
   private void submit() {
+    clearError();
     String dueValue = dueDateInput.getText() == null ? "" : dueDateInput.getText().trim();
     long dueTs = dueValue.isEmpty() ? -1L : TaskDocumentUtil.parseDateInputValue(dueValue);
     if (!dueValue.isEmpty() && dueTs < 0) {
@@ -319,6 +320,11 @@ public final class TaskMetadataPopup extends Composite {
   private void showError(String message) {
     errorLabel.setText(message);
     errorLabel.getElement().getStyle().setProperty("display", "block");
+  }
+
+  private void clearError() {
+    errorLabel.setText("");
+    errorLabel.getElement().getStyle().setProperty("display", "none");
   }
 
   private static String displayParticipant(String address, boolean isSignedInUser) {

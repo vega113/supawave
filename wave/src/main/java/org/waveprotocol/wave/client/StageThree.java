@@ -183,9 +183,9 @@ public interface StageThree {
     }
 
     protected EditToolbar createEditToolbar() {
-      Conversation rootConversation = stageTwo.getConversations().getRoot();
-      if (rootConversation != null) {
-        TaskMetadataPopup.configure(rootConversation, getStageTwo().getSignedInUser());
+      Conversation root = stageTwo.getConversations().getRoot();
+      if (root != null) {
+        TaskMetadataPopup.configure(root, getStageTwo().getSignedInUser());
       }
       return EditToolbar.create(getStageTwo().getSignedInUser(), stageTwo.getIdGenerator(),
           stageTwo.getWave().getWaveId());

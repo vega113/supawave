@@ -19,6 +19,8 @@ package org.waveprotocol.box.server.rpc;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.json.JSONObject;
+
 import junit.framework.TestCase;
 
 public final class HtmlRendererTopBarTest extends TestCase {
@@ -46,9 +48,9 @@ public final class HtmlRendererTopBarTest extends TestCase {
     assertTrue(topBarHtml.contains("href=\"/wave/admin\""));
     assertTrue(topBarHtml.contains("href=\"/wave/auth/signout?r=%2Fwave%2F\""));
     assertTrue(topBarHtml.contains("aria-label=\"Language\""));
-    assertTrue(topBarHtml.contains("aria-haspopup=\"menu\""));
     assertTrue(topBarHtml.contains("aria-expanded=\"false\""));
-    assertTrue(topBarHtml.contains("role=\"menu\""));
+    assertTrue(topBarHtml.contains("aria-controls=\"topbarUserMenu\""));
+    assertFalse(topBarHtml.contains("role=\"menu\""));
     assertTrue(topBarHtml.contains("net-icon-online"));
     assertTrue(topBarHtml.contains("net-icon-offline"));
   }
@@ -67,6 +69,8 @@ public final class HtmlRendererTopBarTest extends TestCase {
 
     assertTrue(js.contains("var _ctx=\"\\/wave\";"));
     assertTrue(js.contains("fetch(_ctx+'/locale'"));
+    assertTrue(js.contains("if(!t||!d||t.contains(e.target)||d.contains(e.target))return;setMenuOpen(false);"));
+    assertTrue(js.contains("setMenuOpen(false,true);"));
   }
 
   public void testRenderSharedTopBarCssIncludesAdminBadge() {
@@ -75,6 +79,49 @@ public final class HtmlRendererTopBarTest extends TestCase {
     assertTrue(css.contains(".admin-msg-btn"));
     assertTrue(css.contains(".admin-badge"));
     assertTrue(css.contains("admin-glow"));
+  }
+
+  public void testRenderSharedTopBarUsesCompactMenuSections() {
+    String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "/wave", "admin");
+    String css = HtmlRenderer.renderSharedTopBarCss();
+
+    assertTrue(html.contains("class=\"user-info-label\">Signed in as</div>"));
+    assertTrue(html.contains("class=\"user-info-address\">vega@example.com</div>"));
+    assertTrue(html.contains("class=\"user-info\">"));
+    assertTrue(html.contains("class=\"menu-section\">"));
+    assertTrue(html.contains("class=\"menu-signout\""));
+    assertTrue(css.contains(".user-menu-dropdown {"));
+    assertTrue(css.contains("display: none;"));
+    assertTrue(css.contains("border-radius: 10px;"));
+    assertTrue(css.contains(".user-menu-dropdown .menu-section + .menu-section {"));
+    assertTrue(css.contains(".user-menu-dropdown a {"));
+    assertTrue(css.contains("padding: 7px 10px;"));
+    assertTrue(css.contains(".user-menu-dropdown .user-info-label {"));
+    assertTrue(css.contains(".user-menu-dropdown a:focus-visible {"));
+    assertTrue(css.contains("box-shadow: inset 0 0 0 2px rgba(0,119,182,0.40);"));
+  }
+
+  public void testWaveClientPageUsesCompactMenuSectionStyles() {
+    String html = HtmlRenderer.renderWaveClientPage(
+        new JSONObject("{\"id\":\"u\"}"),
+        new JSONObject(),
+        "localhost:9898",
+        HtmlRenderer.renderTopBar("vega", "example.com", "user"),
+        "",
+        "abc123build",
+        1700000000000L,
+        null,
+        null);
+
+    assertTrue(html.contains("class=\"user-info-label\">Signed in as</div>"));
+    assertTrue(html.contains("class=\"menu-section\">"));
+    assertTrue(html.contains(".user-menu-dropdown .menu-section + .menu-section {"));
+    assertTrue(html.contains(".user-menu-dropdown a {"));
+    assertTrue(html.contains("padding: 7px 10px;"));
+    assertTrue(html.contains(".user-menu-dropdown a:focus-visible {"));
+    assertTrue(html.contains("box-shadow: inset 0 0 0 2px rgba(0,119,182,0.40);"));
+    assertTrue(html.contains("if (!toggle || !dropdown || toggle.contains(e.target) || dropdown.contains(e.target)) return;"));
+    assertTrue(html.contains("setMenuOpen(false, true);"));
   }
 
   public void testRenderSharedTopBarHtmlAdminShowsEnvelopeIcon() {

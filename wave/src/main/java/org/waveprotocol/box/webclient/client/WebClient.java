@@ -128,20 +128,23 @@ public class WebClient implements EntryPoint {
 
   // ---- Turbulence banner (ocean-themed, non-blocking) ----
 
+  /** Display size shared by the wrapper and its nested SVG element. */
+  private static final String TOOLBAR_ICON_DISPLAY_PX = "17px";
+
   /** Injects CSS for polished SVG toolbar icons (hover, transitions, touch). */
   private static boolean toolbarIconCssInjected = false;
   private static void injectToolbarIconCss() {
     if (toolbarIconCssInjected) return;
     toolbarIconCssInjected = true;
-    // Keep the inline SVG contract at 18 units in markup, but render at 17px
+    // Keep the inline SVG contract at 18 units in markup, but render at TOOLBAR_ICON_DISPLAY_PX
     // everywhere through shared CSS for slightly lighter visual density.
     String css =
         ".toolbar-svg-icon {"
       + "  display: inline-flex;"
       + "  align-items: center;"
       + "  justify-content: center;"
-      + "  width: 17px;"
-      + "  height: 17px;"
+      + "  width: " + TOOLBAR_ICON_DISPLAY_PX + ";"
+      + "  height: " + TOOLBAR_ICON_DISPLAY_PX + ";"
       + "  transition: color 0.15s ease, transform 0.15s ease;"
       + "}"
       + ".toolbar-btn-enabled .toolbar-svg-icon {"
@@ -155,8 +158,8 @@ public class WebClient implements EntryPoint {
       + "}"
       + ".toolbar-svg-icon svg {"
       + "  display: block;"
-      + "  width: 17px;"
-      + "  height: 17px;"
+      + "  width: " + TOOLBAR_ICON_DISPLAY_PX + ";"
+      + "  height: " + TOOLBAR_ICON_DISPLAY_PX + ";"
       + "}";
     Element style = Document.get().createStyleElement();
     style.setInnerHTML(css);

@@ -60,6 +60,39 @@ public final class HtmlRenderer {
       "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif";
 
   // =========================================================================
+  // User-menu CSS shared by the wave-client page and the standalone topbar
+  // =========================================================================
+
+  private static final String USER_MENU_CSS =
+      ".user-menu { position: relative; display: inline-block; cursor: pointer; }\n"
+      + ".user-menu-toggle {\n"
+      + "  background: rgba(255,255,255,0.10); border: none; color: #fff;\n"
+      + "  cursor: pointer; font: inherit; padding: 3px 8px 3px 4px; border-radius: 20px;\n"
+      + "  transition: background 0.15s; display: flex; align-items: center; gap: 6px; line-height: 1;\n"
+      + "}\n"
+      + ".user-menu-toggle:focus-visible {\n"
+      + "  outline: 2px solid rgba(255,255,255,0.85); outline-offset: 2px;\n"
+      + "}\n"
+      + ".user-menu-toggle:hover { background: rgba(255,255,255,0.22); }\n"
+      + ".user-menu-toggle .caret { font-size: 10px; opacity: 0.8; }\n"
+      + ".user-menu-dropdown { display: none; position: absolute; right: 0; top: 100%;"
+      + " background: #fff; border-radius: 10px; box-shadow: 0 14px 30px rgba(2,62,107,0.18);"
+      + " min-width: 224px; z-index: 1000; padding: 6px; margin-top: 6px; border: 1px solid #dbe7f1; }\n"
+      + ".user-menu-dropdown.open { display: block; }\n"
+      + ".user-menu-dropdown .user-info { padding: 6px 10px 9px; border-bottom: 1px solid #e2e8f0; color: #4a5568; margin-bottom: 2px; }\n"
+      + ".user-menu-dropdown .user-info-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; margin-bottom: 4px; }\n"
+      + ".user-menu-dropdown .user-info-address { display: block; color: #1f2933; font-size: 13px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }\n"
+      + ".user-menu-dropdown .menu-section { padding: 4px 0 0; }\n"
+      + ".user-menu-dropdown .menu-section + .menu-section { border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 6px; }\n"
+      + ".topbar .section-label { display: block; padding: 0 10px 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; }\n"
+      + ".user-menu-dropdown a { display: block; padding: 7px 10px; border-radius: 8px; color: #1f2933; text-decoration: none; font-size: 13px; line-height: 1.25; transition: background 0.12s, color 0.12s; }\n"
+      + ".user-menu-dropdown a:hover, .user-menu-dropdown a:focus-visible { background: #f0f7fb; color: " + WAVE_PRIMARY + "; }\n"
+      + ".user-menu-dropdown a:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(0,119,182,0.40); }\n"
+      + ".user-menu-dropdown .section-link-strong { font-weight: 700; color: " + WAVE_PRIMARY + "; }\n"
+      + ".user-menu-dropdown .section-link-strong:hover, .user-menu-dropdown .section-link-strong:focus-visible { color: #005f8f !important; }\n"
+      + ".user-menu-dropdown .menu-signout { font-weight: 600; margin-top: 2px; }\n";
+
+  // =========================================================================
   // Wave Panel CSS (ocean theme for GWT client panels)
   // =========================================================================
 
@@ -2310,28 +2343,7 @@ public final class HtmlRenderer {
     sb.append("  flex-shrink: 0;\n");
     sb.append("}\n");
     // -- User menu --
-    sb.append(".user-menu { position: relative; display: inline-block; cursor: pointer; }\n");
-    sb.append(".user-menu-toggle {\n");
-    sb.append("  background: rgba(255,255,255,0.10); border: none; color: #fff;\n");
-    sb.append("  cursor: pointer; font: inherit; padding: 3px 8px 3px 4px; border-radius: 20px;\n");
-    sb.append("  transition: background 0.15s; display: flex; align-items: center; gap: 6px; line-height: 1;\n");
-    sb.append("}\n");
-    sb.append(".user-menu-toggle:hover { background: rgba(255,255,255,0.22); }\n");
-    sb.append(".user-menu-toggle .caret { font-size: 10px; opacity: 0.8; }\n");
-    sb.append(".user-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background: #fff; border-radius: 10px; box-shadow: 0 14px 30px rgba(2,62,107,0.18); min-width: 224px; z-index: 1000; padding: 6px; margin-top: 6px; border: 1px solid #dbe7f1; }\n");
-    sb.append(".user-menu-dropdown.open { display: block; }\n");
-    sb.append(".user-menu-dropdown .user-info { padding: 6px 10px 9px; border-bottom: 1px solid #e2e8f0; color: #4a5568; margin-bottom: 2px; }\n");
-    sb.append(".user-menu-dropdown .user-info-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; margin-bottom: 4px; }\n");
-    sb.append(".user-menu-dropdown .user-info-address { display: block; color: #1f2933; font-size: 13px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }\n");
-    sb.append(".user-menu-dropdown .menu-section { padding: 4px 0 0; }\n");
-    sb.append(".user-menu-dropdown .menu-section + .menu-section { border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 6px; }\n");
-    sb.append(".topbar .section-label { display: block; padding: 0 10px 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; }\n");
-    sb.append(".user-menu-dropdown a { display: block; padding: 7px 10px; border-radius: 8px; color: #1f2933; text-decoration: none; font-size: 13px; line-height: 1.25; transition: background 0.12s, color 0.12s; }\n");
-    sb.append(".user-menu-dropdown a:hover, .user-menu-dropdown a:focus-visible { background: #f0f7fb; color: ").append(WAVE_PRIMARY).append("; }\n");
-    sb.append(".user-menu-dropdown a:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(0,119,182,0.40); }\n");
-    sb.append(".user-menu-dropdown .section-link-strong { font-weight: 700; color: ").append(WAVE_PRIMARY).append("; }\n");
-    sb.append(".user-menu-dropdown .section-link-strong:hover, .user-menu-dropdown .section-link-strong:focus-visible { color: #005f8f !important; }\n");
-    sb.append(".user-menu-dropdown .menu-signout { font-weight: 600; margin-top: 2px; }\n");
+    sb.append(USER_MENU_CSS);
     // Wave panel theme overrides (ocean blue/teal for GWT panels)
     sb.append(WAVE_PANEL_CSS);
     // -- Hamburger and back button (hidden on desktop) --
@@ -2635,22 +2647,27 @@ public final class HtmlRenderer {
     // -- User menu toggle (existing) --
     sb.append("  var toggle = document.getElementById('waveClientUserMenuToggle') || document.querySelector('.user-menu-toggle');\n");
     sb.append("  var dropdown = document.getElementById('waveClientUserMenu') || document.querySelector('.user-menu-dropdown');\n");
-    sb.append("  function setMenuOpen(open) {\n");
+    sb.append("  function setMenuOpen(open, restoreFocus) {\n");
     sb.append("    if (!toggle || !dropdown) return;\n");
     sb.append("    dropdown.classList.toggle('open', open);\n");
     sb.append("    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');\n");
+    sb.append("    if (!open && restoreFocus) toggle.focus();\n");
     sb.append("  }\n");
     sb.append("  if (toggle && dropdown) {\n");
     sb.append("    toggle.addEventListener('click', function(e) {\n");
     sb.append("      e.stopPropagation();\n");
     sb.append("      setMenuOpen(!dropdown.classList.contains('open'));\n");
     sb.append("    });\n");
+    sb.append("    dropdown.addEventListener('click', function(e) {\n");
+    sb.append("      e.stopPropagation();\n");
+    sb.append("    });\n");
     sb.append("  }\n");
-    sb.append("  document.addEventListener('click', function() {\n");
+    sb.append("  document.addEventListener('click', function(e) {\n");
+    sb.append("    if (!toggle || !dropdown || toggle.contains(e.target) || dropdown.contains(e.target)) return;\n");
     sb.append("    setMenuOpen(false);\n");
     sb.append("  });\n");
     sb.append("  document.addEventListener('keydown', function(e) {\n");
-    sb.append("    if (e.key === 'Escape') setMenuOpen(false);\n");
+    sb.append("    if (e.key === 'Escape' && dropdown && dropdown.classList.contains('open')) { e.preventDefault(); setMenuOpen(false, true); }\n");
     sb.append("  });\n");
     // -- Mobile navigation --
     sb.append("  var isMobile = function() { return window.innerWidth < 768; };\n");
@@ -2996,7 +3013,7 @@ public final class HtmlRenderer {
     sb.append("    pcLastSeen.innerHTML = parts.join('');\n");
     sb.append("    pcLastSeen.style.display = parts.length ? 'block' : 'none';\n");
     sb.append("    pcOwner.style.display = 'none';\n");
-    sb.append("    var loggedInUser = document.querySelector('.user-info');\n");
+    sb.append("    var loggedInUser = document.querySelector('.user-info-address');\n");
     sb.append("    var isOwnProfile = loggedInUser && loggedInUser.textContent.trim() === address;\n");
     sb.append("    pcEdit.style.display = isOwnProfile ? '' : 'none';\n");
     sb.append("    pcMessage.style.display = isOwnProfile ? 'none' : '';\n");
@@ -3422,31 +3439,7 @@ public final class HtmlRenderer {
     sb.append("  font-weight: 700; font-size: 13px; text-transform: uppercase;\n");
     sb.append("  flex-shrink: 0;\n");
     sb.append("}\n");
-    sb.append(".user-menu { position: relative; display: inline-block; cursor: pointer; }\n");
-    sb.append(".user-menu-toggle {\n");
-    sb.append("  background: rgba(255,255,255,0.10); border: none; color: #fff;\n");
-    sb.append("  cursor: pointer; font: inherit; padding: 3px 8px 3px 4px; border-radius: 20px;\n");
-    sb.append("  transition: background 0.15s; display: flex; align-items: center; gap: 6px; line-height: 1;\n");
-    sb.append("}\n");
-    sb.append(".user-menu-toggle:focus-visible {\n");
-    sb.append("  outline: 2px solid rgba(255,255,255,0.85); outline-offset: 2px;\n");
-    sb.append("}\n");
-    sb.append(".user-menu-toggle:hover { background: rgba(255,255,255,0.22); }\n");
-    sb.append(".user-menu-toggle .caret { font-size: 10px; opacity: 0.8; }\n");
-    sb.append(".user-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background: #fff; border-radius: 10px; box-shadow: 0 14px 30px rgba(2,62,107,0.18); min-width: 224px; z-index: 1000; padding: 6px; margin-top: 6px; border: 1px solid #dbe7f1; }\n");
-    sb.append(".user-menu-dropdown.open { display: block; }\n");
-    sb.append(".user-menu-dropdown .user-info { padding: 6px 10px 9px; border-bottom: 1px solid #e2e8f0; color: #4a5568; margin-bottom: 2px; }\n");
-    sb.append(".user-menu-dropdown .user-info-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; margin-bottom: 4px; }\n");
-    sb.append(".user-menu-dropdown .user-info-address { display: block; color: #1f2933; font-size: 13px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }\n");
-    sb.append(".user-menu-dropdown .menu-section { padding: 4px 0 0; }\n");
-    sb.append(".user-menu-dropdown .menu-section + .menu-section { border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 6px; }\n");
-    sb.append(".topbar .section-label { display: block; padding: 0 10px 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; }\n");
-    sb.append(".user-menu-dropdown a { display: block; padding: 7px 10px; border-radius: 8px; color: #1f2933; text-decoration: none; font-size: 13px; line-height: 1.25; transition: background 0.12s, color 0.12s; }\n");
-    sb.append(".user-menu-dropdown a:hover, .user-menu-dropdown a:focus-visible { background: #f0f7fb; color: ").append(WAVE_PRIMARY).append("; }\n");
-    sb.append(".user-menu-dropdown a:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(0,119,182,0.40); }\n");
-    sb.append(".user-menu-dropdown .section-link-strong { font-weight: 700; color: ").append(WAVE_PRIMARY).append("; }\n");
-    sb.append(".user-menu-dropdown .section-link-strong:hover, .user-menu-dropdown .section-link-strong:focus-visible { color: #005f8f !important; }\n");
-    sb.append(".user-menu-dropdown .menu-signout { font-weight: 600; margin-top: 2px; }\n");
+    sb.append(USER_MENU_CSS);
     sb.append("@media (max-width: 767px) {\n");
     sb.append("  .topbar { height: 48px; line-height: 48px; padding: 0 8px; gap: 4px; }\n");
     sb.append("  .topbar .title { font-size: 15px; }\n");
@@ -3534,37 +3527,37 @@ public final class HtmlRenderer {
     }
     // User menu
     sb.append("    <div class=\"user-menu\">\n");
-    sb.append("      <button id=\"topbarUserMenuToggle\" type=\"button\" class=\"user-menu-toggle\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-controls=\"topbarUserMenu\" aria-label=\"Open user menu for ").append(safeAddrFull).append("\" title=\"").append(safeAddrFull).append("\">\n");
+    sb.append("      <button id=\"topbarUserMenuToggle\" type=\"button\" class=\"user-menu-toggle\" aria-expanded=\"false\" aria-controls=\"topbarUserMenu\" aria-label=\"Open user menu for ").append(safeAddrFull).append("\" title=\"").append(safeAddrFull).append("\">\n");
     sb.append("        <span class=\"user-avatar\" aria-hidden=\"true\">").append(firstLetter).append("</span>\n");
     sb.append("        <span class=\"caret\" aria-hidden=\"true\">&#9662;</span>\n");
     sb.append("      </button>\n");
-    sb.append("      <div class=\"user-menu-dropdown\" id=\"topbarUserMenu\" role=\"menu\" aria-labelledby=\"topbarUserMenuToggle\">\n");
+    sb.append("      <div class=\"user-menu-dropdown\" id=\"topbarUserMenu\" aria-labelledby=\"topbarUserMenuToggle\">\n");
     sb.append("        <div class=\"user-info\"><div class=\"user-info-label\">Signed in as</div><div class=\"user-info-address\">").append(safeAddrFull).append("</div></div>\n");
-    sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
+    sb.append("        <div class=\"menu-section\">\n");
     sb.append("          <div class=\"section-label\">Account</div>\n");
-    sb.append("          <a role=\"menuitem\" href=\"").append(safeCtx).append("/userprofile/edit\">Edit Profile</a>\n");
-    sb.append("          <a role=\"menuitem\" href=\"").append(safeCtx).append("/account/settings\">Account Settings</a>\n");
+    sb.append("          <a href=\"").append(safeCtx).append("/userprofile/edit\">Edit Profile</a>\n");
+    sb.append("          <a href=\"").append(safeCtx).append("/account/settings\">Account Settings</a>\n");
     sb.append("        </div>\n");
-    sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
+    sb.append("        <div class=\"menu-section\">\n");
     sb.append("          <div class=\"section-label\">Automation / APIs</div>\n");
-    sb.append("          <a role=\"menuitem\" class=\"section-link-strong\" href=\"").append(safeCtx).append("/account/robots\">Robot &amp; Data API</a>\n");
-    sb.append("          <a role=\"menuitem\" href=\"").append(safeCtx).append("/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
+    sb.append("          <a class=\"section-link-strong\" href=\"").append(safeCtx).append("/account/robots\">Robot &amp; Data API</a>\n");
+    sb.append("          <a href=\"").append(safeCtx).append("/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
     sb.append("        </div>\n");
-    sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
+    sb.append("        <div class=\"menu-section\">\n");
     sb.append("          <div class=\"section-label\">Product / Support</div>\n");
-    sb.append("          <a role=\"menuitem\" href=\"").append(safeCtx).append("/changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
-    sb.append("          <a role=\"menuitem\" href=\"").append(safeCtx).append("/contact\">Contact Us</a>\n");
+    sb.append("          <a href=\"").append(safeCtx).append("/changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
+    sb.append("          <a href=\"").append(safeCtx).append("/contact\">Contact Us</a>\n");
     if ("owner".equals(userRole) || "admin".equals(userRole)) {
-      sb.append("          <a role=\"menuitem\" href=\"").append(safeCtx).append("/admin\">Admin</a>\n");
+      sb.append("          <a href=\"").append(safeCtx).append("/admin\">Admin</a>\n");
     }
     sb.append("        </div>\n");
-    sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
+    sb.append("        <div class=\"menu-section\">\n");
     sb.append("          <div class=\"section-label\">Legal</div>\n");
-    sb.append("          <a role=\"menuitem\" href=\"").append(safeCtx).append("/terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
-    sb.append("          <a role=\"menuitem\" href=\"").append(safeCtx).append("/privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
+    sb.append("          <a href=\"").append(safeCtx).append("/terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
+    sb.append("          <a href=\"").append(safeCtx).append("/privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
     sb.append("        </div>\n");
-    sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
-    sb.append("          <a id=\"signout\" role=\"menuitem\" class=\"menu-signout\" href=\"").append(safeCtx).append("/auth/signout?r=").append(safeSignOutReturn).append("\">Sign Out</a>\n");
+    sb.append("        <div class=\"menu-section\">\n");
+    sb.append("          <a id=\"signout\" class=\"menu-signout\" href=\"").append(safeCtx).append("/auth/signout?r=").append(safeSignOutReturn).append("\">Sign Out</a>\n");
     sb.append("        </div>\n");
     sb.append("      </div>\n");
     sb.append("    </div>\n");
@@ -3597,10 +3590,10 @@ public final class HtmlRenderer {
     // User menu toggle
     sb.append("var t=document.getElementById('topbarUserMenuToggle');\n");
     sb.append("var d=document.getElementById('topbarUserMenu');\n");
-    sb.append("function setMenuOpen(open){if(!d||!t)return;d.classList.toggle('open',open);t.setAttribute('aria-expanded',open?'true':'false');}\n");
-    sb.append("if(t&&d){t.addEventListener('click',function(e){e.stopPropagation();setMenuOpen(!d.classList.contains('open'));});}\n");
-    sb.append("document.addEventListener('click',function(){setMenuOpen(false);});\n");
-    sb.append("document.addEventListener('keydown',function(e){if(e.key==='Escape')setMenuOpen(false);});\n");
+    sb.append("function setMenuOpen(open,restoreFocus){if(!d||!t)return;d.classList.toggle('open',open);t.setAttribute('aria-expanded',open?'true':'false');if(!open&&restoreFocus)t.focus();}\n");
+    sb.append("if(t&&d){t.addEventListener('click',function(e){e.stopPropagation();setMenuOpen(!d.classList.contains('open'));});d.addEventListener('click',function(e){e.stopPropagation();});}\n");
+    sb.append("document.addEventListener('click',function(e){if(!t||!d||t.contains(e.target)||d.contains(e.target))return;setMenuOpen(false);});\n");
+    sb.append("document.addEventListener('keydown',function(e){if(e.key==='Escape'&&d&&d.classList.contains('open')){e.preventDefault();setMenuOpen(false,true);}});\n");
     // Connection status
     sb.append("var ns=document.getElementById('netstatus');\n");
     sb.append("function updNet(){if(!ns)return;\n");
@@ -3705,38 +3698,38 @@ public final class HtmlRenderer {
       }
       // -- User menu with avatar --
       sb.append("    <div class=\"user-menu\">\n");
-      sb.append("      <button id=\"waveClientUserMenuToggle\" type=\"button\" class=\"user-menu-toggle\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-controls=\"waveClientUserMenu\" aria-label=\"Open user menu for ").append(fullAddress).append("\" title=\"").append(fullAddress).append("\">\n");
+      sb.append("      <button id=\"waveClientUserMenuToggle\" type=\"button\" class=\"user-menu-toggle\" aria-expanded=\"false\" aria-controls=\"waveClientUserMenu\" aria-label=\"Open user menu for ").append(fullAddress).append("\" title=\"").append(fullAddress).append("\">\n");
       sb.append("        <span class=\"user-avatar\">").append(firstLetter).append("</span>\n");
       sb.append("        <span class=\"caret\">&#9662;</span>\n");
       sb.append("      </button>\n");
-      sb.append("      <div class=\"user-menu-dropdown\" id=\"waveClientUserMenu\" role=\"menu\" aria-labelledby=\"waveClientUserMenuToggle\">\n");
+      sb.append("      <div class=\"user-menu-dropdown\" id=\"waveClientUserMenu\" aria-labelledby=\"waveClientUserMenuToggle\">\n");
       sb.append("        <div class=\"user-info\"><div class=\"user-info-label\">Signed in as</div><div class=\"user-info-address\">").append(fullAddress).append("</div></div>\n");
-      sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
+      sb.append("        <div class=\"menu-section\">\n");
       sb.append("          <div class=\"section-label\">Account</div>\n");
-      sb.append("          <a role=\"menuitem\" href=\"/userprofile/edit\">Edit Profile</a>\n");
-      sb.append("          <a role=\"menuitem\" href=\"/account/settings\">Account Settings</a>\n");
+      sb.append("          <a href=\"/userprofile/edit\">Edit Profile</a>\n");
+      sb.append("          <a href=\"/account/settings\">Account Settings</a>\n");
       sb.append("        </div>\n");
-      sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
+      sb.append("        <div class=\"menu-section\">\n");
       sb.append("          <div class=\"section-label\">Automation / APIs</div>\n");
-      sb.append("          <a role=\"menuitem\" class=\"section-link-strong\" href=\"/account/robots\">Robot &amp; Data API</a>\n");
-      sb.append("          <a role=\"menuitem\" href=\"/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
+      sb.append("          <a class=\"section-link-strong\" href=\"/account/robots\">Robot &amp; Data API</a>\n");
+      sb.append("          <a href=\"/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
       sb.append("        </div>\n");
-      sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
+      sb.append("        <div class=\"menu-section\">\n");
       sb.append("          <div class=\"section-label\">Product / Support</div>\n");
-      sb.append("          <a role=\"menuitem\" href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
-      sb.append("          <a role=\"menuitem\" href=\"/changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
-      sb.append("          <a role=\"menuitem\" href=\"/contact\">Contact Us</a>\n");
+      sb.append("          <a href=\"#\" onclick=\"window.openVersionHistory(); return false;\">Version History</a>\n");
+      sb.append("          <a href=\"/changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
+      sb.append("          <a href=\"/contact\">Contact Us</a>\n");
       if ("owner".equals(userRole) || "admin".equals(userRole)) {
-        sb.append("          <a role=\"menuitem\" href=\"/admin\">Admin</a>\n");
+        sb.append("          <a href=\"/admin\">Admin</a>\n");
       }
       sb.append("        </div>\n");
-      sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
+      sb.append("        <div class=\"menu-section\">\n");
       sb.append("          <div class=\"section-label\">Legal</div>\n");
-      sb.append("          <a role=\"menuitem\" href=\"/terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
-      sb.append("          <a role=\"menuitem\" href=\"/privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
+      sb.append("          <a href=\"/terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
+      sb.append("          <a href=\"/privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
       sb.append("        </div>\n");
-      sb.append("        <div class=\"menu-section\" role=\"presentation\">\n");
-      sb.append("          <a id=\"signout\" role=\"menuitem\" class=\"menu-signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
+      sb.append("        <div class=\"menu-section\">\n");
+      sb.append("          <a id=\"signout\" class=\"menu-signout\" href=\"/auth/signout?r=/\">Sign Out</a>\n");
       sb.append("        </div>\n");
       sb.append("      </div>\n");
       sb.append("    </div>\n");

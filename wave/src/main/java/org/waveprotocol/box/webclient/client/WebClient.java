@@ -133,11 +133,15 @@ public class WebClient implements EntryPoint {
   private static void injectToolbarIconCss() {
     if (toolbarIconCssInjected) return;
     toolbarIconCssInjected = true;
+    // Keep the inline SVG contract at 18 units in markup, but render at 17px
+    // everywhere through shared CSS for slightly lighter visual density.
     String css =
         ".toolbar-svg-icon {"
       + "  display: inline-flex;"
       + "  align-items: center;"
       + "  justify-content: center;"
+      + "  width: 17px;"
+      + "  height: 17px;"
       + "  transition: color 0.15s ease, transform 0.15s ease;"
       + "}"
       + ".toolbar-btn-enabled .toolbar-svg-icon {"
@@ -151,6 +155,8 @@ public class WebClient implements EntryPoint {
       + "}"
       + ".toolbar-svg-icon svg {"
       + "  display: block;"
+      + "  width: 17px;"
+      + "  height: 17px;"
       + "}";
     Element style = Document.get().createStyleElement();
     style.setInnerHTML(css);

@@ -77,6 +77,25 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(javaSource.contains("wrapper.setClassName(\"toolbar-svg-icon\")"));
   }
 
+  public void testSharedToolbarIconCssUsesSeventeenPixelDisplaySize() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/client/WebClient.java");
+
+    int wrapperRule = javaSource.indexOf(".toolbar-svg-icon {");
+    int wrapperWidth = javaSource.indexOf("width: 17px;", wrapperRule);
+    int wrapperHeight = javaSource.indexOf("height: 17px;", wrapperRule);
+    int svgRule = javaSource.indexOf(".toolbar-svg-icon svg {");
+    int svgWidth = javaSource.indexOf("width: 17px;", svgRule);
+    int svgHeight = javaSource.indexOf("height: 17px;", svgRule);
+
+    assertTrue(wrapperRule >= 0);
+    assertTrue(wrapperWidth > wrapperRule);
+    assertTrue(wrapperHeight > wrapperWidth);
+    assertTrue(svgRule > wrapperHeight);
+    assertTrue(svgWidth > svgRule);
+    assertTrue(svgHeight > svgWidth);
+  }
+
   private static String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
   }

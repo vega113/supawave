@@ -39,6 +39,24 @@ public final class FeatureFlagServiceTest {
   }
 
   @Test
+  public void taskSearchIsEnabledByDefaultOnFreshStore() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    service = new FeatureFlagService(store);
+
+    assertTrue(service.getEnabledFlagNames(null).contains("task-search"));
+  }
+
+  @Test
+  public void storedFalseTaskSearchFlagOverridesDefault() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(new FeatureFlag("task-search", "Enable tasks:me search filter and Tasks toolbar button", false, new LinkedHashMap<>()));
+
+    service = new FeatureFlagService(store);
+
+    assertFalse(service.getEnabledFlagNames(null).contains("task-search"));
+  }
+
+  @Test
   public void knownFlagsStayDisabledForFreshStores() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     service = new FeatureFlagService(store);

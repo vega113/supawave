@@ -231,11 +231,8 @@ public final class TaskMetadataPopup extends Composite {
     assigneeList.addItem("Unassigned", "");
 
     List<ParticipantId> participants = new ArrayList<ParticipantId>();
-    Iterable<ParticipantId> participantIds = conversation.getParticipantIds();
-    if (participantIds != null) {
-      for (ParticipantId participant : participantIds) {
-        participants.add(participant);
-      }
+    if (conversation.getParticipantIds() != null) {
+      participants.addAll(conversation.getParticipantIds());
     }
     Collections.sort(participants, new Comparator<ParticipantId>() {
       @Override

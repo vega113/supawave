@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-09-toolbar-canvas-containment",
+  "version": "PR #783",
+  "date": "2026-04-09",
+  "title": "Polish toolbar action canvas containment",
+  "summary": "Search and wave toolbar icons now sit inside a clearer solid action canvas instead of reading against the faded edge of the bar.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Search and wave toolbar action icons now render inside a subtle inset canvas that keeps them visually contained within the toolbar strip"
+      ]
+    }
+  ]
+}

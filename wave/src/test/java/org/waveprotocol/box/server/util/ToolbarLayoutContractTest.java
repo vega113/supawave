@@ -40,8 +40,27 @@ public final class ToolbarLayoutContractTest extends TestCase {
     String css = normalized(read(
         "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
 
-    assertTrue(css.contains("padding: 0 4px;"));
-    assertTrue(css.contains("min-width: 28px;"));
+    assertTrue(css.contains("padding: 0 6px;"));
+    assertTrue(css.contains("min-width: 32px;"));
+  }
+
+  public void testCompactButtonsRenderInsetIdleCanvas() throws Exception {
+    String css = normalized(read(
+        "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
+
+    assertTrue(css.contains(".enabled.compact > .overlay {"));
+    assertTrue(css.contains("top: 4px;"));
+    assertTrue(css.contains("bottom: 4px;"));
+    assertTrue(css.contains("left: 4px;"));
+    assertTrue(css.contains("right: 4px;"));
+    assertTrue(css.contains("background-color: rgba(255,255,255,0.72);"));
+    assertTrue(css.contains("border: 1px solid rgba(176,196,216,0.55);"));
+    assertTrue(css.contains(".enabled.compact:hover > .overlay {"));
+    assertTrue(css.contains("border-color: rgba(0,119,182,0.28);"));
+    assertTrue(css.contains("background-color: rgba(255,255,255,0.92);"));
+    assertTrue(css.contains(".enabled.down.compact > .overlay {"));
+    assertTrue(css.contains("background-color: rgba(226,240,251,0.95);"));
+    assertTrue(css.contains("border-color: rgba(0,119,182,0.35);"));
   }
 
   public void testSearchPanelReservesThirtySixPixelsForToolbarHeight() throws Exception {

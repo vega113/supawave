@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-09-task-search-enabled-by-default",
+  "version": "PR #771",
+  "date": "2026-04-09",
+  "title": "Enable task-search feature flag by default",
+  "summary": "The task-search feature flag now defaults to enabled so fresh deployments show tasks search help and toolbar without a manual MongoDB record.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Changed task-search default in KnownFeatureFlags from false to true — prevents silent hide of tasks:all search help and Tasks toolbar button on new deployments or DB resets"
+      ]
+    }
+  ]
+}

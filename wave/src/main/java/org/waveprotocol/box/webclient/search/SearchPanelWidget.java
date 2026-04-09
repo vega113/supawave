@@ -83,8 +83,10 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
    */
   static class CssConstants {
     private static int SEARCH_HEIGHT_PX = 51; // To match wave panel.
-    private static int TOOLBAR_HEIGHT_PX =
-        SearchPanelResourceLoader.getPanel().emptyToolbar().getHeight();
+    // Keep the search panel reserve in sync with the 36px shared toolbar row.
+    // The legacy emptyToolbar sprite is still 24px tall and is no longer the
+    // correct layout authority for the rendered toolbar height.
+    private static int TOOLBAR_HEIGHT_PX = 36;
     private static int TOOLBAR_TOP_PX = 0 + SEARCH_HEIGHT_PX;
     /** Height of the wave count info bar (24px content + 1px border). */
     private static int WAVE_COUNT_HEIGHT_PX = 25;

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-09-issue-757-toolbar-clip-spacing",
+  "version": "PR #757",
+  "date": "2026-04-09",
+  "title": "Fix toolbar clipping and compact spacing",
+  "summary": "Fixes the remaining 24px legacy toolbar height assumptions, tightens compact icon-button spacing, and aligns the search toolbar SVG contract with the wave/edit toolbars.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Search, wave, and edit toolbar icons now render fully without vertical clipping, including wrapped edit-toolbar rows on narrow widths",
+        "Compact toolbar buttons use denser spacing and the search toolbar now shares the polished 18px SVG wrapper/sizing contract"
+      ]
+    }
+  ]
+}

@@ -22,23 +22,30 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
+import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.robots.RobotWaveletData;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.robots.util.LoggingRequestListener;
 import org.waveprotocol.box.server.robots.util.RobotsUtil;
+import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.conversation.ObservableConversationBlip;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
-import org.waveprotocol.wave.model.document.util.LineContainers;
-import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
+import org.waveprotocol.wave.model.id.IdUtil;
+import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.wave.WaveletDelta;
+import org.waveprotocol.wave.model.supplement.PrimitiveSupplement;
+import org.waveprotocol.wave.model.supplement.ThreadState;
+import org.waveprotocol.wave.model.supplement.WaveletBasedSupplement;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.util.logging.Log;
+
+import java.util.List;
 
 /**
  * Creates a welcome wave for newly registered users using direct server-side
@@ -55,16 +62,19 @@ public class WelcomeWaveCreator {
 
   private final WaveletProvider waveletProvider;
   private final ConversationUtil conversationUtil;
+  private final WelcomeWaveContentBuilder contentBuilder;
 
   @Inject
-  public WelcomeWaveCreator(WaveletProvider waveletProvider, ConversationUtil conversationUtil) {
+  public WelcomeWaveCreator(WaveletProvider waveletProvider, ConversationUtil conversationUtil,
+      WelcomeWaveContentBuilder contentBuilder) {
     this.waveletProvider = waveletProvider;
     this.conversationUtil = conversationUtil;
+    this.contentBuilder = contentBuilder;
   }
 
   /**
-   * Creates a welcome wave for the given new user. The wave contains a single
-   * blip with a brief welcome message.
+   * Creates a welcome wave for the given new user using a structured onboarding
+   * field guide with inline detail threads.
    *
    * <p>This method is designed to be called after successful account creation.
    * Failures are logged but do not propagate -- callers should not let welcome
@@ -88,23 +98,47 @@ public class WelcomeWaveCreator {
       // Add the new user as a participant on the wavelet.
       opBasedWavelet.addParticipant(newUser);
 
-      // Insert welcome text into the root blip.
-      String welcomeText = "Welcome to Wave!\n"
-          + "You can create new waves, add participants, and collaborate in real-time.\n"
-          + "Try clicking 'New Wave' to get started.";
-      XmlStringBuilder content = XmlStringBuilder.createText(welcomeText);
-      LineContainers.appendToLastLine(rootBlip.getContent(), content);
+      WelcomeWaveContentBuilder.AuthoringResult authoringResult =
+          contentBuilder.populate(rootBlip, newUser);
 
-      // Submit the accumulated deltas to the wave server.
-      for (WaveletDelta delta : newWavelet.getDeltas()) {
-        ProtocolWaveletDelta protocolDelta = CoreWaveletOperationSerializer.serialize(delta);
-        waveletProvider.submitRequest(waveletName, protocolDelta, LOGGING_REQUEST_LISTENER);
-      }
+      submitDeltas(waveletName, newWavelet);
+
+      RobotWaveletData userDataWavelet = loadOrCreateUserDataWavelet(waveletName, newUser);
+      PrimitiveSupplement udwState = WaveletBasedSupplement.create(
+          userDataWavelet.getOpBasedWavelet(newUser));
+      persistCollapsedThreadState(udwState, opBasedWavelet.getId(),
+          authoringResult.getCollapsedThreadIds());
+      submitDeltas(userDataWavelet.getWaveletName(), userDataWavelet);
 
       LOG.info("Created welcome wave for " + newUser.getAddress()
           + " (" + waveletName.waveId + ")");
     } catch (Exception e) {
       LOG.warning("Failed to create welcome wave for " + newUser.getAddress(), e);
+    }
+  }
+
+  static void persistCollapsedThreadState(PrimitiveSupplement supplement,
+      WaveletId conversationWaveletId, List<String> threadIds) {
+    for (String threadId : threadIds) {
+      supplement.setThreadState(conversationWaveletId, threadId, ThreadState.COLLAPSED);
+    }
+  }
+
+  private RobotWaveletData loadOrCreateUserDataWavelet(WaveletName conversationWaveletName,
+      ParticipantId user) throws WaveServerException {
+    WaveletName userDataWaveletName = WaveletName.of(conversationWaveletName.waveId,
+        IdUtil.buildUserDataWaveletId(user));
+    CommittedWaveletSnapshot snapshot = waveletProvider.getSnapshot(userDataWaveletName);
+    if (snapshot == null) {
+      return RobotsUtil.createEmptyRobotWavelet(user, userDataWaveletName);
+    }
+    return new RobotWaveletData(snapshot.snapshot, snapshot.committedVersion);
+  }
+
+  private void submitDeltas(WaveletName waveletName, RobotWaveletData waveletData) {
+    for (WaveletDelta delta : waveletData.getDeltas()) {
+      ProtocolWaveletDelta protocolDelta = CoreWaveletOperationSerializer.serialize(delta);
+      waveletProvider.submitRequest(waveletName, protocolDelta, LOGGING_REQUEST_LISTENER);
     }
   }
 }

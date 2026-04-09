@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +38,8 @@ import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.box.server.authentication.email.AuthEmailService;
+import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
+import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -44,6 +47,9 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Locale;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -79,6 +85,20 @@ public class UserRegistrationServletTest extends TestCase {
     AccountData account = store.getAccount(participantId);
     assertNotNull(account);
     assertTrue(account.asHuman().getPasswordDigest().verify("internet".toCharArray()));
+    verify(welcomeWaveCreator).createWelcomeWave(participantId);
+  }
+
+  public void testRegisterNewUserWithEmailConfirmationEnabledDefersWelcomeWave() throws Exception {
+    String responseBody = attemptToRegister(
+        req, resp, "pending@example.com", "internet", "pending@example.com", false, true);
+
+    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    ParticipantId participantId = ParticipantId.ofUnsafe("pending@example.com");
+    AccountData pendingAccount = store.getAccount(participantId);
+    assertNotNull(pendingAccount);
+    assertFalse(pendingAccount.asHuman().isEmailConfirmed());
+    assertTrue(responseBody.contains("Please check your email to confirm your account."));
+    verify(welcomeWaveCreator, never()).createWelcomeWave(participantId);
   }
 
   public void testRegisterNewUserDisabled() throws Exception {
@@ -140,12 +160,45 @@ public class UserRegistrationServletTest extends TestCase {
   public String attemptToRegister(
       HttpServletRequest req, HttpServletResponse resp, String address,
       String password, boolean disabledRegistration) throws IOException {
+    return attemptToRegister(req, resp, address, password, "", disabledRegistration, false);
+  }
+
+  public String attemptToRegister(
+      HttpServletRequest req, HttpServletResponse resp, String address,
+      String password, boolean disabledRegistration, boolean emailConfirmationEnabled)
+      throws IOException {
+    return attemptToRegister(
+        req, resp, address, password, "", disabledRegistration, emailConfirmationEnabled);
+  }
+
+  public String attemptToRegister(
+      HttpServletRequest req, HttpServletResponse resp, String address,
+      String password, String email, boolean disabledRegistration,
+      boolean emailConfirmationEnabled) throws IOException {
 
     AuthEmailService authEmailService = null;
+    if (emailConfirmationEnabled) {
+      Config emailConfig = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
+          "core.auth_email_send_cooldown_seconds", 300,
+          "core.auth_email_send_max_per_address_per_hour", 5,
+          "core.auth_email_send_max_per_ip_per_hour", 20,
+          "core.public_url", "https://wave.example.com"));
+      authEmailService = new AuthEmailService(
+          store,
+          mock(EmailTokenIssuer.class),
+          mock(MailProvider.class),
+          Clock.fixed(Instant.parse("2026-04-08T00:00:00Z"), ZoneOffset.UTC),
+          emailConfig);
+      when(req.getScheme()).thenReturn("https");
+      when(req.getServerName()).thenReturn("wave.example.com");
+      when(req.getServerPort()).thenReturn(443);
+      when(req.getRemoteAddr()).thenReturn("198.51.100.9");
+    }
 
     Config config1 = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "administration.disable_registration", false,
-      "administration.analytics_account", "UA-someid")
+      "administration.analytics_account", "UA-someid",
+      "core.email_confirmation_enabled", emailConfirmationEnabled)
     );
     UserRegistrationServlet enabledServlet =
         new UserRegistrationServlet(store, "example.com", config1, authEmailService, welcomeWaveCreator,
@@ -153,7 +206,8 @@ public class UserRegistrationServletTest extends TestCase {
 
     Config config2 = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "administration.disable_registration", true,
-      "administration.analytics_account", "UA-someid")
+      "administration.analytics_account", "UA-someid",
+      "core.email_confirmation_enabled", emailConfirmationEnabled)
     );
     UserRegistrationServlet disabledServlet =
         new UserRegistrationServlet(store, "example.com", config2, authEmailService, welcomeWaveCreator,
@@ -161,6 +215,7 @@ public class UserRegistrationServletTest extends TestCase {
 
     when(req.getParameter("address")).thenReturn(address);
     when(req.getParameter("password")).thenReturn(password);
+    when(req.getParameter("email")).thenReturn(email);
     when(req.getLocale()).thenReturn(Locale.ENGLISH);
     StringWriter responseBody = new StringWriter();
     PrintWriter writer = new PrintWriter(responseBody);

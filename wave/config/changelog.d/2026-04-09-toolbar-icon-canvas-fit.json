@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-09-toolbar-icon-canvas-fit",
-  "version": "PR #0",
+  "version": "PR #778",
   "date": "2026-04-09",
   "title": "Increase toolbar icon canvas size for tighter vertical fit",
   "summary": "Bumps the shared toolbar icon display size from 17px to 20px so search and wave toolbar icons fill more of the existing 36px action buttons without changing toolbar heights or panel offsets.",
@@ -12,6 +12,6 @@
       ]
     }
   ],
-  "pr": 0,
+  "pr": 778,
   "issue": 778
 }

@@ -21,8 +21,6 @@ package org.waveprotocol.wave.client.editor.integration;
 
 import org.waveprotocol.wave.client.editor.EditorTestingUtil;
 
-import java.lang.reflect.Method;
-
 /**
  * Regression coverage for mobile IME text that exists only in the active
  * composition container until the editor explicitly flushes pending input.
@@ -36,8 +34,7 @@ public class MobileImeFlushGwtTest extends TestBase {
     EditorTestingUtil.setImeCompositionText(editor, "mobile");
     assertEquals("mobile", editor.getImeCompositionState());
 
-    Method flushPendingInput = editor.getClass().getMethod("flushPendingInput");
-    flushPendingInput.invoke(editor);
+    editor.flushPendingInput();
 
     assertNull(editor.getImeCompositionState());
     assertEditorContent("IME text should be committed before teardown",

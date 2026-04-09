@@ -1221,14 +1221,18 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
     @Override
     public FocusedContentRange compositionEnd() {
-      if (!imeExtractor.isActive()) {
-        EditorStaticDeps.logger.error().log(
-            "Composition end called with inactive ImeExtractor! "
-                + "Maybe caret was null initially?");
-        return null;
+      try {
+        if (!imeExtractor.isActive()) {
+          EditorStaticDeps.logger.error().log(
+              "Composition end called with inactive ImeExtractor! "
+                  + "Maybe caret was null initially?");
+          return null;
+        }
+        EditorImpl.this.flushActiveImeComposition();
+        return passiveSelectionHelper.getSelectionPoints();
+      } finally {
+        EditorStaticDeps.endIgnoreMutations();
       }
-      EditorImpl.this.flushActiveImeComposition();
-      return passiveSelectionHelper.getSelectionPoints();
     }
 
     @Override
@@ -1539,8 +1543,11 @@ public class EditorImpl extends LogicalPanel.Impl implements
       // This can be avoided by keeping track of the selection annotations directly in the
       // editor, something worth considering.
       responsibility.startIndirectSequence();
-      updateEvent.flushUpdates();
-      responsibility.endIndirectSequence();
+      try {
+        updateEvent.flushUpdates();
+      } finally {
+        responsibility.endIndirectSequence();
+      }
     } finally {
       EditorStaticDeps.endIgnoreMutations();
     }
@@ -1561,7 +1568,12 @@ public class EditorImpl extends LogicalPanel.Impl implements
       return;
     }
     if (imeExtractor.isActive()) {
-      flushActiveImeComposition();
+      responsibility.startDirectSequence();
+      try {
+        flushActiveImeComposition();
+      } finally {
+        responsibility.endDirectSequence();
+      }
     }
     flushSynchronous();
   }
@@ -2645,6 +2657,11 @@ public class EditorImpl extends LogicalPanel.Impl implements
   }
 
   void debugStartImeComposition() {
+    // Guard against re-entering composition when one is already active, which would leave
+    // ignoreMutations in an inconsistent state.
+    if (imeExtractor.isActive()) {
+      return;
+    }
     Point<ContentNode> caret = null;
     FocusedContentRange selection = aggressiveSelectionHelper != null
         ? aggressiveSelectionHelper.getSelectionPoints() : null;

@@ -43,6 +43,7 @@ import org.waveprotocol.wave.client.editor.util.EditorAnnotationUtil;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.ClipboardImageUploader;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.color.ColorHelper;
+import org.waveprotocol.wave.client.wavepanel.impl.edit.TaskMetadataPopup;
 import org.waveprotocol.wave.client.wavepanel.view.AttachmentPopupView;
 import org.waveprotocol.wave.client.wavepanel.view.AttachmentPopupView.Listener;
 import org.waveprotocol.wave.client.widget.toolbar.SubmenuToolbarView;
@@ -628,7 +629,8 @@ public class EditToolbar {
               }
             }
             String taskId = TaskDocumentUtil.generateTaskId();
-            TaskDocumentUtil.insertTask(doc, point, taskId, user.getAddress());
+            ContentElement inserted = TaskDocumentUtil.insertTask(doc, point, taskId, user.getAddress());
+            TaskMetadataPopup.show(inserted);
           }
         });
     taskBtn.setVisualElement(createSvgIcon(ICON_TASK));

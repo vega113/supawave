@@ -1221,18 +1221,15 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
     @Override
     public FocusedContentRange compositionEnd() {
-      try {
-        if (!imeExtractor.isActive()) {
-          EditorStaticDeps.logger.error().log(
-              "Composition end called with inactive ImeExtractor! "
-                  + "Maybe caret was null initially?");
-          return null;
-        }
-        EditorImpl.this.flushActiveImeComposition();
-        return passiveSelectionHelper.getSelectionPoints();
-      } finally {
+      if (!imeExtractor.isActive()) {
+        EditorStaticDeps.logger.error().log(
+            "Composition end called with inactive ImeExtractor! "
+                + "Maybe caret was null initially?");
         EditorStaticDeps.endIgnoreMutations();
+        return null;
       }
+      EditorImpl.this.flushActiveImeComposition();
+      return passiveSelectionHelper.getSelectionPoints();
     }
 
     @Override

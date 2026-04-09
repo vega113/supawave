@@ -50,16 +50,24 @@ public final class WelcomeWaveContentBuilder {
 
   private static final String WAVE_0_URI =
       "wave://supawave.ai/w+PSWhwKguwjA/~/conv+root/b+PSWhwKguwjB";
+  private static final String WAVE_0_LABEL =
+      "SupaWave Community \u2014 Questions, Feedback & Support";
   private static final String WAVE_1_URI =
       "wave://supawave.ai/w+IaeaidlHtXA/~/conv+root/b+IaeaidlHtXB";
+  private static final String WAVE_1_LABEL = "Welcome to SupaWave";
   private static final String WAVE_2_URI =
       "wave://supawave.ai/w+IaeaidlHtXC/~/conv+root/b+IaeaidlHtXD";
+  private static final String WAVE_2_LABEL = "Search Like a Pro";
   private static final String WAVE_3_URI =
       "wave://supawave.ai/w+IaeaidlHtXE/~/conv+root/b+IaeaidlHtXF";
+  private static final String WAVE_3_LABEL = "Collaboration Features";
   private static final String WAVE_4_URI =
       "wave://supawave.ai/w+IaeaidlHtXG/~/conv+root/b+IaeaidlHtXH";
+  private static final String WAVE_4_LABEL = "Making Waves Public";
   private static final String WAVE_5_URI =
       "wave://supawave.ai/w+IaeaidlHtXI/~/conv+root/b+IaeaidlHtXJ";
+  private static final String WAVE_5_LABEL = "Tips, Shortcuts, and Hidden Features";
+
   @Inject
   public WelcomeWaveContentBuilder() {
   }
@@ -115,12 +123,12 @@ public final class WelcomeWaveContentBuilder {
     appendLine(doc,
         "These onboarding/public support waves are linked on purpose, so you can move through the set instead of treating this like a dead-end help page.");
     appendLine(doc, "Onboarding waves");
-    appendLinkedLine(doc, pendingLinks, "Wave 0", WAVE_0_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 1", WAVE_1_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 2", WAVE_2_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 3", WAVE_3_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 4", WAVE_4_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 5", WAVE_5_URI);
+    appendLinkedLine(doc, pendingLinks, WAVE_0_LABEL, WAVE_0_URI);
+    appendLinkedLine(doc, pendingLinks, WAVE_1_LABEL, WAVE_1_URI);
+    appendLinkedLine(doc, pendingLinks, WAVE_2_LABEL, WAVE_2_URI);
+    appendLinkedLine(doc, pendingLinks, WAVE_3_LABEL, WAVE_3_URI);
+    appendLinkedLine(doc, pendingLinks, WAVE_4_LABEL, WAVE_4_URI);
+    appendLinkedLine(doc, pendingLinks, WAVE_5_LABEL, WAVE_5_URI);
     appendBlankLine(doc);
     int historyAnchor = appendLine(doc, "History in one line");
     appendLine(doc,

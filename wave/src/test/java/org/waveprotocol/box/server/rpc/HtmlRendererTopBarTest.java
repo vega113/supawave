@@ -19,6 +19,8 @@ package org.waveprotocol.box.server.rpc;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.json.JSONObject;
+
 import junit.framework.TestCase;
 
 public final class HtmlRendererTopBarTest extends TestCase {
@@ -75,6 +77,40 @@ public final class HtmlRendererTopBarTest extends TestCase {
     assertTrue(css.contains(".admin-msg-btn"));
     assertTrue(css.contains(".admin-badge"));
     assertTrue(css.contains("admin-glow"));
+  }
+
+  public void testRenderSharedTopBarUsesCompactMenuSections() {
+    String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "/wave", "admin");
+    String css = HtmlRenderer.renderSharedTopBarCss();
+
+    assertTrue(html.contains("class=\"user-info-label\">Signed in as</div>"));
+    assertTrue(html.contains("class=\"user-info-address\">vega@example.com</div>"));
+    assertTrue(html.contains("class=\"menu-section\" role=\"presentation\">"));
+    assertTrue(html.contains("class=\"menu-signout\""));
+    assertTrue(css.contains(".user-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background: #fff; border-radius: 10px;"));
+    assertTrue(css.contains(".user-menu-dropdown .menu-section + .menu-section {"));
+    assertTrue(css.contains(".user-menu-dropdown a { display: block; padding: 7px 10px;"));
+    assertTrue(css.contains(".user-menu-dropdown .user-info-label {"));
+    assertTrue(css.contains(".user-menu-dropdown a:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(0,119,182,0.40); }"));
+  }
+
+  public void testWaveClientPageUsesCompactMenuSectionStyles() {
+    String html = HtmlRenderer.renderWaveClientPage(
+        new JSONObject("{\"id\":\"u\"}"),
+        new JSONObject(),
+        "localhost:9898",
+        HtmlRenderer.renderTopBar("vega", "example.com", "user"),
+        "",
+        "abc123build",
+        1700000000000L,
+        null,
+        null);
+
+    assertTrue(html.contains("class=\"user-info-label\">Signed in as</div>"));
+    assertTrue(html.contains("class=\"menu-section\" role=\"presentation\">"));
+    assertTrue(html.contains(".user-menu-dropdown .menu-section + .menu-section {"));
+    assertTrue(html.contains(".user-menu-dropdown a { display: block; padding: 7px 10px;"));
+    assertTrue(html.contains(".user-menu-dropdown a:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(0,119,182,0.40); }"));
   }
 
   public void testRenderSharedTopBarHtmlAdminShowsEnvelopeIcon() {

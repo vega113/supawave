@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-09-issue-781-attachment-id-encoding",
+  "version": "PR #781",
+  "date": "2026-04-09",
+  "title": "Fix attachment metadata lookups for plus-sign ids",
+  "summary": "URL-encodes attachment ids before the Wave client requests `/attachmentsInfo`, so image and file metadata still load when ids contain `+`.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Attachment thumbnails and image metadata now load correctly when the stored attachment id contains a plus sign"
+      ]
+    }
+  ]
+}

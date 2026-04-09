@@ -77,6 +77,32 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(javaSource.contains("wrapper.setClassName(\"toolbar-svg-icon\")"));
   }
 
+  public void testSharedToolbarIconCssUsesSeventeenPixelDisplaySize() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/client/WebClient.java");
+
+    // Single source of truth: the constant must declare 17px
+    assertTrue(javaSource.contains("TOOLBAR_ICON_DISPLAY_PX = \"17px\""));
+
+    int wrapperRule = javaSource.indexOf(".toolbar-svg-icon {");
+    int svgRule = javaSource.indexOf(".toolbar-svg-icon svg {");
+
+    assertTrue(wrapperRule >= 0);
+    assertTrue(svgRule > wrapperRule);
+
+    // Wrapper section uses the constant for both width and height (no ordering required)
+    int firstWrapperUse = javaSource.indexOf("TOOLBAR_ICON_DISPLAY_PX", wrapperRule);
+    int secondWrapperUse = javaSource.indexOf("TOOLBAR_ICON_DISPLAY_PX", firstWrapperUse + 1);
+    assertTrue(firstWrapperUse > wrapperRule && firstWrapperUse < svgRule);
+    assertTrue(secondWrapperUse > wrapperRule && secondWrapperUse < svgRule);
+
+    // SVG section uses the constant for both width and height (no ordering required)
+    int firstSvgUse = javaSource.indexOf("TOOLBAR_ICON_DISPLAY_PX", svgRule);
+    int secondSvgUse = javaSource.indexOf("TOOLBAR_ICON_DISPLAY_PX", firstSvgUse + 1);
+    assertTrue(firstSvgUse > svgRule);
+    assertTrue(secondSvgUse > svgRule);
+  }
+
   private static String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
   }

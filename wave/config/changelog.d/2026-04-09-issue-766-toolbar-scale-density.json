@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-09-issue-766-toolbar-scale-density",
+  "version": "PR #766",
+  "date": "2026-04-09",
+  "title": "Polish toolbar icon scale and containment",
+  "summary": "Reduces the shared toolbar SVG display size so search and wave toolbars feel better centered inside the existing compact bars.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Search and wave toolbar icons render with slightly lighter visual density while keeping the same compact toolbar height"
+      ]
+    }
+  ]
+}

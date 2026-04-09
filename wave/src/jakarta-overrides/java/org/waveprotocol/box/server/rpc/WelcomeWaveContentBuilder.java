@@ -94,22 +94,24 @@ public final class WelcomeWaveContentBuilder {
         "SupaWave is in active development, with ongoing modernization around snapshots, tags, contacts, and future federation work.");
     appendIssueLine(doc);
 
+    // Add threads in reverse document order so each insertion does not shift
+    // the anchor positions that still need to be used.
     AuthoringResult result = new AuthoringResult();
-    result.addCollapsedThreadId(addDetailThread(rootBlip, helpAnchor,
-        "How to open collapsed inline blips",
-        "Collapsed inline blips keep the main path short. Click the collapsed inline blip toggle to open the extra detail inline, then collapse it again when you are done."));
-    result.addCollapsedThreadId(addDetailThread(rootBlip, waveAnchor,
-        "Why the word Wave matters",
-        "The term wave comes from Firefly, where a wave is an electronic communication. That metaphor fits Wave because a single wave can hold both the message and the conversation around it."));
+    result.addCollapsedThreadId(addDetailThread(rootBlip, developmentAnchor,
+        "What is being modernized",
+        "SupaWave is being actively modernized. Current work includes snapshots, tags, contacts, better onboarding, and future federation work so richer shared communication can keep evolving without losing the Wave model."));
     result.addCollapsedThreadId(addDetailThread(rootBlip, historyAnchor,
         "History and lineage",
         "Google Wave introduced the model. Apache Wave carried the open-source codebase forward. SupaWave is a modern fork focused on practical collaboration, AI-friendly workflows, and current product iteration."));
     result.addCollapsedThreadId(addDetailThread(rootBlip, robotAnchor,
         "Robot and API detail",
         "The robot API lets software participants read and write in waves. The TypeScript example robot gpt-bot-ts@supawave.ai lives in the gpt-bot-ts repo and shows a concrete SupaWave agent that works with Wave-native context."));
-    result.addCollapsedThreadId(addDetailThread(rootBlip, developmentAnchor,
-        "What is being modernized",
-        "SupaWave is being actively modernized. Current work includes snapshots, tags, contacts, better onboarding, and future federation work so richer shared communication can keep evolving without losing the Wave model."));
+    result.addCollapsedThreadId(addDetailThread(rootBlip, waveAnchor,
+        "Why the word Wave matters",
+        "The term wave comes from Firefly, where a wave is an electronic communication. That metaphor fits Wave because a single wave can hold both the message and the conversation around it."));
+    result.addCollapsedThreadId(addDetailThread(rootBlip, helpAnchor,
+        "How to open collapsed inline blips",
+        "Collapsed inline blips keep the main path short. Click the collapsed inline blip toggle to open the extra detail inline, then collapse it again when you are done."));
 
     return result;
   }

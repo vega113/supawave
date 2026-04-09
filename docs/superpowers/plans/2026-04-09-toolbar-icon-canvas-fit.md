@@ -42,7 +42,7 @@ grep -n "TOOLBAR_ICON_DISPLAY_PX" wave/src/main/java/org/waveprotocol/box/webcli
 ```
 
 Expected output includes a line like:
-```
+```text
   private static final String TOOLBAR_ICON_DISPLAY_PX = "17px";
 ```
 
@@ -199,7 +199,7 @@ Server runs on `http://localhost:9900`.
 
 - [ ] **Step 2: Open the search panel toolbar and wave panel toolbar in the browser**
 
-Navigate to `http://localhost:9900` and inspect both toolbars. Icons should appear more compact vertically — visually filling more of the button height with less empty space above and below compared to the previous 17px size.
+Navigate to `http://localhost:9900` and inspect both toolbars. Icons should appear more compact vertically — visually filling more of the button height with less space above and below compared to the previous 17px size.
 
 - [ ] **Step 3: Record evidence in the issue**
 

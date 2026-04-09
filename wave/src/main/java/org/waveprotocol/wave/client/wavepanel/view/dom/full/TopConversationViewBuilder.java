@@ -58,8 +58,9 @@ public abstract class TopConversationViewBuilder implements UiBuilder {
   // Inner class, to avoid class loading of resource loader in test environment.
   static class CssConstants {
     // Called from @eval in css.
-    final static String THREAD_TOP_CSS = ParticipantsViewBuilder.COLLAPSED_HEIGHT_PX
-        + WavePanelResourceLoader.getConversation().emptyToolbar().getHeight() + "px";
+    // Keep the thread offset aligned with the rendered 36px shared toolbar row.
+    // The legacy toolbar sprite remains 24px tall and cannot drive layout.
+    final static String THREAD_TOP_CSS = ParticipantsViewBuilder.COLLAPSED_HEIGHT_PX + 36 + "px";
   }
 
   /** An enum for all the components of a blip view. */

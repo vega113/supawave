@@ -55,6 +55,8 @@
   right: 0;
   left: 0;
   border-left: none;
+  height: auto;
+  min-height: 36px;
 }
 
 .waveCount {

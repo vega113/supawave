@@ -47,6 +47,26 @@ public interface AttachmentPopupView {
      * @param displaySize the selected display size: "small", "medium", or "large"
      */
     void onDoneWithSize(String waveId, String id, String fileName, String displaySize);
+
+    /**
+     * Called when upload completes with a display size and caption.
+     *
+     * @param waveId the wave reference
+     * @param id the attachment id
+     * @param fileName the file name
+     * @param displaySize the selected display size: "small", "medium", or "large"
+     * @param caption the user-typed caption (may be empty, in which case fileName is used)
+     */
+    void onDoneWithSizeAndCaption(String waveId, String id, String fileName,
+        String displaySize, String caption);
+
+    /**
+     * Called by the popup to request a fresh attachment ID for each file being uploaded.
+     * The listener (EditToolbar) uses its IdGenerator to produce unique IDs.
+     *
+     * @return a new unique AttachmentId
+     */
+    AttachmentId requestNewAttachmentId();
   }
 
   /**

@@ -35,6 +35,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  height: auto;
+  min-height: 36px;
 }
 
 @sprite .overflowButton {

@@ -133,12 +133,13 @@ public final class SearchPresenter
    */
   private final static int OT_SEARCH_TIMEOUT_MS = 5000;
 
-  // Inline SVG icons (Lucide icon set, MIT) for toolbar action buttons.
-  // Explicit close tags used for GWT HTML-parser compatibility.
+  // Inline SVG icons (Lucide-inspired, clean rounded strokes) for toolbar
+  // action buttons. Explicit close tags used for GWT HTML-parser compatibility.
   private static final String SVG_OPEN =
-      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" "
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" "
       + "viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
-      + "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">";
+      + "stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" "
+      + "style=\"display:block\">";
 
   /** New Wave: pencil-square / compose icon. */
   private static final String ICON_NEW_WAVE = SVG_OPEN
@@ -516,6 +517,7 @@ public final class SearchPresenter
    */
   private static Element createSvgIcon(String svgHtml) {
     Element wrapper = DOM.createDiv();
+    wrapper.setClassName("toolbar-svg-icon");
     wrapper.setInnerHTML(svgHtml);
     return wrapper;
   }
@@ -594,8 +596,11 @@ public final class SearchPresenter
       if (badgeEnabled) {
         // Wrap icon in a relative container so the badge overlay moves with it
         Element wrapper = DOM.createSpan();
+        wrapper.setClassName("toolbar-svg-icon");
         wrapper.getStyle().setProperty("position", "relative");
-        wrapper.getStyle().setProperty("display", "inline-block");
+        wrapper.getStyle().setProperty("display", "inline-flex");
+        wrapper.getStyle().setProperty("alignItems", "center");
+        wrapper.getStyle().setProperty("justifyContent", "center");
         wrapper.setInnerHTML(ICON_MENTIONS);
         mentionBadgeEl = DOM.createSpan();
         mentionBadgeEl.setClassName(SearchPanelWidget.css.mentionBadge());
@@ -622,8 +627,11 @@ public final class SearchPresenter
       Element taskVisual;
       if (taskBadgeOn) {
         Element wrapper = DOM.createSpan();
+        wrapper.setClassName("toolbar-svg-icon");
         wrapper.getStyle().setProperty("position", "relative");
-        wrapper.getStyle().setProperty("display", "inline-block");
+        wrapper.getStyle().setProperty("display", "inline-flex");
+        wrapper.getStyle().setProperty("alignItems", "center");
+        wrapper.getStyle().setProperty("justifyContent", "center");
         wrapper.setInnerHTML(ICON_TASKS);
         taskBadgeEl = DOM.createSpan();
         taskBadgeEl.setClassName(SearchPanelWidget.css.mentionBadge());

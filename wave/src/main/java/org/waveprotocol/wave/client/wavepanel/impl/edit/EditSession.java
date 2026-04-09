@@ -213,6 +213,7 @@ public final class EditSession
    */
   private void endSession() {
     if (isEditing()) {
+      editor.flushPendingInput();
       if (editor.isDraftMode()) {
         editor.leaveDraftMode(true);
       }

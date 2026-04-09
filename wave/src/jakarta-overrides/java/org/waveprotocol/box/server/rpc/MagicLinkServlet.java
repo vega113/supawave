@@ -72,6 +72,7 @@ public final class MagicLinkServlet extends HttpServlet {
   private final String analyticsAccount;
   private final boolean magicLinkEnabled;
   private final boolean secureCookiesByDefault;
+  private final WelcomeWaveCreator welcomeWaveCreator;
 
   @Inject
   public MagicLinkServlet(AccountStore accountStore,
@@ -80,7 +81,8 @@ public final class MagicLinkServlet extends HttpServlet {
                            BrowserSessionJwtIssuer browserSessionJwtIssuer,
                            @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
                            Config config,
-                           AuthEmailService authEmailService) {
+                           AuthEmailService authEmailService,
+                           WelcomeWaveCreator welcomeWaveCreator) {
     this.accountStore = accountStore;
     this.emailTokenIssuer = emailTokenIssuer;
     this.sessionManager = sessionManager;
@@ -93,6 +95,7 @@ public final class MagicLinkServlet extends HttpServlet {
         && config.getBoolean("core.magic_link_enabled");
     this.secureCookiesByDefault = config.hasPath("security.enable_ssl")
         && config.getBoolean("security.enable_ssl");
+    this.welcomeWaveCreator = welcomeWaveCreator;
   }
 
   @Override
@@ -191,8 +194,10 @@ public final class MagicLinkServlet extends HttpServlet {
         return;
       }
 
-      if (!humanAccount.isEmailConfirmed()) {
+      boolean firstConfirm = !humanAccount.isEmailConfirmed();
+      if (firstConfirm) {
         authEmailService.confirmEmailOwnership(humanAccount);
+        welcomeWaveCreator.createWelcomeWave(participantId);
       }
       persistLastLogin(account);
 

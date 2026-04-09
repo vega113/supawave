@@ -51,4 +51,6 @@
 
 @sprite .toolbar {
   gwt-image: 'emptyToolbar';
+  height: auto;
+  min-height: 36px;
 }

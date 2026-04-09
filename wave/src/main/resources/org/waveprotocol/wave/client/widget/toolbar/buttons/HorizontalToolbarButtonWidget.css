@@ -21,7 +21,7 @@
  */
 
 .self {
-  height: value('buttonDown.getHeight', 'px');
+  height: auto;
   min-height: 36px;
   display: inline-flex;
   align-items: center;
@@ -39,8 +39,8 @@
 }
 
 .self.compact {
-  padding: 0 8px;
-  min-width: 36px;
+  padding: 0 4px;
+  min-width: 28px;
   justify-content: center;
 }
 

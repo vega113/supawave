@@ -41,6 +41,7 @@ import org.waveprotocol.wave.client.editor.toolbar.ParagraphTraversalController;
 import org.waveprotocol.wave.client.editor.toolbar.TextSelectionController;
 import org.waveprotocol.wave.client.editor.util.EditorAnnotationUtil;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget;
+import org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.ClipboardImageUploader;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.color.ColorHelper;
 import org.waveprotocol.wave.client.wavepanel.view.AttachmentPopupView;
 import org.waveprotocol.wave.client.wavepanel.view.AttachmentPopupView.Listener;
@@ -50,6 +51,7 @@ import org.waveprotocol.wave.client.widget.toolbar.ToolbarView;
 import org.waveprotocol.wave.client.widget.toolbar.ToplevelToolbarWidget;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarClickButton;
 import org.waveprotocol.wave.client.widget.toolbar.buttons.ToolbarToggleButton;
+import org.waveprotocol.wave.media.model.AttachmentId;
 import org.waveprotocol.wave.media.model.AttachmentIdGenerator;
 import org.waveprotocol.wave.media.model.AttachmentIdGeneratorImpl;
 import org.waveprotocol.wave.model.document.util.FocusedRange;
@@ -301,6 +303,8 @@ public class EditToolbar {
     this.user = user;
     this.waveId = waveId;
     attachmentIdGenerator = new AttachmentIdGeneratorImpl(idGenerator);
+    editor.setImagePasteHandler(
+        new ClipboardImageUploader(attachmentIdGenerator, waveId, editor));
   }
 
   /**
@@ -526,12 +530,6 @@ public class EditToolbar {
         .applyTo(attachBtn, new ToolbarClickButton.Listener() {
           @Override
           public void onClicked() {
-            int tmpCursor = -1;
-            FocusedRange focusedRange = editor.getSelectionHelper().getSelectionRange();
-            if (focusedRange != null) {
-              tmpCursor = focusedRange.getFocus();
-            }
-            final int cursorLoc = tmpCursor;
             AttachmentPopupView attachmentView = new AttachmentPopupWidget();
             attachmentView.init(new Listener() {
 
@@ -544,51 +542,58 @@ public class EditToolbar {
               }
 
               @Override
+              public AttachmentId requestNewAttachmentId() {
+                return attachmentIdGenerator.newAttachmentId();
+              }
+
+              @Override
               public void onDone(String encodedWaveRef, String attachmentId, String fullFileName) {
-                onDoneWithSize(encodedWaveRef, attachmentId, fullFileName, "small");
+                onDoneWithSizeAndCaption(encodedWaveRef, attachmentId, fullFileName, "small", "");
               }
 
               @Override
               public void onDoneWithSize(String encodedWaveRef, String attachmentId,
                   String fullFileName, String displaySize) {
-                // Insert a file name linking to the attachment URL.
+                onDoneWithSizeAndCaption(encodedWaveRef, attachmentId, fullFileName, displaySize, "");
+              }
+
+              @Override
+              public void onDoneWithSizeAndCaption(String encodedWaveRef, String attachmentId,
+                  String fullFileName, String displaySize, String caption) {
                 int lastSlashPos = fullFileName.lastIndexOf("/");
                 int lastBackSlashPos = fullFileName.lastIndexOf("\\");
                 String fileName = fullFileName;
                 if (lastSlashPos != -1) {
-                  fileName = fullFileName.substring(lastSlashPos + 1, fullFileName.length());
+                  fileName = fullFileName.substring(lastSlashPos + 1);
                 } else if (lastBackSlashPos != -1) {
-                  fileName = fullFileName.substring(lastBackSlashPos + 1, fullFileName.length());
+                  fileName = fullFileName.substring(lastBackSlashPos + 1);
                 }
-                /*
-                 * From UploadToolbarAction in Walkaround
-                 * @author hearnden@google.com (David Hearnden)
-                 */
+                // Use caption if provided, otherwise fall back to filename
+                String captionText = (caption != null && !caption.trim().isEmpty())
+                    ? caption.trim() : fileName;
+
                 CMutableDocument doc = editor.getDocument();
                 FocusedContentRange selection = editor.getSelectionHelper().getSelectionPoints();
                 Point<ContentNode> point;
                 if (selection != null) {
                   point = selection.getFocus();
                 } else {
-                  // Focus was probably lost.  Bring it back.
                   editor.focus(false);
                   selection = editor.getSelectionHelper().getSelectionPoints();
                   if (selection != null) {
                     point = selection.getFocus();
                   } else {
-                    // Still no selection.  Oh well, put it at the end.
                     point = doc.locate(doc.size() - 1);
                   }
                 }
                 XmlStringBuilder content = ImageThumbnail.constructXmlWithSize(
-                    attachmentId, displaySize, fileName);
+                    attachmentId, displaySize, captionText);
                 ImageThumbnailWrapper thumbnail = ImageThumbnailWrapper.of(
                     doc.insertXml(point, content));
                 thumbnail.setAttachmentId(attachmentId);
               }
             });
 
-            attachmentView.setAttachmentId(attachmentIdGenerator.newAttachmentId());
             attachmentView.setWaveRef(waveRefToken);
             attachmentView.show();
           }

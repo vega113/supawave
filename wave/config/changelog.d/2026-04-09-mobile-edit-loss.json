@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-09-mobile-edit-loss",
+  "version": "Unreleased",
+  "date": "2026-04-09",
+  "title": "Mobile edit persistence fix",
+  "summary": "Android/mobile blip edits now commit pending IME text before the editor closes, preventing text that looked saved locally from disappearing after reload.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Committed pending IME composition text before mobile edit sessions detach the editor",
+        "Added webdriver hooks for editor pending-input inspection while debugging the mobile edit-loss path"
+      ]
+    }
+  ]
+}

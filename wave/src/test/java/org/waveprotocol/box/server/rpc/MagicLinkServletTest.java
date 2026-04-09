@@ -56,6 +56,7 @@ public class MagicLinkServletTest extends TestCase {
   @Mock private MailProvider mailProvider;
   @Mock private SessionManager sessionManager;
   @Mock private BrowserSessionJwtIssuer browserSessionJwtIssuer;
+  @Mock private WelcomeWaveCreator welcomeWaveCreator;
 
   private AuthEmailService authEmailService;
   private MagicLinkServlet servlet;
@@ -84,7 +85,8 @@ public class MagicLinkServletTest extends TestCase {
         browserSessionJwtIssuer,
         "example.com",
         config,
-        authEmailService);
+        authEmailService,
+        welcomeWaveCreator);
     when(req.getLocale()).thenReturn(Locale.ENGLISH);
     when(req.getScheme()).thenReturn("https");
     when(req.getServerName()).thenReturn("wave.example.com");
@@ -255,5 +257,63 @@ public class MagicLinkServletTest extends TestCase {
     verify(sessionManager).setLoggedInUser(any(WebSession.class), eq(USER));
     verify(resp).sendRedirect("/");
     verify(resp, never()).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+  }
+
+  public void testMagicLinkLoginCreatesWelcomeWaveOnFirstConfirmation() throws Exception {
+    HumanAccountDataImpl account =
+        new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
+    account.setEmail("frodo@example.com");
+    account.setEmailConfirmed(false);
+    when(accountStore.getAccount(USER)).thenReturn(account);
+    when(req.getParameter("token")).thenReturn("magic-token");
+    when(req.getSession(true)).thenReturn(session);
+    when(req.getHeader("X-Forwarded-Proto")).thenReturn("https");
+    when(browserSessionJwtIssuer.issue(USER)).thenReturn("browser-jwt");
+    when(emailTokenIssuer.validateToken("magic-token", JwtTokenType.MAGIC_LINK))
+        .thenReturn(new JwtClaims(
+            JwtTokenType.MAGIC_LINK,
+            "example.com",
+            USER.getAddress(),
+            "token-id",
+            "key-id",
+            EnumSet.of(JwtAudience.EMAIL),
+            Set.of(),
+            1L,
+            1L,
+            600L,
+            0L));
+
+    servlet.doGet(req, resp);
+
+    verify(welcomeWaveCreator).createWelcomeWave(USER);
+  }
+
+  public void testMagicLinkLoginSkipsWelcomeWaveIfAlreadyConfirmed() throws Exception {
+    HumanAccountDataImpl account =
+        new HumanAccountDataImpl(USER, new PasswordDigest("password".toCharArray()));
+    account.setEmail("frodo@example.com");
+    account.setEmailConfirmed(true);
+    when(accountStore.getAccount(USER)).thenReturn(account);
+    when(req.getParameter("token")).thenReturn("magic-token");
+    when(req.getSession(true)).thenReturn(session);
+    when(req.getHeader("X-Forwarded-Proto")).thenReturn("https");
+    when(browserSessionJwtIssuer.issue(USER)).thenReturn("browser-jwt");
+    when(emailTokenIssuer.validateToken("magic-token", JwtTokenType.MAGIC_LINK))
+        .thenReturn(new JwtClaims(
+            JwtTokenType.MAGIC_LINK,
+            "example.com",
+            USER.getAddress(),
+            "token-id",
+            "key-id",
+            EnumSet.of(JwtAudience.EMAIL),
+            Set.of(),
+            1L,
+            1L,
+            600L,
+            0L));
+
+    servlet.doGet(req, resp);
+
+    verify(welcomeWaveCreator, never()).createWelcomeWave(any());
   }
 }

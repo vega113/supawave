@@ -159,6 +159,11 @@ public class ImeExtractor {
     return wrapper != null;
   }
 
+  /** Sets the composition text for testing only. */
+  public void setContentForTest(String text) {
+    imeInput.setInnerText(text);
+  }
+
   private void clearWrapper(LocalDocument<ContentNode, ContentElement, ContentTextNode> doc) {
     if (wrapper != null && wrapper.getParentElement() != null) {
       doc.transparentDeepRemove(wrapper);

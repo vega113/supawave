@@ -1,0 +1,22 @@
+{
+  "releaseId": "2026-04-09-multi-file-upload-thumbnails",
+  "version": "PR #756",
+  "date": "2026-04-09",
+  "title": "Multi-File Upload with Thumbnail Previews and Captions",
+  "summary": "Redesigns the attachment upload dialog with multi-file selection, per-file thumbnail previews, inline captions, real XHR progress bars, image compression, and drag-and-drop support.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Select and upload multiple files at once via the attachment popup",
+        "Thumbnail previews for images; file-type icon badges for non-image files",
+        "Per-file caption input inserted into the wave alongside each attachment",
+        "Real XHR upload progress bars with wave-shimmer animation per card",
+        "Optional image compression with configurable display size (S/M/L) before upload",
+        "Drag-and-drop files onto the drop zone to populate the selection",
+        "Remove individual files from the pending batch before uploading",
+        "Graceful error handling: failed uploads stay visible; queue continues to the next file"
+      ]
+    }
+  ]
+}

@@ -56,17 +56,20 @@ public final class EmailConfirmServlet extends HttpServlet {
   private final EmailTokenIssuer emailTokenIssuer;
   private final String domain;
   private final String analyticsAccount;
+  private final WelcomeWaveCreator welcomeWaveCreator;
 
   @Inject
   public EmailConfirmServlet(AccountStore accountStore,
                               EmailTokenIssuer emailTokenIssuer,
                               @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
-                              Config config) {
+                              Config config,
+                              WelcomeWaveCreator welcomeWaveCreator) {
     this.accountStore = accountStore;
     this.emailTokenIssuer = emailTokenIssuer;
     this.domain = domain;
     this.analyticsAccount = config.hasPath("administration.analytics_account")
         ? config.getString("administration.analytics_account") : "";
+    this.welcomeWaveCreator = welcomeWaveCreator;
   }
 
   @Override
@@ -103,6 +106,7 @@ public final class EmailConfirmServlet extends HttpServlet {
       humanAccount.setEmailConfirmed(true);
       accountStore.putAccount(humanAccount);
       LOG.info("Email confirmed for user " + address);
+      welcomeWaveCreator.createWelcomeWave(participantId);
 
       writePage(resp, "Email confirmed successfully! You can now sign in.",
           AuthenticationServlet.RESPONSE_STATUS_SUCCESS,

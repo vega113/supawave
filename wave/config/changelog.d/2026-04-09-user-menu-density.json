@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-09-user-menu-density",
+  "version": "PR #761",
+  "date": "2026-04-09",
+  "title": "Denser User Menu Layout",
+  "summary": "The account dropdown now uses tighter spacing and clearer grouped sections so common actions are easier to scan.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Reduced excess vertical whitespace between user-menu actions while preserving the existing SupaWave topbar styling",
+        "Added a clearer signed-in header and tighter section grouping for account, API, support, legal, and sign-out actions"
+      ]
+    }
+  ]
+}

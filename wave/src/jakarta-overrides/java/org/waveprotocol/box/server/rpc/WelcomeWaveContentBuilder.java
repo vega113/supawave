@@ -194,8 +194,8 @@ public final class WelcomeWaveContentBuilder {
   private static void applyPendingLinks(Document doc, List<PendingLink> pendingLinks) {
     doc.setAnnotation(0, doc.size(), AnnotationConstants.LINK_MANUAL, null);
     for (PendingLink pendingLink : pendingLinks) {
-      int start = doc.getLocation(Point.start(doc, pendingLink.line));
-      int end = start + pendingLink.label.length() + 1;
+      int start = doc.getLocation(Point.after(doc, pendingLink.line));
+      int end = start + pendingLink.label.length();
       doc.setAnnotation(start, end, AnnotationConstants.LINK_MANUAL, pendingLink.url);
     }
   }

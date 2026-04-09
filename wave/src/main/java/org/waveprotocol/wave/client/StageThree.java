@@ -41,6 +41,7 @@ import org.waveprotocol.wave.client.wavepanel.impl.edit.EditSession;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.KeepFocusInView;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.ParticipantController;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.TagController;
+import org.waveprotocol.wave.client.wavepanel.impl.edit.TaskMetadataPopup;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.i18n.ParticipantMessages;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFramePresenter;
 import org.waveprotocol.wave.client.wavepanel.render.TagUpdateRenderer;
@@ -182,6 +183,10 @@ public interface StageThree {
     }
 
     protected EditToolbar createEditToolbar() {
+      Conversation root = stageTwo.getConversations().getRoot();
+      if (root != null) {
+        TaskMetadataPopup.configure(root, getStageTwo().getSignedInUser());
+      }
       return EditToolbar.create(getStageTwo().getSignedInUser(), stageTwo.getIdGenerator(),
           stageTwo.getWave().getWaveId());
     }

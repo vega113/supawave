@@ -23,6 +23,9 @@ import org.waveprotocol.wave.client.editor.content.CMutableDocument;
 import org.waveprotocol.wave.client.editor.content.ContentElement;
 import org.waveprotocol.wave.client.editor.content.ContentNode;
 import org.waveprotocol.wave.model.conversation.AnnotationConstants;
+import org.waveprotocol.wave.model.conversation.TaskMetadataUtil;
+import org.waveprotocol.wave.model.document.ReadableAnnotationSet;
+import org.waveprotocol.wave.model.document.ReadableDocument;
 import org.waveprotocol.wave.model.document.util.Point;
 import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
 
@@ -35,7 +38,6 @@ import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
  * text range.
  */
 public final class TaskDocumentUtil {
-
   /** Prefix applied to the check element name to mark it as a task checkbox. */
   public static final String TASK_NAME_PREFIX = "task:";
 
@@ -65,6 +67,116 @@ public final class TaskDocumentUtil {
     return CheckBox.constructXml(TASK_NAME_PREFIX + taskId, false);
   }
 
+  public static String getTaskAssignee(ReadableDocument<?, ?, ?> doc, int offset) {
+    if (doc == null || offset < 0) {
+      return null;
+    }
+    String assignee;
+    try {
+      assignee = getAnnotationValue(doc, offset, AnnotationConstants.TASK_ASSIGNEE);
+    } catch (RuntimeException e) {
+      return null;
+    }
+    if (assignee == null) {
+      return null;
+    }
+    String normalizedAssignee = assignee.trim();
+    return normalizedAssignee.isEmpty() ? null : normalizedAssignee;
+  }
+
+  public static long getTaskDueTimestamp(ReadableDocument<?, ?, ?> doc, int offset) {
+    if (doc == null || offset < 0) {
+      return -1L;
+    }
+    String dueTs;
+    try {
+      dueTs = getAnnotationValue(doc, offset, AnnotationConstants.TASK_DUE_TS);
+    } catch (RuntimeException e) {
+      return -1L;
+    }
+    if (dueTs == null) {
+      return -1L;
+    }
+    try {
+      long parsed = Long.parseLong(dueTs.trim());
+      return parsed > 0 ? parsed : -1L;
+    } catch (NumberFormatException e) {
+      return -1L;
+    }
+  }
+
+  public static void setTaskAssignee(CMutableDocument doc, int start, int end, String assignee) {
+    String normalizedAssignee = assignee == null ? null : assignee.trim();
+    doc.setAnnotation(start, end, AnnotationConstants.TASK_ASSIGNEE,
+        normalizedAssignee == null || normalizedAssignee.isEmpty() ? null : normalizedAssignee);
+  }
+
+  public static void setTaskDueTimestamp(CMutableDocument doc, int start, int end, long ts) {
+    if (ts <= 0) {
+      clearTaskDueTimestamp(doc, start, end);
+      return;
+    }
+    doc.setAnnotation(start, end, AnnotationConstants.TASK_DUE_TS, String.valueOf(ts));
+  }
+
+  public static void clearTaskDueTimestamp(CMutableDocument doc, int start, int end) {
+    doc.setAnnotation(start, end, AnnotationConstants.TASK_DUE_TS, null);
+  }
+
+  public static String formatTaskOwnerLabel(String participantAddress) {
+    return TaskMetadataUtil.formatTaskOwnerLabel(participantAddress);
+  }
+
+  public static String formatTaskDueLabel(long epochMillis) {
+    return TaskMetadataUtil.formatTaskDueLabel(epochMillis);
+  }
+
+  public static long parseDateInputValue(String yyyyMmDd) {
+    return TaskMetadataUtil.parseDateInputValue(yyyyMmDd);
+  }
+
+  public static String formatDateInputValue(long epochMillis) {
+    return TaskMetadataUtil.formatDateInputValue(epochMillis);
+  }
+
+  public static String getTaskAssignee(ContentElement taskElement) {
+    return taskElement == null ? null
+        : getTaskAssignee(taskElement.getMutableDoc(), taskElement.getMutableDoc().getLocation(taskElement));
+  }
+
+  public static long getTaskDueTimestamp(ContentElement taskElement) {
+    return taskElement == null ? -1L
+        : getTaskDueTimestamp(taskElement.getMutableDoc(),
+            taskElement.getMutableDoc().getLocation(taskElement));
+  }
+
+  public static void setTaskAssignee(ContentElement taskElement, String assignee) {
+    if (taskElement == null) {
+      return;
+    }
+    CMutableDocument doc = taskElement.getMutableDoc();
+    int start = doc.getLocation(taskElement);
+    setTaskAssignee(doc, start, start + 1, assignee);
+  }
+
+  public static void setTaskDueTimestamp(ContentElement taskElement, long ts) {
+    if (taskElement == null) {
+      return;
+    }
+    CMutableDocument doc = taskElement.getMutableDoc();
+    int start = doc.getLocation(taskElement);
+    setTaskDueTimestamp(doc, start, start + 1, ts);
+  }
+
+  public static void clearTaskDueTimestamp(ContentElement taskElement) {
+    if (taskElement == null) {
+      return;
+    }
+    CMutableDocument doc = taskElement.getMutableDoc();
+    int start = doc.getLocation(taskElement);
+    clearTaskDueTimestamp(doc, start, start + 1);
+  }
+
   /**
    * Inserts a task checkbox at the given point in the document and applies
    * task annotations to a small range covering the checkbox.
@@ -85,13 +197,16 @@ public final class TaskDocumentUtil {
     int end = start + 1;  // check element is a single node
 
     doc.setAnnotation(start, end, AnnotationConstants.TASK_ID, taskId);
-    if (assignee != null) {
-      String normalizedAssignee = assignee.trim();
-      if (!normalizedAssignee.isEmpty()) {
-        doc.setAnnotation(start, end, AnnotationConstants.TASK_ASSIGNEE, normalizedAssignee);
-      }
-    }
+    setTaskAssignee(doc, start, end, assignee);
 
     return inserted;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static String getAnnotationValue(ReadableDocument<?, ?, ?> doc, int offset, String key) {
+    if (!(doc instanceof ReadableAnnotationSet)) {
+      return null;
+    }
+    return ((ReadableAnnotationSet<String>) doc).getAnnotation(offset, key);
   }
 }

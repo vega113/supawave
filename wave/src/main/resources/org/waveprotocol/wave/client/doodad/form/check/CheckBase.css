@@ -21,11 +21,53 @@
  * Author: lars@google.com (Lars Rasmussen)
  */
 
-@external task-completed;
+@external task-completed task-check-span task-meta task-pill task-owner-pill task-due-pill task-meta-empty;
 
 .check, .radio {
   padding:4px;
   cursor: pointer;
+}
+
+.task-check-span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.task-meta {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 6px;
+  cursor: pointer;
+}
+
+.task-meta:focus {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.task-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.task-owner-pill {
+  background: #e8f0fe;
+  color: #174ea6;
+}
+
+.task-due-pill {
+  background: #fff4e5;
+  color: #9a6700;
+}
+
+.task-meta-empty {
+  background: #f1f3f4;
+  color: #5f6368;
 }
 
 .task-completed {

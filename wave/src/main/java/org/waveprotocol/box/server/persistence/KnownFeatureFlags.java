@@ -38,7 +38,7 @@ public final class KnownFeatureFlags {
     defaults.add(new FeatureFlag("new-blip-indicator", "Show floating pill when new messages arrive below viewport", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("mention-unread-badge", "Show unread @mention count badge and next-mention navigation", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("task-unread-badge", "Show unread task count badge and task navigation", false, Collections.emptyMap()));
-    defaults.add(new FeatureFlag("task-search", "Enable tasks:me search filter and Tasks toolbar button", false, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("task-search", "Enable tasks:me search filter and Tasks toolbar button", true, Collections.emptyMap()));
     defaults.add(new FeatureFlag("mentions-search", "Enable @mention search filter and Mentions toolbar button", false, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }

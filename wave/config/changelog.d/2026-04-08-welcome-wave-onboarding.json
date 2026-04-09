@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-08-welcome-wave-onboarding",
+  "version": "PR #000",
+  "date": "2026-04-08",
+  "title": "Welcome wave onboarding refresh",
+  "summary": "New accounts now receive a richer SupaWave welcome wave with guided product onboarding, inline advanced details, and a clearer path for AI-oriented collaboration.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Replaced the minimal welcome wave with a field-guide style onboarding wave that explains what Wave is, why it is different, and how to start using it",
+        "Added inline detail blips for history, Firefly naming, robot/API orientation, and active modernization topics so advanced context stays available without overwhelming the main path",
+        "Welcome-wave creation now happens when an account becomes usable: immediately when email confirmation is disabled, or after successful email confirmation when it is enabled"
+      ]
+    }
+  ]
+}

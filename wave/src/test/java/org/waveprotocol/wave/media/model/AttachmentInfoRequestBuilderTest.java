@@ -56,4 +56,13 @@ public class AttachmentInfoRequestBuilderTest extends TestCase {
             Arrays.asList("att+one", "second+id"),
             JAVA_QUERY_ENCODER));
   }
+
+  public void testBuildUsesAmpersandWhenBaseUrlHasQueryParams() {
+    assertEquals(
+        "/attachmentsInfo?foo=bar&attachmentIds=att%2B123",
+        AttachmentInfoRequestBuilder.build(
+            "/attachmentsInfo?foo=bar",
+            Collections.singletonList("att+123"),
+            JAVA_QUERY_ENCODER));
+  }
 }

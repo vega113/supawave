@@ -30,7 +30,8 @@ public final class AttachmentInfoRequestBuilder {
   private AttachmentInfoRequestBuilder() {}
 
   public static String build(String baseUrl, Iterable<String> attachmentIds, Encoder encoder) {
-    StringBuilder request = new StringBuilder(baseUrl).append("?attachmentIds=");
+    char separator = baseUrl.indexOf('?') >= 0 ? '&' : '?';
+    StringBuilder request = new StringBuilder(baseUrl).append(separator).append("attachmentIds=");
     boolean first = true;
     for (String attachmentId : attachmentIds) {
       if (!first) {

@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-09-task-metadata-ui",
-  "version": "PR #779",
+  "version": "PR #782",
   "date": "2026-04-09",
   "title": "Wave Tasks: assignee picker, due dates, and clearer ownership",
   "summary": "Tasks in the wave editor now open a metadata popup for assignee and due date, and the task row shows explicit owner and due-date pills so ownership is easier to understand at a glance.",

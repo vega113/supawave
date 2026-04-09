@@ -19,8 +19,6 @@
 
 package org.waveprotocol.wave.model.conversation;
 
-import java.util.Date;
-
 /**
  * Shared helpers for task ownership and due-date metadata.
  *
@@ -64,6 +62,9 @@ public final class TaskMetadataUtil {
   /**
    * Parses a {@code yyyy-MM-dd} date input into UTC-midnight epoch millis.
    *
+   * <p>Stores UTC midnight so the date is the same for all collaborators
+   * regardless of their local timezone.
+   *
    * @return epoch millis, or {@code -1} when the input is blank or invalid
    */
   public static long parseDateInputValue(String rawValue) {
@@ -84,40 +85,67 @@ public final class TaskMetadataUtil {
       return -1L;
     }
 
-    Date localMidnight = new Date(year - 1900, month - 1, day, 0, 0, 0);
-    return localMidnight.getTime() - localMidnight.getTimezoneOffset() * 60L * 1000L;
+    return toUtcMidnightMillis(year, month, day);
   }
 
   /**
-   * Formats epoch millis into a {@code yyyy-MM-dd} input value.
+   * Formats UTC-midnight epoch millis into a {@code yyyy-MM-dd} input value.
    */
   public static String formatDateInputValue(long dueTs) {
     if (dueTs < 0) {
       return "";
     }
-    Date utcDate = toUtcDate(dueTs);
-    return zeroPad(utcDate.getYear() + 1900, 4)
-        + "-"
-        + zeroPad(utcDate.getMonth() + 1, 2)
-        + "-"
-        + zeroPad(utcDate.getDate(), 2);
+    int[] ymd = fromUtcMidnightMillis(dueTs);
+    return zeroPad(ymd[0], 4) + "-" + zeroPad(ymd[1], 2) + "-" + zeroPad(ymd[2], 2);
   }
 
   /**
-   * Formats a due-date pill label.
+   * Formats a due-date pill label from UTC-midnight epoch millis.
    */
   public static String formatTaskDueLabel(long dueTs) {
     if (dueTs < 0) {
       return "";
     }
-    Date utcDate = toUtcDate(dueTs);
-    String month = MONTH_ABBREVIATIONS[utcDate.getMonth()];
-    return "Due " + month + " " + utcDate.getDate();
+    int[] ymd = fromUtcMidnightMillis(dueTs);
+    String month = MONTH_ABBREVIATIONS[ymd[1] - 1];
+    return "Due " + month + " " + ymd[2];
   }
 
-  private static Date toUtcDate(long epochMillis) {
-    Date localDate = new Date(epochMillis);
-    return new Date(epochMillis + localDate.getTimezoneOffset() * 60L * 1000L);
+  /**
+   * Converts a calendar date (year/month/day) to UTC-midnight epoch millis.
+   * Uses the Hinnant civil-from-days algorithm for timezone-independent arithmetic.
+   */
+  private static long toUtcMidnightMillis(int year, int month, int day) {
+    long y = month <= 2 ? year - 1 : year;
+    long m = month <= 2 ? month + 9 : month - 3;
+    long era = (y >= 0 ? y : y - 399) / 400;
+    long yoe = y - era * 400;
+    long doy = (153 * m + 2) / 5 + day - 1;
+    long doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    long days = era * 146097 + doe - 719468;
+    return days * 86400000L;
+  }
+
+  /**
+   * Converts UTC-midnight epoch millis to a [year, month, day] array.
+   * Uses the Hinnant days-from-civil algorithm for timezone-independent arithmetic.
+   */
+  private static int[] fromUtcMidnightMillis(long millis) {
+    long z = millis / 86400000L;
+    if (millis < 0 && millis % 86400000L != 0) {
+      z--;
+    }
+    z += 719468;
+    long era = (z >= 0 ? z : z - 146096) / 146097;
+    long doe = z - era * 146097;
+    long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    long y = yoe + era * 400;
+    long doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    long mp = (5 * doy + 2) / 153;
+    long d = doy - (153 * mp + 2) / 5 + 1;
+    long m = mp + (mp < 10 ? 3 : -9);
+    y += (m <= 2 ? 1 : 0);
+    return new int[]{(int) y, (int) m, (int) d};
   }
 
   private static String normalize(String value) {

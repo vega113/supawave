@@ -21,9 +21,6 @@ package org.waveprotocol.wave.model.conversation;
 
 import junit.framework.TestCase;
 
-import java.util.Calendar;
-import java.util.TimeZone;
-
 /**
  * Unit tests for shared task metadata formatting and parsing helpers.
  */
@@ -58,24 +55,27 @@ public class TaskMetadataUtilTest extends TestCase {
     assertEquals("Due Apr 15", TaskMetadataUtil.formatTaskDueLabel(dueTs));
   }
 
-  public void testDateParsingAndFormattingIgnoreDefaultTimezone() {
-    TimeZone original = TimeZone.getDefault();
-    try {
-      TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
-      long expected = utcMillis(2026, Calendar.APRIL, 15);
-      long parsed = TaskMetadataUtil.parseDateInputValue("2026-04-15");
-      assertEquals(expected, parsed);
-      assertEquals("2026-04-15", TaskMetadataUtil.formatDateInputValue(parsed));
-      assertEquals("Due Apr 15", TaskMetadataUtil.formatTaskDueLabel(parsed));
-    } finally {
-      TimeZone.setDefault(original);
-    }
+  public void testParseDateInputValueIsUtcMidnight() {
+    // 2026-04-15T00:00:00Z = 1776211200000 ms since epoch
+    assertEquals(1776211200000L, TaskMetadataUtil.parseDateInputValue("2026-04-15"));
   }
 
-  private static long utcMillis(int year, int month, int dayOfMonth) {
-    Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-    calendar.clear();
-    calendar.set(year, month, dayOfMonth, 0, 0, 0);
-    return calendar.getTimeInMillis();
+  public void testFormatDateInputValueHandlesUtcMidnight() {
+    // 1776211200000 ms = 2026-04-15T00:00:00Z
+    assertEquals("2026-04-15", TaskMetadataUtil.formatDateInputValue(1776211200000L));
+  }
+
+  public void testParseDateInputValueRejectsBlankInput() {
+    assertEquals(-1L, TaskMetadataUtil.parseDateInputValue(""));
+    assertEquals(-1L, TaskMetadataUtil.parseDateInputValue(null));
+    assertEquals(-1L, TaskMetadataUtil.parseDateInputValue("   "));
+  }
+
+  public void testFormatDateInputValueReturnsEmptyForNegative() {
+    assertEquals("", TaskMetadataUtil.formatDateInputValue(-1L));
+  }
+
+  public void testFormatTaskDueLabelReturnsEmptyForNegative() {
+    assertEquals("", TaskMetadataUtil.formatTaskDueLabel(-1L));
   }
 }

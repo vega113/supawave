@@ -132,6 +132,9 @@ public final class ToplevelToolbarWidget extends Composite
   /** Items in the menu. */
   private final List<Item> items = CollectionUtils.newArrayList();
 
+  /** Whether the overflow affordance is active for this toolbar. */
+  private boolean overflowEnabled = true;
+
   public ToplevelToolbarWidget() {
     initWidget(BINDER.createAndBindUi(this));
     overflowButton.setWidget(overflowSubmenu.hackGetWidget());
@@ -143,6 +146,30 @@ public final class ToplevelToolbarWidget extends Composite
     overflowSubmenu.setShowDivider(true);
     // Attach overflow logic.
     overflowLogic = new OverflowPanelUpdater(this);
+  }
+
+  /**
+   * Enables or disables the overflow affordance for this toolbar. When disabled,
+   * all items are shown at the top level and the "..." button is hidden.
+   */
+  public void setOverflowEnabled(boolean overflowEnabled) {
+    this.overflowEnabled = overflowEnabled;
+    overflowButton.setVisible(overflowEnabled);
+    if (!overflowEnabled) {
+      restoreItemsToToplevel();
+      overflowSubmenu.setState(State.INVISIBLE);
+    } else {
+      overflowLogic.updateStateEventually();
+    }
+  }
+
+  private void restoreItemsToToplevel() {
+    for (Item item : items) {
+      item.asAbstractButton.setParent(this);
+      item.proxy.setDelegate(item.onToplevel);
+      item.onOverflow.setState(State.INVISIBLE);
+      item.onToplevel.setState(item.proxy.hackGetState());
+    }
   }
 
   //
@@ -264,7 +291,9 @@ public final class ToplevelToolbarWidget extends Composite
   //
 
   public void onResizeDone() {
-    overflowLogic.updateStateEventually();
+    if (overflowEnabled) {
+      overflowLogic.updateStateEventually();
+    }
   }
 
   //
@@ -273,6 +302,9 @@ public final class ToplevelToolbarWidget extends Composite
 
   @Override
   public boolean hasOverflowed(int index) {
+    if (!overflowEnabled) {
+      return false;
+    }
     return items.get(index).onToplevel.getElement().getOffsetTop() > 0;
   }
 
@@ -283,6 +315,9 @@ public final class ToplevelToolbarWidget extends Composite
 
   @Override
   public void moveToOverflowBucket(int index) {
+    if (!overflowEnabled) {
+      return;
+    }
     Item item = items.get(index);
     // The item is in the overflow menu now, so parent is the overflow submenu.
     item.asAbstractButton.setParent(overflowSubmenu);
@@ -298,6 +333,9 @@ public final class ToplevelToolbarWidget extends Composite
 
   @Override
   public void onBeginOverflowLayout() {
+    if (!overflowEnabled) {
+      return;
+    }
     // Reset all the items to the toplevel and hide the overflow submenu;
     // very difficult to calculate overflow without a consistent state.
     for (Item item : items) {
@@ -315,6 +353,9 @@ public final class ToplevelToolbarWidget extends Composite
 
   @Override
   public void onEndOverflowLayout() {
+    if (!overflowEnabled) {
+      return;
+    }
     // Hide the divider of the first overflowed button, if any.  Since this is
     // set on the button itself and not the proxy, the divider state will be
     // reset to the correct value next time there is an overflow.
@@ -329,6 +370,9 @@ public final class ToplevelToolbarWidget extends Composite
 
   @Override
   public void showMoreButton() {
+    if (!overflowEnabled) {
+      return;
+    }
     // This is called before moving any items to the overflow panel; doing so
     // will result in the submenu enabling itself so long as the button states
     // are kept up to date.  So, for now, just make it visible and disabled.
@@ -346,7 +390,9 @@ public final class ToplevelToolbarWidget extends Composite
 
   @Override
   public void onChildStateChanged(SubmenuItem item, State newState) {
-    overflowLogic.updateStateEventually();
+    if (overflowEnabled) {
+      overflowLogic.updateStateEventually();
+    }
   }
 
   @Override

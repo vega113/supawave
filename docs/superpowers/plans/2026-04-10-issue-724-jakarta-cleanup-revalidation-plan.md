@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Fix The Only Confirmed Stale Inline Reference
+## Task 1: Fix The Only Confirmed Stale Inline Reference
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/ServerMain.java`

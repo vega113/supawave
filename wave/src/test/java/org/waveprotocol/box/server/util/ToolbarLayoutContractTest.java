@@ -40,27 +40,17 @@ public final class ToolbarLayoutContractTest extends TestCase {
     String css = normalized(read(
         "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
 
-    assertTrue(css.contains("padding: 0 6px;"));
-    assertTrue(css.contains("min-width: 32px;"));
+    assertTrue(css.contains("padding: 0 4px;"));
+    assertTrue(css.contains("min-width: 28px;"));
   }
 
-  public void testCompactButtonsRenderInsetIdleCanvas() throws Exception {
+  public void testCompactButtonsDoNotRenderInsetIdleCanvas() throws Exception {
     String css = normalized(read(
         "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
 
-    assertTrue(css.contains(".enabled.compact > .overlay {"));
-    assertTrue(css.contains("top: 4px;"));
-    assertTrue(css.contains("bottom: 4px;"));
-    assertTrue(css.contains("left: 4px;"));
-    assertTrue(css.contains("right: 4px;"));
-    assertTrue(css.contains("background-color: rgba(255,255,255,0.72);"));
-    assertTrue(css.contains("border: 1px solid rgba(176,196,216,0.55);"));
-    assertTrue(css.contains(".enabled.compact:hover > .overlay {"));
-    assertTrue(css.contains("border-color: rgba(0,119,182,0.28);"));
-    assertTrue(css.contains("background-color: rgba(255,255,255,0.92);"));
-    assertTrue(css.contains(".enabled.down.compact > .overlay {"));
-    assertTrue(css.contains("background-color: rgba(226,240,251,0.95);"));
-    assertTrue(css.contains("border-color: rgba(0,119,182,0.35);"));
+    assertFalse(css.contains(".enabled.compact > .overlay {"));
+    assertFalse(css.contains("background-color: rgba(255,255,255,0.72);"));
+    assertFalse(css.contains("border: 1px solid rgba(176,196,216,0.55);"));
   }
 
   public void testSearchPanelReservesThirtySixPixelsForToolbarHeight() throws Exception {
@@ -94,6 +84,32 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(javaSource.contains("height=\\\"18\\\""));
     assertTrue(javaSource.contains("stroke-width=\\\"1.75\\\""));
     assertTrue(javaSource.contains("wrapper.setClassName(\"toolbar-svg-icon\")"));
+  }
+
+  public void testSearchToolbarStillDeclaresRefreshAction() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPresenter.java");
+
+    assertTrue(javaSource.contains("setTooltip(\"Refresh search results\")"));
+    assertTrue(javaSource.contains("forceRefresh(false);"));
+    assertTrue(javaSource.contains("createSvgIcon(ICON_REFRESH)"));
+  }
+
+  public void testSearchPanelDisablesToolbarOverflowButton() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPanelWidget.java");
+
+    assertTrue(javaSource.contains("toolbar.setOverflowEnabled(false);"));
+  }
+
+  public void testWaveToolbarsDoNotDisableOverflowByDefault() throws Exception {
+    String viewToolbar = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/ViewToolbar.java");
+    String editToolbar = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java");
+
+    assertFalse(viewToolbar.contains("setOverflowEnabled(false);"));
+    assertFalse(editToolbar.contains("setOverflowEnabled(false);"));
   }
 
   public void testSharedToolbarIconCssUsesTwentyPixelDisplaySize() throws Exception {

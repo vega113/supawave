@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-issue-786-toolbar-topbar-restore",
+  "version": "PR #786",
+  "date": "2026-04-10",
+  "title": "Restore the search toolbar chrome and remove temporary overflow affordance",
+  "summary": "Restores the intended toolbar-strip treatment for search and wave action rows, keeps refresh in the search toolbar, and removes the visible search-toolbar overflow button.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Search and wave toolbars render with the intended contained toolbar chrome again",
+        "The search toolbar keeps its refresh action while dropping the temporary ... overflow control"
+      ]
+    }
+  ]
+}

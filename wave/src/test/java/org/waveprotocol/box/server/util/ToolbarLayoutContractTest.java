@@ -44,6 +44,23 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(css.contains("min-width: 32px;"));
   }
 
+  public void testCompactButtonsRenderInsetIdleCanvas() throws Exception {
+    String css = normalized(read(
+        "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
+
+    assertTrue(css.contains(".compact > .overlay {"));
+    assertTrue(css.contains("top: 4px;"));
+    assertTrue(css.contains("bottom: 4px;"));
+    assertTrue(css.contains("left: 4px;"));
+    assertTrue(css.contains("right: 4px;"));
+    assertTrue(css.contains("background-color: rgba(255,255,255,0.72);"));
+    assertTrue(css.contains("border: 1px solid rgba(176,196,216,0.55);"));
+    assertTrue(css.contains(".enabled.compact:hover > .overlay {"));
+    assertTrue(css.contains("border-color: rgba(0,119,182,0.28);"));
+    assertTrue(css.contains(".enabled.down.compact > .overlay {"));
+    assertTrue(css.contains("background-color: rgba(226,240,251,0.95);"));
+  }
+
   public void testSearchPanelReservesThirtySixPixelsForToolbarHeight() throws Exception {
     String javaSource = read(
         "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPanelWidget.java");

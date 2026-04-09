@@ -2,14 +2,13 @@
   "releaseId": "2026-04-09-toolbar-canvas-containment",
   "version": "PR #783",
   "date": "2026-04-09",
-  "title": "Toolbar Icon Visual Containment Polish",
-  "summary": "Widens compact toolbar action buttons so SVG icons sit visually inside the solid toolbar canvas instead of spilling toward the gradient edge.",
+  "title": "Polish toolbar action canvas containment",
+  "summary": "Search and wave toolbar icons now sit inside a clearer solid action canvas instead of reading against the faded edge of the bar.",
   "sections": [
     {
       "type": "fix",
       "items": [
-        "Increased compact toolbar button horizontal padding from 4px to 6px so icons read as contained within the toolbar canvas",
-        "Increased compact button minimum width from 28px to 32px to match the wider inset in both search and wave panel toolbars"
+        "Search and wave toolbar action icons now render inside a subtle inset canvas that keeps them visually contained within the toolbar strip"
       ]
     }
   ]

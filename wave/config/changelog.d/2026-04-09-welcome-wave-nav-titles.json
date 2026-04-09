@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-09-welcome-wave-nav-titles",
+  "version": "PR #773",
+  "date": "2026-04-09",
+  "title": "Welcome wave: real onboarding wave titles in navigation",
+  "summary": "The wave-to-wave navigation block in the welcome wave now uses the actual onboarding wave titles instead of generic 'Wave 0'–'Wave 5' placeholders.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Navigation links in the welcome wave now show real titles: 'SupaWave Community — Questions, Feedback & Support', 'Welcome to SupaWave', 'Search Like a Pro', 'Collaboration Features', 'Making Waves Public', and 'Tips, Shortcuts, and Hidden Features'"
+      ]
+    }
+  ]
+}

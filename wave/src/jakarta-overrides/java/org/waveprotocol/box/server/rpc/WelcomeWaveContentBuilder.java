@@ -115,12 +115,12 @@ public final class WelcomeWaveContentBuilder {
     appendLine(doc,
         "These onboarding/public support waves are linked on purpose, so you can move through the set instead of treating this like a dead-end help page.");
     appendLine(doc, "Onboarding waves");
-    appendLinkedLine(doc, pendingLinks, "Wave 0", WAVE_0_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 1", WAVE_1_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 2", WAVE_2_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 3", WAVE_3_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 4", WAVE_4_URI);
-    appendLinkedLine(doc, pendingLinks, "Wave 5", WAVE_5_URI);
+    appendLinkedLine(doc, pendingLinks, "SupaWave Community \u2014 Questions, Feedback & Support", WAVE_0_URI);
+    appendLinkedLine(doc, pendingLinks, "Welcome to SupaWave", WAVE_1_URI);
+    appendLinkedLine(doc, pendingLinks, "Search Like a Pro", WAVE_2_URI);
+    appendLinkedLine(doc, pendingLinks, "Collaboration Features", WAVE_3_URI);
+    appendLinkedLine(doc, pendingLinks, "Making Waves Public", WAVE_4_URI);
+    appendLinkedLine(doc, pendingLinks, "Tips, Shortcuts, and Hidden Features", WAVE_5_URI);
     appendBlankLine(doc);
     int historyAnchor = appendLine(doc, "History in one line");
     appendLine(doc,

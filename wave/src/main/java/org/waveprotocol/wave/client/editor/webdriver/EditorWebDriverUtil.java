@@ -183,6 +183,32 @@ public class EditorWebDriverUtil {
     return range == null ? -1 : range.getEnd();
   }
 
+  public static void webdriverEditorStartImeComposition(Element editorDiv) {
+    Editor editor = getByEditorDiv(editorDiv);
+    if (editor != null) {
+      EditorTestingUtil.startImeComposition(editor);
+    }
+  }
+
+  public static void webdriverEditorSetImeCompositionText(Element editorDiv, String text) {
+    Editor editor = getByEditorDiv(editorDiv);
+    if (editor != null) {
+      EditorTestingUtil.setImeCompositionText(editor, text);
+    }
+  }
+
+  public static String webdriverEditorGetImeCompositionState(Element editorDiv) {
+    Editor editor = getByEditorDiv(editorDiv);
+    return editor != null ? editor.getImeCompositionState() : null;
+  }
+
+  public static void webdriverEditorFlushPendingInput(Element editorDiv) {
+    Editor editor = getByEditorDiv(editorDiv);
+    if (editor != null) {
+      editor.flushPendingInput();
+    }
+  }
+
   /**
    * @param editorDiv editor
    * @param end end of selection range

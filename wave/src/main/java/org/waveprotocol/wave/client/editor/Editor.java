@@ -218,6 +218,12 @@ public interface Editor extends EditorContext {
   void flushUpdates();
 
   /**
+   * Flushes any pending browser input that has not yet been turned into
+   * document operations, including active IME composition state.
+   */
+  void flushPendingInput();
+
+  /**
    * Show/hide the debug dialog
    */
   void debugToggleDebugDialog();

@@ -52,6 +52,23 @@ public class EditorJsniHelpers {
           @org.waveprotocol.wave.client.editor.webdriver.EditorWebDriverUtil::webdriverEditorGetEndSelection(Lcom/google/gwt/dom/client/Element;)
               (editorDiv));
     }
+    $wnd['webdriverEditorStartImeComposition'] = function(editorDiv) {
+      @org.waveprotocol.wave.client.editor.webdriver.EditorWebDriverUtil::webdriverEditorStartImeComposition(Lcom/google/gwt/dom/client/Element;)
+          (editorDiv);
+    }
+    $wnd['webdriverEditorSetImeCompositionText'] = function(editorDiv, text) {
+      @org.waveprotocol.wave.client.editor.webdriver.EditorWebDriverUtil::webdriverEditorSetImeCompositionText(Lcom/google/gwt/dom/client/Element;Ljava/lang/String;)
+          (editorDiv, text);
+    }
+    $wnd['webdriverEditorGetImeCompositionState'] = function(editorDiv) {
+      return (
+          @org.waveprotocol.wave.client.editor.webdriver.EditorWebDriverUtil::webdriverEditorGetImeCompositionState(Lcom/google/gwt/dom/client/Element;)
+              (editorDiv));
+    }
+    $wnd['webdriverEditorFlushPendingInput'] = function(editorDiv) {
+      @org.waveprotocol.wave.client.editor.webdriver.EditorWebDriverUtil::webdriverEditorFlushPendingInput(Lcom/google/gwt/dom/client/Element;)
+          (editorDiv);
+    }
     $wnd['webdriverEditorSetSelection'] = function(editorDiv, start, end) {
       @org.waveprotocol.wave.client.editor.webdriver.EditorWebDriverUtil::webdriverEditorSetSelection(Lcom/google/gwt/dom/client/Element;II)
           (editorDiv, start, end);

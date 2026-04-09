@@ -41,6 +41,20 @@ public class EditorTestingUtil {
     }
   }
 
+  /** Activates IME composition at the editor's current selection point, for testing only. */
+  public static void startImeComposition(Editor editor) {
+    if (editor instanceof EditorImpl) {
+      ((EditorImpl) editor).debugStartImeComposition();
+    }
+  }
+
+  /** Sets the active IME composition text, for testing only. */
+  public static void setImeCompositionText(Editor editor, String text) {
+    if (editor instanceof EditorImpl) {
+      ((EditorImpl) editor).setImeCompositionTextForTest(text);
+    }
+  }
+
   /** Performs various health checks on the editor's current state. */
   public static void checkHealth(Editor editor) {
     if (editor instanceof EditorImpl) {

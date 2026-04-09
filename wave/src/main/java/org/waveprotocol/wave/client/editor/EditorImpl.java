@@ -1221,42 +1221,15 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
     @Override
     public FocusedContentRange compositionEnd() {
-      try {
-
-        if (!imeExtractor.isActive()) {
-          EditorStaticDeps.logger.error().log(
-              "Composition end called with inactive ImeExtractor! "
-                  + "Maybe caret was null initially?");
-          return null;
-        }
-
-        // HACK(danilatos): prevent CC from sending the insertion before the annotation update.
-        // TODO(zdwang/danilatos): Implement batching in CcBasedWavelet, or something, and send
-        // out in a deferred command, so synchronously generated ops always go in the same
-        // delta, whether or not CC is waiting for an unacknowledged op.
-        mutable().hackConsume(new Nindo.Builder().build());
-
-        String composition = imeExtractor.getContent();
-        assert composition != null : "Composition should not be null with active IME extractor";
-        Point<ContentNode> contentPoint = imeExtractor.deactivate(content.getAnnotatableContent());
-        Point<ContentNode> caret = insertText(contentPoint, composition, true);
-        aggressiveSelectionHelper.setCaret(caret);
-        rebiasSelection(CursorDirection.FROM_LEFT);
-
-        // HACK(danilatos): Flush updates, so that listeners to the ime state get an immediate
-        // update, to synchronously clear the composition state from any selection annotations,
-        // so that there's no instant where the other side sees both the inserted text and
-        // the last composed bit.
-        // This can be avoided by keeping track of the selection annotations directly in the
-        // editor, something worth considering.
-        responsibility.startIndirectSequence();
-        updateEvent.flushUpdates();
-        responsibility.endIndirectSequence();
-
-        return passiveSelectionHelper.getSelectionPoints();
-      } finally {
+      if (!imeExtractor.isActive()) {
+        EditorStaticDeps.logger.error().log(
+            "Composition end called with inactive ImeExtractor! "
+                + "Maybe caret was null initially?");
         EditorStaticDeps.endIgnoreMutations();
+        return null;
       }
+      EditorImpl.this.flushActiveImeComposition();
+      return passiveSelectionHelper.getSelectionPoints();
     }
 
     @Override
@@ -1538,12 +1511,68 @@ public class EditorImpl extends LogicalPanel.Impl implements
   }
 
   /**
+   * Flushes the active IME composition into the document as a text insertion.
+   *
+   * Must only be called when {@code imeExtractor.isActive()} is {@code true}.
+   * The caller is responsible for ensuring that {@code startIgnoreMutations()} has been called
+   * (as compositionStart() does), because this method calls {@code endIgnoreMutations()} in its
+   * finally block to balance it.
+   */
+  private void flushActiveImeComposition() {
+    try {
+      // HACK(danilatos): prevent CC from sending the insertion before the annotation update.
+      // TODO(zdwang/danilatos): Implement batching in CcBasedWavelet, or something, and send
+      // out in a deferred command, so synchronously generated ops always go in the same
+      // delta, whether or not CC is waiting for an unacknowledged op.
+      mutable().hackConsume(new Nindo.Builder().build());
+
+      String composition = imeExtractor.getContent();
+      assert composition != null : "Composition should not be null with active IME extractor";
+      Point<ContentNode> contentPoint = imeExtractor.deactivate(content.getAnnotatableContent());
+      Point<ContentNode> caret = insertText(contentPoint, composition, true);
+      aggressiveSelectionHelper.setCaret(caret);
+      rebiasSelection(CursorDirection.FROM_LEFT);
+
+      // HACK(danilatos): Flush updates, so that listeners to the ime state get an immediate
+      // update, to synchronously clear the composition state from any selection annotations,
+      // so that there's no instant where the other side sees both the inserted text and
+      // the last composed bit.
+      // This can be avoided by keeping track of the selection annotations directly in the
+      // editor, something worth considering.
+      responsibility.startIndirectSequence();
+      try {
+        updateEvent.flushUpdates();
+      } finally {
+        responsibility.endIndirectSequence();
+      }
+    } finally {
+      EditorStaticDeps.endIgnoreMutations();
+    }
+  }
+
+  /**
    * Causes all pending operations to be fired as events.
    */
   void flushSynchronous() {
     if (content != null) {
       typing.flush();
     }
+  }
+
+  @Override
+  public void flushPendingInput() {
+    if (content == null) {
+      return;
+    }
+    if (imeExtractor.isActive()) {
+      responsibility.startDirectSequence();
+      try {
+        flushActiveImeComposition();
+      } finally {
+        responsibility.endDirectSequence();
+      }
+    }
+    flushSynchronous();
   }
 
   private boolean flush(Runnable resume) {
@@ -2622,6 +2651,39 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
   public EditorEventHandler debugGetEventHandler() {
     return eventHandler;
+  }
+
+  void debugStartImeComposition() {
+    // Guard against calls when content is not yet initialized.
+    if (content == null) {
+      return;
+    }
+    // Guard against re-entering composition when one is already active, which would leave
+    // ignoreMutations in an inconsistent state.
+    if (imeExtractor.isActive()) {
+      return;
+    }
+    Point<ContentNode> caret = null;
+    FocusedContentRange selection = aggressiveSelectionHelper != null
+        ? aggressiveSelectionHelper.getSelectionPoints() : null;
+    if (selection != null) {
+      caret = selection.getFocus();
+    } else if (passiveSelectionHelper != null) {
+      caret = passiveSelectionHelper.getLastValidSelectionPoint();
+    }
+    if (caret == null) {
+      caret = Point.<ContentNode>end(content.getMutableDoc().getDocumentElement());
+    }
+    // Guard against calls when no valid caret can be determined.
+    if (caret == null) {
+      return;
+    }
+    new EditorInteractorImpl().compositionStart(caret);
+  }
+
+  /** Sets the active IME composition text, for testing only. */
+  void setImeCompositionTextForTest(String text) {
+    imeExtractor.setContentForTest(text);
   }
 
   ////// Editor context methods

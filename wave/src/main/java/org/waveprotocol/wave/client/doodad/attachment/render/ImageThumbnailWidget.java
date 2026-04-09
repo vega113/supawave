@@ -308,6 +308,10 @@ class ImageThumbnailWidget extends Composite implements ImageThumbnailView {
 
     Element element = getElement();
     addStyleName(css.imageThumbnail());
+    // Also stamp the raw (un-obfuscated) class name so that HtmlRenderer's CSS selectors
+    // (which use literal ".imageThumbnail") can match this element alongside the GWT-
+    // obfuscated class returned by css.imageThumbnail().
+    element.addClassName("imageThumbnail");
     // Make the thumbnail as a whole uneditable and unselectable.
     element.setAttribute("contentEditable", "false");
     DomHelper.makeUnselectable(element);

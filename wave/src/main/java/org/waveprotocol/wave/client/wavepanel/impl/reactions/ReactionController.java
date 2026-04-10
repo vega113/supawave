@@ -38,13 +38,20 @@ import org.waveprotocol.wave.model.conversation.ReactionDocument;
 import org.waveprotocol.wave.model.document.DocHandler;
 import org.waveprotocol.wave.model.document.indexed.DocumentHandler;
 import org.waveprotocol.wave.model.document.ObservableDocument;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.util.CollectionUtils;
 import org.waveprotocol.wave.model.util.IdentityMap;
+import org.waveprotocol.wave.model.wave.Blip;
+import org.waveprotocol.wave.model.wave.ObservableWavelet;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.WaveletListener;
+import org.waveprotocol.wave.model.wave.opbased.WaveletListenerImpl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Keeps rendered reaction rows in sync with their backing data documents.
@@ -61,8 +68,8 @@ public final class ReactionController extends ConversationListenerImpl
   private final ViewIdMapper viewIdMapper;
   private final ParticipantId signedInUser;
   private final IdentityMap<ConversationBlip, DocHandler> handlers = CollectionUtils.createIdentityMap();
-  private final java.util.Map<String, ObservableConversationBlip> blipsById =
-      new java.util.HashMap<String, ObservableConversationBlip>();
+  private final Map<String, ObservableConversationBlip> blipsById = new HashMap<String, ObservableConversationBlip>();
+  private final Map<ObservableConversation, WaveletListener> waveletListeners = new HashMap<ObservableConversation, WaveletListener>();
 
   private NativePreviewHandler previewHandler;
 
@@ -112,9 +119,28 @@ public final class ReactionController extends ConversationListenerImpl
     unbindThread(thread);
   }
 
-  private void bindConversation(ObservableConversation conversation) {
+  private void bindConversation(final ObservableConversation conversation) {
     conversation.addListener(this);
     bindThread(conversation.getRootThread());
+    ObservableWavelet wavelet = ReactionDataDocuments.getObservableWavelet(conversation);
+    if (wavelet != null) {
+      WaveletListener waveletListener = new WaveletListenerImpl() {
+        @Override
+        public void onBlipAdded(ObservableWavelet w, Blip blip) {
+          String docId = blip.getId();
+          if (!IdUtil.isReactionDataDocument(docId)) {
+            return;
+          }
+          String blipId = IdUtil.reactionTargetBlipId(docId);
+          ObservableConversationBlip conversationBlip = blipsById.get(blipId);
+          if (conversationBlip != null && !handlers.has(conversationBlip)) {
+            bindBlip(conversationBlip);
+          }
+        }
+      };
+      wavelet.addListener(waveletListener);
+      waveletListeners.put(conversation, waveletListener);
+    }
   }
 
   private void bindThread(ObservableConversationThread thread) {
@@ -261,6 +287,13 @@ public final class ReactionController extends ConversationListenerImpl
   }
 
   private void unbindConversation(ObservableConversation conversation) {
+    WaveletListener waveletListener = waveletListeners.remove(conversation);
+    if (waveletListener != null) {
+      ObservableWavelet wavelet = ReactionDataDocuments.getObservableWavelet(conversation);
+      if (wavelet != null) {
+        wavelet.removeListener(waveletListener);
+      }
+    }
     final List<ObservableConversationBlip> blipsToRemove = new ArrayList<ObservableConversationBlip>();
     handlers.each(new IdentityMap.ProcV<ConversationBlip, DocHandler>() {
       @Override

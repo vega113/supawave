@@ -23,6 +23,7 @@ import org.waveprotocol.wave.model.document.Doc;
 import org.waveprotocol.wave.model.document.MutableDocument;
 import org.waveprotocol.wave.model.document.ObservableDocument;
 import org.waveprotocol.wave.model.id.IdUtil;
+import org.waveprotocol.wave.model.wave.ObservableWavelet;
 
 /**
  * Helpers for locating per-blip reaction data documents without creating them unless needed.
@@ -55,6 +56,13 @@ public final class ReactionDataDocuments {
 
   public static ObservableDocument getObservableDocument(ObservableConversationBlip blip) {
     return (ObservableDocument) getMutableDocument(blip);
+  }
+
+  public static ObservableWavelet getObservableWavelet(ObservableConversation conversation) {
+    if (conversation instanceof WaveletBasedConversation) {
+      return ((WaveletBasedConversation) conversation).getWavelet();
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")

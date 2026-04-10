@@ -37,14 +37,10 @@ public final class TaskMetadataUtil {
   }
 
   /**
-   * Formats an owner pill label from a participant identifier.
+   * Formats a task assignee pill label from a participant identifier.
    */
-  public static String formatTaskOwnerLabel(String assignee) {
-    String display = formatParticipantDisplay(assignee);
-    if (display.isEmpty()) {
-      return "";
-    }
-    return "Owner " + display;
+  public static String formatTaskAssigneeLabel(String assignee) {
+    return formatParticipantDisplay(assignee);
   }
 
   /**

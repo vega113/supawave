@@ -224,7 +224,7 @@ public final class CheckBox {
       boolean hasDetails = false;
 
       if (assignee != null) {
-        appendPill(metadata, TaskDocumentUtil.formatTaskOwnerLabel(assignee),
+        appendPill(metadata, TaskDocumentUtil.formatTaskAssigneeLabel(assignee),
             TASK_PILL_CLASS + " " + TASK_OWNER_PILL_CLASS);
         hasDetails = true;
       }

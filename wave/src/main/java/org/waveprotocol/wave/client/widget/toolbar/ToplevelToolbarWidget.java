@@ -297,7 +297,9 @@ public final class ToplevelToolbarWidget extends Composite
     // The widget for the toplevel toolbar.
     HorizontalToolbarButtonWidget toplevelButton = new HorizontalToolbarButtonWidget();
     self.insert(toplevelButton, beforeIndex);
-    overflowLogic.updateStateEventually();
+    if (overflowEnabled) {
+      overflowLogic.updateStateEventually();
+    }
 
     // The widget for the overflow toolbar.  Construct manually and use
     // hackAddWidget so that the ToolbarButtonViewProxy can manage the state

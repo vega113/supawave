@@ -42,6 +42,7 @@ import org.waveprotocol.wave.client.wavepanel.impl.edit.KeepFocusInView;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.ParticipantController;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.TagController;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.TaskMetadataPopup;
+import org.waveprotocol.wave.client.wavepanel.impl.reactions.ReactionController;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.i18n.ParticipantMessages;
 import org.waveprotocol.wave.client.wavepanel.impl.focus.FocusFramePresenter;
 import org.waveprotocol.wave.client.wavepanel.render.TagUpdateRenderer;
@@ -253,6 +254,7 @@ public interface StageThree {
           return true;
         }
       }, stageTwo.getConversations());
+      ReactionController.install(stageTwo.getConversations(), stageTwo.getViewIdMapper(), user);
       DraftModeController.install(panel, actions, edit);
       stageTwo.getDiffController().upgrade(edit);
     }

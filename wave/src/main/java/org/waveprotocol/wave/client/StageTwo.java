@@ -208,6 +208,9 @@ public interface StageTwo {
     /** @return the provider of view objects given model objects. */
     ModelAsViewProvider getModelAsViewProvider();
 
+    /** @return the mapper from model identifiers to DOM/view ids. */
+    ViewIdMapper getViewIdMapper();
+
     /** @return the profile manager. */
     ProfileManager getProfileManager();
 
@@ -348,7 +351,8 @@ public interface StageTwo {
             return sessionId == null ? sessionId = createSessionId() : sessionId;
         }
 
-        protected final ViewIdMapper getViewIdMapper() {
+        @Override
+        public final ViewIdMapper getViewIdMapper() {
             return viewIdMapper == null ? viewIdMapper = createViewIdMapper() : viewIdMapper;
         }
 
@@ -794,7 +798,7 @@ public interface StageTwo {
             RenderingRules<UiBuilder> rules = new FullDomRenderer(
                     getBlipDetailer(), docRenderer, getProfileManager(),
                     getViewIdMapper(), createViewFactories(), getThreadReadStateMonitor(),
-                    getSupplement());
+                    getSupplement(), getSignedInUser());
             return new HtmlDomRenderer(ReductionBasedRenderer.of(rules, getConversations()));
         }
 

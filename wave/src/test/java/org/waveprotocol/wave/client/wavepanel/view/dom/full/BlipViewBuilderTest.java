@@ -47,7 +47,8 @@ public class BlipViewBuilderTest extends TestCase {
 
     UiBuilder fakeContent = UiBuilder.Constant.of(EscapeUtils.fromSafeConstant(content));
     metaUi = new BlipMetaViewBuilder(css, constants, metaDomId, fakeContent);
-    blipUi = new BlipViewBuilder(blipDomId, metaUi, UiBuilder.EMPTY, UiBuilder.EMPTY, css);
+    blipUi = new BlipViewBuilder(blipDomId, metaUi, UiBuilder.EMPTY, UiBuilder.EMPTY,
+        UiBuilder.EMPTY, css);
   }
 
   public void testBasicContentAvailable() throws Exception {
@@ -66,6 +67,13 @@ public class BlipViewBuilderTest extends TestCase {
     assertEquals(1, UiBuilderTestHelper.countOccurrences(html, time));
     assertEquals(1, UiBuilderTestHelper.countOccurrences(html, content));
     assertEquals(1, UiBuilderTestHelper.countOccurrences(html, metaline));
+  }
+
+  public void testRendersDedicatedReactionRowContainer() {
+    String html = UiBuilderTestHelper.render(blipUi);
+    String reactionsId = Components.REACTIONS.getDomId(blipDomId);
+
+    assertTrue("Reaction row container missing", html.contains("id=\"" + reactionsId + "\""));
   }
 
   public void testEvilHtmlEscaped() {

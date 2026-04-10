@@ -22,12 +22,14 @@ package org.waveprotocol.wave.client.wavepanel.render;
 import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.common.safehtml.EscapeUtils;
+import org.waveprotocol.wave.client.common.safehtml.SafeHtml;
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
 import org.waveprotocol.wave.client.render.RenderingRules;
 import org.waveprotocol.wave.client.state.ThreadReadStateMonitor;
 import org.waveprotocol.wave.client.uibuilder.HtmlClosure;
 import org.waveprotocol.wave.client.uibuilder.HtmlClosureCollection;
 import org.waveprotocol.wave.client.uibuilder.UiBuilder;
+import org.waveprotocol.wave.client.wavepanel.impl.reactions.ReactionRowRenderer;
 import org.waveprotocol.wave.client.wavepanel.view.IntrinsicTagView;
 import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.AnchorViewBuilder;
@@ -47,6 +49,8 @@ import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.ConversationView;
 import org.waveprotocol.wave.model.conversation.DirectMessageUtil;
+import org.waveprotocol.wave.model.conversation.ReactionDataDocuments;
+import org.waveprotocol.wave.model.conversation.ReactionDocument;
 import org.waveprotocol.wave.model.conversation.WaveLockState;
 import org.waveprotocol.wave.model.supplement.ReadableSupplementedWave;
 import org.waveprotocol.wave.model.supplement.ThreadState;
@@ -101,16 +105,26 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
   private final ProfileManager profileManager;
   private final ThreadReadStateMonitor readMonitor;
   private final ReadableSupplementedWave supplement;
+  private final ParticipantId signedInUser;
 
   public FullDomRenderer(ShallowBlipRenderer blipPopulator, DocRefRenderer docRenderer,
       ProfileManager profileManager, ViewIdMapper viewIdMapper, ViewFactory viewFactory,
       ThreadReadStateMonitor readMonitor) {
-    this(blipPopulator, docRenderer, profileManager, viewIdMapper, viewFactory, readMonitor, null);
+    this(blipPopulator, docRenderer, profileManager, viewIdMapper, viewFactory, readMonitor, null,
+        null);
   }
 
   public FullDomRenderer(ShallowBlipRenderer blipPopulator, DocRefRenderer docRenderer,
       ProfileManager profileManager, ViewIdMapper viewIdMapper, ViewFactory viewFactory,
       ThreadReadStateMonitor readMonitor, ReadableSupplementedWave supplement) {
+    this(blipPopulator, docRenderer, profileManager, viewIdMapper, viewFactory, readMonitor,
+        supplement, null);
+  }
+
+  public FullDomRenderer(ShallowBlipRenderer blipPopulator, DocRefRenderer docRenderer,
+      ProfileManager profileManager, ViewIdMapper viewIdMapper, ViewFactory viewFactory,
+      ThreadReadStateMonitor readMonitor, ReadableSupplementedWave supplement,
+      ParticipantId signedInUser) {
     this.blipPopulator = blipPopulator;
     this.docRenderer = docRenderer;
     this.profileManager = profileManager;
@@ -118,6 +132,7 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     this.viewFactory = viewFactory;
     this.readMonitor = readMonitor;
     this.supplement = supplement;
+    this.signedInUser = signedInUser;
   }
 
   @Override
@@ -289,7 +304,8 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     BlipMetaViewBuilder metaUi = BlipMetaViewBuilder.create(viewIdMapper.metaOf(blip), document);
     blipPopulator.render(blip, metaUi);
 
-    return BlipViewBuilder.create(viewIdMapper.blipOf(blip), metaUi, threadsUi, convsUi);
+    return BlipViewBuilder.create(viewIdMapper.blipOf(blip), metaUi, renderReactions(blip),
+        threadsUi, convsUi);
   }
 
   /**
@@ -323,5 +339,18 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
       parentBlip = parentThread.getParentBlip();
     }
     return depth;
+  }
+
+  private UiBuilder renderReactions(ConversationBlip blip) {
+    ReactionDocument<org.waveprotocol.wave.model.document.Doc.N,
+        org.waveprotocol.wave.model.document.Doc.E,
+        org.waveprotocol.wave.model.document.Doc.T> reactionDocument =
+        ReactionDataDocuments.getIfPresent(blip);
+    List<ReactionDocument.Reaction> reactions = reactionDocument != null
+        ? reactionDocument.getReactions()
+        : Collections.<ReactionDocument.Reaction>emptyList();
+    SafeHtml html = ReactionRowRenderer.render(blip.getId(), reactions,
+        signedInUser != null ? signedInUser.getAddress() : null, signedInUser != null);
+    return UiBuilder.Constant.of(html);
   }
 }

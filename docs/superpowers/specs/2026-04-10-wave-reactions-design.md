@@ -235,13 +235,27 @@ Public render:
 - No manifest or blip-body changes are required.
 - Public HTML can stay unchanged in v1.
 
-## 6. Threading behavior
+## 6. Federation / protocol compatibility
+
+Reactions are already part of the generic Wave document protocol:
+
+- Each reaction change is a standard `WaveletBlipOperation` targeting `react+<blipId>`, not a client-only side channel.
+- `CoreWaveletOperationSerializer` serializes those edits as ordinary `mutateDocument` operations with the reaction document id preserved.
+- `SnapshotSerializer.serializeWavelet()` includes every document returned by `wavelet.getDocumentIds()`, so reaction docs are present in ordinary wavelet snapshots.
+- The version-history UI hides `react+...` docs only in its text-oriented snapshot presentation. That filter does not remove reaction docs from stored deltas, committed snapshots, or replay state.
+
+Implication for future federation work:
+
+- Reactions do not require a special federation envelope or bespoke reaction protocol as long as generic document deltas and snapshots preserve unknown/non-blip document ids.
+- Robot/Data API omissions in v1 are a separate product/API-surface choice. They do not mean reactions are local-only or absent from wave state.
+
+## 7. Threading behavior
 
 - Reactions never create, remove, or move reply threads.
 - Reactions belong to the reacted blip only.
 - Inline reply anchors and thread depth are unaffected.
 
-## 7. Robot behavior
+## 8. Robot behavior
 
 V1 robot stance:
 
@@ -257,13 +271,13 @@ Implications:
 
 This is an explicit compatibility choice, not an accidental omission.
 
-## 8. Failure handling
+## 9. Failure handling
 
 - If a reactions document is malformed, parse it as empty, log a warning, and rewrite a valid `<reactions/>` document on the next successful local mutation.
 - Unknown emoji values remain renderable as plain text chips.
 - If the current user identity is unavailable, the row renders read-only.
 
-## 9. Testing strategy
+## 10. Testing strategy
 
 Server/model tests:
 

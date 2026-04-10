@@ -62,9 +62,22 @@ class WaveApiClient {
         HttpResponse<Void> resp = http.send(req, HttpResponse.BodyHandlers.discarding());
         int status = resp.statusCode();
         if (status == 302 || status == 303) {
-            return 200;
+            String location = resp.headers().firstValue("location").orElse("");
+            if (locationMatchesRegistrationSuccess(location)) {
+                return 200;
+            }
         }
         return status;
+    }
+
+    private static boolean locationMatchesRegistrationSuccess(String location) {
+        try {
+            URI uri = URI.create(location);
+            return "/auth/signin".equals(uri.getPath())
+                    && "registered=1".equals(uri.getQuery());
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     /**

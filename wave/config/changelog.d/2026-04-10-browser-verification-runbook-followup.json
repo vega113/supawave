@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-browser-verification-runbook-followup",
+  "version": "PR #802",
+  "date": "2026-04-10",
+  "title": "Browser verification runbook wording follow-up",
+  "summary": "Clarifies the browser-verification runbook language around smoke checks, browser passes, and evidence capture.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Clarified that smoke checks prove the server boots, health responds, and the compiled web client asset is present",
+        "Clarified that the browser pass is only for the narrow auth, routing, or UI behavior that curl cannot prove"
+      ]
+    }
+  ]
+}

@@ -301,10 +301,9 @@ public final class EditorEventHandler {
           cachedSelection = editorInteractor.getSelectionPoints();
           if (cachedSelection != null) {
             if (!cachedSelection.isCollapsed()) {
-              logger.trace().logPlainText("WARNING: Probable IME input on non-collapsed " +
-                  "range not handled!!!");
-              // TODO(dan/patcoleman): Yeargh, IME killing a range!!! Nooo!!!!
-              // Handle eeet
+              logger.trace().logPlainText("Ignoring DOM character mutation on non-collapsed "
+                  + "selection; probable IME composition owns this range");
+              return false;
             }
             logger.trace().logPlainText("Notifying typing extractor for " +
                 "probable IME-caused mutation event");

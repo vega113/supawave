@@ -190,9 +190,7 @@ public final class ToplevelToolbarWidget extends Composite
       item.proxy.setDelegate(item.onToplevel);
       item.onOverflow.setState(State.INVISIBLE);
       State state = item.proxy.hackGetState();
-      if (state != null) {
-        item.onToplevel.setState(state);
-      }
+      item.onToplevel.setState(state != null ? state : State.ENABLED);
     }
   }
 

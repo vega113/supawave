@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-issue-807-mention-direction-icon",
+  "version": "fix/mention-direction-icon",
+  "date": "2026-04-10",
+  "title": "Polish mention previous/next toolbar icons",
+  "summary": "The wave-toolbar mention navigation buttons now use clearer directional arrows while keeping the existing mention control behavior and toolbar styling.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Prev @ and Next @ buttons in the wave toolbar now show clearer left/right direction cues",
+        "Mention navigation behavior is unchanged; only the toolbar icon treatment was polished"
+      ]
+    }
+  ]
+}

@@ -177,6 +177,22 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertFalse(javaSource.contains("<path d=\\\"M3.51 15a9 9 0 1 0 2.13-9.36L1 10\\\"></path></svg>"));
   }
 
+  public void testViewToolbarMentionDirectionIconsUseExplicitArrowGlyphs() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/ViewToolbar.java");
+
+    assertTrue(javaSource.contains("private static final String ICON_PREV_MENTION = SVG_OPEN"));
+    assertTrue(javaSource.contains("<path d=\\\"M6 12H2\\\"></path>"));
+    assertTrue(javaSource.contains("<path d=\\\"M5 9l-3 3 3 3\\\"></path></svg>"));
+    assertTrue(javaSource.contains("private static final String ICON_NEXT_MENTION = SVG_OPEN"));
+    assertTrue(javaSource.contains("<path d=\\\"M18 12h4\\\"></path>"));
+    assertTrue(javaSource.contains("<path d=\\\"M19 9l3 3-3 3\\\"></path></svg>"));
+    assertFalse(javaSource.contains(
+        "<path d=\\\"M2 12l3-3v6z\\\" fill=\\\"currentColor\\\" stroke=\\\"none\\\"></path></svg>"));
+    assertFalse(javaSource.contains(
+        "<path d=\\\"M24 12l-3-3v6z\\\" fill=\\\"currentColor\\\" stroke=\\\"none\\\"></path></svg>"));
+  }
+
   private static String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
   }

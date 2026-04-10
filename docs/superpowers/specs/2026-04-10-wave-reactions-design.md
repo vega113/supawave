@@ -128,7 +128,7 @@ Verdict:
 Each blip gets a deterministic reactions data document:
 
 - Prefix: `react`
-- Document id shape: `IdUtil.join("react", blipId)`
+- Document id shape: `react+<blipId>`
 
 Example:
 

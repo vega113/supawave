@@ -51,7 +51,7 @@ public class ReactionDocument<N, E extends N, T extends N> {
     private final String emoji;
     private final List<String> addresses;
 
-    Reaction(String emoji, List<String> addresses) {
+    public Reaction(String emoji, List<String> addresses) {
       this.emoji = emoji;
       this.addresses = Collections.unmodifiableList(new ArrayList<String>(addresses));
     }

@@ -740,6 +740,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
       case TAG:
         return asTag(e);
       case REMOVE_TAG:
+        return null; // REMOVE_TAG is a button, not a structural view
       case ADD_TAG:
         return null; // ADD_TAG is a button, not a structural view
       default:

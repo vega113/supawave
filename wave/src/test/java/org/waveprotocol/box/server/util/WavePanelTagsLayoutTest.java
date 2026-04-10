@@ -77,7 +77,8 @@ public final class WavePanelTagsLayoutTest extends TestCase {
         read("wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPresenter.java");
 
     assertTrue(clientEvents.contains("addSearchQueryEventHandler"));
-    assertTrue(tagController.contains("new SearchQueryEvent(\"tag:\""));
+    assertTrue(tagController.contains("new SearchQueryEvent(\"tag:\"")
+        || tagController.contains("new SearchQueryEvent(query)"));
     assertTrue(presenter.contains("addSearchQueryEventHandler"));
     assertTrue(presenter.contains("setQuery(normalizeSearchQuery(query))"));
   }

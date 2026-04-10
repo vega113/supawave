@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-10-tags-ux-mobile",
-  "version": "PR #814",
+  "version": "PR #820",
   "date": "2026-04-10",
   "title": "Tag chips now filter search",
   "summary": "Wave tags now use a mobile-friendlier chip layout where tapping the chip filters search and a separate inline affordance removes the tag.",

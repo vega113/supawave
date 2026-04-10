@@ -121,7 +121,11 @@ public final class TagController {
     if (!TagState.REMOVED.equals(tagView.getState())) {
       final Pair<Conversation, String> tag = models.getTag(tagView);
       if (tag != null) {
-        ClientEvents.get().fireEvent(new SearchQueryEvent("tag:" + tag.second));
+        String tagName = tag.second;
+        String query = tagName.contains(" ")
+            ? "tag:\"" + tagName + "\""
+            : "tag:" + tagName;
+        ClientEvents.get().fireEvent(new SearchQueryEvent(query));
       }
     }
   }

@@ -72,6 +72,22 @@ public class QueryHelperTest extends TestCase {
     assertNull(queryParams.get(TokenQueryType.CONTENT));
   }
 
+  public void testParseQueryHandlesQuotedTagValueWithWhitespace() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("tag:\"mobile beta\"");
+
+    assertEquals(ImmutableSet.of("mobile beta"), queryParams.get(TokenQueryType.TAG));
+    assertNull(queryParams.get(TokenQueryType.CONTENT));
+  }
+
+  public void testParseQueryHandlesQuotedTagValueMixedWithBareWords() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("tag:\"project alpha\" meeting");
+
+    assertEquals(ImmutableSet.of("project alpha"), queryParams.get(TokenQueryType.TAG));
+    assertEquals(ImmutableSet.of("meeting"), queryParams.get(TokenQueryType.CONTENT));
+  }
+
   public void testParseQueryRejectsInvalidUnreadFilterValue() {
     try {
       QueryHelper.parseQuery("unread:maybe");

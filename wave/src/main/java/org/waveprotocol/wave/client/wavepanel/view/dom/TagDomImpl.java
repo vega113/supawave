@@ -108,7 +108,9 @@ public final class TagDomImpl implements DomView, IntrinsicTagView {
   private Element getLabelElement() {
     Element child = self.getFirstChildElement();
     while (child != null) {
-      if (child.getClassName() != null && child.getClassName().indexOf(css.tagLabel()) != -1) {
+      String childClass = child.getClassName();
+      if (childClass != null
+          && (" " + childClass + " ").indexOf(" " + css.tagLabel() + " ") != -1) {
         return child;
       }
       child = child.getNextSiblingElement();

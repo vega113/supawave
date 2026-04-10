@@ -31,6 +31,7 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -38,6 +39,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Helper class that allows to add basic sort and filter functionality to the
@@ -318,9 +321,14 @@ public class QueryHelper {
     if (query.isEmpty()) {
       return Collections.emptyMap();
     }
-    String[] tokens = query.split("\\s+");
+    // Tokenize respecting double-quoted values: key:"multi word value" stays one token.
+    List<String> tokenList = new ArrayList<>();
+    Matcher m = Pattern.compile("[^\\s\"]*\"[^\"]*\"|[^\\s]+").matcher(query);
+    while (m.find()) {
+      tokenList.add(m.group());
+    }
     Map<TokenQueryType, Set<String>> tokensMap = Maps.newEnumMap(TokenQueryType.class);
-    for (String token : tokens) {
+    for (String token : tokenList) {
       int separatorIndex = token.indexOf(':');
       TokenQueryType tokenType;
       String tokenValue;
@@ -335,6 +343,10 @@ public class QueryHelper {
         }
         tokenType = TokenQueryType.fromToken(tokenName);
         tokenValue = token.substring(separatorIndex + 1);
+        // Strip surrounding double-quotes from the value (e.g. tag:"mobile beta" → mobile beta).
+        if (tokenValue.startsWith("\"") && tokenValue.endsWith("\"") && tokenValue.length() > 1) {
+          tokenValue = tokenValue.substring(1, tokenValue.length() - 1);
+        }
       }
       // Verify the orderby param.
       if (tokenType.equals(TokenQueryType.ORDERBY)) {

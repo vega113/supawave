@@ -123,8 +123,8 @@ public final class TaskDocumentUtil {
     doc.setAnnotation(start, end, AnnotationConstants.TASK_DUE_TS, null);
   }
 
-  public static String formatTaskOwnerLabel(String participantAddress) {
-    return TaskMetadataUtil.formatTaskOwnerLabel(participantAddress);
+  public static String formatTaskAssigneeLabel(String participantAddress) {
+    return TaskMetadataUtil.formatTaskAssigneeLabel(participantAddress);
   }
 
   public static String formatTaskDueLabel(long epochMillis) {

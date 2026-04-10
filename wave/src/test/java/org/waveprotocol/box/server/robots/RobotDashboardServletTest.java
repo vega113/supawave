@@ -219,6 +219,21 @@ public class RobotDashboardServletTest extends TestCase {
     assertTrue(outputWriter.toString().contains("SUPAWAVE_LLM_DOCS_URL="));
   }
 
+  public void testDoGetAiPromptDocumentsShortLivedRefreshAndBundleFields() throws Exception {
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
+    when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());
+
+    servlet.doGet(req, resp);
+
+    String output = outputWriter.toString();
+    assertTrue(output.contains("Refresh the token after any HTTP 401"));
+    assertTrue(output.contains("rpcServerUrl"));
+    assertTrue(output.contains("robotAddress"));
+    assertTrue(output.contains("treat missing threads as {}"));
+    assertFalse(output.contains("Tokens default to never expire. Get both if building an active+data robot."));
+    assertFalse(output.contains("- Robot tokens default to never expire (persistent web services)"));
+  }
+
   public void testDoPostRejectsMissingXsrfToken() throws Exception {
     when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(OWNER);
     when(accountStore.getRobotAccountsOwnedBy(OWNER.getAddress())).thenReturn(List.of());

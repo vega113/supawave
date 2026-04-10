@@ -1,7 +1,7 @@
 # Runbooks Map
 
 Status: Canonical
-Updated: 2026-04-04
+Updated: 2026-04-10
 
 Use this map for procedures you are expected to follow step by step: local
 setup, smoke checks, deployment, and operational routines.
@@ -10,6 +10,10 @@ setup, smoke checks, deployment, and operational routines.
 
 - [`worktree-lane-lifecycle.md`](worktree-lane-lifecycle.md)
   - Existing-worktree boot lifecycle for GitHub-Issues lanes.
+- [`browser-verification.md`](browser-verification.md)
+  - Standard browser-verification path built on the existing smoke baseline.
+- [`change-type-verification-matrix.md`](change-type-verification-matrix.md)
+  - Quick reference for when smoke is enough versus when browser verification is required.
 - [`../DEV_SETUP.md`](../DEV_SETUP.md)
   - Local requirements and setup notes.
 - [`../BUILDING-sbt.md`](../BUILDING-sbt.md)

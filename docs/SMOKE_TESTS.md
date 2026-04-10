@@ -1,6 +1,6 @@
 # Smoke Tests Summary
 
-Date: 2026-03-24
+Date: 2026-04-10
 Environment:
 - OS: macOS / Linux
 - Shell: zsh / bash
@@ -29,6 +29,22 @@ override into the smoke commands:
 2. `PORT=9899 bash scripts/wave-smoke.sh check`
 3. `curl -sS http://localhost:9899/healthz`
 4. `PORT=9899 bash scripts/wave-smoke.sh stop`
+
+## Browser verification baseline
+
+The standalone browser-smoke baseline remains:
+
+- `bash scripts/wave-smoke-ui.sh`
+- `sbt smokeUi`
+
+For issue worktrees, the port-aware equivalent is the worktree lifecycle above:
+`worktree-boot.sh` plus `wave-smoke.sh start|check|stop`.
+
+Use [docs/runbooks/browser-verification.md](runbooks/browser-verification.md)
+for the default UI-affecting verification flow, and use
+[docs/runbooks/change-type-verification-matrix.md](runbooks/change-type-verification-matrix.md)
+to decide whether the change also needs a real browser pass after the smoke
+checks succeed.
 
 ## SBT-level smoke
 

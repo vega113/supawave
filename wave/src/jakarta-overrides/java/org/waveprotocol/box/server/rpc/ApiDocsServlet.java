@@ -548,6 +548,13 @@ public final class ApiDocsServlet extends HttpServlet {
         .append(escape(tokenCurlExample(baseUrl)))
         .append("</pre>\n");
     html.append("        <div class=\"warning\"><strong>Use short-lived tokens.</strong> The live token endpoint still supports effectively long-lived tokens when <code>expiry &lt;= 0</code> or when a robot account is configured with a zero lifetime. That behavior is high-risk and not shown in any example here.</div>\n");
+    html.append("        <div class=\"note\"><strong>Robot token lifecycle.</strong> A robot's consumer secret is long-lived until you rotate it, but the Data API JWT is not. Data API JWTs are signed by the server's current JWT signing key and include <code>sub</code> (robot address), <code>aud=[&quot;data-api&quot;]</code>, <code>scope=[&quot;wave:data:read&quot;,&quot;wave:data:write&quot;]</code>, <code>exp</code>, and <code>ver</code> (the current <code>tokenVersion</code> for that robot).</div>\n");
+    html.append("        <ul>\n");
+    html.append("          <li>The server only issues robot tokens once the robot has a configured callback URL and verified registration state.</li>\n");
+    html.append("          <li>If you omit <code>expiry</code>, the server falls back to the robot account's <code>tokenExpirySeconds</code>; prefer <code>expiry=3600</code> for new integrations.</li>\n");
+    html.append("          <li>Refresh the JWT after any HTTP 401 and retry the RPC call once with a newly issued token.</li>\n");
+    html.append("          <li>If <code>tokenVersion</code> changes because the secret was rotated or the robot was paused/deleted, older JWTs stop working even before <code>exp</code>.</li>\n");
+    html.append("        </ul>\n");
     html.append("      </section>\n");
     html.append("      <section id=\"build-with-ai\">\n");
     html.append("        <h2>Build with AI</h2>\n");
@@ -873,7 +880,7 @@ public final class ApiDocsServlet extends HttpServlet {
     post.put("summary", "Issue a Data API or Robot JWT");
     post.put(
         "description",
-        "Issue a JWT token for Data API or Robot API access. Use token_type=robot for Robot API tokens. Supports browser-session issuance and robot client_credentials issuance. Prefer expiry=3600 or another short-lived value.");
+        "Issue a JWT token for Data API or Robot API access. Use token_type=robot for Robot API tokens. Supports browser-session issuance and robot client_credentials issuance. Prefer expiry=3600 or another short-lived value, refresh after HTTP 401, and remember that tokenVersion changes revoke older JWTs immediately.");
     post.put(
         "requestBody",
         orderedMap(
@@ -1278,6 +1285,14 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("Token acquisition (client_credentials, short-lived example)\n");
     text.append(tokenCurlExample(baseUrl)).append("\n\n");
 
+    text.append("Robot token lifecycle\n");
+    text.append("- The robot consumer secret is long-lived until rotation; the JWT is not.\n");
+    text.append("- Data API JWTs are signed by the server's current JWT signing key and include typ=data-api-access, sub=<robotAddress>, aud=[data-api], scope=[wave:data:read,wave:data:write], exp, and ver=tokenVersion.\n");
+    text.append("- The server only issues robot tokens once the robot has a configured callback URL and verified registration state.\n");
+    text.append("- If you omit expiry, the server falls back to tokenExpirySeconds from the robot account; prefer expiry=3600 for new integrations.\n");
+    text.append("- Refresh the JWT after any HTTP 401 and retry once with a newly issued token.\n");
+    text.append("- If tokenVersion changes because the secret was rotated or the robot was paused/deleted, older JWTs stop working immediately.\n\n");
+
     text.append("Google AI Studio / Gemini starter prompt\n");
     text.append("Build a SupaWave robot for me.\n");
     text.append("Use these environment variables exactly:\n");
@@ -1373,6 +1388,9 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("- ").append(LLMS_FULL_PATH).append(" is the canonical LLM-friendly reference path.\n");
     text.append("- ").append(LLM_ALIAS_PATH).append(" remains live as a backward-compatible alias.\n");
     text.append("- Do not advertise wavelet.create as the current public API. All auth uses JWT Bearer tokens.\n");
+    text.append("- Fetch and callback bundles include robotAddress.\n");
+    text.append("- Current servers also include rpcServerUrl; use it instead of hardcoding /robot/dataapi/rpc when present.\n");
+    text.append("- Treat missing threads as {} when talking to older bundle payloads.\n");
     return text.toString();
   }
 
@@ -1560,6 +1578,8 @@ public final class ApiDocsServlet extends HttpServlet {
                 "returnWaveletIds", false,
                 "message", "optional fetch tag"),
             orderedMap(
+                "robotAddress", "helper-bot@example.com",
+                "rpcServerUrl", "https://wave.example.com/robot/dataapi/rpc",
                 "blipId", "b+root",
                 "message", "optional fetch tag",
                 "waveletData",
@@ -1576,7 +1596,7 @@ public final class ApiDocsServlet extends HttpServlet {
                                 "content", "\nWelcome to the wave",
                                 "contributors", list("alice@example.com"))),
                 "threads", orderedMap("thread+root", orderedMap("id", "thread+root", "blipIds", list("b+root")))),
-            "When returnWaveletIds=true the server returns waveletIds instead of the waveletData/blips/threads bundle."));
+            "When returnWaveletIds=true the server returns waveletIds instead of the waveletData/blips/threads bundle. Fetch bundles include robotAddress and, on current servers, rpcServerUrl. Treat missing threads as {} when reading older payloads."));
     operations.add(
         operation(
             "Wave and conversation",

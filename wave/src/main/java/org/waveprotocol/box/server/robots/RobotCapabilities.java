@@ -39,6 +39,7 @@ public class RobotCapabilities {
   private final String capabilitiesHash;
   private final ProtocolVersion version;
   private final String rpcServerUrl;
+  private final boolean rpcServerUrlFetched;
 
   /**
    * Constructs a new {@link RobotCapabilities} object with the given data.
@@ -49,7 +50,7 @@ public class RobotCapabilities {
    */
   public RobotCapabilities(Map<EventType, Capability> capabilitiesMap, String capabilitiesHash,
       ProtocolVersion version) {
-    this(capabilitiesMap, capabilitiesHash, version, "");
+    this(capabilitiesMap, capabilitiesHash, version, "", false);
   }
 
   /**
@@ -60,6 +61,16 @@ public class RobotCapabilities {
    */
   public RobotCapabilities(Map<EventType, Capability> capabilitiesMap, String capabilitiesHash,
       ProtocolVersion version, String rpcServerUrl) {
+    this(capabilitiesMap, capabilitiesHash, version, rpcServerUrl, false);
+  }
+
+  /**
+   * Constructs a new {@link RobotCapabilities} object with the given data, the
+   * preferred server RPC endpoint advertised by the robot, and whether that
+   * endpoint has already been refreshed from capabilities.xml.
+   */
+  public RobotCapabilities(Map<EventType, Capability> capabilitiesMap, String capabilitiesHash,
+      ProtocolVersion version, String rpcServerUrl, boolean rpcServerUrlFetched) {
     Preconditions.checkNotNull(capabilitiesMap, "Capabilities map may not be null");
     Preconditions.checkNotNull(capabilitiesHash, "Capabilities hash may not be null");
     Preconditions.checkNotNull(version, "Version may not be null");
@@ -68,6 +79,7 @@ public class RobotCapabilities {
     this.capabilitiesHash = capabilitiesHash;
     this.version = version;
     this.rpcServerUrl = rpcServerUrl == null ? "" : rpcServerUrl;
+    this.rpcServerUrlFetched = rpcServerUrlFetched;
   }
 
   /**
@@ -97,6 +109,10 @@ public class RobotCapabilities {
    */
   public String getRpcServerUrl() {
     return rpcServerUrl;
+  }
+
+  public boolean isRpcServerUrlFetched() {
+    return rpcServerUrlFetched;
   }
 
   @Override

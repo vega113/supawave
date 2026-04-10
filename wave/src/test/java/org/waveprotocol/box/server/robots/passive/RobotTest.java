@@ -89,6 +89,14 @@ public class RobotTest extends TestCase {
   private static final RobotAccountData STALE_ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", null, true, 0L, null, "",
           0L, 10L, false);
+  private static final RobotAccountData LEGACY_TWO_LEGGED_ACCOUNT =
+      new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", new RobotCapabilities(
+          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT),
+          true, 0L, null, "", 0L, 15L, false);
+  private static final RobotAccountData FRESH_TWO_LEGGED_ACCOUNT_WITHOUT_RPC_HINT =
+      new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", new RobotCapabilities(
+          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT, "", true),
+          true, 0L, null, "", 0L, 16L, false);
   private static final RobotAccountData INITIALIZED_ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", new RobotCapabilities(
           Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT,
@@ -297,6 +305,45 @@ public class RobotTest extends TestCase {
     enqueueEmptyWavelet();
     robot.run();
 
+    verify(eventGenerator).generateEvents(
+        any(), anyMap(), any(), eq(ACTIVE_RPC_SERVER_URL));
+  }
+
+  public void testProcessRefreshesLegacyCapabilitiesWhenRpcServerUrlMissing() throws Exception {
+    robot.setAccount(LEGACY_TWO_LEGGED_ACCOUNT);
+
+    EventMessageBundle messages = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
+    messages.addEvent(new DocumentChangedEvent(null, null, ALEX.getAddress(), 0L, "b+1234"));
+    when(eventGenerator.generateEvents(
+        any(), anyMap(), any(), eq(ACTIVE_RPC_SERVER_URL))).thenReturn(messages);
+    when(connector.sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class)))
+        .thenReturn(Collections.<OperationRequest>emptyList());
+
+    enqueueEmptyWavelet();
+    robot.run();
+
+    verify(gateway).updateRobotAccount(robot);
+    verify(eventGenerator).generateEvents(
+        any(), anyMap(), any(), eq(ACTIVE_RPC_SERVER_URL));
+  }
+
+  public void testProcessDoesNotRefreshWhenFetchedCapabilitiesHaveNoRpcHint() throws Exception {
+    robot.setAccount(FRESH_TWO_LEGGED_ACCOUNT_WITHOUT_RPC_HINT);
+    when(gateway.getDefaultRpcServerUrl()).thenReturn(ACTIVE_RPC_SERVER_URL);
+
+    EventMessageBundle messages = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
+    messages.addEvent(new DocumentChangedEvent(null, null, ALEX.getAddress(), 0L, "b+1234"));
+    when(eventGenerator.generateEvents(
+        any(), anyMap(), any(), eq(ACTIVE_RPC_SERVER_URL))).thenReturn(messages);
+    when(connector.sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class)))
+        .thenReturn(Collections.<OperationRequest>emptyList());
+
+    enqueueEmptyWavelet();
+    robot.run();
+
+    verify(gateway, never()).updateRobotAccount(robot);
     verify(eventGenerator).generateEvents(
         any(), anyMap(), any(), eq(ACTIVE_RPC_SERVER_URL));
   }

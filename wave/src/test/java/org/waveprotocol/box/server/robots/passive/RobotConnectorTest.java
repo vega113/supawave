@@ -251,6 +251,8 @@ public class RobotConnectorTest extends TestCase {
 
     assertEquals("Expected two-legged passive robots to advertise the active RPC endpoint",
         "https://wave.example.com/robot/rpc", accountData.getCapabilities().getRpcServerUrl());
+    assertTrue("Expected fetched capabilities to be marked as refreshed",
+        accountData.getCapabilities().isRpcServerUrlFetched());
   }
 
   public void testFetchCapabilitiesFallsBackToDataApiRpcWhenOnlyThreeLeggedOauthIsAdvertised()
@@ -263,6 +265,8 @@ public class RobotConnectorTest extends TestCase {
     assertEquals("Expected three-legged passive robots to advertise the Data API RPC endpoint",
         "https://wave.example.com/robot/dataapi/rpc",
         accountData.getCapabilities().getRpcServerUrl());
+    assertTrue("Expected fetched capabilities to be marked as refreshed",
+        accountData.getCapabilities().isRpcServerUrlFetched());
   }
 
   public void testFetchCapabilitiesPreservesAbsoluteBasePathWithoutRpcEndpoint()

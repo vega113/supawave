@@ -56,6 +56,8 @@ public class ProtoAccountDataSerializerTest extends TestCase {
 
   private RobotAccountData robotAccountWithCapabilities;
 
+  private RobotAccountData robotAccountWithFetchedCapabilities;
+
   private RobotAccountData robotAccountWithMetadata;
 
   private HumanAccountData humanAccount;
@@ -83,6 +85,9 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     robotAccountWithCapabilities =
         new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret", new RobotCapabilities(
             capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true);
+    robotAccountWithFetchedCapabilities =
+        new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret", new RobotCapabilities(
+            capabilities, "FAKEHASH", ProtocolVersion.DEFAULT, "", true), true);
     robotAccountWithMetadata = new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret",
         new RobotCapabilities(capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true, 3600L,
         "owner@example.com", "A helpful robot", 123456L, 234567L, true, 0L, 345678L);
@@ -173,6 +178,12 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccountWithCapabilities);
     AccountData account = ProtoAccountDataSerializer.deserialize(data);
     assertEquals(robotAccountWithCapabilities, account);
+  }
+
+  public final void testRobotAccountWithFetchedCapabilitiesFlag() {
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(robotAccountWithFetchedCapabilities);
+    AccountData account = ProtoAccountDataSerializer.deserialize(data);
+    assertTrue(account.asRobot().getCapabilities().isRpcServerUrlFetched());
   }
 
   public final void testRobotAccountWithMetadata() {

@@ -54,6 +54,8 @@ public abstract class AccountStoreTestBase extends TestCase {
 
   private RobotAccountData updatedRobotAccount;
 
+  private RobotAccountData updatedRobotAccountWithFetchedCapabilities;
+
   private RobotAccountData robotAccountWithMetadata;
 
   private HumanAccountData convertedRobot;
@@ -79,6 +81,9 @@ public abstract class AccountStoreTestBase extends TestCase {
     updatedRobotAccount =
         new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret", new RobotCapabilities(
             capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true);
+    updatedRobotAccountWithFetchedCapabilities =
+        new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret", new RobotCapabilities(
+            capabilities, "FAKEHASH", ProtocolVersion.DEFAULT, "", true), true);
     robotAccountWithMetadata = new RobotAccountDataImpl(ROBOT_ID, "example.com", "secret",
         new RobotCapabilities(capabilities, "FAKEHASH", ProtocolVersion.DEFAULT), true, 3600L,
         "owner@example.com", "robot description", 111L, 222L, true, 0L, 333L);
@@ -114,6 +119,14 @@ public abstract class AccountStoreTestBase extends TestCase {
     accountStore.putAccount(robotAccount);
     AccountData retrievedAccount = accountStore.getAccount(ROBOT_ID);
     assertEquals(robotAccount, retrievedAccount);
+  }
+
+  public final void testRoundtripRobotAccountWithFetchedCapabilitiesFlag() throws Exception {
+    AccountStore accountStore = newAccountStore();
+
+    accountStore.putAccount(updatedRobotAccountWithFetchedCapabilities);
+    AccountData retrievedAccount = accountStore.getAccount(ROBOT_ID);
+    assertTrue(retrievedAccount.asRobot().getCapabilities().isRpcServerUrlFetched());
   }
 
   public final void testRoundtripRobotAccountWithMetadata() throws Exception {

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-robot-rpcserverurl-legacy-refresh",
+  "version": "PR #804",
+  "date": "2026-04-10",
+  "title": "Robots: Refresh Legacy Passive Capability RPC Hints",
+  "summary": "Passive robots with legacy stored capabilities now refresh before event delivery so rpcServerUrl matches the configured OAuth mode after restart.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Passive robots now refresh legacy capability snapshots that are missing rpcServerUrl before generating event bundles",
+        "Two-legged passive robots restored from older persisted records now recover /robot/rpc instead of falling back to the Data API endpoint"
+      ]
+    }
+  ]
+}

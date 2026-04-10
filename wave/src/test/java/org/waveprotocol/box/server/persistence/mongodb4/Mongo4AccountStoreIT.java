@@ -61,7 +61,8 @@ public class Mongo4AccountStoreIT {
         Map<EventType, Capability> cmap = CollectionUtils.newHashMap();
         List<Context> ctx = Arrays.asList(Context.SELF, Context.ALL);
         cmap.put(EventType.DOCUMENT_CHANGED, new Capability(EventType.DOCUMENT_CHANGED, ctx, ""));
-        RobotCapabilities caps = new RobotCapabilities(cmap, "hash123", ProtocolVersion.DEFAULT);
+        RobotCapabilities caps = new RobotCapabilities(cmap, "hash123", ProtocolVersion.DEFAULT,
+            "", true);
         AccountData robot = new RobotAccountDataImpl(rid, "http://bot.example.com/callback", "secret", caps, true);
         store.putAccount(robot);
         AccountData loadedRobot = store.getAccount(rid);
@@ -71,6 +72,7 @@ public class Mongo4AccountStoreIT {
         assertEquals("secret", loadedRobot.asRobot().getConsumerSecret());
         assertTrue(loadedRobot.asRobot().isVerified());
         assertTrue(loadedRobot.asRobot().getCapabilities().getCapabilitiesMap().containsKey(EventType.DOCUMENT_CHANGED));
+        assertTrue(loadedRobot.asRobot().getCapabilities().isRpcServerUrlFetched());
         store.removeAccount(rid);
         assertNull(store.getAccount(rid));
       } finally {

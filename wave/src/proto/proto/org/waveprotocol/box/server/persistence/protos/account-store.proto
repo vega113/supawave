@@ -94,6 +94,7 @@ message ProtoRobotCapabilities {
 	required string capabilities_hash = 1;
 	required string protocol_version = 2;
 	repeated ProtoRobotCapability capability = 3;
+	optional bool rpc_server_url_fetched = 4 [default = false];
 }
 
 // Data found in a com.google.api.robot.Capability instance

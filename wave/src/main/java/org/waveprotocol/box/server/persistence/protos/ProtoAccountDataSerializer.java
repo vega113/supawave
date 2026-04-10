@@ -155,6 +155,9 @@ public class ProtoAccountDataSerializer {
     ProtoRobotCapabilities.Builder builder = ProtoRobotCapabilities.newBuilder();
     builder.setProtocolVersion(capabilities.getProtocolVersion().getVersionString());
     builder.setCapabilitiesHash(capabilities.getCapabilitiesHash());
+    if (capabilities.isRpcServerUrlFetched()) {
+      builder.setRpcServerUrlFetched(true);
+    }
     if (capabilities.getCapabilitiesMap() != null) {
       for (Capability capability: capabilities.getCapabilitiesMap().values()) {
         builder.addCapability(serialize(capability));
@@ -266,7 +269,8 @@ public class ProtoAccountDataSerializer {
       capabilities.put(capability.getEventType(), capability);
     }
     return new RobotCapabilities(capabilities, data.getCapabilitiesHash(),
-        ProtocolVersion.fromVersionString(data.getProtocolVersion()));
+        ProtocolVersion.fromVersionString(data.getProtocolVersion()),
+        "", data.hasRpcServerUrlFetched() && data.getRpcServerUrlFetched());
   }
 
   private static Capability deserialize(ProtoRobotCapability data) {

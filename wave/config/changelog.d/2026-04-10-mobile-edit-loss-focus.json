@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-mobile-edit-loss-focus",
+  "version": "PR #796",
+  "date": "2026-04-10",
+  "title": "Mobile edit persistence follow-up",
+  "summary": "Android/mobile edit sessions now restore a valid caret when opening a blip editor, preventing typed text from appearing only locally and disappearing after reload.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Restored mobile editor focus initialization so edit sessions start with a valid caret instead of a DOM-only typing surface",
+        "Fixed both existing-blip edits and brand-new reply blips losing typed text after reload because no document ops were generated"
+      ]
+    }
+  ]
+}

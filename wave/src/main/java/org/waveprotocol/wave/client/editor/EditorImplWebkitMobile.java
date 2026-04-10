@@ -20,9 +20,10 @@
 package org.waveprotocol.wave.client.editor;
 
 import com.google.gwt.dom.client.Element;
+import org.waveprotocol.wave.client.common.util.UserAgent;
 
 /**
- * Disable certain features for mobile clients
+ * Disable selected legacy mobile behaviors while preserving Android edit focus.
  *
  * @author danilatos@google.com (Daniel Danilatos)
  *
@@ -35,7 +36,15 @@ public class EditorImplWebkitMobile extends EditorImpl {
 
   @Override
   public void focus(boolean collapsed) {
-    // do nothing
+    // Android needs the standard focus path so edit sessions start with a real caret.
+    if (isAndroid()) {
+      super.focus(collapsed);
+    }
+  }
+
+  /** Returns true if the current environment is Android. Overridable for testing. */
+  protected boolean isAndroid() {
+    return UserAgent.isAndroid();
   }
 
   @Override

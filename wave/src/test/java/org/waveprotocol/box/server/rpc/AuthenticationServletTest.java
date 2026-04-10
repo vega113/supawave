@@ -136,6 +136,25 @@ public class AuthenticationServletTest extends TestCase {
     verify(resp).setStatus(HttpServletResponse.SC_OK);
   }
 
+  public void testGetWithRegisteredParamShowsSuccessBanner() throws IOException {
+    when(req.getSession(false)).thenReturn(null);
+    when(req.getParameter("registered")).thenReturn("1");
+    when(req.getLocale()).thenReturn(Locale.ENGLISH);
+
+    ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+    PrintWriter writer = mock(PrintWriter.class);
+    when(resp.getWriter()).thenReturn(writer);
+
+    servlet.doGet(req, resp);
+
+    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    verify(writer).write(bodyCaptor.capture());
+    assertTrue("Success banner div should be present",
+        bodyCaptor.getValue().contains("successBanner"));
+    assertTrue("Success message should be present",
+        bodyCaptor.getValue().contains("Account created!"));
+  }
+
   public void testGetRedirects() throws IOException {
     String location = "/abc123?nested=query&string";
     when(req.getSession(false)).thenReturn(session);

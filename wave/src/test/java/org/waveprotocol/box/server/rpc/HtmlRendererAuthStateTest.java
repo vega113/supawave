@@ -39,6 +39,7 @@ public final class HtmlRendererAuthStateTest {
         "example.com",
         "We sent a fresh activation email.",
         "",
+        false,
         true,
         true);
 

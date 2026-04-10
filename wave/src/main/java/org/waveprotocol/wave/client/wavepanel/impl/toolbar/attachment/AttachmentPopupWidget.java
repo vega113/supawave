@@ -316,24 +316,16 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     dropZone.addDomHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
-        if (isUploading) return;
-        selectionNonce++;
-        fileCountAtArmTime = getNativeFileCount(fileUpload.getElement());
-        awaitingFileSelection = true;
-        armFileSelectionRecovery();
-        nativeClickFileInput(fileUpload.getElement());
+        openNativeFilePicker();
       }
     }, ClickEvent.getType());
 
     addMoreBtn.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
-        if (isUploading) return;
-        selectionNonce++;
-        fileCountAtArmTime = getNativeFileCount(fileUpload.getElement());
-        awaitingFileSelection = true;
-        armFileSelectionRecovery();
-        nativeClickFileInput(fileUpload.getElement());
+        event.preventDefault();
+        event.stopPropagation();
+        openNativeFilePicker();
       }
     });
 
@@ -420,6 +412,16 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     selectionNonce++;
   }
 
+  private void openNativeFilePicker() {
+    if (isUploading) return;
+    clearNativeFileInput(fileUpload.getElement());
+    selectionNonce++;
+    fileCountAtArmTime = getNativeFileCount(fileUpload.getElement());
+    awaitingFileSelection = true;
+    armFileSelectionRecovery();
+    nativeShowFilePicker(fileUpload.getElement());
+  }
+
   private void onFilesSelected(int nonce) {
     if (isUploading) return;
     if (processedNonce == nonce) return;
@@ -427,6 +429,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     awaitingFileSelection = false;
     stopFileSelectionRecovery();
     int added = appendFilesToStore(fileUpload.getElement());
+    clearNativeFileInput(fileUpload.getElement());
+    fileCountAtArmTime = 0;
     int startIndex = nextStoreIndex;
     nextStoreIndex += added;
     for (int i = 0; i < added; i++) {
@@ -779,7 +783,19 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     el.disabled = disabled;
   }-*/;
 
-  private static native void nativeClickFileInput(Element el) /*-{
+  private static native void clearNativeFileInput(Element el) /*-{
+    try {
+      el.value = '';
+    } catch (ignored) {}
+  }-*/;
+
+  private static native void nativeShowFilePicker(Element el) /*-{
+    try {
+      if (el.showPicker) {
+        el.showPicker();
+        return;
+      }
+    } catch (ignored) {}
     el.click();
   }-*/;
 
@@ -1002,8 +1018,10 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     batchFailed = false;
     nextStoreIndex = 0;
     awaitingFileSelection = false;
+    fileCountAtArmTime = 0;
     stopFileSelectionRecovery();
     initFileStore();
+    clearNativeFileInput(fileUpload.getElement());
     updateUploadButton();
     spinnerPanel.setVisible(false);
     showStatus("", false);
@@ -1021,7 +1039,9 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   @Override
   public void hide() {
     awaitingFileSelection = false;
+    fileCountAtArmTime = 0;
     stopFileSelectionRecovery();
+    clearNativeFileInput(fileUpload.getElement());
     popup.hide();
   }
 

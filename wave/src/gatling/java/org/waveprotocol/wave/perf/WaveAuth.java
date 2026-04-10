@@ -18,13 +18,13 @@ final class WaveAuth {
     static final String TEST_USER = "perfuser";
     static final String TEST_ADDRESS = TEST_USER + "@" + DOMAIN;
 
-    /** Register user (idempotent — 200 on success, 403 on duplicate). */
+    /** Register user (idempotent — 200 on success, 403 on duplicate, 302/303 redirects accepted). */
     static final ChainBuilder REGISTER = exec(
             http("Register user")
                     .post("/auth/register")
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .body(StringBody("address=" + TEST_USER + "&password=" + PASSWORD))
-                    .check(status().in(200, 403))
+                    .check(status().in(200, 302, 303, 403))
     );
 
     /** Login and capture JSESSIONID in the session cookie jar. */

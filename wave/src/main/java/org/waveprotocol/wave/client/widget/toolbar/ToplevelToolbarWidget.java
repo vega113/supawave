@@ -168,6 +168,7 @@ public final class ToplevelToolbarWidget extends Composite
       // searches from SearchPresenter.rebuildSavedSearchButtons) remain reachable
       // when they exceed the row width, instead of being silently clipped.
       self.getElement().getStyle().setProperty("overflowX", "auto");
+      self.getElement().getStyle().setProperty("overflowY", "hidden");
       restoreItemsToToplevel();
       overflowSubmenu.setState(State.INVISIBLE);
     } else {
@@ -175,6 +176,7 @@ public final class ToplevelToolbarWidget extends Composite
       // overflowed buttons via offsetTop > 0 (buttons on a second row).
       self.getElement().getStyle().clearProperty("flexWrap");
       self.getElement().getStyle().clearProperty("overflowX");
+      self.getElement().getStyle().clearProperty("overflowY");
       overflowLogic.updateStateEventually();
     }
   }

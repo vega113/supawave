@@ -135,6 +135,12 @@ public final class UserRegistrationServlet extends HttpServlet {
     resp.sendRedirect("/auth/signin?registered=1");
   }
 
+  private void writeCheckEmailPage(HttpServletResponse dest) throws IOException {
+    dest.setCharacterEncoding("UTF-8");
+    dest.setContentType("text/html;charset=utf-8");
+    dest.getWriter().write(HtmlRenderer.renderCheckEmailPage(domain, analyticsAccount));
+  }
+
   private String tryCreateUser(String username, String password, String email,
                                HttpServletRequest req) {
     ParticipantId id;
@@ -232,12 +238,6 @@ public final class UserRegistrationServlet extends HttpServlet {
       account.setRole(HumanAccountData.ROLE_OWNER);
       LOG.info("First registration — assigning owner role to " + account.getId());
     }
-  }
-
-  private void writeCheckEmailPage(HttpServletResponse dest) throws IOException {
-    dest.setCharacterEncoding("UTF-8");
-    dest.setContentType("text/html;charset=utf-8");
-    dest.getWriter().write(HtmlRenderer.renderCheckEmailPage(domain, analyticsAccount));
   }
 
   private void writeRegistrationPage(String message, String responseType,

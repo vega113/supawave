@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-10-grafana-alloy-timestamp-fix",
+  "version": "PR #793",
+  "date": "2026-04-10",
+  "title": "Fix Grafana Alloy timestamp parsing for Wave JSON logs",
+  "summary": "Switched the Alloy timestamp format from millisecond to RFC3339Nano so microsecond-precision timestamps emitted by Wave JSON logs are parsed correctly and logs appear in Grafana.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Changed Grafana Alloy timestamp format from `2006-01-02T15:04:05.000Z07:00` (millisecond) to `RFC3339Nano` to match the microsecond-precision timestamps emitted by logstash-logback-encoder",
+        "Added deploy-time diagnostics: script now prints WAVE_LOG_PATH, WAVE_TIMESTAMP_FORMAT, matched log files, and writes a syslog audit line when Loki shipping is configured",
+        "Added structured JSON log output path logging at Wave server startup for operator visibility",
+        "Added regression tests: Python unittest for Alloy config timestamp contract and Jakarta test for startup log diagnostic"
+      ]
+    }
+  ]
+}

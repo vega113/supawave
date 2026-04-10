@@ -83,6 +83,7 @@ public class ServerMain {
       Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
         try { printStackTraceLite(throwable); } catch (Throwable ignore) {}
       });
+      LOG.info(structuredLoggingStatusMessage());
 
       Module coreSettings = new AbstractModule() {
         @Override protected void configure() {
@@ -569,5 +570,10 @@ public class ServerMain {
     ShutdownManager.getInstance().register(new Shutdownable() {
       @Override public void shutdown() throws Exception { server.stopServer(); }
     }, ServerMain.class.getSimpleName(), ShutdownPriority.Server);
+  }
+
+  static String structuredLoggingStatusMessage() {
+    return "Structured JSON logging enabled; writing Grafana/Loki source logs to "
+        + new File("logs/wave-json.log").getAbsolutePath();
   }
 }

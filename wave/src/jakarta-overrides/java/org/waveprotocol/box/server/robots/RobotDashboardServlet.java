@@ -25,6 +25,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.wave.api.robot.CapabilityFetchException;
 import com.google.inject.name.Named;
+import com.typesafe.config.Config;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -35,9 +36,11 @@ import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
+import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
 import org.waveprotocol.box.server.robots.util.RobotsUtil.RobotRegistrationException;
 import org.waveprotocol.box.server.rpc.HtmlRenderer;
@@ -72,10 +75,29 @@ public final class RobotDashboardServlet extends HttpServlet {
   private final RobotCapabilityFetcher capabilityFetcher;
   private final TokenGenerator tokenGenerator;
   private final Clock clock;
+  private final String activeRobotApiUrl;
   private final ConcurrentMap<ParticipantId, String> xsrfTokens;
 
   @Inject
   public RobotDashboardServlet(@Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
+      SessionManager sessionManager, AccountStore accountStore, RobotRegistrar robotRegistrar,
+      RobotCapabilityFetcher capabilityFetcher, TokenGenerator tokenGenerator, Clock clock,
+      Config config) {
+    this.domain = domain;
+    this.sessionManager = sessionManager;
+    this.accountStore = accountStore;
+    this.robotRegistrar = robotRegistrar;
+    this.capabilityFetcher = capabilityFetcher;
+    this.tokenGenerator = tokenGenerator;
+    this.clock = clock;
+    this.activeRobotApiUrl = PublicBaseUrlResolver.resolve(config) + RobotsGateway.DATA_API_RPC_PATH;
+    this.xsrfTokens = CacheBuilder.newBuilder()
+        .expireAfterWrite(XSRF_TOKEN_TIMEOUT_HOURS, TimeUnit.HOURS)
+        .<ParticipantId, String>build()
+        .asMap();
+  }
+
+  RobotDashboardServlet(@Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
       SessionManager sessionManager, AccountStore accountStore, RobotRegistrar robotRegistrar,
       RobotCapabilityFetcher capabilityFetcher, TokenGenerator tokenGenerator, Clock clock) {
     this.domain = domain;
@@ -85,6 +107,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     this.capabilityFetcher = capabilityFetcher;
     this.tokenGenerator = tokenGenerator;
     this.clock = clock;
+    this.activeRobotApiUrl = "";
     this.xsrfTokens = CacheBuilder.newBuilder()
         .expireAfterWrite(XSRF_TOKEN_TIMEOUT_HOURS, TimeUnit.HOURS)
         .<ParticipantId, String>build()
@@ -444,7 +467,7 @@ public final class RobotDashboardServlet extends HttpServlet {
 
   private RobotAccountData verifyRobot(RobotAccountData ownedRobot)
       throws CapabilityFetchException, PersistenceException {
-    RobotAccountData refreshedRobot = capabilityFetcher.fetchCapabilities(ownedRobot, "");
+    RobotAccountData refreshedRobot = capabilityFetcher.fetchCapabilities(ownedRobot, activeRobotApiUrl);
     RobotAccountData verifiedRobot = new RobotAccountDataImpl(
         refreshedRobot.getId(),
         refreshedRobot.getUrl(),
@@ -790,12 +813,12 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Section 1: Robot API Keys (long-lived)
     sb.append("<div style=\"margin-bottom:28px\">");
     sb.append("<div class=\"sec-title\">Robot API Keys</div>");
-    sb.append("<div class=\"sec-desc\">Each robot receives a <strong>consumer secret</strong> at creation time. Robots use this secret via the <code style=\"font-family:var(--mono);font-size:11px;background:var(--sf);padding:1px 5px;border-radius:3px\">client_credentials</code> grant to obtain long-lived API tokens. Since robots are persistent web services, tokens default to <strong>never expire</strong>. You can configure expiry per-robot in the registration modal.</div>");
+    sb.append("<div class=\"sec-desc\">Each robot receives a <strong>consumer secret</strong> at creation time. Use that long-lived secret via the <code style=\"font-family:var(--mono);font-size:11px;background:var(--sf);padding:1px 5px;border-radius:3px\">client_credentials</code> grant to mint JWT Bearer tokens for the Data API or Active API. Prefer short-lived tokens such as <strong>3600 seconds</strong>; if you omit expiry, the server falls back to the robot's configured default and a value of <code>0</code> preserves legacy no-expiry behavior.</div>");
     sb.append("<div class=\"refcard\" style=\"margin-top:12px\">");
     sb.append("<h4>Robot Authentication Flow</h4>");
     sb.append("<div class=\"hint\" style=\"margin-bottom:8px\">Robots get two types of Bearer tokens via <code style=\"font-family:var(--mono);font-size:10px\">client_credentials</code> grant:</div>");
     sb.append("<code style=\"font-family:var(--mono);font-size:11px;color:var(--p);background:var(--bg);padding:8px 10px;border-radius:3px;display:block;line-height:1.8;white-space:pre\">Data API token (search, create, read/write waves):\nPOST /robot/dataapi/token\ngrant_type=client_credentials&amp;client_id=bot@domain&amp;client_secret=...\n\nActive API token (respond to wave events):\nPOST /robot/dataapi/token\ngrant_type=client_credentials&amp;client_id=bot@domain&amp;client_secret=...&amp;token_type=robot</code>");
-    sb.append("<div class=\"hint\" style=\"margin-top:8px\">Both default to never expire. Active robots need both tokens.</div>");
+    sb.append("<div class=\"hint\" style=\"margin-top:8px\">Prefer <code>expiry=3600</code>, refresh after HTTP 401, and re-authenticate if secret rotation or <code>tokenVersion</code> invalidates an older JWT. Active robots need both token types.</div>");
     sb.append("</div></div>");
 
     // Section 2: Registration Management Token (short-lived)
@@ -845,7 +868,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<code style=\"font-family:var(--mono);font-size:11px;color:var(--p);background:var(--bg);padding:6px 10px;border-radius:3px;display:block\">Authorization: Bearer eyJhbG...</code>");
     sb.append("<div class=\"hint\" style=\"margin-top:12px\"><strong>Two token types:</strong></div>");
     sb.append("<div class=\"hint\">1. <strong>Management token</strong> (short-lived) \u2014 for registration API, generated above</div>");
-    sb.append("<div class=\"hint\">2. <strong>Robot API key</strong> (long-lived) \u2014 for Data API, via client_credentials grant</div>");
+    sb.append("<div class=\"hint\">2. <strong>Robot consumer secret + JWTs</strong> \u2014 use client_credentials to mint short-lived Data API or Active API tokens</div>");
     sb.append("</div></div>");
     sb.append("</div>"); // end tp-api
 
@@ -871,7 +894,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<li>Generate a <strong>Management Token</strong> on the \"API &amp; Tokens\" tab (expires in 1 hour)</li>");
     sb.append("<li>Copy the AI prompt above and paste into your LLM (Google AI Studio, ChatGPT, Claude, etc.)</li>");
     sb.append("<li>The LLM writes a robot, deploys it, and registers it via the Management API using your token</li>");
-    sb.append("<li>The robot receives a <strong>consumer secret</strong> at registration and uses <code style=\"font-family:var(--mono);font-size:11px;background:var(--sf);padding:1px 4px;border-radius:2px\">client_credentials</code> to get its own long-lived Data API token</li>");
+    sb.append("<li>The robot receives a <strong>consumer secret</strong> at registration and uses <code style=\"font-family:var(--mono);font-size:11px;background:var(--sf);padding:1px 4px;border-radius:2px\">client_credentials</code> to mint its own short-lived Data API and Active API JWTs</li>");
     sb.append("<li>Expand the robot on \"My Robots\" tab \u2014 click <strong>Test Robot</strong> to verify connectivity</li>");
     sb.append("</ol></div>");
     // Documentation links
@@ -912,7 +935,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<div class=\"fg\">");
     sb.append("<label class=\"fl\">Robot API Key Expiry</label>");
     sb.append("<div class=\"fi-suffix\"><input class=\"fi\" type=\"number\" id=\"reg-expiry\" value=\"0\"/><span class=\"suffix\">seconds (0 = never)</span></div>");
-    sb.append("<div class=\"hint\">How long robot-issued API keys last. Default 0 = never expire (recommended for persistent services).</div></div>");
+    sb.append("<div class=\"hint\">How long robot-issued JWTs last when you omit an explicit expiry. Prefer 3600 for new robots; 0 preserves legacy no-expiry behavior.</div></div>");
     sb.append("</div>"); // end modal-body
     sb.append("<div class=\"modal-foot\">");
     sb.append("<button class=\"btn-o\" onclick=\"closeModal()\">Cancel</button>");
@@ -1169,26 +1192,30 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("+'Content-Type: application/json\\n'");
     sb.append("+'{\"username\":\"mybot-bot\",\"description\":\"My bot\",\"callbackUrl\":\"https://your-server/callback\"}\\n'");
     sb.append("+'Response: {id, secret, status, callbackUrl}\\n'");
-    sb.append("+'IMPORTANT: callbackUrl is required for both token types.\\n'");
+    sb.append("+'IMPORTANT: callbackUrl is currently required before the server will issue robot tokens.\\n'");
     sb.append("+'The callback URL is where SupaWave sends wave events to your robot.\\n\\n'");
-    sb.append("+'== Step 2: Get tokens ==\\n'");
-    sb.append("+'Robots need tokens to call SupaWave APIs. Get them via client_credentials:\\n\\n'");
+    sb.append("+'== Step 2: Get runtime tokens ==\\n'");
+    sb.append("+'Use the permanent robot secret to mint short-lived JWTs via client_credentials:\\n\\n'");
     sb.append("+'Data API token (for on-demand reads/writes):\\n'");
     sb.append("+'POST '+BASE+'/robot/dataapi/token\\n'");
     sb.append("+'Content-Type: application/x-www-form-urlencoded\\n'");
-    sb.append("+'grant_type=client_credentials&client_id=mybot-bot@'+DOMAIN+'&client_secret=SECRET\\n\\n'");
+    sb.append("+'grant_type=client_credentials&client_id=mybot-bot@'+DOMAIN+'&client_secret=SECRET&expiry=3600\\n\\n'");
     sb.append("+'Active API token (for responding to wave events):\\n'");
     sb.append("+'POST '+BASE+'/robot/dataapi/token\\n'");
     sb.append("+'Content-Type: application/x-www-form-urlencoded\\n'");
-    sb.append("+'grant_type=client_credentials&client_id=mybot-bot@'+DOMAIN+'&client_secret=SECRET&token_type=robot\\n\\n'");
+    sb.append("+'grant_type=client_credentials&client_id=mybot-bot@'+DOMAIN+'&client_secret=SECRET&expiry=3600&token_type=robot\\n\\n'");
     sb.append("+'Both return: {access_token, token_type:\"bearer\", expires_in}\\n'");
-    sb.append("+'Tokens default to never expire. Get both if building an active+data robot.\\n\\n'");
+    sb.append("+'Refresh the token after any HTTP 401 and retry once with a freshly issued JWT.\\n'");
+    sb.append("+'If tokenVersion changes because the secret was rotated or the robot was paused/deleted, the old JWT stops working immediately.\\n\\n'");
     sb.append("+'== Step 3: Build the robot web server ==\\n'");
     sb.append("+'Your robot is a web server that:\\n'");
     sb.append("+'a) Serves /_wave/capabilities.xml listing which events it handles\\n'");
     sb.append("+'b) Receives POST callbacks from SupaWave with wave events (JSON-RPC)\\n'");
     sb.append("+'c) Responds to events via POST to '+BASE+'/robot/rpc (Active API)\\n'");
-    sb.append("+'d) Proactively reads/writes via POST to '+BASE+'/robot/dataapi/rpc (Data API)\\n\\n'");
+    sb.append("+'d) Proactively reads/writes via POST to '+BASE+'/robot/dataapi/rpc (Data API)\\n'");
+    sb.append("+'When SupaWave POSTs an event bundle, read robotAddress from the payload so you know which robot identity handled the callback.\\n'");
+    sb.append("+'Use rpcServerUrl from the bundle instead of hardcoding the Data API endpoint when it is present.\\n'");
+    sb.append("+'For compatibility with older bundles, treat missing threads as {}.\\n\\n'");
     sb.append("+'== Capabilities XML (serve at https://your-server/_wave/capabilities.xml) ==\\n'");
     sb.append("+'<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n'");
     sb.append("+'<w:robot xmlns:w=\"http://wave.google.com/extensions/robots/1.0\">\\n'");
@@ -1235,9 +1262,12 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("+'== Best practices ==\\n'");
     sb.append("+'- Read full docs at '+BASE+'/api/llm.txt before building\\n'");
     sb.append("+'- Build BOTH active + data mode for the most capable robot\\n'");
-    sb.append("+'- Robot tokens default to never expire (persistent web services)\\n'");
+    sb.append("+'- Prefer expiry=3600 for robot JWTs; 0 preserves legacy no-expiry behavior\\n'");
+    sb.append("+'- Refresh the token after any HTTP 401\\n'");
     sb.append("+'- Management tokens expire in 1 hour (registration only)\\n'");
     sb.append("+'- Callback URL must be set before requesting any robot tokens\\n'");
+    sb.append("+'- Use rpcServerUrl from the event bundle when it is present\\n'");
+    sb.append("+'- Read robotAddress from the bundle and treat missing threads as {}\\n'");
     sb.append("+'- Serve capabilities.xml so SupaWave knows which events to send\\n'");
     sb.append("+'- Rotate consumer secrets periodically\\n'");
     sb.append("+'- Data API supports batch requests (send array of operations)\\n'");

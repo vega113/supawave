@@ -198,7 +198,11 @@ public class WaveDataSeeder {
                 .POST(HttpRequest.BodyPublishers.ofString(
                         "address=" + enc(perfUser) + "&password=" + enc(perfPassword)))
                 .build();
-        return http.send(req, HttpResponse.BodyHandlers.discarding()).statusCode();
+        int status = http.send(req, HttpResponse.BodyHandlers.discarding()).statusCode();
+        if (status == 302 || status == 303) {
+            return 200;
+        }
+        return status;
     }
 
     private String login() throws Exception {

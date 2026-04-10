@@ -63,10 +63,10 @@ public final class ViewToolbar {
       + "stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" "
       + "style=\"display:block\">";
 
-  /** Recent: rotate-ccw — counterclockwise refresh arrow. */
+  /** Recent: clock face, so it reads as recency rather than refresh. */
   private static final String ICON_RECENT = SVG_OPEN
-      + "<path d=\"M1 4v6h6\"></path>"
-      + "<path d=\"M3.51 15a9 9 0 1 0 2.13-9.36L1 10\"></path></svg>";
+      + "<circle cx=\"12\" cy=\"12\" r=\"9\"></circle>"
+      + "<path d=\"M12 7v5l-3 2\"></path></svg>";
 
   /** Next Unread: bell with a small dot indicator. */
   private static final String ICON_NEXT_UNREAD = SVG_OPEN
@@ -111,10 +111,11 @@ public final class ViewToolbar {
       + "<circle cx=\"12\" cy=\"9\" r=\"2.5\" fill=\"currentColor\" "
       + "stroke=\"none\"></circle></svg>";
 
-  /** History: clock face. */
+  /** History: a distinct history glyph so it no longer reads like refresh. */
   private static final String ICON_HISTORY = SVG_OPEN
-      + "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>"
-      + "<path d=\"M12 6v6l4 2\"></path></svg>";
+      + "<path d=\"M3 3v5h5\"></path>"
+      + "<path d=\"M3.05 13a9 9 0 1 0 2.64-6.36L3 8\"></path>"
+      + "<path d=\"M12 7v5l3 2\"></path></svg>";
 
   /** Listener notified when a folder move operation completes. */
   public interface FolderActionListener {

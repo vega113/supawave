@@ -39,8 +39,8 @@
 }
 
 .self.compact {
-  padding: 0 6px;
-  min-width: 32px;
+  padding: 0 4px;
+  min-width: 28px;
   justify-content: center;
 }
 
@@ -84,26 +84,6 @@
 
 .enabled:hover > .overlay {
   background-color: rgba(0, 119, 182, 0.08);
-}
-
-.enabled.compact > .overlay {
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  right: 4px;
-  background-color: rgba(255,255,255,0.72);
-  border: 1px solid rgba(176,196,216,0.55);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
-}
-
-.enabled.compact:hover > .overlay {
-  background-color: rgba(255,255,255,0.92);
-  border-color: rgba(0,119,182,0.28);
-}
-
-.enabled.down.compact > .overlay {
-  background-color: rgba(226,240,251,0.95);
-  border-color: rgba(0,119,182,0.35);
 }
 
 .visualElement {

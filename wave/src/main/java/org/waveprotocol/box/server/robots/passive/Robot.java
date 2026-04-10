@@ -267,7 +267,7 @@ public class Robot implements Runnable {
    */
   private void process(WaveletAndDeltas wavelet) {
     RobotAccountData currentAccount = account;
-    if (currentAccount.getCapabilities() == null) {
+    if (needsCapabilityRefresh(currentAccount)) {
       try {
         LOG.info(robotName + ": Initializing capabilities");
         gateway.updateRobotAccount(this);
@@ -301,7 +301,8 @@ public class Robot implements Runnable {
     RobotCapabilities capabilities = currentAccount.getCapabilities();
     EventMessageBundle messages =
         eventGenerator.generateEvents(wavelet, capabilities.getCapabilitiesMap(),
-            converterManager.getEventDataConverter(capabilities.getProtocolVersion()));
+            converterManager.getEventDataConverter(capabilities.getProtocolVersion()),
+            resolveRpcServerUrl(currentAccount));
 
     if (messages.getEvents().isEmpty()) {
       // No events were generated, we are done
@@ -321,5 +322,17 @@ public class Robot implements Runnable {
 
     operationApplicator.applyOperations(
         response, wavelet.getSnapshotAfterDeltas(), wavelet.getVersionAfterDeltas(), currentAccount);
+  }
+
+  private boolean needsCapabilityRefresh(RobotAccountData currentAccount) {
+    return currentAccount.getCapabilities() == null;
+  }
+
+  private String resolveRpcServerUrl(RobotAccountData currentAccount) {
+    RobotCapabilities capabilities = currentAccount.getCapabilities();
+    if (capabilities != null && !capabilities.getRpcServerUrl().isEmpty()) {
+      return capabilities.getRpcServerUrl();
+    }
+    return gateway.getDefaultRpcServerUrl();
   }
 }

@@ -1534,6 +1534,218 @@ public final class HtmlRenderer {
       + ".footer-link a { color: " + WAVE_PRIMARY + "; text-decoration: none; font-weight: 500; }\n"
       + ".footer-link a:hover { text-decoration: underline; }\n"
       + ".buttons { display: flex; gap: 8px; margin-top: 8px; }\n"
+      + ".auth-state-card {\n"
+      + "  padding: 0;\n"
+      + "  overflow: hidden;\n"
+      + "  background: linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(245,250,255,0.96) 100%);\n"
+      + "}\n"
+      + ".auth-state-hero {\n"
+      + "  position: relative;\n"
+      + "  overflow: hidden;\n"
+      + "  padding: 28px 28px 24px;\n"
+      + "  color: #fff;\n"
+      + "}\n"
+      + ".auth-state-hero::after {\n"
+      + "  content: '';\n"
+      + "  position: absolute;\n"
+      + "  right: -10%;\n"
+      + "  bottom: -72px;\n"
+      + "  width: 320px;\n"
+      + "  height: 160px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: radial-gradient(circle, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 72%);\n"
+      + "  transform: rotate(-10deg);\n"
+      + "}\n"
+      + ".auth-state-hero.success {\n"
+      + "  background: radial-gradient(circle at top right, rgba(144,224,239,0.72) 0%, rgba(144,224,239,0) 44%), linear-gradient(140deg, #023e8a 0%, #0077b6 44%, #00b4d8 100%);\n"
+      + "}\n"
+      + ".auth-state-hero.pending {\n"
+      + "  background: radial-gradient(circle at top right, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 42%), linear-gradient(140deg, #0f766e 0%, #0f9d90 48%, #34d399 100%);\n"
+      + "}\n"
+      + ".auth-state-hero.action {\n"
+      + "  background: radial-gradient(circle at top right, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 42%), linear-gradient(140deg, #92400e 0%, #b45309 48%, #f59e0b 100%);\n"
+      + "}\n"
+      + ".auth-state-hero.problem {\n"
+      + "  background: radial-gradient(circle at top right, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 42%), linear-gradient(140deg, #7f1d1d 0%, #b91c1c 48%, #ef4444 100%);\n"
+      + "}\n"
+      + ".auth-state-pill {\n"
+      + "  position: relative;\n"
+      + "  z-index: 1;\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  gap: 8px;\n"
+      + "  padding: 7px 12px;\n"
+      + "  border: 1px solid rgba(255,255,255,0.22);\n"
+      + "  border-radius: 999px;\n"
+      + "  background: rgba(255,255,255,0.14);\n"
+      + "  font-size: 12px;\n"
+      + "  font-weight: 700;\n"
+      + "  letter-spacing: 0.08em;\n"
+      + "  text-transform: uppercase;\n"
+      + "  backdrop-filter: blur(10px);\n"
+      + "}\n"
+      + ".auth-state-pill::before {\n"
+      + "  content: '';\n"
+      + "  width: 8px;\n"
+      + "  height: 8px;\n"
+      + "  border-radius: 50%;\n"
+      + "  background: rgba(255,255,255,0.9);\n"
+      + "  box-shadow: 0 0 0 5px rgba(255,255,255,0.18);\n"
+      + "}\n"
+      + ".auth-state-hero h1 {\n"
+      + "  position: relative;\n"
+      + "  z-index: 1;\n"
+      + "  margin: 16px 0 10px;\n"
+      + "  color: #fff;\n"
+      + "  font-size: 32px;\n"
+      + "  letter-spacing: -0.04em;\n"
+      + "}\n"
+      + ".auth-state-subtitle {\n"
+      + "  position: relative;\n"
+      + "  z-index: 1;\n"
+      + "  margin: 0;\n"
+      + "  max-width: 36rem;\n"
+      + "  color: rgba(255,255,255,0.9);\n"
+      + "  font-size: 15px;\n"
+      + "  line-height: 1.6;\n"
+      + "}\n"
+      + ".auth-state-body {\n"
+      + "  padding: 24px 28px 28px;\n"
+      + "}\n"
+      + ".auth-state-copy {\n"
+      + "  margin: 0;\n"
+      + "  color: #334155;\n"
+      + "  font-size: 14px;\n"
+      + "  line-height: 1.7;\n"
+      + "}\n"
+      + ".auth-state-account {\n"
+      + "  margin-top: 16px;\n"
+      + "  padding: 14px 16px;\n"
+      + "  border-radius: 16px;\n"
+      + "  border: 1px solid rgba(0,119,182,0.14);\n"
+      + "  background: rgba(232,244,248,0.9);\n"
+      + "}\n"
+      + ".auth-state-account-label {\n"
+      + "  display: block;\n"
+      + "  margin-bottom: 6px;\n"
+      + "  color: #475569;\n"
+      + "  font-size: 12px;\n"
+      + "  font-weight: 700;\n"
+      + "  letter-spacing: 0.08em;\n"
+      + "  text-transform: uppercase;\n"
+      + "}\n"
+      + ".auth-state-account-value {\n"
+      + "  color: #0f172a;\n"
+      + "  font-size: 15px;\n"
+      + "  font-weight: 600;\n"
+      + "  overflow-wrap: anywhere;\n"
+      + "}\n"
+      + ".auth-state-steps {\n"
+      + "  list-style: none;\n"
+      + "  margin: 18px 0 0;\n"
+      + "  padding: 0;\n"
+      + "  display: grid;\n"
+      + "  gap: 12px;\n"
+      + "  counter-reset: auth-step;\n"
+      + "}\n"
+      + ".auth-state-steps li {\n"
+      + "  position: relative;\n"
+      + "  min-height: 40px;\n"
+      + "  padding: 8px 0 8px 54px;\n"
+      + "  color: #334155;\n"
+      + "  font-size: 14px;\n"
+      + "  line-height: 1.6;\n"
+      + "}\n"
+      + ".auth-state-steps li::before {\n"
+      + "  counter-increment: auth-step;\n"
+      + "  content: counter(auth-step);\n"
+      + "  position: absolute;\n"
+      + "  left: 0;\n"
+      + "  top: 2px;\n"
+      + "  width: 34px;\n"
+      + "  height: 34px;\n"
+      + "  border-radius: 50%;\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  background: rgba(0,119,182,0.12);\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "  font-weight: 700;\n"
+      + "}\n"
+      + ".auth-state-actions {\n"
+      + "  display: flex;\n"
+      + "  flex-wrap: wrap;\n"
+      + "  gap: 12px;\n"
+      + "  margin-top: 24px;\n"
+      + "}\n"
+      + ".auth-state-link {\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  justify-content: center;\n"
+      + "  min-height: 44px;\n"
+      + "  padding: 11px 18px;\n"
+      + "  border-radius: 12px;\n"
+      + "  font-size: 14px;\n"
+      + "  font-weight: 600;\n"
+      + "  text-decoration: none;\n"
+      + "  transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease;\n"
+      + "}\n"
+      + ".auth-state-link:hover { transform: translateY(-1px); }\n"
+      + ".auth-state-link.primary {\n"
+      + "  background: " + WAVE_PRIMARY + ";\n"
+      + "  color: #fff;\n"
+      + "  box-shadow: 0 12px 24px rgba(0,119,182,0.18);\n"
+      + "}\n"
+      + ".auth-state-link.primary:hover {\n"
+      + "  background: #005f8f;\n"
+      + "  text-decoration: none;\n"
+      + "}\n"
+      + ".auth-state-link.secondary {\n"
+      + "  background: #fff;\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "  border: 1.5px solid rgba(0,119,182,0.22);\n"
+      + "}\n"
+      + ".auth-state-link.secondary:hover {\n"
+      + "  background: #f0f8ff;\n"
+      + "  text-decoration: none;\n"
+      + "}\n"
+      + ".auth-state-inline {\n"
+      + "  margin-bottom: 18px;\n"
+      + "  padding: 18px 18px 16px;\n"
+      + "  border-radius: 16px;\n"
+      + "  border: 1px solid rgba(0,119,182,0.14);\n"
+      + "  background: rgba(232,244,248,0.94);\n"
+      + "}\n"
+      + ".auth-state-inline.success {\n"
+      + "  background: rgba(232,244,248,0.96);\n"
+      + "}\n"
+      + ".auth-state-inline.pending {\n"
+      + "  background: rgba(255,247,237,0.98);\n"
+      + "  border-color: rgba(180,83,9,0.16);\n"
+      + "}\n"
+      + ".auth-state-inline h2 {\n"
+      + "  margin: 10px 0 8px;\n"
+      + "  color: #0f172a;\n"
+      + "  font-size: 18px;\n"
+      + "}\n"
+      + ".auth-state-inline p {\n"
+      + "  margin: 0;\n"
+      + "  color: #475569;\n"
+      + "  font-size: 14px;\n"
+      + "  line-height: 1.6;\n"
+      + "}\n"
+      + ".auth-state-inline-pill {\n"
+      + "  display: inline-flex;\n"
+      + "  align-items: center;\n"
+      + "  padding: 6px 10px;\n"
+      + "  border-radius: 999px;\n"
+      + "  background: rgba(0,119,182,0.12);\n"
+      + "  color: " + WAVE_PRIMARY + ";\n"
+      + "  font-size: 11px;\n"
+      + "  font-weight: 700;\n"
+      + "  letter-spacing: 0.08em;\n"
+      + "  text-transform: uppercase;\n"
+      + "}\n"
       + ".robot-success-card {\n"
       + "  padding: 0;\n"
       + "  overflow: hidden;\n"
@@ -1681,6 +1893,11 @@ public final class HtmlRenderer {
       + "  .robot-success-hero { padding: 24px 20px 20px; }\n"
       + "  .robot-success-hero h1 { font-size: 28px; }\n"
       + "  .robot-success-body { padding: 20px; }\n"
+      + "  .auth-state-hero { padding: 24px 20px 20px; }\n"
+      + "  .auth-state-hero h1 { font-size: 28px; }\n"
+      + "  .auth-state-body { padding: 20px; }\n"
+      + "  .auth-state-actions { flex-direction: column; }\n"
+      + "  .auth-state-link { width: 100%; }\n"
       + "  .robot-credential-card { padding: 16px; }\n"
       + "  .robot-credential-value {\n"
       + "    padding: 13px 14px;\n"
@@ -1743,7 +1960,10 @@ public final class HtmlRenderer {
     sb.append("  <div class=\"card\">\n");
     sb.append("    <h1>Sign In</h1>\n");
     sb.append("    <div class=\"subtitle\">@").append(escapeHtml(domain)).append("</div>\n");
-    sb.append("    <div class=\"msg success\" id=\"successBanner\" style=\"display:none;margin-bottom:16px;\"></div>\n");
+    sb.append("    <div class=\"auth-state-inline success\" id=\"successBanner\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" style=\"display:none;\">");
+    sb.append("<div class=\"auth-state-inline-pill\">Account ready</div>");
+    sb.append("<h2>Account created</h2>");
+    sb.append("<p></p></div>\n");
 
     if (disableLoginPage) {
       sb.append("    <p>HTTP authentication disabled by administrator. "
@@ -1798,8 +2018,14 @@ public final class HtmlRenderer {
     sb.append("    if (banner) banner.style.display = \"none\";\n");
     sb.append("  } else if (rt == RESPONSE_STATUS_FAILED) {\n");
     sb.append("    if (lbl) { lbl.style.display = \"block\"; lbl.className = \"msg error\"; lbl.textContent = msg; }\n");
+    sb.append("    if (banner) banner.style.display = \"none\";\n");
     sb.append("  } else if (rt == RESPONSE_STATUS_SUCCESS) {\n");
-    sb.append("    if (banner) { banner.style.display = \"block\"; banner.textContent = msg; }\n");
+    sb.append("    if (lbl) { lbl.style.display = \"none\"; lbl.textContent = \"\"; }\n");
+    sb.append("    if (banner) {\n");
+    sb.append("      banner.style.display = \"block\";\n");
+    sb.append("      var copy = banner.querySelector('p');\n");
+    sb.append("      if (copy) copy.textContent = msg;\n");
+    sb.append("    }\n");
     sb.append("  }\n");
     sb.append("}\n");
     sb.append("</script>\n");
@@ -4168,16 +4394,97 @@ public final class HtmlRenderer {
     sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
 
-    sb.append("  <div class=\"card\">\n");
-    sb.append("    <h1>Check your inbox</h1>\n");
-    sb.append("    <div class=\"msg success\" style=\"margin-bottom:16px;\">\n");
-    sb.append("      We&#39;ve sent you a confirmation email. Click the link inside to activate your account.\n");
+    sb.append("  <div class=\"card auth-state-card\">\n");
+    sb.append("    <div class=\"auth-state-hero pending\">\n");
+    sb.append("      <div class=\"auth-state-pill\">Activation pending</div>\n");
+    sb.append("      <h1>Check your inbox</h1>\n");
+    sb.append("      <p class=\"auth-state-subtitle\">Activate your account to finish setting up SupaWave.</p>\n");
     sb.append("    </div>\n");
-    sb.append("    <div class=\"footer-link\">\n");
-    sb.append("      <a href=\"/auth/signin\">Back to sign in &rarr;</a>\n");
+    sb.append("    <div class=\"auth-state-body\">\n");
+    sb.append("      <p class=\"auth-state-copy\">We sent a confirmation email with an activation link. Once you open it, your account will be ready for SupaWave @");
+    sb.append(escapeHtml(domain)).append(".</p>\n");
+    sb.append("      <ol class=\"auth-state-steps\">\n");
+    sb.append("        <li>Open the confirmation email from SupaWave.</li>\n");
+    sb.append("        <li>Activate your account by clicking the link inside.</li>\n");
+    sb.append("        <li>Return here and sign in once activation is complete.</li>\n");
+    sb.append("      </ol>\n");
+    sb.append("      <div class=\"auth-state-actions\">\n");
+    sb.append("        <a href=\"/auth/signin\" class=\"auth-state-link primary\">Go to sign in</a>\n");
+    sb.append("        <a href=\"/auth/register\" class=\"auth-state-link secondary\">Create another account</a>\n");
+    sb.append("      </div>\n");
+    sb.append("      <div class=\"footer-link\">\n");
+    sb.append("        Already confirmed? <a href=\"/auth/signin\">Sign in</a>\n");
+    sb.append("      </div>\n");
     sb.append("    </div>\n");
     sb.append("  </div>\n"); // .card
     sb.append("</div>\n"); // .page-wrapper
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  /**
+   * Renders the sign-in page with an activation-required callout while keeping
+   * the normal sign-in affordances available.
+   */
+  public static String renderActivationRequiredAuthenticationPage(String domain, String message,
+      String analyticsAccount, boolean disableLoginPage,
+      boolean passwordResetEnabled, boolean magicLinkEnabled) {
+    StringBuilder sb = new StringBuilder(8192);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Activation required - SupaWave</title>\n");
+    sb.append(AUTH_CSS);
+    appendAnalyticsFragment(sb, analyticsAccount, null);
+    sb.append("</head>\n<body>\n");
+
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
+    sb.append("  </div>\n");
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Sign In</h1>\n");
+    sb.append("    <div class=\"subtitle\">@").append(escapeHtml(domain)).append("</div>\n");
+    sb.append("    <div class=\"auth-state-inline pending\">\n");
+    sb.append("      <div class=\"auth-state-inline-pill\">Action required</div>\n");
+    sb.append("      <h2>Check your inbox</h2>\n");
+    sb.append("      <p>").append(escapeHtml(message))
+        .append(" Activate your account first, then return here to sign in.</p>\n");
+    sb.append("    </div>\n");
+    if (disableLoginPage) {
+      sb.append("    <p>HTTP authentication disabled by administrator. "
+          + "Install and use your certificate instead.</p>\n");
+    } else {
+      sb.append("    <form id=\"wiab_loginform\" action=\"\" method=\"post\">\n");
+      sb.append("      <label for=\"address\">Username</label>\n");
+      sb.append("      <div class=\"input-group\">\n");
+      sb.append("        <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\" placeholder=\"your.name\">\n");
+      sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+      sb.append("      </div>\n");
+      sb.append("      <label for=\"password\">Password</label>\n");
+      sb.append("      <input type=\"password\" name=\"password\" id=\"password\" autocomplete=\"current-password\" placeholder=\"Enter your password\">\n");
+      sb.append("      <input type=\"submit\" class=\"btn-primary\" name=\"signIn\" id=\"signIn\" value=\"Sign in\" style=\"width:100%;\">\n");
+      sb.append("    </form>\n");
+      if (passwordResetEnabled) {
+        sb.append("    <div class=\"footer-link\">\n");
+        sb.append("      <a href=\"/auth/password-reset\">Forgot password?</a>\n");
+        sb.append("    </div>\n");
+      }
+      if (magicLinkEnabled) {
+        sb.append("    <div class=\"footer-link\">\n");
+        sb.append("      <a href=\"/auth/magic-link\">Login with email link</a>\n");
+        sb.append("    </div>\n");
+      }
+      sb.append("    <div class=\"footer-link\">\n");
+      sb.append("      Need a different account? <a href=\"/auth/register\">Register</a>\n");
+      sb.append("    </div>\n");
+    }
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
@@ -4196,7 +4503,7 @@ public final class HtmlRenderer {
     sb.append("<title>Email Confirmation - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
-    sb.append("</head>\n<body onload=\"init()\">\n");
+    sb.append("</head>\n<body>\n");
 
     sb.append(WAVE_SVG);
     sb.append("<div class=\"page-wrapper\">\n");
@@ -4205,35 +4512,30 @@ public final class HtmlRenderer {
     sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
     sb.append("  </div>\n");
 
-    sb.append("  <div class=\"card\">\n");
-    sb.append("    <h1>Email Confirmation</h1>\n");
+    String heroClass = AuthenticationServlet.RESPONSE_STATUS_SUCCESS.equals(responseType)
+        ? "success" : "problem";
+    String pill = AuthenticationServlet.RESPONSE_STATUS_SUCCESS.equals(responseType)
+        ? "Activation complete" : "Action required";
+    String headline = AuthenticationServlet.RESPONSE_STATUS_SUCCESS.equals(responseType)
+        ? "Ready to sign in" : "This confirmation link needs attention";
+    String subtitle = AuthenticationServlet.RESPONSE_STATUS_SUCCESS.equals(responseType)
+        ? "Your account is active and ready for SupaWave."
+        : "Use a fresh confirmation link, then come back to sign in.";
 
-    sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
-
-    sb.append("    <div class=\"footer-link\">\n");
-    sb.append("      <a href=\"/auth/signin\">Go to Sign In</a>\n");
+    sb.append("  <div class=\"card auth-state-card\">\n");
+    sb.append("    <div class=\"auth-state-hero ").append(heroClass).append("\">\n");
+    sb.append("      <div class=\"auth-state-pill\">").append(escapeHtml(pill)).append("</div>\n");
+    sb.append("      <h1>").append(escapeHtml(headline)).append("</h1>\n");
+    sb.append("      <p class=\"auth-state-subtitle\">").append(escapeHtml(subtitle)).append("</p>\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"auth-state-body\">\n");
+    sb.append("      <p class=\"auth-state-copy\">").append(escapeHtml(message)).append("</p>\n");
+    sb.append("      <div class=\"auth-state-actions\">\n");
+    sb.append("        <a href=\"/auth/signin\" class=\"auth-state-link primary\">Go to Sign In</a>\n");
+    sb.append("      </div>\n");
     sb.append("    </div>\n");
     sb.append("  </div>\n"); // .card
     sb.append("</div>\n"); // .page-wrapper
-
-    sb.append("<script>\n");
-    sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
-    sb.append("var RESPONSE_STATUS_FAILED = \"FAILED\";\n");
-    sb.append("var RESPONSE_STATUS_SUCCESS = \"SUCCESS\";\n");
-    sb.append("var message = ").append(escapeJsonString(message)).append(";\n");
-    sb.append("var responseType = ").append(escapeJsonString(responseType)).append(";\n");
-    sb.append("function init() { handleResponse(responseType, message); }\n");
-    sb.append("function handleResponse(rt, msg) {\n");
-    sb.append("  var lbl = document.getElementById(\"messageLbl\");\n");
-    sb.append("  if (!lbl) return;\n");
-    sb.append("  if (rt == RESPONSE_STATUS_NONE) { lbl.style.display = \"none\"; }\n");
-    sb.append("  else if (rt == RESPONSE_STATUS_FAILED) {\n");
-    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg error\"; lbl.innerHTML = msg;\n");
-    sb.append("  } else if (rt == RESPONSE_STATUS_SUCCESS) {\n");
-    sb.append("    lbl.style.display = \"block\"; lbl.className = \"msg success\"; lbl.innerHTML = msg;\n");
-    sb.append("  }\n");
-    sb.append("}\n");
-    sb.append("</script>\n");
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }

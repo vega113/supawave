@@ -34,33 +34,29 @@ public final class ToolbarLayoutContractTest extends TestCase {
 
     assertTrue(css.contains("height: auto;"));
     assertTrue(css.contains("min-height: 36px;"));
+    assertTrue(css.contains("background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);"));
+    assertTrue(css.contains("background-color: #e7f2ff;"));
+    // flex-wrap: wrap is required so OverflowPanelUpdater can detect overflowed buttons via
+    // offsetTop > 0. Toolbars with overflow disabled apply nowrap via inline style instead.
+    assertTrue(css.contains("flex-wrap: wrap;"));
+    assertFalse(css.contains("flex-wrap: nowrap;"));
   }
 
   public void testCompactButtonsUseDenseWidthContract() throws Exception {
     String css = normalized(read(
         "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
 
-    assertTrue(css.contains("padding: 0 6px;"));
-    assertTrue(css.contains("min-width: 32px;"));
+    assertTrue(css.contains("padding: 0 4px;"));
+    assertTrue(css.contains("min-width: 28px;"));
   }
 
-  public void testCompactButtonsRenderInsetIdleCanvas() throws Exception {
+  public void testCompactButtonsDoNotRenderInsetIdleCanvas() throws Exception {
     String css = normalized(read(
         "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
 
-    assertTrue(css.contains(".enabled.compact > .overlay {"));
-    assertTrue(css.contains("top: 4px;"));
-    assertTrue(css.contains("bottom: 4px;"));
-    assertTrue(css.contains("left: 4px;"));
-    assertTrue(css.contains("right: 4px;"));
-    assertTrue(css.contains("background-color: rgba(255,255,255,0.72);"));
-    assertTrue(css.contains("border: 1px solid rgba(176,196,216,0.55);"));
-    assertTrue(css.contains(".enabled.compact:hover > .overlay {"));
-    assertTrue(css.contains("border-color: rgba(0,119,182,0.28);"));
-    assertTrue(css.contains("background-color: rgba(255,255,255,0.92);"));
-    assertTrue(css.contains(".enabled.down.compact > .overlay {"));
-    assertTrue(css.contains("background-color: rgba(226,240,251,0.95);"));
-    assertTrue(css.contains("border-color: rgba(0,119,182,0.35);"));
+    assertFalse(css.contains(".enabled.compact > .overlay {"));
+    assertFalse(css.contains("background-color: rgba(255,255,255,0.72);"));
+    assertFalse(css.contains("border: 1px solid rgba(176,196,216,0.55);"));
   }
 
   public void testSearchPanelReservesThirtySixPixelsForToolbarHeight() throws Exception {
@@ -72,6 +68,7 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(javaSource.contains("private static int TOOLBAR_HEIGHT_PX = 36;"));
     assertTrue(css.contains("height: auto;"));
     assertTrue(css.contains("min-height: 36px;"));
+    assertTrue(css.contains("background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);"));
   }
 
   public void testTopConversationReservesThirtySixPixelsForToolbarHeight() throws Exception {
@@ -84,6 +81,7 @@ public final class ToolbarLayoutContractTest extends TestCase {
         "ParticipantsViewBuilder.COLLAPSED_HEIGHT_PX + 36 + \"px\""));
     assertTrue(css.contains("height: auto;"));
     assertTrue(css.contains("min-height: 36px;"));
+    assertTrue(css.contains("background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);"));
   }
 
   public void testSearchToolbarSvgContractMatchesPolishedToolbarSizing() throws Exception {
@@ -96,12 +94,49 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(javaSource.contains("wrapper.setClassName(\"toolbar-svg-icon\")"));
   }
 
-  public void testSharedToolbarIconCssUsesTwentyPixelDisplaySize() throws Exception {
+  public void testSearchToolbarStillDeclaresRefreshAction() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPresenter.java");
+
+    assertTrue(javaSource.contains("setTooltip(\"Refresh search results\")"));
+    assertTrue(javaSource.contains("forceRefresh(false);"));
+    assertTrue(javaSource.contains("createSvgIcon(ICON_REFRESH)"));
+  }
+
+  public void testSearchPanelDisablesToolbarOverflowButton() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPanelWidget.java");
+
+    assertTrue(javaSource.contains("toolbar.setOverflowEnabled(false);"));
+  }
+
+  public void testOverflowDisabledAppliesNowrapInlineStyle() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/widget/toolbar/ToplevelToolbarWidget.java");
+
+    // When overflow is disabled, flex-wrap: nowrap must be set as an inline style on the
+    // toolbar element so that buttons cannot wrap to a second row and breach the 36px contract.
+    // The shared CSS keeps flex-wrap: wrap so OverflowPanelUpdater can detect wrapping via offsetTop.
+    assertTrue(javaSource.contains("setProperty(\"flexWrap\", \"nowrap\")"));
+    assertTrue(javaSource.contains("clearProperty(\"flexWrap\")"));
+  }
+
+  public void testWaveToolbarsDoNotDisableOverflowByDefault() throws Exception {
+    String viewToolbar = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/ViewToolbar.java");
+    String editToolbar = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java");
+
+    assertFalse(viewToolbar.contains("setOverflowEnabled(false);"));
+    assertFalse(editToolbar.contains("setOverflowEnabled(false);"));
+  }
+
+  public void testSharedToolbarIconCssUsesSeventeenPixelDisplaySize() throws Exception {
     String javaSource = read(
         "wave/src/main/java/org/waveprotocol/box/webclient/client/WebClient.java");
 
-    // Single source of truth: the constant must declare 20px
-    assertTrue(javaSource.contains("TOOLBAR_ICON_DISPLAY_PX = \"20px\""));
+    // Single source of truth: the constant must declare 17px
+    assertTrue(javaSource.contains("TOOLBAR_ICON_DISPLAY_PX = \"17px\""));
 
     int wrapperRule = javaSource.indexOf(".toolbar-svg-icon {");
     int svgRule = javaSource.indexOf(".toolbar-svg-icon svg {");
@@ -120,6 +155,17 @@ public final class ToolbarLayoutContractTest extends TestCase {
     int secondSvgUse = javaSource.indexOf("TOOLBAR_ICON_DISPLAY_PX", firstSvgUse + 1);
     assertTrue(firstSvgUse > svgRule);
     assertTrue(secondSvgUse > svgRule);
+  }
+
+  public void testViewToolbarRecentIconDoesNotUseRefreshGlyph() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/ViewToolbar.java");
+
+    assertTrue(javaSource.contains("private static final String ICON_RECENT = SVG_OPEN"));
+    assertTrue(javaSource.contains("<circle cx=\\\"12\\\" cy=\\\"12\\\" r=\\\"9\\\"></circle>"));
+    assertTrue(javaSource.contains("<path d=\\\"M12 7v5l-3 2\\\"></path></svg>"));
+    assertFalse(javaSource.contains("<path d=\\\"M1 4v6h6\\\"></path>"));
+    assertFalse(javaSource.contains("<path d=\\\"M3.51 15a9 9 0 1 0 2.13-9.36L1 10\\\"></path></svg>"));
   }
 
   private static String read(String relativePath) throws IOException {

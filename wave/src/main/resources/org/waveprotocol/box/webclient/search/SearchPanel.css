@@ -55,8 +55,11 @@
   right: 0;
   left: 0;
   border-left: none;
+  box-sizing: border-box;
   height: auto;
   min-height: 36px;
+  background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);
+  background-color: #e7f2ff;
 }
 
 .waveCount {

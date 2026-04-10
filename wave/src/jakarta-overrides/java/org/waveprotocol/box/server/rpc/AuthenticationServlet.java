@@ -268,8 +268,8 @@ public class AuthenticationServlet extends HttpServlet {
                 authEmailService.sendConfirmationEmail(req, human));
             resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
             resp.setContentType("text/html;charset=utf-8");
-            resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, message,
-                RESPONSE_STATUS_FAILED, isLoginPageDisabled, analyticsAccount,
+            resp.getWriter().write(HtmlRenderer.renderActivationRequiredAuthenticationPage(
+                domain, message, analyticsAccount, isLoginPageDisabled,
                 passwordResetEnabled, magicLinkEnabled));
             return;
           }
@@ -418,16 +418,17 @@ public class AuthenticationServlet extends HttpServlet {
         }
       }
 
+      resp.setContentType("text/html;charset=utf-8");
+      String registeredParam = req.getParameter("registered");
+      boolean isRegistrationSuccess = "1".equals(registeredParam);
       if (!isLoginPageDisabled) {
         resp.setStatus(HttpServletResponse.SC_OK);
       } else {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
       }
-      resp.setContentType("text/html;charset=utf-8");
-      String registeredParam = req.getParameter("registered");
       String initMessage = "";
       String initResponseType = RESPONSE_STATUS_NONE;
-      if ("1".equals(registeredParam)) {
+      if (isRegistrationSuccess) {
         initMessage = "Account created! Sign in to get started.";
         initResponseType = RESPONSE_STATUS_SUCCESS;
       }

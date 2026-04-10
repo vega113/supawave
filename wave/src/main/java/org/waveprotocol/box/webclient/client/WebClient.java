@@ -129,7 +129,7 @@ public class WebClient implements EntryPoint {
   // ---- Turbulence banner (ocean-themed, non-blocking) ----
 
   /** Display size shared by the wrapper and its nested SVG element. */
-  private static final String TOOLBAR_ICON_DISPLAY_PX = "20px";
+  private static final String TOOLBAR_ICON_DISPLAY_PX = "17px";
 
   /** Injects CSS for polished SVG toolbar icons (hover, transitions, touch). */
   private static boolean toolbarIconCssInjected = false;

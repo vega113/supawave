@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-robot-rpcserverurl-auth-mode",
+  "version": "PR #720",
+  "date": "2026-04-10",
+  "title": "Robots: Auth-Mode-Aware rpcServerUrl Advertisement",
+  "summary": "Passive robot event bundles now advertise the JSON-RPC endpoint that matches the robot's configured OAuth mode.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Passive robots using 2-legged OAuth now receive /robot/rpc in EventMessageBundle.rpcServerUrl",
+        "Passive robots using 3-legged OAuth now receive /robot/dataapi/rpc in EventMessageBundle.rpcServerUrl"
+      ]
+    }
+  ]
+}

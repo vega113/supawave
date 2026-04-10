@@ -148,6 +148,7 @@ public class SearchPanelWidget extends Composite implements SearchPanelView {
 
   public SearchPanelWidget(SearchPanelRenderer renderer) {
     initWidget(frame = BINDER.createAndBindUi(this));
+    toolbar.setOverflowEnabled(false);
     this.renderer = renderer;
     createLoadingSpinner();
   }

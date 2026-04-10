@@ -47,6 +47,23 @@ public final class ApiDocsServletTest {
   }
 
   @Test
+  public void apiDocsHtmlDocumentsRobotTokenLifecycleAndBundleCompatibility() throws Exception {
+    ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
+    StringWriter body = new StringWriter();
+    ResponseRecorder recorder = new ResponseRecorder();
+    HttpServletRequest request = request("/api-docs", "https", "docs.example.com");
+    HttpServletResponse response = response(recorder, body);
+
+    servlet.doGet(request, response);
+
+    assertTrue(recorder.status == HttpServletResponse.SC_OK);
+    assertTrue(body.toString().contains("Refresh the JWT after any HTTP 401"));
+    assertTrue(body.toString().contains("tokenVersion"));
+    assertTrue(body.toString().contains("robotAddress"));
+    assertTrue(body.toString().contains("Treat missing threads as {}"));
+  }
+
+  @Test
   public void apiDocsHtmlDocumentsAttachmentBackedInlineImageFlow() throws Exception {
     ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
     StringWriter body = new StringWriter();
@@ -96,6 +113,10 @@ public final class ApiDocsServletTest {
     assertTrue(body.toString().contains("SupaWave Data API LLM Reference"));
     assertTrue(body.toString().contains("Canonical RPC path: /robot/dataapi/rpc"));
     assertTrue(body.toString().contains("https://docs.example.com/api/openapi.json"));
+    assertTrue(body.toString().contains("Refresh the JWT after any HTTP 401"));
+    assertTrue(body.toString().contains("tokenVersion"));
+    assertTrue(body.toString().contains("robotAddress"));
+    assertTrue(body.toString().contains("Treat missing threads as {}"));
   }
 
   @Test

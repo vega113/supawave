@@ -48,6 +48,7 @@ class WaveApiClient {
 
     /**
      * POST /auth/register — returns HTTP status code.
+     * Normalizes the Jakarta PRG success redirect to 200.
      * 200 = success, 403 = duplicate/disabled.
      */
     int register(String username, String password) throws Exception {
@@ -59,7 +60,11 @@ class WaveApiClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
         HttpResponse<Void> resp = http.send(req, HttpResponse.BodyHandlers.discarding());
-        return resp.statusCode();
+        int status = resp.statusCode();
+        if (status == 302 || status == 303) {
+            return 200;
+        }
+        return status;
     }
 
     /**

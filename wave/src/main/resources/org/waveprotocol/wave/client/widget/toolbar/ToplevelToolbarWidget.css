@@ -28,20 +28,46 @@
   z-index: 0;
 }
 
+.noHorizontalScrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.noHorizontalScrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @sprite .toolbar {
   gwt-image: 'fillImage';
-  /* Hide the buttons that overflow. */
+  /* Hide buttons that exceed the row width. flex-wrap: wrap allows
+     OverflowPanelUpdater to detect overflowed buttons via offsetTop > 0
+     (they've wrapped to a second row) and move them to the "..." submenu.
+     Toolbars with overflow disabled set flex-wrap: nowrap via inline style
+     in ToplevelToolbarWidget.setOverflowEnabled(false) instead. */
   overflow: hidden;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   height: auto;
   min-height: 36px;
+  box-sizing: border-box;
+  background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);
+  background-color: #e7f2ff;
+  border-top: 1px solid rgba(120, 170, 220, 0.45);
+  border-bottom: 1px solid rgba(120, 170, 220, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 @sprite .overflowButton {
   gwt-image: 'fillImage';
   float: right;
+  box-sizing: border-box;
+  min-height: 36px;
+  background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);
+  background-color: #e7f2ff;
+  border-top: 1px solid rgba(120, 170, 220, 0.45);
+  border-bottom: 1px solid rgba(120, 170, 220, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 @sprite .overflowButtonIcon {

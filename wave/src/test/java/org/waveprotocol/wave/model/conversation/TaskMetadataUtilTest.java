@@ -26,9 +26,9 @@ import junit.framework.TestCase;
  */
 public class TaskMetadataUtilTest extends TestCase {
 
-  public void testFormatTaskOwnerLabelStripsDomainForEmailAddress() {
-    assertEquals("Owner alice",
-        TaskMetadataUtil.formatTaskOwnerLabel("alice@example.com"));
+  public void testFormatTaskAssigneeLabelOmitsOwnerPrefixForEmailAddress() {
+    assertEquals("alice",
+        TaskMetadataUtil.formatTaskAssigneeLabel("alice@example.com"));
   }
 
   public void testFormatParticipantDisplayStripsDomainForEmailAddress() {
@@ -36,9 +36,17 @@ public class TaskMetadataUtilTest extends TestCase {
         TaskMetadataUtil.formatParticipantDisplay("alice@example.com"));
   }
 
-  public void testFormatTaskOwnerLabelKeepsOpaqueIdentifier() {
-    assertEquals("Owner build-bot",
-        TaskMetadataUtil.formatTaskOwnerLabel("build-bot"));
+  public void testFormatTaskAssigneeLabelKeepsOpaqueIdentifierWithoutPrefix() {
+    assertEquals("build-bot",
+        TaskMetadataUtil.formatTaskAssigneeLabel("build-bot"));
+  }
+
+  public void testFormatTaskAssigneeLabelReturnsEmptyForNull() {
+    assertEquals("", TaskMetadataUtil.formatTaskAssigneeLabel(null));
+  }
+
+  public void testFormatTaskAssigneeLabelReturnsEmptyForBlank() {
+    assertEquals("", TaskMetadataUtil.formatTaskAssigneeLabel("   "));
   }
 
   public void testParseDateInputValueRoundTripsThroughFormatter() {

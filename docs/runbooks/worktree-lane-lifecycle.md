@@ -128,9 +128,13 @@ After `scripts/worktree-boot.sh` finishes, run the printed commands in order:
 
 1. Start the server with the printed `JAVA_OPTS` and `PORT`.
 2. Run `bash scripts/wave-smoke.sh check`.
-3. Run any task-specific manual verification.
+3. If the change can affect browser-visible behavior, use
+   [`browser-verification.md`](browser-verification.md) and
+   [`change-type-verification-matrix.md`](change-type-verification-matrix.md)
+   to decide whether a browser pass is required and what narrow path to check.
 4. Stop the server with `bash scripts/wave-smoke.sh stop`.
 
-This runbook standardizes only the base lifecycle. It does not standardize
-browser flows beyond whatever the task itself requires, and it does not require
-new browser automation or observability tooling.
+This runbook standardizes only the base lifecycle. Browser-verification
+expectations are standardized separately in
+[`browser-verification.md`](browser-verification.md), and they still do not
+require new browser automation or observability tooling.

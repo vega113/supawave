@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-wave-reactions",
+  "version": "PR #799",
+  "date": "2026-04-10",
+  "title": "Wave Reactions",
+  "summary": "Blips now support lightweight emoji reactions with inline counts and quick toggles.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added lightweight emoji reactions on wave blips with quick add, remove, and replace interactions",
+        "Reaction counts now render inline on reacted blips without changing the message text itself"
+      ]
+    }
+  ]
+}

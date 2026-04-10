@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-issue-824-mobile-picker-types",
+  "version": "Unreleased",
+  "date": "2026-04-10",
+  "title": "Mobile attachment picker reliably handles gallery and file selections",
+  "summary": "The mobile attachment popup now avoids stale hidden-file-input state and duplicate chooser launches so camera, gallery, and general file selections reach the upload flow more reliably.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Reset the hidden attachment input before and after each mobile picker session so gallery and file selections are not dropped when the chooser reuses prior single-file state",
+        "Prevent the nested Select Files button from triggering the native file picker twice, preserving the working camera path while improving photos, videos, and general file selection behavior"
+      ]
+    }
+  ]
+}

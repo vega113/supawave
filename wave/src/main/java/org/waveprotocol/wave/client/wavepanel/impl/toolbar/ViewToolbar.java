@@ -87,17 +87,19 @@ public final class ViewToolbar {
       + "<path d=\"M7 13l5 5 5-5\"></path>"
       + "<path d=\"M7 6l5 5 5-5\"></path></svg>";
 
-  /** Prev @: at-sign with left-pointing triangle indicator. */
+  /** Prev @: at-sign with explicit left arrow for clearer direction. */
   private static final String ICON_PREV_MENTION = SVG_OPEN
       + "<circle cx=\"12\" cy=\"12\" r=\"4\"></circle>"
       + "<path d=\"M16 8v5a3 3 0 0 0 6 0V12a10 10 0 1 0-4 8\"></path>"
-      + "<path d=\"M2 12l3-3v6z\" fill=\"currentColor\" stroke=\"none\"></path></svg>";
+      + "<path d=\"M6 12H2\"></path>"
+      + "<path d=\"M5 9l-3 3 3 3\"></path></svg>";
 
-  /** Next @: at-sign with right-pointing triangle indicator. */
+  /** Next @: at-sign with explicit right arrow for clearer direction. */
   private static final String ICON_NEXT_MENTION = SVG_OPEN
       + "<circle cx=\"12\" cy=\"12\" r=\"4\"></circle>"
       + "<path d=\"M16 8v5a3 3 0 0 0 6 0V12a10 10 0 1 0-4 8\"></path>"
-      + "<path d=\"M24 12l-3-3v6z\" fill=\"currentColor\" stroke=\"none\"></path></svg>";
+      + "<path d=\"M18 12h4\"></path>"
+      + "<path d=\"M19 9l3 3-3 3\"></path></svg>";
 
   /** Archive: clean archive box (Lucide archive). */
   private static final String ICON_ARCHIVE = SVG_OPEN

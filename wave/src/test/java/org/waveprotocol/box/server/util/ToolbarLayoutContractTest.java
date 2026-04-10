@@ -59,6 +59,15 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertFalse(css.contains("border: 1px solid rgba(176,196,216,0.55);"));
   }
 
+  public void testCompactButtonsUseSingleActiveSurfaceWhenDown() throws Exception {
+    String css = normalized(read(
+        "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
+
+    assertTrue(css.contains(".enabled.down.compact > .overlay {"));
+    assertTrue(css.contains("background-color: transparent;"));
+    assertTrue(css.contains("border: none;"));
+  }
+
   public void testSearchPanelReservesThirtySixPixelsForToolbarHeight() throws Exception {
     String javaSource = read(
         "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPanelWidget.java");
@@ -166,6 +175,22 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(javaSource.contains("<path d=\\\"M12 7v5l-3 2\\\"></path></svg>"));
     assertFalse(javaSource.contains("<path d=\\\"M1 4v6h6\\\"></path>"));
     assertFalse(javaSource.contains("<path d=\\\"M3.51 15a9 9 0 1 0 2.13-9.36L1 10\\\"></path></svg>"));
+  }
+
+  public void testViewToolbarMentionDirectionIconsUseExplicitArrowGlyphs() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/ViewToolbar.java");
+
+    assertTrue(javaSource.contains("private static final String ICON_PREV_MENTION = SVG_OPEN"));
+    assertTrue(javaSource.contains("<path d=\\\"M6 12H2\\\"></path>"));
+    assertTrue(javaSource.contains("<path d=\\\"M5 9l-3 3 3 3\\\"></path></svg>"));
+    assertTrue(javaSource.contains("private static final String ICON_NEXT_MENTION = SVG_OPEN"));
+    assertTrue(javaSource.contains("<path d=\\\"M18 12h4\\\"></path>"));
+    assertTrue(javaSource.contains("<path d=\\\"M19 9l3 3-3 3\\\"></path></svg>"));
+    assertFalse(javaSource.contains(
+        "<path d=\\\"M2 12l3-3v6z\\\" fill=\\\"currentColor\\\" stroke=\\\"none\\\"></path></svg>"));
+    assertFalse(javaSource.contains(
+        "<path d=\\\"M24 12l-3-3v6z\\\" fill=\\\"currentColor\\\" stroke=\\\"none\\\"></path></svg>"));
   }
 
   private static String read(String relativePath) throws IOException {

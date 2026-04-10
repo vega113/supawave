@@ -236,6 +236,47 @@
   pointer-events: none;
 }
 
+.reactions {
+  margin: 0.35em 0 0.15em 0;
+  min-height: 0;
+}
+
+@external .waveReactionChip;
+@external .waveReactionChipActive;
+@external .waveReactionCount;
+@external .waveReactionAdd;
+
+.reactions .waveReactionChip,
+.reactions .waveReactionAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25em;
+  margin-right: 0.35em;
+  padding: 2px 8px;
+  border: 1px solid #d6dee8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4a5568;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.reactions .waveReactionChipActive {
+  border-color: #90cdf4;
+  background: #ebf8ff;
+  color: #1a365d;
+}
+
+.reactions .waveReactionCount {
+  font-weight: 600;
+}
+
+.reactions .waveReactionAdd {
+  color: #2b6cb0;
+}
+
 .replies {
   margin: 0 0.75em 0 1em;
   border-left: 2px solid rgba(0,119,182,0.15);

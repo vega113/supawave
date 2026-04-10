@@ -119,6 +119,32 @@ public class IdUtil implements IdConstants {
   }
 
   /**
+   * Tests whether a document id is a reactions data document id.
+   */
+  public static boolean isReactionDataDocument(String id) {
+    return hasInitialTokenUnescaped(id, REACTION_DATA_DOCUMENT_PREFIX);
+  }
+
+  /**
+   * Builds the reactions data document id for a conversational blip.
+   */
+  public static String reactionDataDocumentId(String blipId) {
+    return REACTION_DATA_DOCUMENT_PREFIX + TOKEN_SEPARATOR + blipId;
+  }
+
+  /**
+   * Extracts the target blip id from a reactions data document id.
+   *
+   * @return the blip id, or {@code null} if the id is not a reactions document id.
+   */
+  public static String reactionTargetBlipId(String reactionDocId) {
+    if (!isReactionDataDocument(reactionDocId)) {
+      return null;
+    }
+    return reactionDocId.substring(REACTION_DATA_DOCUMENT_PREFIX.length() + 1);
+  }
+
+  /**
    * Tests whether a document id is a robot document id.
    */
   public static boolean isRobotDocId(String documentId) {

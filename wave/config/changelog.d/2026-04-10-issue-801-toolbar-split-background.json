@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-issue-801-toolbar-split-background",
+  "version": "PR #801",
+  "date": "2026-04-10",
+  "title": "Fix split active background on wave toolbar buttons",
+  "summary": "Keeps clicked and toggled wave-toolbar buttons on one coherent active surface instead of layering two mismatched background treatments.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Wave-toolbar buttons like Pin now render a single coherent active background when toggled on",
+        "The compact toolbar active-state polish stays scoped to the clicked/toggled wave-toolbar button treatment"
+      ]
+    }
+  ]
+}

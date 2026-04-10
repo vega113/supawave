@@ -36,6 +36,7 @@ import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.algorithm.Composer;
 import org.waveprotocol.wave.model.document.operation.algorithm.DocOpInverter;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpUtil;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -480,6 +481,9 @@ public final class VersionHistoryServlet extends HttpServlet {
 
       boolean firstDoc = true;
       for (String docId : waveletData.getDocumentIds()) {
+        if (!shouldIncludeSnapshotDocument(docId)) {
+          continue;
+        }
         ReadableBlipData blip = waveletData.getDocument(docId);
         if (blip == null) continue;
 
@@ -544,6 +548,10 @@ public final class VersionHistoryServlet extends HttpServlet {
     result = result.replace("&#39;", "'");
     result = result.replace("&amp;", "&");
     return result;
+  }
+
+  static boolean shouldIncludeSnapshotDocument(String docId) {
+    return docId != null && !IdUtil.isReactionDataDocument(docId);
   }
 
   // =========================================================================

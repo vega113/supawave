@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-10-robot-data-api-token-lifecycle",
+  "version": "PR #792",
+  "date": "2026-04-10",
+  "title": "Clarify robot Data API token lifecycle",
+  "summary": "Documents the robot Data API token flow, refresh rules, and compatibility notes so operators can use short-lived JWTs safely.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Add docs/robot-data-api-authentication.md to explain the robot consumer secret vs Data API JWT split, token minting, refresh/revocation rules, and passive bundle compatibility notes",
+        "Update docs/gpt-bot.md to point operators at the new token lifecycle guide and explain that the example mints short-lived JWTs at runtime instead of storing a static Data API token",
+        "Update the robot dashboard and API docs fixtures/tests so the generated docs describe refresh behavior, tokenVersion invalidation, robotAddress, rpcServerUrl, and the missing-threads fallback"
+      ]
+    }
+  ]
+}

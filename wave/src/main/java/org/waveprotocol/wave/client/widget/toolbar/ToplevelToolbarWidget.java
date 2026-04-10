@@ -183,6 +183,9 @@ public final class ToplevelToolbarWidget extends Composite
 
   private void restoreItemsToToplevel() {
     for (Item item : items) {
+      if (item.asAbstractButton == null) {
+        continue;
+      }
       item.asAbstractButton.setParent(this);
       item.proxy.setDelegate(item.onToplevel);
       item.onOverflow.setState(State.INVISIBLE);

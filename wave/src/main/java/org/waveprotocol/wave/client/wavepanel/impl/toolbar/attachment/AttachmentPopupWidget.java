@@ -415,6 +415,11 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   //  File selection & preview
   // ─────────────────────────────────────────────
 
+  /** Called from JSNI drag-drop handler to give each drop its own nonce. */
+  private void bumpSelectionNonce() {
+    selectionNonce++;
+  }
+
   private void onFilesSelected(int nonce) {
     if (isUploading) return;
     if (processedNonce == nonce) return;
@@ -959,6 +964,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
           var dt = new $wnd.DataTransfer();
           for (var i = 0; i < files.length; i++) dt.items.add(files[i]);
           fileInputEl.files = dt.files;
+          self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::bumpSelectionNonce()();
           var evt = $doc.createEvent('HTMLEvents');
           evt.initEvent('change', true, false);
           fileInputEl.dispatchEvent(evt);

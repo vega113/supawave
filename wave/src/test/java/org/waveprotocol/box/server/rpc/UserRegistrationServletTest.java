@@ -80,7 +80,7 @@ public class UserRegistrationServletTest extends TestCase {
   public void testRegisterNewUserEnabled() throws Exception {
     attemptToRegister(req, resp, "foo@example.com", "internet", false);
 
-    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    verify(resp).sendRedirect("/auth/signin?registered=1");
     ParticipantId participantId = ParticipantId.ofUnsafe("foo@example.com");
     AccountData account = store.getAccount(participantId);
     assertNotNull(account);
@@ -89,15 +89,14 @@ public class UserRegistrationServletTest extends TestCase {
   }
 
   public void testRegisterNewUserWithEmailConfirmationEnabledDefersWelcomeWave() throws Exception {
-    String responseBody = attemptToRegister(
+    attemptToRegister(
         req, resp, "pending@example.com", "internet", "pending@example.com", false, true);
 
-    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    verify(resp).sendRedirect("/auth/register?check-email=1");
     ParticipantId participantId = ParticipantId.ofUnsafe("pending@example.com");
     AccountData pendingAccount = store.getAccount(participantId);
     assertNotNull(pendingAccount);
     assertFalse(pendingAccount.asHuman().isEmailConfirmed());
-    assertTrue(responseBody.contains("Please check your email to confirm your account."));
     verify(welcomeWaveCreator, never()).createWelcomeWave(participantId);
   }
 
@@ -113,7 +112,7 @@ public class UserRegistrationServletTest extends TestCase {
   public void testDomainInsertedAutomatically() throws Exception {
     attemptToRegister(req, resp, "sam", "fdsa", false);
 
-    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    verify(resp).sendRedirect("/auth/signin?registered=1");
     assertNotNull(store.getAccount(ParticipantId.ofUnsafe("sam@example.com")));
   }
 
@@ -136,14 +135,14 @@ public class UserRegistrationServletTest extends TestCase {
   public void testUsernameTrimmed() throws Exception {
     attemptToRegister(req, resp, " ben@example.com ", "beetleguice", false);
 
-    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    verify(resp).sendRedirect("/auth/signin?registered=1");
     assertNotNull(store.getAccount(ParticipantId.ofUnsafe("ben@example.com")));
   }
 
   public void testNullPasswordWorks() throws Exception {
     attemptToRegister(req, resp, "zd@example.com", null, false);
 
-    verify(resp).setStatus(HttpServletResponse.SC_OK);
+    verify(resp).sendRedirect("/auth/signin?registered=1");
     AccountData account = store.getAccount(ParticipantId.ofUnsafe("zd@example.com"));
     assertNotNull(account);
     assertTrue(account.asHuman().getPasswordDigest().verify("".toCharArray()));
@@ -228,7 +227,6 @@ public class UserRegistrationServletTest extends TestCase {
     }
 
     writer.flush();
-    assertFalse(responseBody.toString().isEmpty());
     return responseBody.toString();
   }
 }

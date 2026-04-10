@@ -11,6 +11,7 @@ import com.google.gson.JsonParser;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.wave.api.robot.CapabilityFetchException;
+import com.typesafe.config.Config;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,9 +23,11 @@ import org.waveprotocol.box.server.authentication.jwt.JwtRequestAuthenticator;
 import org.waveprotocol.box.server.authentication.jwt.JwtScopes;
 import org.waveprotocol.box.server.authentication.jwt.JwtTokenType;
 import org.waveprotocol.box.server.authentication.jwt.JwtValidationException;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
+import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
 import org.waveprotocol.box.server.robots.util.RobotsUtil.RobotRegistrationException;
 import org.waveprotocol.box.server.util.RegistrationSupport;
@@ -73,6 +76,7 @@ public final class RobotApiServlet extends HttpServlet {
   private final AccountStore accountStore;
   private final RobotRegistrar robotRegistrar;
   private final RobotCapabilityFetcher capabilityFetcher;
+  private final String activeRobotApiUrl;
 
   @Inject
   public RobotApiServlet(
@@ -80,12 +84,14 @@ public final class RobotApiServlet extends HttpServlet {
       JwtRequestAuthenticator jwtAuthenticator,
       AccountStore accountStore,
       RobotRegistrar robotRegistrar,
-      RobotCapabilityFetcher capabilityFetcher) {
+      RobotCapabilityFetcher capabilityFetcher,
+      Config config) {
     this.domain = domain;
     this.jwtAuthenticator = jwtAuthenticator;
     this.accountStore = accountStore;
     this.robotRegistrar = robotRegistrar;
     this.capabilityFetcher = capabilityFetcher;
+    this.activeRobotApiUrl = PublicBaseUrlResolver.resolve(config) + RobotsGateway.DATA_API_RPC_PATH;
   }
 
   // ── Authentication ──────────────────────────────────────────────────
@@ -452,7 +458,7 @@ public final class RobotApiServlet extends HttpServlet {
     try {
       // Fetch capabilities via network call, then atomically apply to a fresh store read
       // to avoid overwriting concurrent changes (secret rotation, description edits, etc.)
-      RobotAccountData refreshed = capabilityFetcher.fetchCapabilities(robot, "");
+      RobotAccountData refreshed = capabilityFetcher.fetchCapabilities(robot, activeRobotApiUrl);
       RobotAccountData verified = robotRegistrar.markVerified(robot.getId(), refreshed.getCapabilities());
       if (verified == null) {
         sendError(resp, 404, "Robot not found", "NOT_FOUND");

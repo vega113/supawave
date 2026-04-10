@@ -25,6 +25,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.wave.api.robot.CapabilityFetchException;
 import com.google.inject.name.Named;
+import com.typesafe.config.Config;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -35,9 +36,11 @@ import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSessions;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
+import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.register.RobotRegistrar;
 import org.waveprotocol.box.server.robots.util.RobotsUtil.RobotRegistrationException;
 import org.waveprotocol.box.server.rpc.HtmlRenderer;
@@ -72,10 +75,29 @@ public final class RobotDashboardServlet extends HttpServlet {
   private final RobotCapabilityFetcher capabilityFetcher;
   private final TokenGenerator tokenGenerator;
   private final Clock clock;
+  private final String activeRobotApiUrl;
   private final ConcurrentMap<ParticipantId, String> xsrfTokens;
 
   @Inject
   public RobotDashboardServlet(@Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
+      SessionManager sessionManager, AccountStore accountStore, RobotRegistrar robotRegistrar,
+      RobotCapabilityFetcher capabilityFetcher, TokenGenerator tokenGenerator, Clock clock,
+      Config config) {
+    this.domain = domain;
+    this.sessionManager = sessionManager;
+    this.accountStore = accountStore;
+    this.robotRegistrar = robotRegistrar;
+    this.capabilityFetcher = capabilityFetcher;
+    this.tokenGenerator = tokenGenerator;
+    this.clock = clock;
+    this.activeRobotApiUrl = PublicBaseUrlResolver.resolve(config) + RobotsGateway.DATA_API_RPC_PATH;
+    this.xsrfTokens = CacheBuilder.newBuilder()
+        .expireAfterWrite(XSRF_TOKEN_TIMEOUT_HOURS, TimeUnit.HOURS)
+        .<ParticipantId, String>build()
+        .asMap();
+  }
+
+  RobotDashboardServlet(@Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
       SessionManager sessionManager, AccountStore accountStore, RobotRegistrar robotRegistrar,
       RobotCapabilityFetcher capabilityFetcher, TokenGenerator tokenGenerator, Clock clock) {
     this.domain = domain;
@@ -85,6 +107,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     this.capabilityFetcher = capabilityFetcher;
     this.tokenGenerator = tokenGenerator;
     this.clock = clock;
+    this.activeRobotApiUrl = "";
     this.xsrfTokens = CacheBuilder.newBuilder()
         .expireAfterWrite(XSRF_TOKEN_TIMEOUT_HOURS, TimeUnit.HOURS)
         .<ParticipantId, String>build()
@@ -444,7 +467,7 @@ public final class RobotDashboardServlet extends HttpServlet {
 
   private RobotAccountData verifyRobot(RobotAccountData ownedRobot)
       throws CapabilityFetchException, PersistenceException {
-    RobotAccountData refreshedRobot = capabilityFetcher.fetchCapabilities(ownedRobot, "");
+    RobotAccountData refreshedRobot = capabilityFetcher.fetchCapabilities(ownedRobot, activeRobotApiUrl);
     RobotAccountData verifiedRobot = new RobotAccountDataImpl(
         refreshedRobot.getId(),
         refreshedRobot.getUrl(),

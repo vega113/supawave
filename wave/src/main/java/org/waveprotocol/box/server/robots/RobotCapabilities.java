@@ -38,6 +38,7 @@ public class RobotCapabilities {
   private final Map<EventType, Capability> capabilities;
   private final String capabilitiesHash;
   private final ProtocolVersion version;
+  private final String rpcServerUrl;
 
   /**
    * Constructs a new {@link RobotCapabilities} object with the given data.
@@ -48,6 +49,17 @@ public class RobotCapabilities {
    */
   public RobotCapabilities(Map<EventType, Capability> capabilitiesMap, String capabilitiesHash,
       ProtocolVersion version) {
+    this(capabilitiesMap, capabilitiesHash, version, "");
+  }
+
+  /**
+   * Constructs a new {@link RobotCapabilities} object with the given data and
+   * the preferred server RPC endpoint advertised by the robot. The RPC URL is a
+   * runtime transport hint and is intentionally excluded from equality so older
+   * persisted capability records remain comparable.
+   */
+  public RobotCapabilities(Map<EventType, Capability> capabilitiesMap, String capabilitiesHash,
+      ProtocolVersion version, String rpcServerUrl) {
     Preconditions.checkNotNull(capabilitiesMap, "Capabilities map may not be null");
     Preconditions.checkNotNull(capabilitiesHash, "Capabilities hash may not be null");
     Preconditions.checkNotNull(version, "Version may not be null");
@@ -55,6 +67,7 @@ public class RobotCapabilities {
     this.capabilities = ImmutableMap.copyOf(capabilitiesMap);
     this.capabilitiesHash = capabilitiesHash;
     this.version = version;
+    this.rpcServerUrl = rpcServerUrl == null ? "" : rpcServerUrl;
   }
 
   /**
@@ -76,6 +89,14 @@ public class RobotCapabilities {
    */
   public ProtocolVersion getProtocolVersion() {
     return version;
+  }
+
+  /**
+   * Returns the preferred server RPC endpoint advertised in capabilities.xml.
+   * Empty means the robot did not advertise one.
+   */
+  public String getRpcServerUrl() {
+    return rpcServerUrl;
   }
 
   @Override

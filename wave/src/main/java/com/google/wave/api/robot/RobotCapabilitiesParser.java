@@ -33,6 +33,8 @@ import org.jdom.input.SAXBuilder;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
@@ -57,6 +59,8 @@ public class RobotCapabilitiesParser {
   private static final String CONSUMER_KEYS_TAG = "consumer_keys";
   private static final String CONSUMER_KEY_TAG = "consumer_key";
   private static final String CONSUMER_KEY_FOR_ATTRIBUTE = "for";
+  private static final String ACTIVE_RPC_PATH = "/robot/rpc";
+  private static final String DATA_API_RPC_PATH = "/robot/dataapi/rpc";
 
   private final String capabilitiesXmlUrl;
 
@@ -69,6 +73,7 @@ public class RobotCapabilitiesParser {
   private ProtocolVersion protocolVersion;
 
   private String consumerKey;  // null if no consumer key
+  private String rpcServerUrl = "";
 
   private final String activeRobotApiUrl;
 
@@ -96,6 +101,10 @@ public class RobotCapabilitiesParser {
 
   public String getConsumerKey() {
     return consumerKey;
+  }
+
+  public String getRpcServerUrl() {
+    return rpcServerUrl;
   }
 
   private void parseRobotDescriptionXmlFile() throws CapabilityFetchException {
@@ -145,6 +154,18 @@ public class RobotCapabilitiesParser {
         if (forUrl != null && forUrl.equals(activeRobotApiUrl)) {
           consumerKey = consumerKeyElement.getText();
         }
+        if (forUrl == null || forUrl.isEmpty()) {
+          continue;
+        }
+        // Prefer the 2-legged active endpoint when both are advertised.
+        // Only accept endpoints on the same host as this server.
+        if (isSameHost(forUrl, activeRobotApiUrl)) {
+          if (forUrl.endsWith(ACTIVE_RPC_PATH)) {
+            rpcServerUrl = forUrl;
+          } else if (rpcServerUrl.isEmpty() && forUrl.endsWith(DATA_API_RPC_PATH)) {
+            rpcServerUrl = forUrl;
+          }
+        }
       }
     } catch (IOException iox) {
       throw new CapabilityFetchException("Failure reading capabilities for: " + capabilitiesXmlUrl,
@@ -187,6 +208,27 @@ public class RobotCapabilitiesParser {
     }
 
     this.capabilities.put(eventType, new Capability(eventType, contexts, filter));
+  }
+
+  private static boolean isSameHost(String url, String referenceUrl) {
+    try {
+      URI u = new URI(url);
+      URI ref = new URI(referenceUrl);
+      return u.getScheme() != null && u.getScheme().equals(ref.getScheme())
+          && u.getHost() != null && u.getHost().equals(ref.getHost())
+          && effectivePort(u) == effectivePort(ref);
+    } catch (URISyntaxException e) {
+      return false;
+    }
+  }
+
+  private static int effectivePort(URI uri) {
+    int port = uri.getPort();
+    if (port != -1) return port;
+    String scheme = uri.getScheme();
+    if ("https".equalsIgnoreCase(scheme)) return 443;
+    if ("http".equalsIgnoreCase(scheme)) return 80;
+    return -1;
   }
 
   @SuppressWarnings({"cast", "unchecked"})

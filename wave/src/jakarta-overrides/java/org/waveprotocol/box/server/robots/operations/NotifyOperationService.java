@@ -8,13 +8,16 @@ import com.google.wave.api.OperationRequest;
 import com.google.wave.api.JsonRpcConstant.ParamsProperty;
 import com.google.wave.api.robot.CapabilityFetchException;
 import com.google.wave.api.robot.RobotName;
+import com.typesafe.config.Config;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
+import org.waveprotocol.box.server.authentication.email.PublicBaseUrlResolver;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.robots.OperationContext;
 import org.waveprotocol.box.server.robots.RobotCapabilities;
 import org.waveprotocol.box.server.robots.passive.RobotCapabilityFetcher;
+import org.waveprotocol.box.server.robots.passive.RobotsGateway;
 import org.waveprotocol.box.server.robots.util.OperationUtil;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
@@ -24,11 +27,14 @@ public class NotifyOperationService implements OperationService {
 
   private final AccountStore accountStore;
   private final RobotCapabilityFetcher capabilityFetcher;
+  private final String activeRobotApiUrl;
 
   @Inject
-  public NotifyOperationService(AccountStore accountStore, RobotCapabilityFetcher capabilityFetcher) {
+  public NotifyOperationService(AccountStore accountStore, RobotCapabilityFetcher capabilityFetcher,
+      Config config) {
     this.accountStore = accountStore;
     this.capabilityFetcher = capabilityFetcher;
+    this.activeRobotApiUrl = PublicBaseUrlResolver.resolve(config) + RobotsGateway.DATA_API_RPC_PATH;
   }
 
   @Override
@@ -61,7 +67,7 @@ public class NotifyOperationService implements OperationService {
     }
 
     try {
-      robotAccountData = capabilityFetcher.fetchCapabilities(robotAccountData, "");
+      robotAccountData = capabilityFetcher.fetchCapabilities(robotAccountData, activeRobotApiUrl);
     } catch (CapabilityFetchException e) {
       LOG.fine("Unable to retrieve capabilities for " + account.getId(), e);
       context.constructErrorResponse(operation, "Unable to retrieve new capabilities");

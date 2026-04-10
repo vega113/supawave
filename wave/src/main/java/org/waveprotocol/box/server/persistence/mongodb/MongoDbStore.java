@@ -111,6 +111,7 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
   private static final String CAPABILITIES_CAPABILITIES_FIELD = "capabilities";
+  private static final String CAPABILITIES_RPC_SERVER_URL_FIELD = "rpcServerUrl";
   private static final String CAPABILITY_CONTEXTS_FIELD = "contexts";
   private static final String CAPABILITY_FILTER_FIELD = "filter";
 
@@ -476,7 +477,8 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
         new BasicDBObject()
             .append(CAPABILITIES_CAPABILITIES_FIELD, capabilitiesObj)
             .append(CAPABILITIES_HASH_FIELD, capabilities.getCapabilitiesHash())
-            .append(CAPABILITIES_VERSION_FIELD, capabilities.getProtocolVersion().name());
+            .append(CAPABILITIES_VERSION_FIELD, capabilities.getProtocolVersion().name())
+            .append(CAPABILITIES_RPC_SERVER_URL_FIELD, capabilities.getRpcServerUrl());
 
     return object;
   }
@@ -532,7 +534,9 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     String capabilitiesHash = (String) object.get(CAPABILITIES_HASH_FIELD);
     ProtocolVersion version =
         ProtocolVersion.valueOf((String) object.get(CAPABILITIES_VERSION_FIELD));
+    String rpcServerUrl = (String) object.get(CAPABILITIES_RPC_SERVER_URL_FIELD);
 
-    return new RobotCapabilities(capabilities, capabilitiesHash, version);
+    return new RobotCapabilities(capabilities, capabilitiesHash, version,
+        rpcServerUrl != null ? rpcServerUrl : "");
   }
 }

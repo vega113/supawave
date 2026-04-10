@@ -37,6 +37,7 @@ import org.waveprotocol.box.server.robots.RobotCapabilities;
 import org.waveprotocol.box.server.robots.operations.NotifyOperationService;
 import org.waveprotocol.box.server.robots.passive.RobotConnector;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import com.typesafe.config.ConfigFactory;
 
 import java.util.Map;
 import java.util.NavigableMap;
@@ -64,7 +65,7 @@ public final class NotifyOperationServiceJakartaIT {
     connection = new ConfigurableRobotConnection("hash-new");
     RobotSerializer serializer = createSerializer();
     RobotConnector connector = new RobotConnector(connection, serializer);
-    service = new NotifyOperationService(accountStore, connector);
+    service = new NotifyOperationService(accountStore, connector, ConfigFactory.empty());
   }
 
   @Test

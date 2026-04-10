@@ -323,7 +323,7 @@ public class QueryHelper {
     }
     // Tokenize respecting double-quoted values: key:"multi word value" stays one token.
     List<String> tokenList = new ArrayList<>();
-    Matcher m = Pattern.compile("[^\\s\"]*\"[^\"]*\"|[^\\s]+").matcher(query);
+    Matcher m = Pattern.compile("[^\\s\"]*+\"[^\"]*\"|[^\\s]+").matcher(query);
     while (m.find()) {
       tokenList.add(m.group());
     }

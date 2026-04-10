@@ -36,7 +36,6 @@ import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
-import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
 
@@ -271,67 +270,4 @@ public final class TagInputWidget extends Composite {
     }
   }
 
-  /**
-   * Creates and shows a styled confirmation dialog for removing a tag.
-   *
-   * @param tagName the tag to remove
-   * @param onConfirm called when the user confirms removal
-   */
-  public static void showRemoveConfirm(String tagName, final Runnable onConfirm) {
-    FlowPanel panel = new FlowPanel();
-    panel.addStyleName(style.self());
-
-    // Title
-    Label titleLabel = new Label("Remove Tag");
-    titleLabel.addStyleName(style.title());
-    panel.add(titleLabel);
-
-    // Message with tag name highlighted
-    FlowPanel messagePanel = new FlowPanel();
-    messagePanel.addStyleName(style.message());
-    InlineLabel prefix = new InlineLabel("Do you want to remove tag ");
-    messagePanel.add(prefix);
-    InlineLabel tagLabel = new InlineLabel("\"" + tagName + "\"");
-    tagLabel.addStyleName(style.tagName());
-    messagePanel.add(tagLabel);
-    InlineLabel suffix = new InlineLabel("?");
-    messagePanel.add(suffix);
-    panel.add(messagePanel);
-
-    // Button panel
-    FlowPanel buttonPanel = new FlowPanel();
-    buttonPanel.addStyleName(style.buttonPanel());
-
-    final Button cancelBtn = new Button("Cancel");
-    cancelBtn.addStyleName(style.cancelButton());
-    buttonPanel.add(cancelBtn);
-
-    final Button removeBtn = new Button("Remove");
-    removeBtn.addStyleName(style.removeButton());
-    buttonPanel.add(removeBtn);
-
-    panel.add(buttonPanel);
-
-    PopupChrome chrome = PopupChromeFactory.createPopupChrome();
-    final UniversalPopup confirmPopup =
-        PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
-    confirmPopup.add(panel);
-
-    removeBtn.addClickHandler(new ClickHandler() {
-      @Override
-      public void onClick(ClickEvent event) {
-        confirmPopup.hide();
-        onConfirm.run();
-      }
-    });
-
-    cancelBtn.addClickHandler(new ClickHandler() {
-      @Override
-      public void onClick(ClickEvent event) {
-        confirmPopup.hide();
-      }
-    });
-
-    confirmPopup.show();
-  }
 }

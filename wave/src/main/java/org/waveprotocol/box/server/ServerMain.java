@@ -495,7 +495,7 @@ public class ServerMain {
     server.addServlet("/iniavatars/*", InitialsAvatarsServlet.class);
     server.addServlet("/wave/public/*", PublicWaveFetchServlet.class);
     server.addServlet("/waveref/*", WaveRefServlet.class);
-    // Note: this javax ServerMain is excluded from compilation (see mainExactExcludes in build.gradle).
+    // Note: this javax-era ServerMain is excluded from compilation (see mainExactExcludes in build.sbt).
     // The active registration lives in the jakarta-overrides variant of ServerMain.
     server.addServlet("/folder/*", FolderServlet.class);
     server.addServlet("/searches", SearchesServlet.class);

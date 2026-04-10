@@ -6,7 +6,7 @@
   "summary": "Adds a browser-verification runbook and change-type matrix so agent lanes know when curl/smoke is enough and when a real browser pass is required, without introducing a new browser framework.",
   "sections": [
     {
-      "type": "chore",
+      "type": "feature",
       "items": [
         "Add docs/runbooks/browser-verification.md: defines the default UI-affecting verification path built on the existing wave-smoke-ui.sh and worktree-boot.sh + wave-smoke.sh baseline",
         "Add docs/runbooks/change-type-verification-matrix.md: decision matrix covering server-only, servlet/auth, GWT client/UI, packaging, and deployment-only change types",

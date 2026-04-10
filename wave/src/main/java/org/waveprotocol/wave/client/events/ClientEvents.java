@@ -58,6 +58,11 @@ public class ClientEvents {
     return handlerManager.addHandler(WaveSelectionEvent.TYPE, handler);
   }
 
+  public HandlerRegistration addSearchQueryEventHandler(
+      SearchQueryEventHandler handler) {
+    return handlerManager.addHandler(SearchQueryEvent.TYPE, handler);
+  }
+
   public void fireEvent(GwtEvent<?> event) {
     handlerManager.fireEvent(event);
   }

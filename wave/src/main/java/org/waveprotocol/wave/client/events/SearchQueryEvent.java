@@ -17,33 +17,36 @@
  * under the License.
  */
 
-package org.waveprotocol.wave.client.wavepanel.impl.edit.i18n;
+package org.waveprotocol.wave.client.events;
 
-import com.google.gwt.i18n.client.Messages;
+import com.google.gwt.event.shared.GwtEvent;
+
+import org.waveprotocol.wave.model.util.Preconditions;
 
 /**
- * i18n messages for the tag controller (add/remove dialogs).
- *
- * Ported from Wiab.pro.
- *
- * @author akaplanov@gmail.com (Andrew Kaplanov)
+ * Requests that the search panel apply a specific query.
  */
-public interface TagMessages extends Messages {
-  @DefaultMessage("Add Tags")
-  String addTagPrompt();
+public class SearchQueryEvent extends GwtEvent<SearchQueryEventHandler> {
+  public static final Type<SearchQueryEventHandler> TYPE =
+      new Type<SearchQueryEventHandler>();
 
-  @DefaultMessage("Do you want to remove tag \"{0}\"?")
-  String removeTagPrompt(String tag);
+  private final String query;
 
-  @DefaultMessage("Added by {0} at {1}")
-  String added(String authorName, String timestamp);
+  public SearchQueryEvent(String query) {
+    this.query = Preconditions.checkNotNull(query, "null query");
+  }
 
-  @DefaultMessage("Removed by {0} at {1}")
-  String removed(String authorName, String timestamp);
+  public String getQuery() {
+    return query;
+  }
 
-  @DefaultMessage("Add tag")
-  String addTagHint();
+  @Override
+  public Type<SearchQueryEventHandler> getAssociatedType() {
+    return TYPE;
+  }
 
-  @DefaultMessage("Removed tag: {0}")
-  String removedTagToast(String tag);
+  @Override
+  protected void dispatch(SearchQueryEventHandler handler) {
+    handler.onSearchQuery(query);
+  }
 }

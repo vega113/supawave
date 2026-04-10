@@ -17,33 +17,13 @@
  * under the License.
  */
 
-package org.waveprotocol.wave.client.wavepanel.impl.edit.i18n;
+package org.waveprotocol.wave.client.events;
 
-import com.google.gwt.i18n.client.Messages;
+import com.google.gwt.event.shared.EventHandler;
 
 /**
- * i18n messages for the tag controller (add/remove dialogs).
- *
- * Ported from Wiab.pro.
- *
- * @author akaplanov@gmail.com (Andrew Kaplanov)
+ * Handles requests to apply a search query in the search panel.
  */
-public interface TagMessages extends Messages {
-  @DefaultMessage("Add Tags")
-  String addTagPrompt();
-
-  @DefaultMessage("Do you want to remove tag \"{0}\"?")
-  String removeTagPrompt(String tag);
-
-  @DefaultMessage("Added by {0} at {1}")
-  String added(String authorName, String timestamp);
-
-  @DefaultMessage("Removed by {0} at {1}")
-  String removed(String authorName, String timestamp);
-
-  @DefaultMessage("Add tag")
-  String addTagHint();
-
-  @DefaultMessage("Removed tag: {0}")
-  String removedTagToast(String tag);
+public abstract class SearchQueryEventHandler implements EventHandler {
+  public abstract void onSearchQuery(String query);
 }

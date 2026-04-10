@@ -47,6 +47,41 @@ public final class WavePanelTagsLayoutTest extends TestCase {
     assertTrue(tagsBuilder.contains("PANEL_TOTAL_HEIGHT_PX = PANEL_HEIGHT_PX + PANEL_BORDER_TOP_PX"));
   }
 
+  public void testTagMarkupDefinesSeparateRemoveAffordance() throws Exception {
+    String view =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/View.java");
+    String codes =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/TypeCodes.java");
+    String builder =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/TagViewBuilder.java");
+
+    assertTrue(view.contains("REMOVE_TAG"));
+    assertTrue(codes.contains("Type.REMOVE_TAG"));
+    assertTrue(builder.contains("TypeCodes.kind(Type.REMOVE_TAG)"));
+  }
+
+  public void testTagsCssDefinesChipAndRemoveButtonStyles() throws Exception {
+    String css = read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");
+
+    assertTrue(css.contains(".tagLabel"));
+    assertTrue(css.contains(".removeButton"));
+    assertTrue(css.contains("display: inline-flex"));
+  }
+
+  public void testTagFilteringUsesClientSearchQueryEventSeam() throws Exception {
+    String clientEvents =
+        read("wave/src/main/java/org/waveprotocol/wave/client/events/ClientEvents.java");
+    String tagController =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/edit/TagController.java");
+    String presenter =
+        read("wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPresenter.java");
+
+    assertTrue(clientEvents.contains("addSearchQueryEventHandler"));
+    assertTrue(tagController.contains("new SearchQueryEvent(\"tag:\""));
+    assertTrue(presenter.contains("addSearchQueryEventHandler"));
+    assertTrue(presenter.contains("setQuery(normalizeSearchQuery(query))"));
+  }
+
   private String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
   }

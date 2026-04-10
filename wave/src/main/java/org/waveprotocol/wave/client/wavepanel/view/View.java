@@ -69,6 +69,7 @@ public interface View {
     NEW_WAVE_WITH_PARTICIPANTS,
     TAGS,
     TAG,
+    REMOVE_TAG,
     ADD_TAG,
     TOGGLE_PUBLIC,
     SHARE_LINK,

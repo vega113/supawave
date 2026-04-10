@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-10-tags-ux-mobile",
+  "version": "PR #814",
+  "date": "2026-04-10",
+  "title": "Tag chips now filter search",
+  "summary": "Wave tags now use a mobile-friendlier chip layout where tapping the chip filters search and a separate inline affordance removes the tag.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Tapping a tag chip now applies a `tag:<name>` search filter instead of opening the remove-confirm popup",
+        "Tag removal now uses its own explicit inline affordance, so the destructive action is no longer bound to the main chip tap target",
+        "The old centered remove-confirm popup is no longer part of the tag-removal flow, which keeps the interaction compact and usable on mobile"
+      ]
+    }
+  ]
+}

@@ -112,6 +112,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         Type.PARTICIPANTS,
         Type.TAGS,
         Type.TAG,
+        Type.REMOVE_TAG,
         Type.ADD_TAG}) {
       kinds.add(kind(type));
     }
@@ -597,7 +598,19 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
           tagEl.setId(tagId);
           tagEl.setClassName(tagsCss.tag() + " " + tagsCss.normal());
           tagEl.setAttribute(KIND_ATTRIBUTE, kind(Type.TAG));
-          tagEl.setInnerText(tag);
+          Element labelEl = Document.get().createSpanElement();
+          labelEl.setClassName(tagsCss.tagLabel());
+          labelEl.setInnerText(tag);
+          tagEl.appendChild(labelEl);
+
+          Element removeEl = Document.get().createButtonElement();
+          removeEl.setClassName(tagsCss.removeButton());
+          removeEl.setAttribute("type", "button");
+          removeEl.setAttribute(KIND_ATTRIBUTE, kind(Type.REMOVE_TAG));
+          removeEl.setAttribute("title", "Remove tag " + tag);
+          removeEl.setAttribute("aria-label", "Remove tag " + tag);
+          removeEl.setInnerText("×");
+          tagEl.appendChild(removeEl);
           // Insert before the overflow-mode panel (extra span), which is the
           // second-to-last child of the tag container.  getSimpleMenu() may
           // return null if the container structure is unexpected; in that case
@@ -726,6 +739,7 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         return asTags(e);
       case TAG:
         return asTag(e);
+      case REMOVE_TAG:
       case ADD_TAG:
         return null; // ADD_TAG is a button, not a structural view
       default:

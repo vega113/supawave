@@ -100,7 +100,17 @@ public final class TagViewBuilder implements IntrinsicTagView, UiBuilder {
 
     OutputHelper.openWith(output, id, className, TypeCodes.kind(Type.TAG), null, hint, null);
     {
+      OutputHelper.openSpan(output, null, css.tagLabel(), null);
       output.appendEscaped(name);
+      OutputHelper.closeSpan(output);
+      OutputHelper.button(
+          output,
+          null,
+          css.removeButton(),
+          TypeCodes.kind(Type.REMOVE_TAG),
+          "Remove tag " + name,
+          "Remove tag " + name,
+          "&times;");
     }
     OutputHelper.close(output);
   }

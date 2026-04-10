@@ -23,6 +23,9 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
 
+import org.waveprotocol.wave.client.events.ClientEvents;
+import org.waveprotocol.wave.client.events.SearchQueryEvent;
+import org.waveprotocol.wave.client.widget.toast.ToastNotification;
 import org.waveprotocol.wave.client.wavepanel.WavePanel;
 import org.waveprotocol.wave.client.wavepanel.event.EventHandlerRegistry;
 import org.waveprotocol.wave.client.wavepanel.event.WaveClickHandler;
@@ -38,11 +41,11 @@ import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.util.Pair;
 
 /**
- * Installs the add/remove tag controls.
+ * Installs the add/filter/remove tag controls.
  *
  * Ported from Wiab.pro, adapted for Apache Wave (removed KeyComboManager
- * dependency). Uses styled modal popups ({@link TagInputWidget}) instead of
- * browser-native {@code Window.prompt/confirm} dialogs.
+ * dependency). Uses a styled popup for adding tags and a dedicated inline
+ * remove affordance for deletions.
  */
 public final class TagController {
 
@@ -78,7 +81,15 @@ public final class TagController {
 
       @Override
       public boolean onClick(ClickEvent event, Element context) {
-        handleTagClicked(context);
+        handleTagFilterClicked(context);
+        return true;
+      }
+    });
+    handlers.registerClickHandler(TypeCodes.kind(Type.REMOVE_TAG), new WaveClickHandler() {
+
+      @Override
+      public boolean onClick(ClickEvent event, Element context) {
+        handleTagRemoveClicked(context);
         return true;
       }
     });
@@ -103,19 +114,32 @@ public final class TagController {
   }
 
   /**
-   * Shows a styled confirmation modal for removing a tag.
+   * Applies a tag search filter from the primary chip tap target.
    */
-  private void handleTagClicked(Element context) {
+  private void handleTagFilterClicked(Element context) {
     TagView tagView = views.asTag(context);
     if (!TagState.REMOVED.equals(tagView.getState())) {
       final Pair<Conversation, String> tag = models.getTag(tagView);
       if (tag != null) {
-        TagInputWidget.showRemoveConfirm(tag.second, new Runnable() {
-          @Override
-          public void run() {
-            tag.first.removeTag(tag.second);
-          }
-        });
+        ClientEvents.get().fireEvent(new SearchQueryEvent("tag:" + tag.second));
+      }
+    }
+  }
+
+  /**
+   * Removes a tag from the explicit remove affordance.
+   */
+  private void handleTagRemoveClicked(Element context) {
+    Element tagElement = context != null ? context.getParentElement() : null;
+    if (tagElement == null) {
+      return;
+    }
+    TagView tagView = views.asTag(tagElement);
+    if (!TagState.REMOVED.equals(tagView.getState())) {
+      final Pair<Conversation, String> tag = models.getTag(tagView);
+      if (tag != null) {
+        tag.first.removeTag(tag.second);
+        ToastNotification.showInfo(messages.removedTagToast(tag.second));
       }
     }
   }

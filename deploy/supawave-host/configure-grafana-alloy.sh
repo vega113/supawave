@@ -11,6 +11,11 @@ GCLOUD_SCRAPE_INTERVAL=${GCLOUD_SCRAPE_INTERVAL:-60s}
 WAVE_LOG_PATH=${WAVE_LOG_PATH:-/home/*/supawave/shared/logs/wave-json*.log}
 WAVE_TIMESTAMP_FORMAT=${WAVE_TIMESTAMP_FORMAT:-RFC3339Nano}
 
+case "$WAVE_TIMESTAMP_FORMAT" in
+  RFC3339Nano|RFC3339|UnixMs|UnixUs|UnixNs) ;;
+  *) echo "Invalid WAVE_TIMESTAMP_FORMAT: $WAVE_TIMESTAMP_FORMAT (allowed: RFC3339Nano, RFC3339, UnixMs, UnixUs, UnixNs)" >&2; exit 1 ;;
+esac
+
 required=(
   GCLOUD_HOSTED_METRICS_URL
   GCLOUD_HOSTED_METRICS_ID
@@ -246,5 +251,5 @@ sudo systemctl status --no-pager alloy.service
 
 if command -v logger >/dev/null 2>&1; then
   logger -t grafana-alloy-config -- \
-    "Loki shipping enabled; tail path=$WAVE_LOG_PATH timestamp_format=$WAVE_TIMESTAMP_FORMAT"
+    "Loki shipping enabled; tail path=$WAVE_LOG_PATH timestamp_format=$WAVE_TIMESTAMP_FORMAT" || true
 fi

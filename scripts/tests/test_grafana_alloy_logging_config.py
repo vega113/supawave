@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import tempfile
 import textwrap
@@ -20,7 +21,7 @@ def _resolve_versioned_jar(*parts: str) -> Path:
   artifact = parts[-1]
   matches = sorted(directory.glob(f"*/{artifact}-*.jar"))
   if not matches:
-    raise AssertionError(
+    raise unittest.SkipTest(
         "Missing probe dependency. Run `sbt -batch -no-colors 'show Runtime / fullClasspath'` first.\n"
         + str(directory)
     )
@@ -37,7 +38,7 @@ def _probe_classpath() -> str:
       _resolve_versioned_jar("com", "fasterxml", "jackson", "core", "jackson-core"),
       _resolve_versioned_jar("com", "fasterxml", "jackson", "core", "jackson-annotations"),
   ]
-  return ":".join(str(path) for path in jars)
+  return os.pathsep.join(str(path) for path in jars)
 
 
 def emit_structured_log_entry() -> dict:
@@ -76,7 +77,7 @@ def emit_structured_log_entry() -> dict:
         [
             "java",
             "-cp",
-            f"{classpath}:{tmpdir}",
+            f"{classpath}{os.pathsep}{tmpdir}",
             f"-Dlogback.configurationFile={LOGBACK_CONFIG}",
             "Probe",
         ],

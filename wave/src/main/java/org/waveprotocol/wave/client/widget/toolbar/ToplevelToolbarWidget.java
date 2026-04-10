@@ -76,6 +76,7 @@ public final class ToplevelToolbarWidget extends Composite
     String toolbar();
     String overflowButton();
     String overflowButtonIcon();
+    String noHorizontalScrollbar();
   }
 
   /**
@@ -164,6 +165,7 @@ public final class ToplevelToolbarWidget extends Composite
       // beyond the 36px height contract. OverflowPanelUpdater is not active
       // here so the wrapping would never be resolved via the submenu.
       self.getElement().getStyle().setProperty("flexWrap", "nowrap");
+      self.addStyleName(res.css().noHorizontalScrollbar());
       // Allow horizontal scroll so dynamically-added buttons (e.g. pinned saved
       // searches from SearchPresenter.rebuildSavedSearchButtons) remain reachable
       // when they exceed the row width, instead of being silently clipped.
@@ -175,6 +177,7 @@ public final class ToplevelToolbarWidget extends Composite
       // Restore default CSS flex-wrap: wrap so OverflowPanelUpdater can detect
       // overflowed buttons via offsetTop > 0 (buttons on a second row).
       self.getElement().getStyle().clearProperty("flexWrap");
+      self.removeStyleName(res.css().noHorizontalScrollbar());
       self.getElement().getStyle().clearProperty("overflowX");
       self.getElement().getStyle().clearProperty("overflowY");
       overflowLogic.updateStateEventually();

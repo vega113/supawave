@@ -28,6 +28,15 @@
   z-index: 0;
 }
 
+.noHorizontalScrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.noHorizontalScrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @sprite .toolbar {
   gwt-image: 'fillImage';
   /* Hide buttons that exceed the row width. flex-wrap: wrap allows

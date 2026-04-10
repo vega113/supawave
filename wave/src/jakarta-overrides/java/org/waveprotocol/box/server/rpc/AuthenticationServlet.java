@@ -424,8 +424,15 @@ public class AuthenticationServlet extends HttpServlet {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
       }
       resp.setContentType("text/html;charset=utf-8");
-      resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, "",
-          RESPONSE_STATUS_NONE, isLoginPageDisabled, analyticsAccount,
+      String registeredParam = req.getParameter("registered");
+      String initMessage = "";
+      String initResponseType = RESPONSE_STATUS_NONE;
+      if ("1".equals(registeredParam)) {
+        initMessage = "Account created! Sign in to get started.";
+        initResponseType = RESPONSE_STATUS_SUCCESS;
+      }
+      resp.getWriter().write(HtmlRenderer.renderAuthenticationPage(domain, initMessage,
+          initResponseType, isLoginPageDisabled, analyticsAccount,
           passwordResetEnabled, magicLinkEnabled));
     }
   }

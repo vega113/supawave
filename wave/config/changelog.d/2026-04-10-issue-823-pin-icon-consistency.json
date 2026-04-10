@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-10-issue-823-pin-icon-consistency",
+  "version": "PR #825",
+  "date": "2026-04-10",
+  "title": "Unify the pin icon across search and wave toolbars",
+  "summary": "Uses the same pin glyph in the wave action toolbar that already appears in the search toolbar so the two compact toolbars read consistently.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The wave toolbar pin action now uses the same thumbtack-style icon as the search toolbar while keeping the existing compact toolbar sizing and alignment"
+      ]
+    }
+  ]
+}

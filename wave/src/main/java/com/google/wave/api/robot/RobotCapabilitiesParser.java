@@ -216,10 +216,19 @@ public class RobotCapabilitiesParser {
       URI ref = new URI(referenceUrl);
       return u.getScheme() != null && u.getScheme().equals(ref.getScheme())
           && u.getHost() != null && u.getHost().equals(ref.getHost())
-          && u.getPort() == ref.getPort();
+          && effectivePort(u) == effectivePort(ref);
     } catch (URISyntaxException e) {
       return false;
     }
+  }
+
+  private static int effectivePort(URI uri) {
+    int port = uri.getPort();
+    if (port != -1) return port;
+    String scheme = uri.getScheme();
+    if ("https".equalsIgnoreCase(scheme)) return 443;
+    if ("http".equalsIgnoreCase(scheme)) return 80;
+    return -1;
   }
 
   @SuppressWarnings({"cast", "unchecked"})

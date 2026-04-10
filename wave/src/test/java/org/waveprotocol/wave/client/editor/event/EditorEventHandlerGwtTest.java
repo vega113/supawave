@@ -672,6 +672,28 @@ public class EditorEventHandlerGwtTest
     assertEquals(freshCaret, compositionCaret[0]);
   }
 
+  /**
+   * Android/WebKit IME mutations can temporarily report the current composing
+   * word as a range. That state belongs to the composition flow and must not be
+   * passed to the typing extractor, which only understands stable collapsed
+   * caret mutations.
+   */
+  public void testDomCharacterMutationWithNonCollapsedSelectionSkipsTypingExtractor() {
+    FakeEditorEvent mutation = FakeEditorEvent.create(BrowserEvents.DOMCharacterDataModified);
+
+    ContentTextNode node = new ContentTextNode(Document.get().createTextNode("word"), null);
+    Point<ContentNode> start = Point.inText(node, 1);
+    Point<ContentNode> end = Point.inText(node, 4);
+
+    FakeEditorInteractor interactor =
+        setupFakeEditorInteractor(new FocusedContentRange(start, end));
+    EditorEventHandler handler =
+        createEditorEventHandler(interactor, new FakeEditorEventsSubHandler());
+
+    assertFalse(handler.handleEvent(mutation));
+    interactor.checkExpectations();
+  }
+
   public void testIsAccelerator() {
     // Test alt+input and alt+shift+input keys - These are normal input on mac,
     // and accelerators on

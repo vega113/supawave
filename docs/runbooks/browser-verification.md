@@ -30,7 +30,7 @@ When a change can affect browser-visible behavior, use this default path:
 5. Stop the server with `PORT=9900 bash scripts/wave-smoke.sh stop`.
 
 The smoke checks prove the server boots, health responds, and the compiled
-webclient asset is present. The browser pass is there to verify the specific
+web client asset is present. The browser pass verifies the specific
 auth, routing, or UI behavior that curl cannot prove.
 
 ## 3. When Curl Or Smoke Is Enough

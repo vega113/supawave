@@ -107,11 +107,11 @@ public final class ViewToolbar {
       + "<path d=\"M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8\"></path>"
       + "<path d=\"M10 12h4\"></path></svg>";
 
-  /** Pin: map-pin style (cleaner than thumbtack). */
+  /** Pin: shared thumbtack glyph used by the search toolbar. */
   private static final String ICON_PIN = SVG_OPEN
-      + "<path d=\"M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z\"></path>"
-      + "<circle cx=\"12\" cy=\"9\" r=\"2.5\" fill=\"currentColor\" "
-      + "stroke=\"none\"></circle></svg>";
+      + "<line x1=\"12\" y1=\"17\" x2=\"12\" y2=\"22\"></line>"
+      + "<path d=\"M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8"
+      + "a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z\"></path></svg>";
 
   /** History: a distinct history glyph so it no longer reads like refresh. */
   private static final String ICON_HISTORY = SVG_OPEN

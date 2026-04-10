@@ -22,6 +22,7 @@ package org.waveprotocol.wave.client.wavepanel.impl.reactions;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
+import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Event.NativePreviewEvent;
 import com.google.gwt.user.client.Event.NativePreviewHandler;
@@ -59,9 +60,11 @@ import java.util.Map;
 public final class ReactionController extends ConversationListenerImpl
     implements ObservableConversationView.Listener {
 
-  public static void install(ObservableConversationView conversationView,
+  public static ReactionController install(ObservableConversationView conversationView,
       ViewIdMapper viewIdMapper, ParticipantId signedInUser) {
-    new ReactionController(conversationView, viewIdMapper, signedInUser).install();
+    ReactionController controller = new ReactionController(conversationView, viewIdMapper, signedInUser);
+    controller.install();
+    return controller;
   }
 
   private final ObservableConversationView conversationView;
@@ -72,6 +75,7 @@ public final class ReactionController extends ConversationListenerImpl
   private final Map<ObservableConversation, WaveletListener> waveletListeners = new HashMap<ObservableConversation, WaveletListener>();
 
   private NativePreviewHandler previewHandler;
+  private HandlerRegistration previewRegistration;
 
   private ReactionController(ObservableConversationView conversationView, ViewIdMapper viewIdMapper,
       ParticipantId signedInUser) {
@@ -259,7 +263,19 @@ public final class ReactionController extends ConversationListenerImpl
         }
       }
     };
-    Event.addNativePreviewHandler(previewHandler);
+    previewRegistration = Event.addNativePreviewHandler(previewHandler);
+  }
+
+  public void uninstall() {
+    if (previewRegistration != null) {
+      previewRegistration.removeHandler();
+      previewRegistration = null;
+    }
+    conversationView.removeListener(this);
+    for (ObservableConversation conversation : conversationView.getConversations()) {
+      conversation.removeListener(this);
+      unbindConversation(conversation);
+    }
   }
 
   private Element findReactionAction(Element start) {

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-mobile-search-panel-expand",
+  "version": "PR #810",
+  "date": "2026-04-10",
+  "title": "Mobile search panel stays hidden while editing",
+  "summary": "Android/mobile blip edit sessions now preserve horizontal focus scroll state so the search panel does not slide over the typing area.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Preserved both vertical and horizontal ancestor scroll positions when the mobile editor focuses",
+        "Prevented the off-canvas search panel from being revealed over the active blip editor during Android/mobile edit startup"
+      ]
+    }
+  ]
+}

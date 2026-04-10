@@ -491,8 +491,12 @@ public class ServerMain {
     long startMs = System.currentTimeMillis();
     PerUserWaveViewDistpatcher waveViewDistpatcher = injector.getInstance(PerUserWaveViewDistpatcher.class);
     PerUserWaveViewBus.Listener listener = injector.getInstance(PerUserWaveViewBus.Listener.class);
+    PerUserWaveViewHandler waveViewHandler = injector.getInstance(PerUserWaveViewHandler.class);
     waveViewDistpatcher.addListener(listener);
     waveBus.subscribe(waveViewDistpatcher);
+    if (waveViewHandler instanceof WaveBus.Subscriber) {
+      waveBus.subscribe((WaveBus.Subscriber) waveViewHandler);
+    }
     WaveIndexer waveIndexer = injector.getInstance(WaveIndexer.class);
     waveIndexer.remakeIndex();
     if ("lucene".equals(config.getString("core.search_type"))) {

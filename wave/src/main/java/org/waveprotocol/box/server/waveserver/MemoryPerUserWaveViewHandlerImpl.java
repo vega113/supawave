@@ -29,10 +29,13 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
+import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.Map;
@@ -43,9 +46,11 @@ import java.util.concurrent.TimeUnit;
  * @author yurize@apache.org (Yuri Zelikov)
  */
 @Singleton
-public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler {
+public class MemoryPerUserWaveViewHandlerImpl
+    implements PerUserWaveViewHandler, WaveBus.Subscriber {
 
   private static final Log LOG = Log.get(MemoryPerUserWaveViewHandlerImpl.class);
+  private static final String SEARCH_WAVELET_PREFIX = "search+";
 
   /**
    * The period of time in minutes the per user waves view should be actively
@@ -70,8 +75,16 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
    */
   private static final long WAVE_MAP_RELOAD_COOLDOWN_MS = 30_000;
 
-  /** Timestamp of the last successful {@code loadAllWavelets()} call. Guarded by {@link #waveMapLoadLock}. */
+  /**
+   * Timestamp of the last successful {@code loadAllWavelets()} call.
+   * Guarded by {@link #waveMapLoadLock}.
+   */
   private long lastWaveMapLoadMs = 0;
+  /**
+   * Timestamp of the last non-search wavelet mutation observed on the wave bus.
+   * Guarded by {@link #waveMapLoadLock}.
+   */
+  private long lastWaveMutationMs = 0;
 
   @Inject
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {
@@ -144,7 +157,10 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
    */
   private void ensureWaveMapLoaded(WaveMap waveMap, ParticipantId user) {
     synchronized (waveMapLoadLock) {
-      if (System.currentTimeMillis() - lastWaveMapLoadMs < WAVE_MAP_RELOAD_COOLDOWN_MS) {
+      long now = System.currentTimeMillis();
+      boolean withinCooldown = now - lastWaveMapLoadMs < WAVE_MAP_RELOAD_COOLDOWN_MS;
+      boolean sawMutationSinceLastLoad = lastWaveMutationMs > lastWaveMapLoadMs;
+      if (withinCooldown && !sawMutationSinceLastLoad) {
         return;
       }
       try {
@@ -158,6 +174,7 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
 
   @Override
   public ListenableFuture<Void> onParticipantAdded(WaveletName waveletName, ParticipantId user) {
+    markWaveMapDirty(waveletName);
     Multimap<WaveId, WaveletId> perUserView = explicitPerUserWaveViews.getIfPresent(user);
     if (perUserView != null) {
       if (!perUserView.containsEntry(waveletName.waveId, waveletName.waveletId)) {
@@ -175,6 +192,7 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
 
   @Override
   public ListenableFuture<Void> onParticipantRemoved(WaveletName waveletName, ParticipantId user) {
+    markWaveMapDirty(waveletName);
     Multimap<WaveId, WaveletId> perUserView = explicitPerUserWaveViews.getIfPresent(user);
     if (perUserView != null) {
       if (perUserView.containsEntry(waveletName.waveId, waveletName.waveletId)) {
@@ -199,9 +217,34 @@ public class MemoryPerUserWaveViewHandlerImpl implements PerUserWaveViewHandler 
 
   @Override
   public ListenableFuture<Void> onWaveInit(WaveletName waveletName) {
-    // No op.
+    markWaveMapDirty(waveletName);
     SettableFuture<Void> task = SettableFuture.create();
     task.set(null);
     return task;
+  }
+
+  @Override
+  public void waveletUpdate(ReadableWaveletData wavelet, DeltaSequence deltas) {
+    if (wavelet != null) {
+      markWaveMapDirty(WaveletName.of(wavelet.getWaveId(), wavelet.getWaveletId()));
+    }
+  }
+
+  @Override
+  public void waveletCommitted(WaveletName waveletName, HashedVersion version) {
+    markWaveMapDirty(waveletName);
+  }
+
+  private void markWaveMapDirty(WaveletName waveletName) {
+    if (waveletName != null && isSearchWavelet(waveletName)) {
+      return;
+    }
+    synchronized (waveMapLoadLock) {
+      lastWaveMutationMs = System.currentTimeMillis();
+    }
+  }
+
+  private boolean isSearchWavelet(WaveletName waveletName) {
+    return waveletName.waveletId.getId().startsWith(SEARCH_WAVELET_PREFIX);
   }
 }

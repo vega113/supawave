@@ -37,6 +37,7 @@
   flex-wrap: wrap;
   height: auto;
   min-height: 36px;
+  box-sizing: border-box;
   background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);
   background-color: #e7f2ff;
   border-top: 1px solid rgba(120, 170, 220, 0.45);
@@ -47,6 +48,7 @@
 @sprite .overflowButton {
   gwt-image: 'fillImage';
   float: right;
+  box-sizing: border-box;
   background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);
   background-color: #e7f2ff;
   border-top: 1px solid rgba(120, 170, 220, 0.45);

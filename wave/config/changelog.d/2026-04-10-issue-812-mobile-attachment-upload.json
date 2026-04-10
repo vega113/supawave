@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-issue-812-mobile-attachment-upload",
+  "version": "Unreleased",
+  "date": "2026-04-10",
+  "title": "Mobile attachment upload resilience fixes",
+  "summary": "Mobile image uploads are now more tolerant of browser-specific file-picker and clipboard behavior, reducing silent failures when selecting or pasting images into a wave.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Attachment selection now recovers from mobile browsers that return from the file chooser without delivering the hidden input's normal change event",
+        "Image paste upload now falls back to clipboard files when browsers do not populate clipboardData.items for pasted images"
+      ]
+    }
+  ]
+}

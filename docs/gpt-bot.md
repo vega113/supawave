@@ -96,6 +96,26 @@ curl -sS -X POST "$SUPAWAVE_BASE_URL/api/robots/$GPTBOT_API_ROBOT_ID/verify" \
   -H "Authorization: Bearer $GPTBOT_MANAGEMENT_TOKEN"
 ```
 
+## Robot Token Handling
+
+`gpt-bot` does not require you to paste a static Data API token into `.env`.
+
+Instead, the example uses `GPTBOT_API_ROBOT_SECRET` to mint short-lived JWTs from `/robot/dataapi/token` at runtime:
+
+- Data API tokens are requested with `expiry=3600`
+- Active API tokens use the same endpoint with `token_type=robot`
+- the client refreshes each cached token approximately 30 seconds before expiry
+
+That logic lives in `wave/src/main/java/org/waveprotocol/examples/robots/gptbot/SupaWaveApiClient.java`.
+
+Operator guidance:
+
+- keep the robot secret; the JWT is disposable
+- expect to mint a fresh token after any `401`
+- if secret rotation or another `tokenVersion` bump invalidates an older JWT early, clear the cached token and re-authenticate with the current secret
+
+For the full token lifecycle and passive bundle field rules, see [robot-data-api-authentication.md](robot-data-api-authentication.md).
+
 ## Passive And Active Modes
 
 `gpt-bot` supports both passive webhook replies and active API writes:

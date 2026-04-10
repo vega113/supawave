@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-10-task-assignee-label-prefix",
+  "version": "PR #787",
+  "date": "2026-04-10",
+  "title": "Wave Tasks: cleaner assignee labels",
+  "summary": "Task assignee labels now show the selected participant identifier without the extra owner prefix.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Task assignee pills now display just the selected participant label instead of prefixing it with \"Owner\""
+      ]
+    }
+  ]
+}

@@ -421,9 +421,7 @@ public class AuthenticationServlet extends HttpServlet {
       resp.setContentType("text/html;charset=utf-8");
       String registeredParam = req.getParameter("registered");
       boolean isRegistrationSuccess = "1".equals(registeredParam);
-      // Return 200 even when login is disabled if arriving via registration success redirect,
-      // so a successful registration does not land on a 403 page.
-      if (!isLoginPageDisabled || isRegistrationSuccess) {
+      if (!isLoginPageDisabled) {
         resp.setStatus(HttpServletResponse.SC_OK);
       } else {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);

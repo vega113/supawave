@@ -35,6 +35,7 @@ import org.waveprotocol.wave.media.model.AttachmentId;
 import org.waveprotocol.wave.media.model.AttachmentIdGenerator;
 import org.waveprotocol.wave.model.document.indexed.LocationMapper;
 import org.waveprotocol.wave.model.document.util.Point;
+import org.waveprotocol.wave.model.util.AttachmentUploadMobileSupport;
 import org.waveprotocol.wave.model.document.util.XmlStringBuilder;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.waveref.WaveRef;
@@ -232,10 +233,21 @@ public final class ClipboardImageUploader implements ImagePasteHandler {
    * Checks whether the paste event's clipboardData contains at least one image item.
    */
   private static native boolean hasClipboardImage(NativeEvent event) /*-{
-    var items = event.clipboardData && event.clipboardData.items;
-    if (!items) return false;
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].type && items[i].type.match(/^image\//)) return true;
+    var data = event.clipboardData;
+    if (!data) return false;
+    var items = data.items;
+    if (items) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.match(/^image\//)) return true;
+      }
+    }
+    var files = data.files;
+    if (files) {
+      for (var j = 0; j < files.length; j++) {
+        if (@org.waveprotocol.wave.model.util.AttachmentUploadMobileSupport::isImageMime(Ljava/lang/String;)(files[j].type || null)) {
+          return true;
+        }
+      }
     }
     return false;
   }-*/;
@@ -255,16 +267,27 @@ public final class ClipboardImageUploader implements ImagePasteHandler {
   private native void startXhrUpload(NativeEvent event,
       String attachmentId, String waveRef,
       Runnable successCb, Runnable failureCb) /*-{
-    var items = event.clipboardData && event.clipboardData.items;
-    if (!items) {
+    var data = event.clipboardData;
+    if (!data) {
       failureCb.@java.lang.Runnable::run()();
       return;
     }
+    var items = data.items;
     var blob = null;
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].type && items[i].type.match(/^image\//)) {
-        blob = items[i].getAsFile();
-        break;
+    if (items) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.match(/^image\//)) {
+          blob = items[i].getAsFile();
+          break;
+        }
+      }
+    }
+    if (!blob && data.files) {
+      for (var j = 0; j < data.files.length; j++) {
+        if (@org.waveprotocol.wave.model.util.AttachmentUploadMobileSupport::isImageMime(Ljava/lang/String;)(data.files[j].type || null)) {
+          blob = data.files[j];
+          break;
+        }
       }
     }
     if (!blob) {

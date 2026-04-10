@@ -43,7 +43,7 @@ public final class ReactionDataDocuments {
       return ((WaveletBasedConversation) conversation).getWavelet().getDocumentIds()
           .contains(documentId);
     }
-    return true;
+    return false;
   }
 
   public static ReactionDocument<Doc.N, Doc.E, Doc.T> getIfPresent(ConversationBlip blip) {

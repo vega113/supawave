@@ -9,6 +9,19 @@ GCLOUD_HOSTED_LOGS_ID=${GCLOUD_HOSTED_LOGS_ID:-}
 GCLOUD_RW_API_KEY=${GCLOUD_RW_API_KEY:-}
 GCLOUD_SCRAPE_INTERVAL=${GCLOUD_SCRAPE_INTERVAL:-60s}
 WAVE_LOG_PATH=${WAVE_LOG_PATH:-/home/*/supawave/shared/logs/wave-json*.log}
+WAVE_TIMESTAMP_FORMAT=${WAVE_TIMESTAMP_FORMAT:-RFC3339Nano}
+
+if [[ "$WAVE_TIMESTAMP_FORMAT" =~ [[:cntrl:]] ]]; then
+  echo "Invalid WAVE_TIMESTAMP_FORMAT: contains control characters" >&2; exit 1
+fi
+
+case "$WAVE_TIMESTAMP_FORMAT" in
+  RFC3339Nano|RFC3339|Unix|UnixMs|UnixUs|UnixNs) ;;
+  *[\"\'\\$\`]*)
+    echo "Invalid WAVE_TIMESTAMP_FORMAT: $WAVE_TIMESTAMP_FORMAT (contains unsafe characters)" >&2; exit 1 ;;
+  "") echo "WAVE_TIMESTAMP_FORMAT must not be empty" >&2; exit 1 ;;
+  *) ;;  # Allow custom Go time layouts (e.g. "2006-01-02T15:04:05Z07:00")
+esac
 
 required=(
   GCLOUD_HOSTED_METRICS_URL
@@ -24,6 +37,22 @@ for key in "${required[@]}"; do
     exit 1
   fi
 done
+
+echo "[grafana-alloy] Configuring Loki shipping for Wave JSON logs"
+echo "[grafana-alloy]   tail path: $WAVE_LOG_PATH"
+echo "[grafana-alloy]   timestamp format: $WAVE_TIMESTAMP_FORMAT"
+
+matched_wave_logs=()
+while IFS= read -r matched_log; do
+  matched_wave_logs+=("$matched_log")
+done < <(compgen -G "$WAVE_LOG_PATH" || true)
+
+if ((${#matched_wave_logs[@]} > 0)); then
+  echo "[grafana-alloy]   currently matched files:"
+  printf '  %s\n' "${matched_wave_logs[@]}"
+else
+  echo "[grafana-alloy]   warning: no files currently match $WAVE_LOG_PATH"
+fi
 
 sudo bash -c "cat > '$CONFIG_PATH' <<EOF
 prometheus.exporter.self \"alloy_check\" { }
@@ -211,7 +240,7 @@ loki.process \"supawave_logs\" {
 
   stage.timestamp {
     source = \"timestamp\"
-    format = \"2006-01-02T15:04:05.000Z07:00\"
+    format = \"$WAVE_TIMESTAMP_FORMAT\"
   }
 }
 
@@ -226,3 +255,8 @@ sudo chmod 0640 "$CONFIG_PATH"
 
 sudo systemctl restart alloy.service
 sudo systemctl status --no-pager alloy.service
+
+if command -v logger >/dev/null 2>&1; then
+  logger -t grafana-alloy-config -- \
+    "Loki shipping enabled; tail path=$WAVE_LOG_PATH timestamp_format=$WAVE_TIMESTAMP_FORMAT" || true
+fi

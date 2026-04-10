@@ -54,6 +54,7 @@ import org.waveprotocol.wave.client.widget.popup.PopupEventSourcer;
 import org.waveprotocol.wave.client.widget.popup.PopupFactory;
 import org.waveprotocol.wave.client.widget.popup.UniversalPopup;
 import org.waveprotocol.wave.media.model.AttachmentId;
+import org.waveprotocol.wave.model.util.AttachmentUploadMobileSupport;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -291,6 +292,11 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   private String uploadDisplaySize = "medium";
   private boolean uploadCompressionEnabled = true;
   private int nextStoreIndex = 0;
+  private boolean awaitingFileSelection = false;
+  private Timer fileSelectionRecoveryTimer;
+  private int selectionNonce = 0;
+  private int processedNonce = -1;
+  private int fileCountAtArmTime = 0;
 
   public AttachmentPopupWidget() {
     initWidget(BINDER.createAndBindUi(this));
@@ -311,6 +317,10 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
       @Override
       public void onClick(ClickEvent event) {
         if (isUploading) return;
+        selectionNonce++;
+        fileCountAtArmTime = getNativeFileCount(fileUpload.getElement());
+        awaitingFileSelection = true;
+        armFileSelectionRecovery();
         nativeClickFileInput(fileUpload.getElement());
       }
     }, ClickEvent.getType());
@@ -319,6 +329,10 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
       @Override
       public void onClick(ClickEvent event) {
         if (isUploading) return;
+        selectionNonce++;
+        fileCountAtArmTime = getNativeFileCount(fileUpload.getElement());
+        awaitingFileSelection = true;
+        armFileSelectionRecovery();
         nativeClickFileInput(fileUpload.getElement());
       }
     });
@@ -326,13 +340,14 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     fileUpload.addChangeHandler(new ChangeHandler() {
       @Override
       public void onChange(ChangeEvent event) {
-        onFilesSelected();
+        onFilesSelected(selectionNonce);
       }
     });
 
     cancelBtn.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
+        stopFileSelectionRecovery();
         hide();
       }
     });
@@ -400,8 +415,17 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   //  File selection & preview
   // ─────────────────────────────────────────────
 
-  private void onFilesSelected() {
+  /** Called from JSNI drag-drop handler to give each drop its own nonce. */
+  private void bumpSelectionNonce() {
+    selectionNonce++;
+  }
+
+  private void onFilesSelected(int nonce) {
     if (isUploading) return;
+    if (processedNonce == nonce) return;
+    processedNonce = nonce;
+    awaitingFileSelection = false;
+    stopFileSelectionRecovery();
     int added = appendFilesToStore(fileUpload.getElement());
     int startIndex = nextStoreIndex;
     nextStoreIndex += added;
@@ -666,7 +690,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
   // ─────────────────────────────────────────────
 
   private static boolean isImageMime(String mime) {
-    return mime != null && mime.startsWith("image/");
+    return AttachmentUploadMobileSupport.isImageMime(mime);
   }
 
   private static boolean isImageFileName(String name) {
@@ -759,6 +783,39 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     el.click();
   }-*/;
 
+  private void maybeRecoverFileSelection() {
+    if (AttachmentUploadMobileSupport.shouldRecoverSelection(awaitingFileSelection,
+        isUploading, getNativeFileCount(fileUpload.getElement()), fileCountAtArmTime)) {
+      onFilesSelected(selectionNonce);
+    }
+  }
+
+  private void armFileSelectionRecovery() {
+    stopFileSelectionRecovery();
+    fileSelectionRecoveryTimer = new Timer() {
+      private int attempts;
+
+      @Override
+      public void run() {
+        attempts++;
+        maybeRecoverFileSelection();
+        if (!awaitingFileSelection || attempts >= 240) {
+          awaitingFileSelection = false;
+          cancel();
+          fileSelectionRecoveryTimer = null;
+        }
+      }
+    };
+    fileSelectionRecoveryTimer.scheduleRepeating(250);
+  }
+
+  private void stopFileSelectionRecovery() {
+    if (fileSelectionRecoveryTimer != null) {
+      fileSelectionRecoveryTimer.cancel();
+      fileSelectionRecoveryTimer = null;
+    }
+  }
+
   /** Initializes (or resets) the JS-side file store on this instance. */
   private native void initFileStore() /*-{
     this._fileStore = [];
@@ -776,6 +833,10 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
         this._fileStore.push(files[i]);
     }
     return files.length;
+  }-*/;
+
+  private static native int getNativeFileCount(Element fileInput) /*-{
+    return (fileInput.files && fileInput.files.length) ? fileInput.files.length : 0;
   }-*/;
 
   private native String getStoreFileName(int index) /*-{
@@ -903,6 +964,7 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
           var dt = new $wnd.DataTransfer();
           for (var i = 0; i < files.length; i++) dt.items.add(files[i]);
           fileInputEl.files = dt.files;
+          self.@org.waveprotocol.wave.client.wavepanel.impl.toolbar.attachment.AttachmentPopupWidget::bumpSelectionNonce()();
           var evt = $doc.createEvent('HTMLEvents');
           evt.initEvent('change', true, false);
           fileInputEl.dispatchEvent(evt);
@@ -939,6 +1001,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
     isUploading = false;
     batchFailed = false;
     nextStoreIndex = 0;
+    awaitingFileSelection = false;
+    stopFileSelectionRecovery();
     initFileStore();
     updateUploadButton();
     spinnerPanel.setVisible(false);
@@ -956,6 +1020,8 @@ public final class AttachmentPopupWidget extends Composite implements Attachment
 
   @Override
   public void hide() {
+    awaitingFileSelection = false;
+    stopFileSelectionRecovery();
     popup.hide();
   }
 

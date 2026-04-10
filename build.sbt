@@ -41,8 +41,8 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   val underJakarta = p.contains("/wave/src/jakarta-overrides/java/")
 
   // --- Exact excludes under src/main/java (Gradle mainExactExcludes, lines 283-332) ---
-  // These files have Jakarta replacements in src/jakarta-overrides/java.
-  val mainExactExcludes: Set[String] = Set(
+  // These files have active Jakarta replacements in src/jakarta-overrides/java.
+  val mainJakartaOverrideExcludes: Set[String] = Set(
     "org/waveprotocol/box/server/rpc/ServerRpcProvider.java",
     "org/waveprotocol/box/server/ServerModule.java",
     "org/waveprotocol/box/server/StatModule.java",
@@ -53,9 +53,7 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/robots/RobotRegistrationServlet.java",
     "org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java",
     "org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java",
-    "org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java",
     "org/waveprotocol/box/server/robots/dataapi/DataApiOperationServiceRegistry.java",
-    "org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java",
     "org/waveprotocol/box/server/robots/active/ActiveApiServlet.java",
     "org/waveprotocol/box/server/robots/active/ActiveApiOperationServiceRegistry.java",
     "org/waveprotocol/box/server/robots/passive/RobotConnector.java",
@@ -68,7 +66,6 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/authentication/SessionManagerImpl.java",
     "org/waveprotocol/box/server/rpc/AttachmentServlet.java",
     "org/waveprotocol/box/server/rpc/SearchServlet.java",
-    "org/waveprotocol/box/server/rpc/GadgetProviderServlet.java",
     "org/waveprotocol/box/server/rpc/AttachmentInfoServlet.java",
     "org/waveprotocol/box/server/rpc/FetchServlet.java",
     "org/waveprotocol/box/server/rpc/FetchProfilesServlet.java",
@@ -82,16 +79,6 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java",
     "org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java",
     "com/google/wave/api/AbstractRobot.java",
-    "com/google/wave/api/WaveService.java",
-    "org/waveprotocol/box/expimp/Console.java",
-    "org/waveprotocol/box/expimp/DeltaParser.java",
-    "org/waveprotocol/box/expimp/DomainConverter.java",
-    "org/waveprotocol/box/expimp/FileNames.java",
-    "org/waveprotocol/box/expimp/OAuth.java",
-    "org/waveprotocol/box/expimp/WaveImport.java",
-    "org/waveprotocol/box/expimp/WaveExport.java",
-    "org/waveprotocol/box/server/util/OAuthUtil.java",
-    "org/waveprotocol/box/server/util/RegistrationUtil.java",
     "org/waveprotocol/box/server/stat/RequestScopeFilter.java",
     "org/waveprotocol/box/server/stat/TimingFilter.java",
     // Security filters with Jakarta overrides (resolve "Multiple sources matched" warnings)
@@ -104,6 +91,20 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/rpc/PublicWaveFetchServlet.java"
   )
 
+  // Legacy main-tree files intentionally kept out of the Jakarta/SBT compile surface.
+  // These do not currently have same-path Jakarta replacements.
+  val mainLegacyCompileExcludes: Set[String] = Set(
+    "com/google/wave/api/WaveService.java",
+    "org/waveprotocol/box/expimp/Console.java",
+    "org/waveprotocol/box/expimp/DeltaParser.java",
+    "org/waveprotocol/box/expimp/DomainConverter.java",
+    "org/waveprotocol/box/expimp/FileNames.java",
+    "org/waveprotocol/box/expimp/OAuth.java",
+    "org/waveprotocol/box/expimp/WaveImport.java",
+    "org/waveprotocol/box/expimp/WaveExport.java",
+    "org/waveprotocol/box/server/util/RegistrationUtil.java"
+  )
+
   // --- Directory-level excludes under src/main/java (Gradle lines 334-337) ---
   val mainDirExcluded = underMain && (
     p.contains("/com/google/wave/api/oauth/") ||
@@ -112,14 +113,14 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   )
 
   // Jakarta mode: apply full Gradle exclusion list
-  val mainFileExcluded = underMain && mainExactExcludes.exists(suffix => p.endsWith("/" + suffix))
+  val mainFileExcluded = underMain && (
+    mainJakartaOverrideExcludes.exists(suffix => p.endsWith("/" + suffix)) ||
+    mainLegacyCompileExcludes.exists(suffix => p.endsWith("/" + suffix))
+  )
 
   // --- Exact excludes under src/jakarta-overrides/java (Gradle lines 341-349) ---
   val jakartaExactExcludes: Set[String] = Set(
-    "org/waveprotocol/box/server/robots/RobotApiModule.java",
-    "org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java",
-    "org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java",
-    "org/waveprotocol/box/server/robots/util/JakartaHttpRequestMessage.java"
+    "org/waveprotocol/box/server/robots/RobotApiModule.java"
   )
 
   val jakartaFileExcluded = underJakarta && jakartaExactExcludes.exists(suffix => p.endsWith("/" + suffix))

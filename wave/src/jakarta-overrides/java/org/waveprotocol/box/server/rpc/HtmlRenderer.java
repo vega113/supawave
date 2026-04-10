@@ -2018,7 +2018,9 @@ public final class HtmlRenderer {
     sb.append("    if (banner) banner.style.display = \"none\";\n");
     sb.append("  } else if (rt == RESPONSE_STATUS_FAILED) {\n");
     sb.append("    if (lbl) { lbl.style.display = \"block\"; lbl.className = \"msg error\"; lbl.textContent = msg; }\n");
+    sb.append("    if (banner) banner.style.display = \"none\";\n");
     sb.append("  } else if (rt == RESPONSE_STATUS_SUCCESS) {\n");
+    sb.append("    if (lbl) { lbl.style.display = \"none\"; lbl.textContent = \"\"; }\n");
     sb.append("    if (banner) {\n");
     sb.append("      banner.style.display = \"block\";\n");
     sb.append("      var copy = banner.querySelector('p');\n");
@@ -4432,7 +4434,7 @@ public final class HtmlRenderer {
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
     sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<title>Check Your Inbox - SupaWave</title>\n");
+    sb.append("<title>Activation required - SupaWave</title>\n");
     sb.append(AUTH_CSS);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body>\n");

@@ -55,6 +55,7 @@ import org.waveprotocol.wave.util.escapers.PercentEscaper;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.io.Reader;
 import java.io.StringReader;
 import java.time.Clock;
@@ -237,12 +238,15 @@ public class AuthenticationServletTest extends TestCase {
     when(req.getServerName()).thenReturn("wave.example.com");
     when(req.getServerPort()).thenReturn(443);
     when(req.getRemoteAddr()).thenReturn("198.51.100.7");
-    PrintWriter writer = mock(PrintWriter.class);
-    when(resp.getWriter()).thenReturn(writer);
+    StringWriter body = new StringWriter();
+    when(resp.getWriter()).thenReturn(new PrintWriter(body));
 
     servlet.doPost(req, resp);
 
     verify(resp).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    assertTrue(body.toString().contains("Check your inbox"));
+    assertTrue(body.toString().contains("activation email"));
+    assertFalse(body.toString().contains("incorrect"));
     verify(mailProvider).sendEmail(eq("frodo@example.com"),
         eq("Confirm your Wave account"), contains("confirm-token"));
     verify(manager, never()).setLoggedInUser(Mockito.any(), Mockito.any());

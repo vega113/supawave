@@ -63,6 +63,8 @@ public class EmailConfirmServletTest extends TestCase {
 
     verify(resp).setStatus(HttpServletResponse.SC_OK);
     assertTrue(accountStore.getAccount(USER).asHuman().isEmailConfirmed());
+    assertTrue(body.toString().contains("Ready to sign in"));
+    assertTrue(body.toString().contains("Go to Sign In"));
     verify(welcomeWaveCreator).createWelcomeWave(USER);
   }
 

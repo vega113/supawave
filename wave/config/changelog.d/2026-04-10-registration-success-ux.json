@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-10-registration-success-ux",
+  "version": "PR #795",
+  "date": "2026-04-10",
+  "title": "Registration Success Guidance",
+  "summary": "Registration now guides you into sign-in or email activation with clearer next steps instead of leaving you on the signup form.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Successful direct registrations now send you to sign-in with a clear account-created state",
+        "Email-confirmation registrations now open a dedicated check-your-inbox page with the activation steps",
+        "Trying to sign in before activation now shows an action-required state instead of looking like bad credentials"
+      ]
+    }
+  ]
+}

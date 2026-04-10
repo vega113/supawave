@@ -94,6 +94,10 @@ public final class UserRegistrationServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    if ("1".equals(req.getParameter("check-email"))) {
+      writeCheckEmailPage(resp);
+      return;
+    }
     writeRegistrationPage("", AuthenticationServlet.RESPONSE_STATUS_NONE, resp);
   }
 
@@ -101,33 +105,40 @@ public final class UserRegistrationServlet extends HttpServlet {
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     req.setCharacterEncoding("UTF-8");
 
-    String message = null;
-    String responseType;
-    if (!registrationDisabled) {
-      message = tryCreateUser(
-          req.getParameter(HttpRequestBasedCallbackHandler.ADDRESS_FIELD),
-          req.getParameter(HttpRequestBasedCallbackHandler.PASSWORD_FIELD),
-          req.getParameter("email"),
-          req);
+    if (registrationDisabled) {
+      // Template renders its own "Registration disabled by administrator." paragraph.
+      resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+      writeRegistrationPage("", AuthenticationServlet.RESPONSE_STATUS_NONE, resp);
+      return;
     }
 
-    if (message != null || registrationDisabled) {
-      // Check if the message is actually a confirmation-pending success
-      if (message != null && message.startsWith("CONFIRM_PENDING:")) {
-        message = message.substring("CONFIRM_PENDING:".length());
-        resp.setStatus(HttpServletResponse.SC_OK);
-        responseType = AuthenticationServlet.RESPONSE_STATUS_SUCCESS;
-      } else {
-        resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        responseType = AuthenticationServlet.RESPONSE_STATUS_FAILED;
-      }
-    } else {
-      message = "Registration complete.";
-      resp.setStatus(HttpServletResponse.SC_OK);
-      responseType = AuthenticationServlet.RESPONSE_STATUS_SUCCESS;
+    String message = tryCreateUser(
+        req.getParameter(HttpRequestBasedCallbackHandler.ADDRESS_FIELD),
+        req.getParameter(HttpRequestBasedCallbackHandler.PASSWORD_FIELD),
+        req.getParameter("email"),
+        req);
+
+    if (message != null && message.startsWith("CONFIRM_PENDING:")) {
+      // Email confirmation required — PRG to check-email page
+      resp.sendRedirect("/auth/register?check-email=1");
+      return;
     }
 
-    writeRegistrationPage(message, responseType, resp);
+    if (message != null) {
+      // Validation or server error — re-render form with error
+      resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+      writeRegistrationPage(message, AuthenticationServlet.RESPONSE_STATUS_FAILED, resp);
+      return;
+    }
+
+    // Direct registration success — PRG to sign-in with success banner
+    resp.sendRedirect("/auth/signin?registered=1");
+  }
+
+  private void writeCheckEmailPage(HttpServletResponse dest) throws IOException {
+    dest.setCharacterEncoding("UTF-8");
+    dest.setContentType("text/html;charset=utf-8");
+    dest.getWriter().write(HtmlRenderer.renderCheckEmailPage(domain, analyticsAccount));
   }
 
   private String tryCreateUser(String username, String password, String email,

@@ -75,6 +75,7 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String CAPABILITIES_VERSION_FIELD = "version";
   private static final String CAPABILITIES_HASH_FIELD = "capabilitiesHash";
   private static final String CAPABILITIES_CAPABILITIES_FIELD = "capabilities";
+  private static final String CAPABILITIES_RPC_SERVER_URL_FIELD = "rpcServerUrl";
   private static final String CAPABILITY_CONTEXTS_FIELD = "contexts";
   private static final String CAPABILITY_FILTER_FIELD = "filter";
 
@@ -379,7 +380,8 @@ final class Mongo4AccountStore implements AccountStore {
     return new Document()
         .append(CAPABILITIES_CAPABILITIES_FIELD, capsMap)
         .append(CAPABILITIES_HASH_FIELD, caps.getCapabilitiesHash())
-        .append(CAPABILITIES_VERSION_FIELD, caps.getProtocolVersion().name());
+        .append(CAPABILITIES_VERSION_FIELD, caps.getProtocolVersion().name())
+        .append(CAPABILITIES_RPC_SERVER_URL_FIELD, caps.getRpcServerUrl());
   }
 
   private static AccountData objectToRobot(ParticipantId id, Document robot) {
@@ -419,6 +421,7 @@ final class Mongo4AccountStore implements AccountStore {
     }
     String hash = (String) obj.get(CAPABILITIES_HASH_FIELD);
     ProtocolVersion ver = ProtocolVersion.valueOf((String) obj.get(CAPABILITIES_VERSION_FIELD));
-    return new RobotCapabilities(map, hash, ver);
+    String rpcServerUrl = (String) obj.get(CAPABILITIES_RPC_SERVER_URL_FIELD);
+    return new RobotCapabilities(map, hash, ver, rpcServerUrl != null ? rpcServerUrl : "");
   }
 }

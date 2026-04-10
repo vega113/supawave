@@ -76,7 +76,7 @@ public class RobotsGateway implements WaveBus.Subscriber {
   private final Executor executor;
   private final ConversationUtil conversationUtil;
   private final NotifyOperationService notifyOpService;
-  private final String rpcServerUrl;
+  private final String defaultRpcServerUrl;
 
   @Inject
   @VisibleForTesting
@@ -91,7 +91,7 @@ public class RobotsGateway implements WaveBus.Subscriber {
     this.executor = executor;
     this.conversationUtil = conversationUtil;
     this.notifyOpService = notifyOpService;
-    this.rpcServerUrl = PublicBaseUrlResolver.resolve(config) + DATA_API_RPC_PATH;
+    this.defaultRpcServerUrl = PublicBaseUrlResolver.resolve(config) + DATA_API_RPC_PATH;
   }
 
   @Override
@@ -184,12 +184,16 @@ public class RobotsGateway implements WaveBus.Subscriber {
    *        {@link RobotName}.
    */
   private Robot createNewRobot(RobotName robotName, RobotAccountData account) {
-    EventGenerator eventGenerator = new EventGenerator(robotName, conversationUtil, rpcServerUrl);
+    EventGenerator eventGenerator = new EventGenerator(robotName, conversationUtil);
     RobotOperationApplicator operationApplicator =
         new RobotOperationApplicator(converterManager, waveletProvider,
             new OperationServiceRegistryImpl(notifyOpService), conversationUtil);
     return new Robot(robotName, account, this, connector, converterManager, waveletProvider,
         eventGenerator, operationApplicator);
+  }
+
+  String getDefaultRpcServerUrl() {
+    return defaultRpcServerUrl;
   }
 
   /**
@@ -246,9 +250,7 @@ public class RobotsGateway implements WaveBus.Subscriber {
    */
   public void updateRobotAccount(Robot robot) throws CapabilityFetchException,
       PersistenceException {
-    // TODO: Pass in activeAPIUrl
-    String activeApiUrl = "";
-    RobotAccountData newAccount = connector.fetchCapabilities(robot.getAccount(), activeApiUrl);
+    RobotAccountData newAccount = connector.fetchCapabilities(robot.getAccount(), defaultRpcServerUrl);
     accountStore.putAccount(newAccount);
     robot.setAccount(newAccount);
   }

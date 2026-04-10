@@ -493,22 +493,16 @@ public class EventGenerator {
 
   private final ParticipantId robotId;
 
-  /** The server's Data API RPC endpoint URL sent to robots so they know where to call back. */
-  private final String rpcServerUrl;
-
   /**
    * Constructs a new {@link EventGenerator} for the robot with the given name.
    *
    * @param robotName the name of the robot.
    * @param conversationUtil used to create conversations.
-   * @param rpcServerUrl the server's Data API RPC endpoint URL.
    */
-  public EventGenerator(RobotName robotName, ConversationUtil conversationUtil,
-      String rpcServerUrl) {
+  public EventGenerator(RobotName robotName, ConversationUtil conversationUtil) {
     this.robotName = robotName;
     this.conversationUtil = conversationUtil;
     this.robotId = ParticipantId.ofUnsafe(robotName.toParticipantAddress());
-    this.rpcServerUrl = rpcServerUrl;
   }
 
   /**
@@ -518,10 +512,13 @@ public class EventGenerator {
    * @param capabilities the capabilities to filter events on
    * @param converter converter for generating the API implementations of
    *        WaveletData and BlipData.
-   * @returns true if an event was generated, false otherwise
+   * @param rpcServerUrl the server RPC endpoint the robot should use for
+   *        follow-up JSON-RPC calls.
+   * @return the event message bundle containing all generated events
    */
   public EventMessageBundle generateEvents(WaveletAndDeltas waveletAndDeltas,
-      Map<EventType, Capability> capabilities, EventDataConverter converter) {
+      Map<EventType, Capability> capabilities, EventDataConverter converter,
+      String rpcServerUrl) {
     EventMessageBundle messages = new EventMessageBundle(robotName.toEmailAddress(), rpcServerUrl);
     ObservableWaveletData snapshot =
         WaveletDataUtil.copyWavelet(waveletAndDeltas.getSnapshotBeforeDeltas());

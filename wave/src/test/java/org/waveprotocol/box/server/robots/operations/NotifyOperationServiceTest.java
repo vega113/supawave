@@ -35,6 +35,7 @@ import com.google.wave.api.ProtocolVersion;
 import com.google.wave.api.event.EventType;
 import com.google.wave.api.robot.Capability;
 import com.google.wave.api.robot.CapabilityFetchException;
+import com.typesafe.config.Config;
 import junit.framework.TestCase;
 import org.waveprotocol.box.server.account.AccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
@@ -75,7 +76,9 @@ public class NotifyOperationServiceTest extends TestCase {
     accountStore = mock(AccountStore.class);
     context = mock(OperationContext.class);
     capabilityFetcher = new RecordingRobotCapabilityFetcher();
-    operationService = new NotifyOperationService(accountStore, capabilityFetcher);
+    Config config = mock(Config.class);
+    when(config.hasPath(anyString())).thenReturn(false);
+    operationService = new NotifyOperationService(accountStore, capabilityFetcher, config);
 
     when(accountStore.getAccount(ROBOT)).thenReturn(ROBOT_ACCOUNT);
   }

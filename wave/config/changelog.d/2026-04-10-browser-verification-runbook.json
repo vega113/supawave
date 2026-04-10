@@ -1,0 +1,19 @@
+{
+  "releaseId": "2026-04-10-browser-verification-runbook",
+  "version": "PR #586",
+  "date": "2026-04-10",
+  "title": "Standardized Browser Verification Runbooks",
+  "summary": "Adds a browser-verification runbook and change-type matrix so agent lanes know when curl/smoke is enough and when a real browser pass is required, without introducing a new browser framework.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Add docs/runbooks/browser-verification.md: defines the default UI-affecting verification path built on the existing wave-smoke-ui.sh and worktree-boot.sh + wave-smoke.sh baseline",
+        "Add docs/runbooks/change-type-verification-matrix.md: decision matrix covering server-only, servlet/auth, GWT client/UI, packaging, and deployment-only change types",
+        "Update docs/runbooks/worktree-lane-lifecycle.md: step 7 cross-links to the new browser-verification and change-type matrix runbooks",
+        "Update docs/SMOKE_TESTS.md: adds browser-verification baseline section pointing to the new runbooks",
+        "Update docs/runbooks/README.md: indexes the two new runbooks under Local Development"
+      ]
+    }
+  ]
+}

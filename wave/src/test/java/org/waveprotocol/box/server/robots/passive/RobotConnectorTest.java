@@ -59,6 +59,24 @@ public class RobotConnectorTest extends TestCase {
           + CAPABILITIES_HASH + "</w:version> " + "<w:protocolversion>0.22</w:protocolversion> "
           + "<w:capabilities> " + "<w:capability name=\"OPERATION_ERROR\"/> "
           + "<w:capability name=\"WAVELET_SELF_ADDED\"/> " + "</w:capabilities>" + "</w:robot> ";
+  private static final String TWO_LEGGED_CAPABILITIES_XML =
+      "<w:robot xmlns:w=\"http://wave.google.com/extensions/robots/1.0\">"
+          + "<w:version>" + CAPABILITIES_HASH + "</w:version>"
+          + "<w:protocolversion>0.22</w:protocolversion>"
+          + "<w:capabilities><w:capability name=\"WAVELET_SELF_ADDED\"/></w:capabilities>"
+          + "<w:consumer_keys>"
+          + "<w:consumer_key for=\"https://wave.example.com/robot/rpc\">test@example.com</w:consumer_key>"
+          + "</w:consumer_keys>"
+          + "</w:robot>";
+  private static final String THREE_LEGGED_CAPABILITIES_XML =
+      "<w:robot xmlns:w=\"http://wave.google.com/extensions/robots/1.0\">"
+          + "<w:version>" + CAPABILITIES_HASH + "</w:version>"
+          + "<w:protocolversion>0.22</w:protocolversion>"
+          + "<w:capabilities><w:capability name=\"WAVELET_SELF_ADDED\"/></w:capabilities>"
+          + "<w:consumer_keys>"
+          + "<w:consumer_key for=\"https://wave.example.com/robot/dataapi/rpc\">test@example.com</w:consumer_key>"
+          + "</w:consumer_keys>"
+          + "</w:robot>";
   private static final ProtocolVersion PROTOCOL_VERSION = ProtocolVersion.DEFAULT;
   private static final String ROBOT_ACCOUNT_NAME = "test@example.com";
   private static final String TEST_URL = "www.example.com/robot";
@@ -222,6 +240,29 @@ public class RobotConnectorTest extends TestCase {
     assertEquals("Expected protocol version as specified in the xml", ProtocolVersion.V2_2,
         capabilities.getProtocolVersion());
     verify(connection).get(ABSOLUTE_CAPABILITIES_ENDPOINT);
+  }
+
+  public void testFetchCapabilitiesPrefersRobotRpcWhenCapabilitiesAdvertiseTwoLeggedOauth()
+      throws Exception {
+    when(connection.get(TEST_CAPABILITIES_ENDPOINT)).thenReturn(TWO_LEGGED_CAPABILITIES_XML);
+
+    RobotAccountData accountData =
+        connector.fetchCapabilities(ROBOT_ACCOUNT, "https://wave.example.com/robot/rpc");
+
+    assertEquals("Expected two-legged passive robots to advertise the active RPC endpoint",
+        "https://wave.example.com/robot/rpc", accountData.getCapabilities().getRpcServerUrl());
+  }
+
+  public void testFetchCapabilitiesFallsBackToDataApiRpcWhenOnlyThreeLeggedOauthIsAdvertised()
+      throws Exception {
+    when(connection.get(TEST_CAPABILITIES_ENDPOINT)).thenReturn(THREE_LEGGED_CAPABILITIES_XML);
+
+    RobotAccountData accountData =
+        connector.fetchCapabilities(ROBOT_ACCOUNT, "https://wave.example.com/robot/rpc");
+
+    assertEquals("Expected three-legged passive robots to advertise the Data API RPC endpoint",
+        "https://wave.example.com/robot/dataapi/rpc",
+        accountData.getCapabilities().getRpcServerUrl());
   }
 
   public void testFetchCapabilitiesPreservesAbsoluteBasePathWithoutRpcEndpoint()

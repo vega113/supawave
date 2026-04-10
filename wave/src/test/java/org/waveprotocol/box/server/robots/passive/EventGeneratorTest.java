@@ -133,7 +133,7 @@ public class EventGeneratorTest extends RobotsTestBase {
   @Override
   protected void setUp() throws Exception {
     conversationUtil = new ConversationUtil(FakeIdGenerator.create());
-    eventGenerator = new EventGenerator(ROBOT_NAME, conversationUtil, TEST_RPC_SERVER_URL);
+    eventGenerator = new EventGenerator(ROBOT_NAME, conversationUtil);
 
     waveletData = WaveletDataImpl.Factory.create(DOCUMENT_FACTORY).create(
         new EmptyWaveletSnapshot(WAVELET_NAME.waveId, WAVELET_NAME.waveletId, ALEX,
@@ -167,7 +167,7 @@ public class EventGeneratorTest extends RobotsTestBase {
         WaveletAndDeltas.create(waveletData, DeltaSequence.of(delta));
 
     EventMessageBundle bundle =
-        eventGenerator.generateEvents(waveletAndDeltas, ALL_CAPABILITIES, CONVERTER);
+        generateEvents(waveletAndDeltas, ALL_CAPABILITIES);
 
     assertEquals("rpcServerUrl must be populated in the event bundle",
         TEST_RPC_SERVER_URL, bundle.getRpcServerUrl());
@@ -390,7 +390,7 @@ public class EventGeneratorTest extends RobotsTestBase {
     capabilities.put(EventType.BLIP_EDITING_DONE, new Capability(EventType.BLIP_EDITING_DONE));
 
     EventMessageBundle messages =
-        eventGenerator.generateEvents(waveletAndDeltas, capabilities, CONVERTER);
+        generateEvents(waveletAndDeltas, capabilities);
 
     for (Event event : messages.getEvents()) {
       assertFalse("BLIP_EDITING_DONE must not fire while editing is in progress",
@@ -435,7 +435,7 @@ public class EventGeneratorTest extends RobotsTestBase {
     capabilities.put(EventType.BLIP_EDITING_DONE, new Capability(EventType.BLIP_EDITING_DONE));
 
     EventMessageBundle messages =
-        eventGenerator.generateEvents(waveletAndDeltas, capabilities, CONVERTER);
+        generateEvents(waveletAndDeltas, capabilities);
 
     for (Event event : messages.getEvents()) {
       assertFalse("BLIP_EDITING_DONE must not fire when any session is still active",
@@ -480,7 +480,7 @@ public class EventGeneratorTest extends RobotsTestBase {
     capabilities.put(EventType.BLIP_EDITING_DONE, new Capability(EventType.BLIP_EDITING_DONE));
 
     EventMessageBundle messages =
-        eventGenerator.generateEvents(waveletAndDeltas, capabilities, CONVERTER);
+        generateEvents(waveletAndDeltas, capabilities);
 
     boolean found = false;
     for (Event event : messages.getEvents()) {
@@ -689,14 +689,14 @@ public class EventGeneratorTest extends RobotsTestBase {
 
     // Generate the events
     EventMessageBundle messages =
-        eventGenerator.generateEvents(waveletAndDeltas, capabilities, CONVERTER);
+        generateEvents(waveletAndDeltas, capabilities);
 
     // Check that the event was generated and that no other types were generated
     checkEventTypeWasGenerated(messages, eventType);
     checkAllEventsAreInCapabilites(messages, capabilities);
 
     // Generate events with all capabilities
-    messages = eventGenerator.generateEvents(waveletAndDeltas, ALL_CAPABILITIES, CONVERTER);
+    messages = generateEvents(waveletAndDeltas, ALL_CAPABILITIES);
     checkEventTypeWasGenerated(messages, eventType);
 
     return messages;
@@ -742,8 +742,14 @@ public class EventGeneratorTest extends RobotsTestBase {
     Map<EventType, Capability> capabilities = ALL_CAPABILITIES;
     // Generate the events
     EventMessageBundle messages =
-        eventGenerator.generateEvents(waveletAndDeltas, capabilities, CONVERTER);
+        generateEvents(waveletAndDeltas, capabilities);
     return messages;
+  }
+
+  private EventMessageBundle generateEvents(WaveletAndDeltas waveletAndDeltas,
+      Map<EventType, Capability> capabilities) {
+    return eventGenerator.generateEvents(
+        waveletAndDeltas, capabilities, CONVERTER, TEST_RPC_SERVER_URL);
   }
 
   /**

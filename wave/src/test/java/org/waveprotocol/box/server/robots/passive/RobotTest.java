@@ -82,6 +82,8 @@ public class RobotTest extends TestCase {
   private static final ParticipantId ALEX = ParticipantId.ofUnsafe("alex@example.com");
   private static final RobotName ROBOT_NAME = RobotName.fromAddress("robot@example.com");
   private static final ParticipantId ROBOT = ParticipantId.ofUnsafe(ROBOT_NAME.toEmailAddress());
+  private static final String ACTIVE_RPC_SERVER_URL = "https://wave.example.com/robot/rpc";
+  private static final String DATA_API_RPC_SERVER_URL = "https://wave.example.com/robot/dataapi/rpc";
   private static final RobotAccountData ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", null, true);
   private static final RobotAccountData STALE_ACCOUNT =
@@ -89,8 +91,12 @@ public class RobotTest extends TestCase {
           0L, 10L, false);
   private static final RobotAccountData INITIALIZED_ACCOUNT =
       new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", new RobotCapabilities(
-          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT), true, 0L,
-          null, "", 0L, 20L, false);
+          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT,
+          ACTIVE_RPC_SERVER_URL), true, 0L, null, "", 0L, 20L, false);
+  private static final RobotAccountData THREE_LEGGED_ACCOUNT =
+      new RobotAccountDataImpl(ROBOT, "www.example.com", "secret", new RobotCapabilities(
+          Maps.<EventType, Capability> newHashMap(), "fake", ProtocolVersion.DEFAULT,
+          DATA_API_RPC_SERVER_URL), true, 0L, null, "", 0L, 30L, false);
 
   private RobotsGateway gateway;
   private RobotConnector connector;
@@ -127,7 +133,8 @@ public class RobotTest extends TestCase {
     // Generate no events on default
     EventMessageBundle emptyMessageBundle = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
     when(eventGenerator.generateEvents(
-        any(WaveletAndDeltas.class), anyMap(), any(EventDataConverter.class))).thenReturn(
+        any(WaveletAndDeltas.class), anyMap(), any(EventDataConverter.class), any(String.class)))
+        .thenReturn(
         emptyMessageBundle);
   }
 
@@ -237,7 +244,7 @@ public class RobotTest extends TestCase {
     EventMessageBundle messages = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
     messages.addEvent(new DocumentChangedEvent(null, null, ALEX.getAddress(), 0L, "b+1234"));
     when(eventGenerator.generateEvents(
-        any(), anyMap(), any())).thenReturn(messages);
+        any(), anyMap(), any(), any(String.class))).thenReturn(messages);
 
     OperationRequest op = new OperationRequest("wavelet.fetch", "op1");
     List<OperationRequest> ops = Collections.singletonList(op);
@@ -258,7 +265,7 @@ public class RobotTest extends TestCase {
     EventMessageBundle messages = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
     messages.addEvent(new DocumentChangedEvent(null, null, ALEX.getAddress(), 0L, "b+1234"));
     when(eventGenerator.generateEvents(
-        any(), anyMap(), any())).thenReturn(messages);
+        any(), anyMap(), any(), any(String.class))).thenReturn(messages);
 
     OperationRequest op = new OperationRequest("wavelet.fetch", "op1");
     List<OperationRequest> ops = Collections.singletonList(op);
@@ -276,6 +283,46 @@ public class RobotTest extends TestCase {
 
     verify(operationApplicator).applyOperations(
         eq(ops), any(ReadableWaveletData.class), any(HashedVersion.class), eq(INITIALIZED_ACCOUNT));
+  }
+
+  public void testProcessAdvertisesRobotRpcForTwoLeggedRobot() throws Exception {
+    EventMessageBundle messages = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
+    messages.addEvent(new DocumentChangedEvent(null, null, ALEX.getAddress(), 0L, "b+1234"));
+    when(eventGenerator.generateEvents(
+        any(), anyMap(), any(), eq(ACTIVE_RPC_SERVER_URL))).thenReturn(messages);
+    when(connector.sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class)))
+        .thenReturn(Collections.<OperationRequest>emptyList());
+
+    enqueueEmptyWavelet();
+    robot.run();
+
+    verify(eventGenerator).generateEvents(
+        any(), anyMap(), any(), eq(ACTIVE_RPC_SERVER_URL));
+  }
+
+  public void testProcessAdvertisesDataApiRpcForThreeLeggedRobot() throws Exception {
+    doAnswer(new Answer<Object>() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        robot.setAccount(THREE_LEGGED_ACCOUNT);
+        return null;
+      }
+    }).when(gateway).updateRobotAccount(robot);
+
+    EventMessageBundle messages = new EventMessageBundle(ROBOT_NAME.toEmailAddress(), "");
+    messages.addEvent(new DocumentChangedEvent(null, null, ALEX.getAddress(), 0L, "b+1234"));
+    when(eventGenerator.generateEvents(
+        any(), anyMap(), any(), eq(DATA_API_RPC_SERVER_URL))).thenReturn(messages);
+    when(connector.sendMessageBundle(
+        any(EventMessageBundle.class), eq(robot), any(ProtocolVersion.class)))
+        .thenReturn(Collections.<OperationRequest>emptyList());
+
+    enqueueEmptyWavelet();
+    robot.run();
+
+    verify(eventGenerator).generateEvents(
+        any(), anyMap(), any(), eq(DATA_API_RPC_SERVER_URL));
   }
 
   /**

@@ -57,6 +57,8 @@ public class RobotCapabilitiesParser {
   private static final String CONSUMER_KEYS_TAG = "consumer_keys";
   private static final String CONSUMER_KEY_TAG = "consumer_key";
   private static final String CONSUMER_KEY_FOR_ATTRIBUTE = "for";
+  private static final String ACTIVE_RPC_PATH = "/robot/rpc";
+  private static final String DATA_API_RPC_PATH = "/robot/dataapi/rpc";
 
   private final String capabilitiesXmlUrl;
 
@@ -69,6 +71,7 @@ public class RobotCapabilitiesParser {
   private ProtocolVersion protocolVersion;
 
   private String consumerKey;  // null if no consumer key
+  private String rpcServerUrl = "";
 
   private final String activeRobotApiUrl;
 
@@ -96,6 +99,10 @@ public class RobotCapabilitiesParser {
 
   public String getConsumerKey() {
     return consumerKey;
+  }
+
+  public String getRpcServerUrl() {
+    return rpcServerUrl;
   }
 
   private void parseRobotDescriptionXmlFile() throws CapabilityFetchException {
@@ -144,6 +151,15 @@ public class RobotCapabilitiesParser {
         String forUrl = consumerKeyElement.getAttributeValue(CONSUMER_KEY_FOR_ATTRIBUTE);
         if (forUrl != null && forUrl.equals(activeRobotApiUrl)) {
           consumerKey = consumerKeyElement.getText();
+        }
+        if (forUrl == null || forUrl.isEmpty()) {
+          continue;
+        }
+        // Prefer the 2-legged active endpoint when both are advertised.
+        if (forUrl.endsWith(ACTIVE_RPC_PATH)) {
+          rpcServerUrl = forUrl;
+        } else if (rpcServerUrl.isEmpty() && forUrl.endsWith(DATA_API_RPC_PATH)) {
+          rpcServerUrl = forUrl;
         }
       }
     } catch (IOException iox) {

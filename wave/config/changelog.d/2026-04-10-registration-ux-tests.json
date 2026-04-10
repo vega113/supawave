@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-registration-ux-tests",
+  "version": "PR #800",
+  "date": "2026-04-10",
+  "title": "Registration UX Test Coverage",
+  "summary": "Adds servlet-level regression tests for the PRG-based post-registration UX flow.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Added test coverage for GET /auth/signin?registered=1 rendering the account-created success banner",
+        "Added test coverage for GET /auth/register?check-email=1 rendering the check-your-inbox page"
+      ]
+    }
+  ]
+}

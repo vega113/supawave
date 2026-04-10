@@ -82,6 +82,11 @@
   border: 1px solid rgba(0, 119, 182, 0.25);
 }
 
+.enabled.down.compact > .overlay {
+  background-color: transparent;
+  border: none;
+}
+
 .enabled:hover > .overlay {
   background-color: rgba(0, 119, 182, 0.08);
 }

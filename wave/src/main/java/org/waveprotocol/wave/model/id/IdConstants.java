@@ -62,6 +62,9 @@ public interface IdConstants {
   /** Name of the data document that contains tags information. */
   public static final String TAGS_DOC_ID = "tags";
 
+  /** Prefix for per-blip reactions data documents. */
+  public static final String REACTION_DATA_DOCUMENT_PREFIX = "react";
+
   /** Prefix for ghost blip document ids. Ghost blips aren't rendered. */
   public static final String GHOST_BLIP_PREFIX = "g";
 

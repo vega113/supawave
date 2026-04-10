@@ -325,7 +325,8 @@ public class Robot implements Runnable {
   }
 
   private boolean needsCapabilityRefresh(RobotAccountData currentAccount) {
-    return currentAccount.getCapabilities() == null;
+    RobotCapabilities capabilities = currentAccount.getCapabilities();
+    return capabilities == null || capabilities.getRpcServerUrl().isEmpty();
   }
 
   private String resolveRpcServerUrl(RobotAccountData currentAccount) {

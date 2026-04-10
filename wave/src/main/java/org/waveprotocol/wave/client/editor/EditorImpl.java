@@ -638,8 +638,36 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
   private final EditorUpdateEventImpl updateEvent = new EditorUpdateEventImpl(this);
 
-  /** stored scrollTops used by maybeSave/RestoreAncestorScrollPositions */
-  private IdentityMap<Element, Integer> ancestorScrollTops;
+  /** Stored ancestor scroll positions used by maybeSave/RestoreAncestorScrollPositions. */
+  private AncestorScrollPositions<Element> ancestorScrollPositions;
+
+  private static final AncestorScrollPositions.Adapter<Element> ELEMENT_SCROLL_ADAPTER =
+      new AncestorScrollPositions.Adapter<Element>() {
+        @Override
+        public int getScrollTop(Element element) {
+          return element.getScrollTop();
+        }
+
+        @Override
+        public int getScrollLeft(Element element) {
+          return element.getScrollLeft();
+        }
+
+        @Override
+        public void setScrollTop(Element element, int scrollTop) {
+          element.setScrollTop(scrollTop);
+        }
+
+        @Override
+        public void setScrollLeft(Element element, int scrollLeft) {
+          element.setScrollLeft(scrollLeft);
+        }
+
+        @Override
+        public Element getParent(Element element) {
+          return element.getParentElement();
+        }
+      };
 
   // TODO(user): This class can be broken down further. Things like paste/dom
   // mutation extraction are not really application specific and can be handled
@@ -1907,22 +1935,14 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
   private void maybeSaveAncestorScrollPositions(Element e) {
     if (QuirksConstants.ADJUSTS_SCROLL_TOP_WHEN_FOCUSING) {
-      ancestorScrollTops = CollectionUtils.createIdentityMap();
-      while (e != null) {
-        ancestorScrollTops.put(e, e.getScrollTop());
-        e = e.getParentElement();
-      }
+      ancestorScrollPositions = AncestorScrollPositions.capture(e, ELEMENT_SCROLL_ADAPTER);
     }
   }
 
-  private void maybeRestoreAncestorScrollPositions(Element e) {
-    if (QuirksConstants.ADJUSTS_SCROLL_TOP_WHEN_FOCUSING && ancestorScrollTops != null) {
-      ancestorScrollTops.each(new IdentityMap.ProcV<Element, Integer>() {
-        public void apply(Element e, Integer i) {
-          e.setScrollTop(i);
-        }
-      });
-      ancestorScrollTops = null;
+  private void maybeRestoreAncestorScrollPositions(@SuppressWarnings("unused") Element e) {
+    if (QuirksConstants.ADJUSTS_SCROLL_TOP_WHEN_FOCUSING && ancestorScrollPositions != null) {
+      ancestorScrollPositions.restore(ELEMENT_SCROLL_ADAPTER);
+      ancestorScrollPositions = null;
     }
   }
 

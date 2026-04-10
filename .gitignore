@@ -96,3 +96,5 @@ proto_src/
 third_party/
 /.junie/
 /.env
+/.tmp/
+__pycache__/

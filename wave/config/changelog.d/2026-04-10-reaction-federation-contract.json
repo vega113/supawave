@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-10-reaction-federation-contract",
+  "version": "PR #816",
+  "date": "2026-04-10",
+  "title": "Lock Wave-State Federation Contract",
+  "summary": "Tightens reaction federation coverage so wave-state serialization stays aligned with the contract.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Adds changelog coverage for the reaction federation contract test updates"
+      ]
+    }
+  ]
+}

@@ -40,7 +40,7 @@ Alice reacts 👍 and Bob reacts ❤️ simultaneously. Their operations target 
 
 To render the reaction bar, the client aggregates all `reaction/*` annotations in the blip:
 
-```text
+```
 for each annotation key matching "reaction/*":
     userId = key.substring("reaction/".length)
     for each emoji in value.split(","):
@@ -77,7 +77,7 @@ Encoded as UTF-8 in annotation values. No encoding needed in the key since user 
 
 Located at the bottom of each blip, below the content area:
 
-```text
+```
 [👍 3] [❤️ 1] [+]
 ```
 
@@ -90,7 +90,7 @@ Located at the bottom of each blip, below the content area:
 
 Inline panel (not a modal) appearing above/below the `+` button:
 
-```text
+```
 +-------+-------+-------+-------+
 |  👍   |  ❤️   |  😂   |  😮   |
 +-------+-------+-------+-------+

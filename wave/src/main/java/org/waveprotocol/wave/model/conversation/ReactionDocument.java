@@ -122,7 +122,9 @@ public class ReactionDocument<N, E extends N, T extends N> {
   /**
    * Toggles a user's reaction on this document.
    *
-   * <p>Each user may have at most one active reaction in the document.
+   * <p>Each user may have at most one active reaction in the document. All occurrences of the
+   * user's address across all reaction elements are purged before the new state is written, so
+   * concurrent multi-session edits cannot leave stale duplicate entries.
    */
   public void toggleReaction(String address, String emoji) {
     if (address == null || address.isEmpty() || emoji == null || emoji.isEmpty()) {
@@ -130,27 +132,23 @@ public class ReactionDocument<N, E extends N, T extends N> {
     }
 
     E root = ensureRootElement();
-    E currentReaction = findReactionForAddress(root, address);
     E targetReaction = findReactionByEmoji(root, emoji);
+    boolean wasInTarget = targetReaction != null && containsAddress(targetReaction, address);
 
-    if (currentReaction != null && emoji.equals(doc.getAttribute(currentReaction, EMOJI_ATTR))) {
-      removeAddressFromReaction(currentReaction, address);
-      deleteReactionIfEmpty(currentReaction);
-      return;
+    // Purge address from every reaction element to maintain the one-reaction-per-user invariant,
+    // even when concurrent sessions have created duplicate entries.
+    purgeAddressFromAllReactions(root, address);
+
+    if (wasInTarget) {
+      return; // Toggle off: address has been removed from the target reaction.
     }
 
-    if (currentReaction != null) {
-      removeAddressFromReaction(currentReaction, address);
-      deleteReactionIfEmpty(currentReaction);
-    }
-
+    // Re-locate the target after purge (it may have been deleted if it became empty).
+    targetReaction = findReactionByEmoji(root, emoji);
     if (targetReaction == null) {
       targetReaction = createReaction(root, emoji);
     }
-
-    if (!containsAddress(targetReaction, address)) {
-      createUser(targetReaction, address);
-    }
+    createUser(targetReaction, address);
   }
 
   private E getRootElement() {
@@ -185,17 +183,23 @@ public class ReactionDocument<N, E extends N, T extends N> {
     return null;
   }
 
-  private E findReactionForAddress(E root, String address) {
+  private void purgeAddressFromAllReactions(E root, String address) {
+    List<E> reactionsToDelete = new ArrayList<E>();
     for (N node = doc.getFirstChild(root); node != null; node = doc.getNextSibling(node)) {
       E reactionElement = doc.asElement(node);
       if (reactionElement == null || !REACTION_TAG.equals(doc.getTagName(reactionElement))) {
         continue;
       }
       if (containsAddress(reactionElement, address)) {
-        return reactionElement;
+        removeAddressFromReaction(reactionElement, address);
+        if (doc.getFirstChild(reactionElement) == null) {
+          reactionsToDelete.add(reactionElement);
+        }
       }
     }
-    return null;
+    for (E reaction : reactionsToDelete) {
+      doc.deleteNode(reaction);
+    }
   }
 
   private boolean containsAddress(E reactionElement, String address) {
@@ -232,9 +236,4 @@ public class ReactionDocument<N, E extends N, T extends N> {
     }
   }
 
-  private void deleteReactionIfEmpty(E reactionElement) {
-    if (doc.getFirstChild(reactionElement) == null) {
-      doc.deleteNode(reactionElement);
-    }
-  }
 }

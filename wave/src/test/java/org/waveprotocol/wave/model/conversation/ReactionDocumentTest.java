@@ -105,4 +105,35 @@ public final class ReactionDocumentTest extends TestCase {
     assertEquals("tada", reactions.get(1).getEmoji());
     assertEquals(Arrays.asList("alice@example.com"), reactions.get(1).getAddresses());
   }
+
+  public void testToggleReactionPurgesDuplicateEntriesFromConcurrentSessions() {
+    // Simulate concurrent writes: alice appears in two reaction elements.
+    ReactionDocument<Node, Element, Text> doc = createDocument(
+        "<reactions>"
+        + "<reaction emoji=\"thumbs_up\"><user address=\"alice@example.com\"/></reaction>"
+        + "<reaction emoji=\"tada\"><user address=\"alice@example.com\"/></reaction>"
+        + "</reactions>");
+
+    // Toggle alice off thumbs_up — should purge all occurrences and leave an empty document.
+    doc.toggleReaction("alice@example.com", "thumbs_up");
+
+    assertTrue("All duplicate entries must be purged on toggle", doc.getReactions().isEmpty());
+  }
+
+  public void testToggleReactionSwitchPurgesAllDuplicates() {
+    // Simulate concurrent writes: alice appears in both thumbs_up and tada.
+    ReactionDocument<Node, Element, Text> doc = createDocument(
+        "<reactions>"
+        + "<reaction emoji=\"thumbs_up\"><user address=\"alice@example.com\"/></reaction>"
+        + "<reaction emoji=\"tada\"><user address=\"alice@example.com\"/></reaction>"
+        + "</reactions>");
+
+    // Switch alice to heart — must remove from both stale entries.
+    doc.toggleReaction("alice@example.com", "heart");
+
+    List<ReactionDocument.Reaction> reactions = doc.getReactions();
+    assertEquals(1, reactions.size());
+    assertEquals("heart", reactions.get(0).getEmoji());
+    assertEquals(Arrays.asList("alice@example.com"), reactions.get(0).getAddresses());
+  }
 }

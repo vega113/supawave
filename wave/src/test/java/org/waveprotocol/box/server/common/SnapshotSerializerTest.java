@@ -19,10 +19,16 @@
 
 package org.waveprotocol.box.server.common;
 
+import com.google.common.collect.ImmutableMap;
+
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.common.comms.WaveClientRpc.WaveletSnapshot;
 import org.waveprotocol.box.server.util.TestDataUtil;
+import org.waveprotocol.wave.model.document.operation.Attributes;
+import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
+import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuilder;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.version.HashedVersion;
@@ -50,6 +56,41 @@ public class SnapshotSerializerTest extends TestCase {
     WaveletSnapshot snapshot = SnapshotSerializer.serializeWavelet(expected, version);
     WaveletData actual = SnapshotSerializer.deserializeWavelet(snapshot, expected.getWaveId());
 
+    TestDataUtil.checkSerializedWavelet(expected, actual);
+  }
+
+  public void testWaveletRoundtripIncludesReactionDocuments() throws Exception {
+    WaveletData expected = TestDataUtil.createSimpleWaveletData();
+    String reactionDocId = IdUtil.reactionDataDocumentId("b+abc123");
+    expected.createDocument(
+        reactionDocId,
+        expected.getCreator(),
+        expected.getParticipants(),
+        new DocInitializationBuilder()
+            .elementStart("reactions", Attributes.EMPTY_MAP)
+            .elementStart("reaction", new AttributesImpl(ImmutableMap.of("emoji", "thumbs_up")))
+            .elementStart("user", new AttributesImpl(ImmutableMap.of("address", "sam@example.com")))
+            .elementEnd()
+            .elementEnd()
+            .elementEnd()
+            .build(),
+        1234567891L,
+        0);
+
+    WaveletName name = WaveletName.of(expected.getWaveId(), expected.getWaveletId());
+    HashedVersion version = HASH_FACTORY.createVersionZero(name);
+
+    WaveletSnapshot snapshot = SnapshotSerializer.serializeWavelet(expected, version);
+    boolean foundReactionDoc = false;
+    for (int i = 0; i < snapshot.getDocumentCount(); i++) {
+      if (reactionDocId.equals(snapshot.getDocument(i).getDocumentId())) {
+        foundReactionDoc = true;
+        break;
+      }
+    }
+    assertTrue(foundReactionDoc);
+
+    WaveletData actual = SnapshotSerializer.deserializeWavelet(snapshot, expected.getWaveId());
     TestDataUtil.checkSerializedWavelet(expected, actual);
   }
 }

@@ -28,6 +28,7 @@ import com.google.protobuf.ByteString;
 
 import org.waveprotocol.wave.federation.Proto.ProtocolHashedVersion;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
+import org.waveprotocol.wave.federation.Proto.ProtocolWaveletOperation;
 import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
 import org.waveprotocol.wave.model.document.operation.Attributes;
 import org.waveprotocol.wave.model.document.operation.AttributesUpdate;
@@ -44,6 +45,7 @@ import org.waveprotocol.wave.model.operation.wave.WaveletBlipOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletDelta;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
@@ -230,6 +232,25 @@ public class WaveletOperationSerializerTest extends TestCase {
     m.deleteElementEnd();
 
     assertReversible(makeBlipOp("deleteCharactersAndElements", m.build()));
+  }
+
+  public void testReactionDataDocumentMutationKeepsDocumentId() {
+    DocOpBuilder m = new DocOpBuilder();
+    m.elementStart("reactions", Attributes.EMPTY_MAP);
+    m.elementStart("reaction", new AttributesImpl(ImmutableMap.of("emoji", "thumbs_up")));
+    m.elementStart("user", new AttributesImpl(ImmutableMap.of("address", "alice@example.com")));
+    m.elementEnd();
+    m.elementEnd();
+    m.elementEnd();
+
+    String reactionDocId = IdUtil.reactionDataDocumentId("b+abc123");
+    WaveletBlipOperation reactionOp = makeBlipOp(reactionDocId, m.build());
+
+    ProtocolWaveletOperation serialized = CoreWaveletOperationSerializer.serialize(reactionOp);
+    assertEquals(reactionDocId, serialized.getMutateDocument().getDocumentId());
+    assertEquals(reactionOp,
+        CoreWaveletOperationSerializer.deserialize(serialized, OP_CONTEXT));
+    assertReversible(reactionOp);
   }
 
   public void testAnnotationBoundary() {

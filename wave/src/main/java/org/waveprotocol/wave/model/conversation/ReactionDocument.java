@@ -23,7 +23,9 @@ import org.waveprotocol.wave.model.document.MutableDocument;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Provides an integrity-preserving interface for a per-blip reactions data document.
@@ -77,7 +79,8 @@ public class ReactionDocument<N, E extends N, T extends N> {
   }
 
   /**
-   * Reads the ordered reactions from the document.
+   * Reads the reactions from the document, merging any duplicate emoji elements that concurrent
+   * OT operations may have produced into a single logical reaction per emoji.
    */
   public List<Reaction> getReactions() {
     E root = getRootElement();
@@ -85,7 +88,8 @@ public class ReactionDocument<N, E extends N, T extends N> {
       return Collections.emptyList();
     }
 
-    List<Reaction> reactions = new ArrayList<Reaction>();
+    // LinkedHashMap preserves first-seen insertion order across duplicate elements.
+    LinkedHashMap<String, List<String>> byEmoji = new LinkedHashMap<String, List<String>>();
     for (N node = doc.getFirstChild(root); node != null; node = doc.getNextSibling(node)) {
       E reactionElement = doc.asElement(node);
       if (reactionElement == null || !REACTION_TAG.equals(doc.getTagName(reactionElement))) {
@@ -97,7 +101,12 @@ public class ReactionDocument<N, E extends N, T extends N> {
         continue;
       }
 
-      List<String> addresses = new ArrayList<String>();
+      List<String> addresses = byEmoji.get(emoji);
+      if (addresses == null) {
+        addresses = new ArrayList<String>();
+        byEmoji.put(emoji, addresses);
+      }
+
       for (N child = doc.getFirstChild(reactionElement);
            child != null;
            child = doc.getNextSibling(child)) {
@@ -106,16 +115,18 @@ public class ReactionDocument<N, E extends N, T extends N> {
           continue;
         }
         String address = doc.getAttribute(userElement, ADDRESS_ATTR);
-        if (address != null && !address.isEmpty()) {
+        if (address != null && !address.isEmpty() && !addresses.contains(address)) {
           addresses.add(address);
         }
       }
-
-      if (!addresses.isEmpty()) {
-        reactions.add(new Reaction(emoji, addresses));
-      }
     }
 
+    List<Reaction> reactions = new ArrayList<Reaction>();
+    for (Map.Entry<String, List<String>> entry : byEmoji.entrySet()) {
+      if (!entry.getValue().isEmpty()) {
+        reactions.add(new Reaction(entry.getKey(), entry.getValue()));
+      }
+    }
     return Collections.unmodifiableList(reactions);
   }
 

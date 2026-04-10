@@ -106,6 +106,38 @@ public final class ReactionDocumentTest extends TestCase {
     assertEquals(Arrays.asList("alice@example.com"), reactions.get(1).getAddresses());
   }
 
+  public void testGetReactionsMergesConcurrentDuplicateEmojiElements() {
+    // Simulate OT leaving two <reaction emoji="thumbs_up"> siblings when two participants
+    // add the same emoji on a previously empty blip concurrently.
+    ReactionDocument<Node, Element, Text> doc = createDocument(
+        "<reactions>"
+        + "<reaction emoji=\"thumbs_up\"><user address=\"alice@example.com\"/></reaction>"
+        + "<reaction emoji=\"thumbs_up\"><user address=\"bob@example.com\"/></reaction>"
+        + "</reactions>");
+
+    List<ReactionDocument.Reaction> reactions = doc.getReactions();
+    assertEquals("Duplicate emoji elements must be merged into one", 1, reactions.size());
+    assertEquals("thumbs_up", reactions.get(0).getEmoji());
+    List<String> addresses = reactions.get(0).getAddresses();
+    assertEquals(2, addresses.size());
+    assertTrue(addresses.contains("alice@example.com"));
+    assertTrue(addresses.contains("bob@example.com"));
+  }
+
+  public void testGetReactionsMergesDedupesAddressesAcrossDuplicateElements() {
+    // Same user appears in both duplicate elements — must appear only once after merge.
+    ReactionDocument<Node, Element, Text> doc = createDocument(
+        "<reactions>"
+        + "<reaction emoji=\"thumbs_up\"><user address=\"alice@example.com\"/></reaction>"
+        + "<reaction emoji=\"thumbs_up\"><user address=\"alice@example.com\"/></reaction>"
+        + "</reactions>");
+
+    List<ReactionDocument.Reaction> reactions = doc.getReactions();
+    assertEquals(1, reactions.size());
+    assertEquals(1, reactions.get(0).getAddresses().size());
+    assertEquals("alice@example.com", reactions.get(0).getAddresses().get(0));
+  }
+
   public void testToggleReactionPurgesDuplicateEntriesFromConcurrentSessions() {
     // Simulate concurrent writes: alice appears in two reaction elements.
     ReactionDocument<Node, Element, Text> doc = createDocument(

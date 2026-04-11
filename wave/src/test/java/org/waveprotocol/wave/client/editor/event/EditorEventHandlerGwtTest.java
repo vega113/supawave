@@ -591,7 +591,7 @@ public class EditorEventHandlerGwtTest
     FakeEditorInteractor interactor = setupFakeEditorInteractor(new FocusedContentRange(caret));
     EditorEventHandler handler = createEditorEventHandler(interactor, subHandler);
 
-    interactor.call(FakeEditorInteractor.COMPOSITION_START).nOf(1);
+    interactor.call(FakeEditorInteractor.COMPOSITION_START).nOf(1).withArgs(caret);
     interactor.call(FakeEditorInteractor.COMPOSITION_UPDATE).nOf(2);
     interactor.call(FakeEditorInteractor.COMPOSITION_END).nOf(1);
     interactor.call(FakeEditorInteractor.NOTIFYING_TYPING_EXTRACTOR).nOf(1).anyArgs();

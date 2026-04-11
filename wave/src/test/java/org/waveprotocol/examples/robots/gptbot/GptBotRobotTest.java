@@ -100,7 +100,8 @@ public class GptBotRobotTest extends TestCase {
     assertFalse(response.contains("wavelet.appendBlip"));
     assertEquals(1, apiClient.createReplyCalls);
     assertEquals("b+streamed", apiClient.lastCreatedReplyId);
-    assertEquals(Arrays.asList("Hel", "Hello", "Hello world"), apiClient.streamUpdates);
+    assertEquals("Hel", apiClient.lastCreatedContent);
+    assertEquals(Arrays.asList("Hello", "Hello world"), apiClient.streamUpdates);
     assertEquals("https://wave.example.com/robot/dataapi/rpc", apiClient.lastRpcServerUrl);
     assertEquals(1, apiClient.fetchCalls);
     assertEquals(1, codexClient.completeStreamingCalls);
@@ -665,6 +666,7 @@ public class GptBotRobotTest extends TestCase {
     private String createReplyId = "b+reply";
     private String lastReply;
     private String lastCreatedReplyId;
+    private String lastCreatedContent;
     private String lastRpcServerUrl;
     private final List<String> streamUpdates = new ArrayList<String>();
 
@@ -692,6 +694,7 @@ public class GptBotRobotTest extends TestCase {
         String initialContent, String rpcServerUrl) {
       createReplyCalls++;
       lastCreatedReplyId = createReplyId;
+      lastCreatedContent = initialContent;
       lastRpcServerUrl = rpcServerUrl;
       return Optional.of(createReplyId);
     }

@@ -189,7 +189,6 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
   @Mock private IdGenerator idGenerator;
   @Mock private WaveletNotificationDispatcher notifiee;
-  @Mock private DeltaAndSnapshotStore waveletStore;
   @Mock private RemoteWaveletContainer.Factory remoteWaveletContainerFactory;
   @Mock private PerUserWaveViewProvider waveViewProvider;
 
@@ -880,12 +879,16 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(1, aliceInbox.getNumResults());
     assertEquals(wave.waveId.serialise(), aliceInbox.getDigests().get(0).getWaveId());
 
+    SearchResult bobWarmup = runtimeSearchProvider.search(USER2, "in:inbox", 0, 20);
+    assertEquals(0, bobWarmup.getNumResults());
+
     submitDeltaToExistingWavelet(wave, USER1, runtimeAddParticipant(USER2));
     runtimeWaveViewProvider.onParticipantAdded(wave, USER2).get();
     appendBlipToWavelet(wave, USER1, "b+fresh-runtime", "freshness payload");
     addTagToWavelet(wave, USER1, "fresh-tag");
 
     waveMap.unloadAllWavelets();
+    runtimeWaveViewProvider.waveletCommitted(wave, null);
 
     SearchResult bobInbox = runtimeSearchProvider.search(USER2, "in:inbox", 0, 20);
     assertEquals(1, bobInbox.getNumResults());
@@ -894,6 +897,7 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(wave.waveId.serialise(), bobContentSearch.getDigests().get(0).getWaveId());
 
     runtimeWaveViewProvider.explicitPerUserWaveViews.invalidate(USER1);
+    runtimeWaveViewProvider.waveletCommitted(wave, null);
 
     SearchResult tagResults = runtimeSearchProvider.search(USER1, "tag:fresh-tag", 0, 20);
     assertEquals(1, tagResults.getNumResults());

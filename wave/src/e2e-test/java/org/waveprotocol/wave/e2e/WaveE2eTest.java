@@ -217,7 +217,14 @@ class WaveE2eTest {
         String historyHash = lv.get("2").getAsString();
 
         String blipId    = "b+e2e" + E2eTestContext.RUN_ID;
-        JsonObject delta = makeBlipDelta(aliceAddr(), blipId, "Hello from E2E test!", version, historyHash);
+        String contentToken = "freshness-body-" + E2eTestContext.RUN_ID;
+        E2eTestContext.contentToken = contentToken;
+        JsonObject delta = makeBlipDelta(
+                aliceAddr(),
+                blipId,
+                "Hello from E2E test! " + contentToken,
+                version,
+                historyHash);
         JsonObject submitReq = makeSubmitRequest(E2eTestContext.waveletName, delta, E2eTestContext.channelId);
         E2eTestContext.aliceWs.send("ProtocolSubmitRequest", submitReq);
 
@@ -260,7 +267,7 @@ class WaveE2eTest {
 
         boolean contentFound = pollSearchQueryForWave(
                 E2eTestContext.bobJsessionid,
-                "in:inbox E2E",
+                "in:inbox " + E2eTestContext.contentToken,
                 E2eTestContext.modernWaveId,
                 20_000,
                 500,
@@ -274,7 +281,7 @@ class WaveE2eTest {
     void test14_bobOpensWave() throws Exception {
         JsonObject result = client.fetch(E2eTestContext.bobJsessionid, E2eTestContext.waveId);
         String raw = result.toString();
-        assertTrue(raw.contains("Hello from E2E test!"),
+        assertTrue(raw.contains(E2eTestContext.contentToken),
                 "Alice's blip text not found in Bob's fetch: "
                 + raw.substring(0, Math.min(500, raw.length())));
     }
@@ -325,7 +332,7 @@ class WaveE2eTest {
     void test18_aliceFetchSeesReply() throws Exception {
         JsonObject result = client.fetch(E2eTestContext.aliceJsessionid, E2eTestContext.waveId);
         String raw = result.toString();
-        assertTrue(raw.contains("Hello from E2E test!"),
+        assertTrue(raw.contains(E2eTestContext.contentToken),
                 "Alice's original blip not found in fetch: "
                 + raw.substring(0, Math.min(500, raw.length())));
         assertTrue(raw.contains("Hello from Bob!"),

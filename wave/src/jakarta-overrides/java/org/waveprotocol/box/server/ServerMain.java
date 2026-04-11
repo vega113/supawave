@@ -494,9 +494,13 @@ public class ServerMain {
     PerUserWaveViewHandler waveViewHandler = injector.getInstance(PerUserWaveViewHandler.class);
     waveViewDistpatcher.addListener(listener);
     waveBus.subscribe(waveViewDistpatcher);
-    if (waveViewHandler instanceof WaveBus.Subscriber) {
-      waveBus.subscribe((WaveBus.Subscriber) waveViewHandler);
+    if (!(waveViewHandler instanceof WaveBus.Subscriber)) {
+      String message = "PerUserWaveViewHandler " + waveViewHandler.getClass().getName()
+          + " must implement WaveBus.Subscriber for search freshness invalidation";
+      LOG.severe(message);
+      throw new IllegalStateException(message);
     }
+    waveBus.subscribe((WaveBus.Subscriber) waveViewHandler);
     WaveIndexer waveIndexer = injector.getInstance(WaveIndexer.class);
     waveIndexer.remakeIndex();
     if ("lucene".equals(config.getString("core.search_type"))) {

@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Add a Failing Combined Server-Side Regression
+## Task 1: Add a Failing Combined Server-Side Regression
 
 **Files:**
 - Modify: `wave/src/test/java/org/waveprotocol/box/server/waveserver/SimpleSearchProviderImplTest.java`
@@ -63,7 +63,7 @@ Run: `sbt 'testOnly org.waveprotocol.box.server.waveserver.SimpleSearchProviderI
 
 Expected: The new regression fails while the pre-existing search tests remain green.
 
-### Task 2: Fix the Narrowest Runtime Freshness Seam
+## Task 2: Fix the Narrowest Runtime Freshness Seam
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/box/server/waveserver/MemoryPerUserWaveViewHandlerImpl.java`
@@ -115,7 +115,7 @@ Run: `sbt 'testOnly org.waveprotocol.box.server.waveserver.SimpleSearchProviderI
 
 Expected: PASS
 
-### Task 3: Add End-to-End Regression Coverage
+## Task 3: Add End-to-End Regression Coverage
 
 **Files:**
 - Modify: `wave/src/e2e-test/java/org/waveprotocol/wave/e2e/WaveE2eTest.java`
@@ -144,7 +144,7 @@ Run: `WAVE_E2E_BASE_URL=http://localhost:9898 sbt 'e2eTest:testOnly org.waveprot
 
 Expected: PASS
 
-### Task 4: Verify, Document, and Prepare Review/PR Evidence
+## Task 4: Verify, Document, and Prepare Review/PR Evidence
 
 **Files:**
 - Create: `journal/local-verification/2026-04-10-issue-826-search-freshness-critical.md`

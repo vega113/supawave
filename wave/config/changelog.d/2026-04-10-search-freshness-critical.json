@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-10-search-freshness-critical",
-  "version": "Issue #826",
+  "version": "fix/search-freshness-critical",
   "date": "2026-04-10",
   "title": "Restore search freshness for newly shared waves and newly added tags",
   "summary": "Fixes a search freshness regression where recent participant/tag mutations could be missed when a per-user search view rebuilt during the reload cooldown window.",

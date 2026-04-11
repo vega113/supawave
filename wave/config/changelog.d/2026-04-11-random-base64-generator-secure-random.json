@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-11-random-base64-generator-secure-random",
+  "version": "PR #839",
+  "date": "2026-04-11",
+  "title": "Use SecureRandom in RandomBase64Generator",
+  "summary": "RandomBase64Generator now only accepts SecureRandom, preventing insecure Random instances from being injected into token generation.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "RandomBase64Generator now requires a SecureRandom constructor argument and uses SecureRandom by default",
+        "The unit test suite now exercises the secure default constructor instead of instantiating the generator with java.util.Random"
+      ]
+    }
+  ]
+}

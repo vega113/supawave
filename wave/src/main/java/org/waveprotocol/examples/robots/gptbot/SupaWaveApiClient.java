@@ -256,15 +256,25 @@ public final class SupaWaveApiClient implements SupaWaveClient {
 
   private boolean isRobotRpcEndpoint(String endpoint) {
     try {
-      URI uri = URI.create(endpoint);
-      String path = uri.getPath();
-      if (path == null) {
+      URI configured = URI.create(config.getBaseUrl());
+      URI candidate = URI.create(endpoint);
+      if (!configured.getScheme().equalsIgnoreCase(candidate.getScheme())) {
         return false;
       }
-      while (path.endsWith("/") && path.length() > 1) {
-        path = path.substring(0, path.length() - 1);
+      if (!configured.getHost().equalsIgnoreCase(candidate.getHost())) {
+        return false;
       }
-      return "/robot/rpc".equals(path);
+      int configuredPort = configured.getPort() == -1
+          ? ("https".equalsIgnoreCase(configured.getScheme()) ? 443 : 80)
+          : configured.getPort();
+      int candidatePort = candidate.getPort() == -1
+          ? ("https".equalsIgnoreCase(candidate.getScheme()) ? 443 : 80)
+          : candidate.getPort();
+      if (configuredPort != candidatePort) {
+        return false;
+      }
+      String candidatePath = normalizeRpcPath(candidate.getPath());
+      return candidatePath.equals(expectedRpcPath(configured.getPath(), "/robot/rpc"));
     } catch (IllegalArgumentException e) {
       return false;
     }
@@ -302,6 +312,8 @@ public final class SupaWaveApiClient implements SupaWaveClient {
     form.append("&expiry=3600");
     if (robotToken) {
       form.append("&token_type=robot");
+    } else {
+      form.append("&token_type=data");
     }
 
     HttpRequest request = HttpRequest.newBuilder()

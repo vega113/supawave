@@ -82,8 +82,22 @@ public class SupaWaveApiClientTest extends TestCase {
         "https://wave.example.com/robot/dataapi/rpc");
 
     assertEquals(Optional.of("b+child"), replyId);
-    assertFalse(httpClient.lastTokenRequestBody.contains("token_type=robot"));
+    assertTrue(httpClient.lastTokenRequestBody.contains("token_type=data"));
     assertEquals("https://wave.example.com/robot/dataapi/rpc", httpClient.lastRpcRequestUri.toString());
+  }
+
+  public void testCreateReplyAcceptsPrefixedRobotRpcUrls() {
+    GptBotConfig config = testConfig().withBaseUrl("https://wave.example.com/app");
+    RecordingHttpClient httpClient = new RecordingHttpClient();
+    SupaWaveApiClient client = new SupaWaveApiClient(config, httpClient);
+
+    Optional<String> replyId = client.createReply("example.com!w+abc123",
+        "example.com!conv+root", "b+parent", "\nHello",
+        "https://wave.example.com/app/robot/rpc?tenant=x");
+
+    assertEquals(Optional.of("b+child"), replyId);
+    assertTrue(httpClient.lastTokenRequestBody.contains("token_type=robot"));
+    assertEquals("https://wave.example.com/app/robot/rpc?tenant=x", httpClient.lastRpcRequestUri.toString());
   }
 
   public void testReplaceReplyUsesDocumentModifyAtSuppliedRpcEndpoint() {

@@ -98,7 +98,7 @@ public final class ReactionRowRenderer {
         + active + "\" data-reaction-blip-id=\"" + EscapeUtils.htmlEscape(blipId) + "\">");
     html.appendHtmlConstant("<span class=\"" + EMOJI_CLASS + "\">");
     html.appendEscaped(emoji);
-    html.appendHtmlConstant("</span><span class=\"" + COUNT_CLASS + "\">");
+    html.appendHtmlConstant("</span> <span class=\"" + COUNT_CLASS + "\">");
     html.append(count);
     html.appendHtmlConstant("</span></button>");
   }

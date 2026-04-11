@@ -90,7 +90,7 @@ public final class ReactionRowRendererTest extends TestCase {
 
     String output = html.asString();
     assertTrue(output.contains("<span class=\"waveReactionEmoji\">thumbs_up</span>"));
-    assertTrue(output.contains("<span class=\"waveReactionCount\">2</span>"));
+    assertTrue(output.contains("</span> <span class=\"waveReactionCount\">2</span>"));
   }
 
   public void testRenderOmitsAddButtonWhenReadOnly() {

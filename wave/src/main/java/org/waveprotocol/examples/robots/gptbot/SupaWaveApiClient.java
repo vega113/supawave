@@ -248,10 +248,26 @@ public final class SupaWaveApiClient implements SupaWaveClient {
   }
 
   private String accessTokenForEndpoint(String endpoint) throws IOException, InterruptedException {
-    if (endpoint.endsWith("/robot/rpc")) {
+    if (isRobotRpcEndpoint(endpoint)) {
       return getRobotAccessToken();
     }
     return getDataApiAccessToken();
+  }
+
+  private boolean isRobotRpcEndpoint(String endpoint) {
+    try {
+      URI uri = URI.create(endpoint);
+      String path = uri.getPath();
+      if (path == null) {
+        return false;
+      }
+      while (path.endsWith("/") && path.length() > 1) {
+        path = path.substring(0, path.length() - 1);
+      }
+      return "/robot/rpc".equals(path);
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
   }
 
   private synchronized String getDataApiAccessToken() throws IOException, InterruptedException {

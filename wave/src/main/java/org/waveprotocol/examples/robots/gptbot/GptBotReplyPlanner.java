@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Turns an explicit mention into a Codex-generated reply.
@@ -50,8 +51,8 @@ public final class GptBotReplyPlanner {
   private final int maxHistoryTokens;
   // Guards both conversationHistory map and all WaveHistory objects within it.
   private final Object historyLock = new Object();
-  // Per-wave mutex to serialize concurrent completions on the same wave.
-  private final ConcurrentHashMap<String, Object> waveLocks = new ConcurrentHashMap<>();
+  // Per-wave mutexes to serialize concurrent completions on the same wave.
+  private final ConcurrentHashMap<String, WaveMutex> waveLocks = new ConcurrentHashMap<>();
   private final Map<String, WaveHistory> conversationHistory =
       new LinkedHashMap<String, WaveHistory>(16, 0.75f, false) {
         @Override
@@ -96,9 +97,22 @@ public final class GptBotReplyPlanner {
   private String runCompletion(String promptText, String waveContext, String waveId,
       CodexClient.StreamingListener listener) {
     if (waveId != null && !waveId.isEmpty()) {
-      Object waveLock = waveLocks.computeIfAbsent(waveId, k -> new Object());
-      synchronized (waveLock) {
-        return doRunCompletion(promptText, waveContext, waveId, listener);
+      while (true) {
+        // Retired mutex entries can linger briefly until the last releaser evicts them.
+        WaveMutex waveMutex = waveLocks.computeIfAbsent(waveId, k -> new WaveMutex());
+        if (!waveMutex.tryRetain()) {
+          waveLocks.remove(waveId, waveMutex);
+          continue;
+        }
+        waveMutex.lock();
+        try {
+          return doRunCompletion(promptText, waveContext, waveId, listener);
+        } finally {
+          waveMutex.unlock();
+          if (waveMutex.release()) {
+            waveLocks.remove(waveId, waveMutex);
+          }
+        }
       }
     }
     return doRunCompletion(promptText, waveContext, waveId, listener);
@@ -222,6 +236,40 @@ public final class GptBotReplyPlanner {
 
     private static int estimateTokens(Map<String, String> msg) {
       return msg.getOrDefault("content", "").length() / 4;
+    }
+  }
+
+  private static final class WaveMutex {
+    private final ReentrantLock lock = new ReentrantLock();
+    private int refCount = 0;
+    private boolean retired = false;
+
+    synchronized boolean tryRetain() {
+      if (retired) {
+        return false;
+      }
+      refCount++;
+      return true;
+    }
+
+    void lock() {
+      lock.lock();
+    }
+
+    void unlock() {
+      lock.unlock();
+    }
+
+    synchronized boolean release() {
+      if (refCount <= 0) {
+        throw new IllegalStateException("WaveMutex released more times than acquired");
+      }
+      refCount--;
+      if (refCount == 0) {
+        retired = true;
+        return true;
+      }
+      return false;
     }
   }
 

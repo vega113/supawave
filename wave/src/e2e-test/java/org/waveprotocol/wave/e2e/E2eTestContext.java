@@ -35,6 +35,8 @@ class E2eTestContext {
 
     static String blipId;
     static String replyBlipId;
+    static String contentToken;
+    static String freshTag;
 
     static WaveWebSocketClient aliceWs;
     static WaveWebSocketClient bobWs;

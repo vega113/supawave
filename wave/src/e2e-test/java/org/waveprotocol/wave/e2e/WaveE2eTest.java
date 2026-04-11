@@ -10,8 +10,8 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * E2E sanity suite — 18 ordered tests covering registration, login, WebSocket,
- * wave creation, search, cross-user messaging, and cleanup.
+ * E2E sanity suite — ordered tests covering registration, login, WebSocket,
+ * wave creation, search freshness, cross-user messaging, and cleanup.
  *
  * Run with: WAVE_E2E_BASE_URL=http://localhost:9898 sbt "e2eTest:test"
  *
@@ -217,7 +217,14 @@ class WaveE2eTest {
         String historyHash = lv.get("2").getAsString();
 
         String blipId    = "b+e2e" + E2eTestContext.RUN_ID;
-        JsonObject delta = makeBlipDelta(aliceAddr(), blipId, "Hello from E2E test!", version, historyHash);
+        String contentToken = "freshness-body-" + E2eTestContext.RUN_ID;
+        E2eTestContext.contentToken = contentToken;
+        JsonObject delta = makeBlipDelta(
+                aliceAddr(),
+                blipId,
+                "Hello from E2E test! " + contentToken,
+                version,
+                historyHash);
         JsonObject submitReq = makeSubmitRequest(E2eTestContext.waveletName, delta, E2eTestContext.channelId);
         E2eTestContext.aliceWs.send("ProtocolSubmitRequest", submitReq);
 
@@ -257,13 +264,24 @@ class WaveE2eTest {
         assertTrue(found,
                 "Wave " + E2eTestContext.modernWaveId
                 + " not found in Bob's in:inbox search within 20s");
+
+        boolean contentFound = pollSearchQueryForWave(
+                E2eTestContext.bobJsessionid,
+                "in:inbox " + E2eTestContext.contentToken,
+                E2eTestContext.modernWaveId,
+                20_000,
+                500,
+                1);
+        assertTrue(contentFound,
+                "Wave " + E2eTestContext.modernWaveId
+                + " not found in Bob's content search within 20s");
     }
 
     @Test @Order(14)
     void test14_bobOpensWave() throws Exception {
         JsonObject result = client.fetch(E2eTestContext.bobJsessionid, E2eTestContext.waveId);
         String raw = result.toString();
-        assertTrue(raw.contains("Hello from E2E test!"),
+        assertTrue(raw.contains(E2eTestContext.contentToken),
                 "Alice's blip text not found in Bob's fetch: "
                 + raw.substring(0, Math.min(500, raw.length())));
     }
@@ -314,12 +332,48 @@ class WaveE2eTest {
     void test18_aliceFetchSeesReply() throws Exception {
         JsonObject result = client.fetch(E2eTestContext.aliceJsessionid, E2eTestContext.waveId);
         String raw = result.toString();
-        assertTrue(raw.contains("Hello from E2E test!"),
+        assertTrue(raw.contains(E2eTestContext.contentToken),
                 "Alice's original blip not found in fetch: "
                 + raw.substring(0, Math.min(500, raw.length())));
         assertTrue(raw.contains("Hello from Bob!"),
                 "Bob's reply not found in fetch: "
                 + raw.substring(0, Math.min(500, raw.length())));
+    }
+
+    @Test @Order(19)
+    void test19_aliceAddsTag() throws Exception {
+        JsonObject lv = E2eTestContext.lastVersion;
+        int version = lv.get("1").getAsInt();
+        String historyHash = lv.get("2").getAsString();
+
+        String freshTag = "fresh-" + E2eTestContext.RUN_ID;
+        JsonObject delta = makeTagDelta(aliceAddr(), freshTag, version, historyHash);
+        JsonObject submitReq =
+                makeSubmitRequest(E2eTestContext.waveletName, delta, E2eTestContext.channelId);
+        E2eTestContext.aliceWs.send("ProtocolSubmitRequest", submitReq);
+
+        JsonObject resp = E2eTestContext.aliceWs.recvUntil("ProtocolSubmitResponse", 30_000);
+        JsonObject msg = resp.get("message").getAsJsonObject();
+        assertTrue(msg.has("1") && msg.get("1").getAsInt() > 0,
+                "Expected operations_applied > 0 adding tag, got: " + resp);
+        assertTrue(msg.has("3"), "Submit response missing hashed_version_after_application");
+
+        E2eTestContext.lastVersion = msg.get("3").getAsJsonObject();
+        E2eTestContext.freshTag = freshTag;
+    }
+
+    @Test @Order(20)
+    void test20_aliceTagSearchFindsWave() throws Exception {
+        boolean found = pollSearchQueryForWave(
+                E2eTestContext.aliceJsessionid,
+                "tag:" + E2eTestContext.freshTag,
+                E2eTestContext.modernWaveId,
+                20_000,
+                500,
+                0);
+        assertTrue(found,
+                "Wave " + E2eTestContext.modernWaveId
+                + " not found in Alice's tag search within 20s");
     }
 
     // =========================================================================
@@ -430,6 +484,46 @@ class WaveE2eTest {
         return delta;
     }
 
+    private static JsonObject makeTagDelta(String author, String tag,
+                                            int version, String historyHash) {
+        JsonObject tagStart = new JsonObject();
+        JsonObject tagElem = new JsonObject();
+        tagElem.addProperty("1", "tag");
+        tagElem.add("2", new JsonArray());
+        tagStart.add("3", tagElem);
+
+        JsonObject chars = new JsonObject();
+        chars.addProperty("2", tag);
+
+        JsonObject tagEnd = new JsonObject();
+        tagEnd.addProperty("4", true);
+
+        JsonArray components = new JsonArray();
+        components.add(tagStart);
+        components.add(chars);
+        components.add(tagEnd);
+
+        JsonObject docOp = new JsonObject();
+        docOp.add("1", components);
+
+        JsonObject mutateDoc = new JsonObject();
+        mutateDoc.addProperty("1", "tags");
+        mutateDoc.add("2", docOp);
+
+        JsonObject opWrapper = new JsonObject();
+        opWrapper.add("3", mutateDoc);
+
+        JsonArray ops = new JsonArray();
+        ops.add(opWrapper);
+
+        JsonObject delta = new JsonObject();
+        delta.add("1", makeHashedVersion(version, historyHash));
+        delta.addProperty("2", author);
+        delta.add("3", ops);
+        delta.add("4", new JsonArray());
+        return delta;
+    }
+
     private static JsonObject makeSubmitRequest(String waveletName, JsonObject delta,
                                                  String channelId) {
         JsonObject req = new JsonObject();
@@ -446,11 +540,23 @@ class WaveE2eTest {
     private boolean pollSearchForWave(String jsessionid, String modernWaveId,
                                        long timeoutMs, long pollMs, int minBlipCount)
             throws Exception {
+        return pollSearchQueryForWave(
+                jsessionid,
+                "in:inbox",
+                modernWaveId,
+                timeoutMs,
+                pollMs,
+                minBlipCount);
+    }
+
+    private boolean pollSearchQueryForWave(String jsessionid, String query, String modernWaveId,
+                                           long timeoutMs, long pollMs, int minBlipCount)
+            throws Exception {
         long deadlineNs = System.nanoTime() + timeoutMs * 1_000_000L;
         while (System.nanoTime() < deadlineNs) {
             JsonObject result;
             try {
-                result = client.search(jsessionid, "in:inbox");
+                result = client.search(jsessionid, query);
             } catch (Exception e) {
                 // Absorb transient 5xx/transport errors; retry until deadline
                 Thread.sleep(pollMs);

@@ -77,16 +77,19 @@ public class MemoryPerUserWaveViewHandlerImpl
   private static final long WAVE_MAP_RELOAD_COOLDOWN_MS = 30_000;
 
   /**
-   * Epoch of the last successful {@code loadAllWavelets()} call.
+   * Timestamp of the last successful {@code loadAllWavelets()} call.
    * Guarded by {@link #waveMapLoadLock}.
    */
   private long lastWaveMapLoadMs = 0;
+  /**
+   * Mutation epoch at the last successful {@code loadAllWavelets()} call.
+   * Guarded by {@link #waveMapLoadLock}.
+   */
   private long lastWaveMapLoadEpoch = 0;
   /**
-   * Epoch of the last non-search wavelet mutation observed on the wave bus.
+   * Monotonic epoch for the last non-search wavelet mutation observed on the wave bus.
    */
   private final AtomicLong waveMutationEpoch = new AtomicLong(0);
-  private volatile long lastWaveMutationEpoch = 0;
 
   @Inject
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {
@@ -161,19 +164,15 @@ public class MemoryPerUserWaveViewHandlerImpl
     synchronized (waveMapLoadLock) {
       long now = System.currentTimeMillis();
       boolean withinCooldown = now - lastWaveMapLoadMs < WAVE_MAP_RELOAD_COOLDOWN_MS;
-      boolean sawMutationSinceLastLoad = lastWaveMutationEpoch > lastWaveMapLoadEpoch;
+      long currentMutationEpoch = waveMutationEpoch.get();
+      boolean sawMutationSinceLastLoad = currentMutationEpoch > lastWaveMapLoadEpoch;
       if (withinCooldown && !sawMutationSinceLastLoad) {
         return;
       }
-      long mutationEpochAtLoadStart = lastWaveMutationEpoch;
       try {
         waveMap.loadAllWavelets();
         lastWaveMapLoadMs = System.currentTimeMillis();
-        long mutationEpochAtLoadEnd = lastWaveMutationEpoch;
-        lastWaveMapLoadEpoch =
-            mutationEpochAtLoadEnd == mutationEpochAtLoadStart
-                ? mutationEpochAtLoadEnd
-                : mutationEpochAtLoadStart;
+        lastWaveMapLoadEpoch = currentMutationEpoch;
       } catch (WaveletStateException e) {
         throw new RuntimeException("Failed to load waves for " + user.getAddress(), e);
       }
@@ -247,7 +246,7 @@ public class MemoryPerUserWaveViewHandlerImpl
     if (waveletName != null && isSearchWavelet(waveletName)) {
       return;
     }
-    lastWaveMutationEpoch = waveMutationEpoch.incrementAndGet();
+    waveMutationEpoch.incrementAndGet();
   }
 
   private boolean isSearchWavelet(WaveletName waveletName) {

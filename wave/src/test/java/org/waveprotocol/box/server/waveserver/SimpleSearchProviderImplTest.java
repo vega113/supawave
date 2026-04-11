@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.waveserver;
 
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Function;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -38,6 +39,7 @@ import junit.framework.TestCase;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
+import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
@@ -74,6 +76,7 @@ import org.waveprotocol.box.server.robots.util.RobotsUtil;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
+import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
@@ -887,8 +890,16 @@ public class SimpleSearchProviderImplTest extends TestCase {
     appendBlipToWavelet(wave, USER1, "b+fresh-runtime", "freshness payload");
     addTagToWavelet(wave, USER1, "fresh-tag");
 
+    ReadableWaveletData readableWavelet = waveMap.getWavelet(wave).applyFunction(
+        new Function<ReadableWaveletData, ReadableWaveletData>() {
+          @Override
+          public ReadableWaveletData apply(ReadableWaveletData waveletData) {
+            return waveletData;
+          }
+        });
+    runtimeWaveViewProvider.waveletUpdate(readableWavelet, DeltaSequence.empty());
+
     waveMap.unloadAllWavelets();
-    runtimeWaveViewProvider.waveletCommitted(wave, null);
 
     SearchResult bobInbox = runtimeSearchProvider.search(USER2, "in:inbox", 0, 20);
     assertEquals(1, bobInbox.getNumResults());
@@ -896,8 +907,9 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(1, bobContentSearch.getNumResults());
     assertEquals(wave.waveId.serialise(), bobContentSearch.getDigests().get(0).getWaveId());
 
+    waveMap.unloadAllWavelets();
     runtimeWaveViewProvider.explicitPerUserWaveViews.invalidate(USER1);
-    runtimeWaveViewProvider.waveletCommitted(wave, null);
+    runtimeWaveViewProvider.waveletUpdate(readableWavelet, DeltaSequence.empty());
 
     SearchResult tagResults = runtimeSearchProvider.search(USER1, "tag:fresh-tag", 0, 20);
     assertEquals(1, tagResults.getNumResults());

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-issue-822-reaction-chip-anchor",
+  "version": "PR #822",
+  "date": "2026-04-10",
+  "title": "Polish reaction chip alignment",
+  "summary": "Keeps the add-reaction affordance anchored and aligns reaction emoji/counts more cleanly within the existing Wave pill styling.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Reaction rows now keep the add-reaction control anchored at the leading edge instead of shifting when reactions are toggled",
+        "Reaction chips now render explicit emoji and count spans so the pill content aligns more cleanly on a shared visual baseline"
+      ]
+    }
+  ]
+}

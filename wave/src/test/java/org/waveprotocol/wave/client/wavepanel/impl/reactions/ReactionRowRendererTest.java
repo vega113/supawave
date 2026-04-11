@@ -63,6 +63,36 @@ public final class ReactionRowRendererTest extends TestCase {
     assertFalse(output.contains(">+</button>"));
   }
 
+  public void testRenderPlacesAddButtonBeforeReactionChipsWhenEditable() {
+    SafeHtml html = ReactionRowRenderer.render(
+        "b+blip5",
+        Collections.singletonList(
+            new ReactionDocument.Reaction("thumbs_up", Collections.singletonList("alice@example.com"))),
+        "alice@example.com",
+        true);
+
+    String output = html.asString();
+    int addIndex = output.indexOf("data-reaction-add=\"true\"");
+    int chipIndex = output.indexOf("data-reaction-emoji=\"thumbs_up\"");
+    assertTrue(addIndex >= 0);
+    assertTrue(chipIndex >= 0);
+    assertTrue(addIndex < chipIndex);
+  }
+
+  public void testRenderWrapsEmojiAndCountForBaselineStyling() {
+    SafeHtml html = ReactionRowRenderer.render(
+        "b+blip6",
+        Collections.singletonList(
+            new ReactionDocument.Reaction("thumbs_up",
+                Arrays.asList("alice@example.com", "bob@example.com"))),
+        "alice@example.com",
+        true);
+
+    String output = html.asString();
+    assertTrue(output.contains("<span class=\"waveReactionEmoji\">thumbs_up</span>"));
+    assertTrue(output.contains("</span> <span class=\"waveReactionCount\">2</span>"));
+  }
+
   public void testRenderOmitsAddButtonWhenReadOnly() {
     SafeHtml html = ReactionRowRenderer.render(
         "b+blip2",

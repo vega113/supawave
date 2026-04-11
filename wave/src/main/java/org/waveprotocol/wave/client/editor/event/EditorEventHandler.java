@@ -46,7 +46,6 @@ import org.waveprotocol.wave.client.scheduler.Scheduler;
 import org.waveprotocol.wave.client.scheduler.SchedulerInstance;
 import org.waveprotocol.wave.client.scheduler.SchedulerTimerService;
 import org.waveprotocol.wave.client.scheduler.TimerService;
-import org.waveprotocol.wave.common.util.DelayedCompositionMutationGuard;
 import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.model.document.AnnotationBehaviour.CursorDirection;
 import org.waveprotocol.wave.model.document.util.FocusedPointRange;

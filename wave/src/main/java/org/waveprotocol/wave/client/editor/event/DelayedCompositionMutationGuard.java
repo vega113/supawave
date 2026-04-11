@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package org.waveprotocol.wave.common.util;
+package org.waveprotocol.wave.client.editor.event;
 
 /**
  * Tracks whether delayed application-side composition end ran during the
  * current event pass, so DOM mutation fallback does not double-process the
  * same IME change.
  */
-public final class DelayedCompositionMutationGuard {
+final class DelayedCompositionMutationGuard {
 
   private boolean compositionEndedDuringCurrentEvent;
 

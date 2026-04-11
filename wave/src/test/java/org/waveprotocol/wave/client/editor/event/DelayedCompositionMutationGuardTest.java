@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.waveprotocol.wave.common.util;
+package org.waveprotocol.wave.client.editor.event;
 
 import junit.framework.TestCase;
 

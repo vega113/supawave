@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-11-fix-cleartext-http-client-flags",
+  "version": "PR #838",
+  "date": "2026-04-11",
+  "title": "Fix cleartext HTTP usage in ClientFlagsBase URLs",
+  "summary": "Upgrades several cleartext HTTP URLs to HTTPS in ClientFlagsBase to prevent MitM vulnerabilities.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replaced cleartext HTTP URLs with HTTPS in ClientFlagsBase."
+      ]
+    }
+  ]
+}

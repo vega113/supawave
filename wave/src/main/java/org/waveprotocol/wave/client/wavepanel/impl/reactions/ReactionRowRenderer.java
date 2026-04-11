@@ -34,6 +34,8 @@ public final class ReactionRowRenderer {
   public static final String CHIP_CLASS = "waveReactionChip";
   public static final String CHIP_ACTIVE_CLASS = "waveReactionChipActive";
   public static final String ADD_CLASS = "waveReactionAdd";
+  private static final String EMOJI_CLASS = "waveReactionEmoji";
+  private static final String COUNT_CLASS = "waveReactionCount";
   private static final String ADD_ICON_CLASS = "waveReactionAddIcon";
   private static final String ADD_BUTTON_LABEL = "Add reaction";
   private static final String ADD_ICON_HTML =
@@ -57,6 +59,9 @@ public final class ReactionRowRenderer {
   public static SafeHtml render(String blipId, List<ReactionDocument.Reaction> reactions,
       String currentUserAddress, boolean editable) {
     SafeHtmlBuilder html = new SafeHtmlBuilder();
+    if (editable) {
+      appendAddButton(html, blipId);
+    }
     if (reactions != null) {
       for (ReactionDocument.Reaction reaction : reactions) {
         if (reaction == null) {
@@ -69,15 +74,16 @@ public final class ReactionRowRenderer {
         appendReactionChip(html, blipId, reaction, active);
       }
     }
-    if (editable) {
-      html.appendHtmlConstant(
-          "<button type=\"button\" class=\"" + ADD_CLASS + "\" data-reaction-add=\"true\" "
-              + "data-reaction-blip-id=\"" + EscapeUtils.htmlEscape(blipId) + "\" "
-              + "aria-label=\"" + ADD_BUTTON_LABEL + "\" title=\"" + ADD_BUTTON_LABEL + "\">");
-      html.appendHtmlConstant(ADD_ICON_HTML);
-      html.appendHtmlConstant("</button>");
-    }
     return html.toSafeHtml();
+  }
+
+  private static void appendAddButton(SafeHtmlBuilder html, String blipId) {
+    html.appendHtmlConstant(
+        "<button type=\"button\" class=\"" + ADD_CLASS + "\" data-reaction-add=\"true\" "
+            + "data-reaction-blip-id=\"" + EscapeUtils.htmlEscape(blipId) + "\" "
+            + "aria-label=\"" + ADD_BUTTON_LABEL + "\" title=\"" + ADD_BUTTON_LABEL + "\">");
+    html.appendHtmlConstant(ADD_ICON_HTML);
+    html.appendHtmlConstant("</button>");
   }
 
   private static void appendReactionChip(SafeHtmlBuilder html, String blipId,
@@ -90,8 +96,9 @@ public final class ReactionRowRenderer {
     html.appendHtmlConstant("<button type=\"button\" class=\"" + classes
         + "\" data-reaction-emoji=\"" + safeEmoji + "\" data-reaction-active=\""
         + active + "\" data-reaction-blip-id=\"" + EscapeUtils.htmlEscape(blipId) + "\">");
+    html.appendHtmlConstant("<span class=\"" + EMOJI_CLASS + "\">");
     html.appendEscaped(emoji);
-    html.appendHtmlConstant(" <span class=\"waveReactionCount\">");
+    html.appendHtmlConstant("</span> <span class=\"" + COUNT_CLASS + "\">");
     html.append(count);
     html.appendHtmlConstant("</span></button>");
   }

@@ -42,6 +42,7 @@ import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.NetworkStatusEvent;
 import org.waveprotocol.wave.client.events.NetworkStatusEvent.ConnectionStatus;
 import org.waveprotocol.wave.client.events.NetworkStatusEventHandler;
+import org.waveprotocol.wave.client.events.SearchQueryEventHandler;
 import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.account.Profile;
 import org.waveprotocol.wave.client.account.ProfileListener;
@@ -215,6 +216,7 @@ public final class SearchPresenter
   private OtSearchSnapshot otSearchSnapshot = OtSearchSnapshot.empty();
   private WaveletName otSearchWaveletName;
   private HandlerRegistration networkStatusHandlerRegistration;
+  private HandlerRegistration searchQueryHandlerRegistration;
   private final WaveWebSocketCallback otSearchUpdateHandler = new WaveWebSocketCallback() {
     @Override
     public void onWaveletUpdate(ProtocolWaveletUpdate message) {
@@ -226,6 +228,14 @@ public final class SearchPresenter
         @Override
         public void onNetworkStatus(NetworkStatusEvent event) {
           handleOtSearchNetworkStatus(event);
+        }
+      };
+  private final SearchQueryEventHandler searchQueryEventHandler =
+      new SearchQueryEventHandler() {
+        @Override
+        public void onSearchQuery(String query) {
+          searchUi.getSearch().setQuery(normalizeSearchQuery(query));
+          onQueryEntered();
         }
       };
   /**
@@ -464,6 +474,8 @@ public final class SearchPresenter
     profiles.addListener(this);
     searchUi.init(this);
     searchUi.getSearch().init(this);
+    searchQueryHandlerRegistration =
+        ClientEvents.get().addSearchQueryEventHandler(searchQueryEventHandler);
     otSearchEnabled = Session.get().hasFeature("ot-search") && channel != null;
     if (otSearchEnabled) {
       useOtSearch = false;
@@ -496,6 +508,10 @@ public final class SearchPresenter
     if (networkStatusHandlerRegistration != null) {
       networkStatusHandlerRegistration.removeHandler();
       networkStatusHandlerRegistration = null;
+    }
+    if (searchQueryHandlerRegistration != null) {
+      searchQueryHandlerRegistration.removeHandler();
+      searchQueryHandlerRegistration = null;
     }
     unsubscribeFromSearchWavelet();
     if (mentionTracker != null) {

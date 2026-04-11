@@ -25,12 +25,14 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 
+import org.waveprotocol.box.common.SearchQuerySyntax;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.wave.InvalidParticipantAddress;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -318,9 +320,9 @@ public class QueryHelper {
     if (query.isEmpty()) {
       return Collections.emptyMap();
     }
-    String[] tokens = query.split("\\s+");
+    List<String> tokenList = SearchQuerySyntax.tokenize(query);
     Map<TokenQueryType, Set<String>> tokensMap = Maps.newEnumMap(TokenQueryType.class);
-    for (String token : tokens) {
+    for (String token : tokenList) {
       int separatorIndex = token.indexOf(':');
       TokenQueryType tokenType;
       String tokenValue;
@@ -334,7 +336,7 @@ public class QueryHelper {
           throw new InvalidQueryException(msg);
         }
         tokenType = TokenQueryType.fromToken(tokenName);
-        tokenValue = token.substring(separatorIndex + 1);
+        tokenValue = SearchQuerySyntax.decodeTokenValue(token.substring(separatorIndex + 1));
       }
       // Verify the orderby param.
       if (tokenType.equals(TokenQueryType.ORDERBY)) {

@@ -29,29 +29,44 @@
 
 .tag {
   float: left;
-  line-height: 20px;
-  margin: 8px 0 0 5px;
-  padding: 0 1px 0 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+  margin: 6px 0 0 6px;
+  min-height: 22px;
+  padding: 0 6px 0 10px;
+  border: 1px solid #a6c8ea;
+  border-radius: 999px;
+  background: #eef6ff;
+}
+
+.tagLabel {
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .normal {
   cursor: pointer;
-  color: blue;
-  text-decoration: underline;
+  color: #0c4e80;
+  text-decoration: none;
 }
 
 .added {
   cursor: pointer;
-  background-color: #ffff00;
-  color: blue;
-  text-decoration: underline;
+  background-color: #fff7bf;
+  border-color: #e5d071;
+  color: #7a5a00;
+  text-decoration: none;
 }
 
 .removed {
   cursor: default;
-  background-color: #ffd0d0;
-  color: black;
-  text-decoration: line-through;
+  background-color: #fde8e8;
+  border-color: #f2b6b6;
+  color: #7a2f2f;
+  text-decoration: none;
 }
 
 .title {
@@ -116,10 +131,31 @@
   background: url(data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2722%27%20height%3D%2722%27%3E%3Ccircle%20cx%3D%2711%27%20cy%3D%2711%27%20r%3D%2711%27%20fill%3D%27%23005f8a%27%2F%3E%3Cpath%20d%3D%27M11%205v12M5%2011h12%27%20stroke%3D%27%23fff%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E) no-repeat center;
 }
 
-.deleteButton {
-  position: absolute;
-  top: -3px;
-  right: -10px;
-  width: 9px;
-  height: 9px;
+.removeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  margin: -1px -2px -1px 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  touch-action: manipulation;
+}
+
+.removeButton:hover {
+  background: rgba(12, 78, 128, 0.12);
+}
+
+.removed .removeButton {
+  display: none;
 }

@@ -68,6 +68,7 @@ public final class TagsViewBuilder implements UiBuilder {
     String panel();
     String flow();
     String tag();
+    String tagLabel();
     String normal();
     String added();
     String removed();
@@ -79,7 +80,7 @@ public final class TagsViewBuilder implements UiBuilder {
     String collapseButton();
     String addButton();
     String addButtonPressed();
-    String deleteButton();
+    String removeButton();
   }
 
   /** An enum for all the components of a tags view. */

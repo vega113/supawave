@@ -254,9 +254,21 @@ public final class OutputHelper {
       String kind,
       String title,
       String caption) {
+    button(builder, id, clazz, kind, title, null, caption);
+  }
+
+  public static void button(SafeHtmlBuilder builder,
+      String id,
+      String clazz,
+      String kind,
+      String title,
+      String ariaLabel,
+      String caption) {
     builder.appendHtmlConstant("<button " //
+        + " type='button'" //
         + (id != null ? " id='" + escapeAttr(id) + "'" : "") //
         + (title != null ? " title='" + escapeAttr(title) + "'" : "") //
+        + (ariaLabel != null ? " aria-label='" + escapeAttr(ariaLabel) + "'" : "") //
         + (clazz != null ? " class='" + escapeAttr(clazz) + "'" : "") //
         + (kind != null ? " " + BuilderHelper.KIND_ATTRIBUTE + "='" + escapeAttr(kind) + "'" : "") //
         + ">"+ caption + "</button>");

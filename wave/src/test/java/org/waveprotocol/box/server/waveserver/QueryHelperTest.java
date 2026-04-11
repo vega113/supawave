@@ -23,6 +23,8 @@ import com.google.common.collect.ImmutableSet;
 
 import junit.framework.TestCase;
 
+import org.waveprotocol.box.common.SearchQuerySyntax;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -69,6 +71,50 @@ public class QueryHelperTest extends TestCase {
     Map<TokenQueryType, Set<String>> queryParams = QueryHelper.parseQuery("tasks:me");
 
     assertEquals(ImmutableSet.of("me"), queryParams.get(TokenQueryType.TASKS));
+    assertNull(queryParams.get(TokenQueryType.CONTENT));
+  }
+
+  public void testParseQueryHandlesQuotedTagValueWithWhitespace() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("tag:\"mobile beta\"");
+
+    assertEquals(ImmutableSet.of("mobile beta"), queryParams.get(TokenQueryType.TAG));
+    assertNull(queryParams.get(TokenQueryType.CONTENT));
+  }
+
+  public void testParseQueryHandlesQuotedTagValueMixedWithBareWords() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("tag:\"project alpha\" meeting");
+
+    assertEquals(ImmutableSet.of("project alpha"), queryParams.get(TokenQueryType.TAG));
+    assertEquals(ImmutableSet.of("meeting"), queryParams.get(TokenQueryType.CONTENT));
+  }
+
+  public void testParseQueryRoundTripsTagValueContainingTabWhitespace() throws Exception {
+    String tagValue = "mobile\tbeta";
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("tag:" + SearchQuerySyntax.serializeTokenValue(tagValue));
+
+    assertEquals(ImmutableSet.of(tagValue), queryParams.get(TokenQueryType.TAG));
+    assertNull(queryParams.get(TokenQueryType.CONTENT));
+  }
+
+  public void testParseQueryRoundTripsTagValueContainingEmbeddedQuotes() throws Exception {
+    String tagValue = "project \"alpha\"";
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("tag:" + SearchQuerySyntax.serializeTokenValue(tagValue));
+
+    assertEquals(ImmutableSet.of(tagValue), queryParams.get(TokenQueryType.TAG));
+    assertNull(queryParams.get(TokenQueryType.CONTENT));
+  }
+
+  public void testParseQueryRoundTripsTagValueContainingLiteralSurroundingQuotes()
+      throws Exception {
+    String tagValue = "\"alpha\"";
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("tag:" + SearchQuerySyntax.serializeTokenValue(tagValue));
+
+    assertEquals(ImmutableSet.of(tagValue), queryParams.get(TokenQueryType.TAG));
     assertNull(queryParams.get(TokenQueryType.CONTENT));
   }
 

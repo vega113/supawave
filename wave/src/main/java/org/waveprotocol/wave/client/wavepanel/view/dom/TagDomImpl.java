@@ -45,12 +45,18 @@ public final class TagDomImpl implements DomView, IntrinsicTagView {
 
   @Override
   public void setName(String name) {
-    self.setInnerText(name);
+    Element label = getLabelElement();
+    if (label == null) {
+      self.setInnerText(name);
+    } else {
+      label.setInnerText(name);
+    }
   }
 
   @Override
   public String getName() {
-    return self.getInnerText();
+    Element label = getLabelElement();
+    return label == null ? self.getInnerText() : label.getInnerText();
   }
 
   @Override
@@ -70,7 +76,6 @@ public final class TagDomImpl implements DomView, IntrinsicTagView {
     switch (state) {
       case NORMAL:
         className += css.normal();
-        setHint(null);
         break;
       case ADDED:
         className += css.added();
@@ -98,6 +103,19 @@ public final class TagDomImpl implements DomView, IntrinsicTagView {
 
   void remove() {
     self.removeFromParent();
+  }
+
+  private Element getLabelElement() {
+    Element child = self.getFirstChildElement();
+    while (child != null) {
+      String childClass = child.getClassName();
+      if (childClass != null
+          && (" " + childClass + " ").indexOf(" " + css.tagLabel() + " ") != -1) {
+        return child;
+      }
+      child = child.getNextSiblingElement();
+    }
+    return null;
   }
 
   //

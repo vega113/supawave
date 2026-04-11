@@ -69,6 +69,7 @@ public final class TypeCodes {
     TYPES.put("npw", Type.NEW_WAVE_WITH_PARTICIPANTS);
     TYPES.put("ts", Type.TAGS);
     TYPES.put("tg", Type.TAG);
+    TYPES.put("rt", Type.REMOVE_TAG);
     TYPES.put("at", Type.ADD_TAG);
     TYPES.put("tp", Type.TOGGLE_PUBLIC);
     TYPES.put("sl", Type.SHARE_LINK);

@@ -977,7 +977,7 @@ public class EditorEventHandlerGwtTest
 
     @Override
     public void compositionStart(Point<ContentNode> caret) {
-      methodCalledHelper(COMPOSITION_START);
+      methodCalledHelper(COMPOSITION_START, caret);
     }
 
     @Override

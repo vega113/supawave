@@ -259,6 +259,15 @@ class RemoteWaveletContainerImpl extends WaveletContainerImpl implements RemoteW
       for (ByteStringMessage<ProtocolAppliedWaveletDelta> appliedDelta : appliedDeltas) {
         LOG.info("Delta incoming: " + appliedDelta);
 
+        // Log any illformed signed original deltas. TODO: Check if this can be removed.
+        try {
+          ProtocolWaveletDelta actualDelta = ProtocolWaveletDelta.parseFrom(
+              appliedDelta.getMessage().getSignedOriginalDelta().getDelta());
+          LOG.info("actual delta: " + actualDelta);
+        } catch (InvalidProtocolBufferException e) {
+          e.printStackTrace();
+        }
+
         HashedVersion appliedAt;
         try {
           appliedAt = AppliedDeltaUtil.getHashedVersionAppliedAt(appliedDelta);

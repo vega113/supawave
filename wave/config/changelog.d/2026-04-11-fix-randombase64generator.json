@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-11-fix-randombase64generator",
-  "version": "PR #839",
+  "version": "PR #NNN",
   "date": "2026-04-11",
   "title": "Fix use of non-cryptographic Random in RandomBase64Generator",
   "summary": "Updated RandomBase64Generator to enforce the use of SecureRandom instead of java.util.Random to improve token generation security.",
@@ -8,8 +8,7 @@
     {
       "type": "fix",
       "items": [
-        "Updated RandomBase64Generator constructor and internal field to use java.security.SecureRandom.",
-        "Updated the regression test to exercise the secure default constructor path."
+        "Updated RandomBase64Generator constructor and internal field to use java.security.SecureRandom."
       ]
     }
   ]

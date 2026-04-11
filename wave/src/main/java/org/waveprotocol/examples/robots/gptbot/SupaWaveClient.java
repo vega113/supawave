@@ -36,5 +36,6 @@ public interface SupaWaveClient {
   boolean replaceReply(String waveId, String waveletId, String replyBlipId, String content,
       String rpcServerUrl);
 
-  boolean appendReply(String waveId, String waveletId, String blipId, String content);
+  boolean appendReply(String waveId, String waveletId, String blipId, String content,
+      String rpcServerUrl);
 }

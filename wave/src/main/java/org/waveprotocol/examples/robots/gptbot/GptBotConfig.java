@@ -240,7 +240,9 @@ public final class GptBotConfig {
   }
 
   public boolean usesActiveApi() {
-    return contextMode == ContextMode.ACTIVE || replyMode == ReplyMode.ACTIVE;
+    return contextMode == ContextMode.ACTIVE
+        || replyMode == ReplyMode.ACTIVE
+        || replyMode == ReplyMode.ACTIVE_STREAM;
   }
 
   public GptBotConfig withSubmittedOnly(boolean newSubmittedOnly) {

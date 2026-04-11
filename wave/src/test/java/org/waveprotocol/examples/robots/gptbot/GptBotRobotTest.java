@@ -680,7 +680,8 @@ public class GptBotRobotTest extends TestCase {
     }
 
     @Override
-    public boolean appendReply(String waveId, String waveletId, String blipId, String content) {
+    public boolean appendReply(String waveId, String waveletId, String blipId, String content,
+        String rpcServerUrl) {
       appendCalls++;
       lastReply = content;
       return appendSucceeds;

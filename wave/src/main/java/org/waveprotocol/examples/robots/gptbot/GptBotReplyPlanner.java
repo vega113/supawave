@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Turns an explicit mention into a Codex-generated reply.
@@ -49,6 +50,8 @@ public final class GptBotReplyPlanner {
   private final int maxHistoryTokens;
   // Guards both conversationHistory map and all WaveHistory objects within it.
   private final Object historyLock = new Object();
+  // Per-wave mutex to serialize concurrent completions on the same wave.
+  private final ConcurrentHashMap<String, Object> waveLocks = new ConcurrentHashMap<>();
   private final Map<String, WaveHistory> conversationHistory =
       new LinkedHashMap<String, WaveHistory>(16, 0.75f, false) {
         @Override
@@ -91,6 +94,17 @@ public final class GptBotReplyPlanner {
   }
 
   private String runCompletion(String promptText, String waveContext, String waveId,
+      CodexClient.StreamingListener listener) {
+    if (waveId != null && !waveId.isEmpty()) {
+      Object waveLock = waveLocks.computeIfAbsent(waveId, k -> new Object());
+      synchronized (waveLock) {
+        return doRunCompletion(promptText, waveContext, waveId, listener);
+      }
+    }
+    return doRunCompletion(promptText, waveContext, waveId, listener);
+  }
+
+  private String doRunCompletion(String promptText, String waveContext, String waveId,
       CodexClient.StreamingListener listener) {
     String normalizedPrompt = promptText == null ? "" : promptText.strip();
     if (normalizedPrompt.isEmpty()) {

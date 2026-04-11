@@ -41,7 +41,7 @@ final class StreamingReplyWriter {
     this.rpcServerUrl = rpcServerUrl;
   }
 
-  boolean start(String initialContent) {
+  synchronized boolean start(String initialContent) {
     java.util.Optional<String> created =
         apiClient.createReply(waveId, waveletId, parentBlipId, initialContent, rpcServerUrl);
     if (!created.isPresent()) {
@@ -51,7 +51,7 @@ final class StreamingReplyWriter {
     return true;
   }
 
-  boolean update(String accumulatedText) {
+  synchronized boolean update(String accumulatedText) {
     if (replyBlipId.isEmpty()) {
       return false;
     }
@@ -67,7 +67,7 @@ final class StreamingReplyWriter {
     return replaced;
   }
 
-  boolean finish(String finalText) {
+  synchronized boolean finish(String finalText) {
     return update(finalText);
   }
 }

@@ -45,7 +45,7 @@ import javax.net.ssl.SSLSession;
 public class SupaWaveApiClientTest extends TestCase {
 
   public void testSearchRestoresInterruptStatusWhenRequestInterrupted() {
-    GptBotConfig config = GptBotConfig.forTest();
+    GptBotConfig config = testConfig();
     SupaWaveApiClient client = new SupaWaveApiClient(config, new InterruptingHttpClient());
 
     try {
@@ -58,7 +58,7 @@ public class SupaWaveApiClientTest extends TestCase {
   }
 
   public void testCreateReplyUsesRobotTokenForRobotRpcAndParsesNewBlipId() {
-    GptBotConfig config = GptBotConfig.forTest();
+    GptBotConfig config = testConfig();
     RecordingHttpClient httpClient = new RecordingHttpClient();
     SupaWaveApiClient client = new SupaWaveApiClient(config, httpClient);
 
@@ -73,7 +73,7 @@ public class SupaWaveApiClientTest extends TestCase {
   }
 
   public void testCreateReplyUsesDataTokenForDataRpcEndpoint() {
-    GptBotConfig config = GptBotConfig.forTest();
+    GptBotConfig config = testConfig();
     RecordingHttpClient httpClient = new RecordingHttpClient();
     SupaWaveApiClient client = new SupaWaveApiClient(config, httpClient);
 
@@ -87,7 +87,7 @@ public class SupaWaveApiClientTest extends TestCase {
   }
 
   public void testReplaceReplyUsesDocumentModifyAtSuppliedRpcEndpoint() {
-    GptBotConfig config = GptBotConfig.forTest();
+    GptBotConfig config = testConfig();
     RecordingHttpClient httpClient = new RecordingHttpClient();
     SupaWaveApiClient client = new SupaWaveApiClient(config, httpClient);
 
@@ -98,6 +98,38 @@ public class SupaWaveApiClientTest extends TestCase {
     assertEquals("https://wave.example.com/robot/dataapi/rpc", httpClient.lastRpcRequestUri.toString());
     assertTrue(httpClient.lastRpcRequestBody.contains("\"method\":\"document.modify\""));
     assertTrue(httpClient.lastRpcRequestBody.contains("\"blipId\":\"b+reply\""));
+  }
+
+  public void testCreateReplyFallsBackToTrustedRobotEndpointWhenRpcServerUrlIsUntrusted() {
+    GptBotConfig config = testConfig();
+    RecordingHttpClient httpClient = new RecordingHttpClient();
+    SupaWaveApiClient client = new SupaWaveApiClient(config, httpClient);
+
+    Optional<String> replyId = client.createReply("example.com!w+abc123",
+        "example.com!conv+root", "b+parent", "\nHello",
+        "https://evil.example.net/robot/dataapi/rpc");
+
+    assertEquals(Optional.of("b+child"), replyId);
+    assertEquals("https://wave.example.com/robot/rpc", httpClient.lastRpcRequestUri.toString());
+    assertTrue(httpClient.lastTokenRequestBody.contains("token_type=robot"));
+  }
+
+  public void testCreateReplyAcceptsRobotRpcUrlsWithTrailingSlashAndQueryParameters() {
+    GptBotConfig config = testConfig();
+    RecordingHttpClient httpClient = new RecordingHttpClient();
+    SupaWaveApiClient client = new SupaWaveApiClient(config, httpClient);
+
+    Optional<String> replyId = client.createReply("example.com!w+abc123",
+        "example.com!conv+root", "b+parent", "\nHello",
+        "https://wave.example.com/robot/rpc/?tenant=x");
+
+    assertEquals(Optional.of("b+child"), replyId);
+    assertTrue(httpClient.lastTokenRequestBody.contains("token_type=robot"));
+    assertEquals("https://wave.example.com/robot/rpc/?tenant=x", httpClient.lastRpcRequestUri.toString());
+  }
+
+  private static GptBotConfig testConfig() {
+    return GptBotConfig.forTest().withBaseUrl("https://wave.example.com");
   }
 
   private static final class InterruptingHttpClient extends HttpClient {

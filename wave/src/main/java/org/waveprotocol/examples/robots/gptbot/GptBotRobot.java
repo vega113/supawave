@@ -218,12 +218,19 @@ public final class GptBotRobot {
         LOG.info("handleBlip: ACTIVE_STREAM mode — starting streamed reply for blipId=" + blipId);
         StreamingReplyWriter writer = new StreamingReplyWriter(apiClient, waveId, waveletId,
             blipId, rpcServerUrl);
-        if (!writer.start("")) {
-          LOG.warning("handleBlip: ACTIVE_STREAM createReply failed for blipId=" + blipId);
-          return;
-        }
+        final boolean[] started = {false};
         Optional<String> reply = replyPlanner.replyForPromptStreaming(prompt.get(), waveContext, waveId,
             accumulatedText -> {
+              if (!started[0] && accumulatedText != null && !accumulatedText.isEmpty()) {
+                started[0] = writer.start(accumulatedText);
+                if (!started[0]) {
+                  LOG.warning("handleBlip: ACTIVE_STREAM createReply failed for blipId=" + blipId);
+                }
+                return;
+              }
+              if (!started[0]) {
+                return;
+              }
               if (!writer.update(accumulatedText)) {
                 LOG.warning("handleBlip: ACTIVE_STREAM update failed for blipId=" + blipId);
               }
@@ -233,6 +240,10 @@ public final class GptBotRobot {
           return;
         }
         String replyText = reply.get();
+        if (!started[0] && !replyText.isEmpty() && !writer.start(replyText)) {
+          LOG.warning("handleBlip: ACTIVE_STREAM createReply failed for blipId=" + blipId);
+          return;
+        }
         if (!writer.finish(replyText)) {
           LOG.warning("handleBlip: ACTIVE_STREAM final update failed for blipId=" + blipId);
         }
@@ -253,7 +264,7 @@ public final class GptBotRobot {
 
       if (config.getReplyMode() == GptBotConfig.ReplyMode.ACTIVE) {
         LOG.info("handleBlip: ACTIVE mode — calling appendReply for blipId=" + blipId);
-        if (!apiClient.appendReply(waveId, waveletId, blipId, replyText)) {
+        if (!apiClient.appendReply(waveId, waveletId, blipId, replyText, rpcServerUrl)) {
           LOG.warning("handleBlip: ACTIVE appendReply failed for blipId=" + blipId
               + " waveId=" + waveId + " waveletId=" + waveletId);
         } else {

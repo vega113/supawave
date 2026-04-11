@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Add Streaming Capability To The gpt-bot LLM Client Layer
+## Task 1: Add Streaming Capability To The gpt-bot LLM Client Layer
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/examples/robots/gptbot/CodexClient.java`
@@ -107,7 +107,7 @@ git add \
 git commit -m "feat(gptbot): add streaming LLM reply callbacks"
 ```
 
-### Task 2: Add A Serialized Streaming Reply Writer On Top Of Robot RPC
+## Task 2: Add A Serialized Streaming Reply Writer On Top Of Robot RPC
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/examples/robots/gptbot/SupaWaveClient.java`
@@ -209,7 +209,7 @@ git add \
 git commit -m "feat(robot-api): stream replies through createChild and document.modify"
 ```
 
-### Task 3: Wire The Example Robot To Use The Streaming Path Safely
+## Task 3: Wire The Example Robot To Use The Streaming Path Safely
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/examples/robots/gptbot/GptBotConfig.java`
@@ -292,7 +292,7 @@ git add \
 git commit -m "feat(gptbot): add active streaming reply mode"
 ```
 
-### Task 4: Document The Supported Streaming Pattern And Ship The Changelog
+## Task 4: Document The Supported Streaming Pattern And Ship The Changelog
 
 **Files:**
 - Modify: `wave/src/jakarta-overrides/java/org/waveprotocol/box/server/rpc/ApiDocsServlet.java`
@@ -372,7 +372,7 @@ git add \
 git commit -m "docs(robot-api): document streaming replies into waves"
 ```
 
-### Task 5: Final Verification, Review Evidence, And PR Prep
+## Task 5: Final Verification, Review Evidence, And PR Prep
 
 **Files:**
 - Create: `journal/local-verification/2026-04-10-issue-811-robot-streaming.md`

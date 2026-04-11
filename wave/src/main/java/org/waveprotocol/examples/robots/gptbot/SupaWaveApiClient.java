@@ -91,8 +91,9 @@ public final class SupaWaveApiClient implements SupaWaveClient {
   }
 
   @Override
-  public boolean appendReply(String waveId, String waveletId, String blipId, String content) {
-    return createReply(waveId, waveletId, blipId, content, activeRpcEndpoint()).isPresent();
+  public boolean appendReply(String waveId, String waveletId, String blipId, String content,
+      String rpcServerUrl) {
+    return createReply(waveId, waveletId, blipId, content, rpcServerUrl).isPresent();
   }
 
   @Override
@@ -441,9 +442,35 @@ public final class SupaWaveApiClient implements SupaWaveClient {
   private String resolveRpcEndpoint(String rpcServerUrl) {
     String endpoint = rpcServerUrl == null ? "" : rpcServerUrl.trim();
     if (endpoint.isEmpty()) {
-      endpoint = activeRpcEndpoint();
+      return activeRpcEndpoint();
     }
-    return endpoint;
+    if (isTrustedRpcEndpoint(endpoint)) {
+      return endpoint;
+    }
+    LOG.warning("Ignoring untrusted rpcServerUrl from bundle: " + clamp(endpoint));
+    return activeRpcEndpoint();
+  }
+
+  private boolean isTrustedRpcEndpoint(String endpoint) {
+    try {
+      URI configured = URI.create(config.getBaseUrl());
+      URI candidate = URI.create(endpoint);
+      if (!configured.getScheme().equalsIgnoreCase(candidate.getScheme())) {
+        return false;
+      }
+      if (!configured.getHost().equalsIgnoreCase(candidate.getHost())) {
+        return false;
+      }
+      int configuredPort = configured.getPort() == -1
+          ? ("https".equalsIgnoreCase(configured.getScheme()) ? 443 : 80)
+          : configured.getPort();
+      int candidatePort = candidate.getPort() == -1
+          ? ("https".equalsIgnoreCase(candidate.getScheme()) ? 443 : 80)
+          : candidate.getPort();
+      return configuredPort == candidatePort;
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
   }
 
   private String tokenEndpoint() {

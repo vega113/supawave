@@ -176,13 +176,12 @@ public final class OpenAiCodexClient implements CodexClient {
 
       HttpResponse<Stream<String>> response =
           httpClient.send(request, HttpResponse.BodyHandlers.ofLines());
-      if (response.statusCode() < 200 || response.statusCode() >= 300) {
-        LOG.warning("OpenAI API returned HTTP " + response.statusCode());
-        return "I'm having trouble generating a response right now.";
-      }
-
       StringBuilder accumulated = new StringBuilder();
       try (Stream<String> lines = response.body()) {
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+          LOG.warning("OpenAI API returned HTTP " + response.statusCode());
+          return "I'm having trouble generating a response right now.";
+        }
         lines.forEach(line -> applyStreamingLine(line, accumulated, listener));
       }
 

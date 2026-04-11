@@ -22,7 +22,6 @@ package org.waveprotocol.box.server.util;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.security.SecureRandom;
-import java.util.Random;
 
 /**
  * Produces sequence of pseudo-random id strings.
@@ -37,18 +36,18 @@ public class RandomBase64Generator {
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
       .toCharArray();
 
-  private final Random random;
+  private final SecureRandom random;
 
   /**
    * @param random Pseudo-random generator,
-   *        use Random for speed, SecureRandom for cryptographic strength.
+   *        must be SecureRandom for cryptographic strength.
    */
-  public RandomBase64Generator(Random random) {
+  public RandomBase64Generator(SecureRandom random) {
     this.random = random;
   }
 
   /**
-   * Default constructor using Random.
+   * Default constructor using SecureRandom.
    */
   public RandomBase64Generator() {
     this(new SecureRandom());

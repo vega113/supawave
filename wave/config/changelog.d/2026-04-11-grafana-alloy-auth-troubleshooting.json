@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-11-grafana-alloy-auth-troubleshooting",
+  "version": "PR #837",
+  "date": "2026-04-11",
+  "title": "Grafana Alloy auth troubleshooting",
+  "summary": "Document how to isolate Grafana Cloud auth failures from Wave JSON log emission and Alloy parsing issues.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Added troubleshooting checks for Grafana Alloy log shipping that use the configured log path and parser sanity checks to narrow incidents to auth problems."
+      ]
+    }
+  ]
+}

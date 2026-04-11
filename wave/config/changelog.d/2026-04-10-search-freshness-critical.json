@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-10-search-freshness-critical",
+  "version": "fix/search-freshness-critical",
+  "date": "2026-04-10",
+  "title": "Restore search freshness for newly shared waves and newly added tags",
+  "summary": "Fixes a search freshness regression where recent participant/tag mutations could be missed when a per-user search view rebuilt during the reload cooldown window.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Per-user search view rebuilds now force a full wave-map refresh after recent non-search wave mutations instead of incorrectly reusing the cooldown path",
+        "Added regression coverage for participant visibility, content searchability, and tag searchability on the runtime memory-view search path",
+        "Extended the Java E2E suite to verify Bob can find a newly shared wave by content term and that `tag:<newtag>` returns the wave after a fresh tag mutation"
+      ]
+    }
+  ]
+}

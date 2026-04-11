@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.waveserver;
 
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Function;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -38,6 +39,7 @@ import junit.framework.TestCase;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
+import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
@@ -74,6 +76,7 @@ import org.waveprotocol.box.server.robots.util.RobotsUtil;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
+import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
@@ -189,11 +192,12 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
   @Mock private IdGenerator idGenerator;
   @Mock private WaveletNotificationDispatcher notifiee;
-  @Mock private DeltaAndSnapshotStore waveletStore;
   @Mock private RemoteWaveletContainer.Factory remoteWaveletContainerFactory;
   @Mock private PerUserWaveViewProvider waveViewProvider;
 
   private SearchProvider searchProvider;
+  private MemoryPerUserWaveViewHandlerImpl runtimeWaveViewProvider;
+  private SearchProvider runtimeSearchProvider;
   private WaveMap waveMap;
 
   @Override
@@ -211,7 +215,9 @@ public class SimpleSearchProviderImplTest extends TestCase {
     ConversationUtil conversationUtil = new ConversationUtil(idGenerator);
     WaveDigester digester = new WaveDigester(conversationUtil);
 
-    final DeltaStore deltaStore = new MemoryDeltaStore();
+    final MemoryDeltaStore deltaStore = new MemoryDeltaStore();
+    final DeltaAndSnapshotStore inMemoryWaveletStore =
+        new DeltaStoreBasedSnapshotStore(deltaStore, null);
     final Executor persistExecutor = MoreExecutors.directExecutor();
     final Executor storageContinuationExecutor = MoreExecutors.directExecutor();
     final Executor lookupExecutor = MoreExecutors.directExecutor();
@@ -238,10 +244,13 @@ public class SimpleSearchProviderImplTest extends TestCase {
     );
 
     waveMap =
-        new WaveMap(waveletStore, notifiee, localWaveletContainerFactory,
+        new WaveMap(inMemoryWaveletStore, notifiee, localWaveletContainerFactory,
             remoteWaveletContainerFactory, DOMAIN, config, lookupExecutor);
 
     searchProvider = new SimpleSearchProviderImpl(DOMAIN, digester, waveMap, waveViewProvider);
+    runtimeWaveViewProvider = new MemoryPerUserWaveViewHandlerImpl(waveMap);
+    runtimeSearchProvider =
+        new SimpleSearchProviderImpl(DOMAIN, digester, waveMap, runtimeWaveViewProvider);
   }
 
   @Override
@@ -860,6 +869,53 @@ public class SimpleSearchProviderImplTest extends TestCase {
         WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
   }
 
+  public void testRuntimeSearchFreshnessAcrossReloadCooldownForParticipantAndTagQueries()
+      throws Exception {
+    WaveletName wave = WaveletName.of(WaveId.of(DOMAIN, "freshness-runtime"), WAVELET_ID);
+
+    assertEquals(0, runtimeSearchProvider.search(USER1, "in:inbox", 0, 20).getNumResults());
+
+    submitDeltaToNewWaveletWithoutView(wave, USER1, runtimeAddParticipant(USER1));
+    runtimeWaveViewProvider.onParticipantAdded(wave, USER1).get();
+
+    SearchResult aliceInbox = runtimeSearchProvider.search(USER1, "in:inbox", 0, 20);
+    assertEquals(1, aliceInbox.getNumResults());
+    assertEquals(wave.waveId.serialise(), aliceInbox.getDigests().get(0).getWaveId());
+
+    SearchResult bobWarmup = runtimeSearchProvider.search(USER2, "in:inbox", 0, 20);
+    assertEquals(0, bobWarmup.getNumResults());
+
+    submitDeltaToExistingWavelet(wave, USER1, runtimeAddParticipant(USER2));
+    runtimeWaveViewProvider.onParticipantAdded(wave, USER2).get();
+    appendBlipToWavelet(wave, USER1, "b+fresh-runtime", "freshness payload");
+    addTagToWavelet(wave, USER1, "fresh-tag");
+
+    ReadableWaveletData readableWavelet = waveMap.getWavelet(wave).applyFunction(
+        new Function<ReadableWaveletData, ReadableWaveletData>() {
+          @Override
+          public ReadableWaveletData apply(ReadableWaveletData waveletData) {
+            return waveletData;
+          }
+        });
+    runtimeWaveViewProvider.waveletUpdate(readableWavelet, DeltaSequence.empty());
+
+    waveMap.unloadAllWavelets();
+
+    SearchResult bobInbox = runtimeSearchProvider.search(USER2, "in:inbox", 0, 20);
+    assertEquals(1, bobInbox.getNumResults());
+    SearchResult bobContentSearch = runtimeSearchProvider.search(USER2, "in:inbox freshness", 0, 20);
+    assertEquals(1, bobContentSearch.getNumResults());
+    assertEquals(wave.waveId.serialise(), bobContentSearch.getDigests().get(0).getWaveId());
+
+    waveMap.unloadAllWavelets();
+    runtimeWaveViewProvider.explicitPerUserWaveViews.invalidate(USER1);
+    runtimeWaveViewProvider.waveletUpdate(readableWavelet, DeltaSequence.empty());
+
+    SearchResult tagResults = runtimeSearchProvider.search(USER1, "tag:fresh-tag", 0, 20);
+    assertEquals(1, tagResults.getNumResults());
+    assertEquals(wave.waveId.serialise(), tagResults.getDigests().get(0).getWaveId());
+  }
+
   public void testSearchFilterByMentionsReturnsOnlyMentionedWaves() throws Exception {
     WaveletName mentionedWave = WaveletName.of(WaveId.of(DOMAIN, "mentioned"), WAVELET_ID);
     WaveletName unmentionedWave = WaveletName.of(WaveId.of(DOMAIN, "unmentioned"), WAVELET_ID);
@@ -1020,6 +1076,10 @@ public class SimpleSearchProviderImplTest extends TestCase {
       WaveletOperation... ops) throws Exception {
     HashedVersion version = V0_HASH_FACTORY.createVersionZero(name);
     submitDelta(name, user, version, ops);
+  }
+
+  private WaveletOperation runtimeAddParticipant(ParticipantId user) {
+    return new AddParticipant(CONTEXT, user);
   }
 
   private void submitDelta(WaveletName name, ParticipantId user, HashedVersion version,

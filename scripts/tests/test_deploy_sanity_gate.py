@@ -18,16 +18,17 @@ class DeploySanityGateTest(unittest.TestCase):
     if bash_path is None:
       self.skipTest("requires bash >= 4 to execute deploy/caddy/deploy.sh")
 
-    temp_dir = Path(tempfile.mkdtemp(prefix="deploy-sanity-gate-"))
-    fake_bin = temp_dir / "bin"
-    fake_bin.mkdir(parents=True)
-    deploy_root = temp_dir / "deploy-root"
-    (deploy_root / "shared").mkdir(parents=True)
-    (deploy_root / "shared" / "active-slot").write_text("blue\n", encoding="utf-8")
+    with tempfile.TemporaryDirectory(prefix="deploy-sanity-gate-") as tmp_dir:
+      temp_dir = Path(tmp_dir)
+      fake_bin = temp_dir / "bin"
+      fake_bin.mkdir(parents=True)
+      deploy_root = temp_dir / "deploy-root"
+      (deploy_root / "shared").mkdir(parents=True)
+      (deploy_root / "shared" / "active-slot").write_text("blue\n", encoding="utf-8")
 
-    self._write_executable(
-        fake_bin / "docker",
-        """#!/usr/bin/env bash
+      self._write_executable(
+          fake_bin / "docker",
+          """#!/usr/bin/env bash
 set -euo pipefail
 cmd="$*"
 if [[ "$1" == "compose" && "$2" == "version" ]]; then
@@ -49,10 +50,10 @@ case "$cmd" in
     ;;
 esac
 """,
-    )
-    self._write_executable(
-        fake_bin / "curl",
-        """#!/usr/bin/env bash
+      )
+      self._write_executable(
+          fake_bin / "curl",
+          """#!/usr/bin/env bash
 set -euo pipefail
 for arg in "$@"; do
   if [[ "$arg" == "http://localhost:9899/healthz" ]]; then
@@ -61,41 +62,41 @@ for arg in "$@"; do
 done
 exit 1
 """,
-    )
-    self._write_executable(
-        fake_bin / "systemctl",
-        "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
-    )
-    self._write_executable(
-        fake_bin / "flock",
-        "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
-    )
+      )
+      self._write_executable(
+          fake_bin / "systemctl",
+          "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
+      )
+      self._write_executable(
+          fake_bin / "flock",
+          "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
+      )
 
-    env = os.environ.copy()
-    env["PATH"] = f"{fake_bin}:{env['PATH']}"
-    env["DEPLOY_ROOT"] = str(deploy_root)
-    env["WAVE_IMAGE"] = "ghcr.io/example/wave:test"
-    env["CANONICAL_HOST"] = "supawave.ai"
-    env["ROOT_HOST"] = "wave.supawave.ai"
-    env["WWW_HOST"] = "www.supawave.ai"
+      env = os.environ.copy()
+      env["PATH"] = f"{fake_bin}:{env['PATH']}"
+      env["DEPLOY_ROOT"] = str(deploy_root)
+      env["WAVE_IMAGE"] = "ghcr.io/example/wave:test"
+      env["CANONICAL_HOST"] = "supawave.ai"
+      env["ROOT_HOST"] = "wave.supawave.ai"
+      env["WWW_HOST"] = "www.supawave.ai"
 
-    result = subprocess.run(
-        [bash_path, str(DEPLOY_SCRIPT), "deploy"],
-        cwd=REPO_ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+      result = subprocess.run(
+          [bash_path, str(DEPLOY_SCRIPT), "deploy"],
+          cwd=REPO_ROOT,
+          env=env,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
 
-    self.assertNotEqual(
-        0,
-        result.returncode,
-        msg=f"deploy unexpectedly succeeded:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
-    )
-    combined = f"{result.stdout}\n{result.stderr}"
-    self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
-    self.assertNotIn("skipping sanity check", combined.lower())
+      self.assertNotEqual(
+          0,
+          result.returncode,
+          msg=f"deploy unexpectedly succeeded:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
+      )
+      combined = f"{result.stdout}\n{result.stderr}"
+      self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+      self.assertNotIn("skipping sanity check", combined.lower())
 
   def test_deploy_workflow_validates_sanity_credentials_before_remote_steps(self):
     workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
@@ -106,6 +107,10 @@ exit 1
     self.assertIn('SANITY_PASSWORD: ${{ secrets.SANITY_PASSWORD }}', workflow)
     self.assertIn(': "${SANITY_ADDRESS:?Set repo secret SANITY_ADDRESS', workflow)
     self.assertIn(': "${SANITY_PASSWORD:?Set repo secret SANITY_PASSWORD', workflow)
+
+    validate_idx = workflow.index("name: Validate deploy sanity credentials")
+    remote_idx = workflow.index("name: Upload bundle")
+    self.assertLess(validate_idx, remote_idx)
 
   @staticmethod
   def _write_executable(path: Path, content: str) -> None:

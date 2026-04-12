@@ -167,11 +167,12 @@
   gap: 4px;
   margin: 5px 0 0 6px;
   min-height: 24px;
-  max-width: calc(100% - 5.5em);
+  max-width: 100%;
   padding: 0 4px 0 8px;
   border: 1px solid #8bbbe5;
   border-radius: 999px;
   background: #ffffff;
+  box-sizing: border-box;
 }
 
 .inlineEditorVisible {
@@ -179,8 +180,9 @@
 }
 
 .inlineInput {
+  flex: 1 1 auto;
   width: 7em;
-  min-width: 5em;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;

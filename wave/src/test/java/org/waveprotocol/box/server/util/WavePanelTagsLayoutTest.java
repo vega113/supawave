@@ -88,6 +88,20 @@ public final class WavePanelTagsLayoutTest extends TestCase {
     assertFalse(controller.contains("new TagInputWidget("));
   }
 
+  public void testInlineComposerKeepsActionsInsideReservedRailWithoutCalc() throws Exception {
+    String css = read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");
+
+    assertTrue(css.contains(".flow"));
+    assertTrue(css.contains("padding-right: 4.5em;"));
+    assertTrue(css.contains(".inlineEditor"));
+    assertTrue(css.contains("max-width: 100%;"));
+    assertTrue(css.contains("box-sizing: border-box;"));
+    assertTrue(css.contains(".inlineInput"));
+    assertTrue(css.contains("flex: 1 1 auto;"));
+    assertTrue(css.contains("min-width: 0;"));
+    assertFalse(css.contains("max-width: calc("));
+  }
+
   public void testTagFilteringUsesClientSearchQueryEventSeam() throws Exception {
     String clientEvents =
         read("wave/src/main/java/org/waveprotocol/wave/client/events/ClientEvents.java");

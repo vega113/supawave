@@ -397,12 +397,6 @@
   white-space: nowrap;
   font-style: italic;
 }
-@media (max-width: 768px) {
-  .editHint {
-    display: none;
-  }
-}
-
 
 /* ---- Draft-mode active indicator ---- */
 

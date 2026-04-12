@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-mobile-toolbar-blip-visibility",
+  "version": "Unreleased",
+  "date": "2026-04-12",
+  "title": "Keep mobile blips visible beneath wrapped edit toolbars",
+  "summary": "The wave conversation scroller now follows the real rendered toolbar height on mobile, so wrapped edit toolbars no longer cover the first blip while you edit.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "When the mobile edit toolbar grows beyond a single row, the conversation pane now shifts down to keep the first blip fully visible",
+        "Toolbar height changes from reflow and viewport resizing now resync the wave panel instead of leaving blip content hidden under the toolbar"
+      ]
+    }
+  ]
+}

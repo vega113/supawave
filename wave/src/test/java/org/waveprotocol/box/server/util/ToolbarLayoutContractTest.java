@@ -94,6 +94,15 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(css.contains("background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);"));
   }
 
+  public void testTopConversationTracksActualToolbarHeightWhenLayoutChanges() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/TopConversationDomImpl.java");
+
+    assertTrue(javaSource.contains("toolbar.getOffsetTop() + toolbar.getOffsetHeight()"));
+    assertTrue(javaSource.contains("setTop(topPx, Unit.PX);"));
+    assertTrue(javaSource.contains("Scheduler.get().scheduleDeferred"));
+  }
+
   public void testSearchToolbarSvgContractMatchesPolishedToolbarSizing() throws Exception {
     String javaSource = read(
         "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPresenter.java");

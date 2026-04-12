@@ -19,8 +19,15 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.dom;
 
+import com.google.gwt.core.client.JavaScriptObject;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.Style.Unit;
+import com.google.gwt.event.logical.shared.ResizeEvent;
+import com.google.gwt.event.logical.shared.ResizeHandler;
+import com.google.gwt.event.shared.HandlerRegistration;
+import com.google.gwt.user.client.Window;
 
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TopConversationViewBuilder.Components;
 
@@ -43,6 +50,9 @@ public final class TopConversationDomImpl implements DomView {
 
   private Element threadContainer;
   private Element toolbarContainer;
+  private HandlerRegistration resizeRegistration;
+  private JavaScriptObject toolbarResizeObserver;
+  private boolean threadTopSyncScheduled;
 
   TopConversationDomImpl(Element e, String id) {
     this.self = e;
@@ -98,11 +108,77 @@ public final class TopConversationDomImpl implements DomView {
     if (toolbar != null) {
       getToolbarContainer().appendChild(toolbar);
     }
+    ensureToolbarLayoutSync();
+    syncThreadTopToToolbar();
+    scheduleThreadTopSync();
   }
 
   public void remove() {
+    disconnectToolbarResizeObserver();
+    if (resizeRegistration != null) {
+      resizeRegistration.removeHandler();
+      resizeRegistration = null;
+    }
     getElement().removeFromParent();
   }
+
+  private void ensureToolbarLayoutSync() {
+    if (resizeRegistration == null) {
+      resizeRegistration = Window.addResizeHandler(new ResizeHandler() {
+        @Override
+        public void onResize(ResizeEvent event) {
+          scheduleThreadTopSync();
+        }
+      });
+    }
+    observeToolbarResize(getToolbarContainer());
+  }
+
+  private void scheduleThreadTopSync() {
+    if (threadTopSyncScheduled) {
+      return;
+    }
+    threadTopSyncScheduled = true;
+    Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+      @Override
+      public void execute() {
+        threadTopSyncScheduled = false;
+        syncThreadTopToToolbar();
+      }
+    });
+  }
+
+  private void syncThreadTopToToolbar() {
+    Element toolbar = getToolbarContainer();
+    Element thread = getThreadContainer();
+    if (toolbar == null || thread == null) {
+      return;
+    }
+    int topPx = toolbar.getOffsetTop() + toolbar.getOffsetHeight();
+    thread.getStyle().setTop(topPx, Unit.PX);
+  }
+
+  private native void observeToolbarResize(Element toolbar) /*-{
+    this.@org.waveprotocol.wave.client.wavepanel.view.dom.TopConversationDomImpl::disconnectToolbarResizeObserver()();
+    if (!$wnd.ResizeObserver || !toolbar) {
+      return;
+    }
+    var self = this;
+    var observer = new $wnd.ResizeObserver(function() {
+      self.@org.waveprotocol.wave.client.wavepanel.view.dom.TopConversationDomImpl::scheduleThreadTopSync()();
+    });
+    observer.observe(toolbar);
+    this.@org.waveprotocol.wave.client.wavepanel.view.dom.TopConversationDomImpl::toolbarResizeObserver = observer;
+  }-*/;
+
+  private native void disconnectToolbarResizeObserver() /*-{
+    var observer =
+        this.@org.waveprotocol.wave.client.wavepanel.view.dom.TopConversationDomImpl::toolbarResizeObserver;
+    if (observer && observer.disconnect) {
+      observer.disconnect();
+    }
+    this.@org.waveprotocol.wave.client.wavepanel.view.dom.TopConversationDomImpl::toolbarResizeObserver = null;
+  }-*/;
 
   //
   // Equality.

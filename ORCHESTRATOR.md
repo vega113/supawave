@@ -246,9 +246,9 @@ Practical note:
 2. If orchestration-plan work applies, follow
    `docs/superpowers/plans/2026-03-18-agent-orchestration-plan.md`.
 3. Check open PRs:
-   - `gh pr list --repo vega113/incubator-wave --state open`
+   - `gh pr list --repo vega113/supawave --state open`
 4. Check live deploy status:
-   - `gh run list --repo vega113/incubator-wave --workflow deploy-contabo.yml --limit 5`
+   - `gh run list --repo vega113/supawave --workflow deploy-contabo.yml --limit 5`
 5. If touching production deploy behavior, verify live endpoints first:
    - `https://supawave.ai/`
    - `https://supawave.ai/webclient/webclient.nocache.js`

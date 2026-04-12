@@ -17,11 +17,14 @@
 # (network blips, missing panes) must not abort the monitoring loop.
 set -uo pipefail
 
-REPO="vega113/incubator-wave"
+DEFAULT_REPO="vega113/supawave"
+REPO="${GITHUB_REPO:-$DEFAULT_REPO}"
 WAVE_SESSION="vibe-code:wave-lanes"
 WORKTREE_BASE="/Users/vega/devroot/worktrees"
 REPO_PATH="/Users/vega/devroot/incubator-wave"
 CYCLE_INTERVAL=300
+REPO_OWNER="${REPO%%/*}"
+REPO_NAME="${REPO#*/}"
 
 extract_pr_number() {
   local text="$1"
@@ -44,7 +47,7 @@ is_pane_idle() {
 
 get_unresolved_threads() {
   local pr=$1
-  gh api graphql -f query="{ repository(owner:\"vega113\", name:\"incubator-wave\") { pullRequest(number:${pr}) { reviewThreads(first:100) { nodes { isResolved } } } } }" \
+  gh api graphql -f query="{ repository(owner:\"${REPO_OWNER}\", name:\"${REPO_NAME}\") { pullRequest(number:${pr}) { reviewThreads(first:100) { nodes { isResolved } } } } }" \
     -q '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false)) | length' 2>/dev/null || echo "0"
 }
 

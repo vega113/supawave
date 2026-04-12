@@ -8,7 +8,7 @@ Before doing anything, check if there's any work:
 ```
 count=$(gh search prs --author=@me --state=open --json number --jq length 2>/dev/null)
 reviews=$(gh search prs --review-requested=@me --state=open --json number --jq length 2>/dev/null)
-issues=$(for repo in vega113/incubator-wave vega113/tube2web vega113/tubescribes vega113/slides-lab; do gh issue list -R "$repo" --state open --json number --jq length 2>/dev/null; done | paste -sd+ | bc)
+issues=$(for repo in vega113/supawave vega113/tube2web vega113/tubescribes vega113/slides-lab; do gh issue list -R "$repo" --state open --json number --jq length 2>/dev/null; done | paste -sd+ | bc)
 if [ "${count:-0}" -eq 0 ] && [ "${reviews:-0}" -eq 0 ] && [ "${issues:-0}" -eq 0 ]; then echo "All clean"; exit 0; fi
 ```
 
@@ -35,7 +35,7 @@ Search for open PRs authored by me and PRs where review is requested, across all
 ### c. Merge readiness
 - All checks pass + no conflicts + no unresolved threads + every nitpick has an explicit disposition + latest commit older than 10 minutes → merge
 - For stacked PRs targeting a non-default branch, also verify explicit Codex coverage on the current `headRefOid` before merge
-- incubator-wave: `--merge`, tube2web/tubescribes/slides-lab: `--squash`
+- supawave: `--merge`, tube2web/tubescribes/slides-lab: `--squash`
 - Enable auto-merge: `gh pr merge NUM -R repo --merge --auto`
 
 ### d. Immediate cascade on merge
@@ -67,7 +67,7 @@ Check all monitored repos for open issues. Spawn background agents to fix action
 - After any late-arriving bot review, re-check unresolved threads before merging
 
 ## Monitored repos
-- vega113/incubator-wave
+- vega113/supawave
 - vega113/tube2web
 - vega113/tubescribes
 - vega113/slides-lab
@@ -75,7 +75,7 @@ Check all monitored repos for open issues. Spawn background agents to fix action
 ## Merge strategy
 | Repo | Strategy |
 |------|----------|
-| incubator-wave | `--merge` |
+| supawave | `--merge` |
 | tube2web | `--squash` |
 | tubescribes | `--squash` |
 | slides-lab | `--squash` |

@@ -41,7 +41,7 @@ import java.util.List;
 public final class WelcomeWaveContentBuilder {
 
   private static final String GROKIPEDIA_URL = "https://grokipedia.com/page/Google_Wave";
-  private static final String INCUBATOR_WAVE_URL = "https://github.com/vega113/incubator-wave";
+  private static final String SUPAWAVE_REPOSITORY_URL = "https://github.com/vega113/supawave";
   private static final String CHANGELOG_URL = "https://supawave.ai/changelog";
   private static final String API_DOCS_URL = "https://supawave.ai/api-docs";
   private static final String PUBLIC_URL = "https://supawave.ai/public";
@@ -128,7 +128,7 @@ public final class WelcomeWaveContentBuilder {
     appendBlankLine(doc);
     appendLine(doc, "Useful links");
     appendLinkedLine(doc, pendingLinks, "Grokipedia history", GROKIPEDIA_URL);
-    appendLinkedLine(doc, pendingLinks, "incubator-wave repository", INCUBATOR_WAVE_URL);
+    appendLinkedLine(doc, pendingLinks, "SupaWave repository", SUPAWAVE_REPOSITORY_URL);
     appendLinkedLine(doc, pendingLinks, "SupaWave changelog", CHANGELOG_URL);
     appendLinkedLine(doc, pendingLinks, "SupaWave API docs", API_DOCS_URL);
     appendLinkedLine(doc, pendingLinks, "Public directory", PUBLIC_URL);

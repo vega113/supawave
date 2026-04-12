@@ -19,11 +19,11 @@ This document defines the live planning and execution tracker for
 ## Core Filters
 
 - Live implementation slices:
-  - `is:issue repo:vega113/incubator-wave label:agent-task`
+  - `is:issue repo:vega113/supawave label:agent-task`
 - Active in-flight issue work:
-  - `is:issue repo:vega113/incubator-wave label:agent-task label:in-progress`
+  - `is:issue repo:vega113/supawave label:agent-task label:in-progress`
 - Harness migration slices:
-  - `is:issue repo:vega113/incubator-wave label:harness-engineering`
+  - `is:issue repo:vega113/supawave label:harness-engineering`
 
 ## Label Conventions
 

@@ -427,7 +427,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     start_parser = subparsers.add_parser("start")
-    start_parser.add_argument("--repo", default="vega113/incubator-wave")
+    start_parser.add_argument("--repo", default="vega113/supawave")
     start_parser.add_argument("--pr-number", type=positive_int, required=True)
     start_parser.add_argument("--pr-title")
     start_parser.add_argument("--worktree", required=True)

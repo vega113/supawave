@@ -20,11 +20,11 @@ tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}"$'\t'"#{pane_title}"$'
 For EACH pane, extract the PR number using THREE methods:
 1. **From title:** If title contains `PR#NNN`, extract the number
 2. **From path:** If path contains `pr-NNN-lane` (e.g. `/Users/vega/devroot/worktrees/pr-700-lane`), extract NNN
-3. **From branch:** `git -C <PATH> branch --show-current` then `gh pr list --repo vega113/incubator-wave --state all --head <BRANCH> --json number,state -q '.[0]'`
+3. **From branch:** `git -C <PATH> branch --show-current` then `gh pr list --repo vega113/supawave --state all --head <BRANCH> --json number,state -q '.[0]'`
 
 IMPORTANT: Many panes have generic titles like "Claude Code" — you MUST check the path, not just the title.
 
-Once you have the PR number, check: `gh pr view NNN --repo vega113/incubator-wave --json state -q .state`
+Once you have the PR number, check: `gh pr view NNN --repo vega113/supawave --json state -q .state`
 
 If state is MERGED or CLOSED → kill the pane completely:
    ```bash
@@ -50,7 +50,7 @@ If state is MERGED or CLOSED → kill the pane completely:
 ### Step A: Get open PRs and current panes
 
 ```bash
-gh pr list --repo vega113/incubator-wave --state open --json number,title,headRefName,mergeable --limit 50 2>/dev/null
+gh pr list --repo vega113/supawave --state open --json number,title,headRefName,mergeable --limit 50 2>/dev/null
 tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}"$'\t'"#{pane_title}"$'\t'"#{pane_current_path}" 2>/dev/null
 ```
 
@@ -59,11 +59,11 @@ tmux list-panes -t vibe-code:wave-lanes -F "#{pane_index}"$'\t'"#{pane_title}"$'
 For each open PR, gather status:
 ```bash
 # Get review threads — count unresolved
-gh api graphql -f query='{ repository(owner:"vega113", name:"incubator-wave") { pullRequest(number:NNN) { reviewThreads(first:100) { nodes { isResolved } } } } }' -q '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false)) | length'
+gh api graphql -f query='{ repository(owner:"vega113", name:"supawave") { pullRequest(number:NNN) { reviewThreads(first:100) { nodes { isResolved } } } } }' -q '.data.repository.pullRequest.reviewThreads.nodes | map(select(.isResolved == false)) | length'
 
 # Get mergeable status (from the PR list output above)
 # Get CI checks
-gh pr checks NNN --repo vega113/incubator-wave 2>/dev/null | head -10
+gh pr checks NNN --repo vega113/supawave 2>/dev/null | head -10
 ```
 
 ### Step C: For each open PR — create lane if missing, send instructions if issues exist
@@ -109,7 +109,7 @@ The instructions should be specific based on what you found in Step B:
 **If there are unresolved review threads (count > 0):**
 ```text
 PRIORITY: PR #NNN has <COUNT> unresolved review threads. For each thread:
-1. Read the review comment with: gh api repos/vega113/incubator-wave/pulls/NNN/comments
+1. Read the review comment with: gh api repos/vega113/supawave/pulls/NNN/comments
 2. Fix the code issue or reply explaining why no change is needed
 3. After fixing, RESOLVE the thread: gh api graphql -f query='mutation { resolveReviewThread(input:{threadId:"THREAD_ID"}) { thread { isResolved } } }'
 All threads must be resolved for CI to pass.
@@ -126,7 +126,7 @@ PRIORITY: PR #NNN has merge conflicts. Rebase onto main:
 
 **If CI checks are failing:**
 ```text
-PRIORITY: PR #NNN has failing CI checks. Run: gh pr checks NNN --repo vega113/incubator-wave
+PRIORITY: PR #NNN has failing CI checks. Run: gh pr checks NNN --repo vega113/supawave
 Then: cd wave && sbt compile 2>&1 | tail -30
 If build fails, fix the errors. Do NOT comment out code or skip tests.
 Then: cd wave && sbt test 2>&1 | tail -50

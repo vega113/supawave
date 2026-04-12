@@ -109,9 +109,9 @@ ssh supawave "docker logs supawave-mongo-1 --since 1h 2>&1 | tail -300 | grep -i
 
 PHASE 3 — TRIAGE (if NEW errors found):
 
-1. Check recent commits: `git log --oneline -20` and `gh pr list --repo vega113/incubator-wave --state all --limit 10`
+1. Check recent commits: `git log --oneline -20` and `gh pr list --repo vega113/supawave --state all --limit 10`
 2. If confirmed NEW bug (not already tracked):
-   a. Create GitHub issue: `gh issue create --repo vega113/incubator-wave --title "..." --body "..."`
+   a. Create GitHub issue: `gh issue create --repo vega113/supawave --title "..." --body "..."`
    b. If fix is straightforward, create a PR
 3. Known issues to IGNORE (already tracked):
    - Caddy 502s during deploy restart windows (transient)

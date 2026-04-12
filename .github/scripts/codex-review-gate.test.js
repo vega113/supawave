@@ -235,7 +235,7 @@ test("publishes success status on the PR head", async () => {
   await publishCodexReviewGateHeadStatus(github, {
     description: "Review gate passed: 10-minute window elapsed and no unresolved threads",
     owner: "vega113",
-    repo: "incubator-wave",
+    repo: "supawave",
     sha: "head-oid",
   });
 
@@ -244,7 +244,7 @@ test("publishes success status on the PR head", async () => {
       context: "Codex Review Gate",
       description: "Review gate passed: 10-minute window elapsed and no unresolved threads",
       owner: "vega113",
-      repo: "incubator-wave",
+      repo: "supawave",
       sha: "head-oid",
       state: "success",
     },
@@ -267,7 +267,7 @@ test("publishes failure status on the PR head", async () => {
   await publishCodexReviewGateHeadStatus(github, {
     description: "Pull request has 1 unresolved review thread(s)",
     owner: "vega113",
-    repo: "incubator-wave",
+    repo: "supawave",
     sha: "head-oid",
     state: "failure",
   });
@@ -277,7 +277,7 @@ test("publishes failure status on the PR head", async () => {
       context: "Codex Review Gate",
       description: "Pull request has 1 unresolved review thread(s)",
       owner: "vega113",
-      repo: "incubator-wave",
+      repo: "supawave",
       sha: "head-oid",
       state: "failure",
     },

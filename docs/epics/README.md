@@ -9,7 +9,7 @@ live tracker.
 
 For current work:
 - use `docs/github-issues.md` for the live issue workflow
-- use the GitHub Issues filter `is:issue repo:vega113/incubator-wave label:agent-task`
+- use the GitHub Issues filter `is:issue repo:vega113/supawave label:agent-task`
 - treat `.beads/` as read-only archive material
 
 ## Closed documentation epic

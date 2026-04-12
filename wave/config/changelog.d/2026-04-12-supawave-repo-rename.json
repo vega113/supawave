@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-supawave-repo-rename",
+  "version": "Unreleased",
+  "date": "2026-04-12",
+  "title": "Update SupaWave repository references after GitHub rename",
+  "summary": "The app welcome wave and the repo’s operational tooling now point at the renamed SupaWave GitHub repository instead of the legacy incubator-wave slug.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Updated the in-app welcome wave repository link and label to point at the renamed `vega113/supawave` GitHub repository",
+        "Updated PR-monitoring scripts, GitHub issue filters, and related operational docs to use the new repository slug so automation follows the renamed repo"
+      ]
+    }
+  ]
+}

@@ -18,7 +18,7 @@ from scripts.pr_monitor import render_prompt
 class PrMonitorTest(unittest.TestCase):
     def test_render_prompt_requires_actual_merge_or_real_blocker(self) -> None:
         prompt = render_prompt(
-            repo="vega113/incubator-wave",
+            repo="vega113/supawave",
             pr_number=405,
             pr_title="Fix monitor reliability",
             worktree_path="/tmp/worktree",
@@ -59,7 +59,7 @@ class PrMonitorTest(unittest.TestCase):
 
     def test_build_runner_script_restarts_when_pr_stays_open(self) -> None:
         config = LauncherConfig(
-            repo="vega113/incubator-wave",
+            repo="vega113/supawave",
             pr_number=405,
             pr_title="Fix monitor reliability",
             worktree_path=pathlib.Path("/tmp/worktree"),
@@ -82,7 +82,7 @@ class PrMonitorTest(unittest.TestCase):
 
     def test_build_runner_script_fails_fast_if_worktree_cd_fails(self) -> None:
         config = LauncherConfig(
-            repo="vega113/incubator-wave",
+            repo="vega113/supawave",
             pr_number=405,
             pr_title="Fix monitor reliability",
             worktree_path=pathlib.Path("/tmp/worktree"),
@@ -168,6 +168,19 @@ class PrMonitorTest(unittest.TestCase):
                     "0",
                 ]
             )
+
+    def test_parse_args_defaults_repo_to_supawave(self) -> None:
+        args = parse_args(
+            [
+                "start",
+                "--pr-number",
+                "405",
+                "--worktree",
+                "/tmp/pr405-live-head",
+            ]
+        )
+
+        self.assertEqual("vega113/supawave", args.repo)
 
     def test_build_pane_title_includes_pr_number_and_title(self) -> None:
         self.assertEqual(

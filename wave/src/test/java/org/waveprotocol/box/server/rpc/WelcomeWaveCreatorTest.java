@@ -89,7 +89,7 @@ public class WelcomeWaveCreatorTest extends TestCase {
     assertTrue(rootText.contains("vega@supawave.ai"));
     assertTrue(rootText.contains("collapsed inline blips"));
     assertTrue(rootText.contains("Grokipedia history"));
-    assertTrue(rootText.contains("incubator-wave repository"));
+    assertTrue(rootText.contains("SupaWave repository"));
     assertTrue(rootText.contains("SupaWave changelog"));
     assertTrue(rootText.contains("SupaWave API docs"));
     assertTrue(rootText.contains("Public directory"));
@@ -97,7 +97,7 @@ public class WelcomeWaveCreatorTest extends TestCase {
     assertTrue(rootText.contains("TypeScript bot repository"));
     assertFalse(rootText.contains("https://"));
     assertManualLink(rootBlip.getContent(), "https://grokipedia.com/page/Google_Wave");
-    assertManualLink(rootBlip.getContent(), "https://github.com/vega113/incubator-wave");
+    assertManualLink(rootBlip.getContent(), "https://github.com/vega113/supawave");
     assertManualLink(rootBlip.getContent(), "https://supawave.ai/changelog");
     assertManualLink(rootBlip.getContent(), "https://supawave.ai/api-docs");
     assertManualLink(rootBlip.getContent(), "https://supawave.ai/public");

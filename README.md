@@ -89,7 +89,7 @@ This repository now tracks its active roadmap in GitHub Issues:
 
 - Human-readable overview: `docs/current-state.md`
 - Live issue workflow and label conventions: `docs/github-issues.md`
-- Repository issue list: `https://github.com/vega113/incubator-wave/issues`
+- Repository issue list: `https://github.com/vega113/supawave/issues`
 - Historical Beads archive: `.beads/README.md`, `docs/epics/README.md`
 
 The `.beads/` directory remains in the repo as a read-only historical archive.

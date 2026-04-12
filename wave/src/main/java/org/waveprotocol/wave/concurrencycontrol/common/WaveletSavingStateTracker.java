@@ -44,7 +44,7 @@ public final class WaveletSavingStateTracker implements UnsavedDataListenerFacto
     return new UnsavedDataListener() {
       @Override
       public void onUpdate(UnsavedDataInfo unsavedDataInfo) {
-        updateWaveletState(waveletId, unsavedDataInfo.estimateUnacknowledgedSize() != 0);
+        updateWaveletState(waveletId, unsavedDataInfo.estimateUncommittedSize() != 0);
       }
 
       @Override

@@ -52,6 +52,18 @@ public final class WaveletSavingStateTrackerTest {
   }
 
   @Test
+  public void marksWaveletUnsavedWhenChangesAreLocalButNotYetAcknowledged() {
+    RecordingStateListener stateListener = new RecordingStateListener();
+    WaveletSavingStateTracker tracker = new WaveletSavingStateTracker(stateListener);
+    UnsavedDataListener listener = tracker.create(WAVELET_ID_1);
+
+    listener.onUpdate(new FakeUnsavedDataInfo(0, 2));
+
+    assertTrue(tracker.hasUnsavedData());
+    assertEquals(Arrays.asList(Boolean.TRUE), stateListener.states);
+  }
+
+  @Test
   public void clearsClosedDirtyWaveletImmediately() {
     RecordingStateListener stateListener = new RecordingStateListener();
     WaveletSavingStateTracker tracker = new WaveletSavingStateTracker(stateListener);
@@ -77,9 +89,15 @@ public final class WaveletSavingStateTrackerTest {
 
   private static final class FakeUnsavedDataInfo implements UnsavedDataListener.UnsavedDataInfo {
     private final int unacknowledgedSize;
+    private final int uncommittedSize;
 
     private FakeUnsavedDataInfo(int unacknowledgedSize) {
+      this(unacknowledgedSize, unacknowledgedSize);
+    }
+
+    private FakeUnsavedDataInfo(int unacknowledgedSize, int uncommittedSize) {
       this.unacknowledgedSize = unacknowledgedSize;
+      this.uncommittedSize = uncommittedSize;
     }
 
     @Override
@@ -94,7 +112,7 @@ public final class WaveletSavingStateTrackerTest {
 
     @Override
     public int estimateUncommittedSize() {
-      return unacknowledgedSize;
+      return uncommittedSize;
     }
 
     @Override

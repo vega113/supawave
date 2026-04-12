@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-deploy-sanity-gate",
+  "version": "PR #867",
+  "date": "2026-04-12",
+  "title": "Fail Deploys Without Sanity Credentials",
+  "summary": "Deploy automation now fails closed when sanity-check credentials are missing so production rollouts cannot silently skip the post-deploy gate.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Require SANITY_ADDRESS and SANITY_PASSWORD before deploy runs continue so the deploy sanity gate cannot be bypassed by missing configuration",
+        "Documented the deploy sanity credential requirement alongside the deploy workflow guard and regression test coverage"
+      ]
+    }
+  ]
+}

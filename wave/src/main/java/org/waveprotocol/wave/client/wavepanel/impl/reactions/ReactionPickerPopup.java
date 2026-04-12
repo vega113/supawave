@@ -20,6 +20,7 @@
 package org.waveprotocol.wave.client.wavepanel.impl.reactions;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.StyleInjector;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
@@ -56,14 +57,20 @@ public final class ReactionPickerPopup extends Composite {
     String emojiButton();
   }
 
+  interface FocusTarget {
+    void focus();
+  }
+
   private static final Style style = GWT.<Resources>create(Resources.class).style();
   private static final String[] EMOJI_OPTIONS = new String[] {"👍", "❤️", "😂", "🎉", "😮", "👀"};
+  private static final ReactionPopupLifecycle popupLifecycle = new ReactionPopupLifecycle();
 
   static {
     StyleInjector.inject(style.getText(), true);
   }
 
   private UniversalPopup popup;
+  private Button firstEmojiButton;
 
   public static void show(Listener listener) {
     new ReactionPickerPopup(listener).showPopup();
@@ -82,12 +89,13 @@ public final class ReactionPickerPopup extends Composite {
     for (final String emoji : EMOJI_OPTIONS) {
       Button button = new Button(emoji);
       button.addStyleName(style.emojiButton());
+      if (firstEmojiButton == null) {
+        firstEmojiButton = button;
+      }
       button.addClickHandler(new ClickHandler() {
         @Override
         public void onClick(ClickEvent event) {
-          if (popup != null) {
-            popup.hide();
-          }
+          popupLifecycle.hideActive();
           listener.onSelect(emoji);
         }
       });
@@ -101,7 +109,29 @@ public final class ReactionPickerPopup extends Composite {
   private void showPopup() {
     PopupChrome chrome = PopupChromeFactory.createPopupChrome();
     popup = PopupFactory.createPopup(null, new CenterPopupPositioner(), chrome, true);
+    popupLifecycle.activate(popup);
     popup.add(this);
     popup.show();
+    if (firstEmojiButton != null) {
+      final Button focusButton = firstEmojiButton;
+      final UniversalPopup shownPopup = popup;
+      Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+        @Override
+        public void execute() {
+          focusFirstEmojiIfShowing(shownPopup, new FocusTarget() {
+            @Override
+            public void focus() {
+              focusButton.setFocus(true);
+            }
+          });
+        }
+      });
+    }
+  }
+
+  static void focusFirstEmojiIfShowing(UniversalPopup popup, FocusTarget focusTarget) {
+    if (popup != null && popup.isShowing() && focusTarget != null) {
+      focusTarget.focus();
+    }
   }
 }

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-search-metadata-coverage",
+  "version": "PR #853",
+  "date": "2026-04-12",
+  "title": "Cover search metadata paths for tags, mentions, and tasks",
+  "summary": "Added regression coverage to ensure tag, mention, and task searches continue to route through the expected metadata and legacy-query paths.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Added Lucene query-model and provider regression coverage so pure tag queries stay on the legacy metadata filter path",
+        "Added end-to-end coverage for mention and task metadata search lookups so assigned and mentioned waves remain discoverable"
+      ]
+    }
+  ]
+}

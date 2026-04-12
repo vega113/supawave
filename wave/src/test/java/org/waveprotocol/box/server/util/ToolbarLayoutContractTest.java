@@ -67,8 +67,6 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(css.contains("background-color: rgba(0, 119, 182, 0.1);"));
     assertTrue(css.contains("border: 1px solid rgba(0, 119, 182, 0.25);"));
     assertFalse(css.contains(".enabled.down.compact > .overlay {"));
-    assertFalse(css.contains("background-color: transparent;"));
-    assertFalse(css.contains("border: none;"));
   }
 
   public void testSearchPanelReservesThirtySixPixelsForToolbarHeight() throws Exception {

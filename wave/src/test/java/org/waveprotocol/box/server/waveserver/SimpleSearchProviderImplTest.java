@@ -647,7 +647,7 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(USER1, digestAuthor(digests.get(1)));
     assertEquals(USER2, digestAuthor(digests.get(2)));
     assertEquals(USER2, digestAuthor(digests.get(9)));
-    // Each sublist should be ordered by creation time.
+    // Each author bucket should still honor the secondary created-desc sort.
     assertTrue(descCreatedOrdering.isOrdered(digests.subList(0, 2)));
     assertTrue(descCreatedOrdering.isOrdered(digests.subList(2, 10)));
   }

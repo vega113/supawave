@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-gwt-cssresource-warnings",
+  "version": "PR #854",
+  "date": "2026-04-12",
+  "title": "Silence unsupported CssResource constructs in GWT wave panel CSS",
+  "summary": "Removes unsupported `@media` and `calc()` usage from legacy GWT CssResource inputs and adds a regression test so compileGwt stops emitting parser warnings for the affected wave panel resources.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed unsupported CssResource syntax from the affected wave panel CSS resources.",
+        "Added a regression test that fails if the blocked `@media` or `calc()` constructs return."
+      ]
+    }
+  ]
+}

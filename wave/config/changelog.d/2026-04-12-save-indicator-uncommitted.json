@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-12-save-indicator-uncommitted",
+  "version": "Unreleased",
+  "title": "Fix stale saved indicator during local edits",
+  "summary": "The topbar save state now treats locally uncommitted wave changes as unsaved instead of waiting only for server acknowledgements.",
+  "date": "2026-04-12",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The topbar save state now treats locally uncommitted wave changes as unsaved instead of waiting only for server acknowledgements."
+      ]
+    }
+  ]
+}

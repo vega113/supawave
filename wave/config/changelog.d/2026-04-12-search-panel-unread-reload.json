@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-search-panel-unread-reload",
+  "version": "Unreleased",
+  "date": "2026-04-12",
+  "title": "Search panel unread reload fix",
+  "summary": "Search results now stop reviving stale unread counts for public/shared waves after a page reload when the stored user-data wavelet only has the legacy empty read-state.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Search digests now treat legacy empty public/shared user-data read-state the same as the original bootstrap case, so reopening the app no longer brings back stale unread badges",
+        "The unread:true search path now uses the same legacy empty-UDW repair logic as digest generation, keeping unread filters aligned with the sidebar count"
+      ]
+    }
+  ]
+}

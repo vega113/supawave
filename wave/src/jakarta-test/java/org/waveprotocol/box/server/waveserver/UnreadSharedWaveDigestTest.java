@@ -122,6 +122,91 @@ public final class UnreadSharedWaveDigestTest extends TestCase {
     assertEquals(0, digest.getUnreadCount());
   }
 
+  public void testWaveDigesterBuildTreatsLegacyEmptyPublicViewerUdwAsRead() {
+    ObservableWaveletData conversationWavelet =
+        createWritableWaveletData(CONVERSATION_WAVELET_ID, OTHER_USER);
+    ObservableWaveletData viewerUserDataWavelet =
+        createWritableWaveletData(IdUtil.buildUserDataWaveletId(VIEWER), OTHER_USER);
+    ConversationUtil conversationUtil =
+        new ConversationUtil(new IdGeneratorImpl("local.net", () -> "legacy-public-digest"));
+    OpBasedWavelet conversationModel = createWritableWavelet(conversationWavelet, OTHER_USER);
+
+    org.waveprotocol.wave.model.conversation.WaveletBasedConversation.makeWaveletConversational(
+        conversationModel);
+    org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
+        conversationUtil.buildConversation(conversationModel);
+    org.waveprotocol.wave.model.conversation.ObservableConversation conversation =
+        conversations.getRoot();
+    conversation.addParticipant(VIEWER);
+    conversation.addParticipant(ParticipantId.ofUnsafe("@local.net"));
+    conversation.getRootThread().appendBlip();
+
+    WaveViewData wave =
+        WaveViewDataImpl.create(
+            WAVE_ID,
+            java.util.Arrays.asList(
+                WaveletDataUtil.copyWavelet(conversationWavelet),
+                WaveletDataUtil.copyWavelet(viewerUserDataWavelet)));
+    Digest digest = new WaveDigester(conversationUtil).build(VIEWER, wave);
+
+    assertEquals(0, digest.getUnreadCount());
+  }
+
+  public void testCountUnreadTreatsLegacyEmptyPublicViewerUdwAsRead() {
+    ObservableWaveletData conversationWavelet =
+        createWritableWaveletData(CONVERSATION_WAVELET_ID, OTHER_USER);
+    ObservableWaveletData viewerUserDataWavelet =
+        createWritableWaveletData(IdUtil.buildUserDataWaveletId(VIEWER), OTHER_USER);
+    ConversationUtil conversationUtil =
+        new ConversationUtil(new IdGeneratorImpl("local.net", () -> "legacy-public-context"));
+    OpBasedWavelet conversationModel = createWritableWavelet(conversationWavelet, OTHER_USER);
+
+    org.waveprotocol.wave.model.conversation.WaveletBasedConversation.makeWaveletConversational(
+        conversationModel);
+    org.waveprotocol.wave.model.conversation.ObservableConversationView conversations =
+        conversationUtil.buildConversation(conversationModel);
+    org.waveprotocol.wave.model.conversation.ObservableConversation conversation =
+        conversations.getRoot();
+    conversation.addParticipant(VIEWER);
+    conversation.addParticipant(ParticipantId.ofUnsafe("@local.net"));
+    conversation.getRootThread().appendBlip();
+
+    WaveViewData wave =
+        WaveViewDataImpl.create(
+            WAVE_ID,
+            java.util.Arrays.asList(
+                WaveletDataUtil.copyWavelet(conversationWavelet),
+                WaveletDataUtil.copyWavelet(viewerUserDataWavelet)));
+
+    WaveDigester digester = new WaveDigester(conversationUtil);
+    java.util.Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters =
+        new java.util.IdentityHashMap<>();
+    java.util.List<ObservableWaveletData> convWavelets = new java.util.ArrayList<>();
+    ObservableWaveletData udw = null;
+    ObservableWaveletData convWavelet = null;
+    for (ObservableWaveletData w : wave.getWavelets()) {
+      if (IdUtil.isConversationRootWaveletId(w.getWaveletId())) {
+        convWavelet = w;
+        convWavelets.add(w);
+      } else if (IdUtil.isConversationalId(w.getWaveletId())) {
+        convWavelets.add(w);
+      } else if (IdUtil.isUserDataWavelet(VIEWER.getAddress(), w.getWaveletId())) {
+        udw = w;
+      }
+    }
+    assertNotNull("conversation wavelet must exist", convWavelet);
+    assertNotNull("viewer UDW must exist", udw);
+
+    OpBasedWavelet opWavelet = OpBasedWavelet.createReadOnly(convWavelet);
+    waveletAdapters.put(convWavelet, opWavelet);
+    SimpleSearchProviderImpl.WaveSupplementContext ctx =
+        new SimpleSearchProviderImpl.WaveSupplementContext(
+            convWavelet, udw, convWavelets, null, conversations);
+
+    int unreadCount = digester.countUnread(VIEWER, ctx, waveletAdapters);
+    assertEquals(0, unreadCount);
+  }
+
   public void testCountUnreadIgnoresNonBlipDocuments() {
     // Regression: non-blip documents (tags, data docs) were counted as unread
     // by countUnreadFromReadState, causing waves with only read blips but

@@ -639,16 +639,17 @@ public class SimpleSearchProviderImplTest extends TestCase {
     SearchResult resultsAsc =
         searchProvider.search(USER2, "in:inbox orderby:creatorasc orderby:createddesc", 0, 10);
     assertEquals(10, resultsAsc.getNumResults());
+    List<SearchResult.Digest> digests = Lists.newArrayList(resultsAsc.getDigests());
     Ordering<SearchResult.Digest> ascAuthorOrdering = Ordering.from(ASC_CREATOR_COMPARATOR);
-    assertTrue(ascAuthorOrdering.isOrdered(resultsAsc.getDigests()));
+    assertTrue(ascAuthorOrdering.isOrdered(digests));
     Ordering<SearchResult.Digest> descCreatedOrdering = Ordering.from(DESC_CREATED_COMPARATOR);
-    // The whole list should not be ordered by creation time.
-    assertFalse(descCreatedOrdering.isOrdered(resultsAsc.getDigests()));
+    assertEquals(USER1, digestAuthor(digests.get(0)));
+    assertEquals(USER1, digestAuthor(digests.get(1)));
+    assertEquals(USER2, digestAuthor(digests.get(2)));
+    assertEquals(USER2, digestAuthor(digests.get(9)));
     // Each sublist should be ordered by creation time.
-    assertTrue(descCreatedOrdering.isOrdered(Lists.newArrayList(resultsAsc.getDigests()).subList(0,
-        2)));
-    assertTrue(descCreatedOrdering.isOrdered(Lists.newArrayList(resultsAsc.getDigests()).subList(2,
-        10)));
+    assertTrue(descCreatedOrdering.isOrdered(digests.subList(0, 2)));
+    assertTrue(descCreatedOrdering.isOrdered(digests.subList(2, 10)));
   }
 
   public void testSearchOrderByAuthorDescWorks() throws Exception {
@@ -1080,6 +1081,10 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
   private WaveletOperation runtimeAddParticipant(ParticipantId user) {
     return new AddParticipant(CONTEXT, user);
+  }
+
+  private ParticipantId digestAuthor(SearchResult.Digest digest) {
+    return ParticipantId.ofUnsafe(digest.getParticipants().get(0));
   }
 
   private void submitDelta(WaveletName name, ParticipantId user, HashedVersion version,

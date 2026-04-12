@@ -75,7 +75,9 @@ public class TokenGeneratorImplTest extends TestCase {
   }
 
   public void testCharacterSpreadAtFixedCharPosition() {
-    final int count = 10000;
+    // 10k samples yields about a 1% false-positive rate for a 64-bucket
+    // uniformity check with a +/-30% bound, which is enough to flap in CI.
+    final int count = 40000;
     final double variance = 0.3; // % difference
 
     // Pick a fixed id length and a fixed char position therein.

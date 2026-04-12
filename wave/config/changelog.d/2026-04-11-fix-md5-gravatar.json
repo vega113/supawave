@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-11-fix-md5-gravatar",
+  "version": "PR #NNN",
+  "date": "2026-04-11",
+  "title": "Fix MD5 vulnerability in Gravatar URL generation",
+  "summary": "Upgraded the hashing algorithm in HtmlRenderer from MD5 to SHA-256 for generating avatar URLs.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Upgraded Gravatar email hashing algorithm from MD5 to SHA-256 to resolve a security vulnerability."
+      ]
+    }
+  ]
+}

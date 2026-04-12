@@ -6854,7 +6854,7 @@ public final class HtmlRenderer {
     sb.append("<p>SupaWave uses <a href=\"https://gravatar.com\" target=\"_blank\" rel=\"noopener\">Gravatar</a> ");
     sb.append("to display user avatars. When this feature is active:</p>\n");
     sb.append("<ul>\n");
-    sb.append("  <li>An MD5 hash of your email address is sent to Gravatar's servers to retrieve your avatar image</li>\n");
+    sb.append("  <li>A SHA-256 hash of your email address is sent to Gravatar's servers to retrieve your avatar image</li>\n");
     sb.append("  <li>If you do not have a Gravatar account, a generated avatar or initials-based avatar is displayed instead</li>\n");
     sb.append("  <li>Your email address itself is not shared with Gravatar &#8212; only the hash</li>\n");
     sb.append("</ul>\n");
@@ -7945,14 +7945,14 @@ public final class HtmlRenderer {
   }
 
   /**
-   * Computes a Gravatar URL for the given email address using MD5 hash.
+   * Computes a Gravatar URL for the given email address using SHA-256 hash.
    */
   private static String gravatarUrl(String email) {
     if (email == null || email.isEmpty()) {
       return "https://www.gravatar.com/avatar/?d=identicon&s=40";
     }
     try {
-      MessageDigest md = MessageDigest.getInstance("MD5");
+      MessageDigest md = MessageDigest.getInstance("SHA-256");
       byte[] digest = md.digest(email.trim().toLowerCase().getBytes("UTF-8"));
       StringBuilder hex = new StringBuilder();
       for (byte b : digest) {
@@ -8272,7 +8272,7 @@ public final class HtmlRenderer {
     // Gravatar URL for author
     String gravatarUrl = "";
     if (!author.isEmpty()) {
-      String emailHash = md5Hex(author.trim().toLowerCase());
+      String emailHash = sha256Hex(author.trim().toLowerCase());
       gravatarUrl = "https://www.gravatar.com/avatar/" + emailHash + "?d=identicon&s=56";
     }
 
@@ -8336,20 +8336,20 @@ public final class HtmlRenderer {
   }
 
   /**
-   * Computes a simple MD5 hex digest of the given string for Gravatar URLs.
-   * Falls back to "00000000000000000000000000000000" on error.
+   * Computes a simple SHA-256 hex digest of the given string for Gravatar URLs.
+   * Falls back to 64 zeros on error.
    */
-  private static String md5Hex(String input) {
+  private static String sha256Hex(String input) {
     try {
-      java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+      java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
       byte[] digest = md.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-      StringBuilder hex = new StringBuilder(32);
+      StringBuilder hex = new StringBuilder(64);
       for (byte b : digest) {
         hex.append(String.format("%02x", b & 0xff));
       }
       return hex.toString();
     } catch (java.security.NoSuchAlgorithmException e) {
-      return "00000000000000000000000000000000";
+      return "0000000000000000000000000000000000000000000000000000000000000000";
     }
   }
 

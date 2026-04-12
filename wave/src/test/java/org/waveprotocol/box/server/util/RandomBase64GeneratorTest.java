@@ -23,6 +23,7 @@ import junit.framework.TestCase;
 
 import java.security.SecureRandom;
 import java.util.HashSet;
+import java.util.Random;
 
 /**
  * Tests {@link RandomBase64Generator}.
@@ -32,7 +33,7 @@ import java.util.HashSet;
 public class RandomBase64GeneratorTest extends TestCase {
 
   private final RandomBase64Generator[] generators = {
-    new RandomBase64Generator(),
+    new RandomBase64Generator(new Random()),
     new RandomBase64Generator(new SecureRandom())
   };
 

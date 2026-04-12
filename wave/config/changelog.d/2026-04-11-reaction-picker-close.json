@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-11-reaction-picker-close",
+  "version": "PR #834",
+  "date": "2026-04-11",
+  "title": "Close the reaction picker reliably after selection",
+  "summary": "Prevents duplicate add-reaction popups from lingering after a reaction is chosen and keeps repeated keyboard and click interactions stable.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The add-reaction picker now tracks a single active popup so repeated activation does not leave stale popups behind",
+        "The picker moves focus into the emoji grid on open so keyboard selection continues in the active popup"
+      ]
+    }
+  ]
+}

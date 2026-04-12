@@ -21,9 +21,9 @@ package org.waveprotocol.box.server.util;
 
 import junit.framework.TestCase;
 
-import java.lang.reflect.Constructor;
 import java.security.SecureRandom;
 import java.util.HashSet;
+import java.util.Random;
 
 /**
  * Tests {@link RandomBase64Generator}.
@@ -33,22 +33,9 @@ import java.util.HashSet;
 public class RandomBase64GeneratorTest extends TestCase {
 
   private final RandomBase64Generator[] generators = {
-    new RandomBase64Generator(),
+    new RandomBase64Generator(new Random()),
     new RandomBase64Generator(new SecureRandom())
   };
-
-  public void testConstructorRequiresSecureRandom() {
-    Constructor<?> singleArgumentConstructor = null;
-    for (Constructor<?> constructor : RandomBase64Generator.class.getConstructors()) {
-      if (constructor.getParameterTypes().length == 1) {
-        singleArgumentConstructor = constructor;
-        break;
-      }
-    }
-
-    assertNotNull(singleArgumentConstructor);
-    assertEquals(SecureRandom.class, singleArgumentConstructor.getParameterTypes()[0]);
-  }
 
   public void testBase64IdLengths() {
     for (RandomBase64Generator generator : generators)

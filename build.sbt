@@ -1156,7 +1156,9 @@ libraryDependencies ++= Seq(
 lazy val skipGwt = settingKey[Boolean]("Skip GWT compilation (default: false, set -DskipGwt=true to skip)")
 ThisBuild / skipGwt := sys.props.get("skipGwt").exists(_.trim.toLowerCase == "true")
 
+lazy val devCompile = taskKey[Unit]("Run the lighter dev compile path: codegen plus Compile / compile, without GWT packaging tasks")
 lazy val compileGwt = taskKey[Unit]("Compile GWT client (delegates to Gradle when available, otherwise uses native Fork.java)")
+lazy val compileGwtDev = taskKey[Unit]("Compile a single GWT permutation in draft mode for faster local UI verification")
 
 ThisBuild / compileGwt := {
   val log      = streams.value.log
@@ -1267,6 +1269,48 @@ ThisBuild / compileGwt := {
   }
 }
 
+ThisBuild / compileGwtDev := {
+  val log       = streams.value.log
+  val base      = baseDirectory.value
+  val resolved  = update.value
+  val compileCp = (Compile / dependencyClasspath).value.map(_.data)
+
+  val javaSrcDirs = Seq(
+    base / "wave" / "src" / "main" / "java",
+    base / "wave" / "src" / "main" / "resources",
+    base / "wave" / "generated" / "src" / "main" / "java",
+    base / "proto_src",
+    base / "gen" / "messages",
+    base / "gen" / "flags"
+  ).filter(_.exists)
+
+  val gwtJars = resolved.select(configurationFilter(Gwt.name))
+  val fullCp = javaSrcDirs ++ gwtJars ++ compileCp
+
+  val forkOpts = ForkOptions()
+    .withRunJVMOptions(Vector("-Xmx1024M"))
+
+  val warDir = (base / "war").getAbsolutePath
+  val gwtArgs = Seq(
+    "-war", warDir,
+    "-draftCompile",
+    "-style", "PRETTY",
+    "-localWorkers", "2",
+    "-setProperty", "user.agent=safari",
+    "org.waveprotocol.box.webclient.WebClientProd"
+  )
+
+  log.info("[compileGwtDev] Native mode — one-permutation draft compile")
+  log.info("[compileGwtDev] Classpath has " + fullCp.size + " entries")
+  val cpStr = fullCp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
+
+  val exitCode = Fork.java(
+    forkOpts,
+    Seq("-cp", cpStr, "com.google.gwt.dev.Compiler") ++ gwtArgs
+  )
+  if (exitCode != 0) sys.error("[compileGwtDev] GWT Compiler failed (exit " + exitCode + ")")
+}
+
 // Prevent packaging distributions with missing GWT assets when -DskipGwt=true
 lazy val verifyGwtAssets = taskKey[Unit]("Fail when packaging would ship with missing GWT assets")
 
@@ -1282,6 +1326,8 @@ ThisBuild / verifyGwtAssets := {
 
 // Wire compileGwt to run after compileJava (GWT needs compiled classes)
 compileGwt := (compileGwt).dependsOn(Compile / compile).value
+devCompile := (Compile / compile).value
+compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
 // ⚠️  DO NOT REMOVE these lines. They ensure GWT compilation runs before
 //     staging or packaging. Without them, distributions ship without the

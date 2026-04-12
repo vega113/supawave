@@ -89,12 +89,8 @@ public final class ReactionController extends ConversationListenerImpl
   private NativePreviewHandler previewHandler;
   private HandlerRegistration previewRegistration;
   private Timer longPressTimer;
-  private String suppressedInspectBlipId;
-  private String suppressedInspectEmoji;
-  private double suppressedInspectUntilMs;
-  private String suppressedClickBlipId;
-  private String suppressedClickEmoji;
-  private double suppressedClickUntilMs;
+  private final ReactionInteractionTracker interactionTracker =
+      new ReactionInteractionTracker(INSPECT_SUPPRESSION_MS);
   private ReactionAuthorsPopup authorsPopup;
 
   private ReactionController(ObservableConversationView conversationView, ViewIdMapper viewIdMapper,
@@ -259,11 +255,17 @@ public final class ReactionController extends ConversationListenerImpl
         Element inspectTrigger = findInspectTrigger(element);
 
         if ("touchstart".equals(type)) {
-          scheduleLongPress(action);
+          handleTouchStart(action, inspectTrigger);
           return;
         }
 
-        if ("touchend".equals(type) || "touchmove".equals(type) || "touchcancel".equals(type)) {
+        if ("touchmove".equals(type) || "touchcancel".equals(type)) {
+          interactionTracker.clearTouchInspect();
+          cancelLongPress();
+          return;
+        }
+
+        if ("touchend".equals(type)) {
           cancelLongPress();
           return;
         }
@@ -303,7 +305,7 @@ public final class ReactionController extends ConversationListenerImpl
           return;
         }
 
-        if (inspectTrigger != null && emoji != null && !emoji.isEmpty()) {
+        if (emoji != null && !emoji.isEmpty() && shouldInspectOnClick(blipId, emoji)) {
           consume(event);
           showAuthorsPopup(action, blip, emoji, false);
           return;
@@ -406,6 +408,21 @@ public final class ReactionController extends ConversationListenerImpl
         || (keyCode == KeyCodes.KEY_F10 && event.getNativeEvent().getShiftKey());
   }
 
+  private void handleTouchStart(Element action, Element inspectTrigger) {
+    scheduleLongPress(action);
+    if (inspectTrigger == null || action == null || !action.hasAttribute("data-reaction-emoji")) {
+      interactionTracker.clearTouchInspect();
+      return;
+    }
+    String blipId = action.getAttribute("data-reaction-blip-id");
+    String emoji = action.getAttribute("data-reaction-emoji");
+    if (blipId == null || blipId.isEmpty() || emoji == null || emoji.isEmpty()) {
+      interactionTracker.clearTouchInspect();
+      return;
+    }
+    interactionTracker.armTouchInspect(blipId, emoji, Duration.currentTimeMillis());
+  }
+
   private void scheduleLongPress(Element action) {
     cancelLongPress();
     if (action == null || !action.hasAttribute("data-reaction-emoji")) {
@@ -425,6 +442,7 @@ public final class ReactionController extends ConversationListenerImpl
       @Override
       public void run() {
         longPressTimer = null;
+        interactionTracker.clearTouchInspect();
         suppressInspect(blipId, emoji);
         suppressClick(blipId, emoji);
         showAuthorsPopup(anchor, blip, emoji, true);
@@ -519,47 +537,31 @@ public final class ReactionController extends ConversationListenerImpl
   }
 
   private void suppressInspect(String blipId, String emoji) {
-    suppressedInspectBlipId = blipId;
-    suppressedInspectEmoji = emoji;
-    suppressedInspectUntilMs = Duration.currentTimeMillis() + INSPECT_SUPPRESSION_MS;
+    interactionTracker.suppressInspect(blipId, emoji, Duration.currentTimeMillis());
   }
 
   private boolean shouldSuppressInspect(String blipId, String emoji) {
-    if (Duration.currentTimeMillis() > suppressedInspectUntilMs) {
-      clearSuppressedInspect();
-      return false;
-    }
-    return blipId != null && emoji != null
-        && blipId.equals(suppressedInspectBlipId)
-        && emoji.equals(suppressedInspectEmoji);
+    return interactionTracker.shouldSuppressInspect(blipId, emoji, Duration.currentTimeMillis());
   }
 
   private void clearSuppressedInspect() {
-    suppressedInspectBlipId = null;
-    suppressedInspectEmoji = null;
-    suppressedInspectUntilMs = 0d;
+    interactionTracker.clearSuppressedInspect();
   }
 
   private void suppressClick(String blipId, String emoji) {
-    suppressedClickBlipId = blipId;
-    suppressedClickEmoji = emoji;
-    suppressedClickUntilMs = Duration.currentTimeMillis() + INSPECT_SUPPRESSION_MS;
+    interactionTracker.suppressClick(blipId, emoji, Duration.currentTimeMillis());
   }
 
   private boolean shouldSuppressClick(String blipId, String emoji) {
-    if (Duration.currentTimeMillis() > suppressedClickUntilMs) {
-      clearSuppressedClick();
-      return false;
-    }
-    return blipId != null && emoji != null
-        && blipId.equals(suppressedClickBlipId)
-        && emoji.equals(suppressedClickEmoji);
+    return interactionTracker.shouldSuppressClick(blipId, emoji, Duration.currentTimeMillis());
   }
 
   private void clearSuppressedClick() {
-    suppressedClickBlipId = null;
-    suppressedClickEmoji = null;
-    suppressedClickUntilMs = 0d;
+    interactionTracker.clearSuppressedClick();
+  }
+
+  private boolean shouldInspectOnClick(String blipId, String emoji) {
+    return interactionTracker.consumeTouchInspect(blipId, emoji, Duration.currentTimeMillis());
   }
 
   private void unbindConversation(ObservableConversation conversation) {

@@ -138,6 +138,13 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
 
   public void testWaveletCommittedSkipsInvalidateWhenCommittedVersionCheckRequiresWriteLock()
       throws Exception {
+    FakeLocalWavelet cachedWavelet =
+        new FakeLocalWavelet(
+            WAVELET_NAME,
+            PARTICIPANT,
+            null,
+            new IllegalStateException("should not hold write lock"),
+            true);
     ReloadingWaveMap reloadingWaveMap =
         new ReloadingWaveMap(
             new DeltaStoreBasedSnapshotStore(
@@ -156,16 +163,11 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
               public RemoteWaveletContainer create(
                   WaveletNotificationSubscriber notifiee,
                   WaveletName waveletName,
-                  String domain) {
+                String domain) {
                 throw new UnsupportedOperationException();
               }
             },
-            createLoadedWaves(
-                new FakeLocalWavelet(
-                    WAVELET_NAME,
-                    PARTICIPANT,
-                    null,
-                    new IllegalStateException("should not hold write lock"))));
+            createLoadedWaves(cachedWavelet));
     MemoryPerUserWaveViewHandlerImpl handler =
         new MemoryPerUserWaveViewHandlerImpl(reloadingWaveMap);
 
@@ -174,6 +176,7 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
 
     handler.waveletCommitted(WAVELET_NAME, HashedVersion.unsigned(2L));
 
+    assertEquals(0, cachedWavelet.getLastCommittedVersionCallCount());
     assertEquals(0, reloadingWaveMap.getInvalidateWaveCallCount());
   }
 
@@ -345,14 +348,16 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     private final ParticipantId participant;
     private final HashedVersion lastCommittedVersion;
     private final RuntimeException lastCommittedVersionException;
+    private final boolean writeLockHeldByCurrentThread;
+    private int lastCommittedVersionCallCount;
 
     private FakeLocalWavelet(WaveletName waveletName) {
-      this(waveletName, PARTICIPANT, null, null);
+      this(waveletName, PARTICIPANT, null, null, false);
     }
 
     private FakeLocalWavelet(
         WaveletName waveletName, ParticipantId participant, HashedVersion lastCommittedVersion) {
-      this(waveletName, participant, lastCommittedVersion, null);
+      this(waveletName, participant, lastCommittedVersion, null, false);
     }
 
     private FakeLocalWavelet(
@@ -360,10 +365,25 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
         ParticipantId participant,
         HashedVersion lastCommittedVersion,
         RuntimeException lastCommittedVersionException) {
+      this(
+          waveletName,
+          participant,
+          lastCommittedVersion,
+          lastCommittedVersionException,
+          false);
+    }
+
+    private FakeLocalWavelet(
+        WaveletName waveletName,
+        ParticipantId participant,
+        HashedVersion lastCommittedVersion,
+        RuntimeException lastCommittedVersionException,
+        boolean writeLockHeldByCurrentThread) {
       this.waveletName = waveletName;
       this.participant = participant;
       this.lastCommittedVersion = lastCommittedVersion;
       this.lastCommittedVersionException = lastCommittedVersionException;
+      this.writeLockHeldByCurrentThread = writeLockHeldByCurrentThread;
     }
 
     @Override
@@ -405,10 +425,16 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
 
     @Override
     public HashedVersion getLastCommittedVersion() {
+      lastCommittedVersionCallCount++;
       if (lastCommittedVersionException != null) {
         throw lastCommittedVersionException;
       }
       return lastCommittedVersion;
+    }
+
+    @Override
+    public boolean isWriteLockedByCurrentThread() {
+      return writeLockHeldByCurrentThread;
     }
 
     @Override
@@ -446,6 +472,10 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     @Override
     public HashedVersion getHashedVersion(long version) {
       throw new UnsupportedOperationException();
+    }
+
+    int getLastCommittedVersionCallCount() {
+      return lastCommittedVersionCallCount;
     }
   }
 }

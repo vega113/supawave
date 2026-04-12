@@ -120,6 +120,11 @@ interface WaveletContainer {
   HashedVersion getLastCommittedVersion() throws WaveletStateException;
 
   /**
+   * @return true when the current thread already holds the container write lock.
+   */
+  boolean isWriteLockedByCurrentThread();
+
+  /**
    * @return true if the participant id is a current participant of the wavelet.
    *          Each invocation acquires and releases the lock.
    */

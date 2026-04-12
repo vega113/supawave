@@ -299,6 +299,11 @@ abstract class WaveletContainerImpl implements WaveletContainer {
   }
 
   @Override
+  public boolean isWriteLockedByCurrentThread() {
+    return writeLock.isHeldByCurrentThread();
+  }
+
+  @Override
   public ObservableWaveletData copyWaveletData() throws WaveletStateException {
     awaitLoad();
     acquireReadLock();

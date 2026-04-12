@@ -257,6 +257,11 @@ public class MemoryPerUserWaveViewHandlerImpl
       if (container == null) {
         return;
       }
+      if (container.isWriteLockedByCurrentThread()) {
+        LOG.fine("Skipping cached version check while commit callback still holds write lock for "
+            + waveletName);
+        return;
+      }
       HashedVersion cachedVersion = container.getLastCommittedVersion();
       if (cachedVersion == null || cachedVersion.getVersion() < version.getVersion()) {
         invalidateWaveBestEffort(waveletName.waveId);

@@ -101,6 +101,7 @@ exit 1
     workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
 
     self.assertIn("name: Validate deploy sanity credentials", workflow)
+    self.assertIn("if: github.event_name == 'push' || github.event.inputs.action != 'status'", workflow)
     self.assertIn('SANITY_ADDRESS: ${{ secrets.SANITY_ADDRESS }}', workflow)
     self.assertIn('SANITY_PASSWORD: ${{ secrets.SANITY_PASSWORD }}', workflow)
     self.assertIn(': "${SANITY_ADDRESS:?Set repo secret SANITY_ADDRESS', workflow)
@@ -119,12 +120,15 @@ exit 1
       path = Path(candidate)
       if not path.is_file() or not os.access(path, os.X_OK):
         continue
-      version = subprocess.run(
+      probe = subprocess.run(
           [str(path), "-c", 'printf "%s" "${BASH_VERSINFO[0]}"'],
           capture_output=True,
           text=True,
-          check=True,
-      ).stdout.strip()
+          check=False,
+      )
+      if probe.returncode != 0:
+        continue
+      version = probe.stdout.strip()
       if version.isdigit() and int(version) >= 4:
         return str(path)
     return None

@@ -322,9 +322,9 @@ wait_for_slot_health() {
 }
 
 sanity_check() {
-  # Application-level sanity: login, search, fetch a wave.
-  # Credentials come from GitHub Secrets via environment variables.
-  # If not configured, skip gracefully (opt-in gate).
+  # Application-level sanity against the slot on $port using $addr/$pass.
+  # SANITY_ADDRESS and SANITY_PASSWORD are mandatory for deploy/rollback and
+  # this function fails closed with return 1 when either value is missing.
   # In blue-green mode, SANITY_PORT overrides the default port.
   local addr="${SANITY_ADDRESS:-}"
   local pass="${SANITY_PASSWORD:-}"

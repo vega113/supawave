@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-12-mobile-edit-loss-regression",
-  "version": "Issue #835",
+  "version": "fix/mobile-edit-loss-regression",
   "date": "2026-04-12",
   "title": "Fix mobile new-blip edit loss after delayed composition teardown",
   "summary": "New blips on mobile no longer lose typed text when the browser finishes composition without restoring a selection before the trailing DOM mutation arrives.",

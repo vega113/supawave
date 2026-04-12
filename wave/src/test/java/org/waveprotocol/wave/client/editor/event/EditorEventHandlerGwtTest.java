@@ -679,6 +679,8 @@ public class EditorEventHandlerGwtTest
    * never becomes a document operation.
    */
   public void testDomMutationAfterNullCompositionEndStillNotifiesTypingExtractor() {
+    assertTrue(QuirksConstants.MODIFIES_DOM_AND_FIRES_TEXTINPUT_AFTER_COMPOSITION);
+
     FakeEditorEvent[] composition = FakeEditorEvent.compositionSequence(0);
     FakeEditorEvent mutation = FakeEditorEvent.create(BrowserEvents.DOMCharacterDataModified);
 

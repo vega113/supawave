@@ -58,17 +58,17 @@ public final class Lucene9SearchProviderImplTest extends TestCase {
     verify(indexer, never()).searchWaveIds(any(), any(), anyInt());
   }
 
-  public void testPureTagQueryUsesLuceneCandidatesAndLegacyDigests() throws Exception {
+  public void testPureTagQueryKeepsLegacyTagFilterForDigestHydration() throws Exception {
     SimpleSearchProviderImpl legacySearchProvider = Mockito.mock(SimpleSearchProviderImpl.class);
     Lucene9WaveIndexerImpl indexer = Mockito.mock(Lucene9WaveIndexerImpl.class);
-    SearchResult legacyResult = new SearchResult("");
+    SearchResult legacyResult = new SearchResult("tag:project-x");
     legacyResult.addDigest(new SearchResult.Digest(
         "Project X", "snippet", "example.com!w+project-x", Collections.singletonList(
         "user@example.com"), 123L, 123L, 0, 1));
     legacyResult.setTotalResults(1);
 
     when(legacySearchProvider.search(ParticipantId.ofUnsafe("user@example.com"),
-        "", 0, 10000)).thenReturn(legacyResult);
+        "tag:project-x", 0, 10000)).thenReturn(legacyResult);
     when(indexer.searchWaveIds(any(), any(), anyInt())).thenReturn(
         new LinkedHashSet<>(Collections.singletonList(WaveId.of("example.com", "w+project-x"))));
 
@@ -84,6 +84,8 @@ public final class Lucene9SearchProviderImplTest extends TestCase {
     assertEquals(1, result.getTotalResults());
     assertEquals(1, result.getNumResults());
     assertEquals("example.com!w+project-x", result.getDigests().get(0).getWaveId());
+    verify(legacySearchProvider).search(
+        ParticipantId.ofUnsafe("user@example.com"), "tag:project-x", 0, 10000);
     verify(indexer).searchWaveIds(any(), any(), eq(10000));
   }
 }

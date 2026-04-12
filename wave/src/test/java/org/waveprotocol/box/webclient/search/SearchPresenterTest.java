@@ -335,7 +335,7 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, scheduler.countTasksScheduled());
   }
 
-  public void testOnShowMoreFallsBackToPollingWhenOtSnapshotCannotGrowWindow()
+  public void testOnShowMoreSwitchesToHttpWhenOtSnapshotCannotGrowWindow()
       throws Exception {
     FakeTimerService scheduler = new FakeTimerService();
     SimpleSearch search = new SimpleSearch(new FakeSearchService(), null);
@@ -344,6 +344,7 @@ public final class SearchPresenterTest extends TestCase {
         null);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", false);
     setBooleanField(presenter, "useOtSearch", true);
     setIntField(presenter, "querySize", 45);
     setField(

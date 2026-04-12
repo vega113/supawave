@@ -111,7 +111,6 @@ public final class Lucene9QueryModel {
 
   private static boolean isLuceneHandledToken(TokenQueryType type) {
     return type == TokenQueryType.TITLE
-        || type == TokenQueryType.CONTENT
-        || type == TokenQueryType.TAG;
+        || type == TokenQueryType.CONTENT;
   }
 }

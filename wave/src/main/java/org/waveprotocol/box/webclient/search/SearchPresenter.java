@@ -1129,22 +1129,24 @@ public final class SearchPresenter
 
   @Override
   public void onShowMoreClicked() {
-    querySize += getPageSize();
+    int requestedSize = querySize + getPageSize();
     if (SearchBootstrapUiState.shouldUseHttpSearchForWindowRequest(
         otSearchEnabled, useOtSearch, otSearchFallbackEnabled)) {
+      querySize = requestedSize;
       doSearch();
     } else if (useOtSearch) {
+      querySize = requestedSize;
       if (canProjectOtSearchWindow(querySize, otSearchSnapshot)) {
         applyOtSearchResults();
       } else {
-        fallbackToPolling(
-            "OT search cannot serve query window " + querySize + " for query '" + queryText + "'",
-            null);
+        switchToHttpPollingForExpandedWindow(
+            "OT search cannot serve query window " + querySize + " for query '" + queryText + "'");
       }
     } else {
-      OT_SEARCH_LOG.warning(
-          "Ignoring show-more request while waiting for OT search data and HTTP fallback is disabled for query '"
-              + queryText + "'");
+      querySize = requestedSize;
+      OT_SEARCH_LOG.info(
+          "Queued show-more request for query '" + queryText
+              + "' until OT search data becomes available");
     }
   }
 
@@ -1433,9 +1435,8 @@ public final class SearchPresenter
         if (canProjectOtSearchWindow(querySize, otSearchSnapshot)) {
           applyOtSearchResults();
         } else {
-          fallbackToPolling(
-              "OT search snapshot is smaller than requested window for query '" + queryText + "'",
-              null);
+          switchToHttpPollingForExpandedWindow(
+              "OT search snapshot is smaller than requested window for query '" + queryText + "'");
         }
       }
     } catch (RuntimeException e) {
@@ -1508,6 +1509,20 @@ public final class SearchPresenter
     } else {
       OT_SEARCH_LOG.log(Level.WARNING, message + "; falling back to polling", cause);
     }
+    useOtSearch = false;
+    allowLoadingSkeletonDuringSearch = false;
+    otSearchTimedOut = false;
+    unsubscribeFromSearchWavelet();
+    otSearchDocument = null;
+    otSearchSnapshot = OtSearchSnapshot.empty();
+    otSearchReceivedData = false;
+    scheduler.cancel(otSearchTimeoutTask);
+    scheduler.cancel(searchUpdater);
+    startPolling();
+  }
+
+  private void switchToHttpPollingForExpandedWindow(String message) {
+    OT_SEARCH_LOG.warning(message + "; switching to HTTP search for the requested window");
     useOtSearch = false;
     allowLoadingSkeletonDuringSearch = false;
     otSearchTimedOut = false;

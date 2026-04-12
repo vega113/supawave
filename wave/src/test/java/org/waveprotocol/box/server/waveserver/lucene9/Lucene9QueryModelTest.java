@@ -80,14 +80,15 @@ public class Lucene9QueryModelTest extends TestCase {
     assertFalse("tag: queries are indexed but are not text queries", model.hasTextQuery());
   }
 
-  public void testTagQueryIsExcludedFromLegacyQuery() throws InvalidQueryException {
+  public void testTagQueryIsPreservedInLegacyQueryForDigestHydration()
+      throws InvalidQueryException {
     Lucene9QueryModel model = parser.parse("tag:project-x");
-    assertEquals("", model.toLegacyQuery());
+    assertEquals("tag:project-x", model.toLegacyQuery());
   }
 
-  public void testTagWithUnreadKeepsUnreadInLegacyQuery() throws InvalidQueryException {
+  public void testTagWithUnreadKeepsTagFilterInLegacyQuery() throws InvalidQueryException {
     Lucene9QueryModel model = parser.parse("tag:project-x unread:true");
-    assertEquals("unread:true", model.toLegacyQuery());
+    assertEquals("tag:project-x unread:true", model.toLegacyQuery());
   }
 
   public void testTitleIsExcludedFromLegacyQuery() throws InvalidQueryException {

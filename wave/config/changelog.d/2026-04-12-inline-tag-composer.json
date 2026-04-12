@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-inline-tag-composer",
+  "version": "Unreleased",
+  "date": "2026-04-12",
+  "title": "Move tag creation into the tag bar",
+  "summary": "Adding tags now happens inline in the existing tag bar so mobile no longer opens a cramped modal popup for tag entry.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The tag add button now opens a compact inline composer directly in the tags bar instead of a centered popup dialog",
+        "Inline tag entry keeps comma-separated tag creation and keyboard shortcuts while fitting cleanly inside the mobile tags footer"
+      ]
+    }
+  ]
+}

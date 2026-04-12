@@ -68,6 +68,26 @@ public final class WavePanelTagsLayoutTest extends TestCase {
     assertTrue(css.contains("display: inline-flex"));
   }
 
+  public void testTagAddFlowUsesInlineComposerInsteadOfPopup() throws Exception {
+    String builder =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/TagsViewBuilder.java");
+    String css =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");
+    String controller =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/edit/TagController.java");
+
+    assertTrue(builder.contains("INLINE_EDITOR"));
+    assertTrue(builder.contains("INLINE_INPUT"));
+    assertTrue(builder.contains("INLINE_SUBMIT"));
+    assertTrue(builder.contains("INLINE_CANCEL"));
+    assertTrue(css.contains(".inlineEditor"));
+    assertTrue(css.contains(".inlineEditorVisible"));
+    assertTrue(css.contains(".inlineInput"));
+    assertTrue(css.contains(".inlineActionButton"));
+    assertTrue(controller.contains("showInlineEditor("));
+    assertFalse(controller.contains("new TagInputWidget("));
+  }
+
   public void testTagFilteringUsesClientSearchQueryEventSeam() throws Exception {
     String clientEvents =
         read("wave/src/main/java/org/waveprotocol/wave/client/events/ClientEvents.java");

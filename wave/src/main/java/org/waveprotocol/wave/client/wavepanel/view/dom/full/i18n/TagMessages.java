@@ -40,4 +40,16 @@ public interface TagMessages extends Messages {
 
   @DefaultMessage("Add tag")
   String addTagHint();
+
+  @DefaultMessage("Enter tag name...")
+  String tagInputPlaceholder();
+
+  @DefaultMessage("Separate multiple tags with commas")
+  String tagInputHint();
+
+  @DefaultMessage("Add tags")
+  String confirmAddTagHint();
+
+  @DefaultMessage("Cancel tag entry")
+  String cancelAddTagHint();
 }

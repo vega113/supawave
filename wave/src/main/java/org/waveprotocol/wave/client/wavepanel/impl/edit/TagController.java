@@ -20,8 +20,16 @@
 package org.waveprotocol.wave.client.wavepanel.impl.edit;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.KeyDownHandler;
+import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.TextBox;
 
 import org.waveprotocol.box.common.SearchQuerySyntax;
 import org.waveprotocol.wave.client.events.ClientEvents;
@@ -37,16 +45,21 @@ import org.waveprotocol.wave.client.wavepanel.view.TagsView;
 import org.waveprotocol.wave.client.wavepanel.view.View.Type;
 import org.waveprotocol.wave.client.wavepanel.view.dom.DomAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.TagsViewBuilder;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes;
+import org.waveprotocol.wave.client.wavepanel.view.dom.full.WavePanelResourceLoader;
 import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.util.Pair;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Installs the add/filter/remove tag controls.
  *
  * Ported from Wiab.pro, adapted for Apache Wave (removed KeyComboManager
- * dependency). Uses a styled popup for adding tags and a dedicated inline
- * remove affordance for deletions.
+ * dependency). Uses an inline composer for adding tags and a dedicated
+ * inline remove affordance for deletions.
  */
 public final class TagController {
 
@@ -62,6 +75,9 @@ public final class TagController {
 
   private final DomAsViewProvider views;
   private final ModelAsViewProvider models;
+  private final TagsViewBuilder.Css tagsCss = WavePanelResourceLoader.getTags().css();
+  private final Map<String, InlineTagEditor> inlineEditors =
+      new HashMap<String, InlineTagEditor>();
 
   private TagController(DomAsViewProvider views, ModelAsViewProvider models) {
     this.views = views;
@@ -97,21 +113,14 @@ public final class TagController {
   }
 
   /**
-   * Shows an add-tag popup using {@link TagInputWidget}.
+   * Shows an inline add-tag editor in the tags bar.
    */
   private void handleAddButtonClicked(final Element addButton) {
-    TagInputWidget widget = new TagInputWidget(messages.addTagPrompt());
-    widget.showInPopup(new TagInputWidget.Listener() {
-      @Override
-      public void onSubmit(String tagValue) {
-        addTagsInner(addButton, tagValue);
-      }
-
-      @Override
-      public void onCancel() {
-        // no-op: user dismissed the dialog
-      }
-    });
+    TagsView tagUi = views.tagsFromAddButton(addButton);
+    if (tagUi == null) {
+      return;
+    }
+    showInlineEditor(tagUi);
   }
 
   /**
@@ -146,9 +155,56 @@ public final class TagController {
     }
   }
 
-  private void addTagsInner(Element addButton, String input) {
+  private void showInlineEditor(TagsView tagUi) {
+    String activeTagsViewId = tagUi.getId();
+    for (Map.Entry<String, InlineTagEditor> entry : inlineEditors.entrySet()) {
+      if (!entry.getKey().equals(activeTagsViewId)) {
+        entry.getValue().hide();
+      }
+    }
+    InlineTagEditor editor = getInlineEditor(tagUi);
+    if (editor != null) {
+      editor.show();
+    }
+  }
+
+  private InlineTagEditor getInlineEditor(TagsView tagUi) {
+    String tagsViewId = tagUi.getId();
+    InlineTagEditor editor = inlineEditors.get(tagsViewId);
+    if (editor != null && editor.isAttached()) {
+      return editor;
+    }
+    editor = createInlineEditor(tagsViewId);
+    if (editor != null) {
+      inlineEditors.put(tagsViewId, editor);
+    }
+    return editor;
+  }
+
+  private InlineTagEditor createInlineEditor(String tagsViewId) {
+    Element editorElement =
+        Document.get().getElementById(TagsViewBuilder.Components.INLINE_EDITOR.getDomId(tagsViewId));
+    Element inputElement =
+        Document.get().getElementById(TagsViewBuilder.Components.INLINE_INPUT.getDomId(tagsViewId));
+    Element submitElement =
+        Document.get().getElementById(TagsViewBuilder.Components.INLINE_SUBMIT.getDomId(tagsViewId));
+    Element cancelElement =
+        Document.get().getElementById(TagsViewBuilder.Components.INLINE_CANCEL.getDomId(tagsViewId));
+    if (editorElement == null || inputElement == null || submitElement == null || cancelElement == null) {
+      return null;
+    }
+    return new InlineTagEditor(
+        tagsViewId,
+        editorElement,
+        TextBox.wrap(inputElement),
+        Button.wrap(submitElement),
+        Button.wrap(cancelElement));
+  }
+
+  private void addTagsInner(String tagsViewId, String input) {
     String[] tags = input.split(",");
-    TagsView tagUi = views.tagsFromAddButton(addButton);
+    Element tagsRoot = Document.get().getElementById(tagsViewId);
+    TagsView tagUi = tagsRoot != null ? views.asTags(tagsRoot) : null;
     if (tagUi == null) {
       return;
     }
@@ -161,6 +217,75 @@ public final class TagController {
       if (!tag.isEmpty()) {
         conversation.addTag(tag);
       }
+    }
+  }
+
+  private final class InlineTagEditor {
+    private final String tagsViewId;
+    private final Element rootElement;
+    private final TextBox input;
+
+    private InlineTagEditor(
+        final String tagsViewId, Element rootElement, TextBox input, Button submitButton,
+        Button cancelButton) {
+      this.tagsViewId = tagsViewId;
+      this.rootElement = rootElement;
+      this.input = input;
+
+      submitButton.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          submit();
+        }
+      });
+      cancelButton.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          hide();
+        }
+      });
+      input.addKeyDownHandler(new KeyDownHandler() {
+        @Override
+        public void onKeyDown(KeyDownEvent event) {
+          if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
+            event.preventDefault();
+            submit();
+          } else if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
+            event.preventDefault();
+            hide();
+          }
+        }
+      });
+    }
+
+    private boolean isAttached() {
+      return rootElement.equals(Document.get().getElementById(rootElement.getId()));
+    }
+
+    private void show() {
+      rootElement.addClassName(tagsCss.inlineEditorVisible());
+      Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+        @Override
+        public void execute() {
+          input.setFocus(true);
+          input.selectAll();
+        }
+      });
+    }
+
+    private void hide() {
+      rootElement.removeClassName(tagsCss.inlineEditorVisible());
+      input.setValue("");
+    }
+
+    private void submit() {
+      String value = input.getValue();
+      if (value == null || value.trim().isEmpty()) {
+        input.setFocus(true);
+        return;
+      }
+      addTagsInner(tagsViewId, value.trim());
+      hide();
     }
   }
 }

@@ -81,6 +81,12 @@ public final class TagsViewBuilder implements UiBuilder {
     String addButton();
     String addButtonPressed();
     String removeButton();
+    String inlineEditor();
+    String inlineEditorVisible();
+    String inlineInput();
+    String inlineActionButton();
+    String inlineSubmitButton();
+    String inlineCancelButton();
   }
 
   /** An enum for all the components of a tags view. */
@@ -89,7 +95,15 @@ public final class TagsViewBuilder implements UiBuilder {
     /** Element to which tag UIs are attached. */
     CONTAINER("C"),
     /** Add button. */
-    ADD("A");
+    ADD("A"),
+    /** Inline composer wrapper. */
+    INLINE_EDITOR("E"),
+    /** Inline composer input. */
+    INLINE_INPUT("I"),
+    /** Inline composer submit button. */
+    INLINE_SUBMIT("S"),
+    /** Inline composer cancel button. */
+    INLINE_CANCEL("X");
 
     private final String postfix;
 
@@ -140,6 +154,7 @@ public final class TagsViewBuilder implements UiBuilder {
           OutputHelper.close(output);
 
           tagUis.outputHtml(output);
+          appendInlineEditor(output);
 
           // Overflow-mode panel.
           OutputHelper.openSpan(output, null, css.extra(), null);
@@ -208,5 +223,47 @@ public final class TagsViewBuilder implements UiBuilder {
         .replace("'", "\\'")
         .replace("\r", "\\r")
         .replace("\n", "\\n");
+  }
+
+  private void appendInlineEditor(SafeHtmlBuilder output) {
+    OutputHelper.openSpan(output, Components.INLINE_EDITOR.getDomId(id), css.inlineEditor(), null);
+    {
+      output.appendHtmlConstant("<input"
+          + " type='text'"
+          + " id='" + escapeHtmlAttribute(Components.INLINE_INPUT.getDomId(id)) + "'"
+          + " class='" + escapeHtmlAttribute(css.inlineInput()) + "'"
+          + " placeholder='" + escapeHtmlAttribute(messages.tagInputPlaceholder()) + "'"
+          + " title='" + escapeHtmlAttribute(messages.tagInputHint()) + "'"
+          + " aria-label='" + escapeHtmlAttribute(messages.tagInputPlaceholder()) + "'"
+          + " autocomplete='off'"
+          + " spellcheck='false'"
+          + " />");
+      OutputHelper.button(
+          output,
+          Components.INLINE_SUBMIT.getDomId(id),
+          css.inlineActionButton() + " " + css.inlineSubmitButton(),
+          null,
+          messages.confirmAddTagHint(),
+          messages.confirmAddTagHint(),
+          "");
+      OutputHelper.button(
+          output,
+          Components.INLINE_CANCEL.getDomId(id),
+          css.inlineActionButton() + " " + css.inlineCancelButton(),
+          null,
+          messages.cancelAddTagHint(),
+          messages.cancelAddTagHint(),
+          "");
+    }
+    OutputHelper.closeSpan(output);
+  }
+
+  private static String escapeHtmlAttribute(String value) {
+    return value
+        .replace("&", "&amp;")
+        .replace("'", "&#39;")
+        .replace("\"", "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;");
   }
 }

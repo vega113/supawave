@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-12-worktree-diagnostics-runbook",
+  "version": "PR #587",
+  "date": "2026-04-12",
+  "title": "Added Worktree Diagnostics Bundle Guidance",
+  "summary": "Adds a bundled diagnostics command and runbook so issue worktrees can capture compact startup, smoke, endpoint, and log evidence without inventing a separate observability workflow.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Add scripts/worktree-diagnostics.sh: emits a Markdown diagnostics bundle with endpoint probes, smoke-check output, startup tail, and server-log tail for the current worktree runtime",
+        "Add docs/runbooks/worktree-diagnostics.md: explains when to run the bundle, what it captures, and how to reference it from issue comments and PR summaries",
+        "Update scripts/worktree-boot.sh, docs/runbooks/worktree-lane-lifecycle.md, docs/runbooks/README.md, and docs/SMOKE_TESTS.md so the diagnostics bundle is discoverable from the existing worktree verification flow"
+      ]
+    }
+  ]
+}

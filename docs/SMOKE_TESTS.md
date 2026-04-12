@@ -30,6 +30,11 @@ override into the smoke commands:
 3. `curl -sS http://localhost:9899/healthz`
 4. `PORT=9899 bash scripts/wave-smoke.sh stop`
 
+If the start/check flow fails or the issue/PR needs richer runtime detail, run
+`PORT=9899 bash scripts/worktree-diagnostics.sh --port 9899` and follow
+[docs/runbooks/worktree-diagnostics.md](runbooks/worktree-diagnostics.md) for
+the bundled evidence format.
+
 ## Browser verification baseline
 
 The standalone browser-smoke baseline remains:

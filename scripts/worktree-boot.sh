@@ -20,7 +20,7 @@ What it does:
   - stages the app with sbt Universal/stage
   - writes a port-specific runtime config under journal/runtime-config/
   - creates a local-verification journal entry under journal/local-verification/
-  - prints the exact start/check/stop commands for the selected port
+  - prints the exact start/check/diagnostics/stop commands for the selected port
 EOF
 }
 
@@ -199,6 +199,9 @@ Start:
 
 Check:
   PORT=$PORT bash scripts/wave-smoke.sh check
+
+Diagnostics:
+  PORT=$PORT bash scripts/worktree-diagnostics.sh --port $PORT
 
 Stop:
   PORT=$PORT bash scripts/wave-smoke.sh stop

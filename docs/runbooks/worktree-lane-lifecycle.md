@@ -65,8 +65,8 @@ The helper does four things:
 - creates the canonical local-verification record under
   `journal/local-verification/`
 
-The helper prints the exact `start`, `check`, and `stop` commands for the lane.
-Use those commands as printed.
+The helper prints the exact `start`, `check`, `diagnostics`, and `stop`
+commands for the lane. Use those commands as printed.
 
 ## 5. Handle port conflicts explicitly
 
@@ -128,11 +128,15 @@ After `scripts/worktree-boot.sh` finishes, run the printed commands in order:
 
 1. Start the server with the printed `JAVA_OPTS` and `PORT`.
 2. Run `bash scripts/wave-smoke.sh check`.
-3. If the change can affect browser-visible behavior, use
+3. If startup or smoke fails, or if the issue/PR needs richer runtime detail,
+   run `PORT=<port> bash scripts/worktree-diagnostics.sh --port <port>` and use
+   [`worktree-diagnostics.md`](worktree-diagnostics.md) for the bundled
+   evidence format.
+4. If the change can affect browser-visible behavior, use
    [`browser-verification.md`](browser-verification.md) and
    [`change-type-verification-matrix.md`](change-type-verification-matrix.md)
    to decide whether a browser pass is required and what narrow path to check.
-4. Stop the server with `bash scripts/wave-smoke.sh stop`.
+5. Stop the server with `bash scripts/wave-smoke.sh stop`.
 
 This runbook standardizes only the base lifecycle. Browser-verification
 expectations are standardized separately in

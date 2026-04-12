@@ -14,6 +14,8 @@ setup, smoke checks, deployment, and operational routines.
   - Standard browser-verification path built on the existing smoke baseline.
 - [`change-type-verification-matrix.md`](change-type-verification-matrix.md)
   - Quick reference for when smoke is enough versus when browser verification is required.
+- [`worktree-diagnostics.md`](worktree-diagnostics.md)
+  - One-command diagnostics bundle for failed or detail-heavy worktree verification.
 - [`../DEV_SETUP.md`](../DEV_SETUP.md)
   - Local requirements and setup notes.
 - [`../BUILDING-sbt.md`](../BUILDING-sbt.md)

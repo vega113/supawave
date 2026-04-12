@@ -179,7 +179,8 @@ public class WaveDigester {
     if (context.udw != null) {
       OpBasedWavelet userDataWavelet =
           getOrCreateReadOnlyWavelet(context.udw, waveletAdapters);
-      return WaveletBasedSupplement.create(userDataWavelet);
+      return copyAndSeedLegacyPublicReadStateIfNeeded(
+          WaveletBasedSupplement.create(userDataWavelet), context.conversationalWavelets);
     }
     if (isExplicitParticipant(participant, context.conversationalWavelets)) {
       PrimitiveSupplementImpl state = new PrimitiveSupplementImpl();
@@ -460,7 +461,9 @@ public class WaveDigester {
     // Use mock state if there is no UDW.
     PrimitiveSupplement udwState;
     if (udw != null) {
-      udwState = WaveletBasedSupplement.create(getOrCreateReadOnlyWavelet(udw, waveletAdapters));
+      udwState = copyAndSeedLegacyPublicReadStateIfNeeded(
+          WaveletBasedSupplement.create(getOrCreateReadOnlyWavelet(udw, waveletAdapters)),
+          conversationalWavelets);
     } else {
       PrimitiveSupplementImpl emptyState = new PrimitiveSupplementImpl();
       // When the viewer has no UDW, seed all blips as read if:
@@ -519,6 +522,38 @@ public class WaveDigester {
           ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(
               waveletData.getWaveId().getDomain());
       if (waveletData.getParticipants().contains(sharedDomainParticipant)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private PrimitiveSupplement copyAndSeedLegacyPublicReadStateIfNeeded(
+      PrimitiveSupplement readState,
+      List<ObservableWaveletData> conversationalWavelets) {
+    if (readState == null
+        || !hasSharedDomainParticipant(conversationalWavelets)
+        || hasConversationalReadState(readState, conversationalWavelets)) {
+      return readState;
+    }
+
+    PrimitiveSupplementImpl seededState = new PrimitiveSupplementImpl(readState);
+    for (ObservableWaveletData waveletData : conversationalWavelets) {
+      seededState.setLastReadWaveletVersion(
+          waveletData.getWaveletId(), (int) waveletData.getVersion());
+    }
+    return seededState;
+  }
+
+  private static boolean hasConversationalReadState(
+      PrimitiveSupplement readState,
+      List<ObservableWaveletData> conversationalWavelets) {
+    for (ObservableWaveletData waveletData : conversationalWavelets) {
+      WaveletId waveletId = waveletData.getWaveletId();
+      if (readState.getLastReadWaveletVersion(waveletId) != PrimitiveSupplement.NO_VERSION
+          || readState.getLastReadParticipantsVersion(waveletId) != PrimitiveSupplement.NO_VERSION
+          || readState.getLastReadTagsVersion(waveletId) != PrimitiveSupplement.NO_VERSION
+          || readState.getReadBlips(waveletId).iterator().hasNext()) {
         return true;
       }
     }

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-deploy-failure-cancelled-runs",
+  "version": "PR #865",
+  "date": "2026-04-12",
+  "title": "Suppress false deploy-failure alerts on cancelled runs",
+  "summary": "Deploy failure issue creation and notification now ignore cancelled runs without hiding real deploy or pre-deploy failures.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Deploy-failure alerts now skip cancelled runs while still firing for real deploy failures and early job failures.",
+        "The deploy workflow no longer depends on checked-out helper code to decide whether failure alerts should run."
+      ]
+    }
+  ]
+}

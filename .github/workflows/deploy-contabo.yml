@@ -276,7 +276,7 @@ jobs:
             }
 
       - name: Create GitHub issue on deploy failure
-        if: always() && (steps.deploy.outcome == 'failure' || steps.deploy.outcome == 'skipped') && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: always() && failure() && !cancelled() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         uses: actions/github-script@v7
         with:
           script: |
@@ -488,7 +488,7 @@ jobs:
             -d "$PAYLOAD") || echo "Email notification failed (non-blocking): $RESPONSE"
 
       - name: Notify deploy failure
-        if: always() && (steps.deploy.outcome == 'failure' || steps.deploy.outcome == 'skipped') && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: always() && failure() && !cancelled() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}

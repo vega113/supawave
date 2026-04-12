@@ -1158,7 +1158,7 @@ ThisBuild / skipGwt := sys.props.get("skipGwt").exists(_.trim.toLowerCase == "tr
 
 lazy val devCompile = taskKey[Unit]("Run the lighter dev compile path: codegen plus Compile / compile, without GWT packaging tasks")
 lazy val compileGwt = taskKey[Unit]("Compile GWT client (delegates to Gradle when available, otherwise uses native Fork.java)")
-lazy val compileGwtDev = taskKey[Unit]("Compile a single GWT permutation in draft mode for faster local UI verification")
+lazy val compileGwtDev = taskKey[Unit]("Compile a single GWT permutation in draft mode into war-dev for faster compile feedback without touching production war assets")
 
 ThisBuild / compileGwt := {
   val log      = streams.value.log
@@ -1269,6 +1269,8 @@ ThisBuild / compileGwt := {
   }
 }
 
+// Keep the dev draft compile isolated from the runtime war/ tree.
+// `sbt run`, `stage`, and `packageBin` stay on the production compile path.
 ThisBuild / compileGwtDev := {
   val log       = streams.value.log
   val base      = baseDirectory.value
@@ -1300,7 +1302,7 @@ ThisBuild / compileGwtDev := {
     "org.waveprotocol.box.webclient.WebClientProd"
   )
 
-  log.info("[compileGwtDev] Native mode — one-permutation draft compile")
+  log.info("[compileGwtDev] Native mode — one-permutation draft compile (compile-only)")
   log.info("[compileGwtDev] Writing dev artifacts to " + devWarDir)
   log.info("[compileGwtDev] Classpath has " + fullCp.size + " entries")
   val cpStr = fullCp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)

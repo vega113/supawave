@@ -50,6 +50,8 @@ public class MongoDbDeltaCollection implements DeltaStore.DeltasAccess {
 
   /** MongoDB Collection object for delta storage */
   private final DBCollection deltaDbCollection;
+  /** Non-null when store startup decided new writes must fail closed. */
+  private final PersistenceException appendGuardFailure;
 
   /**
    * Construct a new Delta Access object for the wavelet
@@ -57,9 +59,11 @@ public class MongoDbDeltaCollection implements DeltaStore.DeltasAccess {
    * @param waveletName The wavelet name.
    * @param deltaDbCollection The MongoDB deltas collection
    */
-  public MongoDbDeltaCollection(WaveletName waveletName, DBCollection deltaDbCollection) {
+  public MongoDbDeltaCollection(WaveletName waveletName, DBCollection deltaDbCollection,
+      PersistenceException appendGuardFailure) {
     this.waveletName = waveletName;
     this.deltaDbCollection = deltaDbCollection;
+    this.appendGuardFailure = appendGuardFailure;
   }
 
   @Override
@@ -193,6 +197,11 @@ public class MongoDbDeltaCollection implements DeltaStore.DeltasAccess {
 
   @Override
   public void append(Collection<WaveletDeltaRecord> newDeltas) throws PersistenceException {
+    if (appendGuardFailure != null) {
+      throw new PersistenceException(
+          "Refusing delta writes for " + waveletName + ": " + appendGuardFailure.getMessage(),
+          appendGuardFailure);
+    }
 
     try {
       for (WaveletDeltaRecord delta : newDeltas) {

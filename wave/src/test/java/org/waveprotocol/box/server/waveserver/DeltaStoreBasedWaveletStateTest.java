@@ -28,6 +28,7 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.testing.DeltaTestUtil;
+import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionFactoryImpl;
@@ -141,6 +142,32 @@ public class DeltaStoreBasedWaveletStateTest extends WaveletStateTestBase {
     }
   }
 
+  public void testPersistRetriesAfterRecoverablePartialAppendFailure() throws Exception {
+    DeltaStore.DeltasAccess durable = store.open(NAME);
+    WaveletState state = DeltaStoreBasedWaveletState.create(
+        new PartiallyFailingDeltasAccess(durable), PERSIST_EXECUTOR);
+    WaveletDeltaRecord first = makeDelta(V0, 1234567890L, 1);
+    WaveletDeltaRecord second = makeDelta(first.getResultingVersion(), 1234567891L, 1);
+
+    state.appendDelta(first);
+    state.appendDelta(second);
+
+    try {
+      state.persist(second.getResultingVersion()).get();
+      fail("Expected initial partial append failure");
+    } catch (ExecutionException e) {
+      assertTrue(e.getCause() instanceof PersistenceException);
+      assertTrue(e.getCause().getMessage().contains("simulated partial append failure"));
+    }
+
+    state.persist(second.getResultingVersion()).get();
+
+    assertEquals(second.getResultingVersion(), durable.getEndVersion());
+    assertEquals(second.getResultingVersion(), state.getLastPersistedVersion());
+    assertNotNull(durable.getDelta(0));
+    assertNotNull(durable.getDelta(first.getResultingVersion().getVersion()));
+  }
+
   // TODO(soren): We need to add tests here that verify interactions with storage.
   // The base tests only test the public interface, not any interactions with the storage system.
 
@@ -152,5 +179,77 @@ public class DeltaStoreBasedWaveletStateTest extends WaveletStateTestBase {
         appliedAtVersion,
         applied,
         AppliedDeltaUtil.buildTransformedDelta(applied, delta));
+  }
+
+  private static final class PartiallyFailingDeltasAccess implements DeltaStore.DeltasAccess {
+    private final DeltaStore.DeltasAccess delegate;
+    private boolean failOnce = true;
+
+    private PartiallyFailingDeltasAccess(DeltaStore.DeltasAccess delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public WaveletName getWaveletName() {
+      return delegate.getWaveletName();
+    }
+
+    @Override
+    public boolean isEmpty() {
+      return delegate.isEmpty();
+    }
+
+    @Override
+    public HashedVersion getEndVersion() {
+      return delegate.getEndVersion();
+    }
+
+    @Override
+    public WaveletDeltaRecord getDelta(long version) throws java.io.IOException {
+      return delegate.getDelta(version);
+    }
+
+    @Override
+    public WaveletDeltaRecord getDeltaByEndVersion(long version) throws java.io.IOException {
+      return delegate.getDeltaByEndVersion(version);
+    }
+
+    @Override
+    public HashedVersion getAppliedAtVersion(long version) throws java.io.IOException {
+      return delegate.getAppliedAtVersion(version);
+    }
+
+    @Override
+    public HashedVersion getResultingVersion(long version) throws java.io.IOException {
+      return delegate.getResultingVersion(version);
+    }
+
+    @Override
+    public ByteStringMessage<org.waveprotocol.wave.federation.Proto.ProtocolAppliedWaveletDelta>
+        getAppliedDelta(long version) throws java.io.IOException {
+      return delegate.getAppliedDelta(version);
+    }
+
+    @Override
+    public TransformedWaveletDelta getTransformedDelta(long version) throws java.io.IOException {
+      return delegate.getTransformedDelta(version);
+    }
+
+    @Override
+    public void append(java.util.Collection<WaveletDeltaRecord> deltas) throws PersistenceException {
+      if (failOnce) {
+        failOnce = false;
+        for (WaveletDeltaRecord delta : deltas) {
+          delegate.append(java.util.Collections.singletonList(delta));
+          throw new PersistenceException("simulated partial append failure");
+        }
+      }
+      delegate.append(deltas);
+    }
+
+    @Override
+    public void close() throws java.io.IOException {
+      delegate.close();
+    }
   }
 }

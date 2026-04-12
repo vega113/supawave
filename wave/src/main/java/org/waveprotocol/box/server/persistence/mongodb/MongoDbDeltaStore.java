@@ -59,6 +59,8 @@ public class MongoDbDeltaStore implements DeltaStore {
 
   /** Database connection object */
   private final DB database;
+  /** Non-null when the store could not enforce append safety and must fail closed. */
+  private volatile PersistenceException appendGuardFailure = null;
 
   /**
    * Construct a new store
@@ -73,7 +75,7 @@ public class MongoDbDeltaStore implements DeltaStore {
   @Override
   public DeltasAccess open(WaveletName waveletName) throws PersistenceException {
 
-    return new MongoDbDeltaCollection(waveletName, getDeltaDbCollection());
+    return new MongoDbDeltaCollection(waveletName, getDeltaDbCollection(), appendGuardFailure);
   }
 
   @Override
@@ -194,18 +196,38 @@ public class MongoDbDeltaStore implements DeltaStore {
           coll.createIndex(keys, uniqueOptions);
           return;
         } catch (MongoException retryFailure) {
-          restoreNonUniqueAppliedAtVersionIndex(coll, keys);
-          LOG.warning(
+          disableWritesAndRestoreLegacyIndex(
+              coll,
+              keys,
               "MongoDbDeltaStore: applied-version uniqueness upgrade blocked by existing data; "
-                  + "run corrupted-wave repair before retrying. " + retryFailure.getMessage());
+                  + "refusing new delta writes until corrupted-wave repair completes and the "
+                  + "server restarts.",
+              retryFailure);
           return;
         }
       }
-      restoreNonUniqueAppliedAtVersionIndex(coll, keys);
-      LOG.warning(
+      disableWritesAndRestoreLegacyIndex(
+          coll,
+          keys,
           "MongoDbDeltaStore: unable to enforce unique applied-version writes; "
-              + "leaving the legacy index in place. " + initialFailure.getMessage());
+              + "refusing new delta writes until the index issue is fixed and the server "
+              + "restarts.",
+          initialFailure);
     }
+  }
+
+  private void disableWritesAndRestoreLegacyIndex(DBCollection coll, BasicDBObject keys,
+      String message, MongoException cause) {
+    if (appendGuardFailure == null) {
+      appendGuardFailure = new PersistenceException(message, cause);
+    }
+    try {
+      restoreNonUniqueAppliedAtVersionIndex(coll, keys);
+    } catch (MongoException restoreFailure) {
+      LOG.warning("MongoDbDeltaStore: failed to restore legacy applied-version index after "
+          + "disabling writes: " + restoreFailure.getMessage());
+    }
+    LOG.warning(message + " " + cause.getMessage());
   }
 
   private void restoreNonUniqueAppliedAtVersionIndex(DBCollection coll, BasicDBObject keys) {

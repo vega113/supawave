@@ -59,6 +59,8 @@ public class Mongo4DeltaStore implements DeltaStore {
 
   /** MongoDB database connection object */
   private final MongoDatabase database;
+  /** Non-null when the store could not enforce append safety and must fail closed. */
+  private volatile PersistenceException appendGuardFailure = null;
 
   /**
    * Construct a new store
@@ -118,18 +120,38 @@ public class Mongo4DeltaStore implements DeltaStore {
           coll.createIndex(keys, uniqueOptions);
           return;
         } catch (MongoException retryFailure) {
-          restoreNonUniqueAppliedAtVersionIndex(coll, keys);
-          LOG.warning(
+          disableWritesAndRestoreLegacyIndex(
+              coll,
+              keys,
               "Mongo4DeltaStore: applied-version uniqueness upgrade blocked by existing data; "
-                  + "run corrupted-wave repair before retrying. " + retryFailure.getMessage());
+                  + "refusing new delta writes until corrupted-wave repair completes and the "
+                  + "server restarts.",
+              retryFailure);
           return;
         }
       }
-      restoreNonUniqueAppliedAtVersionIndex(coll, keys);
-      LOG.warning(
+      disableWritesAndRestoreLegacyIndex(
+          coll,
+          keys,
           "Mongo4DeltaStore: unable to enforce unique applied-version writes; "
-              + "leaving the legacy index in place. " + initialFailure.getMessage());
+              + "refusing new delta writes until the index issue is fixed and the server "
+              + "restarts.",
+          initialFailure);
     }
+  }
+
+  private void disableWritesAndRestoreLegacyIndex(MongoCollection<Document> coll, Bson keys,
+      String message, MongoException cause) {
+    if (appendGuardFailure == null) {
+      appendGuardFailure = new PersistenceException(message, cause);
+    }
+    try {
+      restoreNonUniqueAppliedAtVersionIndex(coll, keys);
+    } catch (MongoException restoreFailure) {
+      LOG.warning("Mongo4DeltaStore: failed to restore legacy applied-version index after "
+          + "disabling writes: " + restoreFailure.getMessage());
+    }
+    LOG.warning(message + " " + cause.getMessage());
   }
 
   private void restoreNonUniqueAppliedAtVersionIndex(MongoCollection<Document> coll, Bson keys) {
@@ -143,7 +165,7 @@ public class Mongo4DeltaStore implements DeltaStore {
 
   @Override
   public DeltasAccess open(WaveletName waveletName) throws PersistenceException {
-    return new Mongo4DeltaCollection(waveletName, getDeltaCollection());
+    return new Mongo4DeltaCollection(waveletName, getDeltaCollection(), appendGuardFailure);
   }
 
   @Override

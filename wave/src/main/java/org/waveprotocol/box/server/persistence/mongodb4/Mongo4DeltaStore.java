@@ -115,8 +115,8 @@ public class Mongo4DeltaStore implements DeltaStore {
     } catch (MongoException initialFailure) {
       if (isIndexOptionsConflict(initialFailure)) {
         LOG.info("Mongo4DeltaStore: upgrading applied-version index to unique");
-        coll.dropIndex(APPLIED_AT_VERSION_INDEX_NAME);
         try {
+          coll.dropIndex(APPLIED_AT_VERSION_INDEX_NAME);
           coll.createIndex(keys, uniqueOptions);
           return;
         } catch (MongoException retryFailure) {

@@ -25,8 +25,18 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 public final class WavePanelCssCompatibilityTest extends TestCase {
+  private static final Pattern MEDIA_QUERY_PATTERN = Pattern.compile("(?i)@media\\b");
+  private static final Pattern CALC_FUNCTION_PATTERN = Pattern.compile("(?i)\\bcalc\\s*\\(");
+
+  public void testBlockedCssConstructMatchersCatchFormattingVariants() {
+    assertTrue(containsBlockedMediaQuery("@MEDIA(max-width:768px) { .editHint { display: none; } }"));
+    assertTrue(containsBlockedCalcFunction("width: CALC (100% - 5em);"));
+    assertFalse(containsBlockedMediaQuery(".editHint { display: inline; }"));
+    assertFalse(containsBlockedCalcFunction("width: 100%;"));
+  }
 
   public void testBlipCssUsesRuntimeMobileGuardInsteadOfMediaQuery() throws Exception {
     String css = read(
@@ -36,7 +46,7 @@ public final class WavePanelCssCompatibilityTest extends TestCase {
 
     assertTrue(builder.contains("!MobileDetector.isMobile()"));
     assertTrue(css.contains(".editHint"));
-    assertFalse(css.contains("@media (max-width: 768px)"));
+    assertFalse(containsBlockedMediaQuery(css));
   }
 
   public void testTagsCssAvoidsCalcForInlineEditorWidth() throws Exception {
@@ -44,10 +54,18 @@ public final class WavePanelCssCompatibilityTest extends TestCase {
         "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");
 
     assertTrue(css.contains(".inlineEditor"));
-    assertFalse(css.contains("calc("));
+    assertFalse(containsBlockedCalcFunction(css));
   }
 
   private String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
+  }
+
+  private boolean containsBlockedMediaQuery(String css) {
+    return MEDIA_QUERY_PATTERN.matcher(css).find();
+  }
+
+  private boolean containsBlockedCalcFunction(String css) {
+    return CALC_FUNCTION_PATTERN.matcher(css).find();
   }
 }

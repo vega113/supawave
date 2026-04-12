@@ -95,14 +95,14 @@ public class GravatarProfilesFetcher implements ProfilesFetcher {
    * Returns the Gravatar URL for the given wave address.
    *
    * <p>The email is resolved via {@link #resolveEmail(String)}, then hashed
-   * with MD5 per Gravatar's standard. Uses {@code identicon} as the default
+   * with SHA-256 per Gravatar's current standard. Uses {@code identicon} as the default
    * fallback so that users without a Gravatar still get a unique geometric
    * pattern.
    */
   public String getImageUrl(String address) {
     String email = resolveEmail(address);
-    // Gravatar spec: lowercase, trim, then MD5-hex.
-    String emailHash = DigestUtils.md5Hex(email.toLowerCase().trim());
+    // Gravatar spec: lowercase, trim, then SHA-256-hex.
+    String emailHash = DigestUtils.sha256Hex(email.toLowerCase().trim());
     return GRAVATAR_URL + emailHash + "?d=identicon&s=40";
   }
 

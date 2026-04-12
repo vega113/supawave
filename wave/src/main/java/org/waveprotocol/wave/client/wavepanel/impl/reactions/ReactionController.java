@@ -19,13 +19,18 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.reactions;
 
+import com.google.gwt.core.client.Duration;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
+import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Event.NativePreviewEvent;
 import com.google.gwt.user.client.Event.NativePreviewHandler;
+import com.google.gwt.user.client.Timer;
+import org.waveprotocol.wave.client.account.Profile;
+import org.waveprotocol.wave.client.account.ProfileManager;
 import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipViewBuilder;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
@@ -36,6 +41,7 @@ import org.waveprotocol.wave.model.conversation.ObservableConversationThread;
 import org.waveprotocol.wave.model.conversation.ObservableConversationView;
 import org.waveprotocol.wave.model.conversation.ReactionDataDocuments;
 import org.waveprotocol.wave.model.conversation.ReactionDocument;
+import org.waveprotocol.wave.model.conversation.TaskMetadataUtil;
 import org.waveprotocol.wave.model.document.DocHandler;
 import org.waveprotocol.wave.model.document.indexed.DocumentHandler;
 import org.waveprotocol.wave.model.document.ObservableDocument;
@@ -61,14 +67,20 @@ public final class ReactionController extends ConversationListenerImpl
     implements ObservableConversationView.Listener {
 
   public static ReactionController install(ObservableConversationView conversationView,
-      ViewIdMapper viewIdMapper, ParticipantId signedInUser) {
-    ReactionController controller = new ReactionController(conversationView, viewIdMapper, signedInUser);
+      ViewIdMapper viewIdMapper, ProfileManager profileManager, ParticipantId signedInUser) {
+    ReactionController controller =
+        new ReactionController(conversationView, viewIdMapper, profileManager, signedInUser);
     controller.install();
     return controller;
   }
 
+  private static final int LONG_PRESS_DELAY_MS = 450;
+  private static final int CONTEXT_MENU_KEY_CODE = 93;
+  private static final double INSPECT_SUPPRESSION_MS = 900d;
+
   private final ObservableConversationView conversationView;
   private final ViewIdMapper viewIdMapper;
+  private final ProfileManager profileManager;
   private final ParticipantId signedInUser;
   private final IdentityMap<ConversationBlip, DocHandler> handlers = CollectionUtils.createIdentityMap();
   private final Map<String, ObservableConversationBlip> blipsById = new HashMap<String, ObservableConversationBlip>();
@@ -76,11 +88,17 @@ public final class ReactionController extends ConversationListenerImpl
 
   private NativePreviewHandler previewHandler;
   private HandlerRegistration previewRegistration;
+  private Timer longPressTimer;
+  private String suppressedInspectBlipId;
+  private String suppressedInspectEmoji;
+  private double suppressedInspectUntilMs;
+  private ReactionAuthorsPopup authorsPopup;
 
   private ReactionController(ObservableConversationView conversationView, ViewIdMapper viewIdMapper,
-      ParticipantId signedInUser) {
+      ProfileManager profileManager, ParticipantId signedInUser) {
     this.conversationView = conversationView;
     this.viewIdMapper = viewIdMapper;
+    this.profileManager = profileManager;
     this.signedInUser = signedInUser;
   }
 
@@ -225,18 +243,32 @@ public final class ReactionController extends ConversationListenerImpl
     previewHandler = new NativePreviewHandler() {
       @Override
       public void onPreviewNativeEvent(NativePreviewEvent event) {
-        if (event.getTypeInt() != Event.ONCLICK || signedInUser == null) {
-          return;
-        }
+        String type = event.getNativeEvent().getType();
         EventTarget target = event.getNativeEvent().getEventTarget();
         if (target == null || !Element.is(target)) {
+          if ("touchend".equals(type) || "touchmove".equals(type) || "touchcancel".equals(type)) {
+            cancelLongPress();
+          }
           return;
         }
         Element element = Element.as(target);
         Element action = findReactionAction(element);
+        Element inspectTrigger = findInspectTrigger(element);
+
+        if ("touchstart".equals(type)) {
+          scheduleLongPress(action);
+          return;
+        }
+
+        if ("touchend".equals(type) || "touchmove".equals(type) || "touchcancel".equals(type)) {
+          cancelLongPress();
+          return;
+        }
+
         if (action == null) {
           return;
         }
+
         String blipId = action.getAttribute("data-reaction-blip-id");
         if (blipId == null || blipId.isEmpty()) {
           return;
@@ -246,14 +278,54 @@ public final class ReactionController extends ConversationListenerImpl
           return;
         }
         String emoji = action.getAttribute("data-reaction-emoji");
-        event.getNativeEvent().preventDefault();
-        event.getNativeEvent().stopPropagation();
-        event.cancel();
+
+        if ("contextmenu".equals(type) && emoji != null && !emoji.isEmpty()) {
+          cancelLongPress();
+          consume(event);
+          if (shouldSuppressInspect(blipId, emoji)) {
+            return;
+          }
+          showAuthorsPopup(action, blip, emoji, true);
+          return;
+        }
+
+        if ("keydown".equals(type) && emoji != null && !emoji.isEmpty()
+            && isInspectKey(event)) {
+          consume(event);
+          showAuthorsPopup(action, blip, emoji, false);
+          return;
+        }
+
+        if (!"click".equals(type)) {
+          return;
+        }
+
+        if (inspectTrigger != null && emoji != null && !emoji.isEmpty()) {
+          consume(event);
+          showAuthorsPopup(action, blip, emoji, false);
+          return;
+        }
+
+        if (shouldSuppressClick(blipId, emoji)) {
+          consume(event);
+          return;
+        }
+
         if (emoji != null && !emoji.isEmpty()) {
+          if (signedInUser == null) {
+            return;
+          }
+          consume(event);
+          hideAuthorsPopup();
           toggle(blip, emoji);
           return;
         }
         if ("true".equals(action.getAttribute("data-reaction-add"))) {
+          if (signedInUser == null) {
+            return;
+          }
+          consume(event);
+          hideAuthorsPopup();
           ReactionPickerPopup.show(new ReactionPickerPopup.Listener() {
             @Override
             public void onSelect(String emoji) {
@@ -267,6 +339,8 @@ public final class ReactionController extends ConversationListenerImpl
   }
 
   public void uninstall() {
+    cancelLongPress();
+    hideAuthorsPopup();
     if (previewRegistration != null) {
       previewRegistration.removeHandler();
       previewRegistration = null;
@@ -290,6 +364,21 @@ public final class ReactionController extends ConversationListenerImpl
     return null;
   }
 
+  private Element findInspectTrigger(Element start) {
+    Element current = start;
+    while (current != null) {
+      if (current.hasAttribute(ReactionRowRenderer.INSPECT_ATTR)) {
+        return current;
+      }
+      if (current.hasAttribute("data-reaction-emoji")
+          || current.hasAttribute("data-reaction-add")) {
+        return null;
+      }
+      current = current.getParentElement();
+    }
+    return null;
+  }
+
   private void toggle(ConversationBlip blip, String emoji) {
     ReactionDocument<org.waveprotocol.wave.model.document.Doc.N,
         org.waveprotocol.wave.model.document.Doc.E,
@@ -300,6 +389,154 @@ public final class ReactionController extends ConversationListenerImpl
       bindBlip((ObservableConversationBlip) blip);
     }
     render(blip);
+  }
+
+  private void consume(NativePreviewEvent event) {
+    event.getNativeEvent().preventDefault();
+    event.getNativeEvent().stopPropagation();
+    event.cancel();
+  }
+
+  private boolean isInspectKey(NativePreviewEvent event) {
+    int keyCode = event.getNativeEvent().getKeyCode();
+    return keyCode == CONTEXT_MENU_KEY_CODE
+        || (keyCode == KeyCodes.KEY_F10 && event.getNativeEvent().getShiftKey());
+  }
+
+  private void scheduleLongPress(Element action) {
+    cancelLongPress();
+    if (action == null || !action.hasAttribute("data-reaction-emoji")) {
+      return;
+    }
+    final String blipId = action.getAttribute("data-reaction-blip-id");
+    final String emoji = action.getAttribute("data-reaction-emoji");
+    if (blipId == null || blipId.isEmpty() || emoji == null || emoji.isEmpty()) {
+      return;
+    }
+    final ObservableConversationBlip blip = blipsById.get(blipId);
+    if (blip == null) {
+      return;
+    }
+    final Element anchor = action;
+    longPressTimer = new Timer() {
+      @Override
+      public void run() {
+        longPressTimer = null;
+        suppressInspect(blipId, emoji);
+        suppressClick(blipId, emoji);
+        showAuthorsPopup(anchor, blip, emoji, true);
+      }
+    };
+    longPressTimer.schedule(LONG_PRESS_DELAY_MS);
+  }
+
+  private void cancelLongPress() {
+    if (longPressTimer != null) {
+      longPressTimer.cancel();
+      longPressTimer = null;
+    }
+  }
+
+  private void showAuthorsPopup(Element anchor, ConversationBlip blip, String emoji,
+      boolean suppressFollowupInspect) {
+    ReactionDocument<org.waveprotocol.wave.model.document.Doc.N,
+        org.waveprotocol.wave.model.document.Doc.E,
+        org.waveprotocol.wave.model.document.Doc.T> reactionDocument =
+        ReactionDataDocuments.getIfPresent(blip);
+    if (reactionDocument == null) {
+      return;
+    }
+    ReactionDocument.Reaction reaction = findReaction(reactionDocument, emoji);
+    if (reaction == null || reaction.getAddresses() == null || reaction.getAddresses().isEmpty()) {
+      return;
+    }
+    hideAuthorsPopup();
+    authorsPopup = ReactionAuthorsPopup.show(anchor, emoji, buildAuthors(reaction));
+    if (suppressFollowupInspect) {
+      suppressInspect(blip.getId(), emoji);
+    }
+  }
+
+  private void hideAuthorsPopup() {
+    if (authorsPopup != null) {
+      authorsPopup.hide();
+      authorsPopup = null;
+    }
+  }
+
+  private ReactionDocument.Reaction findReaction(
+      ReactionDocument<org.waveprotocol.wave.model.document.Doc.N,
+          org.waveprotocol.wave.model.document.Doc.E,
+          org.waveprotocol.wave.model.document.Doc.T> reactionDocument,
+      String emoji) {
+    for (ReactionDocument.Reaction reaction : reactionDocument.getReactions()) {
+      if (reaction != null && emoji.equals(reaction.getEmoji())) {
+        return reaction;
+      }
+    }
+    return null;
+  }
+
+  private List<ReactionAuthorsPopup.Author> buildAuthors(ReactionDocument.Reaction reaction) {
+    List<ReactionAuthorsPopup.Author> authors = new ArrayList<ReactionAuthorsPopup.Author>();
+    for (String address : reaction.getAddresses()) {
+      authors.add(buildAuthor(address));
+    }
+    return authors;
+  }
+
+  private ReactionAuthorsPopup.Author buildAuthor(String address) {
+    String normalizedAddress = address == null ? "" : address.trim();
+    String primary = TaskMetadataUtil.formatParticipantDisplay(normalizedAddress);
+    String secondary = normalizedAddress;
+    if (profileManager != null && !normalizedAddress.isEmpty()) {
+      Profile profile = profileManager.getProfile(ParticipantId.ofUnsafe(normalizedAddress));
+      if (profile != null) {
+        String fullName = profile.getFullName() == null ? "" : profile.getFullName().trim();
+        if (!fullName.isEmpty() && !normalizedAddress.equals(fullName)) {
+          primary = fullName;
+        }
+      }
+    }
+    if (primary == null || primary.isEmpty()) {
+      primary = normalizedAddress;
+    }
+    if (primary.equals(secondary)) {
+      secondary = "";
+    }
+    boolean currentUser = signedInUser != null
+        && normalizedAddress.equals(signedInUser.getAddress());
+    return new ReactionAuthorsPopup.Author(primary, secondary, currentUser);
+  }
+
+  private void suppressInspect(String blipId, String emoji) {
+    suppressedInspectBlipId = blipId;
+    suppressedInspectEmoji = emoji;
+    suppressedInspectUntilMs = Duration.currentTimeMillis() + INSPECT_SUPPRESSION_MS;
+  }
+
+  private boolean shouldSuppressInspect(String blipId, String emoji) {
+    if (Duration.currentTimeMillis() > suppressedInspectUntilMs) {
+      clearSuppressedInspect();
+      return false;
+    }
+    return blipId != null && emoji != null
+        && blipId.equals(suppressedInspectBlipId)
+        && emoji.equals(suppressedInspectEmoji);
+  }
+
+  private void clearSuppressedInspect() {
+    suppressedInspectBlipId = null;
+    suppressedInspectEmoji = null;
+    suppressedInspectUntilMs = 0d;
+  }
+
+  private void suppressClick(String blipId, String emoji) {
+    suppressInspect(blipId, emoji);
+  }
+
+  private boolean shouldSuppressClick(String blipId, String emoji) {
+    return emoji != null && !emoji.isEmpty() && shouldSuppressInspect(blipId, emoji);
   }
 
   private void unbindConversation(ObservableConversation conversation) {

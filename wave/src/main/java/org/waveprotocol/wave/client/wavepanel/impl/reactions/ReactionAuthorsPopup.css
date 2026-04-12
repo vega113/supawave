@@ -1,0 +1,55 @@
+.self {
+  padding: 14px 16px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a365d;
+  margin-bottom: 2px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: #718096;
+  margin-bottom: 10px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #d6dee8;
+  background: #f8fbff;
+}
+
+.currentUserRow {
+  border-color: #90cdf4;
+  background: #ebf8ff;
+}
+
+.primary {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a202c;
+  line-height: 1.3;
+}
+
+.secondary {
+  display: block;
+  font-size: 12px;
+  color: #718096;
+  line-height: 1.3;
+  margin-top: 2px;
+}

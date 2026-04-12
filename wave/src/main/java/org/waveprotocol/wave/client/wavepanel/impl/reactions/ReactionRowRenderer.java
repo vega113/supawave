@@ -34,10 +34,12 @@ public final class ReactionRowRenderer {
   public static final String CHIP_CLASS = "waveReactionChip";
   public static final String CHIP_ACTIVE_CLASS = "waveReactionChipActive";
   public static final String ADD_CLASS = "waveReactionAdd";
+  public static final String INSPECT_ATTR = "data-reaction-inspect";
   private static final String EMOJI_CLASS = "waveReactionEmoji";
   private static final String COUNT_CLASS = "waveReactionCount";
   private static final String ADD_ICON_CLASS = "waveReactionAddIcon";
   private static final String ADD_BUTTON_LABEL = "Add reaction";
+  private static final String AUTHOR_DIALOG_HINT = "See who reacted";
   private static final String ADD_ICON_HTML =
       "<span class=\"" + ADD_ICON_CLASS + "\" aria-hidden=\"true\">"
           + "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" "
@@ -95,10 +97,12 @@ public final class ReactionRowRenderer {
     String safeEmoji = EscapeUtils.htmlEscape(emoji);
     html.appendHtmlConstant("<button type=\"button\" class=\"" + classes
         + "\" data-reaction-emoji=\"" + safeEmoji + "\" data-reaction-active=\""
-        + active + "\" data-reaction-blip-id=\"" + EscapeUtils.htmlEscape(blipId) + "\">");
+        + active + "\" data-reaction-blip-id=\"" + EscapeUtils.htmlEscape(blipId) + "\" "
+        + "aria-haspopup=\"dialog\" title=\"" + AUTHOR_DIALOG_HINT + "\">");
     html.appendHtmlConstant("<span class=\"" + EMOJI_CLASS + "\">");
     html.appendEscaped(emoji);
-    html.appendHtmlConstant("</span> <span class=\"" + COUNT_CLASS + "\">");
+    html.appendHtmlConstant("</span> <span class=\"" + COUNT_CLASS + "\" "
+        + INSPECT_ATTR + "=\"true\" title=\"" + AUTHOR_DIALOG_HINT + "\">");
     html.append(count);
     html.appendHtmlConstant("</span></button>");
   }

@@ -254,7 +254,8 @@ public interface StageThree {
           return true;
         }
       }, stageTwo.getConversations());
-      ReactionController.install(stageTwo.getConversations(), stageTwo.getViewIdMapper(), user);
+      ReactionController.install(stageTwo.getConversations(), stageTwo.getViewIdMapper(),
+          profiles, user);
       DraftModeController.install(panel, actions, edit);
       stageTwo.getDiffController().upgrade(edit);
     }

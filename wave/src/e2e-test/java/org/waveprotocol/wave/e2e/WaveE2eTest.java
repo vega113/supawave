@@ -6,6 +6,10 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -376,6 +380,85 @@ class WaveE2eTest {
                 + " not found in Alice's tag search within 20s");
     }
 
+    @Test @Order(21)
+    void test21_aliceMentionsBob() throws Exception {
+        JsonObject lv = E2eTestContext.lastVersion;
+        int version = lv.get("1").getAsInt();
+        String historyHash = lv.get("2").getAsString();
+
+        JsonObject delta = makeMentionDelta(
+                aliceAddr(),
+                "b+mention" + E2eTestContext.RUN_ID,
+                "@bob ping from e2e",
+                bobAddr(),
+                version,
+                historyHash);
+        JsonObject submitReq =
+                makeSubmitRequest(E2eTestContext.waveletName, delta, E2eTestContext.channelId);
+        E2eTestContext.aliceWs.send("ProtocolSubmitRequest", submitReq);
+
+        JsonObject resp = E2eTestContext.aliceWs.recvUntil("ProtocolSubmitResponse", 30_000);
+        JsonObject msg = resp.get("message").getAsJsonObject();
+        assertTrue(msg.has("1") && msg.get("1").getAsInt() > 0,
+                "Expected operations_applied > 0 adding mention, got: " + resp);
+        assertTrue(msg.has("3"), "Submit response missing hashed_version_after_application");
+        E2eTestContext.lastVersion = msg.get("3").getAsJsonObject();
+    }
+
+    @Test @Order(22)
+    void test22_bobMentionSearchFindsWave() throws Exception {
+        boolean found = pollSearchQueryForWave(
+                E2eTestContext.bobJsessionid,
+                "mentions:me",
+                E2eTestContext.modernWaveId,
+                20_000,
+                500,
+                0);
+        assertTrue(found,
+                "Wave " + E2eTestContext.modernWaveId
+                + " not found in Bob's mentions:me search within 20s");
+    }
+
+    @Test @Order(23)
+    void test23_aliceAddsTaskForBob() throws Exception {
+        JsonObject lv = E2eTestContext.lastVersion;
+        int version = lv.get("1").getAsInt();
+        String historyHash = lv.get("2").getAsString();
+
+        JsonObject delta = makeTaskDelta(
+                aliceAddr(),
+                "b+task" + E2eTestContext.RUN_ID,
+                "Task assigned to Bob",
+                "task-" + E2eTestContext.RUN_ID,
+                bobAddr(),
+                version,
+                historyHash);
+        JsonObject submitReq =
+                makeSubmitRequest(E2eTestContext.waveletName, delta, E2eTestContext.channelId);
+        E2eTestContext.aliceWs.send("ProtocolSubmitRequest", submitReq);
+
+        JsonObject resp = E2eTestContext.aliceWs.recvUntil("ProtocolSubmitResponse", 30_000);
+        JsonObject msg = resp.get("message").getAsJsonObject();
+        assertTrue(msg.has("1") && msg.get("1").getAsInt() > 0,
+                "Expected operations_applied > 0 adding task, got: " + resp);
+        assertTrue(msg.has("3"), "Submit response missing hashed_version_after_application");
+        E2eTestContext.lastVersion = msg.get("3").getAsJsonObject();
+    }
+
+    @Test @Order(24)
+    void test24_bobTaskSearchFindsWave() throws Exception {
+        boolean found = pollSearchQueryForWave(
+                E2eTestContext.bobJsessionid,
+                "tasks:me",
+                E2eTestContext.modernWaveId,
+                20_000,
+                500,
+                0);
+        assertTrue(found,
+                "Wave " + E2eTestContext.modernWaveId
+                + " not found in Bob's tasks:me search within 20s");
+    }
+
     // =========================================================================
     // Protocol message builders
     // =========================================================================
@@ -508,6 +591,101 @@ class WaveE2eTest {
 
         JsonObject mutateDoc = new JsonObject();
         mutateDoc.addProperty("1", "tags");
+        mutateDoc.add("2", docOp);
+
+        JsonObject opWrapper = new JsonObject();
+        opWrapper.add("3", mutateDoc);
+
+        JsonArray ops = new JsonArray();
+        ops.add(opWrapper);
+
+        JsonObject delta = new JsonObject();
+        delta.add("1", makeHashedVersion(version, historyHash));
+        delta.addProperty("2", author);
+        delta.add("3", ops);
+        delta.add("4", new JsonArray());
+        return delta;
+    }
+
+    private static JsonObject makeMentionDelta(String author, String blipId, String text,
+                                               String mentionedAddress,
+                                               int version, String historyHash) {
+        Map<String, String> annotations = new LinkedHashMap<>();
+        annotations.put("mention/user", mentionedAddress);
+        return makeAnnotatedTextDelta(author, blipId, text, annotations, version, historyHash);
+    }
+
+    private static JsonObject makeTaskDelta(String author, String blipId, String text,
+                                            String taskId, String assigneeAddress,
+                                            int version, String historyHash) {
+        Map<String, String> annotations = new LinkedHashMap<>();
+        annotations.put("task/id", taskId);
+        annotations.put("task/assignee", assigneeAddress);
+        return makeAnnotatedTextDelta(author, blipId, text, annotations, version, historyHash);
+    }
+
+    private static JsonObject makeAnnotatedTextDelta(String author, String blipId, String text,
+                                                     Map<String, String> annotations,
+                                                     int version, String historyHash) {
+        List<String> sortedKeys = new ArrayList<>(annotations.keySet());
+        sortedKeys.sort(String::compareTo);
+
+        JsonObject bodyStart = new JsonObject();
+        JsonObject bodyElem = new JsonObject();
+        bodyElem.addProperty("1", "body");
+        bodyElem.add("2", new JsonArray());
+        bodyStart.add("3", bodyElem);
+
+        JsonObject lineStart = new JsonObject();
+        JsonObject lineElem = new JsonObject();
+        lineElem.addProperty("1", "line");
+        lineElem.add("2", new JsonArray());
+        lineStart.add("3", lineElem);
+
+        JsonObject lineEnd = new JsonObject();
+        lineEnd.addProperty("4", true);
+
+        JsonObject annotationStart = new JsonObject();
+        JsonObject annotationStartPayload = new JsonObject();
+        JsonArray changeList = new JsonArray();
+        for (String key : sortedKeys) {
+            JsonObject change = new JsonObject();
+            change.addProperty("1", key);
+            change.addProperty("3", annotations.get(key));
+            changeList.add(change);
+        }
+        annotationStartPayload.add("3", changeList);
+        annotationStart.add("1", annotationStartPayload);
+
+        JsonObject chars = new JsonObject();
+        chars.addProperty("2", text);
+
+        JsonObject annotationEnd = new JsonObject();
+        JsonObject annotationEndPayload = new JsonObject();
+        JsonArray endList = new JsonArray();
+        for (String key : sortedKeys) {
+            endList.add(key);
+        }
+        annotationEndPayload.add("2", endList);
+        annotationEnd.add("1", annotationEndPayload);
+
+        JsonObject bodyEnd = new JsonObject();
+        bodyEnd.addProperty("4", true);
+
+        JsonArray components = new JsonArray();
+        components.add(bodyStart);
+        components.add(lineStart);
+        components.add(lineEnd);
+        components.add(annotationStart);
+        components.add(chars);
+        components.add(annotationEnd);
+        components.add(bodyEnd);
+
+        JsonObject docOp = new JsonObject();
+        docOp.add("1", components);
+
+        JsonObject mutateDoc = new JsonObject();
+        mutateDoc.addProperty("1", blipId);
         mutateDoc.add("2", docOp);
 
         JsonObject opWrapper = new JsonObject();

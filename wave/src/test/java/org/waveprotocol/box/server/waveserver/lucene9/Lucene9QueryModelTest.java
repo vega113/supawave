@@ -75,6 +75,16 @@ public class Lucene9QueryModelTest extends TestCase {
     assertEquals("in:inbox", model.toLegacyQuery());
   }
 
+  public void testTagQueryHasNoTextQuery() throws InvalidQueryException {
+    Lucene9QueryModel model = parser.parse("tag:project-x");
+    assertFalse("tag: queries should stay on the legacy filter path", model.hasTextQuery());
+  }
+
+  public void testTagQueryIsIncludedInLegacyQuery() throws InvalidQueryException {
+    Lucene9QueryModel model = parser.parse("tag:project-x");
+    assertEquals("tag:project-x", model.toLegacyQuery());
+  }
+
   public void testTitleIsExcludedFromLegacyQuery() throws InvalidQueryException {
     Lucene9QueryModel model = parser.parse("title:meeting");
     assertEquals("", model.toLegacyQuery());

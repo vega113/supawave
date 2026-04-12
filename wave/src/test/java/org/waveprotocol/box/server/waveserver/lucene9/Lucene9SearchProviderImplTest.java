@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.wave.api.SearchResult;
+import java.util.Collections;
 import junit.framework.TestCase;
 import org.mockito.Mockito;
 import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl;
@@ -51,6 +52,33 @@ public final class Lucene9SearchProviderImplTest extends TestCase {
         "tasks:all", 0, 10);
 
     assertEquals(0, result.getTotalResults());
+    verify(indexer, never()).searchWaveIds(any(), any(), anyInt());
+  }
+
+  public void testPureTagQueryReturnsLegacyResultsWithoutLuceneSearch() {
+    SimpleSearchProviderImpl legacySearchProvider = Mockito.mock(SimpleSearchProviderImpl.class);
+    Lucene9WaveIndexerImpl indexer = Mockito.mock(Lucene9WaveIndexerImpl.class);
+    SearchResult legacyResult = new SearchResult("tag:project-x");
+    legacyResult.addDigest(new SearchResult.Digest(
+        "Project X", "snippet", "example.com!w+project-x", Collections.singletonList(
+        "user@example.com"), 123L, 123L, 0, 1));
+    legacyResult.setTotalResults(1);
+
+    when(legacySearchProvider.search(ParticipantId.ofUnsafe("user@example.com"),
+        "tag:project-x", 0, 10000)).thenReturn(legacyResult);
+
+    Lucene9SearchProviderImpl provider = new Lucene9SearchProviderImpl(
+        legacySearchProvider,
+        new Lucene9QueryParser(),
+        new Lucene9QueryCompiler(),
+        indexer);
+
+    SearchResult result = provider.search(ParticipantId.ofUnsafe("user@example.com"),
+        "tag:project-x", 0, 10);
+
+    assertEquals(1, result.getTotalResults());
+    assertEquals(1, result.getNumResults());
+    assertEquals("example.com!w+project-x", result.getDigests().get(0).getWaveId());
     verify(indexer, never()).searchWaveIds(any(), any(), anyInt());
   }
 }

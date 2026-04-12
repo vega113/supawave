@@ -452,17 +452,55 @@ post_swap_smoke() {
   return 0
 }
 
-schedule_cooldown() {
+stop_replaced_slot() {
   local old_slot=$1
-  local systemd_scope=""
-  if [ "$(id -u)" -ne 0 ]; then
-    systemd_scope="--user"
+  local ps_output=""
+  if dc stop "wave-${old_slot}" 2>/dev/null; then
+    return 0
   fi
-  systemctl $systemd_scope stop "wave-cooldown.service" 2>/dev/null || true
-  if ! systemd-run $systemd_scope --on-active=30min --unit="wave-cooldown" \
-      -- docker compose -f "$COMPOSE_FILE" -p "$PROJECT_NAME" stop "wave-${old_slot}" 2>/dev/null; then
-    echo "[deploy] WARNING: failed to schedule cooldown timer — old slot will stay running"
+
+  echo "[deploy] WARNING: graceful stop failed for wave-${old_slot}; forcing shutdown" >&2
+  dc kill "wave-${old_slot}" 2>/dev/null || true
+
+  if ! ps_output="$(dc ps "wave-${old_slot}" --format json 2>/dev/null)"; then
+    echo "[deploy] ERROR: unable to verify whether replaced slot wave-${old_slot} is still running" >&2
+    return 1
   fi
+
+  if printf '%s\n' "$ps_output" | grep -q '"running"'; then
+    echo "[deploy] ERROR: replaced slot wave-${old_slot} is still running" >&2
+    return 1
+  fi
+  return 0
+}
+
+best_effort_stop_slot() {
+  local slot=$1
+  dc stop "wave-${slot}" 2>/dev/null || dc kill "wave-${slot}" 2>/dev/null || true
+}
+
+revert_swap() {
+  local restored_slot=$1
+  local reverted_slot=$2
+  local reason=$3
+  local routing_restored=0
+
+  echo "[deploy] ERROR: ${reason}" >&2
+  if ! generate_upstream "$restored_slot"; then
+    echo "[deploy] ERROR: failed to regenerate upstream for ${restored_slot} while reverting swap" >&2
+  else
+    if ! reload_caddy; then
+      echo "[deploy] ERROR: failed to reload Caddy while reverting swap to ${restored_slot}" >&2
+    else
+      routing_restored=1
+    fi
+  fi
+  if [ "$routing_restored" -eq 1 ]; then
+    best_effort_stop_slot "$reverted_slot"
+  else
+    echo "[deploy] WARNING: leaving wave-${reverted_slot} running because rollback routing was not restored" >&2
+  fi
+  exit 1
 }
 
 update_state() {
@@ -519,8 +557,11 @@ deploy_release() {
     exit 1
   fi
 
+  if ! stop_replaced_slot "$ACTIVE_SLOT"; then
+    revert_swap "$ACTIVE_SLOT" "$TARGET_SLOT" \
+      "replaced slot ${ACTIVE_SLOT} failed to stop after deploy swap; reverting"
+  fi
   update_state
-  schedule_cooldown "$ACTIVE_SLOT"
   echo "[deploy] Deploy complete. Active: ${TARGET_SLOT}"
 }
 
@@ -535,6 +576,8 @@ rollback_release() {
 
   local prev_port
   prev_port=$([ "$prev" = "blue" ] && echo 9898 || echo 9899)
+  local current
+  current=$(cat "$deploy_root/shared/active-slot")
 
   if ! dc ps "wave-${prev}" --format json 2>/dev/null | grep -q '"running"'; then
     local prev_image
@@ -567,18 +610,17 @@ rollback_release() {
 
   if ! post_swap_smoke; then
     echo "[deploy] ERROR: post-rollback proxy smoke failed, reverting"
-    local current_active
-    current_active=$(cat "$deploy_root/shared/active-slot")
-    generate_upstream "$current_active"
+    generate_upstream "$current"
     reload_caddy
     exit 1
   fi
 
-  local current
-  current=$(cat "$deploy_root/shared/active-slot")
+  if ! stop_replaced_slot "$current"; then
+    revert_swap "$current" "$prev" \
+      "replaced slot ${current} failed to stop after rollback swap; reverting"
+  fi
   echo "$prev" > "$deploy_root/shared/active-slot"
   echo "$current" > "$deploy_root/shared/previous-slot"
-  schedule_cooldown "$current"
   echo "[deploy] Rolled back to ${prev}"
 }
 
@@ -603,7 +645,8 @@ show_status() {
   echo "Cooldown timer:"
   local systemd_scope=""
   [ "$(id -u)" -ne 0 ] && systemd_scope="--user"
-  systemctl $systemd_scope status wave-cooldown.timer 2>/dev/null || echo "  (none active)"
+  systemctl $systemd_scope status wave-cooldown.timer 2>/dev/null \
+    || echo "  disabled (replaced slot stops immediately)"
 }
 
 # ---------------------------------------------------------------------------

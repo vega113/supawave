@@ -313,76 +313,155 @@ class DeltaStoreBasedWaveletState implements WaveletState {
     public Void call() throws PersistenceException {
       HashedVersion last;
       HashedVersion version;
+      ListenableFutureTask<Void> queuedTask = null;
+      boolean succeeded = false;
       synchronized (persistLock) {
         last = lastPersistedVersion.get();
         version = latestVersionToPersist;
       }
-      if (last != null && version.getVersion() <= last.getVersion()) {
-        LOG.info("Attempt to persist version " + version
-            + " smaller than last persisted version " + last);
-        // Done, version is already persisted.
-        version = last;
-      } else {
-        ImmutableList.Builder<WaveletDeltaRecord> deltas = ImmutableList.builder();
-        HashedVersion v = (last == null) ? versionZero : last;
-        do {
-          WaveletDeltaRecord d = cachedDeltas.get(v);
-          deltas.add(d);
-          v = d.getResultingVersion();
-        } while (v.getVersion() < version.getVersion());
-        Preconditions.checkState(v.equals(version));
-        deltasAccess.append(deltas.build());
-      }
-      // After successful delta persistence, store a pending snapshot if any.
-      // Atomically consume the pending copy, then check whether its version
-      // is covered by the deltas we just persisted.  If the snapshot is ahead
-      // of what is durable, put it back for the next persist task.
-      if (snapshotStore != null) {
-        ReadableWaveletData snapCopy = pendingSnapshotCopy.getAndSet(null);
-        if (snapCopy != null) {
-          if (snapCopy.getHashedVersion().getVersion() <= version.getVersion()) {
-            // Safe to store: all referenced deltas are durable.
-            try {
-              WaveletSnapshot proto = SnapshotSerializer.serializeWavelet(
-                  snapCopy, snapCopy.getHashedVersion());
-              PersistedWaveletSnapshot persisted = PersistedWaveletSnapshot.newBuilder()
-                  .setWaveId(snapCopy.getWaveId().serialise())
-                  .setSnapshot(proto)
-                  .build();
-              snapshotStore.storeSnapshot(
-                  deltasAccess.getWaveletName(),
-                  persisted.toByteArray(),
-                  snapCopy.getHashedVersion().getVersion());
-            } catch (Exception e) {
-              LOG.warning("Failed to store snapshot at version "
-                  + snapCopy.getHashedVersion().getVersion() + " for "
-                  + deltasAccess.getWaveletName() + ": " + e);
-              // Non-fatal: snapshots are optimization only
-            }
-          } else {
-            // Snapshot is ahead of persisted deltas -- put it back.
-            // Use compareAndSet(null, snapCopy) so we don't clobber a
-            // newer copy that appendDelta() may have set concurrently.
-            // If CAS fails, the newer copy subsumes this one (and will
-            // be picked up by the next persist task).
-            pendingSnapshotCopy.compareAndSet(null, snapCopy);
-          }
-        }
-      }
-      synchronized (persistLock) {
-        Preconditions.checkState(last == lastPersistedVersion.get(),
-            "lastPersistedVersion changed while we were writing to storage");
-        lastPersistedVersion.set(version);
-        if (nextPersistTask != null) {
-          persistExecutor.execute(nextPersistTask);
-          nextPersistTask = null;
+      try {
+        if (last != null && version.getVersion() <= last.getVersion()) {
+          LOG.info("Attempt to persist version " + version
+              + " smaller than last persisted version " + last);
+          // Done, version is already persisted.
+          version = last;
         } else {
-          latestVersionToPersist = null;
+          HashedVersion persistBaseVersion = resolvePersistBaseVersion(last, version);
+          if (persistBaseVersion.getVersion() >= version.getVersion()) {
+            version = persistBaseVersion;
+          } else {
+            ImmutableList.Builder<WaveletDeltaRecord> deltas = ImmutableList.builder();
+            HashedVersion v = persistBaseVersion;
+            do {
+              WaveletDeltaRecord d = getCachedDeltaOrThrow(v, version,
+                  "while persisting up to ");
+              deltas.add(d);
+              v = d.getResultingVersion();
+            } while (v.getVersion() < version.getVersion());
+            Preconditions.checkState(v.equals(version));
+            try {
+              deltasAccess.append(deltas.build());
+            } catch (PersistenceException e) {
+              recoverableAppendFailureBase.set(persistBaseVersion);
+              throw e;
+            }
           }
         }
+        // After successful delta persistence, store a pending snapshot if any.
+        // Atomically consume the pending copy, then check whether its version
+        // is covered by the deltas we just persisted. If the snapshot is ahead
+        // of what is durable, put it back for the next persist task.
+        if (snapshotStore != null) {
+          ReadableWaveletData snapCopy = pendingSnapshotCopy.getAndSet(null);
+          if (snapCopy != null) {
+            if (snapCopy.getHashedVersion().getVersion() <= version.getVersion()) {
+              // Safe to store: all referenced deltas are durable.
+              try {
+                WaveletSnapshot proto = SnapshotSerializer.serializeWavelet(
+                    snapCopy, snapCopy.getHashedVersion());
+                PersistedWaveletSnapshot persisted = PersistedWaveletSnapshot.newBuilder()
+                    .setWaveId(snapCopy.getWaveId().serialise())
+                    .setSnapshot(proto)
+                    .build();
+                snapshotStore.storeSnapshot(
+                    deltasAccess.getWaveletName(),
+                    persisted.toByteArray(),
+                    snapCopy.getHashedVersion().getVersion());
+              } catch (Exception e) {
+                LOG.warning("Failed to store snapshot at version "
+                    + snapCopy.getHashedVersion().getVersion() + " for "
+                    + deltasAccess.getWaveletName() + ": " + e);
+                // Non-fatal: snapshots are optimization only
+              }
+            } else {
+              // Snapshot is ahead of persisted deltas -- put it back.
+              // Use compareAndSet(null, snapCopy) so we don't clobber a
+              // newer copy that appendDelta() may have set concurrently.
+              // If CAS fails, the newer copy subsumes this one (and will
+              // be picked up by the next persist task).
+              pendingSnapshotCopy.compareAndSet(null, snapCopy);
+            }
+          }
+        }
+        succeeded = true;
+      } finally {
+        synchronized (persistLock) {
+          if (succeeded) {
+            Preconditions.checkState(last == lastPersistedVersion.get(),
+                "lastPersistedVersion changed while we were writing to storage");
+            lastPersistedVersion.set(version);
+            recoverableAppendFailureBase.set(null);
+          }
+          queuedTask = nextPersistTask;
+          nextPersistTask = null;
+          if (queuedTask == null) {
+            latestVersionToPersist = null;
+          }
+        }
+        if (queuedTask != null) {
+          persistExecutor.execute(queuedTask);
+        }
+      }
       return null;
     }
   };
+
+  private HashedVersion resolvePersistBaseVersion(HashedVersion last, HashedVersion targetVersion)
+      throws PersistenceException {
+    HashedVersion expectedDurableVersion = (last == null) ? versionZero : last;
+    HashedVersion durableEndVersion = deltasAccess.getEndVersion();
+    if (durableEndVersion == null) {
+      if (last != null) {
+        throw new PersistenceException("Unexpected empty delta store for "
+            + deltasAccess.getWaveletName() + ": expected durable end version "
+            + expectedDurableVersion + " while persisting up to " + targetVersion);
+      }
+      return expectedDurableVersion;
+    }
+    if (durableEndVersion.equals(expectedDurableVersion)) {
+      return expectedDurableVersion;
+    }
+    HashedVersion failedAppendBase = recoverableAppendFailureBase.get();
+    if (failedAppendBase != null && failedAppendBase.equals(expectedDurableVersion)) {
+      HashedVersion recoveredVersion = findRecoverableDurablePrefix(
+          expectedDurableVersion, durableEndVersion, targetVersion);
+      if (recoveredVersion != null) {
+        LOG.warning("Recovering durable prefix for " + deltasAccess.getWaveletName()
+            + ": advancing persist base from " + expectedDurableVersion + " to "
+            + recoveredVersion + " after a previous append failure");
+        return recoveredVersion;
+      }
+    }
+    throw new PersistenceException("Refusing to persist stale wavelet state for "
+        + deltasAccess.getWaveletName() + ": expected durable end version "
+        + expectedDurableVersion + " but found " + durableEndVersion);
+  }
+
+  private HashedVersion findRecoverableDurablePrefix(HashedVersion expectedDurableVersion,
+      HashedVersion durableEndVersion, HashedVersion targetVersion) throws PersistenceException {
+    if (durableEndVersion.getVersion() <= expectedDurableVersion.getVersion()
+        || durableEndVersion.getVersion() > targetVersion.getVersion()) {
+      return null;
+    }
+    HashedVersion v = expectedDurableVersion;
+    while (v.getVersion() < durableEndVersion.getVersion()) {
+      WaveletDeltaRecord d = getCachedDeltaOrThrow(v, targetVersion,
+          "while reconciling durable prefix " + durableEndVersion + " for ");
+      v = d.getResultingVersion();
+    }
+    return v.equals(durableEndVersion) ? durableEndVersion : null;
+  }
+
+  private WaveletDeltaRecord getCachedDeltaOrThrow(HashedVersion appliedVersion,
+      HashedVersion targetVersion, String contextPrefix) throws PersistenceException {
+    WaveletDeltaRecord d = cachedDeltas.get(appliedVersion);
+    if (d == null) {
+      throw new PersistenceException("Missing cached delta for "
+          + deltasAccess.getWaveletName() + " at applied version " + appliedVersion + " "
+          + contextPrefix + targetVersion);
+    }
+    return d;
+  }
 
   /** Keyed by appliedAtVersion. */
   private final ConcurrentNavigableMap<HashedVersion, ByteStringMessage<ProtocolAppliedWaveletDelta>> appliedDeltas =
@@ -391,6 +470,13 @@ class DeltaStoreBasedWaveletState implements WaveletState {
   /** Keyed by appliedAtVersion. */
   private final ConcurrentNavigableMap<HashedVersion, WaveletDeltaRecord> cachedDeltas =
       new ConcurrentSkipListMap<HashedVersion, WaveletDeltaRecord>();
+
+  /**
+   * Records the durable base version for the most recent append that threw, so
+   * a later retry can distinguish a partial self-append from an unrelated stale writer.
+   */
+  private final AtomicReference<HashedVersion> recoverableAppendFailureBase =
+      new AtomicReference<HashedVersion>(null);
 
   /** Is null if the wavelet state is empty. */
   private WaveletData snapshot;

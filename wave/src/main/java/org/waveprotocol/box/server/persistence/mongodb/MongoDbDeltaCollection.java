@@ -50,6 +50,8 @@ public class MongoDbDeltaCollection implements DeltaStore.DeltasAccess {
 
   /** MongoDB Collection object for delta storage */
   private final DBCollection deltaDbCollection;
+  /** Non-null when store startup decided new writes must fail closed. */
+  private final PersistenceException appendGuardFailure;
 
   /**
    * Construct a new Delta Access object for the wavelet
@@ -57,9 +59,11 @@ public class MongoDbDeltaCollection implements DeltaStore.DeltasAccess {
    * @param waveletName The wavelet name.
    * @param deltaDbCollection The MongoDB deltas collection
    */
-  public MongoDbDeltaCollection(WaveletName waveletName, DBCollection deltaDbCollection) {
+  public MongoDbDeltaCollection(WaveletName waveletName, DBCollection deltaDbCollection,
+      PersistenceException appendGuardFailure) {
     this.waveletName = waveletName;
     this.deltaDbCollection = deltaDbCollection;
+    this.appendGuardFailure = appendGuardFailure;
   }
 
   @Override
@@ -193,13 +197,22 @@ public class MongoDbDeltaCollection implements DeltaStore.DeltasAccess {
 
   @Override
   public void append(Collection<WaveletDeltaRecord> newDeltas) throws PersistenceException {
+    if (appendGuardFailure != null) {
+      throw new PersistenceException(
+          "Refusing delta writes for " + waveletName + ": " + appendGuardFailure.getMessage(),
+          appendGuardFailure);
+    }
 
-    for (WaveletDeltaRecord delta : newDeltas) {
-      // Using Journaled Write Concern
-      // (http://docs.mongodb.org/manual/core/write-concern/#journaled)
-      deltaDbCollection.insert(MongoDbDeltaStoreUtil.serialize(delta,
-          waveletName.waveId.serialise(), waveletName.waveletId.serialise()),
-          WriteConcern.JOURNALED);
+    try {
+      for (WaveletDeltaRecord delta : newDeltas) {
+        // Using Journaled Write Concern
+        // (http://docs.mongodb.org/manual/core/write-concern/#journaled)
+        deltaDbCollection.insert(MongoDbDeltaStoreUtil.serialize(delta,
+            waveletName.waveId.serialise(), waveletName.waveletId.serialise()),
+            WriteConcern.JOURNALED);
+      }
+    } catch (RuntimeException e) {
+      throw new PersistenceException("Failed to append delta for " + waveletName, e);
     }
   }
 }

@@ -47,12 +47,20 @@ import java.util.List;
  *
  */
 public class MongoDbDeltaStore implements DeltaStore {
+  private static final java.util.logging.Logger LOG =
+      java.util.logging.Logger.getLogger(MongoDbDeltaStore.class.getName());
+  private static final int INDEX_OPTIONS_CONFLICT = 85;
+  private static final String APPLIED_AT_VERSION_INDEX_NAME =
+      MongoDbDeltaStoreUtil.FIELD_WAVE_ID + "_1_" + MongoDbDeltaStoreUtil.FIELD_WAVELET_ID
+          + "_1_" + MongoDbDeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION + "_1";
 
   /** Name of the MongoDB collection to store Deltas */
   private static final String DELTAS_COLLECTION = "deltas";
 
   /** Database connection object */
   private final DB database;
+  /** Non-null when the store could not enforce append safety and must fail closed. */
+  private volatile PersistenceException appendGuardFailure = null;
 
   /**
    * Construct a new store
@@ -61,12 +69,13 @@ public class MongoDbDeltaStore implements DeltaStore {
    */
   public MongoDbDeltaStore(DB database) {
     this.database = database;
+    ensureIndexes();
   }
 
   @Override
   public DeltasAccess open(WaveletName waveletName) throws PersistenceException {
 
-    return new MongoDbDeltaCollection(waveletName, getDeltaDbCollection());
+    return new MongoDbDeltaCollection(waveletName, getDeltaDbCollection(), appendGuardFailure);
   }
 
   @Override
@@ -146,5 +155,88 @@ public class MongoDbDeltaStore implements DeltaStore {
    */
   private DBCollection getDeltaDbCollection() {
     return database.getCollection(DELTAS_COLLECTION);
+  }
+
+  private void ensureIndexes() {
+    try {
+      DBCollection coll = getDeltaDbCollection();
+      BasicDBObject bg = new BasicDBObject("background", true);
+
+      coll.createIndex(new BasicDBObject()
+          .append(MongoDbDeltaStoreUtil.FIELD_WAVE_ID, 1)
+          .append(MongoDbDeltaStoreUtil.FIELD_WAVELET_ID, 1), bg);
+
+      ensureAppliedAtVersionIndex(coll);
+
+      coll.createIndex(new BasicDBObject()
+          .append(MongoDbDeltaStoreUtil.FIELD_WAVE_ID, 1)
+          .append(MongoDbDeltaStoreUtil.FIELD_WAVELET_ID, 1)
+          .append(MongoDbDeltaStoreUtil.FIELD_TRANSFORMED_RESULTINGVERSION_VERSION, 1), bg);
+    } catch (MongoException e) {
+      LOG.warning("MongoDbDeltaStore: failed to create indexes on deltas collection: "
+          + e.getMessage());
+    }
+  }
+
+  private void ensureAppliedAtVersionIndex(DBCollection coll) {
+    BasicDBObject keys = new BasicDBObject()
+        .append(MongoDbDeltaStoreUtil.FIELD_WAVE_ID, 1)
+        .append(MongoDbDeltaStoreUtil.FIELD_WAVELET_ID, 1)
+        .append(MongoDbDeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION, 1);
+    BasicDBObject uniqueOptions = new BasicDBObject("background", true)
+        .append("name", APPLIED_AT_VERSION_INDEX_NAME)
+        .append("unique", true);
+    try {
+      coll.createIndex(keys, uniqueOptions);
+    } catch (MongoException initialFailure) {
+      if (isIndexOptionsConflict(initialFailure)) {
+        LOG.info("MongoDbDeltaStore: upgrading applied-version index to unique");
+        try {
+          coll.dropIndex(APPLIED_AT_VERSION_INDEX_NAME);
+          coll.createIndex(keys, uniqueOptions);
+          return;
+        } catch (MongoException retryFailure) {
+          disableWritesAndRestoreLegacyIndex(
+              coll,
+              keys,
+              "MongoDbDeltaStore: applied-version uniqueness upgrade blocked by existing data; "
+                  + "refusing new delta writes until corrupted-wave repair completes and the "
+                  + "server restarts.",
+              retryFailure);
+          return;
+        }
+      }
+      disableWritesAndRestoreLegacyIndex(
+          coll,
+          keys,
+          "MongoDbDeltaStore: unable to enforce unique applied-version writes; "
+              + "refusing new delta writes until the index issue is fixed and the server "
+              + "restarts.",
+          initialFailure);
+    }
+  }
+
+  private void disableWritesAndRestoreLegacyIndex(DBCollection coll, BasicDBObject keys,
+      String message, MongoException cause) {
+    if (appendGuardFailure == null) {
+      appendGuardFailure = new PersistenceException(message, cause);
+    }
+    try {
+      restoreNonUniqueAppliedAtVersionIndex(coll, keys);
+    } catch (MongoException restoreFailure) {
+      LOG.warning("MongoDbDeltaStore: failed to restore legacy applied-version index after "
+          + "disabling writes: " + restoreFailure.getMessage());
+    }
+    LOG.warning(message + " " + cause.getMessage());
+  }
+
+  private void restoreNonUniqueAppliedAtVersionIndex(DBCollection coll, BasicDBObject keys) {
+    coll.createIndex(keys, new BasicDBObject("background", true)
+        .append("name", APPLIED_AT_VERSION_INDEX_NAME));
+  }
+
+  private boolean isIndexOptionsConflict(MongoException error) {
+    return error.getCode() == INDEX_OPTIONS_CONFLICT
+        || error.getMessage().contains("already exists with different options");
   }
 }

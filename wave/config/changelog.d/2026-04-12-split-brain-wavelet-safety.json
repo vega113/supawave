@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-12-split-brain-wavelet-safety",
+  "version": "PR #868",
+  "date": "2026-04-12",
+  "title": "Split-brain wavelet safety",
+  "summary": "Deploy overlap handling now shuts down replaced slots more defensively, stale wavelet persists fail fast without wedging the queue, and the corrupted-wave repair classifier keeps sibling wavelets independent.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Deploy rollback and cutover now fail closed if the replaced slot cannot be verified as stopped, instead of treating a failed `docker compose ps` check as success",
+        "Stale wavelet persist failures now clear or reschedule queued persistence work so later callers do not hang behind an unexecuted retry task",
+        "Corrupted-wave repair classification now buckets duplicate history by both wave id and wavelet id so one ambiguous sibling no longer blocks a safe repair on the same wave"
+      ]
+    }
+  ]
+}

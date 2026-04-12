@@ -275,36 +275,8 @@ jobs:
               });
             }
 
-      - name: Classify deploy failure state
-        if: always() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
-        id: deploy_failure_gate
-        env:
-          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
-          JOB_CANCELLED: ${{ cancelled() }}
-          JOB_FAILED: ${{ failure() }}
-        run: |
-          set -euo pipefail
-          node - <<'NODE'
-          const fs = require("node:fs");
-          const { classifyDeployFailure } = require("./.github/scripts/deploy-failure-gate");
-
-          const result = classifyDeployFailure({
-            deployOutcome: process.env.DEPLOY_OUTCOME,
-            jobCancelled: process.env.JOB_CANCELLED,
-            jobFailed: process.env.JOB_FAILED,
-          });
-
-          fs.appendFileSync(
-            process.env.GITHUB_OUTPUT,
-            `report_failure=${result.reportFailure}\nreason=${result.reason}\n`,
-          );
-          console.log(
-            `[deploy-failure-gate] report_failure=${result.reportFailure} reason=${result.reason}`,
-          );
-          NODE
-
       - name: Create GitHub issue on deploy failure
-        if: always() && steps.deploy_failure_gate.outputs.report_failure == 'true' && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: always() && failure() && !cancelled() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         uses: actions/github-script@v7
         with:
           script: |
@@ -516,7 +488,7 @@ jobs:
             -d "$PAYLOAD") || echo "Email notification failed (non-blocking): $RESPONSE"
 
       - name: Notify deploy failure
-        if: always() && steps.deploy_failure_gate.outputs.report_failure == 'true' && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        if: always() && failure() && !cancelled() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}

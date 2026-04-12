@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-ot-search-tag-fallback",
+  "version": "Unreleased",
+  "date": "2026-04-12",
+  "title": "OT search tag routing and fallback policy",
+  "summary": "Tag searches now stay on the OT/Lucene path when indexed search is enabled, and OT search no longer silently bootstraps or falls back to legacy HTTP polling unless an explicit fallback flag is enabled.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Tag queries now use Lucene candidate filtering in OT search mode instead of forcing the legacy tag-document path",
+        "Added an `ot-search-fallback` feature flag, defaulting off, so production OT search surfaces failures immediately instead of silently switching to legacy HTTP bootstrap or polling"
+      ]
+    }
+  ]
+}

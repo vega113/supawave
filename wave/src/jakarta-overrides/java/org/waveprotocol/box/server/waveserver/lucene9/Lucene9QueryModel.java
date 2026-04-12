@@ -77,6 +77,12 @@ public final class Lucene9QueryModel {
     return hasToken(TokenQueryType.TITLE) || hasToken(TokenQueryType.CONTENT);
   }
 
+  public boolean usesLuceneIndex() {
+    return hasToken(TokenQueryType.TITLE)
+        || hasToken(TokenQueryType.CONTENT)
+        || hasToken(TokenQueryType.TAG);
+  }
+
   public boolean hasTaskQuery() {
     return hasToken(TokenQueryType.TASKS);
   }
@@ -84,7 +90,7 @@ public final class Lucene9QueryModel {
   public String toLegacyQuery() {
     StringBuilder builder = new StringBuilder();
     for (Token token : tokens) {
-      if (token.getType() == TokenQueryType.TITLE || token.getType() == TokenQueryType.CONTENT) {
+      if (isLuceneHandledToken(token.getType())) {
         continue;
       }
       if (builder.length() > 0) {
@@ -101,5 +107,10 @@ public final class Lucene9QueryModel {
       }
     }
     return builder.toString();
+  }
+
+  private static boolean isLuceneHandledToken(TokenQueryType type) {
+    return type == TokenQueryType.TITLE
+        || type == TokenQueryType.CONTENT;
   }
 }

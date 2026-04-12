@@ -68,7 +68,7 @@ public class Lucene9SearchProviderImpl implements SearchProvider {
         MAX_CANDIDATES);
     // Task-only queries stay on the legacy path because task semantics are defined against
     // authoritative wave annotations, not Lucene task-assignee terms.
-    if (!model.hasTextQuery()) {
+    if (!model.usesLuceneIndex()) {
       return paginate(query, legacyResult.getDigests(), startAt, numResults);
     }
 

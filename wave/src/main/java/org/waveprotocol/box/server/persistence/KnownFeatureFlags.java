@@ -30,6 +30,7 @@ public final class KnownFeatureFlags {
   static {
     List<FeatureFlag> defaults = new ArrayList<>();
     defaults.add(new FeatureFlag("ot-search", "OT/Lucene search (real-time wavelets + full-text indexing)", false, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("ot-search-fallback", "Allow OT search to bootstrap or fall back to legacy HTTP polling", false, Collections.emptyMap()));
     // "grafana-log-export": log forwarding is currently handled at the infrastructure level by the
     // Grafana Alloy agent (see deploy/supawave-host/configure-grafana-alloy.sh). This flag is
     // registered here so admins can see and toggle it via the feature-flags UI; a future PR will

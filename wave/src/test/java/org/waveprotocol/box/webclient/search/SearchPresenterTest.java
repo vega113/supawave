@@ -237,6 +237,7 @@ public final class SearchPresenterTest extends TestCase {
         null);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", true);
 
     presenter.bootstrapOtSearch();
 
@@ -246,7 +247,7 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, scheduler.countTasksScheduled());
   }
 
-  public void testBootstrapOtSearchFallsBackToPollingForTagQuery() throws Exception {
+  public void testBootstrapOtSearchSubscribesTagQueryToOtSearch() throws Exception {
     FakeTimerService scheduler = new FakeTimerService();
     FakeSearch search = new FakeSearch();
     WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
@@ -257,11 +258,12 @@ public final class SearchPresenterTest extends TestCase {
         channel);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", true);
     setField(presenter, "queryText", "tag:work");
 
     presenter.bootstrapOtSearch();
 
-    Mockito.verify(socket, Mockito.never()).open(Mockito.any());
+    Mockito.verify(socket).open(Mockito.any());
     assertEquals(1, search.findCalls);
     assertEquals("tag:work", search.lastQuery);
     assertEquals(30, search.lastSize);
@@ -280,6 +282,7 @@ public final class SearchPresenterTest extends TestCase {
         channel);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", true);
     setField(presenter, "queryText", "notag:foo");
 
     presenter.bootstrapOtSearch();
@@ -301,6 +304,7 @@ public final class SearchPresenterTest extends TestCase {
         channel);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", true);
     setField(presenter, "queryText", "TAG:work");
 
     presenter.bootstrapOtSearch();
@@ -319,6 +323,7 @@ public final class SearchPresenterTest extends TestCase {
         null);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", true);
     setBooleanField(presenter, "useOtSearch", true);
 
     presenter.onFolderActionCompleted("archive");
@@ -330,7 +335,7 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(1, scheduler.countTasksScheduled());
   }
 
-  public void testOnShowMoreFallsBackToPollingWhenOtSnapshotCannotGrowWindow()
+  public void testOnShowMoreSwitchesToHttpWhenOtSnapshotCannotGrowWindow()
       throws Exception {
     FakeTimerService scheduler = new FakeTimerService();
     SimpleSearch search = new SimpleSearch(new FakeSearchService(), null);
@@ -339,6 +344,7 @@ public final class SearchPresenterTest extends TestCase {
         null);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", false);
     setBooleanField(presenter, "useOtSearch", true);
     setIntField(presenter, "querySize", 45);
     setField(
@@ -369,6 +375,7 @@ public final class SearchPresenterTest extends TestCase {
         channel);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", true);
 
     presenter.bootstrapOtSearch();
 
@@ -395,6 +402,7 @@ public final class SearchPresenterTest extends TestCase {
         channel);
 
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", true);
     presenter.bootstrapOtSearch();
     // Advance past OT_SEARCH_TIMEOUT_MS (5000 ms) so the timeout task fires.
     scheduler.tick(6000);
@@ -441,6 +449,7 @@ public final class SearchPresenterTest extends TestCase {
 
     view.setHasVisibleDigests(true);
     setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", true);
     setBooleanField(presenter, "useOtSearch", false);
     setBooleanField(presenter, "otSearchTimedOut", false);
 
@@ -448,6 +457,26 @@ public final class SearchPresenterTest extends TestCase {
 
     assertEquals(1, search.findCalls);
     assertFalse(getBooleanField(presenter, "allowLoadingSkeletonDuringSearch"));
+  }
+
+  public void testBootstrapOtSearchSkipsHttpBootstrapWhenFallbackDisabled()
+      throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    WaveWebSocketClient socket = Mockito.mock(WaveWebSocketClient.class);
+    RemoteViewServiceMultiplexer channel =
+        new RemoteViewServiceMultiplexer(socket, "alice@example.com");
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        channel);
+
+    setBooleanField(presenter, "otSearchEnabled", true);
+    setBooleanField(presenter, "otSearchFallbackEnabled", false);
+
+    presenter.bootstrapOtSearch();
+
+    Mockito.verify(socket).open(Mockito.any());
+    assertEquals(0, search.findCalls);
   }
 
   private static void setBooleanField(SearchPresenter presenter, String fieldName, boolean value)

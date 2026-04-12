@@ -62,6 +62,7 @@ public final class FeatureFlagServiceTest {
     service = new FeatureFlagService(store);
 
     assertFalse(service.getEnabledFlagNames(null).contains("ot-search"));
+    assertFalse(service.getEnabledFlagNames(null).contains("ot-search-fallback"));
   }
 
   @Test

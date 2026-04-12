@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-supawave-grafana-log-discovery",
+  "version": "PR #852",
+  "date": "2026-04-12",
+  "title": "Fix SupaWave Grafana log discovery",
+  "summary": "Grafana Alloy now tails only SupaWave's structured JSON log files and the host docs call out the correct selectors for finding those logs in Grafana.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Updated the SupaWave Alloy file tailer to target the structured `wave-json*.log` files so Loki discovery stays aligned with the JSON parser pipeline",
+        "Documented the SupaWave Grafana selectors and troubleshooting steps needed to confirm Alloy is shipping the application logs correctly"
+      ]
+    }
+  ]
+}

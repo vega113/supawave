@@ -169,8 +169,8 @@ loki.source.journal \"logs_integrations_integrations_node_exporter_journal_scrap
 
 local.file_match \"logs_integrations_integrations_node_exporter_direct_scrape\" {
   path_targets = [{
-    address = \"localhost\",
-    path    = \"/var/log/{syslog,messages,*.log}\",
+    __address__ = \"localhost\",
+    __path__    = \"/var/log/{syslog,messages,*.log}\",
     instance    = \"default\",
     job         = \"integrations/node_exporter\",
   }]
@@ -208,10 +208,11 @@ loki.source.file \"logs_integrations_integrations_node_exporter_direct_scrape\" 
 // ── SupaWave application logs ──────────────────────────────────────────
 local.file_match \"supawave_logs\" {
   path_targets = [{
-    address  = \"localhost\",
-    path     = \"$WAVE_LOG_PATH\",
-    job      = \"supawave/wave\",
-    instance = constants.hostname,
+    __address__  = \"localhost\",
+    __path__     = \"$WAVE_LOG_PATH\",
+    job          = \"supawave/wave\",
+    service_name = \"supawave\",
+    instance     = constants.hostname,
   }]
 }
 

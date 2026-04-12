@@ -24,6 +24,10 @@ package org.waveprotocol.examples.robots.gptbot;
  */
 public interface CodexClient {
 
+  interface StreamingListener {
+    void onText(String accumulatedText);
+  }
+
   String complete(String prompt);
 
   /**
@@ -52,5 +56,14 @@ public interface CodexClient {
       sb.setLength(len - 1);
     }
     return complete(sb.toString());
+  }
+
+  default String completeMessagesStreaming(java.util.List<java.util.Map<String, String>> messages,
+      StreamingListener listener) {
+    String response = completeMessages(messages);
+    if (listener != null && response != null && !response.isEmpty()) {
+      listener.onText(response);
+    }
+    return response;
   }
 }

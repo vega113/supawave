@@ -156,6 +156,31 @@ public class UserRegistrationServletTest extends TestCase {
     assertNull(store.getAccount(ParticipantId.ofUnsafe("helper-bot@example.com")));
   }
 
+  public void testGetCheckEmailParamRendersCheckEmailPage() throws IOException {
+    Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
+        "administration.disable_registration", false,
+        "administration.analytics_account", "UA-someid",
+        "core.email_confirmation_enabled", true));
+    UserRegistrationServlet servlet =
+        new UserRegistrationServlet(store, "example.com", config, null, welcomeWaveCreator,
+            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(
+                new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
+
+    when(req.getParameter("check-email")).thenReturn("1");
+    when(req.getLocale()).thenReturn(Locale.ENGLISH);
+    StringWriter responseBody = new StringWriter();
+    PrintWriter writer = new PrintWriter(responseBody);
+    when(resp.getWriter()).thenReturn(writer);
+
+    servlet.doGet(req, resp);
+    writer.flush();
+
+    String body = responseBody.toString();
+    assertTrue("Should render check-email page", body.contains("Check your inbox"));
+    assertTrue("Should contain confirmation message", body.contains("confirmation email"));
+    assertFalse("Should not render registration form", body.contains("id=\"regForm\""));
+  }
+
   public String attemptToRegister(
       HttpServletRequest req, HttpServletResponse resp, String address,
       String password, boolean disabledRegistration) throws IOException {

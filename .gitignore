@@ -21,6 +21,7 @@
 /_indexes/
 /gwt-unitCache/
 war/WEB-INF
+war-dev/
 *.old
 .DS_Store
 .helper

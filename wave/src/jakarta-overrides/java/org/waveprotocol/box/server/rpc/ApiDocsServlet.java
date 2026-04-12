@@ -576,6 +576,7 @@ public final class ApiDocsServlet extends HttpServlet {
     html.append("        <div class=\"reference-grid\">\n");
     html.append("          <div class=\"grid-card\"><h3>Recommended env vars</h3><pre>SUPAWAVE_BASE_URL\nSUPAWAVE_API_DOCS_URL\nSUPAWAVE_LLM_DOCS_URL\nSUPAWAVE_DATA_API_URL\nSUPAWAVE_DATA_API_TOKEN\nSUPAWAVE_ROBOT_ID\nSUPAWAVE_ROBOT_SECRET\nSUPAWAVE_ROBOT_CALLBACK_URL</pre></div>\n");
     html.append("          <div class=\"grid-card\"><h3>Minimal common operations</h3><pre>robot.createWavelet\nwavelet.appendBlip\nwavelet.addParticipant\nrobot.fetchWave\nrobot.search</pre></div>\n");
+    html.append("          <div class=\"grid-card\"><h3>Streaming replies</h3><pre>1. Read rpcServerUrl from the passive bundle\n2. blip.createChild and store newBlipId\n3. Stream partials with document.modify REPLACE\n4. Keep one in-flight update per reply blip\n5. Prefer full accumulated text over append-only chunks</pre></div>\n");
     html.append("        </div>\n");
     html.append("      </section>\n");
     html.append("      <section id=\"walkthrough\">\n");
@@ -1312,6 +1313,12 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("- robot.fetchWave\n");
     text.append("- robot.search\n\n");
 
+    text.append("Streaming replies\n");
+    text.append("- Passive callbacks are single-response; they do not stream robot output by themselves.\n");
+    text.append("- Use rpcServerUrl from the passive bundle for follow-on JSON-RPC writes.\n");
+    text.append("- Call blip.createChild once, persist data.newBlipId, then send serialized document.modify REPLACE updates with the full accumulated reply text.\n");
+    text.append("- Stream into a robot-owned reply blip only, and keep one in-flight update per streamed reply blip.\n\n");
+
     text.append("Request envelope\n");
     text.append(json(singleRequestTemplate())).append("\n\n");
 
@@ -1389,7 +1396,7 @@ public final class ApiDocsServlet extends HttpServlet {
     text.append("- ").append(LLM_ALIAS_PATH).append(" remains live as a backward-compatible alias.\n");
     text.append("- Do not advertise wavelet.create as the current public API. All auth uses JWT Bearer tokens.\n");
     text.append("- Fetch and callback bundles include robotAddress.\n");
-    text.append("- Current servers also include rpcServerUrl; use it instead of hardcoding /robot/dataapi/rpc when present.\n");
+    text.append("- Current servers also include rpcServerUrl; use it instead of hardcoding /robot/dataapi/rpc or /robot/rpc when present.\n");
     text.append("- Treat missing threads as {} when talking to older bundle payloads.\n");
     return text.toString();
   }

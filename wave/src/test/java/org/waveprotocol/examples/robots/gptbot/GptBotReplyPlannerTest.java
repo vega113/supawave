@@ -21,6 +21,7 @@ package org.waveprotocol.examples.robots.gptbot;
 
 import junit.framework.TestCase;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -152,6 +153,25 @@ public class GptBotReplyPlannerTest extends TestCase {
     assertTrue("At least one large-content turn must remain in history", firstOccurrence >= 0);
     assertEquals("Only the most recent large turn should remain after pruning",
         firstOccurrence, lastOccurrence);
+  }
+
+  public void testWaveLocksAreReleasedAfterCompletions() throws Exception {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "ok";
+    GptBotReplyPlanner planner = new GptBotReplyPlanner("gpt-bot", codexClient);
+
+    planner.replyForPrompt("first question", "", "example.com!w+lock-a");
+    planner.replyForPrompt("second question", "", "example.com!w+lock-b");
+
+    Map<?, ?> waveLocks = getWaveLocks(planner);
+    assertEquals("Wave locks should not accumulate after completions", 0, waveLocks.size());
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Map<?, ?> getWaveLocks(GptBotReplyPlanner planner) throws Exception {
+    Field waveLocksField = GptBotReplyPlanner.class.getDeclaredField("waveLocks");
+    waveLocksField.setAccessible(true);
+    return (Map<?, ?>) waveLocksField.get(planner);
   }
 
   private static final class RecordingCodexClient implements CodexClient {

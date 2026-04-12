@@ -30,5 +30,12 @@ public interface SupaWaveClient {
 
   Optional<String> search(String query);
 
-  boolean appendReply(String waveId, String waveletId, String blipId, String content);
+  Optional<String> createReply(String waveId, String waveletId, String parentBlipId,
+      String initialContent, String rpcServerUrl);
+
+  boolean replaceReply(String waveId, String waveletId, String replyBlipId, String content,
+      String rpcServerUrl);
+
+  boolean appendReply(String waveId, String waveletId, String blipId, String content,
+      String rpcServerUrl);
 }

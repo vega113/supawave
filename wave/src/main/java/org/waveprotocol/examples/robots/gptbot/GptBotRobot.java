@@ -110,13 +110,13 @@ public final class GptBotRobot {
     String hash = capabilitiesHash();
     LOG.info("handleEventBundle: sending capabilities hash=" + hash);
     operationQueue.notifyRobotInformation(ProtocolVersion.DEFAULT, hash);
-    processEvents(bundle);
+    processEvents(bundle, bundle.getRpcServerUrl());
     List<OperationRequest> operations = operationQueue.drainPendingOperations();
     LOG.info("handleEventBundle: returning " + operations.size() + " operation(s)");
     return gson.toJson(operations, GsonFactory.OPERATION_REQUEST_LIST_TYPE);
   }
 
-  private void processEvents(EventMessageBundle bundle) {
+  private void processEvents(EventMessageBundle bundle, String rpcServerUrl) {
     List<Event> events = bundle.getEvents();
     if (events == null) {
       LOG.info("processEvents: events list is null — nothing to process");
@@ -132,7 +132,7 @@ public final class GptBotRobot {
         case BLIP_EDITING_DONE:
           // Primary trigger: fired when all user/d/ editing sessions are closed.
           handleBlip(BlipEditingDoneEvent.as(event).getBlip(), event.getModifiedBy(),
-              handledBlipIds);
+              handledBlipIds, rpcServerUrl);
           break;
         case DOCUMENT_CHANGED: {
           // Fallback for servers that haven't registered BLIP_EDITING_DONE yet.
@@ -142,7 +142,7 @@ public final class GptBotRobot {
               LOG.fine("processEvents: DOCUMENT_CHANGED blipId=" + changedBlip.getBlipId()
                   + " still being edited, skipping");
             } else {
-              handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds);
+              handleBlip(changedBlip, event.getModifiedBy(), handledBlipIds, rpcServerUrl);
             }
           } else {
             LOG.info("processEvents: DOCUMENT_CHANGED blip is null — skipping");
@@ -151,7 +151,7 @@ public final class GptBotRobot {
         }
         case WAVELET_BLIP_CREATED:
           handleBlip(WaveletBlipCreatedEvent.as(event).getNewBlip(), event.getModifiedBy(),
-              handledBlipIds);
+              handledBlipIds, rpcServerUrl);
           break;
         default:
           LOG.info("processEvents: unhandled event type=" + event.getType());
@@ -160,7 +160,8 @@ public final class GptBotRobot {
     }
   }
 
-  private void handleBlip(Blip blip, String modifiedBy, Set<String> handledBlipIds) {
+  private void handleBlip(Blip blip, String modifiedBy, Set<String> handledBlipIds,
+      String rpcServerUrl) {
     if (blip == null) {
       LOG.info("handleBlip: blip is null — skipping");
       return;
@@ -213,6 +214,43 @@ public final class GptBotRobot {
       String waveContext = apiClient.fetchWaveContext(waveId, waveletId).orElse("");
       LOG.info("handleBlip: waveContextLen=" + waveContext.length());
 
+      if (config.getReplyMode() == GptBotConfig.ReplyMode.ACTIVE_STREAM) {
+        LOG.info("handleBlip: ACTIVE_STREAM mode — starting streamed reply for blipId=" + blipId);
+        StreamingReplyWriter writer = new StreamingReplyWriter(apiClient, waveId, waveletId,
+            blipId, rpcServerUrl);
+        final boolean[] started = {false};
+        Optional<String> reply = replyPlanner.replyForPromptStreaming(prompt.get(), waveContext, waveId,
+            accumulatedText -> {
+              if (!started[0] && accumulatedText != null && !accumulatedText.isEmpty()) {
+                started[0] = writer.start(accumulatedText);
+                if (!started[0]) {
+                  LOG.warning("handleBlip: ACTIVE_STREAM createReply failed for blipId=" + blipId);
+                }
+                return;
+              }
+              if (!started[0]) {
+                return;
+              }
+              if (!writer.update(accumulatedText)) {
+                LOG.warning("handleBlip: ACTIVE_STREAM update failed for blipId=" + blipId);
+              }
+            });
+        if (!reply.isPresent()) {
+          LOG.warning("handleBlip: ACTIVE_STREAM reply generation returned empty for blipId=" + blipId);
+          return;
+        }
+        String replyText = reply.get();
+        if (!started[0] && !replyText.isEmpty() && !writer.start(replyText)) {
+          LOG.warning("handleBlip: ACTIVE_STREAM createReply failed for blipId=" + blipId);
+          return;
+        }
+        if (!writer.finish(replyText)) {
+          LOG.warning("handleBlip: ACTIVE_STREAM final update failed for blipId=" + blipId);
+        }
+        LOG.info("handleBlip: ACTIVE_STREAM reply completed for blipId=" + blipId);
+        return;
+      }
+
       Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext, waveId);
       if (!reply.isPresent()) {
         LOG.warning("handleBlip: replyForPrompt returned empty — LLM may have failed");
@@ -226,7 +264,7 @@ public final class GptBotRobot {
 
       if (config.getReplyMode() == GptBotConfig.ReplyMode.ACTIVE) {
         LOG.info("handleBlip: ACTIVE mode — calling appendReply for blipId=" + blipId);
-        if (!apiClient.appendReply(waveId, waveletId, blipId, replyText)) {
+        if (!apiClient.appendReply(waveId, waveletId, blipId, replyText, rpcServerUrl)) {
           LOG.warning("handleBlip: ACTIVE appendReply failed for blipId=" + blipId
               + " waveId=" + waveId + " waveletId=" + waveletId);
         } else {

@@ -74,6 +74,8 @@ public class BlipViewBuilder implements UiBuilder, IntrinsicBlipView {
 
     String contentContainer();
 
+    String reactions();
+
     String replies();
 
     String privateReplies();
@@ -87,6 +89,8 @@ public class BlipViewBuilder implements UiBuilder, IntrinsicBlipView {
 
   /** An enum for all the components of a blip view. */
   public enum Components implements Component {
+    /** Container for the per-blip reactions row. */
+    REACTIONS("J"),
     /** Container for default anchors of reply threads. */
     REPLIES("R"),
     /** Container for nested conversations. */
@@ -116,6 +120,7 @@ public class BlipViewBuilder implements UiBuilder, IntrinsicBlipView {
   //
 
   private final UiBuilder meta;
+  private final UiBuilder reactions;
   private final UiBuilder replies;
   private final UiBuilder privateReplies;
 
@@ -126,18 +131,20 @@ public class BlipViewBuilder implements UiBuilder, IntrinsicBlipView {
    *        characters
    * @param replies collection of non-inline replies
    */
-  public static BlipViewBuilder create(String id, UiBuilder meta, UiBuilder replies,
-      UiBuilder privateReplies) {
+  public static BlipViewBuilder create(String id, UiBuilder meta, UiBuilder reactions,
+      UiBuilder replies, UiBuilder privateReplies) {
     // must not contain ', it is especially troublesome because it cause
     // security issues.
     Preconditions.checkArgument(!id.contains("\'"), "!id.contains(\"\\'\")");
-    return new BlipViewBuilder(id, nonNull(meta), nonNull(replies), nonNull(privateReplies),
-        WavePanelResourceLoader.getBlip().css());
+    return new BlipViewBuilder(id, nonNull(meta), nonNull(reactions), nonNull(replies),
+        nonNull(privateReplies), WavePanelResourceLoader.getBlip().css());
   }
 
-  BlipViewBuilder(String id, UiBuilder meta, UiBuilder replies, UiBuilder privateReplies, Css css) {
+  BlipViewBuilder(String id, UiBuilder meta, UiBuilder reactions, UiBuilder replies,
+      UiBuilder privateReplies, Css css) {
     this.id = id;
     this.meta = meta;
+    this.reactions = reactions;
     this.replies = replies;
     this.privateReplies = privateReplies;
     this.css = css;
@@ -157,6 +164,11 @@ public class BlipViewBuilder implements UiBuilder, IntrinsicBlipView {
 
     // Meta (no wrapper).
     meta.outputHtml(output);
+
+    // Reactions row (initially empty; populated by the reaction controller).
+    open(output, Components.REACTIONS.getDomId(id), css.reactions(), null);
+    reactions.outputHtml(output);
+    close(output);
 
     // Replies.
     open(output, Components.REPLIES.getDomId(id), css.replies(), null);

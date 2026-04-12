@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-robot-streaming-replies",
+  "version": "PR #811",
+  "date": "2026-04-10",
+  "title": "Robot Streaming Replies",
+  "summary": "Robots can now progressively stream reply text into a dedicated wave blip using the documented createChild plus document.modify pattern.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Documented and example-backed support for progressive robot replies that create one reply blip and update it incrementally with document.modify",
+        "Robot docs now direct clients to use the passive bundle's rpcServerUrl hint for follow-on reply writes instead of hardcoding a single RPC endpoint"
+      ]
+    }
+  ]
+}

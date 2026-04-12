@@ -33,6 +33,8 @@ import com.google.wave.api.event.WaveletBlipCreatedEvent;
 import junit.framework.TestCase;
 
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -79,6 +81,31 @@ public class GptBotRobotTest extends TestCase {
     assertEquals("Reply from the active API.", apiClient.lastReply);
     assertEquals(1, apiClient.fetchCalls);
     assertEquals(1, codexClient.completeCalls);
+  }
+
+  public void testCallbackBundleCanStreamReplyThroughRpcServerUrl() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.streamingResponses = Arrays.asList("Hel", "Hello", "Hello world");
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    apiClient.createReplyId = "b+streamed";
+    GptBotConfig config = TEST_CONFIG.withReplyMode(GptBotConfig.ReplyMode.ACTIVE_STREAM);
+    GptBotRobot robot = new GptBotRobot(config,
+        new GptBotReplyPlanner(config.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJsonWithRpcServerUrl(config,
+        "\n@" + config.getRobotName() + " please answer",
+        "https://wave.example.com/robot/dataapi/rpc",
+        new BlipEditingDoneEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertFalse(response.contains("wavelet.appendBlip"));
+    assertEquals(1, apiClient.createReplyCalls);
+    assertEquals("b+streamed", apiClient.lastCreatedReplyId);
+    assertEquals("Hel", apiClient.lastCreatedContent);
+    assertEquals(Arrays.asList("Hello", "Hello world"), apiClient.streamUpdates);
+    assertEquals("https://wave.example.com/robot/dataapi/rpc", apiClient.lastRpcServerUrl);
+    assertEquals(1, apiClient.fetchCalls);
+    assertEquals(1, codexClient.completeStreamingCalls);
+    assertEquals(0, codexClient.completeCalls);
   }
 
   public void testCallbackBundleDoesNotFallBackToPassiveReplyWhenActiveDeliveryFails() {
@@ -439,8 +466,13 @@ public class GptBotRobotTest extends TestCase {
   }
 
   private static String exampleBundleJson(GptBotConfig config, String content, Event... events) {
-    EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
-        "http://localhost:8087/_wave/robot/jsonrpc");
+    return exampleBundleJsonWithRpcServerUrl(config, content,
+        "http://localhost:8087/_wave/robot/jsonrpc", events);
+  }
+
+  private static String exampleBundleJsonWithRpcServerUrl(GptBotConfig config, String content,
+      String rpcServerUrl, Event... events) {
+    EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(), rpcServerUrl);
     WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
         "b+root", (BlipThread) null);
     waveletData.addParticipant("alice@example.com");
@@ -601,21 +633,42 @@ public class GptBotRobotTest extends TestCase {
   private static final class RecordingCodexClient implements CodexClient {
 
     private int completeCalls;
+    private int completeStreamingCalls;
     private String response = "answer";
+    private List<String> streamingResponses;
 
     @Override
     public String complete(String prompt) {
       completeCalls++;
       return response;
     }
+
+    @Override
+    public String completeMessagesStreaming(List<java.util.Map<String, String>> messages,
+        StreamingListener listener) {
+      completeStreamingCalls++;
+      if (streamingResponses != null && !streamingResponses.isEmpty()) {
+        for (String partial : streamingResponses) {
+          listener.onText(partial);
+        }
+        return streamingResponses.get(streamingResponses.size() - 1);
+      }
+      return CodexClient.super.completeMessagesStreaming(messages, listener);
+    }
   }
 
   private static final class RecordingSupaWaveClient implements SupaWaveClient {
 
     private int appendCalls;
+    private int createReplyCalls;
     private int fetchCalls;
     private boolean appendSucceeds;
+    private String createReplyId = "b+reply";
     private String lastReply;
+    private String lastCreatedReplyId;
+    private String lastCreatedContent;
+    private String lastRpcServerUrl;
+    private final List<String> streamUpdates = new ArrayList<String>();
 
     @Override
     public Optional<String> fetchWaveContext(String waveId, String waveletId) {
@@ -629,10 +682,30 @@ public class GptBotRobotTest extends TestCase {
     }
 
     @Override
-    public boolean appendReply(String waveId, String waveletId, String blipId, String content) {
+    public boolean appendReply(String waveId, String waveletId, String blipId, String content,
+        String rpcServerUrl) {
       appendCalls++;
       lastReply = content;
       return appendSucceeds;
+    }
+
+    @Override
+    public Optional<String> createReply(String waveId, String waveletId, String parentBlipId,
+        String initialContent, String rpcServerUrl) {
+      createReplyCalls++;
+      lastCreatedReplyId = createReplyId;
+      lastCreatedContent = initialContent;
+      lastRpcServerUrl = rpcServerUrl;
+      return Optional.of(createReplyId);
+    }
+
+    @Override
+    public boolean replaceReply(String waveId, String waveletId, String replyBlipId,
+        String content, String rpcServerUrl) {
+      streamUpdates.add(content);
+      lastRpcServerUrl = rpcServerUrl;
+      lastReply = content;
+      return true;
     }
   }
 }

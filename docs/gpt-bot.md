@@ -121,7 +121,17 @@ For the full token lifecycle and passive bundle field rules, see [robot-data-api
 `gpt-bot` supports both passive webhook replies and active API writes:
 
 - `GPTBOT_REPLY_MODE=passive` — default; the callback response returns Wave operations directly
-- `GPTBOT_REPLY_MODE=active` — the callback still receives events, but the robot posts the reply via `/robot/rpc` using `blip.createChild`
+- `GPTBOT_REPLY_MODE=active` — the callback still receives events, but the robot posts a one-shot reply through follow-on JSON-RPC using `blip.createChild`
+- `GPTBOT_REPLY_MODE=active-stream` — the callback still receives events, but the robot creates one reply blip, stores `newBlipId`, and progressively updates it with `document.modify` while the backend streams text
+
+For streamed replies, `gpt-bot` prefers the passive bundle's `rpcServerUrl` hint instead of hardcoding `/robot/rpc` or `/robot/dataapi/rpc`. That keeps the write endpoint aligned with the robot's configured auth mode.
+If the selected backend only supports one-shot completion, `active-stream` degrades to a single final replace instead of partial updates.
+
+Streaming safety rules:
+
+- stream into a robot-owned reply blip, not the user's prompt blip
+- keep one in-flight update per streamed reply blip
+- send full accumulated text with each `document.modify` replace rather than append-only token chunks
 
 For extra read context before calling Codex:
 

@@ -33,6 +33,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * A {@link CodexClient} that calls the OpenAI Chat Completions API directly.
@@ -115,22 +116,8 @@ public final class OpenAiCodexClient implements CodexClient {
       throw new IllegalArgumentException("messages must not be null");
     }
     try {
-      JsonArray messagesArray = new JsonArray();
-      for (Map<String, String> msg : messages) {
-        if (msg == null || !msg.containsKey("role") || !msg.containsKey("content")) {
-          throw new IllegalArgumentException("Each message must have 'role' and 'content' keys");
-        }
-        JsonObject m = new JsonObject();
-        m.addProperty("role", msg.get("role"));
-        m.addProperty("content", msg.get("content"));
-        messagesArray.add(m);
-      }
-
-      JsonObject body = new JsonObject();
-      body.addProperty("model", model);
-      body.add("messages", messagesArray);
-      body.addProperty("max_tokens", 512);
-      body.addProperty("temperature", 0.7);
+      JsonArray messagesArray = buildMessagesArray(messages);
+      JsonObject body = buildChatCompletionsRequest(messagesArray, false);
       if (webSearchEnabled) {
         body.add("tools", JsonParser.parseString(WEB_SEARCH_TOOL_JSON));
         body.addProperty("tool_choice", "auto");
@@ -162,6 +149,52 @@ public final class OpenAiCodexClient implements CodexClient {
         Thread.currentThread().interrupt();
       }
       LOG.warning("OpenAI API call failed", e);
+      return "I'm having trouble generating a response right now.";
+    }
+  }
+
+  @Override
+  public String completeMessagesStreaming(List<Map<String, String>> messages,
+      StreamingListener listener) {
+    if (messages == null) {
+      throw new IllegalArgumentException("messages must not be null");
+    }
+    if (webSearchEnabled) {
+      return CodexClient.super.completeMessagesStreaming(messages, listener);
+    }
+    try {
+      JsonArray messagesArray = buildMessagesArray(messages);
+      JsonObject body = buildChatCompletionsRequest(messagesArray, true);
+
+      HttpRequest request = HttpRequest.newBuilder()
+          .uri(URI.create(baseUrl + "/chat/completions"))
+          .timeout(REQUEST_TIMEOUT)
+          .header("Authorization", "Bearer " + apiKey)
+          .header("Content-Type", "application/json")
+          .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+          .build();
+
+      HttpResponse<Stream<String>> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofLines());
+      StringBuilder accumulated = new StringBuilder();
+      try (Stream<String> lines = response.body()) {
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+          LOG.warning("OpenAI API returned HTTP " + response.statusCode());
+          return "I'm having trouble generating a response right now.";
+        }
+        lines.forEach(line -> applyStreamingLine(line, accumulated, listener));
+      }
+
+      String content = accumulated.toString().trim();
+      if (content.isEmpty()) {
+        content = "I'm here — what would you like me to help with?";
+      }
+      return content;
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      LOG.warning("OpenAI streaming API call failed", e);
       return "I'm having trouble generating a response right now.";
     }
   }
@@ -322,6 +355,67 @@ public final class OpenAiCodexClient implements CodexClient {
     body.addProperty("max_tokens", 512);
     body.addProperty("temperature", 0.7);
     return body;
+  }
+
+  private JsonArray buildMessagesArray(List<Map<String, String>> messages) {
+    JsonArray messagesArray = new JsonArray();
+    for (Map<String, String> msg : messages) {
+      if (msg == null || !msg.containsKey("role") || !msg.containsKey("content")) {
+        throw new IllegalArgumentException("Each message must have 'role' and 'content' keys");
+      }
+      JsonObject message = new JsonObject();
+      message.addProperty("role", msg.get("role"));
+      message.addProperty("content", msg.get("content"));
+      messagesArray.add(message);
+    }
+    return messagesArray;
+  }
+
+  private JsonObject buildChatCompletionsRequest(JsonArray messagesArray, boolean stream) {
+    JsonObject body = new JsonObject();
+    body.addProperty("model", model);
+    body.add("messages", messagesArray);
+    body.addProperty("max_tokens", 512);
+    body.addProperty("temperature", 0.7);
+    if (stream) {
+      body.addProperty("stream", true);
+    }
+    return body;
+  }
+
+  private void applyStreamingLine(String line, StringBuilder accumulated, StreamingListener listener) {
+    if (line == null) {
+      return;
+    }
+    String trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) {
+      return;
+    }
+    String payload = trimmed.substring("data:".length()).trim();
+    if (payload.isEmpty() || "[DONE]".equals(payload)) {
+      return;
+    }
+    try {
+      JsonObject json = JsonParser.parseString(payload).getAsJsonObject();
+      JsonArray choices = json.getAsJsonArray("choices");
+      if (choices == null || choices.size() == 0) {
+        return;
+      }
+      JsonObject choice = choices.get(0).getAsJsonObject();
+      JsonObject delta = choice.has("delta") && choice.get("delta").isJsonObject()
+          ? choice.getAsJsonObject("delta") : null;
+      if (delta != null && delta.has("content")) {
+        String deltaText = delta.get("content").getAsString();
+        if (!deltaText.isEmpty()) {
+          accumulated.append(deltaText);
+          if (listener != null) {
+            listener.onText(accumulated.toString());
+          }
+        }
+      }
+    } catch (RuntimeException e) {
+      LOG.warning("Unable to parse OpenAI streaming payload", e);
+    }
   }
 
   private static String extractContent(String responseBody) {

@@ -59,6 +59,15 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertFalse(css.contains("border: 1px solid rgba(176,196,216,0.55);"));
   }
 
+  public void testCompactButtonsUseSingleActiveSurfaceWhenDown() throws Exception {
+    String css = normalized(read(
+        "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
+
+    assertTrue(css.contains(".enabled.down.compact > .overlay {"));
+    assertTrue(css.contains("background-color: transparent;"));
+    assertTrue(css.contains("border: none;"));
+  }
+
   public void testSearchPanelReservesThirtySixPixelsForToolbarHeight() throws Exception {
     String javaSource = read(
         "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPanelWidget.java");
@@ -166,6 +175,43 @@ public final class ToolbarLayoutContractTest extends TestCase {
     assertTrue(javaSource.contains("<path d=\\\"M12 7v5l-3 2\\\"></path></svg>"));
     assertFalse(javaSource.contains("<path d=\\\"M1 4v6h6\\\"></path>"));
     assertFalse(javaSource.contains("<path d=\\\"M3.51 15a9 9 0 1 0 2.13-9.36L1 10\\\"></path></svg>"));
+  }
+
+  public void testViewToolbarMentionDirectionIconsUseExplicitArrowGlyphs() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/ViewToolbar.java");
+
+    assertTrue(javaSource.contains("private static final String ICON_PREV_MENTION = SVG_OPEN"));
+    assertTrue(javaSource.contains("<path d=\\\"M6 12H2\\\"></path>"));
+    assertTrue(javaSource.contains("<path d=\\\"M5 9l-3 3 3 3\\\"></path></svg>"));
+    assertTrue(javaSource.contains("private static final String ICON_NEXT_MENTION = SVG_OPEN"));
+    assertTrue(javaSource.contains("<path d=\\\"M18 12h4\\\"></path>"));
+    assertTrue(javaSource.contains("<path d=\\\"M19 9l3 3-3 3\\\"></path></svg>"));
+    assertFalse(javaSource.contains(
+        "<path d=\\\"M2 12l3-3v6z\\\" fill=\\\"currentColor\\\" stroke=\\\"none\\\"></path></svg>"));
+    assertFalse(javaSource.contains(
+        "<path d=\\\"M24 12l-3-3v6z\\\" fill=\\\"currentColor\\\" stroke=\\\"none\\\"></path></svg>"));
+  }
+
+  public void testViewToolbarPinIconMatchesSearchToolbarPinGlyph() throws Exception {
+    String searchPresenter = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/search/SearchPresenter.java");
+    String viewToolbar = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/ViewToolbar.java");
+
+    String pinStem = "<line x1=\\\"12\\\" y1=\\\"17\\\" x2=\\\"12\\\" y2=\\\"22\\\"></line>";
+    String pinPathPrefix = "<path d=\\\"M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8";
+    String pinPathSuffix =
+        "a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z\\\"></path></svg>";
+
+    assertTrue(searchPresenter.contains(pinStem));
+    assertTrue(searchPresenter.contains(pinPathPrefix));
+    assertTrue(searchPresenter.contains(pinPathSuffix));
+    assertTrue(viewToolbar.contains(pinStem));
+    assertTrue(viewToolbar.contains(pinPathPrefix));
+    assertTrue(viewToolbar.contains(pinPathSuffix));
+    assertFalse(viewToolbar.contains(
+        "<path d=\\\"M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z\\\"></path>"));
   }
 
   private static String read(String relativePath) throws IOException {

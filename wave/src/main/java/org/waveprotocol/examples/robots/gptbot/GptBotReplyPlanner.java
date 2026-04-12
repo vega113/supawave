@@ -27,6 +27,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Turns an explicit mention into a Codex-generated reply.
@@ -49,6 +51,8 @@ public final class GptBotReplyPlanner {
   private final int maxHistoryTokens;
   // Guards both conversationHistory map and all WaveHistory objects within it.
   private final Object historyLock = new Object();
+  // Per-wave mutexes to serialize concurrent completions on the same wave.
+  private final ConcurrentHashMap<String, WaveMutex> waveLocks = new ConcurrentHashMap<>();
   private final Map<String, WaveHistory> conversationHistory =
       new LinkedHashMap<String, WaveHistory>(16, 0.75f, false) {
         @Override
@@ -82,13 +86,70 @@ public final class GptBotReplyPlanner {
   }
 
   Optional<String> replyForPrompt(String promptText, String waveContext, String waveId) {
-    Optional<String> reply = Optional.empty();
+    return Optional.of(runCompletion(promptText, waveContext, waveId, null));
+  }
+
+  Optional<String> replyForPromptStreaming(String promptText, String waveContext, String waveId,
+      CodexClient.StreamingListener listener) {
+    return Optional.of(runCompletion(promptText, waveContext, waveId, listener));
+  }
+
+  private String runCompletion(String promptText, String waveContext, String waveId,
+      CodexClient.StreamingListener listener) {
+    if (waveId != null && !waveId.isEmpty()) {
+      while (true) {
+        // Retired mutex entries can linger briefly until the last releaser evicts them.
+        WaveMutex waveMutex = waveLocks.computeIfAbsent(waveId, k -> new WaveMutex());
+        if (!waveMutex.tryRetain()) {
+          waveLocks.remove(waveId, waveMutex);
+          continue;
+        }
+        waveMutex.lock();
+        try {
+          return doRunCompletion(promptText, waveContext, waveId, listener);
+        } finally {
+          waveMutex.unlock();
+          if (waveMutex.release()) {
+            waveLocks.remove(waveId, waveMutex);
+          }
+        }
+      }
+    }
+    return doRunCompletion(promptText, waveContext, waveId, listener);
+  }
+
+  private String doRunCompletion(String promptText, String waveContext, String waveId,
+      CodexClient.StreamingListener listener) {
     String normalizedPrompt = promptText == null ? "" : promptText.strip();
     if (normalizedPrompt.isEmpty()) {
       normalizedPrompt = CLARIFYING_PROMPT;
     }
 
-    // Build messages list: system + wave context + history + new user message
+    Map<String, String> userMsg = new LinkedHashMap<>();
+    List<Map<String, String>> messages = buildMessages(normalizedPrompt, waveContext, waveId, userMsg);
+
+    String response = "";
+    try {
+      String codexResponse = listener == null
+          ? codexClient.completeMessages(messages)
+          : codexClient.completeMessagesStreaming(messages, listener);
+      if (codexResponse != null) {
+        response = codexResponse.strip();
+      }
+    } catch (RuntimeException e) {
+      LOG.warning("Codex completion failed", e);
+      response = "I'm having trouble generating a full answer right now, but I'm here to help.";
+    }
+    if (response.isEmpty()) {
+      response = "I'm here — what would you like me to help with?";
+    }
+
+    recordConversationTurn(waveId, userMsg, response);
+    return response;
+  }
+
+  private List<Map<String, String>> buildMessages(String normalizedPrompt, String waveContext,
+      String waveId, Map<String, String> userMsg) {
     List<Map<String, String>> messages = new ArrayList<>();
 
     Map<String, String> systemMsg = new LinkedHashMap<>();
@@ -105,7 +166,6 @@ public final class GptBotReplyPlanner {
     systemMsg.put("content", systemContent.toString());
     messages.add(systemMsg);
 
-    // Add history turns (token-budget pruning applied at store time).
     if (waveId != null && !waveId.isEmpty()) {
       synchronized (historyLock) {
         WaveHistory history = conversationHistory.get(waveId);
@@ -115,27 +175,13 @@ public final class GptBotReplyPlanner {
       }
     }
 
-    // Add the new user message
-    Map<String, String> userMsg = new LinkedHashMap<>();
     userMsg.put("role", "user");
     userMsg.put("content", sanitize(normalizedPrompt, MAX_PROMPT_CHARS));
     messages.add(userMsg);
+    return messages;
+  }
 
-    String response = "";
-    try {
-      String codexResponse = codexClient.completeMessages(messages);
-      if (codexResponse != null) {
-        response = codexResponse.strip();
-      }
-    } catch (RuntimeException e) {
-      LOG.warning("Codex completion failed", e);
-      response = "I'm having trouble generating a full answer right now, but I'm here to help.";
-    }
-    if (response.isEmpty()) {
-      response = "I'm here — what would you like me to help with?";
-    }
-
-    // Update conversation history
+  private void recordConversationTurn(String waveId, Map<String, String> userMsg, String response) {
     if (waveId != null && !waveId.isEmpty()) {
       synchronized (historyLock) {
         WaveHistory history = conversationHistory.computeIfAbsent(waveId, k -> new WaveHistory());
@@ -147,9 +193,6 @@ public final class GptBotReplyPlanner {
         history.pruneToFit(maxHistoryTokens);
       }
     }
-
-    reply = Optional.of(response);
-    return reply;
   }
 
   String buildPrompt(String userPrompt, String waveContext) {
@@ -193,6 +236,40 @@ public final class GptBotReplyPlanner {
 
     private static int estimateTokens(Map<String, String> msg) {
       return msg.getOrDefault("content", "").length() / 4;
+    }
+  }
+
+  private static final class WaveMutex {
+    private final ReentrantLock lock = new ReentrantLock();
+    private int refCount = 0;
+    private boolean retired = false;
+
+    synchronized boolean tryRetain() {
+      if (retired) {
+        return false;
+      }
+      refCount++;
+      return true;
+    }
+
+    void lock() {
+      lock.lock();
+    }
+
+    void unlock() {
+      lock.unlock();
+    }
+
+    synchronized boolean release() {
+      if (refCount <= 0) {
+        throw new IllegalStateException("WaveMutex released more times than acquired");
+      }
+      refCount--;
+      if (refCount == 0) {
+        retired = true;
+        return true;
+      }
+      return false;
     }
   }
 

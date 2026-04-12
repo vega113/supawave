@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-10-issue-806-reaction-add-icon",
+  "version": "PR #806",
+  "date": "2026-04-10",
+  "title": "Use a clearer add-reaction icon",
+  "summary": "Replaces the generic plus reaction affordance with a reaction-specific icon that reads more clearly in the wave UI.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The add-reaction control now uses a compact reaction icon instead of a bare plus",
+        "The reaction add button keeps the existing chip styling while reading more clearly as a reaction action"
+      ]
+    }
+  ]
+}

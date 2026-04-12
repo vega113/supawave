@@ -41,7 +41,7 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   val underJakarta = p.contains("/wave/src/jakarta-overrides/java/")
 
   // --- Exact excludes under src/main/java (Gradle mainExactExcludes, lines 283-332) ---
-  // These files have Jakarta replacements in src/jakarta-overrides/java.
+  // These files have active Jakarta replacements in src/jakarta-overrides/java.
   val mainExactExcludes: Set[String] = Set(
     "org/waveprotocol/box/server/rpc/ServerRpcProvider.java",
     "org/waveprotocol/box/server/ServerModule.java",
@@ -53,9 +53,7 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/robots/RobotRegistrationServlet.java",
     "org/waveprotocol/box/server/robots/dataapi/BaseApiServlet.java",
     "org/waveprotocol/box/server/robots/dataapi/DataApiServlet.java",
-    "org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java",
     "org/waveprotocol/box/server/robots/dataapi/DataApiOperationServiceRegistry.java",
-    "org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java",
     "org/waveprotocol/box/server/robots/active/ActiveApiServlet.java",
     "org/waveprotocol/box/server/robots/active/ActiveApiOperationServiceRegistry.java",
     "org/waveprotocol/box/server/robots/passive/RobotConnector.java",
@@ -68,7 +66,6 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/authentication/SessionManagerImpl.java",
     "org/waveprotocol/box/server/rpc/AttachmentServlet.java",
     "org/waveprotocol/box/server/rpc/SearchServlet.java",
-    "org/waveprotocol/box/server/rpc/GadgetProviderServlet.java",
     "org/waveprotocol/box/server/rpc/AttachmentInfoServlet.java",
     "org/waveprotocol/box/server/rpc/FetchServlet.java",
     "org/waveprotocol/box/server/rpc/FetchProfilesServlet.java",
@@ -82,6 +79,21 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/server/rpc/WebSocketChannelImpl.java",
     "org/waveprotocol/box/server/rpc/WebSocketClientRpcChannel.java",
     "com/google/wave/api/AbstractRobot.java",
+    "org/waveprotocol/box/server/stat/RequestScopeFilter.java",
+    "org/waveprotocol/box/server/stat/TimingFilter.java",
+    // Security filters with Jakarta overrides (resolve multiple-source match warnings)
+    "org/waveprotocol/box/server/security/SecurityHeadersFilter.java",
+    "org/waveprotocol/box/server/security/NoCacheFilter.java",
+    "org/waveprotocol/box/server/security/StaticCacheFilter.java",
+    // Versioned fetch servlet with Jakarta override
+    "org/waveprotocol/box/server/rpc/VersionedFetchServlet.java",
+    // Public wave fetch servlet with Jakarta override
+    "org/waveprotocol/box/server/rpc/PublicWaveFetchServlet.java"
+  )
+
+  // Legacy main-tree files intentionally kept out of the Jakarta/SBT compile surface.
+  // These do not currently have same-path Jakarta replacements.
+  val mainLegacyCompileExcludes: Set[String] = Set(
     "com/google/wave/api/WaveService.java",
     "org/waveprotocol/box/expimp/Console.java",
     "org/waveprotocol/box/expimp/DeltaParser.java",
@@ -90,18 +102,7 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     "org/waveprotocol/box/expimp/OAuth.java",
     "org/waveprotocol/box/expimp/WaveImport.java",
     "org/waveprotocol/box/expimp/WaveExport.java",
-    "org/waveprotocol/box/server/util/OAuthUtil.java",
-    "org/waveprotocol/box/server/util/RegistrationUtil.java",
-    "org/waveprotocol/box/server/stat/RequestScopeFilter.java",
-    "org/waveprotocol/box/server/stat/TimingFilter.java",
-    // Security filters with Jakarta overrides (resolve "Multiple sources matched" warnings)
-    "org/waveprotocol/box/server/security/SecurityHeadersFilter.java",
-    "org/waveprotocol/box/server/security/NoCacheFilter.java",
-    "org/waveprotocol/box/server/security/StaticCacheFilter.java",
-    // Versioned fetch servlet with Jakarta override
-    "org/waveprotocol/box/server/rpc/VersionedFetchServlet.java",
-    // Public wave fetch servlet with Jakarta override
-    "org/waveprotocol/box/server/rpc/PublicWaveFetchServlet.java"
+    "org/waveprotocol/box/server/util/RegistrationUtil.java"
   )
 
   // --- Directory-level excludes under src/main/java (Gradle lines 334-337) ---
@@ -112,14 +113,14 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
   )
 
   // Jakarta mode: apply full Gradle exclusion list
-  val mainFileExcluded = underMain && mainExactExcludes.exists(suffix => p.endsWith("/" + suffix))
+  val mainFileExcluded = underMain && (
+    mainExactExcludes.exists(suffix => p.endsWith("/" + suffix)) ||
+    mainLegacyCompileExcludes.exists(suffix => p.endsWith("/" + suffix))
+  )
 
   // --- Exact excludes under src/jakarta-overrides/java (Gradle lines 341-349) ---
   val jakartaExactExcludes: Set[String] = Set(
-    "org/waveprotocol/box/server/robots/RobotApiModule.java",
-    "org/waveprotocol/box/server/robots/dataapi/DataApiOAuthServlet.java",
-    "org/waveprotocol/box/server/robots/dataapi/DataApiTokenContainer.java",
-    "org/waveprotocol/box/server/robots/util/JakartaHttpRequestMessage.java"
+    "org/waveprotocol/box/server/robots/RobotApiModule.java"
   )
 
   val jakartaFileExcluded = underJakarta && jakartaExactExcludes.exists(suffix => p.endsWith("/" + suffix))
@@ -1155,7 +1156,9 @@ libraryDependencies ++= Seq(
 lazy val skipGwt = settingKey[Boolean]("Skip GWT compilation (default: false, set -DskipGwt=true to skip)")
 ThisBuild / skipGwt := sys.props.get("skipGwt").exists(_.trim.toLowerCase == "true")
 
+lazy val devCompile = taskKey[Unit]("Run the lighter dev compile path: codegen plus Compile / compile, without GWT packaging tasks")
 lazy val compileGwt = taskKey[Unit]("Compile GWT client (delegates to Gradle when available, otherwise uses native Fork.java)")
+lazy val compileGwtDev = taskKey[Unit]("Compile a single GWT permutation in draft mode into war-dev for faster compile feedback without touching production war assets")
 
 ThisBuild / compileGwt := {
   val log      = streams.value.log
@@ -1266,6 +1269,51 @@ ThisBuild / compileGwt := {
   }
 }
 
+// Keep the dev draft compile isolated from the runtime war/ tree.
+// `sbt run`, `stage`, and `packageBin` stay on the production compile path.
+ThisBuild / compileGwtDev := {
+  val log       = streams.value.log
+  val base      = baseDirectory.value
+  val resolved  = update.value
+  val compileCp = (Compile / dependencyClasspath).value.map(_.data)
+
+  val javaSrcDirs = Seq(
+    base / "wave" / "src" / "main" / "java",
+    base / "wave" / "src" / "main" / "resources",
+    base / "wave" / "generated" / "src" / "main" / "java",
+    base / "proto_src",
+    base / "gen" / "messages",
+    base / "gen" / "flags"
+  ).filter(_.exists)
+
+  val gwtJars = resolved.select(configurationFilter(Gwt.name))
+  val fullCp = javaSrcDirs ++ gwtJars ++ compileCp
+
+  val forkOpts = ForkOptions()
+    .withRunJVMOptions(Vector("-Xmx1024M"))
+
+  val devWarDir = (base / "war-dev").getAbsolutePath
+  val gwtArgs = Seq(
+    "-war", devWarDir,
+    "-draftCompile",
+    "-style", "PRETTY",
+    "-localWorkers", "2",
+    "-setProperty", "user.agent=safari",
+    "org.waveprotocol.box.webclient.WebClientProd"
+  )
+
+  log.info("[compileGwtDev] Native mode — one-permutation draft compile (compile-only)")
+  log.info("[compileGwtDev] Writing dev artifacts to " + devWarDir)
+  log.info("[compileGwtDev] Classpath has " + fullCp.size + " entries")
+  val cpStr = fullCp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
+
+  val exitCode = Fork.java(
+    forkOpts,
+    Seq("-cp", cpStr, "com.google.gwt.dev.Compiler") ++ gwtArgs
+  )
+  if (exitCode != 0) sys.error("[compileGwtDev] GWT Compiler failed (exit " + exitCode + ")")
+}
+
 // Prevent packaging distributions with missing GWT assets when -DskipGwt=true
 lazy val verifyGwtAssets = taskKey[Unit]("Fail when packaging would ship with missing GWT assets")
 
@@ -1281,6 +1329,8 @@ ThisBuild / verifyGwtAssets := {
 
 // Wire compileGwt to run after compileJava (GWT needs compiled classes)
 compileGwt := (compileGwt).dependsOn(Compile / compile).value
+devCompile := (Compile / compile).value
+compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
 // ⚠️  DO NOT REMOVE these lines. They ensure GWT compilation runs before
 //     staging or packaging. Without them, distributions ship without the
@@ -1291,3 +1341,4 @@ Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyG
 cleanFiles += baseDirectory.value / "war" / "webclient"
 cleanFiles += baseDirectory.value / "war" / "org"
 cleanFiles += baseDirectory.value / "war" / "WEB-INF"
+cleanFiles += baseDirectory.value / "war-dev"

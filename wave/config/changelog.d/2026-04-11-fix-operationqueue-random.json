@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-11-fix-operationqueue-random",
+  "version": "PR #842",
+  "date": "2026-04-11",
+  "title": "Fix insecure random number generation in OperationQueue",
+  "summary": "Replaced java.util.Random with java.security.SecureRandom for the ID_GENERATOR field in OperationQueue.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replaced java.util.Random with java.security.SecureRandom for generating temporary IDs in OperationQueue to fix a security vulnerability."
+      ]
+    }
+  ]
+}

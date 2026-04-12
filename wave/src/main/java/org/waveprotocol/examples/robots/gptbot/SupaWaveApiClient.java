@@ -91,18 +91,45 @@ public final class SupaWaveApiClient implements SupaWaveClient {
   }
 
   @Override
-  public boolean appendReply(String waveId, String waveletId, String blipId, String content) {
-    boolean appended = false;
-    if (!content.isBlank() && config.hasApiCredentials()) {
+  public boolean appendReply(String waveId, String waveletId, String blipId, String content,
+      String rpcServerUrl) {
+    return createReply(waveId, waveletId, blipId, content, rpcServerUrl).isPresent();
+  }
+
+  @Override
+  public Optional<String> createReply(String waveId, String waveletId, String parentBlipId,
+      String initialContent, String rpcServerUrl) {
+    Optional<String> replyId = Optional.empty();
+    if (config.hasApiCredentials()) {
       try {
-        JsonArray response = postRpc(createChildRequest(waveId, waveletId, blipId, content),
-            activeRpcEndpoint(), getRobotAccessToken());
-        appended = !responseContainsError(response);
+        String endpoint = resolveRpcEndpoint(rpcServerUrl);
+        JsonArray response = postRpc(createChildRequest(waveId, waveletId, parentBlipId,
+            initialContent), endpoint, accessTokenForEndpoint(endpoint));
+        if (!responseContainsError(response)) {
+          replyId = extractStringField(response, "newBlipId");
+        }
       } catch (IOException | InterruptedException | RuntimeException e) {
-        logWarningAndRestoreInterrupt("Unable to append a reply through the active API", e);
+        logWarningAndRestoreInterrupt("Unable to create a reply through SupaWave RPC", e);
       }
     }
-    return appended;
+    return replyId;
+  }
+
+  @Override
+  public boolean replaceReply(String waveId, String waveletId, String replyBlipId, String content,
+      String rpcServerUrl) {
+    boolean replaced = false;
+    if (config.hasApiCredentials()) {
+      try {
+        String endpoint = resolveRpcEndpoint(rpcServerUrl);
+        JsonArray response = postRpc(replaceReplyRequest(waveId, waveletId, replyBlipId, content),
+            endpoint, accessTokenForEndpoint(endpoint));
+        replaced = !responseContainsError(response);
+      } catch (IOException | InterruptedException | RuntimeException e) {
+        logWarningAndRestoreInterrupt("Unable to replace a streamed reply through SupaWave RPC", e);
+      }
+    }
+    return replaced;
   }
 
   private JsonArray fetchWaveRequest(String waveId, String waveletId) {
@@ -159,6 +186,34 @@ public final class SupaWaveApiClient implements SupaWaveClient {
     return body;
   }
 
+  private JsonArray replaceReplyRequest(String waveId, String waveletId, String replyBlipId,
+      String content) {
+    JsonObject modifyAction = new JsonObject();
+    modifyAction.addProperty("modifyHow", "REPLACE");
+    JsonArray values = new JsonArray();
+    values.add(content == null ? "" : content);
+    modifyAction.add("values", values);
+    modifyAction.addProperty("annotationKey", "");
+    modifyAction.add("elements", new JsonArray());
+    modifyAction.add("bundledAnnotations", new JsonArray());
+    modifyAction.addProperty("useMarkup", false);
+
+    JsonObject params = new JsonObject();
+    params.addProperty("waveId", waveId);
+    params.addProperty("waveletId", waveletId);
+    params.addProperty("blipId", replyBlipId);
+    params.add("modifyAction", modifyAction);
+
+    JsonObject request = new JsonObject();
+    request.addProperty("id", "gpt-bot-stream-1");
+    request.addProperty("method", "document.modify");
+    request.add("params", params);
+
+    JsonArray body = new JsonArray();
+    body.add(request);
+    return body;
+  }
+
   private JsonArray postRpc(JsonArray body, String endpoint, String accessToken)
       throws IOException, InterruptedException {
     HttpRequest httpRequest = HttpRequest.newBuilder()
@@ -190,6 +245,29 @@ public final class SupaWaveApiClient implements SupaWaveClient {
       token = getRobotAccessToken();
     }
     return token;
+  }
+
+  private String accessTokenForEndpoint(String endpoint) throws IOException, InterruptedException {
+    if (isRobotRpcEndpoint(endpoint)) {
+      return getRobotAccessToken();
+    }
+    return getDataApiAccessToken();
+  }
+
+  private boolean isRobotRpcEndpoint(String endpoint) {
+    try {
+      URI uri = URI.create(endpoint);
+      String path = uri.getPath();
+      if (path == null) {
+        return false;
+      }
+      while (path.endsWith("/") && path.length() > 1) {
+        path = path.substring(0, path.length() - 1);
+      }
+      return "/robot/rpc".equals(path);
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
   }
 
   private synchronized String getDataApiAccessToken() throws IOException, InterruptedException {
@@ -328,6 +406,24 @@ public final class SupaWaveApiClient implements SupaWaveClient {
     return containsError;
   }
 
+  private Optional<String> extractStringField(JsonArray response, String fieldName) {
+    for (JsonElement element : response) {
+      if (element.isJsonObject()) {
+        JsonObject object = element.getAsJsonObject();
+        if (object.has(fieldName)) {
+          return Optional.of(object.get(fieldName).getAsString());
+        }
+        if (object.has("data") && object.get("data").isJsonObject()) {
+          JsonObject data = object.getAsJsonObject("data");
+          if (data.has(fieldName)) {
+            return Optional.of(data.get(fieldName).getAsString());
+          }
+        }
+      }
+    }
+    return Optional.empty();
+  }
+
   private static void appendField(StringBuilder summary, JsonObject object, String key,
       String label) {
     if (object.has(key)) {
@@ -357,6 +453,67 @@ public final class SupaWaveApiClient implements SupaWaveClient {
 
   private String activeRpcEndpoint() {
     return config.getBaseUrl() + "/robot/rpc";
+  }
+
+  private String resolveRpcEndpoint(String rpcServerUrl) {
+    String endpoint = rpcServerUrl == null ? "" : rpcServerUrl.trim();
+    if (endpoint.isEmpty()) {
+      return activeRpcEndpoint();
+    }
+    if (isTrustedRpcEndpoint(endpoint)) {
+      return endpoint;
+    }
+    LOG.warning("Ignoring untrusted rpcServerUrl from bundle: " + clamp(endpoint));
+    return activeRpcEndpoint();
+  }
+
+  private boolean isTrustedRpcEndpoint(String endpoint) {
+    try {
+      URI configured = URI.create(config.getBaseUrl());
+      URI candidate = URI.create(endpoint);
+      if (!configured.getScheme().equalsIgnoreCase(candidate.getScheme())) {
+        return false;
+      }
+      if (!configured.getHost().equalsIgnoreCase(candidate.getHost())) {
+        return false;
+      }
+      int configuredPort = configured.getPort() == -1
+          ? ("https".equalsIgnoreCase(configured.getScheme()) ? 443 : 80)
+          : configured.getPort();
+      int candidatePort = candidate.getPort() == -1
+          ? ("https".equalsIgnoreCase(candidate.getScheme()) ? 443 : 80)
+          : candidate.getPort();
+      if (configuredPort != candidatePort) {
+        return false;
+      }
+      String candidatePath = normalizeRpcPath(candidate.getPath());
+      return candidatePath.equals(expectedRpcPath(configured.getPath(), "/robot/rpc"))
+          || candidatePath.equals(expectedRpcPath(configured.getPath(), "/robot/dataapi/rpc"));
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
+  private static String expectedRpcPath(String basePath, String rpcPath) {
+    String normalizedBasePath = normalizeRpcPath(basePath);
+    if (normalizedBasePath.isEmpty()) {
+      return rpcPath;
+    }
+    if (rpcPath.startsWith("/")) {
+      return normalizedBasePath + rpcPath;
+    }
+    return normalizedBasePath + "/" + rpcPath;
+  }
+
+  private static String normalizeRpcPath(String path) {
+    if (path == null || path.isBlank() || "/".equals(path)) {
+      return "";
+    }
+    String normalized = path.trim();
+    while (normalized.endsWith("/") && normalized.length() > 1) {
+      normalized = normalized.substring(0, normalized.length() - 1);
+    }
+    return normalized;
   }
 
   private String tokenEndpoint() {

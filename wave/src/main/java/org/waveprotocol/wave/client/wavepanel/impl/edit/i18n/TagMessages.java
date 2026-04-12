@@ -43,4 +43,7 @@ public interface TagMessages extends Messages {
 
   @DefaultMessage("Add tag")
   String addTagHint();
+
+  @DefaultMessage("Removed tag: {0}")
+  String removedTagToast(String tag);
 }

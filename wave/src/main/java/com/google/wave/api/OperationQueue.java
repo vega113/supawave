@@ -34,7 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.security.SecureRandom;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class OperationQueue implements Serializable {
 
   /** A random number generator for the temporary ids. */
-  private static final Random ID_GENERATOR = new Random();
+  private static final SecureRandom ID_GENERATOR = new SecureRandom();
 
   /** The format of temporary blip ids. */
   private static final String TEMP_BLIP_ID_FORMAT = "TBD_%s_%s";

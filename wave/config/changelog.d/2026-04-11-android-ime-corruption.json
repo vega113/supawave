@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-11-android-ime-corruption",
+  "version": "PR #831",
+  "date": "2026-04-11",
+  "title": "Fix Android IME word-boundary corruption",
+  "summary": "Android/mobile editing no longer double-applies delayed post-composition DOM mutations that dropped leading letters and spaces while finishing a blip.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Stopped delayed Android IME composition end from falling through into the legacy DOM-mutation typing fallback in the same mutation event",
+        "Preserved word-leading characters and inter-word spacing for the empty-blip editing path that could collapse `new blip` to `ewlip` on Android"
+      ]
+    }
+  ]
+}

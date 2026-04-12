@@ -80,7 +80,7 @@ Passive callback and fetch bundles use `EventMessageBundle` JSON.
 Important fields:
 
 - `robotAddress`: identifies the robot the bundle was built for
-- `rpcServerUrl`: current servers populate this with the Data API endpoint; prefer it over hardcoding `/robot/dataapi/rpc` when it is present
+- `rpcServerUrl`: current servers populate this with the preferred follow-on JSON-RPC endpoint for that robot; use it instead of hardcoding `/robot/dataapi/rpc` or `/robot/rpc` when it is present
 - `threads`: older payloads may omit this field; treat missing `threads` as `{}`
 
 ## Related Docs

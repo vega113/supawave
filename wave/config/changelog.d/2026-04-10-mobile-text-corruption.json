@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-10-mobile-text-corruption",
+  "version": "PR #813",
+  "title": "Fix Android mobile text corruption while editing",
+  "summary": "Android/mobile IME edits no longer corrupt persisted text by dropping leading characters and spaces during composition-driven editing.",
+  "date": "2026-04-10",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Android/mobile IME edits no longer corrupt persisted text by dropping leading characters and spaces during composition-driven editing."
+      ]
+    }
+  ]
+}

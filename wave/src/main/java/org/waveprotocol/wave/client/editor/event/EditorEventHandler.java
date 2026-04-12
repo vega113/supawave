@@ -135,6 +135,9 @@ public final class EditorEventHandler {
 
   private final NodeEventRouter router;
 
+  private final DelayedCompositionMutationGuard delayedCompositionMutationGuard =
+      new DelayedCompositionMutationGuard();
+
   /**
    * We keep track of whether selection affinity is up to date. When we receive
    * an event, we assume that the event will invalidate the selection affinity,
@@ -229,6 +232,8 @@ public final class EditorEventHandler {
   }
 
   private boolean handleEventInner(EditorEvent event) throws SelectionLostException {
+    delayedCompositionMutationGuard.beginEvent();
+
     // TODO(danilatos): IE IME keycode thingy!!
     invalidateSelection();
 
@@ -297,20 +302,25 @@ public final class EditorEventHandler {
         // to detect DOM mutations in text because target property
         // is inconsistent among browsers {@DOMImplWebkit#eventGetTarget}
         if (event.isDOMCharacterEvent()) {
-          
           cachedSelection = editorInteractor.getSelectionPoints();
           if (cachedSelection != null) {
             if (!cachedSelection.isCollapsed()) {
-              logger.trace().logPlainText("WARNING: Probable IME input on non-collapsed " +
-                  "range not handled!!!");
-              // TODO(dan/patcoleman): Yeargh, IME killing a range!!! Nooo!!!!
-              // Handle eeet
+              logger.trace().logPlainText("Ignoring DOM character mutation on non-collapsed "
+                  + "selection; probable IME composition owns this range");
+              return false;
             }
-            logger.trace().logPlainText("Notifying typing extractor for " +
-                "probable IME-caused mutation event");
-            // Nothing to do with the return value of this method, as mutation
-            // events are not cancellable.
-            editorInteractor.notifyTypingExtractor(cachedSelection.getFocus(), false, false);
+
+            if (cachedSelection.isCollapsed()
+                && delayedCompositionMutationGuard.shouldSkipDomCharacterMutation()) {
+              logger.trace().logPlainText(
+                  "Ignoring DOM character mutation immediately after IME composition end");
+            } else {
+              logger.trace().logPlainText("Notifying typing extractor for " +
+                  "probable IME-caused mutation event");
+              // Nothing to do with the return value of this method, as mutation
+              // events are not cancellable.
+              editorInteractor.notifyTypingExtractor(cachedSelection.getFocus(), false, false);
+            }
           }
         }
       }
@@ -442,6 +452,7 @@ public final class EditorEventHandler {
     // into compositionStart()
     cachedSelection = editorInteractor.compositionEnd();
     state = State.NORMAL;
+    delayedCompositionMutationGuard.noteCompositionEnd();
   }
 
 

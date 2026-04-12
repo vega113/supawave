@@ -38,6 +38,7 @@ import org.waveprotocol.wave.client.scheduler.Scheduler.Task;
 import org.waveprotocol.wave.client.scheduler.testing.FakeTimerService;
 import org.waveprotocol.wave.client.account.ProfileListener;
 import org.waveprotocol.wave.client.events.NetworkStatusEvent;
+import org.waveprotocol.wave.client.events.SearchQueryEventHandler;
 import org.waveprotocol.wave.model.wave.SourcesEvents;
 import org.waveprotocol.wave.client.widget.toolbar.GroupingToolbar;
 
@@ -77,6 +78,24 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals("in:inbox", SearchPresenter.normalizeSearchQuery(""));
     assertEquals("in:inbox", SearchPresenter.normalizeSearchQuery("   "));
     assertEquals("creator:bob", SearchPresenter.normalizeSearchQuery("creator:bob"));
+  }
+
+  public void testSearchQueryEventHandlerUpdatesQueryAndRefreshesSearch() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    FakeSearch search = new FakeSearch();
+    FakeSearchPanelView view = new FakeSearchPanelView();
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, view, NO_OP_ACTION_HANDLER, new FakeProfiles(), null);
+
+    SearchQueryEventHandler handler =
+        (SearchQueryEventHandler) getObjectField(presenter, "searchQueryEventHandler");
+    handler.onSearchQuery("tag:\"mobile beta\"");
+
+    assertEquals("tag:\"mobile beta\"", view.searchView.getQuery());
+    assertEquals(1, search.cancelCalls);
+    assertEquals(1, search.findCalls);
+    assertEquals("tag:\"mobile beta\"", search.lastQuery);
+    assertEquals(30, search.lastSize);
   }
 
   public void testShouldSubmitQueryRejectsRepeatedDefaultSubmission() {

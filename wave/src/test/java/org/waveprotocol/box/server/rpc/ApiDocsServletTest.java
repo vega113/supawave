@@ -64,6 +64,23 @@ public final class ApiDocsServletTest {
   }
 
   @Test
+  public void apiDocsHtmlDocumentsStreamingReplyPattern() throws Exception {
+    ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
+    StringWriter body = new StringWriter();
+    ResponseRecorder recorder = new ResponseRecorder();
+    HttpServletRequest request = request("/api-docs", "https", "docs.example.com");
+    HttpServletResponse response = response(recorder, body);
+
+    servlet.doGet(request, response);
+
+    assertTrue(recorder.status == HttpServletResponse.SC_OK);
+    assertTrue(body.toString().contains("Streaming replies"));
+    assertTrue(body.toString().contains("newBlipId"));
+    assertTrue(body.toString().contains("document.modify"));
+    assertTrue(body.toString().contains("rpcServerUrl"));
+  }
+
+  @Test
   public void apiDocsHtmlDocumentsAttachmentBackedInlineImageFlow() throws Exception {
     ApiDocsServlet servlet = new ApiDocsServlet("docs.example.com");
     StringWriter body = new StringWriter();
@@ -117,6 +134,8 @@ public final class ApiDocsServletTest {
     assertTrue(body.toString().contains("tokenVersion"));
     assertTrue(body.toString().contains("robotAddress"));
     assertTrue(body.toString().contains("Treat missing threads as {}"));
+    assertTrue(body.toString().contains("Streaming replies"));
+    assertTrue(body.toString().contains("newBlipId"));
   }
 
   @Test

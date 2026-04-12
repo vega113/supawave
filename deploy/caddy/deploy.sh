@@ -329,12 +329,8 @@ sanity_check() {
   local addr="${SANITY_ADDRESS:-}"
   local pass="${SANITY_PASSWORD:-}"
   local port="${SANITY_PORT:-9898}"
-  if [[ -z "$addr" && -z "$pass" ]]; then
-    echo "[deploy] SANITY_ADDRESS/SANITY_PASSWORD not set, skipping sanity check"
-    return 0
-  fi
   if [[ -z "$addr" || -z "$pass" ]]; then
-    echo "[deploy] SANITY_ADDRESS and SANITY_PASSWORD must both be set" >&2
+    echo "[deploy] ERROR: SANITY_ADDRESS and SANITY_PASSWORD must both be set" >&2
     return 1
   fi
 

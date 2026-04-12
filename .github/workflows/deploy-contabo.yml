@@ -66,6 +66,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate deploy sanity credentials
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
+        env:
+          SANITY_ADDRESS: ${{ secrets.SANITY_ADDRESS }}
+          SANITY_PASSWORD: ${{ secrets.SANITY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${SANITY_ADDRESS:?Set repo secret SANITY_ADDRESS to the deploy sanity user login.}"
+          : "${SANITY_PASSWORD:?Set repo secret SANITY_PASSWORD to the deploy sanity user password.}"
+
       - name: Assemble changelog from fragments
         if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
         run: python3 scripts/assemble-changelog.py

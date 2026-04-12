@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-issue-714-jakarta-shadow-removal",
+  "version": "PR #858",
+  "date": "2026-04-12",
+  "title": "Remove Jakarta/Main Shadow Source Duplicates",
+  "summary": "Removed same-path Jakarta/main shadow classes and tightened the duplicate-source regression guard so formatting changes cannot bypass it.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed remaining duplicate Java source shadows between main and jakarta-overrides for the Jakarta migration closeout",
+        "Hardened the duplicate-source regression test so exact exclude sets must still parse correctly even if build.sbt formatting changes"
+      ]
+    }
+  ]
+}

@@ -59,6 +59,25 @@ public final class ReactionPickerPopupTest extends TestCase {
     assertFalse(popup.isShowing());
   }
 
+  public void testFocusFirstEmojiIfShowingFocusesTargetWhenPopupVisible() {
+    TestPopup popup = new TestPopup();
+    TestFocusTarget target = new TestFocusTarget();
+
+    popup.show();
+    ReactionPickerPopup.focusFirstEmojiIfShowing(popup, target);
+
+    assertTrue(target.focused);
+  }
+
+  public void testFocusFirstEmojiIfShowingSkipsTargetWhenPopupHidden() {
+    TestPopup popup = new TestPopup();
+    TestFocusTarget target = new TestFocusTarget();
+
+    ReactionPickerPopup.focusFirstEmojiIfShowing(popup, target);
+
+    assertFalse(target.focused);
+  }
+
   private static final class TestPopup implements UniversalPopup {
     private final List<PopupEventListener> listeners = new ArrayList<PopupEventListener>();
     private boolean showing;
@@ -132,6 +151,15 @@ public final class ReactionPickerPopupTest extends TestCase {
     @Override
     public void setDebugClass(String dcName) {
       // No-op.
+    }
+  }
+
+  private static final class TestFocusTarget implements ReactionPickerPopup.FocusTarget {
+    private boolean focused;
+
+    @Override
+    public void focus() {
+      focused = true;
     }
   }
 }

@@ -20,12 +20,12 @@
 package org.waveprotocol.wave.client.wavepanel.impl.reactions;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.StyleInjector;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
-import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
@@ -55,6 +55,10 @@ public final class ReactionPickerPopup extends Composite {
     String title();
     String emojiGrid();
     String emojiButton();
+  }
+
+  interface FocusTarget {
+    void focus();
   }
 
   private static final Style style = GWT.<Resources>create(Resources.class).style();
@@ -109,12 +113,25 @@ public final class ReactionPickerPopup extends Composite {
     popup.add(this);
     popup.show();
     if (firstEmojiButton != null) {
-      new Timer() {
+      final Button focusButton = firstEmojiButton;
+      final UniversalPopup shownPopup = popup;
+      Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
         @Override
-        public void run() {
-          firstEmojiButton.getElement().focus();
+        public void execute() {
+          focusFirstEmojiIfShowing(shownPopup, new FocusTarget() {
+            @Override
+            public void focus() {
+              focusButton.setFocus(true);
+            }
+          });
         }
-      }.schedule(1);
+      });
+    }
+  }
+
+  static void focusFirstEmojiIfShowing(UniversalPopup popup, FocusTarget focusTarget) {
+    if (popup != null && popup.isShowing() && focusTarget != null) {
+      focusTarget.focus();
     }
   }
 }

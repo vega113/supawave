@@ -5,7 +5,7 @@
 ## Context
 
 - Issue: `#834` "Fix add-reaction popup not closing after selecting a reaction"
-- Worktree: `/Users/vega/devroot/worktrees/reaction-picker-close-20260411`
+- Worktree: `<local worktree path>`
 - Branch: `reaction-picker-close-20260411`
 - Note: this lane was created from a stale local `main`; the branch has been merged with `origin/main` so implementation targets the reactions code that is already live on current main.
 

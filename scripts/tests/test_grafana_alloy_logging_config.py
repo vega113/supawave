@@ -110,10 +110,10 @@ class GrafanaAlloyLoggingConfigTest(unittest.TestCase):
   def test_alloy_file_targets_use_internal_path_labels_and_service_name(self):
     script_text = ALLOY_CONFIG_SCRIPT.read_text(encoding="utf-8")
 
-    self.assertIn('__path__    = \\"/var/log/{syslog,messages,*.log}\\"', script_text)
-    self.assertIn('__path__     = \\"$WAVE_LOG_PATH\\"', script_text)
-    self.assertIn('service_name = \\"supawave\\"', script_text)
-    self.assertNotIn('path     = \\"$WAVE_LOG_PATH\\"', script_text)
+    self.assertRegex(script_text, r'__path__\s*=\s*\\"/var/log/\{syslog,messages,\*\.log\}\\"')
+    self.assertRegex(script_text, r'__path__\s*=\s*\\"\$WAVE_LOG_PATH\\"')
+    self.assertRegex(script_text, r'service_name\s*=\s*\\"supawave\\"')
+    self.assertNotRegex(script_text, r'(?m)^\s*path\s*=\s*\\"\$WAVE_LOG_PATH\\"')
 
 
 if __name__ == "__main__":

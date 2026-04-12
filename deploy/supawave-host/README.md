@@ -81,7 +81,7 @@ sudo env \
 - Backups: `/var/backups/wave-supawave`
 - If PAM limits appear inactive, start a new login shell (`su - $USER`) or re-SSH into the host.
 - After rollback, run `sysctl --system` if custom sysctl files remain.
-- Confirm the live Alloy tail path and parser: `sudo grep -nE 'path\\s*=|job\\s*=|format\\s*=|level\\s*=|logger\\s*=|thread\\s*=' /etc/alloy/config.alloy`
+- Confirm the live Alloy tail path and parser: `sudo grep -nE '__path__\\s*=|job\\s*=|format\\s*=|level\\s*=|logger\\s*=|thread\\s*=' /etc/alloy/config.alloy`
 - Confirm Wave is still writing structured JSON: `tail -5 /home/ubuntu/supawave/shared/logs/wave-json.log | jq -c '{timestamp,level,logger_name,thread_name,message}'`
 - Check Alloy shipping errors: `sudo journalctl -u alloy --since "15 minutes ago" --no-pager | grep -iE 'error|401|invalid token|loki|prometheus'`
 - Check Alloy write counters: `curl -fsS http://127.0.0.1:12345/metrics | grep -E 'loki_write_sent_entries_total|loki_write_dropped_entries_total|prometheus_remote_storage_samples_failed_total'`

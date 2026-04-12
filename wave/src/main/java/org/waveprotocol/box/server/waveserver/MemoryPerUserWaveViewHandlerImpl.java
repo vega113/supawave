@@ -90,9 +90,11 @@ public class MemoryPerUserWaveViewHandlerImpl
    * Monotonic epoch for the last non-search wavelet mutation observed on the wave bus.
    */
   private final AtomicLong waveMutationEpoch = new AtomicLong(0);
+  private final WaveMap waveMap;
 
   @Inject
   public MemoryPerUserWaveViewHandlerImpl(final WaveMap waveMap) {
+    this.waveMap = waveMap;
     // Let the view expire if it not accessed for some time.
     explicitPerUserWaveViews =
         CacheBuilder.newBuilder().expireAfterAccess(PER_USER_WAVES_VIEW_CACHE_MINUTES,
@@ -239,7 +241,27 @@ public class MemoryPerUserWaveViewHandlerImpl
 
   @Override
   public void waveletCommitted(WaveletName waveletName, HashedVersion version) {
+    invalidateWaveCacheIfStale(waveletName, version);
     markWaveMapDirty(waveletName);
+  }
+
+  private void invalidateWaveCacheIfStale(WaveletName waveletName, HashedVersion version) {
+    if (waveletName == null || version == null || isSearchWavelet(waveletName)) {
+      return;
+    }
+    try {
+      WaveletContainer container = waveMap.getWavelet(waveletName);
+      if (container == null) {
+        return;
+      }
+      HashedVersion cachedVersion = container.getLastCommittedVersion();
+      if (cachedVersion == null || cachedVersion.getVersion() < version.getVersion()) {
+        waveMap.invalidateWave(waveletName.waveId);
+      }
+    } catch (WaveletStateException e) {
+      LOG.warning("Failed to compare cached version for " + waveletName, e);
+      waveMap.invalidateWave(waveletName.waveId);
+    }
   }
 
   private void markWaveMapDirty(WaveletName waveletName) {

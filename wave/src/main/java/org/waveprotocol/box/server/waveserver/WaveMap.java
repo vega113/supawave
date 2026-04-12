@@ -121,6 +121,12 @@ public class WaveMap {
     waves.asMap().clear();
   }
 
+  public void invalidateWave(WaveId waveId) {
+    if (waveId != null) {
+      waves.invalidate(waveId);
+    }
+  }
+
   /**
    * Returns defensive copy of the map that holds waves.
    */

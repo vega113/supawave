@@ -46,6 +46,9 @@ import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.waveserver.SimpleSearchProviderImpl.WaveSupplementContext;
 import org.waveprotocol.wave.model.conversation.AnnotationConstants;
 import org.waveprotocol.wave.model.document.operation.Attributes;
+import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
 import org.waveprotocol.wave.model.document.operation.impl.AnnotationBoundaryMapImpl;
 import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignedDelta;
@@ -75,6 +78,7 @@ import org.waveprotocol.box.server.robots.RobotWaveletData;
 import org.waveprotocol.box.server.robots.util.RobotsUtil;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
@@ -195,6 +199,7 @@ public class SimpleSearchProviderImplTest extends TestCase {
   @Mock private RemoteWaveletContainer.Factory remoteWaveletContainerFactory;
   @Mock private PerUserWaveViewProvider waveViewProvider;
 
+  private MemoryDeltaStore deltaStore;
   private SearchProvider searchProvider;
   private MemoryPerUserWaveViewHandlerImpl runtimeWaveViewProvider;
   private SearchProvider runtimeSearchProvider;
@@ -215,7 +220,7 @@ public class SimpleSearchProviderImplTest extends TestCase {
     ConversationUtil conversationUtil = new ConversationUtil(idGenerator);
     WaveDigester digester = new WaveDigester(conversationUtil);
 
-    final MemoryDeltaStore deltaStore = new MemoryDeltaStore();
+    deltaStore = new MemoryDeltaStore();
     final DeltaAndSnapshotStore inMemoryWaveletStore =
         new DeltaStoreBasedSnapshotStore(deltaStore, null);
     final Executor persistExecutor = MoreExecutors.directExecutor();
@@ -917,6 +922,65 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(wave.waveId.serialise(), tagResults.getDigests().get(0).getWaveId());
   }
 
+  public void testRuntimeTagSearchSeesNewTagWhenTagsDocumentAlreadyExists()
+      throws Exception {
+    WaveletName wave = WaveletName.of(WaveId.of(DOMAIN, "freshness-existing-tags"), WAVELET_ID);
+
+    submitDeltaToNewWaveletWithoutView(wave, USER1, runtimeAddParticipant(USER1));
+    runtimeWaveViewProvider.onParticipantAdded(wave, USER1).get();
+    addTagToWavelet(wave, USER1, "existing-tag");
+    runtimeWaveViewProvider.waveletCommitted(wave, null);
+
+    SearchResult existingTagResults =
+        runtimeSearchProvider.search(USER1, "tag:existing-tag", 0, 20);
+    assertEquals(1, existingTagResults.getNumResults());
+    assertEquals(wave.waveId.serialise(), existingTagResults.getDigests().get(0).getWaveId());
+
+    addTagToWavelet(wave, USER1, "new-tag");
+    runtimeWaveViewProvider.waveletCommitted(wave, null);
+
+    waveMap.unloadAllWavelets();
+    runtimeWaveViewProvider.explicitPerUserWaveViews.invalidate(USER1);
+    runtimeWaveViewProvider.waveletCommitted(wave, null);
+
+    SearchResult newTagResults = runtimeSearchProvider.search(USER1, "tag:new-tag", 0, 20);
+    assertEquals(1, newTagResults.getNumResults());
+    assertEquals(wave.waveId.serialise(), newTagResults.getDigests().get(0).getWaveId());
+  }
+
+  public void testRuntimeTagSearchRefreshesCachedWaveAfterExternalTagMutation()
+      throws Exception {
+    WaveletName wave = WaveletName.of(WaveId.of(DOMAIN, "freshness-external-tag"), WAVELET_ID);
+
+    submitDeltaToNewWaveletWithoutView(wave, USER1, runtimeAddParticipant(USER1));
+    runtimeWaveViewProvider.onParticipantAdded(wave, USER1).get();
+    addTagToWavelet(wave, USER1, "existing-tag");
+    runtimeWaveViewProvider.waveletCommitted(wave, null);
+
+    WaveMap staleWaveMap = createWaveMap(deltaStore);
+    MemoryPerUserWaveViewHandlerImpl staleWaveViewProvider =
+        new MemoryPerUserWaveViewHandlerImpl(staleWaveMap);
+    SearchProvider staleSearchProvider =
+        new SimpleSearchProviderImpl(
+            DOMAIN,
+            new WaveDigester(new ConversationUtil(idGenerator)),
+            staleWaveMap,
+            staleWaveViewProvider);
+
+    SearchResult warmResults = staleSearchProvider.search(USER1, "tag:existing-tag", 0, 20);
+    assertEquals(1, warmResults.getNumResults());
+
+    addTagToWavelet(wave, USER1, "new-tag");
+    staleWaveViewProvider.explicitPerUserWaveViews.invalidate(USER1);
+    staleWaveViewProvider.waveletCommitted(
+        wave,
+        waveMap.getWavelet(wave).getLastCommittedVersion());
+
+    SearchResult newTagResults = staleSearchProvider.search(USER1, "tag:new-tag", 0, 20);
+    assertEquals(1, newTagResults.getNumResults());
+    assertEquals(wave.waveId.serialise(), newTagResults.getDigests().get(0).getWaveId());
+  }
+
   public void testSearchFilterByMentionsReturnsOnlyMentionedWaves() throws Exception {
     WaveletName mentionedWave = WaveletName.of(WaveId.of(DOMAIN, "mentioned"), WAVELET_ID);
     WaveletName unmentionedWave = WaveletName.of(WaveId.of(DOMAIN, "unmentioned"), WAVELET_ID);
@@ -1083,6 +1147,49 @@ public class SimpleSearchProviderImplTest extends TestCase {
     return new AddParticipant(CONTEXT, user);
   }
 
+  private WaveMap createWaveMap(MemoryDeltaStore store) {
+    final DeltaAndSnapshotStore snapshotStore =
+        new DeltaStoreBasedSnapshotStore(store, null);
+    final Executor persistExecutor = MoreExecutors.directExecutor();
+    final Executor storageContinuationExecutor = MoreExecutors.directExecutor();
+    final Executor lookupExecutor = MoreExecutors.directExecutor();
+
+    LocalWaveletContainer.Factory localWaveletContainerFactory =
+        new LocalWaveletContainer.Factory() {
+          @Override
+          public LocalWaveletContainer create(WaveletNotificationSubscriber notifiee,
+              WaveletName waveletName, String domain) {
+            WaveletState waveletState;
+            try {
+              waveletState =
+                  DeltaStoreBasedWaveletState.create(store.open(waveletName), persistExecutor);
+            } catch (PersistenceException e) {
+              throw new RuntimeException(e);
+            }
+            return new LocalWaveletContainerImpl(
+                waveletName,
+                notifiee,
+                Futures.immediateFuture(waveletState),
+                DOMAIN,
+                storageContinuationExecutor);
+          }
+        };
+
+    Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
+        "core.wave_cache_size", 1000,
+        "core.wave_cache_expire", "60m")
+    );
+
+    return new WaveMap(
+        snapshotStore,
+        notifiee,
+        localWaveletContainerFactory,
+        remoteWaveletContainerFactory,
+        DOMAIN,
+        config,
+        lookupExecutor);
+  }
+
   private ParticipantId digestAuthor(SearchResult.Digest digest) {
     return ParticipantId.ofUnsafe(digest.getParticipants().get(0));
   }
@@ -1113,14 +1220,56 @@ public class SimpleSearchProviderImplTest extends TestCase {
 
   private void addTagToWavelet(WaveletName name, ParticipantId user, String tag) throws Exception {
     WaveletOperationContext context = new WaveletOperationContext(user, 0, 1);
+    final int[] existingDocSize = {0};
+    waveMap.getWavelet(name).applyFunction(new Function<ReadableWaveletData, Void>() {
+      @Override
+      public Void apply(ReadableWaveletData waveletData) {
+        ReadableBlipData tagsBlip = waveletData.getDocument(IdConstants.TAGS_DOC_ID);
+        if (tagsBlip != null) {
+          existingDocSize[0] = documentLength(tagsBlip.getContent().asOperation());
+        }
+        return null;
+      }
+    });
+    DocOpBuilder builder = new DocOpBuilder();
+    if (existingDocSize[0] > 0) {
+      builder.retain(existingDocSize[0]);
+    }
     WaveletOperation addTagOp =
         new WaveletBlipOperation(IdConstants.TAGS_DOC_ID, new BlipContentOperation(context,
-            new DocOpBuilder()
+            builder
                 .elementStart("tag", Attributes.EMPTY_MAP)
                 .characters(tag)
                 .elementEnd()
                 .build()));
     submitDeltaToExistingWavelet(name, user, addTagOp);
+  }
+
+  private int documentLength(DocInitialization docOp) {
+    final int[] length = {0};
+    docOp.apply(new DocInitializationCursor() {
+      @Override
+      public void annotationBoundary(AnnotationBoundaryMap map) {
+      }
+
+      @Override
+      public void characters(String chars) {
+        if (chars != null) {
+          length[0] += chars.length();
+        }
+      }
+
+      @Override
+      public void elementStart(String type, Attributes attrs) {
+        length[0] += 1;
+      }
+
+      @Override
+      public void elementEnd() {
+        length[0] += 1;
+      }
+    });
+    return length[0];
   }
 
   private void waitForDistinctTimestamp() throws InterruptedException {

@@ -14,7 +14,7 @@ BUILD_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "build.yml"
 
 class DeployOverlapSafetyTest(unittest.TestCase):
   def test_deploy_stops_old_slot_immediately_after_swap(self):
-    result, ops_log = self._run_script(
+    result, temp_dir = self._run_script(
         command="deploy",
         active_slot="blue",
         previous_slot=None,
@@ -26,12 +26,12 @@ class DeployOverlapSafetyTest(unittest.TestCase):
         result.returncode,
         msg=f"deploy failed unexpectedly:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
     )
-    ops = ops_log.read_text(encoding="utf-8")
+    ops = (temp_dir / "ops.log").read_text(encoding="utf-8")
     self.assertIn("stop wave-blue", ops)
     self.assertNotIn("systemd-run", ops)
 
   def test_rollback_stops_replaced_slot_immediately_after_swap(self):
-    result, ops_log = self._run_script(
+    result, temp_dir = self._run_script(
         command="rollback",
         active_slot="green",
         previous_slot="blue",
@@ -43,7 +43,7 @@ class DeployOverlapSafetyTest(unittest.TestCase):
         result.returncode,
         msg=f"rollback failed unexpectedly:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
     )
-    ops = ops_log.read_text(encoding="utf-8")
+    ops = (temp_dir / "ops.log").read_text(encoding="utf-8")
     self.assertIn("stop wave-green", ops)
     self.assertNotIn("systemd-run", ops)
 

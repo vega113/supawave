@@ -382,6 +382,17 @@ class WaveE2eTest {
 
     @Test @Order(21)
     void test21_aliceMentionsBob() throws Exception {
+        boolean foundBeforeMention = pollSearchQueryForWave(
+                E2eTestContext.bobJsessionid,
+                "mentions:me",
+                E2eTestContext.modernWaveId,
+                5_000,
+                500,
+                0);
+        assertFalse(foundBeforeMention,
+                "Wave " + E2eTestContext.modernWaveId
+                + " should not appear in Bob's mentions:me search before mention is added");
+
         JsonObject lv = E2eTestContext.lastVersion;
         int version = lv.get("1").getAsInt();
         String historyHash = lv.get("2").getAsString();
@@ -421,6 +432,17 @@ class WaveE2eTest {
 
     @Test @Order(23)
     void test23_aliceAddsTaskForBob() throws Exception {
+        boolean foundBeforeTask = pollSearchQueryForWave(
+                E2eTestContext.bobJsessionid,
+                "tasks:me",
+                E2eTestContext.modernWaveId,
+                5_000,
+                500,
+                0);
+        assertFalse(foundBeforeTask,
+                "Wave " + E2eTestContext.modernWaveId
+                + " should not appear in Bob's tasks:me search before task assignment is added");
+
         JsonObject lv = E2eTestContext.lastVersion;
         int version = lv.get("1").getAsInt();
         String historyHash = lv.get("2").getAsString();

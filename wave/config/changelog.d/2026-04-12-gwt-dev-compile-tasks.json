@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-gwt-dev-compile-tasks",
+  "version": "PR #844",
+  "date": "2026-04-12",
+  "title": "Keep draft GWT dev output out of the production war tree",
+  "summary": "Updated the new dev GWT compile task to emit draft artifacts into a separate directory so production packaging continues to rely on full compileGwt output.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "compileGwtDev now writes draft Safari-only GWT output into war-dev instead of war.",
+        "Added a changelog fragment for the new dev-only GWT compile task behavior."
+      ]
+    }
+  ]
+}

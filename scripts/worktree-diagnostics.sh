@@ -26,6 +26,13 @@ fail() {
   exit 1
 }
 
+require_option_value() {
+  local option="$1"
+  if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+    fail "$option requires a value"
+  fi
+}
+
 sanitize_slug() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-'
 }
@@ -40,14 +47,17 @@ trim_edge_dashes() {
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --port)
+      require_option_value "$1" "${2-}"
       PORT="${2:-}"
       shift 2
       ;;
     --lines)
+      require_option_value "$1" "${2-}"
       LINES="${2:-}"
       shift 2
       ;;
     --output)
+      require_option_value "$1" "${2-}"
       OUTPUT_PATH="${2:-}"
       shift 2
       ;;
@@ -91,10 +101,39 @@ fi
 
 EVIDENCE_SLUG=$(trim_edge_dashes "$(sanitize_slug "$SLUG_PART")")
 DATE_STAMP=$(date +%F)
+
+resolve_evidence_file() {
+  local fallback="$1"
+  local candidate newest
+  local -a matches=()
+
+  shopt -s nullglob
+  if [[ -n "$ISSUE_NUMBER" ]]; then
+    matches=("$ROOT"/journal/local-verification/*-issue-"$ISSUE_NUMBER"-"$EVIDENCE_SLUG".md)
+  else
+    matches=("$ROOT"/journal/local-verification/*-branch-"$EVIDENCE_SLUG".md)
+  fi
+  shopt -u nullglob
+
+  if (( ${#matches[@]} == 0 )); then
+    printf '%s' "$fallback"
+    return
+  fi
+
+  newest="${matches[0]}"
+  for candidate in "${matches[@]:1}"; do
+    if [[ "$candidate" -nt "$newest" ]]; then
+      newest="$candidate"
+    fi
+  done
+
+  printf '%s' "$newest"
+}
+
 if [[ -n "$ISSUE_NUMBER" ]]; then
-  EVIDENCE_FILE="$ROOT/journal/local-verification/$DATE_STAMP-issue-$ISSUE_NUMBER-$EVIDENCE_SLUG.md"
+  EVIDENCE_FILE="$(resolve_evidence_file "$ROOT/journal/local-verification/$DATE_STAMP-issue-$ISSUE_NUMBER-$EVIDENCE_SLUG.md")"
 else
-  EVIDENCE_FILE="$ROOT/journal/local-verification/$DATE_STAMP-branch-$EVIDENCE_SLUG.md"
+  EVIDENCE_FILE="$(resolve_evidence_file "$ROOT/journal/local-verification/$DATE_STAMP-branch-$EVIDENCE_SLUG.md")"
 fi
 
 STARTUP_LOG="$INSTALL_DIR/wave_server.out"
@@ -119,7 +158,12 @@ SERVER_LOG="$(resolve_server_log)"
 
 probe_status() {
   local path="$1"
-  curl -sS --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:$PORT$path" 2>/dev/null || true
+  local status
+  status="$(curl -sS --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:$PORT$path" 2>/dev/null || true)"
+  if [[ -z "$status" ]]; then
+    status="000"
+  fi
+  printf '%s' "$status"
 }
 
 tail_section() {
@@ -138,6 +182,15 @@ smoke_output="$(
   PORT="$PORT" bash "$ROOT/scripts/wave-smoke.sh" check 2>&1
 )" && smoke_status=0 || smoke_status=$?
 
+format_path_status() {
+  local path="$1"
+  if [[ -f "$path" ]]; then
+    printf '%s' "$path"
+  else
+    printf '(missing: %s)' "$path"
+  fi
+}
+
 render_bundle() {
   cat <<EOF
 # Worktree Diagnostics Bundle
@@ -146,8 +199,8 @@ render_bundle() {
 - Worktree: $ROOT
 - Port: $PORT
 - Install dir: $INSTALL_DIR
-- Runtime config: $(if [[ -f "$RUNTIME_CONFIG" ]]; then printf '%s' "$RUNTIME_CONFIG"; else printf 'missing'; fi)
-- Evidence file: $(if [[ -f "$EVIDENCE_FILE" ]]; then printf '%s' "$EVIDENCE_FILE"; else printf 'missing'; fi)
+- Runtime config: $(format_path_status "$RUNTIME_CONFIG")
+- Evidence file: $(format_path_status "$EVIDENCE_FILE")
 - Generated at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 ## Endpoint Probes

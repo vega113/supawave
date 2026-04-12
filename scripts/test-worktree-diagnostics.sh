@@ -56,7 +56,10 @@ make_curl_stub() {
 #!/usr/bin/env bash
 set -euo pipefail
 
-url="${*: -1}"
+url=""
+for arg in "$@"; do
+  url="${arg}"
+done
 status="000"
 case "${url}" in
   */healthz) status="${TEST_HEALTH_STATUS-200}" ;;
@@ -91,6 +94,7 @@ EOF
 
 seed_runtime_artifacts() {
   local repo_root="$1"
+  local evidence_date="$2"
   mkdir -p \
     "${repo_root}/target/universal/stage" \
     "${repo_root}/journal/runtime-config" \
@@ -108,25 +112,26 @@ EOF
   cat > "${repo_root}/journal/runtime-config/issue-587-worktree-diagnostics-20260412-port-9904.application.conf" <<'EOF'
 http_frontend_addresses = ["127.0.0.1:9904"]
 EOF
-  cat > "${repo_root}/journal/local-verification/2026-04-12-issue-587-worktree-diagnostics.md" <<'EOF'
+  cat > "${repo_root}/journal/local-verification/${evidence_date}-issue-587-worktree-diagnostics-20260412.md" <<'EOF'
 # Local Verification
 - pending
 EOF
 }
 
 run_bundle_shape_case() {
-  local temp_dir repo_root bin_dir output_path output
+  local temp_dir repo_root bin_dir output_path output prior_date
 
   temp_dir="$(mktemp -d)"
   repo_root="${temp_dir}/repo"
   bin_dir="${temp_dir}/bin"
   output_path="${temp_dir}/bundle.md"
+  prior_date="2026-04-11"
   mkdir -p "${repo_root}" "${bin_dir}"
 
   make_git_stub "${bin_dir}"
   make_curl_stub "${bin_dir}"
   make_fake_smoke_script "${repo_root}"
-  seed_runtime_artifacts "${repo_root}"
+  seed_runtime_artifacts "${repo_root}" "${prior_date}"
 
   output="$(
     PATH="${bin_dir}:${PATH}" \
@@ -145,20 +150,24 @@ run_bundle_shape_case() {
   assert_contains "${output}" "Port: 9904"
   assert_contains "${output}" '`GET /healthz` -> `200`'
   assert_contains "${output}" 'Smoke exit: `0`'
+  assert_contains "${output}" "Runtime config: ${repo_root}/journal/runtime-config/issue-587-worktree-diagnostics-20260412-port-9904.application.conf"
+  assert_contains "${output}" "Evidence file: ${repo_root}/journal/local-verification/${prior_date}-issue-587-worktree-diagnostics-20260412.md"
   assert_contains "${output}" "startup line 2"
   assert_contains "${output}" "server log final"
-  assert_file_contains "${output_path}" "Runtime config:"
-  assert_file_contains "${output_path}" "Evidence file:"
+  assert_file_contains "${output_path}" "Evidence file: ${repo_root}/journal/local-verification/${prior_date}-issue-587-worktree-diagnostics-20260412.md"
 
   rm -rf "${temp_dir}"
 }
 
 run_missing_artifacts_case() {
-  local temp_dir repo_root bin_dir output
+  local temp_dir repo_root bin_dir output today missing_runtime missing_evidence
 
   temp_dir="$(mktemp -d)"
   repo_root="${temp_dir}/repo"
   bin_dir="${temp_dir}/bin"
+  today="$(date +%F)"
+  missing_runtime="${repo_root}/journal/runtime-config/issue-587-worktree-diagnostics-20260412-port-9904.application.conf"
+  missing_evidence="${repo_root}/journal/local-verification/${today}-issue-587-worktree-diagnostics-20260412.md"
   mkdir -p "${repo_root}" "${bin_dir}" "${repo_root}/scripts"
 
   make_git_stub "${bin_dir}"
@@ -178,17 +187,59 @@ run_missing_artifacts_case() {
     "${SCRIPT_PATH}" --port 9904 --lines 5
   )" || fail "expected diagnostics bundle to stay usable when artifacts are missing"
 
-  assert_contains "${output}" "Runtime config: missing"
-  assert_contains "${output}" "Evidence file: missing"
+  assert_contains "${output}" "Runtime config: (missing: ${missing_runtime})"
+  assert_contains "${output}" "Evidence file: (missing: ${missing_evidence})"
   assert_contains "${output}" 'Smoke exit: `1`'
   assert_contains "${output}" "(missing:"
 
   rm -rf "${temp_dir}"
 }
 
+run_empty_probe_status_case() {
+  local temp_dir repo_root bin_dir output
+
+  temp_dir="$(mktemp -d)"
+  repo_root="${temp_dir}/repo"
+  bin_dir="${temp_dir}/bin"
+  mkdir -p "${repo_root}" "${bin_dir}"
+
+  make_git_stub "${bin_dir}"
+  make_curl_stub "${bin_dir}"
+  make_fake_smoke_script "${repo_root}"
+  seed_runtime_artifacts "${repo_root}" "2026-04-12"
+
+  output="$(
+    PATH="${bin_dir}:${PATH}" \
+    TEST_REPO_ROOT="${repo_root}" \
+    TEST_BRANCH="issue-587-worktree-diagnostics-20260412" \
+    TEST_ROOT_STATUS=302 \
+    TEST_HEALTH_STATUS="" \
+    TEST_READY_STATUS=200 \
+    TEST_WEBCLIENT_STATUS=200 \
+    TEST_SMOKE_EXIT=0 \
+    "${SCRIPT_PATH}" --port 9904 --lines 2
+  )" || fail "expected diagnostics bundle to tolerate empty curl status output"
+
+  assert_contains "${output}" '`GET /healthz` -> `000`'
+
+  rm -rf "${temp_dir}"
+}
+
+run_missing_option_value_case() {
+  local output
+
+  if output="$("${SCRIPT_PATH}" --port 2>&1)"; then
+    fail "expected --port without a value to fail"
+  fi
+
+  assert_contains "${output}" "--port requires a value"
+}
+
 main() {
   run_bundle_shape_case
   run_missing_artifacts_case
+  run_empty_probe_status_case
+  run_missing_option_value_case
   printf 'PASS: scripts/worktree-diagnostics.sh bundle contract\n'
 }
 

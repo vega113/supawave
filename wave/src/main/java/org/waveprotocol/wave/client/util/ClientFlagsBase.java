@@ -768,8 +768,10 @@ public class ClientFlagsBase {
    * Constructor which populates fields using ClientFlagsBaseHelper.
    */
   public ClientFlagsBase(ClientFlagsBaseHelper helper) {
-    addContactHelpUrl = helper.getString(FlagConstants.ADD_CONTACT_HELP_URL, "http://www.google.com/support/wave/bin/topic.py?topic=24977");
-    addNotificationEmailsHelpUrl = helper.getString(FlagConstants.ADD_NOTIFICATION_EMAILS_HELP_URL, "http://www.google.com/support/wave/bin/answer.py?hl=en&answer=175738");
+    // Leave help links blank by default so deployments can point at a current
+    // project FAQ or support page instead of stale Wave-era URLs.
+    addContactHelpUrl = helper.getString(FlagConstants.ADD_CONTACT_HELP_URL, "");
+    addNotificationEmailsHelpUrl = helper.getString(FlagConstants.ADD_NOTIFICATION_EMAILS_HELP_URL, "");
     allTemplateLocales = helper.getString(FlagConstants.ALL_TEMPLATE_LOCALES, "");
     allTutorialLocales = helper.getString(FlagConstants.ALL_TUTORIAL_LOCALES, "");
     allWelcomeWaveLocales = helper.getString(FlagConstants.ALL_WELCOME_WAVE_LOCALES, "");
@@ -901,11 +903,11 @@ public class ClientFlagsBase {
     ignoreUdwErrors = helper.getBoolean(FlagConstants.IGNORE_UDW_ERRORS, true);
     inheritAccessRoles = helper.getBoolean(FlagConstants.INHERIT_ACCESS_ROLES, true);
     initialRpcBackoffMs = helper.getInteger(FlagConstants.INITIAL_RPC_BACKOFF_MS, 1000);
-    inviteByMailHelpUrl = helper.getString(FlagConstants.INVITE_BY_MAIL_HELP_URL, "http://www.google.com/support/wave/bin/answer.py?answer=182709");
+    inviteByMailHelpUrl = helper.getString(FlagConstants.INVITE_BY_MAIL_HELP_URL, "");
     isInternalDogfoodInstance = helper.getBoolean(FlagConstants.IS_INTERNAL_DOGFOOD_INSTANCE, false);
     knownIssuesNumber = helper.getInteger(FlagConstants.KNOWN_ISSUES_NUMBER, -1);
     layoutAnimationMs = helper.getInteger(FlagConstants.LAYOUT_ANIMATION_MS, 300);
-    learnMoreAboutNotificationsHelpUrl = helper.getString(FlagConstants.LEARN_MORE_ABOUT_NOTIFICATIONS_HELP_URL, "http://www.google.com/support/wave/bin/answer.py?hl=en&answer=175737");
+    learnMoreAboutNotificationsHelpUrl = helper.getString(FlagConstants.LEARN_MORE_ABOUT_NOTIFICATIONS_HELP_URL, "");
     listEmailContacts = helper.getBoolean(FlagConstants.LIST_EMAIL_CONTACTS, true);
     loadOrCreateSettingsWaves = helper.getBoolean(FlagConstants.LOAD_OR_CREATE_SETTINGS_WAVES, false);
     logoHeight = helper.getInteger(FlagConstants.LOGO_HEIGHT, 39);
@@ -956,7 +958,7 @@ public class ClientFlagsBase {
     spellMenuDelayMs = helper.getInteger(FlagConstants.SPELL_MENU_DELAY_MS, 100);
     suggestionPollInterval = helper.getInteger(FlagConstants.SUGGESTION_POLL_INTERVAL, 10000);
     templateLoadTimeoutMs = helper.getInteger(FlagConstants.TEMPLATE_LOAD_TIMEOUT_MS, 10000);
-    uixImageProxyUrl = helper.getString(FlagConstants.UIX_IMAGE_PROXY_URL, "http://opensocial-prod.corp.googleusercontent.com/gadgets/proxy");
+    uixImageProxyUrl = helper.getString(FlagConstants.UIX_IMAGE_PROXY_URL, "");
     useAttachmentDataDocuments = helper.getBoolean(FlagConstants.USE_ATTACHMENT_DATA_DOCUMENTS, true);
     useBackendContacts = helper.getBoolean(FlagConstants.USE_BACKEND_CONTACTS, false);
     useBackgroundWavePaging = helper.getBoolean(FlagConstants.USE_BACKGROUND_WAVE_PAGING, false);

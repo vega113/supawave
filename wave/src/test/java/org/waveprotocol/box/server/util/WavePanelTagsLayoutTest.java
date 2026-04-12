@@ -119,6 +119,23 @@ public final class WavePanelTagsLayoutTest extends TestCase {
     assertTrue(presenter.contains("onQueryEntered();"));
   }
 
+  public void testTagRemovalUsesUndoRestoreWindowInsteadOfPassiveToast() throws Exception {
+    String controller =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/edit/TagController.java");
+    String manager =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/edit/UndoableTagRemovalManager.java");
+    String messages =
+        read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/edit/i18n/TagMessages.java");
+
+    assertTrue(controller.contains("undoableTagRemovalManager.tagRemoved("));
+    assertFalse(controller.contains("ToastNotification.showInfo(messages.removedTagToast("));
+    assertTrue(manager.contains("DEFAULT_RESTORE_WINDOW_MS = 20_000"));
+    assertTrue(manager.contains("conversation.addTag(tagName);"));
+    assertTrue(manager.contains("presenter.show(tagName, new Runnable()"));
+    assertTrue(messages.contains("String removedTagUndoToast(String tag)"));
+    assertTrue(messages.contains("String restoreTagAction()"));
+  }
+
   private String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
   }

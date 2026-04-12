@@ -22,6 +22,7 @@ package org.waveprotocol.wave.client.widget.toast;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Style;
+import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Timer;
 
 import java.util.HashMap;
@@ -103,6 +104,25 @@ public final class ToastNotification {
    * @param level severity / color theme
    */
   public static void showPersistent(String id, String message, Level level) {
+    showPersistentInternal(id, message, level, null, null);
+  }
+
+  /**
+   * Shows a persistent toast with an inline action button.
+   *
+   * @param id a caller-chosen identifier so the correct toast can be dismissed
+   * @param message text to display
+   * @param level severity / color theme
+   * @param actionLabel button text shown to the user
+   * @param action callback run when the action is clicked
+   */
+  public static void showPersistentAction(
+      String id, String message, Level level, String actionLabel, Runnable action) {
+    showPersistentInternal(id, message, level, actionLabel, action);
+  }
+
+  private static void showPersistentInternal(
+      final String id, String message, Level level, String actionLabel, final Runnable action) {
     if (id == null) {
       return;
     }
@@ -151,12 +171,48 @@ public final class ToastNotification {
     ts.setProperty("fontWeight", "500");
     ts.setProperty("borderRadius", "8px");
     ts.setProperty("boxShadow", "0 4px 12px rgba(0,0,0,0.25)");
+    ts.setProperty("display", "inline-flex");
+    ts.setProperty("alignItems", "center");
+    ts.setProperty("justifyContent", "center");
+    ts.setProperty("gap", "12px");
 
     // Fade-in animation
     ts.setProperty("opacity", "0");
     ts.setProperty("transition", "opacity 300ms ease");
 
-    toast.setInnerText(message);
+    Element messageEl = Document.get().createSpanElement();
+    messageEl.setInnerText(message);
+    toast.appendChild(messageEl);
+
+    if (actionLabel != null && !actionLabel.isEmpty() && action != null) {
+      Element actionBtn = Document.get().createButtonElement();
+      actionBtn.setInnerText(actionLabel);
+      Style actionStyle = actionBtn.getStyle();
+      actionStyle.setProperty("background", "rgba(255,255,255,0.16)");
+      actionStyle.setProperty("border", "1px solid rgba(255,255,255,0.28)");
+      actionStyle.setProperty("borderRadius", "999px");
+      actionStyle.setProperty("color", "#fff");
+      actionStyle.setProperty("cursor", "pointer");
+      actionStyle.setProperty("fontSize", "12px");
+      actionStyle.setProperty("fontWeight", "600");
+      actionStyle.setProperty("padding", "4px 10px");
+      actionStyle.setProperty("whiteSpace", "nowrap");
+
+      Event.sinkEvents(actionBtn, Event.ONCLICK);
+      Event.setEventListener(actionBtn, new com.google.gwt.user.client.EventListener() {
+        @Override
+        public void onBrowserEvent(Event event) {
+          if (Event.ONCLICK == event.getTypeInt()) {
+            event.preventDefault();
+            event.stopPropagation();
+            dismissPersistent(id);
+            action.run();
+          }
+        }
+      });
+      toast.appendChild(actionBtn);
+    }
+
     Document.get().getBody().appendChild(toast);
     persistentToasts.put(id, toast);
     updatePersistentToastPositions();

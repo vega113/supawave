@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-12-tag-undo-toast",
+  "version": "Unreleased",
+  "date": "2026-04-12",
+  "title": "Add a restore window for tag removal",
+  "summary": "Removing a wave tag now shows a 20-second restore toast so accidental tag deletes can be undone without reopening the tag editor.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Tag removal now shows a compact restore toast instead of a passive confirmation-only message",
+        "Restoring a just-removed tag re-adds it from the toast action without leaving the current wave"
+      ]
+    }
+  ]
+}

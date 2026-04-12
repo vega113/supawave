@@ -22,7 +22,7 @@ package org.waveprotocol.wave.client.wavepanel.impl.edit.i18n;
 import com.google.gwt.i18n.client.Messages;
 
 /**
- * i18n messages for the tag controller (add/remove dialogs).
+ * i18n messages for the tag controller.
  *
  * Ported from Wiab.pro.
  *
@@ -45,5 +45,8 @@ public interface TagMessages extends Messages {
   String addTagHint();
 
   @DefaultMessage("Removed tag: {0}")
-  String removedTagToast(String tag);
+  String removedTagUndoToast(String tag);
+
+  @DefaultMessage("Restore")
+  String restoreTagAction();
 }

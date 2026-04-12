@@ -64,6 +64,7 @@ import java.util.Map;
 public final class TagController {
 
   private static final TagMessages messages = GWT.create(TagMessages.class);
+  private static final String TAG_REMOVAL_TOAST_ID = "tag-removal-undo";
 
   /**
    * Builds and installs the tag control feature.
@@ -78,6 +79,26 @@ public final class TagController {
   private final TagsViewBuilder.Css tagsCss = WavePanelResourceLoader.getTags().css();
   private final Map<String, InlineTagEditor> inlineEditors =
       new HashMap<String, InlineTagEditor>();
+  private final UndoableTagRemovalManager undoableTagRemovalManager =
+      new UndoableTagRemovalManager(
+          new UndoableTagRemovalManager.GwtScheduler(),
+          new UndoableTagRemovalManager.Presenter() {
+            @Override
+            public void show(String tagName, Runnable onUndo) {
+              ToastNotification.showPersistentAction(
+                  TAG_REMOVAL_TOAST_ID,
+                  messages.removedTagUndoToast(tagName),
+                  ToastNotification.Level.INFO,
+                  messages.restoreTagAction(),
+                  onUndo);
+            }
+
+            @Override
+            public void dismiss() {
+              ToastNotification.dismissPersistent(TAG_REMOVAL_TOAST_ID);
+            }
+          },
+          UndoableTagRemovalManager.DEFAULT_RESTORE_WINDOW_MS);
 
   private TagController(DomAsViewProvider views, ModelAsViewProvider models) {
     this.views = views;
@@ -150,7 +171,7 @@ public final class TagController {
       final Pair<Conversation, String> tag = models.getTag(tagView);
       if (tag != null) {
         tag.first.removeTag(tag.second);
-        ToastNotification.showInfo(messages.removedTagToast(tag.second));
+        undoableTagRemovalManager.tagRemoved(tag.first, tag.second);
       }
     }
   }

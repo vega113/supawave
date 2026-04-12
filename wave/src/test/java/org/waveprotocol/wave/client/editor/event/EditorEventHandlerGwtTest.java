@@ -674,6 +674,46 @@ public class EditorEventHandlerGwtTest
   }
 
   /**
+   * If delayed composition end produces no selection, the trailing DOM
+   * mutation still has to reach the typing extractor or the browser-only text
+   * never becomes a document operation.
+   */
+  public void testDomMutationAfterNullCompositionEndStillNotifiesTypingExtractor() {
+    assertTrue(QuirksConstants.MODIFIES_DOM_AND_FIRES_TEXTINPUT_AFTER_COMPOSITION);
+
+    FakeEditorEvent[] composition = FakeEditorEvent.compositionSequence(0);
+    FakeEditorEvent mutation = FakeEditorEvent.create(BrowserEvents.DOMCharacterDataModified);
+
+    final Point<ContentNode> caret = Point.inText(
+        new ContentTextNode(Document.get().createTextNode("tail"), null), 4);
+    FocusedContentRange collapsedSelection = new FocusedContentRange(caret);
+
+    FakeEditorEventsSubHandler subHandler = new FakeEditorEventsSubHandler();
+    subHandler.call(FakeEditorEventsSubHandler.HANDLE_DOM_MUTATION).anyOf();
+
+    FakeEditorInteractor interactor = setupFakeEditorInteractor(collapsedSelection);
+    interactor.call(FakeEditorInteractor.COMPOSITION_START).nOf(1).withArgs(caret);
+    interactor.call(FakeEditorInteractor.COMPOSITION_END).nOf(1).returns(null);
+    interactor.call(FakeEditorInteractor.NOTIFYING_TYPING_EXTRACTOR)
+        .nOf(1)
+        .withArgs(caret, false);
+
+    EditorEventHandler handler = createEditorEventHandler(interactor, subHandler);
+
+    assertFalse(handler.handleEvent(composition[0]));
+    assertEquals(EditorEventHandler.State.COMPOSITION, handler.getState());
+
+    assertFalse(handler.handleEvent(composition[1]));
+    assertEquals(EditorEventHandler.State.COMPOSITION, handler.getState());
+
+    assertFalse(handler.handleEvent(mutation));
+    assertEquals(EditorEventHandler.State.NORMAL, handler.getState());
+
+    interactor.checkExpectations();
+    subHandler.checkExpectations();
+  }
+
+  /**
    * Android/WebKit IME mutations can temporarily report the current composing
    * word as a range. That state belongs to the composition flow and must not be
    * passed to the typing extractor, which only understands stable collapsed

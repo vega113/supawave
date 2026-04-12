@@ -452,7 +452,13 @@ public final class EditorEventHandler {
     // into compositionStart()
     cachedSelection = editorInteractor.compositionEnd();
     state = State.NORMAL;
-    delayedCompositionMutationGuard.noteCompositionEnd();
+    // Only suppress the trailing DOM mutation when compositionEnd() produced a
+    // real editor selection. If compositionEnd() returns null, that same
+    // mutation is the fallback path that can still materialize browser-only
+    // text into a document operation.
+    if (cachedSelection != null) {
+      delayedCompositionMutationGuard.noteCompositionEnd();
+    }
   }
 
 

@@ -20,6 +20,9 @@
 package org.waveprotocol.box.server.waveserver;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -30,6 +33,7 @@ import com.google.protobuf.ByteString;
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
+import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.wave.federation.Proto.ProtocolHashedVersion;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignature;
@@ -267,6 +271,24 @@ public class WaveletContainerTest extends TestCase {
     }
   }
 
+  public void testFailedPersistDoesNotFlushOrNotifyCommit() throws Exception {
+    WaveletNotificationSubscriber notifiee = mock(WaveletNotificationSubscriber.class);
+    WaveletState failingState = mock(WaveletState.class);
+    when(failingState.getWaveletName()).thenReturn(localWaveletName);
+    when(failingState.persist(localVersion0)).thenReturn(
+        Futures.<Void>immediateFailedFuture(new PersistenceException("boom")));
+
+    TestWaveletContainer container =
+        new TestWaveletContainer(localWaveletName, notifiee, failingState);
+    container.awaitLoad();
+
+    container.triggerPersist(localVersion0, ImmutableSet.of(localDomain));
+
+    verify(failingState, never()).flush(localVersion0);
+    verify(notifiee, never()).waveletCommitted(
+        localWaveletName, localVersion0, ImmutableSet.of(localDomain));
+  }
+
   // Utilities
 
   /**
@@ -353,5 +375,22 @@ public class WaveletContainerTest extends TestCase {
 
   private static ProtocolWaveletDelta serialize(WaveletDelta d) {
     return CoreWaveletOperationSerializer.serialize(d);
+  }
+
+  private static final class TestWaveletContainer extends WaveletContainerImpl {
+    TestWaveletContainer(WaveletName waveletName, WaveletNotificationSubscriber notifiee,
+        WaveletState waveletState) {
+      super(waveletName, notifiee, Futures.immediateFuture(waveletState), localDomain,
+          STORAGE_CONTINUATION_EXECUTOR);
+    }
+
+    void triggerPersist(HashedVersion version, ImmutableSet<String> domainsToNotify) {
+      acquireWriteLock();
+      try {
+        persist(version, domainsToNotify);
+      } finally {
+        releaseWriteLock();
+      }
+    }
   }
 }

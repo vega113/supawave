@@ -245,12 +245,17 @@ abstract class WaveletContainerImpl implements WaveletContainer {
         new Runnable() {
           @Override
           public void run() {
+            boolean persisted = false;
             try {
               result.get();
+              persisted = true;
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
             } catch (ExecutionException e) {
               LOG.severe("Version " + version, e);
+            }
+            if (!persisted) {
+              return;
             }
             acquireWriteLock();
             try {

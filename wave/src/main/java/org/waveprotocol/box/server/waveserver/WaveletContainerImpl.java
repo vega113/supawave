@@ -245,17 +245,21 @@ abstract class WaveletContainerImpl implements WaveletContainer {
         new Runnable() {
           @Override
           public void run() {
-            boolean persisted = false;
-            try {
-              result.get();
-              persisted = true;
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            } catch (ExecutionException e) {
-              LOG.severe("Version " + version, e);
-            }
-            if (!persisted) {
-              return;
+            // This listener only runs once the persist future is complete. Clear any stale worker
+            // interrupt before reading the result so successful commits still flush/notify and the
+            // executor thread does not stay poisoned for later callbacks.
+            Thread.interrupted();
+            while (true) {
+              try {
+                result.get();
+                break;
+              } catch (InterruptedException e) {
+                // The future is already complete when this listener runs; retry after clearing a
+                // stale worker interrupt so we do not drop a successful commit notification.
+              } catch (ExecutionException e) {
+                LOG.severe("Version " + version, e);
+                return;
+              }
             }
             acquireWriteLock();
             try {

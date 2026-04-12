@@ -289,6 +289,31 @@ public class WaveletContainerTest extends TestCase {
         localWaveletName, localVersion0, ImmutableSet.of(localDomain));
   }
 
+  public void testInterruptedPersistListenerStillFlushesAndNotifiesCommit() throws Exception {
+    WaveletNotificationSubscriber notifiee = mock(WaveletNotificationSubscriber.class);
+    WaveletState successfulState = mock(WaveletState.class);
+    when(successfulState.getWaveletName()).thenReturn(localWaveletName);
+    when(successfulState.persist(localVersion0)).thenReturn(Futures.<Void>immediateFuture(null));
+
+    TestWaveletContainer container =
+        new TestWaveletContainer(localWaveletName, notifiee, successfulState);
+    container.awaitLoad();
+
+    boolean interruptedAfterListener = false;
+    try {
+      Thread.currentThread().interrupt();
+      container.triggerPersist(localVersion0, ImmutableSet.of(localDomain));
+      interruptedAfterListener = Thread.interrupted();
+    } finally {
+      Thread.interrupted();
+    }
+
+    verify(successfulState).flush(localVersion0);
+    verify(notifiee).waveletCommitted(
+        localWaveletName, localVersion0, ImmutableSet.of(localDomain));
+    assertFalse(interruptedAfterListener);
+  }
+
   // Utilities
 
   /**

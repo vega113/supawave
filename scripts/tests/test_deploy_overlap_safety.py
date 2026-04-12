@@ -107,6 +107,24 @@ class DeployOverlapSafetyTest(unittest.TestCase):
     ops = (temp_dir / "ops.log").read_text(encoding="utf-8")
     self.assertIn("stop wave-blue", ops)
 
+  def test_revert_swap_keeps_new_slot_running_when_routing_restore_fails(self):
+    result, temp_dir = self._run_script(
+        command="deploy",
+        active_slot="blue",
+        previous_slot=None,
+        running_services=["caddy", "wave-blue"],
+        stop_fail_services=["wave-blue"],
+        reload_fail_on_calls=[2],
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    self.assertIn(
+        "failed to reload Caddy while reverting swap to blue",
+        result.stderr,
+    )
+    ops = (temp_dir / "ops.log").read_text(encoding="utf-8")
+    self.assertNotIn("stop wave-green", ops)
+
   def _run_script(
       self,
       command: str,
@@ -115,6 +133,7 @@ class DeployOverlapSafetyTest(unittest.TestCase):
       running_services: list[str],
       stop_fail_services: list[str] | None = None,
       ps_error_services: list[str] | None = None,
+      reload_fail_on_calls: list[int] | None = None,
   ):
     bash_path = self._bash_path()
     if bash_path is None:
@@ -122,6 +141,7 @@ class DeployOverlapSafetyTest(unittest.TestCase):
 
     stop_fail_services = stop_fail_services or []
     ps_error_services = ps_error_services or []
+    reload_fail_on_calls = reload_fail_on_calls or []
     temp_dir = Path(tempfile.mkdtemp(prefix="deploy-overlap-safety-"))
     fake_bin = temp_dir / "bin"
     fake_bin.mkdir(parents=True)
@@ -131,6 +151,7 @@ class DeployOverlapSafetyTest(unittest.TestCase):
     if previous_slot is not None:
       (deploy_root / "shared" / "previous-slot").write_text(f"{previous_slot}\n", encoding="utf-8")
     ops_log = temp_dir / "ops.log"
+    reload_count = temp_dir / "reload-count"
     stop_fail_checks = "\n".join(
         f'if [[ "$cmd" == *" stop {service}"* ]]; then exit 1; fi'
         for service in stop_fail_services
@@ -172,6 +193,15 @@ set -euo pipefail
     exit 0
     ;;
   *" exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile"*)
+    count=0
+    if [[ -f "{reload_count}" ]]; then
+      count=$(<"{reload_count}")
+    fi
+    count=$((count + 1))
+    printf '%s\n' "$count" > "{reload_count}"
+    case "$count" in
+{textwrap.indent("".join(f"      {call}) exit 1 ;;\n" for call in reload_fail_on_calls), "    ")}
+    esac
     exit 0
     ;;
   *" stop wave-blue"*)

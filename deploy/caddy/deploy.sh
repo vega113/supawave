@@ -483,6 +483,7 @@ revert_swap() {
   local restored_slot=$1
   local reverted_slot=$2
   local reason=$3
+  local routing_restored=0
 
   echo "[deploy] ERROR: ${reason}" >&2
   if ! generate_upstream "$restored_slot"; then
@@ -490,9 +491,15 @@ revert_swap() {
   else
     if ! reload_caddy; then
       echo "[deploy] ERROR: failed to reload Caddy while reverting swap to ${restored_slot}" >&2
+    else
+      routing_restored=1
     fi
   fi
-  best_effort_stop_slot "$reverted_slot"
+  if [ "$routing_restored" -eq 1 ]; then
+    best_effort_stop_slot "$reverted_slot"
+  else
+    echo "[deploy] WARNING: leaving wave-${reverted_slot} running because rollback routing was not restored" >&2
+  fi
   exit 1
 }
 

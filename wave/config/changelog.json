@@ -1,5 +1,20 @@
 [
   {
+    "releaseId": "2026-04-13-same-name-index-upgrade-conflicts",
+    "version": "PR #871",
+    "date": "2026-04-13",
+    "title": "Same-name index upgrade conflicts",
+    "summary": "Mongo delta-store startup now treats same-name index key-spec conflicts as upgradeable so legacy applied-version indexes can be repaired without forcing append-guard mode.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Mongo delta-store startup now upgrades legacy applied-version indexes when Mongo reports same-name key-spec conflicts, instead of refusing new delta writes until restart"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-12-worktree-diagnostics-runbook",
     "version": "PR #587",
     "date": "2026-04-12",

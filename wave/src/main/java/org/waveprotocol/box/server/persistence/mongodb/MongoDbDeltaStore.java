@@ -190,7 +190,7 @@ public class MongoDbDeltaStore implements DeltaStore {
     try {
       coll.createIndex(keys, uniqueOptions);
     } catch (MongoException initialFailure) {
-      if (isIndexOptionsConflict(initialFailure)) {
+      if (isIndexUpgradeConflict(initialFailure)) {
         LOG.info("MongoDbDeltaStore: upgrading applied-version index to unique");
         try {
           coll.dropIndex(APPLIED_AT_VERSION_INDEX_NAME);
@@ -236,7 +236,7 @@ public class MongoDbDeltaStore implements DeltaStore {
         .append("name", APPLIED_AT_VERSION_INDEX_NAME));
   }
 
-  private boolean isIndexOptionsConflict(MongoException error) {
+  private boolean isIndexUpgradeConflict(MongoException error) {
     return error.getCode() == INDEX_OPTIONS_CONFLICT
         || error.getCode() == INDEX_KEY_SPECS_CONFLICT
         || error.getMessage().contains("already exists with different options");

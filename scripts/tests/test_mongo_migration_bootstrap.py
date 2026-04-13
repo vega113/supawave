@@ -93,6 +93,17 @@ core.delta_store_type = file
     self.assertIn("did not report Mongo migration completion", combined)
     self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
 
+  def test_deploy_checks_compact_hocon_object_mongo_values(self):
+    result = self._run_deploy(
+        log_output="wave started without migration marker\n",
+        application_conf='core {mongodb_driver="v4",account_store_type="mongodb",delta_store_type=file}\n',
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    combined = f"{result.stdout}\n{result.stderr}"
+    self.assertIn("did not report Mongo migration completion", combined)
+    self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+
   def test_deploy_ignores_commented_mongo_config_lines(self):
     """Commented-out config examples must not trigger the migration gate."""
     result = self._run_deploy(

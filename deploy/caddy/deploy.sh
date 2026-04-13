@@ -354,10 +354,10 @@ slot_requires_mongo_migration_verification() {
     | sed 's|\([^:]\) *//.*|\1|')"
 
   printf '%s\n' "$effective_config" \
-    | grep -Eqi '(^|[[:space:]])(core\.)?mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]]|,|$)' || return 1
+    | grep -Eqi '(^|[[:space:],{])(core\.)?mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]}]|,|$)' || return 1
   printf '%s\n' "$effective_config" \
     | grep -Eqi \
-      '(^|[[:space:]])(core\.)?(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?([[:space:]]|,|$)' \
+      '(^|[[:space:],{])(core\.)?(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?([[:space:]}]|,|$)' \
     || return 1
 }
 

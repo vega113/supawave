@@ -319,10 +319,7 @@ wait_for_slot_health() {
     echo "[deploy] ERROR: WAVE_SLOT_HEALTH_TIMEOUT_SECONDS must be a non-negative integer without leading zeros (got: '${timeout_seconds}')" >&2
     return 1
   fi
-  local retries=1
-  if [ "$timeout_seconds" -gt 0 ]; then
-    retries=$(( (timeout_seconds + interval_seconds - 1) / interval_seconds + 1 ))
-  fi
+  local retries=$(( timeout_seconds / interval_seconds + 1 ))
   local i=0
   # Lucene-backed production startups can legitimately take several minutes
   # before /healthz answers while indexes are rebuilt from MongoDB.

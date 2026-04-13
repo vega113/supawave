@@ -32,6 +32,26 @@ class DeployOverlapSafetyTest(unittest.TestCase):
         200,
     )
 
+  def test_deploy_accepts_health_on_timeout_boundary_probe(self):
+    result, temp_dir = self._run_script(
+        command="deploy",
+        active_slot="blue",
+        previous_slot=None,
+        running_services=["caddy", "wave-blue"],
+        extra_env={"WAVE_SLOT_HEALTH_TIMEOUT_SECONDS": "420"},
+        health_success_after=211,
+    )
+
+    self.assertEqual(
+        0,
+        result.returncode,
+        msg=f"deploy should accept health on the timeout-boundary probe:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
+    )
+    self.assertEqual(
+        211,
+        int((temp_dir / "health-count").read_text(encoding="utf-8").strip()),
+    )
+
   def test_deploy_rejects_zero_health_interval_with_cleanup(self):
     result, temp_dir = self._run_script(
         command="deploy",

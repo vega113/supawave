@@ -331,11 +331,14 @@ slot_requires_mongo_migration_verification() {
   # Strip comment lines before matching so that commented-out examples
   # (e.g. "# mongodb_driver = v4") do not trigger the gate.
   local effective_config
-  effective_config=$(grep -v '^\s*#' "$config_file")
+  effective_config="$(grep -Ev '^[[:space:]]*#' "$config_file")"
 
-  echo "$effective_config" | grep -Eqi 'mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?' || return 1
-  echo "$effective_config" | grep -Eqi \
-    '(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type|snapshot_store_type|contact_message_store_type|feature_flag_store_type|analytics_counter_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?'
+  printf '%s\n' "$effective_config" \
+    | grep -Eqi 'mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?' || return 1
+  printf '%s\n' "$effective_config" \
+    | grep -Eqi \
+      '(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type|snapshot_store_type|contact_message_store_type|feature_flag_store_type|analytics_counter_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?' \
+    || return 1
 }
 
 slot_supports_mongo_migration_marker() {

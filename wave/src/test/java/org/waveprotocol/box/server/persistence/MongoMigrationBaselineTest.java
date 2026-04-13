@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.utility.DockerImageName;
+import org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStoreUtil;
 
 public class MongoMigrationBaselineTest {
   private static final Logger LOG = LoggerFactory.getLogger(MongoMigrationBaselineTest.class);
@@ -32,7 +33,8 @@ public class MongoMigrationBaselineTest {
   private static final String CHANGELOG_COLLECTION = "mongockChangeLog";
   private static final String LOCK_COLLECTION = "mongockLock";
   private static final String APPLIED_VERSION_INDEX_NAME =
-      "waveId_1_waveletId_1_transformed.appliedAtVersion_1";
+      Mongo4DeltaStoreUtil.FIELD_WAVE_ID + "_1_" + Mongo4DeltaStoreUtil.FIELD_WAVELET_ID
+          + "_1_" + Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION + "_1";
 
   @Test
   public void emptyDatabaseReachesCanonicalMongoBaseline() {
@@ -48,15 +50,16 @@ public class MongoMigrationBaselineTest {
 
       MongoDatabase database = module.getMongo4Provider().provideMongoDatabase();
       assertNotNull(findIndex(database.getCollection(DELTAS_COLLECTION),
-          new Document("waveId", 1).append("waveletId", 1)));
+          new Document(Mongo4DeltaStoreUtil.FIELD_WAVE_ID, 1)
+              .append(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID, 1)));
       assertUniqueIndex(database.getCollection(DELTAS_COLLECTION),
-          new Document("waveId", 1)
-              .append("waveletId", 1)
-              .append("transformed.appliedAtVersion", 1));
+          new Document(Mongo4DeltaStoreUtil.FIELD_WAVE_ID, 1)
+              .append(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID, 1)
+              .append(Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION, 1));
       assertNotNull(findIndex(database.getCollection(DELTAS_COLLECTION),
-          new Document("waveId", 1)
-              .append("waveletId", 1)
-              .append("transformed.resultingVersion.version", 1)));
+          new Document(Mongo4DeltaStoreUtil.FIELD_WAVE_ID, 1)
+              .append(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID, 1)
+              .append(Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_RESULTINGVERSION_VERSION, 1)));
       assertNotNull(findIndex(database.getCollection(SNAPSHOTS_COLLECTION),
           new Document("waveId", 1).append("waveletId", 1).append("version", -1)));
       assertNotNull(findIndex(database.getCollection(CONTACT_MESSAGES_COLLECTION),
@@ -89,15 +92,18 @@ public class MongoMigrationBaselineTest {
       MongoCollection<Document> deltas = database.getCollection(DELTAS_COLLECTION);
 
       deltas.createIndex(
-          Indexes.ascending("waveId", "waveletId", "transformed.appliedAtVersion"),
+          Indexes.ascending(
+              Mongo4DeltaStoreUtil.FIELD_WAVE_ID,
+              Mongo4DeltaStoreUtil.FIELD_WAVELET_ID,
+              Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION),
           new IndexOptions().name(APPLIED_VERSION_INDEX_NAME).background(true));
 
       module.runMongoMigrationsIfNeeded();
 
       assertUniqueIndex(deltas,
-          new Document("waveId", 1)
-              .append("waveletId", 1)
-              .append("transformed.appliedAtVersion", 1));
+          new Document(Mongo4DeltaStoreUtil.FIELD_WAVE_ID, 1)
+              .append(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID, 1)
+              .append(Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION, 1));
     } finally {
       closeQuietly(module);
       stopQuietly(mongo);

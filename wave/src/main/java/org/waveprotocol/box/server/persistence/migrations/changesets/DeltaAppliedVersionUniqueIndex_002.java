@@ -44,6 +44,10 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
   private static final String APPLIED_AT_VERSION_INDEX_NAME =
       Mongo4DeltaStoreUtil.FIELD_WAVE_ID + "_1_" + Mongo4DeltaStoreUtil.FIELD_WAVELET_ID
           + "_1_" + Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION + "_1";
+  private static final Document APPLIED_AT_VERSION_INDEX_KEY = new Document(
+      Mongo4DeltaStoreUtil.FIELD_WAVE_ID, 1)
+      .append(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID, 1)
+      .append(Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION, 1);
 
   private final MongoDatabase database;
   private final MongoMigrationConfig config;
@@ -77,8 +81,12 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
       if (!isIndexUpgradeConflict(initialFailure)) {
         throw initialFailure;
       }
-      deltas.dropIndex(APPLIED_AT_VERSION_INDEX_NAME);
-      deltas.createIndex(keys, options);
+      deltas.dropIndex(findConflictingIndexName(deltas));
+      try {
+        deltas.createIndex(keys, options);
+      } catch (MongoException retryFailure) {
+        restoreNonUniqueIndex(deltas, keys);
+      }
     }
   }
 
@@ -87,9 +95,27 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
     // The old non-unique index shape is not restored automatically.
   }
 
+  private static String findConflictingIndexName(MongoCollection<Document> deltas) {
+    for (Document index : deltas.listIndexes()) {
+      Document key = index.get("key", Document.class);
+      if (APPLIED_AT_VERSION_INDEX_KEY.equals(key)) {
+        String name = index.getString("name");
+        if (name != null && !name.isEmpty()) {
+          return name;
+        }
+      }
+    }
+    return APPLIED_AT_VERSION_INDEX_NAME;
+  }
+
+  private static void restoreNonUniqueIndex(MongoCollection<Document> deltas, Bson keys) {
+    deltas.createIndex(keys, new IndexOptions().background(true).name(APPLIED_AT_VERSION_INDEX_NAME));
+  }
+
   private static boolean isIndexUpgradeConflict(MongoException error) {
+    String message = error.getMessage();
     return error.getCode() == INDEX_OPTIONS_CONFLICT
         || error.getCode() == INDEX_KEY_SPECS_CONFLICT
-        || error.getMessage().contains("already exists with different options");
+        || (message != null && message.contains("already exists with different options"));
   }
 }

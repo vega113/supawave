@@ -479,6 +479,36 @@ public final class SearchPresenterTest extends TestCase {
     assertEquals(0, search.findCalls);
   }
 
+  public void testOtFailureClearsStaleResultsFromPreviousQuery() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    SimpleSearch search = new SimpleSearch(new FakeSearchService(), null);
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        null);
+
+    search.replaceResults("in:inbox", 1, createDigestSnapshots(1));
+    setField(presenter, "queryText", "tag:work");
+
+    invokeFailOtSearchWithoutFallback(presenter);
+
+    assertEquals(0, search.getTotal());
+  }
+
+  public void testOtFailureKeepsResultsForCurrentQuery() throws Exception {
+    FakeTimerService scheduler = new FakeTimerService();
+    SimpleSearch search = new SimpleSearch(new FakeSearchService(), null);
+    SearchPresenter presenter = new SearchPresenter(
+        scheduler, search, new FakeSearchPanelView(), NO_OP_ACTION_HANDLER, new FakeProfiles(),
+        null);
+
+    search.replaceResults("tag:work", 1, createDigestSnapshots(1));
+    setField(presenter, "queryText", "tag:work");
+
+    invokeFailOtSearchWithoutFallback(presenter);
+
+    assertEquals(1, search.getTotal());
+  }
+
   private static void setBooleanField(SearchPresenter presenter, String fieldName, boolean value)
       throws Exception {
     Field field = SearchPresenter.class.getDeclaredField(fieldName);
@@ -520,6 +550,14 @@ public final class SearchPresenterTest extends TestCase {
         "handleOtSearchNetworkStatus", NetworkStatusEvent.class);
     method.setAccessible(true);
     method.invoke(presenter, new NetworkStatusEvent(status));
+  }
+
+  private static void invokeFailOtSearchWithoutFallback(SearchPresenter presenter)
+      throws Exception {
+    Method method = SearchPresenter.class.getDeclaredMethod(
+        "failOtSearchWithoutFallback", String.class, Throwable.class);
+    method.setAccessible(true);
+    method.invoke(presenter, "test", null);
   }
 
   private static List<SearchService.DigestSnapshot> createDigestSnapshots(int count) {

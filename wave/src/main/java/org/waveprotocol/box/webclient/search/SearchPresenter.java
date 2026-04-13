@@ -1486,7 +1486,7 @@ public final class SearchPresenter
     for (int i = 0; i < visible; i++) {
       digests.add(otSearchSnapshot.getDigests().get(i));
     }
-    ((SimpleSearch) search).replaceResults(otSearchSnapshot.getTotal(), digests);
+    ((SimpleSearch) search).replaceResults(queryText, otSearchSnapshot.getTotal(), digests);
   }
 
   private static boolean canProjectOtSearchWindow(int requestedSize, OtSearchSnapshot snapshot) {
@@ -1561,7 +1561,7 @@ public final class SearchPresenter
     otSearchReceivedData = false;
     scheduler.cancel(otSearchTimeoutTask);
     scheduler.cancel(searchUpdater);
-    if (!hasReadySearchResults()) {
+    if (!hasResultsForCurrentQuery()) {
       clearSearchResultsAfterOtFailure();
     }
     render();
@@ -1571,14 +1571,16 @@ public final class SearchPresenter
     return !useOtSearch && otSearchWaveletName == null && scheduler.isScheduled(searchUpdater);
   }
 
-  private boolean hasReadySearchResults() {
-    return search.getState() == State.READY;
+  private boolean hasResultsForCurrentQuery() {
+    return search instanceof SimpleSearch
+        && ((SimpleSearch) search).hasResultsForQuery(queryText);
   }
 
   private void clearSearchResultsAfterOtFailure() {
     querySize = getPageSize();
     if (search instanceof SimpleSearch) {
-      ((SimpleSearch) search).replaceResults(0, Collections.<SearchService.DigestSnapshot>emptyList());
+      ((SimpleSearch) search).replaceResults(
+          queryText, 0, Collections.<SearchService.DigestSnapshot>emptyList());
     } else {
       search.cancel();
     }

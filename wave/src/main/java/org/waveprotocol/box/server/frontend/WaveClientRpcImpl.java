@@ -33,6 +33,7 @@ import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveletUpdate;
 import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.rpc.ServerRpcController;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
 import org.waveprotocol.wave.model.id.SegmentId;
@@ -52,7 +53,6 @@ import org.slf4j.MDC;
 
 import java.util.Collections;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -87,6 +87,7 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
 
   private final ClientFrontend frontend;
   private final boolean handleAuthentication;
+  @Nullable private final SearchWaveletManager searchWaveletManager;
 
   // Optional: fragments handler to emit ProtocolFragments in updates
   private static volatile FragmentsViewChannelHandler fragmentsHandler;
@@ -110,12 +111,23 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
    */
   public static WaveClientRpcImpl create(ClientFrontend frontend,
       boolean handleAuthentication) {
-    return new WaveClientRpcImpl(frontend, handleAuthentication);
+    return create(frontend, handleAuthentication, null);
   }
 
-  private WaveClientRpcImpl(ClientFrontend frontend, boolean handleAuthentication) {
+  public static WaveClientRpcImpl create(
+      ClientFrontend frontend,
+      boolean handleAuthentication,
+      @Nullable SearchWaveletManager searchWaveletManager) {
+    return new WaveClientRpcImpl(frontend, handleAuthentication, searchWaveletManager);
+  }
+
+  private WaveClientRpcImpl(
+      ClientFrontend frontend,
+      boolean handleAuthentication,
+      @Nullable SearchWaveletManager searchWaveletManager) {
     this.frontend = frontend;
     this.handleAuthentication = handleAuthentication;
+    this.searchWaveletManager = searchWaveletManager;
   }
 
   @Override
@@ -138,12 +150,16 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       MDC.put("participantId", loggedInUser.getAddress());
     }
     try {
+      String searchQuery = request.hasSearchQuery() ? request.getSearchQuery() : null;
+      if (!validateSearchOpenRequest(controller, loggedInUser, waveId, searchQuery)) {
+        return;
+      }
       frontend.openRequest(
           loggedInUser,
           waveId,
           waveletIdFilter,
           request.getKnownWaveletList(),
-          request.hasSearchQuery() ? request.getSearchQuery() : null,
+          searchQuery,
           new ClientFrontend.OpenListener() {
           @Override
           public void onFailure(String errorMessage) {
@@ -279,6 +295,26 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       MDC.remove("waveId");
       MDC.remove("participantId");
     }
+  }
+
+  private boolean validateSearchOpenRequest(
+      RpcController controller,
+      @Nullable ParticipantId loggedInUser,
+      WaveId waveId,
+      @Nullable String searchQuery) {
+    if (searchQuery == null || searchQuery.isEmpty() || searchWaveletManager == null
+        || loggedInUser == null) {
+      return true;
+    }
+    WaveletName expectedSearchWaveletName =
+        searchWaveletManager.computeWaveletName(loggedInUser, searchQuery);
+    if (expectedSearchWaveletName.waveId.equals(waveId)) {
+      return true;
+    }
+    LOG.warning("Rejecting search open for " + waveId + " query '" + searchQuery
+        + "' expected " + expectedSearchWaveletName.waveId);
+    controller.setFailed("Invalid search query for target wave");
+    return false;
   }
 
   /** Returns true if the wavelet id represents a synthetic open/marker wavelet. */

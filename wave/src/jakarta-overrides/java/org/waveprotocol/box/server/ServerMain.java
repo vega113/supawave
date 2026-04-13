@@ -51,6 +51,7 @@ import org.waveprotocol.box.server.waveserver.*;
 import org.waveprotocol.box.server.waveserver.ReindexService;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletSnapshotPublisher;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
 import org.waveprotocol.wave.crypto.CertPathStore;
 import org.waveprotocol.wave.federation.FederationTransport;
 import org.waveprotocol.wave.federation.noop.NoOpFederationModule;
@@ -466,7 +467,7 @@ public class ServerMain {
             injector.getInstance(SearchProvider.class),
             injector.getInstance(SearchWaveletSnapshotPublisher.class));
     org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.Interface rpcImpl =
-        WaveClientRpcImpl.create(frontend, false);
+        WaveClientRpcImpl.create(frontend, false, injector.getInstance(SearchWaveletManager.class));
     server.registerService(org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
     new StaleAnnotationSweeper(provider).start();
   }

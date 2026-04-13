@@ -282,6 +282,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
     digests.clear();
     results.clear();
     total = 0;
+    resultQuery = null;
   }
 
   @Override
@@ -309,7 +310,7 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
         if (outstanding == this) {
           outstanding = null;
           previousRequest = null;
-          handleSuccess(total, 0, snapshots);
+          handleSuccess(query, total, 0, snapshots);
         }
       }
     };
@@ -330,9 +331,17 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
   }
 
   void replaceResults(int total, List<DigestSnapshot> snapshots) {
+    replaceResults(previousQuery, total, snapshots);
+  }
+
+  void replaceResults(String query, int total, List<DigestSnapshot> snapshots) {
     outstanding = null;
     previousRequest = null;
-    handleSuccess(total, 0, snapshots);
+    handleSuccess(query, total, 0, snapshots);
+  }
+
+  boolean hasResultsForQuery(String query) {
+    return query != null && query.equals(resultQuery);
   }
 
   /**
@@ -347,7 +356,8 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
   /**
    * Copies the digest snapshots into this search result's state.
    */
-  private void handleSuccess(int total, int from, List<DigestSnapshot> newDigests) {
+  private void handleSuccess(String query, int total, int from, List<DigestSnapshot> newDigests) {
+    resultQuery = query;
     if (SearchResultUpdate.isVacuousRefresh(
         this.total,
         results,
@@ -433,6 +443,8 @@ public final class SimpleSearch implements Search, WaveStore.Listener {
   private static String digestId(WaveId waveId) {
     return ModernIdSerialiser.INSTANCE.serialiseWaveId(waveId);
   }
+
+  private String resultQuery;
 
   /**
    * Ensures that the result list is at least a certain size.

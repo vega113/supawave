@@ -393,7 +393,7 @@ slot_supports_mongo_migration_marker() {
 
 verify_mongo_migration_completion() {
   local slot=$1
-  local container_id started_at
+  local container_id started_at migration_logs
   if ! slot_requires_mongo_migration_verification "$slot"; then
     return 0
   fi
@@ -414,8 +414,8 @@ verify_mongo_migration_completion() {
     return 1
   fi
 
-  if dc logs --no-color --since "$started_at" "wave-${slot}" 2>&1 \
-      | grep -Fq "Completed Mongock Mongo schema migrations"; then
+  migration_logs="$(dc logs --no-color --since "$started_at" "wave-${slot}" 2>&1 || true)"
+  if printf '%s' "$migration_logs" | grep -Fq "Completed Mongock Mongo schema migrations"; then
     return 0
   fi
 

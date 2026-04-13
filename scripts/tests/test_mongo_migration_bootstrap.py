@@ -27,6 +27,17 @@ class MongoMigrationBootstrapTest(unittest.TestCase):
     self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
     self.assertNotIn("did not report Mongo migration completion", combined)
 
+  def test_deploy_accepts_marker_when_logs_command_returns_sigpipe_after_match(self):
+    result = self._run_deploy(
+        log_output="Completed Mongock Mongo schema migrations\n",
+        since_log_exit_code=141,
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    combined = f"{result.stdout}\n{result.stderr}"
+    self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+    self.assertNotIn("did not report Mongo migration completion", combined)
+
   def test_deploy_checks_unquoted_hocon_mongo_values(self):
     result = self._run_deploy(
         log_output="wave started without migration marker\n",
@@ -258,6 +269,7 @@ core {
       full_log_output: str | None = None,
       wave_image: str = "ghcr.io/example/wave:test",
       marker_supported: bool = True,
+      since_log_exit_code: int = 0,
       application_conf: str = """\
 core {
   mongodb_driver = "v4"
@@ -307,6 +319,7 @@ case "$cmd" in
     ;;
   *" logs --no-color --since 2026-04-13T11:00:00Z wave-green"*)
     printf '%s' {log_output!r}
+    exit {since_log_exit_code}
     ;;
   *" logs --no-color wave-green"*)
     printf '%s' {full_log_output!r}

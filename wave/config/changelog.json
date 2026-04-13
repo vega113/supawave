@@ -31,21 +31,6 @@
     ]
   },
   {
-    "releaseId": "2026-04-13-next-unread-icon",
-    "version": "Unreleased",
-    "date": "2026-04-13",
-    "title": "Clarify the Next Unread toolbar icon",
-    "summary": "The wave toolbar now uses a directional chevron plus unread-accent dot for Next Unread instead of a bell, making the action easier to recognize at a glance.",
-    "sections": [
-      {
-        "type": "fix",
-        "items": [
-          "Replaced the Next Unread bell glyph with a clearer directional chevron and unread-colored dot in the wave toolbar"
-        ]
-      }
-    ]
-  },
-  {
     "releaseId": "2026-04-12-worktree-diagnostics-runbook",
     "version": "PR #587",
     "date": "2026-04-12",

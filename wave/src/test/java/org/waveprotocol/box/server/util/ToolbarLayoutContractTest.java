@@ -190,14 +190,21 @@ public final class ToolbarLayoutContractTest extends TestCase {
   public void testViewToolbarNextUnreadIconUsesChevronAndUnreadAccentDot() throws Exception {
     String javaSource = read(
         "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/ViewToolbar.java");
+    String webClient = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/client/WebClient.java");
 
     assertTrue(javaSource.contains("private static final String ICON_NEXT_UNREAD = SVG_OPEN"));
     assertTrue(javaSource.contains("<path d=\\\"M9 7l6 5-6 5\\\"></path>"));
     assertTrue(javaSource.contains(
-        "<circle cx=\\\"18\\\" cy=\\\"12\\\" r=\\\"2.25\\\" fill=\\\"#00b4d8\\\" stroke=\\\"none\\\"></circle></svg>"));
+        "<circle class=\\\"toolbar-accent-dot\\\" cx=\\\"18\\\" cy=\\\"12\\\" r=\\\"2.25\\\" "
+            + "stroke=\\\"none\\\"></circle></svg>"));
+    assertTrue(webClient.contains(".toolbar-svg-icon .toolbar-accent-dot {"));
+    assertTrue(webClient.contains(".toolbar-btn-enabled .toolbar-svg-icon:hover .toolbar-accent-dot {"));
     assertFalse(javaSource.contains(
         "<path d=\\\"M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9\\\"></path>"));
     assertFalse(javaSource.contains("<path d=\\\"M13.73 21a2 2 0 0 1-3.46 0\\\"></path>"));
+    assertFalse(javaSource.contains(
+        "<circle cx=\\\"18\\\" cy=\\\"12\\\" r=\\\"2.25\\\" fill=\\\"#00b4d8\\\" stroke=\\\"none\\\"></circle></svg>"));
     assertFalse(javaSource.contains(
         "<circle cx=\\\"18\\\" cy=\\\"5\\\" r=\\\"2.5\\\" fill=\\\"currentColor\\\" stroke=\\\"none\\\"></circle></svg>"));
   }

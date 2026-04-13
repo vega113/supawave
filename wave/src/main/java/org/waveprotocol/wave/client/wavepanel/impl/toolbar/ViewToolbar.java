@@ -71,7 +71,7 @@ public final class ViewToolbar {
   /** Next Unread: chevron with unread-accent dot for clearer directional meaning. */
   private static final String ICON_NEXT_UNREAD = SVG_OPEN
       + "<path d=\"M9 7l6 5-6 5\"></path>"
-      + "<circle cx=\"18\" cy=\"12\" r=\"2.25\" fill=\"#00b4d8\" stroke=\"none\"></circle></svg>";
+      + "<circle class=\"toolbar-accent-dot\" cx=\"18\" cy=\"12\" r=\"2.25\" stroke=\"none\"></circle></svg>";
 
   /** Previous: chevron-up. */
   private static final String ICON_PREV = SVG_OPEN

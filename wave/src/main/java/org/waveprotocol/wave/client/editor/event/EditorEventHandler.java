@@ -469,12 +469,13 @@ public final class EditorEventHandler {
     }
   }
 
-  static boolean isTransientImeRangeAfterFlush(
+  private static boolean isTransientImeRangeAfterFlush(
       FocusedContentRange selectionBeforeFlush, FocusedContentRange selectionAfterFlush) {
     return selectionBeforeFlush != null
         && selectionAfterFlush != null
         && selectionBeforeFlush.isCollapsed()
-        && !selectionAfterFlush.isCollapsed();
+        && !selectionAfterFlush.isCollapsed()
+        && selectionBeforeFlush.getFocus().equals(selectionAfterFlush.getFocus());
   }
 
 

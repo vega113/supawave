@@ -447,8 +447,7 @@ public final class SearchPresenter
       return;
     }
     subscribeToSearchWavelet(queryText);
-    if (SearchBootstrapUiState.shouldBootstrapViaHttpWhenOtStarts(
-        otSearchEnabled, otSearchFallbackEnabled)) {
+    if (SearchBootstrapUiState.shouldBootstrapViaHttpWhenOtStarts(otSearchEnabled)) {
       doSearch();
     }
     // Do NOT start the repeating poll here. OT handles live updates. If fallback is enabled,

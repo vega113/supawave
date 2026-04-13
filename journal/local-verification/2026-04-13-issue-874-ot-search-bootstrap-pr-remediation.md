@@ -11,6 +11,8 @@ Verification:
   - Result: `changelog validation passed`
 - `sbt compile && sbt test`
   - Result: passed (`Total 2271, Failed 0, Errors 0, Passed 2271`)
+- `sbt --batch Universal/stage`
+  - Result: passed
 
 Review remediation summary:
 - Reject OT search bootstrap opens when the supplied `waveId` does not match the computed synthetic search wave for the query.

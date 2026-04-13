@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.waveserver;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -62,7 +63,13 @@ import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
 
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 /**
  * Unit tests for {@link StaleAnnotationSweeper}.
@@ -255,5 +262,90 @@ public class StaleAnnotationSweeperTest extends TestCase {
         any(WaveletName.class),
         any(ProtocolWaveletDelta.class),
         any(WaveletProvider.SubmitRequestListener.class));
+  }
+
+  public void testSweepDoesNotWarnForRootLockDenial() throws Exception {
+    assertLockDenialIsNotWarned("The root blip is locked. Editing is not allowed here.");
+  }
+
+  public void testSweepDoesNotWarnForAllLockDenial() throws Exception {
+    assertLockDenialIsNotWarned("This wave is locked. Editing and replies are not allowed.");
+  }
+
+  public void testSweepDoesNotWarnForLockDenialWithAdditionalContext() throws Exception {
+    assertLockDenialIsNotWarned(
+        "Blocked by policy: This wave is locked. Editing and replies are not allowed. [lockId=7]");
+  }
+
+  private void assertLockDenialIsNotWarned(String errorMessage) throws Exception {
+    CapturingOperationSink<WaveletOperation> output = new CapturingOperationSink<>();
+    OpBasedWavelet wavelet = buildWavelet(output);
+
+    WaveletBasedConversation.makeWaveletConversational(wavelet);
+    ConversationBlip blip = conversationUtil.buildConversation(wavelet)
+        .getRoot().getRootThread().appendBlip();
+
+    long staleStartMs = 1000L;
+    blip.getContent().setAnnotation(0, 1, "user/d/session-stale",
+        ALICE.getAddress() + "," + staleStartMs + ",");
+
+    waveletData.setVersion(waveletData.getVersion() + 1);
+    setupProvider(waveletData);
+
+    doAnswer(invocation -> {
+      WaveletProvider.SubmitRequestListener listener =
+          (WaveletProvider.SubmitRequestListener) invocation.getArguments()[2];
+      listener.onFailure(errorMessage);
+      return null;
+    }).when(mockProvider).submitRequest(
+        eq(WAVELET_NAME),
+        any(ProtocolWaveletDelta.class),
+        any(WaveletProvider.SubmitRequestListener.class));
+
+    Logger logger = Logger.getLogger(StaleAnnotationSweeper.class.getName());
+    List<LogRecord> records = new ArrayList<>();
+    Handler captureHandler = new Handler() {
+      @Override
+      public void publish(LogRecord record) {
+        records.add(record);
+      }
+
+      @Override
+      public void flush() {}
+
+      @Override
+      public void close() throws SecurityException {}
+    };
+
+    Level savedLevel = logger.getLevel();
+    boolean savedUseParent = logger.getUseParentHandlers();
+    logger.addHandler(captureHandler);
+    logger.setLevel(Level.ALL);
+    logger.setUseParentHandlers(false);
+    try {
+      sweeper.sweep();
+    } finally {
+      logger.removeHandler(captureHandler);
+      logger.setLevel(savedLevel);
+      logger.setUseParentHandlers(savedUseParent);
+    }
+
+    boolean warned = false;
+    boolean loggedFine = false;
+    for (LogRecord record : records) {
+      if (record.getMessage() != null
+          && record.getMessage().contains(WAVELET_NAME + "/" + blip.getId())
+          && record.getMessage().contains(errorMessage)) {
+        if (record.getLevel().intValue() >= Level.WARNING.intValue()) {
+          warned = true;
+        }
+        if (record.getLevel().intValue() <= Level.INFO.intValue()) {
+          loggedFine = true;
+        }
+      }
+    }
+
+    assertFalse("Legitimate lock denial should not be logged as warning", warned);
+    assertTrue("Legitimate lock denial should still be logged at a low level", loggedFine);
   }
 }

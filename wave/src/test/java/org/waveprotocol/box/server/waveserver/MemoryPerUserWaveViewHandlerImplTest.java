@@ -19,6 +19,9 @@
 
 package org.waveprotocol.box.server.waveserver;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -197,6 +200,51 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     assertEquals(2, reloadingWaveMap.getLoadAllWaveletsCallCount());
   }
 
+  public void testWaveletCommittedSkipsInvalidateWhenCachedWaveletStillLoading()
+      throws Exception {
+    LocalWaveletContainer loadingContainer = mock(LocalWaveletContainer.class);
+    when(loadingContainer.getWaveletName()).thenReturn(WAVELET_NAME);
+    when(loadingContainer.hasParticipant(PARTICIPANT)).thenReturn(true);
+    when(loadingContainer.isLoaded()).thenReturn(false);
+    when(loadingContainer.describeLoadState()).thenReturn("state=LOADING");
+    when(loadingContainer.getLastCommittedVersion()).thenThrow(
+        new IllegalStateException("should not read version while loading"));
+
+    ReloadingWaveMap reloadingWaveMap =
+        new ReloadingWaveMap(
+            new DeltaStoreBasedSnapshotStore(
+                new org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore(), null),
+            new LocalWaveletContainer.Factory() {
+              @Override
+              public LocalWaveletContainer create(
+                  WaveletNotificationSubscriber notifiee,
+                  WaveletName waveletName,
+                  String domain) {
+                throw new UnsupportedOperationException();
+              }
+            },
+            new RemoteWaveletContainer.Factory() {
+              @Override
+              public RemoteWaveletContainer create(
+                  WaveletNotificationSubscriber notifiee,
+                  WaveletName waveletName,
+                  String domain) {
+                throw new UnsupportedOperationException();
+              }
+            },
+            createLoadedWaves(
+                loadingContainer));
+    MemoryPerUserWaveViewHandlerImpl handler =
+        new MemoryPerUserWaveViewHandlerImpl(reloadingWaveMap);
+
+    handler.retrievePerUserWaveView(PARTICIPANT);
+    assertEquals(1, reloadingWaveMap.getLoadAllWaveletsCallCount());
+
+    handler.waveletCommitted(WAVELET_NAME, HashedVersion.unsigned(2L));
+
+    assertEquals(0, reloadingWaveMap.getInvalidateWaveCallCount());
+  }
+
   private static ImmutableMap<WaveId, Wave> createLoadedWaves(LocalWaveletContainer container)
       throws Exception {
     SettableFuture<ImmutableSet<WaveletId>> lookedupWavelets = SettableFuture.create();
@@ -369,6 +417,16 @@ public class MemoryPerUserWaveViewHandlerImplTest extends TestCase {
     @Override
     public WaveletName getWaveletName() {
       return waveletName;
+    }
+
+    @Override
+    public boolean isLoaded() {
+      return true;
+    }
+
+    @Override
+    public String describeLoadState() {
+      return "state=OK, loaded=true";
     }
 
     @Override

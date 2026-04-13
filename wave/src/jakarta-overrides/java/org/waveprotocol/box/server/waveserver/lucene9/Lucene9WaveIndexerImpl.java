@@ -19,6 +19,7 @@
 package org.waveprotocol.box.server.waveserver.lucene9;
 
 import com.google.common.base.Function;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
@@ -48,6 +49,8 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.waveprotocol.box.server.persistence.lucene.Lucene9SearchIndexDirectory;
 import org.waveprotocol.box.server.persistence.lucene.LuceneIndexWriterFactory;
+import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
+import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.waveserver.AbstractSearchProviderImpl;
 import org.waveprotocol.box.server.waveserver.IndexException;
 import org.waveprotocol.box.server.waveserver.ReadableWaveletDataProvider;
@@ -62,8 +65,10 @@ import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.version.HashedVersion;
+import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
+import org.waveprotocol.wave.model.wave.data.impl.WaveViewDataImpl;
 
 @Singleton
 public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, Closeable {
@@ -364,7 +369,7 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     try {
       long elapsedNs;
       synchronized (this) {
-        elapsedNs = upsertWaveTimed(waveId);
+        elapsedNs = upsertWaveTimedForIncrementalUpdate(waveId);
         indexWriter.commit();
         searcherManager.maybeRefreshBlocking();
       }
@@ -474,12 +479,67 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
     return System.nanoTime() - startNs;
   }
 
+  private long upsertWaveTimedForIncrementalUpdate(WaveId waveId)
+      throws WaveServerException, WaveletStateException, IOException {
+    long startNs = System.nanoTime();
+    Set<WaveletId> waveletIds = waveletProvider.getWaveletIds(waveId);
+    WaveViewData wave =
+        buildWaveViewDataForIncrementalUpdate(waveId, waveletIds, waveMap, waveletProvider);
+    Document document = documentBuilder.build(metadataExtractor.extract(wave), wave);
+    indexWriter.updateDocument(new Term(Lucene9FieldNames.DOC_ID, waveId.serialise()), document);
+    return System.nanoTime() - startNs;
+  }
+
   private WaveViewData loadWave(WaveId waveId) throws WaveServerException, WaveletStateException {
     Set<WaveletId> waveletIds = waveletProvider.getWaveletIds(waveId);
     for (WaveletId waveletId : waveletIds) {
       waveletProvider.getSnapshot(WaveletName.of(waveId, waveletId));
     }
     return AbstractSearchProviderImpl.buildWaveViewData(waveId, waveletIds, MATCH_ALL, waveMap);
+  }
+
+  @VisibleForTesting
+  static WaveViewData buildCachedWaveViewDataIfReady(
+      WaveId waveId, Set<WaveletId> waveletIds, WaveMap waveMap) throws WaveletStateException {
+    WaveViewData view = WaveViewDataImpl.create(waveId);
+    for (WaveletId waveletId : waveletIds) {
+      WaveletName waveletName = WaveletName.of(waveId, waveletId);
+      ObservableWaveletData waveletData = waveMap.copyCachedWaveletDataIfLoaded(waveletName);
+      if (waveletData == null) {
+        return null;
+      }
+      view.addWavelet(waveletData);
+    }
+    return view;
+  }
+
+  @VisibleForTesting
+  static WaveViewData buildWaveViewDataForIncrementalUpdate(WaveId waveId,
+      Set<WaveletId> waveletIds, WaveMap waveMap, WaveletProvider waveletProvider)
+      throws WaveServerException, WaveletStateException {
+    WaveViewData cachedView = buildCachedWaveViewDataIfReady(waveId, waveletIds, waveMap);
+    if (cachedView != null) {
+      return cachedView;
+    }
+
+    if (LOG.isLoggable(Level.FINE)) {
+      for (WaveletId waveletId : waveletIds) {
+        WaveletName waveletName = WaveletName.of(waveId, waveletId);
+        LOG.fine("Cached state not ready for incremental lucene9 update on " + waveletName
+            + "; indexing from committed snapshot ("
+            + waveMap.describeCachedWaveletLoadState(waveletName) + ")");
+      }
+    }
+    WaveViewData view = WaveViewDataImpl.create(waveId);
+    for (WaveletId waveletId : waveletIds) {
+      WaveletName waveletName = WaveletName.of(waveId, waveletId);
+      CommittedWaveletSnapshot snapshot = waveletProvider.getSnapshot(waveletName);
+      if (snapshot == null || snapshot.snapshot == null) {
+        throw new WaveServerException("Missing committed snapshot for " + waveletName);
+      }
+      view.addWavelet(WaveletDataUtil.copyWavelet(snapshot.snapshot));
+    }
+    return view;
   }
 
   /** Thread-safe rolling average tracker for incremental indexing times. */

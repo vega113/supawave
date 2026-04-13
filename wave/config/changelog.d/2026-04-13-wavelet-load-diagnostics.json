@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-13-wavelet-load-diagnostics",
+  "version": "PR #878",
+  "date": "2026-04-13",
+  "title": "Avoid blocking on loading wavelets",
+  "summary": "Wavelet-dependent cache and indexing paths now skip still-loading wavelets and emit load-state diagnostics instead of blocking on incomplete state.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Prevented cached wavelet invalidation and copy paths from blocking on wavelets that are still loading",
+        "Added wavelet load-state diagnostics so slow or timed-out loads report their state, age, and executor context in server logs"
+      ]
+    }
+  ]
+}

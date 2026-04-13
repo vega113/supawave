@@ -154,9 +154,12 @@ public class ExecutorsModule extends AbstractModule {
     if (threadCount < 0) {
       executor = Executors.newCachedThreadPool(threadFactory);
     } else if (threadCount == 1) {
-      executor = Executors.newSingleThreadExecutor(threadFactory);
+      executor = new ThreadPoolExecutor(
+          1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), threadFactory);
     } else {
-      executor = Executors.newFixedThreadPool(threadCount, threadFactory);
+      executor = new ThreadPoolExecutor(
+          threadCount, threadCount, 0L, TimeUnit.MILLISECONDS,
+          new LinkedBlockingQueue<Runnable>(), threadFactory);
     }
     RequestScopeExecutor scopeExecutor = executorProvider.get();
     scopeExecutor.setExecutor(executor, name);

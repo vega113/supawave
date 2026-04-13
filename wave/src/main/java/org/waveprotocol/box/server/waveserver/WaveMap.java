@@ -36,6 +36,7 @@ import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -133,6 +134,23 @@ public class WaveMap {
       return null;
     }
     return wave.getCachedWavelet(waveletName.waveletId);
+  }
+
+  public ObservableWaveletData copyCachedWaveletDataIfLoaded(WaveletName waveletName)
+      throws WaveletStateException {
+    WaveletContainer wavelet = getCachedWavelet(waveletName);
+    if (wavelet == null || !wavelet.isLoaded()) {
+      return null;
+    }
+    return wavelet.copyWaveletData();
+  }
+
+  public String describeCachedWaveletLoadState(WaveletName waveletName) {
+    WaveletContainer wavelet = getCachedWavelet(waveletName);
+    if (wavelet == null) {
+      return "state=UNCACHED";
+    }
+    return wavelet.describeLoadState();
   }
 
   /**

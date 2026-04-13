@@ -348,18 +348,78 @@ slot_requires_mongo_migration_verification() {
   # tails (e.g. "foo = bar # account_store_type = mongodb") do not trigger
   # the gate. The second sed preserves "://" in URLs by requiring a
   # non-colon before "//".
-  local effective_config
+  local effective_config normalized_config core_scope_config
   effective_config="$(grep -Ev '^[[:space:]]*(#|//)' "$config_file" \
     | sed 's/[[:space:]]*#.*//' \
     | sed 's|\([^:]\) *//.*|\1|')"
 
-  # Accept both bare keys (inside a `core { }` block) and dotted-path form
-  # (e.g. `core.mongodb_driver = "v4"`) since both are valid HOCON.
-  printf '%s\n' "$effective_config" \
-    | grep -Eqi '(^|[[:space:],{])(core\.)?mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]}]|,|$)' || return 1
-  printf '%s\n' "$effective_config" \
+  # Normalize delimiters into standalone tokens so we can extract only the
+  # effective `core` scope. That keeps dotted `core.foo = ...` syntax and bare
+  # keys inside `core { ... }` blocks, but ignores similarly named keys in
+  # unrelated objects like `legacy { mongodb_driver = "v4" }`.
+  normalized_config="$(printf '%s\n' "$effective_config" \
+    | sed -e 's/[{}]/\n&\n/g' -e 's/,/\n,\n/g')"
+  core_scope_config="$(printf '%s\n' "$normalized_config" \
+    | awk '
+      function trim(s) {
+        sub(/^[[:space:]]+/, "", s)
+        sub(/[[:space:]]+$/, "", s)
+        return s
+      }
+      BEGIN {
+        depth = 0
+        core_depth = 0
+        in_core = 0
+        pending_core = 0
+      }
+      {
+        line = trim($0)
+        if (line == "") {
+          next
+        }
+        if (line ~ /^core\./) {
+          print line
+          pending_core = 0
+          next
+        }
+        if (line ~ /^core[[:space:]]*:?[[:space:]]*$/) {
+          pending_core = 1
+          next
+        }
+        if (line == "{") {
+          depth++
+          if (pending_core) {
+            in_core = 1
+            core_depth = depth
+            pending_core = 0
+          }
+          next
+        }
+        if (line == "}") {
+          if (in_core && depth == core_depth) {
+            in_core = 0
+            core_depth = 0
+          }
+          if (depth > 0) {
+            depth--
+          }
+          pending_core = 0
+          next
+        }
+        if (line == ",") {
+          next
+        }
+        pending_core = 0
+        if (in_core) {
+          print line
+        }
+      }')"
+
+  printf '%s\n' "$core_scope_config" \
+    | grep -Eqi '^(core\.)?mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]]|$)' || return 1
+  printf '%s\n' "$core_scope_config" \
     | grep -Eqi \
-      '(^|[[:space:],{])(core\.)?(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?([[:space:]}]|,|$)' \
+      '^(core\.)?(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?([[:space:]]|$)' \
     || return 1
 }
 

@@ -188,6 +188,27 @@ core {
     self.assertNotIn("did not report Mongo migration completion", combined)
     self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
 
+  def test_deploy_ignores_non_core_hocon_mongo_blocks(self):
+    """Only core-scoped Mongo settings should arm the migration gate."""
+    result = self._run_deploy(
+        log_output="wave started without migration marker\n",
+        application_conf="""\
+legacy {
+  mongodb_driver = "v4"
+  account_store_type = "mongodb"
+}
+core {
+  mongodb_driver = "v2"
+  account_store_type = "file"
+  delta_store_type = file
+}
+""",
+    )
+
+    combined = f"{result.stdout}\n{result.stderr}"
+    self.assertNotIn("did not report Mongo migration completion", combined)
+    self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+
   def test_deploy_ignores_stale_migration_marker_from_previous_startup(self):
     result = self._run_deploy(
         log_output="wave started without migration marker\n",

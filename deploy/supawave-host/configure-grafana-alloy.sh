@@ -8,6 +8,7 @@ GCLOUD_HOSTED_LOGS_URL=${GCLOUD_HOSTED_LOGS_URL:-}
 GCLOUD_HOSTED_LOGS_ID=${GCLOUD_HOSTED_LOGS_ID:-}
 GCLOUD_RW_API_KEY=${GCLOUD_RW_API_KEY:-}
 GCLOUD_SCRAPE_INTERVAL=${GCLOUD_SCRAPE_INTERVAL:-60s}
+WAVE_METRICS_ADDRESS=${WAVE_METRICS_ADDRESS:-127.0.0.1:9898}
 WAVE_LOG_PATH=${WAVE_LOG_PATH:-/home/*/supawave/shared/logs/wave-json*.log}
 WAVE_TIMESTAMP_FORMAT=${WAVE_TIMESTAMP_FORMAT:-RFC3339Nano}
 
@@ -39,6 +40,7 @@ for key in "${required[@]}"; do
 done
 
 echo "[grafana-alloy] Configuring Loki shipping for Wave JSON logs"
+echo "[grafana-alloy]   metrics address: $WAVE_METRICS_ADDRESS"
 echo "[grafana-alloy]   tail path: $WAVE_LOG_PATH"
 echo "[grafana-alloy]   timestamp format: $WAVE_TIMESTAMP_FORMAT"
 
@@ -101,6 +103,17 @@ prometheus.remote_write \"metrics_service\" {
       password = \"$GCLOUD_RW_API_KEY\"
     }
   }
+}
+
+prometheus.scrape \"supawave_app\" {
+  targets = [{
+    __address__ = \"$WAVE_METRICS_ADDRESS\",
+    instance = constants.hostname,
+    job = \"supawave/wave\",
+  }]
+  metrics_path = \"/metrics\"
+  scrape_interval = \"$GCLOUD_SCRAPE_INTERVAL\"
+  forward_to = [prometheus.remote_write.metrics_service.receiver]
 }
 
 loki.write \"grafana_cloud_loki\" {

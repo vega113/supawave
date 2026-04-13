@@ -62,11 +62,28 @@ sudo env \
   GCLOUD_HOSTED_LOGS_ID='123456' \
   GCLOUD_RW_API_KEY='glc_***' \
   GCLOUD_SCRAPE_INTERVAL='60s' \
+  WAVE_METRICS_ADDRESS='127.0.0.1:9898' \
   WAVE_LOG_PATH='/home/deploy/supawave/shared/logs/wave-json*.log' \
   ./configure-grafana-alloy.sh
 ```
 
+`WAVE_METRICS_ADDRESS` defaults to `127.0.0.1:9898` and controls which Wave
+HTTP listener Alloy scrapes for Prometheus-format application metrics.
 `WAVE_LOG_PATH` defaults to `/home/*/supawave/shared/logs/wave-json*.log` and controls which JSON-structured application log files Alloy tails for Loki ingestion. Only `wave-json*.log` files contain structured JSON; tailing `wave*.log` would mix plain-text and JSON lines, breaking Alloy's `stage.json` parsing.
+
+### Wave Metrics Contract
+
+- Alloy now scrapes Wave's `/metrics` endpoint and forwards those samples to
+  Grafana Cloud.
+- The Wave-side analytics migration intentionally exports aggregate counters
+  instead of keeping an admin analytics UI or persistence subsystem in the app.
+- Expected Prometheus series:
+  - `wave_analytics_public_wave_page_views_total`
+  - `wave_analytics_public_wave_api_views_total`
+  - `wave_analytics_users_registered_total`
+  - `wave_analytics_active_user_events_total`
+  - `wave_analytics_waves_created_total`
+  - `wave_analytics_blips_created_total`
 
 ### Loki Query Contract
 
@@ -82,7 +99,9 @@ sudo env \
 - If PAM limits appear inactive, start a new login shell (`su - $USER`) or re-SSH into the host.
 - After rollback, run `sysctl --system` if custom sysctl files remain.
 - Confirm the live Alloy tail path and parser: `sudo grep -nE '__path__\\s*=|job\\s*=|format\\s*=|level\\s*=|logger\\s*=|thread\\s*=' /etc/alloy/config.alloy`
+- Confirm Alloy is scraping the Wave metrics endpoint: `sudo grep -nE 'supawave_app|metrics_path|__address__' /etc/alloy/config.alloy`
 - Confirm Wave is still writing structured JSON: `tail -5 /home/ubuntu/supawave/shared/logs/wave-json.log | jq -c '{timestamp,level,logger_name,thread_name,message}'`
+- Confirm Wave exports the expected application counters locally: `curl -fsS http://127.0.0.1:9898/metrics | grep -E 'wave_analytics_(public_wave_page_views|public_wave_api_views|users_registered|active_user_events|waves_created|blips_created)_total'`
 - Check Alloy shipping errors: `sudo journalctl -u alloy --since "15 minutes ago" --no-pager | grep -iE 'error|401|invalid token|loki|prometheus'`
 - Check Alloy write counters: `curl -fsS http://127.0.0.1:12345/metrics | grep -E 'loki_write_sent_entries_total|loki_write_dropped_entries_total|prometheus_remote_storage_samples_failed_total'`
 - Check that the SupaWave file tailer is active: `curl -fsS http://127.0.0.1:12345/metrics | grep 'loki_source_file_files_active_total{component_id="loki.source.file.supawave_logs"'`

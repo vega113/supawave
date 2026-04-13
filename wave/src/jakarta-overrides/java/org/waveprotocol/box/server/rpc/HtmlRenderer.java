@@ -4718,16 +4718,6 @@ public final class HtmlRenderer {
     sb.append(".filter-btn:hover { border-color: ").append(WAVE_PRIMARY).append("; color: ").append(WAVE_PRIMARY).append("; }\n");
     sb.append(".filter-btn.active { background: ").append(WAVE_PRIMARY).append("; color: #fff; border-color: ").append(WAVE_PRIMARY).append("; }\n");
 
-    // Window pill buttons for analytics time range selector
-    sb.append(".window-pills { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; padding:0 24px 12px; }\n");
-    sb.append(".window-pill {\n");
-    sb.append("  padding:4px 12px; border:1px solid #d1d5db; border-radius:20px;\n");
-    sb.append("  font-size:12px; font-weight:500; cursor:pointer; background:#fff;\n");
-    sb.append("  color:#374151; transition:all 0.15s; font-family:inherit;\n");
-    sb.append("}\n");
-    sb.append(".window-pill:hover { border-color:#0077b6; color:#0077b6; }\n");
-    sb.append(".window-pill.active { background:#0077b6; color:#fff; border-color:#0077b6; }\n");
-
     // Contact detail expand
     sb.append(".msg-expand { cursor: pointer; }\n");
     sb.append(".msg-expand:hover td { background: rgba(0,119,182,0.04); }\n");
@@ -4791,7 +4781,6 @@ public final class HtmlRenderer {
     sb.append("    <button class=\"admin-tab\" data-tab=\"contacts\">Contact Messages <span class=\"tab-badge hidden\" id=\"contactBadge\">0</span></button>\n");
     sb.append("    <button class=\"admin-tab\" data-tab=\"flags\">Feature Flags</button>\n");
     sb.append("    <button class=\"admin-tab\" data-tab=\"ops\">Operations</button>\n");
-    sb.append("    <button class=\"admin-tab\" data-tab=\"analytics\">Analytics</button>\n");
     sb.append("  </div>\n");
 
     // Users tab panel
@@ -5015,129 +5004,6 @@ public final class HtmlRenderer {
     sb.append("    </div>\n");
 
     sb.append("  </div>\n"); // end panel-ops
-
-    // Analytics tab panel
-    sb.append("  <div class=\"tab-panel\" id=\"panel-analytics\">\n");
-    // Wave SVG divider
-    sb.append("    <svg viewBox=\"0 0 1200 60\" style=\"width:100%;height:40px;display:block;margin-bottom:8px;\">\n");
-    sb.append("      <defs><linearGradient id=\"waveGrad\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\">\n");
-    sb.append("        <stop offset=\"0%\" stop-color=\"").append(WAVE_PRIMARY).append("\"/>\n");
-    sb.append("        <stop offset=\"50%\" stop-color=\"").append(WAVE_ACCENT).append("\"/>\n");
-    sb.append("        <stop offset=\"100%\" stop-color=\"").append(WAVE_LIGHT).append("\"/>\n");
-    sb.append("      </linearGradient></defs>\n");
-    sb.append("      <path d=\"M0,30 C200,60 400,0 600,30 C800,60 1000,0 1200,30 L1200,60 L0,60 Z\" fill=\"url(#waveGrad)\"/>\n");
-    sb.append("    </svg>\n");
-
-    // Not-supported banner (shown when persistence backend does not support analytics)
-    sb.append("    <div id=\"analyticsNotSupportedBanner\" style=\"display:none;margin:0 24px 16px;padding:16px 20px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;font-size:14px;text-align:center;\">\n");
-    sb.append("      Analytics not available \u2014 requires MongoDB persistence.\n");
-    sb.append("    </div>\n");
-
-    // Storage note banner (shown for in-memory store, hidden by default)
-    sb.append("    <div id=\"analyticsStorageBanner\" style=\"display:none;margin:0 24px 16px;padding:10px 16px;border-radius:8px;background:#fefce8;border:1px solid #fde047;color:#854d0e;font-size:13px;\">\n");
-    sb.append("    </div>\n");
-
-    // Disabled banner (hidden by default, shown when analytics counters are off)
-    sb.append("    <div id=\"analyticsDisabledBanner\" style=\"display:none;margin:0 24px 16px;padding:12px 16px;border-radius:10px;background:").append(WAVE_BG).append(";border:1px solid ").append(WAVE_BORDER).append(";color:").append(WAVE_TEXT_MUTED).append(";font-size:13px;\">\n");
-    sb.append("      Analytics counters are disabled. Set <code style=\"background:#e2e8f0;padding:2px 6px;border-radius:4px;\">core.analytics_counters_enabled = true</code> in your config to start collecting historical data.\n");
-    sb.append("    </div>\n");
-
-    // Time window pills
-    sb.append("    <div style=\"display:flex;gap:6px;padding:0 24px 16px;flex-wrap:wrap;\">\n");
-    String[] windows = {"1h", "6h", "12h", "24h", "48h", "7d", "30d", "60d", "90d", "6m", "1y", "ytd", "all"};
-    for (String w : windows) {
-      String active = w.equals("24h")
-          ? "background:" + WAVE_PRIMARY + ";color:#fff;"
-          : "background:" + WAVE_BG + ";color:" + WAVE_TEXT + ";";
-      sb.append("      <button class=\"analytics-pill\" data-window=\"").append(w)
-        .append("\" style=\"border:none;padding:6px 16px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;")
-        .append(active).append("\">").append(w).append("</button>\n");
-    }
-    sb.append("    </div>\n");
-
-    // No historical data banner (hidden by default, shown when all totals are 0)
-    sb.append("    <div id=\"analyticsNoDataBanner\" style=\"display:none;margin:0 24px 16px;padding:12px 16px;border-radius:10px;background:#f8fafc;border:1px dashed #cbd5e0;color:#718096;font-size:13px;text-align:center;\">\n");
-    sb.append("      No analytics data was recorded for this period.\n");
-    sb.append("    </div>\n");
-
-    // Summary stat cards
-    sb.append("    <div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:0 24px 16px;\">\n");
-    String[][] statCards = {
-        {"Waves Created", "histWavesCreated"},
-        {"Blips Created", "histBlipsCreated"},
-        {"Users Registered", "histUsersRegistered"},
-        {"Active Users", "histActiveUsers"},
-        {"Page Views", "histPageViews"},
-        {"API Views", "histApiViews"}
-    };
-    for (String[] card : statCards) {
-      sb.append("      <div style=\"background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);\">\n");
-      sb.append("        <div style=\"font-size:12px;color:").append(WAVE_TEXT_MUTED).append(";margin-bottom:4px;\">").append(card[0]).append("</div>\n");
-      sb.append("        <div id=\"").append(card[1]).append("\" style=\"font-size:24px;font-weight:700;color:").append(WAVE_PRIMARY).append(";\">--</div>\n");
-      sb.append("      </div>\n");
-    }
-    sb.append("    </div>\n");
-
-    // Chart row (2x2 grid)
-    sb.append("    <div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;padding:0 24px 16px;\">\n");
-    String[][] charts = {
-        {"Waves Created", "chartWaves"},
-        {"Blips Created", "chartBlips"},
-        {"Users Registered", "chartUsers"},
-        {"Active Users", "chartActive"}
-    };
-    for (String[] chart : charts) {
-      sb.append("      <div class=\"admin-card\" style=\"padding:16px;\">\n");
-      sb.append("        <h3 style=\"margin:0 0 12px;font-size:14px;color:").append(WAVE_TEXT).append(";\">").append(chart[0]).append("</h3>\n");
-      sb.append("        <div style=\"position:relative;height:200px;\"><canvas id=\"").append(chart[1]).append("\"></canvas></div>\n");
-      sb.append("      </div>\n");
-    }
-    sb.append("    </div>\n");
-
-    // Current state card
-    sb.append("    <div class=\"admin-card\" style=\"margin:0 24px 16px;padding:20px;\">\n");
-    sb.append("      <h3 style=\"margin:0 0 12px;font-size:14px;color:").append(WAVE_TEXT).append(";\">Current State</h3>\n");
-    sb.append("      <div id=\"analyticsWarnings\" style=\"margin-bottom:8px;\"></div>\n");
-    sb.append("      <table class=\"admin-table\" style=\"max-width:500px;\">\n");
-    sb.append("        <tbody>\n");
-    sb.append("          <tr><td>Total Waves</td><td id=\"analyticsTotalWaves\">--</td></tr>\n");
-    sb.append("          <tr><td>Public Waves</td><td id=\"analyticsPublicWaves\">--</td></tr>\n");
-    sb.append("          <tr><td>Private Waves</td><td id=\"analyticsPrivateWaves\">--</td></tr>\n");
-    sb.append("          <tr><td>Public Blips</td><td id=\"analyticsPublicBlips\">--</td></tr>\n");
-    sb.append("          <tr><td>Private Blips</td><td id=\"analyticsPrivateBlips\">--</td></tr>\n");
-    sb.append("        </tbody>\n");
-    sb.append("      </table>\n");
-    sb.append("    </div>\n");
-
-    // Top waves by views
-    sb.append("    <div class=\"admin-card\" style=\"margin:0 24px 16px;padding:20px;\">\n");
-    sb.append("      <h3 style=\"margin:0 0 12px;font-size:14px;color:").append(WAVE_TEXT).append(";\">Top Waves by Views</h3>\n");
-    sb.append("      <table class=\"admin-table\">\n");
-    sb.append("        <thead><tr><th>Wave</th><th>Title</th><th>Views</th></tr></thead>\n");
-    sb.append("        <tbody id=\"analyticsTopViewedBody\"><tr><td colspan=\"3\" style=\"text-align:center;color:#aaa\">Loading...</td></tr></tbody>\n");
-    sb.append("      </table>\n");
-    sb.append("    </div>\n");
-
-    // Top waves by participation
-    sb.append("    <div class=\"admin-card\" style=\"margin:0 24px 16px;padding:20px;\">\n");
-    sb.append("      <h3 style=\"margin:0 0 12px;font-size:14px;color:").append(WAVE_TEXT).append(";\">Top Waves by Participation</h3>\n");
-    sb.append("      <table class=\"admin-table\">\n");
-    sb.append("        <thead><tr><th>Wave</th><th>Title</th><th>Participants</th></tr></thead>\n");
-    sb.append("        <tbody id=\"analyticsTopParticipatedBody\"><tr><td colspan=\"3\" style=\"text-align:center;color:#aaa\">Loading...</td></tr></tbody>\n");
-    sb.append("      </table>\n");
-    sb.append("    </div>\n");
-
-    // Top active users
-    sb.append("    <div class=\"admin-card\" style=\"margin:0 24px 16px;padding:20px;\">\n");
-    sb.append("      <h3 style=\"margin:0 0 12px;font-size:14px;color:").append(WAVE_TEXT).append(";\">Top Active Users</h3>\n");
-    sb.append("      <table class=\"admin-table\">\n");
-    sb.append("        <thead><tr><th>User</th><th>Actions</th></tr></thead>\n");
-    sb.append("        <tbody id=\"analyticsTopUsersBody\"><tr><td colspan=\"2\" style=\"text-align:center;color:#aaa\">Loading...</td></tr></tbody>\n");
-    sb.append("      </table>\n");
-    sb.append("    </div>\n");
-
-    sb.append("  </div>\n"); // end panel-analytics
-
     sb.append("</div>\n");
 
     // Toast
@@ -5351,7 +5217,6 @@ public final class HtmlRenderer {
     sb.append("      if (tab.dataset.tab === 'contacts' && !contactsLoaded) { fetchContacts(); }\n");
     sb.append("      if (tab.dataset.tab === 'flags' && !flagsLoaded) { fetchFlags(); }\n");
     sb.append("      if (tab.dataset.tab === 'ops') { loadOpsStatus(); }\n");
-    sb.append("      if (tab.dataset.tab === 'analytics') { loadAnalyticsHistory(analyticsActiveWindow); loadAnalyticsStatus(); }\n");
     sb.append("    });\n");
     sb.append("  });\n");
     // Hash-based tab navigation: /admin#contacts auto-activates contacts tab.
@@ -5371,14 +5236,6 @@ public final class HtmlRenderer {
     sb.append("    var h = window.location.hash ? window.location.hash.slice(1) : '';\n");
     sb.append("    if (h) { activateHashTab(h); }\n");
     sb.append("  });\n");
-    sb.append("  document.querySelectorAll('.window-pill').forEach(function(pill) {\n");
-    sb.append("    pill.addEventListener('click', function() {\n");
-    sb.append("      document.querySelectorAll('.window-pill').forEach(function(p){p.classList.remove('active');});\n");
-    sb.append("      pill.classList.add('active');\n");
-    sb.append("      loadAnalyticsStatus(pill.dataset.window);\n");
-    sb.append("    });\n");
-    sb.append("  });\n");
-
     // ---- Contact Messages tab logic ----
     sb.append("  var contactsLoaded = false;\n");
     sb.append("  var contactState = { status: '', messages: [], total: 0, page: 0, pageSize: 50, loading: false };\n");
@@ -6028,210 +5885,6 @@ public final class HtmlRenderer {
     sb.append("      document.getElementById('reindexBtn').disabled = false;\n");
     sb.append("    });\n");
     sb.append("  });\n");
-
-    // ---- Analytics tab logic ----
-    sb.append("  var analyticsActiveWindow = '24h';\n");
-    sb.append("  var chartWaves = null, chartBlips = null, chartUsers = null, chartActive = null;\n");
-
-    // Pill click handlers
-    sb.append("  document.querySelectorAll('.analytics-pill').forEach(function(pill) {\n");
-    sb.append("    pill.addEventListener('click', function() {\n");
-    sb.append("      analyticsActiveWindow = this.dataset.window;\n");
-    sb.append("      document.querySelectorAll('.analytics-pill').forEach(function(p) {\n");
-    sb.append("        p.style.background = '").append(WAVE_BG).append("';\n");
-    sb.append("        p.style.color = '").append(WAVE_TEXT).append("';\n");
-    sb.append("      });\n");
-    sb.append("      this.style.background = '").append(WAVE_PRIMARY).append("';\n");
-    sb.append("      this.style.color = '#fff';\n");
-    sb.append("      loadAnalyticsHistory(analyticsActiveWindow);\n");
-    sb.append("    });\n");
-    sb.append("  });\n");
-
-    // Create chart helper — chartType is 'line' (default) or 'bar'
-    sb.append("  function createWaveChart(canvasId, label, color, chartType) {\n");
-    sb.append("    chartType = chartType || 'line';\n");
-    sb.append("    var ctx = document.getElementById(canvasId).getContext('2d');\n");
-    sb.append("    var isBar = chartType === 'bar';\n");
-    sb.append("    var gradient = ctx.createLinearGradient(0, 0, 0, 200);\n");
-    sb.append("    gradient.addColorStop(0, color + '40');\n");
-    sb.append("    gradient.addColorStop(1, color + '05');\n");
-    sb.append("    var dataset = isBar\n");
-    sb.append("      ? { label: label, data: [], backgroundColor: color + 'b3', borderColor: color, borderWidth: 1, borderRadius: 3 }\n");
-    sb.append("      : { label: label, data: [], borderColor: color, backgroundColor: gradient,\n");
-    sb.append("          fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 5, borderWidth: 2 };\n");
-    sb.append("    return new Chart(ctx, {\n");
-    sb.append("      type: chartType,\n");
-    sb.append("      data: { labels: [], datasets: [dataset] },\n");
-    sb.append("      options: {\n");
-    sb.append("        responsive: true, maintainAspectRatio: false,\n");
-    sb.append("        plugins: { legend: { display: false } },\n");
-    sb.append("        scales: {\n");
-    sb.append("          x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 11 } } },\n");
-    sb.append("          y: { beginAtZero: true, grid: { color: '#e2e8f020' }, ticks: { font: { size: 11 } } }\n");
-    sb.append("        }\n");
-    sb.append("      }\n");
-    sb.append("    });\n");
-    sb.append("  }\n");
-
-  // Load analytics history
-    sb.append("  function loadAnalyticsHistory(win) {\n");
-    sb.append("    fetch('/admin/api/analytics/history?window=' + encodeURIComponent(win))\n");
-    sb.append("      .then(function(r) { return r.json(); })\n");
-    sb.append("      .then(function(data) {\n");
-    sb.append("        var notSupported = document.getElementById('analyticsNotSupportedBanner');\n");
-    sb.append("        if (data.supported === false) {\n");
-    sb.append("          if (notSupported) {\n");
-    sb.append("            notSupported.textContent = data.reason || 'Analytics is not available for this configuration';\n");
-    sb.append("            notSupported.style.display = 'block';\n");
-    sb.append("          }\n");
-    // Clear stale charts
-    sb.append("          ['chartWaves','chartBlips','chartUsers','chartActive'].forEach(function(id) {\n");
-    sb.append("            var canvas = document.getElementById(id);\n");
-    sb.append("            if (canvas) { var ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }\n");
-    sb.append("          });\n");
-    sb.append("          if (chartWaves) { chartWaves.destroy(); chartWaves = null; }\n");
-    sb.append("          if (chartBlips) { chartBlips.destroy(); chartBlips = null; }\n");
-    sb.append("          if (chartUsers) { chartUsers.destroy(); chartUsers = null; }\n");
-    sb.append("          if (chartActive) { chartActive.destroy(); chartActive = null; }\n");
-    // Reset stat cards
-    sb.append("          ['histWavesCreated','histBlipsCreated','histUsersRegistered','histActiveUsers','histPageViews','histApiViews'].forEach(function(id) {\n");
-    sb.append("            var el = document.getElementById(id); if (el) el.textContent = '--';\n");
-    sb.append("          });\n");
-    sb.append("          var sb2 = document.getElementById('analyticsStorageBanner'); if (sb2) sb2.style.display = 'none';\n");
-    sb.append("          var db = document.getElementById('analyticsDisabledBanner'); if (db) db.style.display = 'none';\n");
-    sb.append("          var nd = document.getElementById('analyticsNoDataBanner'); if (nd) nd.style.display = 'none';\n");
-    sb.append("          return;\n");
-    sb.append("        }\n");
-    sb.append("        if (notSupported) notSupported.style.display = 'none';\n");
-    sb.append("        var storageBanner = document.getElementById('analyticsStorageBanner');\n");
-    sb.append("        if (storageBanner) {\n");
-    sb.append("          if (data.storageNote) { storageBanner.textContent = '\\u26a0\\ufe0f ' + data.storageNote; storageBanner.style.display = 'block'; }\n");
-    sb.append("          else { storageBanner.style.display = 'none'; }\n");
-    sb.append("        }\n");
-    sb.append("        var banner = document.getElementById('analyticsDisabledBanner');\n");
-    sb.append("        if (banner) banner.style.display = (data.enabled === false) ? 'block' : 'none';\n");
-    // Update summary cards from totals
-    sb.append("        if (data.totals) {\n");
-    sb.append("          var t = data.totals;\n");
-    sb.append("          var el;\n");
-    sb.append("          el = document.getElementById('histWavesCreated'); if (el) el.textContent = (t.wavesCreated || 0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('histBlipsCreated'); if (el) el.textContent = (t.blipsCreated || 0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('histUsersRegistered'); if (el) el.textContent = (t.usersRegistered || 0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('histActiveUsers'); if (el) el.textContent = (t.activeUsers || 0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('histPageViews'); if (el) el.textContent = (t.pageViews || 0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('histApiViews'); if (el) el.textContent = (t.apiViews || 0).toLocaleString();\n");
-    // Show "no historical data" banner when all totals are zero
-    sb.append("          var noDataBanner = document.getElementById('analyticsNoDataBanner');\n");
-    sb.append("          if (noDataBanner) {\n");
-    sb.append("            var allZero = !t.wavesCreated && !t.blipsCreated && !t.usersRegistered && !t.activeUsers && !t.pageViews && !t.apiViews;\n");
-    sb.append("            noDataBanner.style.display = allZero ? 'block' : 'none';\n");
-    sb.append("          }\n");
-    sb.append("        }\n");
-    // Format labels
-    sb.append("        var labels = (data.series || []).map(function(pt) {\n");
-    sb.append("          var d = new Date(pt.time);\n");
-    sb.append("          if (data.granularity === 'daily') {\n");
-    sb.append("            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];\n");
-    sb.append("            return months[d.getMonth()] + ' ' + d.getDate();\n");
-    sb.append("          }\n");
-    sb.append("          return ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);\n");
-    sb.append("        });\n");
-    // Extract data arrays
-    sb.append("        var wavesData = (data.series || []).map(function(pt) { return pt.wavesCreated || 0; });\n");
-    sb.append("        var blipsData = (data.series || []).map(function(pt) { return pt.blipsCreated || 0; });\n");
-    sb.append("        var usersData = (data.series || []).map(function(pt) { return pt.usersRegistered || 0; });\n");
-    sb.append("        var activeData = (data.series || []).map(function(pt) { return pt.activeUsers || 0; });\n");
-    // Create or update charts
-    sb.append("        if (!chartWaves) {\n");
-    sb.append("          chartWaves = createWaveChart('chartWaves', 'Waves Created', '#0077b6', 'bar');\n");
-    sb.append("          chartBlips = createWaveChart('chartBlips', 'Blips Created', '#00b4d8');\n");
-    sb.append("          chartUsers = createWaveChart('chartUsers', 'Users Registered', '#48cae4');\n");
-    sb.append("          chartActive = createWaveChart('chartActive', 'Active Users', '#0096c7', 'bar');\n");
-    sb.append("        }\n");
-    sb.append("        chartWaves.data.labels = labels; chartWaves.data.datasets[0].data = wavesData; chartWaves.update();\n");
-    sb.append("        chartBlips.data.labels = labels; chartBlips.data.datasets[0].data = blipsData; chartBlips.update();\n");
-    sb.append("        chartUsers.data.labels = labels; chartUsers.data.datasets[0].data = usersData; chartUsers.update();\n");
-    sb.append("        chartActive.data.labels = labels; chartActive.data.datasets[0].data = activeData; chartActive.update();\n");
-    sb.append("      }).catch(function(e) {\n");
-    sb.append("        showToast('Failed to load analytics history: ' + e.message, 'error');\n");
-    sb.append("      });\n");
-    sb.append("  }\n");
-
-    // Load analytics status (current state + top tables)
-    sb.append("  function loadAnalyticsStatus() {\n");
-    // 10s timeout fallback: replace any still-loading table bodies with "Data unavailable"
-    sb.append("    var _statusDone = false;\n");
-    sb.append("    var _statusTimer = setTimeout(function() {\n");
-    sb.append("      if (_statusDone) return;\n");
-    sb.append("      ['analyticsTopViewedBody','analyticsTopParticipatedBody'].forEach(function(id) {\n");
-    sb.append("        var el = document.getElementById(id);\n");
-    sb.append("        if (el && el.textContent.indexOf('Loading') !== -1) {\n");
-    sb.append("          el.innerHTML = '<tr><td colspan=\"3\" style=\"text-align:center;color:#aaa\">Data unavailable</td></tr>';\n");
-    sb.append("        }\n");
-    sb.append("      });\n");
-    sb.append("      var tub = document.getElementById('analyticsTopUsersBody');\n");
-    sb.append("      if (tub && tub.textContent.indexOf('Loading') !== -1) {\n");
-    sb.append("        tub.innerHTML = '<tr><td colspan=\"2\" style=\"text-align:center;color:#aaa\">Data unavailable</td></tr>';\n");
-    sb.append("      }\n");
-    sb.append("    }, 10000);\n");
-    sb.append("    fetch('/admin/api/analytics/status')\n");
-    sb.append("      .then(function(r) { return r.json(); })\n");
-    sb.append("      .then(function(data) {\n");
-    sb.append("        _statusDone = true; clearTimeout(_statusTimer);\n");
-    // Current state — server sends `summary`, not `partitions`
-    sb.append("        if (data.summary) {\n");
-    sb.append("          var p = data.summary;\n");
-    sb.append("          var el;\n");
-    sb.append("          el = document.getElementById('analyticsTotalWaves'); if (el) el.textContent = ((p.publicWaves||0) + (p.privateWaves||0)).toLocaleString();\n");
-    sb.append("          el = document.getElementById('analyticsPublicWaves'); if (el) el.textContent = (p.publicWaves||0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('analyticsPrivateWaves'); if (el) el.textContent = (p.privateWaves||0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('analyticsPublicBlips'); if (el) el.textContent = (p.publicBlipsCurrent||0).toLocaleString();\n");
-    sb.append("          el = document.getElementById('analyticsPrivateBlips'); if (el) el.textContent = (p.privateBlipsCurrent||0).toLocaleString();\n");
-    sb.append("        }\n");
-    // Warnings
-    sb.append("        var warnEl = document.getElementById('analyticsWarnings');\n");
-    sb.append("        if (warnEl) {\n");
-    sb.append("          if (data.warnings && data.warnings.length > 0) {\n");
-    sb.append("            warnEl.innerHTML = data.warnings.map(function(w) {\n");
-    sb.append("              return '<div style=\"padding:8px 12px;background:#fff3cd;border-radius:6px;margin-bottom:6px;font-size:13px;color:#856404;\">' + esc(w) + '</div>';\n");
-    sb.append("            }).join('');\n");
-    sb.append("          } else { warnEl.innerHTML = ''; }\n");
-    sb.append("        }\n");
-    // Top waves by views — server sends `topViewedPublicWaves` / `topParticipatedPublicWaves`
-    sb.append("        function analyticsWaveCell(w) {\n");
-    sb.append("          var id = w.waveId || w.id || '';\n");
-    sb.append("          var title = w.title || id;\n");
-    sb.append("          if (!id) {\n");
-    sb.append("            return '<td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">' + esc(id) + '</td><td>' + esc(title) + '</td>';\n");
-    sb.append("          }\n");
-    sb.append("          var href = (_ctx || '') + '/waveref/' + encodeURIComponent(id);\n");
-    sb.append("          var linkStyle = 'display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;text-decoration:none;';\n");
-    sb.append("          return '<td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\"><a href=\"' + href + '\" style=\"' + linkStyle + '\">' + esc(id) + '</a></td><td><a href=\"' + href + '\" style=\"' + linkStyle + '\">' + esc(title) + '</a></td>';\n");
-    sb.append("        }\n");
-    sb.append("        function analyticsRows(arr, valKey, tbody) {\n");
-    sb.append("          if (!arr || arr.length === 0) { tbody.innerHTML = '<tr><td colspan=\"3\" style=\"text-align:center;color:#aaa\">No data</td></tr>'; return; }\n");
-    sb.append("          tbody.innerHTML = arr.map(function(w) {\n");
-    sb.append("            return '<tr>' + analyticsWaveCell(w) + '<td>' + (w[valKey]||0) + '</td></tr>';\n");
-    sb.append("          }).join('');\n");
-    sb.append("        }\n");
-    sb.append("        var tvb = document.getElementById('analyticsTopViewedBody');\n");
-    sb.append("        if (tvb) analyticsRows(data.topViewedPublicWaves, 'views', tvb);\n");
-    sb.append("        var tpb = document.getElementById('analyticsTopParticipatedBody');\n");
-    sb.append("        if (tpb) analyticsRows(data.topParticipatedPublicWaves, 'participantCount', tpb);\n");
-    // Top users — server sends `topUsers`, not `topActiveUsers`; value field is `writeCount`
-    sb.append("        var tub = document.getElementById('analyticsTopUsersBody');\n");
-    sb.append("        if (tub) {\n");
-    sb.append("          var topUsers = data.topUsers || [];\n");
-    sb.append("          if (topUsers.length === 0) { tub.innerHTML = '<tr><td colspan=\"2\" style=\"text-align:center;color:#aaa\">No data</td></tr>'; }\n");
-    sb.append("          else { tub.innerHTML = topUsers.map(function(u) {\n");
-    sb.append("            return '<tr><td>' + esc(u.userId || '') + '</td><td>' + (u.writeCount||0) + '</td></tr>';\n");
-    sb.append("          }).join(''); }\n");
-    sb.append("        }\n");
-    sb.append("      }).catch(function(e) {\n");
-    sb.append("        _statusDone = true; clearTimeout(_statusTimer);\n");
-    sb.append("        showToast('Failed to load analytics status: ' + e.message, 'error');\n");
-    sb.append("      });\n");
-    sb.append("  }\n");
 
     sb.append("})();\n");
     sb.append("</script>\n");

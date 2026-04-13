@@ -35,12 +35,10 @@ public final class MongoMigrationConfig {
   private final String username;
   private final String password;
   private final String mongoDriver;
-  private final boolean analyticsCountersEnabled;
 
   public MongoMigrationConfig(String signerInfoStoreType, String attachmentStoreType,
       String accountStoreType, String deltaStoreType, String contactStoreType, String host,
-      String port, String database, String username, String password, String mongoDriver,
-      boolean analyticsCountersEnabled) {
+      String port, String database, String username, String password, String mongoDriver) {
     this.signerInfoStoreType = signerInfoStoreType;
     this.attachmentStoreType = attachmentStoreType;
     this.accountStoreType = accountStoreType;
@@ -52,7 +50,6 @@ public final class MongoMigrationConfig {
     this.username = username;
     this.password = password;
     this.mongoDriver = mongoDriver;
-    this.analyticsCountersEnabled = analyticsCountersEnabled;
   }
 
   public String getSignerInfoStoreType() {
@@ -99,10 +96,6 @@ public final class MongoMigrationConfig {
     return mongoDriver;
   }
 
-  public boolean isAnalyticsCountersEnabled() {
-    return analyticsCountersEnabled;
-  }
-
   public boolean isMongoV4Driver() {
     return "v4".equalsIgnoreCase(mongoDriver);
   }
@@ -126,10 +119,6 @@ public final class MongoMigrationConfig {
     // ContactMessageStore follows account-store wiring in PersistenceModule, so
     // contact-message migrations key off accountStoreType rather than contactStoreType.
     return isMongoStoreType(accountStoreType) && isMongoV4Driver();
-  }
-
-  public boolean usesMongoAnalyticsCounters() {
-    return analyticsCountersEnabled && isMongoStoreType(accountStoreType) && isMongoV4Driver();
   }
 
   private static boolean isMongoStoreType(String storeType) {

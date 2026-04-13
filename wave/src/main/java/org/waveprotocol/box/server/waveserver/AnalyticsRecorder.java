@@ -2,10 +2,12 @@ package org.waveprotocol.box.server.waveserver;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.HashSet;
 import java.util.Set;
 import org.waveprotocol.box.common.DeltaSequence;
-import org.waveprotocol.box.server.persistence.AnalyticsCounterStore;
+import org.waveprotocol.box.server.stat.MetricsHolder;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
@@ -17,47 +19,60 @@ import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.util.logging.Log;
 
 /**
- * Records analytics events into hourly counters.
- * Subscribes to WaveBus for wave/blip creation tracking.
- * Also called directly by servlets for views, registration, and activity.
+ * Records analytics activity into exported Micrometer counters.
+ * Subscribes to WaveBus for wave/blip creation tracking and is also called
+ * directly by servlets for view, registration, and activity events.
  */
 @Singleton
 public final class AnalyticsRecorder implements WaveBus.Subscriber {
 
   private static final Log LOG = Log.get(AnalyticsRecorder.class);
-
-  private final AnalyticsCounterStore store;
+  private final Counter publicWavePageViews;
+  private final Counter publicWaveApiViews;
+  private final Counter usersRegistered;
+  private final Counter activeUserEvents;
+  private final Counter wavesCreated;
+  private final Counter blipsCreated;
 
   @Inject
-  public AnalyticsRecorder(AnalyticsCounterStore store) {
-    this.store = store;
+  public AnalyticsRecorder() {
+    this(MetricsHolder.registry());
+  }
+
+  AnalyticsRecorder(MeterRegistry registry) {
+    this.publicWavePageViews = registry.counter("wave.analytics.public_wave.page_views");
+    this.publicWaveApiViews = registry.counter("wave.analytics.public_wave.api_views");
+    this.usersRegistered = registry.counter("wave.analytics.users_registered");
+    this.activeUserEvents = registry.counter("wave.analytics.active_user_events");
+    this.wavesCreated = registry.counter("wave.analytics.waves_created");
+    this.blipsCreated = registry.counter("wave.analytics.blips_created");
   }
 
   // ---- Direct recording methods (called by servlets) ----
 
   public void incrementPageViews(long timestampMs) {
-    store.incrementPageViews(timestampMs);
+    publicWavePageViews.increment();
   }
 
   public void incrementApiViews(long timestampMs) {
-    store.incrementApiViews(timestampMs);
+    publicWaveApiViews.increment();
   }
 
   public void recordActiveUser(String userId, long timestampMs) {
-    store.recordActiveUser(userId, timestampMs);
+    activeUserEvents.increment();
   }
 
   public void incrementUsersRegistered(long timestampMs) {
-    store.incrementUsersRegistered(timestampMs);
+    usersRegistered.increment();
   }
 
   public void recordWaveCreated(long timestampMs) {
-    store.incrementWavesCreated(timestampMs);
+    wavesCreated.increment();
   }
 
   public void recordBlipsCreated(int count, long timestampMs) {
     if (count > 0) {
-      store.incrementBlipsCreated(timestampMs, count);
+      blipsCreated.increment(count);
     }
   }
 
@@ -74,7 +89,7 @@ public final class AnalyticsRecorder implements WaveBus.Subscriber {
         // Detect new wave: first delta at version 0 on conv+root
         if (delta.getAppliedAtVersion() == 0L
             && "conv+root".equals(wavelet.getWaveletId().getId())) {
-          store.incrementWavesCreated(timestamp);
+          recordWaveCreated(timestamp);
         }
         // Count new blip operations
         Set<String> newBlipIds = new HashSet<>();
@@ -89,7 +104,7 @@ public final class AnalyticsRecorder implements WaveBus.Subscriber {
           }
         }
         if (!newBlipIds.isEmpty()) {
-          store.incrementBlipsCreated(timestamp, newBlipIds.size());
+          recordBlipsCreated(newBlipIds.size(), timestamp);
         }
       }
     } catch (Exception e) {

@@ -25,11 +25,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.anyInt;
 
+import io.micrometer.core.instrument.Counter;
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
-import org.waveprotocol.box.server.persistence.AnalyticsCounterStore.HourlyBucket;
-import org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore;
+import org.waveprotocol.box.server.stat.MetricsHolder;
 import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
@@ -67,15 +67,14 @@ public class PublicWaveFetchServletTest extends TestCase {
   private static final ProtoSerializer protoSerializer = new ProtoSerializer();
 
   private WaveletProviderStub waveletProvider;
-  private MemoryAnalyticsCounterStore analyticsCounterStore;
   private PublicWaveFetchServlet servlet;
 
   @Override
   protected void setUp() throws Exception {
     waveletProvider = new WaveletProviderStub();
-    analyticsCounterStore = new MemoryAnalyticsCounterStore();
+    MetricsHolder.prometheus().clear();
     servlet = new PublicWaveFetchServlet(waveletProvider, protoSerializer, DOMAIN,
-        new AnalyticsRecorder(analyticsCounterStore));
+        new AnalyticsRecorder());
   }
 
   /**
@@ -199,11 +198,8 @@ public class PublicWaveFetchServletTest extends TestCase {
   }
 
   private long totalApiViews() {
-    long total = 0L;
-    for (HourlyBucket bucket : analyticsCounterStore.getHourlyBuckets(0L, Long.MAX_VALUE)) {
-      total += bucket.getApiViews();
-    }
-    return total;
+    Counter counter = MetricsHolder.registry().find("wave.analytics.public_wave.api_views").counter();
+    return counter == null ? 0L : Math.round(counter.count());
   }
 
   /**

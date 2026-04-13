@@ -342,8 +342,7 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
         "wiab",
         "",
         "",
-        "v4",
-        false);
+        "v4");
   }
 
   private static final class IteratorCursor implements MongoCursor<Document> {

@@ -376,7 +376,6 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
   p.contains("/org/waveprotocol/wave/client/") ||
   p.contains("/org/waveprotocol/box/webclient/") ||
   // Legacy Jetty API tests that break on JDK17
-  p.endsWith("/org/waveprotocol/box/server/authentication/SessionManagerTest.java") ||
   p.endsWith("/org/waveprotocol/box/server/rpc/FetchServletTest.java") ||
   // OAuth/Robot tests whose production classes are excluded
   p.endsWith("/com/google/wave/api/AbstractRobotTest.java") ||

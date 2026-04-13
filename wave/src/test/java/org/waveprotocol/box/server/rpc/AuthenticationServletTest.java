@@ -116,7 +116,7 @@ public class AuthenticationServletTest extends TestCase {
 
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
         manager, "examPLe.com", config, browserSessionJwtIssuer, authEmailService,
-        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
+        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder());
     AccountStoreHolder.init(store, "eXaMple.com");
   }
 
@@ -243,7 +243,7 @@ public class AuthenticationServletTest extends TestCase {
         config);
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
         manager, "example.com", config, browserSessionJwtIssuer, authEmailService,
-        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
+        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder());
     when(emailTokenIssuer.issueEmailConfirmToken(USER)).thenReturn("confirm-token");
 
     PercentEscaper escaper = new PercentEscaper(PercentEscaper.SAFECHARS_URLENCODER, true);
@@ -302,7 +302,7 @@ public class AuthenticationServletTest extends TestCase {
         config);
     servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
         manager, "example.com", config, browserSessionJwtIssuer, authEmailService,
-        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
+        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder());
 
     PercentEscaper escaper = new PercentEscaper(PercentEscaper.SAFECHARS_URLENCODER, true);
     String data = "address=" + escaper.escape("frodo@example.com")

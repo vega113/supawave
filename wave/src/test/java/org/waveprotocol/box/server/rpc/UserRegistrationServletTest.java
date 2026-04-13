@@ -163,8 +163,7 @@ public class UserRegistrationServletTest extends TestCase {
         "core.email_confirmation_enabled", true));
     UserRegistrationServlet servlet =
         new UserRegistrationServlet(store, "example.com", config, null, welcomeWaveCreator,
-            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(
-                new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
+            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder());
 
     when(req.getParameter("check-email")).thenReturn("1");
     when(req.getLocale()).thenReturn(Locale.ENGLISH);
@@ -226,7 +225,7 @@ public class UserRegistrationServletTest extends TestCase {
     );
     UserRegistrationServlet enabledServlet =
         new UserRegistrationServlet(store, "example.com", config1, authEmailService, welcomeWaveCreator,
-            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
+            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder());
 
     Config config2 = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
       "administration.disable_registration", true,
@@ -235,7 +234,7 @@ public class UserRegistrationServletTest extends TestCase {
     );
     UserRegistrationServlet disabledServlet =
         new UserRegistrationServlet(store, "example.com", config2, authEmailService, welcomeWaveCreator,
-            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
+            new org.waveprotocol.box.server.waveserver.AnalyticsRecorder());
 
     when(req.getParameter("address")).thenReturn(address);
     when(req.getParameter("password")).thenReturn(password);

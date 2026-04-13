@@ -186,10 +186,34 @@ set -euo pipefail
     printf '{{"Service":"caddy","State":"running"}}\\n'
     exit 0
     ;;
+  *" ps -q wave-blue"*)
+    printf 'wave-blue-id\\n'
+    exit 0
+    ;;
+  *" ps -q wave-green"*)
+    printf 'wave-green-id\\n'
+    exit 0
+    ;;
   *" up -d wave-green"*)
     exit 0
     ;;
   *" up -d wave-blue"*)
+    exit 0
+    ;;
+  *"inspect --format {{.State.StartedAt}} wave-blue-id"*)
+    printf '2026-04-13T11:00:00Z\\n'
+    exit 0
+    ;;
+  *"inspect --format {{.State.StartedAt}} wave-green-id"*)
+    printf '2026-04-13T11:00:00Z\\n'
+    exit 0
+    ;;
+  *" logs --no-color --since 2026-04-13T11:00:00Z wave-blue"*)
+    printf 'Completed Mongock Mongo schema migrations\n'
+    exit 0
+    ;;
+  *" logs --no-color --since 2026-04-13T11:00:00Z wave-green"*)
+    printf 'Completed Mongock Mongo schema migrations\n'
     exit 0
     ;;
   *" logs --no-color wave-blue"*)

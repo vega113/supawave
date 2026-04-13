@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-13-lucene-startup-reuse",
+  "version": "PR #888",
+  "date": "2026-04-13",
+  "title": "Reuse Lucene indexes across startup",
+  "summary": "Wave startup now reuses an existing Lucene index when rebuild-on-startup is disabled, avoiding full corpus repair on every restart while preserving empty-index bootstrap and explicit rebuilds.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Lucene startup now skips the old startup repair pass when a reusable on-disk index already exists and `core.lucene9_rebuild_on_startup` is false",
+        "Empty Lucene directories still trigger an initial build and explicit admin reindex operations still perform full rebuilds"
+      ]
+    }
+  ]
+}

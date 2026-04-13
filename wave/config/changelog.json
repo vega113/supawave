@@ -127,6 +127,39 @@
     ]
   },
   {
+    "releaseId": "2026-04-13-lucene-startup-reuse",
+    "version": "PR #888",
+    "date": "2026-04-13",
+    "title": "Reuse Lucene indexes across startup",
+    "summary": "Wave startup now reuses an existing Lucene index when rebuild-on-startup is disabled, avoiding full corpus repair on every restart while preserving empty-index bootstrap and explicit rebuilds.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Lucene startup now skips the old startup repair pass when a reusable on-disk index already exists and `core.lucene9_rebuild_on_startup` is false",
+          "Empty Lucene directories still trigger an initial build and explicit admin reindex operations still perform full rebuilds"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-13-grafana-admin-analytics",
+    "version": "PR #884",
+    "date": "2026-04-13",
+    "title": "Move admin analytics out to Grafana",
+    "summary": "Wave no longer renders an admin analytics tab; the remaining analytics signals are exported through `/metrics` and the Grafana Alloy pipeline instead of being stored and queried inside the app.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Removed the /admin Analytics tab and its server-side analytics API/history storage paths",
+          "Wave now exports aggregate analytics counters through the existing Prometheus `/metrics` endpoint for Grafana dashboards and alerts",
+          "Updated the SupaWave Alloy host configuration and runbook so Grafana Cloud scrapes Wave application metrics directly"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-13-ghcr-push-retry",
     "version": "PR #870",
     "date": "2026-04-13",

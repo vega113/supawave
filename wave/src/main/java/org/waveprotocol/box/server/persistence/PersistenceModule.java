@@ -39,6 +39,7 @@ import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
 import org.waveprotocol.box.server.persistence.memory.MemorySnapshotStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
+import org.waveprotocol.box.server.persistence.migrations.MongockMongoMigrationRunnerFactory;
 import org.waveprotocol.box.server.persistence.mongodb.MongoDbProvider;
 import org.waveprotocol.box.server.waveserver.DeltaStore;
 import org.waveprotocol.wave.crypto.CertPathStore;
@@ -83,10 +84,17 @@ public class PersistenceModule extends AbstractModule {
   private final String mongoDBPassword;
   private final String mongoDriver;
   private final boolean analyticsCountersEnabled;
+  private final MongoMigrationConfig mongoMigrationConfig;
+  private final MongoMigrationRunnerFactory mongoMigrationRunnerFactory;
+  private boolean mongoMigrationsExecuted;
 
 
   @Inject
   public PersistenceModule(Config config) {
+    this(config, new MongockMongoMigrationRunnerFactory());
+  }
+
+  PersistenceModule(Config config, MongoMigrationRunnerFactory mongoMigrationRunnerFactory) {
     this.signerInfoStoreType = config.getString("core.signer_info_store_type");
     this.attachmentStoreType = config.getString("core.attachment_store_type");
     this.accountStoreType = config.getString("core.account_store_type");
@@ -101,6 +109,20 @@ public class PersistenceModule extends AbstractModule {
     this.mongoDriver = config.hasPath("core.mongodb_driver") ? config.getString("core.mongodb_driver") : "v2";
     this.analyticsCountersEnabled = config.hasPath("core.analytics_counters_enabled")
         && config.getBoolean("core.analytics_counters_enabled");
+    this.mongoMigrationConfig = new MongoMigrationConfig(
+        signerInfoStoreType,
+        attachmentStoreType,
+        accountStoreType,
+        deltaStoreType,
+        contactStoreType,
+        mongoDBHost,
+        mongoDBPort,
+        mongoDBdatabase,
+        mongoDBUsername,
+        mongoDBPassword,
+        mongoDriver,
+        analyticsCountersEnabled);
+    this.mongoMigrationRunnerFactory = mongoMigrationRunnerFactory;
   }
 
   /**
@@ -123,6 +145,7 @@ public class PersistenceModule extends AbstractModule {
 
   @Override
   protected void configure() {
+    runMongoMigrationsIfNeeded();
     bindCertPathStore();
     bindAttachmentStore();
     bindAccountStore();
@@ -132,6 +155,20 @@ public class PersistenceModule extends AbstractModule {
     bindContactMessageStore();
     bindFeatureFlagStore();
     bindAnalyticsCounterStore();
+  }
+
+  void runMongoMigrationsIfNeeded() {
+    if (mongoMigrationsExecuted || !shouldRunMongoMigrations()) {
+      return;
+    }
+    MongoMigrationRunner runner = mongoMigrationRunnerFactory.create(mongoMigrationConfig);
+    runner.run();
+    mongoMigrationsExecuted = true;
+  }
+
+  boolean shouldRunMongoMigrations() {
+    return mongoMigrationConfig.isMongoV4Driver()
+        && mongoMigrationConfig.usesMongoBackedCoreStore();
   }
 
   /**

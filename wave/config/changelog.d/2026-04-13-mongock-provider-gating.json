@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-13-mongock-provider-gating",
+  "version": "Unreleased",
+  "date": "2026-04-13",
+  "title": "Gate Mongock startup migrations to Mongo-backed persistence",
+  "summary": "Wave startup now runs Mongock migrations only when the active core persistence path is MongoDB on the v4 driver, avoiding unnecessary migration startup work for file- or memory-backed deployments.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Mongo-backed v4 deployments now run the startup migration runner exactly once during persistence wiring",
+        "File- and memory-backed deployments skip Mongock entirely even if Mongo connection settings are present in the config"
+      ]
+    }
+  ]
+}

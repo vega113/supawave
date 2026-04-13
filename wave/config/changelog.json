@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-04-13-search-toolbar-wrap-pinned-saved-searches",
+    "version": "Unreleased",
+    "date": "2026-04-13",
+    "title": "Wrap pinned saved searches onto another toolbar row",
+    "summary": "Pinned saved-search buttons in the search panel now wrap onto additional toolbar rows instead of forcing horizontal scrolling, and the search results panel follows the toolbar's rendered height.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Pinned saved searches in the search panel now remain visible by wrapping onto another toolbar row when space runs out",
+          "The search panel keeps its wave-count bar and result list aligned below the real wrapped toolbar height instead of overlapping the extra row"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-13-search-bootstrap-safety",
     "version": "Unreleased",
     "date": "2026-04-13",
@@ -26,6 +42,37 @@
         "type": "fix",
         "items": [
           "Mongo delta-store startup now upgrades legacy applied-version indexes when Mongo reports same-name key-spec conflicts, instead of refusing new delta writes until restart"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-13-next-unread-icon",
+    "version": "Unreleased",
+    "date": "2026-04-13",
+    "title": "Clarify the Next Unread toolbar icon",
+    "summary": "The wave toolbar now uses a directional chevron plus unread-accent dot for Next Unread instead of a bell, making the action easier to recognize at a glance.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Replaced the Next Unread bell glyph with a clearer directional chevron and unread-colored dot in the wave toolbar"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-13-mongock-provider-gating",
+    "version": "Unreleased",
+    "date": "2026-04-13",
+    "title": "Gate Mongock startup migrations to Mongo-backed persistence",
+    "summary": "Wave startup now runs Mongock migrations only when the active core persistence path is MongoDB on the v4 driver, avoiding unnecessary migration startup work for file- or memory-backed deployments.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Mongo-backed v4 deployments now run the startup migration runner exactly once during persistence wiring",
+          "File- and memory-backed deployments skip Mongock entirely even if Mongo connection settings are present in the config"
         ]
       }
     ]

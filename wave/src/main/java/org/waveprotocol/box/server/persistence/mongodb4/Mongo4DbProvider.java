@@ -81,6 +81,16 @@ public class Mongo4DbProvider implements AutoCloseable {
     } catch (Exception ignore) {}
   }
 
+  public MongoClient provideMongoClient() {
+    ensure();
+    return client;
+  }
+
+  public MongoDatabase provideMongoDatabase() {
+    ensure();
+    return db;
+  }
+
   public CertPathStore provideMongoDbStore() { ensure(); return new Mongo4SignerInfoStore(db); }
 
   public AttachmentStore provideMongoDbAttachmentStore() { ensure(); return new Mongo4AttachmentStore(db); }

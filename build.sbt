@@ -262,6 +262,8 @@ libraryDependencies ++= Seq(
   "javax.jdo"                      % "jdo2-api"                   % "2.1",
   "org.mongodb"                    % "mongo-java-driver"          % "2.11.2" % Provided,  // compile-only; excluded from runtime (Gradle runtimeClasspath.exclude)
   "org.mongodb"                    % "mongodb-driver-sync"        % MongoV4,
+  "io.mongock"                     % "mongock-standalone"         % "5.5.1",
+  "io.mongock"                     % "mongodb-sync-v4-driver"     % "5.5.1",
 
   // --- Cache ---
   "com.github.ben-manes.caffeine"  % "caffeine"                   % "3.1.8",

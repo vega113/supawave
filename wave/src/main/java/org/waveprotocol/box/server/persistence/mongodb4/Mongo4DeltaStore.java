@@ -197,7 +197,7 @@ public class Mongo4DeltaStore implements DeltaStore {
   }
 
   private boolean isDeltaCollectionEmpty() {
-    return getDeltaCollection().estimatedDocumentCount() == 0L;
+    return getDeltaCollection().countDocuments() == 0L;
   }
 
   private boolean hasUniqueAppliedAtVersionIndex() {

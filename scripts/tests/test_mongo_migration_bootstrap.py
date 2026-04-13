@@ -20,7 +20,13 @@ class MongoMigrationBootstrapTest(unittest.TestCase):
     self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
 
   def test_deploy_reaches_sanity_gate_when_migration_success_log_is_present(self):
-    result = self._run_deploy(log_output="Completed Mongock Mongo schema migrations\n")
+    result = self._run_deploy(
+        log_output=(
+            "wave booting\n"
+            "Completed Mongock Mongo schema migrations\n"
+            "wave ready for sanity checks\n"
+        )
+    )
 
     self.assertNotEqual(0, result.returncode)
     combined = f"{result.stdout}\n{result.stderr}"

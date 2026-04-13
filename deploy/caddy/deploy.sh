@@ -309,13 +309,17 @@ start_target_slot() {
 
 wait_for_slot_health() {
   local port=$1
-  local retries=90
+  local interval_seconds="${WAVE_SLOT_HEALTH_INTERVAL_SECONDS:-2}"
+  local timeout_seconds="${WAVE_SLOT_HEALTH_TIMEOUT_SECONDS:-420}"
+  local retries=$(( (timeout_seconds + interval_seconds - 1) / interval_seconds ))
   local i=0
+  # Lucene-backed production startups can legitimately take several minutes
+  # before /healthz answers while indexes are rebuilt from MongoDB.
   while [ $i -lt $retries ]; do
     if curl -sf "http://localhost:${port}/healthz" > /dev/null 2>&1; then
       return 0
     fi
-    sleep 2
+    sleep "$interval_seconds"
     i=$((i + 1))
   done
   return 1

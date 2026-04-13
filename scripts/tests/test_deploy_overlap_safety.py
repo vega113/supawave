@@ -13,6 +13,25 @@ BUILD_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "build.yml"
 
 
 class DeployOverlapSafetyTest(unittest.TestCase):
+  def test_deploy_waits_long_enough_for_slow_startup(self):
+    result, temp_dir = self._run_script(
+        command="deploy",
+        active_slot="blue",
+        previous_slot=None,
+        running_services=["caddy", "wave-blue"],
+        health_success_after=200,
+    )
+
+    self.assertEqual(
+        0,
+        result.returncode,
+        msg=f"deploy failed unexpectedly:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
+    )
+    self.assertGreaterEqual(
+        int((temp_dir / "health-count").read_text(encoding="utf-8").strip()),
+        200,
+    )
+
   def test_deploy_stops_old_slot_immediately_after_swap(self):
     result, temp_dir = self._run_script(
         command="deploy",
@@ -134,6 +153,7 @@ class DeployOverlapSafetyTest(unittest.TestCase):
       stop_fail_services: list[str] | None = None,
       ps_error_services: list[str] | None = None,
       reload_fail_on_calls: list[int] | None = None,
+      health_success_after: int = 1,
   ):
     bash_path = self._bash_path()
     if bash_path is None:
@@ -152,6 +172,7 @@ class DeployOverlapSafetyTest(unittest.TestCase):
       (deploy_root / "shared" / "previous-slot").write_text(f"{previous_slot}\n", encoding="utf-8")
     ops_log = temp_dir / "ops.log"
     reload_count = temp_dir / "reload-count"
+    health_count = temp_dir / "health-count"
     stop_fail_checks = "\n".join(
         f'if [[ "$cmd" == *" stop {service}"* ]]; then exit 1; fi'
         for service in stop_fail_services
@@ -238,6 +259,15 @@ for ((i=1;i<=$#;i++)); do
   fi
 done
 if [[ "$args" == *"http://localhost:9899/healthz"* ]]; then
+  count=0
+  if [[ -f "__HEALTH_COUNT__" ]]; then
+    count=$(<"__HEALTH_COUNT__")
+  fi
+  count=$((count + 1))
+  printf '%s\n' "$count" > "__HEALTH_COUNT__"
+  if (( count < __HEALTH_SUCCESS_AFTER__ )); then
+    exit 1
+  fi
   if [ -n "$out" ]; then
     printf '%s' "${out//%{http_code}/200}"
   fi
@@ -262,10 +292,16 @@ if [[ "$args" == *"https://wave.supawave.ai/"* ]]; then
   exit 0
 fi
 exit 1
-""",
+""".replace("__HEALTH_COUNT__", str(health_count)).replace(
+            "__HEALTH_SUCCESS_AFTER__", str(health_success_after)
+        ),
     )
     self._write_executable(
         fake_bin / "systemctl",
+        "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
+    )
+    self._write_executable(
+        fake_bin / "sleep",
         "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
     )
     self._write_executable(

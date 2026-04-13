@@ -471,7 +471,8 @@ JakartaTest / unmanagedSources := (JakartaTest / unmanagedSources).value.filterN
 }
 // Runtime filter: exclude *IT classes from this config (unit tests only)
 JakartaTest / testOptions += Tests.Filter { name =>
-  !name.endsWith("IT")
+  !name.endsWith("IT") ||
+    name == "org.waveprotocol.box.server.jakarta.MetricsPrometheusServletJakartaIT"
 }
 JakartaTest / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
 JakartaTest / javaOptions ++= Seq(

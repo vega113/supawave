@@ -14,6 +14,16 @@ jobs:
     name: Gatling Performance Tests
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      GCLOUD_HOSTED_METRICS_URL: ${{ secrets.GCLOUD_HOSTED_METRICS_URL }}
+      GCLOUD_HOSTED_METRICS_ID: ${{ secrets.GCLOUD_HOSTED_METRICS_ID }}
+      HAS_GCLOUD_RW_API_KEY: ${{ secrets.GCLOUD_RW_API_KEY != '' && 'true' || '' }}
+      GRAFANA_URL: ${{ vars.GRAFANA_URL }}
+      HAS_GRAFANA_DASHBOARD_API_TOKEN: ${{ secrets.GRAFANA_DASHBOARD_API_TOKEN != '' && 'true' || '' }}
+      GRAFANA_PROMETHEUS_DATASOURCE_UID: ${{ vars.GRAFANA_PROMETHEUS_DATASOURCE_UID }}
+      GRAFANA_FOLDER_UID: ${{ vars.GRAFANA_FOLDER_UID }}
+      GRAFANA_ALLOY_VERSION: v1.11.2
+      PERF_BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
     steps:
       - name: Checkout
@@ -38,6 +48,56 @@ jobs:
       - name: Stage distribution
         run: sbt --batch Universal/stage
 
+      - name: Install Grafana Alloy
+        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' && env.HAS_GCLOUD_RW_API_KEY == 'true' }}
+        run: |
+          release_url="https://github.com/grafana/alloy/releases/download/${GRAFANA_ALLOY_VERSION}"
+          curl -fsSL -o "$RUNNER_TEMP/alloy.zip" \
+            "$release_url/alloy-linux-amd64.zip"
+          curl -fsSL -o "$RUNNER_TEMP/SHA256SUMS" \
+            "$release_url/SHA256SUMS"
+          (
+            cd "$RUNNER_TEMP"
+            grep 'alloy-linux-amd64.zip$' SHA256SUMS | sha256sum -c -
+          )
+          unzip -q "$RUNNER_TEMP/alloy.zip" -d "$RUNNER_TEMP/alloy"
+          mkdir -p "$RUNNER_TEMP/bin"
+          install "$RUNNER_TEMP/alloy/alloy-linux-amd64" "$RUNNER_TEMP/bin/alloy"
+          chmod +x "$RUNNER_TEMP/bin/alloy"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Start perf metrics exporter
+        run: |
+          nohup python3 scripts/perf_metrics_exporter.py serve \
+            --results-dir wave/target/perf-results \
+            --listen 127.0.0.1:9464 \
+            >"$RUNNER_TEMP/perf-exporter.log" 2>&1 &
+
+      - name: Render perf Alloy config
+        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' && env.HAS_GCLOUD_RW_API_KEY == 'true' }}
+        run: |
+          python3 scripts/render_perf_alloy_config.py \
+            --output "$RUNNER_TEMP/perf.alloy" \
+            --metrics-url "$GCLOUD_HOSTED_METRICS_URL" \
+            --metrics-id "$GCLOUD_HOSTED_METRICS_ID" \
+            --api-key-env-var "GCLOUD_RW_API_KEY" \
+            --base-url "http://127.0.0.1:9898" \
+            --exporter-port 9464 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --branch "${PERF_BRANCH_NAME}" \
+            --sha "${GITHUB_SHA}" \
+            --workflow "perf" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --run-attempt "${GITHUB_RUN_ATTEMPT}"
+
+      - name: Start Grafana Alloy
+        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' && env.HAS_GCLOUD_RW_API_KEY == 'true' }}
+        env:
+          GCLOUD_RW_API_KEY: ${{ secrets.GCLOUD_RW_API_KEY }}
+        run: |
+          nohup alloy run "$RUNNER_TEMP/perf.alloy" \
+            >"$RUNNER_TEMP/alloy.log" 2>&1 &
+
       - name: Run performance tests
         run: bash scripts/wave-perf.sh
 
@@ -58,3 +118,17 @@ jobs:
           path: |
             wave/target/perf-results/
             target/universal/stage/wave_server.out
+            ${{ runner.temp }}/perf-exporter.log
+            ${{ runner.temp }}/alloy.log
+
+      - name: Upsert Grafana dashboard
+        if: ${{ always() && env.GRAFANA_URL != '' && env.HAS_GRAFANA_DASHBOARD_API_TOKEN == 'true' && env.GRAFANA_PROMETHEUS_DATASOURCE_UID != '' }}
+        continue-on-error: true
+        env:
+          GRAFANA_DASHBOARD_API_TOKEN: ${{ secrets.GRAFANA_DASHBOARD_API_TOKEN }}
+        run: |
+          if [ -f scripts/upsert_grafana_dashboard.py ]; then
+            python3 scripts/upsert_grafana_dashboard.py
+          else
+            echo "Grafana dashboard helper not present yet; skipping"
+          fi

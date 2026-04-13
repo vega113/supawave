@@ -14,6 +14,12 @@ PORT=9898
 INSTALL_DIR="$REPO_ROOT/target/universal/stage"
 RESULTS_DIR="$REPO_ROOT/wave/target/perf-results"
 PID_FILE="$INSTALL_DIR/wave_server.pid"
+PERF_REPO="${GITHUB_REPOSITORY:-incubator-wave}"
+PERF_BRANCH="${PERF_BRANCH_NAME:-${BRANCH_NAME:-${GITHUB_REF_NAME:-$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || echo local)}}}"
+PERF_SHA="${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo local)}"
+PERF_WORKFLOW="${GITHUB_WORKFLOW:-perf}"
+PERF_RUN_ID="${GITHUB_RUN_ID:-local}"
+PERF_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
 
 mkdir -p "$RESULTS_DIR"
 
@@ -138,6 +144,31 @@ for sim in SearchLoadSimulation WaveOpenSimulation FullJourneySimulation; do
     2>&1 | tee "$RESULTS_DIR/${sim}-output.txt"
   sim_code=${PIPESTATUS[0]}
   set -e
+
+  summary_file="$RESULTS_DIR/${sim}-summary.json"
+  tmp_summary_file="${summary_file}.tmp"
+  rm -f "$summary_file" "$tmp_summary_file"
+  set +e
+  python3 scripts/perf_metrics_exporter.py summarize \
+    --simulation "$sim" \
+    --output-file "$RESULTS_DIR/${sim}-output.txt" \
+    --summary-file "$tmp_summary_file" \
+    --exit-code "$sim_code" \
+    --repo "$PERF_REPO" \
+    --branch "$PERF_BRANCH" \
+    --sha "$PERF_SHA" \
+    --workflow "$PERF_WORKFLOW" \
+    --run-id "$PERF_RUN_ID" \
+    --run-attempt "$PERF_RUN_ATTEMPT"
+  summary_code=$?
+  set -e
+  if [[ "$summary_code" -ne 0 ]]; then
+    rm -f "$summary_file" "$tmp_summary_file"
+    echo "[perf] WARN: failed to generate summary file for $sim" >&2
+  else
+    mv "$tmp_summary_file" "$summary_file"
+    echo "[perf] Summary: $summary_file"
+  fi
 
   if [[ "$sim_code" -ne 0 ]]; then
     echo "[perf] WARN: $sim exited with code $sim_code"

@@ -1,0 +1,179 @@
+{
+  "id": null,
+  "uid": "wave-perf-observability",
+  "title": "Wave Perf Observability",
+  "tags": ["perf", "grafana-cloud", "wave"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "branch",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "__PROMETHEUS_DS_UID__"
+        },
+        "query": "label_values(wave_perf_run_info, branch)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "simulation",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "__PROMETHEUS_DS_UID__"
+        },
+        "query": "label_values(wave_perf_run_info, simulation)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "sha",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "__PROMETHEUS_DS_UID__"
+        },
+        "query": "label_values(wave_perf_run_info, sha)",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Latest Perf Status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "sum by (simulation) (last_over_time(wave_perf_run_info{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\"}[30d]))",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "P95 by Simulation",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "wave_perf_response_time_ms{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",stat=\"p95\"}",
+          "legendFormat": "{{simulation}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "P99 by Simulation",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "wave_perf_response_time_ms{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",stat=\"p99\"}",
+          "legendFormat": "{{simulation}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Wave HTTP Errors",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_exceptions_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "JVM Heap",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "GC Activity",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "rate(jvm_gc_memory_allocated_bytes_total[5m])",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Runner CPU",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(node_cpu_seconds_total{mode!=\"idle\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Runner Memory",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 }
+    }
+  ]
+}

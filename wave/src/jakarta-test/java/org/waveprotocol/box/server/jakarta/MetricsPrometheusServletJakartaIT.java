@@ -26,11 +26,6 @@ import org.junit.Test;
 import org.waveprotocol.box.server.stat.MetricsHolder;
 import org.waveprotocol.box.server.stat.MetricsPrometheusServlet;
 
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -79,5 +74,26 @@ public final class MetricsPrometheusServletJakartaIT {
     assertTrue("Prometheus output should contain HELP header", body.contains("# HELP"));
     assertTrue("Counter sample should be exported", body.contains("wave_metrics_test_counter_total"));
     assertTrue("Counter label should be present", body.contains("state=\"ok\""));
+    assertTrue("JVM memory metrics should be exported", body.contains("jvm_memory_used_bytes"));
+    assertTrue("JVM GC metrics should be exported", body.contains("jvm_gc_memory_allocated_bytes_total"));
+    assertTrue("JVM thread metrics should be exported", body.contains("jvm_threads_live_threads"));
+    assertTrue("Process CPU metrics should be exported", body.contains("system_cpu_count"));
+  }
+
+  @Test
+  public void metricsEndpointExposesJvmAndProcessBinders() throws Exception {
+    Counter counter = MetricsHolder.registry().counter("wave_metrics_test_counter", "state", "ok");
+    counter.increment(2.0);
+
+    HttpURLConnection conn = TestSupport.openConnection(new URL("http://localhost:" + port + "/metrics"));
+    assertEquals(200, conn.getResponseCode());
+    assertEquals("text/plain; version=0.0.4; charset=utf-8", conn.getHeaderField("Content-Type"));
+
+    String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    assertTrue("Counter sample should be exported", body.contains("wave_metrics_test_counter_total"));
+    assertTrue("JVM memory metrics should be exported", body.contains("jvm_memory_used_bytes"));
+    assertTrue("JVM GC metrics should be exported", body.contains("jvm_gc_memory_allocated_bytes_total"));
+    assertTrue("JVM thread metrics should be exported", body.contains("jvm_threads_live_threads"));
+    assertTrue("Process CPU metrics should be exported", body.contains("system_cpu_count"));
   }
 }

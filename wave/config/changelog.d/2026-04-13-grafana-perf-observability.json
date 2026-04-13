@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-13-grafana-perf-observability",
+  "version": "PR #890",
+  "date": "2026-04-13",
+  "title": "Add Grafana-backed performance observability",
+  "summary": "The performance workflow now exports Wave and runner metrics to Grafana Cloud during Gatling runs and can upsert a matching Grafana dashboard for perf analysis.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a local perf metrics exporter plus Alloy config generation so the performance workflow can scrape Wave, runner, and summary metrics during Gatling runs",
+        "Added Grafana dashboard provisioning assets and workflow wiring so performance runs can publish observability data into Grafana Cloud"
+      ]
+    }
+  ]
+}

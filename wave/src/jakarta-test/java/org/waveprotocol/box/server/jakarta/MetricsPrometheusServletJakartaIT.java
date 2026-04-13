@@ -74,6 +74,10 @@ public final class MetricsPrometheusServletJakartaIT {
     assertTrue("Prometheus output should contain HELP header", body.contains("# HELP"));
     assertTrue("Counter sample should be exported", body.contains("wave_metrics_test_counter_total"));
     assertTrue("Counter label should be present", body.contains("state=\"ok\""));
+    assertTrue("JVM memory metrics should be exported", body.contains("jvm_memory_used_bytes"));
+    assertTrue("JVM GC metrics should be exported", body.contains("jvm_gc_memory_allocated_bytes_total"));
+    assertTrue("JVM thread metrics should be exported", body.contains("jvm_threads_live_threads"));
+    assertTrue("Process CPU metrics should be exported", body.contains("system_cpu_count"));
   }
 
   @Test

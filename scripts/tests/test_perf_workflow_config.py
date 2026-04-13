@@ -29,6 +29,19 @@ class PerfWorkflowConfigTest(unittest.TestCase):
     self.assertIn('--api-key-env-var "GCLOUD_RW_API_KEY"', workflow)
     self.assertNotIn('--api-key "$GCLOUD_RW_API_KEY"', workflow)
 
+  def test_perf_workflow_installs_alloy_to_runner_temp_bin(self):
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    self.assertIn('mkdir -p "$RUNNER_TEMP/bin"', workflow)
+    self.assertIn('install "$RUNNER_TEMP/alloy/alloy-linux-amd64" "$RUNNER_TEMP/bin/alloy"', workflow)
+    self.assertIn('echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"', workflow)
+
+  def test_perf_workflow_treats_dashboard_upsert_as_best_effort(self):
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    self.assertIn("- name: Upsert Grafana dashboard", workflow)
+    self.assertIn("continue-on-error: true", workflow)
+
 
 if __name__ == "__main__":
   unittest.main()

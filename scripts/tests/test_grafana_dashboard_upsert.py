@@ -1,5 +1,6 @@
 import json
 import os
+import urllib.error
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -41,6 +42,43 @@ class GrafanaDashboardUpsertTest(unittest.TestCase):
   def test_main_skips_cleanly_when_credentials_are_missing(self):
     with mock.patch.dict(os.environ, {}, clear=True):
       exit_code = upsert_grafana_dashboard.main()
+
+    self.assertEqual(0, exit_code)
+
+  def test_main_skips_cleanly_when_grafana_upsert_returns_http_error(self):
+    env = {
+        "GRAFANA_URL": "https://grafana.example.com",
+        "GRAFANA_DASHBOARD_API_TOKEN": "token",
+        "GRAFANA_PROMETHEUS_DATASOURCE_UID": "datasource",
+    }
+    error = urllib.error.HTTPError(
+        url="https://grafana.example.com/api/dashboards/db",
+        code=502,
+        msg="Bad Gateway",
+        hdrs=None,
+        fp=None,
+    )
+
+    with mock.patch.dict(os.environ, env, clear=True):
+      with mock.patch.object(upsert_grafana_dashboard.urllib.request, "urlopen", side_effect=error):
+        exit_code = upsert_grafana_dashboard.main()
+
+    self.assertEqual(0, exit_code)
+
+  def test_main_skips_cleanly_when_grafana_upsert_returns_url_error(self):
+    env = {
+        "GRAFANA_URL": "https://grafana.example.com",
+        "GRAFANA_DASHBOARD_API_TOKEN": "token",
+        "GRAFANA_PROMETHEUS_DATASOURCE_UID": "datasource",
+    }
+
+    with mock.patch.dict(os.environ, env, clear=True):
+      with mock.patch.object(
+          upsert_grafana_dashboard.urllib.request,
+          "urlopen",
+          side_effect=urllib.error.URLError("connection refused"),
+      ):
+        exit_code = upsert_grafana_dashboard.main()
 
     self.assertEqual(0, exit_code)
 

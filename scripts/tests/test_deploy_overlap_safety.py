@@ -175,6 +175,10 @@ set -euo pipefail
 	cmd="$*"
 	{stop_fail_checks}
 	{ps_error_checks}
+if [[ "$cmd" == *"image inspect --format"* && "$cmd" == *"ghcr.io/example/wave:test"* ]]; then
+  printf 'true\\n'
+  exit 0
+fi
 	case "$cmd" in
   "compose version")
     exit 0

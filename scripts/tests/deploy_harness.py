@@ -18,6 +18,7 @@ def run_deploy_script(
     previous_slot: str | None = None,
     application_conf: str | None = None,
     release_files: dict[str, dict[str, str]] | None = None,
+    wave_image: str = "ghcr.io/example/wave:test",
 ) -> subprocess.CompletedProcess[str]:
   bash_path = find_bash()
   if bash_path is None:
@@ -85,7 +86,7 @@ exit 1
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
     env["DEPLOY_ROOT"] = str(deploy_root)
-    env["WAVE_IMAGE"] = "ghcr.io/example/wave:test"
+    env["WAVE_IMAGE"] = wave_image
     env["CANONICAL_HOST"] = "supawave.ai"
     env["ROOT_HOST"] = "wave.supawave.ai"
     env["WWW_HOST"] = "www.supawave.ai"

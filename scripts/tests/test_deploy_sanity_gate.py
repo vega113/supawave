@@ -24,6 +24,10 @@ cmd="$*"
 if [[ "$1" == "compose" && "$2" == "version" ]]; then
   exit 0
 fi
+if [[ "$cmd" == *"image inspect --format"* && "$cmd" == *"ghcr.io/example/wave:test"* ]]; then
+  printf 'true\n'
+  exit 0
+fi
 case "$cmd" in
   *" ps caddy --format json"*)
     printf '{"Service":"caddy","State":"running"}\\n'

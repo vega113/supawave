@@ -34,6 +34,7 @@ RUN sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage"
 
 # Runtime stage: slim JRE image
 FROM eclipse-temurin:17-jre
+LABEL org.waveprotocol.mongo-migration-marker-supported="true"
 ENV WAVE_HOME=/opt/wave
 RUN apt-get update -qq && \
     apt-get install -y -qq curl && \

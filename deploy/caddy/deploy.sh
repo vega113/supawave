@@ -36,6 +36,7 @@ deploy_env_file="$deploy_root/shared/deploy.env"
 lock_file="$deploy_root/deploy.lock"
 COMPOSE_FILE="$deploy_root/releases/current/compose.yml"
 MONGO_MIGRATION_MARKER_SUPPORT_FILE="mongo-migration-marker-supported"
+MONGO_MIGRATION_MARKER_LABEL="org.waveprotocol.mongo-migration-marker-supported"
 
 require_docker() {
   command -v docker >/dev/null 2>&1 || {
@@ -297,7 +298,21 @@ render_slot_config() {
   cp "$deploy_root/releases/current/application.conf" "$slot_dir/application.conf"
   perl -pi -e "s/wave\\.example\\.test/${canonical_host}/g" "$slot_dir/application.conf"
   echo "${WAVE_IMAGE:?}" > "$slot_dir/image-ref"
-  : > "$slot_dir/${MONGO_MIGRATION_MARKER_SUPPORT_FILE}"
+  if image_supports_mongo_migration_marker; then
+    : > "$slot_dir/${MONGO_MIGRATION_MARKER_SUPPORT_FILE}"
+  else
+    rm -f "$slot_dir/${MONGO_MIGRATION_MARKER_SUPPORT_FILE}"
+  fi
+}
+
+image_supports_mongo_migration_marker() {
+  local marker_value
+  marker_value="$(
+    docker image inspect \
+      --format "{{ index .Config.Labels \"$MONGO_MIGRATION_MARKER_LABEL\" }}" \
+      "${WAVE_IMAGE:?}" 2>/dev/null || true
+  )"
+  [ "$marker_value" = "true" ]
 }
 
 start_target_slot() {
@@ -339,10 +354,10 @@ slot_requires_mongo_migration_verification() {
     | sed 's|\([^:]\) *//.*|\1|')"
 
   printf '%s\n' "$effective_config" \
-    | grep -Eqi '(^|[[:space:]])mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]]|,|$)' || return 1
+    | grep -Eqi '(^|[[:space:]])(core\.)?mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]]|,|$)' || return 1
   printf '%s\n' "$effective_config" \
     | grep -Eqi \
-      '(^|[[:space:]])(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?([[:space:]]|,|$)' \
+      '(^|[[:space:]])(core\.)?(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?([[:space:]]|,|$)' \
     || return 1
 }
 

@@ -78,6 +78,21 @@ core {
     self.assertIn("did not report Mongo migration completion", combined)
     self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
 
+  def test_deploy_checks_dotted_core_hocon_mongo_values(self):
+    result = self._run_deploy(
+        log_output="wave started without migration marker\n",
+        application_conf="""\
+core.mongodb_driver = "v4"
+core.account_store_type = "mongodb"
+core.delta_store_type = file
+""",
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    combined = f"{result.stdout}\n{result.stderr}"
+    self.assertIn("did not report Mongo migration completion", combined)
+    self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+
   def test_deploy_ignores_commented_mongo_config_lines(self):
     """Commented-out config examples must not trigger the migration gate."""
     result = self._run_deploy(
@@ -110,6 +125,18 @@ core {
 """,
     )
 
+    combined = f"{result.stdout}\n{result.stderr}"
+    self.assertNotIn("did not report Mongo migration completion", combined)
+    self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+
+  def test_deploy_skips_marker_gate_for_legacy_images_without_marker_support(self):
+    result = self._run_deploy(
+        log_output="wave started without migration marker\n",
+        wave_image="ghcr.io/example/wave:legacy",
+        marker_supported=False,
+    )
+
+    self.assertNotEqual(0, result.returncode)
     combined = f"{result.stdout}\n{result.stderr}"
     self.assertNotIn("did not report Mongo migration completion", combined)
     self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
@@ -218,6 +245,8 @@ core {
       self,
       log_output: str,
       full_log_output: str | None = None,
+      wave_image: str = "ghcr.io/example/wave:test",
+      marker_supported: bool = True,
       application_conf: str = """\
 core {
   mongodb_driver = "v4"
@@ -239,7 +268,14 @@ core {
             f"""#!/usr/bin/env bash
 set -euo pipefail
 cmd="$*"
+marker_supported={"1" if marker_supported else "0"}
 if [[ "$1" == "compose" && "$2" == "version" ]]; then
+  exit 0
+fi
+if [[ "$cmd" == *"image inspect --format"* && "$cmd" == *"{wave_image}"* ]]; then
+  if [[ "$marker_supported" == "1" ]]; then
+    printf 'true\\n'
+  fi
   exit 0
 fi
 case "$cmd" in
@@ -253,7 +289,7 @@ case "$cmd" in
     ;;
   *" stop wave-green"*)
     ;;
-  "pull ghcr.io/example/wave:test"|*" pull ghcr.io/example/wave:test"*)
+  "pull {wave_image}"|*" pull {wave_image}"*)
     ;;
   *"inspect --format {{{{.State.StartedAt}}}} wave-green-id"*)
     printf '2026-04-13T11:00:00Z\\n'
@@ -272,6 +308,7 @@ esac
 """,
         ),
         application_conf=textwrap.dedent(application_conf),
+        wave_image=wave_image,
     )
 
 

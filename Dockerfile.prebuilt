@@ -24,6 +24,7 @@
 # multi-stage `Dockerfile` instead.
 
 FROM eclipse-temurin:17-jre
+LABEL org.waveprotocol.mongo-migration-marker-supported="true"
 ENV WAVE_HOME=/opt/wave
 RUN groupadd --system wave \
     && apt-get update -qq \

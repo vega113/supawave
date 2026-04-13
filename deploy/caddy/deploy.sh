@@ -311,6 +311,10 @@ wait_for_slot_health() {
   local port=$1
   local interval_seconds="${WAVE_SLOT_HEALTH_INTERVAL_SECONDS:-2}"
   local timeout_seconds="${WAVE_SLOT_HEALTH_TIMEOUT_SECONDS:-420}"
+  if ! [[ "$interval_seconds" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[deploy] ERROR: WAVE_SLOT_HEALTH_INTERVAL_SECONDS must be a positive integer (got: '${interval_seconds}')" >&2
+    return 1
+  fi
   local retries=$(( (timeout_seconds + interval_seconds - 1) / interval_seconds ))
   local i=0
   # Lucene-backed production startups can legitimately take several minutes

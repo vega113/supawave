@@ -69,7 +69,7 @@ jobs:
             --output "$RUNNER_TEMP/perf.alloy" \
             --metrics-url "$GCLOUD_HOSTED_METRICS_URL" \
             --metrics-id "$GCLOUD_HOSTED_METRICS_ID" \
-            --api-key "$GCLOUD_RW_API_KEY" \
+            --api-key-env-var "GCLOUD_RW_API_KEY" \
             --base-url "http://127.0.0.1:9898" \
             --exporter-port 9464 \
             --repo "${GITHUB_REPOSITORY}" \

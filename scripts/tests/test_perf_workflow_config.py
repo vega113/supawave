@@ -23,6 +23,12 @@ class PerfWorkflowConfigTest(unittest.TestCase):
     self.assertIn("- name: Upload performance results", workflow)
     self.assertIn("if: always()", workflow)
 
+  def test_perf_workflow_uses_env_reference_for_alloy_api_key(self):
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    self.assertIn('--api-key-env-var "GCLOUD_RW_API_KEY"', workflow)
+    self.assertNotIn('--api-key "$GCLOUD_RW_API_KEY"', workflow)
+
 
 if __name__ == "__main__":
   unittest.main()

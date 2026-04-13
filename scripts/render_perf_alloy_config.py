@@ -7,6 +7,10 @@ def _quoted(value: str) -> str:
   return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def _env_expr(var_name: str) -> str:
+  return f'sys.env("{_quoted(var_name)}")'
+
+
 def _address_from_url(base_url: str) -> str:
   parsed = urlparse(base_url)
   if not parsed.hostname:
@@ -18,7 +22,7 @@ def _address_from_url(base_url: str) -> str:
 def render_config(
     metrics_url: str,
     metrics_id: str,
-    api_key: str,
+    api_key_env_var: str,
     base_url: str,
     exporter_port: int,
     run_labels: dict[str, str],
@@ -39,7 +43,7 @@ def render_config(
 
     basic_auth {{
       username = "{_quoted(metrics_id)}"
-      password = "{_quoted(api_key)}"
+      password = {_env_expr(api_key_env_var)}
     }}
   }}
 }}
@@ -83,7 +87,7 @@ def main() -> int:
   parser.add_argument("--output", required=True)
   parser.add_argument("--metrics-url", required=True)
   parser.add_argument("--metrics-id", required=True)
-  parser.add_argument("--api-key", required=True)
+  parser.add_argument("--api-key-env-var", default="GCLOUD_RW_API_KEY")
   parser.add_argument("--base-url", required=True)
   parser.add_argument("--exporter-port", type=int, default=9464)
   parser.add_argument("--repo", default="")
@@ -105,7 +109,7 @@ def main() -> int:
   config = render_config(
       metrics_url=args.metrics_url,
       metrics_id=args.metrics_id,
-      api_key=args.api_key,
+      api_key_env_var=args.api_key_env_var,
       base_url=args.base_url,
       exporter_port=args.exporter_port,
       run_labels=run_labels,

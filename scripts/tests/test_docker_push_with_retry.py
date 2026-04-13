@@ -6,6 +6,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -53,8 +54,10 @@ echo "digest: sha256:test size: 1234"
       )
       self._write_executable(fake_bin / "sleep", "#!/usr/bin/env bash\nexit 0\n")
 
-      env = os.environ.copy()
-      env["PATH"] = f"{fake_bin}:{env['PATH']}"
+      env = self._build_mock_command_env(
+          bash_path=bash_path,
+          fake_bin=fake_bin,
+      )
 
       result = subprocess.run(  # noqa: S603 - trusted subprocess invocation in test harness
           [bash_path, str(SCRIPT_PATH), "ghcr.io/example/wave:test"],
@@ -164,6 +167,21 @@ exit 1
       self.assertIn("unknown blob", f"{result.stdout}\n{result.stderr}")
       self.assertIn("failed after 3 attempts", f"{result.stdout}\n{result.stderr}")
 
+  def test_build_mock_command_env_prepends_fake_bin_and_resolved_bash_dir(self):
+    fake_bin = Path("/tmp/fake-bin")
+    bash_path = "/tmp/custom-bash/bash"
+
+    with patch.dict(os.environ, {"PATH": "/usr/bin:/bin"}):
+      env = self._build_mock_command_env(
+          bash_path=bash_path,
+          fake_bin=fake_bin,
+      )
+
+    self.assertEqual(
+        f"{fake_bin}{os.pathsep}{Path(bash_path).parent}{os.pathsep}/usr/bin:/bin",
+        env["PATH"],
+    )
+
   def test_rejects_invalid_retry_configuration(self):
     bash_path = self._bash_path()
     if bash_path is None:
@@ -221,8 +239,10 @@ exit 99
       image_ref: str,
       extra_env: dict[str, str] | None = None,
   ) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
-    env["PATH"] = f"{fake_bin}:{env['PATH']}"
+    env = DockerPushWithRetryTest._build_mock_command_env(
+        bash_path=bash_path,
+        fake_bin=fake_bin,
+    )
     if extra_env:
       env.update(extra_env)
     return subprocess.run(  # noqa: S603 - trusted subprocess invocation in test harness
@@ -233,6 +253,18 @@ exit 99
         text=True,
         check=False,
     )
+
+  @staticmethod
+  def _build_mock_command_env(
+      bash_path: str,
+      fake_bin: Path,
+  ) -> dict[str, str]:
+    env = os.environ.copy()
+    path_parts = [str(fake_bin), str(Path(bash_path).parent)]
+    if current_path := env.get("PATH"):
+      path_parts.append(current_path)
+    env["PATH"] = os.pathsep.join(path_parts)
+    return env
 
   @staticmethod
   def _bash_path() -> str | None:

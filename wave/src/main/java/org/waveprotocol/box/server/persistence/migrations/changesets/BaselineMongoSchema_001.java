@@ -53,7 +53,7 @@ public final class BaselineMongoSchema_001 {
       ensureDeltaResultingVersionIndex();
       ensureSnapshotIndex();
     }
-    if (config.usesMongoContactStore()) {
+    if (config.usesMongoContactMessageStore()) {
       ensureContactMessageIndexes();
     }
     if (config.usesMongoAnalyticsCounters()) {

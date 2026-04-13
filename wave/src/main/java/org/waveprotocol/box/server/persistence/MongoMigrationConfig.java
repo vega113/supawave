@@ -123,6 +123,10 @@ public final class MongoMigrationConfig {
     return isMongoStoreType(contactStoreType);
   }
 
+  public boolean usesMongoContactMessageStore() {
+    return isMongoStoreType(accountStoreType) && isMongoV4Driver();
+  }
+
   public boolean usesMongoAnalyticsCounters() {
     return analyticsCountersEnabled && isMongoStoreType(accountStoreType) && isMongoV4Driver();
   }

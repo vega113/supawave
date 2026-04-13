@@ -11,6 +11,16 @@ max_attempts="${DOCKER_PUSH_MAX_ATTEMPTS:-3}"
 retry_delay_seconds="${DOCKER_PUSH_RETRY_DELAY_SECONDS:-15}"
 transient_pattern='unknown blob|blob upload unknown|received unexpected HTTP status: 5[0-9][0-9]|5[0-9][0-9] Server Error|429 Too Many Requests|TLS handshake timeout|i/o timeout|connection reset by peer|EOF|unexpected EOF|net/http: timeout awaiting response headers'
 
+if ! [[ "$max_attempts" =~ ^[1-9][0-9]*$ ]]; then
+  echo "DOCKER_PUSH_MAX_ATTEMPTS must be a positive integer; got: $max_attempts" >&2
+  exit 64
+fi
+
+if ! [[ "$retry_delay_seconds" =~ ^[0-9]+$ ]]; then
+  echo "DOCKER_PUSH_RETRY_DELAY_SECONDS must be a non-negative integer; got: $retry_delay_seconds" >&2
+  exit 64
+fi
+
 attempt=1
 while [[ "$attempt" -le "$max_attempts" ]]; do
   log_file="$(mktemp)"

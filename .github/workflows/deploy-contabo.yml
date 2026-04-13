@@ -153,7 +153,7 @@ jobs:
         run: |
           set -euo pipefail
           docker build --tag "$IMAGE_REF" -f Dockerfile.prebuilt target/universal/stage
-          docker push "$IMAGE_REF"
+          bash scripts/docker-push-with-retry.sh "$IMAGE_REF"
 
       - name: Assemble deployment bundle
         run: |

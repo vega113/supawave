@@ -15,6 +15,22 @@
     ]
   },
   {
+    "releaseId": "2026-04-13-ghcr-push-retry",
+    "version": "PR #870",
+    "date": "2026-04-13",
+    "title": "Retry transient GHCR push failures during deploy builds",
+    "summary": "The Contabo deploy workflow now retries transient GHCR push failures and rejects invalid retry settings instead of silently skipping pushes or crashing mid-loop.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Deploy builds now push images through a retry helper that retries known transient registry and network failures before giving up.",
+          "The retry helper now validates its retry-count and retry-delay environment variables and regression coverage now includes fail-fast, retry exhaustion, and invalid-config cases."
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-13-next-unread-icon",
     "version": "Unreleased",
     "date": "2026-04-13",

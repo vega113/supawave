@@ -24,6 +24,7 @@ import com.mongodb.client.MongoDatabase;
 import io.mongock.driver.mongodb.sync.v4.driver.MongoSync4Driver;
 import io.mongock.runner.core.executor.MongockRunner;
 import io.mongock.runner.standalone.MongockStandalone;
+import org.bson.Document;
 import org.waveprotocol.box.server.persistence.MongoMigrationConfig;
 import org.waveprotocol.box.server.persistence.MongoMigrationRunner;
 import org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider;
@@ -58,11 +59,11 @@ final class MongockMongoMigrationRunner implements MongoMigrationRunner {
         config.getDatabase(),
         config.getUsername(),
         config.getPassword())) {
+      MongoDatabase database = provider.provideMongoDatabase();
       MongoSync4Driver driver =
           MongoSync4Driver.withDefaultLock(provider.provideMongoClient(), config.getDatabase());
-      configureDriverDefaults(driver);
+      configureDriverDefaults(driver, database);
 
-      MongoDatabase database = provider.provideMongoDatabase();
       MongockRunner runner = MongockStandalone.builder()
           .setDriver(driver)
           .setExecutionId(EXECUTION_ID)
@@ -78,8 +79,15 @@ final class MongockMongoMigrationRunner implements MongoMigrationRunner {
     }
   }
 
-  static void configureDriverDefaults(MongoSync4Driver driver) {
-    driver.disableTransaction();
+  static void configureDriverDefaults(MongoSync4Driver driver, MongoDatabase database) {
+    if (shouldDisableTransactions(database)) {
+      driver.disableTransaction();
+    }
     driver.setReadPreference(ReadPreference.primary());
+  }
+
+  static boolean shouldDisableTransactions(MongoDatabase database) {
+    Document topology = database.runCommand(new Document("isMaster", 1));
+    return !topology.containsKey("setName") && !"isdbgrid".equals(topology.getString("msg"));
   }
 }

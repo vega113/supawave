@@ -42,7 +42,7 @@ public class PersistenceModuleMongo4IT {
               + "  contact_store_type = \"mongodb\"\n"
               + "  delta_store_type = \"mongodb\"\n"
               + "  mongodb_host = \"" + mongo.getHost() + "\"\n"
-              + "  mongodb_port = \"" + mongo.getMappedPort(27017) + "\"\n"
+              + "  mongodb_port = " + mongo.getMappedPort(27017) + "\n"
               + "  mongodb_database = \"wiab_it\"\n"
               + "  mongodb_driver = \"v4\"\n"
               + "}\n");
@@ -81,7 +81,7 @@ public class PersistenceModuleMongo4IT {
               + "  contact_store_type = \"memory\"\n"
               + "  delta_store_type = \"file\"\n"
               + "  mongodb_host = \"" + mongo.getHost() + "\"\n"
-              + "  mongodb_port = \"" + mongo.getMappedPort(27017) + "\"\n"
+              + "  mongodb_port = " + mongo.getMappedPort(27017) + "\n"
               + "  mongodb_database = \"wiab_it\"\n"
               + "  mongodb_driver = \"v4\"\n"
               + "}\n");

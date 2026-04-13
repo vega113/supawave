@@ -330,7 +330,7 @@ slot_requires_mongo_migration_verification() {
 
   grep -Eqi 'mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?' "$config_file" || return 1
   grep -Eqi \
-    '(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?' \
+    '(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type|snapshot_store_type|contact_message_store_type|feature_flag_store_type|analytics_counter_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?' \
     "$config_file"
 }
 

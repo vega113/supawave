@@ -416,6 +416,10 @@ public final class EditorEventHandler {
       logger.error().log("State was already IME during a compositionstart event!");
     }
 
+    FocusedContentRange selectionBeforeCompositionFlush = cachedSelection;
+    FocusedPointRange<Node> htmlSelectionBeforeCompositionFlush =
+        editorInteractor.getHtmlSelection();
+
     // On mobile browsers (e.g. Android Chrome), keydown with keyCode 229 fires
     // before compositionstart. That keydown activates the typing extractor.
     // We must flush it here so that the typing extractor and the IME composition
@@ -434,7 +438,15 @@ public final class EditorEventHandler {
       caret = cachedSelection.getFocus();
     } else {
       event.setCaret(ContentPoint.fromPoint(cachedSelection.getFocus()));
-      caret = deleteCachedSelectionRangeAndInvalidate(true);
+      // Android/WebKit can promote a collapsed caret into a transient range for the
+      // currently composing word after the pre-composition keydown is flushed. That
+      // range belongs to the browser's IME state rather than to an explicit user
+      // replacement selection. Use the live pre-flush browser selection to
+      // distinguish the two, because cachedSelection may still be stale here.
+      caret = isTransientImeRangeAfterFlush(selectionBeforeCompositionFlush,
+          htmlSelectionBeforeCompositionFlush, cachedSelection)
+          ? cachedSelection.getFocus()
+          : deleteCachedSelectionRangeAndInvalidate(true);
     }
 
     state = State.COMPOSITION;
@@ -459,6 +471,19 @@ public final class EditorEventHandler {
     if (cachedSelection != null) {
       delayedCompositionMutationGuard.noteCompositionEnd();
     }
+  }
+
+  private static boolean isTransientImeRangeAfterFlush(
+      FocusedContentRange selectionBeforeFlush,
+      FocusedPointRange<Node> htmlSelectionBeforeFlush,
+      FocusedContentRange selectionAfterFlush) {
+    return selectionBeforeFlush != null
+        && htmlSelectionBeforeFlush != null
+        && htmlSelectionBeforeFlush.isCollapsed()
+        && selectionAfterFlush != null
+        && selectionBeforeFlush.isCollapsed()
+        && !selectionAfterFlush.isCollapsed()
+        && selectionBeforeFlush.getFocus().equals(selectionAfterFlush.getFocus());
   }
 
 

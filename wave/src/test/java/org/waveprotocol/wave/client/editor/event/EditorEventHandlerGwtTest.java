@@ -674,6 +674,249 @@ public class EditorEventHandlerGwtTest
   }
 
   /**
+   * Android/WebKit can turn the current composing word into a transient range
+   * after the pre-composition flush. That range must not be deleted as if the
+   * user had explicitly selected text to replace.
+   */
+  public void testCompositionStartSkipsDeleteForTransientImeRangeAfterFlush() {
+    FakeEditorEvent compositionStart = FakeEditorEvent.compositionSequence(0)[0];
+
+    final ContentTextNode node = new ContentTextNode(Document.get().createTextNode("n"), null);
+    final Point<ContentNode> collapsedCaret = Point.inText(node, 1);
+    final Point<ContentNode> rangeStart = Point.inText(node, 0);
+    final Point<ContentNode> rangeEnd = Point.inText(node, 1);
+
+    final FocusedContentRange beforeFlushSelection = new FocusedContentRange(collapsedCaret);
+    final FocusedContentRange afterFlushSelection = new FocusedContentRange(rangeStart, rangeEnd);
+    final FocusedPointRange<Node> htmlSelectionBeforeFlush =
+        new FocusedPointRange<Node>(toNodePoint(collapsedCaret));
+    final Point<ContentNode>[] compositionCaret = new Point[1];
+
+    FakeEditorEventsSubHandler subHandler = new FakeEditorEventsSubHandler();
+    FakeEditorInteractor interactor = new FakeEditorInteractor() {
+      private int flushCount = 0;
+
+      @Override
+      public boolean notifyListeners(SignalEvent event) {
+        return false;
+      }
+
+      @Override
+      public boolean hasContentSelection() {
+        return true;
+      }
+
+      @Override
+      public boolean isEditing() {
+        return true;
+      }
+
+      @Override
+      public void forceFlush() {
+        flushCount++;
+      }
+
+      @Override
+      public FocusedContentRange getSelectionPoints() {
+        return flushCount >= 2 ? afterFlushSelection : beforeFlushSelection;
+      }
+
+      @Override
+      public FocusedPointRange<Node> getHtmlSelection() {
+        return htmlSelectionBeforeFlush;
+      }
+
+      @Override
+      public void compositionStart(Point<ContentNode> caret) {
+        compositionCaret[0] = caret;
+      }
+
+      @Override
+      public void checkpoint(FocusedContentRange currentRange) {
+      }
+    };
+    EditorEventHandler handler = createEditorEventHandler(interactor, subHandler);
+
+    assertFalse(handler.handleEvent(compositionStart));
+    assertEquals(rangeEnd, compositionCaret[0]);
+  }
+
+  /**
+   * A stale collapsed selection before the flush must not hide a newer
+   * user-authored replacement range that really should be deleted.
+   */
+  public void testCompositionStartDeletesExplicitReplacementSelectionAfterFlush() {
+    FakeEditorEvent compositionStart = FakeEditorEvent.compositionSequence(0)[0];
+
+    final ContentTextNode staleNode =
+        new ContentTextNode(Document.get().createTextNode("stale"), null);
+    final ContentTextNode replacementNode =
+        new ContentTextNode(Document.get().createTextNode("replace"), null);
+    final Point<ContentNode> staleCaret = Point.inText(staleNode, 1);
+    final Point<ContentNode> rangeStart = Point.inText(replacementNode, 1);
+    final Point<ContentNode> rangeEnd = Point.inText(replacementNode, 5);
+    final Point<ContentNode> caretAfterDelete = Point.inText(replacementNode, 1);
+
+    final FocusedContentRange beforeFlushSelection = new FocusedContentRange(staleCaret);
+    final FocusedContentRange afterFlushSelection = new FocusedContentRange(rangeStart, rangeEnd);
+    final FocusedPointRange<Node> htmlSelectionBeforeFlush =
+        new FocusedPointRange<Node>(toNodePoint(rangeStart), toNodePoint(rangeEnd));
+    final Point<ContentNode>[] compositionCaret = new Point[1];
+    final boolean[] deleteCalled = new boolean[1];
+
+    FakeEditorEventsSubHandler subHandler = new FakeEditorEventsSubHandler();
+    FakeEditorInteractor interactor = new FakeEditorInteractor() {
+      private int flushCount = 0;
+
+      @Override
+      public boolean notifyListeners(SignalEvent event) {
+        return false;
+      }
+
+      @Override
+      public boolean hasContentSelection() {
+        return true;
+      }
+
+      @Override
+      public boolean isEditing() {
+        return true;
+      }
+
+      @Override
+      public void forceFlush() {
+        flushCount++;
+      }
+
+      @Override
+      public FocusedContentRange getSelectionPoints() {
+        return flushCount >= 2 ? afterFlushSelection : beforeFlushSelection;
+      }
+
+      @Override
+      public FocusedPointRange<Node> getHtmlSelection() {
+        return htmlSelectionBeforeFlush;
+      }
+
+      @Override
+      public void checkpoint(FocusedContentRange currentRange) {
+      }
+
+      @Override
+      public Point<ContentNode> deleteRange(
+          Point<ContentNode> first, Point<ContentNode> second, boolean isReplace) {
+        deleteCalled[0] = true;
+        assertEquals(rangeStart, first);
+        assertEquals(rangeEnd, second);
+        assertTrue(isReplace);
+        return caretAfterDelete;
+      }
+
+      @Override
+      public void setCaret(Point<ContentNode> caret) {
+        assertEquals(caretAfterDelete, caret);
+      }
+
+      @Override
+      public void compositionStart(Point<ContentNode> caret) {
+        compositionCaret[0] = caret;
+      }
+    };
+    EditorEventHandler handler = createEditorEventHandler(interactor, subHandler);
+
+    assertFalse(handler.handleEvent(compositionStart));
+    assertTrue(deleteCalled[0]);
+    assertEquals(caretAfterDelete, compositionCaret[0]);
+  }
+
+  /**
+   * A real replacement selection can still share the stale caret as its focus
+   * when the browser preserves selection direction. That range still belongs
+   * to user-authored replacement text and must be deleted.
+   */
+  public void testCompositionStartDeletesSameFocusReplacementSelectionAfterFlush() {
+    FakeEditorEvent compositionStart = FakeEditorEvent.compositionSequence(0)[0];
+
+    final ContentTextNode replacementNode =
+        new ContentTextNode(Document.get().createTextNode("replace"), null);
+    final Point<ContentNode> staleCaret = Point.inText(replacementNode, 5);
+    final Point<ContentNode> rangeStart = Point.inText(replacementNode, 1);
+    final Point<ContentNode> rangeEnd = Point.inText(replacementNode, 5);
+    final Point<ContentNode> caretAfterDelete = Point.inText(replacementNode, 1);
+
+    final FocusedContentRange beforeFlushSelection = new FocusedContentRange(staleCaret);
+    final FocusedContentRange afterFlushSelection = new FocusedContentRange(rangeStart, rangeEnd);
+    final FocusedPointRange<Node> htmlSelectionBeforeFlush =
+        new FocusedPointRange<Node>(toNodePoint(rangeStart), toNodePoint(rangeEnd));
+    final Point<ContentNode>[] compositionCaret = new Point[1];
+    final boolean[] deleteCalled = new boolean[1];
+
+    FakeEditorEventsSubHandler subHandler = new FakeEditorEventsSubHandler();
+    FakeEditorInteractor interactor = new FakeEditorInteractor() {
+      private int flushCount = 0;
+
+      @Override
+      public boolean notifyListeners(SignalEvent event) {
+        return false;
+      }
+
+      @Override
+      public boolean hasContentSelection() {
+        return true;
+      }
+
+      @Override
+      public boolean isEditing() {
+        return true;
+      }
+
+      @Override
+      public void forceFlush() {
+        flushCount++;
+      }
+
+      @Override
+      public FocusedContentRange getSelectionPoints() {
+        return flushCount >= 2 ? afterFlushSelection : beforeFlushSelection;
+      }
+
+      @Override
+      public FocusedPointRange<Node> getHtmlSelection() {
+        return htmlSelectionBeforeFlush;
+      }
+
+      @Override
+      public void checkpoint(FocusedContentRange currentRange) {
+      }
+
+      @Override
+      public Point<ContentNode> deleteRange(
+          Point<ContentNode> first, Point<ContentNode> second, boolean isReplace) {
+        deleteCalled[0] = true;
+        assertEquals(rangeStart, first);
+        assertEquals(rangeEnd, second);
+        assertTrue(isReplace);
+        return caretAfterDelete;
+      }
+
+      @Override
+      public void setCaret(Point<ContentNode> caret) {
+        assertEquals(caretAfterDelete, caret);
+      }
+
+      @Override
+      public void compositionStart(Point<ContentNode> caret) {
+        compositionCaret[0] = caret;
+      }
+    };
+    EditorEventHandler handler = createEditorEventHandler(interactor, subHandler);
+
+    assertFalse(handler.handleEvent(compositionStart));
+    assertTrue(deleteCalled[0]);
+    assertEquals(caretAfterDelete, compositionCaret[0]);
+  }
+
+  /**
    * If delayed composition end produces no selection, the trailing DOM
    * mutation still has to reach the typing extractor or the browser-only text
    * never becomes a document operation.

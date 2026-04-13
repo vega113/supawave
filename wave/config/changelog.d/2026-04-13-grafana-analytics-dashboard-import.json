@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-13-grafana-analytics-dashboard-import",
+  "version": "PR #889",
+  "date": "2026-04-13",
+  "title": "Add an importable Grafana analytics dashboard",
+  "summary": "Added a starter Grafana dashboard for Wave analytics counters and aligned the host docs with the metrics and JSON-log signals the runtime actually emits.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a starter Grafana dashboard for the exported `wave_analytics_*` Prometheus counters plus request-rate and p95 latency charts",
+        "Documented the dashboard import path and removed references to unsupported logfmt analytics event queries so the runbook matches the current Wave and Alloy pipeline"
+      ]
+    }
+  ]
+}

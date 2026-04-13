@@ -143,6 +143,38 @@
     ]
   },
   {
+    "releaseId": "2026-04-13-mongo-marker-pipefail",
+    "version": "PR #887",
+    "date": "2026-04-13",
+    "title": "Avoid false Mongo migration marker failures on SIGPIPE",
+    "summary": "Deploy verification now treats a matched Mongock completion marker as success even when the Docker logs pipeline exits with SIGPIPE after `grep -q` stops reading.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Deployment marker verification now captures recent container logs before searching for the Mongock completion message so `set -o pipefail` does not turn a successful match into a failure",
+          "Added regression coverage for the `docker compose logs --since ... | grep -q` SIGPIPE path that previously misreported completed migrations as missing"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-13-grafana-analytics-dashboard-import",
+    "version": "PR #889",
+    "date": "2026-04-13",
+    "title": "Add an importable Grafana analytics dashboard",
+    "summary": "Added a starter Grafana dashboard for Wave analytics counters and aligned the host docs with the metrics and JSON-log signals the runtime actually emits.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Added a starter Grafana dashboard for the exported `wave_analytics_*` Prometheus counters plus request-rate and p95 latency charts",
+          "Documented the dashboard import path and removed references to unsupported logfmt analytics event queries so the runbook matches the current Wave and Alloy pipeline"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-13-grafana-admin-analytics",
     "version": "PR #884",
     "date": "2026-04-13",

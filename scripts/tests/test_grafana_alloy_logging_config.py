@@ -10,6 +10,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ALLOY_CONFIG_SCRIPT = REPO_ROOT / "deploy" / "supawave-host" / "configure-grafana-alloy.sh"
 LOGBACK_CONFIG = REPO_ROOT / "wave" / "config" / "logback.xml"
+HOST_README = REPO_ROOT / "deploy" / "supawave-host" / "README.md"
+DASHBOARD_PATH = (
+    REPO_ROOT / "deploy" / "supawave-host" / "grafana-dashboards" / "supawave-analytics-overview.json"
+)
 
 
 def _jar(*parts: str) -> Path:
@@ -92,6 +96,18 @@ def emit_structured_log_entry() -> dict:
 
 
 class GrafanaAlloyLoggingConfigTest(unittest.TestCase):
+  def test_host_readme_does_not_claim_logfmt_analytics_events(self):
+    readme_text = HOST_README.read_text(encoding="utf-8")
+
+    self.assertNotIn("analytics_event", readme_text)
+    self.assertNotIn("analytics_count", readme_text)
+
+  def test_dashboard_does_not_reference_nonexistent_logfmt_analytics_fields(self):
+    dashboard_text = DASHBOARD_PATH.read_text(encoding="utf-8")
+
+    self.assertNotIn("analytics_event", dashboard_text)
+    self.assertNotIn("analytics_count", dashboard_text)
+
   def test_logback_emits_microsecond_precision_json_timestamp(self):
     entry = emit_structured_log_entry()
 

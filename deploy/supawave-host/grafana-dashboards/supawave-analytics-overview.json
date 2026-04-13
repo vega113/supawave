@@ -6,13 +6,6 @@
       "type": "datasource",
       "pluginId": "prometheus",
       "pluginName": "Prometheus"
-    },
-    {
-      "name": "DS_LOKI",
-      "label": "Loki",
-      "type": "datasource",
-      "pluginId": "loki",
-      "pluginName": "Loki"
     }
   ],
   "__requires": [
@@ -50,12 +43,6 @@
       "type": "datasource",
       "id": "prometheus",
       "name": "Prometheus",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "loki",
-      "name": "Loki",
       "version": ""
     }
   ],
@@ -521,119 +508,6 @@
       ],
       "title": "HTTP p95 Latency by URI",
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 12
-      },
-      "id": 9,
-      "options": {
-        "showHeader": true
-      },
-      "pluginVersion": "10.4.2",
-      "targets": [
-        {
-          "expr": "topk(10, sum by (wave_id) (count_over_time({job=\"supawave/wave\"} |= \"analytics_event=\" | logfmt | analytics_event=\"public_wave_page_view\" [$__range])))",
-          "instant": true,
-          "queryType": "instant",
-          "refId": "A"
-        }
-      ],
-      "title": "Top Waves by Public Views",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 12
-      },
-      "id": 10,
-      "options": {
-        "showHeader": true
-      },
-      "pluginVersion": "10.4.2",
-      "targets": [
-        {
-          "expr": "topk(10, sum by (participant_id) (count_over_time({job=\"supawave/wave\"} |= \"analytics_event=\" | logfmt | analytics_event=\"active_user_event\" [$__range])))",
-          "instant": true,
-          "queryType": "instant",
-          "refId": "A"
-        }
-      ],
-      "title": "Top Users by Activity Events",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 12
-      },
-      "id": 11,
-      "options": {
-        "showHeader": true
-      },
-      "pluginVersion": "10.4.2",
-      "targets": [
-        {
-          "expr": "topk(10, sum by (participant_id) (sum_over_time({job=\"supawave/wave\"} |= \"analytics_event=\" | logfmt | analytics_event=\"blips_created\" | unwrap analytics_count [$__range])))",
-          "instant": true,
-          "queryType": "instant",
-          "refId": "A"
-        }
-      ],
-      "title": "Top Users by Blips Created",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "grafana",
-        "uid": "-- Grafana --"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 20
-      },
-      "id": 12,
-      "options": {
-        "content": "### Loki event queries\n\nRecent analytics events:\n\n```logql\n{job=\"supawave/wave\"} |= \"analytics_event=\" | logfmt\n```\n\nTop waves by public page views:\n\n```logql\ntopk(10, sum by (wave_id) (count_over_time({job=\"supawave/wave\"} |= \"analytics_event=\" | logfmt | analytics_event=\"public_wave_page_view\" [24h])))\n```\n\nTop users by activity:\n\n```logql\ntopk(10, sum by (participant_id) (count_over_time({job=\"supawave/wave\"} |= \"analytics_event=\" | logfmt | analytics_event=\"active_user_event\" [24h])))\n```\n\nTop users by blips created:\n\n```logql\ntopk(10, sum by (participant_id) (sum_over_time({job=\"supawave/wave\"} |= \"analytics_event=\" | logfmt | analytics_event=\"blips_created\" | unwrap analytics_count [24h])))\n```",
-        "mode": "markdown"
-      },
-      "pluginVersion": "10.4.2",
-      "title": "Loki Query Starters",
-      "type": "text"
     }
   ],
   "refresh": "30s",

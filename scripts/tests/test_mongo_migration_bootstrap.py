@@ -44,6 +44,23 @@ core {
     self.assertIn("did not report Mongo migration completion", combined)
     self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
 
+  def test_deploy_checks_case_insensitive_mongo_values(self):
+    result = self._run_deploy(
+        log_output="wave started without migration marker\n",
+        application_conf="""\
+core {
+  mongodb_driver = "V4"
+  account_store_type = "MongoDB"
+  delta_store_type = file
+}
+""",
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    combined = f"{result.stdout}\n{result.stderr}"
+    self.assertIn("did not report Mongo migration completion", combined)
+    self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+
   def test_deploy_ignores_stale_migration_marker_from_previous_startup(self):
     result = self._run_deploy(
         log_output="wave started without migration marker\n",

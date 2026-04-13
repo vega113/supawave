@@ -19,9 +19,7 @@
 
 package org.waveprotocol.box.server.persistence.migrations;
 
-import com.mongodb.ReadConcern;
 import com.mongodb.ReadPreference;
-import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoDatabase;
 import io.mongock.driver.mongodb.sync.v4.driver.MongoSync4Driver;
 import io.mongock.runner.core.executor.MongockRunner;
@@ -62,9 +60,7 @@ final class MongockMongoMigrationRunner implements MongoMigrationRunner {
         config.getPassword())) {
       MongoSync4Driver driver =
           MongoSync4Driver.withDefaultLock(provider.provideMongoClient(), config.getDatabase());
-      driver.setWriteConcern(WriteConcern.MAJORITY);
-      driver.setReadConcern(ReadConcern.MAJORITY);
-      driver.setReadPreference(ReadPreference.primary());
+      configureDriverDefaults(driver);
 
       MongoDatabase database = provider.provideMongoDatabase();
       MongockRunner runner = MongockStandalone.builder()
@@ -80,5 +76,9 @@ final class MongockMongoMigrationRunner implements MongoMigrationRunner {
       runner.execute();
       LOG.info("Completed Mongock Mongo schema migrations");
     }
+  }
+
+  static void configureDriverDefaults(MongoSync4Driver driver) {
+    driver.setReadPreference(ReadPreference.primary());
   }
 }

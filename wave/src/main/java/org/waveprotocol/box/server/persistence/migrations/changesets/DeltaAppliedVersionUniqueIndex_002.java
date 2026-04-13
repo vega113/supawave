@@ -124,7 +124,14 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
         "Migration could not enforce the unique applied-version index; "
             + "restoring the non-unique fallback index instead.",
         failure);
-    restoreNonUniqueIndex(deltas, keys);
+    try {
+      restoreNonUniqueIndex(deltas, keys);
+    } catch (MongoException restoreFailure) {
+      LOG.log(java.util.logging.Level.WARNING,
+          "Migration failed to restore the non-unique applied-version index; "
+              + "keeping startup alive in degraded mode until the index is repaired.",
+          restoreFailure);
+    }
   }
 
   private static boolean isIndexUpgradeConflict(MongoException error) {

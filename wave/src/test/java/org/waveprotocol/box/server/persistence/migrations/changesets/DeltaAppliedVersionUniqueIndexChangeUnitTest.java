@@ -56,6 +56,7 @@ import java.util.logging.Logger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
@@ -161,6 +162,36 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
     }
 
     assertEquals(1, handler.warningCount());
+  }
+
+  @Test
+  public void testExecutionKeepsStartupAliveWhenLegacyIndexRestoreFails() {
+    MongoCollection<Document> deltas = deltasCollection();
+    MongoException duplicateData = new MongoException(11000, "duplicate key");
+    MongoException restoreFailure = new MongoException(91, "transient restore failure");
+    AtomicInteger createCalls = new AtomicInteger();
+    doAnswer(invocation -> {
+      IndexOptions options = invocation.getArgument(1);
+      int call = createCalls.getAndIncrement();
+      if (call == 0) {
+        throw duplicateData;
+      }
+      assertFalse(Boolean.TRUE.equals(options.isUnique()));
+      throw restoreFailure;
+    }).when(deltas).createIndex(any(Bson.class), any(IndexOptions.class));
+
+    Logger logger = Logger.getLogger(DeltaAppliedVersionUniqueIndex_002.class.getName());
+    RecordingLogHandler handler = new RecordingLogHandler();
+    logger.addHandler(handler);
+    try {
+      changeUnit(deltas).execution();
+    } finally {
+      logger.removeHandler(handler);
+    }
+
+    assertEquals(2, createCalls.get());
+    assertEquals(2, handler.warningCount());
+    assertTrue(handler.containsMessage("failed to restore the non-unique applied-version index"));
   }
 
   @Test
@@ -404,6 +435,15 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
         }
       }
       return count;
+    }
+
+    private boolean containsMessage(String fragment) {
+      for (LogRecord record : records) {
+        if (record.getMessage() != null && record.getMessage().contains(fragment)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 }

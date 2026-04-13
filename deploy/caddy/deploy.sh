@@ -315,11 +315,14 @@ wait_for_slot_health() {
     echo "[deploy] ERROR: WAVE_SLOT_HEALTH_INTERVAL_SECONDS must be a positive integer (got: '${interval_seconds}')" >&2
     return 1
   fi
-  if ! [[ "$timeout_seconds" =~ ^[1-9][0-9]*$ ]]; then
-    echo "[deploy] ERROR: WAVE_SLOT_HEALTH_TIMEOUT_SECONDS must be a positive integer (got: '${timeout_seconds}')" >&2
+  if ! [[ "$timeout_seconds" =~ ^[0-9]+$ ]]; then
+    echo "[deploy] ERROR: WAVE_SLOT_HEALTH_TIMEOUT_SECONDS must be a non-negative integer (got: '${timeout_seconds}')" >&2
     return 1
   fi
-  local retries=$(( (timeout_seconds + interval_seconds - 1) / interval_seconds ))
+  local retries=1
+  if [ "$timeout_seconds" -gt 0 ]; then
+    retries=$(( (timeout_seconds + interval_seconds - 1) / interval_seconds ))
+  fi
   local i=0
   # Lucene-backed production startups can legitimately take several minutes
   # before /healthz answers while indexes are rebuilt from MongoDB.
@@ -327,8 +330,11 @@ wait_for_slot_health() {
     if curl -sf "http://localhost:${port}/healthz" > /dev/null 2>&1; then
       return 0
     fi
-    sleep "$interval_seconds"
     i=$((i + 1))
+    if [ $i -ge $retries ]; then
+      break
+    fi
+    sleep "$interval_seconds"
   done
   return 1
 }

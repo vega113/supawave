@@ -1,21 +1,5 @@
 [
   {
-    "releaseId": "2026-04-13-wavelet-load-diagnostics",
-    "version": "PR #878",
-    "date": "2026-04-13",
-    "title": "Avoid blocking on loading wavelets",
-    "summary": "Wavelet-dependent cache and indexing paths now skip still-loading wavelets and emit load-state diagnostics instead of blocking on incomplete state.",
-    "sections": [
-      {
-        "type": "fix",
-        "items": [
-          "Prevented cached wavelet invalidation and copy paths from blocking on wavelets that are still loading",
-          "Added wavelet load-state diagnostics so slow or timed-out loads report their state, age, and executor context in server logs"
-        ]
-      }
-    ]
-  },
-  {
     "releaseId": "2026-04-13-search-toolbar-wrap-pinned-saved-searches",
     "version": "Unreleased",
     "date": "2026-04-13",
@@ -105,22 +89,6 @@
         "items": [
           "Deploy builds now push images through a retry helper that retries known transient registry and network failures before giving up.",
           "The retry helper now validates its retry-count and retry-delay environment variables and regression coverage now includes fail-fast, retry exhaustion, and invalid-config cases."
-        ]
-      }
-    ]
-  },
-  {
-    "releaseId": "2026-04-13-deploy-health-wait-window",
-    "version": "PR #883",
-    "date": "2026-04-13",
-    "title": "Restore deploy health wait window",
-    "summary": "Blue-green deploys now wait up to seven minutes for the target slot to report healthy, with the poll interval and timeout still configurable through environment variables.",
-    "sections": [
-      {
-        "type": "fix",
-        "items": [
-          "Restored the default slot health wait window from the old 180-second cutoff to 420 seconds so slower Lucene-backed startups can finish before deploys abort",
-          "Kept the slot health polling interval and timeout configurable through deploy environment variables without requiring script edits"
         ]
       }
     ]

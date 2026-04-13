@@ -32,6 +32,42 @@ class DeployOverlapSafetyTest(unittest.TestCase):
         200,
     )
 
+  def test_deploy_rejects_zero_health_interval_with_cleanup(self):
+    result, temp_dir = self._run_script(
+        command="deploy",
+        active_slot="blue",
+        previous_slot=None,
+        running_services=["caddy", "wave-blue"],
+        extra_env={"WAVE_SLOT_HEALTH_INTERVAL_SECONDS": "0"},
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    self.assertIn(
+        "WAVE_SLOT_HEALTH_INTERVAL_SECONDS must be a positive integer",
+        result.stderr,
+    )
+    self.assertFalse((temp_dir / "health-count").exists())
+    ops = (temp_dir / "ops.log").read_text(encoding="utf-8")
+    self.assertIn("stop wave-green", ops)
+
+  def test_deploy_rejects_negative_health_timeout_with_cleanup(self):
+    result, temp_dir = self._run_script(
+        command="deploy",
+        active_slot="blue",
+        previous_slot=None,
+        running_services=["caddy", "wave-blue"],
+        extra_env={"WAVE_SLOT_HEALTH_TIMEOUT_SECONDS": "-1"},
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    self.assertIn(
+        "WAVE_SLOT_HEALTH_TIMEOUT_SECONDS must be a non-negative integer",
+        result.stderr,
+    )
+    self.assertFalse((temp_dir / "health-count").exists())
+    ops = (temp_dir / "ops.log").read_text(encoding="utf-8")
+    self.assertIn("stop wave-green", ops)
+
   def test_deploy_stops_old_slot_immediately_after_swap(self):
     result, temp_dir = self._run_script(
         command="deploy",
@@ -150,6 +186,7 @@ class DeployOverlapSafetyTest(unittest.TestCase):
       active_slot: str,
       previous_slot: str | None,
       running_services: list[str],
+      extra_env: dict[str, str] | None = None,
       stop_fail_services: list[str] | None = None,
       ps_error_services: list[str] | None = None,
       reload_fail_on_calls: list[int] | None = None,
@@ -322,6 +359,8 @@ exit 1
     env["WWW_HOST"] = "www.supawave.ai"
     env["SANITY_ADDRESS"] = "testregister"
     env["SANITY_PASSWORD"] = "testregister"
+    if extra_env:
+      env.update(extra_env)
 
     result = subprocess.run(
         [bash_path, str(DEPLOY_SCRIPT), command],

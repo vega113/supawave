@@ -22,17 +22,17 @@ def _address_from_url(base_url: str) -> str:
 def render_config(
     metrics_url: str,
     metrics_id: str,
-    api_key_env_var: str,
+    auth_env_name: str,
     base_url: str,
     exporter_port: int,
     run_labels: dict[str, str],
 ) -> str:
-  # api_key_env_var is the *name* of an environment variable, never a secret
+  # auth_env_name is the *name* of an environment variable, never a secret
   # value.  Alloy resolves it at runtime via sys.env().  Validate it looks like
   # an identifier so we can be certain no literal secret was passed.
-  if not api_key_env_var or not api_key_env_var.replace("_", "").isalnum():
+  if not auth_env_name or not auth_env_name.replace("_", "").isalnum():
     raise ValueError(
-        f"api_key_env_var must be a valid environment-variable name, got: {api_key_env_var!r}"
+        f"auth_env_name must be a valid environment-variable name, got: {auth_env_name!r}"
     )
   wave_address = _address_from_url(base_url)
   label_rules = "\n".join(
@@ -50,7 +50,7 @@ def render_config(
 
     basic_auth {{
       username = "{_quoted(metrics_id)}"
-      password = {_env_expr(api_key_env_var)}
+      password = {_env_expr(auth_env_name)}
     }}
   }}
 }}
@@ -104,7 +104,7 @@ def main() -> int:
   parser.add_argument("--output", required=True)
   parser.add_argument("--metrics-url", required=True)
   parser.add_argument("--metrics-id", required=True)
-  parser.add_argument("--api-key-env-var", default="GCLOUD_RW_API_KEY")
+  parser.add_argument("--api-key-env-var", dest="auth_env_name", default="GCLOUD_RW_API_KEY")
   parser.add_argument("--base-url", required=True)
   parser.add_argument("--exporter-port", type=int, default=9464)
   parser.add_argument("--repo", default="")
@@ -126,7 +126,7 @@ def main() -> int:
   config = render_config(
       metrics_url=args.metrics_url,
       metrics_id=args.metrics_id,
-      api_key_env_var=args.api_key_env_var,
+      auth_env_name=args.auth_env_name,
       base_url=args.base_url,
       exporter_port=args.exporter_port,
       run_labels=run_labels,

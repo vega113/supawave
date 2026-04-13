@@ -13,7 +13,7 @@ class PerfAlloyConfigTest(unittest.TestCase):
     config = render_perf_alloy_config.render_config(
         metrics_url="https://example.grafana.net/api/prom/push",
         metrics_id="12345",
-        api_key_env_var="GCLOUD_RW_API_KEY",
+        auth_env_name="GCLOUD_RW_API_KEY",
         base_url="http://127.0.0.1:9898",
         exporter_port=9464,
         run_labels={
@@ -38,6 +38,17 @@ class PerfAlloyConfigTest(unittest.TestCase):
     self.assertIn('target_label = "repo"', config)
     self.assertIn('replacement  = "vega113/supawave"', config)
     self.assertNotIn("secret", config)
+
+  def test_render_config_rejects_invalid_auth_env_name(self):
+    with self.assertRaises(ValueError):
+      render_perf_alloy_config.render_config(
+          metrics_url="https://example.grafana.net/api/prom/push",
+          metrics_id="12345",
+          auth_env_name="GCLOUD-RW-API-KEY",
+          base_url="http://127.0.0.1:9898",
+          exporter_port=9464,
+          run_labels={},
+      )
 
   def test_wave_perf_script_emits_summary_files_via_exporter_cli(self):
     script_text = WAVE_PERF_SCRIPT.read_text(encoding="utf-8")

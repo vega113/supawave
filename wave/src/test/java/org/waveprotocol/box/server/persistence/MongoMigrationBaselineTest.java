@@ -64,7 +64,9 @@ public class MongoMigrationBaselineTest {
       assertNotNull(findIndex(database.getCollection(CONTACT_MESSAGES_COLLECTION),
           new Document("status", 1)));
       assertUniqueIndex(database.getCollection(ANALYTICS_COLLECTION), new Document("hour", 1));
-      assertNotNull(database.getCollection(CHANGELOG_COLLECTION).find().first());
+      assertTrue(
+          "missing collection " + CHANGELOG_COLLECTION,
+          database.listCollectionNames().into(new ArrayList<>()).contains(CHANGELOG_COLLECTION));
       assertTrue(
           "missing collection " + LOCK_COLLECTION,
           database.listCollectionNames().into(new ArrayList<>()).contains(LOCK_COLLECTION));

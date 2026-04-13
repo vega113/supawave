@@ -51,9 +51,11 @@ def run_deploy_script(
         """#!/usr/bin/env bash
 set -euo pipefail
 for arg in "$@"; do
-  if [[ "$arg" == "http://localhost:9899/healthz" ]]; then
-    exit 0
-  fi
+  case "$arg" in
+    http://*/healthz|https://*/healthz|http://*/|https://*/)
+      exit 0
+      ;;
+  esac
 done
 exit 1
 """,

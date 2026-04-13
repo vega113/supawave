@@ -142,6 +142,43 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
   }
 
   @Test
+  public void testExecutionDropsAndRecreatesIndexWhenMongoKeepsLegacyNonUniqueShape() {
+    MongoCollection<Document> deltas = deltasCollection();
+    MongoCollection<Document> guards = guardCollection();
+    CopyOnWriteArrayList<Document> indexState = new CopyOnWriteArrayList<>(
+        Arrays.asList(new Document("name", "legacy_applied_at_version")
+            .append("key", appliedAtVersionKey())));
+    when(deltas.listIndexes()).thenAnswer(invocation -> new FixedListIndexesIterable(indexState));
+
+    AtomicInteger uniqueAttempts = new AtomicInteger();
+    doAnswer(invocation -> {
+      IndexOptions options = invocation.getArgument(1);
+      if (Boolean.TRUE.equals(options.isUnique())) {
+        if (uniqueAttempts.getAndIncrement() == 0) {
+          return "legacy_applied_at_version";
+        }
+        indexState.clear();
+        indexState.add(new Document("name", "legacy_applied_at_version")
+            .append("key", appliedAtVersionKey())
+            .append("unique", true));
+      }
+      return "ok";
+    }).when(deltas).createIndex(any(Bson.class), any(IndexOptions.class));
+    doAnswer(invocation -> {
+      String name = invocation.getArgument(0);
+      indexState.removeIf(index -> name.equals(index.getString("name")));
+      return null;
+    }).when(deltas).dropIndex(any(String.class));
+
+    changeUnit(deltas, guards).execution();
+
+    assertEquals(2, uniqueAttempts.get());
+    verify(deltas).dropIndex("legacy_applied_at_version");
+    verify(guards, never()).replaceOne(
+        any(Bson.class), any(Document.class), any(com.mongodb.client.model.ReplaceOptions.class));
+  }
+
+  @Test
   public void testExecutionLogsWarningWhenUniqueRetryFallsBackToNonUniqueIndex() {
     MongoCollection<Document> deltas = deltasCollection();
     when(deltas.listIndexes()).thenReturn(indexesWith(

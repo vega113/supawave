@@ -83,7 +83,7 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
         .unique(true);
 
     try {
-      deltas.createIndex(keys, options);
+      createUniqueAppliedVersionIndex(deltas, keys, options);
     } catch (MongoException initialFailure) {
       if (isDuplicateKeyFailure(initialFailure)) {
         restoreNonUniqueIndexWithWarning(deltas, keys, initialFailure);
@@ -95,7 +95,7 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
       }
       deltas.dropIndex(findConflictingIndexName(deltas));
       try {
-        deltas.createIndex(keys, options);
+        createUniqueAppliedVersionIndex(deltas, keys, options);
       } catch (MongoException retryFailure) {
         restoreNonUniqueIndexWithWarning(deltas, keys, retryFailure);
         armAppendGuard();
@@ -125,6 +125,26 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
 
   private static void restoreNonUniqueIndex(MongoCollection<Document> deltas, Bson keys) {
     deltas.createIndex(keys, new IndexOptions().background(true).name(APPLIED_AT_VERSION_INDEX_NAME));
+  }
+
+  private static void createUniqueAppliedVersionIndex(MongoCollection<Document> deltas, Bson keys,
+      IndexOptions options) {
+    deltas.createIndex(keys, options);
+    if (!hasUniqueAppliedVersionIndex(deltas)) {
+      throw new MongoException(
+          INDEX_OPTIONS_CONFLICT,
+          "applied-version index exists without uniqueness after createIndex");
+    }
+  }
+
+  private static boolean hasUniqueAppliedVersionIndex(MongoCollection<Document> deltas) {
+    for (Document index : deltas.listIndexes()) {
+      Document key = index.get("key", Document.class);
+      if (APPLIED_AT_VERSION_INDEX_KEY.equals(key)) {
+        return Boolean.TRUE.equals(index.getBoolean("unique"));
+      }
+    }
+    return false;
   }
 
   private static void restoreNonUniqueIndexWithWarning(MongoCollection<Document> deltas, Bson keys,

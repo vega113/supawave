@@ -17,12 +17,11 @@ jobs:
     env:
       GCLOUD_HOSTED_METRICS_URL: ${{ secrets.GCLOUD_HOSTED_METRICS_URL }}
       GCLOUD_HOSTED_METRICS_ID: ${{ secrets.GCLOUD_HOSTED_METRICS_ID }}
-      GCLOUD_RW_API_KEY: ${{ secrets.GCLOUD_RW_API_KEY }}
       GRAFANA_URL: ${{ vars.GRAFANA_URL }}
-      GRAFANA_DASHBOARD_API_TOKEN: ${{ secrets.GRAFANA_DASHBOARD_API_TOKEN }}
       GRAFANA_PROMETHEUS_DATASOURCE_UID: ${{ vars.GRAFANA_PROMETHEUS_DATASOURCE_UID }}
       GRAFANA_FOLDER_UID: ${{ vars.GRAFANA_FOLDER_UID }}
       GRAFANA_ALLOY_VERSION: v1.11.2
+      BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
     steps:
       - name: Checkout
@@ -48,10 +47,16 @@ jobs:
         run: sbt --batch Universal/stage
 
       - name: Install Grafana Alloy
-        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' && env.GCLOUD_RW_API_KEY != '' }}
+        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' }}
+        env:
+          GCLOUD_RW_API_KEY: ${{ secrets.GCLOUD_RW_API_KEY }}
         run: |
           curl -fsSL -o "$RUNNER_TEMP/alloy.zip" \
             "https://github.com/grafana/alloy/releases/download/${GRAFANA_ALLOY_VERSION}/alloy-linux-amd64.zip"
+          curl -fsSL -o "$RUNNER_TEMP/alloy-sha256sums.txt" \
+            "https://github.com/grafana/alloy/releases/download/${GRAFANA_ALLOY_VERSION}/SHA256SUMS"
+          grep "alloy-linux-amd64.zip" "$RUNNER_TEMP/alloy-sha256sums.txt" | \
+            (cd "$RUNNER_TEMP" && sha256sum -c -)
           unzip -q "$RUNNER_TEMP/alloy.zip" -d "$RUNNER_TEMP/alloy"
           mkdir -p "$RUNNER_TEMP/bin"
           install "$RUNNER_TEMP/alloy/alloy-linux-amd64" "$RUNNER_TEMP/bin/alloy"
@@ -66,7 +71,9 @@ jobs:
             >"$RUNNER_TEMP/perf-exporter.log" 2>&1 &
 
       - name: Render perf Alloy config
-        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' && env.GCLOUD_RW_API_KEY != '' }}
+        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' }}
+        env:
+          GCLOUD_RW_API_KEY: ${{ secrets.GCLOUD_RW_API_KEY }}
         run: |
           python3 scripts/render_perf_alloy_config.py \
             --output "$RUNNER_TEMP/perf.alloy" \
@@ -76,14 +83,16 @@ jobs:
             --base-url "http://127.0.0.1:9898" \
             --exporter-port 9464 \
             --repo "${GITHUB_REPOSITORY}" \
-            --branch "${GITHUB_REF_NAME}" \
+            --branch "${BRANCH_NAME}" \
             --sha "${GITHUB_SHA}" \
             --workflow "perf" \
             --run-id "${GITHUB_RUN_ID}" \
             --run-attempt "${GITHUB_RUN_ATTEMPT}"
 
       - name: Start Grafana Alloy
-        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' && env.GCLOUD_RW_API_KEY != '' }}
+        if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' }}
+        env:
+          GCLOUD_RW_API_KEY: ${{ secrets.GCLOUD_RW_API_KEY }}
         run: |
           nohup alloy run "$RUNNER_TEMP/perf.alloy" \
             >"$RUNNER_TEMP/alloy.log" 2>&1 &
@@ -112,8 +121,10 @@ jobs:
             ${{ runner.temp }}/alloy.log
 
       - name: Upsert Grafana dashboard
-        if: ${{ always() && env.GRAFANA_URL != '' && env.GRAFANA_DASHBOARD_API_TOKEN != '' && env.GRAFANA_PROMETHEUS_DATASOURCE_UID != '' }}
+        if: ${{ always() && env.GRAFANA_URL != '' && env.GRAFANA_PROMETHEUS_DATASOURCE_UID != '' }}
         continue-on-error: true
+        env:
+          GRAFANA_DASHBOARD_API_TOKEN: ${{ secrets.GRAFANA_DASHBOARD_API_TOKEN }}
         run: |
           if [ -f scripts/upsert_grafana_dashboard.py ]; then
             python3 scripts/upsert_grafana_dashboard.py

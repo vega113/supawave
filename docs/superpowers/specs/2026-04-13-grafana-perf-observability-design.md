@@ -62,22 +62,22 @@ The implementation is expected to touch or add assets in these areas:
 
 ### Existing perf workflow
 
-- [`scripts/run-perf-tests.sh`](/Users/vega/.codex/worktrees/e4e7/incubator-wave/scripts/run-perf-tests.sh) runs seeding plus either one or all Gatling simulations against an existing server.
-- [`scripts/wave-perf.sh`](/Users/vega/.codex/worktrees/e4e7/incubator-wave/scripts/wave-perf.sh) stages a Wave distribution, starts the local server, seeds data, runs all simulations, and copies Gatling reports to `wave/target/perf-results`.
-- [`.github/workflows/perf.yml`](/Users/vega/.codex/worktrees/e4e7/incubator-wave/.github/workflows/perf.yml) runs `scripts/wave-perf.sh` and uploads artifacts.
+- [`scripts/run-perf-tests.sh`](../../../scripts/run-perf-tests.sh) runs seeding plus either one or all Gatling simulations against an existing server.
+- [`scripts/wave-perf.sh`](../../../scripts/wave-perf.sh) stages a Wave distribution, starts the local server, seeds data, runs all simulations, and copies Gatling reports to `wave/target/perf-results`.
+- [`.github/workflows/perf.yml`](../../../.github/workflows/perf.yml) runs `scripts/wave-perf.sh` and uploads artifacts.
 
 ### Existing Wave metrics
 
-- [`MetricsHolder.java`](/Users/vega/.codex/worktrees/e4e7/incubator-wave/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/stat/MetricsHolder.java) creates a Prometheus registry and adds it to Micrometer’s global registry.
-- [`MetricsHttpFilter.java`](/Users/vega/.codex/worktrees/e4e7/incubator-wave/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/stat/MetricsHttpFilter.java) records:
+- [`MetricsHolder.java`](../../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/stat/MetricsHolder.java) creates a Prometheus registry and adds it to Micrometer’s global registry.
+- [`MetricsHttpFilter.java`](../../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/stat/MetricsHttpFilter.java) records:
   - `http.server.requests`
   - `http.server.active.requests`
   - `http.server.exceptions`
-- [`MetricsPrometheusServlet.java`](/Users/vega/.codex/worktrees/e4e7/incubator-wave/wave/src/jakarta-overrides/java/org/waveprotocol/box/server/stat/MetricsPrometheusServlet.java) exposes whatever is present in the registry at `/metrics`.
+- [`MetricsPrometheusServlet.java`](../../../wave/src/jakarta-overrides/java/org/waveprotocol/box/server/stat/MetricsPrometheusServlet.java) exposes whatever is present in the registry at `/metrics`.
 
 ### Existing Grafana Cloud path
 
-- [`deploy/supawave-host/configure-grafana-alloy.sh`](/Users/vega/.codex/worktrees/e4e7/incubator-wave/deploy/supawave-host/configure-grafana-alloy.sh) already defines the credential and remote-write shape used for Grafana Cloud metrics ingestion:
+- [`deploy/supawave-host/configure-grafana-alloy.sh`](../../../deploy/supawave-host/configure-grafana-alloy.sh) already defines the credential and remote-write shape used for Grafana Cloud metrics ingestion:
   - `GCLOUD_HOSTED_METRICS_URL`
   - `GCLOUD_HOSTED_METRICS_ID`
   - `GCLOUD_RW_API_KEY`

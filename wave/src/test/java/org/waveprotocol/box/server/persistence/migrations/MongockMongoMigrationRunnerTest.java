@@ -33,7 +33,7 @@ import org.junit.Test;
 public final class MongockMongoMigrationRunnerTest {
 
   @Test
-  public void testConfigureDriverDefaultsKeepsPrimaryReadPreferenceWithoutOverridingConcerns() {
+  public void testConfigureDriverDefaultsDisablesTransactionsAndSetsPrimaryReadPreferenceWithoutOverridingConcerns() {
     MongoSync4Driver driver = mock(MongoSync4Driver.class);
 
     MongockMongoMigrationRunner.configureDriverDefaults(driver);

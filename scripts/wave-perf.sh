@@ -15,7 +15,7 @@ INSTALL_DIR="$REPO_ROOT/target/universal/stage"
 RESULTS_DIR="$REPO_ROOT/wave/target/perf-results"
 PID_FILE="$INSTALL_DIR/wave_server.pid"
 PERF_REPO="${GITHUB_REPOSITORY:-incubator-wave}"
-PERF_BRANCH="${BRANCH_NAME:-${GITHUB_REF_NAME:-$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || echo local)}}"
+PERF_BRANCH="${PERF_BRANCH_NAME:-${BRANCH_NAME:-${GITHUB_REF_NAME:-$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || echo local)}}}"
 PERF_SHA="${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo local)}"
 PERF_WORKFLOW="${GITHUB_WORKFLOW:-perf}"
 PERF_RUN_ID="${GITHUB_RUN_ID:-local}"
@@ -163,7 +163,7 @@ for sim in SearchLoadSimulation WaveOpenSimulation FullJourneySimulation; do
   summary_code=$?
   set -e
   if [[ "$summary_code" -ne 0 ]]; then
-    rm -f "$tmp_summary_file"
+    rm -f "$summary_file" "$tmp_summary_file"
     echo "[perf] WARN: failed to generate summary file for $sim" >&2
   else
     mv "$tmp_summary_file" "$summary_file"

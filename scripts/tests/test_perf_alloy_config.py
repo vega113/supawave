@@ -57,6 +57,15 @@ class PerfAlloyConfigTest(unittest.TestCase):
     self.assertIn('scripts/perf_metrics_exporter.py summarize', script_text)
     self.assertIn('--simulation "$sim"', script_text)
     self.assertIn('--output-file "$RESULTS_DIR/${sim}-output.txt"', script_text)
+    self.assertIn('PERF_BRANCH_NAME', script_text)
+
+  def test_wave_perf_script_writes_summaries_via_temp_files(self):
+    script_text = WAVE_PERF_SCRIPT.read_text(encoding="utf-8")
+
+    self.assertIn('tmp_summary_file="${summary_file}.tmp"', script_text)
+    self.assertIn('rm -f "$summary_file" "$tmp_summary_file"', script_text)
+    self.assertIn('--summary-file "$tmp_summary_file"', script_text)
+    self.assertIn('mv "$tmp_summary_file" "$summary_file"', script_text)
 
 
 if __name__ == "__main__":

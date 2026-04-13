@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-04-13-wavelet-load-diagnostics",
+    "version": "PR #878",
+    "date": "2026-04-13",
+    "title": "Avoid blocking on loading wavelets",
+    "summary": "Wavelet-dependent cache and indexing paths now skip still-loading wavelets and emit load-state diagnostics instead of blocking on incomplete state.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Prevented cached wavelet invalidation and copy paths from blocking on wavelets that are still loading",
+          "Added wavelet load-state diagnostics so slow or timed-out loads report their state, age, and executor context in server logs"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-13-search-toolbar-wrap-pinned-saved-searches",
     "version": "Unreleased",
     "date": "2026-04-13",
@@ -57,6 +73,23 @@
         "type": "fix",
         "items": [
           "Replaced the Next Unread bell glyph with a clearer directional chevron and unread-colored dot in the wave toolbar"
+        ]
+      }
+    ]
+  },
+  {
+    "releaseId": "2026-04-13-mongock-startup-migrations",
+    "version": "PR #880",
+    "date": "2026-04-13",
+    "title": "Mongo startup migrations now run before readiness",
+    "summary": "Mongo-backed v4 deployments now run Mongock startup migrations before the server is considered ready, with deploy-time verification tied to the migration completion marker.",
+    "sections": [
+      {
+        "type": "feature",
+        "items": [
+          "Mongo-backed v4 startup now runs versioned Mongock schema migrations before Wave begins serving traffic",
+          "Deploy and rollback verification now wait for the canonical Mongock completion marker before continuing",
+          "Mongo migration tests now cover the startup baseline, degraded fallback, and deploy bootstrap checks"
         ]
       }
     ]

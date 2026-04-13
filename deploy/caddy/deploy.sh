@@ -338,7 +338,7 @@ verify_mongo_migration_completion() {
     return 0
   fi
 
-  if dc logs --no-color "wave-${slot}" 2>&1 | grep -Fq "Mongo migrations completed successfully"; then
+  if dc logs --no-color "wave-${slot}" 2>&1 | grep -Fq "Completed Mongock Mongo schema migrations"; then
     return 0
   fi
 

@@ -54,7 +54,7 @@ runs migrations before the app begins serving health traffic.
 
 - `ServerMain` runs Mongo migrations before the persistence child injector is
   created.
-- Mongo-backed `v4` deploys must log `Mongo migrations completed successfully`
+- Mongo-backed `v4` deploys must log `Completed Mongock Mongo schema migrations`
   before deploy proceeds past the migration verification gate.
 - Non-Mongo-backed configs skip the Mongock runner entirely.
 

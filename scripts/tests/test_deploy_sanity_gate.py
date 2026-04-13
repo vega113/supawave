@@ -42,6 +42,9 @@ case "$cmd" in
     ;;
   *" stop wave-green"*)
     ;;
+  *" logs --no-color wave-green"*)
+    printf 'Completed Mongock Mongo schema migrations\n'
+    ;;
   "pull ghcr.io/example/wave:test"|*" pull ghcr.io/example/wave:test"*)
     ;;
   *)

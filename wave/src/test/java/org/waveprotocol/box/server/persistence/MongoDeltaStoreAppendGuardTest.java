@@ -31,6 +31,8 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoException;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.ListIndexesIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.IndexOptions;
@@ -39,12 +41,14 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.waveprotocol.box.server.persistence.mongodb.MongoDbDeltaStore;
 import org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStore;
+import org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStoreUtil;
 import org.waveprotocol.box.server.waveserver.DeltaStore;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class MongoDeltaStoreAppendGuardTest extends TestCase {
@@ -57,12 +61,49 @@ public final class MongoDeltaStoreAppendGuardTest extends TestCase {
     MongoDatabase database = mock(MongoDatabase.class);
     @SuppressWarnings("unchecked")
     MongoCollection<Document> collection = mock(MongoCollection.class);
+    @SuppressWarnings("unchecked")
+    MongoCollection<Document> guardCollection = mock(MongoCollection.class);
+    @SuppressWarnings("unchecked")
+    FindIterable<Document> guardQuery = mock(FindIterable.class);
     when(database.getCollection("deltas")).thenReturn(collection);
+    when(database.getCollection("mongoMigrationGuards")).thenReturn(guardCollection);
+    when(guardCollection.find(any(Bson.class))).thenReturn(guardQuery);
+    when(guardQuery.first()).thenReturn(null);
 
     new Mongo4DeltaStore(database).open(NAME);
 
     verify(collection, never()).createIndex(any(Bson.class), any(IndexOptions.class));
     verify(collection, never()).dropIndex(any(String.class));
+  }
+
+  public void testMongo4StoreDisablesWritesWhenMigrationGuardDocumentIsPresent() throws Exception {
+    MongoDatabase database = mock(MongoDatabase.class);
+    @SuppressWarnings("unchecked")
+    MongoCollection<Document> deltaCollection = mock(MongoCollection.class);
+    @SuppressWarnings("unchecked")
+    MongoCollection<Document> guardCollection = mock(MongoCollection.class);
+    @SuppressWarnings("unchecked")
+    FindIterable<Document> guardQuery = mock(FindIterable.class);
+    @SuppressWarnings("unchecked")
+    ListIndexesIterable<Document> indexes = mock(ListIndexesIterable.class);
+    when(database.getCollection("deltas")).thenReturn(deltaCollection);
+    when(database.getCollection("mongoMigrationGuards")).thenReturn(guardCollection);
+    when(guardCollection.find(any(Bson.class))).thenReturn(guardQuery);
+    when(guardQuery.first()).thenReturn(
+        new Document("_id", "delta-applied-version-append-guard")
+            .append("message", "refusing new delta writes"));
+    when(deltaCollection.listIndexes()).thenReturn(indexes);
+    doAnswer(invocation -> invocation.getArgument(0)).when(indexes).into(any(List.class));
+
+    DeltaStore.DeltasAccess access = new Mongo4DeltaStore(database).open(NAME);
+
+    try {
+      access.append(Collections.emptyList());
+      fail("Expected append guard to fail closed");
+    } catch (PersistenceException e) {
+      assertTrue(e.getMessage().contains("Refusing delta writes"));
+      assertTrue(e.getMessage().contains("refusing new delta writes"));
+    }
   }
 
   public void testMongoDbStoreDisablesWritesWhenUniqueIndexDropFails() throws Exception {

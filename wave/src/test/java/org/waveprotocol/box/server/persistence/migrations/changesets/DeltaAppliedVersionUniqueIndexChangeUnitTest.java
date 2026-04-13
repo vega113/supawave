@@ -38,6 +38,7 @@ import com.mongodb.Function;
 import org.bson.conversions.Bson;
 import org.junit.Test;
 import org.waveprotocol.box.server.persistence.MongoMigrationConfig;
+import org.waveprotocol.box.server.persistence.migrations.MongoMigrationGuardStore;
 import org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStoreUtil;
 
 import java.util.ArrayList;
@@ -89,6 +90,7 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
     when(deltas.listIndexes()).thenReturn(indexesWith(
         new Document("name", "legacy_applied_at_version")
             .append("key", appliedAtVersionKey())));
+    MongoCollection<Document> guards = guardCollection();
 
     MongoException conflict = new MongoException(86, "same key pattern with different name");
     MongoException duplicateData = new MongoException(11000, "duplicate key");
@@ -106,14 +108,16 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
       return "restored";
     }).when(deltas).createIndex(any(Bson.class), any(IndexOptions.class));
 
-    changeUnit(deltas).execution();
+    changeUnit(deltas, guards).execution();
 
     assertEquals(3, createCalls.get());
+    verify(guards).replaceOne(any(Bson.class), any(Document.class), any(com.mongodb.client.model.ReplaceOptions.class));
   }
 
   @Test
   public void testExecutionRestoresNonUniqueIndexWhenFirstUniqueCreateHitsDuplicateData() {
     MongoCollection<Document> deltas = deltasCollection();
+    MongoCollection<Document> guards = guardCollection();
     MongoException duplicateData = new MongoException(11000, "duplicate key");
     AtomicInteger createCalls = new AtomicInteger();
     doAnswer(invocation -> {
@@ -126,9 +130,10 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
       return "restored";
     }).when(deltas).createIndex(any(Bson.class), any(IndexOptions.class));
 
-    changeUnit(deltas).execution();
+    changeUnit(deltas, guards).execution();
 
     assertEquals(2, createCalls.get());
+    verify(guards).replaceOne(any(Bson.class), any(Document.class), any(com.mongodb.client.model.ReplaceOptions.class));
   }
 
   @Test
@@ -209,13 +214,24 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
   }
 
   private static DeltaAppliedVersionUniqueIndex_002 changeUnit(MongoCollection<Document> deltas) {
+    return changeUnit(deltas, guardCollection());
+  }
+
+  private static DeltaAppliedVersionUniqueIndex_002 changeUnit(
+      MongoCollection<Document> deltas, MongoCollection<Document> guards) {
     MongoDatabase database = mock(MongoDatabase.class);
     when(database.getCollection("deltas")).thenReturn(deltas);
+    when(database.getCollection(MongoMigrationGuardStore.COLLECTION)).thenReturn(guards);
     return new DeltaAppliedVersionUniqueIndex_002(database, mongoDeltaConfig());
   }
 
   @SuppressWarnings("unchecked")
   private static MongoCollection<Document> deltasCollection() {
+    return mock(MongoCollection.class);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static MongoCollection<Document> guardCollection() {
     return mock(MongoCollection.class);
   }
 

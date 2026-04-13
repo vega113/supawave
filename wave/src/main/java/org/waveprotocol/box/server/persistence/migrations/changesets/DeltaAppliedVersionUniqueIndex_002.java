@@ -31,6 +31,7 @@ import io.mongock.api.annotations.RollbackExecution;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.waveprotocol.box.server.persistence.MongoMigrationConfig;
+import org.waveprotocol.box.server.persistence.migrations.MongoMigrationGuardStore;
 import org.waveprotocol.box.server.persistence.mongodb4.Mongo4DeltaStoreUtil;
 
 /**
@@ -46,6 +47,10 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
   private static final String APPLIED_AT_VERSION_INDEX_NAME =
       Mongo4DeltaStoreUtil.FIELD_WAVE_ID + "_1_" + Mongo4DeltaStoreUtil.FIELD_WAVELET_ID
           + "_1_" + Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION + "_1";
+  private static final String DEGRADED_APPEND_GUARD_MESSAGE =
+      "Mongo4DeltaStore: applied-version uniqueness upgrade blocked by existing data; "
+          + "refusing new delta writes until corrupted-wave repair completes and the server "
+          + "restarts.";
   private static final Document APPLIED_AT_VERSION_INDEX_KEY = new Document(
       Mongo4DeltaStoreUtil.FIELD_WAVE_ID, 1)
       .append(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID, 1)
@@ -79,9 +84,11 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
 
     try {
       deltas.createIndex(keys, options);
+      MongoMigrationGuardStore.clearDeltaAppendGuard(database);
     } catch (MongoException initialFailure) {
       if (isDuplicateKeyFailure(initialFailure)) {
         restoreNonUniqueIndexWithWarning(deltas, keys, initialFailure);
+        armAppendGuard();
         return;
       }
       if (!isIndexUpgradeConflict(initialFailure)) {
@@ -90,8 +97,10 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
       deltas.dropIndex(findConflictingIndexName(deltas));
       try {
         deltas.createIndex(keys, options);
+        MongoMigrationGuardStore.clearDeltaAppendGuard(database);
       } catch (MongoException retryFailure) {
         restoreNonUniqueIndexWithWarning(deltas, keys, retryFailure);
+        armAppendGuard();
       }
     }
   }
@@ -143,5 +152,9 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
 
   private static boolean isDuplicateKeyFailure(MongoException error) {
     return error.getCode() == 11000;
+  }
+
+  private void armAppendGuard() {
+    MongoMigrationGuardStore.upsertDeltaAppendGuard(database, DEGRADED_APPEND_GUARD_MESSAGE);
   }
 }

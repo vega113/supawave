@@ -29,6 +29,7 @@ import org.bson.conversions.Bson;
 import org.waveprotocol.box.common.ExceptionalIterator;
 import org.waveprotocol.box.server.persistence.FileNotFoundPersistenceException;
 import org.waveprotocol.box.server.persistence.PersistenceException;
+import org.waveprotocol.box.server.persistence.migrations.MongoMigrationGuardStore;
 import org.waveprotocol.box.server.waveserver.DeltaStore;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
@@ -47,6 +48,12 @@ import java.util.Set;
 public class Mongo4DeltaStore implements DeltaStore {
   private static final java.util.logging.Logger LOG =
       java.util.logging.Logger.getLogger(Mongo4DeltaStore.class.getName());
+  private static final Document APPLIED_AT_VERSION_INDEX_KEY = new Document(
+      Mongo4DeltaStoreUtil.FIELD_WAVE_ID, 1)
+      .append(Mongo4DeltaStoreUtil.FIELD_WAVELET_ID, 1)
+      .append(Mongo4DeltaStoreUtil.FIELD_TRANSFORMED_APPLIEDATVERSION, 1);
+  private static final String DEFAULT_APPEND_GUARD_MESSAGE =
+      "Mongo4DeltaStore: refusing new delta writes until the applied-version migration state is repaired.";
 
   /** Name of the MongoDB collection to store Deltas */
   private static final String DELTAS_COLLECTION = "deltas";
@@ -60,9 +67,10 @@ public class Mongo4DeltaStore implements DeltaStore {
    * Construct a new store
    *
    * @param database the database connection object
-   */
+  */
   public Mongo4DeltaStore(MongoDatabase database) {
     this.database = database;
+    this.appendGuardFailure = loadAppendGuardFailure();
   }
 
   @Override
@@ -151,5 +159,37 @@ public class Mongo4DeltaStore implements DeltaStore {
    */
   private MongoCollection<Document> getDeltaCollection() {
     return database.getCollection(DELTAS_COLLECTION);
+  }
+
+  private PersistenceException loadAppendGuardFailure() {
+    try {
+      Document guard = MongoMigrationGuardStore.getDeltaAppendGuard(database);
+      if (guard == null) {
+        return null;
+      }
+      if (hasUniqueAppliedAtVersionIndex()) {
+        MongoMigrationGuardStore.clearDeltaAppendGuard(database);
+        return null;
+      }
+      String message = guard.getString(MongoMigrationGuardStore.MESSAGE_FIELD);
+      return new PersistenceException(
+          (message == null || message.trim().isEmpty()) ? DEFAULT_APPEND_GUARD_MESSAGE : message);
+    } catch (RuntimeException e) {
+      LOG.warning("Mongo4DeltaStore: failed to load append guard state: " + e.getMessage());
+      return new PersistenceException(
+          "Mongo4DeltaStore: failed to verify applied-version append guard state; "
+              + "refusing new delta writes until the migration state can be checked.",
+          e);
+    }
+  }
+
+  private boolean hasUniqueAppliedAtVersionIndex() {
+    for (Document index : getDeltaCollection().listIndexes().into(new java.util.ArrayList<Document>())) {
+      if (APPLIED_AT_VERSION_INDEX_KEY.equals(index.get("key"))
+          && Boolean.TRUE.equals(index.getBoolean("unique"))) {
+        return true;
+      }
+    }
+    return false;
   }
 }

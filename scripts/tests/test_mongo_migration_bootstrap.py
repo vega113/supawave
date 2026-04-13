@@ -21,7 +21,7 @@ class MongoMigrationBootstrapTest(unittest.TestCase):
     self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
 
   def test_deploy_reaches_sanity_gate_when_migration_success_log_is_present(self):
-    result = self._run_deploy(log_output="Mongo migrations completed successfully\n")
+    result = self._run_deploy(log_output="Completed Mongock Mongo schema migrations\n")
 
     self.assertNotEqual(0, result.returncode)
     combined = f"{result.stdout}\n{result.stderr}"

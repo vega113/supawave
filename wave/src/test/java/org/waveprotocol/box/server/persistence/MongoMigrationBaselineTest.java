@@ -39,9 +39,10 @@ public class MongoMigrationBaselineTest {
     preferColimaIfDockerHostInvalid();
 
     MongoDBContainer mongo = new MongoDBContainer(MONGO_IMAGE);
+    PersistenceModule module = null;
     try {
       startOrSkip(mongo);
-      PersistenceModule module = new PersistenceModule(mongoBackedConfig(mongo));
+      module = new PersistenceModule(mongoBackedConfig(mongo));
 
       module.runMongoMigrationsIfNeeded();
 
@@ -64,8 +65,11 @@ public class MongoMigrationBaselineTest {
           new Document("status", 1)));
       assertUniqueIndex(database.getCollection(ANALYTICS_COLLECTION), new Document("hour", 1));
       assertNotNull(database.getCollection(CHANGELOG_COLLECTION).find().first());
-      assertNotNull(database.getCollection(LOCK_COLLECTION));
+      assertTrue(
+          "missing collection " + LOCK_COLLECTION,
+          database.listCollectionNames().into(new ArrayList<>()).contains(LOCK_COLLECTION));
     } finally {
+      closeQuietly(module);
       stopQuietly(mongo);
     }
   }
@@ -75,9 +79,10 @@ public class MongoMigrationBaselineTest {
     preferColimaIfDockerHostInvalid();
 
     MongoDBContainer mongo = new MongoDBContainer(MONGO_IMAGE);
+    PersistenceModule module = null;
     try {
       startOrSkip(mongo);
-      PersistenceModule module = new PersistenceModule(mongoBackedConfig(mongo));
+      module = new PersistenceModule(mongoBackedConfig(mongo));
       MongoDatabase database = module.getMongo4Provider().provideMongoDatabase();
       MongoCollection<Document> deltas = database.getCollection(DELTAS_COLLECTION);
 
@@ -92,6 +97,7 @@ public class MongoMigrationBaselineTest {
               .append("waveletId", 1)
               .append("transformed.appliedAtVersion", 1));
     } finally {
+      closeQuietly(module);
       stopQuietly(mongo);
     }
   }
@@ -123,7 +129,7 @@ public class MongoMigrationBaselineTest {
             + "  contact_store_type = \"mongodb\"\n"
             + "  delta_store_type = \"mongodb\"\n"
             + "  mongodb_host = \"" + mongo.getHost() + "\"\n"
-            + "  mongodb_port = \"" + mongo.getMappedPort(27017) + "\"\n"
+            + "  mongodb_port = " + mongo.getMappedPort(27017) + "\n"
             + "  mongodb_database = \"wiab_migration_it\"\n"
             + "  mongodb_driver = \"v4\"\n"
             + "  analytics_counters_enabled = true\n"
@@ -181,6 +187,16 @@ public class MongoMigrationBaselineTest {
       }
     } catch (Exception e) {
       LOG.warn("Ignored exception while stopping MongoDBContainer.", e);
+    }
+  }
+
+  private static void closeQuietly(PersistenceModule module) {
+    try {
+      if (module != null) {
+        module.getMongo4Provider().close();
+      }
+    } catch (Exception e) {
+      LOG.warn("Ignored exception while closing Mongo4DbProvider.", e);
     }
   }
 }

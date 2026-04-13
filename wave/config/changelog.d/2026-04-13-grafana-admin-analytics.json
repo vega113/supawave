@@ -10,7 +10,8 @@
       "items": [
         "Removed the /admin Analytics tab and its server-side analytics API/history storage paths",
         "Wave now exports aggregate analytics counters through the existing Prometheus `/metrics` endpoint for Grafana dashboards and alerts",
-        "Updated the SupaWave Alloy host configuration and runbook so Grafana Cloud scrapes Wave application metrics directly"
+        "Wave now emits Loki-friendly analytics event logs with `analytics_event`, `analytics_count`, `participant_id`, and `wave_id` fields for per-wave and per-user charts",
+        "Added a starter Grafana dashboard JSON plus updated the SupaWave Alloy host configuration and runbook so Grafana Cloud scrapes Wave application metrics directly"
       ]
     }
   ]

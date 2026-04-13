@@ -31,6 +31,7 @@ import org.waveprotocol.box.server.waveserver.AnalyticsRecorder;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -171,11 +172,11 @@ public final class PublicWaveFetchServlet extends HttpServlet {
           break;
         }
       }
-      recordApiView();
+      recordApiView(waveref.getWaveId());
       serializeObjectToResponse(docSnapshot, dest);
     } else if (waveref.hasWaveletId()) {
       // Return the wavelet snapshot
-      recordApiView();
+      recordApiView(waveref.getWaveId());
       serializeObjectToResponse(
           SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()), dest);
     } else {
@@ -185,13 +186,13 @@ public final class PublicWaveFetchServlet extends HttpServlet {
           .addWavelet(
               SnapshotSerializer.serializeWavelet(snapshot, snapshot.getHashedVersion()))
           .build();
-      recordApiView();
+      recordApiView(waveref.getWaveId());
       serializeObjectToResponse(waveSnapshot, dest);
     }
   }
 
-  private void recordApiView() {
-    analyticsRecorder.incrementApiViews(System.currentTimeMillis());
+  private void recordApiView(WaveId waveId) {
+    analyticsRecorder.incrementApiViews(waveId.serialise(), System.currentTimeMillis());
   }
 
   private <P extends Message> void serializeObjectToResponse(P message, HttpServletResponse dest)

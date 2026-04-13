@@ -368,7 +368,7 @@ public class AuthenticationServlet extends HttpServlet {
                 if (!RegistrationSupport.createAccount(accountStore, id, null)) {
                   return null;
                 }
-                recordUsersRegisteredAnalytics();
+                recordUsersRegisteredAnalytics(id);
               } else {
                 throw new InvalidNameException(
                     "User doesn't already exist, and registration disabled by administrator");
@@ -387,9 +387,9 @@ public class AuthenticationServlet extends HttpServlet {
     return null;
   }
 
-  private void recordUsersRegisteredAnalytics() {
+  private void recordUsersRegisteredAnalytics(ParticipantId id) {
     try {
-      analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
+      analyticsRecorder.incrementUsersRegistered(id.getAddress(), System.currentTimeMillis());
     } catch (RuntimeException e) {
       LOG.warning("Failed to record usersRegistered analytics", e);
     }

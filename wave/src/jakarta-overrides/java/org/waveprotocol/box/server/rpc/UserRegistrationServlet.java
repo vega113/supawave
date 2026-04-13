@@ -187,7 +187,7 @@ public final class UserRegistrationServlet extends HttpServlet {
       if (!accountCreated) {
         return "An unexpected error occurred while trying to create the account";
       }
-      recordUsersRegisteredAnalytics();
+      recordUsersRegisteredAnalytics(id);
 
       // Send confirmation email to the provided email address
       authEmailService.sendConfirmationEmail(req, account);
@@ -204,7 +204,7 @@ public final class UserRegistrationServlet extends HttpServlet {
       if (!accountCreated) {
         return "An unexpected error occurred while trying to create the account";
       }
-      recordUsersRegisteredAnalytics();
+      recordUsersRegisteredAnalytics(id);
 
       try {
         welcomeWaveCreator.createWelcomeWave(id);
@@ -249,9 +249,9 @@ public final class UserRegistrationServlet extends HttpServlet {
         responseType, registrationDisabled, analyticsAccount, emailRequired));
   }
 
-  private void recordUsersRegisteredAnalytics() {
+  private void recordUsersRegisteredAnalytics(ParticipantId id) {
     try {
-      analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
+      analyticsRecorder.incrementUsersRegistered(id.getAddress(), System.currentTimeMillis());
     } catch (RuntimeException e) {
       LOG.warning("Failed to record usersRegistered analytics", e);
     }

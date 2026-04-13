@@ -26,11 +26,16 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.server.stat.MetricsHolder;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
+import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.operation.wave.BlipContentOperation;
 import org.waveprotocol.wave.model.operation.wave.BlipOperation;
@@ -47,25 +52,41 @@ public class AnalyticsRecorderTest {
 
   private static final long BASE_TIME = 1775386200000L;
   private static final ParticipantId AUTHOR = ParticipantId.ofUnsafe("alice@example.com");
+  private static final WaveId WAVE_ID = WaveId.of("example.com", "w+wave1");
   private static final WaveletId WAVELET_ID = WaveletId.of("example.com", "conv+root");
 
   private AnalyticsRecorder recorder;
   private ReadableWaveletData wavelet;
+  private Logger julLogger;
+  private CapturingHandler logHandler;
 
   @Before
   public void setUp() {
     MetricsHolder.prometheus().clear();
     recorder = new AnalyticsRecorder();
     wavelet = mock(ReadableWaveletData.class);
+    when(wavelet.getWaveId()).thenReturn(WAVE_ID);
     when(wavelet.getWaveletId()).thenReturn(WAVELET_ID);
+    julLogger = Logger.getLogger(AnalyticsRecorder.class.getName());
+    logHandler = new CapturingHandler();
+    julLogger.addHandler(logHandler);
+  }
+
+  @After
+  public void tearDown() {
+    if (julLogger != null && logHandler != null) {
+      julLogger.removeHandler(logHandler);
+    }
   }
 
   @Test
   public void testIncrementPageViews() {
-    recorder.incrementPageViews(BASE_TIME);
+    recorder.incrementPageViews("example.com!w+abc", BASE_TIME);
     recorder.incrementPageViews(BASE_TIME + 1000);
 
     assertMetricSample("wave_analytics_public_wave_page_views_total 2.0");
+    assertAnyLogContains("analytics_event=public_wave_page_view");
+    assertAnyLogContains("wave_id=\"example.com!w+abc\"");
   }
 
   @Test
@@ -80,6 +101,8 @@ public class AnalyticsRecorderTest {
     recorder.recordActiveUser("alice@example.com", BASE_TIME);
 
     assertMetricSample("wave_analytics_active_user_events_total 1.0");
+    assertLastLogContains("analytics_event=active_user_event");
+    assertLastLogContains("participant_id=\"alice@example.com\"");
   }
 
   @Test
@@ -109,6 +132,9 @@ public class AnalyticsRecorderTest {
 
     assertMetricSample("wave_analytics_waves_created_total 1.0");
     assertMetricSample("wave_analytics_blips_created_total 2.0");
+    assertLastLogContains("analytics_event=blips_created");
+    assertLastLogContains("participant_id=\"alice@example.com\"");
+    assertLastLogContains("wave_id=\"example.com/w+wave1\"");
   }
 
   @Test
@@ -140,6 +166,22 @@ public class AnalyticsRecorderTest {
     assertTrue(Math.abs(actual - expectedCount) < 0.0001);
   }
 
+  private void assertLastLogContains(String expected) {
+    assertFalse(logHandler.records.isEmpty());
+    String lastMessage = logHandler.records.get(logHandler.records.size() - 1).getMessage();
+    assertTrue(lastMessage.contains(expected));
+  }
+
+  private void assertAnyLogContains(String expected) {
+    assertFalse(logHandler.records.isEmpty());
+    for (LogRecord record : logHandler.records) {
+      if (record.getMessage().contains(expected)) {
+        return;
+      }
+    }
+    assertTrue("Expected to find log fragment: " + expected, false);
+  }
+
   private static TransformedWaveletDelta submitDelta(long timestampMs, String... blipIds) {
     return createDelta(timestampMs, true, blipIds);
   }
@@ -164,5 +206,22 @@ public class AnalyticsRecorderTest {
     }
     return new TransformedWaveletDelta(
         AUTHOR, HashedVersion.unsigned(blipIds.length), timestampMs, ops);
+  }
+
+  private static final class CapturingHandler extends Handler {
+    private final List<LogRecord> records = new ArrayList<>();
+
+    @Override
+    public void publish(LogRecord record) {
+      records.add(record);
+    }
+
+    @Override
+    public void flush() {
+    }
+
+    @Override
+    public void close() {
+    }
   }
 }

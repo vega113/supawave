@@ -175,7 +175,7 @@ public final class PublicWaveServlet extends HttpServlet {
     // cached content for up to 5 minutes.
     resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     resp.setHeader("Pragma", "no-cache");
-    analyticsRecorder.incrementPageViews(System.currentTimeMillis());
+    analyticsRecorder.incrementPageViews(waveIdStr, System.currentTimeMillis());
     resp.getWriter().write(html);
   }
 

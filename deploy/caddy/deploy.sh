@@ -328,11 +328,15 @@ slot_requires_mongo_migration_verification() {
   local config_file="$deploy_root/releases/${slot}/application.conf"
   [ -f "$config_file" ] || return 1
 
-  # Strip comment lines before matching so that commented-out examples
-  # (e.g. "# mongodb_driver = v4" or "// mongodb_driver = v4") do not trigger
-  # the gate. HOCON supports # and // single-line comments; strip both.
+  # Strip whole-line and inline HOCON comment fragments before matching so
+  # that commented-out examples (e.g. "# mongodb_driver = v4") or inline
+  # tails (e.g. "foo = bar # account_store_type = mongodb") do not trigger
+  # the gate. The second sed preserves "://" in URLs by requiring a
+  # non-colon before "//".
   local effective_config
-  effective_config="$(grep -Ev '^[[:space:]]*(#|//)' "$config_file")"
+  effective_config="$(grep -Ev '^[[:space:]]*(#|//)' "$config_file" \
+    | sed 's/[[:space:]]*#.*//' \
+    | sed 's|\([^:]\) *//.*|\1|')"
 
   printf '%s\n' "$effective_config" \
     | grep -Eqi 'mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]]|,|$)' || return 1

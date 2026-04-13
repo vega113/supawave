@@ -321,7 +321,7 @@ wait_for_slot_health() {
   fi
   local retries=1
   if [ "$timeout_seconds" -gt 0 ]; then
-    retries=$(( (timeout_seconds + interval_seconds - 1) / interval_seconds ))
+    retries=$(( (timeout_seconds + interval_seconds - 1) / interval_seconds + 1 ))
   fi
   local i=0
   # Lucene-backed production startups can legitimately take several minutes

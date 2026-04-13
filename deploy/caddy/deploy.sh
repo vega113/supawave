@@ -35,6 +35,7 @@ registry_host=${GHCR_REGISTRY_HOST:-ghcr.io}
 deploy_env_file="$deploy_root/shared/deploy.env"
 lock_file="$deploy_root/deploy.lock"
 COMPOSE_FILE="$deploy_root/releases/current/compose.yml"
+MONGO_MIGRATION_MARKER_SUPPORT_FILE="mongo-migration-marker-supported"
 
 require_docker() {
   command -v docker >/dev/null 2>&1 || {
@@ -296,6 +297,7 @@ render_slot_config() {
   cp "$deploy_root/releases/current/application.conf" "$slot_dir/application.conf"
   perl -pi -e "s/wave\\.example\\.test/${canonical_host}/g" "$slot_dir/application.conf"
   echo "${WAVE_IMAGE:?}" > "$slot_dir/image-ref"
+  : > "$slot_dir/${MONGO_MIGRATION_MARKER_SUPPORT_FILE}"
 }
 
 start_target_slot() {
@@ -332,10 +334,19 @@ slot_requires_mongo_migration_verification() {
     "$config_file"
 }
 
+slot_supports_mongo_migration_marker() {
+  local slot=$1
+  [ -f "$deploy_root/releases/${slot}/${MONGO_MIGRATION_MARKER_SUPPORT_FILE}" ]
+}
+
 verify_mongo_migration_completion() {
   local slot=$1
   local container_id started_at
   if ! slot_requires_mongo_migration_verification "$slot"; then
+    return 0
+  fi
+  # Allow rollbacks to N-1 bundles that predate the Mongock startup marker.
+  if ! slot_supports_mongo_migration_marker "$slot"; then
     return 0
   fi
 

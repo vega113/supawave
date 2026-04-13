@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -201,6 +202,26 @@ public final class DeltaAppliedVersionUniqueIndexChangeUnitTest {
     assertEquals(2, createCalls.get());
     assertEquals(2, handler.warningCount());
     assertTrue(handler.containsMessage("failed to restore the non-unique applied-version index"));
+  }
+
+  @Test
+  public void testExecutionRethrowsGuardClearFailureWithoutFallback() {
+    MongoCollection<Document> deltas = deltasCollection();
+    MongoCollection<Document> guards = guardCollection();
+    MongoException clearFailure = new MongoException(91, "guard clear failed");
+    doThrow(clearFailure).when(guards).deleteOne(any(Bson.class));
+
+    try {
+      changeUnit(deltas, guards).execution();
+      fail("Expected MongoException");
+    } catch (MongoException e) {
+      assertSame(clearFailure, e);
+    }
+
+    verify(deltas).createIndex(any(Bson.class), any(IndexOptions.class));
+    verify(deltas, never()).dropIndex(any(String.class));
+    verify(guards, never()).replaceOne(
+        any(Bson.class), any(Document.class), any(com.mongodb.client.model.ReplaceOptions.class));
   }
 
   @Test

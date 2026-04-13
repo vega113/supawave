@@ -200,27 +200,19 @@ set -euo pipefail
   *" up -d wave-blue"*)
     exit 0
     ;;
-  *"inspect --format {{.State.StartedAt}} wave-blue-id"*)
+  *"inspect --format "*wave-blue-id*)
     printf '2026-04-13T11:00:00Z\\n'
     exit 0
     ;;
-  *"inspect --format {{.State.StartedAt}} wave-green-id"*)
+  *"inspect --format "*wave-green-id*)
     printf '2026-04-13T11:00:00Z\\n'
     exit 0
     ;;
-  *" logs --no-color --since 2026-04-13T11:00:00Z wave-blue"*)
+  *" logs --no-color "*wave-blue*)
     printf 'Completed Mongock Mongo schema migrations\n'
     exit 0
     ;;
-  *" logs --no-color --since 2026-04-13T11:00:00Z wave-green"*)
-    printf 'Completed Mongock Mongo schema migrations\n'
-    exit 0
-    ;;
-  *" logs --no-color wave-blue"*)
-    printf 'Completed Mongock Mongo schema migrations\n'
-    exit 0
-    ;;
-  *" logs --no-color wave-green"*)
+  *" logs --no-color "*wave-green*)
     printf 'Completed Mongock Mongo schema migrations\n'
     exit 0
     ;;

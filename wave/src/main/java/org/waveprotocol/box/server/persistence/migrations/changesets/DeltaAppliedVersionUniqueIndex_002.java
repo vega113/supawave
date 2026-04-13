@@ -84,7 +84,6 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
 
     try {
       deltas.createIndex(keys, options);
-      MongoMigrationGuardStore.clearDeltaAppendGuard(database);
     } catch (MongoException initialFailure) {
       if (isDuplicateKeyFailure(initialFailure)) {
         restoreNonUniqueIndexWithWarning(deltas, keys, initialFailure);
@@ -97,12 +96,13 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
       deltas.dropIndex(findConflictingIndexName(deltas));
       try {
         deltas.createIndex(keys, options);
-        MongoMigrationGuardStore.clearDeltaAppendGuard(database);
       } catch (MongoException retryFailure) {
         restoreNonUniqueIndexWithWarning(deltas, keys, retryFailure);
         armAppendGuard();
+        return;
       }
     }
+    clearAppendGuard();
   }
 
   @RollbackExecution
@@ -156,5 +156,16 @@ public final class DeltaAppliedVersionUniqueIndex_002 {
 
   private void armAppendGuard() {
     MongoMigrationGuardStore.upsertDeltaAppendGuard(database, DEGRADED_APPEND_GUARD_MESSAGE);
+  }
+
+  private void clearAppendGuard() {
+    try {
+      MongoMigrationGuardStore.clearDeltaAppendGuard(database);
+    } catch (MongoException clearFailure) {
+      LOG.log(java.util.logging.Level.SEVERE,
+          "Migration installed the unique applied-version index but could not clear the append guard.",
+          clearFailure);
+      throw clearFailure;
+    }
   }
 }

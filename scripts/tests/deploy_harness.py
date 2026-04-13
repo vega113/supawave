@@ -12,7 +12,11 @@ def run_deploy_script(
     deploy_script: Path,
     docker_script: str,
     *,
+    command: str = "deploy",
+    active_slot: str = "blue",
+    previous_slot: str | None = None,
     application_conf: str | None = None,
+    release_files: dict[str, dict[str, str]] | None = None,
 ) -> subprocess.CompletedProcess[str]:
   bash_path = find_bash()
   if bash_path is None:
@@ -24,13 +28,22 @@ def run_deploy_script(
     fake_bin.mkdir(parents=True)
     deploy_root = temp_dir / "deploy-root"
     (deploy_root / "shared").mkdir(parents=True)
-    (deploy_root / "shared" / "active-slot").write_text("blue\n", encoding="utf-8")
+    (deploy_root / "shared" / "active-slot").write_text(f"{active_slot}\n", encoding="utf-8")
+    if previous_slot is not None:
+      (deploy_root / "shared" / "previous-slot").write_text(f"{previous_slot}\n", encoding="utf-8")
     (deploy_root / "releases" / "green").mkdir(parents=True)
     if application_conf is not None:
       (deploy_root / "releases" / "green" / "application.conf").write_text(
           application_conf,
           encoding="utf-8",
       )
+    for slot, files in (release_files or {}).items():
+      slot_dir = deploy_root / "releases" / slot
+      slot_dir.mkdir(parents=True, exist_ok=True)
+      for relative_path, content in files.items():
+        file_path = slot_dir / relative_path
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(content, encoding="utf-8")
 
     write_executable(fake_bin / "docker", docker_script)
     write_executable(
@@ -63,7 +76,7 @@ exit 1
     env["WWW_HOST"] = "www.supawave.ai"
 
     return subprocess.run(
-        [bash_path, str(deploy_script), "deploy"],
+        [bash_path, str(deploy_script), command],
         cwd=repo_root,
         env=env,
         capture_output=True,

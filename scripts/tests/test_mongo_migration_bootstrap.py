@@ -58,6 +58,56 @@ core {
     self.assertIn("did not report Mongo migration completion", combined)
     self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
 
+  def test_rollback_allows_legacy_previous_slot_without_migration_marker_support(self):
+    result = run_deploy_script(
+        REPO_ROOT,
+        DEPLOY_SCRIPT,
+        textwrap.dedent(
+            """#!/usr/bin/env bash
+set -euo pipefail
+cmd="$*"
+if [[ "$1" == "compose" && "$2" == "version" ]]; then
+  exit 0
+fi
+case "$cmd" in
+  *" ps wave-blue --format json"*)
+    exit 0
+    ;;
+  *" up -d wave-blue"*)
+    ;;
+  *" stop wave-green"*)
+    ;;
+  *)
+    echo "unexpected docker invocation: $cmd" >&2
+    exit 1
+    ;;
+esac
+""",
+        ),
+        command="rollback",
+        active_slot="green",
+        previous_slot="blue",
+        release_files={
+            "blue": {
+                "application.conf": textwrap.dedent(
+                    """\
+core {
+  mongodb_driver = "v4"
+  account_store_type = "mongodb"
+  delta_store_type = "mongodb"
+}
+"""
+                ),
+                "image-ref": "ghcr.io/example/wave:old\n",
+            },
+        },
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    combined = f"{result.stdout}\n{result.stderr}"
+    self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+    self.assertNotIn("did not report Mongo migration completion", combined)
+
   def _run_deploy(
       self,
       log_output: str,

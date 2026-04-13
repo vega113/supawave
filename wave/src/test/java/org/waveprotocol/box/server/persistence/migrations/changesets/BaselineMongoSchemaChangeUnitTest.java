@@ -39,7 +39,6 @@ public final class BaselineMongoSchemaChangeUnitTest {
         mongoContactMessageConfig(),
         contactMessages,
         collection(),
-        collection(),
         collection());
 
     changeUnit.execution();
@@ -49,12 +48,11 @@ public final class BaselineMongoSchemaChangeUnitTest {
 
   private static BaselineMongoSchema_001 changeUnit(MongoMigrationConfig config,
       MongoCollection<Document> contactMessages, MongoCollection<Document> deltas,
-      MongoCollection<Document> snapshots, MongoCollection<Document> analytics) {
+      MongoCollection<Document> snapshots) {
     MongoDatabase database = mock(MongoDatabase.class);
     when(database.getCollection("contact_messages")).thenReturn(contactMessages);
     when(database.getCollection("deltas")).thenReturn(deltas);
     when(database.getCollection("snapshots")).thenReturn(snapshots);
-    when(database.getCollection("analytics_hourly")).thenReturn(analytics);
     return new BaselineMongoSchema_001(database, config);
   }
 
@@ -70,8 +68,7 @@ public final class BaselineMongoSchemaChangeUnitTest {
         "wiab",
         "",
         "",
-        "v4",
-        false);
+        "v4");
   }
 
   @SuppressWarnings("unchecked")

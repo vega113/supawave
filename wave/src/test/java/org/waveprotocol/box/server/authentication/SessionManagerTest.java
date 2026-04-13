@@ -43,7 +43,7 @@ import org.waveprotocol.box.server.authentication.WebSession;
  * @author josephg@gmail.com (Joseph Gentle)
  */
 public class SessionManagerTest extends TestCase {
-  @Mock private org.eclipse.jetty.session.SessionHandler jettySessionManager;
+  @Mock private org.eclipse.jetty.ee10.servlet.SessionHandler jettySessionManager;
 
   private SessionManager sessionManager;
   private HumanAccountData account;
@@ -58,7 +58,7 @@ public class SessionManagerTest extends TestCase {
     store.putAccount(account);
     config = ConfigFactory.parseMap(ImmutableMap.of("experimental.jetty12_session_lookup", false));
     sessionManager = new SessionManagerImpl(store, jettySessionManager,
-        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(new org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore()));
+        new org.waveprotocol.box.server.waveserver.AnalyticsRecorder());
   }
 
   public void testSessionFetchesAddress() {

@@ -56,9 +56,6 @@ public final class BaselineMongoSchema_001 {
     if (config.usesMongoContactMessageStore()) {
       ensureContactMessageIndexes();
     }
-    if (config.usesMongoAnalyticsCounters()) {
-      ensureAnalyticsCounterIndex();
-    }
   }
 
   @RollbackExecution
@@ -99,12 +96,5 @@ public final class BaselineMongoSchema_001 {
     MongoCollection<Document> contactMessages = database.getCollection("contact_messages");
     contactMessages.createIndex(Indexes.descending("createdAt"));
     contactMessages.createIndex(Indexes.ascending("status"));
-  }
-
-  private void ensureAnalyticsCounterIndex() {
-    MongoCollection<Document> analytics = database.getCollection("analytics_hourly");
-    analytics.createIndex(
-        Indexes.ascending("hour"),
-        new IndexOptions().unique(true));
   }
 }

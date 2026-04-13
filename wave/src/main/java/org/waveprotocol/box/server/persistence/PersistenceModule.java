@@ -31,9 +31,6 @@ import org.waveprotocol.box.server.persistence.file.FileAttachmentStore;
 import org.waveprotocol.box.server.persistence.file.FileDeltaStore;
 import org.waveprotocol.box.server.persistence.file.FileSignerInfoStore;
 import org.waveprotocol.box.server.persistence.file.FileSnapshotStore;
-import org.waveprotocol.box.server.persistence.AnalyticsCounterStore;
-import org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore;
-import org.waveprotocol.box.server.persistence.memory.NoOpAnalyticsCounterStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryContactMessageStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryDeltaStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
@@ -83,7 +80,6 @@ public class PersistenceModule extends AbstractModule {
   private final String mongoDBUsername;
   private final String mongoDBPassword;
   private final String mongoDriver;
-  private final boolean analyticsCountersEnabled;
   private final MongoMigrationConfig mongoMigrationConfig;
   private final MongoMigrationRunnerFactory mongoMigrationRunnerFactory;
   private boolean mongoMigrationsExecuted;
@@ -107,8 +103,6 @@ public class PersistenceModule extends AbstractModule {
     this.mongoDBUsername = config.hasPath("core.mongodb_username") ? config.getString("core.mongodb_username") : "";
     this.mongoDBPassword = config.hasPath("core.mongodb_password") ? config.getString("core.mongodb_password") : "";
     this.mongoDriver = config.hasPath("core.mongodb_driver") ? config.getString("core.mongodb_driver") : "v2";
-    this.analyticsCountersEnabled = config.hasPath("core.analytics_counters_enabled")
-        && config.getBoolean("core.analytics_counters_enabled");
     this.mongoMigrationConfig = new MongoMigrationConfig(
         signerInfoStoreType,
         attachmentStoreType,
@@ -120,8 +114,7 @@ public class PersistenceModule extends AbstractModule {
         mongoDBdatabase,
         mongoDBUsername,
         mongoDBPassword,
-        mongoDriver,
-        analyticsCountersEnabled);
+        mongoDriver);
     this.mongoMigrationRunnerFactory = mongoMigrationRunnerFactory;
   }
 
@@ -154,7 +147,6 @@ public class PersistenceModule extends AbstractModule {
     bindContactStore();
     bindContactMessageStore();
     bindFeatureFlagStore();
-    bindAnalyticsCounterStore();
   }
 
   public void runMongoMigrationsIfNeeded() {
@@ -323,31 +315,4 @@ public class PersistenceModule extends AbstractModule {
     bind(FeatureFlagService.class).in(Singleton.class);
   }
 
-  /**
-   * Binds the AnalyticsCounterStore for incremental analytics counters.
-   * Uses NoOp when disabled, MongoDB when available, otherwise falls back to in-memory.
-   */
-  private void bindAnalyticsCounterStore() {
-    if (!analyticsCountersEnabled) {
-      bind(AnalyticsCounterStore.class)
-          .to(NoOpAnalyticsCounterStore.class).in(Singleton.class);
-      return;
-    }
-    if (accountStoreType.equalsIgnoreCase("mongodb") && "v4".equalsIgnoreCase(mongoDriver)) {
-      bind(AnalyticsCounterStore.class)
-          .toInstance(getMongo4Provider().provideMongoDbAnalyticsCounterStore());
-    } else if (accountStoreType.equalsIgnoreCase("file")) {
-      LOG.warning(
-          "Analytics counters are enabled but file-based storage does not support analytics persistence; "
-              + "analytics will be unavailable.");
-      bind(AnalyticsCounterStore.class)
-          .to(NoOpAnalyticsCounterStore.class).in(Singleton.class);
-    } else {
-      LOG.warning(
-          "Analytics counters are enabled but analytics persistence is using in-memory storage; "
-              + "analytics data will be lost on restart.");
-      bind(AnalyticsCounterStore.class)
-          .to(MemoryAnalyticsCounterStore.class).in(Singleton.class);
-    }
-  }
 }

@@ -93,18 +93,21 @@ public final class HtmlRendererFeatureFlagsTest {
     assertTrue(html.contains("return legacyUser ? { email: legacyUser, enabled: legacyEnabled } : null;"));
     assertTrue(html.contains("var entry = normalizeAllowedUserEntry(parts[i]);"));
     assertTrue(html.contains("href=\"/wave/admin\""));
-    assertTrue(html.contains("data-tab=\"analytics\">Analytics</button>"));
-    assertTrue(html.contains("id=\"panel-analytics\""));
-    assertTrue(
+    assertFalse(html.contains("data-tab=\"analytics\">Analytics</button>"));
+    assertFalse(html.contains("id=\"panel-analytics\""));
+    assertFalse(
         html.contains(
             "if (tab.dataset.tab === 'analytics') { loadAnalyticsHistory(analyticsActiveWindow); loadAnalyticsStatus(); }"));
     assertTrue(html.contains("if (tab.dataset.tab === 'ops') { loadOpsStatus(); }"));
-    assertTrue(html.contains("var analyticsActiveWindow = '24h';"));
-    assertTrue(html.contains("fetch('/admin/api/analytics/history?window=' + encodeURIComponent(win))"));
-    assertTrue(html.contains("chartWaves = createWaveChart('chartWaves', 'Waves Created', '#0077b6', 'bar');"));
-    assertTrue(html.contains("var href = (_ctx || '') + '/waveref/' + encodeURIComponent(id);"));
-    assertTrue(html.contains("fetch('/admin/api/analytics/status')"));
-    assertTrue(
+    assertFalse(html.contains("var analyticsActiveWindow = '24h';"));
+    assertFalse(
+        html.contains("fetch('/admin/api/analytics/history?window=' + encodeURIComponent(win))"));
+    assertFalse(
+        html.contains(
+            "chartWaves = createWaveChart('chartWaves', 'Waves Created', '#0077b6', 'bar');"));
+    assertFalse(html.contains("var href = (_ctx || '') + '/waveref/' + encodeURIComponent(id);"));
+    assertFalse(html.contains("fetch('/admin/api/analytics/status')"));
+    assertFalse(
         html.contains(
             "el = document.getElementById('histActiveUsers'); if (el) el.textContent = (t.activeUsers || 0).toLocaleString();"));
     assertTrue(html.contains("document.querySelectorAll('.ops-subtab').forEach(function(btn) {"));

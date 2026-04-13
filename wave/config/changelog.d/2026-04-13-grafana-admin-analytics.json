@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-13-grafana-admin-analytics",
+  "version": "PR #884",
+  "date": "2026-04-13",
+  "title": "Move admin analytics out to Grafana",
+  "summary": "Wave no longer renders an admin analytics tab; the remaining analytics signals are exported through `/metrics` and the Grafana Alloy pipeline instead of being stored and queried inside the app.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Removed the /admin Analytics tab and its server-side analytics API/history storage paths",
+        "Wave now exports aggregate analytics counters through the existing Prometheus `/metrics` endpoint for Grafana dashboards and alerts",
+        "Updated the SupaWave Alloy host configuration and runbook so Grafana Cloud scrapes Wave application metrics directly"
+      ]
+    }
+  ]
+}

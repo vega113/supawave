@@ -1,6 +1,26 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.waveprotocol.box.server.waveserver;
 
-import static org.junit.Assert.assertEquals;
+import io.micrometer.core.instrument.Counter;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -9,8 +29,7 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.waveprotocol.box.common.DeltaSequence;
-import org.waveprotocol.box.server.persistence.AnalyticsCounterStore.HourlyBucket;
-import org.waveprotocol.box.server.persistence.memory.MemoryAnalyticsCounterStore;
+import org.waveprotocol.box.server.stat.MetricsHolder;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.operation.wave.BlipContentOperation;
@@ -26,98 +45,99 @@ import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 
 public class AnalyticsRecorderTest {
 
-  private static final long HOUR_MS = 3_600_000L;
   private static final long BASE_TIME = 1775386200000L;
-  private static final long BASE_HOUR = BASE_TIME - (BASE_TIME % HOUR_MS);
   private static final ParticipantId AUTHOR = ParticipantId.ofUnsafe("alice@example.com");
   private static final WaveletId WAVELET_ID = WaveletId.of("example.com", "conv+root");
 
-  private MemoryAnalyticsCounterStore store;
   private AnalyticsRecorder recorder;
   private ReadableWaveletData wavelet;
 
   @Before
   public void setUp() {
-    store = new MemoryAnalyticsCounterStore();
-    recorder = new AnalyticsRecorder(store);
+    MetricsHolder.prometheus().clear();
+    recorder = new AnalyticsRecorder();
     wavelet = mock(ReadableWaveletData.class);
     when(wavelet.getWaveletId()).thenReturn(WAVELET_ID);
   }
 
-  @Test public void testIncrementPageViews() {
+  @Test
+  public void testIncrementPageViews() {
     recorder.incrementPageViews(BASE_TIME);
     recorder.incrementPageViews(BASE_TIME + 1000);
-    List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
-    assertEquals(1, buckets.size());
-    assertEquals(2L, buckets.get(0).getPageViews());
+
+    assertMetricSample("wave_analytics_public_wave_page_views_total 2.0");
   }
 
-  @Test public void testIncrementApiViews() {
+  @Test
+  public void testIncrementApiViews() {
     recorder.incrementApiViews(BASE_TIME);
-    List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
-    assertEquals(1, buckets.size());
-    assertEquals(1L, buckets.get(0).getApiViews());
+
+    assertMetricSample("wave_analytics_public_wave_api_views_total 1.0");
   }
 
-  @Test public void testRecordActiveUser() {
+  @Test
+  public void testRecordActiveUser() {
     recorder.recordActiveUser("alice@example.com", BASE_TIME);
-    List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
-    assertEquals(1, buckets.size());
-    assertEquals(1, buckets.get(0).getActiveUserIds().size());
+
+    assertMetricSample("wave_analytics_active_user_events_total 1.0");
   }
 
-  @Test public void testIncrementUsersRegistered() {
+  @Test
+  public void testIncrementUsersRegistered() {
     recorder.incrementUsersRegistered(BASE_TIME);
-    List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
-    assertEquals(1, buckets.size());
-    assertEquals(1L, buckets.get(0).getUsersRegistered());
+
+    assertMetricSample("wave_analytics_users_registered_total 1.0");
   }
 
-  @Test public void testRecordWaveCreated() {
+  @Test
+  public void testRecordWaveCreated() {
     recorder.recordWaveCreated(BASE_TIME);
-    List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
-    assertEquals(1, buckets.size());
-    assertEquals(1L, buckets.get(0).getWavesCreated());
+
+    assertMetricSample("wave_analytics_waves_created_total 1.0");
   }
 
-  @Test public void testRecordBlipsCreated() {
+  @Test
+  public void testRecordBlipsCreated() {
     recorder.recordBlipsCreated(3, BASE_TIME);
-    List<HourlyBucket> buckets = store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
-    assertEquals(1, buckets.size());
-    assertEquals(3L, buckets.get(0).getBlipsCreated());
+
+    assertMetricSample("wave_analytics_blips_created_total 3.0");
   }
 
   @Test
   public void testWaveletUpdateCountsWaveCreationAndSubmittedBlips() {
-    List<HourlyBucket> buckets =
-        applyWaveletUpdate(submitDelta(BASE_TIME, "b+1", "b+2"));
+    applyWaveletUpdate(submitDelta(BASE_TIME, "b+1", "b+2"));
 
-    assertEquals(1, buckets.size());
-    assertEquals(1L, buckets.get(0).getWavesCreated());
-    assertEquals(2L, buckets.get(0).getBlipsCreated());
+    assertMetricSample("wave_analytics_waves_created_total 1.0");
+    assertMetricSample("wave_analytics_blips_created_total 2.0");
   }
 
   @Test
   public void testWaveletUpdateIgnoresBlipEdits() {
-    List<HourlyBucket> buckets = applyWaveletUpdate(editDelta(BASE_TIME, "b+1"));
+    applyWaveletUpdate(editDelta(BASE_TIME, "b+1"));
 
-    assertEquals(1, buckets.size());
-    assertEquals(1L, buckets.get(0).getWavesCreated());
-    assertEquals(0L, buckets.get(0).getBlipsCreated());
+    assertMetricSample("wave_analytics_waves_created_total 1.0");
+    assertMetricCount("wave.analytics.blips_created", 0.0);
   }
 
   @Test
   public void testWaveletUpdateDeduplicatesSubmittedBlipsWithinDelta() {
-    List<HourlyBucket> buckets =
-        applyWaveletUpdate(submitDelta(BASE_TIME, "b+1", "b+1"));
+    applyWaveletUpdate(submitDelta(BASE_TIME, "b+1", "b+1"));
 
-    assertEquals(1, buckets.size());
-    assertEquals(1L, buckets.get(0).getBlipsCreated());
+    assertMetricSample("wave_analytics_blips_created_total 1.0");
   }
 
-  private List<HourlyBucket> applyWaveletUpdate(TransformedWaveletDelta... deltas) {
+  private void applyWaveletUpdate(TransformedWaveletDelta... deltas) {
     recorder.waveletUpdate(wavelet, DeltaSequence.of(deltas));
-    return store.getHourlyBuckets(BASE_HOUR, BASE_HOUR + HOUR_MS);
+  }
+
+  private static void assertMetricSample(String expectedSample) {
+    assertTrue(MetricsHolder.prometheus().scrape().contains(expectedSample));
+  }
+
+  private static void assertMetricCount(String metricName, double expectedCount) {
+    Counter counter = MetricsHolder.registry().find(metricName).counter();
+    double actual = counter == null ? 0.0 : counter.count();
+    assertTrue(Math.abs(actual - expectedCount) < 0.0001);
   }
 
   private static TransformedWaveletDelta submitDelta(long timestampMs, String... blipIds) {

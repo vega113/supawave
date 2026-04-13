@@ -444,15 +444,9 @@ public class ServerMain {
     ContactsRecorder contactsRecorder = injector.getInstance(ContactsRecorder.class);
     waveBus.subscribe(contactsRecorder);
     LOG.info("ContactsRecorder subscribed to WaveBus");
-    Config config = injector.getInstance(Config.class);
-    if (config.hasPath("core.analytics_counters_enabled")
-        && config.getBoolean("core.analytics_counters_enabled")) {
-      AnalyticsRecorder analyticsRecorder = injector.getInstance(AnalyticsRecorder.class);
-      waveBus.subscribe(analyticsRecorder);
-      LOG.info("AnalyticsRecorder subscribed to WaveBus");
-    } else {
-      LOG.info("Analytics counters disabled (core.analytics_counters_enabled=false)");
-    }
+    AnalyticsRecorder analyticsRecorder = injector.getInstance(AnalyticsRecorder.class);
+    waveBus.subscribe(analyticsRecorder);
+    LOG.info("AnalyticsRecorder subscribed to WaveBus");
   }
 
   private static void initializeFrontend(Injector injector, ServerRpcProvider server,

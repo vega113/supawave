@@ -341,8 +341,9 @@ wait_for_slot_health() {
   local remaining_seconds
   local sleep_seconds
   started_at=$(date +%s)
-  # Lucene-backed production startups can legitimately take several minutes
-  # before /healthz answers while indexes are rebuilt from MongoDB.
+  # Lucene-backed production startups can legitimately take some time before
+  # /healthz answers while the new slot waits for the Lucene write lock or
+  # performs an initial build for an empty Lucene index.
   while true; do
     if curl -sf "http://localhost:${port}/healthz" > /dev/null 2>&1; then
       return 0

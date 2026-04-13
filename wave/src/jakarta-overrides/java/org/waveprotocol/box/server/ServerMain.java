@@ -513,7 +513,7 @@ public class ServerMain {
       ReindexService reindexService = injector.getInstance(ReindexService.class);
       if (lucene9Indexer.getLastReindexStats() != null) {
         reindexService.recordStartupReindex(lucene9Indexer.getLastReindexStats());
-      } else {
+      } else if (lucene9Indexer.getLastRebuildWaveCount() >= 0) {
         reindexService.recordStartupReindex(lucene9Indexer.getLastRebuildWaveCount());
       }
     }

@@ -100,6 +100,12 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   private final IncrementalIndexStats incrementalStats = new IncrementalIndexStats();
   private final IncrementalIndexStats queryStats = new IncrementalIndexStats();
 
+  private enum StartupIndexAction {
+    INITIAL_BUILD,
+    FULL_REBUILD,
+    REUSE_EXISTING_INDEX
+  }
+
   @Inject
   public Lucene9WaveIndexerImpl(WaveMap waveMap, WaveletProvider waveletProvider,
       Lucene9SearchIndexDirectory directory, WaveMetadataExtractor metadataExtractor,
@@ -159,32 +165,35 @@ public class Lucene9WaveIndexerImpl implements WaveIndexer, WaveBus.Subscriber, 
   public synchronized void remakeIndex() throws WaveletStateException, WaveServerException {
     try {
       int existingDocs = indexWriter.getDocStats().numDocs;
-      if (existingDocs > 0 && rebuildOnStartup) {
+      StartupIndexAction startupAction = determineStartupIndexAction(existingDocs);
+      if (startupAction == StartupIndexAction.FULL_REBUILD) {
         LOG.info("Full rebuild of Lucene9 index (had " + existingDocs
             + " docs, lucene9_rebuild_on_startup=true)");
         indexWriter.deleteAll();
-      } else if (existingDocs > 0) {
+      } else if (startupAction == StartupIndexAction.REUSE_EXISTING_INDEX) {
         LOG.info("Lucene9 index has " + existingDocs
-            + " documents, running incremental repair");
+            + " documents, reusing existing index and skipping startup repair");
+        return;
       } else {
         LOG.info("Lucene9 index is empty, performing initial build");
       }
-      boolean fullRebuild = (existingDocs > 0 && rebuildOnStartup) || existingDocs == 0;
-      try {
-        waveMap.loadAllWavelets();
-      } catch (WaveletStateException e) {
-        if (fullRebuild) {
-          throw e;
-        }
-        LOG.log(Level.WARNING,
-            "loadAllWavelets failed during incremental repair, using cached waves", e);
-      }
-      ReindexStats stats = doRebuild(fullRebuild, null);
+      waveMap.loadAllWavelets();
+      ReindexStats stats = doRebuild(true, null);
       lastRebuildWaveCount = stats.waveCount;
       lastReindexStats = stats;
     } catch (IOException e) {
       throw new IndexException(e);
     }
+  }
+
+  private StartupIndexAction determineStartupIndexAction(int existingDocs) {
+    if (existingDocs <= 0) {
+      return StartupIndexAction.INITIAL_BUILD;
+    }
+    if (rebuildOnStartup) {
+      return StartupIndexAction.FULL_REBUILD;
+    }
+    return StartupIndexAction.REUSE_EXISTING_INDEX;
   }
 
   /**

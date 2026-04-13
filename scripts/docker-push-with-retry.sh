@@ -24,9 +24,18 @@ fi
 attempt=1
 while [[ "$attempt" -le "$max_attempts" ]]; do
   log_file="$(mktemp)"
-  status=0
-  docker push "$image_ref" >"$log_file" 2>&1 || status=$?
-  cat "$log_file"
+  set +e
+  docker push "$image_ref" 2>&1 | tee "$log_file"
+  pipe_status=("${PIPESTATUS[@]}")
+  set -e
+  status="${pipe_status[0]}"
+  tee_status="${pipe_status[1]}"
+
+  if [[ "$tee_status" -ne 0 ]]; then
+    rm -f "$log_file"
+    echo "Failed to persist docker push output while streaming logs" >&2
+    exit "$tee_status"
+  fi
 
   if [[ "$status" -eq 0 ]]; then
     rm -f "$log_file"

@@ -1,8 +1,10 @@
 import os
+import queue
 import shlex
 import stat
 import subprocess
 import tempfile
+import threading
 import textwrap
 import unittest
 from pathlib import Path
@@ -166,6 +168,69 @@ exit 1
       self.assertEqual("3", attempt_file.read_text(encoding="utf-8"))
       self.assertIn("unknown blob", f"{result.stdout}\n{result.stderr}")
       self.assertIn("failed after 3 attempts", f"{result.stdout}\n{result.stderr}")
+
+  def test_streams_docker_output_before_push_completes(self):
+    bash_path = self._bash_path()
+    if bash_path is None:
+      self.skipTest("requires bash to execute docker-push-with-retry.sh")
+
+    with tempfile.TemporaryDirectory(prefix="docker-push-retry-") as tmp_dir:
+      temp_dir = Path(tmp_dir)
+      fake_bin = temp_dir / "bin"
+      fake_bin.mkdir(parents=True)
+
+      self._write_executable(
+          fake_bin / "docker",
+          """#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" != "push" ]]; then
+  echo "unexpected docker invocation: $*" >&2
+  exit 1
+fi
+
+echo "layer upload in progress"
+sleep 1
+echo "digest: sha256:test-stream size: 1234"
+""",
+      )
+
+      env = self._build_mock_command_env(
+          bash_path=bash_path,
+          fake_bin=fake_bin,
+      )
+      process = subprocess.Popen(  # noqa: S603 - trusted subprocess invocation in test harness
+          [bash_path, str(SCRIPT_PATH), "ghcr.io/example/wave:test"],
+          cwd=REPO_ROOT,
+          env=env,
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+          text=True,
+      )
+
+      try:
+        self.assertIsNotNone(process.stdout)
+        first_line_queue = queue.Queue()
+        reader = threading.Thread(
+            target=lambda: first_line_queue.put(process.stdout.readline()),
+            daemon=True,
+        )
+        reader.start()
+
+        first_line = first_line_queue.get(timeout=0.5)
+        stdout, stderr = process.communicate(timeout=5)
+      finally:
+        if process.poll() is None:
+          process.kill()
+          process.communicate()
+
+      self.assertEqual(
+          0,
+          process.returncode,
+          msg=f"retry script failed unexpectedly:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}",
+      )
+      self.assertIn("layer upload in progress", first_line)
+      self.assertIn("digest: sha256:test-stream size: 1234", f"{first_line}{stdout}")
 
   def test_build_mock_command_env_prepends_fake_bin_and_resolved_bash_dir(self):
     with tempfile.TemporaryDirectory(prefix="docker-push-retry-env-") as tmp_dir:

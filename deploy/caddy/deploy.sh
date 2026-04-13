@@ -335,10 +335,10 @@ slot_requires_mongo_migration_verification() {
   effective_config="$(grep -Ev '^[[:space:]]*(#|//)' "$config_file")"
 
   printf '%s\n' "$effective_config" \
-    | grep -Eqi 'mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]]|$)' || return 1
+    | grep -Eqi 'mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?([[:space:]]|,|$)' || return 1
   printf '%s\n' "$effective_config" \
     | grep -Eqi \
-      '(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?([[:space:]]|$)' \
+      '(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?([[:space:]]|,|$)' \
     || return 1
 }
 

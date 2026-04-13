@@ -52,6 +52,20 @@ interface WaveletContainer {
   /** Returns the name of the wavelet. */
   WaveletName getWaveletName();
 
+  /**
+   * @return true when the initial storage load has completed and the container is ready for reads.
+   */
+  default boolean isLoaded() {
+    return true;
+  }
+
+  /**
+   * Returns a short diagnostic string describing the current load state of the container.
+   */
+  default String describeLoadState() {
+    return "state=UNKNOWN";
+  }
+
   /** Returns a snapshot copy of the wavelet state. */
   ObservableWaveletData copyWaveletData() throws WaveletStateException;
 

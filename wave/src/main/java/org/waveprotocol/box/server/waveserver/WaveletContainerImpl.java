@@ -20,6 +20,7 @@
 package org.waveprotocol.box.server.waveserver;
 
 import org.waveprotocol.box.common.Receiver;
+import org.waveprotocol.box.server.executor.RequestScopeExecutor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -90,6 +91,10 @@ abstract class WaveletContainerImpl implements WaveletContainer {
   }
 
   private final Executor storageContinuationExecutor;
+  private final ListenableFuture<? extends WaveletState> waveletStateFuture;
+  private final long loadCreatedAtMs;
+  private volatile long loadListenerStartedAtMs = -1L;
+  private volatile long loadCompletedAtMs = -1L;
 
   private final Lock readLock;
   private final ReentrantReadWriteLock.WriteLock writeLock;
@@ -116,6 +121,8 @@ abstract class WaveletContainerImpl implements WaveletContainer {
       Executor storageContinuationExecutor) {
     this.waveletName = waveletName;
     this.notifiee = notifiee;
+    this.waveletStateFuture = waveletStateFuture;
+    this.loadCreatedAtMs = System.currentTimeMillis();
     this.sharedDomainParticipantId =
         waveDomain != null ? ParticipantIdUtil.makeUnsafeSharedDomainParticipantId(waveDomain)
             : null;
@@ -128,6 +135,12 @@ abstract class WaveletContainerImpl implements WaveletContainer {
         new Runnable() {
           @Override
           public void run() {
+            loadListenerStartedAtMs = System.currentTimeMillis();
+            if (LOG.isFineLoggable()) {
+              LOG.fine("Finishing initial wavelet load for " + getWaveletName()
+                  + " after ageMs=" + (loadListenerStartedAtMs - loadCreatedAtMs)
+                  + " on " + RequestScopeExecutor.describeExecutor(storageContinuationExecutor));
+            }
             acquireWriteLock();
             try {
               Preconditions.checkState(waveletState == null,
@@ -151,7 +164,12 @@ abstract class WaveletContainerImpl implements WaveletContainer {
               LOG.severe("Unexpected exception loading wavelet " + getWaveletName(), e);
               state = State.CORRUPTED;
             } finally {
+              loadCompletedAtMs = System.currentTimeMillis();
               releaseWriteLock();
+            }
+            if (LOG.isFineLoggable()) {
+              LOG.fine("Initial wavelet load completion for " + getWaveletName()
+                  + ": " + describeLoadState());
             }
             loadLatch.countDown();
           }
@@ -207,6 +225,8 @@ abstract class WaveletContainerImpl implements WaveletContainer {
     Preconditions.checkState(!writeLock.isHeldByCurrentThread(), "should not hold write lock");
     try {
       if (!loadLatch.await(AWAIT_LOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        LOG.warning("Timed out waiting for wavelet to load " + getWaveletName()
+            + " -- " + describeLoadState());
         throw new WaveletStateException("Timed out waiting for wavelet to load");
       }
     } catch (InterruptedException e) {
@@ -276,6 +296,26 @@ abstract class WaveletContainerImpl implements WaveletContainer {
   @Override
   public WaveletName getWaveletName() {
     return waveletName;
+  }
+
+  @Override
+  public boolean isLoaded() {
+    return loadLatch.getCount() == 0 && state == State.OK;
+  }
+
+  @Override
+  public String describeLoadState() {
+    long now = System.currentTimeMillis();
+    return "state=" + state
+        + ", ageMs=" + (now - loadCreatedAtMs)
+        + ", futureDone=" + waveletStateFuture.isDone()
+        + ", listenerStartedMs=" + formatLoadOffset(loadListenerStartedAtMs)
+        + ", completedMs=" + formatLoadOffset(loadCompletedAtMs)
+        + ", storageContinuation=" + RequestScopeExecutor.describeExecutor(storageContinuationExecutor);
+  }
+
+  private String formatLoadOffset(long timestampMs) {
+    return timestampMs >= 0 ? Long.toString(timestampMs - loadCreatedAtMs) : "pending";
   }
 
   @Override

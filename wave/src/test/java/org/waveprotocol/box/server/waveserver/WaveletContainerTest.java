@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 
 import junit.framework.TestCase;
@@ -238,6 +239,26 @@ public class WaveletContainerTest extends TestCase {
     assertEquals(localWavelet.getCurrentVersion(), oldVersion);
   }
 
+  public void testLoadStateDescriptionReflectsPendingAndCompletedLoad() throws Exception {
+    WaveletNotificationSubscriber notifiee = mock(WaveletNotificationSubscriber.class);
+    SettableFuture<WaveletState> pendingState = SettableFuture.create();
+    TestWaveletContainer container =
+        new TestWaveletContainer(localWaveletName, notifiee, pendingState);
+
+    assertFalse(container.isLoaded());
+    assertTrue(container.describeLoadState().contains("state=LOADING"));
+
+    DeltaStore deltaStore = new MemoryDeltaStore();
+    WaveletState loadedState =
+        DeltaStoreBasedWaveletState.create(deltaStore.open(localWaveletName), PERSIST_EXECUTOR);
+    pendingState.set(loadedState);
+
+    container.awaitLoad();
+
+    assertTrue(container.isLoaded());
+    assertTrue(container.describeLoadState().contains("state=OK"));
+  }
+
   public void testLocalEmptyDelta() throws Exception {
     ProtocolSignedDelta emptyDelta = ProtocolSignedDelta.newBuilder()
         .addSignature(fakeSignature1)
@@ -406,6 +427,12 @@ public class WaveletContainerTest extends TestCase {
     TestWaveletContainer(WaveletName waveletName, WaveletNotificationSubscriber notifiee,
         WaveletState waveletState) {
       super(waveletName, notifiee, Futures.immediateFuture(waveletState), localDomain,
+          STORAGE_CONTINUATION_EXECUTOR);
+    }
+
+    TestWaveletContainer(WaveletName waveletName, WaveletNotificationSubscriber notifiee,
+        SettableFuture<WaveletState> waveletStateFuture) {
+      super(waveletName, notifiee, waveletStateFuture, localDomain,
           STORAGE_CONTINUATION_EXECUTOR);
     }
 

@@ -22,6 +22,7 @@ import com.google.inject.Inject;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -54,6 +55,31 @@ public class RequestScopeExecutor implements Executor, Shutdownable {
     Preconditions.checkArgument(this.executor == null, "Executor is already defined.");
     this.executor = executor;
     ShutdownManager.getInstance().register(this, name, ShutdownPriority.Task);
+  }
+
+  public String describeState() {
+    return describeExecutor(executor);
+  }
+
+  public static String describeExecutor(Executor executor) {
+    if (executor == null) {
+      return "executor=null";
+    }
+    if (executor instanceof RequestScopeExecutor) {
+      return ((RequestScopeExecutor) executor).describeState();
+    }
+    if (executor instanceof ThreadPoolExecutor) {
+      ThreadPoolExecutor tpe = (ThreadPoolExecutor) executor;
+      return "executor=" + executor.getClass().getSimpleName()
+          + ", poolSize=" + tpe.getPoolSize()
+          + ", active=" + tpe.getActiveCount()
+          + ", queued=" + tpe.getQueue().size()
+          + ", completed=" + tpe.getCompletedTaskCount();
+    }
+    if (executor instanceof ExecutorService) {
+      return "executor=" + executor.getClass().getSimpleName();
+    }
+    return "executor=" + executor.getClass().getSimpleName();
   }
 
   @Override

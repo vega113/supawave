@@ -29,6 +29,7 @@ import com.google.inject.Singleton;
 import com.typesafe.config.Config;
 import org.waveprotocol.box.server.executor.ExecutorAnnotations.StorageContinuationExecutor;
 import org.waveprotocol.box.server.executor.ExecutorAnnotations.WaveletLoadExecutor;
+import org.waveprotocol.box.server.executor.RequestScopeExecutor;
 import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.persistence.SnapshotStore;
 import org.waveprotocol.wave.crypto.*;
@@ -37,6 +38,7 @@ import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionFactoryImpl;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
+import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
@@ -46,6 +48,7 @@ import java.util.concurrent.Executor;
  *
  */
 public class WaveServerModule extends AbstractModule {
+  private static final Log LOG = Log.get(WaveServerModule.class);
   private static final IdURIEncoderDecoder URI_CODEC =
       new IdURIEncoderDecoder(new JavaUrlCodec());
   private static final HashedVersionFactory HASH_FACTORY = new HashedVersionFactoryImpl(URI_CODEC);
@@ -161,15 +164,38 @@ public class WaveServerModule extends AbstractModule {
   static ListenableFuture<DeltaStoreBasedWaveletState> loadWaveletState(Executor executor,
       final DeltaStore deltaStore, final SnapshotStore snapshotStore, final int snapshotInterval,
       final WaveletName waveletName, final Executor persistExecutor) {
+    final long scheduledAtMs = System.currentTimeMillis();
     ListenableFutureTask<DeltaStoreBasedWaveletState> task =
         ListenableFutureTask.create(
            new Callable<DeltaStoreBasedWaveletState>() {
              @Override
              public DeltaStoreBasedWaveletState call() throws PersistenceException {
-               return DeltaStoreBasedWaveletState.create(deltaStore.open(waveletName),
-                   snapshotStore, snapshotInterval, persistExecutor);
+               long startAtMs = System.currentTimeMillis();
+               if (LOG.isFineLoggable()) {
+                 LOG.fine("Starting initial wavelet load for " + waveletName
+                     + " after queuedMs=" + (startAtMs - scheduledAtMs)
+                     + " on " + RequestScopeExecutor.describeExecutor(executor));
+               }
+               try {
+                 DeltaStoreBasedWaveletState state = DeltaStoreBasedWaveletState.create(
+                     deltaStore.open(waveletName), snapshotStore, snapshotInterval, persistExecutor);
+                 if (LOG.isFineLoggable()) {
+                   LOG.fine("Finished initial wavelet load for " + waveletName
+                       + " in " + (System.currentTimeMillis() - startAtMs) + "ms");
+                 }
+                 return state;
+               } catch (PersistenceException e) {
+                 LOG.warning("Initial wavelet load failed for " + waveletName
+                     + " after " + (System.currentTimeMillis() - startAtMs) + "ms"
+                     + " on " + RequestScopeExecutor.describeExecutor(executor), e);
+                 throw e;
+               }
              }
            });
+    if (LOG.isFineLoggable()) {
+      LOG.fine("Scheduling initial wavelet load for " + waveletName
+          + " on " + RequestScopeExecutor.describeExecutor(executor));
+    }
     executor.execute(task);
     return task;
   }

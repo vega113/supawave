@@ -62,6 +62,10 @@ import java.util.concurrent.TimeUnit;
 public class StaleAnnotationSweeper {
 
   private static final Log LOG = Log.get(StaleAnnotationSweeper.class);
+  private static final String ROOT_BLIP_LOCKED_ERROR =
+      "The root blip is locked. Editing is not allowed here.";
+  private static final String WAVE_LOCKED_ERROR =
+      "This wave is locked. Editing and replies are not allowed.";
 
   /**
    * Editing sessions open for longer than this are considered stale (client crashed/disconnected
@@ -474,8 +478,14 @@ public class StaleAnnotationSweeper {
 
         @Override
         public void onFailure(String errorMessage) {
-          // Common causes: version conflict (concurrent delta) or author no longer a participant.
-          // Both are benign — the next sweep will retry with a fresh snapshot version.
+          // Common causes: version conflict (concurrent delta), author no longer a participant,
+          // or cleanup on a legitimately locked wave/root blip. All are benign — the next sweep
+          // will retry with a fresh snapshot version, except lock denials which are expected.
+          if (isLegitimateLockDenial(errorMessage)) {
+            LOG.fine("StaleAnnotationSweeper: skipping cleanup for locked document "
+                + waveletName + "/" + docId + ": " + errorMessage);
+            return;
+          }
           LOG.warning("StaleAnnotationSweeper: batch cleanup failed for "
               + waveletName + "/" + docId + ": " + errorMessage);
         }
@@ -486,5 +496,9 @@ public class StaleAnnotationSweeper {
           + waveletName + "/" + docId, e);
       return false;
     }
+  }
+
+  private static boolean isLegitimateLockDenial(String errorMessage) {
+    return ROOT_BLIP_LOCKED_ERROR.equals(errorMessage) || WAVE_LOCKED_ERROR.equals(errorMessage);
   }
 }

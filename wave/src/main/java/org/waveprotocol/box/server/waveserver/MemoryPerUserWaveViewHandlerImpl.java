@@ -257,6 +257,11 @@ public class MemoryPerUserWaveViewHandlerImpl
       if (container == null) {
         return;
       }
+      if (!container.isLoaded()) {
+        LOG.fine("Skipping cached version check while wavelet is still loading for "
+            + waveletName + " (" + container.describeLoadState() + ")");
+        return;
+      }
       HashedVersion cachedVersion = container.getLastCommittedVersion();
       if (cachedVersion == null || cachedVersion.getVersion() < version.getVersion()) {
         invalidateWaveBestEffort(waveletName.waveId);

@@ -326,9 +326,9 @@ slot_requires_mongo_migration_verification() {
   local config_file="$deploy_root/releases/${slot}/application.conf"
   [ -f "$config_file" ] || return 1
 
-  grep -Eq 'mongodb_driver[[:space:]]*=[[:space:]]*"v4"' "$config_file" || return 1
+  grep -Eq 'mongodb_driver[[:space:]]*[:=][[:space:]]*"?v4"?' "$config_file" || return 1
   grep -Eq \
-    '(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type|contact_store_type)[[:space:]]*=[[:space:]]*"mongodb"' \
+    '(signer_info_store_type|attachment_store_type|account_store_type|delta_store_type)[[:space:]]*[:=][[:space:]]*"?mongodb"?' \
     "$config_file"
 }
 
@@ -338,7 +338,7 @@ verify_mongo_migration_completion() {
     return 0
   fi
 
-  if docker logs "wave-${slot}" 2>&1 | grep -Fq "Mongo migrations completed successfully"; then
+  if dc logs --no-color "wave-${slot}" 2>&1 | grep -Fq "Mongo migrations completed successfully"; then
     return 0
   fi
 

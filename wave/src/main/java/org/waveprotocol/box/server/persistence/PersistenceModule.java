@@ -102,7 +102,7 @@ public class PersistenceModule extends AbstractModule {
     this.contactStoreType = config.hasPath("core.contact_store_type")
         ? config.getString("core.contact_store_type") : "memory";
     this.mongoDBHost = config.getString("core.mongodb_host");
-    this.mongoDBPort = config.getString("core.mongodb_port");
+    this.mongoDBPort = getConfigString(config, "core.mongodb_port");
     this.mongoDBdatabase = config.getString("core.mongodb_database");
     this.mongoDBUsername = config.hasPath("core.mongodb_username") ? config.getString("core.mongodb_username") : "";
     this.mongoDBPassword = config.hasPath("core.mongodb_password") ? config.getString("core.mongodb_password") : "";
@@ -157,7 +157,7 @@ public class PersistenceModule extends AbstractModule {
     bindAnalyticsCounterStore();
   }
 
-  void runMongoMigrationsIfNeeded() {
+  public void runMongoMigrationsIfNeeded() {
     if (mongoMigrationsExecuted || !shouldRunMongoMigrations()) {
       return;
     }
@@ -169,6 +169,10 @@ public class PersistenceModule extends AbstractModule {
   boolean shouldRunMongoMigrations() {
     return mongoMigrationConfig.isMongoV4Driver()
         && mongoMigrationConfig.usesMongoBackedCoreStore();
+  }
+
+  private static String getConfigString(Config config, String path) {
+    return String.valueOf(config.getAnyRef(path));
   }
 
   /**

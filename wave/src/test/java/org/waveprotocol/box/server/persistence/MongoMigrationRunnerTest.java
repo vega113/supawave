@@ -16,9 +16,10 @@ public class MongoMigrationRunnerTest {
     AtomicInteger runCalls = new AtomicInteger();
     PersistenceModule module = new PersistenceModule(
         mongoBackedConfig(),
-        (provider, migrationConfig) -> {
+        migrationConfig -> {
           factoryCalls.incrementAndGet();
-          assertTrue(migrationConfig.isMongoMigrationEnabled());
+          assertTrue(migrationConfig.isMongoV4Driver());
+          assertTrue(migrationConfig.usesMongoBackedCoreStore());
           return () -> runCalls.incrementAndGet();
         });
 
@@ -33,7 +34,22 @@ public class MongoMigrationRunnerTest {
     AtomicInteger factoryCalls = new AtomicInteger();
     PersistenceModule module = new PersistenceModule(
         fileBackedConfig(),
-        (provider, migrationConfig) -> {
+        migrationConfig -> {
+          factoryCalls.incrementAndGet();
+          return () -> { throw new AssertionError("runner should not execute"); };
+        });
+
+    module.runMongoMigrationsIfNeeded();
+
+    assertEquals(0, factoryCalls.get());
+  }
+
+  @Test
+  public void skipsMigrationsWhenOnlyOptionalContactStoreUsesMongo() {
+    AtomicInteger factoryCalls = new AtomicInteger();
+    PersistenceModule module = new PersistenceModule(
+        contactOnlyMongoConfig(),
+        migrationConfig -> {
           factoryCalls.incrementAndGet();
           return () -> { throw new AssertionError("runner should not execute"); };
         });
@@ -69,11 +85,24 @@ public class MongoMigrationRunnerTest {
             + "}\n"));
   }
 
+  private static Config contactOnlyMongoConfig() {
+    return baseConfig().withFallback(ConfigFactory.parseString(
+        "core {\n"
+            + "  signer_info_store_type = \"file\"\n"
+            + "  attachment_store_type = \"disk\"\n"
+            + "  account_store_type = \"file\"\n"
+            + "  contact_store_type = \"mongodb\"\n"
+            + "  delta_store_type = \"file\"\n"
+            + "  analytics_counters_enabled = false\n"
+            + "  mongodb_driver = \"v4\"\n"
+            + "}\n"));
+  }
+
   private static Config baseConfig() {
     return ConfigFactory.parseString(
         "core {\n"
             + "  mongodb_host = \"localhost\"\n"
-            + "  mongodb_port = \"27017\"\n"
+            + "  mongodb_port = 27017\n"
             + "  mongodb_database = \"wiab_test\"\n"
             + "  mongodb_username = \"\"\n"
             + "  mongodb_password = \"\"\n"

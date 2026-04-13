@@ -111,8 +111,7 @@ public final class MongoMigrationConfig {
     return isMongoStoreType(signerInfoStoreType)
         || isMongoStoreType(attachmentStoreType)
         || isMongoStoreType(accountStoreType)
-        || isMongoStoreType(deltaStoreType)
-        || isMongoStoreType(contactStoreType);
+        || isMongoStoreType(deltaStoreType);
   }
 
   public boolean usesMongoDeltaStore() {

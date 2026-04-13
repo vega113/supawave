@@ -28,7 +28,34 @@ class MongoMigrationBootstrapTest(unittest.TestCase):
     self.assertIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
     self.assertNotIn("did not report Mongo migration completion", combined)
 
-  def _run_deploy(self, log_output: str) -> subprocess.CompletedProcess[str]:
+  def test_deploy_checks_unquoted_hocon_mongo_values(self):
+    result = self._run_deploy(
+        log_output="wave started without migration marker\n",
+        application_conf="""\
+core {
+  mongodb_driver: v4
+  account_store_type = mongodb
+  delta_store_type = file
+}
+""",
+    )
+
+    self.assertNotEqual(0, result.returncode)
+    combined = f"{result.stdout}\n{result.stderr}"
+    self.assertIn("did not report Mongo migration completion", combined)
+    self.assertNotIn("SANITY_ADDRESS and SANITY_PASSWORD must both be set", combined)
+
+  def _run_deploy(
+      self,
+      log_output: str,
+      application_conf: str = """\
+core {
+  mongodb_driver = "v4"
+  account_store_type = "mongodb"
+  delta_store_type = "mongodb"
+}
+""",
+  ) -> subprocess.CompletedProcess[str]:
     bash_path = self._bash_path()
     if bash_path is None:
       self.skipTest("requires bash >= 4 to execute deploy/caddy/deploy.sh")
@@ -40,6 +67,11 @@ class MongoMigrationBootstrapTest(unittest.TestCase):
       deploy_root = temp_dir / "deploy-root"
       (deploy_root / "shared").mkdir(parents=True)
       (deploy_root / "shared" / "active-slot").write_text("blue\n", encoding="utf-8")
+      (deploy_root / "releases" / "green").mkdir(parents=True)
+      (deploy_root / "releases" / "green" / "application.conf").write_text(
+          textwrap.dedent(application_conf),
+          encoding="utf-8",
+      )
 
       self._write_executable(
           fake_bin / "docker",
@@ -59,7 +91,7 @@ case "$cmd" in
     ;;
   "pull ghcr.io/example/wave:test"|*" pull ghcr.io/example/wave:test"*)
     ;;
-  "logs wave-green"|*" logs wave-green"*)
+  *" logs --no-color wave-green"*)
     printf '%s' {log_output!r}
     ;;
   *)

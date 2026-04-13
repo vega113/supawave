@@ -19,6 +19,7 @@
 
 package org.waveprotocol.box.server.persistence.migrations.changesets;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -54,7 +55,7 @@ public final class BaselineMongoSchemaChangeUnitTest {
     when(database.getCollection("contact_messages")).thenReturn(collection());
     when(database.getCollection("deltas")).thenReturn(collection());
     when(database.getCollection("snapshots")).thenReturn(collection());
-    when(database.getCollection("analytics_hourly")).thenReturn(databaseAnalytics);
+    doReturn(databaseAnalytics).when(database).getCollection("analytics_hourly");
 
     new BaselineMongoSchema_001(database, mongoContactMessageConfig()).execution();
 

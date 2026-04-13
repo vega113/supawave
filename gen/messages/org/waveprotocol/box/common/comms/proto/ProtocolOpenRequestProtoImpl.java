@@ -297,6 +297,30 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.box.comm
     } else {
       clearViewportLimit();
     }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    if (message.hasSearchQuery()) {
+      setSearchQuery(message.getSearchQuery());
+    } else {
+      clearSearchQuery();
+    }
   }
 
   /**
@@ -637,6 +661,49 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.box.comm
    * under the License.
    */
 
+  @Override
+  public boolean hasSearchQuery() {
+    switchToProto();
+    return proto.hasSearchQuery();
+  }
+
+  @Override
+  public void clearSearchQuery() {
+    switchToProtoBuilder();
+    protoBuilder.clearSearchQuery();
+  }
+
+  @Override
+  public String getSearchQuery() {
+    switchToProto();
+    return proto.getSearchQuery();
+  }
+
+  @Override
+  public void setSearchQuery(String value) {
+    switchToProtoBuilder();
+    protoBuilder.setSearchQuery(value);
+  }
+
+  /**
+   * Licensed to the Apache Software Foundation (ASF) under one
+   * or more contributor license agreements. See the NOTICE file
+   * distributed with this work for additional information
+   * regarding copyright ownership. The ASF licenses this file
+   * to you under the Apache License, Version 2.0 (the
+   * "License"); you may not use this file except in compliance
+   * with the License. You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing,
+   * software distributed under the License is distributed on an
+   * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+   * KIND, either express or implied. See the License for the
+   * specific language governing permissions and limitations
+   * under the License.
+   */
+
   /** Get or create a WaveletVersionProtoImpl from a WaveletVersion. */
   private WaveletVersionProtoImpl getOrCreateWaveletVersionProtoImpl(WaveletVersion message) {
     if (message instanceof WaveletVersionProtoImpl) {
@@ -832,6 +899,28 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.box.comm
     if (hasViewportLimit()) {
       json.add("7", new JsonPrimitive(getViewportLimit()));
     }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    if (hasSearchQuery()) {
+      json.add("8", new JsonPrimitive(getSearchQuery()));
+    }
     return json;
   }
 
@@ -1019,6 +1108,31 @@ org.waveprotocol.wave.communication.proto.ProtoWrapper<org.waveprotocol.box.comm
       JsonElement elem = jsonObject.get("7");
       if (!elem.isJsonNull()) {
         setViewportLimit(elem.getAsInt());
+      }
+    }
+
+    /**
+     * Licensed to the Apache Software Foundation (ASF) under one
+     * or more contributor license agreements. See the NOTICE file
+     * distributed with this work for additional information
+     * regarding copyright ownership. The ASF licenses this file
+     * to you under the Apache License, Version 2.0 (the
+     * "License"); you may not use this file except in compliance
+     * with the License. You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing,
+     * software distributed under the License is distributed on an
+     * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     * KIND, either express or implied. See the License for the
+     * specific language governing permissions and limitations
+     * under the License.
+     */
+    if (jsonObject.has("8")) {
+      JsonElement elem = jsonObject.get("8");
+      if (!elem.isJsonNull()) {
+        setSearchQuery(elem.getAsString());
       }
     }
   }

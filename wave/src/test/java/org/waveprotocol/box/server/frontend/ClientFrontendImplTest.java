@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.wave.api.SearchResult;
 
 import junit.framework.TestCase;
 
@@ -47,8 +48,13 @@ import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.frontend.ClientFrontend.OpenListener;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
+import org.waveprotocol.box.server.waveserver.SearchProvider;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
+import org.waveprotocol.box.server.waveserver.search.SearchIndexer;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletDataProvider;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletSnapshotPublisher;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.id.IdFilter;
@@ -145,6 +151,47 @@ public class ClientFrontendImplTest extends TestCase {
     OpenListener listener = openWave(IdFilters.ALL_IDS);
     verifyChannelId(listener);
     verifyMarker(listener, WAVE_ID);
+  }
+
+  public void testSearchOpenBootstrapsSnapshotDuringOpen() throws Exception {
+    SearchProvider searchProvider = mock(SearchProvider.class);
+    SearchWaveletManager searchWaveletManager = new SearchWaveletManager();
+    SearchWaveletDispatcher dispatcher = new SearchWaveletDispatcher();
+    dispatcher.initialize(waveletInfo);
+    SearchWaveletSnapshotPublisher snapshotPublisher =
+        new SearchWaveletSnapshotPublisher(
+            dispatcher,
+            searchWaveletManager,
+            new SearchIndexer(),
+            new SearchWaveletDataProvider());
+    clientFrontend =
+        new ClientFrontendImpl(waveletProvider, waveletInfo, searchProvider, snapshotPublisher);
+
+    String query = "mentions:me";
+    WaveletName searchWaveletName = searchWaveletManager.computeWaveletName(USER, query);
+    SearchResult searchResult = createSearchResult(query, "example.com/w+abc", 1);
+    when(searchProvider.search(
+        USER, query, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS))
+        .thenReturn(searchResult);
+
+    OpenListener listener = mock(OpenListener.class);
+    IdFilter filter = IdFilter.of(
+        Collections.singleton(searchWaveletName.waveletId),
+        Collections.<String>emptySet());
+
+    clientFrontend.openRequest(
+        USER, searchWaveletName.waveId, filter, NO_KNOWN_WAVELETS, query, listener);
+
+    verify(searchProvider).search(
+        USER, query, 0, SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
+    verify(listener).onUpdate(
+        eq(searchWaveletName),
+        any(CommittedWaveletSnapshot.class),
+        eq(DeltaSequence.empty()),
+        any(HashedVersion.class),
+        isNullMarker(),
+        any(String.class));
+    verifyMarker(listener, searchWaveletName.waveId);
   }
 
   public void testTwoSubscriptionsReceiveDifferentChannelIds() {
@@ -341,6 +388,22 @@ public class ClientFrontendImplTest extends TestCase {
       long timestamp, WaveletOperation... operations) {
     return TransformedWaveletDelta.cloneOperations(author, endVersion, timestamp,
         Arrays.asList(operations));
+  }
+
+  private static SearchResult createSearchResult(String query, String waveId, int totalResults) {
+    SearchResult searchResult = new SearchResult(query);
+    searchResult.setTotalResults(totalResults);
+    searchResult.addDigest(
+        new SearchResult.Digest(
+            "Title",
+            "Snippet",
+            waveId,
+            Collections.singletonList(USER.getAddress()),
+            123L,
+            123L,
+            1,
+            2));
+    return searchResult;
   }
 
   /**

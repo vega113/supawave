@@ -21,14 +21,17 @@ package org.waveprotocol.box.server.frontend;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import com.google.wave.api.SearchResult;
 
 import org.waveprotocol.box.common.DeltaSequence;
 import org.waveprotocol.box.common.comms.WaveClientRpc;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
+import org.waveprotocol.box.server.waveserver.SearchProvider;
 import org.waveprotocol.box.server.waveserver.WaveBus;
 import org.waveprotocol.box.server.waveserver.WaveServerException;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletSnapshotPublisher;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.IdUtil;
@@ -48,6 +51,8 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.annotation.Nullable;
+
 
 /**
  * Implements {@link ClientFrontend}.
@@ -62,6 +67,8 @@ public class ClientFrontendImpl implements ClientFrontend, WaveBus.Subscriber {
 
   private final WaveletProvider waveletProvider;
   private final WaveletInfo waveletInfo;
+  @Nullable private final SearchProvider searchProvider;
+  @Nullable private final SearchWaveletSnapshotPublisher searchSnapshotPublisher;
 
   /**
    * Creates a client frontend and subscribes it to the wave bus.
@@ -70,9 +77,21 @@ public class ClientFrontendImpl implements ClientFrontend, WaveBus.Subscriber {
    */
   public static ClientFrontendImpl create(WaveletProvider waveletProvider, WaveBus wavebus,
       WaveletInfo waveletInfo) throws WaveServerException {
+    return create(waveletProvider, wavebus, waveletInfo, null, null);
+  }
+
+  /**
+   * Creates a client frontend with optional search bootstrap services and subscribes it to the
+   * wave bus.
+   */
+  public static ClientFrontendImpl create(WaveletProvider waveletProvider, WaveBus wavebus,
+      WaveletInfo waveletInfo, @Nullable SearchProvider searchProvider,
+      @Nullable SearchWaveletSnapshotPublisher searchSnapshotPublisher)
+      throws WaveServerException {
 
     ClientFrontendImpl impl =
-        new ClientFrontendImpl(waveletProvider, waveletInfo);
+        new ClientFrontendImpl(
+            waveletProvider, waveletInfo, searchProvider, searchSnapshotPublisher);
 
     wavebus.subscribe(impl);
     return impl;
@@ -87,13 +106,24 @@ public class ClientFrontendImpl implements ClientFrontend, WaveBus.Subscriber {
   @VisibleForTesting
   ClientFrontendImpl(
       WaveletProvider waveletProvider, WaveletInfo waveletInfo) {
+    this(waveletProvider, waveletInfo, null, null);
+  }
+
+  @VisibleForTesting
+  ClientFrontendImpl(
+      WaveletProvider waveletProvider, WaveletInfo waveletInfo,
+      @Nullable SearchProvider searchProvider,
+      @Nullable SearchWaveletSnapshotPublisher searchSnapshotPublisher) {
     this.waveletProvider = waveletProvider;
     this.waveletInfo = waveletInfo;
+    this.searchProvider = searchProvider;
+    this.searchSnapshotPublisher = searchSnapshotPublisher;
   }
 
   @Override
   public void openRequest(ParticipantId loggedInUser, WaveId waveId, IdFilter waveletIdFilter,
-      Collection<WaveClientRpc.WaveletVersion> knownWavelets, OpenListener openListener) {
+      Collection<WaveClientRpc.WaveletVersion> knownWavelets, @Nullable String searchQuery,
+      OpenListener openListener) {
     LOG.info("received openRequest from " + loggedInUser + " for " + waveId + ", filter "
         + waveletIdFilter + ", known wavelets: " + knownWavelets);
 
@@ -122,6 +152,18 @@ public class ClientFrontendImpl implements ClientFrontend, WaveBus.Subscriber {
     WaveViewSubscription subscription =
         userManager.subscribe(waveId, waveletIdFilter, channelId, openListener);
     LOG.info("Subscribed " + loggedInUser + " to " + waveId + " channel " + channelId);
+
+    if (searchQuery != null && !searchQuery.isEmpty()
+        && searchProvider != null && searchSnapshotPublisher != null) {
+      if (!bootstrapSearchSubscription(
+          loggedInUser, searchQuery, userManager, subscription, openListener)) {
+        return;
+      }
+      WaveletName dummyWaveletName = createDummyWaveletName(waveId);
+      LOG.fine("sending marker for " + dummyWaveletName);
+      openListener.onUpdate(dummyWaveletName, null, DeltaSequence.empty(), null, true, null);
+      return;
+    }
 
     Set<WaveletId> waveletIds;
     try {
@@ -179,6 +221,34 @@ public class ClientFrontendImpl implements ClientFrontend, WaveBus.Subscriber {
     }
     LOG.fine("sending marker for " + dummyWaveletName);
     openListener.onUpdate(dummyWaveletName, null, DeltaSequence.empty(), null, true, null);
+  }
+
+  private boolean bootstrapSearchSubscription(ParticipantId loggedInUser, String searchQuery,
+      UserManager userManager, WaveViewSubscription subscription, OpenListener openListener) {
+    try {
+      if (!searchSnapshotPublisher.hasLiveSubscription(loggedInUser, searchQuery)) {
+        throw new IllegalStateException(
+            "Search subscription was not registered for query '" + searchQuery + "'");
+      }
+      SearchResult searchResult =
+          searchProvider.search(
+              loggedInUser,
+              searchQuery,
+              0,
+              SearchWaveletSnapshotPublisher.LIVE_SEARCH_NUM_RESULTS);
+      if (searchResult == null) {
+        searchResult = new SearchResult(searchQuery);
+        searchResult.setTotalResults(0);
+      }
+      searchSnapshotPublisher.publishBootstrap(loggedInUser, searchQuery, searchResult);
+      return true;
+    } catch (RuntimeException e) {
+      LOG.warning("Failed to bootstrap OT search subscription for " + loggedInUser
+          + " query '" + searchQuery + "'", e);
+      userManager.unsubscribe(subscription);
+      openListener.onFailure("Failed to bootstrap search subscription for query '" + searchQuery + "'");
+      return false;
+    }
   }
 
   private String generateChannelID() {

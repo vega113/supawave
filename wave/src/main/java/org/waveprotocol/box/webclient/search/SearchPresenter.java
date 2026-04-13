@@ -1389,7 +1389,10 @@ public final class SearchPresenter
       otSearchWaveletName = computeSearchWaveletName(Session.get().getAddress(), query);
       useOtSearch = false;
       Collection<WaveletId> ids = Collections.singleton(otSearchWaveletName.waveletId);
-      channel.open(otSearchWaveletName.waveId, IdFilter.of(ids, Collections.<String>emptyList()),
+      channel.openSearch(
+          otSearchWaveletName.waveId,
+          IdFilter.of(ids, Collections.<String>emptyList()),
+          query,
           otSearchUpdateHandler);
       // Schedule a timeout: if no data arrives, fall back to polling.
       scheduler.scheduleDelayed(otSearchTimeoutTask, OT_SEARCH_TIMEOUT_MS);
@@ -1558,12 +1561,18 @@ public final class SearchPresenter
     otSearchReceivedData = false;
     scheduler.cancel(otSearchTimeoutTask);
     scheduler.cancel(searchUpdater);
-    clearSearchResultsAfterOtFailure();
+    if (!hasReadySearchResults()) {
+      clearSearchResultsAfterOtFailure();
+    }
     render();
   }
 
   private boolean isHttpPollingActiveForCurrentQuery() {
     return !useOtSearch && otSearchWaveletName == null && scheduler.isScheduled(searchUpdater);
+  }
+
+  private boolean hasReadySearchResults() {
+    return search.getState() == State.READY;
   }
 
   private void clearSearchResultsAfterOtFailure() {

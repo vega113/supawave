@@ -93,6 +93,10 @@ message ProtocolOpenRequest {
   optional string viewport_start_blip_id = 5;
   optional string viewport_direction = 6; // "forward" (default) or "backward"
   optional int32 viewport_limit = 7;      // max blip segments to include (default 5)
+  // Raw search query for virtual OT search wavelet subscriptions.
+  // Present only when opening a search wavelet so the server can bootstrap the
+  // initial snapshot without depending on an out-of-band HTTP /search request.
+  optional string search_query = 8;
 }
 
 // A pair of (wavelet id, wavelet version)

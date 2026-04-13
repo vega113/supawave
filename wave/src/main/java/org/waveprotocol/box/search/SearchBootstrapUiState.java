@@ -40,7 +40,7 @@ public final class SearchBootstrapUiState {
 
   public static boolean shouldBootstrapViaHttpWhenOtStarts(
       boolean otSearchEnabled, boolean otSearchFallbackEnabled) {
-    return !otSearchEnabled || otSearchFallbackEnabled;
+    return !otSearchEnabled;
   }
 
   public static boolean shouldUseHttpSearchForWindowRequest(

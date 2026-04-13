@@ -129,7 +129,7 @@ public final class WaveClientRpcViewportHintsTest {
   private static WaveClientRpcImpl makeWaveClientRpc() {
     ClientFrontend frontend = new ClientFrontend() {
       @Override public void submitRequest(ParticipantId u, WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, String c, WaveletProvider.SubmitRequestListener l) {}
-      @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, OpenListener listener) {
+      @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, String searchQuery, OpenListener listener) {
         WaveletId wid = WaveletId.of(waveId.getDomain(), "conv+root");
         WaveletName wn = WaveletName.of(waveId, wid);
         ReadableWaveletData data = providerDataWithBlips(waveId, wid, 20);

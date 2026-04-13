@@ -39,9 +39,9 @@ public final class SearchPresenterLoadingStateTest extends TestCase {
     assertFalse(SearchBootstrapUiState.shouldRetryOtSubscriptionOnReconnect(false, false, false));
   }
 
-  public void testOtBootstrapHttpFallbackRequiresExplicitFlag() {
+  public void testOtBootstrapUsesOtChannelWhenEnabled() {
     assertFalse(SearchBootstrapUiState.shouldBootstrapViaHttpWhenOtStarts(true, false));
-    assertTrue(SearchBootstrapUiState.shouldBootstrapViaHttpWhenOtStarts(true, true));
+    assertFalse(SearchBootstrapUiState.shouldBootstrapViaHttpWhenOtStarts(true, true));
     assertTrue(SearchBootstrapUiState.shouldBootstrapViaHttpWhenOtStarts(false, false));
   }
 

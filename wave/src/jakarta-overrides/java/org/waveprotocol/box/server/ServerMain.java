@@ -49,6 +49,7 @@ import org.waveprotocol.box.server.shutdown.ShutdownPriority;
 import org.waveprotocol.box.server.shutdown.Shutdownable;
 import org.waveprotocol.box.server.waveserver.*;
 import org.waveprotocol.box.server.waveserver.ReindexService;
+import org.waveprotocol.box.server.waveserver.search.SearchWaveletSnapshotPublisher;
 import org.waveprotocol.box.server.waveserver.lucene9.Lucene9WaveIndexerImpl;
 import org.waveprotocol.wave.crypto.CertPathStore;
 import org.waveprotocol.wave.federation.FederationTransport;
@@ -457,7 +458,13 @@ public class ServerMain {
     WaveletProvider provider = injector.getInstance(WaveletProvider.class);
     WaveletInfo waveletInfo = WaveletInfo.create(hashFactory, provider);
     injector.getInstance(SearchWaveletDispatcher.class).initialize(waveletInfo);
-    ClientFrontend frontend = ClientFrontendImpl.create(provider, waveBus, waveletInfo);
+    ClientFrontend frontend =
+        ClientFrontendImpl.create(
+            provider,
+            waveBus,
+            waveletInfo,
+            injector.getInstance(SearchProvider.class),
+            injector.getInstance(SearchWaveletSnapshotPublisher.class));
     org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.Interface rpcImpl =
         WaveClientRpcImpl.create(frontend, false);
     server.registerService(org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.newReflectiveService(rpcImpl));

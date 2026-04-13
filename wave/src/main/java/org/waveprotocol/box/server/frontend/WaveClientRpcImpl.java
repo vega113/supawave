@@ -138,8 +138,13 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       MDC.put("participantId", loggedInUser.getAddress());
     }
     try {
-    frontend.openRequest(loggedInUser, waveId, waveletIdFilter, request.getKnownWaveletList(),
-        new ClientFrontend.OpenListener() {
+      frontend.openRequest(
+          loggedInUser,
+          waveId,
+          waveletIdFilter,
+          request.getKnownWaveletList(),
+          request.hasSearchQuery() ? request.getSearchQuery() : null,
+          new ClientFrontend.OpenListener() {
           @Override
           public void onFailure(String errorMessage) {
             LOG.warning("openRequest failure: " + errorMessage);

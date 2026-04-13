@@ -70,14 +70,15 @@ public class FakeWaveServer extends FakeClientFrontend {
 
   @Override
   public void openRequest(ParticipantId participant, WaveId waveId, IdFilter waveletIdFilter,
-      Collection<WaveClientRpc.WaveletVersion> knownWavelets, OpenListener openListener) {
+      Collection<WaveClientRpc.WaveletVersion> knownWavelets, @Nullable String searchQuery,
+      OpenListener openListener) {
     if (user == null) {
       user = participant;
     } else {
       Preconditions.checkArgument(participant.equals(user), "Unexpected user");
     }
 
-    super.openRequest(participant, waveId, waveletIdFilter, knownWavelets, openListener);
+    super.openRequest(participant, waveId, waveletIdFilter, knownWavelets, searchQuery, openListener);
 
     Map<WaveletId, WaveletData> wavelets = waves.get(waveId);
     if (wavelets != null) {

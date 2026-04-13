@@ -89,6 +89,17 @@ public interface ClientFrontend {
    *        knows
    * @param openListener callback for updates.
    */
+  default void openRequest(ParticipantId loggedInUser, WaveId waveId, IdFilter waveletIdFilter,
+      Collection<WaveClientRpc.WaveletVersion> knownWavelets, OpenListener openListener) {
+    openRequest(loggedInUser, waveId, waveletIdFilter, knownWavelets, null, openListener);
+  }
+
+  /**
+   * Request to open a wave or virtual search subscription. {@code searchQuery}
+   * is populated only for OT search wavelet subscriptions so the server can
+   * bootstrap the initial snapshot during the open flow itself.
+   */
   void openRequest(ParticipantId loggedInUser, WaveId waveId, IdFilter waveletIdFilter,
-      Collection<WaveClientRpc.WaveletVersion> knownWavelets, OpenListener openListener);
+      Collection<WaveClientRpc.WaveletVersion> knownWavelets, @Nullable String searchQuery,
+      OpenListener openListener);
 }

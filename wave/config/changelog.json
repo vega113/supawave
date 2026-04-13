@@ -1,5 +1,21 @@
 [
   {
+    "releaseId": "2026-04-13-search-bootstrap-safety",
+    "version": "Unreleased",
+    "date": "2026-04-13",
+    "title": "OT search protocol bootstrap",
+    "summary": "OT search subscriptions now carry the raw query to the server and receive their first snapshot on the OT channel itself, removing the old dependency on an HTTP `/search` bootstrap.",
+    "sections": [
+      {
+        "type": "fix",
+        "items": [
+          "Search wavelet open requests now include the raw search query so the server can compute and publish the initial live-search snapshot immediately",
+          "OT search cold-start no longer depends on a side-effect from the legacy `/search` servlet before the sidebar can populate"
+        ]
+      }
+    ]
+  },
+  {
     "releaseId": "2026-04-13-same-name-index-upgrade-conflicts",
     "version": "PR #871",
     "date": "2026-04-13",

@@ -159,6 +159,28 @@ public final class RemoteViewServiceMultiplexer implements WaveWebSocketCallback
   }
 
   /**
+   * Opens a virtual search wavelet subscription. The raw query is sent
+   * alongside the open request so the server can bootstrap the initial search
+   * snapshot directly on the OT channel.
+   */
+  public void openSearch(WaveId id, IdFilter filter, String searchQuery,
+      WaveWebSocketCallback stream) {
+    registerStream(id, stream);
+
+    ProtocolOpenRequestJsoImpl request = ProtocolOpenRequestJsoImpl.create();
+    request.setWaveId(ModernIdSerialiser.INSTANCE.serialiseWaveId(id));
+    request.setParticipantId(userId);
+    request.setSearchQuery(searchQuery);
+    for (String prefix : filter.getPrefixes()) {
+      request.addWaveletIdPrefix(prefix);
+    }
+    for (WaveletId wid : filter.getIds()) {
+      request.addWaveletIdPrefix(wid.getId());
+    }
+    socket.open(request);
+  }
+
+  /**
    * Opens a wave stream with optional viewport hints for server-side fragments.
    *
    * Parameter semantics and edge cases:

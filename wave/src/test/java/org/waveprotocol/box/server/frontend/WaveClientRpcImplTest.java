@@ -164,6 +164,23 @@ public class WaveClientRpcImplTest extends TestCase implements TestingConstants 
     assertFalse(controller.failed());
   }
 
+  public void testOpenForwardsSearchQueryToFrontend() {
+    ProtocolOpenRequest request = ProtocolOpenRequest.newBuilder()
+        .setParticipantId(USER)
+        .setWaveId(ModernIdSerialiser.INSTANCE.serialiseWaveId(WAVE_ID))
+        .setSearchQuery("mentions:me")
+        .build();
+
+    rpcImpl.open(controller, request, new RpcCallback<ProtocolWaveletUpdate>() {
+      @Override
+      public void run(ProtocolWaveletUpdate update) {
+      }
+    });
+
+    assertEquals("mentions:me", frontend.lastSearchQuery);
+    assertFalse(controller.failed());
+  }
+
   /**
    * Tests that a failed submit results in the proper submit failure response.
    */

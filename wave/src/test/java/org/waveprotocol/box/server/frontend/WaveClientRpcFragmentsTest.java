@@ -163,7 +163,7 @@ public final class WaveClientRpcFragmentsTest {
     // Frontend stub calls listener.onUpdate with no snapshot but with committedVersion
     ClientFrontend frontend = new ClientFrontend() {
       @Override public void submitRequest(ParticipantId u, WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, String c, WaveletProvider.SubmitRequestListener l) {}
-      @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, OpenListener listener) {
+      @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, String searchQuery, OpenListener listener) {
         WaveletId wid = WaveletId.of(waveId.getDomain(), "conv+root");
         WaveletName wn = WaveletName.of(waveId, wid);
         listener.onUpdate(wn, null, java.util.Collections.emptyList(), HashedVersion.unsigned(5), null, "ch-2");
@@ -200,7 +200,7 @@ public final class WaveClientRpcFragmentsTest {
     private static WaveClientRpcImpl makeWaveClientRpc() {
         ClientFrontend frontend = new ClientFrontend() {
           @Override public void submitRequest(ParticipantId u, WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, String c, WaveletProvider.SubmitRequestListener l) {}
-          @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, OpenListener listener) {
+          @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, String searchQuery, OpenListener listener) {
             WaveletId wid = WaveletId.of(waveId.getDomain(), "conv+root");
             WaveletName wn = WaveletName.of(waveId, wid);
             ReadableWaveletData data = new ReadableWaveletDataStub(waveId, wid, HashedVersion.unsigned(9))

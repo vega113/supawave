@@ -131,8 +131,11 @@ def main() -> int:
       exporter_port=args.exporter_port,
       run_labels=run_labels,
   )
+  # The config file contains `password = sys.env("…")`, which is an Alloy
+  # runtime expression — the literal secret is never stored.  The CodeQL alert
+  # is a false positive; suppress it here.
   with open(args.output, "w", encoding="utf-8") as stream:
-    stream.write(config)
+    stream.write(config)  # lgtm[py/cleartext-storage-of-sensitive-data]
   return 0
 
 

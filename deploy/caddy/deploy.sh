@@ -415,7 +415,7 @@ verify_mongo_migration_completion() {
   fi
 
   migration_logs="$(dc logs --no-color --since "$started_at" "wave-${slot}" 2>&1 || true)"
-  if printf '%s' "$migration_logs" | grep -Fq "Completed Mongock Mongo schema migrations"; then
+  if grep -Fq "Completed Mongock Mongo schema migrations" <<< "$migration_logs"; then
     return 0
   fi
 

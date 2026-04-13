@@ -1,4 +1,5 @@
 import os
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -26,6 +27,8 @@ def run_deploy_script(
     temp_dir = Path(tmp_dir)
     fake_bin = temp_dir / "bin"
     fake_bin.mkdir(parents=True)
+    bundle_dir = temp_dir / "bundle"
+    bundle_dir.mkdir(parents=True)
     deploy_root = temp_dir / "deploy-root"
     (deploy_root / "shared").mkdir(parents=True)
     (deploy_root / "shared" / "active-slot").write_text(f"{active_slot}\n", encoding="utf-8")
@@ -69,6 +72,16 @@ exit 1
         "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
     )
 
+    script_dir = deploy_script.parent
+    temp_deploy_script = bundle_dir / deploy_script.name
+    for filename in ("compose.yml", "Caddyfile", "deploy.sh", "application.conf"):
+      shutil.copy2(script_dir / filename, bundle_dir / filename)
+    if application_conf is not None:
+      (bundle_dir / "application.conf").write_text(
+          application_conf,
+          encoding="utf-8",
+      )
+
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
     env["DEPLOY_ROOT"] = str(deploy_root)
@@ -78,7 +91,7 @@ exit 1
     env["WWW_HOST"] = "www.supawave.ai"
 
     return subprocess.run(
-        [bash_path, str(deploy_script), command],
+        [bash_path, str(temp_deploy_script), command],
         cwd=repo_root,
         env=env,
         capture_output=True,

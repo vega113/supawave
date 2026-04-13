@@ -674,6 +674,67 @@ public class EditorEventHandlerGwtTest
   }
 
   /**
+   * Android/WebKit can turn the current composing word into a transient range
+   * after the pre-composition flush. That range must not be deleted as if the
+   * user had explicitly selected text to replace.
+   */
+  public void testCompositionStartSkipsDeleteForTransientImeRangeAfterFlush() {
+    FakeEditorEvent compositionStart = FakeEditorEvent.compositionSequence(0)[0];
+
+    final ContentTextNode node = new ContentTextNode(Document.get().createTextNode("n"), null);
+    final Point<ContentNode> collapsedCaret = Point.inText(node, 1);
+    final Point<ContentNode> rangeStart = Point.inText(node, 0);
+    final Point<ContentNode> rangeEnd = Point.inText(node, 1);
+
+    final FocusedContentRange beforeFlushSelection = new FocusedContentRange(collapsedCaret);
+    final FocusedContentRange afterFlushSelection = new FocusedContentRange(rangeStart, rangeEnd);
+    final Point<ContentNode>[] compositionCaret = new Point[1];
+
+    FakeEditorEventsSubHandler subHandler = new FakeEditorEventsSubHandler();
+    FakeEditorInteractor interactor = new FakeEditorInteractor() {
+      private int flushCount = 0;
+
+      @Override
+      public boolean notifyListeners(SignalEvent event) {
+        return false;
+      }
+
+      @Override
+      public boolean hasContentSelection() {
+        return true;
+      }
+
+      @Override
+      public boolean isEditing() {
+        return true;
+      }
+
+      @Override
+      public void forceFlush() {
+        flushCount++;
+      }
+
+      @Override
+      public FocusedContentRange getSelectionPoints() {
+        return flushCount >= 2 ? afterFlushSelection : beforeFlushSelection;
+      }
+
+      @Override
+      public void compositionStart(Point<ContentNode> caret) {
+        compositionCaret[0] = caret;
+      }
+
+      @Override
+      public void checkpoint(FocusedContentRange currentRange) {
+      }
+    };
+    EditorEventHandler handler = createEditorEventHandler(interactor, subHandler);
+
+    assertFalse(handler.handleEvent(compositionStart));
+    assertEquals(rangeEnd, compositionCaret[0]);
+  }
+
+  /**
    * If delayed composition end produces no selection, the trailing DOM
    * mutation still has to reach the typing extractor or the browser-only text
    * never becomes a document operation.

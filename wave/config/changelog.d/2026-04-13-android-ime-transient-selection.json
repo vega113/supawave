@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-13-android-ime-transient-selection",
+  "version": "unreleased",
+  "title": "Fix remaining Android IME root-blip text corruption case",
+  "summary": "Android/mobile IME composition no longer drops already-typed leading characters when Chrome temporarily promotes the composing word into a transient selection range.",
+  "date": "2026-04-13",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Android/mobile IME composition no longer drops already-typed leading characters when Chrome temporarily promotes the composing word into a transient selection range."
+      ]
+    }
+  ]
+}

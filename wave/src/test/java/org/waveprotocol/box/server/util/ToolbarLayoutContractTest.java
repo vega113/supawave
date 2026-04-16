@@ -63,7 +63,8 @@ public final class ToolbarLayoutContractTest extends TestCase {
     String css = normalized(read(
         "wave/src/main/resources/org/waveprotocol/wave/client/widget/toolbar/buttons/HorizontalToolbarButtonWidget.css"));
 
-    assertTrue(css.contains(".enabled.down > .overlay {"));
+    assertTrue(css.contains(".enabled.down > .overlay,"));
+    assertTrue(css.contains(".enabled:active > .overlay {"));
     assertTrue(css.contains("background-color: rgba(0, 119, 182, 0.1);"));
     assertTrue(css.contains("border: 1px solid rgba(0, 119, 182, 0.25);"));
     assertFalse(css.contains(".enabled.down.compact > .overlay {"));

@@ -50,9 +50,13 @@
   transition: opacity 0.15s ease;
 }
 
-@sprite .self.enabled:active, .self.enabled.down {
-  gwt-image: 'buttonDown';
-}
+/*
+ * Pressed/toggled state is rendered via the rounded .overlay element below.
+ * The legacy buttonDown sprite was a fixed-size 64x24 PNG that couldn't match
+ * the button's variable size or the overlay's rounded corners, which caused
+ * a visible two-tone (gray sprite + blue overlay) background on pressed
+ * icons. The overlay alone provides a clean, full-coverage pressed style.
+ */
 
 @sprite .divider {
   gwt-image: 'divider';
@@ -77,13 +81,14 @@
   pointer-events: none;
 }
 
-.enabled.down > .overlay {
-  background-color: rgba(0, 119, 182, 0.1);
-  border: 1px solid rgba(0, 119, 182, 0.25);
-}
-
 .enabled:hover > .overlay {
   background-color: rgba(0, 119, 182, 0.08);
+}
+
+.enabled.down > .overlay,
+.enabled:active > .overlay {
+  background-color: rgba(0, 119, 182, 0.1);
+  border: 1px solid rgba(0, 119, 182, 0.25);
 }
 
 .visualElement {

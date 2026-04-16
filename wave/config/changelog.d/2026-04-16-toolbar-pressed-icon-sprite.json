@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-16-toolbar-pressed-icon-sprite",
+  "version": "PR #895",
+  "date": "2026-04-16",
+  "title": "Clean pressed background for toolbar toggle icons",
+  "summary": "Pressed horizontal toolbar buttons (pinned wave, pinned saved search, and other toggle icons) no longer render a two-tone gray/blue background.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed the legacy buttonDown sprite under HorizontalToolbarButtonWidget pressed state so toggled toolbar icons now show a single clean rounded-blue overlay instead of a half-gray half-blue mix"
+      ]
+    }
+  ]
+}

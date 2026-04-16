@@ -61,7 +61,9 @@ class PerfWorkflowConfigTest(unittest.TestCase):
     self.assertIn("SHA256SUMS", install_step)
     self.assertIn("grep 'alloy-linux-amd64.zip$' SHA256SUMS", install_step)
     self.assertIn("sha256sum -c -", install_step)
+    self.assertIn('unzip -q "$RUNNER_TEMP/alloy-linux-amd64.zip"', install_step)
     self.assertNotIn('curl -fsSL -o "$RUNNER_TEMP/alloy.zip"', install_step)
+    self.assertNotIn('unzip "$RUNNER_TEMP/alloy.zip"', install_step)
 
   def test_perf_workflow_scopes_secrets_away_from_job_env(self):
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")

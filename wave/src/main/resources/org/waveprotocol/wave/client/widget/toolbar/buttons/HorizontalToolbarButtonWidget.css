@@ -81,7 +81,8 @@
   pointer-events: none;
 }
 
-.enabled.down > .overlay {
+.enabled.down > .overlay,
+.enabled:active > .overlay {
   background-color: rgba(0, 119, 182, 0.1);
   border: 1px solid rgba(0, 119, 182, 0.25);
 }

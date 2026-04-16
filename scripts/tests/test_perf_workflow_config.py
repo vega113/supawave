@@ -60,6 +60,13 @@ class PerfWorkflowConfigTest(unittest.TestCase):
     self.assertIn("SHA256SUMS", install_step)
     self.assertIn("sha256sum -c -", install_step)
 
+  def test_perf_workflow_uses_same_filename_for_alloy_download_and_checksum(self):
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+    install_step = self._step_window(workflow, "Install Grafana Alloy")
+
+    self.assertIn('curl -fsSL -o "$RUNNER_TEMP/alloy-linux-amd64.zip" \\', install_step)
+    self.assertIn('unzip -q "$RUNNER_TEMP/alloy-linux-amd64.zip"', install_step)
+
   def test_perf_workflow_scopes_secrets_away_from_job_env(self):
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
     job_block = workflow.split("\n    steps:\n", 1)[0]

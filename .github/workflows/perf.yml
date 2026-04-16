@@ -52,7 +52,7 @@ jobs:
         if: ${{ env.GCLOUD_HOSTED_METRICS_URL != '' && env.GCLOUD_HOSTED_METRICS_ID != '' && env.HAS_GCLOUD_RW_API_KEY == 'true' }}
         run: |
           release_url="https://github.com/grafana/alloy/releases/download/${GRAFANA_ALLOY_VERSION}"
-          curl -fsSL -o "$RUNNER_TEMP/alloy.zip" \
+          curl -fsSL -o "$RUNNER_TEMP/alloy-linux-amd64.zip" \
             "$release_url/alloy-linux-amd64.zip"
           curl -fsSL -o "$RUNNER_TEMP/SHA256SUMS" \
             "$release_url/SHA256SUMS"
@@ -60,7 +60,7 @@ jobs:
             cd "$RUNNER_TEMP"
             grep 'alloy-linux-amd64.zip$' SHA256SUMS | sha256sum -c -
           )
-          unzip -q "$RUNNER_TEMP/alloy.zip" -d "$RUNNER_TEMP/alloy"
+          unzip -q "$RUNNER_TEMP/alloy-linux-amd64.zip" -d "$RUNNER_TEMP/alloy"
           mkdir -p "$RUNNER_TEMP/bin"
           install "$RUNNER_TEMP/alloy/alloy-linux-amd64" "$RUNNER_TEMP/bin/alloy"
           chmod +x "$RUNNER_TEMP/bin/alloy"

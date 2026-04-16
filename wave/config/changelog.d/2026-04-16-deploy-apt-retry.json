@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-16-deploy-apt-retry",
+  "version": "PR #894",
+  "date": "2026-04-16",
+  "title": "Harden prebuilt Docker build against Ubuntu mirror sync errors",
+  "summary": "The production deploy pipeline now retries apt-get inside Dockerfile.prebuilt with progressive backoff, so a transient Ubuntu mirror hash-mismatch no longer aborts the whole deploy.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Wrapped apt-get update/install in Dockerfile.prebuilt in a retry loop with progressive backoff and Acquire::Retries so transient mirror sync hiccups do not fail the deploy"
+      ]
+    }
+  ]
+}

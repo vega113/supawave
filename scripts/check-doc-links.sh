@@ -51,12 +51,15 @@ is_excluded() {
 
 canonicalize_existing_path() {
   local candidate="$1"
-  local parent
 
   [ -e "$candidate" ] || return 1
 
-  parent="$(cd "$(dirname "$candidate")" && pwd -P)" || return 1
-  printf '%s/%s\n' "$parent" "$(basename "$candidate")"
+  python3 - "$candidate" <<'PY'
+import os
+import sys
+
+print(os.path.realpath(sys.argv[1]))
+PY
 }
 
 # extract_links FILE
@@ -75,6 +78,37 @@ extract_links() {
     sub(/^[[:space:]]+/, "", value)
     sub(/[[:space:]]+$/, "", value)
     return value
+  }
+
+  function strip_inline_code(value,   result, i, tick_count, marker, closing_offset) {
+    result = ""
+    i = 1
+
+    while (i <= length(value)) {
+      if (substr(value, i, 1) != "`") {
+        result = result substr(value, i, 1)
+        i++
+        continue
+      }
+
+      tick_count = 1
+      while (substr(value, i + tick_count, 1) == "`") {
+        tick_count++
+      }
+
+      marker = substr(value, i, tick_count)
+      closing_offset = index(substr(value, i + tick_count), marker)
+
+      if (!closing_offset) {
+        result = result substr(value, i, 1)
+        i++
+        continue
+      }
+
+      i += closing_offset + (2 * tick_count) - 1
+    }
+
+    return result
   }
 
   function strip_markdown_title(value, gt) {
@@ -145,7 +179,7 @@ extract_links() {
       next
     }
     if (in_fence) next
-    line = $0
+    line = strip_inline_code($0)
     lnum = NR
     while (1) {
       target = extract_next_target(line)

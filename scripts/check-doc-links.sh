@@ -68,10 +68,31 @@ PY
 extract_links() {
   local file="$1"
   awk '
-  BEGIN { in_fence = 0 }
+  BEGIN {
+    in_fence = 0
+    fence_char = ""
+    fence_len = 0
+  }
 
-  function is_fence_line(value) {
-    return value ~ /^[[:space:]]*(```|~~~)/
+  function fence_delimiter(value,   trimmed, first, count) {
+    trimmed = value
+    sub(/^[[:space:]]+/, "", trimmed)
+
+    first = substr(trimmed, 1, 1)
+    if (first != "`" && first != "~") {
+      return ""
+    }
+
+    count = 1
+    while (substr(trimmed, count + 1, 1) == first) {
+      count++
+    }
+
+    if (count < 3) {
+      return ""
+    }
+
+    return substr(trimmed, 1, count)
   }
 
   function trim(value) {
@@ -174,11 +195,23 @@ extract_links() {
     return ""
   }
   {
-    if (is_fence_line($0)) {
-      in_fence = !in_fence
+    delimiter = fence_delimiter($0)
+    if (in_fence) {
+      if (delimiter != "" &&
+          substr(delimiter, 1, 1) == fence_char &&
+          length(delimiter) >= fence_len) {
+        in_fence = 0
+        fence_char = ""
+        fence_len = 0
+      }
       next
     }
-    if (in_fence) next
+    if (delimiter != "") {
+      in_fence = 1
+      fence_char = substr(delimiter, 1, 1)
+      fence_len = length(delimiter)
+      next
+    }
     line = strip_inline_code($0)
     lnum = NR
     while (1) {
@@ -188,6 +221,7 @@ extract_links() {
       if (!link_complete) continue
       if (target == "") continue
       target = strip_markdown_title(target)
+      if (target ~ /^\/\//) continue
       if (target ~ /^[a-zA-Z][a-zA-Z0-9+.-]*:/) continue
       if (target ~ /^#/) continue
       print lnum " " target

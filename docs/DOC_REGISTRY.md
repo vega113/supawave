@@ -6,8 +6,8 @@ registry and fails CI when any listed doc is missing or has incomplete metadata.
 
 ## Required metadata header
 
-Every covered doc must have these four fields at the very top of the file,
-before the first `#` heading:
+Every covered doc must have these four fields within the first 10 lines of
+the file (before or after the opening `#` heading):
 
 ```
 Status: <value>
@@ -16,8 +16,8 @@ Updated: <YYYY-MM-DD>
 Review cadence: <value>
 ```
 
-**Status values**: `Canonical`, `Current`, `In Progress`, `Draft`, `Archive`.
-**Review cadence values**: `monthly`, `quarterly`, `on-change`.
+**Common status values** include: `Canonical`, `Current`, `In Progress`, `Draft`, `Archive`. Other values are accepted.
+**Common review cadence values** include: `monthly`, `quarterly`, `on-change`. Other values are accepted.
 
 ## How to add a new covered doc
 

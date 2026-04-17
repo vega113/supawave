@@ -35,7 +35,7 @@ required metadata markers in its first 10 lines:
 - `Status:` — e.g. Canonical, Current, In Progress, Draft, Archive
 - `Owner:` — e.g. Project Maintainers
 - `Updated:` — YYYY-MM-DD format
-- `Review cadence:` — monthly, quarterly, or on-change
+- `Review cadence:` — e.g. monthly, quarterly, on-change, or quarterly and when workflow conventions change
 
 ```bash
 bash scripts/check-doc-freshness.sh
@@ -44,8 +44,8 @@ bash scripts/check-doc-freshness.sh
 ## How to add a new covered doc
 
 1. Add the repo-relative path to `docs/DOC_REGISTRY.md` under `## Covered docs`.
-2. Add the four metadata fields at the top of the new doc, before the
-   first `#` heading:
+2. Add the four metadata fields within the first 10 lines of the new doc
+   (before or after the opening `#` heading):
 
    ```
    Status: Current

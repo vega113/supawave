@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── check-doc-links.sh ──────────────────��───────────────────────────
+# ── check-doc-links.sh ──────────────────────────────────────────────
 # Finds broken intra-repo markdown links under docs/.
 # Exits non-zero if any link target is missing.
 #
 # Excludes frozen snapshot directories (plans, specs, JWT inventories)
 # whose source-code links are expected to drift as code evolves.
-# ───────────────────────────────────────────────���─────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -60,6 +60,8 @@ extract_links() {
       full = substr(line, RSTART, RLENGTH)
       paren = index(full, "(")
       target = substr(full, paren + 1, length(full) - paren - 1)
+      # Strip optional Markdown link title: path "title" or path 'title'
+      sub(/ .*$/, "", target)
       line = substr(line, RSTART + RLENGTH)
       if (target ~ /^https?:\/\// || target ~ /^mailto:/) continue
       if (target ~ /^#/) continue

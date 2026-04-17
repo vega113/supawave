@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── check-doc-links.sh ──────────────────────────────────────────────
+# -- check-doc-links.sh --------------------------------------------------
 # Finds broken intra-repo markdown links under docs/.
 # Exits non-zero if any link target is missing.
 #
 # Excludes frozen snapshot directories (plans, specs, JWT inventories)
 # whose source-code links are expected to drift as code evolves.
-# ────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -53,16 +53,46 @@ is_excluded() {
 # skipping URLs, mailto, and anchor-only references.
 extract_links() {
   local file="$1"
-  awk '{
+  awk '
+  function trim(value) {
+    sub(/^[[:space:]]+/, "", value)
+    sub(/[[:space:]]+$/, "", value)
+    return value
+  }
+
+  function strip_markdown_title(value, gt) {
+    value = trim(value)
+
+    if (value ~ /^<[^>]+>[[:space:]]*$/) {
+      return substr(value, 2, length(value) - 2)
+    }
+
+    if (value ~ /^<[^>]+>[[:space:]]*("[^"]*"|'\''[^'\'']*'\''|\([^)]*\))$/) {
+      gt = index(value, ">")
+      return substr(value, 2, gt - 2)
+    }
+
+    sub(/[[:space:]]+"[^"]*"$/, "", value)
+    sub(/[[:space:]]+'\''[^'\'']*'\''$/, "", value)
+    sub(/[[:space:]]+\([^)]*\)$/, "", value)
+    value = trim(value)
+
+    if (value ~ /^<[^>]+>$/) {
+      value = substr(value, 2, length(value) - 2)
+    }
+
+    return value
+  }
+
+  {
     line = $0
     lnum = NR
     while (match(line, /\[[^\]]*\]\([^)]+\)/)) {
       full = substr(line, RSTART, RLENGTH)
       paren = index(full, "(")
-      target = substr(full, paren + 1, length(full) - paren - 1)
-      # Strip optional Markdown link title: path "title" or path 'title'
-      sub(/ .*$/, "", target)
+      target = strip_markdown_title(substr(full, paren + 1, length(full) - paren - 1))
       line = substr(line, RSTART + RLENGTH)
+      if (target == "") continue
       if (target ~ /^https?:\/\// || target ~ /^mailto:/) continue
       if (target ~ /^#/) continue
       print lnum " " target

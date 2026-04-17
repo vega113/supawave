@@ -58,6 +58,7 @@ jobs:
           bash -n scripts/deployment/bootstrap-linux-host.sh
           bash -n deploy/caddy/deploy.sh
           bash scripts/ci-validate-deploy-healthcheck.sh
+          python3 -m unittest scripts.tests.test_doc_guardrails -v
           python3 -m unittest scripts.tests.test_deploy_sanity_gate -v
           python3 -m unittest scripts.tests.test_deploy_overlap_safety -v
           python3 -m unittest scripts.tests.test_repair_corrupted_waves -v

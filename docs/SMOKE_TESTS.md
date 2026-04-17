@@ -1,3 +1,8 @@
+Status: Current
+Owner: Project Maintainers
+Updated: 2026-04-10
+Review cadence: quarterly
+
 # Smoke Tests Summary
 
 Date: 2026-04-10

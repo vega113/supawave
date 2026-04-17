@@ -1,7 +1,9 @@
 # Docs Map
 
 Status: Canonical
+Owner: Project Maintainers
 Updated: 2026-04-04
+Review cadence: quarterly
 
 This directory keeps the existing documentation in place and adds a small map
 layer so readers can route by purpose instead of guessing from file names.

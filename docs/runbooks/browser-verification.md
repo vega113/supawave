@@ -1,3 +1,8 @@
+Status: Current
+Owner: Project Maintainers
+Updated: 2026-04-17
+Review cadence: quarterly
+
 # Browser Verification
 
 Use this runbook to decide when incubator-wave changes need real browser

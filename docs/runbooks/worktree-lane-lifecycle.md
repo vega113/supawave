@@ -1,3 +1,8 @@
+Status: Current
+Owner: Project Maintainers
+Updated: 2026-04-17
+Review cadence: quarterly
+
 # Worktree Lane Lifecycle
 
 Use this runbook when a GitHub issue lane already has its own incubator-wave

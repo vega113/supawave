@@ -1,0 +1,25 @@
+name: Doc Guardrails
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  doc-guardrails:
+    name: Doc Link & Freshness Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check doc links
+        run: bash scripts/check-doc-links.sh
+
+      - name: Check doc freshness metadata
+        run: bash scripts/check-doc-freshness.sh

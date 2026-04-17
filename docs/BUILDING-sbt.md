@@ -1,3 +1,8 @@
+Status: Current
+Owner: Project Maintainers
+Updated: 2026-04-17
+Review cadence: quarterly
+
 # Building with SBT
 
 SBT is the canonical build system for Apache Wave. This document describes the

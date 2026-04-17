@@ -1,3 +1,8 @@
+Status: Canonical
+Owner: Project Maintainers
+Updated: 2026-04-17
+Review cadence: quarterly
+
 # Deployment Guide
 
 Apache Wave supports two first-class deployment flavors:

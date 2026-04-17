@@ -1,7 +1,9 @@
 # Runbooks Map
 
 Status: Canonical
+Owner: Project Maintainers
 Updated: 2026-04-10
+Review cadence: quarterly
 
 Use this map for procedures you are expected to follow step by step: local
 setup, smoke checks, deployment, and operational routines.
@@ -42,6 +44,11 @@ setup, smoke checks, deployment, and operational routines.
 - [`../deployment/cloudflare-supawave.md`](../deployment/cloudflare-supawave.md)
 - [`../deployment/email-deliverability-supawave.md`](../deployment/email-deliverability-supawave.md)
 - [`../deployment/mongo-hardening.md`](../deployment/mongo-hardening.md)
+
+## CI Guardrails
+
+- [`doc-guardrails.md`](doc-guardrails.md)
+  - Blocking doc-link and owner/freshness checks enforced on every PR.
 
 ## Operational Procedures
 

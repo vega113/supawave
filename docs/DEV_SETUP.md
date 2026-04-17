@@ -1,3 +1,8 @@
+Status: Current
+Owner: Project Maintainers
+Updated: 2026-04-17
+Review cadence: quarterly
+
 # Developer Setup (JDK 17, SBT, Protobuf)
 
 This guide helps you build and run the Apache Wave server on JDK 17.
@@ -30,6 +35,14 @@ Existing-worktree lane bootstrap
 - The helper stages the app, creates a port-specific runtime config, and
   initializes the gitignored local-verification record under
   `journal/local-verification/`.
+
+Doc guardrails
+- Two shell scripts enforce doc quality and run in CI on every PR:
+  - `bash scripts/check-doc-links.sh` — checks for broken markdown links under `docs/`.
+  - `bash scripts/check-doc-freshness.sh` — checks that covered docs listed in
+    `docs/DOC_REGISTRY.md` have required owner/freshness metadata.
+- Run both locally before pushing doc changes.
+- See [`docs/runbooks/doc-guardrails.md`](runbooks/doc-guardrails.md) for details.
 
 Troubleshooting
 - If SBT cannot find a suitable JDK, ensure JAVA_HOME is set to a JDK 17 and/or install via sdkman.

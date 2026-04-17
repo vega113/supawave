@@ -3,6 +3,7 @@
 Status: Canonical
 Updated: 2026-04-04
 Owner: Project Maintainers
+Review cadence: quarterly
 
 This document is the single starting point for resuming work on the current
 `incubator-wave` tree. It points new agents to the docs map, the live

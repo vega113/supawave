@@ -1,3 +1,8 @@
+Status: Current
+Owner: Project Maintainers
+Updated: 2026-04-17
+Review cadence: quarterly
+
 # Worktree Diagnostics
 
 Use this runbook when an incubator-wave issue worktree needs a compact

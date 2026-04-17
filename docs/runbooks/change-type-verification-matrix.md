@@ -1,3 +1,8 @@
+Status: Current
+Owner: Project Maintainers
+Updated: 2026-04-17
+Review cadence: quarterly
+
 # Change-Type Verification Matrix
 
 Use this matrix after the base worktree boot/smoke flow succeeds. It decides

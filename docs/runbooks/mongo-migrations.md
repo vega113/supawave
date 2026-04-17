@@ -1,3 +1,8 @@
+Status: Current
+Owner: Project Maintainers
+Updated: 2026-04-17
+Review cadence: quarterly
+
 # Mongo Migrations Runbook
 
 This repo uses **Mongock** as the versioned startup migration mechanism for the

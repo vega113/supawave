@@ -1,7 +1,9 @@
 # Architecture Docs Map
 
 Status: Canonical
+Owner: Project Maintainers
 Updated: 2026-04-04
+Review cadence: quarterly
 
 This map groups the durable technical references and historical ledgers that
 describe how the current Wave tree is structured.

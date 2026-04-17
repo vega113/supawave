@@ -1,7 +1,9 @@
 # Agent Docs Map
 
 Status: Canonical
+Owner: Project Maintainers
 Updated: 2026-04-04
+Review cadence: quarterly
 
 Start here if you are resuming work, routing a task, or figuring out which
 docs to trust first.

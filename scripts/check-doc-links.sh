@@ -188,7 +188,7 @@ extract_links() {
       if (!link_complete) continue
       if (target == "") continue
       target = strip_markdown_title(target)
-      if (target ~ /^https?:\/\// || target ~ /^mailto:/) continue
+      if (target ~ /^[a-zA-Z][a-zA-Z0-9+.-]*:/) continue
       if (target ~ /^#/) continue
       print lnum " " target
     }

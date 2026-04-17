@@ -101,7 +101,7 @@ public class CompositionEventHandlerTest extends TestCase {
 
   private void doSomeMoreTestsToCheckSaneState() {
     testBasicTiming();
-    testMergesInterleavedSecondCycle();
+    testFlushesInterleavedSecondCycleBeforeRestart();
     testDoesntMergeSecondCycleAfterTextInput();
     testDoesntEndWithTextInput();
   }
@@ -115,13 +115,16 @@ public class CompositionEventHandlerTest extends TestCase {
     verifyDone();
   }
 
-  public void testMergesInterleavedSecondCycle() {
+  public void testFlushesInterleavedSecondCycleBeforeRestart() {
     doStartUpdateEnd();
 
     handler.handleCompositionEvent(eventToken2, BrowserEvents.COMPOSITIONSTART);
+    InOrder ordered = inOrder(listener);
+    ordered.verify(listener).compositionEnd();
+    ordered.verify(listener).compositionStart(eventToken2);
     nothingElseUpToNow();
 
-    handler.handleCompositionEvent(eventToken, BrowserEvents.COMPOSITIONEND);
+    handler.handleCompositionEvent(eventToken2, BrowserEvents.COMPOSITIONEND);
     nothingElseUpToNow();
 
     tick();
@@ -267,12 +270,15 @@ public class CompositionEventHandlerTest extends TestCase {
     doStartUpdateEnd();
 
     handler.handleCompositionEvent(eventToken2, BrowserEvents.COMPOSITIONSTART);
+    InOrder ordered = inOrder(listener);
+    ordered.verify(listener).compositionEnd();
+    ordered.verify(listener).compositionStart(eventToken2);
     nothingElseUpToNow();
 
     tick();
     nothingElseUpToNow();
 
-    handler.handleCompositionEvent(eventToken, BrowserEvents.COMPOSITIONEND);
+    handler.handleCompositionEvent(eventToken2, BrowserEvents.COMPOSITIONEND);
     nothingElseUpToNow();
 
     tick();

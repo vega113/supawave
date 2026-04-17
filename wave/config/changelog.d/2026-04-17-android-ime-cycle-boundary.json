@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-17-android-ime-cycle-boundary",
+  "version": "Unreleased",
+  "date": "2026-04-17",
+  "title": "Preserve Android IME word starts across composition restarts",
+  "summary": "Android Chromium no longer drops the first letter of each composed word when the browser restarts IME composition before the editor's delayed composition-end flush runs.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Back-to-back Android IME composition cycles now flush the previous delayed composition end before the next cycle starts",
+        "Typing `new blip` in a new or empty blip now preserves both word-leading characters and the separating space on Android Chrome and Brave"
+      ]
+    }
+  ]
+}

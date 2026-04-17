@@ -167,25 +167,18 @@ public class CompositionEventHandler<V> {
       return;
     }
 
-    if (delayAfterTextInput) {
-      // We don't want to hit the merge logic below - if we've had a text input, always
-      // flush to ensure there's a corresponding compositionEnd, because the browser might
-      // be moving on to the next composition phase. But if it's a composition start
-      // straight after a composition end, then as of this writing it's safe to have them
-      // merged and avoid redundant events.
+    if (delayAfterTextInput
+        || (modifiesDomAndFiresTextInputAfterComposition && timer.isScheduled(endTask))) {
+      // A new native composition cycle started before the delayed application-side
+      // compositionEnd fired. Flush the old cycle now so the listener sees a real
+      // compositionEnd/compositionStart boundary instead of merging both cycles into
+      // one long app composition.
       assert appComposing();
       flush();
     }
 
     delayAfterTextInput = false;
     browserComposing = true;
-
-    if (modifiesDomAndFiresTextInputAfterComposition && timer.isScheduled(endTask)) {
-      // Got a composition start before our timer fired - just pretend the
-      // browser never left composition mode.
-      timer.cancel(endTask);
-      return;
-    }
 
     assert appComposing == false;
     appComposing = true;

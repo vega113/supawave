@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-19-j2cl-sidecar-followups",
+  "version": "Unreleased",
+  "date": "2026-04-19",
+  "title": "Harden the J2CL sidecar follow-up paths",
+  "summary": "Tightens the remaining sidecar scaffold behavior after the base scaffold landed on main by hardening wrapper execution, sidecar route serving, and generated artifact handling.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Added explicit wrapper and pom preflight checks before running J2CL sidecar Maven tasks so missing wrapper assets fail with a clear build error",
+        "Stopped the Jakarta sidecar servlet routes from resolving repo source directories when generated sidecar assets have not been built",
+        "Ignored generated war/j2cl* sidecar outputs so local sidecar builds do not leave large untracked artifacts in git status"
+      ]
+    }
+  ]
+}

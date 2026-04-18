@@ -818,6 +818,10 @@ lazy val generatePstMessages = taskKey[Unit]("Generate PST DTO sources into gen/
 lazy val generateFlags = taskKey[Unit]("Generate ClientFlags and FlagConstants into gen/flags")
 lazy val prepareServerConfig = taskKey[Unit]("Generate server.config from server-config.example when missing")
 lazy val testBackend = taskKey[Unit]("Run backend unit tests via Ant (excludes GWT/large/mongodb)")
+lazy val j2clSandboxBuild = taskKey[Unit]("Build the isolated J2CL sandbox sidecar into war/j2cl-debug via the Maven wrapper")
+lazy val j2clSandboxTest = taskKey[Unit]("Run the isolated J2CL sandbox sidecar smoke test via the Maven wrapper")
+lazy val j2clSearchBuild = taskKey[Unit]("Build the isolated J2CL search-sidecar scaffold into war/j2cl-search via the Maven wrapper")
+lazy val j2clSearchTest = taskKey[Unit]("Run the isolated J2CL search-sidecar smoke test via the Maven wrapper")
 lazy val dataMigrate = inputKey[Unit]("Run DataMigrationTool: dataMigrate <sourceOpts> <targetOpts>")
 lazy val dataPrepare = inputKey[Unit]("Run DataPreparationTool: dataPrepare <waveId> [<options>]")
 
@@ -830,6 +834,19 @@ def runCmd(log: Logger)(cmd: Seq[String], cwd: File): Unit = {
   } else cmd
   val code = Process(fixedCmd, cwd).!(ProcessLogger(s => log.info(s), e => log.error(e)))
   if (code != 0) sys.error(s"Command failed: ${fixedCmd.mkString(" ")}")
+}
+
+def runJ2clWrapper(log: Logger, base: File, profile: String, goal: String): Unit = {
+  val isWindows = scala.util.Properties.isWin
+  val wrapper = if (isWindows) base / "j2cl" / "mvnw.cmd" else base / "j2cl" / "mvnw"
+  val cmd =
+    if (isWindows) {
+      Seq("cmd", "/c", wrapper.getAbsolutePath, "-f", (base / "j2cl" / "pom.xml").getAbsolutePath, s"-P$profile", "-q", goal)
+    } else {
+      Seq(wrapper.getAbsolutePath, "-f", (base / "j2cl" / "pom.xml").getAbsolutePath, s"-P$profile", "-q", goal)
+    }
+  val code = Process(cmd, base).!(ProcessLogger(s => log.info(s), e => log.error(e)))
+  if (code != 0) sys.error(s"[j2cl] ${profile}:${goal} failed with exit code $code")
 }
 
 ThisBuild / prepareProtosForPB := {
@@ -864,6 +881,30 @@ ThisBuild / prepareProtosForPB := {
     IO.write(dst, txt)
   }
   if (rawProtos.isEmpty && protodevels.isEmpty) log.warn("No .proto/.protodevel files found under src/")
+}
+
+ThisBuild / j2clSandboxBuild := {
+  val log = streams.value.log
+  val base = baseDirectory.value
+  runJ2clWrapper(log, base, "debug-single-project", "package")
+}
+
+ThisBuild / j2clSandboxTest := {
+  val log = streams.value.log
+  val base = baseDirectory.value
+  runJ2clWrapper(log, base, "debug-single-project", "test")
+}
+
+ThisBuild / j2clSearchBuild := {
+  val log = streams.value.log
+  val base = baseDirectory.value
+  runJ2clWrapper(log, base, "search-sidecar", "package")
+}
+
+ThisBuild / j2clSearchTest := {
+  val log = streams.value.log
+  val base = baseDirectory.value
+  runJ2clWrapper(log, base, "search-sidecar", "test")
 }
 
 // sbt-protoc: use embedded protoc to generate Java directly into proto_src
@@ -1309,3 +1350,6 @@ cleanFiles += baseDirectory.value / "war" / "webclient"
 cleanFiles += baseDirectory.value / "war" / "org"
 cleanFiles += baseDirectory.value / "war" / "WEB-INF"
 cleanFiles += baseDirectory.value / "war-dev"
+cleanFiles += baseDirectory.value / "war" / "j2cl-search"
+cleanFiles += baseDirectory.value / "war" / "j2cl-debug"
+cleanFiles += baseDirectory.value / "war" / "j2cl"

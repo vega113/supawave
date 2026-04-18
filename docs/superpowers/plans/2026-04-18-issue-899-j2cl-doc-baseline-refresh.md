@@ -46,7 +46,7 @@ Run these from `/Users/vega/devroot/worktrees/issue-899-j2cl-doc-refresh`:
 ```bash
 find wave -name '*.gwt.xml' | wc -l
 rg -o 'GWT\.create\(' wave/src/main/java wave/src/test/java gen/messages | wc -l
-rg -l 'native .*?/\\*|extends JavaScriptObject|\\bJavaScriptObject\\b' wave/src/main/java gen/messages | wc -l
+rg -l 'native .*/\\*|extends JavaScriptObject|\\bJavaScriptObject\\b' wave/src/main/java gen/messages | wc -l
 rg -l 'GWTTestCase' wave/src/test/java wave/src/test/resources | wc -l
 find wave -name '*.ui.xml' | wc -l
 rg -l 'JsInterop|Elemental2|elemental2' wave/src/main/java gen/messages | wc -l

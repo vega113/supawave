@@ -773,19 +773,25 @@ Task P8-T1: Feasibility assessment and roadmap
   - 2026-03-18: Re-verified the current GWT surface and documented the result in:
     - `docs/j2cl-gwt3-inventory.md`
     - `docs/j2cl-gwt3-decision-memo.md`
+  - 2026-04-18: Refreshed the J2CL docs after the merged Phase 0 cleanup so the
+    current baseline and follow-on tracker match the live repo:
+    - `docs/j2cl-gwt3-inventory.md`
+    - `docs/j2cl-gwt3-decision-memo.md`
+    - `docs/j2cl-preparatory-work.md`
+    - `docs/current-state.md`
 - Summary:
   - The repo is not ready for a full-app J2CL migration yet.
-  - The blocking surfaces are JSNI / `JavaScriptObject`, UiBinder and `GWT.create(...)`,
-    large `.gwt.xml` / deferred-binding usage, hosted GWT test harness debt, and
-    client dependency cleanup (especially `guava-gwt`).
-  - The recommended next move is prerequisite reduction, not a compiler/runtime switch.
-- Follow-on task titles proposed by the decision memo:
-  1) Module graph reduction for the web client
-  2) Client dependency cleanup
-  3) JsInterop / Elemental2 bridge pilot
-  4) JSNI / `JavaScriptObject` elimination in one vertical slice
-  5) GWT test harness replacement strategy
-  6) UiBinder replacement strategy
+  - The live blocker set is now the sidecar build gap, the transport / JSO stack,
+    UiBinder and `GWT.create(...)`, and remaining `GWTTestCase` debt.
+  - The earlier `guava-gwt`, gadget/htmltemplate, and `WaveContext` prerequisite
+    cleanups are already complete and should no longer be described as open.
+- Active follow-on issues:
+  1) `#904` staged GWT 2.x -> J2CL / GWT 3 tracker
+  2) `#900` isolated J2CL sidecar build and SBT entrypoints
+  3) `#903` pure-logic `wave/model` and `wave/concurrencycontrol`
+  4) `#902` transport / websocket / codec replacement
+  5) `#898` `GWTTestCase` verification split
+  6) `#901` search-panel first UI slice
 - Tests:
   - N/A; planning/documentation task.
 - AI Agent Guidance:

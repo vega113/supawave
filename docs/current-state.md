@@ -1,7 +1,7 @@
 # Apache Wave Current State and Resumption Guide
 
 Status: Canonical
-Updated: 2026-04-04
+Updated: 2026-04-18
 Owner: Project Maintainers
 Review cadence: quarterly
 
@@ -68,8 +68,8 @@ Read these files first when resuming work:
     - Durable source-selection, runtime wiring, and dev-persistence references.
 14. [docs/modernization-plan.md](modernization-plan.md), [docs/jetty-migration.md](jetty-migration.md), [docs/migrate-conversation-renderer-to-apache-wave.md](migrate-conversation-renderer-to-apache-wave.md), and [docs/blocks-adoption-plan.md](blocks-adoption-plan.md)
     - Historical ledgers that still hold useful implementation detail.
-15. [docs/j2cl-gwt3-inventory.md](j2cl-gwt3-inventory.md) and [docs/j2cl-gwt3-decision-memo.md](j2cl-gwt3-decision-memo.md)
-    - Phase 8 inventory and no-go-for-now decision context.
+15. [docs/j2cl-gwt3-inventory.md](j2cl-gwt3-inventory.md), [docs/j2cl-gwt3-decision-memo.md](j2cl-gwt3-decision-memo.md), and [docs/j2cl-preparatory-work.md](j2cl-preparatory-work.md)
+    - Refreshed post-Phase-0 J2CL baseline, no-go-for-now decision context, and current follow-on issue chain.
 16. [docs/epics/README.md](epics/README.md) and [../.beads/README.md](../.beads/README.md)
     - Historical Beads archive references only.
 
@@ -93,9 +93,17 @@ Read these files first when resuming work:
   present. Treat that as build plumbing, not as the canonical user workflow.
 - Phase 6 protobuf and server-side Guava work are already closed in the
   modernization ledger.
-- The Phase 8 planning artifacts now exist:
+- The Phase 8 baseline docs have been refreshed after the merged Phase 0 cleanup:
   - `docs/j2cl-gwt3-inventory.md`
   - `docs/j2cl-gwt3-decision-memo.md`
+  - `docs/j2cl-preparatory-work.md`
+- The active GitHub issue chain for the next J2CL steps is:
+  - `#904` umbrella tracker
+  - `#900` sidecar build
+  - `#903` pure-logic extraction
+  - `#902` transport replacement
+  - `#898` `GWTTestCase` split
+  - `#901` first UI slice
 
 ### Wiab.pro core work that is already imported
 
@@ -220,9 +228,10 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
    `wave/config/`, the jar name is stable, and build/run guidance lives in
    `docs/BUILDING-sbt.md`.
 10. Packaging and DX verification still need a post-Jakarta pass.
-11. Phase 8 now has a measured inventory and a no-go-for-now decision memo,
-   but the prerequisite reduction tasks for any future J2CL work are still
-   open.
+11. Phase 8 now has a refreshed post-Phase-0 inventory and decision memo; the
+   remaining work is no longer generic prerequisite cleanup, but the specific
+   GitHub issue chain for sidecar build, pure-logic extraction, transport,
+   test-harness migration, and the first UI slice.
 12. The documentation surface is now intentionally split between one canonical
    resume guide, a few live ledgers, and GitHub Issues; do not re-open one-off
    plan docs when the live backlog already captures the work.
@@ -254,9 +263,11 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
 - MongoDB v4 delta store completion.
 - Library upgrade closure.
 - SBT parity, packaging, and DX verification.
-- J2CL / GWT 3 follow-on planning based on:
+- J2CL / GWT 3 follow-on execution based on:
   - `docs/j2cl-gwt3-inventory.md`
   - `docs/j2cl-gwt3-decision-memo.md`
+  - `docs/j2cl-preparatory-work.md`
+  - issue chain `#904` -> `#900` -> `#903` -> `#902` -> `#898` -> `#901`
 
 ### 3. Wiab core import completion
 

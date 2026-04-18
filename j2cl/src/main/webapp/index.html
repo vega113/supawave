@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SupaWave J2CL Sidecar Sandbox</title>
+  <link rel="stylesheet" href="./assets/sidecar.css">
+  <script src="./sidecar/j2cl-sidecar.js"></script>
+</head>
+<body>
+  <main class="sidecar-shell">
+    <div id="sidecar-root" class="sidecar-root">
+      <div class="sidecar-card">
+        <p class="sidecar-eyebrow">Isolated J2CL sidecar</p>
+        <h1 class="sidecar-title">Sandbox build scaffold</h1>
+        <p class="sidecar-summary" data-sidecar-summary>
+          Waiting for the generated sidecar bundle.
+        </p>
+        <p class="sidecar-detail">
+          Legacy / stays on the GWT web client while this page proves the sidecar can build and load independently.
+        </p>
+      </div>
+    </div>
+  </main>
+  <script>
+    (function () {
+      function detectMode(pathname) {
+        if (pathname === "/j2cl-search" || pathname.indexOf("/j2cl-search/") !== -1) {
+          return "search-sidecar";
+        }
+        if (pathname === "/j2cl-debug" || pathname.indexOf("/j2cl-debug/") !== -1) {
+          return "debug-single-project";
+        }
+        if (pathname === "/j2cl" || pathname.indexOf("/j2cl/") !== -1) {
+          return "production";
+        }
+        return "sidecar";
+      }
+
+      function renderFallback(mode) {
+        var summary = document.querySelector("[data-sidecar-summary]");
+        if (summary) {
+          summary.textContent = "Profile " + mode + " writes isolated assets without changing the root runtime bootstrap.";
+        }
+      }
+
+      function renderLoadError() {
+        var summary = document.querySelector("[data-sidecar-summary]");
+        if (summary) {
+          summary.textContent = "ERROR: sidecar bundle failed to load – WaveSandboxEntryPoint not defined.";
+          summary.style.color = "#c0392b";
+        }
+      }
+
+      function mountWhenReady(attemptsRemaining) {
+        if (window.WaveSandboxEntryPoint && window.WaveSandboxEntryPoint.mount) {
+          window.WaveSandboxEntryPoint.mount("sidecar-root", detectMode(window.location.pathname));
+          return;
+        }
+        if (attemptsRemaining > 0) {
+          window.setTimeout(function () {
+            mountWhenReady(attemptsRemaining - 1);
+          }, 50);
+        } else {
+          renderLoadError();
+        }
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function () {
+          renderFallback(detectMode(window.location.pathname));
+          mountWhenReady(80);
+        });
+      } else {
+        renderFallback(detectMode(window.location.pathname));
+        mountWhenReady(80);
+      }
+    }());
+  </script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.waveprotocol.box</groupId>
+  <artifactId>j2cl-sidecar</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>war</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <maven.compiler.plugin.version>3.6.1</maven.compiler.plugin.version>
+    <maven.resources.plugin.version>3.3.1</maven.resources.plugin.version>
+    <maven.war.plugin.version>3.3.2</maven.war.plugin.version>
+
+    <j2cl.maven.plugin.version>0.22.0</j2cl.maven.plugin.version>
+    <j2cl.version>v20230718-1</j2cl.version>
+    <elemental2.version>1.2.1</elemental2.version>
+    <jsinterop.annotations.version>2.0.0</jsinterop.annotations.version>
+    <junit.version>4.13.2</junit.version>
+
+    <sidecar.webappDirectory>${project.basedir}/../war/j2cl</sidecar.webappDirectory>
+    <sidecar.initialScriptFilename>sidecar/j2cl-sidecar.js</sidecar.initialScriptFilename>
+    <sidecar.compilationLevel>ADVANCED_OPTIMIZATIONS</sidecar.compilationLevel>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.google.elemental2</groupId>
+      <artifactId>elemental2-dom</artifactId>
+      <version>${elemental2.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.jsinterop</groupId>
+      <artifactId>jsinterop-annotations</artifactId>
+      <version>${jsinterop.annotations.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.vertispan.j2cl</groupId>
+      <artifactId>junit-annotations</artifactId>
+      <version>${j2cl.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.vertispan.j2cl</groupId>
+      <artifactId>junit-emul</artifactId>
+      <version>${j2cl.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.vertispan.j2cl</groupId>
+      <artifactId>junit-emul</artifactId>
+      <version>${j2cl.version}</version>
+      <classifier>sources</classifier>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven.compiler.plugin.version}</version>
+        <configuration>
+          <source>${maven.compiler.source}</source>
+          <target>${maven.compiler.target}</target>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>${maven.war.plugin.version}</version>
+        <configuration>
+          <failOnMissingWebXml>false</failOnMissingWebXml>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>${maven.resources.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>copy-sidecar-host-page</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${sidecar.webappDirectory}</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/src/main/webapp</directory>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.vertispan.j2cl</groupId>
+        <artifactId>j2cl-maven-plugin</artifactId>
+        <version>${j2cl.maven.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>build-sidecar</id>
+            <goals>
+              <goal>build</goal>
+            </goals>
+            <configuration>
+              <webappDirectory>${sidecar.webappDirectory}</webappDirectory>
+              <initialScriptFilename>${sidecar.initialScriptFilename}</initialScriptFilename>
+              <compilationLevel>${sidecar.compilationLevel}</compilationLevel>
+              <enableSourcemaps>true</enableSourcemaps>
+              <env>BROWSER</env>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>search-sidecar</id>
+      <properties>
+        <sidecar.webappDirectory>${project.basedir}/../war/j2cl-search</sidecar.webappDirectory>
+        <sidecar.compilationLevel>BUNDLE_JAR</sidecar.compilationLevel>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>debug-single-project</id>
+      <properties>
+        <sidecar.webappDirectory>${project.basedir}/../war/j2cl-debug</sidecar.webappDirectory>
+        <sidecar.compilationLevel>BUNDLE</sidecar.compilationLevel>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>production</id>
+      <properties>
+        <sidecar.webappDirectory>${project.basedir}/../war/j2cl</sidecar.webappDirectory>
+        <sidecar.compilationLevel>ADVANCED_OPTIMIZATIONS</sidecar.compilationLevel>
+      </properties>
+    </profile>
+  </profiles>
+</project>

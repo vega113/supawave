@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-18-j2cl-sidecar-build",
+  "version": "Unreleased",
+  "date": "2026-04-18",
+  "title": "Add the isolated J2CL sidecar build scaffold",
+  "summary": "Introduces an opt-in J2CL Maven sidecar with isolated SBT entrypoints and browser-reachable sidecar assets under dedicated war/j2cl* paths while the legacy GWT web client remains the active runtime.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a dedicated j2cl/ Maven sidecar project with wrapper-backed search-sidecar, debug-single-project, and production build profiles",
+        "Added opt-in sbt j2clSandbox* and j2clSearch* tasks that invoke the sidecar wrapper without changing compileGwt, run, or stage bootstrap behavior",
+        "Staged isolated host pages and generated assets under war/j2cl-search, war/j2cl-debug, and war/j2cl so the sidecar can be loaded independently from the main GWT app"
+      ]
+    }
+  ]
+}

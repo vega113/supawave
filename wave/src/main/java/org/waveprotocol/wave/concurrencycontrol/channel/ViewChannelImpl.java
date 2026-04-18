@@ -19,13 +19,11 @@
 
 package org.waveprotocol.wave.concurrencycontrol.channel;
 
-import com.google.gwt.core.client.GWT;
 import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.concurrencycontrol.channel.WaveViewService.WaveViewServiceUpdate;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
 import org.waveprotocol.wave.concurrencycontrol.channel.RawFragmentsApplier;
 import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics;
-import org.waveprotocol.wave.client.debug.FragmentsDebugIndicator;
 import org.waveprotocol.wave.concurrencycontrol.common.ChannelException;
 import org.waveprotocol.wave.concurrencycontrol.common.Recoverable;
 import org.waveprotocol.wave.concurrencycontrol.common.ResponseCode;
@@ -86,6 +84,12 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
   public static void setFragmentsApplier(RawFragmentsApplier applier) {
     fragmentsApplier = applier;
   }
+
+  /** Optional: client-side fragment diagnostics hook. */
+  private static volatile ViewChannelDebugHook debugHook = ViewChannelDebugHook.NO_OP;
+  public static void setFragmentsDebugHook(ViewChannelDebugHook hook) {
+    debugHook = hook != null ? hook : ViewChannelDebugHook.NO_OP;
+  }
   /**
    * Flag to control whether fragments applier is invoked. Best-effort: if the applier throws,
    * we log and continue delivering the update (never fail the update path).
@@ -100,10 +104,10 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
   private static volatile int applierWarnMs = 50;
   public static void setApplierWarnMs(int warnMs) { applierWarnMs = warnMs; }
 
-  private static void debugLog(String msg) {
-    try {
-      com.google.gwt.core.client.GWT.log(msg);
-    } catch (Throwable ignore) { }
+  private void traceLog(String msg) {
+    if (logger.trace().shouldLog()) {
+      logger.trace().log(msg);
+    }
   }
 
 
@@ -405,15 +409,13 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
               // Best-effort applier hook (flag-gated). Errors are logged and update continues.
               RawFragmentsApplier applier = fragmentsApplier;
               if (payload != null) {
-                try {
-                  debugLog("ViewChannel fragments received: wavelet=" + waveletId
-                      + " ranges=" + payload.ranges.size()
-                      + " applierSet=" + (applier != null)
-                      + " flag=" + enableFragmentsApplierFlag
-                      + " maxRanges=" + applierMaxRangesPerApply);
-                } catch (Throwable ignore) {}
+                traceLog("ViewChannel fragments received: wavelet=" + waveletId
+                    + " ranges=" + payload.ranges.size()
+                    + " applierSet=" + (applier != null)
+                    + " flag=" + enableFragmentsApplierFlag
+                    + " maxRanges=" + applierMaxRangesPerApply);
               } else {
-                try { debugLog("ViewChannel fragments received null payload"); } catch (Throwable ignore) {}
+                traceLog("ViewChannel fragments received null payload");
               }
               if (applier != null && enableFragmentsApplierFlag && payload != null) {
                 try {
@@ -438,15 +440,12 @@ public class ViewChannelImpl implements ViewChannel, WaveViewService.OpenCallbac
                   logger.error().log("Fragments applier failed for wavelet " + waveletId + ": " + t);
                 }
               } else {
-                try {
-                  debugLog("ViewChannel fragments not applied: applier=" + (applier != null)
-                      + " flag=" + enableFragmentsApplierFlag + " payloadNull=" + (payload == null));
-                } catch (Throwable ignore) {}
+                traceLog("ViewChannel fragments not applied: applier=" + (applier != null)
+                    + " flag=" + enableFragmentsApplierFlag + " payloadNull=" + (payload == null));
               }
-              // Dev-only debug badge: increase on-screen counter when a fragments batch arrives
               try {
                 if (payload != null && payload.ranges != null) {
-                  FragmentsDebugIndicator.onRanges(payload.ranges.size());
+                  debugHook.onRangesReceived(payload.ranges.size());
                 }
               } catch (Throwable ignore) { }
             }

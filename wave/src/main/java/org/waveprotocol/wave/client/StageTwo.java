@@ -40,6 +40,7 @@ import java.util.Date;
 
 import org.waveprotocol.wave.client.concurrencycontrol.LiveChannelBinder;
 import org.waveprotocol.wave.client.concurrencycontrol.MuxConnector;
+import org.waveprotocol.wave.client.concurrencycontrol.ClientStatsRawFragmentsApplier;
 import org.waveprotocol.wave.client.concurrencycontrol.WaveletOperationalizer;
 import org.waveprotocol.wave.client.doodad.DoodadInstallers;
 import org.waveprotocol.wave.client.doodad.attachment.AttachmentManagerProvider;
@@ -123,9 +124,9 @@ import org.waveprotocol.wave.concurrencycontrol.channel.OperationChannelMultiple
 import org.waveprotocol.wave.concurrencycontrol.channel.OperationChannelMultiplexerImpl;
 import org.waveprotocol.wave.concurrencycontrol.channel.OperationChannelMultiplexerImpl.LoggerContext;
 import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannel;
+import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelDebugHook;
 import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelFactory;
 import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannelImpl;
-import org.waveprotocol.wave.concurrencycontrol.channel.ClientStatsRawFragmentsApplier;
 import org.waveprotocol.wave.concurrencycontrol.channel.WaveViewService;
 import org.waveprotocol.wave.concurrencycontrol.common.UnsavedDataListener;
 import org.waveprotocol.wave.concurrencycontrol.common.UnsavedDataListenerFactory;
@@ -1021,6 +1022,12 @@ public interface StageTwo {
                 GWT.log("Failed to set debug mode", t);
             }
             try {
+                ViewChannelImpl.setFragmentsDebugHook(new ViewChannelDebugHook() {
+                    @Override
+                    public void onRangesReceived(int rangeCount) {
+                        FragmentsDebugIndicator.onRanges(rangeCount);
+                    }
+                });
                 ViewChannelImpl.setFragmentsApplier(new ClientStatsRawFragmentsApplier());
                 Boolean ena = ClientFlags.get().enableFragmentsApplier();
                 Boolean force = ClientFlags.get().forceClientFragments();

@@ -40,7 +40,7 @@ public class WaverefEncoder {
    * We need this interface because there is no common library that works in
    * both GWT and on server side java code that can percent encoding.
    *
-   * GWT (com.google.gwt.http.client.URL) and std java
+   * browser URL helpers and std java
    * (c.g.common.base.PercentEscaper)
    */
   public interface PercentEncoderDecoder {

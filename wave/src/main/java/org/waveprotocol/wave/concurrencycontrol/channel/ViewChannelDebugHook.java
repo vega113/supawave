@@ -17,31 +17,20 @@
  * under the License.
  */
 
-package org.waveprotocol.wave.concurrencycontrol;
-
-import com.google.gwt.junit.client.GWTTestCase;
+package org.waveprotocol.wave.concurrencycontrol.channel;
 
 /**
- * The base class for client concurrencycontrol tests.
+ * Optional browser/client hook for fragment-delivery diagnostics.
  *
+ * <p>This keeps the concurrency-control core pure Java while still allowing
+ * client wiring to observe fragment batches for dev-only UI indicators.</p>
  */
-public abstract class TestBase extends GWTTestCase {
+public interface ViewChannelDebugHook {
+  ViewChannelDebugHook NO_OP = new ViewChannelDebugHook() {
+    @Override
+    public void onRangesReceived(int rangeCount) {
+    }
+  };
 
-  /**
-   * The default constructor.
-   */
-  public TestBase() {
-  }
-
-  /**
-   * Specifies a module to use when running this test case. The returned module
-   * must cause the source for this class to be included.
-   *
-   * @see com.google.gwt.junit.client.GWTTestCase#getModuleName()
-   */
-  @Override
-  public String getModuleName() {
-    return "org.waveprotocol.wave.concurrencycontrol.Tests";
-  }
-
+  void onRangesReceived(int rangeCount);
 }

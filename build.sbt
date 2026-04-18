@@ -105,7 +105,6 @@ Compile / unmanagedSources := (Compile / unmanagedSources).value.filterNot { f =
     (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/render/view/builder/TagsViewBuilder.java")) ||
     (isSrc && p.endsWith("/org/waveprotocol/box/server/rpc/render/view/ModelAsViewProvider.java")) ||
     // Legacy helpers with client coupling that are unnecessary for server run
-    p.endsWith("/org/waveprotocol/wave/concurrencycontrol/channel/ViewChannelImpl.java") ||
     p.endsWith("/org/waveprotocol/wave/migration/helpers/FixLinkAnnotationsFilter.java") ||
     // Exclude generated GWT JSO implementations under gen/messages
     (p.contains("/gen/messages/") && p.contains("/jso/")) ||
@@ -395,7 +394,6 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
   (p.contains("/org/waveprotocol/box/server/rpc/render/") &&
     !p.endsWith("/ServerHtmlRendererTest.java") &&
     !p.endsWith("/WaveContentRendererTest.java")) ||
-  p.contains("/wave/src/test/java/org/waveprotocol/wave/concurrencycontrol/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/migration/") ||
   p.contains("/wave/src/test/java/org/waveprotocol/wave/model/document/util/") ||
   // MongoDB integration tests — require Testcontainers; run via Gradle itTest, not sbt test

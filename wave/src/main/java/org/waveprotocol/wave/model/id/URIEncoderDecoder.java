@@ -77,7 +77,7 @@ public class URIEncoderDecoder {
    * Java strings are UTF-16. So it's not trivial to rewrite it again here. Instead
    * we have to inject the percent encoding library at run time.
    *
-   * GWT (com.google.gwt.http.client.URL) and std java (java.net.URLEncoder)
+   * browser URL helpers and std java (java.net.URLEncoder)
    *
    *
    *

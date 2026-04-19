@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-19-compact-inline-avatar-stack",
+  "version": "PR pending",
+  "date": "2026-04-19",
+  "title": "Stack compact inline reply avatars above content",
+  "summary": "Updates the compact-inline-blips layout so new inline reply composers stack the author avatar above the metabar/content instead of reserving extra horizontal gutter width.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Depth 0-2 compact inline reply composers now render the avatar above the metadata row on desktop and mobile.",
+        "Compact inline reply width is no longer driven by a left avatar gutter, while depth 3+ slide-nav threads keep the baseline layout."
+      ]
+    }
+  ]
+}

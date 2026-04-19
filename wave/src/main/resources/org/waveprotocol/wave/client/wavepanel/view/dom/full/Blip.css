@@ -453,14 +453,28 @@
 @external .compact-inline-blips;
 @external .compact-inline-blips-mobile;
 
-/* --- Depth 0 --- */
-.compact-inline-blips [data-depth="0"] .meta {
-  padding-left: 2.75em;
+/* Stack the avatar above the metabar/content so inline depth width does not
+   depend on the avatar gutter. */
+.compact-inline-blips [data-depth="0"] .meta,
+.compact-inline-blips [data-depth="1"] .meta,
+.compact-inline-blips [data-depth="2"] .meta {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.75em;
 }
+.compact-inline-blips [data-depth="0"] .avatar,
+.compact-inline-blips [data-depth="1"] .avatar,
+.compact-inline-blips [data-depth="2"] .avatar {
+  float: none;
+  margin-left: 0;
+  margin-bottom: 0.35em;
+  align-self: flex-start;
+}
+
+/* --- Depth 0 --- */
 .compact-inline-blips [data-depth="0"] .avatar {
   width: 24px;
   height: 24px;
-  margin-left: -2.25em;
 }
 .compact-inline-blips [data-depth="0"] .replies,
 .compact-inline-blips [data-depth="0"] .privateReplies {
@@ -469,13 +483,9 @@
 }
 
 /* --- Depth 1 --- */
-.compact-inline-blips [data-depth="1"] .meta {
-  padding-left: 2.25em;
-}
 .compact-inline-blips [data-depth="1"] .avatar {
   width: 22px;
   height: 22px;
-  margin-left: -1.75em;
 }
 .compact-inline-blips [data-depth="1"] .replies,
 .compact-inline-blips [data-depth="1"] .privateReplies {
@@ -484,13 +494,9 @@
 }
 
 /* --- Depth 2 (last inline level before slide-nav) --- */
-.compact-inline-blips [data-depth="2"] .meta {
-  padding-left: 1.75em;
-}
 .compact-inline-blips [data-depth="2"] .avatar {
   width: 20px;
   height: 20px;
-  margin-left: -1.25em;
 }
 .compact-inline-blips [data-depth="2"] .replies,
 .compact-inline-blips [data-depth="2"] .privateReplies {
@@ -500,12 +506,16 @@
 
 /* --- Depth 3+ reset (prevent cascade leak into slide-nav) --- */
 .compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .meta {
+  display: block;
   padding-left: 3.75em;
 }
 .compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .avatar {
+  float: left;
   width: 28px;
   height: 28px;
   margin-left: -3em;
+  margin-bottom: 0;
+  align-self: auto;
 }
 .compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .replies,
 .compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .privateReplies {
@@ -514,18 +524,28 @@
 }
 
 /* --- Mobile: more aggressive compaction via runtime class --- */
-.compact-inline-blips-mobile [data-depth="0"] .meta { padding-left: 2.25em; }
-.compact-inline-blips-mobile [data-depth="0"] .avatar {
-  width: 22px; height: 22px; margin-left: -1.75em;
+.compact-inline-blips-mobile [data-depth="0"] .meta,
+.compact-inline-blips-mobile [data-depth="1"] .meta,
+.compact-inline-blips-mobile [data-depth="2"] .meta {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.5em;
 }
-.compact-inline-blips-mobile [data-depth="1"] .meta { padding-left: 1.75em; }
-.compact-inline-blips-mobile [data-depth="1"] .avatar {
-  width: 20px; height: 20px; margin-left: -1.25em;
-}
-.compact-inline-blips-mobile [data-depth="2"] .meta { padding-left: 1.25em; }
+.compact-inline-blips-mobile [data-depth="0"] .avatar,
+.compact-inline-blips-mobile [data-depth="1"] .avatar,
 .compact-inline-blips-mobile [data-depth="2"] .avatar {
-  width: 20px; height: 20px; margin-left: -1.25em;
+  float: none;
+  margin-left: 0;
+  margin-bottom: 0.25em;
+  align-self: flex-start;
 }
+.compact-inline-blips-mobile [data-depth="0"] .avatar {
+  width: 22px; height: 22px;
+}
+.compact-inline-blips-mobile [data-depth="1"] .avatar {
+  width: 20px; height: 20px;
+}
+.compact-inline-blips-mobile [data-depth="2"] .avatar { width: 20px; height: 20px; }
 .compact-inline-blips-mobile [data-depth="0"] .replies,
 .compact-inline-blips-mobile [data-depth="0"] .privateReplies {
   margin-left: 0.25em; padding-left: 2px;
@@ -538,10 +558,12 @@
 }
 /* Depth 3+ reset inside the runtime mobile block prevents depth-2 rules from cascading into deeper threads. */
 .compact-inline-blips-mobile [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .meta {
+  display: block;
   padding-left: 3.75em;
 }
 .compact-inline-blips-mobile [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .avatar {
-  width: 28px; height: 28px; margin-left: -3em;
+  float: left;
+  width: 28px; height: 28px; margin-left: -3em; margin-bottom: 0; align-self: auto;
 }
 .compact-inline-blips-mobile [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .replies,
 .compact-inline-blips-mobile [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .privateReplies {

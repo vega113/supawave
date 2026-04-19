@@ -33,6 +33,7 @@ import org.waveprotocol.wave.client.wavepanel.impl.edit.EditSession;
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.TopConversationView;
 import org.waveprotocol.wave.client.widget.toast.ToastNotification;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.client.wavepanel.view.dom.TopConversationDomImpl;
 import org.waveprotocol.wave.client.wavepanel.view.impl.TopConversationViewImpl;
 import org.waveprotocol.wave.model.util.ThreadFocusPolicy;
@@ -1054,11 +1055,12 @@ public final class ThreadNavigationPresenter {
         return parts[parts.length - 1].substring(SLIDE_NAV_MARKER.length());
       }
       if (ThreadNavigationHistory.HISTORY_PARAM_FOCUS.equals(key)) {
-        String rawSegment = parts[parts.length - 2];
-        if (rawSegment == null || rawSegment.isEmpty()) {
+        String legacyFocusedBlipId = parts[parts.length - 2];
+        if (legacyFocusedBlipId == null || legacyFocusedBlipId.isEmpty()) {
           return null;
         }
-        return URL.decodeQueryString(rawSegment);
+        String decodedFocusedBlipId = URL.decodeQueryString(legacyFocusedBlipId);
+        return IdUtil.isBlipId(decodedFocusedBlipId) ? decodedFocusedBlipId : null;
       }
       return null;
     }

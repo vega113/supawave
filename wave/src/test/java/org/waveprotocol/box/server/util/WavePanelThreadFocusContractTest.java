@@ -92,6 +92,7 @@ public final class WavePanelThreadFocusContractTest extends TestCase {
         "wave/src/main/java/org/waveprotocol/box/webclient/client/WebClient.java");
 
     assertTrue(presenter.contains("ThreadNavigationHistory.appendMetadata("));
+    assertTrue(presenter.contains("IdUtil.isBlipId("));
     assertTrue(historyListener.contains("ThreadNavigationHistory.stripMetadata(encodedToken)"));
     assertTrue(webClient.contains("ThreadNavigationHistory.stripMetadata(savedToken)"));
     assertTrue(webClient.contains("ThreadNavigationHistory.stripMetadata(encodedToken)"));

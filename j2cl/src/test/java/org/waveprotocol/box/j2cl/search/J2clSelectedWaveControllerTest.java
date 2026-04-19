@@ -155,6 +155,20 @@ public class J2clSelectedWaveControllerTest {
     Assert.assertEquals(Arrays.asList("real content"), harness.modelValue("getContentEntries"));
   }
 
+  @Test
+  public void snapshotOnlyUpdateRendersDocumentTextWhenFragmentsAreMissing() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", digest("Wave A", "Digest snippet", 3));
+    harness.resolveBootstrap(0);
+    harness.deliverSnapshotOnlyUpdate(0, "Welcome to SupaWave");
+
+    Assert.assertEquals(Arrays.asList("Welcome to SupaWave"), harness.modelValue("getContentEntries"));
+    Assert.assertEquals("Digest snippet", harness.modelValue("getSnippetText"));
+    Assert.assertFalse((Boolean) harness.modelValue("isLoading"));
+  }
+
   private static J2clSearchDigestItem digest(String title, String snippet, int unreadCount) {
     return new J2clSearchDigestItem(
         "example.com/w+1", title, snippet, "user@example.com", unreadCount, 2, 1234L, false);
@@ -288,6 +302,10 @@ public class J2clSelectedWaveControllerTest {
       deliverRawUpdate(index, update("example.com!w+1/example.com!conv+root", rawSnapshot));
     }
 
+    private void deliverSnapshotOnlyUpdate(int index, String textContent) {
+      deliverRawUpdate(index, snapshotOnlyUpdate(textContent));
+    }
+
     private void deliverRawUpdate(int index, SidecarSelectedWaveUpdate update) {
       openAttempts.get(index).success.accept(update);
     }
@@ -305,7 +323,9 @@ public class J2clSelectedWaveControllerTest {
         true,
         "chan-1",
         Arrays.asList("user@example.com", "teammate@example.com"),
-        Arrays.asList(new SidecarSelectedWaveDocument("b+root", "user@example.com", 33L, 44L)),
+        Arrays.asList(
+            new SidecarSelectedWaveDocument(
+                "b+root", "user@example.com", 33L, 44L, rawSnapshot)),
         new SidecarSelectedWaveFragments(
             44L,
             40L,
@@ -316,6 +336,23 @@ public class J2clSelectedWaveControllerTest {
             Arrays.asList(
                 new SidecarSelectedWaveFragment("manifest", "conversation: Inbox wave", 0, 0),
                 new SidecarSelectedWaveFragment("blip:b+root", rawSnapshot, 0, 0))));
+  }
+
+  private static SidecarSelectedWaveUpdate snapshotOnlyUpdate(String textContent) {
+    return new SidecarSelectedWaveUpdate(
+        1,
+        "local.net!w+s4635670bfbwA/~/conv+root",
+        true,
+        "ch3",
+        Arrays.asList("user@example.com"),
+        Arrays.asList(
+            new SidecarSelectedWaveDocument("b+abc123", "user@example.com", 1L, 2L, textContent)),
+        new SidecarSelectedWaveFragments(
+            0L,
+            0L,
+            0L,
+            new ArrayList<SidecarSelectedWaveFragmentRange>(),
+            new ArrayList<SidecarSelectedWaveFragment>()));
   }
 
   private static final class BootstrapAttempt {

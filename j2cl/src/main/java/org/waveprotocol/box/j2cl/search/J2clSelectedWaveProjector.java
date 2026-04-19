@@ -3,6 +3,7 @@ package org.waveprotocol.box.j2cl.search;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragments;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
@@ -23,6 +24,9 @@ public final class J2clSelectedWaveProjector {
     }
 
     List<String> contentEntries = extractContentEntries(update.getFragments());
+    if (contentEntries.isEmpty()) {
+      contentEntries = extractDocumentEntries(update.getDocuments());
+    }
     if (contentEntries.isEmpty() && previous != null && !previous.getContentEntries().isEmpty()) {
       contentEntries = previous.getContentEntries();
     }
@@ -63,6 +67,26 @@ public final class J2clSelectedWaveProjector {
       }
     }
     return blipSnapshots.isEmpty() ? fallbackSnapshots : blipSnapshots;
+  }
+
+  private static List<String> extractDocumentEntries(List<SidecarSelectedWaveDocument> documents) {
+    if (documents == null || documents.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<String> blipEntries = new ArrayList<String>();
+    List<String> fallbackEntries = new ArrayList<String>();
+    for (SidecarSelectedWaveDocument document : documents) {
+      String textContent = document.getTextContent();
+      if (textContent == null || textContent.isEmpty()) {
+        continue;
+      }
+      if (document.getDocumentId() != null && document.getDocumentId().startsWith("b+")) {
+        blipEntries.add(textContent);
+      } else {
+        fallbackEntries.add(textContent);
+      }
+    }
+    return blipEntries.isEmpty() ? fallbackEntries : blipEntries;
   }
 
   private static String buildDetailText(SidecarSelectedWaveUpdate update) {

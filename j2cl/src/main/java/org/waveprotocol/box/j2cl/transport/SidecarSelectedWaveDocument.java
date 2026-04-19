@@ -5,13 +5,19 @@ public final class SidecarSelectedWaveDocument {
   private final String author;
   private final long lastModifiedVersion;
   private final long lastModifiedTime;
+  private final String textContent;
 
   public SidecarSelectedWaveDocument(
-      String documentId, String author, long lastModifiedVersion, long lastModifiedTime) {
+      String documentId,
+      String author,
+      long lastModifiedVersion,
+      long lastModifiedTime,
+      String textContent) {
     this.documentId = documentId;
     this.author = author;
     this.lastModifiedVersion = lastModifiedVersion;
     this.lastModifiedTime = lastModifiedTime;
+    this.textContent = textContent;
   }
 
   public String getDocumentId() {
@@ -28,5 +34,9 @@ public final class SidecarSelectedWaveDocument {
 
   public long getLastModifiedTime() {
     return lastModifiedTime;
+  }
+
+  public String getTextContent() {
+    return textContent;
   }
 }

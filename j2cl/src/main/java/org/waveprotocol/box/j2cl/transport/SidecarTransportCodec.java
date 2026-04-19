@@ -87,7 +87,8 @@ public final class SidecarTransportCodec {
                 getString(document, "1"),
                 getString(document, "3"),
                 getLong(document, "5"),
-                getLong(document, "6")));
+                getLong(document, "6"),
+                extractDocumentText(getOptionalObject(document, "2"))));
       }
     }
 
@@ -256,6 +257,29 @@ public final class SidecarTransportCodec {
       return 0;
     }
     return asList(value).size();
+  }
+
+  private static String extractDocumentText(Map<String, Object> documentOperation) {
+    Object rawComponents = documentOperation.get("1");
+    if (rawComponents == null) {
+      return "";
+    }
+    StringBuilder text = new StringBuilder();
+    for (Object rawComponent : asList(rawComponents)) {
+      Map<String, Object> component = asObject(rawComponent);
+      if (component.containsKey("2")) {
+        text.append(getString(component, "2"));
+        continue;
+      }
+      if (component.containsKey("3")) {
+        Map<String, Object> elementStart = getOptionalObject(component, "3");
+        String type = getString(elementStart, "1");
+        if ("line".equals(type) && text.length() > 0 && text.charAt(text.length() - 1) != '\n') {
+          text.append('\n');
+        }
+      }
+    }
+    return text.toString().trim();
   }
 
   private static long toLong(int highWord, int lowWord) {

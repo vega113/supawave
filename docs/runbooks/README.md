@@ -16,6 +16,8 @@ setup, smoke checks, deployment, and operational routines.
   - Standard browser-verification path built on the existing smoke baseline.
 - [`change-type-verification-matrix.md`](change-type-verification-matrix.md)
   - Quick reference for when smoke is enough versus when browser verification is required.
+- [`j2cl-sidecar-testing.md`](j2cl-sidecar-testing.md)
+  - Local build, smoke, and browser-verification flow for the merged J2CL sidecar routes.
 - [`worktree-diagnostics.md`](worktree-diagnostics.md)
   - One-command diagnostics bundle for failed or detail-heavy worktree verification.
 - [`../DEV_SETUP.md`](../DEV_SETUP.md)

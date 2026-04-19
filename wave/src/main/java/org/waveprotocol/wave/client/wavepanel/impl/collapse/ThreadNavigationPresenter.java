@@ -520,9 +520,15 @@ public final class ThreadNavigationPresenter {
     // Phase 6: end any active edit session before exiting
     endActiveEditSession();
 
-    // Restore in reverse order
-    for (int i = navigationStack.size() - 1; i >= 0; i--) {
-      NavigationEntry entry = navigationStack.get(i);
+    // Capture the root scroll before popping so we can restore it after the stack clears.
+    int rootScroll = 0;
+    if (!navigationStack.isEmpty()) {
+      rootScroll = navigationStack.get(0).getScrollPosition();
+    }
+
+    // Pop before restoring so active-navigation checks only consider still-active ancestors.
+    while (!navigationStack.isEmpty()) {
+      NavigationEntry entry = navigationStack.remove(navigationStack.size() - 1);
       restoreSiblings(entry);
 
       Element threadElement = Document.get().getElementById(entry.getThreadId());
@@ -533,14 +539,6 @@ public final class ThreadNavigationPresenter {
         threadElement.removeAttribute("aria-live");
       }
     }
-
-    // Restore scroll of the first entry (root level)
-    int rootScroll = 0;
-    if (!navigationStack.isEmpty()) {
-      rootScroll = navigationStack.get(0).getScrollPosition();
-    }
-
-    navigationStack.clear();
 
     // Pop browser history state back to root
     popHistoryState();

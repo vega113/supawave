@@ -81,6 +81,8 @@ public final class WavePanelThreadFocusContractTest extends TestCase {
     assertTrue(presenter.contains("!sibling.hasClassName(SLIDE_HIDDEN_CLASS)"));
     assertTrue(presenter.contains("isElementHiddenByActiveNavigation("));
     assertTrue(presenter.contains("!isElementHiddenByActiveNavigation(sibling)"));
+    assertTrue(presenter.contains("while (!navigationStack.isEmpty())"));
+    assertTrue(presenter.contains("NavigationEntry entry = navigationStack.remove(navigationStack.size() - 1);"));
   }
 
   public void testHistoryTokensPreserveWavePathForWebClientConsumers() throws Exception {

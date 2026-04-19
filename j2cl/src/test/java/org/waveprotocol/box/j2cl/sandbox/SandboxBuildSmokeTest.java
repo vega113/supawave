@@ -74,6 +74,13 @@ public class SandboxBuildSmokeTest {
   }
 
   @Test
+  public void encodedQueryTreatsPlusAsSpace() {
+    Assert.assertEquals(
+        "mentions:me unread:true",
+        SandboxEntryPoint.readRequestedQuery("?q=mentions%3Ame+unread%3Atrue"));
+  }
+
+  @Test
   public void malformedCookieValueReturnsNull() {
     Assert.assertNull(
         SandboxEntryPoint.readCookieFromHeader("JSESSIONID=%; theme=dark", "JSESSIONID"));

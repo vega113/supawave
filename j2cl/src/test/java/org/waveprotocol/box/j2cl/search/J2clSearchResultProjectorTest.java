@@ -96,4 +96,38 @@ public class J2clSearchResultProjectorTest {
     Assert.assertEquals("No waves matched this query.", model.getEmptyMessage());
     Assert.assertFalse(model.isShowMoreVisible());
   }
+
+  @Test
+  public void projectKeepsShowMoreVisibleWhenTotalIsUnknown() {
+    SidecarSearchResponse response =
+        new SidecarSearchResponse(
+            "in:archive",
+            -1,
+            Arrays.asList(
+                new SidecarSearchResponse.Digest(
+                    "Alpha",
+                    "Snippet A",
+                    "example.com/w+alpha",
+                    111L,
+                    0,
+                    4,
+                    Collections.singletonList("teammate@example.com"),
+                    "author@example.com",
+                    false),
+                new SidecarSearchResponse.Digest(
+                    "Beta",
+                    "Snippet B",
+                    "example.com/w+beta",
+                    222L,
+                    0,
+                    7,
+                    Collections.singletonList("friend@example.com"),
+                    "other@example.com",
+                    true)));
+
+    J2clSearchResultModel model = J2clSearchResultProjector.project(response, 30);
+
+    Assert.assertEquals("2 waves", model.getWaveCountText());
+    Assert.assertTrue(model.isShowMoreVisible());
+  }
 }

@@ -71,8 +71,7 @@ public final class J2clSearchResultProjector {
       waveCountText += " \u00b7 " + unreadWaveCount + " unread";
     }
 
-    boolean showMoreVisible =
-        totalKnown ? loaded < total : (requestedSize > 0 && loaded >= requestedSize);
+    boolean showMoreVisible = !totalKnown || loaded < total;
     return new J2clSearchResultModel(items, waveCountText, showMoreVisible, "");
   }
 

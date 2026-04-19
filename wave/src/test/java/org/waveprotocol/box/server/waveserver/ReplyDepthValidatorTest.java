@@ -83,7 +83,9 @@ public final class ReplyDepthValidatorTest extends TestCase {
     current.addReplyThread().appendBlip();
     List<WaveletOperation> ops = sink.getOps();
 
-    assertNotNull(ReplyDepthValidator.validate(snapshot, ops, 5));
+    String validationError = ReplyDepthValidator.validate(snapshot, ops, 5);
+    assertNotNull(validationError);
+    assertTrue(validationError.startsWith("Reply depth limit exceeded (max 5)"));
   }
 
   public void testRejectsDeltaWhenLaterThreadInsertExceedsMaxDepth() {
@@ -111,7 +113,9 @@ public final class ReplyDepthValidatorTest extends TestCase {
     siblingDepthFiveBlip.addReplyThread().appendBlip();
     List<WaveletOperation> ops = sink.getOps();
 
-    assertNotNull(ReplyDepthValidator.validate(snapshot, ops, 5));
+    String validationError = ReplyDepthValidator.validate(snapshot, ops, 5);
+    assertNotNull(validationError);
+    assertTrue(validationError.startsWith("Reply depth limit exceeded (max 5)"));
   }
 
   public void testRejectsWhenProjectedStateSimulationCannotRun() {

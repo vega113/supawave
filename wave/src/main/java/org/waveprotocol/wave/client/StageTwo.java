@@ -79,6 +79,7 @@ import org.waveprotocol.wave.client.wave.SimpleDiffDoc;
 import org.waveprotocol.wave.client.wave.WaveDocuments;
 import org.waveprotocol.box.webclient.client.Session;
 import org.waveprotocol.wave.client.wavepanel.impl.NewBlipIndicatorPresenter;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.wavepanel.impl.diff.DiffController;
 import org.waveprotocol.wave.client.wavepanel.impl.reader.Reader;
 import org.waveprotocol.wave.client.wavepanel.render.BlipPager;
@@ -683,6 +684,9 @@ public interface StageTwo {
 
             if (Session.get().hasFeature("compact-inline-blips")) {
                 Document.get().getBody().addClassName("compact-inline-blips");
+                if (MobileDetector.isMobile()) {
+                    Document.get().getBody().addClassName("compact-inline-blips-mobile");
+                }
             }
 
             // Install new blip indicator pill (feature-flagged via server-side flags).

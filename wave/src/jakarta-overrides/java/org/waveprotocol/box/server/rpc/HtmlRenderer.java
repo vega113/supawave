@@ -2677,11 +2677,12 @@ public final class HtmlRenderer {
     sb.append("    justify-content: center;\n");
     sb.append("  }\n");
     sb.append("  body.mobile-wave-open .mobile-wave-chrome-control { display: inline-flex; }\n");
+    sb.append("  body.mobile-wave-open #mobileWaveChromeReveal { display: none; }\n");
     sb.append("  #mobileWaveChromeReveal { left: 12px; }\n");
     sb.append("  #mobileWaveChromePin { left: 66px; }\n");
     sb.append("  #mobileTagsToggle { right: 66px; }\n");
     sb.append("  #mobileTagsPin { right: 12px; }\n");
-    sb.append("  body.mobile-wave-chrome-hidden #mobileWaveChromeReveal { display: inline-flex; }\n");
+    sb.append("  body.mobile-wave-open.mobile-wave-chrome-hidden #mobileWaveChromeReveal { display: inline-flex; }\n");
     sb.append("}\n");
     // =================================================================
     // RESPONSIVE: Small mobile (<480px) - extra compact
@@ -2890,9 +2891,9 @@ public final class HtmlRenderer {
     // Mobile backdrop overlay (for closing slide panel)
     sb.append("<div class=\"mobile-backdrop\" id=\"mobileBackdrop\" role=\"button\" tabindex=\"0\" aria-label=\"Close navigation\"></div>\n");
     sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromeReveal\" aria-label=\"Show wave controls\">Show</button>\n");
-    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromePin\" aria-label=\"Pin wave controls\">Pin</button>\n");
-    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsToggle\" aria-label=\"Toggle tags tray\">Tags</button>\n");
-    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsPin\" aria-label=\"Pin tags tray\">Tag Pin</button>\n");
+    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromePin\" aria-label=\"Pin wave controls\" aria-pressed=\"false\">Pin</button>\n");
+    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsToggle\" aria-label=\"Show tags tray\" aria-pressed=\"false\">Tags</button>\n");
+    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsPin\" aria-label=\"Pin tags tray\" aria-pressed=\"false\">Tag Pin</button>\n");
     sb.append("<noscript>\n");
     sb.append("<div style=\"width:22em;position:absolute;left:50%;margin-left:-11em;");
     sb.append("color:red;background-color:white;border:1px solid red;padding:4px;font-family:sans-serif\">\n");
@@ -2959,22 +2960,44 @@ public final class HtmlRenderer {
     sb.append("    body.classList.toggle('mobile-tags-pinned', tagsPinned);\n");
     sb.append("    if (chromePinned) body.classList.remove('mobile-wave-chrome-hidden');\n");
     sb.append("    if (tagsPinned) body.classList.add('mobile-tags-open');\n");
+    sb.append("    syncMobileChromeButtons();\n");
     sb.append("  }\n");
     sb.append("  window.__waveChromePrefsRefresh = refreshPinnedStateFromBridge;\n");
+    sb.append("  function syncMobileChromeButtons() {\n");
+    sb.append("    if (mobileWaveChromePin) {\n");
+    sb.append("      mobileWaveChromePin.setAttribute('aria-pressed', chromePinned ? 'true' : 'false');\n");
+    sb.append("      mobileWaveChromePin.setAttribute('aria-label', chromePinned ? 'Unpin wave controls' : 'Pin wave controls');\n");
+    sb.append("      mobileWaveChromePin.textContent = chromePinned ? 'Unpin' : 'Pin';\n");
+    sb.append("    }\n");
+    sb.append("    if (mobileTagsToggle) {\n");
+    sb.append("      var tagsOpen = body.classList.contains('mobile-tags-open');\n");
+    sb.append("      mobileTagsToggle.setAttribute('aria-pressed', tagsOpen ? 'true' : 'false');\n");
+    sb.append("      mobileTagsToggle.setAttribute('aria-label', tagsOpen ? 'Hide tags tray' : 'Show tags tray');\n");
+    sb.append("      mobileTagsToggle.textContent = tagsOpen ? 'Hide Tags' : 'Tags';\n");
+    sb.append("    }\n");
+    sb.append("    if (mobileTagsPin) {\n");
+    sb.append("      mobileTagsPin.setAttribute('aria-pressed', tagsPinned ? 'true' : 'false');\n");
+    sb.append("      mobileTagsPin.setAttribute('aria-label', tagsPinned ? 'Unpin tags tray' : 'Pin tags tray');\n");
+    sb.append("      mobileTagsPin.textContent = tagsPinned ? 'Unpin Tags' : 'Tag Pin';\n");
+    sb.append("    }\n");
+    sb.append("  }\n");
     sb.append("  function setWaveChromePinned(pinned) {\n");
     sb.append("    chromePinned = !!pinned;\n");
     sb.append("    body.classList.toggle('mobile-wave-chrome-pinned', chromePinned);\n");
     sb.append("    if (chromePinned) body.classList.remove('mobile-wave-chrome-hidden');\n");
     sb.append("    if (mobileChromePrefs) mobileChromePrefs.setChromePinned(chromePinned);\n");
+    sb.append("    syncMobileChromeButtons();\n");
     sb.append("  }\n");
     sb.append("  function setTagsOpen(open) {\n");
     sb.append("    body.classList.toggle('mobile-tags-open', !!open || tagsPinned);\n");
+    sb.append("    syncMobileChromeButtons();\n");
     sb.append("  }\n");
     sb.append("  function setTagsPinned(pinned) {\n");
     sb.append("    tagsPinned = !!pinned;\n");
     sb.append("    body.classList.toggle('mobile-tags-pinned', tagsPinned);\n");
     sb.append("    if (tagsPinned) body.classList.add('mobile-tags-open');\n");
     sb.append("    if (mobileChromePrefs) mobileChromePrefs.setTagsPinned(tagsPinned);\n");
+    sb.append("    syncMobileChromeButtons();\n");
     sb.append("  }\n");
     sb.append("  window.__waveMobileChromeOnEditSession = function(editing) {\n");
     sb.append("    if (!isMobile() || !body.classList.contains('mobile-wave-open')) return;\n");
@@ -3056,6 +3079,7 @@ public final class HtmlRenderer {
     sb.append("      body.classList.remove('mobile-wave-chrome-pinned');\n");
     sb.append("      body.classList.remove('mobile-tags-open');\n");
     sb.append("      body.classList.remove('mobile-tags-pinned');\n");
+    sb.append("      syncMobileChromeButtons();\n");
     sb.append("      openPanel();\n");
     sb.append("    }\n");
     sb.append("  }\n");
@@ -3079,6 +3103,7 @@ public final class HtmlRenderer {
     sb.append("    }\n");
     sb.append("  })();\n");
     sb.append("  refreshPinnedStateFromBridge();\n");
+    sb.append("  syncMobileChromeButtons();\n");
     sb.append("  document.addEventListener('focusin', function(e) {\n");
     sb.append("    if (!isMobile() || !body.classList.contains('mobile-wave-open')) return;\n");
     sb.append("    if (e.target.closest && e.target.closest(\"[contenteditable='true'], input, textarea\")) {\n");

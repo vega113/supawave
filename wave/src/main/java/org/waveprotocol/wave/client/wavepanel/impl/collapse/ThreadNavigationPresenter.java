@@ -345,33 +345,34 @@ public final class ThreadNavigationPresenter {
     if (focusedBlipId != null && !focusedBlipId.isEmpty()) {
       Element focusedThread = findThreadByFocusedBlipId(waveUi, focusedBlipId);
       if (focusedThread != null) {
+        // Collect ancestors before any DOM mutation so the full breadcrumb/
+        // history stack is rebuilt (shallow→deep), enabling proper back navigation.
+        List<Element> ancestorChain = collectAncestorThreads(focusedThread);
+        for (Element ancestor : ancestorChain) {
+          enterThreadElement(null, ancestor);
+        }
         enterThreadElement(null, focusedThread);
         return;
       }
     }
 
-    for (int i = 0; i < 8; i++) {
-      Element candidate = findDeepestExpandedInlineThread(waveUi);
-      if (candidate == null) {
-        return;
-      }
-
-      if (!ThreadFocusPolicy.shouldUseFocusedThread(
-          MobileDetector.isMobile(),
-          computeThreadDepthFromElement(candidate),
-          measureAvailableContentWidth(candidate, waveUi),
-          false)) {
-        return;
-      }
-
-      String candidateId = candidate.getId();
-      if (!navigationStack.isEmpty()
-          && candidateId.equals(navigationStack.get(navigationStack.size() - 1).getThreadId())) {
-        return;
-      }
-
-      enterThreadElement(null, candidate);
+    Element candidate = findDeepestExpandedInlineThread(waveUi);
+    if (candidate == null) {
+      return;
     }
+    if (!ThreadFocusPolicy.shouldUseFocusedThread(
+        MobileDetector.isMobile(),
+        computeThreadDepthFromElement(candidate),
+        measureAvailableContentWidth(candidate, waveUi),
+        false)) {
+      return;
+    }
+    // Enter ancestors first so auto-focus on resize also builds the full stack.
+    List<Element> ancestorChain = collectAncestorThreads(candidate);
+    for (Element ancestor : ancestorChain) {
+      enterThreadElement(null, ancestor);
+    }
+    enterThreadElement(null, candidate);
   }
 
   /**
@@ -884,6 +885,21 @@ public final class ThreadNavigationPresenter {
       current = current.getParentElement();
     }
     return null;
+  }
+
+  private List<Element> collectAncestorThreads(Element threadElement) {
+    List<Element> ancestors = new ArrayList<Element>();
+    Element current = threadElement.getParentElement();
+    while (current != null) {
+      if ("wave-thread".equals(current.getAttribute("data-mobile-role"))) {
+        break;
+      }
+      if ("t".equals(current.getAttribute("kind"))) {
+        ancestors.add(0, current);
+      }
+      current = current.getParentElement();
+    }
+    return ancestors;
   }
 
   private int computeThreadDepthFromElement(Element threadElement) {

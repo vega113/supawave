@@ -118,7 +118,12 @@ public final class ReplyDepthValidatorTest extends TestCase {
     assertTrue(validationError.startsWith("Reply depth limit exceeded (max 5)"));
   }
 
-  public void testRejectsWhenProjectedStateSimulationCannotRun() {
+  /**
+   * Stale delta: snapshot is behind the live model, so projection simulation fails.
+   * The current depth (1) is within the limit (5), so the delta should be allowed
+   * through — the OT layer will handle the actual transformation.
+   */
+  public void testAllowsStaleSimulationWhenCurrentDepthWithinLimit() {
     FakeSilentOperationSink<WaveletOperation> sink = new FakeSilentOperationSink<WaveletOperation>();
     WaveletBasedConversation waveletConversation = createConversation(sink);
     Conversation conversation = waveletConversation;
@@ -127,14 +132,44 @@ public final class ReplyDepthValidatorTest extends TestCase {
     ObservableWaveletData staleSnapshot =
         WaveletDataUtil.copyWavelet(waveletConversation.getWavelet().getWaveletData());
 
+    // Advance model past the snapshot (depth 1 blip unknown to staleSnapshot).
     ConversationBlip missingInSnapshot = root.addReplyThread().appendBlip();
     sink.clear();
     missingInSnapshot.addReplyThread().appendBlip();
     List<WaveletOperation> ops = sink.getOps();
 
+    // staleSnapshot depth = 0; 0 < limit 5 → fallback path should allow.
+    assertNull(ReplyDepthValidator.validate(staleSnapshot, ops, 5));
+  }
+
+  /**
+   * Stale delta: simulation fails, but current depth is already at the limit.
+   * The fallback check must still reject the new thread insertion.
+   */
+  public void testRejectsViaFallbackWhenCurrentDepthAtLimit() {
+    FakeSilentOperationSink<WaveletOperation> sink = new FakeSilentOperationSink<WaveletOperation>();
+    WaveletBasedConversation waveletConversation = createConversation(sink);
+    Conversation conversation = waveletConversation;
+
+    ConversationBlip root = conversation.getRootThread().appendBlip();
+    ConversationBlip current = root;
+    for (int depth = 1; depth <= 5; depth++) {
+      current = current.addReplyThread().appendBlip();
+    }
+    // staleSnapshot captures depth-5 chain; depth at limit.
+    ObservableWaveletData staleSnapshot =
+        WaveletDataUtil.copyWavelet(waveletConversation.getWavelet().getWaveletData());
+
+    // Advance model past the snapshot so projection simulation will fail.
+    ConversationBlip extraBlip = current.addReplyThread().appendBlip();
+    sink.clear();
+    extraBlip.addReplyThread().appendBlip();
+    List<WaveletOperation> ops = sink.getOps();
+
+    // staleSnapshot depth = 5 = limit → fallback must reject.
     String error = ReplyDepthValidator.validate(staleSnapshot, ops, 5);
     assertNotNull(error);
-    assertTrue(error.contains("Reply depth validation failed"));
+    assertTrue(error.startsWith("Reply depth limit exceeded (max 5)"));
   }
 
   private static WaveletBasedConversation createConversation(

@@ -106,8 +106,20 @@ public final class ReplyDepthValidator {
 
     Integer projectedMaxDepth = computeProjectedMaxDepth(snapshot, manifestOps);
     if (projectedMaxDepth == null) {
-      LOG.warning("Reply depth validation failed: could not simulate projected state; rejecting delta.");
-      return "Reply depth validation failed: could not verify thread depth. Delta rejected.";
+      // Simulation failed (most likely a stale delta whose manifest ops don't apply
+      // cleanly to the current snapshot before OT). Fall back to the current depth:
+      // a single delta can add at most one depth level, so if the current depth is
+      // already at the limit any new thread would exceed it.
+      int currentDepth = computeManifestMaxDepth(snapshot);
+      if (currentDepth >= maxDepth) {
+        LOG.warning("Reply depth limit exceeded (fallback): current manifest depth " + currentDepth
+            + " is already at limit " + maxDepth + "; rejecting thread insertion.");
+        return "Reply depth limit exceeded (max " + maxDepth
+            + "). Cannot create threads deeper than the allowed depth.";
+      }
+      LOG.info("Reply depth projection simulation failed (likely stale delta); current depth "
+          + currentDepth + " is within limit " + maxDepth + ". Allowing.");
+      return null;
     }
 
     if (projectedMaxDepth > maxDepth) {

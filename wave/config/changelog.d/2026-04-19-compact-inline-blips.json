@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-19-compact-inline-blips",
+  "version": "PR #918",
+  "date": "2026-04-19",
+  "title": "Compact inline blip layout at nesting depth",
+  "summary": "Reduces horizontal indent and avatar size at inline nesting depths 0-2, recovering ~126px of content width at the deepest inline level. Feature-flagged under compact-inline-blips.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Progressive compaction of padding, margins, and avatar sizing at inline nesting depths 0, 1, and 2.",
+        "Mobile-specific overrides with more aggressive compaction for small viewports.",
+        "Explicit depth 3+ reset rules prevent compaction from leaking into slide-nav threads."
+      ]
+    }
+  ]
+}

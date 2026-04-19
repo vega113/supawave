@@ -163,6 +163,26 @@
  * was enforced. These are viewable (read-only traversal) but visually marked
  * so users know no new replies are allowed at this depth.
  */
+/* ---- Compact inline blip layout: chrome margin reduction ---- */
+@external .compact-inline-blips;
+
+.compact-inline-blips [data-depth="1"] .chrome {
+  margin: 0.75em 0.5em 0.75em -2em;
+}
+.compact-inline-blips [data-depth="2"] .chrome {
+  margin: 0.5em 0.25em 0.5em -2em;
+}
+
+/* Depth 3+ chrome reset — restore baseline so slide-nav threads keep full spacing. */
+.compact-inline-blips [data-depth="3"] .chrome,
+.compact-inline-blips [data-depth="4"] .chrome,
+.compact-inline-blips [data-depth="5"] .chrome,
+.compact-inline-blips [data-depth="6"] .chrome,
+.compact-inline-blips [data-depth="7"] .chrome,
+.compact-inline-blips [data-depth="8"] .chrome {
+  margin: 1em 0.5em 1em -2em;
+}
+
 @external .legacyDepthBadge;
 .legacyDepthBadge {
   display: inline-block;

@@ -681,6 +681,10 @@ public interface StageTwo {
                             getThreadReadStateMonitor(), getProfileManager(), getSupplement());
             live.init();
 
+            if (Session.get().hasFeature("compact-inline-blips")) {
+                Document.get().getBody().addClassName("compact-inline-blips");
+            }
+
             // Install new blip indicator pill (feature-flagged via server-side flags).
             if (Session.get().hasFeature("new-blip-indicator")) {
                 newBlipPresenter = new NewBlipIndicatorPresenter(getSignedInUser());

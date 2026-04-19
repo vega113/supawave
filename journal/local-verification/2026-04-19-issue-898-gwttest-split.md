@@ -36,3 +36,22 @@
 
 - PR: pending
 - Issue: #898
+
+## PR #914 Remediation
+
+### Commands
+
+- `sbt "testOnly org.waveprotocol.wave.client.util.UrlParametersTest"`
+- `sbt compile`
+- `sbt test`
+
+### Results
+
+- Added focused regression coverage for JVM query encoding parity, UTF-8 round-trips, and malformed UTF-8 rejection in `UrlParametersTest`.
+- `sbt "testOnly org.waveprotocol.wave.client.util.UrlParametersTest"` initially failed on three review-driven regressions:
+  - `testBuildQueryStringPreservesEncodeComponentSafeCharacters`
+  - `testTruncatedUtf8SequenceRejected`
+  - `testInvalidUtf8ContinuationRejected`
+- After fixing `UrlParameters`, the focused test suite passed with `11` tests run, `0` failed.
+- `sbt compile` succeeded.
+- `sbt test` succeeded with `2498` total tests, `0` failed, `0` errors, and `2` skipped.

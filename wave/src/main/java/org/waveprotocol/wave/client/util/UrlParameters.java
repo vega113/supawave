@@ -147,11 +147,14 @@ public class UrlParameters implements TypedSource {
       try {
         decodeComponentNative("test");
         nativeCodecAvailable = Boolean.TRUE;
-      } catch (UnsatisfiedLinkError e) {
+      } catch (Error err) {
+        if (!isMissingNativeCodec(err)) {
+          throw err;
+        }
         nativeCodecAvailable = Boolean.FALSE;
       }
     }
-    return nativeCodecAvailable;
+    return nativeCodecAvailable.booleanValue();
   }
 
   private static String decodeComponent(String value) {
@@ -205,40 +208,22 @@ public class UrlParameters implements TypedSource {
       if ((b0 & 0x80) == 0) {
         codePoint = b0;
       } else if ((b0 & 0xE0) == 0xC0) {
-        if (i >= bytes.length()) {
-          throw new IllegalArgumentException("Truncated UTF-8 sequence in query string");
-        }
-        int b1 = bytes.charAt(i++);
-        if ((b1 & 0xC0) != 0x80) {
-          throw new IllegalArgumentException("Invalid UTF-8 continuation byte in query string");
-        }
-        codePoint = ((b0 & 0x1F) << 6) | (b1 & 0x3F);
+        int b1 = readContinuationByte(bytes, i++);
+        codePoint = ((b0 & 0x1F) << 6) | b1;
+        ensureValidDecodedCodePoint(codePoint, 0x80);
       } else if ((b0 & 0xF0) == 0xE0) {
-        if (i + 1 >= bytes.length()) {
-          throw new IllegalArgumentException("Truncated UTF-8 sequence in query string");
-        }
-        int b1 = bytes.charAt(i++);
-        int b2 = bytes.charAt(i++);
-        if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80) {
-          throw new IllegalArgumentException("Invalid UTF-8 continuation byte in query string");
-        }
-        codePoint = ((b0 & 0x0F) << 12) | ((b1 & 0x3F) << 6) | (b2 & 0x3F);
+        int b1 = readContinuationByte(bytes, i++);
+        int b2 = readContinuationByte(bytes, i++);
+        codePoint = ((b0 & 0x0F) << 12) | (b1 << 6) | b2;
+        ensureValidDecodedCodePoint(codePoint, 0x800);
       } else if ((b0 & 0xF8) == 0xF0) {
-        if (i + 2 >= bytes.length()) {
-          throw new IllegalArgumentException("Truncated UTF-8 sequence in query string");
-        }
-        int b1 = bytes.charAt(i++);
-        int b2 = bytes.charAt(i++);
-        int b3 = bytes.charAt(i++);
-        if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80 || (b3 & 0xC0) != 0x80) {
-          throw new IllegalArgumentException("Invalid UTF-8 continuation byte in query string");
-        }
-        codePoint = ((b0 & 0x07) << 18) | ((b1 & 0x3F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F);
+        int b1 = readContinuationByte(bytes, i++);
+        int b2 = readContinuationByte(bytes, i++);
+        int b3 = readContinuationByte(bytes, i++);
+        codePoint = ((b0 & 0x07) << 18) | (b1 << 12) | (b2 << 6) | b3;
+        ensureValidDecodedCodePoint(codePoint, 0x10000);
       } else {
         throw new IllegalArgumentException("Invalid UTF-8 lead byte in query string");
-      }
-      if (codePoint > 0x10FFFF || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
-        throw new IllegalArgumentException("Invalid Unicode code point in query string: " + codePoint);
       }
       appendCodePoint(out, codePoint);
     }
@@ -307,6 +292,32 @@ public class UrlParameters implements TypedSource {
       throw new IllegalArgumentException("Invalid hex digit in query string: " + ch);
     }
     return value;
+  }
+
+  private static boolean isMissingNativeCodec(Error err) {
+    return "java.lang.UnsatisfiedLinkError".equals(err.getClass().getName());
+  }
+
+  private static int readContinuationByte(StringBuilder bytes, int index) {
+    if (index >= bytes.length()) {
+      throw malformedUtf8();
+    }
+    int b = bytes.charAt(index) & 0xFF;
+    if ((b & 0xC0) != 0x80) {
+      throw malformedUtf8();
+    }
+    return b & 0x3F;
+  }
+
+  private static void ensureValidDecodedCodePoint(int codePoint, int minimumValue) {
+    if (codePoint < minimumValue || codePoint > 0x10FFFF
+        || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+      throw malformedUtf8();
+    }
+  }
+
+  private static IllegalArgumentException malformedUtf8() {
+    return new IllegalArgumentException("Malformed UTF-8 in query string");
   }
 
   private static void appendCodePoint(StringBuilder out, int codePoint) {

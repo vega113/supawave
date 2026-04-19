@@ -26,7 +26,11 @@ and
 as the execution baseline. This issue records the classification, not a new
 browser runner.
 
-## Direct Suites
+## Direct Suites (Baseline Classification for This Lane)
+
+This baseline table is broader than the "19 remaining" metric above. It keeps
+the suites converted in `#898` alongside the retained browser-harness suites so
+the lane has one traceable classification record.
 
 | File | Current harness path | Category | Reason | Follow-on |
 | --- | --- | --- | --- | --- |

@@ -94,4 +94,37 @@ public class UrlParametersTest extends TestCase {
     assertEquals("d", u.getParameter("c"));
     assertEquals("f", u.getParameter("e"));
   }
+
+  public void testBuildQueryStringPreservesEncodeComponentSafeCharacters() {
+    assertEquals("?!~*'()=!~*'()",
+        UrlParameters.buildQueryString(
+            Collections.<String, String>singletonMap("!~*'()", "!~*'()")));
+  }
+
+  public void testUtf8RoundTripInJvmCodec() {
+    String queryString =
+        UrlParameters.buildQueryString(
+            Collections.<String, String>singletonMap("こんにちは", "世界"));
+
+    UrlParameters u = new UrlParameters(queryString);
+    assertEquals("世界", u.getParameter("こんにちは"));
+  }
+
+  public void testTruncatedUtf8SequenceRejected() {
+    try {
+      new UrlParameters("?bad=%E2%82");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException expected) {
+      assertTrue(expected.getMessage().contains("UTF-8"));
+    }
+  }
+
+  public void testInvalidUtf8ContinuationRejected() {
+    try {
+      new UrlParameters("?bad=%E2%28%A1");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException expected) {
+      assertTrue(expected.getMessage().contains("UTF-8"));
+    }
+  }
 }

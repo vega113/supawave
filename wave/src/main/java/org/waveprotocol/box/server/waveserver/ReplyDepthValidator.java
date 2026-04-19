@@ -84,18 +84,17 @@ public final class ReplyDepthValidator {
 
     List<WaveletOperation> opList = new ArrayList<WaveletOperation>();
 
-    // Check if any operation targets the manifest document and inserts thread elements.
+    // Collect all ops and detect any manifest thread insertion.
     boolean hasManifestThreadInsert = false;
     for (WaveletOperation op : ops) {
       opList.add(op);
-      if (op instanceof WaveletBlipOperation) {
+      if (!hasManifestThreadInsert && op instanceof WaveletBlipOperation) {
         WaveletBlipOperation blipOp = (WaveletBlipOperation) op;
         if (MANIFEST_DOC_ID.equals(blipOp.getBlipId())) {
           if (blipOp.getBlipOp() instanceof BlipContentOperation) {
             DocOp docOp = ((BlipContentOperation) blipOp.getBlipOp()).getContentOp();
             if (docOpInsertsThread(docOp)) {
               hasManifestThreadInsert = true;
-              break;
             }
           }
         }
@@ -129,7 +128,10 @@ public final class ReplyDepthValidator {
     ObservableWaveletData projected = WaveletDataUtil.copyWavelet(snapshot);
     try {
       for (WaveletOperation op : ops) {
-        op.apply(projected);
+        if (op instanceof WaveletBlipOperation
+            && MANIFEST_DOC_ID.equals(((WaveletBlipOperation) op).getBlipId())) {
+          op.apply(projected);
+        }
       }
     } catch (OperationException e) {
       LOG.warning("Failed to simulate reply-depth validation state: " + e.getMessage());

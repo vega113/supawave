@@ -904,6 +904,9 @@ public final class ThreadNavigationPresenter {
   }
 
   private static Element hackExtractScrollElement(TopConversationView waveUi) {
+    if (!(waveUi instanceof TopConversationViewImpl)) {
+      return null;
+    }
     @SuppressWarnings("unchecked")
     TopConversationViewImpl<TopConversationDomImpl> waveUiImpl =
         (TopConversationViewImpl<TopConversationDomImpl>) waveUi;
@@ -1067,6 +1070,9 @@ public final class ThreadNavigationPresenter {
    */
   private void hideSiblings(Element threadElement, NavigationEntry entry) {
     Element threadContainer = findThreadContainer(threadElement);
+    if (threadContainer == null) {
+      return;
+    }
     Element currentChild = threadElement;
     Element currentParent = threadElement.getParentElement();
 

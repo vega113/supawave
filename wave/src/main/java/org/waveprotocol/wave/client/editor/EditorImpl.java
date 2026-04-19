@@ -75,6 +75,7 @@ import org.waveprotocol.wave.client.editor.content.misc.StyleAnnotationHandler;
 import org.waveprotocol.wave.client.editor.content.paragraph.Line;
 import org.waveprotocol.wave.client.editor.content.paragraph.Paragraph;
 import org.waveprotocol.wave.client.editor.debug.DebugPopupFactory;
+import org.waveprotocol.wave.client.editor.debug.ImeDebugTracer;
 import org.waveprotocol.wave.client.editor.event.EditorEvent;
 import org.waveprotocol.wave.client.editor.event.EditorEventHandler;
 import org.waveprotocol.wave.client.editor.event.EditorEventImpl;
@@ -1230,15 +1231,21 @@ public class EditorImpl extends LogicalPanel.Impl implements
 
     @Override
     public void compositionStart(Point<ContentNode> caret) {
+      if (ImeDebugTracer.isEnabled()) {
+        ImeDebugTracer
+            .start("EditorImpl.compositionStart")
+            .add("caretIsNull", caret == null)
+            .emit();
+      }
       // NOTE(danilatos): Is it safe to have the start & end ignore mutations in this
       // manner? Or should we ignore based on the event handler state? I guess it's
       // the same effect.
       EditorStaticDeps.startIgnoreMutations();
       if (caret != null) {
         imeExtractor.activate(content.getContext(), caret);
+        annotationLogic.supplementAnnotations(mutable().getLocation(caret), currentSelectionBias,
+            ContentType.PLAIN_TEXT);
       }
-      annotationLogic.supplementAnnotations(mutable().getLocation(caret), currentSelectionBias,
-          ContentType.PLAIN_TEXT);
     }
 
     @Override
@@ -1454,6 +1461,13 @@ public class EditorImpl extends LogicalPanel.Impl implements
     this.keyBindings = bindings;
     this.settings = settings;
 
+    // Eagerly trigger ImeDebugTracer initialization so that, if the flag is
+    // enabled, the global capture-phase event listeners are installed before
+    // the first key event can fire. With lazy init (first `isEnabled()` call
+    // on a trace site) we would miss any keydown / beforeinput / composition
+    // event preceding the very first trace call.
+    ImeDebugTracer.isEnabled();
+
     eventHandler = new EditorEventHandler(
         new EditorInteractorImpl(), eventsSubHandler, NodeEventRouter.INSTANCE,
         settings.useWhitelistInEditor(), settings.useWebkitCompositionEvents());
@@ -1562,6 +1576,14 @@ public class EditorImpl extends LogicalPanel.Impl implements
       // composed word and the space between words — typing "new blip"
       // would otherwise commit as "ewlip". See ImeExtractor#captureGhostBaseline.
       String composition = imeExtractor.getEffectiveContent();
+      if (ImeDebugTracer.isEnabled()) {
+        String rawScratchForTrace = imeExtractor.getContent();
+        ImeDebugTracer
+            .start("EditorImpl.flushActiveImeComposition")
+            .add("rawScratch", rawScratchForTrace)
+            .add("effective", composition)
+            .emit();
+      }
       assert composition != null : "Composition should not be null with active IME extractor";
       Point<ContentNode> contentPoint = imeExtractor.deactivate(content.getAnnotatableContent());
       Point<ContentNode> caret = insertText(contentPoint, composition, true);

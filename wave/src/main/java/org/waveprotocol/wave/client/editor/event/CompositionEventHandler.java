@@ -21,6 +21,7 @@ package org.waveprotocol.wave.client.editor.event;
 
 
 import org.waveprotocol.wave.client.editor.constants.BrowserEvents;
+import org.waveprotocol.wave.client.editor.debug.ImeDebugTracer;
 import org.waveprotocol.wave.client.scheduler.Scheduler;
 import org.waveprotocol.wave.client.scheduler.TimerService;
 import org.waveprotocol.wave.common.logging.LoggerBundle;
@@ -161,6 +162,14 @@ public class CompositionEventHandler<V> {
   }
 
   private void compositionStart(V event) {
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("CEH.compositionStart")
+          .add("browserComposing", browserComposing)
+          .add("appComposing", appComposing)
+          .add("delayAfterTextInput", delayAfterTextInput)
+          .add("timerScheduled", timer.isScheduled(endTask))
+          .emit();
+    }
     if (browserComposing) {
       logger.error().log("CEH: State was already 'composing' during a compositionstart event!");
 
@@ -193,6 +202,14 @@ public class CompositionEventHandler<V> {
   }
 
   private void compositionEnd() {
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("CEH.compositionEnd")
+          .add("browserComposing", browserComposing)
+          .add("appComposing", appComposing)
+          .add("delayAfterTextInput", delayAfterTextInput)
+          .add("modifiesDomAfter", modifiesDomAndFiresTextInputAfterComposition)
+          .emit();
+    }
     delayAfterTextInput = false;
     checkAppComposing();
 
@@ -219,6 +236,13 @@ public class CompositionEventHandler<V> {
   }
 
   private void textInput() {
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("CEH.textInput")
+          .add("browserComposing", browserComposing)
+          .add("appComposing", appComposing)
+          .add("modifiesDomAfter", modifiesDomAndFiresTextInputAfterComposition)
+          .emit();
+    }
     checkAppComposing();
 
     if (modifiesDomAndFiresTextInputAfterComposition && appComposing() && !browserComposing) {

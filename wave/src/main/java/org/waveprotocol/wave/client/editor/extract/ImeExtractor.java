@@ -34,6 +34,7 @@ import org.waveprotocol.wave.client.editor.content.ContentNode;
 import org.waveprotocol.wave.client.editor.content.ContentTextNode;
 import org.waveprotocol.wave.client.editor.content.Renderer;
 import org.waveprotocol.wave.client.editor.content.paragraph.ParagraphHelper;
+import org.waveprotocol.wave.client.editor.debug.ImeDebugTracer;
 import org.waveprotocol.wave.client.editor.impl.NodeManager;
 import org.waveprotocol.wave.client.editor.selection.html.NativeSelectionUtil;
 import org.waveprotocol.wave.model.document.util.DocHelper;
@@ -140,15 +141,32 @@ public class ImeExtractor {
    */
   public String getEffectiveContent() {
     if (!isActive()) {
+      if (ImeDebugTracer.isEnabled()) {
+        ImeDebugTracer.start("ImeExtractor.getEffectiveContent")
+            .add("active", false).emit();
+      }
       return null;
     }
     String scratchContent = imeContainer.getInnerText();
     if (scratchContent == null) {
       scratchContent = "";
     }
-    return GhostTextReconciler.combine(scratchContent,
-        ghostPreviousSiblingBaseline, readText(ghostPreviousSibling),
-        ghostNextSiblingBaseline, readText(ghostNextSibling));
+    String currentPrev = readText(ghostPreviousSibling);
+    String currentNext = readText(ghostNextSibling);
+    String result = GhostTextReconciler.combine(scratchContent,
+        ghostPreviousSiblingBaseline, currentPrev,
+        ghostNextSiblingBaseline, currentNext);
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("ImeExtractor.getEffectiveContent")
+          .add("scratch", scratchContent)
+          .add("prevBaseline", ghostPreviousSiblingBaseline)
+          .add("currentPrev", currentPrev)
+          .add("nextBaseline", ghostNextSiblingBaseline)
+          .add("currentNext", currentNext)
+          .add("result", result)
+          .emit();
+    }
+    return result;
   }
 
   /**
@@ -184,6 +202,17 @@ public class ImeExtractor {
     wrapper.getContainerNodelet().appendChild(imeContainer);
     NativeSelectionUtil.setCaret(inContainer);
     captureGhostBaseline();
+    if (ImeDebugTracer.isEnabled()) {
+      Element anchor = imeContainer.getParentElement();
+      ImeDebugTracer.start("ImeExtractor.activate")
+          .add("prevSibling", ImeDebugTracer.describe(ghostPreviousSibling))
+          .add("prevBaseline", ghostPreviousSiblingBaseline)
+          .add("nextSibling", ImeDebugTracer.describe(ghostNextSibling))
+          .add("nextBaseline", ghostNextSiblingBaseline)
+          .add("anchorParent", ImeDebugTracer.describe(anchor == null ? null : anchor.getParentElement()))
+          .add("anchorInnerText", ImeDebugTracer.innerText(anchor == null ? null : anchor.getParentElement()))
+          .emit();
+    }
   }
 
   /**
@@ -214,6 +243,17 @@ public class ImeExtractor {
    */
   public Point<ContentNode> deactivate(
       LocalDocument<ContentNode, ContentElement, ContentTextNode> doc) {
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("ImeExtractor.deactivate")
+          .add("scratch", imeContainer.getInnerText())
+          .add("prevSibling", ImeDebugTracer.describe(ghostPreviousSibling))
+          .add("prevCurrent", ImeDebugTracer.readText(ghostPreviousSibling))
+          .add("prevBaseline", ghostPreviousSiblingBaseline)
+          .add("nextSibling", ImeDebugTracer.describe(ghostNextSibling))
+          .add("nextCurrent", ImeDebugTracer.readText(ghostNextSibling))
+          .add("nextBaseline", ghostNextSiblingBaseline)
+          .emit();
+    }
     // Restore any ghost text back to its baseline BEFORE we tear down the
     // wrapper. The captured ghost characters are already accounted for in
     // the composition string that the caller obtained from

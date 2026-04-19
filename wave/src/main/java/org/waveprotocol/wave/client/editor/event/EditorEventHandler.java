@@ -35,6 +35,7 @@ import org.waveprotocol.wave.client.common.util.SignalEvent.MoveUnit;
 import org.waveprotocol.wave.client.common.util.UserAgent;
 import org.waveprotocol.wave.client.debug.logger.LogLevel;
 import org.waveprotocol.wave.client.editor.EditorStaticDeps;
+import org.waveprotocol.wave.client.editor.debug.ImeDebugTracer;
 import org.waveprotocol.wave.client.editor.constants.BrowserEvents;
 import org.waveprotocol.wave.client.editor.content.ContentElement;
 import org.waveprotocol.wave.client.editor.content.ContentNode;
@@ -234,6 +235,17 @@ public final class EditorEventHandler {
   private boolean handleEventInner(EditorEvent event) throws SelectionLostException {
     delayedCompositionMutationGuard.beginEvent();
 
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("EEH.handleEventInner")
+          .add("type", event.getType())
+          .add("state", state.name())
+          .add("isKey", event.isKeyEvent())
+          .add("isIme", event.isImeKeyEvent())
+          .add("isComp", event.isCompositionEvent())
+          .add("isMut", event.isMutationEvent())
+          .emit();
+    }
+
     // TODO(danilatos): IE IME keycode thingy!!
     invalidateSelection();
 
@@ -303,8 +315,20 @@ public final class EditorEventHandler {
         // is inconsistent among browsers {@DOMImplWebkit#eventGetTarget}
         if (event.isDOMCharacterEvent()) {
           cachedSelection = editorInteractor.getSelectionPoints();
+          if (ImeDebugTracer.isEnabled()) {
+            ImeDebugTracer.start("EEH.DOMCharMod")
+                .add("state", state.name())
+                .add("cachedNull", cachedSelection == null)
+                .add("collapsed", cachedSelection != null && cachedSelection.isCollapsed())
+                .add("guard", delayedCompositionMutationGuard.shouldSkipDomCharacterMutation())
+                .add("target", ImeDebugTracer.describe(event.getTarget()))
+                .emit();
+          }
           if (cachedSelection != null) {
             if (!cachedSelection.isCollapsed()) {
+              if (ImeDebugTracer.isEnabled()) {
+                ImeDebugTracer.trace("EEH.DOMCharMod.skip.nonCollapsed");
+              }
               logger.trace().logPlainText("Ignoring DOM character mutation on non-collapsed "
                   + "selection; probable IME composition owns this range");
               return false;
@@ -322,14 +346,28 @@ public final class EditorEventHandler {
               // that is about to be torn down, and the next forceFlush would
               // drop the first character of every composed word (typing
               // "new blip" would yield "ewlip").
+              if (ImeDebugTracer.isEnabled()) {
+                ImeDebugTracer.trace("EEH.DOMCharMod.skip.duringComposition");
+              }
               logger.trace().logPlainText(
                   "Ignoring DOM character mutation during IME composition; "
                       + "composition flow owns this mutation");
             } else if (cachedSelection.isCollapsed()
                 && delayedCompositionMutationGuard.shouldSkipDomCharacterMutation()) {
+              if (ImeDebugTracer.isEnabled()) {
+                ImeDebugTracer.trace("EEH.DOMCharMod.skip.postCompositionEnd");
+              }
               logger.trace().logPlainText(
                   "Ignoring DOM character mutation immediately after IME composition end");
             } else {
+              if (ImeDebugTracer.isEnabled()) {
+                ImeDebugTracer.start("EEH.DOMCharMod.notifyTypingExtractor")
+                    .add("focus", ImeDebugTracer.describe(
+                        cachedSelection.getFocus().getContainer() == null
+                            ? null
+                            : cachedSelection.getFocus().getContainer().getImplNodelet()))
+                    .emit();
+              }
               logger.trace().logPlainText("Notifying typing extractor for " +
                   "probable IME-caused mutation event");
               // Nothing to do with the return value of this method, as mutation
@@ -431,6 +469,13 @@ public final class EditorEventHandler {
       logger.error().log("State was already IME during a compositionstart event!");
     }
 
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("EEH.compositionStart.enter")
+          .add("state", state.name())
+          .add("cachedNull", cachedSelection == null)
+          .emit();
+    }
+
     FocusedContentRange selectionBeforeCompositionFlush = cachedSelection;
     FocusedPointRange<Node> htmlSelectionBeforeCompositionFlush =
         editorInteractor.getHtmlSelection();
@@ -442,6 +487,21 @@ public final class EditorEventHandler {
     // extractor's stale DOM tracking causes characters to be lost.
     editorInteractor.forceFlush();
     cachedSelection = editorInteractor.getSelectionPoints();
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("EEH.compositionStart.postFlush")
+          .add("preFlushHtmlNull", htmlSelectionBeforeCompositionFlush == null)
+          .add("preFlushHtmlCollapsed",
+              htmlSelectionBeforeCompositionFlush != null
+                  && htmlSelectionBeforeCompositionFlush.isCollapsed())
+          .add("preFlushContentNull", selectionBeforeCompositionFlush == null)
+          .add("preFlushContentCollapsed",
+              selectionBeforeCompositionFlush != null
+                  && selectionBeforeCompositionFlush.isCollapsed())
+          .add("postFlushNull", cachedSelection == null)
+          .add("postFlushCollapsed",
+              cachedSelection != null && cachedSelection.isCollapsed())
+          .emit();
+    }
 
     Point<ContentNode> caret;
     if (cachedSelection == null) {
@@ -465,16 +525,29 @@ public final class EditorEventHandler {
     }
 
     state = State.COMPOSITION;
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("EEH.compositionStart.exit")
+          .add("caretNull", caret == null)
+          .emit();
+    }
     editorInteractor.compositionStart(caret);
   }
 
 
   private void compositionUpdate() {
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.trace("EEH.compositionUpdate");
+    }
     editorInteractor.compositionUpdate();
   }
 
 
   private void compositionEnd() {
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("EEH.compositionEnd.enter")
+          .add("state", state.name())
+          .emit();
+    }
     // We update the cached selection because sometimes we'll immediately get called back
     // into compositionStart()
     cachedSelection = editorInteractor.compositionEnd();

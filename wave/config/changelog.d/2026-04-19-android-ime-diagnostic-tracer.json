@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-19-android-ime-diagnostic-tracer",
+  "version": "Unreleased",
+  "date": "2026-04-19",
+  "title": "Diagnostic tracer for the Android IME composition pipeline",
+  "summary": "Ships a flag-gated diagnostic tracer that emits structured timelines of keyboard, composition, and DOM-mutation events alongside the IME scratch and ghost-baseline state directly in the browser console and an on-screen overlay. Intended to finally collect the real-device evidence needed to understand why typing 'new blip' on a Galaxy S25 Ultra still commits as 'ewlip' despite five prior merged fix PRs. The tracer is disabled by default and a pure no-op in production unless localStorage.ime_debug is set to 'on' or the URL carries ?ime_debug=on.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added ImeDebugTracer — a flag-gated JSNI-backed tracer that writes structured timelines to console and an on-screen overlay",
+        "Instrumented EditorEventHandler, CompositionEventHandler, EditorImpl, and ImeExtractor with tracer calls at every composition and DOM-mutation decision point",
+        "Installs capture-phase window listeners for keydown, beforeinput, input, composition*, textInput, DOMCharacterDataModified, selectionchange — so events are recorded even when the editor swallows or ignores them",
+        "Activation: append ?ime_debug=on to the URL once, or run localStorage.setItem('ime_debug', 'on') in DevTools and reload. Double-tap the overlay to clear."
+      ]
+    }
+  ]
+}

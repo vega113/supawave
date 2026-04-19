@@ -26,6 +26,7 @@ import com.google.gwt.dom.client.Element;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Event;
+import com.google.gwt.user.client.Window;
 import org.waveprotocol.wave.client.debug.FragmentsDebugIndicator;
 
 import org.waveprotocol.wave.client.account.ProfileManager;
@@ -79,6 +80,7 @@ import org.waveprotocol.wave.client.wave.SimpleDiffDoc;
 import org.waveprotocol.wave.client.wave.WaveDocuments;
 import org.waveprotocol.box.webclient.client.Session;
 import org.waveprotocol.wave.client.wavepanel.impl.NewBlipIndicatorPresenter;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.MobileDetector;
 import org.waveprotocol.wave.client.wavepanel.impl.diff.DiffController;
 import org.waveprotocol.wave.client.wavepanel.impl.reader.Reader;
 import org.waveprotocol.wave.client.wavepanel.render.BlipPager;
@@ -680,6 +682,20 @@ public interface StageTwo {
                             replyManager,
                             getThreadReadStateMonitor(), getProfileManager(), getSupplement());
             live.init();
+
+            if (Session.get().hasFeature("compact-inline-blips")) {
+                Document.get().getBody().addClassName("compact-inline-blips");
+                if (MobileDetector.isMobile()) {
+                    Document.get().getBody().addClassName("compact-inline-blips-mobile");
+                }
+                Window.addResizeHandler(event -> {
+                    if (MobileDetector.isMobile()) {
+                        Document.get().getBody().addClassName("compact-inline-blips-mobile");
+                    } else {
+                        Document.get().getBody().removeClassName("compact-inline-blips-mobile");
+                    }
+                });
+            }
 
             // Install new blip indicator pill (feature-flagged via server-side flags).
             if (Session.get().hasFeature("new-blip-indicator")) {

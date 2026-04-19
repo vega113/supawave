@@ -498,36 +498,16 @@
 }
 
 /* --- Depth 3+ reset (prevent cascade leak into slide-nav) --- */
-.compact-inline-blips [data-depth="3"] .meta,
-.compact-inline-blips [data-depth="4"] .meta,
-.compact-inline-blips [data-depth="5"] .meta,
-.compact-inline-blips [data-depth="6"] .meta,
-.compact-inline-blips [data-depth="7"] .meta,
-.compact-inline-blips [data-depth="8"] .meta {
+.compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .meta {
   padding-left: 3.75em;
 }
-.compact-inline-blips [data-depth="3"] .avatar,
-.compact-inline-blips [data-depth="4"] .avatar,
-.compact-inline-blips [data-depth="5"] .avatar,
-.compact-inline-blips [data-depth="6"] .avatar,
-.compact-inline-blips [data-depth="7"] .avatar,
-.compact-inline-blips [data-depth="8"] .avatar {
+.compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .avatar {
   width: 28px;
   height: 28px;
   margin-left: -3em;
 }
-.compact-inline-blips [data-depth="3"] .replies,
-.compact-inline-blips [data-depth="3"] .privateReplies,
-.compact-inline-blips [data-depth="4"] .replies,
-.compact-inline-blips [data-depth="4"] .privateReplies,
-.compact-inline-blips [data-depth="5"] .replies,
-.compact-inline-blips [data-depth="5"] .privateReplies,
-.compact-inline-blips [data-depth="6"] .replies,
-.compact-inline-blips [data-depth="6"] .privateReplies,
-.compact-inline-blips [data-depth="7"] .replies,
-.compact-inline-blips [data-depth="7"] .privateReplies,
-.compact-inline-blips [data-depth="8"] .replies,
-.compact-inline-blips [data-depth="8"] .privateReplies {
+.compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .replies,
+.compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .privateReplies {
   margin-left: 1em;
   padding-left: 8px;
 }
@@ -544,7 +524,7 @@
   }
   .compact-inline-blips [data-depth="2"] .meta { padding-left: 1.25em; }
   .compact-inline-blips [data-depth="2"] .avatar {
-    width: 22px; height: 22px; margin-left: -0.85em;
+    width: 20px; height: 20px; margin-left: -1.25em;
   }
   .compact-inline-blips [data-depth="0"] .replies,
   .compact-inline-blips [data-depth="0"] .privateReplies {
@@ -555,5 +535,16 @@
   .compact-inline-blips [data-depth="2"] .replies,
   .compact-inline-blips [data-depth="2"] .privateReplies {
     margin-left: 0; padding-left: 0;
+  }
+  /* Depth 3+ reset inside mobile block prevents mobile depth-2 rules from cascading into deeper threads. */
+  .compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .meta {
+    padding-left: 3.75em;
+  }
+  .compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .avatar {
+    width: 28px; height: 28px; margin-left: -3em;
+  }
+  .compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .replies,
+  .compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .privateReplies {
+    margin-left: 1em; padding-left: 8px;
   }
 }

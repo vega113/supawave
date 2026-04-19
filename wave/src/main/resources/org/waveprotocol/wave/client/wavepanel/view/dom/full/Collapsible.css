@@ -174,12 +174,7 @@
 }
 
 /* Depth 3+ chrome reset — restore baseline so slide-nav threads keep full spacing. */
-.compact-inline-blips [data-depth="3"] .chrome,
-.compact-inline-blips [data-depth="4"] .chrome,
-.compact-inline-blips [data-depth="5"] .chrome,
-.compact-inline-blips [data-depth="6"] .chrome,
-.compact-inline-blips [data-depth="7"] .chrome,
-.compact-inline-blips [data-depth="8"] .chrome {
+.compact-inline-blips [data-depth]:not([data-depth="0"]):not([data-depth="1"]):not([data-depth="2"]) .chrome {
   margin: 1em 0.5em 1em -2em;
 }
 

@@ -126,6 +126,8 @@ public final class ThreadNavigationPresenter {
   /** Token prefix used for slide-nav history entries. */
   private static final String HISTORY_PARAM_FOCUS = "focus";
   private static final String HISTORY_PARAM_DEPTH = "slide-nav";
+  /** Marker prefix for the slide-nav path segment appended to the WaveRef token. */
+  private static final String SLIDE_NAV_MARKER = "snav-";
 
   /** Handler registration for browser history events. */
   private HandlerRegistration historyRegistration;
@@ -963,27 +965,73 @@ public final class ThreadNavigationPresenter {
   }-*/;
 
   private String buildHistoryToken(String focusedBlipId, int depth) {
-    StringBuilder token = new StringBuilder();
-    if (focusedBlipId != null && !focusedBlipId.isEmpty()) {
-      token.append(HISTORY_PARAM_FOCUS)
-          .append("=")
-          .append(URL.encodeQueryString(focusedBlipId));
-    }
-    if (depth > 0) {
-      if (token.length() > 0) {
-        token.append("&");
+    // Preserve the WaveRef from the original token so deep-linking and wave
+    // selection remain intact when the user navigates with browser back/forward.
+    String base = originalHistoryToken != null ? originalHistoryToken : "";
+
+    // Strip any slide-nav segments we appended previously (blip + snav-N).
+    String[] parts = base.split("/", -1);
+    int stableLen = stableWaveRefLength(parts);
+    if (stableLen < parts.length) {
+      StringBuilder sb = new StringBuilder();
+      for (int i = 0; i < stableLen; i++) {
+        if (i > 0) sb.append('/');
+        sb.append(parts[i]);
       }
-      token.append(HISTORY_PARAM_DEPTH).append("=").append(depth);
+      base = sb.toString();
     }
+
+    if (base.isEmpty() || depth <= 0) {
+      return base;
+    }
+
+    // 2-segment WaveRef (domain/waveId only): adding any segment would produce
+    // a 3-segment token that the decoder rejects; skip encoding in this case.
+    String[] baseParts = base.split("/", -1);
+    if (baseParts.length < 4) {
+      return base;
+    }
+
+    // Append the focused blip (becomes tokens[4], the documentId in WaveRef)
+    // and the depth marker (tokens[5+], ignored by the WaveRef decoder).
+    StringBuilder token = new StringBuilder(base);
+    token.append('/');
+    if (focusedBlipId != null && !focusedBlipId.isEmpty()) {
+      token.append(URL.encodeQueryString(focusedBlipId));
+    } else {
+      token.append('_');
+    }
+    token.append('/').append(SLIDE_NAV_MARKER).append(depth);
     return token.toString();
+  }
+
+  /** Returns how many leading path segments of {@code parts} belong to the stable WaveRef. */
+  private int stableWaveRefLength(String[] parts) {
+    if (parts.length > 0 && parts[parts.length - 1].startsWith(SLIDE_NAV_MARKER)) {
+      // We appended two segments: blip + snav-N.
+      return Math.max(0, parts.length - 2);
+    }
+    return parts.length;
   }
 
   private String extractHistoryParam(String token, String key) {
     if (token == null || token.isEmpty()) {
       return null;
     }
-    String[] parts = token.split("&");
-    for (String part : parts) {
+    // New path-segment encoding: last segment is "snav-N", second-to-last is the blip.
+    String[] parts = token.split("/", -1);
+    if (parts.length >= 6 && parts[parts.length - 1].startsWith(SLIDE_NAV_MARKER)) {
+      if (HISTORY_PARAM_DEPTH.equals(key)) {
+        return parts[parts.length - 1].substring(SLIDE_NAV_MARKER.length());
+      }
+      if (HISTORY_PARAM_FOCUS.equals(key)) {
+        return URL.decodeQueryString(parts[parts.length - 2]);
+      }
+      return null;
+    }
+    // Legacy query-param style (tokens written before this fix).
+    String[] qparts = token.split("&");
+    for (String part : qparts) {
       int idx = part.indexOf('=');
       if (idx <= 0) {
         continue;

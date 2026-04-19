@@ -2589,7 +2589,7 @@ public final class HtmlRenderer {
     sb.append("  background: rgba(0,0,0,0.4); z-index: 99;\n");
     sb.append("}\n");
     sb.append("body.mobile-panel-open .mobile-backdrop { display: block; }\n");
-    sb.append(".mobile-wave-chrome-control { display: none !important; }\n");
+    sb.append(".mobile-wave-chrome-control { display: none; }\n");
     // -- Touch optimization --
     sb.append("html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }\n");
     // =================================================================

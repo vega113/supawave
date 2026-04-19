@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-19-j2cl-sidecar-transport-proof",
+  "version": "Unreleased",
+  "date": "2026-04-19",
+  "title": "Add an isolated J2CL sidecar transport proof",
+  "summary": "Keeps the legacy GWT webclient transport path unchanged while adding a sidecar-only transport/search proof that reuses the live root session, /search, and /socket under isolated J2CL routes.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a sidecar-only transport proof under the J2CL routes so the isolated sidecar can reuse the live root session bootstrap, call /search, and complete a /socket proof flow without cutting over the main webclient",
+        "Kept compileGwt and the staged legacy root path green while proving the isolated sidecar page and root page can both run against the same local server",
+        "Strengthened the PST transport-family contract test so the required impl/gson/jso/proto outputs stay present for the sidecar transport path"
+      ]
+    }
+  ]
+}

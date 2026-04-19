@@ -132,11 +132,7 @@ public final class SandboxEntryPoint {
         if (value.isEmpty()) {
           return DEFAULT_QUERY;
         }
-        try {
-          return decodeUriComponent(value);
-        } catch (RuntimeException e) {
-          return DEFAULT_QUERY;
-        }
+        return safeDecodeUriComponent(value, DEFAULT_QUERY);
       }
     }
     return DEFAULT_QUERY;
@@ -452,14 +448,18 @@ public final class SandboxEntryPoint {
       String trimmed = cookie.trim();
       String prefix = name + "=";
       if (trimmed.startsWith(prefix)) {
-        try {
-          return decodeUriComponent(trimmed.substring(prefix.length()));
-        } catch (RuntimeException e) {
-          return null;
-        }
+        return safeDecodeUriComponent(trimmed.substring(prefix.length()), null);
       }
     }
     return null;
+  }
+
+  private static String safeDecodeUriComponent(String value, String defaultValue) {
+    try {
+      return decodeUriComponent(value);
+    } catch (RuntimeException | LinkageError e) {
+      return defaultValue;
+    }
   }
 
   @JsMethod(namespace = JsPackage.GLOBAL, name = "encodeURIComponent")

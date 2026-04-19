@@ -57,9 +57,6 @@ public final class WavePanelMobileChromeContractTest extends TestCase {
     assertTrue(html.contains("mobileWaveChromeReveal"));
     assertTrue(html.contains("mobileWaveChromePin"));
     assertTrue(html.contains("mobileTagsToggle"));
-    assertTrue(html.contains("document.addEventListener('focusin'"));
-    assertTrue(html.contains(".mobile-wave-chrome-control { display: none; }"));
-    assertFalse(html.contains(".mobile-wave-chrome-control { display: none !important; }"));
     assertTrue(html.contains("body.mobile-wave-open #mobileWaveChromeReveal { display: none; }"));
     assertTrue(
         html.contains(
@@ -71,6 +68,9 @@ public final class WavePanelMobileChromeContractTest extends TestCase {
     assertTrue(html.contains("setToggleState(mobileWaveChromePin, chromePinned"));
     assertTrue(html.contains("setToggleState(mobileTagsToggle, tagsOpen"));
     assertTrue(html.contains("setToggleState(mobileTagsPin, tagsPinned"));
+    assertTrue(html.contains("document.addEventListener('focusin'"));
+    assertTrue(html.contains(".mobile-wave-chrome-control { display: none; }"));
+    assertFalse(html.contains(".mobile-wave-chrome-control { display: none !important; }"));
   }
 
   public void testConversationAndTagsCssSwitchToOverlayOnMobile() throws Exception {

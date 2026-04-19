@@ -345,16 +345,13 @@ public final class ThreadNavigationPresenter {
     if (focusedBlipId != null && !focusedBlipId.isEmpty()) {
       Element focusedThread = findThreadByFocusedBlipId(waveUi, focusedBlipId);
       if (focusedThread != null) {
-        enterAncestorThreadChain(focusedThread);
+        restoreFocusedThreadPath(focusedThread);
         return;
       }
     }
 
     Element candidate = findDeepestExpandedInlineThread(waveUi);
     if (candidate == null) {
-      if (isNavigated()) {
-        exitToRoot();
-      }
       return;
     }
     if (!ThreadFocusPolicy.shouldUseFocusedThread(
@@ -362,19 +359,9 @@ public final class ThreadNavigationPresenter {
         computeThreadDepthFromElement(candidate),
         measureAvailableContentWidth(candidate, waveUi),
         false)) {
-      if (isNavigated()) {
-        exitToRoot();
-      }
       return;
     }
-
-    String candidateId = candidate.getId();
-    if (!navigationStack.isEmpty()
-        && candidateId.equals(navigationStack.get(navigationStack.size() - 1).getThreadId())) {
-      return;
-    }
-
-    enterAncestorThreadChain(candidate);
+    restoreFocusedThreadPath(candidate);
   }
 
   /**
@@ -460,46 +447,6 @@ public final class ThreadNavigationPresenter {
     if (listener != null) {
       listener.onNavigationChanged(navigationStack.size());
     }
-  }
-
-  private void enterAncestorThreadChain(Element threadElement) {
-    List<Element> chain = collectAncestorThreadChain(threadElement);
-    if (chain.isEmpty()) {
-      return;
-    }
-    if (!matchesNavigationPrefix(chain) && isNavigated()) {
-      exitToRoot();
-    }
-    for (Element ancestor : chain) {
-      enterThreadElement(null, ancestor);
-    }
-  }
-
-  private List<Element> collectAncestorThreadChain(Element threadElement) {
-    List<Element> chain = new ArrayList<Element>();
-    Element current = threadElement;
-    while (current != null) {
-      if ("t".equals(current.getAttribute("kind"))) {
-        chain.add(0, current);
-      }
-      current = findParentThreadElement(current);
-    }
-    return chain;
-  }
-
-  private boolean matchesNavigationPrefix(List<Element> chain) {
-    if (navigationStack.isEmpty()) {
-      return true;
-    }
-    if (navigationStack.size() > chain.size()) {
-      return false;
-    }
-    for (int i = 0; i < navigationStack.size(); i++) {
-      if (!navigationStack.get(i).getThreadId().equals(chain.get(i).getId())) {
-        return false;
-      }
-    }
-    return true;
   }
 
   /**
@@ -929,6 +876,66 @@ public final class ThreadNavigationPresenter {
     return null;
   }
 
+  private void restoreFocusedThreadPath(Element deepestThread) {
+    List<Element> path = collectThreadPath(deepestThread);
+    if (path.isEmpty() || matchesNavigationPath(path)) {
+      return;
+    }
+
+    String currentToken = History.getToken();
+    if (originalHistoryToken == null || originalHistoryToken.isEmpty()) {
+      originalHistoryToken = ThreadNavigationHistory.stripMetadata(currentToken);
+    }
+
+    boolean previousHandlingHistoryEvent = handlingHistoryEvent;
+    handlingHistoryEvent = true;
+    try {
+      if (!navigationStack.isEmpty()) {
+        exitToRoot();
+      }
+      for (Element pathThread : path) {
+        enterThreadElement(null, pathThread);
+      }
+    } finally {
+      handlingHistoryEvent = previousHandlingHistoryEvent;
+    }
+
+    if (historyEnabled && !previousHandlingHistoryEvent && !navigationStack.isEmpty()) {
+      NavigationEntry current = navigationStack.get(navigationStack.size() - 1);
+      String token = buildHistoryToken(current.getParentBlipId(), navigationStack.size());
+      if (!token.equals(currentToken)) {
+        History.newItem(token, false);
+      }
+    }
+  }
+
+  private List<Element> collectThreadPath(Element threadElement) {
+    List<Element> path = new ArrayList<Element>();
+    Element current = threadElement;
+    while (current != null) {
+      if ("wave-thread".equals(current.getAttribute("data-mobile-role"))) {
+        break;
+      }
+      if ("t".equals(current.getAttribute("kind"))) {
+        path.add(0, current);
+      }
+      current = current.getParentElement();
+    }
+    return path;
+  }
+
+  private boolean matchesNavigationPath(List<Element> path) {
+    if (navigationStack.size() != path.size()) {
+      return false;
+    }
+    for (int i = 0; i < path.size(); i++) {
+      if (!path.get(i).getId().equals(navigationStack.get(i).getThreadId())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private int computeThreadDepthFromElement(Element threadElement) {
     int depth = 0;
     Element current = threadElement.getParentElement();
@@ -940,17 +947,6 @@ public final class ThreadNavigationPresenter {
       current = current.getParentElement();
     }
     return depth;
-  }
-
-  private Element findParentThreadElement(Element threadElement) {
-    Element current = threadElement.getParentElement();
-    while (current != null) {
-      if ("t".equals(current.getAttribute("kind"))) {
-        return current;
-      }
-      current = current.getParentElement();
-    }
-    return null;
   }
 
   private Element findDeepestExpandedInlineThread(TopConversationView waveUi) {
@@ -1145,7 +1141,7 @@ public final class ThreadNavigationPresenter {
    */
   private void restoreSiblings(NavigationEntry entry) {
     for (Element sibling : entry.getHiddenElements()) {
-      if (sibling != null) {
+      if (sibling != null && !isElementHiddenByActiveNavigation(sibling)) {
         sibling.removeClassName(SLIDE_HIDDEN_CLASS);
         sibling.getStyle().clearDisplay();
       }
@@ -1159,7 +1155,8 @@ public final class ThreadNavigationPresenter {
         Element sibling = Element.as(child);
         if (sibling != keep
             && !sibling.hasClassName(SLIDE_HIDDEN_CLASS)
-            && !entry.getHiddenElements().contains(sibling)) {
+            && !entry.getHiddenElements().contains(sibling)
+            && !isElementHiddenByActiveNavigation(sibling)) {
           entry.getHiddenElements().add(sibling);
           sibling.addClassName(SLIDE_HIDDEN_CLASS);
           sibling.getStyle().setDisplay(Style.Display.NONE);
@@ -1167,6 +1164,15 @@ public final class ThreadNavigationPresenter {
       }
       child = child.getNextSibling();
     }
+  }
+
+  private boolean isElementHiddenByActiveNavigation(Element element) {
+    for (NavigationEntry activeEntry : navigationStack) {
+      if (activeEntry.getHiddenElements().contains(element)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void restoreThreadPlacement(NavigationEntry entry, Element threadElement) {

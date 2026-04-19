@@ -63,11 +63,24 @@ public final class WavePanelThreadFocusContractTest extends TestCase {
     assertTrue(presenter.contains("public void reconcileFocusedThreadLayout(TopConversationView waveUi)"));
     assertTrue(builder.contains("navigator.reconcileFocusedThreadLayout(panel.getContents())"));
     assertTrue(stageThree.contains("stageTwo.getStageOne().getThreadNavigator().reconcileFocusedThreadLayout(panel.getContents())"));
-    assertTrue(presenter.contains("enterAncestorThreadChain("));
-    assertTrue(presenter.contains("collectAncestorThreadChain("));
-    assertTrue(presenter.contains("if (isNavigated()) {"));
-    assertTrue(presenter.contains("exitToRoot();"));
+  }
+
+  public void testThreadNavigationPresenterRestoresFullFocusedThreadPath() throws Exception {
+    String presenter = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/collapse/ThreadNavigationPresenter.java");
+
+    assertTrue(presenter.contains("restoreFocusedThreadPath("));
+    assertTrue(presenter.contains("collectThreadPath("));
+    assertTrue(presenter.contains("matchesNavigationPath("));
+  }
+
+  public void testThreadNavigationPresenterDoesNotUnhideAncestorManagedSiblings() throws Exception {
+    String presenter = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/collapse/ThreadNavigationPresenter.java");
+
     assertTrue(presenter.contains("!sibling.hasClassName(SLIDE_HIDDEN_CLASS)"));
+    assertTrue(presenter.contains("isElementHiddenByActiveNavigation("));
+    assertTrue(presenter.contains("!isElementHiddenByActiveNavigation(sibling)"));
   }
 
   public void testHistoryTokensPreserveWavePathForWebClientConsumers() throws Exception {

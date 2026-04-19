@@ -924,6 +924,20 @@ public final class ThreadNavigationPresenter {
       if (node.getAttribute('c') === 'c') {
         continue;
       }
+      // Skip threads hidden by a collapsed ancestor thread.
+      var ancestor = node.parentElement;
+      var hiddenByAncestor = false;
+      while (ancestor && ancestor !== root) {
+        if (ancestor.getAttribute && ancestor.getAttribute('kind') === 't'
+            && ancestor.getAttribute('c') === 'c') {
+          hiddenByAncestor = true;
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      if (hiddenByAncestor) {
+        continue;
+      }
       var depthAttr = node.getAttribute('data-depth');
       var depth = depthAttr ? parseInt(depthAttr, 10) : -1;
       if (isNaN(depth)) {

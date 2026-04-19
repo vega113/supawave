@@ -3044,7 +3044,8 @@ public final class HtmlRenderer {
     sb.append("  function onHashChange() {\n");
     sb.append("    if (!isMobile()) return;\n");
     sb.append("    var hash = window.location.hash;\n");
-    sb.append("    if (hash && hash.length > 1) {\n");
+    sb.append("    var waveToken = hash ? hash.substring(1).split('&')[0] : '';\n");
+    sb.append("    if (waveToken && waveToken.indexOf('/') >= 0) {\n");
     sb.append("      body.classList.add('mobile-wave-open');\n");
     sb.append("      closePanel();\n");
     sb.append("      refreshPinnedStateFromBridge();\n");
@@ -3070,9 +3071,13 @@ public final class HtmlRenderer {
     sb.append("    }\n");
     sb.append("  });\n");
     // -- Initial check for deep-linked wave --
-    sb.append("  if (isMobile() && window.location.hash && window.location.hash.length > 1) {\n");
-    sb.append("    body.classList.add('mobile-wave-open');\n");
-    sb.append("  }\n");
+    sb.append("  (function() {\n");
+    sb.append("    var h = window.location.hash;\n");
+    sb.append("    var t = h ? h.substring(1).split('&')[0] : '';\n");
+    sb.append("    if (isMobile() && t && t.indexOf('/') >= 0) {\n");
+    sb.append("      body.classList.add('mobile-wave-open');\n");
+    sb.append("    }\n");
+    sb.append("  })();\n");
     sb.append("  refreshPinnedStateFromBridge();\n");
     sb.append("  document.addEventListener('focusin', function(e) {\n");
     sb.append("    if (!isMobile() || !body.classList.contains('mobile-wave-open')) return;\n");

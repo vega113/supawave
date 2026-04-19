@@ -24,6 +24,7 @@ import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Node;
 import com.google.gwt.dom.client.SpanElement;
 import com.google.gwt.dom.client.Style.Display;
+import com.google.gwt.dom.client.Text;
 
 import org.waveprotocol.wave.client.common.util.DomHelper;
 import org.waveprotocol.wave.client.common.util.QuirksConstants;
@@ -40,6 +41,7 @@ import org.waveprotocol.wave.model.document.util.DocumentContext;
 import org.waveprotocol.wave.model.document.util.FilteredView.Skip;
 import org.waveprotocol.wave.model.document.util.LocalDocument;
 import org.waveprotocol.wave.model.document.util.Point;
+import org.waveprotocol.wave.model.util.GhostTextReconciler;
 
 import java.util.Collections;
 
@@ -58,6 +60,23 @@ public class ImeExtractor {
   private Point.El<Node> inContainer;
 
   private ContentElement wrapper = null;
+
+  /**
+   * On real Android Chrome/Brave, the browser can freeze its composition
+   * insertion anchor at {@code compositionstart} time, before
+   * {@link #activate(DocumentContext, Point)} moves the DOM selection into
+   * the scratch span. When that happens, the first character of the
+   * composed word lands in the text node adjacent to the scratch instead of
+   * inside it, and {@code imeContainer.getInnerText()} misses it. The
+   * {@code ghost*} fields capture a snapshot of those adjacent text nodes
+   * at {@code activate()} time so we can recover the lost characters in
+   * {@link #getEffectiveContent()} before they are discarded at
+   * {@link #deactivate(LocalDocument)}.
+   */
+  private Node ghostPreviousSibling;
+  private String ghostPreviousSiblingBaseline;
+  private Node ghostNextSibling;
+  private String ghostNextSiblingBaseline;
 
   private static final String WRAPPER_TAGNAME = "l:ime";
 
@@ -106,6 +125,33 @@ public class ImeExtractor {
   }
 
   /**
+   * Returns the effective composition text, combining the IME scratch span
+   * contents with any ghost characters that the browser inserted into the
+   * adjacent DOM text nodes instead of into the scratch.
+   *
+   * <p>This is the value that must be flushed into the document model at
+   * {@code compositionEnd} — using {@link #getContent()} alone drops the
+   * first character of every composed word on real Android Chrome/Brave,
+   * because those browsers can freeze the composition insertion anchor at
+   * {@code compositionstart} time, before the editor moves the DOM
+   * selection into the scratch span.
+   *
+   * @return the merged composition text if active, {@code null} otherwise.
+   */
+  public String getEffectiveContent() {
+    if (!isActive()) {
+      return null;
+    }
+    String scratchContent = imeContainer.getInnerText();
+    if (scratchContent == null) {
+      scratchContent = "";
+    }
+    return GhostTextReconciler.combine(scratchContent,
+        ghostPreviousSiblingBaseline, readText(ghostPreviousSibling),
+        ghostNextSiblingBaseline, readText(ghostNextSibling));
+  }
+
+  /**
    * Activates the IME extractor at the given location.
    *
    * The extraction node will be put in place, and selection moved to it.
@@ -137,6 +183,28 @@ public class ImeExtractor {
 
     wrapper.getContainerNodelet().appendChild(imeContainer);
     NativeSelectionUtil.setCaret(inContainer);
+    captureGhostBaseline();
+  }
+
+  /**
+   * Records the contents of the DOM text nodes adjacent to the IME scratch
+   * at the moment the scratch is created, so that {@link
+   * #getEffectiveContent()} can later recover any composition characters the
+   * browser steered into those siblings instead of the scratch.
+   */
+  private void captureGhostBaseline() {
+    Element scratchDomAnchor = imeContainer.getParentElement();
+    if (scratchDomAnchor == null) {
+      ghostPreviousSibling = null;
+      ghostPreviousSiblingBaseline = null;
+      ghostNextSibling = null;
+      ghostNextSiblingBaseline = null;
+      return;
+    }
+    ghostPreviousSibling = scratchDomAnchor.getPreviousSibling();
+    ghostPreviousSiblingBaseline = readText(ghostPreviousSibling);
+    ghostNextSibling = scratchDomAnchor.getNextSibling();
+    ghostNextSiblingBaseline = readText(ghostNextSibling);
   }
 
   /**
@@ -146,10 +214,49 @@ public class ImeExtractor {
    */
   public Point<ContentNode> deactivate(
       LocalDocument<ContentNode, ContentElement, ContentTextNode> doc) {
+    // Restore any ghost text back to its baseline BEFORE we tear down the
+    // wrapper. The captured ghost characters are already accounted for in
+    // the composition string that the caller obtained from
+    // getEffectiveContent(); leaving them in the DOM would cause the
+    // renderer to see them again after we insert the composition into the
+    // content model, leading to double-insertion or stray leftovers.
+    restoreGhostBaseline();
     Point.El<ContentNode> ret = Point.<ContentNode>inElement(
         doc.getParentElement(wrapper), doc.getNextSibling(wrapper));
     clearWrapper(doc);
     return ret;
+  }
+
+  private void restoreGhostBaseline() {
+    restoreTextNode(ghostPreviousSibling, ghostPreviousSiblingBaseline);
+    restoreTextNode(ghostNextSibling, ghostNextSiblingBaseline);
+    ghostPreviousSibling = null;
+    ghostPreviousSiblingBaseline = null;
+    ghostNextSibling = null;
+    ghostNextSiblingBaseline = null;
+  }
+
+  private static void restoreTextNode(Node node, String baseline) {
+    if (node == null || baseline == null) {
+      return;
+    }
+    if (node.getNodeType() != Node.TEXT_NODE) {
+      return;
+    }
+    Text text = Text.as(node);
+    if (!baseline.equals(text.getData())) {
+      text.setData(baseline);
+    }
+  }
+
+  private static String readText(Node node) {
+    if (node == null) {
+      return null;
+    }
+    if (node.getNodeType() != Node.TEXT_NODE) {
+      return null;
+    }
+    return Text.as(node).getData();
   }
 
   /**

@@ -1554,7 +1554,14 @@ public class EditorImpl extends LogicalPanel.Impl implements
       // delta, whether or not CC is waiting for an unacknowledged op.
       mutable().hackConsume(new Nindo.Builder().build());
 
-      String composition = imeExtractor.getContent();
+      // Use getEffectiveContent() rather than getContent() so that any
+      // ghost characters the browser inserted into adjacent DOM text
+      // nodes (instead of into the scratch span) are rolled into the
+      // composition string before we lose them. On real Android
+      // Chrome/Brave this is what preserves the first character of each
+      // composed word and the space between words — typing "new blip"
+      // would otherwise commit as "ewlip". See ImeExtractor#captureGhostBaseline.
+      String composition = imeExtractor.getEffectiveContent();
       assert composition != null : "Composition should not be null with active IME extractor";
       Point<ContentNode> contentPoint = imeExtractor.deactivate(content.getAnnotatableContent());
       Point<ContentNode> caret = insertText(contentPoint, composition, true);
@@ -2439,7 +2446,15 @@ public class EditorImpl extends LogicalPanel.Impl implements
    *         lgoic does not require other events to be blocked.
    */
   private boolean isHandlingNonblockingEvent() {
-    return isTyping();
+    // Treat an active IME composition as a non-blocking event so that
+    // incoming collaborative ops defer until the composition is flushed.
+    // ImeExtractor.getEffectiveContent() reconciles any text the browser
+    // steered into DOM nodes adjacent to the IME scratch into the final
+    // composition string. If a remote op rewrote one of those adjacent
+    // text nodes mid-composition, our reconciliation would mistake the
+    // remote edit for a local ghost character and commit it as part of
+    // the local IME text.
+    return isTyping() || imeExtractor.isActive();
   }
 
   /**

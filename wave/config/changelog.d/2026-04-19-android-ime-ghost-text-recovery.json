@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-19-android-ime-ghost-text-recovery",
+  "version": "Unreleased",
+  "date": "2026-04-19",
+  "title": "Recover Android IME characters that bypass the scratch span",
+  "summary": "Real Android Chrome and Brave freeze the IME composition insertion anchor at compositionstart time, before the editor moves the DOM selection into its scratch span. The first character of each composed word (and the space between words) therefore lands in the text node adjacent to the scratch instead of inside it, and previous compositionEnd flushes read only the scratch contents — typing 'new blip' silently committed as 'ewlip' on real phones (not reproducible in Chrome DevTools emulation, which is why the prior four guard-patch PRs #850, #877, #891, #896 could not catch it). The scratch now snapshots its adjacent DOM siblings at activate() time and reunites any ghost characters into the effective composition before it is written to the content model, then restores the siblings to their baseline so the renderer does not double-count them.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Android IME composition no longer drops the first character of each composed word (for example 'new blip' no longer becomes 'ewlip') on real Chrome and Brave on Android",
+        "The inter-word space is preserved when the browser commits it into a pre-existing text node between composition cycles",
+        "ImeExtractor now records the scratch-adjacent text nodes at compositionstart and reconciles any browser-inserted ghost characters into the final composition, rather than relying solely on imeContainer.getInnerText()"
+      ]
+    }
+  ]
+}

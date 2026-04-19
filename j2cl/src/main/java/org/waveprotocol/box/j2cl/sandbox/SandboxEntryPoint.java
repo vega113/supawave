@@ -10,6 +10,9 @@ import jsinterop.annotations.JsFunction;
 import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
+import org.waveprotocol.box.j2cl.search.J2clSearchGateway;
+import org.waveprotocol.box.j2cl.search.J2clSearchPanelController;
+import org.waveprotocol.box.j2cl.search.J2clSearchPanelView;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarOpenRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
@@ -34,6 +37,18 @@ public final class SandboxEntryPoint {
 
     String mode = normalizeMode(requestedMode);
     host.innerHTML = "";
+
+    if ("search-sidecar".equals(mode)) {
+      J2clSearchPanelView searchView = new J2clSearchPanelView(host);
+      J2clSearchPanelController controller =
+          new J2clSearchPanelController(
+              new J2clSearchGateway(),
+              searchView,
+              waveId -> { },
+              resolveViewportWidth());
+      controller.start(readRequestedQuery(DomGlobal.location.search));
+      return;
+    }
 
     HTMLDivElement card = (HTMLDivElement) DomGlobal.document.createElement("div");
     card.className = "sidecar-card";
@@ -99,6 +114,25 @@ public final class SandboxEntryPoint {
     }
     String trimmed = requestedMode.trim();
     return trimmed.isEmpty() ? DEFAULT_MODE : trimmed;
+  }
+
+  private static double resolveViewportWidth() {
+    return Double.parseDouble(String.valueOf(DomGlobal.window.innerWidth));
+  }
+
+  static String readRequestedQuery(String search) {
+    if (search == null || search.isEmpty()) {
+      return DEFAULT_QUERY;
+    }
+    String trimmed = search.charAt(0) == '?' ? search.substring(1) : search;
+    String[] parts = trimmed.split("&");
+    for (String part : parts) {
+      if (part.startsWith("q=")) {
+        String value = part.substring(2);
+        return value.isEmpty() ? DEFAULT_QUERY : decodeUriComponent(value);
+      }
+    }
+    return DEFAULT_QUERY;
   }
 
   @JsFunction
@@ -343,23 +377,9 @@ public final class SandboxEntryPoint {
     }
 
     private String buildSearchUrl() {
-      return "/search/?query=" + encodeUriComponent(readQuery()) + "&index=0&numResults=1";
-    }
-
-    private String readQuery() {
-      String search = DomGlobal.location.search;
-      if (search == null || search.isEmpty()) {
-        return DEFAULT_QUERY;
-      }
-      String trimmed = search.charAt(0) == '?' ? search.substring(1) : search;
-      String[] parts = trimmed.split("&");
-      for (String part : parts) {
-        if (part.startsWith("q=")) {
-          String value = part.substring(2);
-          return value.isEmpty() ? DEFAULT_QUERY : decodeUriComponent(value);
-        }
-      }
-      return DEFAULT_QUERY;
+      return "/search/?query="
+          + encodeUriComponent(readRequestedQuery(DomGlobal.location.search))
+          + "&index=0&numResults=1";
     }
 
   }

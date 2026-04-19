@@ -62,6 +62,9 @@ python3 scripts/assemble-changelog.py
 python3 scripts/validate-changelog.py --changelog wave/config/changelog.json
 ```
 
+`wave/config/changelog.json` is gitignored — do not commit it. Only commit
+changelog fragments under `wave/config/changelog.d/`.
+
 ### 2. Run The Cross-Path Build Gate
 
 ```bash
@@ -87,6 +90,12 @@ Then run the exact printed commands. The normal shape is:
 ```bash
 PORT=9900 JAVA_OPTS='-Djava.util.logging.config.file=... -Djava.security.auth.login.config=...' bash scripts/wave-smoke.sh start
 PORT=9900 bash scripts/wave-smoke.sh check
+```
+
+Keep the server running through steps 4 and manual browser verification, then
+stop it when done:
+
+```bash
 PORT=9900 bash scripts/wave-smoke.sh stop
 ```
 
@@ -98,6 +107,8 @@ While the server is running:
 curl -sS -I http://localhost:9900/
 curl -sS -I http://localhost:9900/webclient/webclient.nocache.js
 curl -sS -I http://localhost:9900/j2cl-search/index.html
+curl -sS -I http://localhost:9900/j2cl/index.html
+curl -sS -I http://localhost:9900/j2cl-debug/index.html
 ```
 
 Expected result:
@@ -105,6 +116,8 @@ Expected result:
 - `/` returns success
 - `/webclient/webclient.nocache.js` is present
 - `/j2cl-search/index.html` is present
+- `/j2cl/index.html` is present (production sidecar artifact from `Universal/stage`)
+- `/j2cl-debug/index.html` is present
 
 ## Manual Browser Verification
 
@@ -128,7 +141,7 @@ On `/j2cl-search/index.html`:
 - the placeholder card disappears and the J2CL search UI mounts
 - the page does not show `WaveSandboxEntryPoint not defined`
 - the default query `in:inbox` loads results or an explicit empty state
-- entering another query such as `with:@` re-renders without a full page reload
+- entering another query such as `with:@` re-renders without a full-page reload
 - `Show more waves` appears only when more server-side results exist
 - clicking a digest updates the selected row styling
 

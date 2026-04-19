@@ -63,6 +63,10 @@ public final class WavePanelThreadFocusContractTest extends TestCase {
     assertTrue(presenter.contains("public void reconcileFocusedThreadLayout(TopConversationView waveUi)"));
     assertTrue(builder.contains("navigator.reconcileFocusedThreadLayout(panel.getContents())"));
     assertTrue(stageThree.contains("stageTwo.getStageOne().getThreadNavigator().reconcileFocusedThreadLayout(panel.getContents())"));
+    assertTrue(presenter.contains("enterAncestorThreadChain("));
+    assertTrue(presenter.contains("collectAncestorThreadChain("));
+    assertTrue(presenter.contains("if (isNavigated()) {"));
+    assertTrue(presenter.contains("exitToRoot();"));
   }
 
   public void testHistoryTokensPreserveWavePathForWebClientConsumers() throws Exception {

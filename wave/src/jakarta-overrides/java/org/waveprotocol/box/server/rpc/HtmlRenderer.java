@@ -2890,7 +2890,7 @@ public final class HtmlRenderer {
     sb.append("</div>\n");
     // Mobile backdrop overlay (for closing slide panel)
     sb.append("<div class=\"mobile-backdrop\" id=\"mobileBackdrop\" role=\"button\" tabindex=\"0\" aria-label=\"Close navigation\"></div>\n");
-    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromeReveal\" aria-label=\"Show wave controls\">Show</button>\n");
+    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromeReveal\" aria-label=\"Show wave controls\" aria-pressed=\"false\">Show</button>\n");
     sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromePin\" aria-label=\"Pin wave controls\" aria-pressed=\"false\">Pin</button>\n");
     sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsToggle\" aria-label=\"Show tags tray\" aria-pressed=\"false\">Tags</button>\n");
     sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsPin\" aria-label=\"Pin tags tray\" aria-pressed=\"false\">Tag Pin</button>\n");
@@ -2942,6 +2942,20 @@ public final class HtmlRenderer {
     sb.append("  var tagsPinned = false;\n");
     sb.append("  var lastWaveScrollTop = 0;\n");
     sb.append("  var waveThread = null;\n");
+    sb.append("  function setToggleState(button, pressed, label, text) {\n");
+    sb.append("    if (!button) return;\n");
+    sb.append("    button.setAttribute('aria-pressed', pressed ? 'true' : 'false');\n");
+    sb.append("    button.setAttribute('aria-label', label);\n");
+    sb.append("    button.textContent = text;\n");
+    sb.append("  }\n");
+    sb.append("  function syncMobileChromeButtons() {\n");
+    sb.append("    var chromeHidden = body.classList.contains('mobile-wave-chrome-hidden');\n");
+    sb.append("    var tagsOpen = body.classList.contains('mobile-tags-open');\n");
+    sb.append("    setToggleState(mobileWaveChromeReveal, chromeHidden, chromeHidden ? 'Show wave controls' : 'Hide wave controls', chromeHidden ? 'Show' : 'Hide');\n");
+    sb.append("    setToggleState(mobileWaveChromePin, chromePinned, chromePinned ? 'Unpin wave controls' : 'Pin wave controls', chromePinned ? 'Unpin' : 'Pin');\n");
+    sb.append("    setToggleState(mobileTagsToggle, tagsOpen, tagsOpen ? 'Hide tags tray' : 'Show tags tray', tagsOpen ? 'Close Tags' : 'Tags');\n");
+    sb.append("    setToggleState(mobileTagsPin, tagsPinned, tagsPinned ? 'Unpin tags tray' : 'Pin tags tray', tagsPinned ? 'Unpin Tags' : 'Tag Pin');\n");
+    sb.append("  }\n");
     sb.append("  function openPanel() {\n");
     sb.append("    body.classList.add('mobile-panel-open');\n");
     sb.append("  }\n");
@@ -2950,12 +2964,14 @@ public final class HtmlRenderer {
     sb.append("  }\n");
     sb.append("  function setWaveChromeHidden(hidden) {\n");
     sb.append("    body.classList.toggle('mobile-wave-chrome-hidden', !!hidden && !chromePinned);\n");
+    sb.append("    syncMobileChromeButtons();\n");
     sb.append("  }\n");
     sb.append("  function refreshPinnedStateFromBridge() {\n");
     sb.append("    mobileChromePrefs = window.__waveMobileChromePrefs || null;\n");
-    sb.append("    if (!mobileChromePrefs) return;\n");
-    sb.append("    chromePinned = !!mobileChromePrefs.getChromePinned();\n");
-    sb.append("    tagsPinned = !!mobileChromePrefs.getTagsPinned();\n");
+    sb.append("    if (mobileChromePrefs) {\n");
+    sb.append("      chromePinned = !!mobileChromePrefs.getChromePinned();\n");
+    sb.append("      tagsPinned = !!mobileChromePrefs.getTagsPinned();\n");
+    sb.append("    }\n");
     sb.append("    body.classList.toggle('mobile-wave-chrome-pinned', chromePinned);\n");
     sb.append("    body.classList.toggle('mobile-tags-pinned', tagsPinned);\n");
     sb.append("    if (chromePinned) body.classList.remove('mobile-wave-chrome-hidden');\n");
@@ -2963,24 +2979,6 @@ public final class HtmlRenderer {
     sb.append("    syncMobileChromeButtons();\n");
     sb.append("  }\n");
     sb.append("  window.__waveChromePrefsRefresh = refreshPinnedStateFromBridge;\n");
-    sb.append("  function syncMobileChromeButtons() {\n");
-    sb.append("    if (mobileWaveChromePin) {\n");
-    sb.append("      mobileWaveChromePin.setAttribute('aria-pressed', chromePinned ? 'true' : 'false');\n");
-    sb.append("      mobileWaveChromePin.setAttribute('aria-label', chromePinned ? 'Unpin wave controls' : 'Pin wave controls');\n");
-    sb.append("      mobileWaveChromePin.textContent = chromePinned ? 'Unpin' : 'Pin';\n");
-    sb.append("    }\n");
-    sb.append("    if (mobileTagsToggle) {\n");
-    sb.append("      var tagsOpen = body.classList.contains('mobile-tags-open');\n");
-    sb.append("      mobileTagsToggle.setAttribute('aria-pressed', tagsOpen ? 'true' : 'false');\n");
-    sb.append("      mobileTagsToggle.setAttribute('aria-label', tagsOpen ? 'Hide tags tray' : 'Show tags tray');\n");
-    sb.append("      mobileTagsToggle.textContent = tagsOpen ? 'Hide Tags' : 'Tags';\n");
-    sb.append("    }\n");
-    sb.append("    if (mobileTagsPin) {\n");
-    sb.append("      mobileTagsPin.setAttribute('aria-pressed', tagsPinned ? 'true' : 'false');\n");
-    sb.append("      mobileTagsPin.setAttribute('aria-label', tagsPinned ? 'Unpin tags tray' : 'Pin tags tray');\n");
-    sb.append("      mobileTagsPin.textContent = tagsPinned ? 'Unpin Tags' : 'Tag Pin';\n");
-    sb.append("    }\n");
-    sb.append("  }\n");
     sb.append("  function setWaveChromePinned(pinned) {\n");
     sb.append("    chromePinned = !!pinned;\n");
     sb.append("    body.classList.toggle('mobile-wave-chrome-pinned', chromePinned);\n");
@@ -3063,6 +3061,7 @@ public final class HtmlRenderer {
     sb.append("  if (mobileTagsPin) {\n");
     sb.append("    mobileTagsPin.addEventListener('click', function() { setTagsPinned(!tagsPinned); });\n");
     sb.append("  }\n");
+    sb.append("  syncMobileChromeButtons();\n");
     // -- Listen for hash changes to detect wave open/close --
     sb.append("  function onHashChange() {\n");
     sb.append("    if (!isMobile()) return;\n");
@@ -3082,6 +3081,7 @@ public final class HtmlRenderer {
     sb.append("      syncMobileChromeButtons();\n");
     sb.append("      openPanel();\n");
     sb.append("    }\n");
+    sb.append("    syncMobileChromeButtons();\n");
     sb.append("  }\n");
     sb.append("  window.addEventListener('hashchange', onHashChange);\n");
     // -- On resize, clean up mobile classes if switching to desktop,

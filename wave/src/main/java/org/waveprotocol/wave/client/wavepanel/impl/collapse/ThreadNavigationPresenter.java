@@ -345,19 +345,16 @@ public final class ThreadNavigationPresenter {
     if (focusedBlipId != null && !focusedBlipId.isEmpty()) {
       Element focusedThread = findThreadByFocusedBlipId(waveUi, focusedBlipId);
       if (focusedThread != null) {
-        // Collect ancestors before any DOM mutation so the full breadcrumb/
-        // history stack is rebuilt (shallow→deep), enabling proper back navigation.
-        List<Element> ancestorChain = collectAncestorThreads(focusedThread);
-        for (Element ancestor : ancestorChain) {
-          enterThreadElement(null, ancestor);
-        }
-        enterThreadElement(null, focusedThread);
+        enterAncestorThreadChain(focusedThread);
         return;
       }
     }
 
     Element candidate = findDeepestExpandedInlineThread(waveUi);
     if (candidate == null) {
+      if (isNavigated()) {
+        exitToRoot();
+      }
       return;
     }
     if (!ThreadFocusPolicy.shouldUseFocusedThread(
@@ -365,14 +362,19 @@ public final class ThreadNavigationPresenter {
         computeThreadDepthFromElement(candidate),
         measureAvailableContentWidth(candidate, waveUi),
         false)) {
+      if (isNavigated()) {
+        exitToRoot();
+      }
       return;
     }
-    // Enter ancestors first so auto-focus on resize also builds the full stack.
-    List<Element> ancestorChain = collectAncestorThreads(candidate);
-    for (Element ancestor : ancestorChain) {
-      enterThreadElement(null, ancestor);
+
+    String candidateId = candidate.getId();
+    if (!navigationStack.isEmpty()
+        && candidateId.equals(navigationStack.get(navigationStack.size() - 1).getThreadId())) {
+      return;
     }
-    enterThreadElement(null, candidate);
+
+    enterAncestorThreadChain(candidate);
   }
 
   /**
@@ -458,6 +460,46 @@ public final class ThreadNavigationPresenter {
     if (listener != null) {
       listener.onNavigationChanged(navigationStack.size());
     }
+  }
+
+  private void enterAncestorThreadChain(Element threadElement) {
+    List<Element> chain = collectAncestorThreadChain(threadElement);
+    if (chain.isEmpty()) {
+      return;
+    }
+    if (!matchesNavigationPrefix(chain) && isNavigated()) {
+      exitToRoot();
+    }
+    for (Element ancestor : chain) {
+      enterThreadElement(null, ancestor);
+    }
+  }
+
+  private List<Element> collectAncestorThreadChain(Element threadElement) {
+    List<Element> chain = new ArrayList<Element>();
+    Element current = threadElement;
+    while (current != null) {
+      if ("t".equals(current.getAttribute("kind"))) {
+        chain.add(0, current);
+      }
+      current = findParentThreadElement(current);
+    }
+    return chain;
+  }
+
+  private boolean matchesNavigationPrefix(List<Element> chain) {
+    if (navigationStack.isEmpty()) {
+      return true;
+    }
+    if (navigationStack.size() > chain.size()) {
+      return false;
+    }
+    for (int i = 0; i < navigationStack.size(); i++) {
+      if (!navigationStack.get(i).getThreadId().equals(chain.get(i).getId())) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -887,21 +929,6 @@ public final class ThreadNavigationPresenter {
     return null;
   }
 
-  private List<Element> collectAncestorThreads(Element threadElement) {
-    List<Element> ancestors = new ArrayList<Element>();
-    Element current = threadElement.getParentElement();
-    while (current != null) {
-      if ("wave-thread".equals(current.getAttribute("data-mobile-role"))) {
-        break;
-      }
-      if ("t".equals(current.getAttribute("kind"))) {
-        ancestors.add(0, current);
-      }
-      current = current.getParentElement();
-    }
-    return ancestors;
-  }
-
   private int computeThreadDepthFromElement(Element threadElement) {
     int depth = 0;
     Element current = threadElement.getParentElement();
@@ -913,6 +940,17 @@ public final class ThreadNavigationPresenter {
       current = current.getParentElement();
     }
     return depth;
+  }
+
+  private Element findParentThreadElement(Element threadElement) {
+    Element current = threadElement.getParentElement();
+    while (current != null) {
+      if ("t".equals(current.getAttribute("kind"))) {
+        return current;
+      }
+      current = current.getParentElement();
+    }
+    return null;
   }
 
   private Element findDeepestExpandedInlineThread(TopConversationView waveUi) {

@@ -20,10 +20,13 @@ package org.waveprotocol.wave.concurrencycontrol.channel;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
+import org.waveprotocol.wave.common.logging.AbstractLogger.Level;
+import org.waveprotocol.wave.common.logging.Logger;
 import org.waveprotocol.wave.common.logging.LoggerBundle;
 import org.waveprotocol.wave.concurrencycontrol.channel.ViewChannel.Listener;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
@@ -46,6 +49,41 @@ import org.waveprotocol.wave.concurrencycontrol.testing.FakeWaveViewServiceUpdat
  */
 public final class ViewChannelApplierWiringTest {
 
+  private static final class RecordingLoggerBundle implements LoggerBundle {
+    private final List<String> traceMessages = new ArrayList<>();
+    private final Logger traceLogger = new Logger() {
+      @Override public void log(String msg) { traceMessages.add(msg); }
+      @Override public void log(Object... messages) { traceMessages.add(join(messages)); }
+      @Override public void logPlainText(String msg) { traceMessages.add(msg); }
+      @Override public void logPlainText(String msg, Throwable t) { traceMessages.add(msg + t); }
+      @Override public void logXml(String xml) { traceMessages.add(xml); }
+      @Override public void log(String label, Object o) { traceMessages.add(label + ": " + o); }
+      @Override public void log(Throwable t) { traceMessages.add(String.valueOf(t)); }
+      @Override public void log(String label, Throwable t) { traceMessages.add(label + ": " + t); }
+      @Override public void logLazyObjects(Object... objects) { traceMessages.add(join(objects)); }
+      @Override public boolean shouldLog() { return true; }
+    };
+
+    private static String join(Object... messages) {
+      StringBuilder builder = new StringBuilder();
+      for (Object message : messages) {
+        builder.append(message);
+      }
+      return builder.toString();
+    }
+
+    @Override public void log(Level level, Object... messages) {
+      if (level == Level.TRACE) {
+        traceMessages.add(join(messages));
+      }
+    }
+
+    @Override public Logger trace() { return traceLogger; }
+    @Override public Logger error() { return Logger.NOP_IMPL; }
+    @Override public Logger fatal() { return Logger.NOP_IMPL; }
+    @Override public boolean isModuleEnabled() { return true; }
+  }
+
   private static final class StubWaveViewService implements WaveViewService {
     @Override
     public void viewOpen(IdFilter waveletFilter, Map<WaveletId, List<HashedVersion>> knownWavelets,
@@ -62,6 +100,13 @@ public final class ViewChannelApplierWiringTest {
 
     @Override
     public String debugGetProfilingInfo(String requestId) { return ""; }
+  }
+
+  @org.junit.After
+  public void resetHooks() {
+    ViewChannelImpl.setFragmentsApplier(null);
+    ViewChannelImpl.setFragmentsApplierEnabled(false);
+    ViewChannelImpl.setFragmentsDebugHook(ViewChannelDebugHook.NO_OP);
   }
 
   @Test
@@ -129,5 +174,53 @@ public final class ViewChannelApplierWiringTest {
     assertTrue(state.containsKey("index"));
     assertTrue(state.containsKey("blip:b+1"));
   }
-}
 
+  @Test
+  public void fragmentsUpdateLogsViaInjectedLogger() {
+    SkeletonRawFragmentsApplier applier = new SkeletonRawFragmentsApplier();
+    ViewChannelImpl.setFragmentsApplier(applier);
+    ViewChannelImpl.setFragmentsApplierEnabled(true);
+
+    WaveId waveId = WaveId.of("example.com", "w+logging");
+    WaveletId waveletId = WaveletId.of("example.com", "conv+root");
+    RecordingLoggerBundle logger = new RecordingLoggerBundle();
+
+    ViewChannelImpl channel = new ViewChannelImpl(waveId, new StubWaveViewService(), logger);
+    channel.open(new Listener() {
+      @Override public void onConnected() {}
+      @Override public void onOpenFinished() {}
+      @Override public void onException(ChannelException ex) {}
+      @Override public void onClosed() {}
+      @Override public void onSnapshot(WaveletId wid, ObservableWaveletData wavelet,
+          HashedVersion lastCommittedVersion, HashedVersion currentSignedVersion) {}
+      @Override public void onUpdate(WaveletId wid, List<TransformedWaveletDelta> deltas,
+          HashedVersion lastCommittedVersion, HashedVersion currentSignedVersion) {}
+      @Override public void onFragments(WaveletId wid, FragmentsPayload payload) {}
+    }, IdFilter.ofPrefixes(""), Collections.emptyMap());
+
+    channel.onUpdate(new FakeWaveViewServiceUpdate().setChannelId("ch-log"));
+
+    FragmentsPayload payload = FragmentsPayload.of(10L, 10L, 10L,
+        java.util.Arrays.asList(new FragmentsPayload.Range(SegmentId.INDEX_ID, 0L, 0L)));
+    channel.onUpdate(new WaveViewServiceUpdate() {
+      @Override public boolean hasChannelId() { return false; }
+      @Override public String getChannelId() { return null; }
+      @Override public boolean hasWaveletId() { return true; }
+      @Override public WaveletId getWaveletId() { return waveletId; }
+      @Override public boolean hasLastCommittedVersion() { return false; }
+      @Override public HashedVersion getLastCommittedVersion() { return null; }
+      @Override public boolean hasCurrentVersion() { return false; }
+      @Override public HashedVersion getCurrentVersion() { return null; }
+      @Override public boolean hasWaveletSnapshot() { return false; }
+      @Override public ObservableWaveletData getWaveletSnapshot() { return null; }
+      @Override public boolean hasDeltas() { return false; }
+      @Override public List<TransformedWaveletDelta> getDeltaList() { return Collections.emptyList(); }
+      @Override public boolean hasMarker() { return false; }
+      @Override public boolean hasFragments() { return true; }
+      @Override public FragmentsPayload getFragments() { return payload; }
+    });
+
+    assertTrue("Expected fragment diagnostics to use the injected logger",
+        logger.traceMessages.stream().anyMatch(msg -> msg.contains("ViewChannel fragments received")));
+  }
+}

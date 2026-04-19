@@ -12,7 +12,7 @@
 - `scripts/worktree-file-store.sh --source <REPO_ROOT>`
 - `PORT=9900 JAVA_OPTS='-Djava.util.logging.config.file=<WORKTREE>/wave/config/wiab-logging.conf -Djava.security.auth.login.config=<WORKTREE>/wave/config/jaas.config' bash scripts/wave-smoke.sh start`
 - `PORT=9900 bash scripts/wave-smoke.sh check`
-- `curl -s -o /tmp/issue903-register.out -w '%{http_code}\n' -X POST 'http://localhost:9900/auth/register' -d 'address=issue903test&password=<redacted>'`
+- `curl -s -o /tmp/issue903-register.out -w '%{http_code}\n' -X POST 'http://localhost:9900/auth/register' -d 'address=<local-test-user>&password=<redacted>'`
 - Browser sanity via `agent-browser --session issue903`
 
 ## Results
@@ -21,9 +21,9 @@
 - First smoke check passed: `ROOT_STATUS=200`, `HEALTH_STATUS=200`, `WEBCLIENT_STATUS=200`.
 - The worktree had no local `_accounts`, `_attachments`, or `_deltas` content, so I linked the shared file-store from `<REPO_ROOT>`. That store was effectively empty as well, so there was no preexisting conversation to open.
 - Second smoke start/check after linking the shared file-store also passed: `ROOT_STATUS=200`, `HEALTH_STATUS=200`, `WEBCLIENT_STATUS=200`.
-- Local auth endpoints worked on the branch server. Registering `issue903test` returned HTTP `302`, and browser login succeeded on `http://localhost:9900/auth/signin`.
+- Local auth endpoints worked on the branch server. Registering a local test account returned HTTP `302`, and browser login succeeded on `http://localhost:9900/auth/signin`.
 - Browser sanity on the branch server:
-  - logged into `http://localhost:9900/` as `issue903test@local.net`
+  - logged into `http://localhost:9900/` as the local test account
   - created a wave from the local UI toolbar
   - confirmed navigation to `http://localhost:9900/#local.net/w+6iM5HKdUjpA`
   - reopened the same wave URL and confirmed the conversation shell loaded again without an obvious `ViewChannel`, fragment-application, or OT bootstrap regression

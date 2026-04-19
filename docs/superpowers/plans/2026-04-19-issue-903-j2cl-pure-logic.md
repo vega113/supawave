@@ -266,6 +266,11 @@ That changelog path is not expected for #903 unless the scope drifts into user-v
 
 Per repo runbooks and the user’s explicit requirement, do not open a PR until compile/tests are green **and** a local staged boot plus browser sanity pass has been recorded from the issue worktree on a non-conflicting port.
 
+For reusable command examples below:
+
+- `$WORKTREE` is the issue worktree root.
+- `$REPO_ROOT` is the main repo checkout used as the shared file-store source.
+
 ### Local Worktree Boot
 
 If the lane needs existing local data to open a real wave, wire the shared file-store first:

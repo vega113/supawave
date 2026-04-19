@@ -1,7 +1,6 @@
 package org.waveprotocol.box.j2cl.search;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public final class J2clSearchResultProjector {

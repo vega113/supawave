@@ -161,6 +161,9 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
     } else {
       emptyState.hidden = true;
       for (J2clSearchDigestItem item : model.getDigestItems()) {
+        if (item.getWaveId() == null) {
+          continue;
+        }
         J2clDigestView digestView =
             new J2clDigestView(
                 item,
@@ -180,7 +183,7 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
   @Override
   public void setSelectedWaveId(String waveId) {
     for (Map.Entry<String, J2clDigestView> entry : digestViews.entrySet()) {
-      entry.getValue().setSelected(entry.getKey().equals(waveId));
+      entry.getValue().setSelected(entry.getKey() != null && entry.getKey().equals(waveId));
     }
   }
 }

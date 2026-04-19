@@ -48,7 +48,6 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
   private final SearchGateway gateway;
   private final View view;
   private final WaveSelectionHandler selectionHandler;
-  private final double viewportWidth;
   private final int pageIncrement;
   private String currentQuery;
   private String selectedWaveId;
@@ -64,7 +63,6 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
     this.gateway = gateway;
     this.view = view;
     this.selectionHandler = selectionHandler;
-    this.viewportWidth = viewportWidth;
     this.pageIncrement = J2clSearchResultProjector.getPageSizeForViewport(viewportWidth);
   }
 
@@ -85,7 +83,7 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
         error -> {
           view.setSessionSummary("Using the current browser session.");
           view.setStatus(
-              "Root bootstrap lookup failed; continuing with the current browser session.",
+              "Continuing with the current browser session.",
               false);
           requestSearch();
         });

@@ -40,6 +40,7 @@ import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
  */
 public class HistoryChangeListener {
   private static final Log LOG = Log.get(HistoryChangeListener.class);
+  private static String currentSelectedToken;
 
   /**
    * Commonly we start to listen history changes when webclient starts calling this
@@ -51,12 +52,17 @@ public class HistoryChangeListener {
     History.addValueChangeHandler(new ValueChangeHandler<String>() {
       @Override
       public void onValueChange(ValueChangeEvent<String> event) {
-        String encodedToken = event.getValue();
-        if (encodedToken == null || encodedToken.length() == 0) {
+        String rawToken = event.getValue();
+        if (rawToken == null || rawToken.length() == 0) {
+          currentSelectedToken = null;
           return;
         }
-        boolean hasSlideNavMetadata = ThreadNavigationHistory.hasMetadata(encodedToken);
-        encodedToken = ThreadNavigationHistory.stripMetadata(encodedToken);
+        String encodedToken = ThreadNavigationHistory.stripMetadata(rawToken);
+        if (ThreadNavigationHistory.hasMetadata(rawToken)
+            && encodedToken.equals(currentSelectedToken)) {
+          LOG.info("Ignoring metadata-only history change for current wave: " + rawToken);
+          return;
+        }
         WaveRef waveRef;
         try {
           waveRef = GwtWaverefEncoder.decodeWaveRefFromPath(encodedToken);
@@ -64,14 +70,15 @@ public class HistoryChangeListener {
           LOG.info("History token contains invalid path: " + encodedToken);
           return;
         }
-        if (hasSlideNavMetadata) {
-          LOG.info("Skipping wave selection for slide-nav history entry: " + encodedToken);
-          return;
-        }
+        currentSelectedToken = encodedToken;
         LOG.info("Changing selected wave based on history event to " + waveRef.toString());
         ClientEvents.get().fireEvent(new WaveSelectionEvent(waveRef));
       }
     });
+  }
+
+  public static void setCurrentWaveToken(String token) {
+    currentSelectedToken = ThreadNavigationHistory.stripMetadata(token);
   }
 
   public HistoryChangeListener() {

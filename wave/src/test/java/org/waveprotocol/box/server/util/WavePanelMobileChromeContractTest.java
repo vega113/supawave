@@ -79,8 +79,15 @@ public final class WavePanelMobileChromeContractTest extends TestCase {
     String tagsCss = read(
         "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");
 
-    assertTrue(conversationCss.contains("body.mobile-wave-chrome-hidden [data-mobile-role='wave-toolbar']"));
-    assertTrue(conversationCss.contains("body.mobile-wave-chrome-hidden [data-mobile-role='wave-participants']"));
+    assertTrue(
+        conversationCss.contains(
+            "body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-toolbar']"));
+    assertTrue(
+        conversationCss.contains(
+            "body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-participants']"));
+    assertTrue(
+        conversationCss.contains(
+            "body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-thread']"));
     assertTrue(tagsCss.contains("body.mobile-tags-open [data-mobile-role='wave-tags']"));
     assertTrue(tagsCss.contains("position: fixed"));
   }

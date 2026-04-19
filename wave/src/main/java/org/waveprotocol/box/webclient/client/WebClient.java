@@ -837,11 +837,13 @@ public class WebClient implements EntryPoint {
       Set<ParticipantId> participants) {
     final org.waveprotocol.box.stat.Timer timer = Timing.startRequest("Open Wave");
     LOG.info("WebClient.openWave()");
+    String selectedToken = GwtWaverefEncoder.encodeToUriPathSegment(waveRef);
 
     // If the same wave is already open and the reference includes a blip ID,
     // navigate to that blip without reopening the wave.
     if (!isNewWave && wave != null && waveRef.hasDocumentId()
         && wave.getWaveId().equals(waveRef.getWaveId())) {
+      HistoryChangeListener.setCurrentWaveToken(selectedToken);
       LOG.info("Navigating to blip within same wave: " + waveRef.getDocumentId());
       wave.focusBlip(waveRef);
       Timing.stop(timer);
@@ -861,6 +863,7 @@ public class WebClient implements EntryPoint {
     }
 
     persistLastOpenedWave(waveRef);
+    HistoryChangeListener.setCurrentWaveToken(selectedToken);
 
     // Release the display:none.
     UIObject.setVisible(waveFrame.getElement(), true);
@@ -898,7 +901,7 @@ public class WebClient implements EntryPoint {
         return;
       }
     }
-    History.newItem(GwtWaverefEncoder.encodeToUriPathSegment(waveRef), false);
+    History.newItem(selectedToken, false);
   }
 
   /**

@@ -93,9 +93,12 @@ public final class WavePanelThreadFocusContractTest extends TestCase {
 
     assertTrue(presenter.contains("ThreadNavigationHistory.appendMetadata("));
     assertTrue(presenter.contains("IdUtil.isBlipId("));
-    assertTrue(historyListener.contains("ThreadNavigationHistory.stripMetadata(encodedToken)"));
+    assertTrue(historyListener.contains("ThreadNavigationHistory.stripMetadata(rawToken)"));
+    assertTrue(historyListener.contains("ThreadNavigationHistory.hasMetadata(rawToken)"));
+    assertTrue(historyListener.contains("encodedToken.equals(currentSelectedToken)"));
     assertTrue(webClient.contains("ThreadNavigationHistory.stripMetadata(savedToken)"));
     assertTrue(webClient.contains("ThreadNavigationHistory.stripMetadata(encodedToken)"));
+    assertTrue(webClient.contains("HistoryChangeListener.setCurrentWaveToken("));
   }
 
   private String read(String relativePath) throws IOException {

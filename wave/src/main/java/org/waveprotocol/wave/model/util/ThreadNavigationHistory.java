@@ -42,16 +42,20 @@ public final class ThreadNavigationHistory {
     return token.toString();
   }
 
-  public static boolean hasMetadata(String token) {
-    return token != null && token.indexOf('&') >= 0;
-  }
-
   public static String stripMetadata(String token) {
     if (token == null || token.isEmpty()) {
       return token;
     }
     int metadataStart = token.indexOf('&');
     return metadataStart >= 0 ? token.substring(0, metadataStart) : token;
+  }
+
+  public static boolean hasMetadata(String token) {
+    if (token == null || token.isEmpty()) {
+      return false;
+    }
+    return extractParam(token, HISTORY_PARAM_FOCUS) != null
+        || extractParam(token, HISTORY_PARAM_DEPTH) != null;
   }
 
   public static String extractParam(String token, String key) {

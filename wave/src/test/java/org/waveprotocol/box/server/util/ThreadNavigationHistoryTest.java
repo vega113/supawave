@@ -50,4 +50,13 @@ public final class ThreadNavigationHistoryTest extends TestCase {
     assertEquals("b+child", ThreadNavigationHistory.extractParam(token, "focus"));
     assertEquals("2", ThreadNavigationHistory.extractParam(token, "slide-nav"));
   }
+
+  public void testHasMetadataDetectsFocusedThreadParams() {
+    assertTrue(ThreadNavigationHistory.hasMetadata(
+        "example.com/w+abc123/~/conv+root/b+abc&focus=b+child"));
+    assertTrue(ThreadNavigationHistory.hasMetadata(
+        "example.com/w+abc123/~/conv+root/b+abc&slide-nav=2"));
+    assertFalse(ThreadNavigationHistory.hasMetadata(
+        "example.com/w+abc123/~/conv+root/b+abc"));
+  }
 }

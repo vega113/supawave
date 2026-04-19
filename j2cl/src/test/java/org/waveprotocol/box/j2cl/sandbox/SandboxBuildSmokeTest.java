@@ -62,4 +62,27 @@ public class SandboxBuildSmokeTest {
         "ws://socket.example.test/socket",
         SandboxEntryPoint.buildWebSocketUrl("http:", "socket.example.test"));
   }
+
+  @Test
+  public void malformedQueryFallsBackToDefaultSearch() {
+    Assert.assertEquals("in:inbox", SandboxEntryPoint.readRequestedQuery("?q=%"));
+  }
+
+  @Test
+  public void encodedQueryDecodesPercentEscapes() {
+    Assert.assertEquals("with:@", SandboxEntryPoint.readRequestedQuery("?q=with%3A%40"));
+  }
+
+  @Test
+  public void encodedQueryTreatsPlusAsSpace() {
+    Assert.assertEquals(
+        "mentions:me unread:true",
+        SandboxEntryPoint.readRequestedQuery("?q=mentions%3Ame+unread%3Atrue"));
+  }
+
+  @Test
+  public void malformedCookieValueReturnsNull() {
+    Assert.assertNull(
+        SandboxEntryPoint.readCookieFromHeader("JSESSIONID=%; theme=dark", "JSESSIONID"));
+  }
 }

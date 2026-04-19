@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-19-j2cl-search-slice",
+  "version": "Unreleased",
+  "date": "2026-04-19",
+  "title": "A first J2CL search slice now runs on the isolated sidecar route",
+  "summary": "The legacy root app stays on / while /j2cl-search/index.html now renders the first real J2CL search results panel against the existing search backend.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added an isolated J2CL search/results slice under /j2cl-search/index.html without cutting over the legacy root runtime",
+        "The sidecar search slice now loads the default inbox query, reruns narrow searches without a full page reload, and expands the result window with show-more behavior",
+        "The first slice uses static sidecar CSS and the J2CL-safe search response path instead of GWT UiBinder or JSO-only search widgets"
+      ]
+    }
+  ]
+}

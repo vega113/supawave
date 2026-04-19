@@ -21,10 +21,21 @@ public final class SidecarSessionBootstrap {
     if (sessionMarker < 0) {
       throw new IllegalArgumentException("Root page did not expose window.__session");
     }
-    int objectStart = html.indexOf('{', sessionMarker);
-    if (objectStart < 0) {
+    int assignIdx = sessionMarker + "__session".length();
+    while (assignIdx < html.length() && Character.isWhitespace(html.charAt(assignIdx))) {
+      assignIdx++;
+    }
+    if (assignIdx >= html.length() || html.charAt(assignIdx) != '=') {
+      throw new IllegalArgumentException("Unable to locate __session assignment operator");
+    }
+    assignIdx++;
+    while (assignIdx < html.length() && Character.isWhitespace(html.charAt(assignIdx))) {
+      assignIdx++;
+    }
+    if (assignIdx >= html.length() || html.charAt(assignIdx) != '{') {
       throw new IllegalArgumentException("Unable to locate __session JSON object");
     }
+    int objectStart = assignIdx;
     int objectEnd = findMatchingBrace(html, objectStart);
     Map<String, Object> session =
         SidecarTransportCodec.parseJsonObject(html.substring(objectStart, objectEnd + 1));

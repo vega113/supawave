@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.transport;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
@@ -20,16 +21,14 @@ public class SidecarTransportCodecTest {
   public void encodeOpenEnvelopeUsesGeneratedNumericFieldKeys() {
     SidecarOpenRequest request =
         new SidecarOpenRequest(
-            "user@example.com",
-            "example.com/w+abc123",
-            java.util.Collections.singletonList("example.com!conv+root"));
+            "user@example.com", "example.com/w+abc123", Arrays.asList("conv+root"));
 
     String json = SidecarTransportCodec.encodeOpenEnvelope(8, request);
 
     Assert.assertTrue(json.contains("\"messageType\":\"ProtocolOpenRequest\""));
     Assert.assertTrue(json.contains("\"1\":\"user@example.com\""));
     Assert.assertTrue(json.contains("\"2\":\"example.com/w+abc123\""));
-    Assert.assertTrue(json.contains("\"3\":[\"example.com!conv+root\"]"));
+    Assert.assertTrue(json.contains("\"3\":[\"conv+root\"]"));
   }
 
   @Test

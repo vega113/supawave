@@ -5,6 +5,7 @@ import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.XMLHttpRequest;
 import elemental2.dom.WebSocket;
+import java.util.Collections;
 import jsinterop.annotations.JsFunction;
 import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsPackage;
@@ -19,6 +20,7 @@ import org.waveprotocol.box.j2cl.transport.SidecarWaveletUpdateSummary;
 public final class SandboxEntryPoint {
   private static final String DEFAULT_MODE = "sidecar";
   private static final String DEFAULT_QUERY = "in:inbox";
+  private static final String DEFAULT_WAVELET_PREFIX = "conv+root";
 
   private SandboxEntryPoint() {
   }
@@ -246,7 +248,11 @@ public final class SandboxEntryPoint {
         }
         ws.send(
             SidecarTransportCodec.encodeOpenEnvelope(
-                1, new SidecarOpenRequest(bootstrap.getAddress(), digest.getWaveId(), null)));
+                1,
+                new SidecarOpenRequest(
+                    bootstrap.getAddress(),
+                    digest.getWaveId(),
+                    Collections.singletonList(DEFAULT_WAVELET_PREFIX))));
         setNeutral(
             "Awaiting ProtocolWaveletUpdate",
             "Socket connected; auth/open sent for " + digest.getWaveId() + ".");
@@ -268,6 +274,12 @@ public final class SandboxEntryPoint {
           return;
         }
         SidecarWaveletUpdateSummary summary = frame.getSummary();
+        if (isChannelEstablishmentUpdate(summary)) {
+          setNeutral(
+              "Socket active",
+              "Received channel-establishment update; waiting for a real wavelet stream update.");
+          return;
+        }
         waitingForUpdate = false;
         setSuccess(
             "Sidecar transport proof passed",
@@ -379,6 +391,11 @@ public final class SandboxEntryPoint {
   static boolean shouldHandleSocketCallback(
       int callbackGeneration, int currentGeneration, boolean ownsCurrentSocket) {
     return shouldHandleAsyncCallback(callbackGeneration, currentGeneration) && ownsCurrentSocket;
+  }
+
+  static boolean isChannelEstablishmentUpdate(SidecarWaveletUpdateSummary summary) {
+    String waveletName = summary.getWaveletName();
+    return waveletName != null && waveletName.contains("/~/dummy+root");
   }
 
   private static void requestText(String url, TextCallback onSuccess, ErrorCallback onError) {

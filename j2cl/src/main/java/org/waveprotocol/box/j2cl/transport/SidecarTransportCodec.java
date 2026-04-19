@@ -115,7 +115,10 @@ public final class SidecarTransportCodec {
   }
 
   public static Map<String, Object> parseJsonObject(String json) {
-    return asObject(new JsonParser(json).parseValue());
+    JsonParser parser = new JsonParser(json);
+    Map<String, Object> result = asObject(parser.parseValue());
+    parser.ensureFullyConsumed();
+    return result;
   }
 
   private static Map<String, Object> asObject(Object value) {
@@ -251,6 +254,7 @@ public final class SidecarTransportCodec {
           return object;
         }
         expect(',');
+        skipWhitespace();
       }
     }
 
@@ -270,6 +274,7 @@ public final class SidecarTransportCodec {
           return values;
         }
         expect(',');
+        skipWhitespace();
       }
     }
 
@@ -403,6 +408,13 @@ public final class SidecarTransportCodec {
         throw new IllegalArgumentException("Expected '" + c + "' at index " + index);
       }
       index++;
+    }
+
+    void ensureFullyConsumed() {
+      skipWhitespace();
+      if (index != json.length()) {
+        throw new IllegalArgumentException("Unexpected trailing content at index " + index);
+      }
     }
   }
 }

@@ -43,15 +43,13 @@ public class SandboxBuildSmokeTest {
   }
 
   @Test
-  public void shouldHandleAsyncCallbackRejectsStaleGenerations() {
-    Assert.assertTrue(SandboxEntryPoint.shouldHandleAsyncCallback(4, 4));
-    Assert.assertFalse(SandboxEntryPoint.shouldHandleAsyncCallback(3, 4));
-  }
+  public void dummyChannelUpdateIsNotTreatedAsRealWaveletProof() {
+    SandboxEntryPoint.SocketFrameResult result =
+        SandboxEntryPoint.evaluateSocketFrame(
+            "{\"sequenceNumber\":3,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+                + "\"1\":\"local.net/w+abc/~/dummy+root\",\"2\":[],\"6\":true,\"7\":\"ch1\"}}");
 
-  @Test
-  public void shouldHandleSocketCallbackRejectsStaleSockets() {
-    Assert.assertTrue(SandboxEntryPoint.shouldHandleSocketCallback(4, 4, true));
-    Assert.assertFalse(SandboxEntryPoint.shouldHandleSocketCallback(4, 4, false));
-    Assert.assertFalse(SandboxEntryPoint.shouldHandleSocketCallback(3, 4, true));
+    Assert.assertFalse(result.isError());
+    Assert.assertTrue(SandboxEntryPoint.isChannelEstablishmentUpdate(result.getSummary()));
   }
 }

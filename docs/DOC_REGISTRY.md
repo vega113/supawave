@@ -31,6 +31,7 @@ Review cadence: <value>
 <!-- One path per line. Lines starting with # or empty lines are ignored. -->
 
 docs/runbooks/README.md
+docs/runbooks/j2cl-sidecar-testing.md
 docs/runbooks/browser-verification.md
 docs/runbooks/change-type-verification-matrix.md
 docs/runbooks/mongo-migrations.md

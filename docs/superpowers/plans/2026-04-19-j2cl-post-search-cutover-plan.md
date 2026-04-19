@@ -41,7 +41,7 @@ The current J2CL tree is still only a thin slice:
 - no sidecar route that opens and renders a selected wave in context
 - no read-only conversation view
 - no compose/reply/edit path
-- no J2CL-owned root app shell yet
+- no J2CL-owned editor route on the real app path
 - no feature-flagged root bootstrap that can swap between a real GWT shell and
   a real J2CL shell
 - no production parity checklist that proves “J2CL can replace GWT” rather than

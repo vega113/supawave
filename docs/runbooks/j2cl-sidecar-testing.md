@@ -3,6 +3,7 @@
 Status: Canonical
 Owner: Project Maintainers
 Updated: 2026-04-19
+Review cadence: Quarterly
 
 This runbook covers the local verification path for the merged J2CL sidecar
 work. It is the right procedure when a change touches `j2cl/`, the sidecar
@@ -109,13 +110,13 @@ below.
 While the server is running:
 
 ```bash
-curl -sS -I http://localhost:9900/
-curl -sS -I http://localhost:9900/webclient/webclient.nocache.js
-curl -sS -I http://localhost:9900/j2cl-search/index.html
-curl -sS -I http://localhost:9900/j2cl/index.html
-curl -fsS http://localhost:9900/j2cl-search/sidecar/j2cl-sidecar.js | rg "WaveSandboxEntryPoint|j2cl"
+curl -fsS -o /dev/null http://localhost:9900/
+curl -fsS -o /dev/null http://localhost:9900/webclient/webclient.nocache.js
+curl -fsS -o /dev/null http://localhost:9900/j2cl-search/index.html
+curl -fsS -o /dev/null http://localhost:9900/j2cl/index.html
+curl -fsS http://localhost:9900/j2cl-search/sidecar/j2cl-sidecar.js | grep -E "WaveSandboxEntryPoint|j2cl"
 # Optional — only present when j2clSandboxBuild was also run
-curl -sS -I http://localhost:9900/j2cl-debug/index.html
+curl -fsS -o /dev/null http://localhost:9900/j2cl-debug/index.html
 ```
 
 Expected result:

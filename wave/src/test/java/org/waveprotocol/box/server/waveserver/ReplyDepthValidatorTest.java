@@ -38,13 +38,23 @@ import java.util.List;
 
 public final class ReplyDepthValidatorTest extends TestCase {
 
-  public void testAllowsSiblingThreadAtMaxDepth() {
-    FakeSilentOperationSink<WaveletOperation> sink = new FakeSilentOperationSink<WaveletOperation>();
-    WaveletBasedConversation waveletConversation = createConversation(sink);
-    Conversation conversation = waveletConversation;
+  private static final class DepthFiveChain {
+    final ConversationBlip depthFourBlip;
+    final ConversationBlip depthFiveBlip;
+    final ObservableWaveletData snapshot;
 
-    ConversationBlip root = conversation.getRootThread().appendBlip();
-    ConversationBlip current = root;
+    DepthFiveChain(ConversationBlip depthFourBlip, ConversationBlip depthFiveBlip,
+        ObservableWaveletData snapshot) {
+      this.depthFourBlip = depthFourBlip;
+      this.depthFiveBlip = depthFiveBlip;
+      this.snapshot = snapshot;
+    }
+  }
+
+  private static DepthFiveChain buildDepthFiveChain(WaveletBasedConversation waveletConversation,
+      FakeSilentOperationSink<WaveletOperation> sink) {
+    Conversation conversation = waveletConversation;
+    ConversationBlip current = conversation.getRootThread().appendBlip();
     ConversationBlip depthFourBlip = null;
     for (int depth = 1; depth <= 5; depth++) {
       current = current.addReplyThread().appendBlip();
@@ -52,38 +62,34 @@ public final class ReplyDepthValidatorTest extends TestCase {
         depthFourBlip = current;
       }
     }
-
-    assertNotNull(depthFourBlip);
     ObservableWaveletData snapshot =
         WaveletDataUtil.copyWavelet(waveletConversation.getWavelet().getWaveletData());
     assertEquals(5, ReplyDepthValidator.computeManifestMaxDepth(snapshot));
-
     sink.clear();
-    depthFourBlip.addReplyThread().appendBlip();
+    return new DepthFiveChain(depthFourBlip, current, snapshot);
+  }
+
+  public void testAllowsSiblingThreadAtMaxDepth() {
+    FakeSilentOperationSink<WaveletOperation> sink = new FakeSilentOperationSink<WaveletOperation>();
+    WaveletBasedConversation waveletConversation = createConversation(sink);
+    DepthFiveChain chain = buildDepthFiveChain(waveletConversation, sink);
+
+    assertNotNull(chain.depthFourBlip);
+    chain.depthFourBlip.addReplyThread().appendBlip();
     List<WaveletOperation> ops = sink.getOps();
 
-    assertNull(ReplyDepthValidator.validate(snapshot, ops, 5));
+    assertNull(ReplyDepthValidator.validate(chain.snapshot, ops, 5));
   }
 
   public void testRejectsThreadDeeperThanMaxDepth() {
     FakeSilentOperationSink<WaveletOperation> sink = new FakeSilentOperationSink<WaveletOperation>();
     WaveletBasedConversation waveletConversation = createConversation(sink);
-    Conversation conversation = waveletConversation;
+    DepthFiveChain chain = buildDepthFiveChain(waveletConversation, sink);
 
-    ConversationBlip current = conversation.getRootThread().appendBlip();
-    for (int depth = 1; depth <= 5; depth++) {
-      current = current.addReplyThread().appendBlip();
-    }
-
-    ObservableWaveletData snapshot =
-        WaveletDataUtil.copyWavelet(waveletConversation.getWavelet().getWaveletData());
-    assertEquals(5, ReplyDepthValidator.computeManifestMaxDepth(snapshot));
-
-    sink.clear();
-    current.addReplyThread().appendBlip();
+    chain.depthFiveBlip.addReplyThread().appendBlip();
     List<WaveletOperation> ops = sink.getOps();
 
-    String validationError = ReplyDepthValidator.validate(snapshot, ops, 5);
+    String validationError = ReplyDepthValidator.validate(chain.snapshot, ops, 5);
     assertNotNull(validationError);
     assertTrue(validationError.startsWith("Reply depth limit exceeded (max 5)"));
   }
@@ -91,29 +97,14 @@ public final class ReplyDepthValidatorTest extends TestCase {
   public void testRejectsDeltaWhenLaterThreadInsertExceedsMaxDepth() {
     FakeSilentOperationSink<WaveletOperation> sink = new FakeSilentOperationSink<WaveletOperation>();
     WaveletBasedConversation waveletConversation = createConversation(sink);
-    Conversation conversation = waveletConversation;
+    DepthFiveChain chain = buildDepthFiveChain(waveletConversation, sink);
 
-    ConversationBlip root = conversation.getRootThread().appendBlip();
-    ConversationBlip current = root;
-    ConversationBlip depthFourBlip = null;
-    for (int depth = 1; depth <= 5; depth++) {
-      current = current.addReplyThread().appendBlip();
-      if (depth == 4) {
-        depthFourBlip = current;
-      }
-    }
-
-    assertNotNull(depthFourBlip);
-    ObservableWaveletData snapshot =
-        WaveletDataUtil.copyWavelet(waveletConversation.getWavelet().getWaveletData());
-    assertEquals(5, ReplyDepthValidator.computeManifestMaxDepth(snapshot));
-
-    sink.clear();
-    ConversationBlip siblingDepthFiveBlip = depthFourBlip.addReplyThread().appendBlip();
+    assertNotNull(chain.depthFourBlip);
+    ConversationBlip siblingDepthFiveBlip = chain.depthFourBlip.addReplyThread().appendBlip();
     siblingDepthFiveBlip.addReplyThread().appendBlip();
     List<WaveletOperation> ops = sink.getOps();
 
-    String validationError = ReplyDepthValidator.validate(snapshot, ops, 5);
+    String validationError = ReplyDepthValidator.validate(chain.snapshot, ops, 5);
     assertNotNull(validationError);
     assertTrue(validationError.startsWith("Reply depth limit exceeded (max 5)"));
   }

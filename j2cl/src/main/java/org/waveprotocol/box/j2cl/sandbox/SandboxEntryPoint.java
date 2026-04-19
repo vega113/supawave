@@ -478,7 +478,10 @@ public final class SandboxEntryPoint {
   private static String decodeUriComponentSafe(String value) {
     try {
       return decodeUriComponentNative(value);
-    } catch (UnsatisfiedLinkError e) {
+    } catch (Error err) {
+      if (!isMissingNativeUriCodec(err)) {
+        throw err;
+      }
       return decodeUriComponentFallback(value);
     }
   }
@@ -580,5 +583,9 @@ public final class SandboxEntryPoint {
       return ch - 'a' + 10;
     }
     throw new IllegalArgumentException("Invalid hex digit");
+  }
+
+  private static boolean isMissingNativeUriCodec(Error err) {
+    return "java.lang.UnsatisfiedLinkError".equals(err.getClass().getName());
   }
 }

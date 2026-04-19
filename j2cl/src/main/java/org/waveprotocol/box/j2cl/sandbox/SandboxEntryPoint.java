@@ -174,7 +174,7 @@ public final class SandboxEntryPoint {
       requestText(
           "/",
           html -> {
-            if (generation != runGeneration) {
+            if (!shouldHandleAsyncCallback(generation, runGeneration)) {
               return;
             }
             SidecarSessionBootstrap bootstrap;
@@ -190,20 +190,20 @@ public final class SandboxEntryPoint {
             requestText(
                 buildSearchUrl(),
                 responseText -> {
-                  if (generation != runGeneration) {
+                  if (!shouldHandleAsyncCallback(generation, runGeneration)) {
                     return;
                   }
                   handleSearchResponse(bootstrap, responseText);
                 },
                 error -> {
-                  if (generation != runGeneration) {
+                  if (!shouldHandleAsyncCallback(generation, runGeneration)) {
                     return;
                   }
                   setError("Search request failed", error);
                 });
           },
           error -> {
-            if (generation != runGeneration) {
+            if (!shouldHandleAsyncCallback(generation, runGeneration)) {
               return;
             }
             setError("Root bootstrap request failed", error);
@@ -228,14 +228,15 @@ public final class SandboxEntryPoint {
       setNeutral(
           "Opening /socket",
           "Selected " + digest.getWaveId() + " from query " + response.getQuery() + "; waiting for a sidecar wavelet update.");
-      openSocket(bootstrap, digest);
+      openSocket(bootstrap, digest, runGeneration);
     }
 
-    private void openSocket(SidecarSessionBootstrap bootstrap, SidecarSearchResponse.Digest digest) {
+    private void openSocket(
+        SidecarSessionBootstrap bootstrap, SidecarSearchResponse.Digest digest, int generation) {
       WebSocket ws = new WebSocket(buildWebSocketUrl());
       socket = ws;
       ws.onopen = event -> {
-        if (ws != socket) {
+        if (!shouldHandleSocketCallback(generation, runGeneration, ws == socket)) {
           return;
         }
         waitingForUpdate = true;
@@ -251,7 +252,7 @@ public final class SandboxEntryPoint {
             "Socket connected; auth/open sent for " + digest.getWaveId() + ".");
       };
       ws.onmessage = event -> {
-        if (ws != socket) {
+        if (!shouldHandleSocketCallback(generation, runGeneration, ws == socket)) {
           return;
         }
         String payload = String.valueOf(event.data);
@@ -280,13 +281,13 @@ public final class SandboxEntryPoint {
         closeSocket();
       };
       ws.onerror = event -> {
-        if (ws != socket) {
+        if (!shouldHandleSocketCallback(generation, runGeneration, ws == socket)) {
           return;
         }
         setError("Socket error", "The isolated sidecar failed while talking to /socket.");
       };
       ws.onclose = event -> {
-        if (ws != socket) {
+        if (!shouldHandleSocketCallback(generation, runGeneration, ws == socket)) {
           return;
         }
         if (waitingForUpdate) {
@@ -369,6 +370,15 @@ public final class SandboxEntryPoint {
       return SocketFrameResult.error(
           "The isolated sidecar sent an unexpected or invalid socket frame: " + detail);
     }
+  }
+
+  static boolean shouldHandleAsyncCallback(int callbackGeneration, int currentGeneration) {
+    return callbackGeneration == currentGeneration;
+  }
+
+  static boolean shouldHandleSocketCallback(
+      int callbackGeneration, int currentGeneration, boolean ownsCurrentSocket) {
+    return shouldHandleAsyncCallback(callbackGeneration, currentGeneration) && ownsCurrentSocket;
   }
 
   private static void requestText(String url, TextCallback onSuccess, ErrorCallback onError) {

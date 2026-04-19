@@ -41,4 +41,17 @@ public class SandboxBuildSmokeTest {
     Assert.assertEquals(
         "example.com!conv+root/example.com!conv+root", result.getSummary().getWaveletName());
   }
+
+  @Test
+  public void shouldHandleAsyncCallbackRejectsStaleGenerations() {
+    Assert.assertTrue(SandboxEntryPoint.shouldHandleAsyncCallback(4, 4));
+    Assert.assertFalse(SandboxEntryPoint.shouldHandleAsyncCallback(3, 4));
+  }
+
+  @Test
+  public void shouldHandleSocketCallbackRejectsStaleSockets() {
+    Assert.assertTrue(SandboxEntryPoint.shouldHandleSocketCallback(4, 4, true));
+    Assert.assertFalse(SandboxEntryPoint.shouldHandleSocketCallback(4, 4, false));
+    Assert.assertFalse(SandboxEntryPoint.shouldHandleSocketCallback(3, 4, true));
+  }
 }

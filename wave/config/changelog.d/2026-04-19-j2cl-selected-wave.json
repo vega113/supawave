@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-19-j2cl-selected-wave",
+  "version": "Unreleased",
+  "date": "2026-04-19",
+  "title": "The J2CL sidecar can now open a read-only selected wave beside search results",
+  "summary": "The isolated /j2cl-search/index.html route now keeps the existing search rail and opens the selected wave in a live read-only panel with sidecar-owned reconnect handling, while the legacy root path stays on GWT.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a split-view J2CL sidecar shell that keeps search results on the left and renders a read-only selected-wave panel on the right",
+        "Digest selection now opens the selected wave over the existing sidecar socket path, decodes snapshot plus fragment payloads, and renders live read-only content without route persistence",
+        "The selected-wave sidecar flow now retries once through the existing session bootstrap after a disconnect instead of requiring a full page reset"
+      ]
+    }
+  ]
+}

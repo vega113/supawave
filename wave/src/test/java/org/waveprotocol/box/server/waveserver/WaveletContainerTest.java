@@ -43,8 +43,13 @@ import org.waveprotocol.wave.federation.Proto.ProtocolAppliedWaveletDelta;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignature;
 import org.waveprotocol.wave.federation.Proto.ProtocolSignedDelta;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
+import org.waveprotocol.wave.model.conversation.Conversation;
+import org.waveprotocol.wave.model.conversation.ConversationBlip;
+import org.waveprotocol.wave.model.conversation.WaveBasedConversationView;
+import org.waveprotocol.wave.model.conversation.WaveletBasedConversation;
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuilder;
+import org.waveprotocol.wave.model.id.IdGenerator;
 import org.waveprotocol.wave.model.id.IdURIEncoderDecoder;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
@@ -57,15 +62,20 @@ import org.waveprotocol.wave.model.operation.wave.WaveletBlipOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletDelta;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperationContext;
+import org.waveprotocol.wave.model.schema.conversation.ConversationSchemas;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.version.HashedVersionFactory;
 import org.waveprotocol.wave.model.version.HashedVersionFactoryImpl;
+import org.waveprotocol.wave.model.testing.FakeIdGenerator;
+import org.waveprotocol.wave.model.testing.FakeSilentOperationSink;
+import org.waveprotocol.wave.model.testing.FakeWaveView;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.util.escapers.jvm.JavaUrlCodec;
 import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -243,6 +253,65 @@ public class WaveletContainerTest extends TestCase {
       // Correct
     }
     assertEquals(localWavelet.getCurrentVersion(), oldVersion);
+  }
+
+  public void testDuplicateReplyDeltaRemainsIdempotentAfterLaterReplyEdit() throws Exception {
+    WaveletName conversationalWaveletName = WaveletName.of(
+        WaveId.of(localDomain, "w+replyDepth"), WaveletId.of(localDomain, "conv+root"));
+    WaveletNotificationSubscriber notifiee = mock(WaveletNotificationSubscriber.class);
+    DeltaStore deltaStore = new MemoryDeltaStore();
+    WaveletState conversationalState =
+        DeltaStoreBasedWaveletState.create(deltaStore.open(conversationalWaveletName), PERSIST_EXECUTOR);
+    LocalWaveletContainerImpl conversationalWavelet = new LocalWaveletContainerImpl(
+        conversationalWaveletName, notifiee, Futures.immediateFuture(conversationalState),
+        localDomain, STORAGE_CONTINUATION_EXECUTOR, 5);
+    conversationalWavelet.awaitLoad();
+
+    FakeSilentOperationSink<WaveletOperation> sink = new FakeSilentOperationSink<WaveletOperation>();
+    IdGenerator idGenerator = FakeIdGenerator.create();
+    FakeWaveView waveView = FakeWaveView.builder(new ConversationSchemas())
+        .with(idGenerator)
+        .with(sink)
+        .build();
+    WaveBasedConversationView conversationView = WaveBasedConversationView.create(waveView, idGenerator);
+    WaveletBasedConversation conversation = conversationView.createConversation();
+    Conversation publicConversation = conversation;
+
+    submitOps(conversationalWaveletName, conversationalWavelet, sink.getOps(), fakeConversationAuthor);
+    sink.clear();
+
+    ConversationBlip root = publicConversation.getRootThread().appendBlip();
+    submitOps(conversationalWaveletName, conversationalWavelet, sink.getOps(), fakeConversationAuthor);
+    sink.clear();
+
+    ConversationBlip depthFourBlip = root;
+    for (int depth = 1; depth <= 4; depth++) {
+      depthFourBlip = depthFourBlip.addReplyThread().appendBlip();
+      submitOps(conversationalWaveletName, conversationalWavelet, sink.getOps(),
+          fakeConversationAuthor);
+      sink.clear();
+    }
+
+    depthFourBlip.addReplyThread().appendBlip();
+    ProtocolSignedDelta duplicateReplyDelta =
+        createProtocolSignedDelta(new ArrayList<WaveletOperation>(sink.getOps()),
+            conversationalWavelet.getCurrentVersion(), fakeConversationAuthor, fakeSignature1);
+    WaveletDeltaRecord firstReplyRecord =
+        conversationalWavelet.submitRequest(conversationalWaveletName, duplicateReplyDelta);
+    HashedVersion versionAfterFirstReply = conversationalWavelet.getCurrentVersion();
+    sink.clear();
+
+    depthFourBlip.addReplyThread().appendBlip();
+    submitOps(conversationalWaveletName, conversationalWavelet, sink.getOps(), fakeConversationAuthor);
+    HashedVersion versionAfterLaterReply = conversationalWavelet.getCurrentVersion();
+    sink.clear();
+
+    WaveletDeltaRecord duplicateReplyRecord =
+        conversationalWavelet.submitRequest(conversationalWaveletName, duplicateReplyDelta);
+
+    assertEquals(versionAfterLaterReply.getVersion(),
+        conversationalWavelet.getCurrentVersion().getVersion());
+    assertEquals(firstReplyRecord.getResultingVersion(), duplicateReplyRecord.getResultingVersion());
   }
 
   public void testLoadStateDescriptionReflectsPendingAndCompletedLoad() throws Exception {
@@ -447,6 +516,32 @@ public class WaveletContainerTest extends TestCase {
   private static ProtocolWaveletDelta serialize(WaveletDelta d) {
     return CoreWaveletOperationSerializer.serialize(d);
   }
+
+  private static ProtocolSignedDelta createProtocolSignedDelta(Iterable<WaveletOperation> ops,
+      HashedVersion targetVersion, ParticipantId deltaAuthor, ProtocolSignature signature) {
+    return ProtocolSignedDelta.newBuilder()
+        .setDelta(CoreWaveletOperationSerializer.serialize(
+            new WaveletDelta(deltaAuthor, targetVersion, ops)).toByteString())
+        .addSignature(signature)
+        .build();
+  }
+
+  private static void submitOps(WaveletName waveletName, LocalWaveletContainerImpl target,
+      Iterable<WaveletOperation> operations, ParticipantId deltaAuthor) throws Exception {
+    ArrayList<WaveletOperation> ops = new ArrayList<WaveletOperation>();
+    for (WaveletOperation operation : operations) {
+      ops.add(operation);
+    }
+    if (ops.isEmpty()) {
+      return;
+    }
+    target.submitRequest(
+        waveletName,
+        createProtocolSignedDelta(ops, target.getCurrentVersion(), deltaAuthor, fakeSignature1));
+  }
+
+  private static final ParticipantId fakeConversationAuthor =
+      new ParticipantId("fake@example.com");
 
   private static final class ConservativeDefaultWaveletContainer implements WaveletContainer {
     @Override

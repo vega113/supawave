@@ -104,6 +104,7 @@ curl -sS -I http://localhost:9900/
 curl -sS -I http://localhost:9900/webclient/webclient.nocache.js
 curl -sS -I http://localhost:9900/j2cl-search/index.html
 curl -sS -I http://localhost:9900/j2cl/index.html
+# Optional — only present when j2clSandboxBuild was also run
 curl -sS -I http://localhost:9900/j2cl-debug/index.html
 ```
 
@@ -113,7 +114,7 @@ Expected result:
 - `/webclient/webclient.nocache.js` is present
 - `/j2cl-search/index.html` is present
 - `/j2cl/index.html` is present (production sidecar artifact from `Universal/stage`)
-- `/j2cl-debug/index.html` is present
+- `/j2cl-debug/index.html` is present only if `j2clSandboxBuild` was run; not required by the standard gate
 
 ## Manual Browser Verification
 

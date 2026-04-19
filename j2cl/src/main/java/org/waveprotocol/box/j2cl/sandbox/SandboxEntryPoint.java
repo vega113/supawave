@@ -156,6 +156,7 @@ public final class SandboxEntryPoint {
     private final HTMLElement meta;
     private WebSocket socket;
     private boolean waitingForUpdate;
+    private int runGeneration;
 
     private SidecarProofRunner(String mode, HTMLElement status, HTMLElement meta) {
       this.mode = mode;
@@ -166,12 +167,16 @@ public final class SandboxEntryPoint {
     void run() {
       closeSocket();
       waitingForUpdate = false;
+      int generation = ++runGeneration;
       setNeutral(
           "Fetching root bootstrap",
           "Reading the live root page session so the sidecar can reuse the active legacy login context.");
       requestText(
           "/",
           html -> {
+            if (generation != runGeneration) {
+              return;
+            }
             SidecarSessionBootstrap bootstrap;
             try {
               bootstrap = SidecarSessionBootstrap.fromRootHtml(html);
@@ -184,10 +189,25 @@ public final class SandboxEntryPoint {
                 "Resolved session address " + bootstrap.getAddress() + "; requesting a narrow sidecar proof wave.");
             requestText(
                 buildSearchUrl(),
-                responseText -> handleSearchResponse(bootstrap, responseText),
-                error -> setError("Search request failed", error));
+                responseText -> {
+                  if (generation != runGeneration) {
+                    return;
+                  }
+                  handleSearchResponse(bootstrap, responseText);
+                },
+                error -> {
+                  if (generation != runGeneration) {
+                    return;
+                  }
+                  setError("Search request failed", error);
+                });
           },
-          error -> setError("Root bootstrap request failed", error));
+          error -> {
+            if (generation != runGeneration) {
+              return;
+            }
+            setError("Root bootstrap request failed", error);
+          });
     }
 
     private void handleSearchResponse(SidecarSessionBootstrap bootstrap, String responseText) {

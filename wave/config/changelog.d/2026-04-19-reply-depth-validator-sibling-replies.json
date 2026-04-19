@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-19-reply-depth-validator-sibling-replies",
+  "version": "Unreleased",
+  "date": "2026-04-19",
+  "title": "Reply depth limit no longer blocks valid sibling replies",
+  "summary": "Waves that already contain one max-depth reply branch can now accept additional sibling replies at the same allowed depth instead of failing with an internal channel error.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replying from a depth-4 blip now succeeds even when the wave already contains another depth-5 branch, as long as the new reply does not exceed the configured limit"
+      ]
+    }
+  ]
+}

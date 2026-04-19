@@ -19,17 +19,23 @@
 
 package org.waveprotocol.box.server.waveserver;
 
+import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
 import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
 import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.DocOpCursor;
 import org.waveprotocol.wave.model.id.IdConstants;
+import org.waveprotocol.wave.model.operation.OperationException;
 import org.waveprotocol.wave.model.operation.wave.BlipContentOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletBlipOperation;
 import org.waveprotocol.wave.model.operation.wave.WaveletOperation;
+import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.util.logging.Log;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Server-side validator that enforces a maximum reply (thread nesting) depth
@@ -76,9 +82,12 @@ public final class ReplyDepthValidator {
       return null; // unlimited
     }
 
+    List<WaveletOperation> opList = new ArrayList<WaveletOperation>();
+
     // Check if any operation targets the manifest document and inserts thread elements.
     boolean hasManifestThreadInsert = false;
     for (WaveletOperation op : ops) {
+      opList.add(op);
       if (op instanceof WaveletBlipOperation) {
         WaveletBlipOperation blipOp = (WaveletBlipOperation) op;
         if (MANIFEST_DOC_ID.equals(blipOp.getBlipId())) {
@@ -97,16 +106,36 @@ public final class ReplyDepthValidator {
       return null; // no thread creation, nothing to validate
     }
 
-    // Compute the current max thread depth from the manifest document.
-    int currentMaxDepth = computeManifestMaxDepth(snapshot);
-    if (currentMaxDepth >= maxDepth) {
-      LOG.warning("Reply depth limit exceeded: current max depth " + currentMaxDepth
-          + " >= limit " + maxDepth + "; rejecting delta with thread insertion.");
+    Integer projectedMaxDepth = computeProjectedMaxDepth(snapshot, opList);
+    if (projectedMaxDepth == null) {
+      return null;
+    }
+
+    if (projectedMaxDepth > maxDepth) {
+      LOG.warning("Reply depth limit exceeded: projected max depth " + projectedMaxDepth
+          + " > limit " + maxDepth + "; rejecting delta with thread insertion.");
       return "Reply depth limit exceeded (max " + maxDepth
           + "). Cannot create threads deeper than the allowed depth.";
     }
 
     return null;
+  }
+
+  private static Integer computeProjectedMaxDepth(ReadableWaveletData snapshot,
+      List<WaveletOperation> ops) {
+    if (snapshot == null) {
+      return null;
+    }
+    ObservableWaveletData projected = WaveletDataUtil.copyWavelet(snapshot);
+    try {
+      for (WaveletOperation op : ops) {
+        op.apply(projected);
+      }
+    } catch (OperationException e) {
+      LOG.warning("Failed to simulate reply-depth validation state: " + e.getMessage());
+      return null;
+    }
+    return computeManifestMaxDepth(projected);
   }
 
   /**

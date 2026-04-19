@@ -51,10 +51,9 @@ import com.google.gwt.dom.client.Text;
  * <h3>What gets traced</h3>
  * <ul>
  *   <li>Every composition, keydown, beforeinput, input, textInput, and
- *       DOMCharacterDataModified event the browser fires on the document,
- *       with timestamp, target-node shape, and event data. This is a
- *       capture-phase window listener so we see events even if the editor
- *       swallows them.
+ *       DOMCharacterDataModified event the browser fires, with timestamp,
+ *       target-node shape, and event data. This is a capture-phase listener
+ *       so we see events even if the editor swallows them.
  *   <li>{@code ImeExtractor} activate, baseline capture, ghost resolution,
  *       and deactivate — with the actual strings involved.
  *   <li>{@code EditorEventHandler} composition-start/-end, mutation-branch
@@ -315,6 +314,7 @@ public final class ImeDebugTracer {
 
   private static native void installGlobalEventListenersJsni(double baselineMs) /*-{
     var w = $wnd;
+    var target = ($doc && $doc.addEventListener) ? $doc : w;
     // Share the Java-side baseline so global-event traces and app-level
     // traces always reference the same time origin. A separately-captured
     // baseline here would drift by the cost of the intervening JSNI calls
@@ -372,7 +372,7 @@ public final class ImeDebugTracer {
     }
     for (var i = 0; i < types.length; i++) {
       try {
-        w.addEventListener(types[i], handler, true);
+        target.addEventListener(types[i], handler, true);
       } catch (e) {
         // swallow
       }

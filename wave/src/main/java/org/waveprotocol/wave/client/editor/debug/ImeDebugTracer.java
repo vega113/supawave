@@ -95,7 +95,7 @@ public final class ImeDebugTracer {
       enabled = FLAG_ON.equals(readFlagJsni());
       if (enabled) {
         baselineMs = nowMsJsni();
-        installGlobalEventListenersJsni();
+        installGlobalEventListenersJsni(baselineMs);
         ensureOverlayJsni();
       }
     } catch (Throwable t) {
@@ -313,9 +313,13 @@ public final class ImeDebugTracer {
     }
   }-*/;
 
-  private static native void installGlobalEventListenersJsni() /*-{
+  private static native void installGlobalEventListenersJsni(double baselineMs) /*-{
     var w = $wnd;
-    var baseline = (w.performance && w.performance.now) ? w.performance.now() : new Date().getTime();
+    // Share the Java-side baseline so global-event traces and app-level
+    // traces always reference the same time origin. A separately-captured
+    // baseline here would drift by the cost of the intervening JSNI calls
+    // and make cross-layer correlation harder.
+    var baseline = baselineMs;
     var types = [
       'keydown', 'keyup', 'keypress',
       'beforeinput', 'input',
@@ -388,6 +392,10 @@ public final class ImeDebugTracer {
       if (d.getElementById(id)) return;
       var ov = d.createElement("div");
       ov.id = id;
+      ov.tabIndex = 0;
+      ov.setAttribute("role", "log");
+      ov.setAttribute("aria-label",
+          "IME debug overlay. Double-tap or press Escape while focused to clear.");
       ov.style.cssText =
           "position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow-y:auto;"
           + "background:rgba(0,0,0,0.85);color:#b2ff59;font:10px/1.25 monospace;"
@@ -406,6 +414,18 @@ public final class ImeDebugTracer {
           ov.innerHTML = "";
         }
         lastTap = now;
+      }, false);
+      // Keyboard-accessible clear: focus the overlay (Tab until the log
+      // element is reached) and press Escape. Also Ctrl+Shift+C on the
+      // overlay clears without relying on focus order.
+      ov.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape'
+            || (ev.key === 'c' && ev.ctrlKey && ev.shiftKey)
+            || (ev.key === 'C' && ev.ctrlKey && ev.shiftKey)) {
+          ov.innerHTML = "";
+          ev.stopPropagation();
+          ev.preventDefault();
+        }
       }, false);
     } catch (e) {
       // swallow

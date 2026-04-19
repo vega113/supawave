@@ -3,7 +3,7 @@
 Status: Canonical
 Owner: Project Maintainers
 Updated: 2026-04-19
-Review cadence: Quarterly
+Review cadence: quarterly
 
 This runbook covers the local verification path for the merged J2CL sidecar
 work. It is the right procedure when a change touches `j2cl/`, the sidecar
@@ -115,7 +115,7 @@ curl -fsS -o /dev/null http://localhost:9900/webclient/webclient.nocache.js
 curl -fsS -o /dev/null http://localhost:9900/j2cl-search/index.html
 curl -fsS -o /dev/null http://localhost:9900/j2cl/index.html
 curl -fsS http://localhost:9900/j2cl-search/sidecar/j2cl-sidecar.js | grep -E "WaveSandboxEntryPoint|j2cl"
-# Optional — only present when j2clSandboxBuild was also run
+# Optional — run this only when j2clSandboxBuild was also run
 curl -fsS -o /dev/null http://localhost:9900/j2cl-debug/index.html
 ```
 

@@ -62,4 +62,15 @@ public class SandboxBuildSmokeTest {
         "ws://socket.example.test/socket",
         SandboxEntryPoint.buildWebSocketUrl("http:", "socket.example.test"));
   }
+
+  @Test
+  public void malformedQueryFallsBackToDefaultSearch() {
+    Assert.assertEquals("in:inbox", SandboxEntryPoint.readRequestedQuery("?q=%"));
+  }
+
+  @Test
+  public void malformedCookieValueReturnsNull() {
+    Assert.assertNull(
+        SandboxEntryPoint.readCookieFromHeader("JSESSIONID=%; theme=dark", "JSESSIONID"));
+  }
 }

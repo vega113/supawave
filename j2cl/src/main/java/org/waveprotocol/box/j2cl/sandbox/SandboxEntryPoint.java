@@ -447,7 +447,14 @@ public final class SandboxEntryPoint {
   }
 
   private static String readCookie(String name) {
-    String[] cookies = DomGlobal.document.cookie.split(";");
+    return readCookieFromHeader(DomGlobal.document.cookie, name);
+  }
+
+  static String readCookieFromHeader(String cookieHeader, String name) {
+    if (cookieHeader == null || cookieHeader.isEmpty()) {
+      return null;
+    }
+    String[] cookies = cookieHeader.split(";");
     for (String cookie : cookies) {
       String trimmed = cookie.trim();
       String prefix = name + "=";

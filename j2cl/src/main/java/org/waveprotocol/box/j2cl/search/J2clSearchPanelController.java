@@ -143,7 +143,6 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
           clearSelection();
           lastModel = J2clSearchResultModel.empty("Unable to load search results.");
           view.render(lastModel);
-          view.setSelectedWaveId(null);
           view.setStatus("Search request failed: " + error, true);
           view.setLoading(false);
         });

@@ -1,8 +1,10 @@
 package org.waveprotocol.box.j2cl.search;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 import org.junit.Assert;
 import org.junit.Test;
@@ -85,6 +87,107 @@ public class J2clSearchPanelControllerTest {
   }
 
   @Test
+  public void submittingQueryClearsSelectionAndNotifiesHandler() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Wave 1",
+                    "Snippet",
+                    "example.com/w+1",
+                    1L,
+                    0,
+                    2,
+                    Collections.singletonList("person@example.com"),
+                    "person@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    List<String> selectionEvents = new ArrayList<String>();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, selectionEvents::add, 1200);
+
+    controller.start(null);
+    controller.onDigestSelected("example.com/w+1");
+    controller.onQuerySubmitted("with:@");
+
+    Assert.assertNull(view.selectedWaveId);
+    Assert.assertEquals(Arrays.asList("example.com/w+1", null), selectionEvents);
+  }
+
+  @Test
+  public void missingSelectedWaveClearsSelectionAndNotifiesHandler() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Wave 1",
+                    "Snippet",
+                    "example.com/w+1",
+                    1L,
+                    0,
+                    2,
+                    Collections.singletonList("person@example.com"),
+                    "person@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    List<String> selectionEvents = new ArrayList<String>();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, selectionEvents::add, 1200);
+
+    controller.start(null);
+    controller.onDigestSelected("example.com/w+1");
+    gateway.response =
+        responseWithDigests(
+            new SidecarSearchResponse.Digest(
+                "Wave 2",
+                "Snippet",
+                "example.com/w+2",
+                2L,
+                0,
+                2,
+                Collections.singletonList("person@example.com"),
+                "person@example.com",
+                false));
+
+    controller.onShowMoreRequested();
+
+    Assert.assertNull(view.selectedWaveId);
+    Assert.assertEquals(Arrays.asList("example.com/w+1", null), selectionEvents);
+  }
+
+  @Test
+  public void searchErrorClearsSelectionAndNotifiesHandler() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Wave 1",
+                    "Snippet",
+                    "example.com/w+1",
+                    1L,
+                    0,
+                    2,
+                    Collections.singletonList("person@example.com"),
+                    "person@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    List<String> selectionEvents = new ArrayList<String>();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, selectionEvents::add, 1200);
+
+    controller.start(null);
+    controller.onDigestSelected("example.com/w+1");
+    gateway.error = "boom";
+
+    controller.onShowMoreRequested();
+
+    Assert.assertNull(view.selectedWaveId);
+    Assert.assertEquals("Search request failed: boom", view.status);
+    Assert.assertTrue(view.error);
+    Assert.assertEquals(Arrays.asList("example.com/w+1", null), selectionEvents);
+  }
+
+  @Test
   public void digestSelectionUpdatesViewAndInvokesCallback() {
     FakeGateway gateway = new FakeGateway(new SidecarSearchResponse("in:inbox", 0, null));
     FakeView view = new FakeView();
@@ -99,7 +202,8 @@ public class J2clSearchPanelControllerTest {
   }
 
   private static final class FakeGateway implements J2clSearchPanelController.SearchGateway {
-    private final SidecarSearchResponse response;
+    private SidecarSearchResponse response;
+    private String error;
     private String lastQuery;
     private int lastIndex = -1;
     private int lastNumResults = -1;
@@ -125,6 +229,10 @@ public class J2clSearchPanelControllerTest {
       lastQuery = query;
       lastIndex = index;
       lastNumResults = numResults;
+      if (error != null) {
+        onError.accept(error);
+        return;
+      }
       onSuccess.accept(response);
     }
   }
@@ -174,5 +282,9 @@ public class J2clSearchPanelControllerTest {
     public void setSelectedWaveId(String waveId) {
       this.selectedWaveId = waveId;
     }
+  }
+
+  private static SidecarSearchResponse responseWithDigests(SidecarSearchResponse.Digest... digests) {
+    return new SidecarSearchResponse("in:inbox", digests.length, Arrays.asList(digests));
   }
 }

@@ -58,6 +58,8 @@ public final class WavePanelMobileChromeContractTest extends TestCase {
     assertTrue(html.contains("mobileWaveChromePin"));
     assertTrue(html.contains("mobileTagsToggle"));
     assertTrue(html.contains("document.addEventListener('focusin'"));
+    assertTrue(html.contains(".mobile-wave-chrome-control { display: none; }"));
+    assertFalse(html.contains(".mobile-wave-chrome-control { display: none !important; }"));
   }
 
   public void testConversationAndTagsCssSwitchToOverlayOnMobile() throws Exception {

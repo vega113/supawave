@@ -26,6 +26,7 @@ import com.google.gwt.user.client.History;
 import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.Log;
 import org.waveprotocol.wave.client.events.WaveSelectionEvent;
+import org.waveprotocol.wave.model.util.ThreadNavigationHistory;
 import org.waveprotocol.wave.model.waveref.InvalidWaveRefException;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
@@ -54,6 +55,7 @@ public class HistoryChangeListener {
         if (encodedToken == null || encodedToken.length() == 0) {
           return;
         }
+        encodedToken = ThreadNavigationHistory.stripMetadata(encodedToken);
         WaveRef waveRef;
         try {
           waveRef = GwtWaverefEncoder.decodeWaveRefFromPath(encodedToken);

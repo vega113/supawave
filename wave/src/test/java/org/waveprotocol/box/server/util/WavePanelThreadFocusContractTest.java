@@ -65,6 +65,20 @@ public final class WavePanelThreadFocusContractTest extends TestCase {
     assertTrue(stageThree.contains("stageTwo.getStageOne().getThreadNavigator().reconcileFocusedThreadLayout(panel.getContents())"));
   }
 
+  public void testHistoryTokensPreserveWavePathForWebClientConsumers() throws Exception {
+    String presenter = read(
+        "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/collapse/ThreadNavigationPresenter.java");
+    String historyListener = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/client/HistoryChangeListener.java");
+    String webClient = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/client/WebClient.java");
+
+    assertTrue(presenter.contains("ThreadNavigationHistory.appendMetadata("));
+    assertTrue(historyListener.contains("ThreadNavigationHistory.stripMetadata(encodedToken)"));
+    assertTrue(webClient.contains("ThreadNavigationHistory.stripMetadata(savedToken)"));
+    assertTrue(webClient.contains("ThreadNavigationHistory.stripMetadata(encodedToken)"));
+  }
+
   private String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
   }

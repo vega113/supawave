@@ -75,6 +75,7 @@ import org.waveprotocol.wave.client.events.WaveCreationEvent;
 import org.waveprotocol.wave.client.events.WaveCreationEventHandler;
 import org.waveprotocol.wave.client.events.WaveSelectionEvent;
 import org.waveprotocol.wave.client.events.WaveSelectionEventHandler;
+import org.waveprotocol.wave.model.util.ThreadNavigationHistory;
 import org.waveprotocol.wave.client.wavepanel.event.EventDispatcherPanel;
 import org.waveprotocol.wave.client.wavepanel.event.WaveChangeHandler;
 import org.waveprotocol.wave.client.wavepanel.event.FocusManager;
@@ -779,6 +780,7 @@ public class WebClient implements EntryPoint {
       if (savedToken == null || savedToken.isEmpty()) {
         return;
       }
+      savedToken = ThreadNavigationHistory.stripMetadata(savedToken);
 
       try {
         GwtWaverefEncoder.decodeWaveRefFromPath(savedToken);
@@ -882,6 +884,7 @@ public class WebClient implements EntryPoint {
     });
     String encodedToken = History.getToken();
     if (encodedToken != null && !encodedToken.isEmpty()) {
+      encodedToken = ThreadNavigationHistory.stripMetadata(encodedToken);
       WaveRef fromWaveRef;
       try {
         fromWaveRef = GwtWaverefEncoder.decodeWaveRefFromPath(encodedToken);

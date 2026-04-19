@@ -23,6 +23,8 @@
 
 @eval threadTop org.waveprotocol.wave.client.wavepanel.view.dom.full.TopConversationViewBuilder.CssConstants.THREAD_TOP_CSS;
 @eval tagsPanelOffset org.waveprotocol.wave.client.wavepanel.view.dom.full.TagsViewBuilder.CssConstants.PANEL_TOTAL_HEIGHT_CSS;
+@external .mobile-wave-open;
+@external .mobile-wave-chrome-hidden;
 
 .fixedSelf {
   position: absolute;
@@ -56,4 +58,31 @@
   min-height: 36px;
   background-image: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);
   background-color: #e7f2ff;
+}
+
+body.mobile-wave-open [data-mobile-role='wave-participants'],
+body.mobile-wave-open [data-mobile-role='wave-toolbar'] {
+  transition: transform 180ms ease-out, opacity 180ms ease-out;
+}
+
+body.mobile-wave-open [data-mobile-role='wave-thread'] {
+  bottom: 0 !important;
+}
+
+body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-participants'],
+body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-toolbar'] {
+  transform: translateY(-110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-thread'] {
+  top: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.mobile-wave-open [data-mobile-role='wave-participants'],
+  body.mobile-wave-open [data-mobile-role='wave-toolbar'] {
+    transition: none;
+  }
 }

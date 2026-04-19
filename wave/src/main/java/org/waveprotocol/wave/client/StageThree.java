@@ -53,6 +53,7 @@ import org.waveprotocol.wave.client.wavepanel.impl.title.WaveTitleHandler;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.EditToolbar;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.ToolbarSwitcher;
 import org.waveprotocol.wave.client.wavepanel.impl.toolbar.ViewToolbar;
+import org.waveprotocol.wave.client.wavepanel.WavePanel;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.BlipQueueRenderer;
 import org.waveprotocol.wave.client.wavepanel.view.dom.full.DraftModeController;
@@ -246,7 +247,19 @@ public interface StageThree {
       EditController.install(focus, actions, panel);
       ParticipantController.install(panel, models, profiles, getLocalDomain(), user,
           participantMessages, getContactManager());
-      KeepFocusInView.install(edit, panel);
+      KeepFocusInView.install(edit, panel, stageTwo.getStageOne().getCollapser());
+      panel.addListener(new WavePanel.LifecycleListener() {
+        @Override
+        public void onInit() {
+          stageTwo.getStageOne().getThreadNavigator().reconcileFocusedThreadLayout(panel.getContents());
+        }
+
+        @Override
+        public void onReset() {
+          clearMobileChromePreferenceBridge();
+        }
+      });
+      installMobileChromePreferenceBridge(stageTwo.getSupplement());
       TagController.install(panel, models);
       TagUpdateRenderer.create(models, new TagUpdateRenderer.TagReader() {
         @Override
@@ -259,5 +272,30 @@ public interface StageThree {
       DraftModeController.install(panel, actions, edit);
       stageTwo.getDiffController().upgrade(edit);
     }
+
+    private static native void clearMobileChromePreferenceBridge() /*-{
+      $wnd.__waveMobileChromePrefs = null;
+    }-*/;
+
+    private static native void installMobileChromePreferenceBridge(
+        org.waveprotocol.wave.client.wave.LocalSupplementedWave supplement) /*-{
+      $wnd.__waveMobileChromePrefs = {
+        getChromePinned: function() {
+          return !!supplement.@org.waveprotocol.wave.model.supplement.ReadableSupplementedWave::isMobileChromePinned()();
+        },
+        setChromePinned: function(pinned) {
+          supplement.@org.waveprotocol.wave.model.supplement.WritableSupplementedWave::setMobileChromePinned(Z)(!!pinned);
+        },
+        getTagsPinned: function() {
+          return !!supplement.@org.waveprotocol.wave.model.supplement.ReadableSupplementedWave::isMobileTagsPinned()();
+        },
+        setTagsPinned: function(pinned) {
+          supplement.@org.waveprotocol.wave.model.supplement.WritableSupplementedWave::setMobileTagsPinned(Z)(!!pinned);
+        }
+      };
+      if ($wnd.__waveChromePrefsRefresh) {
+        $wnd.__waveChromePrefsRefresh();
+      }
+    }-*/;
   }
 }

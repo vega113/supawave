@@ -23,6 +23,7 @@ import static org.waveprotocol.wave.client.uibuilder.OutputHelper.appendSpan;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.closeSpan;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
+import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpan;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openSpanWith;
 
@@ -159,7 +160,8 @@ public final class ParticipantsViewBuilder implements UiBuilder {
 
   @Override
   public void outputHtml(SafeHtmlBuilder output) {
-    open(output, id, css.panel(), TypeCodes.kind(Type.PARTICIPANTS));
+    openWith(output, id, css.panel(), TypeCodes.kind(Type.PARTICIPANTS),
+        "data-mobile-role='wave-participants'");
     {
       open(output, null, css.flow(), null);
       {

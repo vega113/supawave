@@ -21,6 +21,7 @@ package org.waveprotocol.wave.client.wavepanel.impl.collapse;
 
 import com.google.gwt.user.client.Window;
 
+import org.waveprotocol.wave.client.wavepanel.WavePanel;
 import org.waveprotocol.wave.client.wavepanel.impl.edit.EditSession;
 import org.waveprotocol.wave.client.wavepanel.view.ViewIdMapper;
 import org.waveprotocol.wave.model.conversation.ObservableConversation;
@@ -86,6 +87,11 @@ public final class ThreadNavigationBuilder {
    */
   public static ThreadNavigationPresenter createAndInstallIn(
       CollapsePresenter collapser) {
+    return createAndInstallIn(collapser, null);
+  }
+
+  public static ThreadNavigationPresenter createAndInstallIn(
+      CollapsePresenter collapser, WavePanel panel) {
     ThreadNavigationPresenter navigator = new ThreadNavigationPresenter();
 
     // Create and wire up the breadcrumb widget
@@ -115,7 +121,7 @@ public final class ThreadNavigationBuilder {
     installSwipeGestureIfNeeded(navigator);
 
     // Re-evaluate on resize (e.g. device rotation, DevTools toggle)
-    installResizeListener(navigator);
+    installResizeListener(navigator, panel);
 
     return navigator;
   }
@@ -131,7 +137,14 @@ public final class ThreadNavigationBuilder {
    */
   public static ThreadNavigationPresenter createAndInstallIn(
       CollapsePresenter collapser, int depthThreshold) {
-    ThreadNavigationPresenter navigator = createAndInstallIn(collapser);
+    ThreadNavigationPresenter navigator = createAndInstallIn(collapser, null);
+    navigator.setDepthThreshold(depthThreshold);
+    return navigator;
+  }
+
+  public static ThreadNavigationPresenter createAndInstallIn(
+      CollapsePresenter collapser, WavePanel panel, int depthThreshold) {
+    ThreadNavigationPresenter navigator = createAndInstallIn(collapser, panel);
     navigator.setDepthThreshold(depthThreshold);
     return navigator;
   }
@@ -155,7 +168,7 @@ public final class ThreadNavigationBuilder {
       EditSession editSession,
       ViewIdMapper viewIdMapper,
       ObservableConversation conversation) {
-    ThreadNavigationPresenter navigator = createAndInstallIn(collapser, depthThreshold);
+    ThreadNavigationPresenter navigator = createAndInstallIn(collapser, null, depthThreshold);
 
     // Phase 6: wire in edit session for safe transitions
     if (editSession != null) {
@@ -202,11 +215,14 @@ public final class ThreadNavigationBuilder {
    * Installs a window resize handler that re-evaluates the mobile threshold.
    */
   private static void installResizeListener(
-      final ThreadNavigationPresenter navigator) {
+      final ThreadNavigationPresenter navigator, final WavePanel panel) {
     Window.addResizeHandler(new com.google.gwt.event.logical.shared.ResizeHandler() {
       @Override
       public void onResize(com.google.gwt.event.logical.shared.ResizeEvent event) {
         applyResponsiveThreshold(navigator);
+        if (panel != null && panel.hasContents()) {
+          navigator.reconcileFocusedThreadLayout(panel.getContents());
+        }
       }
     });
   }

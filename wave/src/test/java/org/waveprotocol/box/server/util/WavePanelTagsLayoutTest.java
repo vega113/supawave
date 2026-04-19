@@ -140,6 +140,15 @@ public final class WavePanelTagsLayoutTest extends TestCase {
     assertTrue(controller.contains("messages.closeTagAction()"));
   }
 
+  public void testTagsCssDefinesMobileCollapsedAndPinnedStates() throws Exception {
+    String css = read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");
+
+    assertTrue(css.contains("body.mobile-tags-open [data-mobile-role='wave-tags']"));
+    assertTrue(css.contains("body.mobile-tags-pinned [data-mobile-role='wave-tags']"));
+    assertTrue(css.contains("max-height: 32px;"));
+    assertTrue(css.contains("transition: max-height 180ms ease-out;"));
+  }
+
   public void testPersistentToastSupportsManualCloseAction() throws Exception {
     String toast =
         read("wave/src/main/java/org/waveprotocol/wave/client/widget/toast/ToastNotification.java");

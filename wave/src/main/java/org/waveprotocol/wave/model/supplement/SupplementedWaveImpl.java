@@ -43,6 +43,9 @@ import java.util.Set;
  *
  */
 public class SupplementedWaveImpl implements SupplementedWave {
+  private static final String MOBILE_CHROME_PIN_THREAD_ID = "$mobile-chrome-pinned";
+  private static final String MOBILE_TAGS_PIN_THREAD_ID = "$mobile-tags-pinned";
+
   /**
    * Defines the predicate for whether a wave is followed by default.
    */
@@ -496,6 +499,52 @@ public class SupplementedWaveImpl implements SupplementedWave {
     for (WaveletId id : wave.getWavelets()) {
       supplement.markWaveletAsNotified(id, (int) wave.getVersion(id));
     }
+  }
+
+  @Override
+  public boolean isMobileChromePinned() {
+    return readUiPinState(MOBILE_CHROME_PIN_THREAD_ID);
+  }
+
+  @Override
+  public boolean isMobileTagsPinned() {
+    return readUiPinState(MOBILE_TAGS_PIN_THREAD_ID);
+  }
+
+  @Override
+  public void setMobileChromePinned(boolean pinned) {
+    writeUiPinState(MOBILE_CHROME_PIN_THREAD_ID, pinned);
+  }
+
+  @Override
+  public void setMobileTagsPinned(boolean pinned) {
+    writeUiPinState(MOBILE_TAGS_PIN_THREAD_ID, pinned);
+  }
+
+  private boolean readUiPinState(String syntheticThreadId) {
+    WaveletId rootWaveletId = getConversationRootWaveletId();
+    if (rootWaveletId == null) {
+      return false;
+    }
+    return supplement.getThreadState(rootWaveletId, syntheticThreadId) == ThreadState.EXPANDED;
+  }
+
+  private void writeUiPinState(String syntheticThreadId, boolean pinned) {
+    WaveletId rootWaveletId = getConversationRootWaveletId();
+    if (rootWaveletId == null) {
+      return;
+    }
+    supplement.setThreadState(
+        rootWaveletId, syntheticThreadId, pinned ? ThreadState.EXPANDED : ThreadState.COLLAPSED);
+  }
+
+  private WaveletId getConversationRootWaveletId() {
+    for (WaveletId id : wave.getWavelets()) {
+      if (IdUtil.isConversationRootWaveletId(id)) {
+        return id;
+      }
+    }
+    return null;
   }
 
 }

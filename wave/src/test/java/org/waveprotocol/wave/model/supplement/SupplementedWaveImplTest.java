@@ -468,6 +468,22 @@ public final class SupplementedWaveImplTest extends TestCase {
     assertEquals(Collections.singleton(100), supplement.getFolders());
   }
 
+  public void testMobileChromePinStateRoundTripsThroughSupplement() {
+    supplement.setMobileChromePinned(true);
+    assertTrue(supplement.isMobileChromePinned());
+
+    supplement.setMobileChromePinned(false);
+    assertFalse(supplement.isMobileChromePinned());
+  }
+
+  public void testMobileTagsPinStateRoundTripsThroughSupplement() {
+    supplement.setMobileTagsPinned(true);
+    assertTrue(supplement.isMobileTagsPinned());
+
+    supplement.setMobileTagsPinned(false);
+    assertFalse(supplement.isMobileTagsPinned());
+  }
+
   public void testParticipantReadState() {
     WaveletBasedConversation c = setUpWithWaveModel();
     Wavelet w = c.getWavelet();

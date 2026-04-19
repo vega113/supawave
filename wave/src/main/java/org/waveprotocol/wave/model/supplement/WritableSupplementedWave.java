@@ -136,4 +136,8 @@ public interface WritableSupplementedWave {
    */
   void markAsNotified();
 
+  void setMobileChromePinned(boolean pinned);
+
+  void setMobileTagsPinned(boolean pinned);
+
 }

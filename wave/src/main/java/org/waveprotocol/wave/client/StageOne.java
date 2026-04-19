@@ -167,7 +167,7 @@ public interface StageOne {
 
     /** @return the thread navigation feature. Subclasses may override. */
     protected ThreadNavigationPresenter createThreadNavigator() {
-      return ThreadNavigationBuilder.createAndInstallIn(getCollapser());
+      return ThreadNavigationBuilder.createAndInstallIn(getCollapser(), getWavePanel());
     }
     
     /** @return the source of CSS rules to apply in views. */

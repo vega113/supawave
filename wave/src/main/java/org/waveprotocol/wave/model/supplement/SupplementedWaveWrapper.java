@@ -237,4 +237,24 @@ public abstract class SupplementedWaveWrapper<T extends SupplementedWave>
     return delegate.haveParticipantsEverBeenRead(wavelet);
   }
 
+  @Override
+  public boolean isMobileChromePinned() {
+    return delegate.isMobileChromePinned();
+  }
+
+  @Override
+  public boolean isMobileTagsPinned() {
+    return delegate.isMobileTagsPinned();
+  }
+
+  @Override
+  public void setMobileChromePinned(boolean pinned) {
+    delegate.setMobileChromePinned(pinned);
+  }
+
+  @Override
+  public void setMobileTagsPinned(boolean pinned) {
+    delegate.setMobileTagsPinned(pinned);
+  }
+
 }

@@ -142,7 +142,8 @@ public final class TagsViewBuilder implements UiBuilder {
 
   @Override
   public void outputHtml(SafeHtmlBuilder output) {
-    OutputHelper.open(output, id, css.panel(), TypeCodes.kind(Type.TAGS));
+    OutputHelper.openWith(output, id, css.panel(), TypeCodes.kind(Type.TAGS),
+        "data-mobile-role='wave-tags'");
     {
       OutputHelper.open(output, null, css.flow(), null);
       {

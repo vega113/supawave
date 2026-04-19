@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="940" viewBox="0 0 1280 940" role="img" aria-labelledby="title desc">
+  <title id="title">Mobile current vs proposed nested reply layout</title>
+  <desc id="desc">Side-by-side mobile mockup showing the current cramped nested inline layout and the proposed focused-thread plus auto-hide chrome behavior.</desc>
+  <defs>
+    <linearGradient id="phone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f7fbff"/>
+      <stop offset="100%" stop-color="#eef6fd"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#173957" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="940" fill="#dfeef9"/>
+  <text x="640" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#103b5f">
+    Mobile: current vs proposed deep reply handling
+  </text>
+
+  <g transform="translate(88,94)">
+    <rect width="432" height="780" rx="42" fill="#10263a" filter="url(#shadow)"/>
+    <rect x="18" y="18" width="396" height="744" rx="30" fill="url(#phone)"/>
+    <text x="34" y="54" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff">Current</text>
+
+    <rect x="36" y="88" width="360" height="54" rx="16" fill="#d9ebf8" stroke="#c8ddec"/>
+    <text x="56" y="122" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17486b">Header always visible</text>
+    <rect x="36" y="156" width="360" height="46" rx="14" fill="#eef6fd" stroke="#d6e8f4"/>
+    <text x="56" y="186" font-family="Arial, sans-serif" font-size="16" fill="#2d617f">Toolbar always visible</text>
+
+    <g font-family="Arial, sans-serif">
+      <rect x="54" y="226" width="310" height="86" rx="16" fill="#ffffff" stroke="#d4e6f1"/>
+      <text x="72" y="258" font-size="15" font-weight="700" fill="#184f74">Root</text>
+      <text x="72" y="286" font-size="14" fill="#2f607d">Thread starts wide enough here.</text>
+
+      <rect x="98" y="328" width="266" height="92" rx="16" fill="#ffffff" stroke="#d8e8f2"/>
+      <text x="116" y="360" font-size="15" font-weight="700" fill="#184f74">Depth 1</text>
+      <text x="116" y="388" font-size="14" fill="#2f607d">Still readable.</text>
+
+      <rect x="142" y="436" width="222" height="98" rx="16" fill="#ffffff" stroke="#dcebf4"/>
+      <text x="160" y="468" font-size="15" font-weight="700" fill="#184f74">Depth 2</text>
+      <text x="160" y="496" font-size="14" fill="#2f607d">Now cramped.</text>
+
+      <rect x="186" y="550" width="178" height="112" rx="16" fill="#ffffff" stroke="#1192d1" stroke-width="2"/>
+      <text x="204" y="582" font-size="15" font-weight="700" fill="#184f74">Depth 3</text>
+      <text x="204" y="610" font-size="13" fill="#2f607d">Editor is too small after nested indents and permanent chrome.</text>
+    </g>
+
+    <rect x="36" y="698" width="360" height="44" rx="14" fill="#d6ecfb" stroke="#c8e2f3"/>
+    <text x="56" y="726" font-family="Arial, sans-serif" font-size="16" fill="#1b5478">Tags/footer always visible</text>
+  </g>
+
+  <g transform="translate(666,94)">
+    <rect width="432" height="780" rx="42" fill="#10263a" filter="url(#shadow)"/>
+    <rect x="18" y="18" width="396" height="744" rx="30" fill="url(#phone)"/>
+    <text x="34" y="54" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff">Proposed</text>
+
+    <rect x="36" y="88" width="360" height="46" rx="14" fill="#0a78ba"/>
+    <text x="56" y="118" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">‹  Reply depth 2</text>
+
+    <rect x="54" y="156" width="324" height="120" rx="18" fill="#ffffff" stroke="#1192d1" stroke-width="3"/>
+    <text x="76" y="190" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0f628c">Focused thread branch</text>
+    <text x="76" y="220" font-family="Arial, sans-serif" font-size="14" fill="#2f607d">The active branch uses the full width.</text>
+    <text x="76" y="244" font-family="Arial, sans-serif" font-size="14" fill="#2f607d">Ancestors stay as breadcrumb/back context.</text>
+
+    <rect x="54" y="298" width="324" height="126" rx="18" fill="#f8fcff" stroke="#d9eaf4"/>
+    <text x="76" y="332" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#184f74">Active message + editor</text>
+    <text x="76" y="360" font-family="Arial, sans-serif" font-size="14" fill="#2f607d">Readable line length and usable editing surface.</text>
+    <rect x="76" y="376" width="198" height="24" rx="10" fill="#dff3ff"/>
+    <text x="88" y="392" font-family="Arial, sans-serif" font-size="12" fill="#0f628c">Width reclaimed from nested columns</text>
+
+    <rect x="54" y="450" width="324" height="56" rx="16" fill="#f2f9ff" stroke="#d8e9f4" stroke-dasharray="8 8"/>
+    <text x="76" y="484" font-family="Arial, sans-serif" font-size="15" fill="#1e5c81">Top chrome auto-hidden while editing</text>
+
+    <rect x="54" y="706" width="324" height="28" rx="14" fill="#cfeafb" stroke="#bee0f3"/>
+    <text x="76" y="726" font-family="Arial, sans-serif" font-size="13" fill="#1e5c81">Collapsed tags tray (tap to expand, pin to keep open)</text>
+
+    <g font-family="Arial, sans-serif" font-size="14" fill="#2f607d">
+      <text x="54" y="548">Expected mobile behavior:</text>
+      <text x="72" y="578">• deep replies switch to focused-thread mode</text>
+      <text x="72" y="604">• scroll down hides top chrome</text>
+      <text x="72" y="630">• reverse scroll reveals it again</text>
+      <text x="72" y="656">• header and tags can each be pinned open</text>
+    </g>
+  </g>
+</svg>

@@ -31,6 +31,7 @@ import org.waveprotocol.wave.client.editor.selection.html.NativeSelectionUtil;
 import org.waveprotocol.wave.client.scroll.DomScrollPanel;
 import org.waveprotocol.wave.client.scroll.Extent;
 import org.waveprotocol.wave.client.wavepanel.impl.WavePanelImpl;
+import org.waveprotocol.wave.client.wavepanel.impl.collapse.CollapsePresenter;
 import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.TopConversationView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.TopConversationDomImpl;
@@ -55,25 +56,28 @@ public final class KeepFocusInView implements EditorUpdateListener, EditSession.
   private final EditSession edit;
   /** Panel in which this feature is active. */
   private final WavePanelImpl waveUi;
+  /** Optional collapser used to promote narrow deep threads into focused mode. */
+  private final CollapsePresenter collapser;
   /** Measurer used to measure sizes of DOM elements. */
   private final Measurer measurer = MeasurerInstance.get();
 
   private Element viewport;
   private DomScrollPanel scroller;
 
-  KeepFocusInView(EditSession edit, WavePanelImpl waveUi) {
+  KeepFocusInView(EditSession edit, WavePanelImpl waveUi, CollapsePresenter collapser) {
     this.edit = edit;
     this.waveUi = waveUi;
+    this.collapser = collapser;
   }
 
   /**
    * Installs this feature.
    */
-  public static void install(EditSession edit, WavePanelImpl panel) {
+  public static void install(EditSession edit, WavePanelImpl panel, CollapsePresenter collapser) {
     // It might be feasible to turn this feature off for Firefox, since it has
     // native support for keeping the focus in view. However, Firefox only does
     // the bare minimum, keeping the focus right at the viewport edges.
-    new KeepFocusInView(edit, panel).init();
+    new KeepFocusInView(edit, panel, collapser).init();
   }
 
   public void init() {
@@ -86,6 +90,10 @@ public final class KeepFocusInView implements EditorUpdateListener, EditSession.
 
   @Override
   public void onSessionStart(Editor editor, BlipView blipUi) {
+    if (collapser != null) {
+      collapser.maybeFocusThreadForEditing(blipUi, waveUi.getContents());
+    }
+    notifyMobileEditSession(true);
     viewport = hackExtractScrollElement(waveUi.getContents());
     scroller = DomScrollPanel.create(viewport);
     editor.addUpdateListener(this);
@@ -96,6 +104,7 @@ public final class KeepFocusInView implements EditorUpdateListener, EditSession.
     editor.removeUpdateListener(this);
     scroller = null;
     viewport = null;
+    notifyMobileEditSession(false);
   }
 
   private boolean isEditing() {
@@ -161,4 +170,20 @@ public final class KeepFocusInView implements EditorUpdateListener, EditSession.
         (TopConversationViewImpl<TopConversationDomImpl>) waveUi;
     return waveUiImpl.getIntrinsic().getThreadContainer();
   }
+
+  private static native void notifyMobileEditSession(boolean editing) /*-{
+    if ($wnd.__waveMobileChromeOnEditSession) {
+      $wnd.__waveMobileChromeOnEditSession(!!editing);
+      return;
+    }
+    try {
+      if (!!editing) {
+        $doc.body.classList.add('mobile-wave-chrome-hidden');
+      } else {
+        $doc.body.classList.remove('mobile-wave-chrome-hidden');
+      }
+    } catch (e) {
+      // Ignore shell bridge failures during non-browser test contexts.
+    }
+  }-*/;
 }

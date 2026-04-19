@@ -19,9 +19,10 @@
 
 package org.waveprotocol.wave.client.wavepanel.view.dom.full;
 
-import static org.waveprotocol.wave.client.uibuilder.OutputHelper.append;
+import static org.waveprotocol.wave.client.uibuilder.OutputHelper.appendWith;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.close;
 import static org.waveprotocol.wave.client.uibuilder.OutputHelper.open;
+import static org.waveprotocol.wave.client.uibuilder.OutputHelper.openWith;
 
 
 import org.waveprotocol.wave.client.common.safehtml.SafeHtmlBuilder;
@@ -68,9 +69,11 @@ public final class FixedConversationViewBuilder extends TopConversationViewBuild
     open(out, id, css.fixedSelf(), TypeCodes.kind(Type.ROOT_CONVERSATION));
     participants.outputHtml(out);
     tags.outputHtml(out);
-    append(out, Components.TOOLBAR_CONTAINER.getDomId(id), css.toolbar(), null);
+    appendWith(out, Components.TOOLBAR_CONTAINER.getDomId(id), css.toolbar(), null,
+        "data-mobile-role='wave-toolbar'");
     // Scroll panel
-    open(out, Components.THREAD_CONTAINER.getDomId(id), css.fixedThread(), null);
+    openWith(out, Components.THREAD_CONTAINER.getDomId(id), css.fixedThread(), null,
+        "data-mobile-role='wave-thread'");
     rootThread.outputHtml(out);
     close(out);
     close(out);

@@ -19,6 +19,7 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.collapse;
 
+import com.google.gwt.dom.client.Element;
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
 
 import java.util.ArrayList;
@@ -37,7 +38,8 @@ public final class NavigationEntry {
   private final String parentBlipId;
   private final String breadcrumbLabel;
   private final int scrollPosition;
-  private final List<String> hiddenSiblingIds;
+  private final List<Element> hiddenElements;
+  private Element placeholder;
 
   /**
    * Creates a new navigation entry.
@@ -55,7 +57,7 @@ public final class NavigationEntry {
     this.parentBlipId = parentBlipId;
     this.breadcrumbLabel = breadcrumbLabel;
     this.scrollPosition = scrollPosition;
-    this.hiddenSiblingIds = new ArrayList<String>();
+    this.hiddenElements = new ArrayList<Element>();
   }
 
   /** @return the inline thread view for this entry. */
@@ -83,8 +85,16 @@ public final class NavigationEntry {
     return scrollPosition;
   }
 
-  /** @return the mutable list of DOM ids of siblings that were hidden. */
-  public List<String> getHiddenSiblingIds() {
-    return hiddenSiblingIds;
+  /** @return the mutable list of DOM elements that were hidden. */
+  public List<Element> getHiddenElements() {
+    return hiddenElements;
+  }
+
+  public Element getPlaceholder() {
+    return placeholder;
+  }
+
+  public void setPlaceholder(Element placeholder) {
+    this.placeholder = placeholder;
   }
 }

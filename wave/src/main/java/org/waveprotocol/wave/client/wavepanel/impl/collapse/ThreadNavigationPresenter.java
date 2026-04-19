@@ -26,11 +26,18 @@ import com.google.gwt.dom.client.Style;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
+import com.google.gwt.http.client.URL;
 import com.google.gwt.user.client.History;
 
 import org.waveprotocol.wave.client.wavepanel.impl.edit.EditSession;
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
+import org.waveprotocol.wave.client.wavepanel.view.TopConversationView;
 import org.waveprotocol.wave.client.widget.toast.ToastNotification;
+import org.waveprotocol.wave.model.id.IdUtil;
+import org.waveprotocol.wave.client.wavepanel.view.dom.TopConversationDomImpl;
+import org.waveprotocol.wave.client.wavepanel.view.impl.TopConversationViewImpl;
+import org.waveprotocol.wave.model.util.ThreadFocusPolicy;
+import org.waveprotocol.wave.model.util.ThreadNavigationHistory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -118,9 +125,8 @@ public final class ThreadNavigationPresenter {
    */
   private boolean handlingHistoryEvent;
 
-  /** Token prefix used for slide-nav history entries. */
-  private static final String HISTORY_TOKEN_PREFIX = "slide-nav-";
-
+  /** Marker prefix for the slide-nav path segment appended to the WaveRef token. */
+  private static final String SLIDE_NAV_MARKER = "snav-";
   /** Handler registration for browser history events. */
   private HandlerRegistration historyRegistration;
 
@@ -184,9 +190,8 @@ public final class ThreadNavigationPresenter {
       return;
     }
 
-    if (token != null && token.startsWith(HISTORY_TOKEN_PREFIX)) {
-      // Parse the target depth from the token.
-      String depthStr = token.substring(HISTORY_TOKEN_PREFIX.length());
+    String depthStr = extractHistoryParam(token, ThreadNavigationHistory.HISTORY_PARAM_DEPTH);
+    if (depthStr != null) {
       try {
         int targetDepth = Integer.parseInt(depthStr);
         handlingHistoryEvent = true;
@@ -196,7 +201,7 @@ public final class ThreadNavigationPresenter {
           handlingHistoryEvent = false;
         }
       } catch (NumberFormatException e) {
-        // Malformed token; ignore.
+        // Ignore malformed depth values.
       }
     } else {
       // The user navigated back past all slide-nav entries (back to root).
@@ -226,7 +231,8 @@ public final class ThreadNavigationPresenter {
       originalHistoryToken = History.getToken();
     }
 
-    String token = HISTORY_TOKEN_PREFIX + navigationStack.size();
+    NavigationEntry current = navigationStack.get(navigationStack.size() - 1);
+    String token = buildHistoryToken(current.getParentBlipId(), navigationStack.size());
     History.newItem(token, false);
   }
 
@@ -246,7 +252,8 @@ public final class ThreadNavigationPresenter {
       History.newItem(token, false);
       originalHistoryToken = null;
     } else {
-      String token = HISTORY_TOKEN_PREFIX + navigationStack.size();
+      NavigationEntry current = navigationStack.get(navigationStack.size() - 1);
+      String token = buildHistoryToken(current.getParentBlipId(), navigationStack.size());
       History.newItem(token, false);
     }
   }
@@ -307,6 +314,67 @@ public final class ThreadNavigationPresenter {
   }
 
   /**
+   * Determines whether the given thread should be promoted into focused-thread
+   * mode based on viewport width and current interaction state.
+   */
+  public boolean shouldUseFocusedThread(
+      InlineThreadView threadView, TopConversationView waveUi, boolean editing) {
+    Element threadElement = getThreadElement(threadView);
+    if (threadElement == null || waveUi == null) {
+      return false;
+    }
+
+    int depth = computeThreadDepth(threadView);
+    int availableWidthPx = measureAvailableContentWidth(threadElement, waveUi);
+
+    return ThreadFocusPolicy.shouldUseFocusedThread(
+        MobileDetector.isMobile(), depth, availableWidthPx, editing);
+  }
+
+  /**
+   * Re-evaluates the current wave layout and promotes the deepest expanded
+   * inline thread into focused-thread mode when the inline presentation no
+   * longer leaves enough usable width.
+   */
+  public void reconcileFocusedThreadLayout(TopConversationView waveUi) {
+    if (waveUi == null) {
+      return;
+    }
+
+    // Refresh pixel width on already-focused threads so resize/rotation is reflected.
+    if (!navigationStack.isEmpty()) {
+      NavigationEntry top = navigationStack.get(navigationStack.size() - 1);
+      Element topElement = Document.get().getElementById(top.getThreadId());
+      if (topElement != null) {
+        applyFocusedThreadStyles(topElement);
+      }
+    }
+
+    String focusedBlipId =
+        extractHistoryParam(History.getToken(), ThreadNavigationHistory.HISTORY_PARAM_FOCUS);
+    if (focusedBlipId != null && !focusedBlipId.isEmpty()) {
+      Element focusedThread = findThreadByFocusedBlipId(waveUi, focusedBlipId);
+      if (focusedThread != null) {
+        restoreFocusedThreadPath(focusedThread);
+        return;
+      }
+    }
+
+    Element candidate = findDeepestExpandedInlineThread(waveUi);
+    if (candidate == null) {
+      return;
+    }
+    if (!ThreadFocusPolicy.shouldUseFocusedThread(
+        MobileDetector.isMobile(),
+        computeThreadDepthFromElement(candidate),
+        measureAvailableContentWidth(candidate, waveUi),
+        false)) {
+      return;
+    }
+    restoreFocusedThreadPath(candidate);
+  }
+
+  /**
    * Enters (drills into) the given thread, hiding siblings and showing
    * the breadcrumb bar.
    *
@@ -316,16 +384,22 @@ public final class ThreadNavigationPresenter {
    * @param threadView the inline thread to enter
    */
   public void enterThread(InlineThreadView threadView) {
-    // Phase 6: end any active edit session before transitioning
-    endActiveEditSession();
-
-    // Get the DOM element for this thread
     Element threadElement = getThreadElement(threadView);
     if (threadElement == null) {
       return;
     }
+    enterThreadElement(threadView, threadElement);
+  }
+
+  private void enterThreadElement(InlineThreadView threadView, Element threadElement) {
+    // Phase 6: end any active edit session before transitioning
+    endActiveEditSession();
 
     String threadId = threadElement.getId();
+    if (!navigationStack.isEmpty()
+        && threadId.equals(navigationStack.get(navigationStack.size() - 1).getThreadId())) {
+      return;
+    }
     String parentBlipId = findParentBlipId(threadElement);
     String label = extractBreadcrumbLabel(threadElement);
     int scrollPos = getCurrentScrollPosition();
@@ -334,11 +408,29 @@ public final class ThreadNavigationPresenter {
     NavigationEntry entry = new NavigationEntry(
         threadView, threadId, parentBlipId, label, scrollPos);
 
+    Element threadContainer = findThreadContainer(threadElement);
+    Element originalParent = threadElement.getParentElement();
+    if (threadContainer != null && originalParent != null && originalParent != threadContainer) {
+      Element placeholder = Document.get().createDivElement();
+      placeholder.setId(threadId + "-slide-nav-placeholder-" + navigationStack.size());
+      placeholder.getStyle().setDisplay(Style.Display.NONE);
+      originalParent.insertBefore(placeholder, threadElement);
+      threadElement.removeFromParent();
+      Element firstChild = threadContainer.getFirstChildElement();
+      if (firstChild != null) {
+        threadContainer.insertBefore(threadElement, firstChild);
+      } else {
+        threadContainer.appendChild(threadElement);
+      }
+      entry.setPlaceholder(placeholder);
+    }
+
     // Hide sibling elements of this thread's container
     hideSiblings(threadElement, entry);
 
     // Apply slide-active class to the thread
     threadElement.addClassName(SLIDE_ACTIVE_CLASS);
+    applyFocusedThreadStyles(threadElement);
 
     // Phase 6 accessibility: mark the thread content as a live region
     threadElement.setAttribute("aria-live", "polite");
@@ -388,6 +480,8 @@ public final class ThreadNavigationPresenter {
     // Remove slide-active class and aria-live
     Element threadElement = Document.get().getElementById(entry.getThreadId());
     if (threadElement != null) {
+      clearFocusedThreadStyles(threadElement);
+      restoreThreadPlacement(entry, threadElement);
       threadElement.removeClassName(SLIDE_ACTIVE_CLASS);
       threadElement.removeAttribute("aria-live");
     }
@@ -433,6 +527,8 @@ public final class ThreadNavigationPresenter {
 
       Element threadElement = Document.get().getElementById(entry.getThreadId());
       if (threadElement != null) {
+        clearFocusedThreadStyles(threadElement);
+        restoreThreadPlacement(entry, threadElement);
         threadElement.removeClassName(SLIDE_ACTIVE_CLASS);
         threadElement.removeAttribute("aria-live");
       }
@@ -488,6 +584,8 @@ public final class ThreadNavigationPresenter {
 
       Element threadElement = Document.get().getElementById(entry.getThreadId());
       if (threadElement != null) {
+        clearFocusedThreadStyles(threadElement);
+        restoreThreadPlacement(entry, threadElement);
         threadElement.removeClassName(SLIDE_ACTIVE_CLASS);
         threadElement.removeAttribute("aria-live");
       }
@@ -590,6 +688,8 @@ public final class ThreadNavigationPresenter {
 
       Element threadElement = Document.get().getElementById(entry.getThreadId());
       if (threadElement != null) {
+        clearFocusedThreadStyles(threadElement);
+        restoreThreadPlacement(entry, threadElement);
         threadElement.removeClassName(SLIDE_ACTIVE_CLASS);
         threadElement.removeAttribute("aria-live");
       }
@@ -727,20 +827,259 @@ public final class ThreadNavigationPresenter {
    * implement DomView or have an element accessible via getId().
    */
   private Element getThreadElement(InlineThreadView threadView) {
-    // InlineThreadView extends View which has getType().
-    // The DOM implementations expose getId()/getElement(). Since this
-    // is a GWT client-side presenter, we use Document.get().getElementById()
-    // with the view's string identity, accessed through its DOM structure.
-    // The view implementations in the dom package use DomView which has getId().
-    try {
-      // Try casting to get the element directly from the DOM view
-      if (threadView instanceof org.waveprotocol.wave.client.wavepanel.view.dom.DomView) {
-        return ((org.waveprotocol.wave.client.wavepanel.view.dom.DomView) threadView).getElement();
+    if (threadView == null) {
+      return null;
+    }
+    String id = threadView.getId();
+    if (id != null && !id.isEmpty()) {
+      Element byId = Document.get().getElementById(id);
+      if (byId != null) {
+        return byId;
       }
-    } catch (Exception e) {
-      // Fall through to return null
+    }
+    if (threadView instanceof org.waveprotocol.wave.client.wavepanel.view.dom.DomView) {
+      return ((org.waveprotocol.wave.client.wavepanel.view.dom.DomView) threadView).getElement();
     }
     return null;
+  }
+
+  private int measureAvailableContentWidth(Element threadElement, TopConversationView waveUi) {
+    Element threadContainer = hackExtractScrollElement(waveUi);
+    if (threadContainer == null) {
+      return Integer.MAX_VALUE;
+    }
+
+    int containerRight = threadContainer.getAbsoluteLeft() + threadContainer.getOffsetWidth();
+    int remainingWidth = containerRight - threadElement.getAbsoluteLeft();
+    return Math.max(0, remainingWidth);
+  }
+
+  private void applyFocusedThreadStyles(Element threadElement) {
+    Element threadContainer = findThreadContainer(threadElement);
+    if (threadContainer == null) {
+      return;
+    }
+
+    int containerWidth = threadContainer.getOffsetWidth();
+
+    threadElement.getStyle().clearPosition();
+    threadElement.getStyle().setProperty("width", containerWidth + "px");
+    threadElement.getStyle().setProperty("maxWidth", containerWidth + "px");
+    threadElement.getStyle().setZIndex(2);
+  }
+
+  private void clearFocusedThreadStyles(Element threadElement) {
+    threadElement.getStyle().clearPosition();
+    threadElement.getStyle().clearProperty("width");
+    threadElement.getStyle().clearProperty("maxWidth");
+    threadElement.getStyle().clearZIndex();
+  }
+
+  private Element findThreadContainer(Element threadElement) {
+    Element current = threadElement;
+    while (current != null) {
+      if ("wave-thread".equals(current.getAttribute("data-mobile-role"))) {
+        return current;
+      }
+      current = current.getParentElement();
+    }
+    return null;
+  }
+
+  private void restoreFocusedThreadPath(Element deepestThread) {
+    List<Element> path = collectThreadPath(deepestThread);
+    if (path.isEmpty() || matchesNavigationPath(path)) {
+      return;
+    }
+
+    String currentToken = History.getToken();
+    if (originalHistoryToken == null || originalHistoryToken.isEmpty()) {
+      originalHistoryToken = ThreadNavigationHistory.stripMetadata(currentToken);
+    }
+
+    boolean previousHandlingHistoryEvent = handlingHistoryEvent;
+    handlingHistoryEvent = true;
+    try {
+      if (!navigationStack.isEmpty()) {
+        exitToRoot();
+      }
+      for (Element pathThread : path) {
+        enterThreadElement(null, pathThread);
+      }
+    } finally {
+      handlingHistoryEvent = previousHandlingHistoryEvent;
+    }
+
+    if (historyEnabled && !previousHandlingHistoryEvent && !navigationStack.isEmpty()) {
+      NavigationEntry current = navigationStack.get(navigationStack.size() - 1);
+      String token = buildHistoryToken(current.getParentBlipId(), navigationStack.size());
+      if (!token.equals(currentToken)) {
+        History.newItem(token, false);
+      }
+    }
+  }
+
+  private List<Element> collectThreadPath(Element threadElement) {
+    List<Element> path = new ArrayList<Element>();
+    Element current = threadElement;
+    while (current != null) {
+      if ("wave-thread".equals(current.getAttribute("data-mobile-role"))) {
+        break;
+      }
+      if ("t".equals(current.getAttribute("kind"))) {
+        path.add(0, current);
+      }
+      current = current.getParentElement();
+    }
+    return path;
+  }
+
+  private boolean matchesNavigationPath(List<Element> path) {
+    if (navigationStack.size() != path.size()) {
+      return false;
+    }
+    for (int i = 0; i < path.size(); i++) {
+      if (!path.get(i).getId().equals(navigationStack.get(i).getThreadId())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private int computeThreadDepthFromElement(Element threadElement) {
+    int depth = 0;
+    Element current = threadElement.getParentElement();
+    while (current != null) {
+      String kind = current.getAttribute("kind");
+      if ("t".equals(kind)) {
+        depth++;
+      }
+      current = current.getParentElement();
+    }
+    return depth;
+  }
+
+  private Element findDeepestExpandedInlineThread(TopConversationView waveUi) {
+    return findDeepestExpandedInlineThreadNative(hackExtractScrollElement(waveUi));
+  }
+
+  private static Element hackExtractScrollElement(TopConversationView waveUi) {
+    if (!(waveUi instanceof TopConversationViewImpl)) {
+      return null;
+    }
+    @SuppressWarnings("unchecked")
+    TopConversationViewImpl<TopConversationDomImpl> waveUiImpl =
+        (TopConversationViewImpl<TopConversationDomImpl>) waveUi;
+    TopConversationDomImpl intrinsic = waveUiImpl.getIntrinsic();
+    if (intrinsic == null) {
+      return null;
+    }
+    return intrinsic.getThreadContainer();
+  }
+
+  private static native Element findDeepestExpandedInlineThreadNative(Element root) /*-{
+    if (!root || !root.querySelectorAll) {
+      return null;
+    }
+
+    var nodes = root.querySelectorAll('[kind="t"]');
+    var best = null;
+    var bestDepth = -1;
+
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (node.getAttribute('c') === 'c') {
+        continue;
+      }
+      // Skip threads hidden by a collapsed ancestor thread.
+      var ancestor = node.parentElement;
+      var hiddenByAncestor = false;
+      while (ancestor && ancestor !== root) {
+        if (ancestor.getAttribute && ancestor.getAttribute('kind') === 't'
+            && ancestor.getAttribute('c') === 'c') {
+          hiddenByAncestor = true;
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      if (hiddenByAncestor) {
+        continue;
+      }
+      var depthAttr = node.getAttribute('data-depth');
+      var depth = depthAttr ? parseInt(depthAttr, 10) : -1;
+      if (isNaN(depth)) {
+        depth = -1;
+      }
+      if (depth > bestDepth) {
+        bestDepth = depth;
+        best = node;
+      }
+    }
+    return best;
+  }-*/;
+
+  private Element findThreadByFocusedBlipId(TopConversationView waveUi, String blipId) {
+    return findThreadByFocusedBlipIdNative(hackExtractScrollElement(waveUi), blipId);
+  }
+
+  private static native Element findThreadByFocusedBlipIdNative(Element root, String blipId) /*-{
+    if (!root || !root.querySelectorAll || !blipId) {
+      return null;
+    }
+    var nodes = root.querySelectorAll('[kind="t"]');
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var current = node.parentElement;
+      while (current) {
+        if (current.getAttribute && current.getAttribute('kind') === 'b') {
+          if (current.id === blipId) {
+            return node;
+          }
+          break;
+        }
+        current = current.parentElement;
+      }
+    }
+    return null;
+  }-*/;
+
+  private String buildHistoryToken(String focusedBlipId, int depth) {
+    String baseToken = originalHistoryToken;
+    if (baseToken == null || baseToken.isEmpty()) {
+      baseToken = History.getToken();
+    }
+    String encodedFocus =
+        focusedBlipId == null || focusedBlipId.isEmpty()
+            ? null
+            : URL.encodeQueryString(focusedBlipId);
+    return ThreadNavigationHistory.appendMetadata(baseToken, encodedFocus, depth);
+  }
+
+  private String extractHistoryParam(String token, String key) {
+    if (token == null || token.isEmpty()) {
+      return null;
+    }
+
+    // Preserve backwards compatibility with tokens generated by the earlier
+    // path-segment encoding: .../<focusedBlipId>/snav-<depth>
+    String[] parts = token.split("/", -1);
+    if (parts.length >= 6 && parts[parts.length - 1].startsWith(SLIDE_NAV_MARKER)) {
+      if (ThreadNavigationHistory.HISTORY_PARAM_DEPTH.equals(key)) {
+        return parts[parts.length - 1].substring(SLIDE_NAV_MARKER.length());
+      }
+      if (ThreadNavigationHistory.HISTORY_PARAM_FOCUS.equals(key)) {
+        String legacyFocusedBlipId = parts[parts.length - 2];
+        if (legacyFocusedBlipId == null || legacyFocusedBlipId.isEmpty()) {
+          return null;
+        }
+        String decodedFocusedBlipId = URL.decodeQueryString(legacyFocusedBlipId);
+        return IdUtil.isBlipId(decodedFocusedBlipId) ? decodedFocusedBlipId : null;
+      }
+      return null;
+    }
+
+    String value = ThreadNavigationHistory.extractParam(token, key);
+    return value == null ? null : URL.decodeQueryString(value);
   }
 
   /**
@@ -799,40 +1138,20 @@ public final class ThreadNavigationPresenter {
    * their ids in the navigation entry for later restoration.
    */
   private void hideSiblings(Element threadElement, NavigationEntry entry) {
-    // The thread sits inside an anchor, which sits inside a blip or meta.
-    // We hide sibling elements at the blip level (other blips in the
-    // same parent thread, and other anchors in the same blip).
-    Element parent = threadElement.getParentElement();
-    if (parent == null) {
+    Element threadContainer = findThreadContainer(threadElement);
+    if (threadContainer == null) {
       return;
     }
+    Element currentChild = threadElement;
+    Element currentParent = threadElement.getParentElement();
 
-    // Walk up to find the parent that contains peers to hide.
-    // The thread is inside an anchor (kind=d), which is inside a meta (kind=m)
-    // or blip (kind=b). We want to hide siblings of the anchor's parent context.
-    Element anchorParent = parent; // This should be the anchor element
-    Element containerParent = anchorParent.getParentElement();
-    if (containerParent == null) {
-      return;
-    }
-
-    // Hide siblings at this level
-    Node child = containerParent.getFirstChild();
-    while (child != null) {
-      if (child.getNodeType() == Node.ELEMENT_NODE) {
-        Element sibling = Element.as(child);
-        // Do not hide the anchor that contains our thread, and do not hide
-        // the thread element itself
-        if (sibling != anchorParent && sibling != threadElement) {
-          String siblingId = sibling.getId();
-          if (siblingId != null && !siblingId.isEmpty()) {
-            entry.getHiddenSiblingIds().add(siblingId);
-            sibling.addClassName(SLIDE_HIDDEN_CLASS);
-            sibling.getStyle().setDisplay(Style.Display.NONE);
-          }
-        }
+    while (currentParent != null) {
+      hideSiblingElements(currentParent, currentChild, entry);
+      if (currentParent == threadContainer) {
+        break;
       }
-      child = child.getNextSibling();
+      currentChild = currentParent;
+      currentParent = currentParent.getParentElement();
     }
   }
 
@@ -840,13 +1159,52 @@ public final class ThreadNavigationPresenter {
    * Restores all siblings that were hidden when entering the given entry.
    */
   private void restoreSiblings(NavigationEntry entry) {
-    for (String siblingId : entry.getHiddenSiblingIds()) {
-      Element sibling = Document.get().getElementById(siblingId);
-      if (sibling != null) {
+    for (Element sibling : entry.getHiddenElements()) {
+      if (sibling != null && !isElementHiddenByActiveNavigation(sibling)) {
         sibling.removeClassName(SLIDE_HIDDEN_CLASS);
         sibling.getStyle().clearDisplay();
       }
     }
+  }
+
+  private void hideSiblingElements(Element parent, Element keep, NavigationEntry entry) {
+    Node child = parent.getFirstChild();
+    while (child != null) {
+      if (child.getNodeType() == Node.ELEMENT_NODE) {
+        Element sibling = Element.as(child);
+        if (sibling != keep
+            && !sibling.hasClassName(SLIDE_HIDDEN_CLASS)
+            && !entry.getHiddenElements().contains(sibling)
+            && !isElementHiddenByActiveNavigation(sibling)) {
+          entry.getHiddenElements().add(sibling);
+          sibling.addClassName(SLIDE_HIDDEN_CLASS);
+          sibling.getStyle().setDisplay(Style.Display.NONE);
+        }
+      }
+      child = child.getNextSibling();
+    }
+  }
+
+  private boolean isElementHiddenByActiveNavigation(Element element) {
+    for (NavigationEntry activeEntry : navigationStack) {
+      if (activeEntry.getHiddenElements().contains(element)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private void restoreThreadPlacement(NavigationEntry entry, Element threadElement) {
+    Element placeholder = entry.getPlaceholder();
+    if (placeholder == null) {
+      return;
+    }
+    Element originalParent = placeholder.getParentElement();
+    if (originalParent != null) {
+      originalParent.insertBefore(threadElement, placeholder);
+      placeholder.removeFromParent();
+    }
+    entry.setPlaceholder(null);
   }
 
   /**

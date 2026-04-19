@@ -38,13 +38,15 @@ import org.waveprotocol.wave.client.wavepanel.view.dom.full.TypeCodes;
  */
 public final class CollapseController implements WaveMouseDownHandler {
   private final CollapsePresenter collapser;
+  private final WavePanel wavePanel;
   private final DomAsViewProvider panel;
 
   /**
    * Creates a focus controller.
    */
-  private CollapseController(CollapsePresenter focus, DomAsViewProvider panel) {
+  private CollapseController(CollapsePresenter focus, WavePanel wavePanel, DomAsViewProvider panel) {
     this.collapser = focus;
+    this.wavePanel = wavePanel;
     this.panel = panel;
   }
 
@@ -52,7 +54,7 @@ public final class CollapseController implements WaveMouseDownHandler {
    * Installs the collapse/expand feature in a wave panel.
    */
   public static void install(CollapsePresenter focus, WavePanel panel) {
-    new CollapseController(focus, panel.getViewProvider()).install(panel.getHandlers());
+    new CollapseController(focus, panel, panel.getViewProvider()).install(panel.getHandlers());
   }
 
   private void install(EventHandlerRegistry handlers) {
@@ -70,16 +72,12 @@ public final class CollapseController implements WaveMouseDownHandler {
       return false;
     }
 
-    // Check if slide navigation should handle this toggle event.
-    // Only intercept expand actions (thread is currently collapsed) on
-    // deeply nested threads.
     ThreadNavigationPresenter navigator = collapser.getNavigator();
-    if (navigator != null && thread.isCollapsed()
-        && navigator.shouldSlideNavigate(thread)) {
-      // Expand the thread normally, then enter slide navigation mode.
-      collapser.expand(thread);
-      navigator.enterThread(thread);
-      return true;  // Consume the event.
+    if (navigator != null
+        && thread.isCollapsed()
+        && wavePanel.hasContents()
+        && collapser.maybeFocusThreadFromToggle(thread, wavePanel.getContents())) {
+      return true;
     }
 
     // Standard collapse/expand toggle.

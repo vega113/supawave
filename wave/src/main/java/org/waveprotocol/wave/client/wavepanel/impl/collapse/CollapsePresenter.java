@@ -20,8 +20,10 @@
 
 package org.waveprotocol.wave.client.wavepanel.impl.collapse;
 
+import org.waveprotocol.wave.client.wavepanel.view.BlipView;
 import org.waveprotocol.wave.client.wavepanel.view.InlineThreadView;
 import org.waveprotocol.wave.client.wavepanel.view.ThreadView;
+import org.waveprotocol.wave.client.wavepanel.view.TopConversationView;
 import org.waveprotocol.wave.client.wavepanel.view.dom.ModelAsViewProvider;
 import org.waveprotocol.wave.model.conversation.ConversationThread;
 import org.waveprotocol.wave.model.conversation.ObservableConversationThread;
@@ -83,6 +85,37 @@ public final class CollapsePresenter {
     boolean nowCollapsed = !view.isCollapsed();
     view.setCollapsed(nowCollapsed);
     persistState(view, nowCollapsed);
+  }
+
+  public boolean maybeFocusThreadFromToggle(InlineThreadView view, TopConversationView waveUi) {
+    if (navigator == null || waveUi == null
+        || !navigator.shouldUseFocusedThread(view, waveUi, false)) {
+      return false;
+    }
+    if (view.isCollapsed()) {
+      expand(view);
+    }
+    navigator.enterThread(view);
+    return true;
+  }
+
+  public boolean maybeFocusThreadForEditing(BlipView blipUi, TopConversationView waveUi) {
+    if (navigator == null || waveUi == null || blipUi == null) {
+      return false;
+    }
+    ThreadView parent = blipUi.getParent();
+    if (!(parent instanceof InlineThreadView)) {
+      return false;
+    }
+    InlineThreadView thread = (InlineThreadView) parent;
+    if (!navigator.shouldUseFocusedThread(thread, waveUi, true)) {
+      return false;
+    }
+    if (thread.isCollapsed()) {
+      expand(thread);
+    }
+    navigator.enterThread(thread);
+    return true;
   }
 
   /**

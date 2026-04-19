@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-19-thread-focus-mobile-space",
+  "version": "Unreleased",
+  "date": "2026-04-19",
+  "title": "Deep reply threads stay usable on desktop and mobile",
+  "summary": "Deep reply branches now switch into a focused full-width view before nested whitespace crushes the active blip, and mobile wave chrome can hide while you read or edit.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Deep reply branches now promote into the existing breadcrumb-backed focused-thread view when the remaining blip width gets too small",
+        "Focused reply branches restore from a lightweight #focus hash and keep the active thread readable through resize and reload",
+        "On mobile, wave chrome pin state is stored with the user’s supplement data while transient read/edit chrome remains local to the session"
+      ]
+    }
+  ]
+}

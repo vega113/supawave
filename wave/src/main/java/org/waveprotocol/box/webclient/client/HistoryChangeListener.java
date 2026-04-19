@@ -26,6 +26,7 @@ import com.google.gwt.user.client.History;
 import org.waveprotocol.wave.client.events.ClientEvents;
 import org.waveprotocol.wave.client.events.Log;
 import org.waveprotocol.wave.client.events.WaveSelectionEvent;
+import org.waveprotocol.wave.model.util.ThreadNavigationHistory;
 import org.waveprotocol.wave.model.waveref.InvalidWaveRefException;
 import org.waveprotocol.wave.model.waveref.WaveRef;
 import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
@@ -39,6 +40,7 @@ import org.waveprotocol.wave.util.escapers.GwtWaverefEncoder;
  */
 public class HistoryChangeListener {
   private static final Log LOG = Log.get(HistoryChangeListener.class);
+  private static String currentSelectedToken;
 
   /**
    * Commonly we start to listen history changes when webclient starts calling this
@@ -50,8 +52,15 @@ public class HistoryChangeListener {
     History.addValueChangeHandler(new ValueChangeHandler<String>() {
       @Override
       public void onValueChange(ValueChangeEvent<String> event) {
-        String encodedToken = event.getValue();
-        if (encodedToken == null || encodedToken.length() == 0) {
+        String rawToken = event.getValue();
+        if (rawToken == null || rawToken.length() == 0) {
+          currentSelectedToken = null;
+          return;
+        }
+        String encodedToken = ThreadNavigationHistory.stripMetadata(rawToken);
+        if (ThreadNavigationHistory.hasMetadata(rawToken)
+            && encodedToken.equals(currentSelectedToken)) {
+          LOG.info("Ignoring metadata-only history change for current wave: " + rawToken);
           return;
         }
         WaveRef waveRef;
@@ -61,10 +70,15 @@ public class HistoryChangeListener {
           LOG.info("History token contains invalid path: " + encodedToken);
           return;
         }
+        currentSelectedToken = encodedToken;
         LOG.info("Changing selected wave based on history event to " + waveRef.toString());
         ClientEvents.get().fireEvent(new WaveSelectionEvent(waveRef));
       }
     });
+  }
+
+  public static void setCurrentWaveToken(String token) {
+    currentSelectedToken = ThreadNavigationHistory.stripMetadata(token);
   }
 
   public HistoryChangeListener() {

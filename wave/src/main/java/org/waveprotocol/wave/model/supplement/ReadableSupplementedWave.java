@@ -134,4 +134,8 @@ public interface ReadableSupplementedWave {
    */
   boolean hasPendingNotification();
 
+  boolean isMobileChromePinned();
+
+  boolean isMobileTagsPinned();
+
 }

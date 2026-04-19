@@ -34,7 +34,7 @@
 
 ## Follow-up
 
-- PR: pending
+- PR: #914
 - Issue: #898
 
 ## PR #914 Remediation

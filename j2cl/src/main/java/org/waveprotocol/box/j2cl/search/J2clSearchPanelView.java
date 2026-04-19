@@ -19,20 +19,26 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
   private final HTMLDivElement digestList;
   private final HTMLElement emptyState;
   private final HTMLButtonElement showMoreButton;
+  private final HTMLElement selectedWaveHost;
   private final Map<String, J2clDigestView> digestViews = new LinkedHashMap<String, J2clDigestView>();
   private J2clSearchViewListener listener;
 
   public J2clSearchPanelView(HTMLElement host) {
     this.host = host;
     host.innerHTML = "";
+    host.className = "sidecar-root";
 
     HTMLElement shell = (HTMLElement) DomGlobal.document.createElement("section");
     shell.className = "sidecar-search-shell";
     host.appendChild(shell);
 
+    HTMLElement layout = (HTMLElement) DomGlobal.document.createElement("div");
+    layout.className = "sidecar-split-layout";
+    shell.appendChild(layout);
+
     HTMLElement card = (HTMLElement) DomGlobal.document.createElement("div");
     card.className = "sidecar-search-card";
-    shell.appendChild(card);
+    layout.appendChild(card);
 
     HTMLElement eyebrow = (HTMLElement) DomGlobal.document.createElement("p");
     eyebrow.className = "sidecar-eyebrow";
@@ -113,6 +119,10 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
           return null;
         };
     card.appendChild(showMoreButton);
+
+    selectedWaveHost = (HTMLElement) DomGlobal.document.createElement("div");
+    selectedWaveHost.className = "sidecar-selected-host";
+    layout.appendChild(selectedWaveHost);
   }
 
   @Override
@@ -186,5 +196,9 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
     for (Map.Entry<String, J2clDigestView> entry : digestViews.entrySet()) {
       entry.getValue().setSelected(entry.getKey() != null && entry.getKey().equals(waveId));
     }
+  }
+
+  public HTMLElement getSelectedWaveHost() {
+    return selectedWaveHost;
   }
 }

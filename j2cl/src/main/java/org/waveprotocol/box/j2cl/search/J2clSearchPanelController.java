@@ -133,6 +133,9 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
           }
           view.render(lastModel);
           view.setSelectedWaveId(selectedWaveId);
+          if (selectedWaveId != null && selectionHandler != null) {
+            selectionHandler.onWaveSelected(selectedWaveId);
+          }
           view.setStatus(buildStatusText(query, lastModel), false);
           view.setLoading(false);
         },
@@ -161,5 +164,9 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
       return "No results for " + query + ".";
     }
     return "Showing " + model.getDigestItems().size() + " result(s) for " + query + ".";
+  }
+
+  public J2clSearchDigestItem findDigestItem(String waveId) {
+    return lastModel.findDigestItem(waveId);
   }
 }

@@ -120,6 +120,13 @@ body {
   width: 100%;
 }
 
+.sidecar-split-layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  align-items: start;
+}
+
 .sidecar-search-card {
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #d8e2f0;
@@ -127,6 +134,67 @@ body {
   box-shadow: 0 22px 50px rgba(16, 35, 59, 0.08);
   padding: 32px;
 }
+
+.sidecar-selected-host {
+  min-width: 0;
+}
+
+.sidecar-selected-card {
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #d8e2f0;
+  border-radius: 24px;
+  box-shadow: 0 22px 50px rgba(16, 35, 59, 0.08);
+  padding: 32px;
+}
+
+.sidecar-selected-title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.sidecar-selected-unread {
+  color: #3567c8;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 14px 0 0;
+}
+
+.sidecar-selected-status {
+  color: #173355;
+  font-weight: 700;
+  margin: 16px 0 0;
+}
+
+.sidecar-selected-status-error {
+  color: #b42318;
+}
+
+.sidecar-selected-detail,
+.sidecar-selected-participants,
+.sidecar-selected-snippet {
+  color: #4f6480;
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+
+.sidecar-selected-content {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.sidecar-selected-entry {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  border: 1px solid #d8e2f0;
+  border-radius: 18px;
+  color: #173355;
+  font: inherit;
+  margin: 0;
+  overflow-x: auto;
+  padding: 16px;
+  white-space: pre-wrap;
+ }
 
 .sidecar-search-session {
   margin: 16px 0 0;
@@ -282,8 +350,13 @@ body {
     padding: 16px;
   }
 
+  .sidecar-split-layout {
+    grid-template-columns: 1fr;
+  }
+
   .sidecar-search-card,
-  .sidecar-card {
+  .sidecar-card,
+  .sidecar-selected-card {
     border-radius: 20px;
     padding: 24px;
   }

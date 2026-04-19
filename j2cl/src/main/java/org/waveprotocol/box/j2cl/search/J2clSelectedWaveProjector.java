@@ -1,0 +1,109 @@
+package org.waveprotocol.box.j2cl.search;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragments;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
+
+public final class J2clSelectedWaveProjector {
+  private J2clSelectedWaveProjector() {
+  }
+
+  public static J2clSelectedWaveModel project(
+      String selectedWaveId,
+      J2clSearchDigestItem digestItem,
+      SidecarSelectedWaveUpdate update,
+      J2clSelectedWaveModel previous,
+      int reconnectCount) {
+    List<String> participantIds = update.getParticipantIds();
+    if (participantIds.isEmpty() && previous != null) {
+      participantIds = previous.getParticipantIds();
+    }
+
+    List<String> contentEntries = extractContentEntries(update.getFragments());
+    if (contentEntries.isEmpty() && previous != null && !previous.getContentEntries().isEmpty()) {
+      contentEntries = previous.getContentEntries();
+    }
+
+    String detailText = buildDetailText(update);
+    String statusText = reconnectCount > 0 ? "Live updates reconnected." : "Live updates connected.";
+
+    return new J2clSelectedWaveModel(
+        true,
+        false,
+        false,
+        selectedWaveId,
+        resolveTitle(selectedWaveId, digestItem),
+        resolveSnippet(digestItem, contentEntries),
+        resolveUnreadText(digestItem),
+        statusText,
+        detailText,
+        reconnectCount,
+        participantIds,
+        contentEntries);
+  }
+
+  private static List<String> extractContentEntries(SidecarSelectedWaveFragments fragments) {
+    if (fragments == null) {
+      return Collections.emptyList();
+    }
+    List<String> blipSnapshots = new ArrayList<String>();
+    List<String> fallbackSnapshots = new ArrayList<String>();
+    for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
+      String rawSnapshot = fragment.getRawSnapshot();
+      if (rawSnapshot == null || rawSnapshot.isEmpty()) {
+        continue;
+      }
+      if (fragment.getSegment() != null && fragment.getSegment().startsWith("blip:")) {
+        blipSnapshots.add(rawSnapshot);
+      } else {
+        fallbackSnapshots.add(rawSnapshot);
+      }
+    }
+    return blipSnapshots.isEmpty() ? fallbackSnapshots : blipSnapshots;
+  }
+
+  private static String buildDetailText(SidecarSelectedWaveUpdate update) {
+    StringBuilder detail = new StringBuilder();
+    if (update.getWaveletName() != null && !update.getWaveletName().isEmpty()) {
+      detail.append(update.getWaveletName());
+    }
+    if (update.getChannelId() != null && !update.getChannelId().isEmpty()) {
+      if (detail.length() > 0) {
+        detail.append(" · ");
+      }
+      detail.append("channel ").append(update.getChannelId());
+    }
+    if (update.getFragments() != null && update.getFragments().getSnapshotVersion() > 0) {
+      if (detail.length() > 0) {
+        detail.append(" · ");
+      }
+      detail.append("snapshot v").append(update.getFragments().getSnapshotVersion());
+    }
+    return detail.toString();
+  }
+
+  private static String resolveTitle(String selectedWaveId, J2clSearchDigestItem digestItem) {
+    if (digestItem != null && digestItem.getTitle() != null && !digestItem.getTitle().isEmpty()) {
+      return digestItem.getTitle();
+    }
+    return selectedWaveId == null ? "Selected wave" : selectedWaveId;
+  }
+
+  private static String resolveSnippet(J2clSearchDigestItem digestItem, List<String> contentEntries) {
+    if (digestItem != null && digestItem.getSnippet() != null && !digestItem.getSnippet().isEmpty()) {
+      return digestItem.getSnippet();
+    }
+    return contentEntries.isEmpty() ? "" : contentEntries.get(0);
+  }
+
+  private static String resolveUnreadText(J2clSearchDigestItem digestItem) {
+    if (digestItem == null) {
+      return "";
+    }
+    int unreadCount = digestItem.getUnreadCount();
+    return unreadCount <= 0 ? "Selected digest is read." : unreadCount + " unread in the selected digest.";
+  }
+}

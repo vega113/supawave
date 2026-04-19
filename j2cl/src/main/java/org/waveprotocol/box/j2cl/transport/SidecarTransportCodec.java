@@ -72,6 +72,65 @@ public final class SidecarTransportCodec {
         getString(payload, "7"));
   }
 
+  public static SidecarSelectedWaveUpdate decodeSelectedWaveUpdate(String json) {
+    Map<String, Object> envelope = parseJsonObject(json);
+    Map<String, Object> payload = asObject(envelope.get("message"));
+    Map<String, Object> snapshot = getOptionalObject(payload, "5");
+    List<String> participantIds = getStringList(snapshot, "2");
+    List<SidecarSelectedWaveDocument> documents = new ArrayList<SidecarSelectedWaveDocument>();
+    Object rawDocuments = snapshot.get("3");
+    if (rawDocuments != null) {
+      for (Object rawDocument : asList(rawDocuments)) {
+        Map<String, Object> document = asObject(rawDocument);
+        documents.add(
+            new SidecarSelectedWaveDocument(
+                getString(document, "1"),
+                getString(document, "3"),
+                getLong(document, "5"),
+                getLong(document, "6")));
+      }
+    }
+
+    Map<String, Object> fragments = getOptionalObject(payload, "8");
+    List<SidecarSelectedWaveFragmentRange> ranges =
+        new ArrayList<SidecarSelectedWaveFragmentRange>();
+    Object rawRanges = fragments.get("4");
+    if (rawRanges != null) {
+      for (Object rawRange : asList(rawRanges)) {
+        Map<String, Object> range = asObject(rawRange);
+        ranges.add(
+            new SidecarSelectedWaveFragmentRange(
+                getString(range, "1"), getLong(range, "2"), getLong(range, "3")));
+      }
+    }
+
+    List<SidecarSelectedWaveFragment> entries =
+        new ArrayList<SidecarSelectedWaveFragment>();
+    Object rawEntries = fragments.get("5");
+    if (rawEntries != null) {
+      for (Object rawEntry : asList(rawEntries)) {
+        Map<String, Object> entry = asObject(rawEntry);
+        Map<String, Object> entrySnapshot = getOptionalObject(entry, "2");
+        entries.add(
+            new SidecarSelectedWaveFragment(
+                getString(entry, "1"),
+                getString(entrySnapshot, "1"),
+                getArrayLength(entry.get("3")),
+                getArrayLength(entry.get("4"))));
+      }
+    }
+
+    return new SidecarSelectedWaveUpdate(
+        getInt(envelope, "sequenceNumber"),
+        getString(payload, "1"),
+        getBoolean(payload, "6"),
+        getString(payload, "7"),
+        participantIds,
+        documents,
+        new SidecarSelectedWaveFragments(
+            getLong(fragments, "1"), getLong(fragments, "2"), getLong(fragments, "3"), ranges, entries));
+  }
+
   private static String escapeJson(String value) {
     StringBuilder escaped = new StringBuilder(value.length() + 8);
     for (int i = 0; i < value.length(); i++) {
@@ -152,6 +211,11 @@ public final class SidecarTransportCodec {
   private static String getString(Map<String, Object> object, String key) {
     Object value = object.get(key);
     return value == null ? null : String.valueOf(value);
+  }
+
+  private static Map<String, Object> getOptionalObject(Map<String, Object> object, String key) {
+    Object value = object.get(key);
+    return value == null ? new LinkedHashMap<String, Object>() : asObject(value);
   }
 
   private static int getInt(Map<String, Object> object, String key) {

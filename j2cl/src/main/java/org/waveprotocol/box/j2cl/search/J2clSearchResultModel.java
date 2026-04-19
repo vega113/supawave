@@ -56,4 +56,16 @@ public final class J2clSearchResultModel {
     }
     return false;
   }
+
+  public J2clSearchDigestItem findDigestItem(String waveId) {
+    if (waveId == null) {
+      return null;
+    }
+    for (J2clSearchDigestItem item : digestItems) {
+      if (waveId.equals(item.getWaveId())) {
+        return item;
+      }
+    }
+    return null;
+  }
 }

@@ -13,6 +13,8 @@ import jsinterop.annotations.JsType;
 import org.waveprotocol.box.j2cl.search.J2clSearchGateway;
 import org.waveprotocol.box.j2cl.search.J2clSearchPanelController;
 import org.waveprotocol.box.j2cl.search.J2clSearchPanelView;
+import org.waveprotocol.box.j2cl.search.J2clSelectedWaveController;
+import org.waveprotocol.box.j2cl.search.J2clSelectedWaveView;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarOpenRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
@@ -40,12 +42,21 @@ public final class SandboxEntryPoint {
 
     if ("search-sidecar".equals(mode)) {
       J2clSearchPanelView searchView = new J2clSearchPanelView(host);
+      J2clSearchGateway gateway = new J2clSearchGateway();
+      J2clSelectedWaveController selectedWaveController =
+          new J2clSelectedWaveController(
+              gateway, new J2clSelectedWaveView(searchView.getSelectedWaveHost()));
+      final J2clSearchPanelController[] controllerRef = new J2clSearchPanelController[1];
       J2clSearchPanelController controller =
           new J2clSearchPanelController(
-              new J2clSearchGateway(),
+              gateway,
               searchView,
-              waveId -> { },
+              waveId ->
+                  selectedWaveController.onWaveSelected(
+                      waveId,
+                      controllerRef[0] == null ? null : controllerRef[0].findDigestItem(waveId)),
               resolveViewportWidth());
+      controllerRef[0] = controller;
       controller.start(readRequestedQuery(DomGlobal.location.search));
       return;
     }

@@ -69,14 +69,14 @@ body.mobile-wave-open [data-mobile-role='wave-thread'] {
   bottom: 0 !important;
 }
 
-body.mobile-wave-chrome-hidden [data-mobile-role='wave-participants'],
-body.mobile-wave-chrome-hidden [data-mobile-role='wave-toolbar'] {
+body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-participants'],
+body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-toolbar'] {
   transform: translateY(-110%);
   opacity: 0;
   pointer-events: none;
 }
 
-body.mobile-wave-chrome-hidden [data-mobile-role='wave-thread'] {
+body.mobile-wave-open.mobile-wave-chrome-hidden [data-mobile-role='wave-thread'] {
   top: 0 !important;
 }
 

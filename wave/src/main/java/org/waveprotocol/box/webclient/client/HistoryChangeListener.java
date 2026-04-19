@@ -55,12 +55,17 @@ public class HistoryChangeListener {
         if (encodedToken == null || encodedToken.length() == 0) {
           return;
         }
+        boolean hasSlideNavMetadata = ThreadNavigationHistory.hasMetadata(encodedToken);
         encodedToken = ThreadNavigationHistory.stripMetadata(encodedToken);
         WaveRef waveRef;
         try {
           waveRef = GwtWaverefEncoder.decodeWaveRefFromPath(encodedToken);
         } catch (InvalidWaveRefException e) {
           LOG.info("History token contains invalid path: " + encodedToken);
+          return;
+        }
+        if (hasSlideNavMetadata) {
+          LOG.info("Skipping wave selection for slide-nav history entry: " + encodedToken);
           return;
         }
         LOG.info("Changing selected wave based on history event to " + waveRef.toString());

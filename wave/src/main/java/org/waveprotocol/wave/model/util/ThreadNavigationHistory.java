@@ -42,6 +42,10 @@ public final class ThreadNavigationHistory {
     return token.toString();
   }
 
+  public static boolean hasMetadata(String token) {
+    return token != null && token.indexOf('&') >= 0;
+  }
+
   public static String stripMetadata(String token) {
     if (token == null || token.isEmpty()) {
       return token;

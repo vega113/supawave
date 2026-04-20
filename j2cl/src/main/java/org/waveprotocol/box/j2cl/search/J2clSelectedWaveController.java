@@ -140,6 +140,8 @@ public final class J2clSelectedWaveController {
       return;
     }
     final boolean[] terminalStateHandled = new boolean[] {false};
+    // Mutable so successful updates reset the budget, keeping MAX_RECONNECT_ATTEMPTS per outage.
+    final int[] activeReconnectCount = {reconnectCount};
     currentSubscription =
         gateway.openSelectedWave(
             currentBootstrap,
@@ -148,16 +150,12 @@ public final class J2clSelectedWaveController {
               if (!isCurrentGeneration(generation) || isChannelEstablishmentUpdate(update)) {
                 return;
               }
-              int displayReconnectCount = reconnectCount;
+              activeReconnectCount[0] = 0;
               lastUpdate = update;
               this.reconnectCount = 0;
               currentModel =
                   J2clSelectedWaveProjector.project(
-                      selectedWaveId,
-                      selectedDigestItem,
-                      update,
-                      currentModel,
-                      displayReconnectCount);
+                      selectedWaveId, selectedDigestItem, update, currentModel, activeReconnectCount[0]);
               view.render(currentModel);
             },
             error -> {
@@ -170,7 +168,7 @@ public final class J2clSelectedWaveController {
               terminalStateHandled[0] = true;
               closeSubscription();
               if (retryOnFailure || lastUpdate != null) {
-                scheduleReconnectOrFail(generation, this.reconnectCount);
+                scheduleReconnectOrFail(generation, activeReconnectCount[0]);
                 return;
               }
               currentModel =
@@ -187,7 +185,7 @@ public final class J2clSelectedWaveController {
               }
               terminalStateHandled[0] = true;
               clearActiveSubscription();
-              scheduleReconnectOrFail(generation, this.reconnectCount);
+              scheduleReconnectOrFail(generation, activeReconnectCount[0]);
             });
   }
 

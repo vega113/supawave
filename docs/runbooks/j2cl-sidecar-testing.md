@@ -195,7 +195,7 @@ Expected result:
 ### Mode B: J2CL Root Bootstrap Is Enabled Server-Side
 
 ```bash
-cp journal/runtime-config/issue-923-j2cl-root-bootstrap-port-9914.application.conf /tmp/j2cl-root-bootstrap.application.conf
+cp wave/config/reference.conf /tmp/j2cl-root-bootstrap.application.conf
 printf '\nui.j2cl_root_bootstrap_enabled=true\n' >> /tmp/j2cl-root-bootstrap.application.conf
 PORT=9914 bash scripts/wave-smoke.sh stop
 PORT=9914 JAVA_OPTS="-Djava.util.logging.config.file=$PWD/wave/config/wiab-logging.conf -Djava.security.auth.login.config=$PWD/wave/config/jaas.config -Dwave.server.config=/tmp/j2cl-root-bootstrap.application.conf" bash scripts/wave-smoke.sh start

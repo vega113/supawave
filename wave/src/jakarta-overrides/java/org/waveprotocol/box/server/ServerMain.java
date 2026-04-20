@@ -170,7 +170,7 @@ public class ServerMain {
         hasExplicitOverride
             ? ConfigParseOptions.defaults().setAllowMissing(false)
             : ConfigParseOptions.defaults();
-    return ConfigFactory.parseFile(applicationConfig, parseOptions).resolve();
+    return ConfigFactory.parseFile(applicationConfig, parseOptions);
   }
 
   private static boolean hasExplicitConfigOverride() {

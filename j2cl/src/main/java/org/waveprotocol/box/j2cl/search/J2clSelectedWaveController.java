@@ -4,7 +4,8 @@ import elemental2.dom.DomGlobal;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 
-public final class J2clSelectedWaveController {
+public final class J2clSelectedWaveController
+    implements J2clSidecarRouteController.SelectedWaveController {
   private static final int INITIAL_RECONNECT_DELAY_MS = 250;
   // Keep retries bounded, but leave enough budget for a local WIAB restart on the same port.
   private static final int MAX_RECONNECT_DELAY_MS = 2000;
@@ -66,6 +67,7 @@ public final class J2clSelectedWaveController {
     onWaveSelected(waveId, null);
   }
 
+  @Override
   public void onWaveSelected(String waveId, J2clSearchDigestItem digestItem) {
     if (waveId != null
         && waveId.equals(selectedWaveId)

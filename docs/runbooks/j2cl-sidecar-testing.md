@@ -196,7 +196,7 @@ Expected result:
 
 ```bash
 bash scripts/worktree-boot.sh --port 9914
-RUNTIME_CONFIG="$(find journal/runtime-config -name '*-port-9914.application.conf' | head -1)"
+RUNTIME_CONFIG="$(find journal/runtime-config -maxdepth 1 -name '*-port-9914.application.conf' | head -n1)"
 cp "$RUNTIME_CONFIG" /tmp/j2cl-root-bootstrap.application.conf
 printf '\nui.j2cl_root_bootstrap_enabled=true\n' >> /tmp/j2cl-root-bootstrap.application.conf
 PORT=9914 bash scripts/wave-smoke.sh stop

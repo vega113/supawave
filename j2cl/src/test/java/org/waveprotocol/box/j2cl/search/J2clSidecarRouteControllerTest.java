@@ -128,6 +128,72 @@ public class J2clSidecarRouteControllerTest {
         selectedWaveController.tailEvents(1));
   }
 
+  @Test
+  public void rootShellStartPreservesExplicitSelectorAndState() {
+    FakeHistoryAdapter history =
+        new FakeHistoryAdapter("?view=j2cl-root&q=with%3A%40&wave=example.com%2Fw%2B1");
+    FakeSearchPanelController searchController = new FakeSearchPanelController();
+    FakeSelectedWaveController selectedWaveController = new FakeSelectedWaveController();
+    J2clSidecarRouteController controller =
+        new J2clSidecarRouteController(
+            history, searchController, selectedWaveController, "view=j2cl-root");
+
+    controller.start();
+
+    Assert.assertEquals(
+        Arrays.asList("?view=j2cl-root&q=with%3A%40&wave=example.com%2Fw%2B1"),
+        history.replacedUrls);
+    Assert.assertEquals(
+        Arrays.asList("start:with:@:example.com/w+1"),
+        searchController.events);
+    Assert.assertEquals(
+        Arrays.asList("example.com/w+1:null"),
+        selectedWaveController.events);
+  }
+
+  @Test
+  public void rootShellNavigationKeepsExplicitSelectorOnPush() {
+    FakeHistoryAdapter history = new FakeHistoryAdapter("?view=j2cl-root&q=with%3A%40");
+    FakeSearchPanelController searchController = new FakeSearchPanelController();
+    FakeSelectedWaveController selectedWaveController = new FakeSelectedWaveController();
+    J2clSidecarRouteController controller =
+        new J2clSidecarRouteController(
+            history, searchController, selectedWaveController, "view=j2cl-root");
+
+    controller.start();
+    controller.selectWave("example.com/w+2");
+
+    Assert.assertEquals(
+        Arrays.asList("?view=j2cl-root&q=with%3A%40&wave=example.com%2Fw%2B2"),
+        history.pushedUrls);
+    Assert.assertEquals(
+        Arrays.asList("sync:example.com/w+2"),
+        searchController.tailEvents(1));
+  }
+
+  @Test
+  public void rootShellPopStateRestoresSearchWithoutDroppingSelector() {
+    FakeHistoryAdapter history =
+        new FakeHistoryAdapter("?view=j2cl-root&q=with%3A%40&wave=example.com%2Fw%2B1");
+    FakeSearchPanelController searchController = new FakeSearchPanelController();
+    FakeSelectedWaveController selectedWaveController = new FakeSelectedWaveController();
+    J2clSidecarRouteController controller =
+        new J2clSidecarRouteController(
+            history, searchController, selectedWaveController, "view=j2cl-root");
+
+    controller.start();
+    history.setSearch("?view=j2cl-root&q=in%3Ainbox");
+    history.firePopState();
+
+    Assert.assertEquals(
+        Arrays.asList("start:with:@:example.com/w+1", "restore:in:inbox:null"),
+        searchController.events);
+    Assert.assertEquals(1, history.replacedUrls.size());
+    Assert.assertEquals(
+        Arrays.asList("example.com/w+1:null", "null:null"),
+        selectedWaveController.events);
+  }
+
   private static J2clSearchDigestItem digest(String waveId) {
     return new J2clSearchDigestItem(
         waveId, "Wave", "Snippet", "user@example.com", 1, 2, 3L, false);

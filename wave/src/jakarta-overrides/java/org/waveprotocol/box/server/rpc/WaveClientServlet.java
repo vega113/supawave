@@ -58,6 +58,8 @@ import org.waveprotocol.wave.util.logging.Log;
 public class WaveClientServlet extends HttpServlet {
   private static final Log LOG = Log.get(WaveClientServlet.class);
   private static final HashMap<String, String> FLAG_MAP = Maps.newHashMap();
+  private static final String VIEW_LANDING = "landing";
+  private static final String VIEW_J2CL_ROOT = "j2cl-root";
 
   static {
     for (int i = 0; i < FlagConstants.__NAME_MAPPING__.length; i += 2) {
@@ -124,11 +126,32 @@ public class WaveClientServlet extends HttpServlet {
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     ParticipantId id = sessionManager.getLoggedInUser(WebSessions.from(request, false));
+    String requestedView = resolveRequestedView(request);
+
+    if (VIEW_J2CL_ROOT.equals(requestedView)) {
+      String rootShellReturnTarget = buildJ2clRootShellReturnTarget(request);
+      response.setContentType("text/html");
+      response.setCharacterEncoding("UTF-8");
+      response.setStatus(HttpServletResponse.SC_OK);
+      try (var w = response.getWriter()) {
+        w.write(HtmlRenderer.renderJ2clRootShellPage(
+            getSessionJson(WebSessions.from(request, false)),
+            analyticsAccount,
+            buildCommit,
+            serverBuildTime,
+            currentReleaseId,
+            rootShellReturnTarget));
+      } catch (IOException e) {
+        LOG.warning("Failed to render J2CL root shell page", e);
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      }
+      return;
+    }
 
     // Show the landing page for unauthenticated visitors, or when an
     // authenticated user explicitly requests it via ?view=landing (e.g.
     // clicking the logo in the top bar).
-    if (id == null || "landing".equals(request.getParameter("view"))) {
+    if (id == null || VIEW_LANDING.equals(requestedView)) {
       response.setContentType("text/html");
       response.setCharacterEncoding("UTF-8");
       response.setStatus(HttpServletResponse.SC_OK);
@@ -435,5 +458,36 @@ public class WaveClientServlet extends HttpServlet {
       LOG.severe("Failed to create session JSON");
       return new JSONObject();
     }
+  }
+
+  private String buildJ2clRootShellReturnTarget(HttpServletRequest request) {
+    String returnTarget = "/?view=" + VIEW_J2CL_ROOT;
+    String query = request.getParameter("q");
+    if (query != null && !query.isEmpty()) {
+      returnTarget = UrlParameters.addParameter(returnTarget, "q", query);
+    }
+    String wave = request.getParameter("wave");
+    if (wave != null && !wave.isEmpty()) {
+      returnTarget = UrlParameters.addParameter(returnTarget, "wave", wave);
+    }
+    return returnTarget;
+  }
+
+  private String resolveRequestedView(HttpServletRequest request) {
+    String[] values = request.getParameterValues("view");
+    if (values == null || values.length == 0) {
+      return request.getParameter("view");
+    }
+    for (String value : values) {
+      if (VIEW_J2CL_ROOT.equals(value)) {
+        return VIEW_J2CL_ROOT;
+      }
+    }
+    for (String value : values) {
+      if (VIEW_LANDING.equals(value)) {
+        return VIEW_LANDING;
+      }
+    }
+    return values[0];
   }
 }

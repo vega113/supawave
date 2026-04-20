@@ -19,6 +19,13 @@ public final class J2clSidecarComposeView implements J2clSidecarComposeControlle
   private J2clSidecarComposeController.Listener listener;
 
   public J2clSidecarComposeView(HTMLElement createHost, HTMLElement replyHost) {
+    this(createHost, replyHost, J2clSearchPanelView.ShellPresentation.SIDE_CAR);
+  }
+
+  public J2clSidecarComposeView(
+      HTMLElement createHost,
+      HTMLElement replyHost,
+      J2clSearchPanelView.ShellPresentation shellPresentation) {
     createHost.innerHTML = "";
     replyHost.innerHTML = "";
 
@@ -33,7 +40,10 @@ public final class J2clSidecarComposeView implements J2clSidecarComposeControlle
 
     HTMLElement createDetail = (HTMLElement) DomGlobal.document.createElement("p");
     createDetail.className = "sidecar-compose-detail";
-    createDetail.textContent = "Create a self-owned plain-text wave without leaving this sidecar.";
+    createDetail.textContent =
+        shellPresentation == J2clSearchPanelView.ShellPresentation.ROOT_SHELL
+            ? "Create a self-owned plain-text wave inside the root shell."
+            : "Create a self-owned plain-text wave without leaving this sidecar.";
     createSection.appendChild(createDetail);
 
     HTMLFormElement createForm = (HTMLFormElement) DomGlobal.document.createElement("form");

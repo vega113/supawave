@@ -64,7 +64,7 @@ public final class J2clSelectedWaveModel {
         "",
         "",
         "Choose a digest from the search results to open a read-only selected-wave panel.",
-        "Copied sidecar URLs can restore the selected wave when the route includes it.",
+        "Copied URLs can restore the selected wave when the route includes it.",
         0,
         Collections.<String>emptyList(),
         Collections.<String>emptyList(),
@@ -83,7 +83,7 @@ public final class J2clSelectedWaveModel {
         resolveUnreadText(digestItem),
         reconnectCount > 0 ? "Reconnecting selected wave." : "Opening selected wave.",
         reconnectCount > 0
-            ? "Reusing the current sidecar session after a disconnect."
+            ? "Reusing the current session after a disconnect."
             : "Waiting for the first live selected-wave update.",
         reconnectCount,
         Collections.<String>emptyList(),

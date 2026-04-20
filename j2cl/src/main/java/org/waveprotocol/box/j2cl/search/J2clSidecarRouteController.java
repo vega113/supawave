@@ -54,20 +54,30 @@ public final class J2clSidecarRouteController {
   private final HistoryAdapter history;
   private final SearchPanelController searchController;
   private final SelectedWaveController selectedWaveController;
+  private final String fixedQueryString;
   private J2clSidecarRouteState currentState;
 
   public J2clSidecarRouteController(
       HistoryAdapter history,
       SearchPanelController searchController,
       SelectedWaveController selectedWaveController) {
+    this(history, searchController, selectedWaveController, null);
+  }
+
+  public J2clSidecarRouteController(
+      HistoryAdapter history,
+      SearchPanelController searchController,
+      SelectedWaveController selectedWaveController,
+      String fixedQueryString) {
     this.history = history;
     this.searchController = searchController;
     this.selectedWaveController = selectedWaveController;
+    this.fixedQueryString = fixedQueryString;
   }
 
   public void start() {
     currentState = J2clSidecarRouteCodec.parse(history.getSearch());
-    history.replaceUrl(J2clSidecarRouteCodec.toUrl(currentState));
+    history.replaceUrl(J2clSidecarRouteCodec.toUrl(currentState, fixedQueryString));
     searchController.start(currentState.getQuery(), currentState.getSelectedWaveId());
     selectedWaveController.onWaveSelected(currentState.getSelectedWaveId(), null);
     history.setPopStateListener(this::handlePopState);
@@ -79,7 +89,7 @@ public final class J2clSidecarRouteController {
       return;
     }
     if (userNavigation && !nextState.equals(currentState)) {
-      history.pushUrl(J2clSidecarRouteCodec.toUrl(nextState));
+      history.pushUrl(J2clSidecarRouteCodec.toUrl(nextState, fixedQueryString));
     }
     currentState = nextState;
     selectedWaveController.onWaveSelected(nextState.getSelectedWaveId(), digestItem);

@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.waveprotocol.box.common.SessionConstants;
 import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.rpc.PublicWaveBlipRenderer.BlipInfo;
 
@@ -58,6 +59,8 @@ public final class HtmlRenderer {
   private static final String WAVE_TEXT_MUTED = "#718096";
   private static final String WAVE_FONT =
       "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif";
+  private static final String J2CL_ROOT_RETURN_TARGET = "/?view=j2cl-root";
+  private static final String J2CL_ROOT_RETURN_TARGET_ENCODED = "/%3Fview%3Dj2cl-root";
 
   // =========================================================================
   // User-menu CSS shared by the wave-client page and the standalone topbar
@@ -3209,6 +3212,123 @@ public final class HtmlRenderer {
     return sb.toString();
   }
 
+  public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
+      String buildCommit, long serverBuildTime, String currentReleaseId,
+      String rootShellReturnTarget) {
+    String address = sessionJson == null ? "" : sessionJson.optString(SessionConstants.ADDRESS, "");
+    boolean signedIn = address != null && !address.isEmpty();
+    String resolvedReturnTarget =
+        rootShellReturnTarget == null || rootShellReturnTarget.isEmpty()
+            ? J2CL_ROOT_RETURN_TARGET
+            : rootShellReturnTarget;
+    String safeResolvedReturnTarget = escapeHtml(resolvedReturnTarget);
+    String safeEncodedReturnTarget =
+        escapeHtml(encodeLocalReturnTarget(resolvedReturnTarget));
+
+    StringBuilder sb = new StringBuilder(2048);
+    sb.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0\">\n");
+    sb.append("<title>SupaWave J2CL Root Shell</title>\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<meta name=\"build-commit\" content=\"").append(escapeHtml(buildCommit == null ? "" : buildCommit)).append("\">\n");
+    sb.append("<meta name=\"server-build-time\" content=\"").append(serverBuildTime).append("\">\n");
+    sb.append("<meta name=\"current-release-id\" content=\"").append(escapeHtml(currentReleaseId == null ? "" : currentReleaseId)).append("\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"/j2cl/assets/sidecar.css\">\n");
+    sb.append("<style>\n");
+    sb.append("body { margin: 0; min-height: 100vh; font-family: ").append(WAVE_FONT).append("; background: linear-gradient(180deg, #f7fbff 0%, #eef5fb 100%); color: ").append(WAVE_TEXT).append("; }\n");
+    sb.append(".j2cl-root-shell-page { min-height: 100vh; }\n");
+    sb.append(".j2cl-root-shell { max-width: 1120px; margin: 0 auto; padding: 24px 20px 40px; }\n");
+    sb.append(".j2cl-root-shell-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border: 1px solid ").append(WAVE_BORDER).append("; border-radius: 18px; background: rgba(255,255,255,0.92); box-shadow: 0 18px 44px rgba(16,35,59,0.08); }\n");
+    sb.append(".j2cl-root-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: ").append(WAVE_TEXT).append("; font-weight: 800; font-size: 1.05rem; }\n");
+    sb.append(".j2cl-root-brand-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: linear-gradient(135deg, ").append(WAVE_PRIMARY).append(" 0%, ").append(WAVE_ACCENT).append(" 100%); color: #fff; font-size: 0.85rem; }\n");
+    sb.append(".j2cl-root-shell-nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }\n");
+    sb.append(".j2cl-root-shell-status { margin: 18px 0 0; padding: 20px 18px; border-radius: 20px; background: rgba(255,255,255,0.9); border: 1px solid ").append(WAVE_BORDER).append("; box-shadow: 0 18px 44px rgba(16,35,59,0.08); }\n");
+    sb.append(".j2cl-root-shell-status h1 { margin: 0 0 8px; font-size: clamp(1.8rem, 4vw, 2.8rem); line-height: 1.05; }\n");
+    sb.append(".j2cl-root-shell-summary { margin: 0; line-height: 1.6; color: ").append(WAVE_TEXT_MUTED).append("; }\n");
+    sb.append(".j2cl-root-shell-session { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }\n");
+    sb.append(".j2cl-root-shell-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: #e8f4ff; color: ").append(WAVE_PRIMARY).append("; font-weight: 700; }\n");
+    sb.append(".j2cl-root-shell-link { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 999px; background: ").append(WAVE_PRIMARY).append("; color: #fff; text-decoration: none; font-weight: 700; }\n");
+    sb.append(".j2cl-root-shell-link.secondary { background: #fff; color: ").append(WAVE_PRIMARY).append("; border: 1px solid ").append(WAVE_BORDER).append("; }\n");
+    sb.append(".j2cl-root-shell-link:focus-visible { outline: 2px solid ").append(WAVE_ACCENT).append("; outline-offset: 2px; }\n");
+    sb.append(".j2cl-root-shell-workflow { margin-top: 20px; min-height: 360px; border-radius: 24px; border: 1px dashed #bfd4ea; background: rgba(255,255,255,0.72); box-shadow: inset 0 1px 0 rgba(255,255,255,0.8); }\n");
+    sb.append(".j2cl-root-shell-workflow::before { content: 'J2CL workflow mount host'; display: block; padding: 18px 20px 0; color: ").append(WAVE_TEXT_MUTED).append("; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }\n");
+    sb.append(".j2cl-root-shell-workflow-empty { padding: 14px 20px 20px; color: ").append(WAVE_TEXT_MUTED).append("; line-height: 1.6; }\n");
+    sb.append("@media (max-width: 767px) { .j2cl-root-shell { padding: 16px 12px 28px; } .j2cl-root-shell-banner { flex-direction: column; align-items: flex-start; } .j2cl-root-shell-session { align-items: flex-start; } }\n");
+    sb.append("</style>\n");
+    appendAnalyticsFragment(sb, analyticsAccount, null);
+    sb.append("</head>\n<body class=\"j2cl-root-shell-page\">\n");
+    sb.append("<main class=\"j2cl-root-shell\" data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
+        .append(safeResolvedReturnTarget)
+        .append("\">\n");
+    sb.append("  <header class=\"j2cl-root-shell-banner\">\n");
+    sb.append("    <a class=\"j2cl-root-brand\" href=\"").append(safeResolvedReturnTarget).append("\" aria-label=\"J2CL root shell\">\n");
+    sb.append("      <span class=\"j2cl-root-brand-badge\">J2</span>\n");
+    sb.append("      <span>SupaWave J2CL Root Shell</span>\n");
+    sb.append("    </a>\n");
+    sb.append("    <nav class=\"j2cl-root-shell-nav\" aria-label=\"Session controls\">\n");
+    if (signedIn) {
+      sb.append("      <span class=\"j2cl-root-shell-pill\">Signed in as ").append(escapeHtml(address)).append("</span>\n");
+      sb.append("      <a class=\"j2cl-root-shell-link secondary\" href=\"/auth/signout?r=").append(safeEncodedReturnTarget).append("\">Sign out</a>\n");
+    } else {
+      sb.append("      <span class=\"j2cl-root-shell-pill\">Signed out</span>\n");
+      sb.append("      <a class=\"j2cl-root-shell-link\" href=\"/auth/signin?r=").append(safeEncodedReturnTarget).append("\">Sign in</a>\n");
+    }
+    sb.append("    </nav>\n");
+    sb.append("  </header>\n");
+    sb.append("  <section class=\"j2cl-root-shell-status\">\n");
+    sb.append("    <h1>Root shell ready for J2CL</h1>\n");
+    sb.append("    <p class=\"j2cl-root-shell-summary\">");
+    sb.append(signedIn
+        ? "The explicit J2CL root selector is active and the existing workflow can mount here without the legacy GWT shell."
+        : "The explicit J2CL root selector is active. Sign in to mount the workflow inside this shell.");
+    sb.append("</p>\n");
+    sb.append("    <div class=\"j2cl-root-shell-session\">\n");
+    if (signedIn) {
+      sb.append("      <span class=\"j2cl-root-shell-pill\">Return target: ").append(safeResolvedReturnTarget).append("</span>\n");
+    } else {
+      sb.append("      <a class=\"j2cl-root-shell-link secondary\" href=\"/auth/signin?r=").append(safeEncodedReturnTarget).append("\">Continue to sign in</a>\n");
+    }
+    sb.append("    </div>\n");
+    sb.append("  </section>\n");
+    sb.append("  <section id=\"j2cl-root-shell-workflow\" class=\"j2cl-root-shell-workflow\" data-j2cl-root-shell-workflow=\"true\">\n");
+    sb.append("    <div class=\"j2cl-root-shell-workflow-empty\">");
+    sb.append(signedIn
+        ? "The hosted J2CL workflow will mount here in the next slice."
+        : "After sign-in, the hosted J2CL workflow will mount here without leaving the shell.");
+    sb.append("</div>\n");
+    sb.append("  </section>\n");
+    if (signedIn) {
+      sb.append("<script src=\"/j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
+      sb.append("<script>\n");
+      sb.append("(function(){\n");
+      sb.append("function resolveEntryPoint(){\n");
+      sb.append("  if(window.WaveSandboxEntryPoint&&window.WaveSandboxEntryPoint.mount){return window.WaveSandboxEntryPoint;}\n");
+      sb.append("  if(window.goog&&window.goog.module&&window.goog.module.get){\n");
+      sb.append("    var entryPoint=window.goog.module.get('WaveSandboxEntryPoint');\n");
+      sb.append("    if(entryPoint&&entryPoint.mount){window.WaveSandboxEntryPoint=entryPoint;return entryPoint;}\n");
+      sb.append("  }\n");
+      sb.append("  return null;\n");
+      sb.append("}\n");
+      sb.append("function renderLoadError(){\n");
+      sb.append("  var workflow=document.getElementById('j2cl-root-shell-workflow');\n");
+      sb.append("  if(workflow){workflow.innerHTML='<div class=\"j2cl-root-shell-workflow-empty\">ERROR: J2CL root-shell bundle failed to load.</div>';}\n");
+      sb.append("}\n");
+      sb.append("function mountWhenReady(attemptsRemaining){\n");
+      sb.append("  var entryPoint=resolveEntryPoint();\n");
+      sb.append("  if(entryPoint){entryPoint.mount('j2cl-root-shell-workflow','root-shell');return;}\n");
+      sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1);},50);}else{renderLoadError();}\n");
+      sb.append("}\n");
+      sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){mountWhenReady(80);});}else{mountWhenReady(80);}\n");
+      sb.append("})();\n");
+      sb.append("</script>\n");
+    }
+    sb.append("</main>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
   /**
    * Appends the profile card popup overlay HTML, CSS, and JavaScript.
    * Exposes {@code window.showProfileCard(address, anchorElement)} for GWT
@@ -4030,6 +4150,16 @@ public final class HtmlRenderer {
       sb.append("})();\n</script>\n");
     }
     return sb.toString();
+  }
+
+  private static String encodeLocalReturnTarget(String returnTarget) {
+    if (returnTarget == null || returnTarget.isEmpty()) {
+      return "";
+    }
+    if (returnTarget.startsWith("/")) {
+      return "/" + URLEncoder.encode(returnTarget.substring(1), StandardCharsets.UTF_8);
+    }
+    return URLEncoder.encode(returnTarget, StandardCharsets.UTF_8);
   }
 
   /**

@@ -48,9 +48,10 @@ public final class J2clSidecarComposeController {
   private final J2clPlainTextDeltaFactory deltaFactory;
   private final CreateSuccessHandler createSuccessHandler;
   private final ReplySuccessHandler replySuccessHandler;
+  private final J2clSearchPanelView.ShellPresentation shellPresentation;
   private String createDraft = "";
   private boolean createSubmitting;
-  private String createStatusText = "Create a self-owned wave from the sidecar.";
+  private String createStatusText;
   private String createErrorText = "";
   private J2clSidecarWriteSession writeSession;
   private String replyDraft = "";
@@ -66,7 +67,13 @@ public final class J2clSidecarComposeController {
       View view,
       J2clPlainTextDeltaFactory deltaFactory,
       CreateSuccessHandler createSuccessHandler) {
-    this(gateway, view, deltaFactory, createSuccessHandler, null);
+    this(
+        gateway,
+        view,
+        deltaFactory,
+        createSuccessHandler,
+        null,
+        J2clSearchPanelView.ShellPresentation.SIDE_CAR);
   }
 
   public J2clSidecarComposeController(
@@ -75,11 +82,27 @@ public final class J2clSidecarComposeController {
       J2clPlainTextDeltaFactory deltaFactory,
       CreateSuccessHandler createSuccessHandler,
       ReplySuccessHandler replySuccessHandler) {
+    this(gateway, view, deltaFactory, createSuccessHandler, replySuccessHandler,
+        J2clSearchPanelView.ShellPresentation.SIDE_CAR);
+  }
+
+  public J2clSidecarComposeController(
+      Gateway gateway,
+      View view,
+      J2clPlainTextDeltaFactory deltaFactory,
+      CreateSuccessHandler createSuccessHandler,
+      ReplySuccessHandler replySuccessHandler,
+      J2clSearchPanelView.ShellPresentation shellPresentation) {
     this.gateway = gateway;
     this.view = view;
     this.deltaFactory = deltaFactory;
     this.createSuccessHandler = createSuccessHandler;
     this.replySuccessHandler = replySuccessHandler;
+    this.shellPresentation = shellPresentation;
+    this.createStatusText =
+        shellPresentation == J2clSearchPanelView.ShellPresentation.ROOT_SHELL
+            ? "Create a self-owned wave inside the root shell."
+            : "Create a self-owned wave from the sidecar.";
   }
 
   public void start() {
@@ -165,7 +188,10 @@ public final class J2clSidecarComposeController {
       return;
     }
     createSubmitting = true;
-    createStatusText = "Bootstrapping the sidecar submit session.";
+    createStatusText =
+        shellPresentation == J2clSearchPanelView.ShellPresentation.ROOT_SHELL
+            ? "Bootstrapping the root-shell submit session."
+            : "Bootstrapping the sidecar submit session.";
     createErrorText = "";
     final String submittedDraft = createDraft;
     final int generation = ++createGeneration;
@@ -241,7 +267,10 @@ public final class J2clSidecarComposeController {
       return;
     }
     replySubmitting = true;
-    replyStatusText = "Bootstrapping the sidecar submit session.";
+    replyStatusText =
+        shellPresentation == J2clSearchPanelView.ShellPresentation.ROOT_SHELL
+            ? "Bootstrapping the root-shell submit session."
+            : "Bootstrapping the sidecar submit session.";
     replyErrorText = "";
     final String submittedDraft = replyDraft;
     final int generation = ++replyGeneration;

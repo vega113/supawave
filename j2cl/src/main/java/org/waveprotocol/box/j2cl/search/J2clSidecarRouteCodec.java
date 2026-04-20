@@ -34,8 +34,17 @@ public final class J2clSidecarRouteCodec {
   }
 
   public static String toUrl(J2clSidecarRouteState state) {
+    return toUrl(state, null);
+  }
+
+  public static String toUrl(J2clSidecarRouteState state, String fixedQueryString) {
     StringBuilder url = new StringBuilder();
-    url.append("?q=").append(encodeUriComponentSafe(state.getQuery()));
+    url.append('?');
+    if (fixedQueryString != null && !fixedQueryString.isEmpty()) {
+      url.append(fixedQueryString);
+      url.append('&');
+    }
+    url.append("q=").append(encodeUriComponentSafe(state.getQuery()));
     if (state.getSelectedWaveId() != null) {
       url.append("&wave=").append(encodeUriComponentSafe(state.getSelectedWaveId()));
     }

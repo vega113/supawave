@@ -33,6 +33,26 @@ public class J2clSidecarComposeControllerTest {
   }
 
   @Test
+  public void rootShellPresentationUsesShellAwareCreateCopy() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clSidecarComposeController controller =
+        new J2clSidecarComposeController(
+            gateway,
+            view,
+            new FakeFactory(),
+            waveId -> { },
+            null,
+            J2clSearchPanelView.ShellPresentation.ROOT_SHELL);
+
+    controller.start();
+
+    Assert.assertEquals(
+        "Create a self-owned wave inside the root shell.",
+        view.model.getCreateStatusText());
+  }
+
+  @Test
   public void successfulCreateClearsDraftAndNavigatesToCreatedWave() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();

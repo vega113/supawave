@@ -10,6 +10,23 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class J2clSearchPanelView implements J2clSearchPanelController.View {
+  public enum ShellPresentation {
+    SIDE_CAR,
+    ROOT_SHELL
+  }
+
+  static final class Copy {
+    final String eyebrow;
+    final String title;
+    final String detail;
+
+    private Copy(String eyebrow, String title, String detail) {
+      this.eyebrow = eyebrow;
+      this.title = title;
+      this.detail = detail;
+    }
+  }
+
   private final HTMLElement host;
   private final HTMLElement sessionSummary;
   private final HTMLElement status;
@@ -25,6 +42,11 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
   private J2clSearchViewListener listener;
 
   public J2clSearchPanelView(HTMLElement host) {
+    this(host, ShellPresentation.SIDE_CAR);
+  }
+
+  public J2clSearchPanelView(HTMLElement host, ShellPresentation shellPresentation) {
+    Copy copy = copyFor(shellPresentation);
     this.host = host;
     host.innerHTML = "";
     host.className = "sidecar-root";
@@ -43,18 +65,17 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
 
     HTMLElement eyebrow = (HTMLElement) DomGlobal.document.createElement("p");
     eyebrow.className = "sidecar-eyebrow";
-    eyebrow.textContent = "Isolated J2CL search slice";
+    eyebrow.textContent = copy.eyebrow;
     card.appendChild(eyebrow);
 
     HTMLElement title = (HTMLElement) DomGlobal.document.createElement("h1");
     title.className = "sidecar-title";
-    title.textContent = "First real search/results vertical slice";
+    title.textContent = copy.title;
     card.appendChild(title);
 
     HTMLElement detail = (HTMLElement) DomGlobal.document.createElement("p");
     detail.className = "sidecar-detail";
-    detail.textContent =
-        "The root / route still runs the legacy GWT app. This sidecar route only mounts the first J2CL search panel slice.";
+    detail.textContent = copy.detail;
     card.appendChild(detail);
 
     sessionSummary = (HTMLElement) DomGlobal.document.createElement("p");
@@ -209,5 +230,18 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
 
   public HTMLElement getComposeHost() {
     return composeHost;
+  }
+
+  static Copy copyFor(ShellPresentation shellPresentation) {
+    if (shellPresentation == ShellPresentation.ROOT_SHELL) {
+      return new Copy(
+          "J2CL root shell",
+          "Hosted workflow",
+          "The signed-in root shell hosts the search, compose, and selected-wave surfaces inline.");
+    }
+    return new Copy(
+        "Isolated J2CL search slice",
+        "First real search/results vertical slice",
+        "The root / route still runs the legacy GWT app. This sidecar route only mounts the first J2CL search panel slice.");
   }
 }

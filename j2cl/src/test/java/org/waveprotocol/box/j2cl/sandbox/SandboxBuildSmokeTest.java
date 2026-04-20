@@ -19,6 +19,12 @@ public class SandboxBuildSmokeTest {
   }
 
   @Test
+  public void rootShellModeIsRecognized() {
+    Assert.assertTrue(SandboxEntryPoint.isRootShellMode("root-shell"));
+    Assert.assertFalse(SandboxEntryPoint.isRootShellMode("search-sidecar"));
+  }
+
+  @Test
   public void evaluateSocketFrameReportsMalformedMessages() {
     SandboxEntryPoint.SocketFrameResult result =
         SandboxEntryPoint.evaluateSocketFrame(

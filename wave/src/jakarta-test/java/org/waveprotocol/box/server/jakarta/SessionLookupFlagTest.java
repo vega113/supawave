@@ -18,10 +18,7 @@
  */
 package org.waveprotocol.box.server.jakarta;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import org.junit.Test;
-import org.mockito.Mockito;
 import org.waveprotocol.box.server.persistence.AccountStore;
 
 import org.waveprotocol.box.server.authentication.WebSession;
@@ -35,8 +32,7 @@ public class SessionLookupFlagTest {
 
   @Test
   public void returnsNullGracefullyWhenSessionIsMissing() throws Exception {
-    Config cfg = ConfigFactory.empty();
-    AccountStore store = Mockito.mock(AccountStore.class);
+    AccountStore store = org.mockito.Mockito.mock(AccountStore.class);
     // Use reflection to avoid compile-time dependency on Jetty 12 in this test
     final Class<?> shClass;
     try {
@@ -52,8 +48,8 @@ public class SessionLookupFlagTest {
     Object sm = smClass.getConstructor(
         org.waveprotocol.box.server.persistence.AccountStore.class,
         shClass,
-        com.typesafe.config.Config.class
-    ).newInstance(store, handler, cfg);
+        org.waveprotocol.box.server.waveserver.AnalyticsRecorder.class
+    ).newInstance(store, handler, null);
 
     WebSession session = (WebSession) smClass.getMethod("getSessionFromToken", String.class)
         .invoke(sm, "abc.node1");

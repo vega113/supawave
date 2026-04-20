@@ -21,6 +21,7 @@ import org.waveprotocol.box.j2cl.search.J2clSidecarRouteController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveView;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
+import org.waveprotocol.box.j2cl.root.J2clRootShellController;
 import org.waveprotocol.box.j2cl.transport.SidecarOpenRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 import org.waveprotocol.box.j2cl.transport.SidecarTransportCodec;
@@ -43,6 +44,11 @@ public final class SandboxEntryPoint {
 
     String mode = normalizeMode(requestedMode);
     host.innerHTML = "";
+
+    if (isRootShellMode(mode)) {
+      new J2clRootShellController(host).start();
+      return;
+    }
 
     if ("search-sidecar".equals(mode)) {
       J2clSearchPanelView searchView = new J2clSearchPanelView(host);
@@ -142,6 +148,10 @@ public final class SandboxEntryPoint {
   public static String renderSummary(String requestedMode) {
     String mode = normalizeMode(requestedMode);
     return "Profile " + mode + " writes isolated assets without changing the root runtime bootstrap.";
+  }
+
+  public static boolean isRootShellMode(String requestedMode) {
+    return "root-shell".equals(normalizeMode(requestedMode));
   }
 
   private static String normalizeMode(String requestedMode) {

@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-20-j2cl-root-shell",
+  "version": "Unreleased",
+  "date": "2026-04-20",
+  "title": "SupaWave now has an explicit J2CL root-shell route that can host the current workflow",
+  "summary": "Added a non-default `/?view=j2cl-root` root-shell page that preserves auth and route state, mounts the current J2CL search/read/write workflow, and leaves the legacy GWT root as the default shell.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a signed-in and signed-out J2CL root-shell seam behind `/?view=j2cl-root` without changing the default `/` bootstrap",
+        "The J2CL root shell now preserves its explicit selector plus `q` and `wave` state across route updates and auth round-trips",
+        "The hosted J2CL workflow now renders shell-aware copy inside the root shell while `/j2cl-search/index.html` remains available as the sidecar verification route"
+      ]
+    }
+  ]
+}

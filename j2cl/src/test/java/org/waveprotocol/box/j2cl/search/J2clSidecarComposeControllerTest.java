@@ -90,6 +90,7 @@ public class J2clSidecarComposeControllerTest {
     controller.onReplyDraftChanged("Reply");
     controller.onReplySubmitted("Reply");
     Assert.assertEquals("Open a wave before sending a reply.", view.model.getReplyErrorText());
+    Assert.assertEquals(0, gateway.submitCalls);
 
     controller.onWriteSessionChanged(
         new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
@@ -321,6 +322,7 @@ public class J2clSidecarComposeControllerTest {
   private static final class FakeFactory extends J2clPlainTextDeltaFactory {
     private String lastCreateText;
     private String lastReplyText;
+    private J2clSidecarWriteSession lastReplySession;
 
     private FakeFactory() {
       super("seed");
@@ -338,7 +340,9 @@ public class J2clSidecarComposeControllerTest {
     public SidecarSubmitRequest createReplyRequest(
         String address, J2clSidecarWriteSession session, String text) {
       lastReplyText = text;
-      return new SidecarSubmitRequest("example.com/w+1/~/conv+root", "{\"reply\":true}", "chan-1");
+      lastReplySession = session;
+      return new SidecarSubmitRequest(
+          session.getSelectedWaveId() + "/~/conv+root", "{\"reply\":true}", session.getChannelId());
     }
   }
 }

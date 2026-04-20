@@ -68,7 +68,7 @@ public final class J2clSelectedWaveProjector {
       replyTargetBlipId = previous.getWriteSession().getReplyTargetBlipId();
     }
     long baseVersion = resolveBaseVersion(update);
-    if (baseVersion <= 0 && previous != null && previous.getWriteSession() != null) {
+    if (baseVersion < 0 && previous != null && previous.getWriteSession() != null) {
       baseVersion = previous.getWriteSession().getBaseVersion();
     }
     String historyHash = update.getResultingVersionHistoryHash();
@@ -80,7 +80,7 @@ public final class J2clSelectedWaveProjector {
     if (channelId == null
         || channelId.isEmpty()
         || replyTargetBlipId == null
-        || baseVersion <= 0
+        || baseVersion < 0
         || historyHash == null
         || historyHash.isEmpty()) {
       return null;
@@ -136,7 +136,7 @@ public final class J2clSelectedWaveProjector {
   }
 
   private static long resolveBaseVersion(SidecarSelectedWaveUpdate update) {
-    if (update.getResultingVersion() > 0) {
+    if (update.getResultingVersion() >= 0) {
       return update.getResultingVersion();
     }
     SidecarSelectedWaveFragments fragments = update.getFragments();

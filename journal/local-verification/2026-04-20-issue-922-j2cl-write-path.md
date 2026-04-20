@@ -41,7 +41,9 @@
   - this means the source change and test coverage are present, but end-to-end create or reply verification remains blocked by stale J2CL bundle selection in the local runtime
 - A later restart attempt produced `ROOT_STATUS=000`; diagnostics showed the staged server did start successfully, but the browser verification had already been blocked by the stale active sidecar bundle before that restart churn.
 
-## Follow-up
+## Stabilization
 
-- PR: pending
-- Issue: pending; include the stale active sidecar bundle/runtime blocker if the issue comment is updated before PR
+The stale sidecar bundle / empty `historyHash` blocker was resolved in the subsequent commit
+`fix(j2cl): stabilize sidecar write-path pilot`. After that fix the bundled version-zero hash is
+no longer empty and the server-side "Mismatched hash at version 0" error does not reproduce in a
+clean dev build. End-to-end create and reply paths are verified to work on the stabilized build.

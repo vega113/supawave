@@ -43,6 +43,7 @@ public final class J2clSidecarComposeView implements J2clSidecarComposeControlle
     createInput = (HTMLTextAreaElement) DomGlobal.document.createElement("textarea");
     createInput.className = "sidecar-compose-textarea";
     createInput.placeholder = "Start a new wave";
+    createInput.setAttribute("aria-label", "New wave content");
     createInput.rows = 4;
     createInput.oninput =
         event -> {
@@ -92,6 +93,7 @@ public final class J2clSidecarComposeView implements J2clSidecarComposeControlle
     replyInput = (HTMLTextAreaElement) DomGlobal.document.createElement("textarea");
     replyInput.className = "sidecar-compose-textarea";
     replyInput.placeholder = "Reply in the opened wave";
+    replyInput.setAttribute("aria-label", "Reply");
     replyInput.rows = 3;
     replyInput.oninput =
         event -> {

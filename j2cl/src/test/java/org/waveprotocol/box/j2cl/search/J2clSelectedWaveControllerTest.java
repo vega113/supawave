@@ -108,16 +108,33 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
-  public void transportOpenErrorRetriesSelectedWave() throws Exception {
+  public void transportOpenErrorRendersSelectedWaveError() throws Exception {
     Harness harness = new Harness();
-    Object controller = harness.createController(true);
+    Object controller = harness.createController(false);
 
     harness.selectWave(controller, "example.com/w+1", null);
     harness.resolveBootstrap(0);
     harness.failOpen(0, "socket boom");
 
+    Assert.assertTrue((Boolean) harness.modelValue("isError"));
+    Assert.assertEquals("Selected wave stream failed.", harness.modelValue("getStatusText"));
+    Assert.assertEquals("socket boom", harness.modelValue("getDetailText"));
+    Assert.assertEquals(1, harness.closedCount);
+  }
+
+  @Test
+  public void transportStreamErrorRetriesSelectedWave() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(true);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello from the sidecar");
+    harness.failOpen(0, "socket boom");
+
     Assert.assertFalse((Boolean) harness.modelValue("isError"));
     Assert.assertEquals(Arrays.asList(250), harness.scheduledDelays);
+    Assert.assertEquals(1, harness.closedCount);
 
     harness.runScheduledRetry(0);
     harness.resolveBootstrap(1);

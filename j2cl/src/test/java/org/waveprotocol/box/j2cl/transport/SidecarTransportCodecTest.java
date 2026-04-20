@@ -104,7 +104,7 @@ public class SidecarTransportCodecTest {
             + "\"3\":[{\"1\":\"b+abc123\","
             + "\"2\":{\"1\":[{\"3\":{\"1\":\"body\",\"2\":[]}},"
             + "{\"3\":{\"1\":\"line\",\"2\":[]}},"
-            + "{\"2\":\"Welcome to SupaWave\"},"
+            + "{\"2\":\"  Welcome to SupaWave  \"},"
             + "{\"4\":true},{\"4\":true}]},"
             + "\"3\":\"user@example.com\",\"5\":[1,0],\"6\":[2,0]}]},"
             + "\"6\":true,\"7\":\"ch3\"}}";
@@ -113,7 +113,7 @@ public class SidecarTransportCodecTest {
 
     Assert.assertEquals(1, update.getDocuments().size());
     Assert.assertEquals("b+abc123", update.getDocuments().get(0).getDocumentId());
-    Assert.assertEquals("Welcome to SupaWave", update.getDocuments().get(0).getTextContent());
+    Assert.assertEquals("  Welcome to SupaWave  ", update.getDocuments().get(0).getTextContent());
     Assert.assertEquals(0, update.getFragments().getEntries().size());
   }
 

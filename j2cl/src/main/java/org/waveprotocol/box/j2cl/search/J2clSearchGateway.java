@@ -71,8 +71,7 @@ public final class J2clSearchGateway
             }
             onUpdate.accept(SidecarTransportCodec.decodeSelectedWaveUpdate(envelope));
           } catch (RuntimeException e) {
-            closedByClient[0] = true;
-            socket.close();
+            closeSocket(socket, closedByClient);
             onError.accept(messageOrDefault(e, "Unable to decode the selected wave update."));
           }
         };
@@ -158,6 +157,14 @@ public final class J2clSearchGateway
   private static String buildWebSocketUrl(String locationProtocol, String websocketAddress) {
     String protocol = "https:".equals(locationProtocol) ? "wss://" : "ws://";
     return protocol + websocketAddress + "/socket";
+  }
+
+  private static void closeSocket(WebSocket socket, boolean[] closedByClient) {
+    if (closedByClient[0]) {
+      return;
+    }
+    closedByClient[0] = true;
+    socket.close();
   }
 
   private static String readCookie(String name) {

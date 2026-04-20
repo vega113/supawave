@@ -31,9 +31,9 @@ public class J2clSearchPanelControllerTest {
                         false))));
     FakeView view = new FakeView();
     J2clSearchPanelController controller =
-        new J2clSearchPanelController(gateway, view, waveId -> { }, 1200);
+        new J2clSearchPanelController(gateway, view, (state, digestItem, userNavigation) -> { }, 1200);
 
-    controller.start("   ");
+    controller.start("   ", null);
 
     Assert.assertEquals("in:inbox", gateway.lastQuery);
     Assert.assertEquals(0, gateway.lastIndex);
@@ -74,9 +74,9 @@ public class J2clSearchPanelControllerTest {
                         false))));
     FakeView view = new FakeView();
     J2clSearchPanelController controller =
-        new J2clSearchPanelController(gateway, view, waveId -> { }, 1200);
+        new J2clSearchPanelController(gateway, view, (state, digestItem, userNavigation) -> { }, 1200);
 
-    controller.start(null);
+    controller.start(null, null);
     controller.onQuerySubmitted("with:@");
     Assert.assertEquals("with:@", gateway.lastQuery);
     Assert.assertEquals(30, gateway.lastNumResults);
@@ -102,20 +102,27 @@ public class J2clSearchPanelControllerTest {
                     "person@example.com",
                     false)));
     FakeView view = new FakeView();
-    List<String> selectionEvents = new ArrayList<String>();
+    List<String> routeEvents = new ArrayList<String>();
     J2clSearchPanelController controller =
-        new J2clSearchPanelController(gateway, view, selectionEvents::add, 1200);
+        new J2clSearchPanelController(
+            gateway,
+            view,
+            (state, digestItem, userNavigation) ->
+                routeEvents.add(state.getQuery() + "|" + state.getSelectedWaveId() + "|" + userNavigation),
+            1200);
 
-    controller.start(null);
+    controller.start(null, null);
     controller.onDigestSelected("example.com/w+1");
     controller.onQuerySubmitted("with:@");
 
     Assert.assertNull(view.selectedWaveId);
-    Assert.assertEquals(Arrays.asList("example.com/w+1", null), selectionEvents);
+    Assert.assertEquals(
+        Arrays.asList("in:inbox|example.com/w+1|true", "with:@|null|true"),
+        routeEvents);
   }
 
   @Test
-  public void missingSelectedWaveClearsSelectionAndNotifiesHandler() {
+  public void missingSelectedWaveDoesNotClearRestoredRouteSelection() {
     FakeGateway gateway =
         new FakeGateway(
             responseWithDigests(
@@ -130,12 +137,16 @@ public class J2clSearchPanelControllerTest {
                     "person@example.com",
                     false)));
     FakeView view = new FakeView();
-    List<String> selectionEvents = new ArrayList<String>();
+    List<String> routeEvents = new ArrayList<String>();
     J2clSearchPanelController controller =
-        new J2clSearchPanelController(gateway, view, selectionEvents::add, 1200);
+        new J2clSearchPanelController(
+            gateway,
+            view,
+            (state, digestItem, userNavigation) ->
+                routeEvents.add(state.getQuery() + "|" + state.getSelectedWaveId() + "|" + userNavigation),
+            1200);
 
-    controller.start(null);
-    controller.onDigestSelected("example.com/w+1");
+    controller.start("with:@", "example.com/w+1");
     gateway.response =
         responseWithDigests(
             new SidecarSearchResponse.Digest(
@@ -151,12 +162,14 @@ public class J2clSearchPanelControllerTest {
 
     controller.onShowMoreRequested();
 
-    Assert.assertNull(view.selectedWaveId);
-    Assert.assertEquals(Arrays.asList("example.com/w+1", null), selectionEvents);
+    Assert.assertEquals("example.com/w+1", view.selectedWaveId);
+    Assert.assertEquals(
+        Arrays.asList("with:@|example.com/w+1|false"),
+        routeEvents);
   }
 
   @Test
-  public void searchErrorClearsSelectionAndNotifiesHandler() {
+  public void searchErrorKeepsCurrentSelectionRouteState() {
     FakeGateway gateway =
         new FakeGateway(
             responseWithDigests(
@@ -171,34 +184,48 @@ public class J2clSearchPanelControllerTest {
                     "person@example.com",
                     false)));
     FakeView view = new FakeView();
-    List<String> selectionEvents = new ArrayList<String>();
+    List<String> routeEvents = new ArrayList<String>();
     J2clSearchPanelController controller =
-        new J2clSearchPanelController(gateway, view, selectionEvents::add, 1200);
+        new J2clSearchPanelController(
+            gateway,
+            view,
+            (state, digestItem, userNavigation) ->
+                routeEvents.add(state.getQuery() + "|" + state.getSelectedWaveId() + "|" + userNavigation),
+            1200);
 
-    controller.start(null);
+    controller.start(null, null);
     controller.onDigestSelected("example.com/w+1");
     gateway.error = "boom";
 
     controller.onShowMoreRequested();
 
-    Assert.assertNull(view.selectedWaveId);
+    Assert.assertEquals("example.com/w+1", view.selectedWaveId);
     Assert.assertEquals("Search request failed: boom", view.status);
     Assert.assertTrue(view.error);
-    Assert.assertEquals(Arrays.asList("example.com/w+1", null), selectionEvents);
+    Assert.assertEquals(Arrays.asList("in:inbox|example.com/w+1|true"), routeEvents);
   }
 
   @Test
-  public void digestSelectionUpdatesViewAndInvokesCallback() {
+  public void digestSelectionPublishesRouteStateAsUserNavigation() {
     FakeGateway gateway = new FakeGateway(new SidecarSearchResponse("in:inbox", 0, null));
     FakeView view = new FakeView();
-    String[] selectedWaveId = new String[1];
+    J2clSidecarRouteState[] selectedState = new J2clSidecarRouteState[1];
+    boolean[] userNavigation = new boolean[1];
     J2clSearchPanelController controller =
-        new J2clSearchPanelController(gateway, view, waveId -> selectedWaveId[0] = waveId, 1200);
+        new J2clSearchPanelController(
+            gateway,
+            view,
+            (state, digestItem, isUserNavigation) -> {
+              selectedState[0] = state;
+              userNavigation[0] = isUserNavigation;
+            },
+            1200);
 
     controller.onDigestSelected("example.com/w+abc123");
 
     Assert.assertEquals("example.com/w+abc123", view.selectedWaveId);
-    Assert.assertEquals("example.com/w+abc123", selectedWaveId[0]);
+    Assert.assertEquals("example.com/w+abc123", selectedState[0].getSelectedWaveId());
+    Assert.assertTrue(userNavigation[0]);
   }
 
   private static final class FakeGateway implements J2clSearchPanelController.SearchGateway {

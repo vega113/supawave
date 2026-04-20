@@ -13,6 +13,8 @@ import jsinterop.annotations.JsType;
 import org.waveprotocol.box.j2cl.search.J2clSearchGateway;
 import org.waveprotocol.box.j2cl.search.J2clSearchPanelController;
 import org.waveprotocol.box.j2cl.search.J2clSearchPanelView;
+import org.waveprotocol.box.j2cl.search.J2clSidecarRouteCodec;
+import org.waveprotocol.box.j2cl.search.J2clSidecarRouteController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveView;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
@@ -24,7 +26,6 @@ import org.waveprotocol.box.j2cl.transport.SidecarWaveletUpdateSummary;
 @JsType(namespace = JsPackage.GLOBAL, name = "WaveSandboxEntryPoint")
 public final class SandboxEntryPoint {
   private static final String DEFAULT_MODE = "sidecar";
-  private static final String DEFAULT_QUERY = "in:inbox";
   private static final String DEFAULT_WAVELET_PREFIX = "conv+root";
 
   private SandboxEntryPoint() {
@@ -46,18 +47,21 @@ public final class SandboxEntryPoint {
       J2clSelectedWaveController selectedWaveController =
           new J2clSelectedWaveController(
               gateway, new J2clSelectedWaveView(searchView.getSelectedWaveHost()));
-      final J2clSearchPanelController[] controllerRef = new J2clSearchPanelController[1];
+      final J2clSidecarRouteController[] routeControllerRef = new J2clSidecarRouteController[1];
       J2clSearchPanelController controller =
           new J2clSearchPanelController(
               gateway,
               searchView,
-              waveId ->
-                  selectedWaveController.onWaveSelected(
-                      waveId,
-                      controllerRef[0] == null ? null : controllerRef[0].findDigestItem(waveId)),
+              (state, digestItem, userNavigation) ->
+                  routeControllerRef[0].onRouteStateChanged(state, digestItem, userNavigation),
               resolveViewportWidth());
-      controllerRef[0] = controller;
-      controller.start(readRequestedQuery(DomGlobal.location.search));
+      J2clSidecarRouteController routeController =
+          new J2clSidecarRouteController(
+              new J2clSidecarRouteController.BrowserHistoryAdapter(),
+              controller,
+              selectedWaveController);
+      routeControllerRef[0] = routeController;
+      routeController.start();
       return;
     }
 
@@ -129,28 +133,6 @@ public final class SandboxEntryPoint {
 
   private static double resolveViewportWidth() {
     return Double.parseDouble(String.valueOf(DomGlobal.window.innerWidth));
-  }
-
-  static String readRequestedQuery(String search) {
-    if (search == null || search.isEmpty()) {
-      return DEFAULT_QUERY;
-    }
-    String trimmed = search.charAt(0) == '?' ? search.substring(1) : search;
-    String[] parts = trimmed.split("&");
-    for (String part : parts) {
-      if (part.startsWith("q=")) {
-        String value = part.substring(2);
-        if (value.isEmpty()) {
-          return DEFAULT_QUERY;
-        }
-        try {
-          return decodeUriComponentSafe(value.replace('+', ' '));
-        } catch (RuntimeException e) {
-          return DEFAULT_QUERY;
-        }
-      }
-    }
-    return DEFAULT_QUERY;
   }
 
   @JsFunction
@@ -396,7 +378,7 @@ public final class SandboxEntryPoint {
 
     private String buildSearchUrl() {
       return "/search/?query="
-          + encodeUriComponent(readRequestedQuery(DomGlobal.location.search))
+          + encodeUriComponent(J2clSidecarRouteCodec.parse(DomGlobal.location.search).getQuery())
           + "&index=0&numResults=1";
     }
 

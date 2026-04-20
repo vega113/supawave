@@ -61,7 +61,7 @@ public final class J2clSelectedWaveModel {
         "",
         "",
         "Choose a digest from the search results to open a read-only selected-wave panel.",
-        "Selection stays in memory only for this sidecar slice.",
+        "Copied sidecar URLs can restore the selected wave when the route includes it.",
         0,
         Collections.<String>emptyList(),
         Collections.<String>emptyList());

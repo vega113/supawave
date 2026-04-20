@@ -2,7 +2,8 @@ package org.waveprotocol.box.j2cl.search;
 
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 
-public final class J2clSearchPanelController implements J2clSearchViewListener {
+public final class J2clSearchPanelController
+    implements J2clSearchViewListener, J2clSidecarRouteController.SearchPanelController {
   @FunctionalInterface
   public interface ErrorCallback {
     void accept(String error);
@@ -41,13 +42,14 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
     void setSelectedWaveId(String waveId);
   }
 
-  public interface WaveSelectionHandler {
-    void onWaveSelected(String waveId);
+  public interface RouteStateHandler {
+    void onRouteStateChanged(
+        J2clSidecarRouteState state, J2clSearchDigestItem digestItem, boolean userNavigation);
   }
 
   private final SearchGateway gateway;
   private final View view;
-  private final WaveSelectionHandler selectionHandler;
+  private final RouteStateHandler routeStateHandler;
   private final int pageIncrement;
   private String currentQuery;
   private String selectedWaveId;
@@ -58,21 +60,22 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
   public J2clSearchPanelController(
       SearchGateway gateway,
       View view,
-      WaveSelectionHandler selectionHandler,
+      RouteStateHandler routeStateHandler,
       double viewportWidth) {
     this.gateway = gateway;
     this.view = view;
-    this.selectionHandler = selectionHandler;
+    this.routeStateHandler = routeStateHandler;
     this.pageIncrement = J2clSearchResultProjector.getPageSizeForViewport(viewportWidth);
   }
 
-  public void start(String initialQuery) {
+  @Override
+  public void start(String initialQuery, String initialSelectedWaveId) {
     view.bind(this);
     currentQuery = J2clSearchResultProjector.normalizeQuery(initialQuery);
     currentPageSize = pageIncrement;
-    selectedWaveId = null;
+    selectedWaveId = normalizeSelectedWaveId(initialSelectedWaveId);
     view.setQuery(currentQuery);
-    view.setSelectedWaveId(null);
+    view.setSelectedWaveId(selectedWaveId);
     view.setLoading(true);
     view.setStatus("Bootstrapping the root session.", false);
     gateway.fetchRootSessionBootstrap(
@@ -90,10 +93,20 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
   }
 
   @Override
+  public void restoreRoute(String query, String selectedWaveId) {
+    currentQuery = J2clSearchResultProjector.normalizeQuery(query);
+    this.selectedWaveId = normalizeSelectedWaveId(selectedWaveId);
+    currentPageSize = pageIncrement;
+    view.setQuery(currentQuery);
+    view.setSelectedWaveId(this.selectedWaveId);
+    requestSearch();
+  }
+
+  @Override
   public void onQuerySubmitted(String query) {
     currentQuery = J2clSearchResultProjector.normalizeQuery(query);
     currentPageSize = pageIncrement;
-    clearSelection();
+    clearSelection(true);
     requestSearch();
   }
 
@@ -105,11 +118,9 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
 
   @Override
   public void onDigestSelected(String waveId) {
-    selectedWaveId = waveId;
-    view.setSelectedWaveId(waveId);
-    if (selectionHandler != null) {
-      selectionHandler.onWaveSelected(waveId);
-    }
+    selectedWaveId = normalizeSelectedWaveId(waveId);
+    view.setSelectedWaveId(selectedWaveId);
+    publishRouteState(true);
   }
 
   private void requestSearch() {
@@ -128,13 +139,10 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
             return;
           }
           lastModel = J2clSearchResultProjector.project(response, numResults);
-          if (selectedWaveId != null && !lastModel.containsWave(selectedWaveId)) {
-            clearSelection();
-          }
           view.render(lastModel);
           view.setSelectedWaveId(selectedWaveId);
-          if (selectedWaveId != null && selectionHandler != null) {
-            selectionHandler.onWaveSelected(selectedWaveId);
+          if (selectedWaveId != null) {
+            publishRouteState(false);
           }
           view.setStatus(buildStatusText(query, lastModel), false);
           view.setLoading(false);
@@ -143,20 +151,18 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
           if (generation != requestGeneration) {
             return;
           }
-          clearSelection();
           lastModel = J2clSearchResultModel.empty("Unable to load search results.");
           view.render(lastModel);
+          view.setSelectedWaveId(selectedWaveId);
           view.setStatus("Search request failed: " + error, true);
           view.setLoading(false);
         });
   }
 
-  private void clearSelection() {
+  private void clearSelection(boolean userNavigation) {
     selectedWaveId = null;
     view.setSelectedWaveId(null);
-    if (selectionHandler != null) {
-      selectionHandler.onWaveSelected(null);
-    }
+    publishRouteState(userNavigation);
   }
 
   private static String buildStatusText(String query, J2clSearchResultModel model) {
@@ -168,5 +174,23 @@ public final class J2clSearchPanelController implements J2clSearchViewListener {
 
   public J2clSearchDigestItem findDigestItem(String waveId) {
     return lastModel.findDigestItem(waveId);
+  }
+
+  private void publishRouteState(boolean userNavigation) {
+    if (routeStateHandler == null) {
+      return;
+    }
+    J2clSearchDigestItem digestItem = lastModel.findDigestItem(selectedWaveId);
+    if (!userNavigation && selectedWaveId != null && digestItem == null) {
+      return;
+    }
+    routeStateHandler.onRouteStateChanged(
+        new J2clSidecarRouteState(currentQuery, selectedWaveId),
+        digestItem,
+        userNavigation);
+  }
+
+  private static String normalizeSelectedWaveId(String waveId) {
+    return waveId == null || waveId.isEmpty() ? null : waveId;
   }
 }

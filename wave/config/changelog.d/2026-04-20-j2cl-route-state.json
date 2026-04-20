@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-20-j2cl-route-state",
+  "version": "Unreleased",
+  "date": "2026-04-20",
+  "title": "The J2CL search sidecar now restores query and selected-wave route state",
+  "summary": "The isolated /j2cl-search/index.html sidecar now keeps the active query and selected wave in the URL so reload, copied links, and browser back or forward restore the same split-view state without changing the legacy GWT root route.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added durable J2CL sidecar route state for the search query and selected wave under /j2cl-search/index.html",
+        "Reloaded or copied sidecar URLs now reopen the same selected wave and preserve back or forward navigation between query-only and query-plus-wave states",
+        "Sidecar route restore now keeps the selected-wave panel stable even when the latest search refresh cannot currently rehydrate digest metadata"
+      ]
+    }
+  ]
+}

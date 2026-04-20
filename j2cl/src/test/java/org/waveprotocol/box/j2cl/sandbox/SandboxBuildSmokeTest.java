@@ -3,6 +3,7 @@ package org.waveprotocol.box.j2cl.sandbox;
 import com.google.j2cl.junit.apt.J2clTestInput;
 import org.junit.Assert;
 import org.junit.Test;
+import org.waveprotocol.box.j2cl.search.J2clSidecarRouteCodec;
 
 @J2clTestInput(SandboxBuildSmokeTest.class)
 public class SandboxBuildSmokeTest {
@@ -65,19 +66,19 @@ public class SandboxBuildSmokeTest {
 
   @Test
   public void malformedQueryFallsBackToDefaultSearch() {
-    Assert.assertEquals("in:inbox", SandboxEntryPoint.readRequestedQuery("?q=%"));
+    Assert.assertEquals("in:inbox", J2clSidecarRouteCodec.parse("?q=%").getQuery());
   }
 
   @Test
   public void encodedQueryDecodesPercentEscapes() {
-    Assert.assertEquals("with:@", SandboxEntryPoint.readRequestedQuery("?q=with%3A%40"));
+    Assert.assertEquals("with:@", J2clSidecarRouteCodec.parse("?q=with%3A%40").getQuery());
   }
 
   @Test
   public void encodedQueryTreatsPlusAsSpace() {
     Assert.assertEquals(
         "mentions:me unread:true",
-        SandboxEntryPoint.readRequestedQuery("?q=mentions%3Ame+unread%3Atrue"));
+        J2clSidecarRouteCodec.parse("?q=mentions%3Ame+unread%3Atrue").getQuery());
   }
 
   @Test

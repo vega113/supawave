@@ -127,7 +127,8 @@ public class WaveClientServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
-    ParticipantId id = sessionManager.getLoggedInUser(WebSessions.from(request, false));
+    WebSession session = WebSessions.from(request, false);
+    ParticipantId id = sessionManager.getLoggedInUser(session);
     String requestedView = resolveRequestedView(request);
 
     if (VIEW_J2CL_ROOT.equals(requestedView)) {
@@ -137,7 +138,7 @@ public class WaveClientServlet extends HttpServlet {
       response.setStatus(HttpServletResponse.SC_OK);
       try (var w = response.getWriter()) {
         w.write(HtmlRenderer.renderJ2clRootShellPage(
-            getSessionJson(WebSessions.from(request, false)),
+            getSessionJson(session),
             analyticsAccount,
             buildCommit,
             serverBuildTime,
@@ -161,7 +162,7 @@ public class WaveClientServlet extends HttpServlet {
       return;
     }
 
-    AccountData account = sessionManager.getLoggedInAccount(WebSessions.from(request, false));
+    AccountData account = sessionManager.getLoggedInAccount(session);
     if (account != null) {
       String locale = account.asHuman().getLocale();
       if (locale != null) {
@@ -210,7 +211,7 @@ public class WaveClientServlet extends HttpServlet {
               : websocketPresentedAddress;
       String topBarHtml = HtmlRenderer.renderTopBar(username, userDomain, userRole);
       w.write(HtmlRenderer.renderWaveClientPage(
-          getSessionJson(WebSessions.from(request, false)),
+          getSessionJson(session),
           getClientFlags(request),
           wsAddressForPage,
           topBarHtml,

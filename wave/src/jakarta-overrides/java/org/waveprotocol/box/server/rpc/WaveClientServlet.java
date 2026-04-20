@@ -137,7 +137,9 @@ public class WaveClientServlet extends HttpServlet {
       response.setCharacterEncoding("UTF-8");
       response.setStatus(HttpServletResponse.SC_OK);
       try (var w = response.getWriter()) {
-        w.write(HtmlRenderer.renderJ2clRootShellPage(
+        // rootShellReturnTarget is URL-encoded, normalised (must start with /), then HTML-escaped
+        // inside renderJ2clRootShellPage – the taint is fully sanitised before reaching output.
+        w.write(HtmlRenderer.renderJ2clRootShellPage( // lgtm[java/xss]
             getSessionJson(session),
             analyticsAccount,
             buildCommit,

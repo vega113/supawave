@@ -67,6 +67,19 @@ public final class HtmlRendererChangelogTest {
   }
 
   @Test
+  public void j2clRootShellLegacyHashDeepLinkUsesConfiguredBasePath() {
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        new JSONObject("{\"address\":\"alice@example.com\"}"),
+        "",
+        "abc123build",
+        1700000000000L,
+        "2026-03-27-unread-only-search-filter",
+        "/wave/?view=j2cl-root");
+
+    assertTrue(html.contains("var nextUrl='/wave/?view=j2cl-root&wave=' + encodeURIComponent(waveId);"));
+  }
+
+  @Test
   public void upgradeBannerIncludesStatusSpecificMessages() {
     String html = HtmlRenderer.renderWaveClientPage(
         new JSONObject("{\"id\":\"u\"}"),

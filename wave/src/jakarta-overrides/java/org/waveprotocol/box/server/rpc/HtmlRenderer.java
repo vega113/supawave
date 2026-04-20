@@ -3221,6 +3221,9 @@ public final class HtmlRenderer {
     String safeResolvedReturnTarget = escapeHtml(resolvedReturnTarget);
     String safeEncodedReturnTarget =
         StringEscapeUtils.escapeHtml4(encodeLocalReturnTarget(resolvedReturnTarget));
+    int queryStart = resolvedReturnTarget.indexOf('?');
+    String resolvedBasePath = queryStart >= 0 ? resolvedReturnTarget.substring(0, queryStart) : resolvedReturnTarget;
+    String safeResolvedBasePath = escapeHtml(resolvedBasePath);
 
     StringBuilder sb = new StringBuilder(2048);
     sb.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
@@ -3336,7 +3339,7 @@ public final class HtmlRenderer {
       sb.append("function normalizeLegacyHashDeepLink(){\n");
       sb.append("  var waveId=waveIdFromLegacyHash(window.location.hash);\n");
       sb.append("  if(!waveId){return;}\n");
-      sb.append("  var nextUrl='/?view=j2cl-root&wave=' + encodeURIComponent(waveId);\n");
+      sb.append("  var nextUrl='").append(safeResolvedBasePath).append("?view=j2cl-root&wave=' + encodeURIComponent(waveId);\n");
       sb.append("  window.history.replaceState(null, '', nextUrl);\n");
       sb.append("}\n");
       sb.append("function syncReturnTargetUi(){\n");

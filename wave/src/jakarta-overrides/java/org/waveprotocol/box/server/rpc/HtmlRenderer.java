@@ -3218,6 +3218,7 @@ public final class HtmlRenderer {
     boolean signedIn = address != null && !address.isEmpty();
     String resolvedReturnTarget =
         rootShellReturnTarget == null || rootShellReturnTarget.isEmpty()
+            || !rootShellReturnTarget.startsWith("/")
             ? J2CL_ROOT_RETURN_TARGET
             : rootShellReturnTarget;
     String safeResolvedReturnTarget = escapeHtml(resolvedReturnTarget);

@@ -208,7 +208,10 @@ render_bundle() {
 - \`GET /\` -> \`$(probe_status "/")\`
 - \`GET /healthz\` -> \`$(probe_status "/healthz")\`
 - \`GET /readyz\` -> \`$(probe_status "/readyz")\`
-- \`GET /webclient/webclient.nocache.js\` -> \`$(probe_status "/webclient/webclient.nocache.js")\`
+- \`GET /?view=landing\` -> \`$(probe_status "/?view=landing")\`
+- \`GET /?view=j2cl-root\` -> \`$(probe_status "/?view=j2cl-root")\`
+- \`GET /j2cl/index.html\` -> \`$(probe_status "/j2cl/index.html")\`
+- \`GET /j2cl-search/sidecar/j2cl-sidecar.js\` -> \`$(probe_status "/j2cl-search/sidecar/j2cl-sidecar.js")\`
 
 ## Smoke Check
 

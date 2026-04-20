@@ -29,8 +29,8 @@ COPY gen /workspace/gen
 COPY scripts /workspace/scripts
 COPY THANKS RELEASE-NOTES KEYS DISCLAIMER /workspace/
 
-# Build sequentially: compile, GWT client, then stage the distribution
-RUN sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage"
+# Build sequentially: compile, then rebuild the maintained J2CL assets and stage the distribution
+RUN sbt --batch "pst/compile; wave/compile; j2clSearchBuild; j2clProductionBuild; Universal/stage"
 
 # Runtime stage: slim JRE image
 FROM eclipse-temurin:17-jre

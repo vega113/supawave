@@ -178,11 +178,27 @@ status() {
 }
 
 check() {
-  root_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" || true)
-  echo "ROOT_STATUS=${root_status:-000}"
+  local root_body_file root_body j2cl_root_body_file j2cl_root_body legacy_status
 
-  if [[ "${root_status}" -ne 200 && "${root_status}" -ne 302 ]]; then
+  root_body_file=$(mktemp)
+  root_status=$(curl -sS --max-time 10 -o "$root_body_file" -w "%{http_code}" "http://localhost:$PORT/" || true)
+  root_body=$(cat "$root_body_file" 2>/dev/null || true)
+  rm -f "$root_body_file"
+  echo "ROOT_STATUS=${root_status:-000}"
+  echo "ROOT_SHELL=$([[ "$root_body" == *'data-j2cl-root-shell'* ]] && echo present || echo missing)"
+
+  if [[ "${root_status}" -ne 200 ]]; then
     echo "Unexpected root status: ${root_status}" >&2
+    return 1
+  fi
+
+  if ! grep -Fq 'data-j2cl-root-shell' <<<"$root_body"; then
+    echo "Root page did not render the J2CL shell marker: data-j2cl-root-shell" >&2
+    return 1
+  fi
+
+  if grep -Fq 'webclient/webclient.nocache.js' <<<"$root_body"; then
+    echo "Root page still references retired webclient bootstrap assets" >&2
     return 1
   fi
 
@@ -194,10 +210,47 @@ check() {
     return 1
   fi
 
-  webclient_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/webclient/webclient.nocache.js" || true)
-  echo "WEBCLIENT_STATUS=${webclient_status:-000}"
-  if [[ "${webclient_status}" -ne 200 ]]; then
-    echo "Missing compiled webclient asset: /webclient/webclient.nocache.js" >&2
+  landing_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/?view=landing" || true)
+  echo "LANDING_STATUS=${landing_status:-000}"
+  if [[ "${landing_status}" -ne 200 ]]; then
+    echo "Unexpected landing status: ${landing_status}" >&2
+    return 1
+  fi
+
+  j2cl_root_body_file=$(mktemp)
+  j2cl_root_status=$(curl -sS --max-time 10 -o "$j2cl_root_body_file" -w "%{http_code}" "http://localhost:$PORT/?view=j2cl-root" || true)
+  j2cl_root_body=$(cat "$j2cl_root_body_file" 2>/dev/null || true)
+  rm -f "$j2cl_root_body_file"
+  echo "J2CL_ROOT_STATUS=${j2cl_root_status:-000}"
+  echo "J2CL_ROOT_SHELL=$([[ "$j2cl_root_body" == *'data-j2cl-root-shell'* ]] && echo present || echo missing)"
+  if [[ "${j2cl_root_status}" -ne 200 ]]; then
+    echo "Unexpected J2CL root status: ${j2cl_root_status}" >&2
+    return 1
+  fi
+
+  if ! grep -Fq 'data-j2cl-root-shell' <<<"$j2cl_root_body"; then
+    echo "Diagnostic J2CL root route did not render the shell marker" >&2
+    return 1
+  fi
+
+  j2cl_index_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/j2cl/index.html" || true)
+  echo "J2CL_INDEX_STATUS=${j2cl_index_status:-000}"
+  if [[ "${j2cl_index_status}" -ne 200 ]]; then
+    echo "Missing production J2CL asset: /j2cl/index.html" >&2
+    return 1
+  fi
+
+  sidecar_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/j2cl-search/sidecar/j2cl-sidecar.js" || true)
+  echo "SIDECAR_STATUS=${sidecar_status:-000}"
+  if [[ "${sidecar_status}" -ne 200 ]]; then
+    echo "Missing compiled J2CL sidecar asset: /j2cl-search/sidecar/j2cl-sidecar.js" >&2
+    return 1
+  fi
+
+  legacy_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/webclient/webclient.nocache.js" || true)
+  echo "WEBCLIENT_STATUS=${legacy_status:-000}"
+  if [[ "${legacy_status}" -ne 404 ]]; then
+    echo "Retired legacy asset is still reachable: /webclient/webclient.nocache.js" >&2
     return 1
   fi
 }

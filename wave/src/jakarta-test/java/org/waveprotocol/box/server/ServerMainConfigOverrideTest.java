@@ -19,6 +19,7 @@
 package org.waveprotocol.box.server;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import com.typesafe.config.Config;
@@ -34,7 +35,7 @@ public final class ServerMainConfigOverrideTest {
     Path applicationConfig = tempDir.resolve("application.conf");
     Files.writeString(
         applicationConfig,
-        "ui.j2cl_root_bootstrap_enabled = true\n",
+        "core.wave_server_domain = \"override.example.test\"\n",
         StandardCharsets.UTF_8);
 
     String previousConfigPath = System.getProperty("wave.server.config");
@@ -42,7 +43,7 @@ public final class ServerMainConfigOverrideTest {
     try {
       Config config = ServerMain.loadCoreConfig();
 
-      assertTrue(config.getBoolean("ui.j2cl_root_bootstrap_enabled"));
+      assertEquals("override.example.test", config.getString("core.wave_server_domain"));
     } finally {
       if (previousConfigPath == null) {
         System.clearProperty("wave.server.config");
@@ -53,7 +54,7 @@ public final class ServerMainConfigOverrideTest {
   }
 
   @Test
-  public void loadCoreConfigDefaultsJ2clRootBootstrapToTrue() {
+  public void loadCoreConfigDefaultsToCheckedInWaveServerDomain() {
     String previousConfigPath = System.getProperty("wave.server.config");
     if (previousConfigPath != null) {
       System.clearProperty("wave.server.config");
@@ -61,7 +62,7 @@ public final class ServerMainConfigOverrideTest {
     try {
       Config config = ServerMain.loadCoreConfig();
 
-      assertTrue(config.getBoolean("ui.j2cl_root_bootstrap_enabled"));
+      assertEquals("local.net", config.getString("core.wave_server_domain"));
     } finally {
       if (previousConfigPath == null) {
         System.clearProperty("wave.server.config");

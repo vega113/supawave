@@ -109,7 +109,7 @@ jobs:
             echo "Build attempt $attempt/3"
             log_file="$(mktemp)"
             status=0
-            sbt --batch "pst/compile; wave/compile; compileGwt; Universal/stage" >"$log_file" 2>&1 || status=$?
+            sbt --batch "pst/compile; wave/compile; j2clSearchBuild; j2clProductionBuild; Universal/stage" >"$log_file" 2>&1 || status=$?
             cat "$log_file"
             if [ "$status" -eq 0 ]; then
               rm -f "$log_file"

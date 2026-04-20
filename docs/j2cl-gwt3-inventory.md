@@ -28,6 +28,18 @@ Re-verified on the `issue-898-gwttest-split` worktree on 2026-04-19:
 - JsInterop-annotated files: `0`
 - Elemental / Elemental2 imports: `0`
 
+## Issue #925 Retirement Accounting
+
+Issue `#925` retires the authenticated legacy GWT client path and packaging
+steps. The remaining browser-harness descendants are still present in the tree,
+but they are now explicitly documented as no longer part of the supported
+runtime/test gate. Their disposition matrix lives in
+[docs/j2cl-gwttestcase-verification-matrix.md](./j2cl-gwttestcase-verification-matrix.md).
+
+The important state change for this inventory is that the maintained browser
+runtime is now the J2CL shell plus the public landing page, not the old
+authenticated GWT webclient path.
+
 Important counting notes:
 
 - The `GWT.create(...)` count uses `wave/src/main/java`, `wave/src/test/java`,
@@ -45,7 +57,7 @@ the repo should no longer be described as if it were still at the original
 
 ## Build And Toolchain
 
-The client build is still explicitly GWT-centric in [build.sbt](../build.sbt):
+The client build still carries a legacy GWT bridge in [build.sbt](../build.sbt):
 
 - `compileGwt`
 - the isolated `Gwt` configuration
@@ -59,9 +71,10 @@ What changed since the earlier inventory:
 - the repo now has an isolated `j2cl/` sidecar subtree
 - `build.sbt` now exposes `j2clSandboxBuild`, `j2clSandboxTest`,
   `j2clSearchBuild`, `j2clSearchTest`, and `j2clProductionBuild`
-- packaging now invokes `j2clProductionBuild` alongside the legacy
-  `compileGwt` path
-- the browser client still depends on the dedicated GWT compile/runtime path
+- `sbt run`, `Universal/stage`, and `Universal/packageBin` now depend on the
+  maintained J2CL build tasks instead of the legacy `compileGwt` path
+- the browser client still has legacy GWT compile/runtime code, but it is no
+  longer part of the default run/package flow
 
 The current toolchain picture means a J2CL move is still not just a compiler
 swap, but the dependency-cleanup story is no longer blocked on `guava-gwt`.

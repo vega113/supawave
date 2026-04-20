@@ -11,7 +11,9 @@ Status note (2026-03-23)
   `docs/github-issues.md`.
 - Core-smoke verification on this branch is green for
   `./gradlew -q :wave:compileJava` and `./gradlew -q :wave:smokeUi`, with
-  `smokeUi` reporting `ROOT=302 WEBCLIENT=200` and `UI smoke OK`.
+  `smokeUi` reporting `ROOT=200 ROOT_SHELL=present LANDING=200 HEALTH=200
+  J2CL_ROOT=200 J2CL_ROOT_SHELL=present J2CL_INDEX=200 SIDECAR=200
+  WEBCLIENT=404` and `UI smoke OK`.
 - The current `./gradlew -q :wave:test` blocker is still
   `:wave:compileTestJava`, which fails with 24 legacy test errors centered on
   Jetty session API drift, javax/jakarta servlet mismatches, and stale
@@ -495,7 +497,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 
 - How to run with flags via Gradle
   - `./gradlew :wave:run -PclientFlags="enableDynamicRendering=true,enableQuasiDeletionUi=true,enableViewportStats=true,dynamicPrerenderUpperPx=600,dynamicPrerenderLowerPx=800,dynamicPageOutSlackPx=1200,dynamicScrollThrottleMs=50"`
-  - Flags can also be toggled at request time by adding query parameters to the webclient URL; the Gradle property sets server-wide defaults for convenience.
+  - Flags can also be toggled at request time by adding query parameters to the J2CL root-shell URL; the Gradle property sets server-wide defaults for convenience.
 
 - Resource integration
   - Integrated `Render.css` (animations/placeholders) via `RenderCssLoader` and inject when dynamic rendering is enabled.
@@ -632,7 +634,7 @@ Each task below is self-contained for an AI agent, includes context, concrete st
 
 - How to set flags during development
   - Gradle property: `-PclientFlags="k=v,k2=v2"` (applies to run/gwtDev/compileGwt tasks)
-  - Request params: append `?flag=value` to the webclient URL for ad hoc overrides
+  - Request params: append `?flag=value` to the J2CL root-shell URL for ad hoc overrides
   - JVM property (dev only): `-Dwave.clientFlags="k=v,..."` (merged by WaveClientServlet)
   - Server config (preferred long-term): reference.conf with overrides in application.conf (merged by Typesafe Config) under `client.flags.defaults`
 

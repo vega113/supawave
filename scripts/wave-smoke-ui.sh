@@ -3,7 +3,7 @@ set -euo pipefail
 
 # wave-smoke-ui.sh — build (if needed), run briefly, and probe UI endpoints
 # - Starts :wave:run in background
-# - Waits for HTTP 200/302 from root and presence of webclient assets
+# - Waits for HTTP 200 from root, verifies the J2CL shell marker, and checks maintained J2CL assets
 # - Tails logs on failure; always cleans up the background process
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
@@ -32,10 +32,20 @@ for i in {1..90}; do
 done
 
 # Probe endpoints
-root_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/ || true)
-webclient_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/webclient/webclient.nocache.js || true)
+root_body_file=$(mktemp)
+root_status=$(curl -sS --max-time 10 -o "$root_body_file" -w "%{http_code}" http://127.0.0.1:$PORT/ || true)
+root_body=$(cat "$root_body_file" 2>/dev/null || true)
+rm -f "$root_body_file"
+landing_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/?view=landing || true)
+j2cl_root_body_file=$(mktemp)
+j2cl_root_status=$(curl -sS --max-time 10 -o "$j2cl_root_body_file" -w "%{http_code}" http://127.0.0.1:$PORT/?view=j2cl-root || true)
+j2cl_root_body=$(cat "$j2cl_root_body_file" 2>/dev/null || true)
+rm -f "$j2cl_root_body_file"
+j2cl_index_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/j2cl/index.html || true)
+sidecar_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/j2cl-search/sidecar/j2cl-sidecar.js || true)
+legacy_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/webclient/webclient.nocache.js || true)
 
-echo "ROOT=$root_status WEBCLIENT=$webclient_status"
+echo "ROOT=$root_status ROOT_SHELL=$([[ "$root_body" == *'data-j2cl-root-shell'* ]] && echo present || echo missing) LANDING=$landing_status J2CL_ROOT=$j2cl_root_status J2CL_ROOT_SHELL=$([[ "$j2cl_root_body" == *'data-j2cl-root-shell'* ]] && echo present || echo missing) J2CL_INDEX=$j2cl_index_status SIDECAR=$sidecar_status WEBCLIENT=$legacy_status"
 
 if [[ "${root_status}" == "000" ]]; then
   echo "Server did not start or port not reachable" >&2
@@ -43,15 +53,57 @@ if [[ "${root_status}" == "000" ]]; then
   exit 1
 fi
 
-# Accept 200 or 302 from root (signin redirect) and require the compiled webclient bootstrap asset
-if [[ "$root_status" -ne 200 && "$root_status" -ne 302 ]]; then
+# Require the J2CL root shell body on both the default root and explicit diagnostic route.
+if [[ "$root_status" -ne 200 ]]; then
   echo "Unexpected root status: $root_status" >&2
   tail -n 200 "$RUN_OUT" || true
   exit 1
 fi
 
-if [[ "$webclient_status" -ne 200 ]]; then
-  echo "Missing compiled /webclient/webclient.nocache.js asset: $webclient_status" >&2
+if [[ "$root_body" != *'data-j2cl-root-shell'* ]]; then
+  echo "Root page did not render the J2CL shell marker" >&2
+  tail -n 200 "$RUN_OUT" || true
+  exit 1
+fi
+
+if [[ "$root_body" == *'webclient/webclient.nocache.js'* ]]; then
+  echo "Root page still references the retired webclient bootstrap asset" >&2
+  tail -n 200 "$RUN_OUT" || true
+  exit 1
+fi
+
+if [[ "$landing_status" -ne 200 ]]; then
+  echo "Unexpected landing status: $landing_status" >&2
+  tail -n 200 "$RUN_OUT" || true
+  exit 1
+fi
+
+if [[ "$j2cl_root_status" -ne 200 ]]; then
+  echo "Unexpected J2CL root status: $j2cl_root_status" >&2
+  tail -n 200 "$RUN_OUT" || true
+  exit 1
+fi
+
+if [[ "$j2cl_root_body" != *'data-j2cl-root-shell'* ]]; then
+  echo "Explicit J2CL root route did not render the shell marker" >&2
+  tail -n 200 "$RUN_OUT" || true
+  exit 1
+fi
+
+if [[ "$j2cl_index_status" -ne 200 ]]; then
+  echo "Missing production /j2cl/index.html asset: $j2cl_index_status" >&2
+  tail -n 200 "$RUN_OUT" || true
+  exit 1
+fi
+
+if [[ "$sidecar_status" -ne 200 ]]; then
+  echo "Missing compiled /j2cl-search/sidecar/j2cl-sidecar.js asset: $sidecar_status" >&2
+  tail -n 200 "$RUN_OUT" || true
+  exit 1
+fi
+
+if [[ "$legacy_status" -ne 404 ]]; then
+  echo "Retired legacy asset is still reachable: $legacy_status" >&2
   tail -n 200 "$RUN_OUT" || true
   exit 1
 fi

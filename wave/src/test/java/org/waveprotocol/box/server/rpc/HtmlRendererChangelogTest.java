@@ -42,14 +42,12 @@ public final class HtmlRendererChangelogTest {
     assertTrue(html.contains("var currentBuildCommit = \"abc123build\";"));
     assertTrue(html.contains("var currentReleaseId = \"2026-03-27-unread-only-search-filter\";"));
     assertTrue(html.contains("fetch('/version?since=' + encodeURIComponent(currentReleaseId || '')"));
+    assertTrue(html.contains("showUpgradeBanner(data.releaseNotesStatus, data.releaseNotes || []);"));
     assertTrue(html.contains("data.releaseNotesStatus"));
     assertTrue(html.contains("data.releaseNotes || []"));
-    assertTrue(!html.contains("data.changelog || null"));
-    assertTrue(html.contains("'/changelog#release-' + encodeURIComponent(releaseNotes[0].releaseId)"));
-    assertTrue(html.contains("What's New"));
-    assertTrue(
-        html.contains(
-            "whatsNew.href = '/changelog#release-' + encodeURIComponent(releaseNotes[0].releaseId);"));
+    assertTrue(html.contains("whatsNew.href = '/changelog#release-' + encodeURIComponent(releaseNotes[0].releaseId);"));
+    assertTrue(html.contains("What's New \\u2192"));
+    assertTrue(html.contains("upgrade-banner"));
   }
 
   @Test

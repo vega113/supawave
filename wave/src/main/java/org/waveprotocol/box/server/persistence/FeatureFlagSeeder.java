@@ -30,10 +30,6 @@ public final class FeatureFlagSeeder {
   private static final String OT_SEARCH_DESCRIPTION =
       "OT/Lucene search (real-time wavelets + full-text indexing)";
   private static final String OT_SEARCH_CONFIG_KEY = "search.ot_search_enabled";
-  private static final String J2CL_ROOT_BOOTSTRAP_FLAG_NAME = "j2cl-root-bootstrap";
-  private static final String J2CL_ROOT_BOOTSTRAP_DESCRIPTION =
-      "Bootstrap the J2CL root shell on /";
-  private static final String J2CL_ROOT_BOOTSTRAP_CONFIG_KEY = "ui.j2cl_root_bootstrap_enabled";
 
   private FeatureFlagSeeder() {
   }
@@ -56,61 +52,6 @@ public final class FeatureFlagSeeder {
       LOG.info("Seeded ot-search feature flag: enabled=" + enabled);
     } else {
       LOG.info("ot-search feature flag already present in store — preserving existing value");
-    }
-  }
-
-  public static void seedJ2clRootBootstrapFeatureFlags(FeatureFlagStore store, Config config)
-      throws PersistenceException {
-    if (store == null || config == null || !config.hasPath(J2CL_ROOT_BOOTSTRAP_CONFIG_KEY)) {
-      return;
-    }
-    if (store.get(J2CL_ROOT_BOOTSTRAP_FLAG_NAME) == null) {
-      // Flag not yet in DB — initialize from config so fresh deploys start with the right default.
-      // If a flag already exists (admin set it via the API), leave it untouched.
-      boolean enabled = config.getBoolean(J2CL_ROOT_BOOTSTRAP_CONFIG_KEY);
-      store.save(
-          new FeatureFlag(
-              J2CL_ROOT_BOOTSTRAP_FLAG_NAME,
-              J2CL_ROOT_BOOTSTRAP_DESCRIPTION,
-              enabled,
-              Collections.emptyMap()));
-      LOG.info("Seeded j2cl-root-bootstrap feature flag: enabled=" + enabled);
-    } else {
-      LOG.info("j2cl-root-bootstrap feature flag already present in store — preserving existing value");
-    }
-  }
-
-  public static void reconcileJ2clRootBootstrapFeatureFlag(
-      FeatureFlagStore store, Config config) throws PersistenceException {
-    // Reconcile only from the operator-provided application/override config, not from
-    // the fully-resolved effective config (which always contains the reference default).
-    if (store == null || config == null || !config.hasPath(J2CL_ROOT_BOOTSTRAP_CONFIG_KEY)) {
-      return;
-    }
-
-    boolean enabled = config.getBoolean(J2CL_ROOT_BOOTSTRAP_CONFIG_KEY);
-    FeatureFlag existing = store.get(J2CL_ROOT_BOOTSTRAP_FLAG_NAME);
-    if (existing == null) {
-      store.save(
-          new FeatureFlag(
-              J2CL_ROOT_BOOTSTRAP_FLAG_NAME,
-              J2CL_ROOT_BOOTSTRAP_DESCRIPTION,
-              enabled,
-              Collections.emptyMap()));
-      LOG.info("Reconciled j2cl-root-bootstrap feature flag from startup config: enabled=" + enabled);
-      return;
-    }
-
-    if (existing.isEnabled() != enabled) {
-      store.save(
-          new FeatureFlag(
-              J2CL_ROOT_BOOTSTRAP_FLAG_NAME,
-              existing.getDescription().isEmpty()
-                  ? J2CL_ROOT_BOOTSTRAP_DESCRIPTION
-                  : existing.getDescription(),
-              enabled,
-              existing.getAllowedUsers()));
-      LOG.info("Reconciled j2cl-root-bootstrap feature flag from startup config: enabled=" + enabled);
     }
   }
 

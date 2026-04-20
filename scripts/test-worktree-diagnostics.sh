@@ -64,8 +64,11 @@ status="000"
 case "${url}" in
   */healthz) status="${TEST_HEALTH_STATUS-200}" ;;
   */readyz) status="${TEST_READY_STATUS-200}" ;;
-  */webclient/webclient.nocache.js) status="${TEST_WEBCLIENT_STATUS-200}" ;;
-  */) status="${TEST_ROOT_STATUS-302}" ;;
+  */\?view=landing) status="${TEST_LANDING_STATUS-200}" ;;
+  */\?view=j2cl-root) status="${TEST_J2CL_ROOT_STATUS-200}" ;;
+  */j2cl/index.html) status="${TEST_J2CL_INDEX_STATUS-200}" ;;
+  */j2cl-search/sidecar/j2cl-sidecar.js) status="${TEST_SIDECAR_STATUS-200}" ;;
+  */) status="${TEST_ROOT_STATUS-200}" ;;
 esac
 printf '%s' "${status}"
 EOF
@@ -84,9 +87,15 @@ if [[ "${1-}" != "check" ]]; then
   exit 1
 fi
 
-printf '%s\n' "${TEST_SMOKE_OUTPUT:-ROOT_STATUS=302
+printf '%s\n' "${TEST_SMOKE_OUTPUT:-ROOT_STATUS=200
+ROOT_SHELL=present
 HEALTH_STATUS=200
-WEBCLIENT_STATUS=200}"
+LANDING_STATUS=200
+J2CL_ROOT_STATUS=200
+J2CL_ROOT_SHELL=present
+J2CL_INDEX_STATUS=200
+SIDECAR_STATUS=200
+WEBCLIENT_STATUS=404}"
 exit "${TEST_SMOKE_EXIT:-0}"
 EOF
   chmod +x "${repo_root}/scripts/wave-smoke.sh"
@@ -137,10 +146,13 @@ run_bundle_shape_case() {
     PATH="${bin_dir}:${PATH}" \
     TEST_REPO_ROOT="${repo_root}" \
     TEST_BRANCH="issue-587-worktree-diagnostics-20260412" \
-    TEST_ROOT_STATUS=302 \
+    TEST_ROOT_STATUS=200 \
     TEST_HEALTH_STATUS=200 \
     TEST_READY_STATUS=200 \
-    TEST_WEBCLIENT_STATUS=200 \
+    TEST_LANDING_STATUS=200 \
+    TEST_J2CL_ROOT_STATUS=200 \
+    TEST_J2CL_INDEX_STATUS=200 \
+    TEST_SIDECAR_STATUS=200 \
     TEST_SMOKE_EXIT=0 \
     "${SCRIPT_PATH}" --port 9904 --lines 2 --output "${output_path}"
   )" || fail "expected diagnostics bundle command to succeed"
@@ -149,7 +161,14 @@ run_bundle_shape_case() {
   assert_contains "${output}" "Branch: issue-587-worktree-diagnostics-20260412"
   assert_contains "${output}" "Port: 9904"
   assert_contains "${output}" '`GET /healthz` -> `200`'
+  assert_contains "${output}" '`GET /` -> `200`'
+  assert_contains "${output}" '`GET /?view=landing` -> `200`'
+  assert_contains "${output}" '`GET /?view=j2cl-root` -> `200`'
+  assert_contains "${output}" '`GET /j2cl/index.html` -> `200`'
+  assert_contains "${output}" '`GET /j2cl-search/sidecar/j2cl-sidecar.js` -> `200`'
   assert_contains "${output}" 'Smoke exit: `0`'
+  assert_contains "${output}" 'ROOT_SHELL=present'
+  assert_contains "${output}" 'WEBCLIENT_STATUS=404'
   assert_contains "${output}" "Runtime config: ${repo_root}/journal/runtime-config/issue-587-worktree-diagnostics-20260412-port-9904.application.conf"
   assert_contains "${output}" "Evidence file: ${repo_root}/journal/local-verification/${prior_date}-issue-587-worktree-diagnostics-20260412.md"
   assert_contains "${output}" "startup line 2"
@@ -181,7 +200,10 @@ run_missing_artifacts_case() {
     TEST_ROOT_STATUS=000 \
     TEST_HEALTH_STATUS=000 \
     TEST_READY_STATUS=000 \
-    TEST_WEBCLIENT_STATUS=000 \
+    TEST_LANDING_STATUS=000 \
+    TEST_J2CL_ROOT_STATUS=000 \
+    TEST_J2CL_INDEX_STATUS=000 \
+    TEST_SIDECAR_STATUS=000 \
     TEST_SMOKE_EXIT=1 \
     TEST_SMOKE_OUTPUT=$'ROOT_STATUS=000\nUnexpected root status: 000' \
     "${SCRIPT_PATH}" --port 9904 --lines 5
@@ -215,7 +237,10 @@ run_empty_probe_status_case() {
     TEST_ROOT_STATUS=302 \
     TEST_HEALTH_STATUS="" \
     TEST_READY_STATUS=200 \
-    TEST_WEBCLIENT_STATUS=200 \
+    TEST_LANDING_STATUS=200 \
+    TEST_J2CL_ROOT_STATUS=200 \
+    TEST_J2CL_INDEX_STATUS=200 \
+    TEST_SIDECAR_STATUS=200 \
     TEST_SMOKE_EXIT=0 \
     "${SCRIPT_PATH}" --port 9904 --lines 2
   )" || fail "expected diagnostics bundle to tolerate empty curl status output"

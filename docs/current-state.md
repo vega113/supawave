@@ -88,9 +88,9 @@ Read these files first when resuming work:
   Jakarta replacement exists for a class under `wave/src/main/java/`.
 - The SBT build now uses stable jar naming and `wave/config/`-backed runtime
   defaults.
-- `sbt run` depends on `prepareServerConfig` and `compileGwt`, and
-  `compileGwt` can use a local executable `gradlew` as an internal bridge when
-  present. Treat that as build plumbing, not as the canonical user workflow.
+- `sbt run` depends on `prepareServerConfig` and both maintained J2CL build
+  tasks; `compileGwt` remains a manual bridge task for the retired legacy
+  webclient path and is no longer wired into the default run/package flow.
 - Phase 6 protobuf and server-side Guava work are already closed in the
   modernization ledger.
 - The Phase 8 baseline docs have been refreshed after the merged Phase 0 cleanup:

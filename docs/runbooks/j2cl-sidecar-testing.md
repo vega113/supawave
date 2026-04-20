@@ -23,9 +23,10 @@ As of 2026-04-19, the current J2CL browser surfaces are:
 
 The root `/` route now boots the J2CL root shell by default (issue #924).
 Issue #923 added the server-controlled bootstrap seam; issue #924 flipped its
-default to enabled for fresh deployments. The legacy GWT root path remains
-reachable through the rollback config and the `/?view=landing` escape hatch,
-but the J2CL path is now the production default.
+default to enabled for fresh deployments. Issue #925 retires the rollback
+toggle and the legacy authenticated GWT root path, leaving the J2CL shell as
+the maintained root runtime and `/?view=landing` as the separate public
+landing page.
 
 ## Fast J2CL-Only Checks
 
@@ -81,14 +82,14 @@ commit only changelog fragments under `wave/config/changelog.d/`.
 ### 2. Run The Cross-Path Build Gate
 
 ```bash
-sbt -batch j2clSearchBuild j2clSearchTest compileGwt Universal/stage
+sbt -batch j2clSearchBuild j2clSearchTest Universal/stage
 ```
 
-This is the minimum trustworthy gate for the current migration phase because it
+This is the minimum trustworthy gate for the current post-#925 phase because it
 proves both of these at once:
 
 - the J2CL sidecar slice still builds/tests
-- the legacy GWT root app still compiles and stages
+- the staged package still succeeds without the legacy GWT client path
 
 ### 3. Prepare Local Runtime Assets
 
@@ -114,21 +115,26 @@ While the server is running:
 
 ```bash
 curl -fsS -o /dev/null http://localhost:9900/
-curl -fsS -o /dev/null http://localhost:9900/webclient/webclient.nocache.js
+curl -fsS -o /dev/null http://localhost:9900/?view=landing
+curl -fsS http://localhost:9900/ | grep -F 'data-j2cl-root-shell'
+curl -fsS http://localhost:9900/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
 curl -fsS -o /dev/null http://localhost:9900/j2cl-search/index.html
 curl -fsS -o /dev/null http://localhost:9900/j2cl/index.html
 curl -fsS http://localhost:9900/j2cl-search/sidecar/j2cl-sidecar.js | grep -E "WaveSandboxEntryPoint|j2cl"
+test "$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:9900/webclient/webclient.nocache.js)" = 404
 # Optional — run this only when j2clSandboxBuild was also run
 curl -fsS -o /dev/null http://localhost:9900/j2cl-debug/index.html
 ```
 
 Expected result:
 
-- `/` returns success
-- `/webclient/webclient.nocache.js` is present
+- `/` renders the J2CL root-shell marker
+- `/?view=landing` returns success
+- `/` and `/?view=j2cl-root` both render the J2CL root-shell marker
 - `/j2cl-search/index.html` is present
 - `/j2cl/index.html` is present (production sidecar artifact from `Universal/stage`)
 - the J2CL search bundle itself is present and non-placeholder
+- `/webclient/webclient.nocache.js` returns `404`
 - `/j2cl-debug/index.html` is present only if `j2clSandboxBuild` was run; not required by the standard gate
 
 ## Manual Browser Verification
@@ -138,12 +144,12 @@ Open these in the same signed-in browser session:
 - `http://localhost:9900/`
 - `http://localhost:9900/j2cl-search/index.html`
 
-### Legacy Root Expectations
+### Root Expectations
 
 On `/`:
 
-- the legacy GWT app still boots
-- login still works
+- the J2CL root shell boots
+- sign-in and sign-out controls remain available
 - the root app remains usable
 
 ### J2CL Search Slice Expectations
@@ -170,55 +176,30 @@ server:
 PORT=9900 bash scripts/wave-smoke.sh stop
 ```
 
-## Dual Bootstrap Matrix
+## Post-#925 Route Matrix
 
-Use this matrix when you are validating the issue #924 default-root cutover.
-Run from the repo root unless the command says otherwise.
-
-### Mode A: J2CL Root Is The Default
+Use this matrix when validating the maintained root shell and its public
+landing-page companion.
 
 ```bash
-sbt -batch "testOnly org.waveprotocol.box.server.persistence.memory.FeatureFlagSeederJ2clBootstrapTest org.waveprotocol.box.server.rpc.WaveClientServletJ2clBootstrapTest org.waveprotocol.box.server.ServerMainConfigOverrideTest"
-sbt -batch compileGwt Universal/stage
 bash scripts/worktree-boot.sh --port 9914
 PORT=9914 bash scripts/wave-smoke.sh start
+PORT=9914 bash scripts/wave-smoke.sh check
 curl -fsS http://localhost:9914/ | grep -F 'data-j2cl-root-shell'
-curl -fsS http://localhost:9914/?view=landing | grep -F 'Sign In'
-curl -fsS http://localhost:9914/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
-PORT=9914 bash scripts/wave-smoke.sh stop
-```
-
-Expected result:
-
-- `/` serves the J2CL root shell when the bootstrap flag defaults on
-- `/?view=landing` still reaches the explicit legacy landing page
-- `/?view=j2cl-root` still serves the same J2CL root shell as the direct diagnostic route
-- `compileGwt` and `Universal/stage` stay green
-
-### Mode B: Legacy GWT Rollback Restores The Old Root
-
-```bash
-bash scripts/worktree-boot.sh --port 9914
-RUNTIME_CONFIG="$(find journal/runtime-config -maxdepth 1 -name '*-port-9914.application.conf' | head -n1)"
-cp "$RUNTIME_CONFIG" /tmp/j2cl-root-bootstrap.application.conf
-printf '\nui.j2cl_root_bootstrap_enabled=false\n' >> /tmp/j2cl-root-bootstrap.application.conf
-PORT=9914 bash scripts/wave-smoke.sh stop
-PORT=9914 JAVA_OPTS="-Djava.util.logging.config.file=$PWD/wave/config/wiab-logging.conf -Djava.security.auth.login.config=$PWD/wave/config/jaas.config -Dwave.server.config=/tmp/j2cl-root-bootstrap.application.conf" bash scripts/wave-smoke.sh start
-curl -fsS http://localhost:9914/ | grep -F 'nav-link-signin'
-! curl -fsS http://localhost:9914/ | grep -F 'data-j2cl-root-shell'
-curl -fsS http://localhost:9914/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
 curl -fsS http://localhost:9914/?view=landing | grep -F 'nav-link-signin'
-! curl -fsS http://localhost:9914/?view=landing | grep -F 'data-j2cl-root-shell'
+curl -fsS http://localhost:9914/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
+curl -fsS http://localhost:9914/j2cl-search/sidecar/j2cl-sidecar.js | grep -E 'WaveSandboxEntryPoint|j2cl'
+test "$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:9914/webclient/webclient.nocache.js)" = 404
 PORT=9914 bash scripts/wave-smoke.sh stop
 ```
 
 Expected result:
 
-- plain `/` renders legacy markers and does not include `data-j2cl-root-shell` when rolled back to `false`
-- the direct diagnostic route still serves the J2CL root shell
-- `/?view=landing` renders legacy markers and does not include `data-j2cl-root-shell`
-- turning the config back to `true` restores the J2CL default without a code rollback
-- the mode switch is driven by a temp overlay built from the port-specific runtime config that `worktree-boot.sh` generated for the same smoke port, so the server and the probe port stay aligned
+- `/` serves the J2CL root shell
+- `/?view=landing` still reaches the explicit public landing page
+- `/?view=j2cl-root` still serves the same J2CL root shell as the direct diagnostic route
+- the sidecar bundle is present and non-placeholder
+- `/webclient/webclient.nocache.js` is absent from the live runtime
 
 ## When To Use Direct Maven Instead Of SBT
 

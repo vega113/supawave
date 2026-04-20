@@ -668,7 +668,9 @@ Universal / mappings ++= {
   }
   // war/ -> war/
   val warDir = base / "war"
-  val warFiles = (warDir ** "*").get.filter(_.isFile).map { f =>
+  val warFiles = (warDir ** "*").get.filter(_.isFile).filterNot { f =>
+    IO.relativize(warDir, f).exists(_.startsWith("webclient/"))
+  }.map { f =>
     f -> ("war/" + IO.relativize(warDir, f).get)
   }
   // Root docs
@@ -1162,11 +1164,9 @@ Compile / compile := (Compile / compile)
   // generateGxp removed — GXP replaced by HtmlRenderer
   .value
 
-// Ensure `run` has a config in place and the GWT web client is compiled first.
-// ⚠️  DO NOT REMOVE compileGwt from this line. Without it, `sbt run` serves a
-//     blank wave list because webclient.nocache.js is never built. This has been
-//     a recurring regression — see PR history for context.
-Compile / run := (Compile / run).dependsOn(prepareServerConfig, compileGwt).evaluated
+// Ensure `run` has a config in place and both maintained J2CL assets are
+// rebuilt before launching the server.
+Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clSearchBuild, j2clProductionBuild).evaluated
 
 // =============================================================================
 // Phase 6: GWT Compilation Bridge
@@ -1377,11 +1377,8 @@ compileGwt := (compileGwt).dependsOn(Compile / compile).value
 devCompile := (Compile / compile).value
 compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
-// ⚠️  DO NOT REMOVE these lines. They ensure GWT compilation runs before
-//     staging or packaging. Without them, distributions ship without the
-//     web client and users see a blank wave list after login.
-Universal / stage := (Universal / stage).dependsOn(compileGwt, verifyGwtAssets, j2clProductionBuild).value
-Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets, j2clProductionBuild).value
+Universal / stage := (Universal / stage).dependsOn(j2clSearchBuild, j2clProductionBuild).value
+Universal / packageBin := (Universal / packageBin).dependsOn(j2clSearchBuild, j2clProductionBuild).value
 
 cleanFiles += baseDirectory.value / "war" / "webclient"
 cleanFiles += baseDirectory.value / "war" / "org"

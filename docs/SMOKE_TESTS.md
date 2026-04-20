@@ -21,7 +21,9 @@ distribution:
 1. Build: `sbt Universal/stage`
 2. Start: `bash scripts/wave-smoke.sh start` (waits for HTTP readiness)
 3. Check: `bash scripts/wave-smoke.sh check`
-   - Expected: `ROOT_STATUS=302`, `WEBCLIENT_STATUS=200`
+   - Expected: `ROOT_STATUS=200`, `ROOT_SHELL=present`, `HEALTH_STATUS=200`,
+     `LANDING_STATUS=200`, `J2CL_ROOT_STATUS=200`, `J2CL_ROOT_SHELL=present`,
+     `J2CL_INDEX_STATUS=200`, `SIDECAR_STATUS=200`, `WEBCLIENT_STATUS=404`
 4. Stop: `bash scripts/wave-smoke.sh stop`
 
 For issue worktrees, use

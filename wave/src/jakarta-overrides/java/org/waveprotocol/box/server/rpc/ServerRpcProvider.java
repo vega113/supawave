@@ -522,16 +522,14 @@ public class ServerRpcProvider {
             registerPendingServlets();
             registerPendingFilters();
 
-            // Static resources: resolve sub-directories for /static and /webclient
+            // Static resources: resolve sub-directories for /static and maintained J2CL assets
             Resource staticResource = null;
-            Resource webclientResource = null;
             Resource j2clSearchResource = null;
             Resource j2clDebugResource = null;
             Resource j2clResource = null;
             try {
                 if (baseResource != null) {
                     staticResource = baseResource.resolve("static/");
-                    webclientResource = baseResource.resolve("webclient/");
                     j2clSearchResource = baseResource.resolve("j2cl-search/");
                     j2clDebugResource = baseResource.resolve("j2cl-debug/");
                     j2clResource = baseResource.resolve("j2cl/");
@@ -540,9 +538,6 @@ public class ServerRpcProvider {
             if ((staticResource == null || !staticResource.exists()) && resourceBases != null) {
                 staticResource = resolveResource(ResourceFactory.of(context), "static");
             }
-            if ((webclientResource == null || !webclientResource.exists()) && resourceBases != null) {
-                webclientResource = resolveResource(ResourceFactory.of(context), "webclient");
-            }
             // J2CL sidecar resources are opt-in build artifacts: only serve them if they
             // were explicitly built under war/j2cl-*.  No resolveResource fallback here —
             // that fallback does relative-path resolution which would incorrectly match the
@@ -550,7 +545,7 @@ public class ServerRpcProvider {
 
             // Jetty 12 EE10: use ResourceServlet (not DefaultServlet) for non-root
             // path mappings.  DefaultServlet is reserved for the "/" mapping and will
-            // log warnings + mis-resolve paths when mounted on /static/* or /webclient/*.
+            // log warnings + mis-resolve paths when mounted on /static/*.
             // ResourceServlet defaults pathInfoOnly=true, which strips the servlet-path
             // prefix before resolving against the baseResource, preventing double-path
             // lookups that caused buffer-release errors in the previous DefaultServlet
@@ -580,37 +575,26 @@ public class ServerRpcProvider {
             }
             context.addServlet(staticHolder, "/static/*");
 
-            ServletHolder webclientHolder =
-                new ServletHolder("jakarta-webclient", ResourceServlet.class);
-            webclientHolder.setInitParameter("etags", "true");
-            webclientHolder.setInitParameter("cacheControl",
-                "no-cache, no-store, must-revalidate");
-            webclientHolder.setInitParameter("dirAllowed", "false");
-            if (webclientResource != null && webclientResource.exists()) {
-                webclientHolder.setInitParameter("baseResource",
-                    webclientResource.getURI().toString());
-                LOG.info("Serving /webclient from " + webclientResource);
-            } else if (baseResource != null) {
-                Resource fallback = baseResource.resolve("webclient/");
-                if (fallback != null && fallback.exists()) {
-                    webclientHolder.setInitParameter("baseResource",
-                        fallback.getURI().toString());
-                } else {
-                    webclientHolder.setInitParameter("baseResource",
-                        baseResource.getURI().toString());
-                }
-                LOG.warning(
-                    "Falling back to base resource for /webclient: "
-                        + webclientHolder.getInitParameter("baseResource"));
-            }
-            context.addServlet(webclientHolder, "/webclient/*");
+            // Retire the legacy webclient namespace explicitly so staged packages
+            // cannot fall back to stale /webclient assets in dirty environments.
+            ServletHolder retiredWebclient =
+                new ServletHolder("jakarta-retired-webclient", new HttpServlet() {
+                    @Override
+                    protected void service(
+                            jakarta.servlet.http.HttpServletRequest req,
+                            jakarta.servlet.http.HttpServletResponse resp)
+                            throws IOException {
+                        resp.sendError(
+                                jakarta.servlet.http.HttpServletResponse.SC_NOT_FOUND,
+                                "/webclient/* has been retired; use /j2cl/*");
+                    }
+                });
+            context.addServlet(retiredWebclient, "/webclient/*");
 
             addJ2clServlet(context, "jakarta-j2cl-search", j2clSearchResource, "/j2cl-search", "/j2cl-search/*");
             addJ2clServlet(context, "jakarta-j2cl-debug", j2clDebugResource, "/j2cl-debug", "/j2cl-debug/*");
             addJ2clServlet(context, "jakarta-j2cl", j2clResource, "/j2cl", "/j2cl/*");
 
-            // Minimal Jakarta replacements for server-side GWT services
-            addServlet("/webclient/remote_logging", org.waveprotocol.box.server.rpc.RemoteLoggingJakartaServlet.class);
             addServlet(org.waveprotocol.box.stat.StatService.STAT_URL, org.waveprotocol.box.server.stat.StatuszJakartaServlet.class);
             addServlet("/metrics", org.waveprotocol.box.server.stat.MetricsPrometheusServlet.class);
 
@@ -628,7 +612,6 @@ public class ServerRpcProvider {
                 context.addFilter(cacheStatic, "/static/*", java.util.EnumSet.allOf(DispatcherType.class));
 
                 org.eclipse.jetty.ee10.servlet.FilterHolder cacheNo = new org.eclipse.jetty.ee10.servlet.FilterHolder(new NoCacheFilter());
-                context.addFilter(cacheNo, "/webclient/*", java.util.EnumSet.allOf(DispatcherType.class));
                 context.addFilter(cacheNo, "/j2cl-search/*", java.util.EnumSet.allOf(DispatcherType.class));
                 context.addFilter(cacheNo, "/j2cl-debug/*", java.util.EnumSet.allOf(DispatcherType.class));
                 context.addFilter(cacheNo, "/j2cl/*", java.util.EnumSet.allOf(DispatcherType.class));

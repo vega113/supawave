@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-21-retire-legacy-gwt-client-path",
+  "version": "Unreleased",
+  "date": "2026-04-21",
+  "title": "The legacy authenticated GWT client path is retired from the default runtime and packaging flow",
+  "summary": "The maintained J2CL root shell and its search-sidecar asset are now rebuilt for `sbt run`, `Universal/stage`, and `Universal/packageBin`, while the legacy GWT client path remains only as a manual bridge task.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Rebuilt the maintained J2CL search-sidecar asset as part of `sbt run` and the staged packaging flow so clean trees no longer depend on leftover artifacts",
+        "Kept the legacy `compileGwt` task only as a manual bridge for the retired authenticated GWT client path instead of wiring it into the default runtime",
+        "Updated the smoke and build notes to match the maintained J2CL root shell, landing page, and sidecar route contract"
+      ]
+    }
+  ]
+}

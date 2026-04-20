@@ -23,8 +23,21 @@ Browser verification for the retained browser-facing suites continues to use
 [docs/runbooks/browser-verification.md](./runbooks/browser-verification.md)
 and
 [docs/runbooks/change-type-verification-matrix.md](./runbooks/change-type-verification-matrix.md)
-as the execution baseline. This issue records the classification, not a new
-browser runner.
+as the execution baseline. Issue `#925` records the retirement accounting for
+the remaining browser-harness descendants that are no longer part of the
+supported runtime/test gate.
+
+## Issue #925 Retirement Accounting
+
+The following suites are explicitly accounted for in `#925` as no longer
+blocking the supported browser runtime after the legacy authenticated GWT
+client path is retired:
+
+| Group | Items | Disposition | Follow-on |
+| --- | --- | --- | --- |
+| Direct `GWTTestCase` suites | `FastQueueGwtTest`, `BrowserBackedSchedulerGwtTest`, `EditorGwtTestCase`, `ImgDoodadGwtTest`, `EditorEventHandlerGwtTest`, `PasteExtractorGwtTest`, `PasteFormatRendererGwtTest`, `RepairerGwtTest`, `TypingExtractorGwtTest`, `GwtRenderingMutationHandlerGwtTest`, `NodeManagerGwtTest`, `CleanupGwtTest`, `TestBase`, `KeyBindingRegistryIntegrationGwtTest`, `AggressiveSelectionHelperGwtTest`, `ExtendedJSObjectGwtTest`, `WrappedJSObjectGwtTest`, `XmlStructureGwtTest`, `EventDispatcherPanelGwtTest` | still present but no longer build blockers because they are no longer part of the supported runtime/test gate | `#904` |
+| Inherited browser-harness descendants | `ContentTestBase`, `LazyPersistentContentDocumentGwtTest`, `NodeEventRouterGwtTest`, `DomGwtTest`, `ContentElementGwtTest`, `ContentTextNodeGwtTest`, `ElementTestBase`, `OperationGwtTest`, `MobileWebkitFocusGwtTest`, `MobileImeFlushGwtTest`, `ParagraphGwtTest` | still present but no longer build blockers because they are no longer part of the supported runtime/test gate | `#904` |
+| Extra Jakarta/client holdouts | `WaveWebSocketClientTest`, `RemoteWaveViewServiceEmptyUserDataSnapshotTest`, `FocusBlipSelectorTest`, `BlipMetaDomImplTest` | still present but no longer build blockers because they are no longer part of the supported runtime/test gate | `#904` |
 
 ## Direct Suites (Baseline Classification for This Lane)
 

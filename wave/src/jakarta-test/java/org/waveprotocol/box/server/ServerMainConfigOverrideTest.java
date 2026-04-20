@@ -50,6 +50,8 @@ public final class ServerMainConfigOverrideTest {
       } else {
         System.setProperty("wave.server.config", previousConfigPath);
       }
+      Files.deleteIfExists(applicationConfig);
+      Files.deleteIfExists(tempDir);
     }
   }
 

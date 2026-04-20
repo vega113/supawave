@@ -60,7 +60,8 @@ public final class J2clRootShellController {
             new J2clSidecarRouteController.BrowserHistoryAdapter(),
             controller,
             selectedWaveController,
-            "view=j2cl-root");
+            "view=j2cl-root",
+            shellView::syncReturnTarget);
     routeControllerRef[0] = routeController;
     searchView.setSessionSummary("Mounted inside the J2CL root shell.");
     composeController.start();

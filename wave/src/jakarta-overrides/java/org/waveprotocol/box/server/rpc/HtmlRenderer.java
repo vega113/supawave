@@ -27,6 +27,7 @@ import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
+import org.apache.commons.text.StringEscapeUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.waveprotocol.box.common.SessionConstants;
@@ -3219,7 +3220,7 @@ public final class HtmlRenderer {
     String resolvedReturnTarget = normalizeLocalReturnTarget(rootShellReturnTarget);
     String safeResolvedReturnTarget = escapeHtml(resolvedReturnTarget);
     String safeEncodedReturnTarget =
-        escapeHtml(encodeLocalReturnTarget(resolvedReturnTarget));
+        StringEscapeUtils.escapeHtml4(encodeLocalReturnTarget(resolvedReturnTarget));
 
     StringBuilder sb = new StringBuilder(2048);
     sb.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
@@ -4198,6 +4199,15 @@ public final class HtmlRenderer {
   }
 
   private static String normalizeLocalReturnTarget(String returnTarget) {
+  private static String encodeLocalReturnTarget(String returnTarget) {
+    String normalizedReturnTarget = normalizeLocalReturnTarget(returnTarget);
+    if (normalizedReturnTarget.startsWith("/")) {
+      return "/" + URLEncoder.encode(normalizedReturnTarget.substring(1), StandardCharsets.UTF_8);
+    }
+    return URLEncoder.encode(normalizedReturnTarget, StandardCharsets.UTF_8);
+  }
+
+  private static String normalizeLocalReturnTarget(String returnTarget) {
     if (returnTarget == null || returnTarget.isEmpty()) {
       return J2CL_ROOT_RETURN_TARGET;
     }
@@ -4205,14 +4215,6 @@ public final class HtmlRenderer {
       return J2CL_ROOT_RETURN_TARGET;
     }
     return returnTarget;
-  }
-
-  private static String encodeLocalReturnTarget(String returnTarget) {
-    String normalizedReturnTarget = normalizeLocalReturnTarget(returnTarget);
-    if (normalizedReturnTarget.startsWith("/")) {
-      return "/" + URLEncoder.encode(normalizedReturnTarget.substring(1), StandardCharsets.UTF_8);
-    }
-    return URLEncoder.encode(normalizedReturnTarget, StandardCharsets.UTF_8);
   }
 
   /**

@@ -18,6 +18,7 @@
  */
 package org.waveprotocol.box.server.rpc;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -131,6 +132,24 @@ public final class WaveClientServletJ2clRootShellTest {
     assertTrue(html.contains("data-j2cl-root-shell"));
     assertTrue(html.contains("/j2cl/assets/sidecar.css"));
     assertTrue(html.contains("/j2cl-search/sidecar/j2cl-sidecar.js"));
+    assertTrue(html.contains("The hosted J2CL workflow is loading and will mount here shortly."));
+    assertFalse(html.contains("The hosted J2CL workflow will mount here in the next slice."));
+  }
+
+  @Test
+  public void renderJ2clRootShellPageRejectsNonLocalReturnTargets() {
+    String html =
+        HtmlRenderer.renderJ2clRootShellPage(
+            null,
+            "",
+            "test",
+            0L,
+            "",
+            "https://evil.example/steal");
+
+    assertTrue(html.contains("href=\"/?view=j2cl-root\""));
+    assertTrue(html.contains("/auth/signin?r=/%3Fview%3Dj2cl-root"));
+    assertFalse(html.contains("https://evil.example/steal"));
   }
 
   private static WaveClientServlet createServlet(ParticipantId user) throws Exception {

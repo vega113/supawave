@@ -11,6 +11,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private final HTMLElement detail;
   private final HTMLElement participantSummary;
   private final HTMLElement snippet;
+  private final HTMLElement composeHost;
   private final HTMLDivElement contentList;
   private final HTMLElement emptyState;
 
@@ -23,7 +24,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
 
     HTMLElement eyebrow = (HTMLElement) DomGlobal.document.createElement("p");
     eyebrow.className = "sidecar-eyebrow";
-    eyebrow.textContent = "Read-only selected wave";
+    eyebrow.textContent = "Opened wave";
     card.appendChild(eyebrow);
 
     title = (HTMLElement) DomGlobal.document.createElement("h2");
@@ -49,6 +50,10 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     snippet = (HTMLElement) DomGlobal.document.createElement("p");
     snippet.className = "sidecar-selected-snippet";
     card.appendChild(snippet);
+
+    composeHost = (HTMLElement) DomGlobal.document.createElement("div");
+    composeHost.className = "sidecar-selected-compose";
+    card.appendChild(composeHost);
 
     contentList = (HTMLDivElement) DomGlobal.document.createElement("div");
     contentList.className = "sidecar-selected-content";
@@ -93,5 +98,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
                 ? "Waiting for selected-wave content."
                 : "No selected-wave content is available yet.")
             : model.getStatusText();
+  }
+
+  public HTMLElement getComposeHost() {
+    return composeHost;
   }
 }

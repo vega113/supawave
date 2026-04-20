@@ -103,6 +103,12 @@ public final class J2clSearchPanelController
   }
 
   @Override
+  public void syncSelection(String selectedWaveId) {
+    this.selectedWaveId = normalizeSelectedWaveId(selectedWaveId);
+    view.setSelectedWaveId(this.selectedWaveId);
+  }
+
+  @Override
   public void onQuerySubmitted(String query) {
     currentQuery = J2clSearchResultProjector.normalizeQuery(query);
     currentPageSize = pageIncrement;

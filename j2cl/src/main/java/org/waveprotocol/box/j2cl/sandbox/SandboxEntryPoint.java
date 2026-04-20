@@ -13,6 +13,9 @@ import jsinterop.annotations.JsType;
 import org.waveprotocol.box.j2cl.search.J2clSearchGateway;
 import org.waveprotocol.box.j2cl.search.J2clSearchPanelController;
 import org.waveprotocol.box.j2cl.search.J2clSearchPanelView;
+import org.waveprotocol.box.j2cl.search.J2clPlainTextDeltaFactory;
+import org.waveprotocol.box.j2cl.search.J2clSidecarComposeController;
+import org.waveprotocol.box.j2cl.search.J2clSidecarComposeView;
 import org.waveprotocol.box.j2cl.search.J2clSidecarRouteCodec;
 import org.waveprotocol.box.j2cl.search.J2clSidecarRouteController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveController;
@@ -43,11 +46,28 @@ public final class SandboxEntryPoint {
 
     if ("search-sidecar".equals(mode)) {
       J2clSearchPanelView searchView = new J2clSearchPanelView(host);
+      J2clSelectedWaveView selectedWaveView =
+          new J2clSelectedWaveView(searchView.getSelectedWaveHost());
       J2clSearchGateway gateway = new J2clSearchGateway();
+      final J2clSidecarRouteController[] routeControllerRef = new J2clSidecarRouteController[1];
+      final J2clSelectedWaveController[] selectedWaveControllerRef =
+          new J2clSelectedWaveController[1];
+      J2clSidecarComposeController composeController =
+          new J2clSidecarComposeController(
+              gateway,
+              new J2clSidecarComposeView(
+                  searchView.getComposeHost(), selectedWaveView.getComposeHost()),
+              new J2clPlainTextDeltaFactory(buildSidecarSessionSeed()),
+              waveId -> routeControllerRef[0].selectWave(waveId),
+              waveId -> {
+                if (selectedWaveControllerRef[0] != null) {
+                  selectedWaveControllerRef[0].refreshSelectedWave();
+                }
+              });
       J2clSelectedWaveController selectedWaveController =
           new J2clSelectedWaveController(
-              gateway, new J2clSelectedWaveView(searchView.getSelectedWaveHost()));
-      final J2clSidecarRouteController[] routeControllerRef = new J2clSidecarRouteController[1];
+              gateway, selectedWaveView, composeController::onWriteSessionChanged);
+      selectedWaveControllerRef[0] = selectedWaveController;
       J2clSearchPanelController controller =
           new J2clSearchPanelController(
               gateway,
@@ -61,6 +81,7 @@ public final class SandboxEntryPoint {
               controller,
               selectedWaveController);
       routeControllerRef[0] = routeController;
+      composeController.start();
       routeController.start();
       return;
     }
@@ -133,6 +154,12 @@ public final class SandboxEntryPoint {
 
   private static double resolveViewportWidth() {
     return Double.parseDouble(String.valueOf(DomGlobal.window.innerWidth));
+  }
+
+  private static String buildSidecarSessionSeed() {
+    long timestampSeed = System.currentTimeMillis();
+    long randomSeed = (long) Math.floor(Math.random() * 0x7fffffff);
+    return "j2cl" + Long.toHexString(timestampSeed) + Long.toHexString(randomSeed);
   }
 
   @JsFunction

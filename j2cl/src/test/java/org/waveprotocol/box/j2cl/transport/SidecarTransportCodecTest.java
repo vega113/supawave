@@ -2,6 +2,8 @@ package org.waveprotocol.box.j2cl.transport;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
@@ -69,6 +71,7 @@ public class SidecarTransportCodecTest {
     String json =
         "{\"sequenceNumber\":12,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
             + "\"1\":\"example.com!w+abc123/example.com!conv+root\","
+            + "\"4\":{\"1\":44,\"2\":\"ABCD\"},"
             + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\",\"teammate@example.com\"],"
             + "\"3\":[{\"1\":\"b+root\",\"3\":\"user@example.com\",\"5\":[33,0],\"6\":[44,0]}]},"
             + "\"6\":true,\"7\":\"chan-2\","
@@ -83,6 +86,8 @@ public class SidecarTransportCodecTest {
     Assert.assertEquals("example.com!w+abc123/example.com!conv+root", update.getWaveletName());
     Assert.assertEquals("chan-2", update.getChannelId());
     Assert.assertTrue(update.hasMarker());
+    Assert.assertEquals(44L, update.getResultingVersion());
+    Assert.assertEquals("ABCD", update.getResultingVersionHistoryHash());
     Assert.assertEquals(2, update.getParticipantIds().size());
     Assert.assertEquals(1, update.getDocuments().size());
     Assert.assertEquals("b+root", update.getDocuments().get(0).getDocumentId());
@@ -118,9 +123,24 @@ public class SidecarTransportCodecTest {
   }
 
   @Test
+  public void decodeSelectedWaveUpdateMarksMissingFragmentSnapshotVersionAsAbsent() {
+    String json =
+        "{\"sequenceNumber\":14,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s4635670bfbwA/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\"],"
+            + "\"3\":[{\"1\":\"b+abc123\",\"3\":\"user@example.com\",\"5\":[45,0],\"6\":[46,0]}]},"
+            + "\"6\":true,\"7\":\"ch4\"}}";
+
+    SidecarSelectedWaveUpdate update = SidecarTransportCodec.decodeSelectedWaveUpdate(json);
+
+    Assert.assertEquals(-1L, update.getFragments().getSnapshotVersion());
+    Assert.assertEquals(0, update.getFragments().getEntries().size());
+  }
+
+  @Test
   public void decodeRpcFinishedFailureReadsFailedFlagAndErrorText() {
     String json =
-        "{\"sequenceNumber\":14,\"messageType\":\"RpcFinished\",\"message\":{\"1\":true,\"2\":\"boom\"}}";
+        "{\"sequenceNumber\":15,\"messageType\":\"RpcFinished\",\"message\":{\"1\":true,\"2\":\"boom\"}}";
 
     java.util.Map<String, Object> envelope = SidecarTransportCodec.parseJsonObject(json);
 
@@ -129,6 +149,37 @@ public class SidecarTransportCodecTest {
         "boom",
         SidecarTransportCodec.decodeRpcFinishedErrorText(
             envelope, "The selected wave request failed."));
+  }
+
+  @Test
+  public void encodeSubmitEnvelopeUsesProtocolSubmitRequestShape() {
+    SidecarSubmitRequest request =
+        new SidecarSubmitRequest(
+            "example.com/w+abc123/~/conv+root",
+            "{\"1\":{\"1\":44,\"2\":\"\"},\"2\":\"user@example.com\",\"3\":[{\"1\":\"user@example.com\"}]}",
+            "chan-9");
+
+    String json = SidecarTransportCodec.encodeSubmitEnvelope(15, request);
+
+    Assert.assertTrue(json.contains("\"sequenceNumber\":15"));
+    Assert.assertTrue(json.contains("\"messageType\":\"ProtocolSubmitRequest\""));
+    Assert.assertTrue(json.contains("\"1\":\"example.com/w+abc123/~/conv+root\""));
+    Assert.assertTrue(json.contains("\"2\":{\"1\":{\"1\":44,\"2\":\"\"},\"2\":\"user@example.com\""));
+    Assert.assertTrue(json.contains("\"3\":\"chan-9\""));
+  }
+
+  @Test
+  public void decodeSubmitResponseReadsOperationsErrorAndVersion() {
+    String json =
+        "{\"sequenceNumber\":16,\"messageType\":\"ProtocolSubmitResponse\",\"message\":{"
+            + "\"1\":2,\"2\":\"submit boom\",\"3\":{\"1\":46,\"2\":\"\"}}}";
+
+    SidecarSubmitResponse response =
+        SidecarTransportCodec.decodeSubmitResponse(SidecarTransportCodec.parseJsonObject(json));
+
+    Assert.assertEquals(2, response.getOperationsApplied());
+    Assert.assertEquals("submit boom", response.getErrorMessage());
+    Assert.assertEquals(46L, response.getResultingVersion());
   }
 
   @Test
@@ -159,6 +210,70 @@ public class SidecarTransportCodecTest {
     expectIllegalArgumentContains(
         "unicode escape",
         () -> SidecarTransportCodec.parseJsonObject("{\"1\":\"\\u12xz\"}"));
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdatePreservesSentinelWhenResultingVersionFieldOneAbsent() {
+    String json =
+        "{\"sequenceNumber\":15,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"example.com!w+abc/example.com!conv+root\","
+            + "\"4\":{\"2\":\"HASHONLY\"},"
+            + "\"6\":true,\"7\":\"ch5\"}}";
+
+    SidecarSelectedWaveUpdate update = SidecarTransportCodec.decodeSelectedWaveUpdate(json);
+
+    Assert.assertEquals(-1L, update.getResultingVersion());
+  }
+
+  @Test
+  public void decodeSubmitResponsePreservesSentinelWhenVersionFieldOneAbsent() {
+    String json =
+        "{\"sequenceNumber\":16,\"messageType\":\"ProtocolSubmitResponse\",\"message\":{"
+            + "\"1\":1,\"2\":\"\",\"3\":{\"2\":\"HASHONLY\"}}}";
+
+    SidecarSubmitResponse response =
+        SidecarTransportCodec.decodeSubmitResponse(SidecarTransportCodec.parseJsonObject(json));
+
+    Assert.assertEquals(-1L, response.getResultingVersion());
+  }
+
+  @Test
+  public void decodeSubmitResponseRejectsFractionalOperationsApplied() {
+    expectIllegalArgumentContains(
+        "integral numeric value for 1",
+        () ->
+            SidecarTransportCodec.decodeSubmitResponse(
+                SidecarTransportCodec.parseJsonObject(
+                    "{\"sequenceNumber\":16,\"messageType\":\"ProtocolSubmitResponse\",\"message\":{"
+                        + "\"1\":1.5,\"2\":\"\",\"3\":{\"1\":46,\"2\":\"\"}}}")));
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateRejectsFractionalResultingVersion() {
+    expectIllegalArgumentContains(
+        "integral numeric value for 1",
+        () ->
+            SidecarTransportCodec.decodeSelectedWaveUpdate(
+                "{\"sequenceNumber\":15,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+                    + "\"1\":\"example.com!w+abc/example.com!conv+root\","
+                    + "\"4\":{\"1\":44.5,\"2\":\"ABCD\"},"
+                    + "\"6\":true,\"7\":\"ch5\"}}"));
+  }
+
+  @Test
+  public void decodeSubmitResponseRejectsNonFiniteVersionNumbers() {
+    Map<String, Object> hashedVersion = new LinkedHashMap<String, Object>();
+    hashedVersion.put("1", Double.POSITIVE_INFINITY);
+    Map<String, Object> payload = new LinkedHashMap<String, Object>();
+    payload.put("1", Long.valueOf(1));
+    payload.put("2", "");
+    payload.put("3", hashedVersion);
+    Map<String, Object> envelope = new LinkedHashMap<String, Object>();
+    envelope.put("message", payload);
+
+    expectIllegalArgumentContains(
+        "finite numeric value for 1",
+        () -> SidecarTransportCodec.decodeSubmitResponse(envelope));
   }
 
   private static void expectIllegalArgumentContains(String substring, Runnable action) {

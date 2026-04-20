@@ -38,6 +38,21 @@ public final class SidecarTransportCodec {
     return json.toString();
   }
 
+  public static String encodeSubmitEnvelope(int sequenceNumber, SidecarSubmitRequest request) {
+    StringBuilder json = new StringBuilder(request.getDeltaJson().length() + 96);
+    json.append("{\"sequenceNumber\":")
+        .append(sequenceNumber)
+        .append(",\"messageType\":\"ProtocolSubmitRequest\",\"message\":{\"1\":\"")
+        .append(escapeJson(request.getWaveletName()))
+        .append("\",\"2\":")
+        .append(request.getDeltaJson());
+    if (request.getChannelId() != null) {
+      json.append(",\"3\":\"").append(escapeJson(request.getChannelId())).append('"');
+    }
+    json.append("}}");
+    return json.toString();
+  }
+
   public static SidecarSearchResponse decodeSearchResponse(String json) {
     Map<String, Object> root = parseJsonObject(json);
     List<SidecarSearchResponse.Digest> digests = new ArrayList<>();
@@ -78,6 +93,7 @@ public final class SidecarTransportCodec {
 
   public static SidecarSelectedWaveUpdate decodeSelectedWaveUpdate(Map<String, Object> envelope) {
     Map<String, Object> payload = asObject(envelope.get("message"));
+    Map<String, Object> resultingVersion = getOptionalObject(payload, "4");
     Map<String, Object> snapshot = getOptionalObject(payload, "5");
     List<String> participantIds = getStringList(snapshot, "2");
     List<SidecarSelectedWaveDocument> documents = new ArrayList<SidecarSelectedWaveDocument>();
@@ -129,10 +145,16 @@ public final class SidecarTransportCodec {
         getString(payload, "1"),
         getBoolean(payload, "6"),
         getString(payload, "7"),
+        getOptionalLong(resultingVersion, "1", -1L),
+        getString(resultingVersion, "2"),
         participantIds,
         documents,
         new SidecarSelectedWaveFragments(
-            getLong(fragments, "1"), getLong(fragments, "2"), getLong(fragments, "3"), ranges, entries));
+            getOptionalLong(fragments, "1", -1L),
+            getOptionalLong(fragments, "2", 0L),
+            getOptionalLong(fragments, "3", 0L),
+            ranges,
+            entries));
   }
 
   public static boolean decodeRpcFinishedFailed(Map<String, Object> envelope) {
@@ -144,6 +166,14 @@ public final class SidecarTransportCodec {
     Map<String, Object> payload = asObject(envelope.get("message"));
     String errorText = getString(payload, "2");
     return errorText == null || errorText.isEmpty() ? fallback : errorText;
+  }
+
+  public static SidecarSubmitResponse decodeSubmitResponse(Map<String, Object> envelope) {
+    Map<String, Object> payload = asObject(envelope.get("message"));
+    Map<String, Object> hashedVersion = getOptionalObject(payload, "3");
+    long resultingVersion = getOptionalLong(hashedVersion, "1", -1L);
+    return new SidecarSubmitResponse(
+        getInt(payload, "1"), getString(payload, "2"), resultingVersion);
   }
 
   private static String escapeJson(String value) {
@@ -235,7 +265,7 @@ public final class SidecarTransportCodec {
 
   private static int getInt(Map<String, Object> object, String key) {
     Object value = object.get(key);
-    return value == null ? 0 : ((Number) value).intValue();
+    return value == null ? 0 : requireIntValue(value, key);
   }
 
   private static boolean getBoolean(Map<String, Object> object, String key) {
@@ -248,10 +278,46 @@ public final class SidecarTransportCodec {
     if (value == null) {
       return 0L;
     }
+    if (value instanceof Number) {
+      return requireIntegralLong((Number) value, key);
+    }
     List<Object> words = asList(value);
-    int lowWord = ((Number) words.get(0)).intValue();
-    int highWord = ((Number) words.get(1)).intValue();
+    int lowWord = requireIntValue(words.get(0), key + "[0]");
+    int highWord = requireIntValue(words.get(1), key + "[1]");
     return toLong(highWord, lowWord);
+  }
+
+  private static long getOptionalLong(Map<String, Object> object, String key, long missingValue) {
+    return object.containsKey(key) ? getLong(object, key) : missingValue;
+  }
+
+  private static int requireIntValue(Object value, String key) {
+    if (!(value instanceof Number)) {
+      throw new IllegalArgumentException("Expected numeric value for " + key + " but got " + value);
+    }
+    long integral = requireIntegralLong((Number) value, key);
+    if (integral < Integer.MIN_VALUE || integral > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("Expected int-range value for " + key + " but got " + value);
+    }
+    return (int) integral;
+  }
+
+  private static long requireIntegralLong(Number value, String key) {
+    if (value instanceof Byte
+        || value instanceof Short
+        || value instanceof Integer
+        || value instanceof Long) {
+      return value.longValue();
+    }
+    double candidate = value.doubleValue();
+    if (!Double.isFinite(candidate)) {
+      throw new IllegalArgumentException("Expected finite numeric value for " + key + " but got " + value);
+    }
+    long integral = (long) candidate;
+    if ((double) integral != candidate) {
+      throw new IllegalArgumentException("Expected integral numeric value for " + key + " but got " + value);
+    }
+    return integral;
   }
 
   private static List<String> getStringList(Map<String, Object> object, String key) {

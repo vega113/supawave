@@ -36,9 +36,15 @@ public final class J2clSelectedWaveController
     void close();
   }
 
+  @FunctionalInterface
+  public interface WriteSessionListener {
+    void onWriteSessionChanged(J2clSidecarWriteSession writeSession);
+  }
+
   private final Gateway gateway;
   private final View view;
   private final RetryScheduler retryScheduler;
+  private final WriteSessionListener writeSessionListener;
   private Subscription currentSubscription;
   private SidecarSessionBootstrap currentBootstrap;
   private SidecarSelectedWaveUpdate lastUpdate;
@@ -52,19 +58,51 @@ public final class J2clSelectedWaveController
     this(
         gateway,
         view,
-        (delayMs, action) -> DomGlobal.setTimeout(ignored -> action.run(), delayMs));
+        (delayMs, action) -> DomGlobal.setTimeout(ignored -> action.run(), delayMs),
+        null);
   }
 
   public J2clSelectedWaveController(Gateway gateway, View view, RetryScheduler retryScheduler) {
+    this(gateway, view, retryScheduler, null);
+  }
+
+  public J2clSelectedWaveController(
+      Gateway gateway, View view, WriteSessionListener writeSessionListener) {
+    this(
+        gateway,
+        view,
+        (delayMs, action) -> DomGlobal.setTimeout(ignored -> action.run(), delayMs),
+        writeSessionListener);
+  }
+
+  public J2clSelectedWaveController(
+      Gateway gateway,
+      View view,
+      RetryScheduler retryScheduler,
+      WriteSessionListener writeSessionListener) {
     this.gateway = gateway;
     this.view = view;
     this.retryScheduler = retryScheduler;
+    this.writeSessionListener = writeSessionListener;
     this.currentModel = J2clSelectedWaveModel.empty();
     this.view.render(currentModel);
+    publishWriteSession();
   }
 
   public void onWaveSelected(String waveId) {
     onWaveSelected(waveId, null);
+  }
+
+  public void refreshSelectedWave() {
+    if (selectedWaveId == null || selectedWaveId.isEmpty()) {
+      return;
+    }
+    int generation = ++requestGeneration;
+    closeSubscription();
+    reconnectCount = 0;
+    // A refresh happens after the reply already committed on the server, so transient bootstrap or
+    // open failures should recover like a reconnect instead of strand the panel on stale content.
+    fetchBootstrapAndOpenSelectedWave(generation, 0, true);
   }
 
   @Override
@@ -79,6 +117,7 @@ public final class J2clSelectedWaveController
             J2clSelectedWaveProjector.project(
                 selectedWaveId, selectedDigestItem, lastUpdate, currentModel, reconnectCount);
         view.render(currentModel);
+        publishWriteSession();
       }
       return;
     }
@@ -94,6 +133,7 @@ public final class J2clSelectedWaveController
       reconnectCount = 0;
       currentModel = J2clSelectedWaveModel.empty();
       view.render(currentModel);
+      publishWriteSession();
       return;
     }
 
@@ -112,6 +152,7 @@ public final class J2clSelectedWaveController
     this.reconnectCount = reconnectCount;
     currentModel = J2clSelectedWaveModel.loading(selectedWaveId, selectedDigestItem, reconnectCount);
     view.render(currentModel);
+    publishWriteSession();
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {
           if (!isCurrentGeneration(generation)) {
@@ -134,6 +175,7 @@ public final class J2clSelectedWaveController
               J2clSelectedWaveModel.error(
                   selectedWaveId, selectedDigestItem, "Unable to open selected wave.", error);
           view.render(currentModel);
+          publishWriteSession();
         });
   }
 
@@ -162,6 +204,7 @@ public final class J2clSelectedWaveController
                       currentModel,
                       projectedReconnectCount);
               view.render(currentModel);
+              publishWriteSession();
               activeReconnectCount[0] = 0;
               this.reconnectCount = projectedReconnectCount;
             },
@@ -182,6 +225,7 @@ public final class J2clSelectedWaveController
                   J2clSelectedWaveModel.error(
                       selectedWaveId, selectedDigestItem, "Selected wave stream failed.", error);
               view.render(currentModel);
+              publishWriteSession();
             },
             () -> {
               if (!isCurrentGeneration(generation) || selectedWaveId == null) {
@@ -207,6 +251,7 @@ public final class J2clSelectedWaveController
                   + MAX_RECONNECT_ATTEMPTS
                   + " reconnect attempts.");
       view.render(currentModel);
+      publishWriteSession();
       return;
     }
     int nextReconnectCount = reconnectCount + 1;
@@ -246,5 +291,11 @@ public final class J2clSelectedWaveController
   private static int buildReconnectDelayMs(int reconnectCount) {
     int delayMs = INITIAL_RECONNECT_DELAY_MS << reconnectCount;
     return Math.min(delayMs, MAX_RECONNECT_DELAY_MS);
+  }
+
+  private void publishWriteSession() {
+    if (writeSessionListener != null) {
+      writeSessionListener.onWriteSessionChanged(currentModel.getWriteSession());
+    }
   }
 }

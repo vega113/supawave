@@ -9,10 +9,15 @@ import jsinterop.annotations.JsPackage;
 import org.waveprotocol.box.j2cl.transport.SidecarOpenRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
+import org.waveprotocol.box.j2cl.transport.SidecarSubmitRequest;
+import org.waveprotocol.box.j2cl.transport.SidecarSubmitResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarTransportCodec;
 
 public final class J2clSearchGateway
-    implements J2clSearchPanelController.SearchGateway, J2clSelectedWaveController.Gateway {
+    implements
+        J2clSearchPanelController.SearchGateway,
+        J2clSelectedWaveController.Gateway,
+        J2clSidecarComposeController.Gateway {
   private static final String DEFAULT_WAVELET_PREFIX = "conv+root";
 
   @Override
@@ -126,6 +131,70 @@ public final class J2clSearchGateway
           }
         },
         onError);
+  }
+
+  @Override
+  public void submit(
+      SidecarSessionBootstrap bootstrap,
+      SidecarSubmitRequest request,
+      J2clSearchPanelController.SuccessCallback<SidecarSubmitResponse> onSuccess,
+      J2clSearchPanelController.ErrorCallback onError) {
+    WebSocket socket =
+        new WebSocket(buildWebSocketUrl(DomGlobal.location.protocol, bootstrap.getWebSocketAddress()));
+    final boolean[] closedByClient = new boolean[] {false};
+    final boolean[] responseHandled = new boolean[] {false};
+    socket.onopen =
+        event -> {
+          if (closedByClient[0]) {
+            return;
+          }
+          String token = readCookie("JSESSIONID");
+          if (token != null && !token.isEmpty()) {
+            socket.send(SidecarTransportCodec.encodeAuthenticateEnvelope(0, token));
+          }
+          socket.send(SidecarTransportCodec.encodeSubmitEnvelope(1, request));
+        };
+    socket.onmessage =
+        event -> {
+          if (closedByClient[0]) {
+            return;
+          }
+          try {
+            String payload = String.valueOf(event.data);
+            Map<String, Object> envelope = SidecarTransportCodec.parseJsonObject(payload);
+            String messageType = (String) envelope.get("messageType");
+            if ("ProtocolSubmitResponse".equals(messageType)) {
+              responseHandled[0] = true;
+              closeSocket(socket, closedByClient);
+              onSuccess.accept(SidecarTransportCodec.decodeSubmitResponse(envelope));
+              return;
+            }
+            if ("RpcFinished".equals(messageType)
+                && SidecarTransportCodec.decodeRpcFinishedFailed(envelope)) {
+              responseHandled[0] = true;
+              closeSocket(socket, closedByClient);
+              onError.accept(
+                  SidecarTransportCodec.decodeRpcFinishedErrorText(
+                      envelope, "The sidecar submit request failed."));
+            }
+          } catch (RuntimeException e) {
+            closeSocket(socket, closedByClient);
+            onError.accept(messageOrDefault(e, "Unable to decode the sidecar submit response."));
+          }
+        };
+    socket.onerror =
+        event -> {
+          if (!closedByClient[0]) {
+            closeSocket(socket, closedByClient);
+            onError.accept("Network failure while submitting the sidecar write request.");
+          }
+        };
+    socket.onclose =
+        event -> {
+          if (!closedByClient[0] && !responseHandled[0]) {
+            onError.accept("The sidecar submit socket closed before the server replied.");
+          }
+        };
   }
 
   private static String buildSearchUrl(String query, int index, int numResults) {

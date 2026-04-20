@@ -17,6 +17,7 @@ public final class J2clSelectedWaveModel {
   private final int reconnectCount;
   private final List<String> participantIds;
   private final List<String> contentEntries;
+  private final J2clSidecarWriteSession writeSession;
 
   J2clSelectedWaveModel(
       boolean hasSelection,
@@ -30,7 +31,8 @@ public final class J2clSelectedWaveModel {
       String detailText,
       int reconnectCount,
       List<String> participantIds,
-      List<String> contentEntries) {
+      List<String> contentEntries,
+      J2clSidecarWriteSession writeSession) {
     this.hasSelection = hasSelection;
     this.loading = loading;
     this.error = error;
@@ -49,6 +51,7 @@ public final class J2clSelectedWaveModel {
         contentEntries == null
             ? Collections.<String>emptyList()
             : Collections.unmodifiableList(new ArrayList<String>(contentEntries));
+    this.writeSession = writeSession;
   }
 
   public static J2clSelectedWaveModel empty() {
@@ -64,7 +67,8 @@ public final class J2clSelectedWaveModel {
         "Copied sidecar URLs can restore the selected wave when the route includes it.",
         0,
         Collections.<String>emptyList(),
-        Collections.<String>emptyList());
+        Collections.<String>emptyList(),
+        null);
   }
 
   public static J2clSelectedWaveModel loading(
@@ -83,7 +87,8 @@ public final class J2clSelectedWaveModel {
             : "Waiting for the first live selected-wave update.",
         reconnectCount,
         Collections.<String>emptyList(),
-        Collections.<String>emptyList());
+        Collections.<String>emptyList(),
+        null);
   }
 
   public static J2clSelectedWaveModel error(
@@ -100,7 +105,8 @@ public final class J2clSelectedWaveModel {
         detailText,
         0,
         Collections.<String>emptyList(),
-        Collections.<String>emptyList());
+        Collections.<String>emptyList(),
+        null);
   }
 
   private static String resolveTitle(String selectedWaveId, J2clSearchDigestItem digestItem) {
@@ -168,5 +174,9 @@ public final class J2clSelectedWaveModel {
 
   public List<String> getContentEntries() {
     return contentEntries;
+  }
+
+  public J2clSidecarWriteSession getWriteSession() {
+    return writeSession;
   }
 }

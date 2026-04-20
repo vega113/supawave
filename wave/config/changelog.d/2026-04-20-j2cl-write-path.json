@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-20-j2cl-write-path",
+  "version": "Unreleased",
+  "date": "2026-04-20",
+  "title": "The J2CL search sidecar can now create a wave and send a plain-text follow-up",
+  "summary": "The isolated /j2cl-search/index.html sidecar now exposes visible plain-text compose and reply controls, submits over the existing websocket path, and updates the opened sidecar wave without changing the legacy GWT root route.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added visible New wave and Reply affordances to the J2CL sidecar so plain-text writes can be submitted directly from the split-view shell",
+        "The sidecar now builds sidecar-local submit envelopes and plain-text deltas over the existing websocket transport without cutting over the root GWT editor stack",
+        "Opened sidecar waves now retain the minimal channel, version, and target metadata needed for the first write-path pilot while preserving the existing query-plus-wave route contract"
+      ]
+    }
+  ]
+}

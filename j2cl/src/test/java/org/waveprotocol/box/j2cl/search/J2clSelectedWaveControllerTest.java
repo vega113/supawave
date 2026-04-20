@@ -222,6 +222,31 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void refreshSelectedWaveReopensSameWaveAndClearsWriteSessionWhileLoading()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello from the sidecar");
+
+    harness.refreshSelectedWave(controller);
+
+    Assert.assertEquals(1, harness.closedCount);
+    Assert.assertEquals(2, harness.bootstrapAttempts.size());
+    Assert.assertEquals(1, harness.openCount);
+    Assert.assertTrue((Boolean) harness.modelValue("isLoading"));
+    Assert.assertNull(harness.modelValue("getWriteSession"));
+
+    harness.resolveBootstrap(1);
+    Assert.assertEquals(2, harness.openCount);
+    harness.deliverUpdate(1, "Reply now visible");
+
+    Assert.assertEquals(Arrays.asList("Reply now visible"), harness.modelValue("getContentEntries"));
+  }
+
+  @Test
   public void channelEstablishmentUpdateIsIgnoredUntilRealWaveletArrives() throws Exception {
     Harness harness = new Harness();
     Object controller = harness.createController(false);
@@ -236,6 +261,8 @@ public class J2clSelectedWaveControllerTest {
             "example.com!w+1/~/dummy+root",
             true,
             "chan-1",
+            -1L,
+            null,
             Arrays.asList("user@example.com"),
             new ArrayList<SidecarSelectedWaveDocument>(),
             null));
@@ -244,6 +271,22 @@ public class J2clSelectedWaveControllerTest {
 
     harness.deliverUpdate(0, "real content");
     Assert.assertEquals(Arrays.asList("real content"), harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void selectedWaveUpdateBuildsWriteSessionWithHistoryHash() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "real content");
+
+    J2clSidecarWriteSession writeSession =
+        (J2clSidecarWriteSession) harness.modelValue("getWriteSession");
+    Assert.assertNotNull(writeSession);
+    Assert.assertEquals(44L, writeSession.getBaseVersion());
+    Assert.assertEquals("ABCD", writeSession.getHistoryHash());
   }
 
   @Test
@@ -258,6 +301,64 @@ public class J2clSelectedWaveControllerTest {
     Assert.assertEquals(Arrays.asList("Welcome to SupaWave"), harness.modelValue("getContentEntries"));
     Assert.assertEquals("Digest snippet", harness.modelValue("getSnippetText"));
     Assert.assertFalse((Boolean) harness.modelValue("isLoading"));
+  }
+
+  @Test
+  public void selectedWaveUpdatePromotesWriteSessionMetadata() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello from the sidecar");
+
+    J2clSidecarWriteSession writeSession =
+        (J2clSidecarWriteSession) harness.modelValue("getWriteSession");
+
+    Assert.assertNotNull(writeSession);
+    Assert.assertEquals("example.com/w+1", writeSession.getSelectedWaveId());
+    Assert.assertEquals("chan-1", writeSession.getChannelId());
+    Assert.assertEquals(44L, writeSession.getBaseVersion());
+    Assert.assertEquals("b+root", writeSession.getReplyTargetBlipId());
+  }
+
+  @Test
+  public void versionZeroSelectedWaveUpdateStillBuildsWriteSession() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(
+        0,
+        new SidecarSelectedWaveUpdate(
+            1,
+            "example.com!w+1/~/conv+root",
+            true,
+            "chan-1",
+            0L,
+            "ZERO",
+            Arrays.asList("user@example.com"),
+            Arrays.asList(
+                new SidecarSelectedWaveDocument(
+                    "b+root", "user@example.com", 0L, 1L, "Hello from version zero")),
+            new SidecarSelectedWaveFragments(
+                0L,
+                0L,
+                0L,
+                Arrays.asList(
+                    new SidecarSelectedWaveFragmentRange("manifest", 0L, 0L),
+                    new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 0L)),
+                Arrays.asList(
+                    new SidecarSelectedWaveFragment("manifest", "conversation: Inbox wave", 0, 0),
+                    new SidecarSelectedWaveFragment("blip:b+root", "Hello from version zero", 0, 0)))));
+
+    J2clSidecarWriteSession writeSession =
+        (J2clSidecarWriteSession) harness.modelValue("getWriteSession");
+
+    Assert.assertNotNull(writeSession);
+    Assert.assertEquals(0L, writeSession.getBaseVersion());
+    Assert.assertEquals("ZERO", writeSession.getHistoryHash());
   }
 
   private static J2clSearchDigestItem digest(String title, String snippet, int unreadCount) {
@@ -367,6 +468,12 @@ public class J2clSelectedWaveControllerTest {
       }
     }
 
+    private void refreshSelectedWave(Object controller) throws Exception {
+      Method refreshSelectedWaveMethod =
+          controller.getClass().getMethod("refreshSelectedWave");
+      refreshSelectedWaveMethod.invoke(controller);
+    }
+
     private void resolveBootstrap(int index) {
       bootstrapAttempts.get(index)
           .success
@@ -413,6 +520,8 @@ public class J2clSelectedWaveControllerTest {
         waveletName,
         true,
         "chan-1",
+        44L,
+        "ABCD",
         Arrays.asList("user@example.com", "teammate@example.com"),
         Arrays.asList(
             new SidecarSelectedWaveDocument(
@@ -435,6 +544,8 @@ public class J2clSelectedWaveControllerTest {
         "local.net!w+s4635670bfbwA/~/conv+root",
         true,
         "ch3",
+        -1L,
+        null,
         Arrays.asList("user@example.com"),
         Arrays.asList(
             new SidecarSelectedWaveDocument("b+abc123", "user@example.com", 1L, 2L, textContent)),

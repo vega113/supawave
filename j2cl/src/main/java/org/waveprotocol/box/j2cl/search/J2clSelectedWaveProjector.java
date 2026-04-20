@@ -46,7 +46,108 @@ public final class J2clSelectedWaveProjector {
         detailText,
         reconnectCount,
         participantIds,
-        contentEntries);
+        contentEntries,
+        buildWriteSession(selectedWaveId, update, previous));
+  }
+
+  private static J2clSidecarWriteSession buildWriteSession(
+      String selectedWaveId, SidecarSelectedWaveUpdate update, J2clSelectedWaveModel previous) {
+    if (selectedWaveId == null || selectedWaveId.isEmpty()) {
+      return null;
+    }
+    String channelId = update.getChannelId();
+    if ((channelId == null || channelId.isEmpty())
+        && previous != null
+        && previous.getWriteSession() != null) {
+      channelId = previous.getWriteSession().getChannelId();
+    }
+    String replyTargetBlipId = resolveReplyTargetBlipId(update);
+    if ((replyTargetBlipId == null || replyTargetBlipId.isEmpty())
+        && previous != null
+        && previous.getWriteSession() != null) {
+      replyTargetBlipId = previous.getWriteSession().getReplyTargetBlipId();
+    }
+    long baseVersion = resolveBaseVersion(update);
+    if (baseVersion < 0 && previous != null && previous.getWriteSession() != null) {
+      baseVersion = previous.getWriteSession().getBaseVersion();
+    }
+    String historyHash = update.getResultingVersionHistoryHash();
+    if ((historyHash == null || historyHash.isEmpty())
+        && previous != null
+        && previous.getWriteSession() != null) {
+      historyHash = previous.getWriteSession().getHistoryHash();
+    }
+    if (channelId == null
+        || channelId.isEmpty()
+        || replyTargetBlipId == null
+        || baseVersion < 0
+        || historyHash == null
+        || historyHash.isEmpty()) {
+      return null;
+    }
+    return new J2clSidecarWriteSession(
+        selectedWaveId, channelId, baseVersion, historyHash, replyTargetBlipId);
+  }
+
+  private static String resolveReplyTargetBlipId(SidecarSelectedWaveUpdate update) {
+    String preferred = findPreferredDocumentId(update.getDocuments());
+    if (preferred != null) {
+      return preferred;
+    }
+    SidecarSelectedWaveFragments fragments = update.getFragments();
+    if (fragments == null) {
+      return null;
+    }
+    String fallback = null;
+    for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
+      String segment = fragment.getSegment();
+      if (segment == null || !segment.startsWith("blip:")) {
+        continue;
+      }
+      String blipId = segment.substring("blip:".length());
+      if ("b+root".equals(blipId)) {
+        return blipId;
+      }
+      if (fallback == null && blipId.startsWith("b+")) {
+        fallback = blipId;
+      }
+    }
+    return fallback;
+  }
+
+  private static String findPreferredDocumentId(List<SidecarSelectedWaveDocument> documents) {
+    if (documents == null) {
+      return null;
+    }
+    String fallback = null;
+    for (SidecarSelectedWaveDocument document : documents) {
+      String documentId = document.getDocumentId();
+      if (documentId == null || !documentId.startsWith("b+")) {
+        continue;
+      }
+      if ("b+root".equals(documentId)) {
+        return documentId;
+      }
+      if (fallback == null) {
+        fallback = documentId;
+      }
+    }
+    return fallback;
+  }
+
+  private static long resolveBaseVersion(SidecarSelectedWaveUpdate update) {
+    if (update.getResultingVersion() >= 0) {
+      return update.getResultingVersion();
+    }
+    SidecarSelectedWaveFragments fragments = update.getFragments();
+    if (fragments != null && fragments.getSnapshotVersion() >= 0) {
+      return fragments.getSnapshotVersion();
+    }
+    long maxDocumentVersion = 0L;
+    for (SidecarSelectedWaveDocument document : update.getDocuments()) {
+      maxDocumentVersion = Math.max(maxDocumentVersion, document.getLastModifiedVersion());
+    }
+    return maxDocumentVersion;
   }
 
   private static List<String> extractContentEntries(SidecarSelectedWaveFragments fragments) {

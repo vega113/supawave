@@ -16,6 +16,7 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
   private final HTMLElement waveCount;
   private final HTMLInputElement queryInput;
   private final HTMLButtonElement submitButton;
+  private final HTMLElement composeHost;
   private final HTMLDivElement digestList;
   private final HTMLElement emptyState;
   private final HTMLButtonElement showMoreButton;
@@ -87,6 +88,10 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
           }
           return null;
         };
+
+    composeHost = (HTMLElement) DomGlobal.document.createElement("div");
+    composeHost.className = "sidecar-search-compose";
+    card.appendChild(composeHost);
 
     status = (HTMLElement) DomGlobal.document.createElement("p");
     status.className = "sidecar-search-status";
@@ -200,5 +205,9 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
 
   public HTMLElement getSelectedWaveHost() {
     return selectedWaveHost;
+  }
+
+  public HTMLElement getComposeHost() {
+    return composeHost;
   }
 }

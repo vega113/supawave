@@ -21,7 +21,7 @@ public class J2clSidecarRouteControllerTest {
     controller.start();
 
     Assert.assertEquals(
-        Arrays.asList("/j2cl-search/index.html?q=with%3A%40&wave=example.com%2Fw%2B1"),
+        Arrays.asList("?q=with%3A%40&wave=example.com%2Fw%2B1"),
         history.replacedUrls);
     Assert.assertEquals(
         Arrays.asList("start:with:@:example.com/w+1"),
@@ -44,7 +44,7 @@ public class J2clSidecarRouteControllerTest {
     controller.onRouteStateChanged(new J2clSidecarRouteState("with:@", null), null, true);
 
     Assert.assertEquals(
-        Arrays.asList("/j2cl-search/index.html?q=with%3A%40"),
+        Arrays.asList("?q=with%3A%40"),
         history.pushedUrls);
     Assert.assertEquals(Arrays.asList("null:null"), selectedWaveController.tailEvents(1));
   }
@@ -62,7 +62,7 @@ public class J2clSidecarRouteControllerTest {
         new J2clSidecarRouteState("with:@", "example.com/w+1"), digest("example.com/w+1"), true);
 
     Assert.assertEquals(
-        Arrays.asList("/j2cl-search/index.html?q=with%3A%40&wave=example.com%2Fw%2B1"),
+        Arrays.asList("?q=with%3A%40&wave=example.com%2Fw%2B1"),
         history.pushedUrls);
     Assert.assertEquals(
         Arrays.asList("example.com/w+1:example.com/w+1"),

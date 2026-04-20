@@ -4,7 +4,6 @@ import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsPackage;
 
 public final class J2clSidecarRouteCodec {
-  private static final String CANONICAL_PATH = "/j2cl-search/index.html";
   private static final char[] HEX_DIGITS = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
   };
@@ -35,7 +34,7 @@ public final class J2clSidecarRouteCodec {
   }
 
   public static String toUrl(J2clSidecarRouteState state) {
-    StringBuilder url = new StringBuilder(CANONICAL_PATH);
+    StringBuilder url = new StringBuilder();
     url.append("?q=").append(encodeUriComponentSafe(state.getQuery()));
     if (state.getSelectedWaveId() != null) {
       url.append("&wave=").append(encodeUriComponentSafe(state.getSelectedWaveId()));

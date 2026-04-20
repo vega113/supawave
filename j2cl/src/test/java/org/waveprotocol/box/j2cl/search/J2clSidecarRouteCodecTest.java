@@ -26,7 +26,7 @@ public class J2clSidecarRouteCodecTest {
     Assert.assertEquals("with:@", state.getQuery());
     Assert.assertNull(state.getSelectedWaveId());
     Assert.assertEquals(
-        "/j2cl-search/index.html?q=with%3A%40",
+        "?q=with%3A%40",
         J2clSidecarRouteCodec.toUrl(state));
   }
 
@@ -38,7 +38,7 @@ public class J2clSidecarRouteCodecTest {
     Assert.assertEquals("with:@", state.getQuery());
     Assert.assertEquals("example.com/w+abc123", state.getSelectedWaveId());
     Assert.assertEquals(
-        "/j2cl-search/index.html?q=with%3A%40&wave=example.com%2Fw%2Babc123",
+        "?q=with%3A%40&wave=example.com%2Fw%2Babc123",
         J2clSidecarRouteCodec.toUrl(state));
   }
 

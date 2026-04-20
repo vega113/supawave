@@ -69,6 +69,7 @@ public class SidecarTransportCodecTest {
     String json =
         "{\"sequenceNumber\":12,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
             + "\"1\":\"example.com!w+abc123/example.com!conv+root\","
+            + "\"4\":{\"1\":44,\"2\":\"ABCD\"},"
             + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\",\"teammate@example.com\"],"
             + "\"3\":[{\"1\":\"b+root\",\"3\":\"user@example.com\",\"5\":[33,0],\"6\":[44,0]}]},"
             + "\"6\":true,\"7\":\"chan-2\","
@@ -83,6 +84,8 @@ public class SidecarTransportCodecTest {
     Assert.assertEquals("example.com!w+abc123/example.com!conv+root", update.getWaveletName());
     Assert.assertEquals("chan-2", update.getChannelId());
     Assert.assertTrue(update.hasMarker());
+    Assert.assertEquals(44L, update.getResultingVersion());
+    Assert.assertEquals("ABCD", update.getResultingVersionHistoryHash());
     Assert.assertEquals(2, update.getParticipantIds().size());
     Assert.assertEquals(1, update.getDocuments().size());
     Assert.assertEquals("b+root", update.getDocuments().get(0).getDocumentId());

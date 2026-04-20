@@ -2,6 +2,7 @@ package org.waveprotocol.box.j2cl.search;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
@@ -91,11 +92,58 @@ public class J2clSidecarComposeControllerTest {
     Assert.assertEquals("Open a wave before sending a reply.", view.model.getReplyErrorText());
 
     controller.onWriteSessionChanged(
-        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "b+root"));
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
     gateway.submitError = "socket boom";
     controller.onReplySubmitted("Reply");
 
     Assert.assertEquals("Reply", view.model.getReplyDraft());
+    Assert.assertEquals("socket boom", view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void successfulReplyClearsDraftAndRefreshesOpenedWave() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    List<String> refreshedWaveIds = new ArrayList<String>();
+    J2clSidecarComposeController controller =
+        new J2clSidecarComposeController(
+            gateway,
+            view,
+            new FakeFactory(),
+            waveId -> { },
+            refreshedWaveIds::add);
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+    controller.onReplyDraftChanged("Reply");
+    controller.onReplySubmitted("Reply");
+
+    Assert.assertEquals(Arrays.asList("example.com/w+1"), refreshedWaveIds);
+    Assert.assertEquals("", view.model.getReplyDraft());
+    Assert.assertEquals("", view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void failedReplyDoesNotRefreshOpenedWave() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.submitError = "socket boom";
+    FakeView view = new FakeView();
+    List<String> refreshedWaveIds = new ArrayList<String>();
+    J2clSidecarComposeController controller =
+        new J2clSidecarComposeController(
+            gateway,
+            view,
+            new FakeFactory(),
+            waveId -> { },
+            refreshedWaveIds::add);
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+    controller.onReplySubmitted("Reply");
+
+    Assert.assertTrue(refreshedWaveIds.isEmpty());
     Assert.assertEquals("socket boom", view.model.getReplyErrorText());
   }
 

@@ -8,6 +8,8 @@ public final class SidecarSelectedWaveUpdate {
   private final String waveletName;
   private final boolean marker;
   private final String channelId;
+  private final long resultingVersion;
+  private final String resultingVersionHistoryHash;
   private final List<String> participantIds;
   private final List<SidecarSelectedWaveDocument> documents;
   private final SidecarSelectedWaveFragments fragments;
@@ -17,6 +19,8 @@ public final class SidecarSelectedWaveUpdate {
       String waveletName,
       boolean marker,
       String channelId,
+      long resultingVersion,
+      String resultingVersionHistoryHash,
       List<String> participantIds,
       List<SidecarSelectedWaveDocument> documents,
       SidecarSelectedWaveFragments fragments) {
@@ -24,6 +28,8 @@ public final class SidecarSelectedWaveUpdate {
     this.waveletName = waveletName;
     this.marker = marker;
     this.channelId = channelId;
+    this.resultingVersion = resultingVersion;
+    this.resultingVersionHistoryHash = resultingVersionHistoryHash;
     this.participantIds = Collections.unmodifiableList(participantIds);
     this.documents = Collections.unmodifiableList(documents);
     this.fragments = fragments;
@@ -43,6 +49,14 @@ public final class SidecarSelectedWaveUpdate {
 
   public String getChannelId() {
     return channelId;
+  }
+
+  public long getResultingVersion() {
+    return resultingVersion;
+  }
+
+  public String getResultingVersionHistoryHash() {
+    return resultingVersionHistoryHash;
   }
 
   public List<String> getParticipantIds() {

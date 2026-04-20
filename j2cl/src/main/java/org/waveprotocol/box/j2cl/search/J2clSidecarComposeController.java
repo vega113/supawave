@@ -38,10 +38,16 @@ public final class J2clSidecarComposeController {
     void onWaveCreated(String waveId);
   }
 
+  @FunctionalInterface
+  public interface ReplySuccessHandler {
+    void onReplySubmitted(String waveId);
+  }
+
   private final Gateway gateway;
   private final View view;
   private final J2clPlainTextDeltaFactory deltaFactory;
   private final CreateSuccessHandler createSuccessHandler;
+  private final ReplySuccessHandler replySuccessHandler;
   private String createDraft = "";
   private boolean createSubmitting;
   private String createStatusText = "Create a self-owned wave from the sidecar.";
@@ -60,10 +66,20 @@ public final class J2clSidecarComposeController {
       View view,
       J2clPlainTextDeltaFactory deltaFactory,
       CreateSuccessHandler createSuccessHandler) {
+    this(gateway, view, deltaFactory, createSuccessHandler, null);
+  }
+
+  public J2clSidecarComposeController(
+      Gateway gateway,
+      View view,
+      J2clPlainTextDeltaFactory deltaFactory,
+      CreateSuccessHandler createSuccessHandler,
+      ReplySuccessHandler replySuccessHandler) {
     this.gateway = gateway;
     this.view = view;
     this.deltaFactory = deltaFactory;
     this.createSuccessHandler = createSuccessHandler;
+    this.replySuccessHandler = replySuccessHandler;
   }
 
   public void start() {
@@ -235,13 +251,14 @@ public final class J2clSidecarComposeController {
           gateway.submit(
               bootstrap,
               request,
-              response -> handleReplyResponse(generation, response),
+              response -> handleReplyResponse(generation, submitSession, response),
               error -> handleReplyFailure(generation, error));
         },
         error -> handleReplyFailure(generation, error));
   }
 
-  private void handleReplyResponse(int generation, SidecarSubmitResponse response) {
+  private void handleReplyResponse(
+      int generation, J2clSidecarWriteSession submitSession, SidecarSubmitResponse response) {
     if (generation != replyGeneration) {
       return;
     }
@@ -254,6 +271,12 @@ public final class J2clSidecarComposeController {
     replyStatusText = "Reply submitted. Waiting for the opened wave to update.";
     replyErrorText = "";
     render();
+    if (replySuccessHandler != null
+        && submitSession != null
+        && submitSession.getSelectedWaveId() != null
+        && !submitSession.getSelectedWaveId().isEmpty()) {
+      replySuccessHandler.onReplySubmitted(submitSession.getSelectedWaveId());
+    }
   }
 
   private void handleReplyFailure(int generation, String error) {

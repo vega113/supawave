@@ -59,7 +59,7 @@ public class J2clPlainTextDeltaFactory {
     String deltaJson =
         buildDeltaJson(
             session.getBaseVersion(),
-            "",
+            session.getHistoryHash(),
             normalizedAddress,
             "{\"3\":{\"1\":\""
                 + escapeJson(replyBlipId)
@@ -114,21 +114,9 @@ public class J2clPlainTextDeltaFactory {
   }
 
   private static String buildVersionZeroHistoryHash(String domain, String waveToken) {
-    return encodeHex(
-        "wave://" + domain + "/" + encodeWaveUriPart(waveToken) + "/" + encodeWaveUriPart("conv+root"));
-  }
-
-  private static String encodeWaveUriPart(String value) {
-    StringBuilder encoded = new StringBuilder(value.length() + 8);
-    for (int i = 0; i < value.length(); i++) {
-      char c = value.charAt(i);
-      if (c == '+') {
-        encoded.append("%2B");
-      } else {
-        encoded.append(c);
-      }
-    }
-    return encoded.toString();
+    // The server seeds v0 hashes from IdURIEncoderDecoder.waveletNameToURI(...), which keeps the
+    // literal '+' characters in w+... and conv+root before the bytes are hex-encoded.
+    return encodeHex("wave://" + domain + "/" + waveToken + "/" + "conv+root");
   }
 
   private static String encodeHex(String value) {

@@ -93,6 +93,7 @@ public final class SidecarTransportCodec {
 
   public static SidecarSelectedWaveUpdate decodeSelectedWaveUpdate(Map<String, Object> envelope) {
     Map<String, Object> payload = asObject(envelope.get("message"));
+    Map<String, Object> resultingVersion = getOptionalObject(payload, "4");
     Map<String, Object> snapshot = getOptionalObject(payload, "5");
     List<String> participantIds = getStringList(snapshot, "2");
     List<SidecarSelectedWaveDocument> documents = new ArrayList<SidecarSelectedWaveDocument>();
@@ -144,6 +145,8 @@ public final class SidecarTransportCodec {
         getString(payload, "1"),
         getBoolean(payload, "6"),
         getString(payload, "7"),
+        resultingVersion.isEmpty() ? -1L : getLong(resultingVersion, "1"),
+        getString(resultingVersion, "2"),
         participantIds,
         documents,
         new SidecarSelectedWaveFragments(

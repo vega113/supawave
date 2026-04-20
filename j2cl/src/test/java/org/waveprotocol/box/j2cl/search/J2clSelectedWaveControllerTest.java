@@ -222,6 +222,31 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void refreshSelectedWaveReopensSameWaveAndClearsWriteSessionWhileLoading()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello from the sidecar");
+
+    harness.refreshSelectedWave(controller);
+
+    Assert.assertEquals(1, harness.closedCount);
+    Assert.assertEquals(2, harness.bootstrapAttempts.size());
+    Assert.assertEquals(1, harness.openCount);
+    Assert.assertTrue((Boolean) harness.modelValue("isLoading"));
+    Assert.assertNull(harness.modelValue("getWriteSession"));
+
+    harness.resolveBootstrap(1);
+    Assert.assertEquals(2, harness.openCount);
+    harness.deliverUpdate(1, "Reply now visible");
+
+    Assert.assertEquals(Arrays.asList("Reply now visible"), harness.modelValue("getContentEntries"));
+  }
+
+  @Test
   public void channelEstablishmentUpdateIsIgnoredUntilRealWaveletArrives() throws Exception {
     Harness harness = new Harness();
     Object controller = harness.createController(false);
@@ -236,6 +261,8 @@ public class J2clSelectedWaveControllerTest {
             "example.com!w+1/~/dummy+root",
             true,
             "chan-1",
+            -1L,
+            null,
             Arrays.asList("user@example.com"),
             new ArrayList<SidecarSelectedWaveDocument>(),
             null));
@@ -244,6 +271,22 @@ public class J2clSelectedWaveControllerTest {
 
     harness.deliverUpdate(0, "real content");
     Assert.assertEquals(Arrays.asList("real content"), harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void selectedWaveUpdateBuildsWriteSessionWithHistoryHash() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "real content");
+
+    J2clSidecarWriteSession writeSession =
+        (J2clSidecarWriteSession) harness.modelValue("getWriteSession");
+    Assert.assertNotNull(writeSession);
+    Assert.assertEquals(44L, writeSession.getBaseVersion());
+    Assert.assertEquals("ABCD", writeSession.getHistoryHash());
   }
 
   @Test
@@ -386,6 +429,12 @@ public class J2clSelectedWaveControllerTest {
       }
     }
 
+    private void refreshSelectedWave(Object controller) throws Exception {
+      Method refreshSelectedWaveMethod =
+          controller.getClass().getMethod("refreshSelectedWave");
+      refreshSelectedWaveMethod.invoke(controller);
+    }
+
     private void resolveBootstrap(int index) {
       bootstrapAttempts.get(index)
           .success
@@ -432,6 +481,8 @@ public class J2clSelectedWaveControllerTest {
         waveletName,
         true,
         "chan-1",
+        44L,
+        "ABCD",
         Arrays.asList("user@example.com", "teammate@example.com"),
         Arrays.asList(
             new SidecarSelectedWaveDocument(
@@ -454,6 +505,8 @@ public class J2clSelectedWaveControllerTest {
         "local.net!w+s4635670bfbwA/~/conv+root",
         true,
         "ch3",
+        -1L,
+        null,
         Arrays.asList("user@example.com"),
         Arrays.asList(
             new SidecarSelectedWaveDocument("b+abc123", "user@example.com", 1L, 2L, textContent)),

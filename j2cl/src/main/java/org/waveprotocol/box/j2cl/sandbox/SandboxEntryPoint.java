@@ -50,16 +50,24 @@ public final class SandboxEntryPoint {
           new J2clSelectedWaveView(searchView.getSelectedWaveHost());
       J2clSearchGateway gateway = new J2clSearchGateway();
       final J2clSidecarRouteController[] routeControllerRef = new J2clSidecarRouteController[1];
+      final J2clSelectedWaveController[] selectedWaveControllerRef =
+          new J2clSelectedWaveController[1];
       J2clSidecarComposeController composeController =
           new J2clSidecarComposeController(
               gateway,
               new J2clSidecarComposeView(
                   searchView.getComposeHost(), selectedWaveView.getComposeHost()),
               new J2clPlainTextDeltaFactory(buildSidecarSessionSeed()),
-              waveId -> routeControllerRef[0].selectWave(waveId));
+              waveId -> routeControllerRef[0].selectWave(waveId),
+              waveId -> {
+                if (selectedWaveControllerRef[0] != null) {
+                  selectedWaveControllerRef[0].refreshSelectedWave();
+                }
+              });
       J2clSelectedWaveController selectedWaveController =
           new J2clSelectedWaveController(
               gateway, selectedWaveView, composeController::onWriteSessionChanged);
+      selectedWaveControllerRef[0] = selectedWaveController;
       J2clSearchPanelController controller =
           new J2clSearchPanelController(
               gateway,

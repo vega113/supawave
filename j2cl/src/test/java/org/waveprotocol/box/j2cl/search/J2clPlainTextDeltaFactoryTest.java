@@ -20,7 +20,7 @@ public class J2clPlainTextDeltaFactoryTest {
         "example.com/w+seedA/~/conv+root",
         null,
         "\"1\":{\"1\":0,\"2\":\""
-            + encodeHex("wave://example.com/w%2BseedA/conv%2Broot")
+            + encodeHex("wave://example.com/w+seedA/conv+root")
             + "\"}",
         "\"1\":\"user@example.com\"",
         "\"1\":\"b+root\"",
@@ -31,7 +31,7 @@ public class J2clPlainTextDeltaFactoryTest {
   public void replyRequestTargetsOpenedWaveAndCarriesChannelAndVersion() {
     J2clPlainTextDeltaFactory factory = new J2clPlainTextDeltaFactory("seed");
     J2clSidecarWriteSession session =
-        new J2clSidecarWriteSession("example.com/w+reply", "chan-7", 44L, "b+root");
+        new J2clSidecarWriteSession("example.com/w+reply", "chan-7", 44L, "ABCD", "b+root");
 
     SidecarSubmitRequest request =
         factory.createReplyRequest("user@example.com", session, "Plain reply");
@@ -40,7 +40,7 @@ public class J2clPlainTextDeltaFactoryTest {
         request,
         "example.com/w+reply/~/conv+root",
         "chan-7",
-        "\"1\":{\"1\":44,\"2\":\"\"}",
+        "\"1\":{\"1\":44,\"2\":\"ABCD\"}",
         "\"2\":\"user@example.com\"",
         "\"1\":\"b+seedA\"",
         "Plain reply");

@@ -93,6 +93,18 @@ public final class J2clSelectedWaveController
     onWaveSelected(waveId, null);
   }
 
+  public void refreshSelectedWave() {
+    if (selectedWaveId == null || selectedWaveId.isEmpty()) {
+      return;
+    }
+    int generation = ++requestGeneration;
+    closeSubscription();
+    reconnectCount = 0;
+    // A refresh happens after the reply already committed on the server, so transient bootstrap or
+    // open failures should recover like a reconnect instead of strand the panel on stale content.
+    fetchBootstrapAndOpenSelectedWave(generation, 0, true);
+  }
+
   @Override
   public void onWaveSelected(String waveId, J2clSearchDigestItem digestItem) {
     if (waveId != null

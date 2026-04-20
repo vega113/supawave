@@ -855,6 +855,20 @@ def runJ2clWrapper(log: Logger, base: File, profile: String, goal: String): Unit
   if (!pom.exists() || !pom.isFile) {
     sys.error(s"[j2cl] missing pom.xml: ${pom.getAbsolutePath}")
   }
+  if (goal == "package") {
+    val outputDir = profile match {
+      case "search-sidecar" => Some(base / "war" / "j2cl-search")
+      case "debug-single-project" => Some(base / "war" / "j2cl-debug")
+      case "production" => Some(base / "war" / "j2cl")
+      case _ => None
+    }
+    outputDir.foreach { dir =>
+      if (dir.exists()) {
+        log.info(s"[j2cl] deleting stale output directory ${dir.getAbsolutePath} before $profile:$goal")
+        IO.delete(dir)
+      }
+    }
+  }
   val cmd =
     if (isWindows) {
       Seq("cmd", "/c", wrapper.getAbsolutePath, "-f", pom.getAbsolutePath, s"-P$profile", "-q", goal)

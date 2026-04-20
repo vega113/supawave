@@ -150,7 +150,8 @@ public class WaveClientServlet extends HttpServlet {
           buildCommit,
           serverBuildTime,
           currentReleaseId,
-          rootShellReturnTarget));
+          rootShellReturnTarget,
+          websocketPresentedAddress));
     } catch (IOException e) {
       LOG.warning("Failed to render J2CL root shell page", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

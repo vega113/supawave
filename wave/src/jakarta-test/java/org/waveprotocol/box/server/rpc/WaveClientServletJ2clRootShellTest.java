@@ -137,6 +137,26 @@ public final class WaveClientServletJ2clRootShellTest {
   }
 
   @Test
+  public void signedInJ2clRootShellStillExposesLegacyBootstrapGlobals() throws Exception {
+    WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"));
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("j2cl-root");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    String html = body.toString();
+    assertTrue(html.contains("var __session = "));
+    assertTrue(html.contains("\"address\":\"alice@example.com\""));
+    assertTrue(html.contains("var __websocket_address = "));
+    assertTrue(html.contains("\"127.0.0.1:9898\""));
+  }
+
+  @Test
   public void renderJ2clRootShellPageRejectsNonLocalReturnTargets() {
     String html =
         HtmlRenderer.renderJ2clRootShellPage(
@@ -145,7 +165,8 @@ public final class WaveClientServletJ2clRootShellTest {
             "test",
             0L,
             "",
-            "https://evil.example/steal");
+            "https://evil.example/steal",
+            "");
 
     assertTrue(html.contains("href=\"/?view=j2cl-root\""));
     assertTrue(html.contains("/auth/signin?r=/%3Fview%3Dj2cl-root"));

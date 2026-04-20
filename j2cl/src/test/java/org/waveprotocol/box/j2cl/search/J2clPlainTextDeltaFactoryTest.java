@@ -22,9 +22,11 @@ public class J2clPlainTextDeltaFactoryTest {
         "\"1\":{\"1\":0,\"2\":\""
             + encodeHex("wave://example.com/w+seedA/conv+root")
             + "\"}",
-        "\"1\":\"user@example.com\"",
+        "\"2\":\"user@example.com\"",
         "\"1\":\"b+root\"",
         "Hello\\nSidecar");
+    Assert.assertTrue(
+        request.getSubmitRequest().getDeltaJson().contains("\"1\":\"user@example.com\""));
   }
 
   @Test

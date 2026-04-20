@@ -145,7 +145,7 @@ public final class SidecarTransportCodec {
         getString(payload, "1"),
         getBoolean(payload, "6"),
         getString(payload, "7"),
-        resultingVersion.isEmpty() ? -1L : getLong(resultingVersion, "1"),
+        getOptionalLong(resultingVersion, "1", -1L),
         getString(resultingVersion, "2"),
         participantIds,
         documents,
@@ -171,7 +171,7 @@ public final class SidecarTransportCodec {
   public static SidecarSubmitResponse decodeSubmitResponse(Map<String, Object> envelope) {
     Map<String, Object> payload = asObject(envelope.get("message"));
     Map<String, Object> hashedVersion = getOptionalObject(payload, "3");
-    long resultingVersion = hashedVersion.isEmpty() ? -1L : getLong(hashedVersion, "1");
+    long resultingVersion = getOptionalLong(hashedVersion, "1", -1L);
     return new SidecarSubmitResponse(
         getInt(payload, "1"), getString(payload, "2"), resultingVersion);
   }

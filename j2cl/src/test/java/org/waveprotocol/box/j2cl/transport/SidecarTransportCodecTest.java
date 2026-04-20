@@ -210,6 +210,31 @@ public class SidecarTransportCodecTest {
         () -> SidecarTransportCodec.parseJsonObject("{\"1\":\"\\u12xz\"}"));
   }
 
+  @Test
+  public void decodeSelectedWaveUpdatePreservesSentinelWhenResultingVersionFieldOneAbsent() {
+    String json =
+        "{\"sequenceNumber\":15,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"example.com!w+abc/example.com!conv+root\","
+            + "\"4\":{\"2\":\"HASHONLY\"},"
+            + "\"6\":true,\"7\":\"ch5\"}}";
+
+    SidecarSelectedWaveUpdate update = SidecarTransportCodec.decodeSelectedWaveUpdate(json);
+
+    Assert.assertEquals(-1L, update.getResultingVersion());
+  }
+
+  @Test
+  public void decodeSubmitResponsePreservesSentinelWhenVersionFieldOneAbsent() {
+    String json =
+        "{\"sequenceNumber\":16,\"messageType\":\"ProtocolSubmitResponse\",\"message\":{"
+            + "\"1\":1,\"2\":\"\",\"3\":{\"2\":\"HASHONLY\"}}}";
+
+    SidecarSubmitResponse response =
+        SidecarTransportCodec.decodeSubmitResponse(SidecarTransportCodec.parseJsonObject(json));
+
+    Assert.assertEquals(-1L, response.getResultingVersion());
+  }
+
   private static void expectIllegalArgumentContains(String substring, Runnable action) {
     try {
       action.run();

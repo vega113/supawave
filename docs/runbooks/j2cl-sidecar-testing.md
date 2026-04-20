@@ -198,7 +198,7 @@ Expected result:
 cp journal/runtime-config/issue-923-j2cl-root-bootstrap-port-9914.application.conf /tmp/j2cl-root-bootstrap.application.conf
 printf '\nui.j2cl_root_bootstrap_enabled=true\n' >> /tmp/j2cl-root-bootstrap.application.conf
 PORT=9914 bash scripts/wave-smoke.sh stop
-PORT=9914 JAVA_OPTS='-Djava.util.logging.config.file=/Users/vega/devroot/worktrees/issue-923-j2cl-root-bootstrap/wave/config/wiab-logging.conf -Djava.security.auth.login.config=/Users/vega/devroot/worktrees/issue-923-j2cl-root-bootstrap/wave/config/jaas.config -Dwave.server.config=/tmp/j2cl-root-bootstrap.application.conf' bash scripts/wave-smoke.sh start
+PORT=9914 JAVA_OPTS="-Djava.util.logging.config.file=$PWD/wave/config/wiab-logging.conf -Djava.security.auth.login.config=$PWD/wave/config/jaas.config -Dwave.server.config=/tmp/j2cl-root-bootstrap.application.conf" bash scripts/wave-smoke.sh start
 curl -fsS http://localhost:9914/ | grep -F 'data-j2cl-root-shell'
 curl -fsS http://localhost:9914/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
 PORT=9914 bash scripts/wave-smoke.sh stop

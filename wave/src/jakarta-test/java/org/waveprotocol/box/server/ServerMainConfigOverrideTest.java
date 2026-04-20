@@ -50,4 +50,19 @@ public final class ServerMainConfigOverrideTest {
       }
     }
   }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void loadCoreConfigFailsFastWhenWaveServerConfigIsMissing() {
+    String previousConfigPath = System.getProperty("wave.server.config");
+    System.setProperty("wave.server.config", "/tmp/does-not-exist-issue-923.application.conf");
+    try {
+      ServerMain.loadCoreConfig();
+    } finally {
+      if (previousConfigPath == null) {
+        System.clearProperty("wave.server.config");
+      } else {
+        System.setProperty("wave.server.config", previousConfigPath);
+      }
+    }
+  }
 }

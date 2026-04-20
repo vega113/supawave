@@ -82,6 +82,8 @@ public final class FeatureFlagSeeder {
 
   public static void reconcileJ2clRootBootstrapFeatureFlag(
       FeatureFlagStore store, Config config) throws PersistenceException {
+    // Reconcile only from the operator-provided application/override config, not from
+    // the fully-resolved effective config (which always contains the reference default).
     if (store == null || config == null || !config.hasPath(J2CL_ROOT_BOOTSTRAP_CONFIG_KEY)) {
       return;
     }

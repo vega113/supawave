@@ -32,6 +32,7 @@ import java.util.Collections;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.junit.After;
 import org.junit.Test;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
@@ -43,6 +44,16 @@ import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 public final class WaveClientServletJ2clBootstrapTest {
+  private FeatureFlagService featureFlagService;
+
+  @After
+  public void tearDown() {
+    if (featureFlagService != null) {
+      featureFlagService.shutdown();
+      featureFlagService = null;
+    }
+  }
+
   @Test
   public void plainRootFallsBackToLegacyGwtWhenBootstrapFlagIsOff() throws Exception {
     WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"), false);
@@ -115,7 +126,7 @@ public final class WaveClientServletJ2clBootstrapTest {
     assertTrue(html.contains("/auth/signin?r=/%3Fview%3Dj2cl-root"));
   }
 
-  private static WaveClientServlet createServlet(ParticipantId user, boolean bootstrapEnabled)
+  private WaveClientServlet createServlet(ParticipantId user, boolean bootstrapEnabled)
       throws Exception {
     Config config = ConfigFactory.parseString(
         "core.http_frontend_addresses=[\"127.0.0.1:9898\"]\n"
@@ -134,7 +145,7 @@ public final class WaveClientServletJ2clBootstrapTest {
             "Bootstrap the J2CL root shell on /",
             bootstrapEnabled,
             java.util.Collections.emptyMap()));
-    FeatureFlagService featureFlagService = new FeatureFlagService(featureFlagStore);
+    featureFlagService = new FeatureFlagService(featureFlagStore);
 
     return new WaveClientServlet(
         "example.com",

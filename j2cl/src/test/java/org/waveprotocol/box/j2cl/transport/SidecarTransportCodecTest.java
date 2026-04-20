@@ -121,9 +121,24 @@ public class SidecarTransportCodecTest {
   }
 
   @Test
+  public void decodeSelectedWaveUpdateMarksMissingFragmentSnapshotVersionAsAbsent() {
+    String json =
+        "{\"sequenceNumber\":14,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s4635670bfbwA/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\"],"
+            + "\"3\":[{\"1\":\"b+abc123\",\"3\":\"user@example.com\",\"5\":[45,0],\"6\":[46,0]}]},"
+            + "\"6\":true,\"7\":\"ch4\"}}";
+
+    SidecarSelectedWaveUpdate update = SidecarTransportCodec.decodeSelectedWaveUpdate(json);
+
+    Assert.assertEquals(-1L, update.getFragments().getSnapshotVersion());
+    Assert.assertEquals(0, update.getFragments().getEntries().size());
+  }
+
+  @Test
   public void decodeRpcFinishedFailureReadsFailedFlagAndErrorText() {
     String json =
-        "{\"sequenceNumber\":14,\"messageType\":\"RpcFinished\",\"message\":{\"1\":true,\"2\":\"boom\"}}";
+        "{\"sequenceNumber\":15,\"messageType\":\"RpcFinished\",\"message\":{\"1\":true,\"2\":\"boom\"}}";
 
     java.util.Map<String, Object> envelope = SidecarTransportCodec.parseJsonObject(json);
 

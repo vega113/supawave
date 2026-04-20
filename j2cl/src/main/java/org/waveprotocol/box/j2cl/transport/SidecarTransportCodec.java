@@ -150,7 +150,11 @@ public final class SidecarTransportCodec {
         participantIds,
         documents,
         new SidecarSelectedWaveFragments(
-            getLong(fragments, "1"), getLong(fragments, "2"), getLong(fragments, "3"), ranges, entries));
+            getOptionalLong(fragments, "1", -1L),
+            getOptionalLong(fragments, "2", 0L),
+            getOptionalLong(fragments, "3", 0L),
+            ranges,
+            entries));
   }
 
   public static boolean decodeRpcFinishedFailed(Map<String, Object> envelope) {
@@ -281,6 +285,10 @@ public final class SidecarTransportCodec {
     int lowWord = ((Number) words.get(0)).intValue();
     int highWord = ((Number) words.get(1)).intValue();
     return toLong(highWord, lowWord);
+  }
+
+  private static long getOptionalLong(Map<String, Object> object, String key, long missingValue) {
+    return object.containsKey(key) ? getLong(object, key) : missingValue;
   }
 
   private static List<String> getStringList(Map<String, Object> object, String key) {

@@ -265,7 +265,7 @@ public final class SidecarTransportCodec {
 
   private static int getInt(Map<String, Object> object, String key) {
     Object value = object.get(key);
-    return value == null ? 0 : ((Number) value).intValue();
+    return value == null ? 0 : requireIntValue(value, key);
   }
 
   private static boolean getBoolean(Map<String, Object> object, String key) {
@@ -279,16 +279,45 @@ public final class SidecarTransportCodec {
       return 0L;
     }
     if (value instanceof Number) {
-      return ((Number) value).longValue();
+      return requireIntegralLong((Number) value, key);
     }
     List<Object> words = asList(value);
-    int lowWord = ((Number) words.get(0)).intValue();
-    int highWord = ((Number) words.get(1)).intValue();
+    int lowWord = requireIntValue(words.get(0), key + "[0]");
+    int highWord = requireIntValue(words.get(1), key + "[1]");
     return toLong(highWord, lowWord);
   }
 
   private static long getOptionalLong(Map<String, Object> object, String key, long missingValue) {
     return object.containsKey(key) ? getLong(object, key) : missingValue;
+  }
+
+  private static int requireIntValue(Object value, String key) {
+    if (!(value instanceof Number)) {
+      throw new IllegalArgumentException("Expected numeric value for " + key + " but got " + value);
+    }
+    long integral = requireIntegralLong((Number) value, key);
+    if (integral < Integer.MIN_VALUE || integral > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("Expected int-range value for " + key + " but got " + value);
+    }
+    return (int) integral;
+  }
+
+  private static long requireIntegralLong(Number value, String key) {
+    if (value instanceof Byte
+        || value instanceof Short
+        || value instanceof Integer
+        || value instanceof Long) {
+      return value.longValue();
+    }
+    double candidate = value.doubleValue();
+    if (!Double.isFinite(candidate)) {
+      throw new IllegalArgumentException("Expected finite numeric value for " + key + " but got " + value);
+    }
+    long integral = (long) candidate;
+    if ((double) integral != candidate) {
+      throw new IllegalArgumentException("Expected integral numeric value for " + key + " but got " + value);
+    }
+    return integral;
   }
 
   private static List<String> getStringList(Map<String, Object> object, String key) {

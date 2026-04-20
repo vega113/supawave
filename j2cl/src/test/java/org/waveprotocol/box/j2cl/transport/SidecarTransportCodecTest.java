@@ -2,6 +2,8 @@ package org.waveprotocol.box.j2cl.transport;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
@@ -233,6 +235,45 @@ public class SidecarTransportCodecTest {
         SidecarTransportCodec.decodeSubmitResponse(SidecarTransportCodec.parseJsonObject(json));
 
     Assert.assertEquals(-1L, response.getResultingVersion());
+  }
+
+  @Test
+  public void decodeSubmitResponseRejectsFractionalOperationsApplied() {
+    expectIllegalArgumentContains(
+        "integral numeric value for 1",
+        () ->
+            SidecarTransportCodec.decodeSubmitResponse(
+                SidecarTransportCodec.parseJsonObject(
+                    "{\"sequenceNumber\":16,\"messageType\":\"ProtocolSubmitResponse\",\"message\":{"
+                        + "\"1\":1.5,\"2\":\"\",\"3\":{\"1\":46,\"2\":\"\"}}}")));
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateRejectsFractionalResultingVersion() {
+    expectIllegalArgumentContains(
+        "integral numeric value for 1",
+        () ->
+            SidecarTransportCodec.decodeSelectedWaveUpdate(
+                "{\"sequenceNumber\":15,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+                    + "\"1\":\"example.com!w+abc/example.com!conv+root\","
+                    + "\"4\":{\"1\":44.5,\"2\":\"ABCD\"},"
+                    + "\"6\":true,\"7\":\"ch5\"}}"));
+  }
+
+  @Test
+  public void decodeSubmitResponseRejectsNonFiniteVersionNumbers() {
+    Map<String, Object> hashedVersion = new LinkedHashMap<String, Object>();
+    hashedVersion.put("1", Double.POSITIVE_INFINITY);
+    Map<String, Object> payload = new LinkedHashMap<String, Object>();
+    payload.put("1", Long.valueOf(1));
+    payload.put("2", "");
+    payload.put("3", hashedVersion);
+    Map<String, Object> envelope = new LinkedHashMap<String, Object>();
+    envelope.put("message", payload);
+
+    expectIllegalArgumentContains(
+        "finite numeric value for 1",
+        () -> SidecarTransportCodec.decodeSubmitResponse(envelope));
   }
 
   private static void expectIllegalArgumentContains(String substring, Runnable action) {

@@ -416,12 +416,7 @@ public class J2clSelectedWaveControllerTest {
         Arrays.asList("user@example.com"),
         Arrays.asList(
             new SidecarSelectedWaveDocument("b+abc123", "user@example.com", 1L, 2L, textContent)),
-        new SidecarSelectedWaveFragments(
-            0L,
-            0L,
-            0L,
-            new ArrayList<SidecarSelectedWaveFragmentRange>(),
-            new ArrayList<SidecarSelectedWaveFragment>()));
+        null);
   }
 
   private static final class BootstrapAttempt {

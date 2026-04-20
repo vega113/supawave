@@ -833,6 +833,7 @@ lazy val j2clSandboxTest = taskKey[Unit]("Run the isolated J2CL sandbox sidecar 
 lazy val j2clSearchBuild = taskKey[Unit]("Build the isolated J2CL search-sidecar scaffold into war/j2cl-search via the Maven wrapper")
 lazy val j2clSearchTest = taskKey[Unit]("Run the isolated J2CL search-sidecar smoke test via the Maven wrapper")
 lazy val j2clProductionBuild = taskKey[Unit]("Build the production J2CL sidecar into war/j2cl via the Maven wrapper")
+lazy val j2clRuntimeBuild = taskKey[Unit]("Build the maintained J2CL runtime assets in a deterministic order")
 lazy val dataMigrate = inputKey[Unit]("Run DataMigrationTool: dataMigrate <sourceOpts> <targetOpts>")
 lazy val dataPrepare = inputKey[Unit]("Run DataPreparationTool: dataPrepare <waveId> [<options>]")
 
@@ -944,6 +945,11 @@ ThisBuild / j2clProductionBuild := {
   val base = baseDirectory.value
   runJ2clWrapper(log, base, "production", "package")
 }
+
+ThisBuild / j2clRuntimeBuild := Def.sequential(
+  ThisBuild / j2clSearchBuild,
+  ThisBuild / j2clProductionBuild
+).value
 
 // sbt-protoc: use embedded protoc to generate Java directly into proto_src
 // Protoc version is managed by sbt-protoc; proto2 syntax is supported.
@@ -1166,7 +1172,7 @@ Compile / compile := (Compile / compile)
 
 // Ensure `run` has a config in place and both maintained J2CL assets are
 // rebuilt before launching the server.
-Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clSearchBuild, j2clProductionBuild).evaluated
+Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild).evaluated
 
 // =============================================================================
 // Phase 6: GWT Compilation Bridge
@@ -1377,8 +1383,8 @@ compileGwt := (compileGwt).dependsOn(Compile / compile).value
 devCompile := (Compile / compile).value
 compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
-Universal / stage := (Universal / stage).dependsOn(j2clSearchBuild, j2clProductionBuild).value
-Universal / packageBin := (Universal / packageBin).dependsOn(j2clSearchBuild, j2clProductionBuild).value
+Universal / stage := (Universal / stage).dependsOn(j2clRuntimeBuild).value
+Universal / packageBin := (Universal / packageBin).dependsOn(j2clRuntimeBuild).value
 
 cleanFiles += baseDirectory.value / "war" / "webclient"
 cleanFiles += baseDirectory.value / "war" / "org"

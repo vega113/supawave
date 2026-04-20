@@ -77,8 +77,8 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
   - `/auth/signin` (GXP-backed login page)
   - `/` (J2CL root shell; signed-out requests still render the shell with a sign-in entry)
   - `/static/*`, `/render/*`, `/j2cl-search/*`, `/j2cl/*` (served by Jetty
-    DefaultServlet; the maintained J2CL assets include `/j2cl/index.html` and
-    `/j2cl-search/sidecar/j2cl-sidecar.js`)
+    `ResourceServlet`; the maintained J2CL assets include `/j2cl/index.html`
+    and `/j2cl-search/sidecar/j2cl-sidecar.js`)
   - `/static/ws-test.html` (simple page to test WebSocket handshake at `/socket`)
 
 - Package fat JAR:

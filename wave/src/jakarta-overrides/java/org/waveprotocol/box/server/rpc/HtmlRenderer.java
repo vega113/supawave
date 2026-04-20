@@ -3326,6 +3326,19 @@ public final class HtmlRenderer {
       sb.append("  if(search.indexOf('view=j2cl-root')===-1){return fallback;}\n");
       sb.append("  return normalizeLocalReturnTargetForUi(pathname + search, fallback);\n");
       sb.append("}\n");
+      sb.append("function waveIdFromLegacyHash(hash){\n");
+      sb.append("  if(!hash){return null;}\n");
+      sb.append("  var trimmed=hash.charAt(0)==='#'?hash.substring(1):hash;\n");
+      sb.append("  if(!trimmed){return null;}\n");
+      sb.append("  var token=trimmed.split('&')[0];\n");
+      sb.append("  return token.indexOf('/')>=0 ? token : null;\n");
+      sb.append("}\n");
+      sb.append("function normalizeLegacyHashDeepLink(){\n");
+      sb.append("  var waveId=waveIdFromLegacyHash(window.location.hash);\n");
+      sb.append("  if(!waveId){return;}\n");
+      sb.append("  var nextUrl='/?view=j2cl-root&wave=' + encodeURIComponent(waveId);\n");
+      sb.append("  window.history.replaceState(null, '', nextUrl);\n");
+      sb.append("}\n");
       sb.append("function syncReturnTargetUi(){\n");
       sb.append("  var fallback='").append(safeResolvedReturnTarget).append("';\n");
       sb.append("  var target=currentReturnTarget();\n");
@@ -3368,6 +3381,7 @@ public final class HtmlRenderer {
       sb.append("  if(entryPoint){entryPoint.mount('j2cl-root-shell-workflow','root-shell');return;}\n");
       sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1);},50);}else{renderLoadError();}\n");
       sb.append("}\n");
+      sb.append("normalizeLegacyHashDeepLink();\n");
       sb.append("hookHistory();\n");
       sb.append("syncReturnTargetUi();\n");
       sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){syncReturnTargetUi();mountWhenReady(80);});}else{mountWhenReady(80);}\n");

@@ -150,13 +150,18 @@ public final class J2clSelectedWaveController {
               if (!isCurrentGeneration(generation) || isChannelEstablishmentUpdate(update)) {
                 return;
               }
-              activeReconnectCount[0] = 0;
+              int projectedReconnectCount = activeReconnectCount[0];
               lastUpdate = update;
-              this.reconnectCount = 0;
               currentModel =
                   J2clSelectedWaveProjector.project(
-                      selectedWaveId, selectedDigestItem, update, currentModel, activeReconnectCount[0]);
+                      selectedWaveId,
+                      selectedDigestItem,
+                      update,
+                      currentModel,
+                      projectedReconnectCount);
               view.render(currentModel);
+              activeReconnectCount[0] = 0;
+              this.reconnectCount = projectedReconnectCount;
             },
             error -> {
               if (!isCurrentGeneration(generation)) {

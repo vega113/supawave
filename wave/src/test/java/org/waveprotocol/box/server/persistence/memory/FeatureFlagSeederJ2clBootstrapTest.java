@@ -32,12 +32,12 @@ import org.waveprotocol.box.server.persistence.KnownFeatureFlags;
 
 public final class FeatureFlagSeederJ2clBootstrapTest {
   @Test
-  public void knownBootstrapFlagIsRegisteredAndDefaultsOff() throws Exception {
+  public void knownBootstrapFlagIsRegisteredAndDefaultsOn() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     FeatureFlagService service = new FeatureFlagService(store);
     try {
       assertTrue(KnownFeatureFlags.isKnownFlag("j2cl-root-bootstrap"));
-      assertFalse(service.getEnabledFlagNames(null).contains("j2cl-root-bootstrap"));
+      assertTrue(service.getEnabledFlagNames(null).contains("j2cl-root-bootstrap"));
     } finally {
       service.shutdown();
     }
@@ -118,5 +118,24 @@ public final class FeatureFlagSeederJ2clBootstrapTest {
     FeatureFlag flag = store.get("j2cl-root-bootstrap");
 
     assertTrue(flag.isEnabled());
+  }
+
+  @Test
+  public void reconcileAppliesExplicitJ2clRootBootstrapRollback() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(
+        new FeatureFlag(
+            "j2cl-root-bootstrap",
+            "Bootstrap the J2CL root shell on /",
+            true,
+            new LinkedHashMap<>()));
+
+    FeatureFlagSeeder.reconcileJ2clRootBootstrapFeatureFlag(
+        store, ConfigFactory.parseString("ui.j2cl_root_bootstrap_enabled = false"));
+
+    FeatureFlag flag = store.get("j2cl-root-bootstrap");
+
+    assertTrue(flag != null);
+    assertFalse(flag.isEnabled());
   }
 }

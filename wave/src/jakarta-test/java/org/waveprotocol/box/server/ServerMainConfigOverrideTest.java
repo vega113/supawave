@@ -53,6 +53,25 @@ public final class ServerMainConfigOverrideTest {
   }
 
   @Test
+  public void loadCoreConfigDefaultsJ2clRootBootstrapToTrue() {
+    String previousConfigPath = System.getProperty("wave.server.config");
+    if (previousConfigPath != null) {
+      System.clearProperty("wave.server.config");
+    }
+    try {
+      Config config = ServerMain.loadCoreConfig();
+
+      assertTrue(config.getBoolean("ui.j2cl_root_bootstrap_enabled"));
+    } finally {
+      if (previousConfigPath == null) {
+        System.clearProperty("wave.server.config");
+      } else {
+        System.setProperty("wave.server.config", previousConfigPath);
+      }
+    }
+  }
+
+  @Test
   public void loadCoreConfigRejectsMissingWaveServerConfigOverride() {
     Path missingConfig =
         Path.of(System.getProperty("java.io.tmpdir"), "missing-server-main-config-" + System.nanoTime());

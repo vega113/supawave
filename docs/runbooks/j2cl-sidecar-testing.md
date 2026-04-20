@@ -171,46 +171,50 @@ PORT=9900 bash scripts/wave-smoke.sh stop
 
 ## Dual Bootstrap Matrix
 
-Use this matrix when you are validating the issue #923 root-bootstrap seam.
+Use this matrix when you are validating the issue #924 default-root cutover.
 Run from the repo root unless the command says otherwise.
 
-### Mode A: Legacy GWT Root Remains The Default
+### Mode A: J2CL Root Is The Default
 
 ```bash
-sbt -batch "testOnly org.waveprotocol.box.server.persistence.memory.FeatureFlagSeederJ2clBootstrapTest org.waveprotocol.box.server.rpc.WaveClientServletJ2clBootstrapTest"
+sbt -batch "testOnly org.waveprotocol.box.server.persistence.memory.FeatureFlagSeederJ2clBootstrapTest org.waveprotocol.box.server.rpc.WaveClientServletJ2clBootstrapTest org.waveprotocol.box.server.ServerMainConfigOverrideTest"
 sbt -batch compileGwt Universal/stage
 bash scripts/worktree-boot.sh --port 9914
 PORT=9914 bash scripts/wave-smoke.sh start
-curl -fsS http://localhost:9914/ | grep -F 'webclient/webclient.nocache.js'
+curl -fsS http://localhost:9914/ | grep -F 'data-j2cl-root-shell'
+curl -fsS http://localhost:9914/?view=landing | grep -F 'Sign In'
 curl -fsS http://localhost:9914/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
 PORT=9914 bash scripts/wave-smoke.sh stop
 ```
 
 Expected result:
 
-- `/` still serves the legacy GWT root HTML when the bootstrap flag is off
-- `/?view=j2cl-root` still serves the J2CL root shell as the direct diagnostic route
+- `/` serves the J2CL root shell when the bootstrap flag defaults on
+- `?view=landing` still reaches the explicit legacy landing page
+- `/?view=j2cl-root` still serves the same J2CL root shell as the direct diagnostic route
 - `compileGwt` and `Universal/stage` stay green
 
-### Mode B: J2CL Root Bootstrap Is Enabled Server-Side
+### Mode B: Legacy GWT Rollback Restores The Old Root
 
 ```bash
 bash scripts/worktree-boot.sh --port 9914
 RUNTIME_CONFIG="$(find journal/runtime-config -maxdepth 1 -name '*-port-9914.application.conf' | head -n1)"
 cp "$RUNTIME_CONFIG" /tmp/j2cl-root-bootstrap.application.conf
-printf '\nui.j2cl_root_bootstrap_enabled=true\n' >> /tmp/j2cl-root-bootstrap.application.conf
+printf '\nui.j2cl_root_bootstrap_enabled=false\n' >> /tmp/j2cl-root-bootstrap.application.conf
 PORT=9914 bash scripts/wave-smoke.sh stop
 PORT=9914 JAVA_OPTS="-Djava.util.logging.config.file=$PWD/wave/config/wiab-logging.conf -Djava.security.auth.login.config=$PWD/wave/config/jaas.config -Dwave.server.config=/tmp/j2cl-root-bootstrap.application.conf" bash scripts/wave-smoke.sh start
-curl -fsS http://localhost:9914/ | grep -F 'data-j2cl-root-shell'
+curl -fsS http://localhost:9914/ | grep -F 'SupaWave - Real-time Collaborative Communication'
 curl -fsS http://localhost:9914/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
+curl -fsS http://localhost:9914/?view=landing | grep -F 'SupaWave - Real-time Collaborative Communication'
 PORT=9914 bash scripts/wave-smoke.sh stop
 ```
 
 Expected result:
 
-- plain `/` serves the J2CL root shell when the server flag is on
-- the direct diagnostic route still serves the same shell
-- turning the config back to `false` restores the legacy GWT root without a code rollback
+- plain `/` falls back to the legacy landing/GWT root when the server flag is rolled back to `false`
+- the direct diagnostic route still serves the J2CL root shell
+- `?view=landing` remains the explicit legacy landing-page escape hatch
+- turning the config back to `true` restores the J2CL default without a code rollback
 - the mode switch is driven by a temp overlay built from the port-specific runtime config that `worktree-boot.sh` generated for the same smoke port, so the server and the probe port stay aligned
 
 ## When To Use Direct Maven Instead Of SBT

@@ -108,6 +108,44 @@ public final class WaveClientServletJ2clBootstrapTest {
   }
 
   @Test
+  public void signedOutRootUsesLegacyLandingPageWhenBootstrapFlagIsOff() throws Exception {
+    WaveClientServlet servlet = createServlet(null, false);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getSession(false)).thenReturn(null);
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    String html = body.toString();
+    assertFalse(html.contains("data-j2cl-root-shell"));
+    assertTrue(html.contains("SupaWave - Real-time Collaborative Communication"));
+    assertTrue(html.contains("nav-link-signin"));
+    assertTrue(html.contains("nav-link-register"));
+  }
+
+  @Test
+  public void explicitLandingRouteStillUsesLandingPageWhenBootstrapFlagIsOn() throws Exception {
+    WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"), true);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("landing");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    String html = body.toString();
+    assertFalse(html.contains("data-j2cl-root-shell"));
+    assertTrue(html.contains("SupaWave - Real-time Collaborative Communication"));
+    assertTrue(html.contains("nav-link-signin"));
+  }
+
+  @Test
   public void explicitDiagnosticRootRouteStillWorksWithoutBootstrapFlag() throws Exception {
     WaveClientServlet servlet = createServlet(null, false);
     HttpServletRequest request = mock(HttpServletRequest.class);

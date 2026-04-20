@@ -4,7 +4,15 @@
 
 **Goal:** cut over `/` so the J2CL root shell boots by default, while keeping a temporary rollback path that can restore the legacy GWT root without reverting code. This plan starts from the post-`#923` state on `main`: the reversible bootstrap seam already exists and the explicit `/?view=j2cl-root` J2CL root-shell route is already the diagnostic entry point.
 
-**Architecture:** treat this as a server control-plane change, not a new client feature. The key seam is the root decision in `WaveClientServlet#doGet(...)`. When the root-bootstrap control flag says J2CL, `/` should render the same J2CL root shell that `/?view=j2cl-root` already uses, for both signed-in and signed-out requests. Keep the legacy landing/GWT path reachable through the existing rollback control path and keep the explicit J2CL root-shell URL intact for local proof. Fresh deploys should default to J2CL; existing stored/admin overrides must still win so rollback is a config change, not a patch rollback.
+**Architecture:** treat this as a server control-plane change, not a new client feature. The key seam is the root decision in `WaveClientServlet#doGet(...)`. When the root-bootstrap control plane says J2CL, `/` should render the same J2CL root shell that `/?view=j2cl-root` already uses, for both signed-in and signed-out requests. Keep the legacy landing/GWT path reachable through the existing rollback control path and keep the explicit J2CL root-shell URL intact for local proof.
+
+Precedence model for this slice must be explicit:
+
+- operator-provided application config override is authoritative for rollback/cutover
+- when no operator override is present, the persisted/store-backed flag remains the source of truth
+- `reference.conf` only supplies the fresh-deploy default
+
+That means rollback remains a config change, while stored/admin overrides are still durable when no operator override is set.
 
 ## 1. Baseline And Problem
 
@@ -28,7 +36,9 @@ The remaining issue is that the root dispatch still short-circuits through the l
 ### Bootstrap control plane
 
 - Use the same server-side bootstrap flag introduced by `#923` as the rollback switch.
-- Make the fresh-deploy default `true` in the flag seeding/config path, but preserve stored/admin overrides so an operator can force legacy GWT back on without a code change.
+- Make the fresh-deploy default `true` in the flag seeding/config path.
+- Preserve stored/admin overrides only when the operator has not explicitly set an application override value.
+- Make the operator-provided application config override authoritative so an operator can force legacy GWT back on without a code change.
 - Keep the source of truth in the server control plane:
   - `wave/src/main/java/org/waveprotocol/box/server/persistence/KnownFeatureFlags.java`
   - `wave/src/main/java/org/waveprotocol/box/server/persistence/FeatureFlagSeeder.java`
@@ -59,7 +69,8 @@ The remaining issue is that the root dispatch still short-circuits through the l
 ### Slice A: Control-plane flip
 
 - The root-bootstrap flag defaults to J2CL for fresh deploys.
-- Existing stored/admin overrides still beat the fresh default.
+- Existing stored/admin overrides still beat the fresh default when no operator override is set.
+- An explicit operator override value in application config beats the stored/admin value and serves as the rollback switch.
 - The server decision point chooses J2CL for `/` before the legacy landing-page fallback can win.
 
 ### Slice B: Default `/` cutover
@@ -105,24 +116,37 @@ The remaining issue is that the root dispatch still short-circuits through the l
 | Rollback off | `GET /?view=j2cl-root` | The explicit J2CL diagnostic route still works | server test and local browser check |
 | Explicit legacy landing | `GET /?view=landing` | The landing page remains reachable on demand | server test or direct curl |
 
-Recommended local gate:
+Required local matrix:
 
 ```bash
 sbt -batch j2clSearchBuild j2clSearchTest compileGwt Universal/stage
 bash scripts/worktree-boot.sh --port 9912
 PORT=9912 bash scripts/wave-smoke.sh start
 PORT=9912 bash scripts/wave-smoke.sh check
+curl -fsS http://localhost:9912/ | grep -F 'data-j2cl-root-shell'
+curl -fsS 'http://localhost:9912/?view=landing' | grep -F 'Sign In'
+curl -fsS 'http://localhost:9912/?view=j2cl-root' | grep -F 'data-j2cl-root-shell'
+PORT=9912 bash scripts/wave-smoke.sh stop
+
+cp journal/runtime-config/issue-924-j2cl-default-root-port-9912.application.conf /tmp/j2cl-default-root.application.conf
+perl -0pi -e 's/ui\\.j2cl_root_bootstrap_enabled = false/ui.j2cl_root_bootstrap_enabled = true/' /tmp/j2cl-default-root.application.conf
+PORT=9912 JAVA_OPTS="-Djava.util.logging.config.file=$PWD/wave/config/wiab-logging.conf -Djava.security.auth.login.config=$PWD/wave/config/jaas.config -Dwave.server.config=/tmp/j2cl-default-root.application.conf" bash scripts/wave-smoke.sh start
+PORT=9912 bash scripts/wave-smoke.sh check
+curl -fsS http://localhost:9912/ | grep -F 'data-j2cl-root-shell'
+curl -fsS 'http://localhost:9912/?view=landing' | grep -F 'Sign In'
+curl -fsS 'http://localhost:9912/?view=j2cl-root' | grep -F 'data-j2cl-root-shell'
 ```
 
-Use the browser against both:
+Use the browser against all of:
 
 - `http://localhost:9912/`
+- `http://localhost:9912/?view=landing`
 - `http://localhost:9912/?view=j2cl-root`
 
 ## 7. Concrete Risks
 
 - Signed-out `/` can still fall through to the landing-page branch if the root dispatch is not reordered before the `id == null` check.
-- Fresh-deploy defaults can drift from stored/admin overrides if `KnownFeatureFlags`, `FeatureFlagSeeder`, `ServerMain`, and the config files are not kept in sync.
+- Fresh-deploy defaults can drift from stored/admin overrides if `KnownFeatureFlags`, `FeatureFlagSeeder`, `ServerMain`, and the config files are not kept in sync or if operator override precedence is not made explicit.
 - A rollback that only changes tests or docs is not enough; the control-plane switch must be genuinely config-only at runtime.
 - It is easy to accidentally make `/?view=j2cl-root` the only working path and forget to prove `/` itself in the browser.
 - The root-shell chrome can look correct in unit tests while the J2CL bundle mount or auth redirect target is wrong in a live browser session, so browser proof remains mandatory.
@@ -133,7 +157,6 @@ Recommended order:
 
 1. Confirm the current `#923` bootstrap seam still exists and identify the exact flag/config source of truth.
 2. Flip the server decision point so `/` can choose J2CL before the legacy landing-page fallback.
-3. Make the fresh-deploy default J2CL while preserving rollback to legacy GWT.
-4. Run the default-on and rollback-off verification matrix in the local staged app.
+3. Make the fresh-deploy default J2CL while preserving explicit operator-override rollback to legacy GWT.
+4. Run the default-on and rollback-off verification matrix in the local staged app, including `?view=landing` as the explicit legacy escape hatch.
 5. Record the result in the linked GitHub issue and add the changelog fragment if user-facing behavior changed.
-

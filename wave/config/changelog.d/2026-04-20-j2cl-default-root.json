@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-20-j2cl-default-root",
+  "version": "Unreleased",
+  "date": "2026-04-20",
+  "title": "Make the J2CL root shell the default `/` experience",
+  "summary": "The root `/` route now boots the J2CL shell by default, while `/?view=j2cl-root` stays available as the explicit diagnostic route and `?view=landing` remains the legacy landing escape hatch.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Seeded the j2cl-root-bootstrap feature flag from ui.j2cl_root_bootstrap_enabled with a fresh-deploy default of true",
+        "The root `/` route now boots the J2CL shell when the bootstrap flag is enabled, including for signed-out visitors",
+        "The legacy landing page still remains available through `?view=landing`, and rollback to the legacy root stays config-driven"
+      ]
+    }
+  ]
+}

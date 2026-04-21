@@ -446,6 +446,10 @@ sanity_check() {
     echo "[deploy] ERROR: SANITY_SEARCH_REQUEST_TIMEOUT_SECONDS must be a positive integer (got: '${sanity_search_request_timeout_seconds}')" >&2
     return 1
   fi
+  if (( sanity_search_request_timeout_seconds > sanity_search_deadline_seconds )); then
+    echo "[deploy] ERROR: SANITY_SEARCH_REQUEST_TIMEOUT_SECONDS must be less than or equal to SANITY_SEARCH_DEADLINE_SECONDS (got: '${sanity_search_request_timeout_seconds}' > '${sanity_search_deadline_seconds}')" >&2
+    return 1
+  fi
 
   echo "[deploy] Running sanity check on port ${port}..."
 

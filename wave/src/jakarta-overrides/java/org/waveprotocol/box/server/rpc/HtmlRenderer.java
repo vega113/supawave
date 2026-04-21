@@ -2466,9 +2466,9 @@ public final class HtmlRenderer {
     sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     // Session variables
     sb.append("<script type=\"text/javascript\">\n");
-    sb.append("var __session = ").append(sessionJson.toString()).append(";\n");
+    sb.append("var __session = ").append(escapeInlineJson(sessionJson.toString())).append(";\n");
     sb.append("var __websocket_address = ").append(escapeJsonString(websocketAddress)).append(";\n");
-    sb.append("var __client_flags = ").append(clientFlags.toString()).append(";\n");
+    sb.append("var __client_flags = ").append(escapeInlineJson(clientFlags.toString())).append(";\n");
     sb.append("</script>\n");
     // Inline styles for wave client top bar
     sb.append("<style type=\"text/css\">\n");
@@ -3237,7 +3237,9 @@ public final class HtmlRenderer {
     sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
     sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
     sb.append("<script type=\"text/javascript\">\n");
-    sb.append("var __session = ").append(resolvedSessionJson.toString()).append(";\n");
+    sb.append("var __session = ")
+        .append(escapeInlineJson(resolvedSessionJson.toString()))
+        .append(";\n");
     sb.append("var __websocket_address = ")
         .append(escapeJsonString(websocketAddress == null ? "" : websocketAddress))
         .append(";\n");
@@ -8421,8 +8423,11 @@ public final class HtmlRenderer {
         case '\r': sb.append("\\r");  break;
         case '\t': sb.append("\\t");  break;
         case '/':  sb.append("\\/");  break;
+        case '<':  sb.append("\\u003c"); break;
+        case '>':  sb.append("\\u003e"); break;
+        case '&':  sb.append("\\u0026"); break;
         default:
-          if (c < 0x20) {
+          if (c == '\u2028' || c == '\u2029' || c < 0x20) {
             sb.append(String.format("\\u%04x", (int) c));
           } else {
             sb.append(c);
@@ -8430,6 +8435,28 @@ public final class HtmlRenderer {
       }
     }
     sb.append('"');
+    return sb.toString();
+  }
+
+  private static String escapeInlineJson(String json) {
+    if (json == null) {
+      return "null";
+    }
+    StringBuilder sb = new StringBuilder(json.length() + 16);
+    for (int i = 0; i < json.length(); i++) {
+      char c = json.charAt(i);
+      switch (c) {
+        case '<': sb.append("\\u003c"); break;
+        case '>': sb.append("\\u003e"); break;
+        case '&': sb.append("\\u0026"); break;
+        case '\u2028':
+        case '\u2029':
+          sb.append(String.format("\\u%04x", (int) c));
+          break;
+        default:
+          sb.append(c);
+      }
+    }
     return sb.toString();
   }
 

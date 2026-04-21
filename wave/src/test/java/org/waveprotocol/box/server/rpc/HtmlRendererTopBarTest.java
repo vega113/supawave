@@ -124,6 +124,50 @@ public final class HtmlRendererTopBarTest extends TestCase {
     assertTrue(html.contains("setMenuOpen(false, true);"));
   }
 
+  public void testWaveClientPageEscapesInlineJsonPayloads() {
+    JSONObject sessionJson = new JSONObject();
+    sessionJson.put("address", "alice@example.com</script><script>alert(1)</script>");
+    JSONObject clientFlags = new JSONObject();
+    clientFlags.put("danger", "</script><script>alert(1)</script>");
+
+    String html = HtmlRenderer.renderWaveClientPage(
+        sessionJson,
+        clientFlags,
+        "localhost:9898",
+        HtmlRenderer.renderTopBar("vega", "example.com", "user"),
+        "",
+        "abc123build",
+        1700000000000L,
+        null,
+        null);
+
+    assertTrue(html.contains("\"danger\":\""));
+    assertTrue(html.contains("alert(1)"));
+    assertTrue(html.contains("\\u003c"));
+    assertFalse(html.contains("\"danger\":\"</script><script>alert(1)</script>\""));
+    assertTrue(html.contains("alice@example.com"));
+    assertFalse(html.contains("alice@example.com</script><script>alert(1)</script>"));
+  }
+
+  public void testJ2clRootShellEscapesInlineSessionJsonPayloads() {
+    JSONObject sessionJson = new JSONObject();
+    sessionJson.put("address", "alice@example.com</script><script>alert(1)</script>");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        sessionJson,
+        "",
+        "abc123build",
+        1700000000000L,
+        null,
+        "/?view=j2cl-root",
+        "localhost:9898");
+
+    assertTrue(html.contains("alice@example.com"));
+    assertTrue(html.contains("alert(1)"));
+    assertTrue(html.contains("\\u003c"));
+    assertFalse(html.contains("alice@example.com</script><script>alert(1)</script>"));
+  }
+
   public void testRenderSharedTopBarHtmlAdminShowsEnvelopeIcon() {
     String html = HtmlRenderer.renderSharedTopBarHtml("vega@example.com", "", "admin");
 

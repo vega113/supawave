@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import javax.inject.Singleton;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
@@ -158,7 +157,7 @@ public class WaveClientServlet extends HttpServlet {
             serverBuildTime,
             currentReleaseId,
             rootShellReturnTarget,
-            resolveWebsocketAddressForPage(request))); // codeql[java/xss]
+            resolveWebsocketAddressForPage(request)));
       } catch (IOException e) {
         LOG.warning("Failed to render J2CL root shell page", e);
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -199,15 +198,8 @@ public class WaveClientServlet extends HttpServlet {
         topBarHtml = HtmlRenderer.renderTopBar(username, userDomain, userRole);
       }
 
-      String prerenderedHtml = null;
-      if (prerenderingEnabled && id != null) {
-        try {
-          prerenderedHtml = wavePreRenderer.prerenderForUser(id);
-        } catch (Exception e) {
-          LOG.warning("Pre-rendering failed, falling back to skeleton", e);
-        }
-      }
-
+      // Keep the legacy rollback path on the existing skeleton load until the
+      // server-side pre-rendered fragment has an explicit sanitization boundary.
       w.write(HtmlRenderer.renderWaveClientPage( // codeql[java/xss]
           getSessionJson(session),
           getClientFlags(request),
@@ -217,7 +209,7 @@ public class WaveClientServlet extends HttpServlet {
           buildCommit,
           serverBuildTime,
           currentReleaseId,
-          prerenderedHtml));
+          null));
     } catch (IOException e) {
       LOG.warning("Failed to render WaveClient page", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -496,56 +488,7 @@ public class WaveClientServlet extends HttpServlet {
   }
 
   private String resolveWebsocketAddressForPage(HttpServletRequest request) {
-    if (hasExplicitWebsocketPresentedAddress) {
-      return websocketPresentedAddress;
-    }
-
-    String hostHeader = firstHeaderValue(request.getHeader("Host"));
-    if (isTrustedWebsocketHost(hostHeader)) {
-      return hostHeader;
-    }
-
     return websocketPresentedAddress;
-  }
-
-  private boolean isTrustedWebsocketHost(String host) {
-    if (host == null || host.isEmpty()) {
-      return false;
-    }
-    String normalizedHost = normalizeHostName(host);
-    return normalizedHost.equalsIgnoreCase(domain)
-        || "localhost".equalsIgnoreCase(normalizedHost)
-        || "127.0.0.1".equals(normalizedHost)
-        || "::1".equals(normalizedHost);
-  }
-
-  private static String firstHeaderValue(String headerValue) {
-    if (headerValue == null || headerValue.isEmpty()) {
-      return "";
-    }
-    int commaIndex = headerValue.indexOf(',');
-    String singleValue = commaIndex >= 0 ? headerValue.substring(0, commaIndex) : headerValue;
-    return singleValue.trim();
-  }
-
-  private static String normalizeHostName(String host) {
-    String normalizedHost = host.trim().toLowerCase(Locale.ROOT);
-    if (normalizedHost.startsWith("[")) {
-      int closingBracket = normalizedHost.indexOf(']');
-      if (closingBracket > 0
-          && (closingBracket == normalizedHost.length() - 1
-              || normalizedHost.charAt(closingBracket + 1) == ':')) {
-        return normalizedHost.substring(1, closingBracket);
-      }
-      return normalizedHost;
-    }
-
-    int portSeparator = normalizedHost.indexOf(':');
-    if (portSeparator >= 0 && normalizedHost.indexOf(':', portSeparator + 1) < 0) {
-      return normalizedHost.substring(0, portSeparator);
-    }
-
-    return normalizedHost;
   }
 
   private String resolveRequestedView(HttpServletRequest request) {

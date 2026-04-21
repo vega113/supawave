@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -132,7 +133,7 @@ public final class WaveClientServletJ2clBootstrapTest {
   }
 
   @Test
-  public void j2clRootFallsBackToConfiguredWebsocketAddressWhenHostHeaderIsUntrusted()
+  public void j2clRootUsesConfiguredWebsocketAddressInsteadOfRequestHostHeader()
       throws Exception {
     WaveClientServlet servlet = createServlet(null, true);
     HttpServletRequest request = mock(HttpServletRequest.class);
@@ -140,14 +141,42 @@ public final class WaveClientServletJ2clBootstrapTest {
     StringWriter body = new StringWriter();
     when(request.getSession(false)).thenReturn(null);
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
-    when(request.getHeader("Host")).thenReturn("evil.example.com\"><script>alert(1)</script>");
+    when(request.getHeader("Host")).thenReturn("example.com:7777");
     when(response.getWriter()).thenReturn(new PrintWriter(body));
 
     servlet.doGet(request, response);
 
     String html = body.toString();
     assertTrue(html.contains("127.0.0.1:9898"));
-    assertFalse(html.contains("evil.example.com"));
+    assertFalse(html.contains("example.com:7777"));
+  }
+
+  @Test
+  public void legacyWaveClientDoesNotInvokePreRenderer() throws Exception {
+    ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
+    SessionManager sessionManager = mock(SessionManager.class);
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(user);
+    when(sessionManager.getLoggedInUser((WebSession) null)).thenReturn(user);
+    WavePreRenderer preRenderer = mock(WavePreRenderer.class);
+
+    WaveClientServlet servlet =
+        createServlet(
+            false,
+            sessionManager,
+            mock(AccountStore.class),
+            "core.enable_prerendering=true\n",
+            preRenderer);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    verify(preRenderer, never()).prerenderForUser(any());
+    assertFalse(body.toString().contains("data-prerendered=\"true\""));
   }
 
   @Test
@@ -230,12 +259,28 @@ public final class WaveClientServletJ2clBootstrapTest {
   private WaveClientServlet createServlet(
       boolean bootstrapEnabled, SessionManager sessionManager, AccountStore accountStore)
       throws Exception {
+    return createServlet(
+        bootstrapEnabled,
+        sessionManager,
+        accountStore,
+        "",
+        mock(WavePreRenderer.class));
+  }
+
+  private WaveClientServlet createServlet(
+      boolean bootstrapEnabled,
+      SessionManager sessionManager,
+      AccountStore accountStore,
+      String extraConfig,
+      WavePreRenderer wavePreRenderer)
+      throws Exception {
     Config config = ConfigFactory.parseString(
         "core.http_frontend_addresses=[\"127.0.0.1:9898\"]\n"
             + "core.http_websocket_public_address=\"\"\n"
             + "core.http_websocket_presented_address=\"\"\n"
             + "core.search_type=\"memory\"\n"
-            + "administration.analytics_account=\"\"\n");
+            + "administration.analytics_account=\"\"\n"
+            + extraConfig);
     MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
     featureFlagStore.save(
         new FeatureFlag(
@@ -251,7 +296,7 @@ public final class WaveClientServletJ2clBootstrapTest {
         sessionManager,
         accountStore,
         new VersionServlet("test", 0L),
-        mock(WavePreRenderer.class),
+        wavePreRenderer,
         featureFlagService);
   }
 }

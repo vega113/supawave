@@ -36,11 +36,13 @@ import org.waveprotocol.box.server.rpc.testing.FakeServerRpcController;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.util.testing.TestingConstants;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
+import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.federation.Proto.ProtocolWaveletOperation;
 import org.waveprotocol.wave.model.id.InvalidIdException;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.data.WaveletData;
 
@@ -183,6 +185,55 @@ public class WaveClientRpcImplTest extends TestCase implements TestingConstants 
     });
 
     assertEquals("mentions:me", frontend.lastSearchQuery);
+    assertFalse(controller.failed());
+  }
+
+  public void testOpenNormalizesSearchWaveletFilterWhenPrefixListEmpty() {
+    WaveletName searchWaveletName =
+        searchWaveletManager.computeWaveletName(PARTICIPANT, "mentions:me");
+    ProtocolOpenRequest request = ProtocolOpenRequest.newBuilder()
+        .setParticipantId(USER)
+        .setWaveId(ModernIdSerialiser.INSTANCE.serialiseWaveId(searchWaveletName.waveId))
+        .setSearchQuery("mentions:me")
+        .build();
+
+    rpcImpl.open(controller, request, new RpcCallback<ProtocolWaveletUpdate>() {
+      @Override
+      public void run(ProtocolWaveletUpdate update) {
+      }
+    });
+
+    assertEquals(searchWaveletName.waveId, frontend.lastOpenWaveId);
+    assertNotNull(frontend.lastOpenWaveletIdFilter);
+    assertTrue(IdFilter.accepts(frontend.lastOpenWaveletIdFilter, searchWaveletName.waveletId));
+    assertEquals(1, frontend.lastOpenWaveletIdFilter.getIds().size());
+    assertTrue(frontend.lastOpenWaveletIdFilter.getPrefixes().isEmpty());
+    assertFalse(controller.failed());
+  }
+
+  public void testOpenReplacesSearchWaveletPrefixesWithExactWaveletId() {
+    WaveletName searchWaveletName =
+        searchWaveletManager.computeWaveletName(PARTICIPANT, "mentions:me");
+    WaveletId anotherWaveletId = WaveletId.of(searchWaveletName.waveletId.getDomain(), "conv+other");
+    ProtocolOpenRequest request = ProtocolOpenRequest.newBuilder()
+        .setParticipantId(USER)
+        .setWaveId(ModernIdSerialiser.INSTANCE.serialiseWaveId(searchWaveletName.waveId))
+        .setSearchQuery("mentions:me")
+        .addWaveletIdPrefix("")
+        .build();
+
+    rpcImpl.open(controller, request, new RpcCallback<ProtocolWaveletUpdate>() {
+      @Override
+      public void run(ProtocolWaveletUpdate update) {
+      }
+    });
+
+    assertEquals(searchWaveletName.waveId, frontend.lastOpenWaveId);
+    assertNotNull(frontend.lastOpenWaveletIdFilter);
+    assertTrue(IdFilter.accepts(frontend.lastOpenWaveletIdFilter, searchWaveletName.waveletId));
+    assertFalse(IdFilter.accepts(frontend.lastOpenWaveletIdFilter, anotherWaveletId));
+    assertEquals(1, frontend.lastOpenWaveletIdFilter.getIds().size());
+    assertTrue(frontend.lastOpenWaveletIdFilter.getPrefixes().isEmpty());
     assertFalse(controller.failed());
   }
 

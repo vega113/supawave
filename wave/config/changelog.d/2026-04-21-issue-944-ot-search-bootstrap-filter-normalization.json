@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-21-issue-944-ot-search-bootstrap-filter-normalization",
+  "version": "Unreleased",
+  "date": "2026-04-21",
+  "title": "OT search open requests normalize the live-search wavelet filter",
+  "summary": "Synthetic OT search opens now replace caller-provided wavelet prefixes with the exact computed search wavelet id, so cold search bootstraps register the live subscription before the frontend guard checks it.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Search open RPC requests now normalize their effective wavelet filter to the computed synthetic search wavelet id instead of forwarding arbitrary caller prefixes",
+        "Cold OT-search inbox loads no longer trip the server-side 'Search subscription was not registered' bootstrap failure when the request omitted the synthetic wavelet id"
+      ]
+    }
+  ]
+}

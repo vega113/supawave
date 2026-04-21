@@ -141,8 +141,6 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       controller.setFailed(e.getMessage());
       return;
     }
-    IdFilter waveletIdFilter =
-        IdFilter.of(Collections.<WaveletId>emptySet(), request.getWaveletIdPrefixList());
 
     ParticipantId loggedInUser = asBoxController(controller).getLoggedInUser();
     MDC.put("waveId", waveId.serialise());
@@ -151,9 +149,12 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
     }
     try {
       String searchQuery = request.hasSearchQuery() ? request.getSearchQuery() : null;
-      if (!validateSearchOpenRequest(controller, loggedInUser, waveId, searchQuery)) {
+      WaveletName searchWaveletName = computeSearchWaveletName(loggedInUser, searchQuery);
+      if (!validateSearchOpenRequest(controller, waveId, searchQuery, searchWaveletName)) {
         return;
       }
+      IdFilter waveletIdFilter =
+          normalizeOpenWaveletIdFilter(request, searchWaveletName);
       frontend.openRequest(
           loggedInUser,
           waveId,
@@ -297,24 +298,43 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
     }
   }
 
-  private boolean validateSearchOpenRequest(
-      RpcController controller,
+  @Nullable
+  private WaveletName computeSearchWaveletName(
       @Nullable ParticipantId loggedInUser,
-      WaveId waveId,
       @Nullable String searchQuery) {
     if (searchQuery == null || searchQuery.isEmpty() || searchWaveletManager == null
         || loggedInUser == null) {
+      return null;
+    }
+    return searchWaveletManager.computeWaveletName(loggedInUser, searchQuery);
+  }
+
+  private boolean validateSearchOpenRequest(
+      RpcController controller,
+      WaveId waveId,
+      @Nullable String searchQuery,
+      @Nullable WaveletName searchWaveletName) {
+    if (searchWaveletName == null) {
       return true;
     }
-    WaveletName expectedSearchWaveletName =
-        searchWaveletManager.computeWaveletName(loggedInUser, searchQuery);
-    if (expectedSearchWaveletName.waveId.equals(waveId)) {
+    if (searchWaveletName.waveId.equals(waveId)) {
       return true;
     }
     LOG.warning("Rejecting search open for " + waveId + " query '" + searchQuery
-        + "' expected " + expectedSearchWaveletName.waveId);
+        + "' expected " + searchWaveletName.waveId);
     controller.setFailed("Invalid search query for target wave");
     return false;
+  }
+
+  private IdFilter normalizeOpenWaveletIdFilter(
+      ProtocolOpenRequest request,
+      @Nullable WaveletName searchWaveletName) {
+    if (searchWaveletName == null) {
+      return IdFilter.of(Collections.<WaveletId>emptySet(), request.getWaveletIdPrefixList());
+    }
+    return IdFilter.of(
+        Collections.singleton(searchWaveletName.waveletId),
+        Collections.<String>emptySet());
   }
 
   /** Returns true if the wavelet id represents a synthetic open/marker wavelet. */

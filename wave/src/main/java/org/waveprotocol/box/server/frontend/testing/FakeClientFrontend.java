@@ -42,6 +42,8 @@ import java.util.Map;
   */
 public class FakeClientFrontend implements ClientFrontend, WaveBus.Subscriber {
   public String lastSearchQuery;
+  public WaveId lastOpenWaveId;
+  public IdFilter lastOpenWaveletIdFilter;
 
   private static class SubmitRecord {
     final SubmitRequestListener listener;
@@ -91,6 +93,8 @@ public class FakeClientFrontend implements ClientFrontend, WaveBus.Subscriber {
       Collection<WaveClientRpc.WaveletVersion> knownWavelets, String searchQuery,
       OpenListener openListener) {
     lastSearchQuery = searchQuery;
+    lastOpenWaveId = waveId;
+    lastOpenWaveletIdFilter = waveletIdFilter;
     openListeners.put(waveId, openListener);
   }
 

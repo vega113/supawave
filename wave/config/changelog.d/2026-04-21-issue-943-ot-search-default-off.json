@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-21-issue-943-ot-search-default-off",
+  "version": "PR #947",
+  "date": "2026-04-21",
+  "title": "Fresh local boots keep OT search off by default",
+  "summary": "Fresh local development boots now inherit the existing `search.ot_search_enabled = false` default instead of forcing OT search on, so new local stores avoid the fragile OT bootstrap path unless a developer enables it intentionally.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Fresh local stores now seed `ot-search=false` from the config overlay instead of defaulting the feature on",
+        "Existing persisted stores keep their current OT search setting unchanged"
+      ]
+    }
+  ]
+}

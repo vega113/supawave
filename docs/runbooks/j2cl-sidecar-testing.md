@@ -115,7 +115,7 @@ While the server is running:
 ```bash
 curl -fsS -o /dev/null http://localhost:9900/
 curl -fsS -o /dev/null http://localhost:9900/?view=landing
-curl -fsS http://localhost:9900/ | grep -F 'data-j2cl-root-shell'
+curl -fsS http://localhost:9900/ | grep -F 'webclient/webclient.nocache.js'
 curl -fsS http://localhost:9900/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
 curl -fsS -o /dev/null http://localhost:9900/j2cl-search/index.html
 curl -fsS -o /dev/null http://localhost:9900/j2cl/index.html
@@ -127,9 +127,9 @@ curl -fsS -o /dev/null http://localhost:9900/j2cl-debug/index.html
 
 Expected result:
 
-- `/` renders the J2CL root-shell marker
+- `/` renders the legacy GWT bootstrap asset (`webclient/webclient.nocache.js`)
 - `/?view=landing` returns success
-- `/` and `/?view=j2cl-root` both render the J2CL root-shell marker
+- `/?view=j2cl-root` renders the J2CL root-shell marker
 - `/j2cl-search/index.html` is present
 - `/j2cl/index.html` is present (production sidecar artifact from `Universal/stage`)
 - the J2CL search bundle itself is present and non-placeholder
@@ -147,7 +147,7 @@ Open these in the same signed-in browser session:
 
 On `/`:
 
-- the J2CL root shell boots
+- the legacy GWT bootstrap loads
 - sign-in and sign-out controls remain available
 - the root app remains usable
 
@@ -207,9 +207,9 @@ Expected result:
 ```bash
 bash scripts/worktree-boot.sh --port 9915
 RUNTIME_CONFIG="$(find journal/runtime-config -maxdepth 1 -name '*-port-9915.application.conf' | head -n1)"
-cp "$RUNTIME_CONFIG" /tmp/j2cl-root-bootstrap-off.application.conf
-printf '\nui.j2cl_root_bootstrap_enabled=true\n' >> /tmp/j2cl-root-bootstrap-off.application.conf
-PORT=9915 JAVA_OPTS="-Djava.util.logging.config.file=$PWD/wave/config/wiab-logging.conf -Djava.security.auth.login.config=$PWD/wave/config/jaas.config -Dwave.server.config=/tmp/j2cl-root-bootstrap-off.application.conf" bash scripts/wave-smoke.sh start
+cp "$RUNTIME_CONFIG" /tmp/j2cl-root-bootstrap-on.application.conf
+printf '\nui.j2cl_root_bootstrap_enabled=true\n' >> /tmp/j2cl-root-bootstrap-on.application.conf
+PORT=9915 JAVA_OPTS="-Djava.util.logging.config.file=$PWD/wave/config/wiab-logging.conf -Djava.security.auth.login.config=$PWD/wave/config/jaas.config -Dwave.server.config=/tmp/j2cl-root-bootstrap-on.application.conf" bash scripts/wave-smoke.sh start
 curl -fsS http://localhost:9915/ | grep -F 'data-j2cl-root-shell'
 curl -fsS http://localhost:9915/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
 test "$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:9915/webclient/webclient.nocache.js)" = 200

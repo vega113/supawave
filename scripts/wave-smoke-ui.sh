@@ -46,7 +46,7 @@ j2cl_index_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PO
 sidecar_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/j2cl-search/sidecar/j2cl-sidecar.js || true)
 legacy_status=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:$PORT/webclient/webclient.nocache.js || true)
 
-echo "ROOT=$root_status ROOT_GWT=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing) LANDING=$landing_status J2CL_ROOT=$j2cl_root_status J2CL_ROOT_SHELL=$([[ "$j2cl_root_body" == *'data-j2cl-root-shell'* ]] && echo present || echo missing) J2CL_INDEX=$j2cl_index_status SIDECAR=$sidecar_status WEBCLIENT=$legacy_status"
+echo "ROOT=$root_status ROOT_GWT=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing) ROOT_SHELL=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing) LANDING=$landing_status J2CL_ROOT=$j2cl_root_status J2CL_ROOT_SHELL=$([[ "$j2cl_root_body" == *'data-j2cl-root-shell'* ]] && echo present || echo missing) J2CL_INDEX=$j2cl_index_status SIDECAR=$sidecar_status WEBCLIENT=$legacy_status"
 
 if [[ "${root_status}" == "000" ]]; then
   echo "Server did not start or port not reachable" >&2

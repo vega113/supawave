@@ -186,6 +186,7 @@ check() {
   rm -f "$root_body_file"
   echo "ROOT_STATUS=${root_status:-000}"
   echo "ROOT_GWT=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing)"
+  echo "ROOT_SHELL=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing)"
 
   if [[ "${root_status}" -ne 200 ]]; then
     echo "Unexpected root status: ${root_status}" >&2

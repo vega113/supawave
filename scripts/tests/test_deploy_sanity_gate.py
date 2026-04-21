@@ -22,6 +22,17 @@ class DeploySanityGateTest(unittest.TestCase):
         deploy_script,
     )
 
+    contabo_script = (REPO_ROOT / "deploy" / "contabo" / "deploy.sh").read_text(encoding="utf-8")
+
+    self.assertIn(
+        'local sanity_search_deadline_seconds="${SANITY_SEARCH_DEADLINE_SECONDS:-120}"',
+        contabo_script,
+    )
+    self.assertIn(
+        'local sanity_search_request_timeout_seconds="${SANITY_SEARCH_REQUEST_TIMEOUT_SECONDS:-15}"',
+        contabo_script,
+    )
+
   def test_deploy_fails_when_sanity_credentials_are_missing(self):
     bash_path = find_bash()
     if bash_path is None:

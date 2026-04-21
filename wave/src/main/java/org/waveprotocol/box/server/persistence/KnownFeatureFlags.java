@@ -42,7 +42,7 @@ public final class KnownFeatureFlags {
     defaults.add(new FeatureFlag("task-search", "Enable tasks:me search filter and Tasks toolbar button", true, Collections.emptyMap()));
     defaults.add(new FeatureFlag("mentions-search", "Enable @mention search filter and Mentions toolbar button", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("compact-inline-blips", "Compact inline blip layout at nesting depth", false, Collections.emptyMap()));
-    defaults.add(new FeatureFlag("j2cl-root-bootstrap", "Bootstrap the J2CL root shell on / while keeping /webclient rollback ready", true, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("j2cl-root-bootstrap", "Bootstrap the J2CL root shell on / while keeping /webclient rollback ready", false, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }
 

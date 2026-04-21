@@ -32,12 +32,12 @@ import org.waveprotocol.box.server.persistence.KnownFeatureFlags;
 
 public final class FeatureFlagSeederJ2clBootstrapTest {
   @Test
-  public void knownBootstrapFlagIsRegisteredAndDefaultsOn() throws Exception {
+  public void knownBootstrapFlagIsRegisteredAndDefaultsOff() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     FeatureFlagService service = new FeatureFlagService(store);
     try {
       assertTrue(KnownFeatureFlags.isKnownFlag("j2cl-root-bootstrap"));
-      assertTrue(service.getEnabledFlagNames(null).contains("j2cl-root-bootstrap"));
+      assertFalse(service.getEnabledFlagNames(null).contains("j2cl-root-bootstrap"));
     } finally {
       service.shutdown();
     }

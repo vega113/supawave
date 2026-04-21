@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-21-gwt-default-root",
+  "version": "Unreleased",
+  "date": "2026-04-21",
+  "title": "Legacy GWT is the default root UI again while J2CL remains opt-in",
+  "summary": "The rollback-ready coexistence path remains in place, but fresh/default root bootstrap now points back to the legacy GWT UI until J2CL reaches parity.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Changed the default `j2cl-root-bootstrap` setting back to off so `/` boots the legacy GWT UI again by default",
+        "Kept `/?view=j2cl-root` and the coexistence plumbing available for explicit J2CL testing and rollout work"
+      ]
+    }
+  ]
+}

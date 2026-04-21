@@ -74,8 +74,8 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 - Status: `/statusz/socket` returns websocket/http address info (JSON)
 - HTTP endpoints:
   - `/auth/signin` (GXP-backed login page)
-  - `/` (J2CL root shell by default; operators can set
-    `ui.j2cl_root_bootstrap_enabled=false` to restore the legacy GWT bootstrap)
+  - `/` (legacy GWT bootstrap by default; operators can set
+    `ui.j2cl_root_bootstrap_enabled=true` to switch `/` to the J2CL root shell)
   - `/static/*`, `/render/*`, `/webclient/*`, `/j2cl-search/*`, `/j2cl/*`
     (served by Jetty `ResourceServlet`; the maintained J2CL assets include
     `/j2cl/index.html` and `/j2cl-search/sidecar/j2cl-sidecar.js`)

@@ -401,7 +401,9 @@ public class WaveClientServlet extends HttpServlet {
   }
 
   private String buildJ2clRootShellReturnTarget(HttpServletRequest request) {
-    StringBuilder returnTarget = new StringBuilder("/?view=").append(VIEW_J2CL_ROOT);
+    String requestUri = StringUtils.defaultIfBlank(request.getRequestURI(), "/");
+    StringBuilder returnTarget = new StringBuilder(requestUri).append("?view=")
+        .append(VIEW_J2CL_ROOT);
     // q and wave only flow into the shell as URL-encoded route components here. HtmlRenderer
     // later normalizes the target to a same-origin path and HTML-escapes it before rendering.
     String query = request.getParameter("q");

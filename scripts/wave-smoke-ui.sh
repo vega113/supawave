@@ -3,7 +3,8 @@ set -euo pipefail
 
 # wave-smoke-ui.sh — build (if needed), run briefly, and probe UI endpoints
 # - Starts :wave:run in background
-# - Waits for HTTP 200 from root, verifies the J2CL shell marker, and checks maintained J2CL assets
+# - Waits for HTTP 200 from root, verifies the J2CL shell marker, and checks both
+#   maintained J2CL assets and the rollback-ready /webclient asset
 # - Tails logs on failure; always cleans up the background process
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
@@ -67,7 +68,7 @@ if [[ "$root_body" != *'data-j2cl-root-shell'* ]]; then
 fi
 
 if [[ "$root_body" == *'webclient/webclient.nocache.js'* ]]; then
-  echo "Root page still references the retired webclient bootstrap asset" >&2
+  echo "Root page unexpectedly referenced the legacy bootstrap asset in default J2CL mode" >&2
   tail -n 200 "$RUN_OUT" || true
   exit 1
 fi
@@ -102,8 +103,8 @@ if [[ "$sidecar_status" -ne 200 ]]; then
   exit 1
 fi
 
-if [[ "$legacy_status" -ne 404 ]]; then
-  echo "Retired legacy asset is still reachable: $legacy_status" >&2
+if [[ "$legacy_status" -ne 200 ]]; then
+  echo "Missing coexistence /webclient/webclient.nocache.js asset: $legacy_status" >&2
   tail -n 200 "$RUN_OUT" || true
   exit 1
 fi

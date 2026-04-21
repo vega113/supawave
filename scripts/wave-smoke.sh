@@ -198,7 +198,7 @@ check() {
   fi
 
   if grep -Fq 'webclient/webclient.nocache.js' <<<"$root_body"; then
-    echo "Root page still references retired webclient bootstrap assets" >&2
+    echo "Root page unexpectedly referenced the legacy bootstrap asset in default J2CL mode" >&2
     return 1
   fi
 
@@ -249,8 +249,8 @@ check() {
 
   legacy_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/webclient/webclient.nocache.js" || true)
   echo "WEBCLIENT_STATUS=${legacy_status:-000}"
-  if [[ "${legacy_status}" -ne 404 ]]; then
-    echo "Retired legacy asset is still reachable: /webclient/webclient.nocache.js" >&2
+  if [[ "${legacy_status}" -ne 200 ]]; then
+    echo "Missing coexistence asset: /webclient/webclient.nocache.js" >&2
     return 1
   fi
 }

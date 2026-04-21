@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-21-gwt-j2cl-coexistence-rollback",
+  "version": "Unreleased",
+  "date": "2026-04-21",
+  "title": "J2CL stays the default root while the legacy GWT rollback path is restored",
+  "summary": "Operators can keep the J2CL root shell on `/` by default while still serving the legacy `/webclient/**` assets and flipping `/` back to the GWT bootstrap through the restored rollback control plane.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Restored the `j2cl-root-bootstrap` control plane so fresh installs stay on the J2CL root shell by default but operators can set `ui.j2cl_root_bootstrap_enabled=false` to roll `/` back to the legacy GWT bootstrap",
+        "Put `/webclient/webclient.nocache.js` back into the packaged runtime and local smoke checks so rollback mode remains deployable without a code revert"
+      ]
+    }
+  ]
+}

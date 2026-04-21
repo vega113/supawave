@@ -513,7 +513,9 @@ JakartaIT / unmanagedSources := (JakartaIT / unmanagedSources).value.filterNot {
   // Tests that depend on GWT client/webclient classes excluded from SBT compilation
   p.endsWith("/WaveWebSocketClientTest.java") ||
   p.endsWith("/RemoteWaveViewServiceEmptyUserDataSnapshotTest.java") ||
+  p.endsWith("/WaveletSavingStateTrackerTest.java") ||
   p.endsWith("/FocusBlipSelectorTest.java") ||
+  p.endsWith("/BlipMetaDomImplTest.java") ||
   // Constructor signature changed; exclude until test is updated
   p.endsWith("/WaveClientServletFragmentDefaultsTest.java")
 }
@@ -668,9 +670,7 @@ Universal / mappings ++= {
   }
   // war/ -> war/
   val warDir = base / "war"
-  val warFiles = (warDir ** "*").get.filter(_.isFile).filterNot { f =>
-    IO.relativize(warDir, f).exists(_.startsWith("webclient/"))
-  }.map { f =>
+  val warFiles = (warDir ** "*").get.filter(_.isFile).map { f =>
     f -> ("war/" + IO.relativize(warDir, f).get)
   }
   // Root docs
@@ -1170,9 +1170,9 @@ Compile / compile := (Compile / compile)
   // generateGxp removed — GXP replaced by HtmlRenderer
   .value
 
-// Ensure `run` has a config in place and both maintained J2CL assets are
-// rebuilt before launching the server.
-Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild).evaluated
+// Ensure `run` has a config in place and both browser runtimes are rebuilt
+// before launching the server.
+Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild, compileGwt).evaluated
 
 // =============================================================================
 // Phase 6: GWT Compilation Bridge
@@ -1383,8 +1383,8 @@ compileGwt := (compileGwt).dependsOn(Compile / compile).value
 devCompile := (Compile / compile).value
 compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
-Universal / stage := (Universal / stage).dependsOn(j2clRuntimeBuild).value
-Universal / packageBin := (Universal / packageBin).dependsOn(j2clRuntimeBuild).value
+Universal / stage := (Universal / stage).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value
+Universal / packageBin := (Universal / packageBin).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value
 
 cleanFiles += baseDirectory.value / "war" / "webclient"
 cleanFiles += baseDirectory.value / "war" / "org"

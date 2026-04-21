@@ -54,31 +54,31 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
   - `prepareServerConfig` still bootstraps the root `config/` directory because
     some runtime helpers expect those copies even though the default `sbt run`
     java options point at `wave/config/`.
-  - `sbt run` also rebuilds the maintained J2CL root shell, the J2CL search-sidecar
-    asset, and the production `/j2cl/**` asset tree so the runtime does not
-    depend on leftover `war/j2cl-search/` or `webclient/` files.
+  - `sbt run` also rebuilds the maintained J2CL root shell, the J2CL
+    search-sidecar asset, the production `/j2cl/**` asset tree, and the legacy
+    `/webclient/**` asset tree so the runtime does not depend on leftover
+    browser artifacts under `war/`.
   - To override, replace the relevant `Compile / javaOptions` entry with your
     own absolute path.
 
-- Build the maintained J2CL assets:
+- Build or refresh the browser assets:
   - `sbt j2clSearchBuild`
   - `sbt j2clProductionBuild`
-  - `sbt run` rebuilds the J2CL root shell, the J2CL search-sidecar asset,
-    and the production `/j2cl/**` asset tree before launch.
-  - `Universal/stage` and `Universal/packageBin` already depend on the
-    maintained J2CL build tasks.
-  - `compileGwt` still exists as a manual legacy bridge for the retired
-    authenticated GWT client path, but it is no longer part of the default
-    run/package flow.
+  - `sbt compileGwt`
+  - `sbt run` rebuilds both the maintained J2CL assets and the rollback-ready
+    `/webclient/**` asset tree before launch.
+  - `Universal/stage` and `Universal/packageBin` depend on both the maintained
+    J2CL build tasks and `compileGwt`.
 
 - WebSocket endpoint: `/socket` via JSR 356. Socket.IO `/socket.io/*` is disabled.
 - Status: `/statusz/socket` returns websocket/http address info (JSON)
 - HTTP endpoints:
   - `/auth/signin` (GXP-backed login page)
-  - `/` (J2CL root shell; signed-out requests still render the shell with a sign-in entry)
-  - `/static/*`, `/render/*`, `/j2cl-search/*`, `/j2cl/*` (served by Jetty
-    `ResourceServlet`; the maintained J2CL assets include `/j2cl/index.html`
-    and `/j2cl-search/sidecar/j2cl-sidecar.js`)
+  - `/` (J2CL root shell by default; operators can set
+    `ui.j2cl_root_bootstrap_enabled=false` to restore the legacy GWT bootstrap)
+  - `/static/*`, `/render/*`, `/webclient/*`, `/j2cl-search/*`, `/j2cl/*`
+    (served by Jetty `ResourceServlet`; the maintained J2CL assets include
+    `/j2cl/index.html` and `/j2cl-search/sidecar/j2cl-sidecar.js`)
   - `/static/ws-test.html` (simple page to test WebSocket handshake at `/socket`)
 
 - Package fat JAR:
@@ -111,9 +111,9 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
 
 ## Notes
 
-- The legacy GWT client path is retained only as a manual bridge task via
-  `compileGwt`; the supported run/package flow uses the J2CL build tasks
-  described above.
+- `compileGwt` is part of the supported coexistence flow again so operators can
+  keep the legacy `/webclient/**` rollback path packaged without leaving `/`
+  on the J2CL default.
 - Jetty gzip: migrated from deprecated `GzipFilter` to `GzipHandler`.
 - SBT automatically stages protobuf sources before `PB.generate`:
   - `.protodevel` files are rewritten into `target/proto-pb-src` as `.proto`.
@@ -136,7 +136,7 @@ legacy `javax` / Jetty 9.4 fallback has been retired.
 - Endpoints:
   - `/statusz/socket` (JSON status)
   - `/socket` (JSR 356 WebSocket)
-  - `/static/*`, `/j2cl-search/*`, `/j2cl/*`, `/render/*` (static)
+  - `/static/*`, `/webclient/*`, `/j2cl-search/*`, `/j2cl/*`, `/render/*` (static)
   - `/auth/signin`, `/` (login + client page)
   - `/search/*` (search API), `/searches` (saved queries), `/notification/*`
     (digests)
@@ -158,7 +158,7 @@ persistence/migration.
     - `WebSocketRegistrar` (Jetty impl registers `/socket` endpoint)
     - `HttpHandlerConfigurer` (Jetty impl wires gzip + handler chain)
     - `ServletMappingsConfigurer` (Jetty impl registers `/static/*`,
-      `/j2cl-search/*`, `/j2cl/*`, `/render/*`)
+      `/webclient/*`, `/j2cl-search/*`, `/j2cl/*`, `/render/*`)
   - Shims: `gen/shims/` minimal stand-ins for client types the shared server code
     references.
   - Provided shims:

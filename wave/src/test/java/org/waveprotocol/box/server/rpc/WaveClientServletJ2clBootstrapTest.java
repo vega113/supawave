@@ -107,6 +107,24 @@ public final class WaveClientServletJ2clBootstrapTest {
   }
 
   @Test
+  public void signedOutRootBootsIntoJ2clShellWhenBootstrapFlagIsOn() throws Exception {
+    WaveClientServlet servlet = createServlet(null, true);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getSession(false)).thenReturn(null);
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    String html = body.toString();
+    assertTrue(html.contains("data-j2cl-root-shell"));
+    assertTrue(html.contains("data-j2cl-root-signin=\"true\""));
+    assertFalse(html.contains("webclient/webclient.nocache.js"));
+  }
+
+  @Test
   public void explicitLandingRouteStillUsesLandingPage() throws Exception {
     WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"), false);
     HttpServletRequest request = mock(HttpServletRequest.class);

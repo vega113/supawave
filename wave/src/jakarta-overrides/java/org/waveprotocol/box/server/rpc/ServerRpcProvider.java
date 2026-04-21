@@ -581,30 +581,44 @@ public class ServerRpcProvider {
             }
             context.addServlet(staticHolder, "/static/*");
 
-            ServletHolder webclientHolder =
-                new ServletHolder("jakarta-webclient", ResourceServlet.class);
-            webclientHolder.setInitParameter("etags", "true");
-            webclientHolder.setInitParameter("cacheControl",
-                "no-cache, no-store, must-revalidate");
-            webclientHolder.setInitParameter("dirAllowed", "false");
+            Resource resolvedWebclientResource = null;
             if (webclientResource != null && webclientResource.exists()) {
-                webclientHolder.setInitParameter("baseResource",
-                    webclientResource.getURI().toString());
-                LOG.info("Serving /webclient from " + webclientResource);
+                resolvedWebclientResource = webclientResource;
             } else if (baseResource != null) {
                 Resource fallback = baseResource.resolve("webclient/");
                 if (fallback != null && fallback.exists()) {
-                    webclientHolder.setInitParameter("baseResource",
-                        fallback.getURI().toString());
-                } else {
-                    webclientHolder.setInitParameter("baseResource",
-                        baseResource.getURI().toString());
+                    resolvedWebclientResource = fallback;
+                    LOG.warning("Falling back to constrained webclient resource for /webclient: "
+                        + fallback.getURI().toString());
                 }
-                LOG.warning(
-                    "Falling back to base resource for /webclient: "
-                        + webclientHolder.getInitParameter("baseResource"));
             }
-            context.addServlet(webclientHolder, "/webclient/*");
+
+            if (resolvedWebclientResource != null) {
+                ServletHolder webclientHolder =
+                    new ServletHolder("jakarta-webclient", ResourceServlet.class);
+                webclientHolder.setInitParameter("etags", "true");
+                webclientHolder.setInitParameter("cacheControl",
+                    "no-cache, no-store, must-revalidate");
+                webclientHolder.setInitParameter("dirAllowed", "false");
+                webclientHolder.setInitParameter("baseResource",
+                    resolvedWebclientResource.getURI().toString());
+                LOG.info("Serving /webclient from " + resolvedWebclientResource);
+                context.addServlet(webclientHolder, "/webclient/*");
+            } else {
+                LOG.warning("No webclient resource found; /webclient will return 404");
+                ServletHolder missingWebclientHolder =
+                    new ServletHolder("jakarta-webclient-missing", new HttpServlet() {
+                        @Override
+                        protected void service(
+                            jakarta.servlet.http.HttpServletRequest req,
+                            jakarta.servlet.http.HttpServletResponse resp) throws IOException {
+                            resp.sendError(
+                                jakarta.servlet.http.HttpServletResponse.SC_NOT_FOUND,
+                                "Webclient resources are not available on this server.");
+                        }
+                    });
+                context.addServlet(missingWebclientHolder, "/webclient/*");
+            }
 
             addJ2clServlet(context, "jakarta-j2cl-search", j2clSearchResource, "/j2cl-search", "/j2cl-search/*");
             addJ2clServlet(context, "jakarta-j2cl-debug", j2clDebugResource, "/j2cl-debug", "/j2cl-debug/*");

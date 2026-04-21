@@ -171,7 +171,7 @@ public class WaveClientServlet extends HttpServlet {
     }
 
     AccountData account = id != null ? sessionManager.getLoggedInAccount(session) : null;
-    if (account != null) {
+    if (account != null && account.isHuman()) {
       String locale = account.asHuman().getLocale();
       if (locale != null) {
         String requestLocale = UrlParameters.getParameters(request.getQueryString()).get("locale");

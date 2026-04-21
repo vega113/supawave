@@ -542,7 +542,19 @@ public class ServerRpcProvider {
                 staticResource = resolveResource(ResourceFactory.of(context), "static");
             }
             if ((webclientResource == null || !webclientResource.exists()) && resourceBases != null) {
-                webclientResource = resolveResource(ResourceFactory.of(context), "webclient");
+                // Constrain fallback to configured resourceBases only — process-relative
+                // resolution via ResourceFactory.of(context) can accidentally match unrelated
+                // directories (e.g. the source webclient/ tree at repo root).
+                ResourceFactory rf = ResourceFactory.of(context);
+                for (String base : resourceBases) {
+                    Resource baseRes = resolveResource(rf, base);
+                    if (baseRes == null || !baseRes.exists()) continue;
+                    Resource candidate = baseRes.resolve("webclient/");
+                    if (candidate != null && candidate.exists()) {
+                        webclientResource = candidate;
+                        break;
+                    }
+                }
             }
             // J2CL sidecar resources are opt-in build artifacts: only serve them if they
             // were explicitly built under war/j2cl-*.  No resolveResource fallback here —

@@ -103,20 +103,54 @@ public final class FeatureFlagSeederJ2clBootstrapTest {
   }
 
   @Test
-  public void reconcileAppliesExplicitJ2clRootBootstrapOverride() throws Exception {
+  public void reconcileExplicitFalseOverrideClearsStoredAllowedUsers() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    Map<String, Boolean> allowedUsers = new LinkedHashMap<>();
+    allowedUsers.put("admin@example.com", true);
     store.save(
         new FeatureFlag(
             "j2cl-root-bootstrap",
             "Bootstrap the J2CL root shell on / while keeping /webclient rollback ready",
             true,
-            new LinkedHashMap<>()));
+            allowedUsers));
 
     FeatureFlagSeeder.reconcileJ2clRootBootstrapFeatureFlag(
         store, ConfigFactory.parseString("ui.j2cl_root_bootstrap_enabled = false"));
 
     FeatureFlag flag = store.get("j2cl-root-bootstrap");
+    FeatureFlagService service = new FeatureFlagService(store);
+    try {
+      assertFalse(flag.isEnabled());
+      assertTrue(flag.getAllowedUsers().isEmpty());
+      assertFalse(service.isEnabled("j2cl-root-bootstrap", "admin@example.com"));
+    } finally {
+      service.shutdown();
+    }
+  }
 
-    assertFalse(flag.isEnabled());
+  @Test
+  public void reconcileExplicitTrueOverrideClearsStoredAllowedUsers() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    Map<String, Boolean> allowedUsers = new LinkedHashMap<>();
+    allowedUsers.put("admin@example.com", false);
+    store.save(
+        new FeatureFlag(
+            "j2cl-root-bootstrap",
+            "Bootstrap the J2CL root shell on / while keeping /webclient rollback ready",
+            false,
+            allowedUsers));
+
+    FeatureFlagSeeder.reconcileJ2clRootBootstrapFeatureFlag(
+        store, ConfigFactory.parseString("ui.j2cl_root_bootstrap_enabled = true"));
+
+    FeatureFlag flag = store.get("j2cl-root-bootstrap");
+    FeatureFlagService service = new FeatureFlagService(store);
+    try {
+      assertTrue(flag.isEnabled());
+      assertTrue(flag.getAllowedUsers().isEmpty());
+      assertTrue(service.isEnabled("j2cl-root-bootstrap", "admin@example.com"));
+    } finally {
+      service.shutdown();
+    }
   }
 }

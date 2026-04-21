@@ -99,7 +99,7 @@ public final class FeatureFlagSeeder {
       return;
     }
 
-    if (existing.isEnabled() != enabled) {
+    if (existing.isEnabled() != enabled || !existing.getAllowedUsers().isEmpty()) {
       store.save(
           new FeatureFlag(
               J2CL_ROOT_BOOTSTRAP_FLAG_NAME,
@@ -107,7 +107,7 @@ public final class FeatureFlagSeeder {
                   ? J2CL_ROOT_BOOTSTRAP_DESCRIPTION
                   : existing.getDescription(),
               enabled,
-              existing.getAllowedUsers()));
+              Collections.emptyMap()));
       LOG.info(
           "Reconciled j2cl-root-bootstrap feature flag from startup config: enabled=" + enabled);
     }

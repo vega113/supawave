@@ -505,19 +505,14 @@ JakartaIT / unmanagedSourceDirectories := Seq(
 JakartaIT / unmanagedResourceDirectories := Seq(
   baseDirectory.value / "wave" / "src" / "jakarta-test" / "resources"
 )
-// Exclude the same files as JakartaTest from compilation
-JakartaIT / unmanagedSources := (JakartaIT / unmanagedSources).value.filterNot { f =>
+// Compile only the server-side Jakarta IT tree in this config. Client-side Jakarta
+// tests live in the same source root but are not part of the JakartaIT allowlist.
+JakartaIT / unmanagedSources := (JakartaIT / unmanagedSources).value.filter { f =>
   val p = f.getPath.replace('\\', '/')
-  p.endsWith("/WaveWebSocketEndpointInitGuardTest.java") ||
-  p.endsWith("/DataApiOAuthServletJakartaIT.java") ||
-  // Tests that depend on GWT client/webclient classes excluded from SBT compilation
-  p.endsWith("/WaveWebSocketClientTest.java") ||
-  p.endsWith("/RemoteWaveViewServiceEmptyUserDataSnapshotTest.java") ||
-  p.endsWith("/WaveletSavingStateTrackerTest.java") ||
-  p.endsWith("/FocusBlipSelectorTest.java") ||
-  p.endsWith("/BlipMetaDomImplTest.java") ||
-  // Constructor signature changed; exclude until test is updated
-  p.endsWith("/WaveClientServletFragmentDefaultsTest.java")
+  p.contains("/org/waveprotocol/box/server/jakarta/")
+}.filterNot { f =>
+  val p = f.getPath.replace('\\', '/')
+  p.endsWith("/WaveWebSocketEndpointInitGuardTest.java")
 }
 // Only run the explicit IT allowlist (Gradle lines 1047-1058)
 JakartaIT / testOptions += Tests.Filter { name =>

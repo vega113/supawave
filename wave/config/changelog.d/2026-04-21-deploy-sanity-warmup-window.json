@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-21-deploy-sanity-warmup-window",
+  "version": "Unreleased",
+  "date": "2026-04-21",
+  "title": "Cold blue-green deploy slots get a longer inbox sanity warmup window",
+  "summary": "Deploy sanity checks now tolerate the slower first inbox search on a cold slot so healthy releases are not rejected during blue-green warmup.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Extended the deploy inbox-search sanity window for cold blue-green slots instead of failing after the previous 60 second assumption",
+        "Made the deploy search deadline and per-request timeout configurable so operators can tune the warmup gate without patching the script again"
+      ]
+    }
+  ]
+}

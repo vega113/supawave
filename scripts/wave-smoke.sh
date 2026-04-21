@@ -179,14 +179,16 @@ status() {
 
 check() {
   local root_body_file root_body j2cl_root_body_file j2cl_root_body legacy_status
+  local root_gwt_presence j2cl_root_shell_presence
 
   root_body_file=$(mktemp)
   root_status=$(curl -sS --max-time 10 -o "$root_body_file" -w "%{http_code}" "http://localhost:$PORT/" || true)
   root_body=$(cat "$root_body_file" 2>/dev/null || true)
   rm -f "$root_body_file"
+  root_gwt_presence=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing)
   echo "ROOT_STATUS=${root_status:-000}"
-  echo "ROOT_GWT=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing)"
-  echo "ROOT_SHELL=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing)"
+  echo "ROOT_GWT=${root_gwt_presence}"
+  echo "ROOT_SHELL=${root_gwt_presence}"
 
   if [[ "${root_status}" -ne 200 ]]; then
     echo "Unexpected root status: ${root_status}" >&2
@@ -222,8 +224,9 @@ check() {
   j2cl_root_status=$(curl -sS --max-time 10 -o "$j2cl_root_body_file" -w "%{http_code}" "http://localhost:$PORT/?view=j2cl-root" || true)
   j2cl_root_body=$(cat "$j2cl_root_body_file" 2>/dev/null || true)
   rm -f "$j2cl_root_body_file"
+  j2cl_root_shell_presence=$([[ "$j2cl_root_body" == *'data-j2cl-root-shell'* ]] && echo present || echo missing)
   echo "J2CL_ROOT_STATUS=${j2cl_root_status:-000}"
-  echo "J2CL_ROOT_SHELL=$([[ "$j2cl_root_body" == *'data-j2cl-root-shell'* ]] && echo present || echo missing)"
+  echo "J2CL_ROOT_SHELL=${j2cl_root_shell_presence}"
   if [[ "${j2cl_root_status}" -ne 200 ]]; then
     echo "Unexpected J2CL root status: ${j2cl_root_status}" >&2
     return 1

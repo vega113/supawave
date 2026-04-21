@@ -88,6 +88,7 @@ if [[ "${1-}" != "check" ]]; then
 fi
 
 printf '%s\n' "${TEST_SMOKE_OUTPUT:-ROOT_STATUS=200
+ROOT_GWT=present
 ROOT_SHELL=present
 HEALTH_STATUS=200
 LANDING_STATUS=200
@@ -95,7 +96,7 @@ J2CL_ROOT_STATUS=200
 J2CL_ROOT_SHELL=present
 J2CL_INDEX_STATUS=200
 SIDECAR_STATUS=200
-WEBCLIENT_STATUS=404}"
+WEBCLIENT_STATUS=200}"
 exit "${TEST_SMOKE_EXIT:-0}"
 EOF
   chmod +x "${repo_root}/scripts/wave-smoke.sh"
@@ -167,8 +168,9 @@ run_bundle_shape_case() {
   assert_contains "${output}" '`GET /j2cl/index.html` -> `200`'
   assert_contains "${output}" '`GET /j2cl-search/sidecar/j2cl-sidecar.js` -> `200`'
   assert_contains "${output}" 'Smoke exit: `0`'
+  assert_contains "${output}" 'ROOT_GWT=present'
   assert_contains "${output}" 'ROOT_SHELL=present'
-  assert_contains "${output}" 'WEBCLIENT_STATUS=404'
+  assert_contains "${output}" 'WEBCLIENT_STATUS=200'
   assert_contains "${output}" "Runtime config: ${repo_root}/journal/runtime-config/issue-587-worktree-diagnostics-20260412-port-9904.application.conf"
   assert_contains "${output}" "Evidence file: ${repo_root}/journal/local-verification/${prior_date}-issue-587-worktree-diagnostics-20260412.md"
   assert_contains "${output}" "startup line 2"

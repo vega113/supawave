@@ -127,7 +127,7 @@ curl -fsS -o /dev/null http://localhost:9900/j2cl-debug/index.html
 
 Expected result:
 
-- `/` renders the legacy GWT bootstrap asset (`webclient/webclient.nocache.js`)
+- `/` renders the legacy GWT bootstrap marker
 - `/?view=landing` returns success
 - `/?view=j2cl-root` renders the J2CL root-shell marker
 - `/j2cl-search/index.html` is present
@@ -147,7 +147,7 @@ Open these in the same signed-in browser session:
 
 On `/`:
 
-- the legacy GWT bootstrap loads
+- the legacy GWT bootstrap page boots
 - sign-in and sign-out controls remain available
 - the root app remains usable
 

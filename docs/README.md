@@ -62,6 +62,8 @@ Split of responsibility:
 - [`j2cl-parity-architecture.md`](j2cl-parity-architecture.md)
 - [`j2cl-lit-implementation-workflow.md`](j2cl-lit-implementation-workflow.md)
 - [`j2cl-parity-issue-map.md`](j2cl-parity-issue-map.md)
+- [`j2cl-gwt-parity-matrix.md`](j2cl-gwt-parity-matrix.md)
+- [`j2cl-parity-slice-packet-template.md`](j2cl-parity-slice-packet-template.md)
 
 ## Ledgers
 

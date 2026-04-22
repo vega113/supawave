@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-22-j2cl-parity-matrix",
+  "version": "Issue #961",
+  "date": "2026-04-22",
+  "title": "The J2CL GWT parity matrix and slice packet template freeze the acceptance contract for every downstream parity slice",
+  "summary": "A committed GWT parity matrix now defines, per target flow/surface, the behaviors the J2CL client must match before any default-root cutover can be reconsidered. A per-slice packet template makes every downstream parity issue declare its rollout seam, verification plan, telemetry checkpoints, and traceability back to the matrix.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added docs/j2cl-gwt-parity-matrix.md as the parity acceptance contract covering read, live, compose, server-first, and viewport-fragment surfaces with stable row anchors that downstream slices cite",
+        "Added docs/j2cl-parity-slice-packet-template.md with a structured packet every parity slice must fill in, plus a worked example for the StageOne read-surface slice"
+      ]
+    }
+  ]
+}

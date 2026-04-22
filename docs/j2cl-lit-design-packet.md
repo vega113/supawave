@@ -437,7 +437,10 @@ Downstream component slices inherit these rules without re-derivation.
 - `focus-ring-style` is never the sole indicator of selection; pair it
   with `selection-indicator-style` and/or a text affordance.
 - Every variant in §5.\* that exposes an interactive control must carry
-  a reachable label and an announced role. Overlays must not trap focus.
+  a reachable label and an announced role.
+- Modal overlays (e.g., modal dialogs) must trap focus while open and
+  restore focus to the trigger element on close. Non-modal overlays must
+  not trap focus and must allow the normal tab order to continue.
 - Server-rendered read-only HTML (§5.6) must be AT-usable on its own, per
   matrix row `R-6.1`.
 

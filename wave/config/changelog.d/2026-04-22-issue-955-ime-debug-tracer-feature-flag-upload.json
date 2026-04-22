@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-22-issue-955-ime-debug-tracer-feature-flag-upload",
+  "version": "Unreleased",
+  "date": "2026-04-22",
+  "title": "IME tracer feature-flag enablement and server log upload",
+  "summary": "Turns the Android IME diagnostic tracer into a real per-user feature-flagged tool instead of a URL/localStorage-only toggle, and restores the remote logging path so tracer output can be forwarded back to the server for authenticated debugging sessions.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Registered the IME diagnostic tracer as a known feature flag so admins can enable it per user",
+        "Updated the client tracer to honor the feature flag in addition to the legacy local URL/localStorage override",
+        "Restored the /webclient/remote_logging servlet mapping and forwarded IME tracer lines there as authenticated text/plain uploads",
+        "Server-side remote logging now records uploaded plain-text trace lines individually with user context instead of collapsing a whole batch into one summary line"
+      ]
+    }
+  ]
+}

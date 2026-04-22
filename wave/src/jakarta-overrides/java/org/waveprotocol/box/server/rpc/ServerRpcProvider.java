@@ -636,6 +636,7 @@ public class ServerRpcProvider {
             addJ2clServlet(context, "jakarta-j2cl-debug", j2clDebugResource, "/j2cl-debug", "/j2cl-debug/*");
             addJ2clServlet(context, "jakarta-j2cl", j2clResource, "/j2cl", "/j2cl/*");
 
+            addServlet(RemoteLoggingJakartaServlet.REMOTE_LOGGING_URL, org.waveprotocol.box.server.rpc.RemoteLoggingJakartaServlet.class);
             addServlet(org.waveprotocol.box.stat.StatService.STAT_URL, org.waveprotocol.box.server.stat.StatuszJakartaServlet.class);
             addServlet("/metrics", org.waveprotocol.box.server.stat.MetricsPrometheusServlet.class);
 

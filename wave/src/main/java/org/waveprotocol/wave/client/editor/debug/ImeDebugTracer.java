@@ -66,14 +66,15 @@ import com.google.gwt.dom.client.Text;
  * should reveal which link in the pipeline is actually dropping characters.
  */
 public final class ImeDebugTracer {
+  private static final String FEATURE_FLAG_NAME = "ime-debug-tracer";
+  private static final String FLAG_ON = "on";
+  private static final String REMOTE_LOGGING_URL = "/webclient/remote_logging";
+  private static final int MAX_OVERLAY_LINES = 200;
+  private static final int MAX_FIELD_LEN = 120;
 
   private ImeDebugTracer() {
     // Utility.
   }
-
-  private static final String FLAG_ON = "on";
-  private static final int MAX_OVERLAY_LINES = 200;
-  private static final int MAX_FIELD_LEN = 120;
 
   private static boolean initialized = false;
   private static boolean enabled = false;
@@ -83,6 +84,8 @@ public final class ImeDebugTracer {
   public static boolean isEnabled() {
     if (!initialized) {
       initialize();
+    } else if (!enabled) {
+      refreshEnabledState();
     }
     return enabled;
   }
@@ -91,14 +94,30 @@ public final class ImeDebugTracer {
     initialized = true;
     try {
       syncFlagFromUrlJsni();
-      enabled = FLAG_ON.equals(readFlagJsni());
-      if (enabled) {
-        baselineMs = nowMsJsni();
-        installGlobalEventListenersJsni(baselineMs);
-        ensureOverlayJsni();
-      }
+      refreshEnabledState();
     } catch (Throwable t) {
       enabled = false;
+    }
+  }
+
+  private static void refreshEnabledState() {
+    if (enabled) {
+      return;
+    }
+    if (!isSessionFlagEnabled() && !FLAG_ON.equals(readFlagJsni())) {
+      return;
+    }
+    enabled = true;
+    baselineMs = nowMsJsni();
+    installGlobalEventListenersJsni(baselineMs);
+    ensureOverlayJsni();
+  }
+
+  private static boolean isSessionFlagEnabled() {
+    try {
+      return hasSessionFeatureJsni(FEATURE_FLAG_NAME);
+    } catch (Throwable t) {
+      return false;
     }
   }
 
@@ -261,6 +280,7 @@ public final class ImeDebugTracer {
       String line = buf.toString();
       consoleLogJsni(line);
       appendToOverlayJsni(line);
+      queueRemoteLogJsni(line);
     }
   }
 
@@ -293,6 +313,20 @@ public final class ImeDebugTracer {
       return $wnd.localStorage.getItem("ime_debug") || "";
     } catch (e) {
       return "";
+    }
+  }-*/;
+
+  private static native boolean hasSessionFeatureJsni(String name) /*-{
+    try {
+      var session = $wnd.__session;
+      var features = session && session.features;
+      if (!features || !features.length) return false;
+      for (var i = 0; i < features.length; i++) {
+        if (features[i] === name) return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
     }
   }-*/;
 
@@ -366,6 +400,7 @@ public final class ImeDebugTracer {
         msg += ' sel=' + describeSelection();
         if ($wnd.console && $wnd.console.log) { $wnd.console.log('[IME-DBG] ' + msg); }
         @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::appendToOverlayJsniBridge(Ljava/lang/String;)(msg);
+        @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::queueRemoteLogJsniBridge(Ljava/lang/String;)(msg);
       } catch (err) {
         // swallow
       }
@@ -383,6 +418,12 @@ public final class ImeDebugTracer {
   @SuppressWarnings("unused")
   private static void appendToOverlayJsniBridge(String msg) {
     appendToOverlayJsni(msg);
+  }
+
+  /** Callable from JSNI so the global event listeners can queue remote logs too. */
+  @SuppressWarnings("unused")
+  private static void queueRemoteLogJsniBridge(String msg) {
+    queueRemoteLogJsni(msg);
   }
 
   private static native void ensureOverlayJsni() /*-{
@@ -444,6 +485,64 @@ public final class ImeDebugTracer {
         ov.removeChild(ov.firstChild);
       }
       ov.scrollTop = ov.scrollHeight;
+    } catch (e) {
+      // swallow
+    }
+  }-*/;
+
+  private static native void queueRemoteLogJsni(String line) /*-{
+    try {
+      var w = $wnd;
+      var state = w.__imeDebugRemoteLogState;
+      if (!state) {
+        state = {
+          queue: [],
+          queuedChars: 0,
+          timer: null,
+          inFlight: false
+        };
+        w.__imeDebugRemoteLogState = state;
+      }
+
+      function flush() {
+        if (state.timer) {
+          w.clearTimeout(state.timer);
+          state.timer = null;
+        }
+        if (state.inFlight || !state.queue.length) {
+          return;
+        }
+
+        state.inFlight = true;
+        var payload = state.queue.join('\n');
+        state.queue = [];
+        state.queuedChars = 0;
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::REMOTE_LOGGING_URL, true);
+        xhr.withCredentials = true;
+        xhr.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState !== 4) {
+            return;
+          }
+          state.inFlight = false;
+          if (state.queue.length) {
+            flush();
+          }
+        };
+        xhr.send(payload);
+      }
+
+      state.queue.push(line);
+      state.queuedChars += (line ? line.length : 0) + 1;
+      if (state.queuedChars >= 4096 || state.queue.length >= 20) {
+        flush();
+        return;
+      }
+      if (!state.timer) {
+        state.timer = w.setTimeout(flush, 750);
+      }
     } catch (e) {
       // swallow
     }

@@ -68,13 +68,14 @@ import com.google.gwt.dom.client.Text;
 public final class ImeDebugTracer {
   private static final String FEATURE_FLAG_NAME = "ime-debug-tracer";
   private static final String FLAG_ON = "on";
-  private static final String REMOTE_LOGGING_URL = "/webclient/remote_logging";
+  private static final String REMOTE_LOGGING_PATH = "webclient/remote_logging";
   private static final int MAX_OVERLAY_LINES = 200;
   private static final int MAX_FIELD_LEN = 120;
   private static final int ENABLE_REFRESH_RETRY_INTERVAL_MS = 1000;
   private static final int REMOTE_UPLOAD_MAX_BATCH_CHARS = 4096;
   private static final int REMOTE_UPLOAD_MAX_BATCH_LINES = 20;
   private static final int REMOTE_UPLOAD_DELAY_MS = 750;
+  private static final int REMOTE_UPLOAD_TIMEOUT_MS = 10000;
 
   private ImeDebugTracer() {
     // Utility.
@@ -543,19 +544,30 @@ public final class ImeDebugTracer {
         state.queuedChars = 0;
 
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::REMOTE_LOGGING_URL, true);
+        xhr.open('POST', @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::REMOTE_LOGGING_PATH, true);
         xhr.withCredentials = true;
+        xhr.timeout = @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::REMOTE_UPLOAD_TIMEOUT_MS;
         xhr.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState !== 4) {
-            return;
-          }
+        function finish() {
           state.inFlight = false;
           if (state.queue.length) {
             flush();
           }
+        }
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState !== 4) {
+            return;
+          }
+          finish();
         };
-        xhr.send(payload);
+        xhr.onerror = finish;
+        xhr.onabort = finish;
+        xhr.ontimeout = finish;
+        try {
+          xhr.send(payload);
+        } catch (e) {
+          finish();
+        }
       }
 
       state.queue.push(line);

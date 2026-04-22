@@ -569,7 +569,12 @@ public final class ImeDebugTracer {
         xhr.withCredentials = true;
         xhr.timeout = @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::REMOTE_UPLOAD_TIMEOUT_MS;
         xhr.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
+        var finished = false;
         function finish() {
+          if (finished) {
+            return;
+          }
+          finished = true;
           state.inFlight = false;
           if (state.queue.length) {
             flush();

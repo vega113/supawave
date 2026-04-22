@@ -85,6 +85,7 @@ public final class ImeDebugTracer {
 
   private static boolean initialized = false;
   private static boolean enabled = false;
+  private static boolean remoteUploadEnabled = false;
   private static double baselineMs = 0.0;
   private static double nextRefreshAttemptMs = 0.0;
 
@@ -112,10 +113,12 @@ public final class ImeDebugTracer {
     if (enabled) {
       return;
     }
-    if (!isSessionFlagEnabled() && !FLAG_ON.equals(readFlagJsni())) {
+    boolean sessionEnabled = isSessionFlagEnabled();
+    if (!sessionEnabled && !FLAG_ON.equals(readFlagJsni())) {
       return;
     }
     enabled = true;
+    remoteUploadEnabled = sessionEnabled;
     nextRefreshAttemptMs = 0.0;
     baselineMs = nowMsJsni();
     installGlobalEventListenersJsni(baselineMs);
@@ -298,13 +301,15 @@ public final class ImeDebugTracer {
       String line = buf.toString();
       consoleLogJsni(line);
       appendToOverlayJsni(line);
-      queueRemoteLogJsni(
-          line,
-          REMOTE_UPLOAD_MAX_BATCH_CHARS,
-          REMOTE_UPLOAD_MAX_BATCH_LINES,
-          REMOTE_UPLOAD_DELAY_MS,
-          REMOTE_UPLOAD_MAX_QUEUE_LINES,
-          REMOTE_UPLOAD_MAX_QUEUE_CHARS);
+      if (remoteUploadEnabled) {
+        queueRemoteLogJsni(
+            line,
+            REMOTE_UPLOAD_MAX_BATCH_CHARS,
+            REMOTE_UPLOAD_MAX_BATCH_LINES,
+            REMOTE_UPLOAD_DELAY_MS,
+            REMOTE_UPLOAD_MAX_QUEUE_LINES,
+            REMOTE_UPLOAD_MAX_QUEUE_CHARS);
+      }
     }
   }
 
@@ -447,6 +452,9 @@ public final class ImeDebugTracer {
   /** Callable from JSNI so the global event listeners can queue remote logs too. */
   @SuppressWarnings("unused")
   private static void queueRemoteLogJsniBridge(String msg) {
+    if (!remoteUploadEnabled) {
+      return;
+    }
     queueRemoteLogJsni(
         msg,
         REMOTE_UPLOAD_MAX_BATCH_CHARS,

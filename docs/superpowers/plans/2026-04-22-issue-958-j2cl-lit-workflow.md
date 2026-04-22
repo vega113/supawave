@@ -32,7 +32,7 @@ The doc must answer those questions in a way that future issues under `#904` can
 - evaluate GPT/OpenAI image-generation tools as a design aid in this repo's workflow
 - define the source of truth for behavior parity
 - explain how to separate parity-safe visual modernization from behavior changes
-- produce one committed markdown doc under `docs/`
+- produce one committed Markdown doc under `docs/`
 
 ### Explicit Non-Goals
 
@@ -116,7 +116,7 @@ The doc must answer those questions in a way that future issues under `#904` can
   - recommended acceptance gates for future J2CL/Lit slices
 - [ ] Keep the recommendation concrete enough that a future issue can follow it without reinterpretation.
 
-### Task 5: Self Review And Claude Review
+### Task 5: Self-review And Claude Review
 
 - [ ] Self-review the new doc for unsupported claims, scope drift, and weak tool guidance.
 - [ ] Run `git diff --check`.

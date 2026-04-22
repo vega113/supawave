@@ -538,10 +538,31 @@ public final class ImeDebugTracer {
           return;
         }
 
-        state.inFlight = true;
-        var payload = state.queue.join('\n');
-        state.queue = [];
+        var batch = [];
+        var batchChars = 0;
+        var batchCount = 0;
+        while (batchCount < state.queue.length && batch.length < maxBatchLines) {
+          var nextLine = state.queue[batchCount];
+          var nextChars = (nextLine ? nextLine.length : 0) + (batch.length > 0 ? 1 : 0);
+          if (batch.length > 0 && batchChars + nextChars > maxBatchChars) {
+            break;
+          }
+          batch.push(nextLine);
+          batchChars += nextChars;
+          batchCount++;
+        }
+        if (!batch.length) {
+          batch.push(state.queue[0]);
+          batchCount = 1;
+        }
+        state.queue = state.queue.slice(batchCount);
         state.queuedChars = 0;
+        for (var i = 0; i < state.queue.length; i++) {
+          state.queuedChars += (state.queue[i] ? state.queue[i].length : 0) + 1;
+        }
+
+        state.inFlight = true;
+        var payload = batch.join('\n');
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::REMOTE_LOGGING_PATH, true);

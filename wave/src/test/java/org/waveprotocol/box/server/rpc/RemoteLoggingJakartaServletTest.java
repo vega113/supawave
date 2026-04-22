@@ -86,12 +86,9 @@ public final class RemoteLoggingJakartaServletTest {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     Logger logger = Logger.getLogger(RemoteLoggingJakartaServlet.class.getName());
     RecordingHandler handler = new RecordingHandler();
-    Level previousLevel = logger.getLevel();
-    boolean previousUseParentHandlers = logger.getUseParentHandlers();
 
     logger.addHandler(handler);
-    logger.setUseParentHandlers(false);
-    logger.setLevel(Level.ALL);
+    handler.setLevel(Level.ALL);
     try {
       when(request.getSession(false)).thenReturn(mock(HttpSession.class));
       when(sessionManager.getLoggedInUser(any(WebSession.class)))
@@ -117,8 +114,6 @@ public final class RemoteLoggingJakartaServletTest {
       servlet.doPost(request, response);
     } finally {
       logger.removeHandler(handler);
-      logger.setUseParentHandlers(previousUseParentHandlers);
-      logger.setLevel(previousLevel);
     }
 
     verify(response).setStatus(HttpServletResponse.SC_OK);

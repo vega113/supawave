@@ -71,6 +71,10 @@ public final class ImeDebugTracer {
   private static final String REMOTE_LOGGING_URL = "/webclient/remote_logging";
   private static final int MAX_OVERLAY_LINES = 200;
   private static final int MAX_FIELD_LEN = 120;
+  private static final int ENABLE_REFRESH_RETRY_INTERVAL_MS = 1000;
+  private static final int REMOTE_UPLOAD_MAX_BATCH_CHARS = 4096;
+  private static final int REMOTE_UPLOAD_MAX_BATCH_LINES = 20;
+  private static final int REMOTE_UPLOAD_DELAY_MS = 750;
 
   private ImeDebugTracer() {
     // Utility.
@@ -79,12 +83,13 @@ public final class ImeDebugTracer {
   private static boolean initialized = false;
   private static boolean enabled = false;
   private static double baselineMs = 0.0;
+  private static double nextRefreshAttemptMs = 0.0;
 
   /** Cheap fast-path gate. Safe to call from every hot site. */
   public static boolean isEnabled() {
     if (!initialized) {
       initialize();
-    } else if (!enabled) {
+    } else if (!enabled && shouldRetryRefresh()) {
       refreshEnabledState();
     }
     return enabled;
@@ -108,9 +113,19 @@ public final class ImeDebugTracer {
       return;
     }
     enabled = true;
+    nextRefreshAttemptMs = 0.0;
     baselineMs = nowMsJsni();
     installGlobalEventListenersJsni(baselineMs);
     ensureOverlayJsni();
+  }
+
+  private static boolean shouldRetryRefresh() {
+    double now = System.currentTimeMillis();
+    if (now < nextRefreshAttemptMs) {
+      return false;
+    }
+    nextRefreshAttemptMs = now + ENABLE_REFRESH_RETRY_INTERVAL_MS;
+    return true;
   }
 
   private static boolean isSessionFlagEnabled() {
@@ -280,7 +295,11 @@ public final class ImeDebugTracer {
       String line = buf.toString();
       consoleLogJsni(line);
       appendToOverlayJsni(line);
-      queueRemoteLogJsni(line);
+      queueRemoteLogJsni(
+          line,
+          REMOTE_UPLOAD_MAX_BATCH_CHARS,
+          REMOTE_UPLOAD_MAX_BATCH_LINES,
+          REMOTE_UPLOAD_DELAY_MS);
     }
   }
 
@@ -423,7 +442,11 @@ public final class ImeDebugTracer {
   /** Callable from JSNI so the global event listeners can queue remote logs too. */
   @SuppressWarnings("unused")
   private static void queueRemoteLogJsniBridge(String msg) {
-    queueRemoteLogJsni(msg);
+    queueRemoteLogJsni(
+        msg,
+        REMOTE_UPLOAD_MAX_BATCH_CHARS,
+        REMOTE_UPLOAD_MAX_BATCH_LINES,
+        REMOTE_UPLOAD_DELAY_MS);
   }
 
   private static native void ensureOverlayJsni() /*-{
@@ -490,7 +513,8 @@ public final class ImeDebugTracer {
     }
   }-*/;
 
-  private static native void queueRemoteLogJsni(String line) /*-{
+  private static native void queueRemoteLogJsni(
+      String line, int maxBatchChars, int maxBatchLines, int flushDelayMs) /*-{
     try {
       var w = $wnd;
       var state = w.__imeDebugRemoteLogState;
@@ -536,12 +560,12 @@ public final class ImeDebugTracer {
 
       state.queue.push(line);
       state.queuedChars += (line ? line.length : 0) + 1;
-      if (state.queuedChars >= 4096 || state.queue.length >= 20) {
+      if (state.queuedChars >= maxBatchChars || state.queue.length >= maxBatchLines) {
         flush();
         return;
       }
       if (!state.timer) {
-        state.timer = w.setTimeout(flush, 750);
+        state.timer = w.setTimeout(flush, flushDelayMs);
       }
     } catch (e) {
       // swallow

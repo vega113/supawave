@@ -595,7 +595,8 @@ Stitch does **not** belong in:
 Every implementation issue in this chain should follow the same contract:
 
 1. create or confirm the issue
-2. create a dedicated git worktree under `/Users/vega/devroot/worktrees`
+2. create a dedicated git worktree under a local worktrees root (for example,
+   `~/worktrees` or `$WORKTREES_DIR`)
 3. write a task-specific plan
 4. run Claude Opus 4.7 review on the plan until clean
 5. implement in the issue worktree

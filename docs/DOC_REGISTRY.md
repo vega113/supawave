@@ -38,7 +38,6 @@ docs/runbooks/mongo-migrations.md
 docs/runbooks/worktree-diagnostics.md
 docs/runbooks/worktree-lane-lifecycle.md
 docs/runbooks/doc-guardrails.md
-docs/runbooks/j2cl-sidecar-testing.md
 docs/README.md
 docs/DEV_SETUP.md
 docs/BUILDING-sbt.md

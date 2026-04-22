@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-22-j2cl-lit-design-packet",
+  "version": "Issue #962",
+  "date": "2026-04-22",
+  "title": "The first parity-safe Lit design packet freezes tokens, component families, and Stitch artifact policy for downstream J2CL/Lit slices",
+  "summary": "A committed Lit design packet now defines the semantic token vocabulary, component-family inventory (shell, read surface, live indicators, compose/toolbar inventory, overlays, server-first first paint), and the Required vs Optional vs Prohibited Stitch artifact policy per family. Downstream J2CL/Lit parity slices cite this packet alongside the parity matrix so modernization cannot silently drift into behavior changes.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added docs/j2cl-lit-design-packet.md as the parity-safe design contract for Lit components: semantic tokens (typography, color, spacing, shape, elevation, motion, density, iconography, focus, z-index), component families keyed to parity matrix rows, and a Stitch Required/Optional/Prohibited table with consuming slices named",
+        "Registered the packet in docs/DOC_REGISTRY.md and docs/README.md so the doc guardrails keep it in scope"
+      ]
+    }
+  ]
+}

@@ -48,6 +48,7 @@ docs/j2cl-lit-implementation-workflow.md
 docs/j2cl-parity-issue-map.md
 docs/j2cl-gwt-parity-matrix.md
 docs/j2cl-parity-slice-packet-template.md
+docs/j2cl-lit-design-packet.md
 docs/github-issues.md
 docs/agents/README.md
 docs/architecture/README.md

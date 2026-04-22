@@ -64,6 +64,7 @@ Split of responsibility:
 - [`j2cl-parity-issue-map.md`](j2cl-parity-issue-map.md)
 - [`j2cl-gwt-parity-matrix.md`](j2cl-gwt-parity-matrix.md)
 - [`j2cl-parity-slice-packet-template.md`](j2cl-parity-slice-packet-template.md)
+- [`j2cl-lit-design-packet.md`](j2cl-lit-design-packet.md)
 
 ## Ledgers
 

@@ -201,6 +201,15 @@ public final class ImeDebugTracer {
     return escape(s.substring(0, 200)) + "…(+" + (s.length() - 200) + ")";
   }
 
+  static String formatFieldValue(String value) {
+    if (value == null) {
+      return "null";
+    }
+    boolean truncated = value.length() > MAX_FIELD_LEN;
+    String formatted = escape(truncated ? value.substring(0, MAX_FIELD_LEN) : value);
+    return truncated ? formatted + '\u2026' : formatted;
+  }
+
   private static String escape(String s) {
     if (s == null) {
       return "";
@@ -267,13 +276,7 @@ public final class ImeDebugTracer {
       if (value == null) {
         buf.append("null");
       } else {
-        boolean truncated = value.length() > MAX_FIELD_LEN;
-        String v = truncated ? value.substring(0, MAX_FIELD_LEN) : value;
-        buf.append('"').append(escape(v));
-        if (truncated) {
-          buf.append('\u2026');
-        }
-        buf.append('"');
+        buf.append('"').append(formatFieldValue(value)).append('"');
       }
       return this;
     }
@@ -417,16 +420,8 @@ public final class ImeDebugTracer {
       }
     }
     function formatField(value) {
-      if (value === null || value === undefined) return 'null';
-      var s = String(value);
-      var maxLen = @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::MAX_FIELD_LEN;
-      if (s.length > maxLen) s = s.substring(0, maxLen) + '…';
-      return s
-          .replace(/\\/g, '\\\\')
-          .replace(/"/g, '\\"')
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
+      return @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::formatFieldValueForJsniBridge(Ljava/lang/String;)(
+          value === null ? null : String(value));
     }
     function handler(e) {
       try {
@@ -459,6 +454,11 @@ public final class ImeDebugTracer {
   @SuppressWarnings("unused")
   private static void appendToOverlayJsniBridge(String msg) {
     appendToOverlayJsni(msg);
+  }
+
+  @SuppressWarnings("unused")
+  private static String formatFieldValueForJsniBridge(String value) {
+    return formatFieldValue(value);
   }
 
   /** Callable from JSNI so the global event listeners can queue remote logs too. */

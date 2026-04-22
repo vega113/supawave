@@ -74,6 +74,18 @@ public final class FeatureFlagServiceTest {
     service = new FeatureFlagService(store);
 
     assertFalse(service.getEnabledFlagNames(null).contains("ime-debug-tracer"));
+
+    Map<String, Boolean> overrides = new LinkedHashMap<>();
+    overrides.put("user@example.com", true);
+    store.save(
+        new FeatureFlag(
+            "ime-debug-tracer",
+            "Enable IME diagnostic trace overlay and remote log upload",
+            false,
+            overrides));
+    service.refreshCache();
+
+    assertTrue(service.getEnabledFlagNames("user@example.com").contains("ime-debug-tracer"));
   }
 
   @Test

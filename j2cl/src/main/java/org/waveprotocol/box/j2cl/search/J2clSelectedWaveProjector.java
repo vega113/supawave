@@ -67,22 +67,22 @@ public final class J2clSelectedWaveProjector {
         && previous.getWriteSession() != null) {
       replyTargetBlipId = previous.getWriteSession().getReplyTargetBlipId();
     }
-    long baseVersion = resolveBaseVersion(update);
-    if (baseVersion < 0 && previous != null && previous.getWriteSession() != null) {
+    long baseVersion;
+    String historyHash;
+    long updateVersion = update.getResultingVersion();
+    String updateHash = update.getResultingVersionHistoryHash();
+    boolean updateHasCoupledPair =
+        updateVersion >= 0 && updateHash != null && !updateHash.isEmpty();
+    if (updateHasCoupledPair) {
+      baseVersion = updateVersion;
+      historyHash = updateHash;
+    } else if (previous != null && previous.getWriteSession() != null) {
       baseVersion = previous.getWriteSession().getBaseVersion();
-    }
-    String historyHash = update.getResultingVersionHistoryHash();
-    if ((historyHash == null || historyHash.isEmpty())
-        && previous != null
-        && previous.getWriteSession() != null) {
       historyHash = previous.getWriteSession().getHistoryHash();
+    } else {
+      return null;
     }
-    if (channelId == null
-        || channelId.isEmpty()
-        || replyTargetBlipId == null
-        || baseVersion < 0
-        || historyHash == null
-        || historyHash.isEmpty()) {
+    if (channelId == null || channelId.isEmpty() || replyTargetBlipId == null || replyTargetBlipId.isEmpty()) {
       return null;
     }
     return new J2clSidecarWriteSession(
@@ -133,21 +133,6 @@ public final class J2clSelectedWaveProjector {
       }
     }
     return fallback;
-  }
-
-  private static long resolveBaseVersion(SidecarSelectedWaveUpdate update) {
-    if (update.getResultingVersion() >= 0) {
-      return update.getResultingVersion();
-    }
-    SidecarSelectedWaveFragments fragments = update.getFragments();
-    if (fragments != null && fragments.getSnapshotVersion() >= 0) {
-      return fragments.getSnapshotVersion();
-    }
-    long maxDocumentVersion = 0L;
-    for (SidecarSelectedWaveDocument document : update.getDocuments()) {
-      maxDocumentVersion = Math.max(maxDocumentVersion, document.getLastModifiedVersion());
-    }
-    return maxDocumentVersion;
   }
 
   private static List<String> extractContentEntries(SidecarSelectedWaveFragments fragments) {

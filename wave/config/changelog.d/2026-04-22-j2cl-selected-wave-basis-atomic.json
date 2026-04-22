@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-22-j2cl-selected-wave-basis-atomic",
+  "version": "Unreleased",
+  "date": "2026-04-22",
+  "title": "J2CL sidecar reply path now keeps the selected-wave version and history hash aligned",
+  "summary": "The J2CL selected-wave projector treats resultingVersion and resultingVersionHistoryHash as a coupled atomic pair so a reply submit cannot use a newer version with a stale history hash.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "J2clSelectedWaveProjector only advances the selected-wave write-session basis when both resultingVersion and resultingVersionHistoryHash arrive together; otherwise the previous pair is preserved, preventing invalid hashed-version pairs from reaching the sidecar reply submit path"
+      ]
+    }
+  ]
+}

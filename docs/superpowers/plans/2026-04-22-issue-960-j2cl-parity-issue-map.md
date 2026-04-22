@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Treat this as a documentation-and-tracker slice. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Produce a repo-backed markdown doc that decomposes the remaining J2CL parity work into concrete GitHub issues, then create those issues in GitHub with clear dependency order and acceptance boundaries.
+**Goal:** Produce a repo-backed Markdown doc that decomposes the remaining J2CL parity work into concrete GitHub issues, then create those issues in GitHub with clear dependency order and acceptance boundaries.
 
 **Architecture:** Start from the current `origin/main` baseline plus the merged `docs/j2cl-parity-architecture.md` recommendation. This task does not implement parity work. It refreshes the execution map underneath `#904`: preserve already-closed work, retain existing open follow-ups (`#931`, `#933`, `#936`), and define the missing issue set needed to reach practical GWT parity while preserving rollback-ready coexistence, server-rendered first paint, viewport-scoped fragment loading, and optional Stitch-driven design work where visual modernization is in scope.
 

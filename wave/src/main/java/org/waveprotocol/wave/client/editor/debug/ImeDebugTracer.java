@@ -416,14 +416,26 @@ public final class ImeDebugTracer {
         return 'err:' + e;
       }
     }
+    function formatField(value) {
+      if (value === null || value === undefined) return 'null';
+      var s = String(value);
+      var maxLen = @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::MAX_FIELD_LEN;
+      if (s.length > maxLen) s = s.substring(0, maxLen) + '…';
+      return s
+          .replace(/\\/g, '\\\\')
+          .replace(/"/g, '\\"')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\t/g, '\\t');
+    }
     function handler(e) {
       try {
         var t = ((w.performance && w.performance.now ? w.performance.now() : new Date().getTime()) - baseline).toFixed(1);
         var msg = '+' + t + 'ms GLOBAL ' + e.type;
-        if (e.key !== undefined) msg += ' key="' + e.key + '"';
+        if (e.key !== undefined) msg += ' key="' + formatField(e.key) + '"';
         if (e.keyCode !== undefined) msg += ' code=' + e.keyCode;
-        if (e.data !== undefined) msg += ' data="' + (e.data === null ? 'null' : String(e.data)) + '"';
-        if (e.inputType) msg += ' inputType="' + e.inputType + '"';
+        if (e.data !== undefined) msg += ' data="' + formatField(e.data) + '"';
+        if (e.inputType) msg += ' inputType="' + formatField(e.inputType) + '"';
         if (e.isComposing !== undefined) msg += ' isComposing=' + e.isComposing;
         if (e.target) msg += ' target=' + describeNode(e.target);
         msg += ' sel=' + describeSelection();

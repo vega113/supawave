@@ -2,7 +2,7 @@
 
 Status: Canonical
 Owner: Project Maintainers
-Updated: 2026-04-04
+Updated: 2026-04-22
 Review cadence: quarterly
 
 This directory keeps the existing documentation in place and adds a small map

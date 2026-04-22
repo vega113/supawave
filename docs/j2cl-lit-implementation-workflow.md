@@ -1,11 +1,11 @@
 # J2CL/Lit Implementation Workflow
 
-Status: Proposed  
-Updated: 2026-04-22  
-Owner: Project Maintainers  
-Review cadence: on-change  
-Parent tracker: [#904](https://github.com/vega113/supawave/issues/904)  
-Task issue: [#958](https://github.com/vega113/supawave/issues/958)  
+Status: Proposed
+Updated: 2026-04-22
+Owner: Project Maintainers
+Review cadence: on-change
+Parent tracker: [#904](https://github.com/vega113/supawave/issues/904)
+Task issue: [#958](https://github.com/vega113/supawave/issues/958)
 Related: [#954](https://github.com/vega113/supawave/issues/954), merged PR [#956](https://github.com/vega113/supawave/pull/956)
 
 ## 1. Decision Summary

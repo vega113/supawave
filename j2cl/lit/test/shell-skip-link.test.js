@@ -9,15 +9,16 @@ describe("<shell-skip-link>", () => {
         label="Skip to content"
       ></shell-skip-link>`
     );
-    const anchor = el.renderRoot.querySelector("a");
+    const anchor = el.querySelector("a");
     expect(anchor).to.exist;
     expect(anchor.getAttribute("href")).to.equal("#main");
     expect(anchor.textContent.trim()).to.equal("Skip to content");
+    expect(el.renderRoot.querySelector("slot")).to.exist;
   });
 
   it("falls back to default target and label", async () => {
     const el = await fixture(html`<shell-skip-link></shell-skip-link>`);
-    const anchor = el.renderRoot.querySelector("a");
+    const anchor = el.querySelector("a");
     expect(anchor.getAttribute("href")).to.equal("#j2cl-root-shell-workflow");
     expect(anchor.textContent.trim()).to.equal("Skip to main content");
   });

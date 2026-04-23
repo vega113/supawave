@@ -13,7 +13,7 @@ export class ShellSkipLink extends LitElement {
       left: 0;
     }
 
-    a {
+    ::slotted(a) {
       position: absolute;
       left: -9999px;
       padding: 8px 12px;
@@ -24,7 +24,7 @@ export class ShellSkipLink extends LitElement {
       text-decoration: none;
     }
 
-    a:focus {
+    ::slotted(a:focus) {
       left: 0;
       outline: 2px solid #fff;
       outline-offset: -4px;
@@ -37,8 +37,27 @@ export class ShellSkipLink extends LitElement {
     this.label = "Skip to main content";
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    this.syncAnchor();
+  }
+
+  updated() {
+    this.syncAnchor();
+  }
+
   render() {
-    return html`<a href=${this.target}>${this.label}</a>`;
+    return html`<slot></slot>`;
+  }
+
+  syncAnchor() {
+    let anchor = this.querySelector("a");
+    if (!anchor) {
+      anchor = this.ownerDocument.createElement("a");
+      this.appendChild(anchor);
+    }
+    anchor.setAttribute("href", this.target);
+    anchor.textContent = this.label;
   }
 }
 

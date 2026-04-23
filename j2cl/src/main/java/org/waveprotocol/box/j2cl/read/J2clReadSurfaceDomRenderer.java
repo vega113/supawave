@@ -15,6 +15,7 @@ public final class J2clReadSurfaceDomRenderer {
   private final HTMLDivElement host;
   private final List<HTMLElement> renderedBlips = new ArrayList<HTMLElement>();
   private HTMLElement focusedBlip;
+  private int generatedThreadIdCounter;
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
     this.host = host;
@@ -58,6 +59,8 @@ public final class J2clReadSurfaceDomRenderer {
       return false;
     }
     enhanceSurface(surface);
+    // A zero-blip surface is still valid no-wave/empty markup, but callers use
+    // the boolean to know whether focusable read content was found.
     return !renderedBlips.isEmpty();
   }
 
@@ -120,7 +123,7 @@ public final class J2clReadSurfaceDomRenderer {
     }
     thread.setAttribute("data-j2cl-collapse-ready", "true");
     if (!thread.hasAttribute("id")) {
-      thread.setAttribute("id", "j2cl-read-thread-" + index);
+      thread.setAttribute("id", generatedThreadId(thread, index));
     }
     HTMLElement button = (HTMLElement) DomGlobal.document.createElement("button");
     button.className = "j2cl-read-thread-toggle";
@@ -142,8 +145,9 @@ public final class J2clReadSurfaceDomRenderer {
       blip.classList.add("j2cl-read-blip");
       blip.setAttribute("data-j2cl-read-blip", "true");
       blip.setAttribute("role", "listitem");
-      blip.setAttribute("tabindex", index == 0 ? "0" : "-1");
-      if (!blip.hasAttribute("data-j2cl-read-blip-bound")) {
+      boolean alreadyBound = blip.hasAttribute("data-j2cl-read-blip-bound");
+      if (!alreadyBound) {
+        blip.setAttribute("tabindex", index == 0 ? "0" : "-1");
         blip.setAttribute("data-j2cl-read-blip-bound", "true");
         blip.addEventListener("focus", this::onBlipFocus);
         blip.addEventListener("keydown", this::onBlipKeyDown);
@@ -199,7 +203,8 @@ public final class J2clReadSurfaceDomRenderer {
     List<HTMLElement> visibleBlips = visibleBlips();
     int current = focusedBlip == null ? -1 : visibleBlips.indexOf(focusedBlip);
     if (current < 0) {
-      current = 0;
+      focusVisibleByIndex(offset > 0 ? 0 : visibleBlips.size() - 1);
+      return;
     }
     focusVisibleByIndex(current + offset);
   }
@@ -265,6 +270,31 @@ public final class J2clReadSurfaceDomRenderer {
       parent = (HTMLElement) parent.parentElement;
     }
     return false;
+  }
+
+  private String generatedThreadId(HTMLElement thread, int index) {
+    String threadId = thread.getAttribute("data-thread-id");
+    if (threadId == null || threadId.isEmpty()) {
+      threadId = "thread-" + index;
+    }
+    return "j2cl-read-thread-" + sanitizeDomId(threadId) + "-" + (++generatedThreadIdCounter);
+  }
+
+  private static String sanitizeDomId(String value) {
+    StringBuilder sanitized = new StringBuilder();
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if ((c >= 'a' && c <= 'z')
+          || (c >= 'A' && c <= 'Z')
+          || (c >= '0' && c <= '9')
+          || c == '-'
+          || c == '_') {
+        sanitized.append(c);
+      } else {
+        sanitized.append('-');
+      }
+    }
+    return sanitized.length() == 0 ? "thread" : sanitized.toString();
   }
 
   private static List<J2clReadBlip> normalizeBlips(

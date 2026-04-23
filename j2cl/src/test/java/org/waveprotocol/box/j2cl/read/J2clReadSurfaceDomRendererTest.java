@@ -47,6 +47,24 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void enhanceExistingSurfaceIsIdempotentForThreadToggles() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    host.innerHTML =
+        "<div class=\"wave-content\">"
+            + "<div class=\"inline-thread\" data-thread-id=\"t+inline\">"
+            + "<div class=\"blip\" data-blip-id=\"b+reply\">Reply</div>"
+            + "</div></div>";
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    Assert.assertTrue(renderer.enhanceExistingSurface());
+    Assert.assertTrue(renderer.enhanceExistingSurface());
+
+    Assert.assertEquals(1, host.querySelectorAll(".j2cl-read-thread-toggle").length);
+    Assert.assertEquals(1, host.querySelectorAll("[data-j2cl-read-blip-bound='true']").length);
+  }
+
+  @Test
   public void renderLiveBlipsCreatesSemanticReadSurface() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
@@ -64,6 +82,22 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals(2, host.querySelectorAll("[data-j2cl-read-blip='true']").length);
     Assert.assertEquals("b+root", firstBlip(host).getAttribute("data-blip-id"));
     Assert.assertEquals("0", firstBlip(host).getAttribute("tabindex"));
+  }
+
+  @Test
+  public void renderFallbackEntriesSynthesizesStableEntryIds() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+
+    boolean rendered =
+        new J2clReadSurfaceDomRenderer(host)
+            .render(
+                Collections.<J2clReadBlip>emptyList(),
+                Arrays.asList("First fallback", "Second fallback"));
+
+    Assert.assertTrue(rendered);
+    Assert.assertEquals(2, host.querySelectorAll("[data-j2cl-read-blip='true']").length);
+    Assert.assertEquals("entry-1", firstBlip(host).getAttribute("data-blip-id"));
   }
 
   private static HTMLDivElement createHost() {

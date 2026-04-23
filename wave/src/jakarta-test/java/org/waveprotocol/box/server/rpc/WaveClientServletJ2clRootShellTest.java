@@ -172,6 +172,32 @@ public final class WaveClientServletJ2clRootShellTest {
   }
 
   @Test
+  public void signedInDeniedSelectedWaveDoesNotRenderSnapshotDom() throws Exception {
+    J2clSelectedWaveSnapshotRenderer snapshotRenderer = defaultSnapshotRenderer();
+    when(snapshotRenderer.renderRequestedWave(any(), any()))
+        .thenReturn(J2clSelectedWaveSnapshotRenderer.SnapshotResult.denied());
+    WaveClientServlet servlet =
+        createServlet(ParticipantId.ofUnsafe("alice@example.com"), HumanAccountData.ROLE_USER, snapshotRenderer);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("j2cl-root");
+    when(request.getParameter("wave")).thenReturn("example.com/w+1");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    String html = body.toString();
+    assertTrue(html.contains("data-j2cl-server-first-mode=\"denied\""));
+    assertFalse(html.contains("data-j2cl-server-first-selected-wave="));
+    assertFalse(html.contains("class=\"wave-content\""));
+    verify(response).setHeader("Cache-Control", "private, no-store");
+    verify(response).setHeader("Vary", "Cookie");
+  }
+
+  @Test
   public void legacyDefaultRouteDoesNotInvokeSnapshotRendererWhenRollbackIsActive()
       throws Exception {
     J2clSelectedWaveSnapshotRenderer snapshotRenderer = defaultSnapshotRenderer();

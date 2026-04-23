@@ -67,6 +67,26 @@ public final class J2clSelectedWaveSnapshotRendererTest extends TestCase {
     assertTrue(result.getSnapshotHtml().contains("class=\"wave-content\""));
   }
 
+  public void testSnapshotEscapesUserAuthoredBlipMarkup() {
+    TestingWaveletData data = new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true);
+    data.appendBlipWithText("<script>alert('owned')</script>");
+
+    J2clSelectedWaveSnapshotRenderer renderer =
+        new J2clSelectedWaveSnapshotRenderer(
+            providerFor(data.copyWaveletData(), true),
+            150L,
+            131072,
+            new SequenceTimeSource(0L, 10L, 20L));
+
+    J2clSelectedWaveSnapshotRenderer.SnapshotResult result =
+        renderer.renderRequestedWave(WAVE_ID.serialise(), VIEWER);
+
+    assertEquals(J2clSelectedWaveSnapshotRenderer.Mode.SNAPSHOT, result.getMode());
+    assertFalse(result.getSnapshotHtml().contains("<script>alert('owned')</script>"));
+    assertTrue(result.getSnapshotHtml().contains("&lt;script&gt;alert"));
+    assertTrue(result.getSnapshotHtml().contains("owned"));
+  }
+
   public void testSignedOutRequestedWaveUsesSignedOutMode() {
     J2clSelectedWaveSnapshotRenderer renderer =
         new J2clSelectedWaveSnapshotRenderer(
@@ -95,6 +115,21 @@ public final class J2clSelectedWaveSnapshotRendererTest extends TestCase {
 
     J2clSelectedWaveSnapshotRenderer.SnapshotResult result =
         renderer.renderRequestedWave(WAVE_ID.serialise(), VIEWER);
+
+    assertEquals(J2clSelectedWaveSnapshotRenderer.Mode.DENIED, result.getMode());
+    assertFalse(result.hasSnapshotHtml());
+  }
+
+  public void testMalformedRequestedWaveFallsBackToDeniedMode() {
+    J2clSelectedWaveSnapshotRenderer renderer =
+        new J2clSelectedWaveSnapshotRenderer(
+            providerFor(new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true).copyWaveletData(), true),
+            150L,
+            131072,
+            new SequenceTimeSource(0L));
+
+    J2clSelectedWaveSnapshotRenderer.SnapshotResult result =
+        renderer.renderRequestedWave("not-a-wave-id", VIEWER);
 
     assertEquals(J2clSelectedWaveSnapshotRenderer.Mode.DENIED, result.getMode());
     assertFalse(result.hasSnapshotHtml());

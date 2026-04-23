@@ -3289,7 +3289,7 @@ public final class HtmlRenderer {
           .append(safeResolvedReturnTarget)
           .append("</span></shell-status-strip>\n");
       sb.append("</shell-root>\n");
-      sb.append("<script src=\"/j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
+      sb.append("<script src=\"").append(safeResolvedBasePath).append("j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
       appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, true);
     } else {
       sb.append("<shell-root-signed-out data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")

@@ -101,7 +101,7 @@ public final class SelectedWaveReadStateHelperTest extends TestCase {
       helper.computeReadState(USER, WAVE_ID);
       fail("Expected computeReadState to surface the wavelet load failure");
     } catch (RuntimeException e) {
-      assertTrue(e.getMessage().contains("Failed to build read state"));
+      assertTrue(e.getMessage().contains("for read state"));
       assertTrue(e.getCause() instanceof WaveletStateException);
     }
   }

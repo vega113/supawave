@@ -214,7 +214,8 @@ public class J2clSelectedWaveSnapshotRenderer {
         return SnapshotResult.denied();
       }
 
-      String snapshotHtml = WaveContentRenderer.renderWaveContent(waveView, viewer);
+      String snapshotHtml =
+          WaveContentRenderer.renderWaveContent(waveView, viewer, () -> overBudget(startTimeMs));
       if (overBudget(startTimeMs)) {
         LOG.info("Skipping server-first selected-wave snapshot because the render budget was exceeded after render for "
             + waveId.serialise());
@@ -228,6 +229,10 @@ public class J2clSelectedWaveSnapshotRenderer {
       }
 
       return SnapshotResult.snapshot(waveId.serialise(), snapshotHtml);
+    } catch (WaveContentRenderer.RenderBudgetExceededException e) {
+      LOG.info("Skipping server-first selected-wave snapshot because the render budget was exceeded while rendering "
+          + waveId.serialise());
+      return SnapshotResult.budgetExceeded();
     } catch (WaveServerException e) {
       LOG.warning("Failed to render server-first selected-wave snapshot for requested wave " + requestedWaveId, e);
       return SnapshotResult.renderError();

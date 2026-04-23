@@ -85,6 +85,16 @@ public final class WaveContentRenderer {
   /** No instantiation -- static utility class. */
   private WaveContentRenderer() {}
 
+  interface RenderBudget {
+    boolean isExceeded();
+  }
+
+  static final class RenderBudgetExceededException extends RuntimeException {
+    private RenderBudgetExceededException() {
+      super("Wave content render budget exceeded");
+    }
+  }
+
   // =========================================================================
   // Primary entry point
   // =========================================================================
@@ -101,12 +111,18 @@ public final class WaveContentRenderer {
    * @return an HTML fragment string, never null
    */
   public static String renderWaveContent(WaveViewData waveView, ParticipantId viewer) {
+    return renderWaveContent(waveView, viewer, () -> false);
+  }
+
+  static String renderWaveContent(WaveViewData waveView, ParticipantId viewer, RenderBudget budget) {
+    checkBudget(budget);
     if (waveView == null) {
       return emptyWaveHtml("No wave data available.");
     }
 
     // Locate the conversational wavelet.
     ObservableWaveletData convWaveletData = findConversationWavelet(waveView);
+    checkBudget(budget);
     if (convWaveletData == null) {
       return emptyWaveHtml("This wave has no conversation data.");
     }
@@ -119,10 +135,14 @@ public final class WaveContentRenderer {
       if (!WaveletBasedConversation.waveletHasConversation(wavelet)) {
         return emptyWaveHtml("This wave has no conversation structure.");
       }
+      checkBudget(budget);
       ReadOnlyWaveView wv = new ReadOnlyWaveView(waveView.getWaveId());
       wv.addWavelet(wavelet);
       IdGenerator readOnlyIdGen = new ServerHtmlRenderer.NoOpIdGenerator();
       conversations = WaveBasedConversationView.create(wv, readOnlyIdGen);
+      checkBudget(budget);
+    } catch (RenderBudgetExceededException e) {
+      throw e;
     } catch (Exception e) {
       LOG.log(Level.WARNING, "Failed to build conversation model for wave "
           + waveView.getWaveId(), e);
@@ -135,6 +155,7 @@ public final class WaveContentRenderer {
     }
 
     // Extract metadata.
+    checkBudget(budget);
     String title = extractTitle(rootConversation);
     Set<String> tags = safeGetTags(rootConversation);
     int[] counts = countBlipsAndThreads(rootConversation);
@@ -145,9 +166,13 @@ public final class WaveContentRenderer {
     // Render the conversation tree using Phase 1 renderer.
     String conversationHtml;
     try {
-      ServerHtmlRenderer rules = new ServerHtmlRenderer(viewer);
+      checkBudget(budget);
+      ServerHtmlRenderer rules = new ServerHtmlRenderer(viewer, budget);
       String rendered = ReductionBasedRenderer.renderWith(rules, conversations);
+      checkBudget(budget);
       conversationHtml = rendered != null ? rendered : "";
+    } catch (RenderBudgetExceededException e) {
+      throw e;
     } catch (Exception e) {
       LOG.log(Level.WARNING, "Failed to render conversation tree for wave "
           + waveView.getWaveId(), e);
@@ -205,6 +230,12 @@ public final class WaveContentRenderer {
 
     sb.append("</div>"); // wave-content
     return sb.toString();
+  }
+
+  static void checkBudget(RenderBudget budget) {
+    if (budget != null && budget.isExceeded()) {
+      throw new RenderBudgetExceededException();
+    }
   }
 
   // =========================================================================

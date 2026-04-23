@@ -186,7 +186,7 @@ public class WaveClientServlet extends HttpServlet {
             serverBuildTime,
             currentReleaseId,
             rootShellReturnTarget,
-            resolveWebsocketAddressForPage(request), // codeql[java/xss]
+            resolveWebsocketAddressForPage(request, true), // codeql[java/xss]
             snapshotResult)); // codeql[java/xss]
       } catch (IOException e) {
         LOG.warning("Failed to render J2CL root shell page", e);
@@ -233,7 +233,7 @@ public class WaveClientServlet extends HttpServlet {
       w.write(HtmlRenderer.renderWaveClientPage(
           getSessionJson(session),
           getClientFlags(request),
-          resolveWebsocketAddressForPage(request),
+          resolveWebsocketAddressForPage(request, false),
           topBarHtml,
           analyticsAccount,
           buildCommit,
@@ -539,11 +539,12 @@ public class WaveClientServlet extends HttpServlet {
   }
 
   @SuppressWarnings("java/xss")
-  private String resolveWebsocketAddressForPage(HttpServletRequest request) {
+  private String resolveWebsocketAddressForPage(
+      HttpServletRequest request, boolean servingJ2clRootShell) {
     if (hasExplicitWebsocketPresentedAddress) {
       return websocketPresentedAddress;
     }
-    if (!VIEW_J2CL_ROOT.equals(resolveRequestedView(request))) {
+    if (!servingJ2clRootShell) {
       return websocketPresentedAddress;
     }
     String host = resolvePresentedHostHeader(request);

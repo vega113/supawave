@@ -134,7 +134,7 @@ public final class WaveClientServletJ2clBootstrapTest {
   }
 
   @Test
-  public void j2clRootUsesConfiguredWebsocketAddressInsteadOfRequestHostHeader()
+  public void bootstrapedPlainRootUsesPresentedHostForWebsocketAddress()
       throws Exception {
     WaveClientServlet servlet = createServlet(null, true);
     HttpServletRequest request = mock(HttpServletRequest.class);
@@ -148,8 +148,8 @@ public final class WaveClientServletJ2clBootstrapTest {
     servlet.doGet(request, response);
 
     String html = body.toString();
-    assertTrue(html.contains("127.0.0.1:9898"));
-    assertFalse(html.contains("example.com:7777"));
+    assertTrue(html.contains("example.com:7777"));
+    assertFalse(html.contains("127.0.0.1:9898"));
   }
 
   @Test

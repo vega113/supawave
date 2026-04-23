@@ -95,9 +95,15 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
 
   /** The viewer for whom we are rendering (used for future read-state, not yet wired). */
   private final ParticipantId viewer;
+  private final WaveContentRenderer.RenderBudget budget;
 
   public ServerHtmlRenderer(ParticipantId viewer) {
+    this(viewer, () -> false);
+  }
+
+  ServerHtmlRenderer(ParticipantId viewer, WaveContentRenderer.RenderBudget budget) {
     this.viewer = viewer;
+    this.budget = budget;
   }
 
   // =========================================================================
@@ -114,11 +120,12 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    */
   @Override
   public String render(ConversationBlip blip, IdentityMap<ConversationThread, String> replies) {
+    checkBudget();
     Document doc = blip.getContent();
     if (doc == null) {
       return "";
     }
-    return renderDocument(doc);
+    return renderDocument(doc, budget);
   }
 
   /**
@@ -128,6 +135,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
   public String render(ConversationBlip blip, String document,
       IdentityMap<ConversationThread, String> defaultAnchors,
       IdentityMap<Conversation, String> nestedConversations) {
+    checkBudget();
 
     StringBuilder sb = new StringBuilder();
     sb.append("<div class=\"").append(CSS_BLIP).append("\"");
@@ -157,6 +165,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
     // -- Default-anchored reply threads --
     StringBuilder repliesHtml = new StringBuilder();
     for (ConversationThread thread : blip.getReplyThreads()) {
+      checkBudget();
       String anchor = defaultAnchors.get(thread);
       if (anchor != null) {
         repliesHtml.append(anchor);
@@ -181,6 +190,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
   @Override
   public String render(ConversationThread thread,
       IdentityMap<ConversationBlip, String> blipUis) {
+    checkBudget();
     StringBuilder sb = new StringBuilder();
 
     boolean isRoot = thread.getConversation().getRootThread() == thread;
@@ -190,6 +200,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
     sb.append(" data-thread-id=\"").append(escapeAttr(thread.getId())).append("\">");
 
     for (ConversationBlip blip : thread.getBlips()) {
+      checkBudget();
       String blipHtml = blipUis.get(blip);
       if (blipHtml != null) {
         sb.append(blipHtml);
@@ -205,6 +216,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    */
   @Override
   public String render(Conversation conversation, String participants, String thread) {
+    checkBudget();
     StringBuilder sb = new StringBuilder();
     sb.append("<div class=\"").append(CSS_CONVERSATION).append("\"");
     sb.append(" data-conv-id=\"").append(escapeAttr(conversation.getId())).append("\">");
@@ -219,6 +231,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    */
   @Override
   public String render(Conversation conversation, ParticipantId participant) {
+    checkBudget();
     String address = participant.getAddress();
     String name = extractNameFromAddress(address);
     String avatarLetter = name.isEmpty() ? "?" : name.substring(0, 1).toUpperCase();
@@ -239,9 +252,11 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    */
   @Override
   public String render(Conversation conversation, StringMap<String> participantUis) {
+    checkBudget();
     StringBuilder sb = new StringBuilder();
     sb.append("<div class=\"").append(CSS_PARTICIPANTS).append("\">");
     for (ParticipantId participant : conversation.getParticipantIds()) {
+      checkBudget();
       String html = participantUis.get(participant.getAddress());
       if (html != null) {
         sb.append(html);
@@ -257,6 +272,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
   @Override
   public String render(ConversationView wave,
       IdentityMap<Conversation, String> conversations) {
+    checkBudget();
     if (conversations.isEmpty()) {
       return "<div class=\"" + CSS_WAVE + "\"></div>";
     }
@@ -270,6 +286,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    */
   @Override
   public String render(ConversationThread thread, String threadR) {
+    checkBudget();
     if (threadR == null) {
       return "";
     }
@@ -295,13 +312,19 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    * preserve known formatting attributes.
    */
   public static String renderDocument(Document doc) {
+    return renderDocument(doc, () -> false);
+  }
+
+  private static String renderDocument(
+      Document doc, WaveContentRenderer.RenderBudget budget) {
+    WaveContentRenderer.checkBudget(budget);
     Doc.E docElement = doc.getDocumentElement();
     if (docElement == null) {
       return "";
     }
 
     StringBuilder sb = new StringBuilder();
-    renderNode(doc, docElement, sb, false);
+    renderNode(doc, docElement, sb, false, budget);
     return sb.toString();
   }
 
@@ -314,10 +337,11 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    * @param inBody   whether we are inside a {@code <body>} element
    */
   private static void renderNode(ReadableDocument<Doc.N, Doc.E, Doc.T> doc,
-      Doc.N node, StringBuilder sb, boolean inBody) {
+      Doc.N node, StringBuilder sb, boolean inBody, WaveContentRenderer.RenderBudget budget) {
+    WaveContentRenderer.checkBudget(budget);
     Doc.E element = doc.asElement(node);
     if (element != null) {
-      renderElement(doc, element, sb, inBody);
+      renderElement(doc, element, sb, inBody, budget);
     } else {
       Doc.T text = doc.asText(node);
       if (text != null) {
@@ -330,13 +354,14 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    * Renders an element node. Maps wave document tags to HTML equivalents.
    */
   private static void renderElement(ReadableDocument<Doc.N, Doc.E, Doc.T> doc,
-      Doc.E element, StringBuilder sb, boolean inBody) {
+      Doc.E element, StringBuilder sb, boolean inBody, WaveContentRenderer.RenderBudget budget) {
+    WaveContentRenderer.checkBudget(budget);
     String tag = doc.getTagName(element);
     Map<String, String> attrs = doc.getAttributes(element);
 
     if ("body".equals(tag)) {
       // Enter the body: render children in body-mode.
-      renderChildren(doc, element, sb, true);
+      renderChildren(doc, element, sb, true, budget);
       return;
     }
 
@@ -365,25 +390,25 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
     // Formatting elements
     if ("b".equals(tag) || "bold".equals(tag)) {
       sb.append("<strong>");
-      renderChildren(doc, element, sb, inBody);
+      renderChildren(doc, element, sb, inBody, budget);
       sb.append("</strong>");
       return;
     }
     if ("i".equals(tag) || "italic".equals(tag)) {
       sb.append("<em>");
-      renderChildren(doc, element, sb, inBody);
+      renderChildren(doc, element, sb, inBody, budget);
       sb.append("</em>");
       return;
     }
     if ("u".equals(tag) || "underline".equals(tag)) {
       sb.append("<u>");
-      renderChildren(doc, element, sb, inBody);
+      renderChildren(doc, element, sb, inBody, budget);
       sb.append("</u>");
       return;
     }
     if ("s".equals(tag) || "strikethrough".equals(tag)) {
       sb.append("<s>");
-      renderChildren(doc, element, sb, inBody);
+      renderChildren(doc, element, sb, inBody, budget);
       sb.append("</s>");
       return;
     }
@@ -402,7 +427,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
       } else {
         sb.append("<a>");
       }
-      renderChildren(doc, element, sb, inBody);
+      renderChildren(doc, element, sb, inBody, budget);
       sb.append("</a>");
       return;
     }
@@ -433,7 +458,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
     }
 
     // Default: render children without wrapping unknown elements.
-    renderChildren(doc, element, sb, inBody);
+    renderChildren(doc, element, sb, inBody, budget);
   }
 
   /**
@@ -441,12 +466,14 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
    * nodes between {@code <line>} markers into paragraphs.
    */
   private static void renderChildren(ReadableDocument<Doc.N, Doc.E, Doc.T> doc,
-      Doc.E parent, StringBuilder sb, boolean inBody) {
+      Doc.E parent, StringBuilder sb, boolean inBody, WaveContentRenderer.RenderBudget budget) {
+    WaveContentRenderer.checkBudget(budget);
     if (!inBody) {
       // Outside body, just render children sequentially.
       for (Doc.N child = doc.getFirstChild(parent); child != null;
           child = doc.getNextSibling(child)) {
-        renderNode(doc, child, sb, false);
+        WaveContentRenderer.checkBudget(budget);
+        renderNode(doc, child, sb, false, budget);
       }
       return;
     }
@@ -457,6 +484,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
 
     for (Doc.N child = doc.getFirstChild(parent); child != null;
         child = doc.getNextSibling(child)) {
+      WaveContentRenderer.checkBudget(budget);
       Doc.E childEl = doc.asElement(child);
       if (childEl != null) {
         String childTag = doc.getTagName(childEl);
@@ -480,7 +508,7 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
             sb.append("<").append(currentTag).append(">");
             inParagraph = true;
           }
-          renderNode(doc, child, sb, true);
+          renderNode(doc, child, sb, true, budget);
         }
       } else {
         Doc.T text = doc.asText(child);
@@ -501,6 +529,10 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
     if (inParagraph) {
       sb.append("</").append(currentTag).append(">");
     }
+  }
+
+  private void checkBudget() {
+    WaveContentRenderer.checkBudget(budget);
   }
 
   /**

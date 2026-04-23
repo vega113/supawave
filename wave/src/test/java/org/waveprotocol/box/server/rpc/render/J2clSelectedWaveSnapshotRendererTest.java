@@ -153,6 +153,24 @@ public final class J2clSelectedWaveSnapshotRendererTest extends TestCase {
     assertFalse(result.hasSnapshotHtml());
   }
 
+  public void testBudgetExceededDuringContentRenderingFallsBackSafely() {
+    TestingWaveletData data = new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true);
+    data.appendBlipWithText("Budgeted content");
+
+    J2clSelectedWaveSnapshotRenderer renderer =
+        new J2clSelectedWaveSnapshotRenderer(
+            providerFor(data.copyWaveletData(), true),
+            150L,
+            131072,
+            new SequenceTimeSource(0L, 0L, 0L, 0L, 0L, 0L, 0L, 200L));
+
+    J2clSelectedWaveSnapshotRenderer.SnapshotResult result =
+        renderer.renderRequestedWave(WAVE_ID.serialise(), VIEWER);
+
+    assertEquals(J2clSelectedWaveSnapshotRenderer.Mode.BUDGET_EXCEEDED, result.getMode());
+    assertFalse(result.hasSnapshotHtml());
+  }
+
   public void testPayloadExceededFallsBackSafely() {
     TestingWaveletData data = new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true);
     data.appendBlipWithText("This payload is intentionally longer than the tiny unit-test cap.");

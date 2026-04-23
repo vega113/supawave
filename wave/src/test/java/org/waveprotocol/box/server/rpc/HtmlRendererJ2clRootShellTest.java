@@ -86,6 +86,8 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     assertFalse("External return target must not appear in bootstrap JS",
         html.contains("evil.com"));
+    assertTrue("Safe fallback return target must appear in bootstrap JS",
+        html.contains("/?view=j2cl-root"));
   }
 
   public void testReturnTargetWithAmpersandIsJsEscapedNotHtmlEscaped() {

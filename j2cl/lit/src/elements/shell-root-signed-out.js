@@ -12,8 +12,8 @@ export class ShellRootSignedOut extends LitElement {
         "main"
         "status";
       min-height: 100vh;
-      background: var(--shell-color-surface-page, #f7fbff);
-      color: var(--shell-color-text-primary, #102b3f);
+      background: var(--shell-color-surface-page, #f6fafb);
+      color: var(--shell-color-text-primary, #181c1d);
     }
 
     slot[name="skip-link"] {

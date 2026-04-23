@@ -37,4 +37,6 @@ export class ShellNavRail extends LitElement {
   }
 }
 
-customElements.define("shell-nav-rail", ShellNavRail);
+if (!customElements.get("shell-nav-rail")) {
+  customElements.define("shell-nav-rail", ShellNavRail);
+}

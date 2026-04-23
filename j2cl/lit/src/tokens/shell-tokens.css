@@ -14,7 +14,7 @@
   --shell-space-inset-panel: 18px;
   --shell-shell-radius: 20px;
   --shell-shell-shadow: 0 24px 40px rgba(24, 28, 29, 0.06);
-  --shell-font-ui: "Manrope", "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  --shell-font-ui: "Manrope", "Public Sans", -apple-system, "BlinkMacSystemFont", "Segoe UI",
     sans-serif;
 }
 

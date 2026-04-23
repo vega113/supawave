@@ -22,4 +22,6 @@ export class ShellMainRegion extends LitElement {
   }
 }
 
-customElements.define("shell-main-region", ShellMainRegion);
+if (!customElements.get("shell-main-region")) {
+  customElements.define("shell-main-region", ShellMainRegion);
+}

@@ -4,10 +4,33 @@ export class ShellRootSignedOut extends LitElement {
   static styles = css`
     :host {
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr auto;
+      grid-template-areas:
+        "skip"
+        "header"
+        "main"
+        "status";
       min-height: 100vh;
       background: var(--shell-color-surface-page, #f7fbff);
       color: var(--shell-color-text-primary, #102b3f);
+    }
+
+    slot[name="skip-link"] {
+      grid-area: skip;
+    }
+
+    slot[name="header"] {
+      grid-area: header;
+    }
+
+    slot[name="main"] {
+      grid-area: main;
+      min-height: 0;
+    }
+
+    slot[name="status"] {
+      grid-area: status;
     }
   `;
 
@@ -21,4 +44,6 @@ export class ShellRootSignedOut extends LitElement {
   }
 }
 
-customElements.define("shell-root-signed-out", ShellRootSignedOut);
+if (!customElements.get("shell-root-signed-out")) {
+  customElements.define("shell-root-signed-out", ShellRootSignedOut);
+}

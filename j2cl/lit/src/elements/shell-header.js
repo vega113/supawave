@@ -53,4 +53,6 @@ export class ShellHeader extends LitElement {
   }
 }
 
-customElements.define("shell-header", ShellHeader);
+if (!customElements.get("shell-header")) {
+  customElements.define("shell-header", ShellHeader);
+}

@@ -20,4 +20,6 @@ export class ShellStatusStrip extends LitElement {
   }
 }
 
-customElements.define("shell-status-strip", ShellStatusStrip);
+if (!customElements.get("shell-status-strip")) {
+  customElements.define("shell-status-strip", ShellStatusStrip);
+}

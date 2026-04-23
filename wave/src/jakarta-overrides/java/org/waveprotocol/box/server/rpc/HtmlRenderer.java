@@ -3290,7 +3290,7 @@ public final class HtmlRenderer {
           .append("</span></shell-status-strip>\n");
       sb.append("</shell-root>\n");
       sb.append("<script src=\"/j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
-      appendJ2clRootShellSignedInBootstrap(sb, safeResolvedReturnTarget, safeResolvedBasePath);
+      appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, true);
     } else {
       sb.append("<shell-root-signed-out data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
           .append(safeResolvedReturnTarget)
@@ -3318,13 +3318,16 @@ public final class HtmlRenderer {
           .append(safeResolvedReturnTarget)
           .append("</shell-status-strip>\n");
       sb.append("</shell-root-signed-out>\n");
+      appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, false);
     }
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }
 
-  private static void appendJ2clRootShellSignedInBootstrap(
-      StringBuilder sb, String safeResolvedReturnTarget, String safeResolvedBasePath) {
+  private static void appendJ2clRootShellBootstrap(
+      StringBuilder sb, String resolvedReturnTarget, String resolvedBasePath, boolean mountWorkflow) {
+    String jsReturnTarget = escapeJsonString(resolvedReturnTarget);
+    String jsBasePath = escapeJsonString(resolvedBasePath);
     sb.append("<script>\n");
     sb.append("(function(){\n");
     sb.append("function normalizeLocalReturnTargetForUi(target, fallback){\n");
@@ -3336,7 +3339,7 @@ public final class HtmlRenderer {
     sb.append("  return '/' + encodeURIComponent(normalized.substring(1));\n");
     sb.append("}\n");
     sb.append("function currentReturnTarget(){\n");
-    sb.append("  var fallback='").append(safeResolvedReturnTarget).append("';\n");
+    sb.append("  var fallback=").append(jsReturnTarget).append(";\n");
     sb.append("  var pathname=window.location.pathname||'/';\n");
     sb.append("  if(pathname.indexOf('/')!==0){pathname='/' + pathname;}\n");
     sb.append("  var search=window.location.search||'';\n");
@@ -3353,11 +3356,11 @@ public final class HtmlRenderer {
     sb.append("function normalizeLegacyHashDeepLink(){\n");
     sb.append("  var waveId=waveIdFromLegacyHash(window.location.hash);\n");
     sb.append("  if(!waveId){return;}\n");
-    sb.append("  var nextUrl='").append(safeResolvedBasePath).append("?view=j2cl-root&wave=' + encodeURIComponent(waveId);\n");
+    sb.append("  var nextUrl=").append(jsBasePath).append("+'?view=j2cl-root&wave=' + encodeURIComponent(waveId);\n");
     sb.append("  window.history.replaceState(null, '', nextUrl);\n");
     sb.append("}\n");
     sb.append("function syncReturnTargetUi(){\n");
-    sb.append("  var fallback='").append(safeResolvedReturnTarget).append("';\n");
+    sb.append("  var fallback=").append(jsReturnTarget).append(";\n");
     sb.append("  var target=currentReturnTarget();\n");
     sb.append("  var encoded=encodeLocalReturnTargetForQuery(target, fallback);\n");
     sb.append("  var shell=document.querySelector('[data-j2cl-root-shell]');\n");
@@ -3381,32 +3384,38 @@ public final class HtmlRenderer {
     sb.append("  });\n");
     sb.append("  window.addEventListener('popstate', syncReturnTargetUi);\n");
     sb.append("}\n");
-    sb.append("function resolveEntryPoint(){\n");
-    sb.append("  if(window.WaveSandboxEntryPoint&&window.WaveSandboxEntryPoint.mount){return window.WaveSandboxEntryPoint;}\n");
-    sb.append("  if(window.goog&&window.goog.module&&window.goog.module.get){\n");
-    sb.append("    var entryPoint=window.goog.module.get('WaveSandboxEntryPoint');\n");
-    sb.append("    if(entryPoint&&entryPoint.mount){window.WaveSandboxEntryPoint=entryPoint;return entryPoint;}\n");
-    sb.append("  }\n");
-    sb.append("  return null;\n");
-    sb.append("}\n");
-    sb.append("function renderLoadError(){\n");
-    sb.append("  var workflow=document.getElementById('j2cl-root-shell-workflow');\n");
-    sb.append("  if(workflow){workflow.innerHTML='<p data-j2cl-fallback=\"true\">ERROR: J2CL root-shell bundle failed to load.</p>';}\n");
-    sb.append("}\n");
-    sb.append("function clearFallback(){\n");
-    sb.append("  var workflow=document.getElementById('j2cl-root-shell-workflow');\n");
-    sb.append("  if(!workflow){return;}\n");
-    sb.append("  workflow.querySelectorAll('[data-j2cl-fallback]').forEach(function(node){node.remove();});\n");
-    sb.append("}\n");
-    sb.append("function mountWhenReady(attemptsRemaining){\n");
-    sb.append("  var entryPoint=resolveEntryPoint();\n");
-    sb.append("  if(entryPoint){clearFallback();entryPoint.mount('j2cl-root-shell-workflow','root-shell');return;}\n");
-    sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1);},50);}else{renderLoadError();}\n");
-    sb.append("}\n");
+    if (mountWorkflow) {
+      sb.append("function resolveEntryPoint(){\n");
+      sb.append("  if(window.WaveSandboxEntryPoint&&window.WaveSandboxEntryPoint.mount){return window.WaveSandboxEntryPoint;}\n");
+      sb.append("  if(window.goog&&window.goog.module&&window.goog.module.get){\n");
+      sb.append("    var entryPoint=window.goog.module.get('WaveSandboxEntryPoint');\n");
+      sb.append("    if(entryPoint&&entryPoint.mount){window.WaveSandboxEntryPoint=entryPoint;return entryPoint;}\n");
+      sb.append("  }\n");
+      sb.append("  return null;\n");
+      sb.append("}\n");
+      sb.append("function renderLoadError(){\n");
+      sb.append("  var workflow=document.getElementById('j2cl-root-shell-workflow');\n");
+      sb.append("  if(workflow){workflow.innerHTML='<p data-j2cl-fallback=\"true\">ERROR: J2CL root-shell bundle failed to load.</p>';}\n");
+      sb.append("}\n");
+      sb.append("function clearFallback(){\n");
+      sb.append("  var workflow=document.getElementById('j2cl-root-shell-workflow');\n");
+      sb.append("  if(!workflow){return;}\n");
+      sb.append("  workflow.querySelectorAll('[data-j2cl-fallback]').forEach(function(node){node.remove();});\n");
+      sb.append("}\n");
+      sb.append("function mountWhenReady(attemptsRemaining){\n");
+      sb.append("  var entryPoint=resolveEntryPoint();\n");
+      sb.append("  if(entryPoint){clearFallback();entryPoint.mount('j2cl-root-shell-workflow','root-shell');return;}\n");
+      sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1);},50);}else{renderLoadError();}\n");
+      sb.append("}\n");
+    }
     sb.append("normalizeLegacyHashDeepLink();\n");
     sb.append("hookHistory();\n");
     sb.append("syncReturnTargetUi();\n");
-    sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){syncReturnTargetUi();mountWhenReady(80);});}else{mountWhenReady(80);}\n");
+    if (mountWorkflow) {
+      sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){syncReturnTargetUi();mountWhenReady(80);});}else{mountWhenReady(80);}\n");
+    } else {
+      sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',syncReturnTargetUi);}\n");
+    }
     sb.append("})();\n");
     sb.append("</script>\n");
   }

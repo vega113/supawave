@@ -61,4 +61,6 @@ export class ShellSkipLink extends LitElement {
   }
 }
 
-customElements.define("shell-skip-link", ShellSkipLink);
+if (!customElements.get("shell-skip-link")) {
+  customElements.define("shell-skip-link", ShellSkipLink);
+}

@@ -44,18 +44,31 @@ public final class J2clSelectedWaveProjector {
       participantIds = previous.getParticipantIds();
     }
 
-    List<String> contentEntries = extractContentEntries(update.getFragments());
-    if (contentEntries.isEmpty()) {
-      contentEntries = extractDocumentEntries(update.getDocuments());
-    }
-    if (contentEntries.isEmpty() && previous != null && !previous.getContentEntries().isEmpty()) {
+    boolean previousMatchesWave =
+        previous != null
+            && selectedWaveId != null
+            && selectedWaveId.equals(previous.getSelectedWaveId());
+    J2clSelectedWaveViewportState viewportState =
+        projectViewportState(update, previousMatchesWave, previous);
+    boolean hasViewportWindow = !viewportState.isEmpty();
+    List<String> contentEntries =
+        hasViewportWindow
+            ? viewportState.getLoadedContentEntries()
+            : extractDocumentEntries(update.getDocuments());
+    if (contentEntries.isEmpty()
+        && !hasViewportWindow
+        && previousMatchesWave
+        && !previous.getContentEntries().isEmpty()) {
       contentEntries = previous.getContentEntries();
     }
-    List<J2clReadBlip> readBlips = extractReadBlips(update.getFragments());
-    if (readBlips.isEmpty()) {
-      readBlips = extractDocumentReadBlips(update.getDocuments());
-    }
-    if (readBlips.isEmpty() && previous != null && !previous.getReadBlips().isEmpty()) {
+    List<J2clReadBlip> readBlips =
+        hasViewportWindow
+            ? viewportState.getLoadedReadBlips()
+            : extractDocumentReadBlips(update.getDocuments());
+    if (readBlips.isEmpty()
+        && !hasViewportWindow
+        && previousMatchesWave
+        && !previous.getReadBlips().isEmpty()) {
       readBlips = previous.getReadBlips();
     }
 
@@ -66,10 +79,6 @@ public final class J2clSelectedWaveProjector {
     int unreadCount;
     boolean read;
     boolean readStateKnown;
-    boolean previousMatchesWave =
-        previous != null
-            && selectedWaveId != null
-            && selectedWaveId.equals(previous.getSelectedWaveId());
     boolean readStateMatchesWave = readState != null
         && selectedWaveId != null
         && selectedWaveId.equals(readState.getWaveId());
@@ -108,6 +117,7 @@ public final class J2clSelectedWaveProjector {
         participantIds,
         contentEntries,
         readBlips,
+        viewportState,
         buildWriteSession(selectedWaveId, update, previous),
         unreadCount,
         read,
@@ -167,6 +177,7 @@ public final class J2clSelectedWaveProjector {
         previous.getParticipantIds(),
         previous.getContentEntries(),
         previous.getReadBlips(),
+        previous.getViewportState(),
         previous.getWriteSession(),
         unreadCount,
         read,
@@ -220,6 +231,30 @@ public final class J2clSelectedWaveProjector {
         selectedWaveId, channelId, baseVersion, historyHash, replyTargetBlipId);
   }
 
+  private static J2clSelectedWaveViewportState projectViewportState(
+      SidecarSelectedWaveUpdate update,
+      boolean previousMatchesWave,
+      J2clSelectedWaveModel previous) {
+    J2clSelectedWaveViewportState fragmentState =
+        J2clSelectedWaveViewportState.fromFragments(update.getFragments());
+    if (!fragmentState.isEmpty()) {
+      return fragmentState.appendMissingDocuments(update.getDocuments());
+    }
+    if (previousMatchesWave && previous != null && !previous.getViewportState().isEmpty()) {
+      J2clSelectedWaveViewportState mergedState =
+          previous.getViewportState().mergeDocuments(update.getDocuments());
+      if (!mergedState.isEmpty()) {
+        return mergedState;
+      }
+    }
+    J2clSelectedWaveViewportState documentState =
+        J2clSelectedWaveViewportState.fromDocuments(update.getDocuments());
+    if (!documentState.isEmpty()) {
+      return documentState;
+    }
+    return J2clSelectedWaveViewportState.empty();
+  }
+
   private static String resolveReplyTargetBlipId(SidecarSelectedWaveUpdate update) {
     String preferred = findPreferredDocumentId(update.getDocuments());
     if (preferred != null) {
@@ -231,7 +266,7 @@ public final class J2clSelectedWaveProjector {
     }
     String fallback = null;
     for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
-      String blipId = blipIdFromSegment(fragment.getSegment());
+      String blipId = J2clSelectedWaveViewportState.blipIdOrNull(fragment.getSegment());
       if (blipId == null) {
         continue;
       }
@@ -263,42 +298,6 @@ public final class J2clSelectedWaveProjector {
       }
     }
     return fallback;
-  }
-
-  private static List<String> extractContentEntries(SidecarSelectedWaveFragments fragments) {
-    if (fragments == null) {
-      return Collections.emptyList();
-    }
-    List<String> blipSnapshots = new ArrayList<String>();
-    List<String> fallbackSnapshots = new ArrayList<String>();
-    for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
-      String rawSnapshot = fragment.getRawSnapshot();
-      if (rawSnapshot == null || rawSnapshot.isEmpty()) {
-        continue;
-      }
-      if (fragment.getSegment() != null && fragment.getSegment().startsWith("blip:")) {
-        blipSnapshots.add(rawSnapshot);
-      } else {
-        fallbackSnapshots.add(rawSnapshot);
-      }
-    }
-    return blipSnapshots.isEmpty() ? fallbackSnapshots : blipSnapshots;
-  }
-
-  private static List<J2clReadBlip> extractReadBlips(SidecarSelectedWaveFragments fragments) {
-    if (fragments == null) {
-      return Collections.emptyList();
-    }
-    List<J2clReadBlip> blips = new ArrayList<J2clReadBlip>();
-    for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
-      String rawSnapshot = fragment.getRawSnapshot();
-      String blipId = blipIdFromSegment(fragment.getSegment());
-      if (rawSnapshot == null || rawSnapshot.isEmpty() || blipId == null) {
-        continue;
-      }
-      blips.add(new J2clReadBlip(blipId, rawSnapshot));
-    }
-    return blips;
   }
 
   private static List<String> extractDocumentEntries(List<SidecarSelectedWaveDocument> documents) {
@@ -337,14 +336,6 @@ public final class J2clSelectedWaveProjector {
       blips.add(new J2clReadBlip(documentId, textContent));
     }
     return blips;
-  }
-
-  private static String blipIdFromSegment(String segment) {
-    if (segment == null || !segment.startsWith("blip:")) {
-      return null;
-    }
-    String blipId = segment.substring("blip:".length());
-    return blipId.isEmpty() ? null : blipId;
   }
 
   private static String buildDetailText(SidecarSelectedWaveUpdate update) {

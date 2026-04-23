@@ -230,6 +230,481 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertEquals("Fragment text", blip.getText());
   }
 
+  @Test
+  public void projectPreservesFragmentWindowRangesAndPlaceholders() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                40L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    40L,
+                    30L,
+                    40L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("manifest", 30L, 40L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 36L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+missing", 36L, 38L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+empty", 38L, 40L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("manifest", "metadata", 0, 0),
+                        new SidecarSelectedWaveFragment("blip:b+root", "Root text", 2, 3),
+                        new SidecarSelectedWaveFragment("blip:b+empty", null, 0, 0)))),
+            null,
+            0);
+
+    J2clSelectedWaveViewportState viewport = projected.getViewportState();
+
+    Assert.assertEquals(40L, viewport.getSnapshotVersion());
+    Assert.assertEquals(30L, viewport.getStartVersion());
+    Assert.assertEquals(40L, viewport.getEndVersion());
+    Assert.assertEquals(4, viewport.getEntries().size());
+
+    J2clSelectedWaveViewportState.Entry manifest = viewport.getEntries().get(0);
+    Assert.assertEquals("manifest", manifest.getSegment());
+    Assert.assertEquals(30L, manifest.getFromVersion());
+    Assert.assertEquals(40L, manifest.getToVersion());
+    Assert.assertFalse(manifest.isBlip());
+    Assert.assertTrue(manifest.isLoaded());
+    Assert.assertEquals("metadata", manifest.getRawSnapshot());
+
+    J2clSelectedWaveViewportState.Entry root = viewport.getEntries().get(1);
+    Assert.assertEquals("blip:b+root", root.getSegment());
+    Assert.assertEquals(30L, root.getFromVersion());
+    Assert.assertEquals(36L, root.getToVersion());
+    Assert.assertTrue(root.isBlip());
+    Assert.assertEquals("b+root", root.getBlipId());
+    Assert.assertTrue(root.isLoaded());
+    Assert.assertEquals("Root text", root.getRawSnapshot());
+    Assert.assertEquals(2, root.getAdjustOperationCount());
+    Assert.assertEquals(3, root.getDiffOperationCount());
+
+    J2clSelectedWaveViewportState.Entry placeholder = viewport.getEntries().get(2);
+    Assert.assertEquals("blip:b+missing", placeholder.getSegment());
+    Assert.assertEquals(36L, placeholder.getFromVersion());
+    Assert.assertEquals(38L, placeholder.getToVersion());
+    Assert.assertTrue(placeholder.isBlip());
+    Assert.assertEquals("b+missing", placeholder.getBlipId());
+    Assert.assertFalse(placeholder.isLoaded());
+
+    J2clSelectedWaveViewportState.Entry empty = viewport.getEntries().get(3);
+    Assert.assertEquals("blip:b+empty", empty.getSegment());
+    Assert.assertEquals(38L, empty.getFromVersion());
+    Assert.assertEquals(40L, empty.getToVersion());
+    Assert.assertEquals("b+empty", empty.getBlipId());
+    Assert.assertFalse(empty.isLoaded());
+  }
+
+  @Test
+  public void projectCarriesPreviousViewportWindowWhenUpdateOmitsFragments() {
+    J2clSelectedWaveModel first =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                40L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    40L,
+                    30L,
+                    40L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 40L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("blip:b+root", "Root text", 0, 0)))),
+            null,
+            0);
+
+    J2clSelectedWaveModel second =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            sampleUpdate(),
+            first,
+            0);
+
+    Assert.assertEquals(40L, second.getViewportState().getSnapshotVersion());
+    Assert.assertEquals(1, second.getViewportState().getEntries().size());
+    Assert.assertEquals("b+root", second.getViewportState().getEntries().get(0).getBlipId());
+  }
+
+  @Test
+  public void projectMergesDocumentOnlyUpdateIntoPreviousViewportWindow() {
+    J2clSelectedWaveModel first =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                40L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    40L,
+                    30L,
+                    40L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 36L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+missing", 36L, 40L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("blip:b+root", "Root text", 0, 0)))),
+            null,
+            0);
+
+    J2clSelectedWaveModel second =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                2,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                44L,
+                "HASH2",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root", "user@example.com", 44L, 45L, "Root text updated")),
+                null),
+            first,
+            0);
+
+    Assert.assertEquals(2, second.getViewportState().getEntries().size());
+    J2clSelectedWaveViewportState.Entry root = second.getViewportState().getEntries().get(0);
+    Assert.assertEquals("blip:b+root", root.getSegment());
+    Assert.assertEquals(30L, root.getFromVersion());
+    Assert.assertEquals(44L, root.getToVersion());
+    Assert.assertTrue(root.isLoaded());
+    Assert.assertEquals("Root text updated", root.getRawSnapshot());
+    J2clSelectedWaveViewportState.Entry missing = second.getViewportState().getEntries().get(1);
+    Assert.assertEquals("blip:b+missing", missing.getSegment());
+    Assert.assertEquals(36L, missing.getFromVersion());
+    Assert.assertEquals(40L, missing.getToVersion());
+    Assert.assertFalse(missing.isLoaded());
+  }
+
+  @Test
+  public void projectMergesDocumentOnlyUpdateWithoutDowngradingViewportVersion() {
+    J2clSelectedWaveModel first =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                50L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    50L,
+                    30L,
+                    50L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 50L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("blip:b+root", "Root text", 0, 0)))),
+            null,
+            0);
+
+    J2clSelectedWaveModel second =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                2,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                44L,
+                "HASH2",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+reply", "user@example.com", 44L, 45L, "Reply text")),
+                null),
+            first,
+            0);
+
+    Assert.assertEquals(50L, second.getViewportState().getSnapshotVersion());
+    Assert.assertEquals(50L, second.getViewportState().getEndVersion());
+    Assert.assertEquals(2, second.getViewportState().getEntries().size());
+    Assert.assertEquals("b+reply", second.getViewportState().getEntries().get(1).getBlipId());
+    Assert.assertEquals(44L, second.getViewportState().getEntries().get(1).getToVersion());
+  }
+
+  @Test
+  public void projectMergesDocumentsIntoFragmentUpdate() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                40L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+reply", "user@example.com", 42L, 43L, "Reply text")),
+                new SidecarSelectedWaveFragments(
+                    40L,
+                    30L,
+                    40L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 40L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("blip:b+root", "Root text", 0, 0)))),
+            null,
+            0);
+
+    Assert.assertEquals(2, projected.getViewportState().getEntries().size());
+    Assert.assertEquals("b+root", projected.getViewportState().getEntries().get(0).getBlipId());
+    Assert.assertEquals("b+reply", projected.getViewportState().getEntries().get(1).getBlipId());
+    Assert.assertEquals(
+        "Reply text", projected.getViewportState().getEntries().get(1).getRawSnapshot());
+  }
+
+  @Test
+  public void projectUpgradesFragmentPlaceholderFromDocumentInSameUpdate() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                40L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root", "user@example.com", 44L, 45L, "Root text from document")),
+                new SidecarSelectedWaveFragments(
+                    40L,
+                    30L,
+                    40L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 40L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("blip:b+root", null, 0, 0)))),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getViewportState().getEntries().size());
+    J2clSelectedWaveViewportState.Entry root = projected.getViewportState().getEntries().get(0);
+    Assert.assertTrue(root.isLoaded());
+    Assert.assertEquals("Root text from document", root.getRawSnapshot());
+    Assert.assertEquals(44L, root.getToVersion());
+  }
+
+  @Test
+  public void projectKeepsLoadedFragmentWhenSameUpdateDocumentAlsoExists() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                40L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root", "user@example.com", 44L, 45L, "Document text")),
+                new SidecarSelectedWaveFragments(
+                    40L,
+                    30L,
+                    40L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 40L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment(
+                            "blip:b+root", "Fragment text", 0, 0)))),
+            null,
+            0);
+
+    J2clSelectedWaveViewportState.Entry root =
+        projected.getViewportState().getEntries().get(0);
+    Assert.assertEquals("Fragment text", root.getRawSnapshot());
+    Assert.assertEquals(40L, root.getToVersion());
+  }
+
+  @Test
+  public void projectBuildsViewportWindowFromDocumentOnlyUpdate() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root", "user@example.com", 7L, 8L, "Document text")),
+                null),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getViewportState().getReadWindowEntries().size());
+    Assert.assertEquals(
+        "b+root", projected.getViewportState().getReadWindowEntries().get(0).getBlipId());
+    Assert.assertEquals(
+        "Document text",
+        projected.getViewportState().getReadWindowEntries().get(0).getText());
+  }
+
+  @Test
+  public void projectBuildsDocumentOnlyViewportAtVersionZero() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                0L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root", "user@example.com", 0L, 8L, "Bootstrap text")),
+                null),
+            null,
+            0);
+
+    Assert.assertEquals(0L, projected.getViewportState().getSnapshotVersion());
+    Assert.assertEquals(0L, projected.getViewportState().getStartVersion());
+    Assert.assertEquals(0L, projected.getViewportState().getEndVersion());
+  }
+
+  @Test
+  public void projectSkipsDocumentViewportEntriesWithoutDocumentIds() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                0L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        null, "user@example.com", 0L, 8L, "No id"),
+                    new SidecarSelectedWaveDocument(
+                        "", "user@example.com", 1L, 9L, "Empty id")),
+                null),
+            null,
+            0);
+
+    Assert.assertTrue(projected.getViewportState().isEmpty());
+  }
+
+  @Test
+  public void projectSkipsDocumentViewportEntriesWithoutText() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                0L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+empty", "user@example.com", 0L, 8L, ""),
+                    new SidecarSelectedWaveDocument(
+                        "b+null", "user@example.com", 1L, 9L, null)),
+                null),
+            null,
+            0);
+
+    Assert.assertTrue(projected.getViewportState().isEmpty());
+  }
+
+  @Test
+  public void reprojectReadStatePreservesViewportWindow() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                40L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    40L,
+                    30L,
+                    40L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 40L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("blip:b+root", "Root text", 0, 0)))),
+            null,
+            0);
+
+    J2clSelectedWaveModel reprojected =
+        J2clSelectedWaveProjector.reprojectReadState(
+            projected,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveReadState(WAVE_ID, 0, true),
+            false);
+
+    Assert.assertEquals(40L, reprojected.getViewportState().getSnapshotVersion());
+    Assert.assertEquals(1, reprojected.getViewportState().getEntries().size());
+    Assert.assertEquals(
+        "Root text", reprojected.getViewportState().getEntries().get(0).getRawSnapshot());
+  }
+
   // -- Write-session coupling (pre-existing) ----------------------------------
 
   @Test

@@ -269,6 +269,47 @@ body {
   word-break: normal;
 }
 
+.j2cl-read-viewport-placeholder,
+.visible-region-placeholder {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(220, 233, 255, 0.65),
+      rgba(248, 251, 255, 0.35),
+      rgba(220, 233, 255, 0.65)
+    );
+  border: 1px dashed #bfcef5;
+  border-radius: 18px;
+  background-size: 220% 100%;
+  color: #4f6480;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  animation: j2cl-viewport-placeholder-shimmer 1.8s ease-in-out 6;
+  padding: 14px 16px;
+}
+
+@keyframes j2cl-viewport-placeholder-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .j2cl-read-viewport-placeholder,
+  .visible-region-placeholder {
+    animation: none;
+  }
+}
+
 .sidecar-search-session {
   margin: 16px 0 0;
   color: #3567c8;

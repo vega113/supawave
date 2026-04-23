@@ -410,29 +410,40 @@ Expected:
   - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveProjector.java`
   - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveModel.java`
   - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRenderer.java`
+  - `j2cl/src/main/webapp/assets/sidecar.css`
 - Create:
   - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveViewportState.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadWindowEntry.java`
 - Test:
   - `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveProjectorTest.java`
+  - `j2cl/src/test/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRendererTest.java`
 
-- [ ] Replace `List<String> contentEntries` as the primary rendering model with a typed window model that preserves:
+- [x] Replace `List<String> contentEntries` as the primary rendering model with a typed window model that preserves:
   - segment id
   - range
   - loaded vs placeholder state
   - ordering
-- [ ] Keep enough compatibility in the projector/model for existing status/read/write-session assertions to keep passing
-- [ ] Teach the view to render loaded entries and placeholders without losing the eventual `#966` DOM/view-provider seam
-- [ ] Preserve fragment metadata even when snapshot documents are absent
-- [ ] Keep compatibility coverage for existing selected-wave tests most likely to churn:
+- [x] Keep enough compatibility in the projector/model for existing status/read/write-session assertions to keep passing
+- [x] Teach the view to render loaded entries and placeholders without losing the eventual `#966` DOM/view-provider seam
+- [x] Preserve fragment metadata even when snapshot documents are absent
+- [x] Keep compatibility coverage for existing selected-wave tests most likely to churn:
   - `J2clSelectedWaveProjectorTest`
   - `J2clSelectedWaveViewServerFirstLogicTest`
   - `J2clReadSurfaceDomRendererTest`
   - any existing selected-wave model/view tests added by `#966`
-- [ ] Preserve `#936` version/hash atomicity when a live selected-wave update races a `/fragments` growth response; stale growth windows must be dropped or re-anchored based on version/hash
+- [x] Preserve `#936` version/hash atomicity when a live selected-wave update races a `/fragments` growth response; stale growth windows must be dropped or re-anchored based on version/hash
+
+Task 3 result:
+- Added `J2clSelectedWaveViewportState` with ordered segment/range entries, loaded/placeholder state, raw snapshots, operation counts, and snapshot/start/end versions.
+- Kept legacy `contentEntries` and `readBlips` as compatibility projections while moving the primary selected-wave read model to typed viewport state.
+- Added `J2clReadWindowEntry` plus read-surface rendering for loaded viewport blips and non-focusable placeholders, with stable no-op rerenders and safe transitions back to the classic renderer.
+- Document-only updates merge into prior viewport state, same-update documents append missing segments or fill unloaded placeholders, and loaded fragment snapshots continue to win over same-update document fallbacks.
+- No `/fragments` growth transport was added in Task 3; the state now preserves the version fields needed for Task 4/5 stale-growth handling, while the existing #936 write-session version/hash coupling remains covered by the selected-wave projector tests.
 
 Run:
 ```bash
-sbt -batch "testOnly org.waveprotocol.box.j2cl.search.J2clSelectedWaveProjectorTest"
+sbt -batch j2clSearchBuild j2clSearchTest
 ```
 
 Expected:

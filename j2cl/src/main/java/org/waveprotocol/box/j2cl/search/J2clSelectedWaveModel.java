@@ -21,6 +21,7 @@ public final class J2clSelectedWaveModel {
   private final List<String> participantIds;
   private final List<String> contentEntries;
   private final List<J2clReadBlip> readBlips;
+  private final J2clSelectedWaveViewportState viewportState;
   private final J2clSidecarWriteSession writeSession;
   private final int unreadCount;
   private final boolean read;
@@ -59,6 +60,7 @@ public final class J2clSelectedWaveModel {
         participantIds,
         contentEntries,
         Collections.<J2clReadBlip>emptyList(),
+        J2clSelectedWaveViewportState.empty(),
         writeSession,
         unreadCount,
         read,
@@ -80,6 +82,48 @@ public final class J2clSelectedWaveModel {
       List<String> participantIds,
       List<String> contentEntries,
       List<J2clReadBlip> readBlips,
+      J2clSidecarWriteSession writeSession,
+      int unreadCount,
+      boolean read,
+      boolean readStateKnown,
+      boolean readStateStale) {
+    this(
+        hasSelection,
+        loading,
+        error,
+        selectedWaveId,
+        titleText,
+        snippetText,
+        unreadText,
+        statusText,
+        detailText,
+        reconnectCount,
+        participantIds,
+        contentEntries,
+        readBlips,
+        J2clSelectedWaveViewportState.empty(),
+        writeSession,
+        unreadCount,
+        read,
+        readStateKnown,
+        readStateStale);
+  }
+
+  J2clSelectedWaveModel(
+      boolean hasSelection,
+      boolean loading,
+      boolean error,
+      String selectedWaveId,
+      String titleText,
+      String snippetText,
+      String unreadText,
+      String statusText,
+      String detailText,
+      int reconnectCount,
+      List<String> participantIds,
+      List<String> contentEntries,
+      List<J2clReadBlip> readBlips,
+      J2clSelectedWaveViewportState viewportState,
       J2clSidecarWriteSession writeSession,
       int unreadCount,
       boolean read,
@@ -107,6 +151,8 @@ public final class J2clSelectedWaveModel {
         readBlips == null
             ? Collections.<J2clReadBlip>emptyList()
             : Collections.unmodifiableList(new ArrayList<J2clReadBlip>(readBlips));
+    this.viewportState =
+        viewportState == null ? J2clSelectedWaveViewportState.empty() : viewportState;
     this.writeSession = writeSession;
     this.unreadCount = unreadCount;
     this.read = read;
@@ -293,6 +339,10 @@ public final class J2clSelectedWaveModel {
 
   public List<J2clReadBlip> getReadBlips() {
     return readBlips;
+  }
+
+  public J2clSelectedWaveViewportState getViewportState() {
+    return viewportState;
   }
 
   public J2clSidecarWriteSession getWriteSession() {

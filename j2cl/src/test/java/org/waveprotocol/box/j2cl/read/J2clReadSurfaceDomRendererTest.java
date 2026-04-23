@@ -504,6 +504,226 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderWindowEntriesKeepsPlaceholderMetadataInOrder() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+
+    boolean rendered =
+        new J2clReadSurfaceDomRenderer(host)
+            .renderWindow(
+                Arrays.asList(
+                    J2clReadWindowEntry.loaded(
+                        "blip:b+root", 30L, 36L, "b+root", "Root text"),
+                    J2clReadWindowEntry.placeholder(
+                        "blip:b+missing", 36L, 40L, "b+missing")));
+
+    Assert.assertTrue(rendered);
+    Assert.assertEquals("b+root", firstBlip(host).getAttribute("data-blip-id"));
+    HTMLElement placeholder =
+        (HTMLElement) host.querySelector("[data-j2cl-viewport-placeholder='true']");
+    Assert.assertNotNull(placeholder);
+    Assert.assertEquals("blip:b+missing", placeholder.getAttribute("data-segment"));
+    Assert.assertEquals("36", placeholder.getAttribute("data-range-from"));
+    Assert.assertEquals("40", placeholder.getAttribute("data-range-to"));
+    Assert.assertEquals("b+missing", placeholder.getAttribute("data-placeholder-blip-id"));
+    Assert.assertEquals(
+        firstBlip(host).nextSibling,
+        placeholder);
+  }
+
+  @Test
+  public void rerenderingSameWindowEntriesPreservesFocusedNode() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    List<J2clReadWindowEntry> entries =
+        Arrays.asList(
+            J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text"),
+            J2clReadWindowEntry.placeholder("blip:b+missing", 36L, 40L, "b+missing"));
+
+    Assert.assertTrue(renderer.renderWindow(entries));
+    HTMLElement root = blip(host, "b+root");
+    root.focus();
+
+    Assert.assertTrue(renderer.renderWindow(entries));
+
+    Assert.assertSame(root, blip(host, "b+root"));
+    Assert.assertEquals(root, DomGlobal.document.activeElement);
+    Assert.assertEquals("0", root.getAttribute("tabindex"));
+    Assert.assertEquals("true", root.getAttribute("aria-current"));
+  }
+
+  @Test
+  public void renderWindowPlaceholderOmitsUnknownRangeAttributes() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(host)
+            .renderWindow(
+                Arrays.asList(
+                    J2clReadWindowEntry.placeholder(
+                        "blip:b+pending", -1L, -1L, "b+pending"))));
+
+    HTMLElement placeholder =
+        (HTMLElement) host.querySelector("[data-j2cl-viewport-placeholder='true']");
+    Assert.assertNotNull(placeholder);
+    Assert.assertNull(placeholder.getAttribute("data-range-from"));
+    Assert.assertNull(placeholder.getAttribute("data-range-to"));
+    Assert.assertEquals(
+        "polite", host.querySelector("[data-j2cl-read-surface]").getAttribute("aria-live"));
+  }
+
+  @Test
+  public void renderWindowPlaceholderCanCarryOneSidedRangeMetadata() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(host)
+            .renderWindow(
+                Arrays.asList(
+                    J2clReadWindowEntry.placeholder(
+                        "blip:b+pending", 12L, -1L, "b+pending"))));
+
+    HTMLElement placeholder =
+        (HTMLElement) host.querySelector("[data-j2cl-viewport-placeholder='true']");
+    Assert.assertNotNull(placeholder);
+    Assert.assertEquals("12", placeholder.getAttribute("data-range-from"));
+    Assert.assertNull(placeholder.getAttribute("data-range-to"));
+  }
+
+  @Test
+  public void renderWindowAllPlaceholdersKeepsSurfaceBusyWithoutTabStops() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(host)
+            .renderWindow(
+                Arrays.asList(
+                    J2clReadWindowEntry.placeholder(
+                        "blip:b+before", 10L, 12L, "b+before"),
+                    J2clReadWindowEntry.placeholder(
+                        "blip:b+after", 12L, 14L, "b+after"))));
+
+    Assert.assertNull(firstBlip(host));
+    Assert.assertEquals(2, host.querySelectorAll("[data-j2cl-viewport-placeholder='true']").length);
+    Assert.assertEquals(
+        "true", host.querySelector("[data-thread-id='root']").getAttribute("aria-busy"));
+    Assert.assertEquals(
+        0, host.querySelectorAll("[data-j2cl-viewport-placeholder='true'][tabindex]").length);
+  }
+
+  @Test
+  public void renderWindowAndClassicRenderTransitionsClearStaleState() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text"),
+                J2clReadWindowEntry.placeholder("blip:b+missing", 36L, 40L, "b+missing"))));
+    Assert.assertNotNull(host.querySelector("[data-j2cl-viewport-placeholder='true']"));
+
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(new J2clReadBlip("b+root", "Root text updated")),
+            Collections.<String>emptyList()));
+    Assert.assertNull(host.querySelector("[data-j2cl-viewport-placeholder='true']"));
+    Assert.assertEquals("Root text updated", renderedText(blip(host, "b+root")));
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root", 30L, 36L, "b+root", "Root text window"))));
+    Assert.assertEquals("Root text window", renderedText(blip(host, "b+root")));
+  }
+
+  @Test
+  public void allPlaceholderWindowThenClassicRenderClearsBusySurfaceState() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.placeholder("blip:b+before", 10L, 12L, "b+before"),
+                J2clReadWindowEntry.placeholder("blip:b+after", 12L, 14L, "b+after"))));
+    Assert.assertNotNull(host.querySelector("[data-j2cl-viewport-placeholder='true']"));
+
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(new J2clReadBlip("b+root", "Root text")),
+            Collections.<String>emptyList()));
+
+    Assert.assertNull(host.querySelector("[data-j2cl-viewport-placeholder='true']"));
+    Assert.assertNull(host.querySelector("[data-j2cl-read-surface]").getAttribute("aria-live"));
+    Assert.assertNull(host.querySelector("[data-thread-id='root']").getAttribute("aria-busy"));
+    Assert.assertEquals("Root text", renderedText(blip(host, "b+root")));
+  }
+
+  @Test
+  public void classicRenderAfterWindowNoOpClearsViewportSurfaceState() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text"))));
+    HTMLElement windowRoot = blip(host, "b+root");
+    Assert.assertNull(host.querySelector("[data-j2cl-read-surface]").getAttribute("aria-live"));
+
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(new J2clReadBlip("b+root", "Root text")),
+            Collections.<String>emptyList()));
+
+    HTMLElement classicRoot = blip(host, "b+root");
+    Assert.assertNotSame(windowRoot, classicRoot);
+    Assert.assertNull(host.querySelector("[data-j2cl-read-surface]").getAttribute("aria-live"));
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text"))));
+    Assert.assertNotSame(classicRoot, blip(host, "b+root"));
+    Assert.assertNull(host.querySelector("[data-j2cl-read-surface]").getAttribute("aria-live"));
+  }
+
+  @Test
+  public void renderWindowPlaceholderUpgradePreservesFocusedLoadedBlip() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text"),
+                J2clReadWindowEntry.placeholder("blip:b+reply", 36L, 40L, "b+reply"))));
+    HTMLElement root = blip(host, "b+root");
+    root.focus();
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text"),
+                J2clReadWindowEntry.loaded(
+                    "blip:b+reply", 36L, 40L, "b+reply", "Reply text"))));
+
+    HTMLElement restoredRoot = blip(host, "b+root");
+    Assert.assertEquals(restoredRoot, DomGlobal.document.activeElement);
+    Assert.assertEquals("true", restoredRoot.getAttribute("aria-current"));
+    Assert.assertEquals("Reply text", renderedText(blip(host, "b+reply")));
+  }
+
+  @Test
   public void renderEmptyContentReturnsFalseAndLeavesHostEmpty() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
@@ -590,6 +810,11 @@ public class J2clReadSurfaceDomRendererTest {
 
   private static HTMLElement blip(HTMLDivElement host, String blipId) {
     return (HTMLElement) host.querySelector("[data-blip-id='" + blipId + "']");
+  }
+
+  private static String renderedText(HTMLElement blip) {
+    HTMLElement content = (HTMLElement) blip.querySelector(".j2cl-read-blip-content");
+    return content == null ? "" : content.textContent;
   }
 
   private static void dispatchKey(HTMLElement target, String key) {

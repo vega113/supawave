@@ -3,9 +3,11 @@ package org.waveprotocol.box.j2cl.search;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
+import java.util.List;
 import jsinterop.annotations.JsFunction;
 import jsinterop.base.Js;
 import org.waveprotocol.box.j2cl.read.J2clReadSurfaceDomRenderer;
+import org.waveprotocol.box.j2cl.read.J2clReadWindowEntry;
 import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
 
@@ -130,7 +132,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     snippet.textContent = model.getSnippetText();
     snippet.hidden = model.getSnippetText().isEmpty();
 
-    boolean hasRenderedReadSurface = readSurface.render(model.getReadBlips(), model.getContentEntries());
+    List<J2clReadWindowEntry> readWindowEntries = model.getViewportState().getReadWindowEntries();
+    boolean hasViewportReadWindow = !readWindowEntries.isEmpty();
+    boolean hasRenderedReadSurface =
+        hasViewportReadWindow
+            ? readSurface.renderWindow(readWindowEntries)
+            : readSurface.render(model.getReadBlips(), model.getContentEntries());
 
     emptyState.hidden = model.isError() || (model.hasSelection() && hasRenderedReadSurface);
     emptyState.textContent =
@@ -177,7 +184,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (model.isLoading() || model.isError()) {
       return true;
     }
-    return model.getContentEntries().isEmpty() && model.getReadBlips().isEmpty();
+    return model.getContentEntries().isEmpty()
+        && model.getReadBlips().isEmpty()
+        && model.getViewportState().getReadWindowEntries().isEmpty();
   }
 
   private boolean shouldPreserveServerFirstCard(J2clSelectedWaveModel model) {

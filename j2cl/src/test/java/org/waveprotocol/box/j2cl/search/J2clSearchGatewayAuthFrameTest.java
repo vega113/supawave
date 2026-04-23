@@ -50,6 +50,19 @@ public class J2clSearchGatewayAuthFrameTest {
   }
 
   @Test
+  public void websocketCookieHostMustMatchCurrentPageHost() {
+    Assert.assertTrue(
+        SidecarSessionBootstrap.usesCompatibleCookieHost(
+            "wave.example.com", "wave.example.com:7443"));
+    Assert.assertTrue(
+        SidecarSessionBootstrap.usesCompatibleCookieHost(
+            "wave.example.com", "wave.example.com"));
+    Assert.assertFalse(
+        SidecarSessionBootstrap.usesCompatibleCookieHost(
+            "wave.example.com", "socket.example.com:7443"));
+  }
+
+  @Test
   public void transportCodecDoesNotExposeAuthenticateEnvelopeHelper() {
     for (Method method : SidecarTransportCodec.class.getDeclaredMethods()) {
       Assert.assertFalse(

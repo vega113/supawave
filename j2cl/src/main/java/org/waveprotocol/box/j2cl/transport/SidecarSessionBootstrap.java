@@ -19,6 +19,32 @@ public final class SidecarSessionBootstrap {
     return websocketAddress;
   }
 
+  public static boolean usesCompatibleCookieHost(String pageHostname, String websocketAddress) {
+    String expectedHost = normalizeHostName(pageHostname);
+    String websocketHost = websocketHostName(websocketAddress);
+    return !expectedHost.isEmpty() && expectedHost.equalsIgnoreCase(websocketHost);
+  }
+
+  public static String websocketHostName(String websocketAddress) {
+    if (websocketAddress == null) {
+      return "";
+    }
+    String trimmed = websocketAddress.trim();
+    if (trimmed.isEmpty()) {
+      return "";
+    }
+    if (trimmed.startsWith("[")) {
+      int closingBracket = trimmed.indexOf(']');
+      return closingBracket > 1 ? trimmed.substring(1, closingBracket) : "";
+    }
+    int firstColon = trimmed.indexOf(':');
+    int lastColon = trimmed.lastIndexOf(':');
+    if (firstColon >= 0 && firstColon == lastColon) {
+      return normalizeHostName(trimmed.substring(0, firstColon));
+    }
+    return normalizeHostName(trimmed);
+  }
+
   public static SidecarSessionBootstrap fromRootHtml(String html) {
     if (html == null) {
       throw new IllegalArgumentException("Root HTML must not be null");
@@ -135,5 +161,9 @@ public final class SidecarSessionBootstrap {
       }
     }
     throw new IllegalArgumentException("Unterminated __websocket_address string");
+  }
+
+  private static String normalizeHostName(String hostName) {
+    return hostName == null ? "" : hostName.trim();
   }
 }

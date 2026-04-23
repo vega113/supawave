@@ -4,6 +4,7 @@ import com.google.j2cl.junit.apt.J2clTestInput;
 import org.junit.Assert;
 import org.junit.Test;
 import org.waveprotocol.box.j2cl.search.J2clSidecarRouteCodec;
+import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 
 @J2clTestInput(SandboxBuildSmokeTest.class)
 public class SandboxBuildSmokeTest {
@@ -68,6 +69,16 @@ public class SandboxBuildSmokeTest {
     Assert.assertEquals(
         "ws://socket.example.test/socket",
         SandboxEntryPoint.buildWebSocketUrl("http:", "socket.example.test"));
+  }
+
+  @Test
+  public void websocketCompatibilityRejectsDifferentHostNames() {
+    Assert.assertTrue(
+        SidecarSessionBootstrap.usesCompatibleCookieHost(
+            "wave.example.test", "wave.example.test:7443"));
+    Assert.assertFalse(
+        SidecarSessionBootstrap.usesCompatibleCookieHost(
+            "wave.example.test", "socket.example.test:7443"));
   }
 
   @Test

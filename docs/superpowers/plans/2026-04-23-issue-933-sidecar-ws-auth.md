@@ -31,14 +31,14 @@
 ## File Structure
 
 ### Production files modified
-- `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchGateway.java` — remove cookie-read + send in both `openSelectedWave` (WebSocket onopen) and `submit` (WebSocket onopen). Delete the private `readCookie(String)` helper and the unused `DomGlobal.document` import if no other callers remain.
-- `j2cl/src/main/java/org/waveprotocol/box/j2cl/sandbox/SandboxEntryPoint.java` — remove cookie-read + send in `SidecarProofRunner.openSocket`. Delete the private `readCookie(String)` helper and the package-private `readCookieFromHeader(String, String)` helper along with its percent-decoding fallback methods (`decodeUriComponentSafe`, `decodeUriComponentFallback`, `decodeUriComponentNative`, `appendUtf8Bytes`, `hexValue`, `isMissingNativeUriCodec`). These decoding helpers exist only to support `readCookieFromHeader`.
+- `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchGateway.java` — remove cookie-read + send in both `openSelectedWave` (WebSocket onopen) and `submit` (WebSocket onopen). Delete the private `readCookie(String)` helper and the unused `DomGlobal.document` import if no other callers remain. Also reject cross-host websocket addresses up front because the HttpOnly session cookie is only sent back to the current page host.
+- `j2cl/src/main/java/org/waveprotocol/box/j2cl/sandbox/SandboxEntryPoint.java` — remove cookie-read + send in `SidecarProofRunner.openSocket`. Delete the private `readCookie(String)` helper and the package-private `readCookieFromHeader(String, String)` helper along with its percent-decoding fallback methods (`decodeUriComponentSafe`, `decodeUriComponentFallback`, `decodeUriComponentNative`, `appendUtf8Bytes`, `hexValue`, `isMissingNativeUriCodec`). These decoding helpers exist only to support `readCookieFromHeader`. Also fail the sandbox proof fast on cross-host websocket addresses for the same cookie-scope reason.
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodec.java` — delete `encodeAuthenticateEnvelope(int, String)`. Nothing else in the sidecar uses it.
 
 ### Test files modified
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodecTest.java` — delete `encodeAuthenticateEnvelopePreservesLegacyWrapperShape` (covers a method we are removing).
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/sandbox/SandboxBuildSmokeTest.java` — delete `malformedCookieValueReturnsNull` (covers a helper we are removing).
-- `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSearchGatewayAuthFrameTest.java` *(new)* — regression test: a gateway first-frame helper seam that verifies the selected-wave and submit paths emit `ProtocolOpenRequest` / `ProtocolSubmitRequest` rather than `ProtocolAuthenticate`, while also guarding that the transport codec no longer re-exposes an auth-envelope helper.
+- `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSearchGatewayAuthFrameTest.java` *(new)* — regression test: a gateway first-frame helper seam that verifies the selected-wave and submit paths emit `ProtocolOpenRequest` / `ProtocolSubmitRequest` rather than `ProtocolAuthenticate`, while also guarding that the websocket address stays on the current page host and that the transport codec no longer re-exposes an auth-envelope helper.
 
 ### New files
 - `wave/config/changelog.d/2026-04-23-j2cl-sidecar-auth-handshake.json` — single `fix`-section fragment.

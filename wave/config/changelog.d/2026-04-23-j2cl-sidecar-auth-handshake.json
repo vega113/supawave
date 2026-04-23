@@ -9,7 +9,8 @@
       "type": "fix",
       "items": [
         "Removed the JSESSIONID lookup via document.cookie from the J2CL sidecar's selected-wave, submit, and sandbox proof sockets so the session cookie can stay HttpOnly",
-        "Deleted the now-unused sidecar ProtocolAuthenticate envelope helper to prevent regressions that would re-introduce the client-side cookie handshake"
+        "Deleted the now-unused sidecar ProtocolAuthenticate envelope helper to prevent regressions that would re-introduce the client-side cookie handshake",
+        "Added a fast-fail guard for cross-host websocket presented addresses because the handshake-only J2CL sidecar auth path now requires the current page host to receive the HttpOnly session cookie"
       ]
     }
   ]

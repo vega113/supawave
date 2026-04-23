@@ -31,6 +31,8 @@ import org.waveprotocol.box.j2cl.transport.SidecarWaveletUpdateSummary;
 public final class SandboxEntryPoint {
   private static final String DEFAULT_MODE = "sidecar";
   private static final String DEFAULT_WAVELET_PREFIX = "conv+root";
+  private static final String CROSS_HOST_WEBSOCKET_ERROR =
+      "The J2CL sidecar sandbox requires core.http_websocket_presented_address to use the current page host when HttpOnly session cookies are enabled.";
 
   private SandboxEntryPoint() {
   }
@@ -306,6 +308,11 @@ public final class SandboxEntryPoint {
 
     private void openSocket(
         SidecarSessionBootstrap bootstrap, SidecarSearchResponse.Digest digest, int generation) {
+      if (!SidecarSessionBootstrap.usesCompatibleCookieHost(
+          DomGlobal.location.hostname, bootstrap.getWebSocketAddress())) {
+        setError("Cross-host websocket unsupported", CROSS_HOST_WEBSOCKET_ERROR);
+        return;
+      }
       WebSocket ws =
           new WebSocket(buildWebSocketUrl(DomGlobal.location.protocol, bootstrap.getWebSocketAddress()));
       socket = ws;

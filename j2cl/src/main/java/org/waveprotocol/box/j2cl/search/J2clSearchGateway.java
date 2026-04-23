@@ -19,6 +19,8 @@ public final class J2clSearchGateway
         J2clSelectedWaveController.Gateway,
         J2clSidecarComposeController.Gateway {
   private static final String DEFAULT_WAVELET_PREFIX = "conv+root";
+  private static final String CROSS_HOST_WEBSOCKET_ERROR =
+      "The J2CL sidecar requires core.http_websocket_presented_address to use the current page host when HttpOnly session cookies are enabled.";
 
   @Override
   public void fetchRootSessionBootstrap(
@@ -43,6 +45,11 @@ public final class J2clSearchGateway
       J2clSearchPanelController.SuccessCallback<SidecarSelectedWaveUpdate> onUpdate,
       J2clSearchPanelController.ErrorCallback onError,
       Runnable onDisconnect) {
+    if (!SidecarSessionBootstrap.usesCompatibleCookieHost(
+        DomGlobal.location.hostname, bootstrap.getWebSocketAddress())) {
+      onError.accept(CROSS_HOST_WEBSOCKET_ERROR);
+      return () -> {};
+    }
     WebSocket socket =
         new WebSocket(buildWebSocketUrl(DomGlobal.location.protocol, bootstrap.getWebSocketAddress()));
     final boolean[] closedByClient = new boolean[] {false};
@@ -129,6 +136,11 @@ public final class J2clSearchGateway
       SidecarSubmitRequest request,
       J2clSearchPanelController.SuccessCallback<SidecarSubmitResponse> onSuccess,
       J2clSearchPanelController.ErrorCallback onError) {
+    if (!SidecarSessionBootstrap.usesCompatibleCookieHost(
+        DomGlobal.location.hostname, bootstrap.getWebSocketAddress())) {
+      onError.accept(CROSS_HOST_WEBSOCKET_ERROR);
+      return;
+    }
     WebSocket socket =
         new WebSocket(buildWebSocketUrl(DomGlobal.location.protocol, bootstrap.getWebSocketAddress()));
     final boolean[] closedByClient = new boolean[] {false};

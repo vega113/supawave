@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-23-j2cl-sidecar-auth-handshake",
+  "version": "Unreleased",
+  "date": "2026-04-23",
+  "title": "J2CL sidecar no longer reads the session cookie from JavaScript",
+  "summary": "The J2CL search sidecar and sandbox proof now rely on the WebSocket upgrade handshake for authentication, so the primary session cookie can remain HttpOnly.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed the JSESSIONID lookup via document.cookie from the J2CL sidecar's selected-wave, submit, and sandbox proof sockets so the session cookie can stay HttpOnly",
+        "Deleted the now-unused sidecar ProtocolAuthenticate envelope helper to prevent regressions that would re-introduce the client-side cookie handshake"
+      ]
+    }
+  ]
+}

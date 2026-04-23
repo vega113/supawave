@@ -544,8 +544,27 @@ public class WaveClientServlet extends HttpServlet {
     if (!VIEW_J2CL_ROOT.equals(resolveRequestedView(request))) {
       return websocketPresentedAddress;
     }
-    String host = request == null ? null : request.getHeader("Host");
+    String host = resolvePresentedHostHeader(request);
     return StringUtils.isBlank(host) ? websocketPresentedAddress : host;
+  }
+
+  private String resolvePresentedHostHeader(HttpServletRequest request) {
+    if (request == null) {
+      return null;
+    }
+    String forwardedHost = normalizeSingleHostHeaderValue(request.getHeader("X-Forwarded-Host"));
+    if (StringUtils.isNotBlank(forwardedHost)) {
+      return forwardedHost;
+    }
+    return normalizeSingleHostHeaderValue(request.getHeader("Host"));
+  }
+
+  private static String normalizeSingleHostHeaderValue(String headerValue) {
+    if (StringUtils.isBlank(headerValue)) {
+      return null;
+    }
+    String normalized = StringUtils.substringBefore(headerValue, ",").trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 
   private String resolveRequestedView(HttpServletRequest request) {

@@ -141,8 +141,8 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             : model.getStatusText();
 
     if (serverFirstActive) {
-      clearServerFirstMarkers();
       emitRootShellSwap("live-update");
+      clearServerFirstMarkers();
     }
   }
 
@@ -176,7 +176,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       return false;
     }
     if (!serverFirstWaveId.isEmpty()) {
-      return shouldPreserveServerSnapshot(serverFirstWaveId, model, !serverFirstActive);
+      return shouldPreserveServerSnapshot(serverFirstWaveId, model, serverFirstSwapRecorded);
     }
     return !model.hasSelection() && !serverFirstMode.isEmpty();
   }
@@ -209,7 +209,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   }
 
   private void emitRootShellSwap(String reason) {
-    if (serverFirstSwapRecorded || serverFirstWaveId.isEmpty()) {
+    if (serverFirstSwapRecorded || (serverFirstWaveId.isEmpty() && serverFirstMode.isEmpty())) {
       return;
     }
     serverFirstSwapRecorded = true;
@@ -228,7 +228,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
 
   @SuppressWarnings("unchecked")
   private static <T> T queryRequired(HTMLElement root, String selector) {
-    return (T) root.querySelector(selector);
+    Object element = root.querySelector(selector);
+    if (element == null) {
+      throw new IllegalStateException(
+          "Missing required DOM element for selector '" + selector + "'");
+    }
+    return (T) element;
   }
 
   @JsFunction

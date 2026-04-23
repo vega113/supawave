@@ -185,6 +185,11 @@ public class J2clSelectedWaveSnapshotRenderer {
       }
 
       for (WaveletId waveletId : waveletIds) {
+        if (overBudget(startTimeMs)) {
+          LOG.info("Skipping server-first selected-wave snapshot because the render budget was exceeded while scanning "
+              + waveId.serialise());
+          return SnapshotResult.budgetExceeded();
+        }
         if (!IdUtil.isConversationalId(waveletId)) {
           continue;
         }
@@ -192,18 +197,17 @@ public class J2clSelectedWaveSnapshotRenderer {
         if (!waveletProvider.checkAccessPermission(waveletName, viewer)) {
           continue;
         }
+        if (overBudget(startTimeMs)) {
+          LOG.info("Skipping server-first selected-wave snapshot because the render budget was exceeded before snapshot load for "
+              + waveId.serialise());
+          return SnapshotResult.budgetExceeded();
+        }
         CommittedWaveletSnapshot snapshot = waveletProvider.getSnapshot(waveletName);
         if (snapshot == null || !(snapshot.snapshot instanceof ObservableWaveletData)) {
           continue;
         }
         waveView.addWavelet((ObservableWaveletData) snapshot.snapshot);
         foundAccessibleConversation = true;
-        if (overBudget(startTimeMs)) {
-          LOG.info("Skipping server-first selected-wave snapshot for "
-              + viewer.getAddress() + " because the render budget was exceeded for "
-              + waveId.serialise());
-          return SnapshotResult.budgetExceeded();
-        }
       }
 
       if (!foundAccessibleConversation) {
@@ -212,27 +216,23 @@ public class J2clSelectedWaveSnapshotRenderer {
 
       String snapshotHtml = WaveContentRenderer.renderWaveContent(waveView, viewer);
       if (overBudget(startTimeMs)) {
-        LOG.info("Skipping server-first selected-wave snapshot for "
-            + viewer.getAddress() + " because the render budget was exceeded after render for "
+        LOG.info("Skipping server-first selected-wave snapshot because the render budget was exceeded after render for "
             + waveId.serialise());
         return SnapshotResult.budgetExceeded();
       }
 
       if (snapshotHtml.getBytes(StandardCharsets.UTF_8).length > payloadLimitBytes) {
-        LOG.info("Skipping server-first selected-wave snapshot for "
-            + viewer.getAddress() + " because the payload cap was exceeded for "
+        LOG.info("Skipping server-first selected-wave snapshot because the payload cap was exceeded for "
             + waveId.serialise());
         return SnapshotResult.payloadExceeded();
       }
 
       return SnapshotResult.snapshot(waveId.serialise(), snapshotHtml);
     } catch (WaveServerException e) {
-      LOG.warning("Failed to render server-first selected-wave snapshot for "
-          + viewer.getAddress() + " and requested wave " + requestedWaveId, e);
+      LOG.warning("Failed to render server-first selected-wave snapshot for requested wave " + requestedWaveId, e);
       return SnapshotResult.renderError();
     } catch (RuntimeException e) {
-      LOG.warning("Unexpected failure rendering server-first selected-wave snapshot for "
-          + viewer.getAddress() + " and requested wave " + requestedWaveId, e);
+      LOG.warning("Unexpected failure rendering server-first selected-wave snapshot for requested wave " + requestedWaveId, e);
       return SnapshotResult.renderError();
     }
   }

@@ -287,6 +287,11 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
 
   @SuppressWarnings("unchecked")
   private static <T> T queryRequired(HTMLElement root, String selector) {
-    return (T) root.querySelector(selector);
+    Object element = root.querySelector(selector);
+    if (element == null) {
+      throw new IllegalStateException(
+          "Missing required server-rendered element for selector: " + selector);
+    }
+    return (T) element;
   }
 }

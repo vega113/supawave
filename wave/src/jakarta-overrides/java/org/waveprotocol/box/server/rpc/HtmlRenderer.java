@@ -3422,13 +3422,16 @@ public final class HtmlRenderer {
       StringBuilder sb,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
       boolean signedIn) {
-    boolean hasSnapshot = snapshotResult.hasSnapshotHtml();
+    boolean hasSnapshot =
+        signedIn
+            && snapshotResult.getMode() == J2clSelectedWaveSnapshotRenderer.Mode.SNAPSHOT
+            && snapshotResult.hasSnapshotHtml();
     String title = selectedWaveTitle(snapshotResult, signedIn);
     String status = selectedWaveStatus(snapshotResult, signedIn);
     String detail = selectedWaveDetail(snapshotResult, signedIn);
 
     sb.append("            <section class=\"sidecar-selected-card\"");
-    if (snapshotResult.hasWaveId()) {
+    if (hasSnapshot && snapshotResult.hasWaveId()) {
       sb.append(" data-j2cl-server-first-selected-wave=\"")
           .append(StringEscapeUtils.escapeHtml4(snapshotResult.getWaveId()))
           .append("\"");

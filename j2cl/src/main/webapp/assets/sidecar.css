@@ -210,6 +210,34 @@ body {
   gap: 12px;
 }
 
+.j2cl-read-thread-toggle {
+  align-self: start;
+  background: #eef5ff;
+  border: 1px solid #bfcef5;
+  border-radius: 999px;
+  color: #173355;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  padding: 6px 12px;
+}
+
+.j2cl-read-thread-toggle:hover,
+.j2cl-read-thread-toggle:focus-visible {
+  background: #dce9ff;
+  outline: 2px solid rgba(53, 103, 200, 0.24);
+  outline-offset: 2px;
+}
+
+.j2cl-read-thread-collapsed > .blip,
+.j2cl-read-thread-collapsed > .j2cl-read-blip,
+.j2cl-read-thread-collapsed > .inline-thread,
+.j2cl-read-thread-collapsed > .j2cl-read-thread {
+  display: none;
+}
+
 .j2cl-read-blip {
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
   border: 1px solid #d8e2f0;

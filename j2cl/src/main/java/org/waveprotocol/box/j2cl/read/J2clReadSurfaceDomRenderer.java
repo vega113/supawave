@@ -1,10 +1,12 @@
 package org.waveprotocol.box.j2cl.read;
 
 import elemental2.dom.DomGlobal;
+import elemental2.dom.Element;
 import elemental2.dom.Event;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.KeyboardEvent;
+import elemental2.dom.NodeList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +46,19 @@ public final class J2clReadSurfaceDomRenderer {
     }
 
     host.appendChild(surface);
+    enhanceSurface(surface);
     return true;
+  }
+
+  public boolean enhanceExistingSurface() {
+    renderedBlips.clear();
+    focusedBlip = null;
+    HTMLElement surface = findExistingSurface();
+    if (surface == null) {
+      return false;
+    }
+    enhanceSurface(surface);
+    return !renderedBlips.isEmpty();
   }
 
   private HTMLElement renderBlip(J2clReadBlip blip, int index) {
@@ -54,8 +68,6 @@ public final class J2clReadSurfaceDomRenderer {
     article.setAttribute("data-blip-id", blip.getBlipId());
     article.setAttribute("role", "listitem");
     article.setAttribute("tabindex", index == 0 ? "0" : "-1");
-    article.addEventListener("focus", this::onBlipFocus);
-    article.addEventListener("keydown", this::onBlipKeyDown);
 
     HTMLElement meta = (HTMLElement) DomGlobal.document.createElement("div");
     meta.className = "blip-meta j2cl-read-blip-meta";
@@ -66,9 +78,90 @@ public final class J2clReadSurfaceDomRenderer {
     content.className = "blip-content j2cl-read-blip-content";
     content.textContent = blip.getText();
     article.appendChild(content);
-
-    renderedBlips.add(article);
     return article;
+  }
+
+  private HTMLElement findExistingSurface() {
+    HTMLElement surface = (HTMLElement) host.querySelector(".wave-content");
+    if (surface != null) {
+      return surface;
+    }
+    return (HTMLElement) host.querySelector("[data-j2cl-read-surface='true']");
+  }
+
+  private void enhanceSurface(HTMLElement surface) {
+    surface.classList.add("j2cl-read-surface");
+    surface.setAttribute("data-j2cl-read-surface", "true");
+    if (!surface.hasAttribute("aria-label")) {
+      surface.setAttribute("aria-label", "Selected wave read surface");
+    }
+    enhanceThreads(surface);
+    enhanceBlips(surface);
+  }
+
+  private void enhanceThreads(HTMLElement surface) {
+    NodeList<Element> threads = surface.querySelectorAll("[data-thread-id]");
+    for (int index = 0; index < threads.length; index++) {
+      HTMLElement thread = (HTMLElement) threads.item(index);
+      if (thread == null) {
+        continue;
+      }
+      thread.classList.add("j2cl-read-thread");
+      thread.setAttribute("role", "list");
+      if (thread.classList.contains("inline-thread")) {
+        enhanceInlineThread(thread, index);
+      }
+    }
+  }
+
+  private void enhanceInlineThread(HTMLElement thread, int index) {
+    if (thread.hasAttribute("data-j2cl-collapse-ready")) {
+      return;
+    }
+    thread.setAttribute("data-j2cl-collapse-ready", "true");
+    if (!thread.hasAttribute("id")) {
+      thread.setAttribute("id", "j2cl-read-thread-" + index);
+    }
+    HTMLElement button = (HTMLElement) DomGlobal.document.createElement("button");
+    button.className = "j2cl-read-thread-toggle";
+    button.setAttribute("type", "button");
+    button.setAttribute("aria-controls", thread.getAttribute("id"));
+    button.setAttribute("aria-expanded", "true");
+    button.textContent = "Collapse thread";
+    button.addEventListener("click", event -> toggleThread(thread, button));
+    thread.insertBefore(button, thread.firstChild);
+  }
+
+  private void enhanceBlips(HTMLElement surface) {
+    NodeList<Element> blips = surface.querySelectorAll("[data-blip-id]");
+    for (int index = 0; index < blips.length; index++) {
+      HTMLElement blip = (HTMLElement) blips.item(index);
+      if (blip == null) {
+        continue;
+      }
+      blip.classList.add("j2cl-read-blip");
+      blip.setAttribute("data-j2cl-read-blip", "true");
+      blip.setAttribute("role", "listitem");
+      blip.setAttribute("tabindex", index == 0 ? "0" : "-1");
+      blip.addEventListener("focus", this::onBlipFocus);
+      blip.addEventListener("keydown", this::onBlipKeyDown);
+      renderedBlips.add(blip);
+    }
+  }
+
+  private void toggleThread(HTMLElement thread, HTMLElement button) {
+    boolean collapsed = !thread.classList.contains("j2cl-read-thread-collapsed");
+    if (collapsed) {
+      thread.classList.add("j2cl-read-thread-collapsed");
+      thread.setAttribute("data-j2cl-thread-collapsed", "true");
+      button.setAttribute("aria-expanded", "false");
+      button.textContent = "Expand thread";
+    } else {
+      thread.classList.remove("j2cl-read-thread-collapsed");
+      thread.removeAttribute("data-j2cl-thread-collapsed");
+      button.setAttribute("aria-expanded", "true");
+      button.textContent = "Collapse thread";
+    }
   }
 
   private void onBlipFocus(Event event) {

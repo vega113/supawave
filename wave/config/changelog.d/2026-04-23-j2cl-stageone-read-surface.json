@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-23-j2cl-stageone-read-surface",
+  "version": "Issue #966",
+  "date": "2026-04-23",
+  "title": "J2CL selected-wave reading gains a semantic StageOne-style read surface",
+  "summary": "The opt-in J2CL root shell now upgrades selected-wave content into stable blip/thread DOM instead of flat text blocks, preserving server-first selected-wave HTML while the live client attaches read-surface behavior.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Selected-wave live updates render as semantic blip nodes with stable `data-blip-id` attributes for focus and later StageOne parity work",
+        "Server-rendered selected-wave snapshots are enhanced in place with keyboard focus traversal and in-session inline-thread collapse controls",
+        "The existing J2CL route and sidecar transport remain unchanged while the read surface moves toward GWT StageOne parity"
+      ]
+    }
+  ]
+}

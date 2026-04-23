@@ -37,6 +37,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       composeHost = queryRequired(existingCard, ".sidecar-selected-compose");
       contentList = queryRequired(existingCard, ".sidecar-selected-content");
       readSurface = new J2clReadSurfaceDomRenderer(contentList);
+      readSurface.enhanceExistingSurface();
       emptyState = queryRequired(existingCard, ".sidecar-empty-state");
       serverFirstActive = true;
       serverFirstWaveId = J2clServerFirstRootShellDom.serverFirstWaveId(host);

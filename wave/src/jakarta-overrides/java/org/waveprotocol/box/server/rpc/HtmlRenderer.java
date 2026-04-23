@@ -3602,6 +3602,7 @@ public final class HtmlRenderer {
     sb.append("function emitServerFirstPaint(){\n");
     sb.append("  var placeholder=selectedWavePlaceholder();\n");
     sb.append("  if(!placeholder||!window.__j2clRootShellStat){return;}\n");
+    sb.append("  window.__j2clRootShellMountedAt=Date.now();\n");
     sb.append("  window.__j2clRootShellStat('server_first_paint', placeholder.getAttribute('data-j2cl-server-first-mode')||'no-wave', 0, !!placeholder.getAttribute('data-j2cl-server-first-selected-wave'));\n");
     sb.append("}\n");
     if (mountWorkflow) {
@@ -3622,7 +3623,7 @@ public final class HtmlRenderer {
       sb.append("    var detail=workflow.querySelector('.sidecar-selected-detail');\n");
       sb.append("    if(status){status.className='sidecar-selected-status sidecar-selected-status-error';status.textContent='Selected wave live upgrade failed.';}\n");
       sb.append("    if(detail){detail.textContent='The J2CL root-shell bundle failed to load. Refresh to retry.';}\n");
-      sb.append("    if(window.__j2clRootShellStat){window.__j2clRootShellStat('shell_swap','bundle-load-error',0,!!placeholder.getAttribute('data-j2cl-server-first-selected-wave'));}\n");
+      sb.append("    if(window.__j2clRootShellStat){var durationMs=Date.now()-(window.__j2clRootShellMountedAt||0);window.__j2clRootShellStat('shell_swap','bundle-load-error',durationMs,!!placeholder.getAttribute('data-j2cl-server-first-selected-wave'));}\n");
       sb.append("    return;\n");
       sb.append("  }\n");
       sb.append("  workflow.innerHTML='<p data-j2cl-fallback=\"true\">ERROR: J2CL root-shell bundle failed to load.</p>';\n");

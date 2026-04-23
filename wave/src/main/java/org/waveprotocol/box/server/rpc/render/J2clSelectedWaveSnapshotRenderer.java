@@ -154,6 +154,12 @@ public class J2clSelectedWaveSnapshotRenderer {
       long renderBudgetMs,
       int payloadLimitBytes,
       CurrentTimeSource currentTimeSource) {
+    if (renderBudgetMs < 0) {
+      throw new IllegalArgumentException("renderBudgetMs must be non-negative, got: " + renderBudgetMs);
+    }
+    if (payloadLimitBytes <= 0) {
+      throw new IllegalArgumentException("payloadLimitBytes must be positive, got: " + payloadLimitBytes);
+    }
     this.waveletProvider = waveletProvider;
     this.renderBudgetMs = renderBudgetMs;
     this.payloadLimitBytes = payloadLimitBytes;
@@ -234,10 +240,10 @@ public class J2clSelectedWaveSnapshotRenderer {
           + waveId.serialise());
       return SnapshotResult.budgetExceeded();
     } catch (WaveServerException e) {
-      LOG.warning("Failed to render server-first selected-wave snapshot for requested wave " + requestedWaveId, e);
+      LOG.warning("Failed to render server-first selected-wave snapshot for " + waveId.serialise(), e);
       return SnapshotResult.renderError();
     } catch (RuntimeException e) {
-      LOG.warning("Unexpected failure rendering server-first selected-wave snapshot for requested wave " + requestedWaveId, e);
+      LOG.warning("Unexpected failure rendering server-first selected-wave snapshot for " + waveId.serialise(), e);
       return SnapshotResult.renderError();
     }
   }

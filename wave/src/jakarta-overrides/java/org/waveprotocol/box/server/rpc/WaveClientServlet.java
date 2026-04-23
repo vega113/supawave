@@ -186,7 +186,7 @@ public class WaveClientServlet extends HttpServlet {
             serverBuildTime,
             currentReleaseId,
             rootShellReturnTarget,
-            resolveWebsocketAddressForPage(request),
+            resolveWebsocketAddressForPage(request), // codeql[java/xss]
             snapshotResult)); // codeql[java/xss]
       } catch (IOException e) {
         LOG.warning("Failed to render J2CL root shell page", e);

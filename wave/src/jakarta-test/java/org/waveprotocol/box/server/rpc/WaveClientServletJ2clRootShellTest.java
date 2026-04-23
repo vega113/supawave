@@ -22,6 +22,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
@@ -40,6 +42,7 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore;
+import org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRenderer;
 import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
@@ -60,6 +63,7 @@ public final class WaveClientServletJ2clRootShellTest {
     String html = body.toString();
     assertTrue(html.contains("data-j2cl-root-shell"));
     assertTrue(html.contains("/j2cl/assets/sidecar.css"));
+    assertTrue(html.contains("data-j2cl-server-first-workflow=\"true\""));
     assertTrue(html.contains("/auth/signin?r=/%3Fview%3Dj2cl-root"));
   }
 
@@ -87,6 +91,7 @@ public final class WaveClientServletJ2clRootShellTest {
     assertTrue(
         html.contains(
             "data-j2cl-root-return-target=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\""));
+    assertTrue(html.contains("data-j2cl-server-first-mode=\"signed-out\""));
   }
 
   @Test
@@ -134,8 +139,89 @@ public final class WaveClientServletJ2clRootShellTest {
     assertTrue(html.contains("data-j2cl-root-shell"));
     assertTrue(html.contains("/j2cl/assets/sidecar.css"));
     assertTrue(html.contains("/j2cl-search/sidecar/j2cl-sidecar.js"));
-    assertTrue(html.contains("The hosted J2CL workflow is loading and will mount here shortly."));
+    assertTrue(html.contains("data-j2cl-upgrade-placeholder=\"selected-wave\""));
     assertFalse(html.contains("The hosted J2CL workflow will mount here in the next slice."));
+  }
+
+  @Test
+  public void signedInSelectedWaveRendersServerSnapshotAndPrivateHeaders() throws Exception {
+    J2clSelectedWaveSnapshotRenderer snapshotRenderer = defaultSnapshotRenderer();
+    when(snapshotRenderer.renderRequestedWave(any(), any()))
+        .thenReturn(
+            J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
+                "example.com/w+1",
+                "<div class=\"wave-content\">Server snapshot</div>"));
+    WaveClientServlet servlet =
+        createServlet(ParticipantId.ofUnsafe("alice@example.com"), HumanAccountData.ROLE_USER, snapshotRenderer);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("j2cl-root");
+    when(request.getParameter("wave")).thenReturn("example.com/w+1");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    verify(response).setHeader("Cache-Control", "private, no-store");
+    verify(response).setHeader("Vary", "Cookie");
+    assertTrue(body.toString().contains("data-j2cl-server-first-mode=\"snapshot\""));
+    assertTrue(body.toString().contains("data-j2cl-server-first-selected-wave=\"example.com/w+1\""));
+    assertTrue(body.toString().contains("Server snapshot"));
+  }
+
+  @Test
+  public void legacyDefaultRouteDoesNotInvokeSnapshotRendererWhenRollbackIsActive()
+      throws Exception {
+    J2clSelectedWaveSnapshotRenderer snapshotRenderer = defaultSnapshotRenderer();
+    WaveClientServlet servlet = createServlet(null, HumanAccountData.ROLE_USER, snapshotRenderer);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn(null);
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(null);
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    verifyZeroInteractions(snapshotRenderer);
+    assertFalse(body.toString().contains("data-j2cl-root-shell"));
+  }
+
+  @Test
+  public void signedInJ2clRootShellWithWaveRouteEmitsServerFirstMarkers() throws Exception {
+    J2clSelectedWaveSnapshotRenderer snapshotRenderer = defaultSnapshotRenderer();
+    when(snapshotRenderer.renderRequestedWave(any(), any()))
+        .thenReturn(
+            J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
+                "example.com/w+1",
+                "<div class=\"wave-content\">Server snapshot</div>"));
+    WaveClientServlet servlet =
+        createServlet(
+            ParticipantId.ofUnsafe("alice@example.com"),
+            HumanAccountData.ROLE_USER,
+            snapshotRenderer);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("j2cl-root");
+    when(request.getParameter("wave")).thenReturn("example.com/w+1");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    String html = body.toString();
+    assertTrue(html.contains("data-j2cl-server-first-workflow=\"true\""));
+    assertTrue(html.contains("data-j2cl-selected-wave-host=\"true\""));
+    assertTrue(html.contains("data-j2cl-upgrade-placeholder=\"selected-wave\""));
+    assertTrue(html.contains("data-j2cl-server-first-selected-wave=\"example.com/w+1\""));
+    assertTrue(html.contains("Server snapshot"));
+    verify(response).setHeader("Cache-Control", "private, no-store");
+    verify(response).setHeader("Vary", "Cookie");
   }
 
   @Test
@@ -221,6 +307,14 @@ public final class WaveClientServletJ2clRootShellTest {
   }
 
   private static WaveClientServlet createServlet(ParticipantId user, String role) throws Exception {
+    return createServlet(user, role, defaultSnapshotRenderer());
+  }
+
+  private static WaveClientServlet createServlet(
+      ParticipantId user,
+      String role,
+      J2clSelectedWaveSnapshotRenderer snapshotRenderer)
+      throws Exception {
     Config config = ConfigFactory.parseString(
         "core.http_frontend_addresses=[\"127.0.0.1:9898\"]\n"
             + "core.http_websocket_public_address=\"\"\n"
@@ -246,7 +340,25 @@ public final class WaveClientServletJ2clRootShellTest {
         accountStore,
         new VersionServlet("test", 0L),
         mock(WavePreRenderer.class),
+        snapshotRenderer,
         new FeatureFlagService(featureFlagStore()));
+  }
+
+  private static J2clSelectedWaveSnapshotRenderer defaultSnapshotRenderer() {
+    J2clSelectedWaveSnapshotRenderer snapshotRenderer = mock(J2clSelectedWaveSnapshotRenderer.class);
+    when(snapshotRenderer.renderRequestedWave(any(), any()))
+        .thenAnswer(
+            invocation -> {
+              String requestedWaveId = invocation.getArgument(0);
+              ParticipantId viewer = invocation.getArgument(1);
+              if (requestedWaveId == null || requestedWaveId.isEmpty()) {
+                return J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave();
+              }
+              return viewer == null
+                  ? J2clSelectedWaveSnapshotRenderer.SnapshotResult.signedOut()
+                  : J2clSelectedWaveSnapshotRenderer.SnapshotResult.denied();
+            });
+    return snapshotRenderer;
   }
 
   private static String renderSignedInJ2clRootShellWithRole(String role) throws Exception {

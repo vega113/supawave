@@ -44,6 +44,7 @@ import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
 import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
 import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
+import org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRenderer;
 import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
@@ -297,6 +298,7 @@ public final class WaveClientServletJ2clBootstrapTest {
         accountStore,
         new VersionServlet("test", 0L),
         wavePreRenderer,
+        mock(J2clSelectedWaveSnapshotRenderer.class),
         featureFlagService);
   }
 }

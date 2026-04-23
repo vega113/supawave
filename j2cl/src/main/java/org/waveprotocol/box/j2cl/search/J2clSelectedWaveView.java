@@ -3,6 +3,9 @@ package org.waveprotocol.box.j2cl.search;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
+import jsinterop.annotations.JsFunction;
+import jsinterop.base.Js;
+import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 
 public final class J2clSelectedWaveView implements J2clSelectedWaveController.View {
   private final HTMLElement title;
@@ -14,8 +17,31 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private final HTMLElement composeHost;
   private final HTMLDivElement contentList;
   private final HTMLElement emptyState;
+  private boolean serverFirstActive;
+  private boolean serverFirstSwapRecorded;
+  private String serverFirstWaveId;
+  private String serverFirstMode;
+  private double serverFirstMountedAtMs;
 
   public J2clSelectedWaveView(HTMLElement host) {
+    HTMLElement existingCard = J2clServerFirstRootShellDom.findSelectedWaveCard(host);
+    if (existingCard != null) {
+      title = queryRequired(existingCard, ".sidecar-selected-title");
+      unread = queryRequired(existingCard, ".sidecar-selected-unread");
+      status = queryRequired(existingCard, ".sidecar-selected-status");
+      detail = queryRequired(existingCard, ".sidecar-selected-detail");
+      participantSummary = queryRequired(existingCard, ".sidecar-selected-participants");
+      snippet = queryRequired(existingCard, ".sidecar-selected-snippet");
+      composeHost = queryRequired(existingCard, ".sidecar-selected-compose");
+      contentList = queryRequired(existingCard, ".sidecar-selected-content");
+      emptyState = queryRequired(existingCard, ".sidecar-empty-state");
+      serverFirstActive = true;
+      serverFirstWaveId = J2clServerFirstRootShellDom.serverFirstWaveId(host);
+      serverFirstMode = J2clServerFirstRootShellDom.serverFirstMode(host);
+      serverFirstMountedAtMs = now();
+      return;
+    }
+
     host.innerHTML = "";
 
     HTMLElement card = (HTMLElement) DomGlobal.document.createElement("section");
@@ -62,10 +88,21 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     emptyState = (HTMLElement) DomGlobal.document.createElement("div");
     emptyState.className = "sidecar-empty-state";
     card.appendChild(emptyState);
+
+    serverFirstActive = false;
+    serverFirstSwapRecorded = false;
+    serverFirstWaveId = "";
+    serverFirstMode = "";
+    serverFirstMountedAtMs = 0;
   }
 
   @Override
   public void render(J2clSelectedWaveModel model) {
+    if (shouldPreserveServerFirstCard(model)) {
+      renderPreservedServerFirstState(model);
+      return;
+    }
+
     title.textContent = model.getTitleText();
     unread.textContent = model.getUnreadText();
     unread.hidden = model.getUnreadText().isEmpty();
@@ -102,9 +139,96 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
                 ? "Waiting for selected-wave content."
                 : "No selected-wave content is available yet.")
             : model.getStatusText();
+
+    if (serverFirstActive) {
+      clearServerFirstMarkers();
+      emitRootShellSwap("live-update");
+    }
   }
 
   public HTMLElement getComposeHost() {
     return composeHost;
+  }
+
+  public static boolean shouldPreserveServerSnapshot(
+      String serverSnapshotWaveId, J2clSelectedWaveModel model, boolean serverFirstAlreadySwapped) {
+    if (serverFirstAlreadySwapped || model == null) {
+      return false;
+    }
+    if (serverSnapshotWaveId == null || serverSnapshotWaveId.isEmpty()) {
+      return !model.hasSelection();
+    }
+    if (!serverSnapshotWaveId.equals(model.getSelectedWaveId())) {
+      return false;
+    }
+    if (model.isLoading() || model.isError()) {
+      return true;
+    }
+    return model.getContentEntries().isEmpty();
+  }
+
+  private boolean shouldPreserveServerFirstCard(J2clSelectedWaveModel model) {
+    if (!serverFirstActive || model == null) {
+      return false;
+    }
+    if (!serverFirstWaveId.isEmpty()) {
+      return shouldPreserveServerSnapshot(serverFirstWaveId, model, !serverFirstActive);
+    }
+    return !model.hasSelection() && !serverFirstMode.isEmpty();
+  }
+
+  private void renderPreservedServerFirstState(J2clSelectedWaveModel model) {
+    unread.textContent = model.getUnreadText();
+    unread.hidden = model.getUnreadText().isEmpty();
+    unread.className =
+        model.isReadStateStale()
+            ? "sidecar-selected-unread sidecar-selected-unread-stale"
+            : "sidecar-selected-unread";
+    status.className =
+        model.isError()
+            ? "sidecar-selected-status sidecar-selected-status-error"
+            : "sidecar-selected-status";
+    status.textContent = model.getStatusText();
+    detail.textContent = model.getDetailText();
+  }
+
+  private void clearServerFirstMarkers() {
+    HTMLElement card = (HTMLElement) contentList.parentElement;
+    if (card != null) {
+      card.removeAttribute("data-j2cl-server-first-selected-wave");
+      card.removeAttribute("data-j2cl-server-first-mode");
+      card.removeAttribute("data-j2cl-upgrade-placeholder");
+    }
+    serverFirstActive = false;
+    serverFirstWaveId = "";
+    serverFirstMode = "";
+  }
+
+  private void emitRootShellSwap(String reason) {
+    if (serverFirstSwapRecorded || serverFirstWaveId.isEmpty()) {
+      return;
+    }
+    serverFirstSwapRecorded = true;
+    Object statFn = Js.asPropertyMap(DomGlobal.window).get("__j2clRootShellStat");
+    if (statFn == null) {
+      return;
+    }
+    RootShellStatFn rootShellStatFn = Js.uncheckedCast(statFn);
+    rootShellStatFn.accept(
+        "shell_swap", reason, Math.max(0, now() - serverFirstMountedAtMs), true);
+  }
+
+  private static double now() {
+    return DomGlobal.performance == null ? 0 : DomGlobal.performance.now();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> T queryRequired(HTMLElement root, String selector) {
+    return (T) root.querySelector(selector);
+  }
+
+  @JsFunction
+  private interface RootShellStatFn {
+    void accept(String subtype, String reason, double durationMs, boolean waveIdPresent);
   }
 }

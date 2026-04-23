@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-23-j2cl-server-first-paint",
+  "version": "Issue #965",
+  "date": "2026-04-23",
+  "title": "The J2CL root shell now serves a selected-wave snapshot before live boot",
+  "summary": "The explicit `/?view=j2cl-root&wave=...` route now renders a safe server-first selected-wave surface and preserves that DOM until the live J2CL selected-wave client takes over.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a targeted server snapshot path for `/?view=j2cl-root&wave=...` that reuses the existing Wave renderers instead of showing a blank selected-wave panel first",
+        "Updated the root-shell HTML contract so the selected-wave region exposes explicit server-first markers and private/no-store caching for per-viewer snapshot responses",
+        "Changed the root-shell J2CL boot path to preserve server-rendered selected-wave markup until the first live selected-wave content replaces it in place"
+      ]
+    }
+  ]
+}

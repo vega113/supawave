@@ -26,6 +26,13 @@ public class SandboxBuildSmokeTest {
   }
 
   @Test
+  public void serverFirstRootShellModePreservesExistingHostContents() {
+    Assert.assertFalse(SandboxEntryPoint.shouldClearHostContents("root-shell", true));
+    Assert.assertTrue(SandboxEntryPoint.shouldClearHostContents("root-shell", false));
+    Assert.assertTrue(SandboxEntryPoint.shouldClearHostContents("search-sidecar", true));
+  }
+
+  @Test
   public void evaluateSocketFrameReportsMalformedMessages() {
     SandboxEntryPoint.SocketFrameResult result =
         SandboxEntryPoint.evaluateSocketFrame(

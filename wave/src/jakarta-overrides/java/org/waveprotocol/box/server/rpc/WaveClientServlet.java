@@ -48,6 +48,7 @@ import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
+import org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRenderer;
 import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
 import org.waveprotocol.box.server.util.UrlParameters;
@@ -83,6 +84,7 @@ public class WaveClientServlet extends HttpServlet {
   private final String currentReleaseId;
   private final boolean prerenderingEnabled;
   private final WavePreRenderer wavePreRenderer;
+  private final J2clSelectedWaveSnapshotRenderer j2clSelectedWaveSnapshotRenderer;
   private final FeatureFlagService featureFlagService;
 
   static boolean supportsMentionSearch(Config config) {
@@ -97,6 +99,7 @@ public class WaveClientServlet extends HttpServlet {
       AccountStore accountStore,
       VersionServlet versionServlet,
       WavePreRenderer wavePreRenderer,
+      J2clSelectedWaveSnapshotRenderer j2clSelectedWaveSnapshotRenderer,
       FeatureFlagService featureFlagService) {
     List<String> httpAddresses = config.getStringList("core.http_frontend_addresses");
     String websocketAddress = config.getString("core.http_websocket_public_address");
@@ -121,7 +124,27 @@ public class WaveClientServlet extends HttpServlet {
     this.prerenderingEnabled = config.hasPath("core.enable_prerendering")
         && config.getBoolean("core.enable_prerendering");
     this.wavePreRenderer = wavePreRenderer;
+    this.j2clSelectedWaveSnapshotRenderer = j2clSelectedWaveSnapshotRenderer;
     this.featureFlagService = featureFlagService;
+  }
+
+  WaveClientServlet(
+      String domain,
+      Config config,
+      SessionManager sessionManager,
+      AccountStore accountStore,
+      VersionServlet versionServlet,
+      WavePreRenderer wavePreRenderer,
+      FeatureFlagService featureFlagService) {
+    this(
+        domain,
+        config,
+        sessionManager,
+        accountStore,
+        versionServlet,
+        wavePreRenderer,
+        null,
+        featureFlagService);
   }
 
   @Override
@@ -144,8 +167,14 @@ public class WaveClientServlet extends HttpServlet {
     if (VIEW_J2CL_ROOT.equals(requestedView)
         || (StringUtils.isEmpty(requestedView) && j2clRootBootstrapEnabled)) {
       String rootShellReturnTarget = buildJ2clRootShellReturnTarget(request);
+      J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult =
+          j2clSelectedWaveSnapshotRenderer == null
+              ? J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave()
+              : j2clSelectedWaveSnapshotRenderer.renderRequestedWave(request.getParameter("wave"), id);
       response.setContentType("text/html");
       response.setCharacterEncoding("UTF-8");
+      response.setHeader("Cache-Control", "private, no-store");
+      response.setHeader("Vary", "Cookie");
       response.setStatus(HttpServletResponse.SC_OK);
       try (var w = response.getWriter()) {
         // HtmlRenderer normalizes the route target to a same-origin path and escapes it with
@@ -157,7 +186,8 @@ public class WaveClientServlet extends HttpServlet {
             serverBuildTime,
             currentReleaseId,
             rootShellReturnTarget,
-            resolveWebsocketAddressForPage(request))); // codeql[java/xss]
+            resolveWebsocketAddressForPage(request),
+            snapshotResult)); // codeql[java/xss]
       } catch (IOException e) {
         LOG.warning("Failed to render J2CL root shell page", e);
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -508,7 +538,14 @@ public class WaveClientServlet extends HttpServlet {
   }
 
   private String resolveWebsocketAddressForPage(HttpServletRequest request) {
-    return websocketPresentedAddress;
+    if (hasExplicitWebsocketPresentedAddress) {
+      return websocketPresentedAddress;
+    }
+    if (!VIEW_J2CL_ROOT.equals(resolveRequestedView(request))) {
+      return websocketPresentedAddress;
+    }
+    String host = request == null ? null : request.getHeader("Host");
+    return StringUtils.isBlank(host) ? websocketPresentedAddress : host;
   }
 
   private String resolveRequestedView(HttpServletRequest request) {

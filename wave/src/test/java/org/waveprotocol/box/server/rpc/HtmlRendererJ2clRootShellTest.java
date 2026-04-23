@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 import junit.framework.TestCase;
 import org.json.JSONObject;
+import org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRenderer;
 
 public final class HtmlRendererJ2clRootShellTest extends TestCase {
   public void testSignedInPageUsesLitCustomElements() {
@@ -39,6 +40,8 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(html.contains("<shell-skip-link slot=\"skip-link\""));
     assertTrue(html.contains("/j2cl/assets/shell.js"));
     assertTrue(html.contains("/j2cl/assets/shell.css"));
+    assertTrue(html.contains("data-j2cl-server-first-workflow=\"true\""));
+    assertTrue(html.contains("window.__j2clRootShellStat"));
   }
 
   public void testSignedOutPageUsesSignedOutRoot() {
@@ -72,8 +75,32 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     assertTrue(html.contains("id=\"j2cl-root-shell-workflow\""));
     assertTrue(html.contains("data-j2cl-root-shell-workflow=\"true\""));
-    assertTrue(html.contains("data-j2cl-fallback=\"true\""));
+    assertTrue(html.contains("data-j2cl-server-first-workflow=\"true\""));
+    assertTrue(html.contains("data-j2cl-selected-wave-host=\"true\""));
+    assertTrue(html.contains("data-j2cl-server-first-mode=\"no-wave\""));
     assertTrue(html.contains(">Skip to main content</a>"));
+  }
+
+  public void testSnapshotMarkupUsesServerFirstCardContract() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session,
+        "",
+        "commit",
+        0L,
+        "rel",
+        "/?view=j2cl-root&wave=example.com%2Fw%2B1",
+        "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
+            "example.com/w+1",
+            "<div class=\"wave-content\"><h1 class=\"wave-title\">Inbox wave</h1></div>"));
+
+    assertTrue(html.contains("data-j2cl-server-first-selected-wave=\"example.com/w+1\""));
+    assertTrue(html.contains("data-j2cl-server-first-mode=\"snapshot\""));
+    assertTrue(html.contains("data-j2cl-upgrade-placeholder=\"selected-wave\""));
+    assertTrue(html.contains("<div class=\"wave-content\"><h1 class=\"wave-title\">Inbox wave</h1></div>"));
   }
 
   public void testExternalReturnTargetIsRejectedInBootstrap() {

@@ -11,6 +11,11 @@ public final class J2clRootShellView {
   private final HTMLElement workflowHost;
 
   public J2clRootShellView(HTMLElement host) {
+    if (J2clServerFirstRootShellDom.hasServerFirstWorkflow(host)) {
+      workflowHost = host;
+      return;
+    }
+
     host.innerHTML = "";
 
     HTMLElement root = (HTMLElement) DomGlobal.document.createElement("section");

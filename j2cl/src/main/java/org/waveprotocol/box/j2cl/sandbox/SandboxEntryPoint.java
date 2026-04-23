@@ -21,6 +21,7 @@ import org.waveprotocol.box.j2cl.search.J2clSidecarRouteController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveView;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
+import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 import org.waveprotocol.box.j2cl.root.J2clRootShellController;
 import org.waveprotocol.box.j2cl.transport.SidecarOpenRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
@@ -45,7 +46,9 @@ public final class SandboxEntryPoint {
     }
 
     String mode = normalizeMode(requestedMode);
-    host.innerHTML = "";
+    if (shouldClearHostContents(mode, J2clServerFirstRootShellDom.hasServerFirstWorkflow(host))) {
+      host.innerHTML = "";
+    }
 
     if (isRootShellMode(mode)) {
       new J2clRootShellController(host).start();
@@ -154,6 +157,11 @@ public final class SandboxEntryPoint {
 
   public static boolean isRootShellMode(String requestedMode) {
     return "root-shell".equals(normalizeMode(requestedMode));
+  }
+
+  public static boolean shouldClearHostContents(
+      String requestedMode, boolean hasServerFirstWorkflow) {
+    return !(isRootShellMode(requestedMode) && hasServerFirstWorkflow);
   }
 
   private static String normalizeMode(String requestedMode) {

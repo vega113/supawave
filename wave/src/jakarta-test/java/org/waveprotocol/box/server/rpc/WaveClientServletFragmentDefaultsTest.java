@@ -38,6 +38,7 @@ import org.junit.Test;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
+import org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRenderer;
 import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.wave.common.bootstrap.FlagConstants;
 
@@ -131,7 +132,9 @@ public final class WaveClientServletFragmentDefaultsTest {
     WaveClientServlet servlet = new WaveClientServlet(
         "example.com", config, mock(SessionManager.class),
         mock(AccountStore.class), mockVersionServlet(),
-        mock(WavePreRenderer.class), mock(FeatureFlagService.class));
+        mock(WavePreRenderer.class),
+        mock(J2clSelectedWaveSnapshotRenderer.class),
+        mock(FeatureFlagService.class));
     HttpServletRequest request = mock(HttpServletRequest.class);
     Enumeration<String> names = new Vector<>(java.util.List.of(
         "forceClientFragments",
@@ -153,7 +156,9 @@ public final class WaveClientServletFragmentDefaultsTest {
     WaveClientServlet servlet = new WaveClientServlet(
         "example.com", config, mock(SessionManager.class),
         mock(AccountStore.class), mockVersionServlet(),
-        mock(WavePreRenderer.class), mock(FeatureFlagService.class));
+        mock(WavePreRenderer.class),
+        mock(J2clSelectedWaveSnapshotRenderer.class),
+        mock(FeatureFlagService.class));
     HttpServletRequest request = mock(HttpServletRequest.class);
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
 

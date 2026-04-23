@@ -8,6 +8,7 @@ import elemental2.dom.HTMLFormElement;
 import elemental2.dom.HTMLInputElement;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 
 public final class J2clSearchPanelView implements J2clSearchPanelController.View {
   public enum ShellPresentation {
@@ -48,8 +49,46 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
   public J2clSearchPanelView(HTMLElement host, ShellPresentation shellPresentation) {
     Copy copy = copyFor(shellPresentation);
     this.host = host;
-    host.innerHTML = "";
     host.className = "sidecar-root";
+
+    HTMLElement adoptedShell =
+        shellPresentation == ShellPresentation.ROOT_SHELL
+            ? J2clServerFirstRootShellDom.findServerFirstWorkflow(host)
+            : null;
+
+    if (adoptedShell != null) {
+      HTMLElement card = queryRequired(adoptedShell, ".sidecar-search-card");
+      HTMLFormElement form = queryRequired(card, ".sidecar-search-toolbar");
+      sessionSummary = queryRequired(card, ".sidecar-search-session");
+      status = queryRequired(card, ".sidecar-search-status");
+      waveCount = queryRequired(card, ".sidecar-wave-count");
+      queryInput = queryRequired(card, ".sidecar-search-input");
+      submitButton = queryRequired(card, ".sidecar-search-submit");
+      composeHost = queryRequired(card, ".sidecar-search-compose");
+      digestList = queryRequired(card, ".sidecar-digests");
+      emptyState = queryRequired(card, ".sidecar-empty-state");
+      showMoreButton = queryRequired(card, ".sidecar-show-more");
+      selectedWaveHost = J2clServerFirstRootShellDom.findSelectedWaveHost(host);
+
+      form.onsubmit =
+          event -> {
+            event.preventDefault();
+            if (listener != null) {
+              listener.onQuerySubmitted(queryInput.value);
+            }
+            return null;
+          };
+      showMoreButton.onclick =
+          event -> {
+            if (listener != null) {
+              listener.onShowMoreRequested();
+            }
+            return null;
+          };
+      return;
+    }
+
+    host.innerHTML = "";
 
     HTMLElement shell = (HTMLElement) DomGlobal.document.createElement("section");
     shell.className = "sidecar-search-shell";
@@ -148,6 +187,7 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
 
     selectedWaveHost = (HTMLElement) DomGlobal.document.createElement("div");
     selectedWaveHost.className = "sidecar-selected-host";
+    selectedWaveHost.setAttribute("data-j2cl-selected-wave-host", "true");
     layout.appendChild(selectedWaveHost);
   }
 
@@ -243,5 +283,10 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
         "Isolated J2CL search slice",
         "First real search/results vertical slice",
         "The root / route still runs the legacy GWT app. This sidecar route only mounts the first J2CL search panel slice.");
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> T queryRequired(HTMLElement root, String selector) {
+    return (T) root.querySelector(selector);
   }
 }

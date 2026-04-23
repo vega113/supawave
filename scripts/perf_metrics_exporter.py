@@ -183,6 +183,10 @@ def render_metrics(summaries: list[dict]) -> str:
       "# TYPE wave_perf_request_requests_count gauge",
       "# HELP wave_perf_request_mean_requests_per_second Wave perf request-level throughput metrics.",
       "# TYPE wave_perf_request_mean_requests_per_second gauge",
+      "# HELP wave_perf_request_distribution_count Wave perf request-level latency distribution counts.",
+      "# TYPE wave_perf_request_distribution_count gauge",
+      "# HELP wave_perf_request_distribution_ratio Wave perf request-level latency distribution ratios from 0 to 1.",
+      "# TYPE wave_perf_request_distribution_ratio gauge",
       "# HELP wave_perf_success_ratio Wave perf success ratio from 0 to 1.",
       "# TYPE wave_perf_success_ratio gauge",
       "# HELP wave_perf_assertion_status Wave perf assertion pass status where 1 is pass and 0 is fail.",
@@ -204,7 +208,10 @@ def render_metrics(summaries: list[dict]) -> str:
           f'wave_perf_distribution_ratio{{{_format_labels(summary, {"bucket": bucket_name})}}} {bucket["percentage"] / 100.0}'
       )
     for request_metric in summary.get("request_metrics", []):
-      request_labels = {"request_name": request_metric["request_name"]}
+      request_labels = {
+          "request_name": request_metric["request_name"],
+          "request_path": request_metric["request_path"],
+      }
       for stat_name, stat_value in request_metric["timings_ms"].items():
         lines.append(
             f'wave_perf_request_response_time_ms{{{_format_labels(summary, {**request_labels, "stat": stat_name})}}} {stat_value}'
@@ -212,6 +219,13 @@ def render_metrics(summaries: list[dict]) -> str:
       for status_name, request_count in request_metric["requests"].items():
         lines.append(
             f'wave_perf_request_requests_count{{{_format_labels(summary, {**request_labels, "status": status_name})}}} {request_count}'
+        )
+      for bucket_name, bucket in request_metric["distribution"].items():
+        lines.append(
+            f'wave_perf_request_distribution_count{{{_format_labels(summary, {**request_labels, "bucket": bucket_name})}}} {bucket["count"]}'
+        )
+        lines.append(
+            f'wave_perf_request_distribution_ratio{{{_format_labels(summary, {**request_labels, "bucket": bucket_name})}}} {bucket["percentage"] / 100.0}'
         )
       lines.append(
           f'wave_perf_request_mean_requests_per_second{{{_format_labels(summary, request_labels)}}} {request_metric["mean_requests_per_second"]}'

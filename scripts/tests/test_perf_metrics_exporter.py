@@ -267,11 +267,19 @@ class PerfMetricsExporterTest(unittest.TestCase):
         metrics,
     )
     self.assertIn(
-        'wave_perf_request_response_time_ms{repo="vega113/supawave",branch="main",sha="abc123",workflow="perf",run_id="42",run_attempt="1",simulation="SearchLoadSimulation",request_name="Search inbox",stat="p95"} 20',
+        'wave_perf_request_response_time_ms{repo="vega113/supawave",branch="main",sha="abc123",workflow="perf",run_id="42",run_attempt="1",simulation="SearchLoadSimulation",request_name="Search inbox",request_path="Search inbox",stat="p95"} 20',
         metrics,
     )
     self.assertIn(
-        'wave_perf_request_requests_count{repo="vega113/supawave",branch="main",sha="abc123",workflow="perf",run_id="42",run_attempt="1",simulation="SearchLoadSimulation",request_name="Search inbox",status="ok"} 10',
+        'wave_perf_request_requests_count{repo="vega113/supawave",branch="main",sha="abc123",workflow="perf",run_id="42",run_attempt="1",simulation="SearchLoadSimulation",request_name="Search inbox",request_path="Search inbox",status="ok"} 10',
+        metrics,
+    )
+    self.assertIn(
+        'wave_perf_request_distribution_count{repo="vega113/supawave",branch="main",sha="abc123",workflow="perf",run_id="42",run_attempt="1",simulation="SearchLoadSimulation",request_name="Search inbox",request_path="Search inbox",bucket="lt_800ms"} 10',
+        metrics,
+    )
+    self.assertIn(
+        'wave_perf_request_distribution_ratio{repo="vega113/supawave",branch="main",sha="abc123",workflow="perf",run_id="42",run_attempt="1",simulation="SearchLoadSimulation",request_name="Search inbox",request_path="Search inbox",bucket="lt_800ms"} 1.0',
         metrics,
     )
 

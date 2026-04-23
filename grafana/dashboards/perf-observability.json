@@ -174,8 +174,8 @@
       },
       "targets": [
         {
-          "expr": "wave_perf_request_requests_count{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\",request_name=~\"$request_name\",status=\"ok\"}",
-          "legendFormat": "{{request_name}} ok run {{run_id}} attempt {{run_attempt}}",
+          "expr": "sum by (simulation, request_name, run_id, run_attempt) (wave_perf_request_requests_count{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\",request_name=~\"$request_name\"})",
+          "legendFormat": "{{simulation}} {{request_name}} run {{run_id}} attempt {{run_attempt}}",
           "refId": "A"
         }
       ],

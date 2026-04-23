@@ -35,7 +35,7 @@ The current J2CL root shell and selected-wave view are still intentionally trans
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java:18-105`
   is an imperative sidecar card that renders title/snippet/unread/content blocks; it is not a semantic StageOne-equivalent wave panel.
 
-That means `#966` must stay blocked on the two upstream parity seams the issue already names:
+At plan creation time, `#966` was blocked on the two upstream parity seams the issue already named:
 
 - `#964` for the shared Lit shell/chrome primitives that every later J2CL parity slice consumes.
 - `#965` for the server-first selected-wave HTML / shell-swap seam that `#966` must upgrade in place rather than bypass.
@@ -147,7 +147,7 @@ The dependency gate must verify whether the rebased `#965` read-surface path alr
 - `wave/src/jakarta-test/java/org/waveprotocol/box/server/rpc/WaveClientServletJ2clRootShellTest.java`
 - `wave/src/test/java/org/waveprotocol/box/server/util/WavePanelThreadFocusContractTest.java`
 
-### New files that are expected only after `#964` stabilizes the Lit shell conventions
+### New files that are expected once `#964` stabilizes the Lit shell conventions
 
 - a new J2CL read-surface package under `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/`
   for Lit-backed read components and semantic helpers
@@ -167,12 +167,12 @@ These package names and filenames are now created as part of the `#966` implemen
 - `#963` bootstrap JSON contract is merged.
 - `#931` selected-wave unread/read state is merged.
 
-### Still blocking `#966` implementation
+### Dependencies that originally blocked `#966` implementation
 
 - `#964` must land the shared Lit shell/chrome primitives and freeze the read-surface's surrounding shell/component conventions.
 - `#965` must land the server-first selected-wave HTML / shell-swap seam so `#966` upgrades server output instead of bypassing it.
 
-### Readiness rule
+### Readiness rule used before implementation
 
 `#966` becomes implementation-ready only when all of the following are true on the working branch:
 
@@ -183,7 +183,7 @@ These package names and filenames are now created as part of the `#966` implemen
 - the rebased read path makes the collapse-state persistence seam explicit: either existing supplement-backed state is consumable, or `#966` is narrowed to in-session collapse semantics and that deferral is recorded before implementation
 - browser and Jakarta tests already covering the root shell continue to pass after rebasing onto those merges
 
-As of `2026-04-23`, this lane was **plan-ready but not implementation-ready**. The implementation has since been completed and submitted in PR `#991`.
+As of `2026-04-23`, this lane was **plan-ready but not implementation-ready**. The implementation has since been completed and submitted in PR `#991`, rebases onto `#964` / `#965`, keeps transport unchanged, and upgrades the selected-wave server HTML in place.
 
 ## 6. Task Breakdown
 

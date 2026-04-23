@@ -231,11 +231,10 @@ public final class J2clSelectedWaveProjector {
     }
     String fallback = null;
     for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
-      String segment = fragment.getSegment();
-      if (segment == null || !segment.startsWith("blip:")) {
+      String blipId = blipIdFromSegment(fragment.getSegment());
+      if (blipId == null) {
         continue;
       }
-      String blipId = segment.substring("blip:".length());
       if ("b+root".equals(blipId)) {
         return blipId;
       }

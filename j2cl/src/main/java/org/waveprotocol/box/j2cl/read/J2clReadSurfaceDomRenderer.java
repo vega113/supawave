@@ -349,6 +349,7 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private void ensureSingleTabStop() {
+    List<HTMLElement> visible = visibleBlips();
     HTMLElement tabStop = null;
     for (HTMLElement blip : renderedBlips) {
       if (!isHiddenByCollapsedThread(blip) && "0".equals(blip.getAttribute("tabindex"))) {
@@ -356,8 +357,8 @@ public final class J2clReadSurfaceDomRenderer {
         break;
       }
     }
-    if (tabStop == null && !visibleBlips().isEmpty()) {
-      tabStop = visibleBlips().get(0);
+    if (tabStop == null && !visible.isEmpty()) {
+      tabStop = visible.get(0);
     }
     for (HTMLElement blip : renderedBlips) {
       blip.setAttribute("tabindex", blip == tabStop ? "0" : "-1");

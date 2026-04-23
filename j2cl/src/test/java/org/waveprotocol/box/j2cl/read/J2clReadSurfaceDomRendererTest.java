@@ -9,12 +9,23 @@ import elemental2.dom.KeyboardEvent;
 import elemental2.dom.KeyboardEventInit;
 import java.util.Arrays;
 import java.util.Collections;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
 @J2clTestInput(J2clReadSurfaceDomRendererTest.class)
 public class J2clReadSurfaceDomRendererTest {
+  private HTMLDivElement currentHost;
+
+  @After
+  public void tearDown() {
+    if (currentHost != null && currentHost.parentElement != null) {
+      currentHost.parentElement.removeChild(currentHost);
+    }
+    currentHost = null;
+  }
+
   @Test
   public void enhanceExistingSurfaceWiresServerRenderedBlipsAndInlineThreads() {
     assumeBrowserDom();
@@ -401,13 +412,13 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertFalse(first.getAttribute("aria-label").equals(second.getAttribute("aria-label")));
   }
 
-  private static HTMLDivElement createHost() {
-    HTMLDivElement host = (HTMLDivElement) DomGlobal.document.createElement("div");
-    DomGlobal.document.body.appendChild(host);
-    return host;
+  private HTMLDivElement createHost() {
+    currentHost = (HTMLDivElement) DomGlobal.document.createElement("div");
+    DomGlobal.document.body.appendChild(currentHost);
+    return currentHost;
   }
 
-  private static HTMLDivElement createDuplicateThreadIdHost() {
+  private HTMLDivElement createDuplicateThreadIdHost() {
     HTMLDivElement host = createHost();
     host.innerHTML =
         "<div class=\"wave-content\">"
@@ -422,7 +433,7 @@ public class J2clReadSurfaceDomRendererTest {
     return host;
   }
 
-  private static HTMLDivElement createThreadedHost() {
+  private HTMLDivElement createThreadedHost() {
     HTMLDivElement host = createHost();
     host.innerHTML =
         "<div class=\"wave-content\">"
@@ -436,7 +447,7 @@ public class J2clReadSurfaceDomRendererTest {
     return host;
   }
 
-  private static HTMLDivElement createThreadedHostWithoutFollowingBlip() {
+  private HTMLDivElement createThreadedHostWithoutFollowingBlip() {
     HTMLDivElement host = createHost();
     host.innerHTML =
         "<div class=\"wave-content\">"

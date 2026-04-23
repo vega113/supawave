@@ -32,14 +32,10 @@ import org.waveprotocol.wave.model.id.WaveletName;
  * - We use an access-order {@link LinkedHashMap} to implement an LRU with
  *   lightweight eviction (removeEldestEntry) and a timestamp per entry to
  *   enforce TTL expiration.
- * - The map is guarded by a {@link ReentrantReadWriteLock} (RW lock) rather
- *   than coarse-grained {@code synchronized} for two reasons:
- *   1) The hot path is read-dominant (get-then-check-expiry). A RW lock allows
- *      multiple readers to proceed concurrently under load, reducing
- *      contention compared to a single monitor.
- *   2) Eviction/expiry mutations are infrequent and short-lived; writes are
- *      held under the write lock only while touching the map, which keeps
- *      writer critical sections small.
+ * - The map is guarded by a {@link ReentrantReadWriteLock}. The read lock is
+ *   still useful for non-mutating helpers, but the access-order map means
+ *   {@link LinkedHashMap#get(Object)} mutates recency state, so cache reads
+ *   that touch the LRU must take the write lock.
  *
  * Trade-offs vs synchronized
  * --------------------------
@@ -137,13 +133,12 @@ public final class SegmentWaveletStateRegistry {
     }
   }
 
-  // Read path: try fast-path under read lock; if expired, fall back to a
-  // write-locked removal. We intentionally do not hold both locks to avoid
-  // upgrade deadlocks.
+  // Access-order LinkedHashMap#get mutates recency order, so the whole read
+  // path must run under the write lock.
   public static SegmentWaveletState get(WaveletName name) {
     if (name == null) return null;
     long now = System.currentTimeMillis();
-    RW.readLock().lock();
+    RW.writeLock().lock();
     try {
       Entry e = LRU.get(name);
       if (e == null) {
@@ -154,23 +149,13 @@ public final class SegmentWaveletStateRegistry {
         hits.incrementAndGet();
         return e.state;
       }
-    } finally {
-      RW.readLock().unlock();
-    }
-
-    // If expired, upgrade to write to remove and return null
-    RW.writeLock().lock();
-    try {
-      Entry e2 = LRU.get(name);
-      if (e2 != null && e2.expired(System.currentTimeMillis())) {
-        LRU.remove(name);
-        expirations.incrementAndGet();
-        misses.incrementAndGet();
-      }
+      LRU.remove(name);
+      expirations.incrementAndGet();
+      misses.incrementAndGet();
+      return null;
     } finally {
       RW.writeLock().unlock();
     }
-    return null;
   }
 
   /**

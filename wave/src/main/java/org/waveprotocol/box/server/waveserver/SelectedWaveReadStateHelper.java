@@ -49,8 +49,6 @@ import org.waveprotocol.wave.util.logging.Log;
 public class SelectedWaveReadStateHelper {
 
   private static final Log LOG = Log.get(SelectedWaveReadStateHelper.class);
-
-
   /**
    * Outcome of a read-state computation. Non-existence and access-denied
    * collapse into the same {@link #notFound()} sentinel so the servlet can
@@ -122,19 +120,8 @@ public class SelectedWaveReadStateHelper {
       return Result.notFound();
     }
 
-    Function<ReadableWaveletData, Boolean> accessFilter =
-        new Function<ReadableWaveletData, Boolean>() {
-          @Override
-          public Boolean apply(ReadableWaveletData wavelet) {
-            if (IdUtil.isUserDataWavelet(user.getAddress(), wavelet.getWaveletId())) {
-              return Boolean.TRUE;
-            }
-            return WaveletDataUtil.checkAccessPermission(wavelet, user, sharedDomainParticipantId);
-          }
-        };
-    WaveViewData view =
-        AbstractSearchProviderImpl.buildWaveViewData(waveId, waveletIds, accessFilter, waveMap);
-    if (view == null || !hasAccessibleConversationalWavelet(view, user)) {
+    WaveViewData view = buildAccessibleWaveView(waveId, waveletIds, user);
+    if (view == null || !hasConversationalWavelet(view)) {
       return Result.notFound();
     }
 
@@ -147,12 +134,32 @@ public class SelectedWaveReadStateHelper {
     }
   }
 
-  private boolean hasAccessibleConversationalWavelet(WaveViewData view, ParticipantId user) {
+  private WaveViewData buildAccessibleWaveView(
+      WaveId waveId, ImmutableSet<WaveletId> waveletIds, final ParticipantId user) {
+    return AbstractSearchProviderImpl.buildWaveViewData(
+        waveId,
+        waveletIds,
+        new Function<ReadableWaveletData, Boolean>() {
+          @Override
+          public Boolean apply(ReadableWaveletData wavelet) {
+            if (wavelet == null) {
+              return Boolean.FALSE;
+            }
+            WaveletId waveletId = wavelet.getWaveletId();
+            if (IdUtil.isUserDataWavelet(user.getAddress(), waveletId)) {
+              return Boolean.TRUE;
+            }
+            return IdUtil.isConversationalId(waveletId)
+                && WaveletDataUtil.checkAccessPermission(
+                    wavelet, user, sharedDomainParticipantId);
+          }
+        },
+        waveMap);
+  }
+
+  private boolean hasConversationalWavelet(WaveViewData view) {
     for (ReadableWaveletData wavelet : view.getWavelets()) {
-      if (!IdUtil.isConversationalId(wavelet.getWaveletId())) {
-        continue;
-      }
-      if (WaveletDataUtil.checkAccessPermission(wavelet, user, sharedDomainParticipantId)) {
+      if (IdUtil.isConversationalId(wavelet.getWaveletId())) {
         return true;
       }
     }

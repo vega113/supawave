@@ -76,7 +76,8 @@ public final class J2clReadSurfaceDomRenderer {
 
     HTMLElement meta = (HTMLElement) DomGlobal.document.createElement("div");
     meta.className = "blip-meta j2cl-read-blip-meta";
-    meta.textContent = "Blip";
+    meta.textContent = blip.getBlipId().isEmpty() ? "Blip" : blip.getBlipId();
+    meta.setAttribute("aria-hidden", "true");
     article.appendChild(meta);
 
     HTMLElement content = (HTMLElement) DomGlobal.document.createElement("div");
@@ -102,6 +103,7 @@ public final class J2clReadSurfaceDomRenderer {
     if (!surface.hasAttribute("aria-label")) {
       surface.setAttribute("aria-label", "Selected wave read surface");
     }
+    surface.setAttribute("aria-keyshortcuts", "ArrowUp ArrowDown Home End");
     enhanceThreads(surface);
     enhanceBlips(surface);
   }
@@ -116,6 +118,7 @@ public final class J2clReadSurfaceDomRenderer {
       thread.classList.add("j2cl-read-thread");
       if (thread.classList.contains("inline-thread")) {
         thread.setAttribute("role", "group");
+        thread.setAttribute("aria-label", threadLabel(thread));
         enhanceInlineThread(thread, index);
       } else {
         thread.setAttribute("role", "list");
@@ -136,6 +139,7 @@ public final class J2clReadSurfaceDomRenderer {
     button.setAttribute("type", "button");
     button.setAttribute("aria-controls", thread.getAttribute("id"));
     button.setAttribute("aria-expanded", "true");
+    button.setAttribute("aria-label", "Collapse " + threadLabel(thread));
     button.textContent = "Collapse thread";
     button.addEventListener("click", event -> toggleThread(thread, button));
     thread.insertBefore(button, thread.firstChild);
@@ -152,7 +156,6 @@ public final class J2clReadSurfaceDomRenderer {
       blip.classList.add("j2cl-read-blip");
       blip.setAttribute("data-j2cl-read-blip", "true");
       blip.setAttribute("role", "listitem");
-      blip.setAttribute("aria-keyshortcuts", "ArrowUp ArrowDown Home End");
       boolean alreadyBound = blip.hasAttribute("data-j2cl-read-blip-bound");
       if (!alreadyBound) {
         boolean visible = !isHiddenByCollapsedThread(blip);
@@ -174,11 +177,13 @@ public final class J2clReadSurfaceDomRenderer {
       thread.classList.add("j2cl-read-thread-collapsed");
       thread.setAttribute("data-j2cl-thread-collapsed", "true");
       button.setAttribute("aria-expanded", "false");
+      button.setAttribute("aria-label", "Expand " + threadLabel(thread));
       button.textContent = "Expand thread";
     } else {
       thread.classList.remove("j2cl-read-thread-collapsed");
       thread.removeAttribute("data-j2cl-thread-collapsed");
       button.setAttribute("aria-expanded", "true");
+      button.setAttribute("aria-label", "Collapse " + threadLabel(thread));
       button.textContent = "Collapse thread";
     }
     if (collapsed && isHiddenByCollapsedThread(focusedBlip)) {
@@ -369,7 +374,16 @@ public final class J2clReadSurfaceDomRenderer {
       threadId = "thread-" + index;
     }
     generatedThreadIdCounter++;
+    // The counter preserves uniqueness even when sanitized thread ids collide.
     return "j2cl-read-thread-" + sanitizeDomId(threadId) + "-" + generatedThreadIdCounter;
+  }
+
+  private static String threadLabel(HTMLElement thread) {
+    String threadId = thread.getAttribute("data-thread-id");
+    if (threadId == null || threadId.isEmpty()) {
+      return "inline reply thread";
+    }
+    return "inline reply thread " + threadId;
   }
 
   private static String sanitizeDomId(String value) {

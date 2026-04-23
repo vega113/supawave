@@ -39,13 +39,22 @@ public class J2clReadSurfaceDomRendererTest {
         (HTMLButtonElement) host.querySelector(".j2cl-read-thread-toggle");
     Assert.assertNotNull(toggle);
     Assert.assertEquals("true", toggle.getAttribute("aria-expanded"));
-
-    toggle.click();
+    Assert.assertEquals(
+        "Collapse inline reply thread t+inline", toggle.getAttribute("aria-label"));
 
     HTMLElement inlineThread =
         (HTMLElement) host.querySelector(".inline-thread[data-thread-id='t+inline']");
+    HTMLElement rootThread =
+        (HTMLElement) host.querySelector(".thread[data-thread-id='t+root']");
+    Assert.assertEquals("list", rootThread.getAttribute("role"));
+    Assert.assertEquals("group", inlineThread.getAttribute("role"));
+    Assert.assertEquals("inline reply thread t+inline", inlineThread.getAttribute("aria-label"));
+
+    toggle.click();
+
     Assert.assertEquals("true", inlineThread.getAttribute("data-j2cl-thread-collapsed"));
     Assert.assertEquals("false", toggle.getAttribute("aria-expanded"));
+    Assert.assertEquals("Expand inline reply thread t+inline", toggle.getAttribute("aria-label"));
   }
 
   @Test
@@ -64,6 +73,50 @@ public class J2clReadSurfaceDomRendererTest {
 
     Assert.assertEquals(1, host.querySelectorAll(".j2cl-read-thread-toggle").length);
     Assert.assertEquals(1, host.querySelectorAll("[data-j2cl-read-blip-bound='true']").length);
+  }
+
+  @Test
+  public void failedReEnhancementPreservesFocusedCollapseState() {
+    assumeBrowserDom();
+    HTMLDivElement host = createThreadedHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    Assert.assertTrue(renderer.enhanceExistingSurface());
+    HTMLElement surface = (HTMLElement) host.querySelector("[data-j2cl-read-surface='true']");
+    HTMLButtonElement toggle =
+        (HTMLButtonElement) host.querySelector(".j2cl-read-thread-toggle");
+    HTMLElement reply = blip(host, "b+reply");
+    HTMLElement after = blip(host, "b+after");
+
+    reply.focus();
+    surface.removeAttribute("data-j2cl-read-surface");
+    surface.classList.remove("wave-content");
+
+    Assert.assertFalse(renderer.enhanceExistingSurface());
+    toggle.click();
+
+    Assert.assertEquals("-1", reply.getAttribute("tabindex"));
+    Assert.assertEquals("0", after.getAttribute("tabindex"));
+    Assert.assertEquals("true", after.getAttribute("aria-current"));
+  }
+
+  @Test
+  public void reEnhancementPrefersAlreadyMarkedSurfaceOverSiblingWaveContent() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    host.innerHTML =
+        "<div class=\"wave-content\" data-j2cl-read-surface=\"true\">"
+            + "<div class=\"blip\" data-blip-id=\"b+current\">Current</div>"
+            + "</div>"
+            + "<div class=\"wave-content\">"
+            + "<div class=\"blip\" data-blip-id=\"b+sibling\">Sibling</div>"
+            + "</div>";
+
+    Assert.assertTrue(new J2clReadSurfaceDomRenderer(host).enhanceExistingSurface());
+
+    Assert.assertEquals(
+        "true", blip(host, "b+current").getAttribute("data-j2cl-read-blip"));
+    Assert.assertNull(blip(host, "b+sibling").getAttribute("data-j2cl-read-blip"));
   }
 
   @Test
@@ -172,6 +225,29 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderLiveBlipsWiresKeyboardTraversal() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(host)
+            .render(
+                Arrays.asList(
+                    new J2clReadBlip("b+root", "Root text"),
+                    new J2clReadBlip("b+reply", "Reply text")),
+                Collections.<String>emptyList()));
+
+    HTMLElement root = blip(host, "b+root");
+    HTMLElement reply = blip(host, "b+reply");
+    root.focus();
+    dispatchKey(root, "ArrowDown");
+
+    Assert.assertEquals("-1", root.getAttribute("tabindex"));
+    Assert.assertEquals("0", reply.getAttribute("tabindex"));
+    Assert.assertEquals("true", reply.getAttribute("aria-current"));
+  }
+
+  @Test
   public void renderFallbackEntriesSynthesizesStableEntryIds() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
@@ -187,9 +263,41 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("entry-1", firstBlip(host).getAttribute("data-blip-id"));
   }
 
+  @Test
+  public void duplicateThreadIdsStillGenerateDistinctControlTargets() {
+    assumeBrowserDom();
+    HTMLDivElement host = createDuplicateThreadIdHost();
+
+    Assert.assertTrue(new J2clReadSurfaceDomRenderer(host).enhanceExistingSurface());
+
+    HTMLButtonElement first =
+        (HTMLButtonElement) host.querySelectorAll(".j2cl-read-thread-toggle").item(0);
+    HTMLButtonElement second =
+        (HTMLButtonElement) host.querySelectorAll(".j2cl-read-thread-toggle").item(1);
+    Assert.assertNotNull(first);
+    Assert.assertNotNull(second);
+    Assert.assertFalse(
+        first.getAttribute("aria-controls").equals(second.getAttribute("aria-controls")));
+  }
+
   private static HTMLDivElement createHost() {
     HTMLDivElement host = (HTMLDivElement) DomGlobal.document.createElement("div");
     DomGlobal.document.body.appendChild(host);
+    return host;
+  }
+
+  private static HTMLDivElement createDuplicateThreadIdHost() {
+    HTMLDivElement host = createHost();
+    host.innerHTML =
+        "<div class=\"wave-content\">"
+            + "<div class=\"thread\" data-thread-id=\"t+root\">"
+            + "<div class=\"inline-thread\" data-thread-id=\"t+duplicate\">"
+            + "<div class=\"blip\" data-blip-id=\"b+one\">One</div>"
+            + "</div>"
+            + "<div class=\"inline-thread\" data-thread-id=\"t+duplicate\">"
+            + "<div class=\"blip\" data-blip-id=\"b+two\">Two</div>"
+            + "</div>"
+            + "</div></div>";
     return host;
   }
 

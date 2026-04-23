@@ -51,13 +51,7 @@ public final class J2clSearchGateway
           if (closedByClient[0]) {
             return;
           }
-          socket.send(
-              SidecarTransportCodec.encodeOpenEnvelope(
-                  1,
-                  new SidecarOpenRequest(
-                      bootstrap.getAddress(),
-                      waveId,
-                      java.util.Collections.singletonList(DEFAULT_WAVELET_PREFIX))));
+          socket.send(buildSelectedWaveOpenFrame(bootstrap, waveId));
         };
     socket.onmessage =
         event -> {
@@ -144,7 +138,7 @@ public final class J2clSearchGateway
           if (closedByClient[0]) {
             return;
           }
-          socket.send(SidecarTransportCodec.encodeSubmitEnvelope(1, request));
+          socket.send(buildSubmitFrame(request));
         };
     socket.onmessage =
         event -> {
@@ -196,6 +190,19 @@ public final class J2clSearchGateway
         + index
         + "&numResults="
         + numResults;
+  }
+
+  static String buildSelectedWaveOpenFrame(SidecarSessionBootstrap bootstrap, String waveId) {
+    return SidecarTransportCodec.encodeOpenEnvelope(
+        1,
+        new SidecarOpenRequest(
+            bootstrap.getAddress(),
+            waveId,
+            java.util.Collections.singletonList(DEFAULT_WAVELET_PREFIX)));
+  }
+
+  static String buildSubmitFrame(SidecarSubmitRequest request) {
+    return SidecarTransportCodec.encodeSubmitEnvelope(1, request);
   }
 
   private static void requestText(

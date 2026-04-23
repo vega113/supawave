@@ -38,7 +38,7 @@
 ### Test files modified
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodecTest.java` — delete `encodeAuthenticateEnvelopePreservesLegacyWrapperShape` (covers a method we are removing).
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/sandbox/SandboxBuildSmokeTest.java` — delete `malformedCookieValueReturnsNull` (covers a helper we are removing).
-- `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSearchGatewayAuthFrameTest.java` *(new)* — regression test: a static-contract/envelope-level guard that verifies the J2CL search gateway no longer relies on or exposes a `ProtocolAuthenticate` send path after the cookie-based auth handshake is removed. This protects against regressions that would re-introduce the sidecar auth envelope.
+- `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSearchGatewayAuthFrameTest.java` *(new)* — regression test: a gateway first-frame helper seam that verifies the selected-wave and submit paths emit `ProtocolOpenRequest` / `ProtocolSubmitRequest` rather than `ProtocolAuthenticate`, while also guarding that the transport codec no longer re-exposes an auth-envelope helper.
 
 ### New files
 - `wave/config/changelog.d/2026-04-23-j2cl-sidecar-auth-handshake.json` — single `fix`-section fragment.
@@ -55,11 +55,11 @@
 **Files:**
 - Create: `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSearchGatewayAuthFrameTest.java`
 
-**Rationale:** TDD — write the regression test first so we can see it pass before and after (once callers stop sending the auth envelope, the test ensures they don't re-introduce the pattern). The test exercises `J2clSearchGateway.openSelectedWave` and `submit` by driving the real WebSocket `onopen` callback through a fake socket and inspecting the first frame string sent.
+**Rationale:** TDD — write the regression test first so we can see it pass before and after (once callers stop sending the auth envelope, the test ensures they don't re-introduce the pattern). The test exercises the exact first outbound gateway frames via package-private helper seams that the `onopen` callbacks use.
 
-The J2CL unit-test harness uses `@J2clTestInput`. `J2clSearchGateway` currently constructs a real `elemental2.dom.WebSocket`, which is not testable from a pure-JVM JUnit run. For this reason we keep the test in the J2CL test directory (run via `./j2cl/mvnw`), and use the `WebSocket` constructor directly but extract the assertion to focus on the encoded open envelope.
+The J2CL unit-test harness uses `@J2clTestInput`. `J2clSearchGateway` currently constructs a real `elemental2.dom.WebSocket`, which is not testable from a pure-JVM JUnit run. For this reason we keep the test in the J2CL test directory (run via `./j2cl/mvnw`) and extract package-private first-frame helpers that the gateway's `onopen` callbacks use.
 
-Because `elemental2.dom.WebSocket` cannot be constructed in a pure Java test context, we avoid testing the gateway directly. Instead, **structure the test at the envelope level**: verify that `SidecarTransportCodec` no longer exposes `encodeAuthenticateEnvelope` and that the only envelopes the gateway encodes on open are `encodeOpenEnvelope` / `encodeSubmitEnvelope`. This is a static-contract regression test rather than a socket interaction test.
+Because `elemental2.dom.WebSocket` cannot be constructed in a pure Java test context, we avoid testing the gateway directly. Instead, **structure the test around the gateway's first-frame helpers**: verify that the selected-wave path emits `ProtocolOpenRequest`, the submit path emits `ProtocolSubmitRequest`, and `SidecarTransportCodec` no longer exposes `encodeAuthenticateEnvelope`.
 
 - [ ] **Step 1: Write the regression test**
 
@@ -71,21 +71,42 @@ import com.google.j2cl.junit.apt.J2clTestInput;
 import java.lang.reflect.Method;
 import org.junit.Assert;
 import org.junit.Test;
+import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
+import org.waveprotocol.box.j2cl.transport.SidecarSubmitRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarTransportCodec;
 
 /**
- * Issue #933 name-guard: the J2CL sidecar transport codec must not expose a
- * ProtocolAuthenticate envelope helper again by accident. This is a
- * static-contract regression, not a behavioral test of the gateways — it
- * cannot catch a future regression that hand-inlines the cookie read in
- * J2clSearchGateway or SandboxEntryPoint. For that defense, see the
- * local-browser verification recorded under
- * journal/local-verification/2026-04-23-issue-933-sidecar-ws-auth.md, which
- * inspects the live /socket frames for the absence of a ProtocolAuthenticate
- * payload.
+ * Issue #933 regression coverage for the first outbound J2CL sidecar frames.
+ * Sidecar auth is now established entirely by the WebSocket upgrade handshake,
+ * so the selected-wave and submit sockets must begin with ProtocolOpenRequest /
+ * ProtocolSubmitRequest instead of an auth envelope.
  */
 @J2clTestInput(J2clSearchGatewayAuthFrameTest.class)
 public class J2clSearchGatewayAuthFrameTest {
+  @Test
+  public void selectedWaveSocketStartsWithProtocolOpenRequest() {
+    String frame =
+        J2clSearchGateway.buildSelectedWaveOpenFrame(
+            new SidecarSessionBootstrap("rose@example.com", "socket.example.test"),
+            "example.com/w+abc");
+
+    Assert.assertEquals("ProtocolOpenRequest", SidecarTransportCodec.decodeMessageType(frame));
+    Assert.assertFalse(frame.contains("ProtocolAuthenticate"));
+  }
+
+  @Test
+  public void submitSocketStartsWithProtocolSubmitRequest() {
+    String frame =
+        J2clSearchGateway.buildSubmitFrame(
+            new SidecarSubmitRequest(
+                "example.com/w+abc/conv+root",
+                "{\"ops\":[]}",
+                "channel-7"));
+
+    Assert.assertEquals("ProtocolSubmitRequest", SidecarTransportCodec.decodeMessageType(frame));
+    Assert.assertFalse(frame.contains("ProtocolAuthenticate"));
+  }
+
   @Test
   public void transportCodecDoesNotExposeAuthenticateEnvelopeHelper() {
     for (Method method : SidecarTransportCodec.class.getDeclaredMethods()) {

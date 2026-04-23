@@ -146,6 +146,9 @@ public class SelectedWaveReadStateHelper {
     // faults while 404 stays reserved for unknown-wave/access-denied.
     WaveViewData view = WaveViewDataImpl.create(waveId);
     for (WaveletId waveletId : waveletIds) {
+      if (!canAffectReadState(waveletId, user)) {
+        continue;
+      }
       WaveletName waveletName = WaveletName.of(waveId, waveletId);
       WaveletContainer container;
       try {
@@ -173,6 +176,11 @@ public class SelectedWaveReadStateHelper {
       view.addWavelet(waveletData);
     }
     return view;
+  }
+
+  private boolean canAffectReadState(WaveletId waveletId, ParticipantId user) {
+    return IdUtil.isConversationalId(waveletId)
+        || IdUtil.isUserDataWavelet(user.getAddress(), waveletId);
   }
 
   private boolean isAccessible(ReadableWaveletData wavelet, ParticipantId user) {

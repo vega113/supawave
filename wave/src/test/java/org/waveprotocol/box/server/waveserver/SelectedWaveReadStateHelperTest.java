@@ -106,6 +106,37 @@ public final class SelectedWaveReadStateHelperTest extends TestCase {
     }
   }
 
+  public void testComputeReadStateIgnoresOtherUserUdwCopyFailure() throws Exception {
+    WaveMap waveMap = mock(WaveMap.class);
+    WaveDigester digester = mock(WaveDigester.class);
+    SelectedWaveReadStateHelper helper =
+        new SelectedWaveReadStateHelper(DOMAIN, waveMap, digester);
+
+    when(waveMap.lookupWavelets(WAVE_ID)).thenReturn(ImmutableSet.of(ACCESSIBLE_CONV, OTHER_UDW));
+
+    ObservableWaveletData accessibleConv = wavelet(ACCESSIBLE_CONV, USER);
+    stubWaveletContainer(waveMap, ACCESSIBLE_CONV, accessibleConv);
+
+    WaveletContainer otherUdwContainer = mock(WaveletContainer.class);
+    when(otherUdwContainer.copyWaveletData()).thenThrow(new WaveletStateException("boom"));
+    when(waveMap.getWavelet(WaveletName.of(WAVE_ID, OTHER_UDW))).thenReturn(otherUdwContainer);
+
+    Digest digest = mock(Digest.class);
+    when(digest.getUnreadCount()).thenReturn(1);
+    when(digester.build(eq(USER), any(WaveViewData.class))).thenReturn(digest);
+
+    SelectedWaveReadStateHelper.Result result = helper.computeReadState(USER, WAVE_ID);
+
+    assertTrue(result.exists());
+    assertEquals(1, result.getUnreadCount());
+
+    ArgumentCaptor<WaveViewData> viewCaptor = ArgumentCaptor.forClass(WaveViewData.class);
+    verify(digester).build(eq(USER), viewCaptor.capture());
+    WaveViewData digestedView = viewCaptor.getValue();
+    assertNotNull(digestedView.getWavelet(ACCESSIBLE_CONV));
+    assertNull(digestedView.getWavelet(OTHER_UDW));
+  }
+
   private static ObservableWaveletData wavelet(WaveletId waveletId, ParticipantId participant) {
     ObservableWaveletData wavelet = mock(ObservableWaveletData.class);
     when(wavelet.getWaveletId()).thenReturn(waveletId);

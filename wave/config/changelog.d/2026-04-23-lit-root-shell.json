@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-23-lit-root-shell",
+  "version": "Issue #964",
+  "date": "2026-04-23",
+  "title": "The J2CL root shell now renders through reusable Lit chrome primitives",
+  "summary": "Introduced the first `j2cl/lit/` bundle with reusable shell primitives and switched the explicit `/?view=j2cl-root` route to progressive-enhancement custom-element markup while keeping the default `/` route on the legacy GWT shell.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a new `j2cl/lit/` package that ships `shell-root`, `shell-root-signed-out`, `shell-header`, `shell-nav-rail`, `shell-main-region`, `shell-status-strip`, and `shell-skip-link` into `/j2cl/assets/`",
+        "Replaced the hand-built J2CL root-shell HTML with progressive-enhancement custom-element markup so `/?view=j2cl-root` renders styled fallback chrome before the Lit bundle upgrades",
+        "Kept the default `/` route on the legacy GWT bootstrap while preserving the existing `j2cl-root-bootstrap` coexistence seam and workflow mount host contract"
+      ]
+    }
+  ]
+}

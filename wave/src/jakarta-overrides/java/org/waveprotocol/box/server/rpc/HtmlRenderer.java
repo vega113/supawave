@@ -3229,7 +3229,9 @@ public final class HtmlRenderer {
     String resolvedBasePath = queryStart >= 0 ? resolvedReturnTarget.substring(0, queryStart) : resolvedReturnTarget;
     String safeResolvedBasePath = StringEscapeUtils.escapeHtml4(resolvedBasePath);
 
-    StringBuilder sb = new StringBuilder(2048);
+    String safeAddress = escapeHtml(address);
+
+    StringBuilder sb = new StringBuilder(3072);
     sb.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0\">\n");
@@ -3247,141 +3249,142 @@ public final class HtmlRenderer {
     sb.append("<meta name=\"build-commit\" content=\"").append(escapeHtml(buildCommit == null ? "" : buildCommit)).append("\">\n");
     sb.append("<meta name=\"server-build-time\" content=\"").append(serverBuildTime).append("\">\n");
     sb.append("<meta name=\"current-release-id\" content=\"").append(escapeHtml(currentReleaseId == null ? "" : currentReleaseId)).append("\">\n");
-    sb.append("<link rel=\"stylesheet\" href=\"/j2cl/assets/sidecar.css\">\n");
-    sb.append("<style>\n");
-    sb.append("body { margin: 0; min-height: 100vh; font-family: ").append(WAVE_FONT).append("; background: linear-gradient(180deg, #f7fbff 0%, #eef5fb 100%); color: ").append(WAVE_TEXT).append("; }\n");
-    sb.append(".j2cl-root-shell-page { min-height: 100vh; }\n");
-    sb.append(".j2cl-root-shell { max-width: 1120px; margin: 0 auto; padding: 24px 20px 40px; }\n");
-    sb.append(".j2cl-root-shell-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border: 1px solid ").append(WAVE_BORDER).append("; border-radius: 18px; background: rgba(255,255,255,0.92); box-shadow: 0 18px 44px rgba(16,35,59,0.08); }\n");
-    sb.append(".j2cl-root-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: ").append(WAVE_TEXT).append("; font-weight: 800; font-size: 1.05rem; }\n");
-    sb.append(".j2cl-root-brand-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: linear-gradient(135deg, ").append(WAVE_PRIMARY).append(" 0%, ").append(WAVE_ACCENT).append(" 100%); color: #fff; font-size: 0.85rem; }\n");
-    sb.append(".j2cl-root-shell-nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }\n");
-    sb.append(".j2cl-root-shell-status { margin: 18px 0 0; padding: 20px 18px; border-radius: 20px; background: rgba(255,255,255,0.9); border: 1px solid ").append(WAVE_BORDER).append("; box-shadow: 0 18px 44px rgba(16,35,59,0.08); }\n");
-    sb.append(".j2cl-root-shell-status h1 { margin: 0 0 8px; font-size: clamp(1.8rem, 4vw, 2.8rem); line-height: 1.05; }\n");
-    sb.append(".j2cl-root-shell-summary { margin: 0; line-height: 1.6; color: ").append(WAVE_TEXT_MUTED).append("; }\n");
-    sb.append(".j2cl-root-shell-session { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }\n");
-    sb.append(".j2cl-root-shell-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: #e8f4ff; color: ").append(WAVE_PRIMARY).append("; font-weight: 700; }\n");
-    sb.append(".j2cl-root-shell-link { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 999px; background: ").append(WAVE_PRIMARY).append("; color: #fff; text-decoration: none; font-weight: 700; }\n");
-    sb.append(".j2cl-root-shell-link.secondary { background: #fff; color: ").append(WAVE_PRIMARY).append("; border: 1px solid ").append(WAVE_BORDER).append("; }\n");
-    sb.append(".j2cl-root-shell-link:focus-visible { outline: 2px solid ").append(WAVE_ACCENT).append("; outline-offset: 2px; }\n");
-    sb.append(".j2cl-root-shell-workflow { margin-top: 20px; min-height: 360px; border-radius: 24px; border: 1px dashed #bfd4ea; background: rgba(255,255,255,0.72); box-shadow: inset 0 1px 0 rgba(255,255,255,0.8); }\n");
-    sb.append(".j2cl-root-shell-workflow::before { content: 'J2CL workflow mount host'; display: block; padding: 18px 20px 0; color: ").append(WAVE_TEXT_MUTED).append("; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }\n");
-    sb.append(".j2cl-root-shell-workflow-empty { padding: 14px 20px 20px; color: ").append(WAVE_TEXT_MUTED).append("; line-height: 1.6; }\n");
-    sb.append("@media (max-width: 767px) { .j2cl-root-shell { padding: 16px 12px 28px; } .j2cl-root-shell-banner { flex-direction: column; align-items: flex-start; } .j2cl-root-shell-session { align-items: flex-start; } }\n");
-    sb.append("</style>\n");
+    sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/sidecar.css\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/shell.css\">\n");
+    sb.append("<script type=\"module\" src=\"").append(safeResolvedBasePath).append("j2cl/assets/shell.js\"></script>\n");
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body class=\"j2cl-root-shell-page\">\n");
-    sb.append("<main class=\"j2cl-root-shell\" data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
-        .append(safeResolvedReturnTarget)
-        .append("\">\n");
-    sb.append("  <header class=\"j2cl-root-shell-banner\">\n");
-    sb.append("    <a id=\"j2cl-root-brand-link\" class=\"j2cl-root-brand\" href=\"")
-        .append(safeResolvedReturnTarget)
-        .append("\" aria-label=\"J2CL root shell\">\n");
-    sb.append("      <span class=\"j2cl-root-brand-badge\">J2</span>\n");
-    sb.append("      <span>SupaWave J2CL Root Shell</span>\n");
-    sb.append("    </a>\n");
-    sb.append("    <nav class=\"j2cl-root-shell-nav\" aria-label=\"Session controls\">\n");
     if (signedIn) {
-      sb.append("      <span class=\"j2cl-root-shell-pill\">Signed in as ").append(escapeHtml(address)).append("</span>\n");
+      sb.append("<shell-root data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
+          .append(safeResolvedReturnTarget)
+          .append("\">\n");
+      sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")
+          .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
+          .append("</shell-skip-link>\n");
+      sb.append("  <shell-header slot=\"header\" signed-in>\n");
+      sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
+          .append(safeResolvedReturnTarget)
+          .append("\" aria-label=\"J2CL root shell\">\n");
+      sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave J2CL Root Shell</span>\n");
+      sb.append("    </a>\n");
+      sb.append("    <span slot=\"actions-signed-in\">Signed in as ")
+          .append(safeAddress)
+          .append("</span>\n");
       if (isAdminOrOwner) {
-        sb.append("      <a data-j2cl-root-admin-link=\"true\" class=\"j2cl-root-shell-link secondary\" href=\"/admin\">Admin</a>\n");
+        sb.append("    <a slot=\"actions-signed-in\" data-j2cl-root-admin-link=\"true\" href=\"/admin\">Admin</a>\n");
       }
-      sb.append("      <a data-j2cl-root-signout=\"true\" class=\"j2cl-root-shell-link secondary\" href=\"/auth/signout?r=")
+      sb.append("    <a slot=\"actions-signed-in\" data-j2cl-root-signout=\"true\" href=\"/auth/signout?r=")
           .append(safeEncodedReturnTarget)
           .append("\">Sign out</a>\n");
+      sb.append("  </shell-header>\n");
+      sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
+      sb.append("    <a href=\"").append(safeResolvedReturnTarget).append("\">Inbox</a>\n");
+      sb.append("  </shell-nav-rail>\n");
+      sb.append("  <shell-main-region slot=\"main\">\n");
+      sb.append("    <section id=\"j2cl-root-shell-workflow\" data-j2cl-root-shell-workflow=\"true\">\n");
+      sb.append("      <p data-j2cl-fallback=\"true\">The hosted J2CL workflow is loading and will mount here shortly.</p>\n");
+      sb.append("    </section>\n");
+      sb.append("  </shell-main-region>\n");
+      sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Return target: ")
+          .append(safeResolvedReturnTarget)
+          .append("</span></shell-status-strip>\n");
+      sb.append("</shell-root>\n");
+      sb.append("<script src=\"").append(safeResolvedBasePath).append("j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
+      appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, true);
     } else {
-      sb.append("      <span class=\"j2cl-root-shell-pill\">Signed out</span>\n");
-      sb.append("      <a data-j2cl-root-signin=\"true\" class=\"j2cl-root-shell-link\" href=\"/auth/signin?r=")
+      sb.append("<shell-root-signed-out data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
+          .append(safeResolvedReturnTarget)
+          .append("\">\n");
+      sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")
+          .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
+          .append("</shell-skip-link>\n");
+      sb.append("  <shell-header slot=\"header\">\n");
+      sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
+          .append(safeResolvedReturnTarget)
+          .append("\" aria-label=\"J2CL root shell\">\n");
+      sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave J2CL Root Shell</span>\n");
+      sb.append("    </a>\n");
+      sb.append("    <span slot=\"actions-signed-out\">Signed out</span>\n");
+      sb.append("    <a slot=\"actions-signed-out\" data-j2cl-root-signin=\"true\" href=\"/auth/signin?r=")
           .append(safeEncodedReturnTarget)
           .append("\">Sign in</a>\n");
-    }
-    sb.append("    </nav>\n");
-    sb.append("  </header>\n");
-    sb.append("  <section class=\"j2cl-root-shell-status\">\n");
-    sb.append("    <h1>Root shell ready for J2CL</h1>\n");
-    sb.append("    <p class=\"j2cl-root-shell-summary\">");
-    sb.append(signedIn
-        ? "The explicit J2CL root selector is active and the existing workflow can mount here without the legacy GWT shell."
-        : "The explicit J2CL root selector is active. Sign in to mount the workflow inside this shell.");
-    sb.append("</p>\n");
-    sb.append("    <div class=\"j2cl-root-shell-session\">\n");
-    if (signedIn) {
-      sb.append("      <span id=\"j2cl-root-return-target-text\" class=\"j2cl-root-shell-pill\">Return target: ")
+      sb.append("  </shell-header>\n");
+      sb.append("  <shell-main-region slot=\"main\">\n");
+      sb.append("    <section id=\"j2cl-root-shell-workflow\" data-j2cl-root-shell-workflow=\"true\">\n");
+      sb.append("      <p data-j2cl-fallback=\"true\">After sign-in, the hosted J2CL workflow will mount here without leaving the shell.</p>\n");
+      sb.append("    </section>\n");
+      sb.append("  </shell-main-region>\n");
+      sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Return target: ")
           .append(safeResolvedReturnTarget)
-          .append("</span>\n");
-    } else {
-      sb.append("      <a data-j2cl-root-signin=\"true\" class=\"j2cl-root-shell-link secondary\" href=\"/auth/signin?r=")
-          .append(safeEncodedReturnTarget)
-          .append("\">Continue to sign in</a>\n");
+          .append("</span></shell-status-strip>\n");
+      sb.append("</shell-root-signed-out>\n");
+      appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, false);
     }
-    sb.append("    </div>\n");
-    sb.append("  </section>\n");
-    sb.append("  <section id=\"j2cl-root-shell-workflow\" class=\"j2cl-root-shell-workflow\" data-j2cl-root-shell-workflow=\"true\">\n");
-    sb.append("    <div class=\"j2cl-root-shell-workflow-empty\">");
-    sb.append(signedIn
-        ? "The hosted J2CL workflow is loading and will mount here shortly."
-        : "After sign-in, the hosted J2CL workflow will mount here without leaving the shell.");
-    sb.append("</div>\n");
-    sb.append("  </section>\n");
-    if (signedIn) {
-      sb.append("<script src=\"/j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
-      sb.append("<script>\n");
-      sb.append("(function(){\n");
-      sb.append("function normalizeLocalReturnTargetForUi(target, fallback){\n");
-      sb.append("  if(!target || target.charAt(0)!=='/' || target.indexOf('//')===0){return fallback;}\n");
-      sb.append("  return target;\n");
-      sb.append("}\n");
-      sb.append("function encodeLocalReturnTargetForQuery(target, fallback){\n");
-      sb.append("  var normalized=normalizeLocalReturnTargetForUi(target, fallback);\n");
-      sb.append("  return '/' + encodeURIComponent(normalized.substring(1));\n");
-      sb.append("}\n");
-      sb.append("function currentReturnTarget(){\n");
-      sb.append("  var fallback='").append(safeResolvedReturnTarget).append("';\n");
-      sb.append("  var pathname=window.location.pathname||'/';\n");
-      sb.append("  if(pathname.indexOf('/')!==0){pathname='/' + pathname;}\n");
-      sb.append("  var search=window.location.search||'';\n");
-      sb.append("  if(search.indexOf('view=j2cl-root')===-1){return fallback;}\n");
-      sb.append("  return normalizeLocalReturnTargetForUi(pathname + search, fallback);\n");
-      sb.append("}\n");
-      sb.append("function waveIdFromLegacyHash(hash){\n");
-      sb.append("  if(!hash){return null;}\n");
-      sb.append("  var trimmed=hash.charAt(0)==='#'?hash.substring(1):hash;\n");
-      sb.append("  if(!trimmed){return null;}\n");
-      sb.append("  var token=trimmed.split('&')[0];\n");
-      sb.append("  return token.indexOf('/')>=0 ? token : null;\n");
-      sb.append("}\n");
-      sb.append("function normalizeLegacyHashDeepLink(){\n");
-      sb.append("  var waveId=waveIdFromLegacyHash(window.location.hash);\n");
-      sb.append("  if(!waveId){return;}\n");
-      sb.append("  var nextUrl='").append(safeResolvedBasePath).append("?view=j2cl-root&wave=' + encodeURIComponent(waveId);\n");
-      sb.append("  window.history.replaceState(null, '', nextUrl);\n");
-      sb.append("}\n");
-      sb.append("function syncReturnTargetUi(){\n");
-      sb.append("  var fallback='").append(safeResolvedReturnTarget).append("';\n");
-      sb.append("  var target=currentReturnTarget();\n");
-      sb.append("  var encoded=encodeLocalReturnTargetForQuery(target, fallback);\n");
-      sb.append("  var shell=document.querySelector('[data-j2cl-root-shell]');\n");
-      sb.append("  if(shell){shell.setAttribute('data-j2cl-root-return-target', target);}\n");
-      sb.append("  var brand=document.getElementById('j2cl-root-brand-link');\n");
-      sb.append("  if(brand){brand.href=target;}\n");
-      sb.append("  var targetText=document.getElementById('j2cl-root-return-target-text');\n");
-      sb.append("  if(targetText){targetText.textContent='Return target: ' + target;}\n");
-      sb.append("  document.querySelectorAll('[data-j2cl-root-signin]').forEach(function(anchor){anchor.href='/auth/signin?r=' + encoded;});\n");
-      sb.append("  document.querySelectorAll('[data-j2cl-root-signout]').forEach(function(anchor){anchor.href='/auth/signout?r=' + encoded;});\n");
-      sb.append("}\n");
-      sb.append("function hookHistory(){\n");
-      sb.append("  ['pushState','replaceState'].forEach(function(method){\n");
-      sb.append("    var original=window.history[method];\n");
-      sb.append("    if(typeof original!=='function'){return;}\n");
-      sb.append("    window.history[method]=function(){\n");
-      sb.append("      var result=original.apply(this, arguments);\n");
-      sb.append("      syncReturnTargetUi();\n");
-      sb.append("      return result;\n");
-      sb.append("    };\n");
-      sb.append("  });\n");
-      sb.append("  window.addEventListener('popstate', syncReturnTargetUi);\n");
-      sb.append("}\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  private static void appendJ2clRootShellBootstrap(
+      StringBuilder sb, String resolvedReturnTarget, String resolvedBasePath, boolean mountWorkflow) {
+    String jsReturnTarget = escapeJsonString(resolvedReturnTarget);
+    String jsBasePath = escapeJsonString(resolvedBasePath);
+    sb.append("<script>\n");
+    sb.append("(function(){\n");
+    sb.append("function normalizeLocalReturnTargetForUi(target, fallback){\n");
+    sb.append("  if(!target || target.charAt(0)!=='/' || target.indexOf('//')===0){return fallback;}\n");
+    sb.append("  return target;\n");
+    sb.append("}\n");
+    sb.append("function encodeLocalReturnTargetForQuery(target, fallback){\n");
+    sb.append("  var normalized=normalizeLocalReturnTargetForUi(target, fallback);\n");
+    sb.append("  return '/' + encodeURIComponent(normalized.substring(1));\n");
+    sb.append("}\n");
+    sb.append("function currentReturnTarget(){\n");
+    sb.append("  var fallback=").append(jsReturnTarget).append(";\n");
+    sb.append("  var pathname=window.location.pathname||'/';\n");
+    sb.append("  if(pathname.indexOf('/')!==0){pathname='/' + pathname;}\n");
+    sb.append("  var search=window.location.search||'';\n");
+    sb.append("  if(search.indexOf('view=j2cl-root')===-1){return fallback;}\n");
+    sb.append("  return normalizeLocalReturnTargetForUi(pathname + search, fallback);\n");
+    sb.append("}\n");
+    sb.append("function waveIdFromLegacyHash(hash){\n");
+    sb.append("  if(!hash){return null;}\n");
+    sb.append("  var trimmed=hash.charAt(0)==='#'?hash.substring(1):hash;\n");
+    sb.append("  if(!trimmed){return null;}\n");
+    sb.append("  var token=trimmed.split('&')[0];\n");
+    sb.append("  return token.indexOf('/')>=0 ? token : null;\n");
+    sb.append("}\n");
+    sb.append("function normalizeLegacyHashDeepLink(){\n");
+    sb.append("  var waveId=waveIdFromLegacyHash(window.location.hash);\n");
+    sb.append("  if(!waveId){return;}\n");
+    sb.append("  var nextUrl=").append(jsBasePath).append("+'?view=j2cl-root&wave=' + encodeURIComponent(waveId);\n");
+    sb.append("  window.history.replaceState(null, '', nextUrl);\n");
+    sb.append("}\n");
+    sb.append("function syncReturnTargetUi(){\n");
+    sb.append("  var fallback=").append(jsReturnTarget).append(";\n");
+    sb.append("  var target=currentReturnTarget();\n");
+    sb.append("  var encoded=encodeLocalReturnTargetForQuery(target, fallback);\n");
+    sb.append("  var shell=document.querySelector('[data-j2cl-root-shell]');\n");
+    sb.append("  if(shell){shell.setAttribute('data-j2cl-root-return-target', target);}\n");
+    sb.append("  var brand=document.getElementById('j2cl-root-brand-link');\n");
+    sb.append("  if(brand){brand.href=target;}\n");
+    sb.append("  var targetText=document.getElementById('j2cl-root-return-target-text');\n");
+    sb.append("  if(targetText){targetText.textContent='Return target: ' + target;}\n");
+    sb.append("  document.querySelectorAll('[data-j2cl-root-signin]').forEach(function(anchor){anchor.href='/auth/signin?r=' + encoded;});\n");
+    sb.append("  document.querySelectorAll('[data-j2cl-root-signout]').forEach(function(anchor){anchor.href='/auth/signout?r=' + encoded;});\n");
+    sb.append("}\n");
+    sb.append("function hookHistory(){\n");
+    sb.append("  ['pushState','replaceState'].forEach(function(method){\n");
+    sb.append("    var original=window.history[method];\n");
+    sb.append("    if(typeof original!=='function'){return;}\n");
+    sb.append("    window.history[method]=function(){\n");
+    sb.append("      var result=original.apply(this, arguments);\n");
+    sb.append("      syncReturnTargetUi();\n");
+    sb.append("      return result;\n");
+    sb.append("    };\n");
+    sb.append("  });\n");
+    sb.append("  window.addEventListener('popstate', syncReturnTargetUi);\n");
+    sb.append("}\n");
+    if (mountWorkflow) {
       sb.append("function resolveEntryPoint(){\n");
       sb.append("  if(window.WaveSandboxEntryPoint&&window.WaveSandboxEntryPoint.mount){return window.WaveSandboxEntryPoint;}\n");
       sb.append("  if(window.goog&&window.goog.module&&window.goog.module.get){\n");
@@ -3392,23 +3395,29 @@ public final class HtmlRenderer {
       sb.append("}\n");
       sb.append("function renderLoadError(){\n");
       sb.append("  var workflow=document.getElementById('j2cl-root-shell-workflow');\n");
-      sb.append("  if(workflow){workflow.innerHTML='<div class=\"j2cl-root-shell-workflow-empty\">ERROR: J2CL root-shell bundle failed to load.</div>';}\n");
+      sb.append("  if(workflow){workflow.innerHTML='<p data-j2cl-fallback=\"true\">ERROR: J2CL root-shell bundle failed to load.</p>';}\n");
       sb.append("}\n");
-      sb.append("function mountWhenReady(attemptsRemaining){\n");
+      sb.append("function clearFallback(){\n");
+      sb.append("  var workflow=document.getElementById('j2cl-root-shell-workflow');\n");
+      sb.append("  if(!workflow){return;}\n");
+      sb.append("  workflow.querySelectorAll('[data-j2cl-fallback]').forEach(function(node){node.remove();});\n");
+      sb.append("}\n");
+      sb.append("function mountWhenReady(attemptsRemaining,delayMs){\n");
       sb.append("  var entryPoint=resolveEntryPoint();\n");
-      sb.append("  if(entryPoint){entryPoint.mount('j2cl-root-shell-workflow','root-shell');return;}\n");
-      sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1);},50);}else{renderLoadError();}\n");
+      sb.append("  if(entryPoint){try{entryPoint.mount('j2cl-root-shell-workflow','root-shell');clearFallback();return;}catch(err){renderLoadError();return;}}\n");
+      sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1,Math.min(delayMs*2,2000));},delayMs);}else{renderLoadError();}\n");
       sb.append("}\n");
-      sb.append("normalizeLegacyHashDeepLink();\n");
-      sb.append("hookHistory();\n");
-      sb.append("syncReturnTargetUi();\n");
-      sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){syncReturnTargetUi();mountWhenReady(80);});}else{mountWhenReady(80);}\n");
-      sb.append("})();\n");
-      sb.append("</script>\n");
     }
-    sb.append("</main>\n");
-    sb.append("</body>\n</html>\n");
-    return sb.toString();
+    sb.append("normalizeLegacyHashDeepLink();\n");
+    sb.append("hookHistory();\n");
+    sb.append("syncReturnTargetUi();\n");
+    if (mountWorkflow) {
+      sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){syncReturnTargetUi();mountWhenReady(12,50);});}else{mountWhenReady(12,50);}\n");
+    } else {
+      sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',syncReturnTargetUi);}\n");
+    }
+    sb.append("})();\n");
+    sb.append("</script>\n");
   }
 
   /**

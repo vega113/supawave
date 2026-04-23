@@ -63,7 +63,8 @@ public final class HtmlRendererChangelogTest {
 
     assertTrue(html.contains("function waveIdFromLegacyHash(hash){"));
     assertTrue(html.contains("function normalizeLegacyHashDeepLink(){"));
-    assertTrue(html.contains("var nextUrl='/?view=j2cl-root&wave=' + encodeURIComponent(waveId);"));
+    assertTrue(html.contains("var nextUrl="));
+    assertTrue(html.contains("?view=j2cl-root&wave=' + encodeURIComponent(waveId);"));
     assertTrue(html.contains("normalizeLegacyHashDeepLink();"));
   }
 
@@ -78,7 +79,7 @@ public final class HtmlRendererChangelogTest {
         "/wave/?view=j2cl-root",
         "localhost:9898");
 
-    assertTrue(html.contains("var nextUrl='/wave/?view=j2cl-root&wave=' + encodeURIComponent(waveId);"));
+    assertTrue(html.contains("var nextUrl=\"\\/wave\\/\"+'?view=j2cl-root&wave=' + encodeURIComponent(waveId);"));
   }
 
   @Test

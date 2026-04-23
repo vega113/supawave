@@ -44,6 +44,7 @@ For detailed role behavior and sequencing, follow:
 - Prefer multiple independent worktrees/lanes over single-threaded execution when the task can be safely parallelized.
 - Do not implement from `/Users/vega/devroot/incubator-wave`.
 - Use `/Users/vega/devroot/worktrees/<branch-name>` for worktree paths.
+- When running `npm` tasks under `j2cl/lit/`, run from that directory; do not leak Node tooling into other packages.
 - Never create worktrees under `.claude/worktrees/`.
 - Do not run `git checkout` or `git switch` inside the main repo during lane execution; it flips shared HEAD for open sessions.
 - For lane execution details (tmux launch sequence, model flags, etc.), see [docs/agents/tool-usage.md](docs/agents/tool-usage.md).

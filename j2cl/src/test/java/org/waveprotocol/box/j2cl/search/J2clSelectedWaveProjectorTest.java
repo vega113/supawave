@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
+import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragmentRange;
@@ -129,6 +130,104 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertFalse(projected.isReadStateKnown());
     Assert.assertFalse(projected.isReadStateStale());
     Assert.assertEquals("Live updates connected.", projected.getStatusText());
+  }
+
+  @Test
+  public void projectKeepsStableReadBlipIdsFromFragmentSegments() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    9L,
+                    0L,
+                    9L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 9L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+reply", 0L, 9L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("blip:b+root", "Root text", 0, 0),
+                        new SidecarSelectedWaveFragment("blip:b+reply", "Reply text", 0, 0)))),
+            null,
+            0);
+
+    Assert.assertEquals(2, projected.getReadBlips().size());
+    Assert.assertEquals("b+root", projected.getReadBlips().get(0).getBlipId());
+    Assert.assertEquals("Root text", projected.getReadBlips().get(0).getText());
+    Assert.assertEquals("b+reply", projected.getReadBlips().get(1).getBlipId());
+    Assert.assertEquals("Reply text", projected.getReadBlips().get(1).getText());
+  }
+
+  @Test
+  public void projectFallsBackToDocumentBlipsWhenFragmentsAreAbsent() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root", "user@example.com", 7L, 8L, "Document text"),
+                    new SidecarSelectedWaveDocument(
+                        "conversation", "user@example.com", 7L, 8L, "metadata")),
+                null),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getReadBlips().size());
+    J2clReadBlip blip = projected.getReadBlips().get(0);
+    Assert.assertEquals("b+root", blip.getBlipId());
+    Assert.assertEquals("Document text", blip.getText());
+  }
+
+  @Test
+  public void projectPrefersFragmentReadBlipsOverDocumentFallbacks() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root", "user@example.com", 7L, 8L, "Document text")),
+                new SidecarSelectedWaveFragments(
+                    9L,
+                    0L,
+                    9L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 9L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment("blip:b+root", "Fragment text", 0, 0)))),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getReadBlips().size());
+    J2clReadBlip blip = projected.getReadBlips().get(0);
+    Assert.assertEquals("b+root", blip.getBlipId());
+    Assert.assertEquals("Fragment text", blip.getText());
   }
 
   // -- Write-session coupling (pre-existing) ----------------------------------

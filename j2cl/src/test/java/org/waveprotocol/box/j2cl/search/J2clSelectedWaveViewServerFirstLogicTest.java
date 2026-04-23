@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
+import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 
 @J2clTestInput(J2clSelectedWaveViewServerFirstLogicTest.class)
 public class J2clSelectedWaveViewServerFirstLogicTest {
@@ -43,6 +44,33 @@ public class J2clSelectedWaveViewServerFirstLogicTest {
             0,
             Collections.<String>emptyList(),
             Arrays.asList("Live content"),
+            null,
+            J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT,
+            false,
+            false,
+            false);
+
+    Assert.assertFalse(
+        J2clSelectedWaveView.shouldPreserveServerSnapshot("example.com/w+1", liveModel, false));
+  }
+
+  @Test
+  public void firstLiveReadBlipSwapsServerSnapshotOut() {
+    J2clSelectedWaveModel liveModel =
+        new J2clSelectedWaveModel(
+            true,
+            false,
+            false,
+            "example.com/w+1",
+            "Selected wave",
+            "",
+            "",
+            "Live updates connected.",
+            "",
+            0,
+            Collections.<String>emptyList(),
+            Collections.<String>emptyList(),
+            Arrays.asList(new J2clReadBlip("b+root", "Live content")),
             null,
             J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT,
             false,

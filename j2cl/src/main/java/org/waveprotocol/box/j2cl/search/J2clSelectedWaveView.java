@@ -5,6 +5,7 @@ import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
 import jsinterop.annotations.JsFunction;
 import jsinterop.base.Js;
+import org.waveprotocol.box.j2cl.read.J2clReadSurfaceDomRenderer;
 import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 
 public final class J2clSelectedWaveView implements J2clSelectedWaveController.View {
@@ -16,6 +17,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private final HTMLElement snippet;
   private final HTMLElement composeHost;
   private final HTMLDivElement contentList;
+  private final J2clReadSurfaceDomRenderer readSurface;
   private final HTMLElement emptyState;
   private boolean serverFirstActive;
   private boolean serverFirstSwapRecorded;
@@ -34,7 +36,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       snippet = queryRequired(existingCard, ".sidecar-selected-snippet");
       composeHost = queryRequired(existingCard, ".sidecar-selected-compose");
       contentList = queryRequired(existingCard, ".sidecar-selected-content");
-      emptyState = queryRequired(existingCard, ".sidecar-empty-state");
+      readSurface = new J2clReadSurfaceDomRenderer(contentList);
+      readSurface.enhanceExistingSurface();
+      emptyState = queryOrCreate(existingCard, ".sidecar-empty-state", "div", "sidecar-empty-state");
       serverFirstActive = true;
       serverFirstWaveId = J2clServerFirstRootShellDom.serverFirstWaveId(host);
       serverFirstMode = J2clServerFirstRootShellDom.serverFirstMode(host);
@@ -84,6 +88,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     contentList = (HTMLDivElement) DomGlobal.document.createElement("div");
     contentList.className = "sidecar-selected-content";
     card.appendChild(contentList);
+    readSurface = new J2clReadSurfaceDomRenderer(contentList);
 
     emptyState = (HTMLElement) DomGlobal.document.createElement("div");
     emptyState.className = "sidecar-empty-state";
@@ -124,15 +129,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     snippet.textContent = model.getSnippetText();
     snippet.hidden = model.getSnippetText().isEmpty();
 
-    contentList.innerHTML = "";
-    for (String entry : model.getContentEntries()) {
-      HTMLElement block = (HTMLElement) DomGlobal.document.createElement("pre");
-      block.className = "sidecar-selected-entry";
-      block.textContent = entry;
-      contentList.appendChild(block);
-    }
+    boolean hasRenderedReadSurface = readSurface.render(model.getReadBlips(), model.getContentEntries());
 
-    emptyState.hidden = model.isError() || (model.hasSelection() && !model.getContentEntries().isEmpty());
+    emptyState.hidden = model.isError() || (model.hasSelection() && hasRenderedReadSurface);
     emptyState.textContent =
         model.hasSelection()
             ? (model.isLoading()
@@ -171,7 +170,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (model.isLoading() || model.isError()) {
       return true;
     }
-    return model.getContentEntries().isEmpty();
+    return model.getContentEntries().isEmpty() && model.getReadBlips().isEmpty();
   }
 
   private boolean shouldPreserveServerFirstCard(J2clSelectedWaveModel model) {
@@ -237,6 +236,19 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
           "Missing required DOM element for selector '" + selector + "'");
     }
     return (T) element;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T extends HTMLElement> T queryOrCreate(
+      HTMLElement root, String selector, String tagName, String className) {
+    Object element = root.querySelector(selector);
+    if (element != null) {
+      return (T) element;
+    }
+    HTMLElement created = (HTMLElement) DomGlobal.document.createElement(tagName);
+    created.className = className;
+    root.appendChild(created);
+    return (T) created;
   }
 
   @JsFunction

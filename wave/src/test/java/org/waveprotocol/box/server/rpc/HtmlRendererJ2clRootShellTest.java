@@ -118,6 +118,17 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         html.contains("&amp;"));
   }
 
+  public void testSignedOutReturnTargetLabelHasSyncableSpan() {
+    JSONObject session = new JSONObject();
+    // No address = signed out; provide a return target to check label markup.
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/wave/inbox", "ws.example:443");
+
+    assertTrue("Signed-out status strip must wrap return-target text in the syncable span",
+        html.contains("<span id=\"j2cl-root-return-target-text\">Return target: "));
+  }
+
   public void testSignedOutPageAlsoIncludesReturnTargetBootstrap() {
     JSONObject session = new JSONObject();
     // No address = signed out

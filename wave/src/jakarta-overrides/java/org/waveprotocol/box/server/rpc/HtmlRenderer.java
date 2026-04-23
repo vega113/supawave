@@ -3314,9 +3314,9 @@ public final class HtmlRenderer {
       sb.append("      <p data-j2cl-fallback=\"true\">After sign-in, the hosted J2CL workflow will mount here without leaving the shell.</p>\n");
       sb.append("    </section>\n");
       sb.append("  </shell-main-region>\n");
-      sb.append("  <shell-status-strip slot=\"status\">Return target: ")
+      sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Return target: ")
           .append(safeResolvedReturnTarget)
-          .append("</shell-status-strip>\n");
+          .append("</span></shell-status-strip>\n");
       sb.append("</shell-root-signed-out>\n");
       appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, false);
     }
@@ -3404,7 +3404,7 @@ public final class HtmlRenderer {
       sb.append("}\n");
       sb.append("function mountWhenReady(attemptsRemaining){\n");
       sb.append("  var entryPoint=resolveEntryPoint();\n");
-      sb.append("  if(entryPoint){clearFallback();entryPoint.mount('j2cl-root-shell-workflow','root-shell');return;}\n");
+      sb.append("  if(entryPoint){try{clearFallback();entryPoint.mount('j2cl-root-shell-workflow','root-shell');return;}catch(err){renderLoadError();return;}}\n");
       sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1);},50);}else{renderLoadError();}\n");
       sb.append("}\n");
     }

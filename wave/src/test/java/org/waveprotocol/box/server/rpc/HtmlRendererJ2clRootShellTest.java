@@ -116,9 +116,14 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     assertTrue("Bootstrap must include normalizeLegacyHashDeepLink",
         html.contains("normalizeLegacyHashDeepLink()"));
+    assertTrue("Bootstrap must include safeResolvedBasePath wiring",
+        html.contains("/mypath/"));
     int markerIdx = html.indexOf("normalizeLegacyHashDeepLink()");
     int scriptOpenIdx = html.lastIndexOf("<script>", markerIdx);
     int scriptCloseIdx = html.indexOf("</script>", markerIdx);
+    assertTrue("Expected opening <script> tag before normalizeLegacyHashDeepLink()", scriptOpenIdx >= 0);
+    assertTrue("Expected closing </script> tag after normalizeLegacyHashDeepLink()", scriptCloseIdx >= 0);
+    assertTrue("Expected <script> to open before </script>", scriptOpenIdx < scriptCloseIdx);
     String bootstrapScript = html.substring(scriptOpenIdx, scriptCloseIdx + "</script>".length());
     assertFalse("HTML entity &amp; must not appear inside bootstrap script",
         bootstrapScript.contains("&amp;"));

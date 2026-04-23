@@ -67,6 +67,7 @@ prometheus.scrape "wave" {{
   targets = discovery.relabel.wave.output
   forward_to = [prometheus.remote_write.perf.receiver]
   scrape_interval = "5s"
+  scrape_timeout = "5s"
 }}
 
 discovery.relabel "perf_exporter" {{
@@ -81,6 +82,7 @@ prometheus.scrape "perf_exporter" {{
   targets = discovery.relabel.perf_exporter.output
   forward_to = [prometheus.remote_write.perf.receiver]
   scrape_interval = "5s"
+  scrape_timeout = "5s"
 }}
 
 prometheus.exporter.unix "runner" {{
@@ -95,6 +97,7 @@ prometheus.scrape "runner" {{
   targets = discovery.relabel.runner.output
   forward_to = [prometheus.remote_write.perf.receiver]
   scrape_interval = "5s"
+  scrape_timeout = "5s"
 }}
 """
 

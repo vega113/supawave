@@ -137,6 +137,8 @@ overall_exit=0
 for sim in SearchLoadSimulation WaveOpenSimulation FullJourneySimulation; do
   echo ""
   echo "[perf] Running $sim ..."
+  sim_slug="$(echo "$sim" | tr '[:upper:]' '[:lower:]')"
+  find target/gatling -maxdepth 1 -type d -name "${sim_slug}-*" -exec rm -rf {} + 2>/dev/null || true
 
   set +e
   WAVE_PERF_BASE_URL="$BASE_URL" \
@@ -147,27 +149,32 @@ for sim in SearchLoadSimulation WaveOpenSimulation FullJourneySimulation; do
 
   summary_file="$RESULTS_DIR/${sim}-summary.json"
   tmp_summary_file="${summary_file}.tmp"
+  report_dir="$(find target/gatling -maxdepth 1 -type d -name "${sim_slug}-*" 2>/dev/null | sort | tail -n 1 || true)"
   rm -f "$summary_file" "$tmp_summary_file"
-  set +e
-  python3 scripts/perf_metrics_exporter.py summarize \
-    --simulation "$sim" \
-    --output-file "$RESULTS_DIR/${sim}-output.txt" \
-    --summary-file "$tmp_summary_file" \
-    --exit-code "$sim_code" \
-    --repo "$PERF_REPO" \
-    --branch "$PERF_BRANCH" \
-    --sha "$PERF_SHA" \
-    --workflow "$PERF_WORKFLOW" \
-    --run-id "$PERF_RUN_ID" \
-    --run-attempt "$PERF_RUN_ATTEMPT"
-  summary_code=$?
-  set -e
-  if [[ "$summary_code" -ne 0 ]]; then
-    rm -f "$summary_file" "$tmp_summary_file"
-    echo "[perf] WARN: failed to generate summary file for $sim" >&2
+  if [[ -z "$report_dir" ]]; then
+    echo "[perf] WARN: failed to locate Gatling report directory for $sim" >&2
   else
-    mv "$tmp_summary_file" "$summary_file"
-    echo "[perf] Summary: $summary_file"
+    set +e
+    python3 scripts/perf_metrics_exporter.py summarize \
+      --simulation "$sim" \
+      --report-dir "$report_dir" \
+      --summary-file "$tmp_summary_file" \
+      --exit-code "$sim_code" \
+      --repo "$PERF_REPO" \
+      --branch "$PERF_BRANCH" \
+      --sha "$PERF_SHA" \
+      --workflow "$PERF_WORKFLOW" \
+      --run-id "$PERF_RUN_ID" \
+      --run-attempt "$PERF_RUN_ATTEMPT"
+    summary_code=$?
+    set -e
+    if [[ "$summary_code" -ne 0 ]]; then
+      rm -f "$summary_file" "$tmp_summary_file"
+      echo "[perf] WARN: failed to generate summary file for $sim" >&2
+    else
+      mv "$tmp_summary_file" "$summary_file"
+      echo "[perf] Summary: $summary_file"
+    fi
   fi
 
   if [[ "$sim_code" -ne 0 ]]; then

@@ -23,6 +23,13 @@ def walk_panels(dashboard: dict) -> list[dict]:
   return found
 
 
+def find_panel(dashboard: dict, title: str) -> dict:
+  for panel in walk_panels(dashboard):
+    if panel.get("title") == title:
+      return panel
+  raise AssertionError(f"Panel not found: {title}")
+
+
 class GrafanaDashboardUpsertTest(unittest.TestCase):
   class _FakeResponse:
     def __init__(self, status: int = 200):
@@ -38,10 +45,38 @@ class GrafanaDashboardUpsertTest(unittest.TestCase):
     dashboard = json.loads(PERF_DASHBOARD_PATH.read_text(encoding="utf-8"))
     titles = {panel["title"] for panel in walk_panels(dashboard) if "title" in panel}
 
-    self.assertIn("Latest Perf Status", titles)
-    self.assertIn("P95 by Simulation", titles)
+    self.assertIn("Latest Runs", titles)
+    self.assertIn("P95 by Run", titles)
+    self.assertIn("P99 by Run", titles)
+    self.assertIn("Request P95 by Run", titles)
+    self.assertIn("Request Volume by Run", titles)
+    self.assertIn("Latency Distribution", titles)
     self.assertIn("JVM Heap", titles)
     self.assertIn("Runner CPU", titles)
+
+  def test_perf_dashboard_contains_run_and_request_selectors(self):
+    dashboard = json.loads(PERF_DASHBOARD_PATH.read_text(encoding="utf-8"))
+    variable_names = {entry["name"] for entry in dashboard.get("templating", {}).get("list", [])}
+
+    self.assertIn("branch", variable_names)
+    self.assertIn("simulation", variable_names)
+    self.assertIn("sha", variable_names)
+    self.assertIn("run_id", variable_names)
+    self.assertIn("run_attempt", variable_names)
+    self.assertIn("request_name", variable_names)
+
+  def test_latest_runs_panel_orders_by_run_timestamp(self):
+    dashboard = json.loads(PERF_DASHBOARD_PATH.read_text(encoding="utf-8"))
+    latest_runs_panel = find_panel(dashboard, "Latest Runs")
+
+    self.assertIn("wave_perf_last_run_timestamp_seconds", latest_runs_panel["targets"][0]["expr"])
+    self.assertIn('run_attempt=~"$run_attempt"', latest_runs_panel["targets"][0]["expr"])
+
+  def test_latency_distribution_panel_uses_instant_query(self):
+    dashboard = json.loads(PERF_DASHBOARD_PATH.read_text(encoding="utf-8"))
+    latency_distribution_panel = find_panel(dashboard, "Latency Distribution")
+
+    self.assertTrue(latency_distribution_panel["targets"][0]["instant"])
 
   def test_dashboard_contains_expected_analytics_panels(self):
     dashboard = json.loads(ANALYTICS_DASHBOARD_PATH.read_text(encoding="utf-8"))

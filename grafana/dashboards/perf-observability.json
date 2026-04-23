@@ -2,11 +2,11 @@
   "id": null,
   "uid": "wave-perf-observability",
   "title": "Wave Perf Observability",
-  "tags": ["perf", "grafana-cloud", "wave"],
+  "tags": ["perf", "grafana-cloud", "wave", "gatling"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
-  "refresh": "5m",
+  "version": 2,
+  "refresh": "1m",
   "templating": {
     "list": [
       {
@@ -27,7 +27,7 @@
           "type": "prometheus",
           "uid": "__PROMETHEUS_DS_UID__"
         },
-        "query": "label_values(wave_perf_run_info, simulation)",
+        "query": "label_values(wave_perf_run_info{branch=~\"$branch\"}, simulation)",
         "includeAll": true,
         "multi": true
       },
@@ -38,7 +38,40 @@
           "type": "prometheus",
           "uid": "__PROMETHEUS_DS_UID__"
         },
-        "query": "label_values(wave_perf_run_info, sha)",
+        "query": "label_values(wave_perf_run_info{branch=~\"$branch\",simulation=~\"$simulation\"}, sha)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "run_id",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "__PROMETHEUS_DS_UID__"
+        },
+        "query": "label_values(wave_perf_run_info{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\"}, run_id)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "run_attempt",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "__PROMETHEUS_DS_UID__"
+        },
+        "query": "label_values(wave_perf_run_info{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\"}, run_attempt)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "request_name",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "__PROMETHEUS_DS_UID__"
+        },
+        "query": "label_values(wave_perf_request_response_time_ms{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\"}, request_name)",
         "includeAll": true,
         "multi": true
       }
@@ -47,56 +80,144 @@
   "panels": [
     {
       "id": 1,
-      "type": "stat",
-      "title": "Latest Perf Status",
+      "type": "table",
+      "title": "Latest Runs",
       "datasource": {
         "type": "prometheus",
         "uid": "__PROMETHEUS_DS_UID__"
       },
       "targets": [
         {
-          "expr": "sum by (simulation) (last_over_time(wave_perf_run_info{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\"}[30d]))",
+          "expr": "topk(20, wave_perf_last_run_timestamp_seconds{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\"})",
+          "instant": true,
+          "format": "table",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 }
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 }
     },
     {
       "id": 2,
       "type": "timeseries",
-      "title": "P95 by Simulation",
+      "title": "P95 by Run",
       "datasource": {
         "type": "prometheus",
         "uid": "__PROMETHEUS_DS_UID__"
       },
       "targets": [
         {
-          "expr": "wave_perf_response_time_ms{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",stat=\"p95\"}",
-          "legendFormat": "{{simulation}}",
+          "expr": "wave_perf_response_time_ms{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\",stat=\"p95\"}",
+          "legendFormat": "{{simulation}} run {{run_id}} attempt {{run_attempt}}",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 }
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 }
     },
     {
       "id": 3,
       "type": "timeseries",
-      "title": "P99 by Simulation",
+      "title": "P99 by Run",
       "datasource": {
         "type": "prometheus",
         "uid": "__PROMETHEUS_DS_UID__"
       },
       "targets": [
         {
-          "expr": "wave_perf_response_time_ms{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",stat=\"p99\"}",
-          "legendFormat": "{{simulation}}",
+          "expr": "wave_perf_response_time_ms{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\",stat=\"p99\"}",
+          "legendFormat": "{{simulation}} run {{run_id}} attempt {{run_attempt}}",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 }
     },
     {
       "id": 4,
+      "type": "timeseries",
+      "title": "Success Ratio by Run",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "wave_perf_success_ratio{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\"}",
+          "legendFormat": "{{simulation}} run {{run_id}} attempt {{run_attempt}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 7 }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Request P95 by Run",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "wave_perf_request_response_time_ms{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\",request_name=~\"$request_name\",stat=\"p95\"}",
+          "legendFormat": "{{request_name}} run {{run_id}} attempt {{run_attempt}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 7 }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Request Volume by Run",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "sum by (simulation, request_name, run_id, run_attempt) (wave_perf_request_requests_count{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\",request_name=~\"$request_name\"})",
+          "legendFormat": "{{simulation}} {{request_name}} run {{run_id}} attempt {{run_attempt}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 }
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "Latency Distribution",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "wave_perf_distribution_count{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\"}",
+          "legendFormat": "{{simulation}} {{bucket}} run {{run_id}} attempt {{run_attempt}}",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Global Request Rate by Run",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "__PROMETHEUS_DS_UID__"
+      },
+      "targets": [
+        {
+          "expr": "wave_perf_mean_requests_per_second{branch=~\"$branch\",simulation=~\"$simulation\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\"}",
+          "legendFormat": "{{simulation}} run {{run_id}} attempt {{run_attempt}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 }
+    },
+    {
+      "id": 9,
       "type": "timeseries",
       "title": "Wave HTTP Errors",
       "datasource": {
@@ -105,14 +226,15 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_exceptions_total[5m]))",
+          "expr": "sum by (run_id, run_attempt) (rate(http_server_exceptions_total{branch=~\"$branch\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\"}[5m]))",
+          "legendFormat": "run {{run_id}} attempt {{run_attempt}}",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 }
     },
     {
-      "id": 5,
+      "id": 10,
       "type": "timeseries",
       "title": "JVM Heap",
       "datasource": {
@@ -121,30 +243,15 @@
       },
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})",
+          "expr": "sum by (run_id, run_attempt) (jvm_memory_used_bytes{branch=~\"$branch\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\",area=\"heap\"})",
+          "legendFormat": "heap run {{run_id}} attempt {{run_attempt}}",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 }
     },
     {
-      "id": 6,
-      "type": "timeseries",
-      "title": "GC Activity",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "__PROMETHEUS_DS_UID__"
-      },
-      "targets": [
-        {
-          "expr": "rate(jvm_gc_memory_allocated_bytes_total[5m])",
-          "refId": "A"
-        }
-      ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
-    },
-    {
-      "id": 7,
+      "id": 11,
       "type": "timeseries",
       "title": "Runner CPU",
       "datasource": {
@@ -153,27 +260,12 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(node_cpu_seconds_total{mode!=\"idle\"}[5m]))",
+          "expr": "sum by (run_id, run_attempt) (rate(node_cpu_seconds_total{branch=~\"$branch\",sha=~\"$sha\",run_id=~\"$run_id\",run_attempt=~\"$run_attempt\",mode!=\"idle\"}[5m]))",
+          "legendFormat": "cpu run {{run_id}} attempt {{run_attempt}}",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
-    },
-    {
-      "id": 8,
-      "type": "timeseries",
-      "title": "Runner Memory",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "__PROMETHEUS_DS_UID__"
-      },
-      "targets": [
-        {
-          "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
-          "refId": "A"
-        }
-      ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 }
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 }
     }
   ]
 }

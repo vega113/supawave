@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-23-perf-gatling-dashboard-repair",
+  "version": "Issue #987",
+  "date": "2026-04-23",
+  "title": "Repair Grafana perf exports and expand Gatling run comparison",
+  "summary": "Perf workflow runs now summarize Gatling report JSON reliably, start Alloy with a valid scrape config, and publish richer run and request comparison data for the Grafana perf dashboard.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Repaired perf summary generation by reading Gatling report JSON artifacts instead of depending on brittle console output parsing",
+        "Fixed the generated Alloy scrape configuration so perf workflow runs can start remote-write and ship Wave, runner, and exporter metrics",
+        "Expanded the perf dashboard to compare runs by branch, sha, run ID, simulation, and request using richer Gatling metrics"
+      ]
+    }
+  ]
+}

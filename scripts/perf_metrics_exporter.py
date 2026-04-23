@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import re
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,45 +26,101 @@ SIMULATION_THRESHOLDS = {
     },
 }
 
+TIMING_FIELDS = {
+    # Gatling's default charting indicators map percentiles1..4 to 50/75/95/99.
+    # If gatling.conf changes those indicators, this exporter mapping must change too.
+    "min": "minResponseTime",
+    "max": "maxResponseTime",
+    "mean": "meanResponseTime",
+    "std_dev": "standardDeviation",
+    "p50": "percentiles1",
+    "p75": "percentiles2",
+    "p95": "percentiles3",
+    "p99": "percentiles4",
+}
 
-def _match_int(pattern: str, text: str) -> int:
-  match = re.search(pattern, text, re.MULTILINE)
-  if not match:
-    raise ValueError(f"Missing Gatling stat for pattern: {pattern}")
-  return int(match.group(1))
+DISTRIBUTION_FIELDS = {
+    "lt_800ms": "group1",
+    "between_800ms_1200ms": "group2",
+    "gte_1200ms": "group3",
+    "failed": "group4",
+}
 
 
-def _match_float(pattern: str, text: str) -> float:
-  match = re.search(pattern, text, re.MULTILINE)
-  if not match:
-    raise ValueError(f"Missing Gatling stat for pattern: {pattern}")
-  return float(match.group(1))
+def _extract_total(stats: dict, field_name: str) -> int | float:
+  return stats[field_name]["total"]
 
 
-def parse_gatling_output(output_text: str) -> dict:
+def _extract_requests(stats: dict) -> dict:
+  request_counts = stats["numberOfRequests"]
   return {
-      "requests": {
-          "ok": _match_int(r"request count\s+\d+\s+\(OK=(\d+)\s+KO=\d+", output_text),
-          "ko": _match_int(r"request count\s+\d+\s+\(OK=\d+\s+KO=(\d+)", output_text),
-      },
-      "timings_ms": {
-          "mean": _match_int(r"mean response time\s+(\d+)", output_text),
-          "max": _match_int(r"max response time\s+(\d+)", output_text),
-          "p95": _match_int(r"response time 95th percentile\s+(\d+)", output_text),
-          "p99": _match_int(r"response time 99th percentile\s+(\d+)", output_text),
-      },
-      "successful_requests_pct": _match_float(r"successful requests\s+([0-9.]+)%", output_text),
+      "ok": request_counts["ok"],
+      "ko": request_counts["ko"],
   }
 
 
-def build_summary(simulation: str, output_text: str, metadata: dict, exit_code: int) -> dict:
-  parsed = parse_gatling_output(output_text)
-  requests = parsed["requests"]
+def _extract_timings(stats: dict) -> dict:
+  return {
+      stat_name: _extract_total(stats, source_name)
+      for stat_name, source_name in TIMING_FIELDS.items()
+  }
+
+
+def _extract_distribution(stats: dict) -> dict:
+  return {
+      bucket_name: {
+          "name": stats[source_name]["name"],
+          "count": stats[source_name]["count"],
+          "percentage": stats[source_name]["percentage"],
+      }
+      for bucket_name, source_name in DISTRIBUTION_FIELDS.items()
+  }
+
+
+def build_request_metrics(request_nodes: dict) -> list[dict]:
+  request_metrics = []
+
+  def walk(nodes: dict):
+    for request_node in nodes.values():
+      if request_node.get("type") == "GROUP":
+        walk(request_node.get("contents", {}))
+        continue
+      if request_node.get("type") != "REQUEST":
+        continue
+      stats = request_node["stats"]
+      request_metrics.append({
+          "request_name": request_node["name"],
+          "request_path": request_node.get("path", request_node["name"]),
+          "requests": _extract_requests(stats),
+          "timings_ms": _extract_timings(stats),
+          "distribution": _extract_distribution(stats),
+          "mean_requests_per_second": _extract_total(stats, "meanNumberOfRequestsPerSecond"),
+      })
+
+  walk(request_nodes)
+  return sorted(request_metrics, key=lambda metric: metric["request_name"])
+
+
+def load_gatling_report(report_dir: Path) -> dict:
+  js_dir = report_dir / "js"
+  global_stats = json.loads((js_dir / "global_stats.json").read_text(encoding="utf-8"))
+  stats_tree = json.loads((js_dir / "stats.json").read_text(encoding="utf-8"))
+  return {
+      "global_stats": global_stats,
+      "request_nodes": stats_tree.get("contents", {}),
+  }
+
+
+def build_summary(simulation: str, report_dir: Path, metadata: dict, exit_code: int) -> dict:
+  parsed = load_gatling_report(report_dir)
+  global_stats = parsed["global_stats"]
+  requests = _extract_requests(global_stats)
   total_requests = requests["ok"] + requests["ko"]
   success_ratio = (requests["ok"] / total_requests) if total_requests else 0.0
+  timings_ms = _extract_timings(global_stats)
   thresholds = SIMULATION_THRESHOLDS.get(simulation, {})
   assertions = {
-      name: checker(parsed["timings_ms"], success_ratio)
+      name: checker(timings_ms, success_ratio)
       for name, checker in thresholds.items()
   }
   summary = {
@@ -78,9 +133,12 @@ def build_summary(simulation: str, output_text: str, metadata: dict, exit_code: 
       "run_attempt": metadata.get("run_attempt", ""),
       "exit_code": exit_code,
       "requests": requests,
-      "timings_ms": parsed["timings_ms"],
+      "timings_ms": timings_ms,
+      "distribution": _extract_distribution(global_stats),
+      "request_metrics": build_request_metrics(parsed["request_nodes"]),
+      "mean_requests_per_second": _extract_total(global_stats, "meanNumberOfRequestsPerSecond"),
       "success_ratio": success_ratio,
-      "successful_requests_pct": parsed["successful_requests_pct"],
+      "successful_requests_pct": success_ratio * 100.0,
       "assertions": assertions,
       "run_timestamp": int(metadata.get("run_timestamp", time.time())),
   }
@@ -111,8 +169,24 @@ def render_metrics(summaries: list[dict]) -> str:
       "# TYPE wave_perf_run_info gauge",
       "# HELP wave_perf_response_time_ms Wave perf response-time summary metrics in milliseconds.",
       "# TYPE wave_perf_response_time_ms gauge",
+      "# HELP wave_perf_mean_requests_per_second Wave perf throughput summary metrics.",
+      "# TYPE wave_perf_mean_requests_per_second gauge",
       "# HELP wave_perf_requests_count Wave perf request counts by outcome.",
       "# TYPE wave_perf_requests_count gauge",
+      "# HELP wave_perf_distribution_count Wave perf latency distribution counts.",
+      "# TYPE wave_perf_distribution_count gauge",
+      "# HELP wave_perf_distribution_ratio Wave perf latency distribution ratios from 0 to 1.",
+      "# TYPE wave_perf_distribution_ratio gauge",
+      "# HELP wave_perf_request_response_time_ms Wave perf request-level response-time summary metrics in milliseconds.",
+      "# TYPE wave_perf_request_response_time_ms gauge",
+      "# HELP wave_perf_request_requests_count Wave perf request-level counts by outcome.",
+      "# TYPE wave_perf_request_requests_count gauge",
+      "# HELP wave_perf_request_mean_requests_per_second Wave perf request-level throughput metrics.",
+      "# TYPE wave_perf_request_mean_requests_per_second gauge",
+      "# HELP wave_perf_request_distribution_count Wave perf request-level latency distribution counts.",
+      "# TYPE wave_perf_request_distribution_count gauge",
+      "# HELP wave_perf_request_distribution_ratio Wave perf request-level latency distribution ratios from 0 to 1.",
+      "# TYPE wave_perf_request_distribution_ratio gauge",
       "# HELP wave_perf_success_ratio Wave perf success ratio from 0 to 1.",
       "# TYPE wave_perf_success_ratio gauge",
       "# HELP wave_perf_assertion_status Wave perf assertion pass status where 1 is pass and 0 is fail.",
@@ -125,8 +199,39 @@ def render_metrics(summaries: list[dict]) -> str:
     lines.append(f"wave_perf_run_info{{{labels}}} 1")
     for stat_name, stat_value in summary["timings_ms"].items():
       lines.append(f'wave_perf_response_time_ms{{{_format_labels(summary, {"stat": stat_name})}}} {stat_value}')
+    if "mean_requests_per_second" in summary:
+      lines.append(f"wave_perf_mean_requests_per_second{{{labels}}} {summary['mean_requests_per_second']}")
     for status_name, request_count in summary["requests"].items():
       lines.append(f'wave_perf_requests_count{{{_format_labels(summary, {"status": status_name})}}} {request_count}')
+    for bucket_name, bucket in summary.get("distribution", {}).items():
+      lines.append(f'wave_perf_distribution_count{{{_format_labels(summary, {"bucket": bucket_name})}}} {bucket["count"]}')
+      lines.append(
+          f'wave_perf_distribution_ratio{{{_format_labels(summary, {"bucket": bucket_name})}}} {bucket["percentage"] / 100.0}'
+      )
+    for request_metric in summary.get("request_metrics", []):
+      request_labels = {
+          "request_name": request_metric["request_name"],
+          "request_path": request_metric["request_path"],
+      }
+      for stat_name, stat_value in request_metric["timings_ms"].items():
+        lines.append(
+            f'wave_perf_request_response_time_ms{{{_format_labels(summary, {**request_labels, "stat": stat_name})}}} {stat_value}'
+        )
+      for status_name, request_count in request_metric["requests"].items():
+        lines.append(
+            f'wave_perf_request_requests_count{{{_format_labels(summary, {**request_labels, "status": status_name})}}} {request_count}'
+        )
+      for bucket_name, bucket in request_metric.get("distribution", {}).items():
+        lines.append(
+            f'wave_perf_request_distribution_count{{{_format_labels(summary, {**request_labels, "bucket": bucket_name})}}} {bucket["count"]}'
+        )
+        lines.append(
+            f'wave_perf_request_distribution_ratio{{{_format_labels(summary, {**request_labels, "bucket": bucket_name})}}} {bucket["percentage"] / 100.0}'
+        )
+      if "mean_requests_per_second" in request_metric:
+        lines.append(
+            f'wave_perf_request_mean_requests_per_second{{{_format_labels(summary, request_labels)}}} {request_metric["mean_requests_per_second"]}'
+        )
     lines.append(f"wave_perf_success_ratio{{{labels}}} {summary['success_ratio']}")
     for assertion_name, assertion_passed in summary["assertions"].items():
       value = 1 if assertion_passed else 0
@@ -182,10 +287,9 @@ def _serve(args: argparse.Namespace) -> int:
 
 
 def _summarize(args: argparse.Namespace) -> int:
-  output_text = Path(args.output_file).read_text(encoding="utf-8")
   summary = build_summary(
       simulation=args.simulation,
-      output_text=output_text,
+      report_dir=Path(args.report_dir),
       metadata=_metadata_from_args(args),
       exit_code=args.exit_code,
   )
@@ -199,7 +303,7 @@ def main() -> int:
 
   summarize_parser = subparsers.add_parser("summarize")
   summarize_parser.add_argument("--simulation", required=True)
-  summarize_parser.add_argument("--output-file", required=True)
+  summarize_parser.add_argument("--report-dir", required=True)
   summarize_parser.add_argument("--summary-file", required=True)
   summarize_parser.add_argument("--exit-code", type=int, required=True)
   summarize_parser.add_argument("--repo", default="")

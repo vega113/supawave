@@ -388,9 +388,6 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private String currentFocusedBlipId() {
-    if (focusedBlip != null && focusedBlip.hasAttribute("data-blip-id")) {
-      return focusedBlip.getAttribute("data-blip-id");
-    }
     if (DomGlobal.document == null || !(DomGlobal.document.activeElement instanceof HTMLElement)) {
       return null;
     }

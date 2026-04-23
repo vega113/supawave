@@ -359,6 +359,44 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void rerenderingWithExternalFocusDoesNotStealFocusBack() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(
+                new J2clReadBlip("b+root", "Root text"),
+                new J2clReadBlip("b+reply", "Reply text")),
+            Collections.<String>emptyList()));
+    HTMLElement reply = blip(host, "b+reply");
+    reply.focus();
+
+    HTMLButtonElement external =
+        (HTMLButtonElement) DomGlobal.document.createElement("button");
+    DomGlobal.document.body.appendChild(external);
+    try {
+      external.focus();
+      Assert.assertEquals(external, DomGlobal.document.activeElement);
+
+      Assert.assertTrue(
+          renderer.render(
+              Arrays.asList(
+                  new J2clReadBlip("b+root", "Root text updated"),
+                  new J2clReadBlip("b+reply", "Reply text updated")),
+              Collections.<String>emptyList()));
+
+      Assert.assertEquals(external, DomGlobal.document.activeElement);
+      Assert.assertNull(blip(host, "b+reply").getAttribute("aria-current"));
+    } finally {
+      if (external.parentElement != null) {
+        external.parentElement.removeChild(external);
+      }
+    }
+  }
+
+  @Test
   public void renderLiveBlipsHandlesKeyboardBranchesAndBounds() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

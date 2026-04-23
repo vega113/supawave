@@ -479,6 +479,7 @@
   grid-column: 2;
   grid-row: 1;
   min-width: 0;
+  margin-left: 0;
   margin-bottom: 0;
   margin-left: 0;
 }
@@ -486,7 +487,11 @@
 .compact-inline-blips [data-depth="1"] .contentContainer,
 .compact-inline-blips [data-depth="2"] .contentContainer {
   grid-column: 1 / -1;
-  grid-row: 2;
+}
+.compact-inline-blips [data-depth="0"] .draftActive-notification,
+.compact-inline-blips [data-depth="1"] .draftActive-notification,
+.compact-inline-blips [data-depth="2"] .draftActive-notification {
+  grid-column: 1 / -1;
 }
 .compact-inline-blips [data-depth="0"] .draftActive-notification,
 .compact-inline-blips [data-depth="1"] .draftActive-notification,
@@ -571,6 +576,7 @@
   grid-column: 2;
   grid-row: 1;
   min-width: 0;
+  margin-left: 0;
   margin-bottom: 0;
   margin-left: 0;
 }
@@ -578,7 +584,11 @@
 .compact-inline-blips-mobile [data-depth="1"] .contentContainer,
 .compact-inline-blips-mobile [data-depth="2"] .contentContainer {
   grid-column: 1 / -1;
-  grid-row: 2;
+}
+.compact-inline-blips-mobile [data-depth="0"] .draftActive-notification,
+.compact-inline-blips-mobile [data-depth="1"] .draftActive-notification,
+.compact-inline-blips-mobile [data-depth="2"] .draftActive-notification {
+  grid-column: 1 / -1;
 }
 .compact-inline-blips-mobile [data-depth="0"] .draftActive-notification,
 .compact-inline-blips-mobile [data-depth="1"] .draftActive-notification,

@@ -64,15 +64,21 @@ public final class CompactInlineBlipCssContractTest extends TestCase {
     assertContainsAll(metabar,
         "grid-column: 2;",
         "grid-row: 1;",
-        "min-width: 0;");
+        "min-width: 0;",
+        "margin-left: 0;");
 
     String contentContainer = extractRuleBody(css,
         "\\.compact-inline-blips \\[data-depth=\"0\"\\] \\.contentContainer,"
             + "\\s*\\.compact-inline-blips \\[data-depth=\"1\"\\] \\.contentContainer,"
             + "\\s*\\.compact-inline-blips \\[data-depth=\"2\"\\] \\.contentContainer");
-    assertContainsAll(contentContainer,
-        "grid-column: 1 / -1;",
-        "grid-row: 2;");
+    assertContainsAll(contentContainer, "grid-column: 1 / -1;");
+    assertDoesNotContain(contentContainer, "grid-row: 2;");
+
+    String draftNotification = extractRuleBody(css,
+        "\\.compact-inline-blips \\[data-depth=\"0\"\\] \\.draftActive-notification,"
+            + "\\s*\\.compact-inline-blips \\[data-depth=\"1\"\\] \\.draftActive-notification,"
+            + "\\s*\\.compact-inline-blips \\[data-depth=\"2\"\\] \\.draftActive-notification");
+    assertContainsAll(draftNotification, "grid-column: 1 / -1;");
 
     assertMatches(css,
         "(?s).*\\.compact-inline-blips \\[data-depth=\"0\"\\] \\.avatar \\{"
@@ -126,15 +132,21 @@ public final class CompactInlineBlipCssContractTest extends TestCase {
     assertContainsAll(metabar,
         "grid-column: 2;",
         "grid-row: 1;",
-        "min-width: 0;");
+        "min-width: 0;",
+        "margin-left: 0;");
 
     String contentContainer = extractRuleBody(css,
         "\\.compact-inline-blips-mobile \\[data-depth=\"0\"\\] \\.contentContainer,"
             + "\\s*\\.compact-inline-blips-mobile \\[data-depth=\"1\"\\] \\.contentContainer,"
             + "\\s*\\.compact-inline-blips-mobile \\[data-depth=\"2\"\\] \\.contentContainer");
-    assertContainsAll(contentContainer,
-        "grid-column: 1 / -1;",
-        "grid-row: 2;");
+    assertContainsAll(contentContainer, "grid-column: 1 / -1;");
+    assertDoesNotContain(contentContainer, "grid-row: 2;");
+
+    String draftNotification = extractRuleBody(css,
+        "\\.compact-inline-blips-mobile \\[data-depth=\"0\"\\] \\.draftActive-notification,"
+            + "\\s*\\.compact-inline-blips-mobile \\[data-depth=\"1\"\\] \\.draftActive-notification,"
+            + "\\s*\\.compact-inline-blips-mobile \\[data-depth=\"2\"\\] \\.draftActive-notification");
+    assertContainsAll(draftNotification, "grid-column: 1 / -1;");
 
     assertMatches(css,
         "(?s).*\\.compact-inline-blips-mobile \\[data-depth=\"0\"\\] \\.avatar \\{"

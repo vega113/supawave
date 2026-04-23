@@ -18,7 +18,7 @@
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodec.java` — delete now-dead `encodeAuthenticateEnvelope(int, String)` method.
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodecTest.java` — delete `encodeAuthenticateEnvelopePreservesLegacyWrapperShape` test; add a negative regression test verifying no `ProtocolAuthenticate` envelope helper exists (by leaving it out of the production code and of the test surface).
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/sandbox/SandboxBuildSmokeTest.java` — delete `malformedCookieValueReturnsNull` test; add a regression test for `buildSearchUrl`/other remaining surface only if something else is removed that needs new coverage (likely nothing to add).
-- `wave/config/changelog.d/2026-04-23-j2cl-sidecar-auth-handshake.json` — new "security" changelog fragment documenting the hardening.
+- `wave/config/changelog.d/2026-04-23-j2cl-sidecar-auth-handshake.json` — new "fix" changelog fragment documenting the hardening.
 
 ### Out-of-scope (explicitly)
 - The legacy GWT client `wave/src/main/java/org/waveprotocol/box/webclient/client/WaveWebSocketClient.java` also reads `JSESSIONID` via `Cookies.getCookie`. Issue #933 scope says "in the J2CL sidecar", and the issue body explicitly limits scope to "stop reading `JSESSIONID` from app-visible JavaScript in the J2CL sidecar". Do not touch this file.
@@ -38,10 +38,10 @@
 ### Test files modified
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodecTest.java` — delete `encodeAuthenticateEnvelopePreservesLegacyWrapperShape` (covers a method we are removing).
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/sandbox/SandboxBuildSmokeTest.java` — delete `malformedCookieValueReturnsNull` (covers a helper we are removing).
-- `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSearchGatewayAuthFrameTest.java` *(new)* — regression test: a fake `WebSocket` captures the first frame sent on `onopen`; assert it is a `ProtocolOpenRequest`, not a `ProtocolAuthenticate`. One test for the selected-wave path, one for the submit path. This protects against regressions that would re-introduce the cookie-based auth handshake.
+- `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSearchGatewayAuthFrameTest.java` *(new)* — regression test: a static-contract/envelope-level guard that verifies the J2CL search gateway no longer relies on or exposes a `ProtocolAuthenticate` send path after the cookie-based auth handshake is removed. This protects against regressions that would re-introduce the sidecar auth envelope.
 
 ### New files
-- `wave/config/changelog.d/2026-04-23-j2cl-sidecar-auth-handshake.json` — single `security`-section fragment.
+- `wave/config/changelog.d/2026-04-23-j2cl-sidecar-auth-handshake.json` — single `fix`-section fragment.
 
 ### Removed files
 - None.

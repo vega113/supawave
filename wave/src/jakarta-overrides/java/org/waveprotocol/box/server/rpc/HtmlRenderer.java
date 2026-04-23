@@ -3402,17 +3402,17 @@ public final class HtmlRenderer {
       sb.append("  if(!workflow){return;}\n");
       sb.append("  workflow.querySelectorAll('[data-j2cl-fallback]').forEach(function(node){node.remove();});\n");
       sb.append("}\n");
-      sb.append("function mountWhenReady(attemptsRemaining){\n");
+      sb.append("function mountWhenReady(attemptsRemaining,delayMs){\n");
       sb.append("  var entryPoint=resolveEntryPoint();\n");
       sb.append("  if(entryPoint){try{clearFallback();entryPoint.mount('j2cl-root-shell-workflow','root-shell');return;}catch(err){renderLoadError();return;}}\n");
-      sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1);},50);}else{renderLoadError();}\n");
+      sb.append("  if(attemptsRemaining>0){window.setTimeout(function(){mountWhenReady(attemptsRemaining-1,Math.min(delayMs*2,2000));},delayMs);}else{renderLoadError();}\n");
       sb.append("}\n");
     }
     sb.append("normalizeLegacyHashDeepLink();\n");
     sb.append("hookHistory();\n");
     sb.append("syncReturnTargetUi();\n");
     if (mountWorkflow) {
-      sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){syncReturnTargetUi();mountWhenReady(80);});}else{mountWhenReady(80);}\n");
+      sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){syncReturnTargetUi();mountWhenReady(12,50);});}else{mountWhenReady(12,50);}\n");
     } else {
       sb.append("if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',syncReturnTargetUi);}\n");
     }

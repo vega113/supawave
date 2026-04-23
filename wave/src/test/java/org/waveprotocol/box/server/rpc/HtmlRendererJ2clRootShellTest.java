@@ -116,8 +116,12 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     assertTrue("Bootstrap must include normalizeLegacyHashDeepLink",
         html.contains("normalizeLegacyHashDeepLink()"));
+    int markerIdx = html.indexOf("normalizeLegacyHashDeepLink()");
+    int scriptOpenIdx = html.lastIndexOf("<script>", markerIdx);
+    int scriptCloseIdx = html.indexOf("</script>", markerIdx);
+    String bootstrapScript = html.substring(scriptOpenIdx, scriptCloseIdx + "</script>".length());
     assertFalse("HTML entity &amp; must not appear inside bootstrap script",
-        html.contains("&amp;"));
+        bootstrapScript.contains("&amp;"));
   }
 
   public void testSignedOutReturnTargetLabelHasSyncableSpan() {

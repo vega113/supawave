@@ -312,6 +312,7 @@ Before any code task below, after `#966` merges:
 - [ ] Rebase the worktree after `#966` merges
 - [ ] Refresh §1 file:line citations after rebase so every cited seam points at the merged `origin/main`
 - [ ] If the merged `#966` read-surface seam does not expose a stable container for viewport windows, stop and amend this plan before implementation
+- [ ] Rewrite Task 5's file list and integration assertions to name the actual merged `#966` container/controller API before Task 5 starts; do not leave the container attachment test as a generic prose assertion
 
 Run:
 ```bash
@@ -351,6 +352,10 @@ Expected:
   - first choice: the preserved server-first `#966` read surface's first visible `[data-blip-id]`, sent as `viewportStartBlipId` with `viewportDirection="forward"`
   - fallback: when a selected wave is opened without preserved DOM, send `viewportLimit=0` only, using the existing server rule where an explicit non-positive limit means "use configured default" and also opts into viewport mode
   - legacy/no-selected-wave path: send no viewport hint fields, preserving current whole-snapshot behavior
+- [ ] Confirm `ProtocolOpenRequest` field-presence semantics before coding:
+  - server-side viewport detection must use `hasViewportLimit()` / field presence, not `viewportLimit > 0`
+  - if the protobuf/runtime cannot preserve explicit zero, introduce an explicit sentinel field/value before implementing snapshot suppression
+  - the `viewportLimit=0` fallback is invalid unless tests prove it arrives as "present and defaulted"
 
 ### Task 2: Extend the J2CL open contract for initial viewport hints
 
@@ -375,6 +380,7 @@ Expected:
   - no preserved DOM but selected wave present -> explicit `limit=0` and no `startBlipId`/`direction`
   - no selected wave / legacy call path -> no viewport fields
 - [ ] Add backwards-compatibility tests proving absent hints are not encoded and still produce the existing open envelope
+- [ ] Add a codec/server-boundary test proving a request carrying only `viewportLimit=0` is encoded/decoded as viewport-hinted via field presence
 
 Run:
 ```bash
@@ -384,6 +390,7 @@ sbt -batch "testOnly org.waveprotocol.box.j2cl.transport.SidecarTransportCodecTe
 Expected:
 - open-envelope tests assert the numeric hint fields are present when supplied
 - open-envelope tests assert no-hint requests omit the viewport fields entirely
+- open-envelope tests assert `viewportLimit=0` is still present on the wire and detectable by `hasViewportLimit()`
 - auth-frame tests still prove the first outbound frame is `ProtocolOpenRequest`
 
 ### Task 3: Preserve fragment-window structure in the J2CL model instead of flattening it away
@@ -445,6 +452,7 @@ Expected:
   - do not introduce new config keys in this slice
   - replace `FragmentsServlet`'s hardcoded `50/200` only with the same effective defaults already used by `WaveClientRpcImpl`
   - add a regression note/test for the GWT `DynamicRendererImpl`/`/fragments` path so shared servlet behavior does not unexpectedly change for non-J2CL callers
+  - add an explicit baseline test for current `FragmentsServlet` default/max behavior before the refactor, then update it to prove the shared policy preserves the same effective defaults unless config overrides them
 - [ ] Make the extension request carry the current anchor/direction/limit plus version bounds
 - [ ] Add concrete telemetry counters to `FragmentsMetrics`:
   - `j2clViewportInitialWindows`
@@ -464,6 +472,7 @@ Expected:
 - the same configured limits are applied in both paths
 - J2CL can decode and merge `/fragments` growth windows without using GWT-only code
 - non-J2CL `/fragments` callers keep the same default/max behavior unless config explicitly changes it
+- the FragmentsServlet baseline/default test prevents accidental `50/200` drift for GWT or other non-J2CL callers
 
 ### Task 5: Wire scroll growth into the merged read-surface container
 
@@ -517,6 +526,7 @@ Expected:
 
 - [ ] Gate initial selected-wave snapshot emission when viewport hints are active and fragments are available
   - the gate must be conditional on request-level viewport hints (`viewportStartBlipId`, `viewportDirection`, or `viewportLimit`)
+  - hint detection must use field presence (`hasViewportStartBlipId()`, `hasViewportDirection()`, `hasViewportLimit()`), not positive numeric values
   - no-hint open requests, including existing GWT/legacy callers, must continue receiving the current whole-wave snapshot payload
 - [ ] Preserve the fields the J2CL selected-wave path still needs on initial open:
   - wavelet name
@@ -528,6 +538,11 @@ Expected:
 - [ ] Record a warning/metric only when the server truly has to fall back to full snapshot bootstrap
   - metric: `FragmentsMetrics.j2clViewportSnapshotFallbacks`
   - warning marker: `J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK`
+  - this counter is incremented server-side at the snapshot gate decision only; the client must not double-count it
+- [ ] Add a regression test for viewport-hinted open with fragments unavailable:
+  - server falls back to the whole-wave snapshot
+  - `FragmentsMetrics.j2clViewportSnapshotFallbacks` increments exactly once
+  - one `J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK` warning is emitted
 
 Run:
 ```bash
@@ -537,6 +552,7 @@ sbt -batch "testOnly org.waveprotocol.box.server.frontend.WaveClientRpcViewportH
 Expected:
 - viewport-hinted initial open is fragment-window-first on the wire
 - no-hint GWT/legacy open remains snapshot-compatible
+- viewport-hinted no-fragments fallback is observable through the named metric/log marker
 - tests prove `R-7.4` instead of only rendering-level virtualization
 
 ### Task 7: Browser verification and issue evidence
@@ -546,6 +562,7 @@ Expected:
 - Add journal verification note if the lane policy requires one
 
 - [ ] Boot the rebased `#965/#966/#967` stack on a local port
+- [ ] Verify the scripts in this section exist after rebase; if any are absent, substitute the repo's current worktree boot/smoke equivalent and record the substitution in the issue
 - [ ] Open a large-wave path in the J2CL root shell
 - [ ] Confirm:
   - initial render shows only the visible fragment window
@@ -558,6 +575,7 @@ Expected:
   - browser network entry or log line for at least one `/fragments` extension fetch
   - server/client log evidence that no full-wave snapshot was sent for the viewport-hinted open
   - value of `FragmentsMetrics.j2clViewportSnapshotFallbacks` or the absence of `J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK`
+  - method used to create or identify the large-wave fixture so the verification is reproducible
 
 Run:
 ```bash

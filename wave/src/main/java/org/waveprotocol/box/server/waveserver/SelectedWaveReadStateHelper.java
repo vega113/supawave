@@ -19,7 +19,6 @@
 
 package org.waveprotocol.box.server.waveserver;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -30,10 +29,13 @@ import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.ParticipantIdUtil;
+import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.wave.data.WaveViewData;
+import org.waveprotocol.wave.model.wave.data.impl.WaveViewDataImpl;
 import org.waveprotocol.wave.util.logging.Log;
 
 /**
@@ -135,26 +137,51 @@ public class SelectedWaveReadStateHelper {
   }
 
   private WaveViewData buildAccessibleWaveView(
-      WaveId waveId, ImmutableSet<WaveletId> waveletIds, final ParticipantId user) {
-    return AbstractSearchProviderImpl.buildWaveViewData(
-        waveId,
-        waveletIds,
-        new Function<ReadableWaveletData, Boolean>() {
-          @Override
-          public Boolean apply(ReadableWaveletData wavelet) {
-            if (wavelet == null) {
-              return Boolean.FALSE;
-            }
-            WaveletId waveletId = wavelet.getWaveletId();
-            if (IdUtil.isUserDataWavelet(user.getAddress(), waveletId)) {
-              return Boolean.TRUE;
-            }
-            return IdUtil.isConversationalId(waveletId)
-                && WaveletDataUtil.checkAccessPermission(
-                    wavelet, user, sharedDomainParticipantId);
-          }
-        },
-        waveMap);
+      WaveId waveId, ImmutableSet<WaveletId> waveletIds, ParticipantId user) {
+    // Build the view directly rather than via
+    // AbstractSearchProviderImpl.buildWaveViewData, which swallows
+    // WaveletStateException per wavelet. A swallowed conversational-wavelet
+    // failure could under-count unread state without surfacing the incident;
+    // propagating the exception lets the servlet return 500 for real backend
+    // faults while 404 stays reserved for unknown-wave/access-denied.
+    WaveViewData view = WaveViewDataImpl.create(waveId);
+    for (WaveletId waveletId : waveletIds) {
+      WaveletName waveletName = WaveletName.of(waveId, waveletId);
+      WaveletContainer container;
+      try {
+        container = waveMap.getWavelet(waveletName);
+      } catch (WaveletStateException e) {
+        throw new RuntimeException(
+            "Failed to load wavelet " + waveletName + " for read state", e);
+      }
+      if (container == null) {
+        continue;
+      }
+      ObservableWaveletData waveletData;
+      try {
+        waveletData = container.copyWaveletData();
+      } catch (WaveletStateException e) {
+        throw new RuntimeException(
+            "Failed to copy wavelet data " + waveletName + " for read state", e);
+      }
+      if (waveletData == null) {
+        continue;
+      }
+      if (!isAccessible(waveletData, user)) {
+        continue;
+      }
+      view.addWavelet(waveletData);
+    }
+    return view;
+  }
+
+  private boolean isAccessible(ReadableWaveletData wavelet, ParticipantId user) {
+    WaveletId waveletId = wavelet.getWaveletId();
+    if (IdUtil.isUserDataWavelet(user.getAddress(), waveletId)) {
+      return true;
+    }
+    return IdUtil.isConversationalId(waveletId)
+        && WaveletDataUtil.checkAccessPermission(wavelet, user, sharedDomainParticipantId);
   }
 
   private boolean hasConversationalWavelet(WaveViewData view) {

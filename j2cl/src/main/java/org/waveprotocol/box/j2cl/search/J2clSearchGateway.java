@@ -51,10 +51,6 @@ public final class J2clSearchGateway
           if (closedByClient[0]) {
             return;
           }
-          String token = readCookie("JSESSIONID");
-          if (token != null && !token.isEmpty()) {
-            socket.send(SidecarTransportCodec.encodeAuthenticateEnvelope(0, token));
-          }
           socket.send(
               SidecarTransportCodec.encodeOpenEnvelope(
                   1,
@@ -148,10 +144,6 @@ public final class J2clSearchGateway
           if (closedByClient[0]) {
             return;
           }
-          String token = readCookie("JSESSIONID");
-          if (token != null && !token.isEmpty()) {
-            socket.send(SidecarTransportCodec.encodeAuthenticateEnvelope(0, token));
-          }
           socket.send(SidecarTransportCodec.encodeSubmitEnvelope(1, request));
         };
     socket.onmessage =
@@ -244,22 +236,6 @@ public final class J2clSearchGateway
     }
     closedByClient[0] = true;
     socket.close();
-  }
-
-  private static String readCookie(String name) {
-    String cookieHeader = DomGlobal.document.cookie;
-    if (cookieHeader == null || cookieHeader.isEmpty()) {
-      return null;
-    }
-    String[] cookies = cookieHeader.split(";");
-    for (String cookie : cookies) {
-      String trimmed = cookie.trim();
-      String prefix = name + "=";
-      if (trimmed.startsWith(prefix)) {
-        return trimmed.substring(prefix.length());
-      }
-    }
-    return null;
   }
 
   @JsMethod(namespace = JsPackage.GLOBAL, name = "encodeURIComponent")

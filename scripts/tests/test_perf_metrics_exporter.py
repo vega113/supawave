@@ -283,6 +283,31 @@ class PerfMetricsExporterTest(unittest.TestCase):
         metrics,
     )
 
+  def test_render_metrics_accepts_legacy_summary_without_new_fields(self):
+    legacy_summary = {
+        "simulation": "SearchLoadSimulation",
+        "repo": "vega113/supawave",
+        "branch": "main",
+        "sha": "abc123",
+        "workflow": "perf",
+        "run_id": "42",
+        "run_attempt": "1",
+        "requests": {"ok": 10, "ko": 0},
+        "timings_ms": {"mean": 12, "max": 20, "p95": 18, "p99": 20},
+        "success_ratio": 1.0,
+        "assertions": {"p95_lt_2000ms": True},
+        "run_timestamp": 1,
+    }
+
+    metrics = perf_metrics_exporter.render_metrics([legacy_summary])
+
+    self.assertIn("wave_perf_run_info", metrics)
+    self.assertIn(
+        'wave_perf_response_time_ms{repo="vega113/supawave",branch="main",sha="abc123",workflow="perf",run_id="42",run_attempt="1",simulation="SearchLoadSimulation",stat="p95"} 18',
+        metrics,
+    )
+    self.assertNotIn("wave_perf_request_distribution_count{", metrics)
+
   def test_build_metrics_response_reads_summary_files(self):
     with tempfile.TemporaryDirectory(prefix="perf-exporter-report-") as tmpdir_str:
       report_dir = write_report_dir(Path(tmpdir_str))

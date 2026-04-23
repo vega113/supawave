@@ -3,6 +3,7 @@ package org.waveprotocol.box.j2cl.search;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragments;
@@ -49,6 +50,13 @@ public final class J2clSelectedWaveProjector {
     }
     if (contentEntries.isEmpty() && previous != null && !previous.getContentEntries().isEmpty()) {
       contentEntries = previous.getContentEntries();
+    }
+    List<J2clReadBlip> readBlips = extractReadBlips(update.getFragments());
+    if (readBlips.isEmpty()) {
+      readBlips = extractDocumentReadBlips(update.getDocuments());
+    }
+    if (readBlips.isEmpty() && previous != null && !previous.getReadBlips().isEmpty()) {
+      readBlips = previous.getReadBlips();
     }
 
     String detailText = buildDetailText(update);
@@ -99,6 +107,7 @@ public final class J2clSelectedWaveProjector {
         reconnectCount,
         participantIds,
         contentEntries,
+        readBlips,
         buildWriteSession(selectedWaveId, update, previous),
         unreadCount,
         read,
@@ -157,6 +166,7 @@ public final class J2clSelectedWaveProjector {
         previous.getReconnectCount(),
         previous.getParticipantIds(),
         previous.getContentEntries(),
+        previous.getReadBlips(),
         previous.getWriteSession(),
         unreadCount,
         read,
@@ -276,6 +286,22 @@ public final class J2clSelectedWaveProjector {
     return blipSnapshots.isEmpty() ? fallbackSnapshots : blipSnapshots;
   }
 
+  private static List<J2clReadBlip> extractReadBlips(SidecarSelectedWaveFragments fragments) {
+    if (fragments == null) {
+      return Collections.emptyList();
+    }
+    List<J2clReadBlip> blips = new ArrayList<J2clReadBlip>();
+    for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
+      String rawSnapshot = fragment.getRawSnapshot();
+      String blipId = blipIdFromSegment(fragment.getSegment());
+      if (rawSnapshot == null || rawSnapshot.isEmpty() || blipId == null) {
+        continue;
+      }
+      blips.add(new J2clReadBlip(blipId, rawSnapshot));
+    }
+    return blips;
+  }
+
   private static List<String> extractDocumentEntries(List<SidecarSelectedWaveDocument> documents) {
     if (documents == null || documents.isEmpty()) {
       return Collections.emptyList();
@@ -294,6 +320,32 @@ public final class J2clSelectedWaveProjector {
       }
     }
     return blipEntries.isEmpty() ? fallbackEntries : blipEntries;
+  }
+
+  private static List<J2clReadBlip> extractDocumentReadBlips(
+      List<SidecarSelectedWaveDocument> documents) {
+    if (documents == null || documents.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<J2clReadBlip> blips = new ArrayList<J2clReadBlip>();
+    for (SidecarSelectedWaveDocument document : documents) {
+      String documentId = document.getDocumentId();
+      String textContent = document.getTextContent();
+      if (documentId == null || !documentId.startsWith("b+")
+          || textContent == null || textContent.isEmpty()) {
+        continue;
+      }
+      blips.add(new J2clReadBlip(documentId, textContent));
+    }
+    return blips;
+  }
+
+  private static String blipIdFromSegment(String segment) {
+    if (segment == null || !segment.startsWith("blip:")) {
+      return null;
+    }
+    String blipId = segment.substring("blip:".length());
+    return blipId.isEmpty() ? null : blipId;
   }
 
   private static String buildDetailText(SidecarSelectedWaveUpdate update) {

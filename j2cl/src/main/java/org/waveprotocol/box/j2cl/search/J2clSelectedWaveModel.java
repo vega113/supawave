@@ -3,6 +3,7 @@ package org.waveprotocol.box.j2cl.search;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 
 public final class J2clSelectedWaveModel {
   public static final int UNKNOWN_UNREAD_COUNT = -1;
@@ -19,6 +20,7 @@ public final class J2clSelectedWaveModel {
   private final int reconnectCount;
   private final List<String> participantIds;
   private final List<String> contentEntries;
+  private final List<J2clReadBlip> readBlips;
   private final J2clSidecarWriteSession writeSession;
   private final int unreadCount;
   private final boolean read;
@@ -43,6 +45,46 @@ public final class J2clSelectedWaveModel {
       boolean read,
       boolean readStateKnown,
       boolean readStateStale) {
+    this(
+        hasSelection,
+        loading,
+        error,
+        selectedWaveId,
+        titleText,
+        snippetText,
+        unreadText,
+        statusText,
+        detailText,
+        reconnectCount,
+        participantIds,
+        contentEntries,
+        Collections.<J2clReadBlip>emptyList(),
+        writeSession,
+        unreadCount,
+        read,
+        readStateKnown,
+        readStateStale);
+  }
+
+  J2clSelectedWaveModel(
+      boolean hasSelection,
+      boolean loading,
+      boolean error,
+      String selectedWaveId,
+      String titleText,
+      String snippetText,
+      String unreadText,
+      String statusText,
+      String detailText,
+      int reconnectCount,
+      List<String> participantIds,
+      List<String> contentEntries,
+      List<J2clReadBlip> readBlips,
+      J2clSidecarWriteSession writeSession,
+      int unreadCount,
+      boolean read,
+      boolean readStateKnown,
+      boolean readStateStale) {
     this.hasSelection = hasSelection;
     this.loading = loading;
     this.error = error;
@@ -61,6 +103,10 @@ public final class J2clSelectedWaveModel {
         contentEntries == null
             ? Collections.<String>emptyList()
             : Collections.unmodifiableList(new ArrayList<String>(contentEntries));
+    this.readBlips =
+        readBlips == null
+            ? Collections.<J2clReadBlip>emptyList()
+            : Collections.unmodifiableList(new ArrayList<J2clReadBlip>(readBlips));
     this.writeSession = writeSession;
     this.unreadCount = unreadCount;
     this.read = read;
@@ -243,6 +289,10 @@ public final class J2clSelectedWaveModel {
 
   public List<String> getContentEntries() {
     return contentEntries;
+  }
+
+  public List<J2clReadBlip> getReadBlips() {
+    return readBlips;
   }
 
   public J2clSidecarWriteSession getWriteSession() {

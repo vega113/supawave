@@ -201,6 +201,43 @@ body {
   white-space: pre-wrap;
 }
 
+.j2cl-read-surface {
+  display: block;
+}
+
+.j2cl-read-thread {
+  display: grid;
+  gap: 12px;
+}
+
+.j2cl-read-blip {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  border: 1px solid #d8e2f0;
+  border-radius: 18px;
+  color: #173355;
+  margin: 0;
+  outline: none;
+  padding: 16px;
+}
+
+.j2cl-read-blip-focused {
+  border-color: #3567c8;
+  box-shadow: 0 0 0 3px rgba(53, 103, 200, 0.16);
+}
+
+.j2cl-read-blip-meta {
+  color: #4f6480;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.j2cl-read-blip-content {
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .sidecar-search-session {
   margin: 16px 0 0;
   color: #3567c8;

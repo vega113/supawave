@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Drive the J2CL/Lit selected-wave read surface from explicit viewport-scoped fragment windows instead of the current coarse whole-wave selected-wave payload assumptions, while preserving the existing server clamp contract and leaving broader StageOne/read-surface behavior to `#966`.
+**Goal:** Drive the J2CL/Lit selected-wave read surface from explicit viewport-scoped fragment windows instead of the current coarse whole-wave selected-wave payload assumptions, while preserving the existing server clamp contract and consuming the merged StageOne/read-surface container from `#966`.
 
 **Architecture:** Reuse the existing repo split rather than inventing a new transport. Initial selected-wave open continues to go through the sidecar `ProtocolOpenRequest`, but the J2CL open envelope must grow to carry the same viewport hints the GWT client already sends. Scroll growth does not reopen the selected-wave socket; it uses the existing `/fragments` JSON endpoint to fetch additional windows and merges them into a J2CL-owned visible-region model. To satisfy parity row `R-7.4`, the server path must stop treating viewport fragments as additive-on-top-of-a-full-snapshot when viewport mode is active, otherwise the client can render a windowed container while still paying whole-wave bootstrap cost on the wire.
 
@@ -66,14 +66,15 @@ The current J2CL selected-wave path is still fundamentally sidecar-demo shaped:
 - J2CL open envelope cannot carry viewport hints:
   - `j2cl/src/main/java/org/waveprotocol/box/j2cl/transport/SidecarOpenRequest.java:7-31`
   - `j2cl/src/main/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodec.java:13-31`
-  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchGateway.java:231-238`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchGateway.java:44-65,231-238`
   - `SidecarOpenRequest` only contains participant id, wave id, and wavelet prefixes; `encodeOpenEnvelope(...)` only writes numeric keys `1`, `2`, and `3`; `buildSelectedWaveOpenFrame(...)` hardcodes the minimal request.
-- J2CL preserves fragment payloads only long enough to flatten them:
+- J2CL preserves fragment payloads only long enough to project blip text, not a window model:
   - decode seam: `j2cl/src/main/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodec.java:86-149`
-  - projection seam: `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveProjector.java:46-54,259-317`
-  - model seam: `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveModel.java:20-68`
-  - view seam: `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java:68-105`
-  - the transport decoder already preserves ranges and fragment entries, but the projector reduces them to `List<String> contentEntries`; the model stores only those flattened strings; the view renders them as `<pre>` blocks. That discards:
+  - projection seam: `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveProjector.java:47-60,268-340`
+  - model seam: `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveModel.java:21-24,69-115,290-295`
+  - view seam: `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java:28-40,104-132,152-174`
+  - read-surface seam: `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRenderer.java:24-64,101-154,204-229`
+  - the transport decoder already preserves ranges and fragment entries, and `#966` now projects `J2clReadBlip` instances into the StageOne read surface. The model still lacks a typed viewport/window state, and the read-surface renderer currently receives only a complete list of loaded blips plus fallback strings. That still discards:
     - segment identity
     - loaded vs unloaded window boundaries
     - placeholder positions
@@ -81,10 +82,10 @@ The current J2CL selected-wave path is still fundamentally sidecar-demo shaped:
 - J2CL has no fragment-growth transport seam:
   - there is no `fetchFragments(...)` equivalent anywhere under `j2cl/src/main/java`
   - a repository-wide search only finds viewport-aware logic in the GWT client and server path, not in J2CL
-- The root-shell/search-selected-wave host seams were destructive before `#965`:
-  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/root/J2clRootShellView.java:13-40`
-  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchPanelView.java:48-152`
-  - `#965` has now landed the preserved server-first selected-wave seam. `#967` must re-audit the merged root-shell/selected-wave host behavior and consume that seam rather than reintroducing startup DOM clearing.
+- The root-shell/search-selected-wave host seam is now server-first, but `#967` must not bypass it:
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/root/J2clServerFirstRootShellDom.java:5-61`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java:28-40,104-145`
+  - `#965/#966` have landed the preserved server-first selected-wave card and the enhanced read-surface renderer. `#967` must derive its initial viewport hint from that preserved DOM when present and attach scroll growth to the merged renderer/container rather than creating a second selected-wave surface.
 
 ### 1.4 Additional implementation risks that must be planned up front
 
@@ -176,32 +177,39 @@ These are the non-obvious seams that turn `#967` into a mixed server/client slic
 - `#933` HttpOnly-safe sidecar websocket auth: merged
 - `#936` selected-wave version/hash atomicity: merged
 
-### 4.2 Current blockers for implementation
+### 4.2 Dependency merge status
 
 As of the current issue state on 2026-04-24:
 
 - `#965` has merged and this plan branch has been rebased onto an `origin/main` containing it
-- `#966` has moved from prep into PR `#991`, but it is not merged yet
+- `#966` has merged via PR `#991` and this plan branch has been rebased onto `origin/main` at `867be56ee6dd6999e92a06d6517c72745c0a3243`
 
-That means `#967` is **plan-current and review-ready, but not implementation-ready** until `#966` lands.
+That means `#967` is implementation-ready after this Task 1 seam-audit update is reviewed and pushed.
 
 ### 4.3 Why `#965` was a hard blocker
 
 `#965` owns the preserved server-first selected-wave HTML seam. That dependency is now satisfied, but Task 1 must still re-audit the exact merged files before implementation because `#967` needs to seed viewport state from the real preserved selected-wave surface, not from the pre-`#965` placeholder assumptions.
 
-### 4.4 Why `#966` is a hard blocker
+### 4.4 Why `#966` was a hard blocker
 
 `#966` owns the practical StageOne read-surface container and DOM/provider contract. `#967` only makes sense once the read surface is no longer a flat `<pre>` list. This slice should wire viewport windows into the merged `#966` container rather than grow the current placeholder sidecar view into a second competing read-surface architecture.
 
-### 4.5 Required first implementation step once the blockers merge
+### 4.5 Completed rebase and seam-audit gate
 
-Before any code task below, after `#966` merges:
+Before any code task below, following the `#966` merge:
 
-- [ ] Run `git fetch origin && git rebase origin/main`
-- [ ] Confirm `origin/main` includes the merged implementations for `#965` and `#966`
-- [ ] Refresh the file:line citations in §1 after the rebase so review evidence points at the merged code, not the planning snapshot
-- [ ] Re-audit the actual merged file seams and update this plan in-branch if the merged file names differ from the current `J2clSelectedWave*` seams
-- [ ] If `#966` changed the selected-wave/read-surface seam enough that this task list no longer maps cleanly, stop implementation, amend this plan, and rerun the plan-review loop before code work
+- [x] Run `git fetch origin && git rebase origin/main`
+- [x] Confirm `origin/main` includes the merged implementations for `#965` and `#966`
+- [x] Refresh the file:line citations in §1 after the rebase so review evidence points at the merged code, not the planning snapshot
+- [x] Re-audit the actual merged file seams and update this plan in-branch if the merged file names differ from the current `J2clSelectedWave*` seams
+- [x] If `#966` changed the selected-wave/read-surface seam enough that this task list no longer maps cleanly, stop implementation, amend this plan, and rerun the plan-review loop before code work
+
+Task 1 audit result:
+
+- `#966` kept the expected `J2clSelectedWave*` seams and added the real read-surface container at `J2clSelectedWaveView.contentList` / `J2clReadSurfaceDomRenderer`.
+- Verified container citation: `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java:88-91` creates `.sidecar-selected-content` and constructs `J2clReadSurfaceDomRenderer`; `J2clSelectedWaveView.java:28-40` reuses the same selector when preserving server-first DOM.
+- The implementation can start with Task 2. Task 5 must wire scroll growth into `J2clReadSurfaceDomRenderer` through the `J2clSelectedWaveView`/`J2clSelectedWaveController` seam, not through a parallel DOM surface.
+- The initial viewport hint source is the preserved server-first card's first visible `[data-blip-id]` inside `J2clSelectedWaveView.contentList` when present. If no preserved DOM exists, the selected-wave open should send explicit `viewportLimit=0` only; Task 2 must prove this stays field-present through the JSON/protobuf boundary.
 
 ## 5. Slice Parity Packet — Issue #967
 
@@ -270,6 +278,7 @@ Before any code task below, after `#966` merges:
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveProjector.java`
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveModel.java`
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java`
+- `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRenderer.java`
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/root/J2clRootShellController.java`
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/root/J2clRootShellView.java`
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchPanelView.java`
@@ -309,10 +318,10 @@ Before any code task below, after `#966` merges:
   - `docs/superpowers/plans/2026-04-23-issue-967-viewport-fragments.md`
   - merged `#965` / `#966` files on `origin/main`
 
-- [ ] Rebase the worktree after `#966` merges
-- [ ] Refresh §1 file:line citations after rebase so every cited seam points at the merged `origin/main`
-- [ ] If the merged `#966` read-surface seam does not expose a stable container for viewport windows, stop and amend this plan before implementation
-- [ ] Rewrite Task 5's file list and integration assertions to name the actual merged `#966` container/controller API before Task 5 starts; do not leave the container attachment test as a generic prose assertion
+- [x] Rebase the worktree after `#966` merges
+- [x] Refresh §1 file:line citations after rebase so every cited seam points at the merged `origin/main`
+- [x] If the merged `#966` read-surface seam does not expose a stable container for viewport windows, stop and amend this plan before implementation
+- [x] Rewrite Task 5's file list and integration assertions to name the actual merged `#966` container/controller API before Task 5 starts; do not leave the container attachment test as a generic prose assertion
 
 Run:
 ```bash
@@ -325,7 +334,7 @@ Expected:
 - the branch includes the merged commits for `#965` and `#966`
 - the current selected-wave/root-shell file names still match this plan, or this plan is amended before code starts
 
-- [ ] Confirm the merged `#965` seam that exposes the initial selected-wave window source
+- [x] Confirm the merged `#965` seam that exposes the initial selected-wave window source
 
 Run:
 ```bash
@@ -337,7 +346,7 @@ Expected:
   - preserved server DOM marker from `#965`, or
   - explicit bootstrap extension from upstream merged work
 
-- [ ] Confirm the merged `#966` read-surface container seam
+- [x] Confirm the merged `#966` read-surface container seam
 
 Run:
 ```bash
@@ -348,14 +357,14 @@ Expected:
 - one concrete container/view seam is identified as the `#967` integration point
 - there is no need to invent a second read-surface architecture in this slice
 
-- [ ] Confirm the initial viewport hint source using this ordered rule:
+- [x] Confirm the initial viewport hint source using this ordered rule:
   - first choice: the preserved server-first `#966` read surface's first visible `[data-blip-id]`, sent as `viewportStartBlipId` with `viewportDirection="forward"`
   - fallback: when a selected wave is opened without preserved DOM, send `viewportLimit=0` only, using the existing server rule where an explicit non-positive limit means "use configured default" and also opts into viewport mode
   - legacy/no-selected-wave path: send no viewport hint fields, preserving current whole-snapshot behavior
-- [ ] Confirm `ProtocolOpenRequest` field-presence semantics before coding:
+- [x] Confirm `ProtocolOpenRequest` field-presence source semantics before coding:
   - server-side viewport detection must use `hasViewportLimit()` / field presence, not `viewportLimit > 0`
-  - if the protobuf/runtime cannot preserve explicit zero, introduce an explicit sentinel field/value before implementing snapshot suppression
-  - the `viewportLimit=0` fallback is invalid unless tests prove it arrives as "present and defaulted"
+  - `wave/src/proto/proto/org/waveprotocol/box/common/comms/waveclient-rpc.proto:90-95` declares `viewport_limit` as an `optional int32`, so source-level presence semantics exist
+  - Task 2 must still prove the runtime JSON/protobuf path preserves explicit zero with a boundary test; if it cannot, introduce an explicit sentinel field/value before implementing snapshot suppression
 
 ### Task 2: Extend the J2CL open contract for initial viewport hints
 
@@ -379,6 +388,7 @@ Expected:
   - preserved server DOM first visible `data-blip-id` -> `startBlipId`, `direction="forward"`, no explicit limit
   - no preserved DOM but selected wave present -> explicit `limit=0` and no `startBlipId`/`direction`
   - no selected wave / legacy call path -> no viewport fields
+- [ ] Add a narrow `J2clSelectedWaveController.View` query seam, or an equivalent injected source, so `J2clSelectedWaveView` can expose initial viewport hints without the controller depending on DOM classes directly
 - [ ] Add backwards-compatibility tests proving absent hints are not encoded and still produce the existing open envelope
 - [ ] Add a codec/server-boundary test proving a request carrying only `viewportLimit=0` is encoded/decoded as viewport-hinted via field presence
 
@@ -478,16 +488,17 @@ Expected:
 
 **Files:**
 - Modify:
-  - the concrete merged selected-wave/read-surface controller/view files from `#966`
-  - if `#966` retains the current seam names, expect:
-    - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveController.java`
-    - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java`
-    - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchPanelView.java`
-  - the concrete merged root-shell host seam from `#965`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRenderer.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveController.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveModel.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveViewportState.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchGateway.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/root/J2clServerFirstRootShellDom.java` only if the initial hint source needs another server-first marker helper
 - Test:
   - `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveControllerTest.java`
 
-- [ ] Add scroll-edge callbacks from the merged read-surface container to the selected-wave controller
+- [ ] Add scroll-edge callbacks from `J2clReadSurfaceDomRenderer` / `J2clSelectedWaveView.contentList` to the selected-wave controller
 - [ ] Request growth only when the user approaches an unloaded edge; coalesce repeated scroll triggers
 - [ ] Preserve scroll anchor and focus when new windows merge in
 - [ ] Surface loading placeholders with the existing `visible-region-placeholder` visual vocabulary
@@ -499,7 +510,7 @@ Expected:
   - stale responses whose version/hash no longer matches the selected-wave state are dropped
   - a later scroll or retry can request the edge again
 - [ ] Add tests for timeout/error display, stale-response drop, duplicate-request suppression, and retry after failure
-- [ ] Add a direct assertion that the implementation attaches to the merged `#966` read-surface container rather than introducing a second competing selected-wave surface
+- [ ] Add a direct assertion that the implementation attaches to the merged `#966` `J2clReadSurfaceDomRenderer` / `.sidecar-selected-content` container rather than introducing a second competing selected-wave surface
 
 Run:
 ```bash
@@ -606,10 +617,5 @@ Before implementation starts, the worker should be able to answer these review q
 
 ## 9. Ready-To-Start Call
 
-- `#967` is **not** ready for implementation on the current checkout.
-- `#967` becomes implementation-ready only after:
-  - `#966` merges
-  - this worktree rebases onto the merged `origin/main`
-  - Task 1 confirms the actual merged read-surface and server-first seams
-
-At that point the implementation should start with Task 2, not with view work first. The transport and server no-whole-wave-bootstrap seam are the hard constraints; if those do not land first, the container work will only paper over a transport regression.
+- `#967` is ready for implementation on this rebased checkout once this seam-audit plan update has passed the review loop.
+- Implementation should start with Task 2, not with view work first. The transport and server no-whole-wave-bootstrap seam are the hard constraints; if those do not land first, the container work will only paper over a transport regression.

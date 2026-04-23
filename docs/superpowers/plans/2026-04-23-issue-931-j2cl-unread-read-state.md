@@ -55,14 +55,18 @@ The narrow root cause is therefore: the sidecar has no path to the per-user unre
 
 ### Server (Common)
 
-- `wave/src/main/java/org/waveprotocol/box/server/waveserver/SimpleSearchProviderImpl.java`
-  - Expose a narrow public helper (e.g. `WaveSupplementContext loadWaveContext(ParticipantId user, WaveId waveId, WaveletProvider waveletProvider)`), or extract `getOrBuildContext` + `WaveSupplementContext` into a new `SelectedWaveReadStateHelper` so the new servlet can reuse it without widening the existing search dependency surface.
-  - If direct method extraction is unsafe, the fallback is to add a new package-visible class `SelectedWaveReadStateHelper` alongside that loads wavelets via `WaveletProvider.getSnapshot`, wraps them in `ObservableWaveletData`, and builds the supplement context using the existing `WaveDigester.buildSupplement` API.
+- **New:** `wave/src/main/java/org/waveprotocol/box/server/waveserver/SelectedWaveReadStateHelper.java`
+  - Package-visible helper, same package as `SimpleSearchProviderImpl`, so it can reuse the package-private `WaveSupplementContext`.
+  - Constructor is Guice-injectable: takes `WaveMap`, `WaveDigester`, `SharedDomainParticipantProvider`-equivalents already used by the search path.
+  - Public API exposes only `Result computeReadState(ParticipantId user, WaveId waveId)` returning `{unreadCount, isRead, accessAllowed, exists}`. No internal types leak.
+  - Data loading: the helper uses `WaveMap.lookupWavelets(waveId)` + `WaveMap.getWavelet(WaveletName).copyWaveletData()` — the same path `AbstractSearchProviderImpl.buildWaveViewData` (`wave/src/main/java/org/waveprotocol/box/server/waveserver/AbstractSearchProviderImpl.java:123-148`) already uses. This returns `ObservableWaveletData`, which the existing supplement/digester path consumes. Do NOT use `WaveletProvider.getSnapshot` — that returns `CommittedWaveletSnapshot` wrapping `ReadableWaveletData`, which the supplement stack cannot consume.
+  - Access check: before counting, the helper must verify the authenticated user is a participant of the conversational wavelet (explicit participant or shared-domain), reusing the same predicate used by search (`AbstractSearchProviderImpl.isWaveletMatchesCriteria` style). If access is denied, the helper returns `accessAllowed=false` and the servlet responds with the same 404 it would use for an unknown wave so existence cannot be probed.
+  - `SimpleSearchProviderImpl.java` itself stays unchanged; the helper duplicates the minimal construction logic of its internal `WaveSupplementContext` rather than widening `SimpleSearchProviderImpl`'s public surface.
 
 ### J2CL Sidecar
 
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/transport/SidecarSelectedWaveReadState.java` (new)
-  - Immutable DTO: `{waveId, unreadCount, totalBlipCount, isRead, fetchedAtGeneration}`.
+  - Immutable DTO: `{waveId, unreadCount, isRead}`. Ordering + generation tracking live entirely in the controller (via `readStateFetchSeq`); they do not need to be carried on the DTO.
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodec.java`
   - Add `decodeSelectedWaveReadState(String json)` decoder for the new endpoint response.
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSearchGateway.java`
@@ -75,8 +79,8 @@ The narrow root cause is therefore: the sidecar has no path to the per-user unre
     - a reconnect that delivers a fresh update.
   - Track the latest read-state by request generation to avoid stale overwrites.
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveModel.java`
-  - Add `unreadCount`, `totalBlipCount`, `isRead`, `readStateKnown` fields with explicit sentinel values for "not yet fetched".
-  - Update `empty`/`loading`/`error` factories to carry forward prior read-state when appropriate.
+  - Add `unreadCount` (int, `-1` = unknown), `isRead` (boolean), `readStateKnown` (boolean), `readStateStale` (boolean).
+  - Update `empty`/`loading`/`error` factories to carry forward prior read-state fields when a selection is preserved (avoids flashing back to digest data on reconnect).
 - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveProjector.java`
   - Accept an optional `SidecarSelectedWaveReadState` argument.
   - Prefer server-provided read state when present; fall back to digest metadata only until the first read-state response arrives.
@@ -95,7 +99,11 @@ The narrow root cause is therefore: the sidecar has no path to the per-user unre
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveControllerTest.java`
   - Add cases: read-state fetched after first update; read-state re-fetched after subsequent updates; stale read-state from a previous selection is discarded after a generation bump; reconnect triggers a re-fetch.
 - **New:** `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveProjectorTest.java`
-  - Unit tests for projector preference order: server read-state wins over digest; absent server state falls back to digest; empty digest + empty server state → empty unread text (not a misleading "Selected digest is read" when nothing is known).
+  - Unit tests for projector preference order:
+    - server read-state present → server value wins over digest,
+    - server read-state absent, digest present → digest fallback,
+    - both absent → empty unread text (not a misleading "Selected digest is read" when nothing is known),
+    - `readStateStale=true` on top of a prior good count → count stays, display flag reflects staleness.
 - `j2cl/src/test/java/org/waveprotocol/box/j2cl/transport/SidecarTransportCodecTest.java`
   - Add decode test for the new read-state response shape.
 
@@ -118,23 +126,44 @@ The narrow root cause is therefore: the sidecar has no path to the per-user unre
 
 ### Task 2: Add The Server Read-State Helper
 
-- [ ] Either expose a narrow public method on `SimpleSearchProviderImpl` (e.g. `WaveSupplementContext loadWaveContext(user, waveId)`) or extract a new `SelectedWaveReadStateHelper` in the same package.
-- [ ] The helper must: load conversational wavelets + UDW for the given wave id via `WaveletProvider.getSnapshot`, build `ObservableWaveletData`, wrap them, and build a `SupplementedWave` via the existing `WaveDigester.buildSupplement` path.
-- [ ] Add a narrow method `int countUnread(ParticipantId user, WaveId waveId)` that returns the server-authoritative count (or `-1` for unknown / not a conversational wave).
-- [ ] Add a narrow method `int totalBlipCount(WaveId waveId)` that iterates conversational wavelet blip ids (matching the digest logic in `WaveDigester.countUnreadFromReadState`).
-- [ ] Unit-test the helper with a fake or in-memory `WaveletProvider` using existing test doubles. If creating the fake is disproportionately large, scope the helper test to the minimum coverage that proves the read/unread/unknown branches and leave deeper coverage to the servlet integration test.
+- [ ] Create `SelectedWaveReadStateHelper` in `org.waveprotocol.box.server.waveserver` so it can reuse the package-private `WaveSupplementContext`.
+- [ ] Data loading path:
+  - `WaveMap.lookupWavelets(waveId)` returns the full `Set<WaveletId>`.
+  - For each id: `WaveMap.getWavelet(WaveletName.of(waveId, waveletId)).copyWaveletData()` yields an `ObservableWaveletData` (same API shape already used by `AbstractSearchProviderImpl.buildWaveViewData:123-148`).
+  - Classify each wavelet: conversational (via `IdUtil.isConversationalId`), conversation root (via `IdUtil.isConversationRootWaveletId`), or the authenticated user's UDW (via `IdUtil.isUserDataWavelet(user.getAddress(), waveletId)`).
+  - Build a `WaveViewData` via `WaveViewDataImpl.create(waveId)` and add each wavelet.
+- [ ] Access check first:
+  - Before counting, the helper must verify the authenticated user is permitted to see the wave. Use the same predicate style as `AbstractSearchProviderImpl.isWaveletMatchesCriteria` — explicit participant OR shared-domain participant on the conversational wavelet.
+  - If the wave does not exist OR the user lacks access, return a single `Result.notFound()` sentinel. The servlet returns `404` in both cases to prevent existence probes.
+- [ ] Supplement construction:
+  - Use `WaveDigester.buildSupplement(user, conversations, udw, conversationalWavelets)` after building conversations via `ConversationUtil`.
+  - If the wave has no conversational structure, return `Result.notConversational()` with `unreadCount=0`, `isRead=true`.
+- [ ] Public API:
+  - `Result computeReadState(ParticipantId user, WaveId waveId)` returning `{unreadCount:int, isRead:boolean, exists:boolean, accessAllowed:boolean}`.
+  - No `totalBlipCount` — the view only renders `isRead` + `unreadCount`. Drop the field entirely.
+- [ ] Unit tests:
+  - Non-participant → `notFound()` (access denied masquerades as unknown).
+  - Non-existent wave id → `notFound()`.
+  - Known wave, fully read → `unreadCount=0, isRead=true`.
+  - Known wave, two unread blips → `unreadCount=2, isRead=false`.
+  - Non-conversational wave → `unreadCount=0, isRead=true`.
+  - Use the same test doubles search-side tests already use for `WaveMap` + `WaveletContainer` (see existing `wave/src/test/java/org/waveprotocol/box/server/waveserver/` tests for patterns).
 
 ### Task 3: Add The `/read-state` Jakarta Servlet
 
 - [ ] Mirror `SearchServlet`'s structure (session check, JSON response, `no-store` cache header).
-- [ ] Accept `GET /read-state?waveId=<waveId>`.
-- [ ] Return `403` if no session, `400` on missing/invalid `waveId`, `404` on unknown wave or permission denied, `200 OK` with JSON body:
+- [ ] Accept `GET /read-state?waveId=<waveId>`. Use the plain `/read-state?…` form consistently — no trailing slash in the gateway URL, curl smokes, or tests. The servlet mapping stays `/read-state/*` so both forms route, but only the no-slash form is the published contract.
+- [ ] Return:
+  - `403 Forbidden` if no authenticated session.
+  - `400 Bad Request` on missing or malformed `waveId` (`ModernIdSerialiser.parse` throws `InvalidIdException`).
+  - `404 Not Found` for unknown wave OR access denied — treat both identically so existence cannot be probed.
+  - `200 OK` with JSON:
 ```json
-{ "waveId": "...", "unreadCount": 3, "totalBlipCount": 12, "isRead": false }
+{ "waveId": "example.com/w+abc", "unreadCount": 3, "isRead": false }
 ```
-- [ ] Map `/read-state/*` in `ServerMain.java` next to `/search/*`.
-- [ ] Ensure the servlet is instantiable via the existing Jakarta server bootstrap (explicit Guice binding only if required by the bootstrap code).
-- [ ] Add an integration-style test that boots the servlet with a mock session manager + fake helper, verifies the status codes and JSON shape, and proves the error paths surface minimal error text without leaking internals.
+- [ ] Map `/read-state/*` in `ServerMain.java` beside `/search/*` (`wave/src/jakarta-overrides/java/org/waveprotocol/box/server/ServerMain.java:375`).
+- [ ] Do NOT add a Guice binding in `SearchModule` — the Jakarta server wiring constructs servlets directly via field injection at `server.addServlet(...)` time, matching the existing `SearchServlet` pattern.
+- [ ] Servlet test covers each status code branch, the JSON shape, and that the `404` branch does not leak error text distinguishing "unknown wave" from "access denied".
 
 ### Task 4: Add The Client Transport Seam
 
@@ -145,11 +174,20 @@ The narrow root cause is therefore: the sidecar has no path to the per-user unre
 ### Task 5: Wire Client Gateway + Controller
 
 - [ ] Add `Gateway.fetchSelectedWaveReadState(waveId, onSuccess, onError)` to `J2clSelectedWaveController`.
-- [ ] Implement it in `J2clSearchGateway` via `requestText("/read-state/?waveId=...")` + `decodeSelectedWaveReadState`.
-- [ ] In `J2clSelectedWaveController.openSelectedWave`, after the first non-establishment update for a generation, call `fetchSelectedWaveReadState` bound to the same generation.
-- [ ] On each subsequent update within the same generation, trigger a debounced re-fetch so fast-arriving updates do not amplify HTTP traffic. A minimal approach: cancel the prior in-flight fetch via generation bump or per-request token; always honor only the latest generation/token.
-- [ ] On reconnect, a fresh update still triggers a new fetch.
-- [ ] Errors in read-state fetches must not kill the selected-wave subscription. They should set a soft-failure state in the model (e.g. `readStateKnown=false` + a quiet status note) but keep the live wave panel intact.
+- [ ] Implement it in `J2clSearchGateway` via `requestText("/read-state?waveId=" + encodeUriComponent(waveId))` + `decodeSelectedWaveReadState`.
+- [ ] Controller state for read-state fetching:
+  - `currentReadState` (nullable `SidecarSelectedWaveReadState`) preserved across updates and reconnect; only replaced after a fresh successful fetch.
+  - `readStateFetchSeq` (monotonically increasing `int`) bumped on every dispatched fetch. Responses apply only if `response.seq == readStateFetchSeq`. This protects against out-of-order HTTP responses within the same `requestGeneration`.
+  - `readStateDebounceHandle` tracks a pending `setTimeout`. A fresh update arriving while a fetch is pending clears the prior timeout and schedules a new trailing-edge 250 ms fetch. The debounce is per-generation; a generation bump cancels any pending timer.
+- [ ] Trigger points:
+  - After a successful first non-establishment update for a generation → schedule a fetch.
+  - On each subsequent update for the same generation → schedule a debounced fetch.
+  - After a reconnect's first fresh update → schedule a fetch.
+  - On `document.visibilitychange` → `visible` while a selection is open → schedule a fetch. This closes the UDW-only-change case: reading the wave elsewhere does NOT produce a `conv+root` update, but when the user returns to the J2CL tab the fetch fires once and refreshes the displayed state.
+- [ ] Error handling:
+  - On fetch error, preserve `currentReadState` (no zeroing). Set a soft `readStateStale` flag in the model so the view can (optionally) tag the label without replacing the count.
+  - The selected-wave subscription is never cancelled by a read-state fetch failure.
+  - A generation bump always cancels in-flight callbacks by comparing the stored seq.
 - [ ] Re-project the model on each read-state success so the view picks up the new fields.
 
 ### Task 6: Update Model + Projector + View
@@ -164,10 +202,19 @@ The narrow root cause is therefore: the sidecar has no path to the per-user unre
 
 ### Task 7: Live-Update Proof And Reconnect
 
-- [ ] Controller test: simulate two consecutive updates and verify two read-state fetches (one per generation-preserving update), each re-projecting the model.
-- [ ] Controller test: simulate a reconnect — ensure a fresh fetch is triggered after the post-reconnect first update.
-- [ ] Controller test: simulate an error from the read-state endpoint and verify the selected-wave panel remains live and the model flips to `readStateKnown=false` without clobbering visible content.
-- [ ] Browser verification: open a wave with known unread blips, observe the `"N unread"` label reflecting the real server state; read the blips in another browser tab to bump the UDW; observe the J2CL panel's unread count updating live after the next `ProtocolWaveletUpdate`.
+- [ ] Controller test: after open, a single update triggers exactly one read-state fetch and re-projects the model.
+- [ ] Controller test: two updates within the debounce window collapse into one fetch; an update after the window triggers a second fetch.
+- [ ] Controller test: stale-response ordering — dispatch fetch A, dispatch fetch B, resolve B first, then resolve A; verify A is dropped and the model still reflects B's payload.
+- [ ] Controller test: generation bump — a wave re-selection bumps the generation; any pending fetch callback from the previous generation is ignored.
+- [ ] Controller test: reconnect — the first fresh update after a reconnect triggers a new fetch; the prior `currentReadState` remains displayed in the interim.
+- [ ] Controller test: soft failure — the read-state endpoint returns an error; the selected-wave panel stays live, `currentReadState` is preserved (not zeroed), and `readStateStale=true` is set.
+- [ ] Controller test: UDW-only change case — emit a synthetic `visibilitychange=visible` signal and verify a single fetch fires even with no new `ProtocolWaveletUpdate`.
+- [ ] Browser verification (two-tab scenario):
+  - Tab A: `/j2cl-search/index.html`, open a wave with known unread blips; confirm the `"N unread"` label matches the server count, not the stale digest number.
+  - Tab B: legacy `/` route as another participant — add a blip. Tab A's label increments after the next update arrives.
+  - Tab B: read the unread blips (bumps UDW only). Focus Tab A; the label drops to `"Read"` after the `visibilitychange` fetch.
+  - Force a disconnect in Tab A via devtools → Offline → wait for reconnect; confirm the label rehydrates and the prior count was shown during the outage.
+  - Confirm the legacy `/` route is still usable and unchanged.
 
 ### Task 8: Preserve Legacy Root And Record Traceability
 
@@ -231,7 +278,7 @@ curl -sS -I http://localhost:9931/j2cl-search/index.html
 ```bash
 # After logging in via the browser and copying JSESSIONID:
 curl -sS -H 'Cookie: JSESSIONID=<token>' \
-  "http://localhost:9931/read-state/?waveId=<test-wave-id>"
+  "http://localhost:9931/read-state?waveId=<test-wave-id>"
 ```
 
 Expected: JSON body with the authenticated user's per-wave unread count.

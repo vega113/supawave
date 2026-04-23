@@ -555,10 +555,27 @@ public class WaveClientServlet extends HttpServlet {
       return null;
     }
     String forwardedHost = normalizeSingleHostHeaderValue(request.getHeader("X-Forwarded-Host"));
-    if (StringUtils.isNotBlank(forwardedHost)) {
+    if (StringUtils.isNotBlank(forwardedHost) && isTrustedPublicHost(forwardedHost)) {
       return forwardedHost;
     }
-    return normalizeSingleHostHeaderValue(request.getHeader("Host"));
+    String host = normalizeSingleHostHeaderValue(request.getHeader("Host"));
+    if (StringUtils.isNotBlank(host) && isTrustedPublicHost(host)) {
+      return host;
+    }
+    return null;
+  }
+
+  private boolean isTrustedPublicHost(String host) {
+    if (StringUtils.isBlank(host)) {
+      return false;
+    }
+    String normalizedHost = StringUtils.substringBefore(host, ":").trim();
+    if (normalizedHost.isEmpty()) {
+      return false;
+    }
+    return normalizedHost.equalsIgnoreCase(domain)
+        || normalizedHost.equalsIgnoreCase("localhost")
+        || normalizedHost.equals("127.0.0.1");
   }
 
   private static String normalizeSingleHostHeaderValue(String headerValue) {

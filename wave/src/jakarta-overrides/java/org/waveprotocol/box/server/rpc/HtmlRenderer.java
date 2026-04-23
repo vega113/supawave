@@ -3422,22 +3422,34 @@ public final class HtmlRenderer {
       StringBuilder sb,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
       boolean signedIn) {
+    // When the user is not signed in, never expose wave IDs, snapshot HTML, or session-specific
+    // state (e.g. SNAPSHOT or DENIED modes) to the anonymous page.  Override everything to the
+    // generic signed-out / no-wave state so callers cannot infer wave existence from the HTML.
+    boolean suppressServerFirstState =
+        !signedIn
+            && (snapshotResult.getMode() == J2clSelectedWaveSnapshotRenderer.Mode.SNAPSHOT
+                || snapshotResult.getMode() == J2clSelectedWaveSnapshotRenderer.Mode.DENIED);
     boolean hasSnapshot =
-        signedIn
+        !suppressServerFirstState
+            && signedIn
             && snapshotResult.getMode() == J2clSelectedWaveSnapshotRenderer.Mode.SNAPSHOT
             && snapshotResult.hasSnapshotHtml();
-    String title = selectedWaveTitle(snapshotResult, signedIn);
-    String status = selectedWaveStatus(snapshotResult, signedIn);
-    String detail = selectedWaveDetail(snapshotResult, signedIn);
+    J2clSelectedWaveSnapshotRenderer.SnapshotResult effectiveResult =
+        suppressServerFirstState
+            ? J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave()
+            : snapshotResult;
+    String title = selectedWaveTitle(effectiveResult, signedIn);
+    String status = selectedWaveStatus(effectiveResult, signedIn);
+    String detail = selectedWaveDetail(effectiveResult, signedIn);
 
     sb.append("            <section class=\"sidecar-selected-card\"");
-    if (hasSnapshot && snapshotResult.hasWaveId()) {
+    if (hasSnapshot && effectiveResult.hasWaveId()) {
       sb.append(" data-j2cl-server-first-selected-wave=\"")
-          .append(StringEscapeUtils.escapeHtml4(snapshotResult.getWaveId()))
+          .append(StringEscapeUtils.escapeHtml4(effectiveResult.getWaveId()))
           .append("\"");
     }
     sb.append(" data-j2cl-server-first-mode=\"")
-        .append(snapshotResult.getModeValue())
+        .append(effectiveResult.getModeValue())
         .append("\" data-j2cl-upgrade-placeholder=\"selected-wave\">\n");
     sb.append("              <p class=\"sidecar-eyebrow\">Opened wave</p>\n");
     sb.append("              <h2 class=\"sidecar-selected-title\">")
@@ -3472,7 +3484,7 @@ public final class HtmlRenderer {
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult, boolean signedIn) {
     switch (snapshotResult.getMode()) {
       case SNAPSHOT:
-        return snapshotResult.getWaveId();
+        return signedIn ? snapshotResult.getWaveId() : "Sign in to open a wave";
       case SIGNED_OUT:
         return "Sign in to open this wave";
       case DENIED:

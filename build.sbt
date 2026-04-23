@@ -827,6 +827,8 @@ lazy val j2clSandboxBuild = taskKey[Unit]("Build the isolated J2CL sandbox sidec
 lazy val j2clSandboxTest = taskKey[Unit]("Run the isolated J2CL sandbox sidecar smoke test via the Maven wrapper")
 lazy val j2clSearchBuild = taskKey[Unit]("Build the isolated J2CL search-sidecar scaffold into war/j2cl-search via the Maven wrapper")
 lazy val j2clSearchTest = taskKey[Unit]("Run the isolated J2CL search-sidecar smoke test via the Maven wrapper")
+lazy val j2clLitBuild = taskKey[Unit]("Build the Lit shell bundle into war/j2cl/assets via npm")
+lazy val j2clLitTest = taskKey[Unit]("Run the Lit shell web-test-runner suite via npm")
 lazy val j2clProductionBuild = taskKey[Unit]("Build the production J2CL sidecar into war/j2cl via the Maven wrapper")
 lazy val j2clRuntimeBuild = taskKey[Unit]("Build the maintained J2CL runtime assets in a deterministic order")
 lazy val dataMigrate = inputKey[Unit]("Run DataMigrationTool: dataMigrate <sourceOpts> <targetOpts>")
@@ -935,6 +937,24 @@ ThisBuild / j2clSearchTest := {
   runJ2clWrapper(log, base, "search-sidecar", "test")
 }
 
+ThisBuild / j2clLitBuild := {
+  val log = streams.value.log
+  val litDir = baseDirectory.value / "j2cl" / "lit"
+  if (!(litDir / "node_modules").exists()) {
+    runCmd(log)(Seq("npm", "ci"), litDir)
+  }
+  runCmd(log)(Seq("npm", "run", "build"), litDir)
+}
+
+ThisBuild / j2clLitTest := {
+  val log = streams.value.log
+  val litDir = baseDirectory.value / "j2cl" / "lit"
+  if (!(litDir / "node_modules").exists()) {
+    runCmd(log)(Seq("npm", "ci"), litDir)
+  }
+  runCmd(log)(Seq("npm", "test"), litDir)
+}
+
 ThisBuild / j2clProductionBuild := {
   val log = streams.value.log
   val base = baseDirectory.value
@@ -943,7 +963,8 @@ ThisBuild / j2clProductionBuild := {
 
 ThisBuild / j2clRuntimeBuild := Def.sequential(
   ThisBuild / j2clSearchBuild,
-  ThisBuild / j2clProductionBuild
+  ThisBuild / j2clProductionBuild,
+  ThisBuild / j2clLitBuild
 ).value
 
 // sbt-protoc: use embedded protoc to generate Java directly into proto_src

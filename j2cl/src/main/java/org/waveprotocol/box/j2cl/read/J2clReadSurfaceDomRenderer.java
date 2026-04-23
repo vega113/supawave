@@ -98,20 +98,6 @@ public final class J2clReadSurfaceDomRenderer {
     }
   }
 
-  private void restoreFocusedBlipById(String blipId) {
-    if (blipId == null) {
-      ensureSingleTabStop();
-      return;
-    }
-    for (HTMLElement blip : renderedBlips) {
-      if (blipId.equals(blip.getAttribute("data-blip-id")) && !isHiddenByCollapsedThread(blip)) {
-        focusBlip(blip);
-        return;
-      }
-    }
-    ensureSingleTabStop();
-  }
-
   public boolean enhanceExistingSurface() {
     HTMLElement surface = findExistingSurface();
     if (surface == null) {

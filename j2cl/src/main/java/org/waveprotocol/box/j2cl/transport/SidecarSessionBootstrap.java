@@ -164,6 +164,13 @@ public final class SidecarSessionBootstrap {
   }
 
   private static String normalizeHostName(String hostName) {
-    return hostName == null ? "" : hostName.trim();
+    if (hostName == null) {
+      return "";
+    }
+    String trimmed = hostName.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]") && trimmed.length() > 2) {
+      return trimmed.substring(1, trimmed.length() - 1);
+    }
+    return trimmed;
   }
 }

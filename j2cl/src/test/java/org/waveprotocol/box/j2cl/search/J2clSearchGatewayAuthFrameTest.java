@@ -60,6 +60,9 @@ public class J2clSearchGatewayAuthFrameTest {
     Assert.assertFalse(
         SidecarSessionBootstrap.usesCompatibleCookieHost(
             "wave.example.com", "socket.example.com:7443"));
+    Assert.assertTrue(
+        SidecarSessionBootstrap.usesCompatibleCookieHost(
+            "[2001:db8::1]", "[2001:db8::1]:7443"));
   }
 
   @Test

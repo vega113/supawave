@@ -3249,9 +3249,9 @@ public final class HtmlRenderer {
     sb.append("<meta name=\"build-commit\" content=\"").append(escapeHtml(buildCommit == null ? "" : buildCommit)).append("\">\n");
     sb.append("<meta name=\"server-build-time\" content=\"").append(serverBuildTime).append("\">\n");
     sb.append("<meta name=\"current-release-id\" content=\"").append(escapeHtml(currentReleaseId == null ? "" : currentReleaseId)).append("\">\n");
-    sb.append("<link rel=\"stylesheet\" href=\"/j2cl/assets/sidecar.css\">\n");
-    sb.append("<link rel=\"stylesheet\" href=\"/j2cl/assets/shell.css\">\n");
-    sb.append("<script type=\"module\" src=\"/j2cl/assets/shell.js\"></script>\n");
+    sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/sidecar.css\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/shell.css\">\n");
+    sb.append("<script type=\"module\" src=\"").append(safeResolvedBasePath).append("j2cl/assets/shell.js\"></script>\n");
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body class=\"j2cl-root-shell-page\">\n");
     if (signedIn) {

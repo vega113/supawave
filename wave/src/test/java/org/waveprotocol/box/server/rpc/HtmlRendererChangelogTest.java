@@ -79,8 +79,7 @@ public final class HtmlRendererChangelogTest {
         "/wave/?view=j2cl-root",
         "localhost:9898");
 
-    assertTrue(html.contains("var nextUrl="));
-    assertTrue(html.contains("\\/wave\\/"));
+    assertTrue(html.contains("var nextUrl=\"\\/wave\\/\""));
     assertTrue(html.contains("?view=j2cl-root&wave=' + encodeURIComponent(waveId);"));
   }
 

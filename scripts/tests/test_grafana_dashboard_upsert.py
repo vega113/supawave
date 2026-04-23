@@ -62,6 +62,7 @@ class GrafanaDashboardUpsertTest(unittest.TestCase):
     self.assertIn("simulation", variable_names)
     self.assertIn("sha", variable_names)
     self.assertIn("run_id", variable_names)
+    self.assertIn("run_attempt", variable_names)
     self.assertIn("request_name", variable_names)
 
   def test_latest_runs_panel_orders_by_run_timestamp(self):
@@ -69,6 +70,13 @@ class GrafanaDashboardUpsertTest(unittest.TestCase):
     latest_runs_panel = find_panel(dashboard, "Latest Runs")
 
     self.assertIn("wave_perf_last_run_timestamp_seconds", latest_runs_panel["targets"][0]["expr"])
+    self.assertIn('run_attempt=~"$run_attempt"', latest_runs_panel["targets"][0]["expr"])
+
+  def test_latency_distribution_panel_uses_instant_query(self):
+    dashboard = json.loads(PERF_DASHBOARD_PATH.read_text(encoding="utf-8"))
+    latency_distribution_panel = find_panel(dashboard, "Latency Distribution")
+
+    self.assertTrue(latency_distribution_panel["targets"][0]["instant"])
 
   def test_dashboard_contains_expected_analytics_panels(self):
     dashboard = json.loads(ANALYTICS_DASHBOARD_PATH.read_text(encoding="utf-8"))

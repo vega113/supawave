@@ -112,7 +112,7 @@ def load_gatling_report(report_dir: Path) -> dict:
 
 
 def build_summary(simulation: str, report_dir: Path, metadata: dict, exit_code: int) -> dict:
-  parsed = load_gatling_report(Path(report_dir))
+  parsed = load_gatling_report(report_dir)
   global_stats = parsed["global_stats"]
   requests = _extract_requests(global_stats)
   total_requests = requests["ok"] + requests["ko"]

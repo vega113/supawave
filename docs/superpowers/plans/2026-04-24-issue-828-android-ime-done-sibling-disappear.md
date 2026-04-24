@@ -25,6 +25,6 @@
 
 - `sbt "wave/testOnly org.waveprotocol.wave.model.util.GhostTextReconcilerTest"`
 - `sbt "wave/testOnly org.waveprotocol.wave.client.editor.integration.MobileImeFlushGwtTest"`
-- `bash scripts/worktree-boot.sh --port 9931`
-- `PORT=9931 bash scripts/wave-smoke.sh check`
-- Playwright Chromium with `devices['Galaxy S9+']` against `http://127.0.0.1:9931`: register/login, create wave, type `new blip`, tap Done, reload, assert body contains `new blip` and not an `ew`-only collapse.
+- `bash scripts/worktree-boot.sh --port 9932`
+- `PORT=9932 bash scripts/wave-smoke.sh check`
+- Playwright Chromium with `devices['Galaxy S9+']` against `http://127.0.0.1:9932`: register/login, create wave, type `new blip`, tap Done, reload, assert body contains `new blip` and not an `ew`-only collapse.

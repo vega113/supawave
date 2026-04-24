@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-24-issue-970-lit-overlays",
+  "version": "Issue #970",
+  "date": "2026-04-24",
+  "title": "Add J2CL Lit interaction overlay primitives",
+  "summary": "The opt-in J2CL shell now includes reusable Lit primitives for mention suggestions, task metadata, reaction rows, reaction picking, reaction authors, and overlay focus handling so later controller slices can wire parity interactions without adding legacy GWT dependencies.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Registered Lit primitives for mention, task, reaction, and overlay-layer interaction surfaces",
+        "Added Web Test Runner coverage for keyboard close/select flows, live-region labels, focus behavior, and semantic overlay events"
+      ]
+    }
+  ]
+}

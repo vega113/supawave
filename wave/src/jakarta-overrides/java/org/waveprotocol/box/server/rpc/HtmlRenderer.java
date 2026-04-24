@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import org.apache.commons.text.StringEscapeUtils;
@@ -1534,6 +1535,10 @@ public final class HtmlRenderer {
       + ".msg { font-size: 13px; min-height: 18px; margin-bottom: 10px; }\n"
       + ".msg.error { color: #d93025; }\n"
       + ".msg.success { color: #188038; }\n"
+      + ".social-auth-options { margin-top: 18px; }\n"
+      + ".social-auth-divider { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: #8a94a6; font-size: 12px; }\n"
+      + ".social-auth-divider::before, .social-auth-divider::after { content: ''; flex: 1; height: 1px; background: #e5e9f0; }\n"
+      + ".social-auth-button { display: block; width: 100%; margin: 8px 0 0; text-align: center; text-decoration: none; }\n"
       + ".footer-link { font-size: 13px; margin-top: 16px; text-align: center; }\n"
       + ".footer-link a { color: " + WAVE_PRIMARY + "; text-decoration: none; font-weight: 500; }\n"
       + ".footer-link a:hover { text-decoration: underline; }\n"
@@ -1929,6 +1934,24 @@ public final class HtmlRenderer {
         analyticsAccount, false, false);
   }
 
+  public static final class SocialProviderLink {
+    private final String label;
+    private final String url;
+
+    public SocialProviderLink(String label, String url) {
+      this.label = label;
+      this.url = url;
+    }
+
+    public String getLabel() {
+      return label;
+    }
+
+    public String getUrl() {
+      return url;
+    }
+  }
+
   /**
    * Renders the login page with optional email auth links.
    *
@@ -1943,6 +1966,14 @@ public final class HtmlRenderer {
   public static String renderAuthenticationPage(String domain, String message,
       String responseType, boolean disableLoginPage, String analyticsAccount,
       boolean passwordResetEnabled, boolean magicLinkEnabled) {
+    return renderAuthenticationPage(domain, message, responseType, disableLoginPage,
+        analyticsAccount, passwordResetEnabled, magicLinkEnabled, java.util.Collections.emptyList());
+  }
+
+  public static String renderAuthenticationPage(String domain, String message,
+      String responseType, boolean disableLoginPage, String analyticsAccount,
+      boolean passwordResetEnabled, boolean magicLinkEnabled,
+      java.util.List<SocialProviderLink> socialProviderLinks) {
     StringBuilder sb = new StringBuilder(8192);
     sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
@@ -1984,6 +2015,26 @@ public final class HtmlRenderer {
       sb.append("      <div class=\"msg\" id=\"messageLbl\"></div>\n");
       sb.append("      <input type=\"submit\" class=\"btn-primary\" name=\"signIn\" id=\"signIn\" value=\"Sign in\" style=\"width:100%;\">\n");
       sb.append("    </form>\n");
+      List<SocialProviderLink> validSocialProviderLinks = new ArrayList<>();
+      if (socialProviderLinks != null) {
+        for (SocialProviderLink link : socialProviderLinks) {
+          if (link == null || link.getLabel() == null || link.getUrl() == null
+              || link.getLabel().trim().isEmpty() || link.getUrl().trim().isEmpty()) {
+            continue;
+          }
+          validSocialProviderLinks.add(link);
+        }
+      }
+      if (!validSocialProviderLinks.isEmpty()) {
+        sb.append("    <div class=\"social-auth-options\" aria-label=\"Social sign in options\">\n");
+        sb.append("      <div class=\"social-auth-divider\"><span>or</span></div>\n");
+        for (SocialProviderLink link : validSocialProviderLinks) {
+          sb.append("      <a class=\"btn-secondary social-auth-button\" href=\"")
+              .append(escapeHtml(link.getUrl())).append("\">Continue with ")
+              .append(escapeHtml(link.getLabel())).append("</a>\n");
+        }
+        sb.append("    </div>\n");
+      }
       if (passwordResetEnabled) {
         sb.append("    <div class=\"footer-link\">\n");
         sb.append("      <a href=\"/auth/password-reset\">Forgot password?</a>\n");
@@ -2035,6 +2086,73 @@ public final class HtmlRenderer {
     sb.append("</script>\n");
     sb.append("</body>\n</html>\n");
     return sb.toString();
+  }
+
+  public static String renderSocialUsernamePage(String domain, String providerLabel,
+      String email, String message, String responseType, String csrfToken,
+      String analyticsAccount) {
+    StringBuilder sb = new StringBuilder(8192);
+    sb.append("<!DOCTYPE html>\n<html dir=\"ltr\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<title>Choose Username - SupaWave</title>\n");
+    sb.append(AUTH_CSS);
+    appendAnalyticsFragment(sb, analyticsAccount, null);
+    sb.append("</head>\n<body onload=\"init()\">\n");
+    sb.append(WAVE_SVG);
+    sb.append("<div class=\"page-wrapper\">\n");
+    sb.append("  <div class=\"brand\">\n");
+    sb.append("    ").append(WAVE_LOGO_SVG);
+    sb.append("    <div class=\"brand-name\">SupaWave</div>\n");
+    sb.append("  </div>\n");
+    sb.append("  <div class=\"card\">\n");
+    sb.append("    <h1>Choose your SupaWave username</h1>\n");
+    sb.append("    <div class=\"subtitle\">");
+    sb.append(escapeHtml(providerLabel == null ? "Social" : providerLabel));
+    if (email == null || email.isBlank()) {
+      sb.append(" verified your identity");
+    } else {
+      sb.append(" verified ").append(escapeHtml(email));
+    }
+    sb.append("</div>\n");
+    sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
+    sb.append("    <form id=\"socialUserForm\" method=\"post\" action=\"/auth/social/complete\">\n");
+    sb.append("      <input type=\"hidden\" name=\"csrf\" value=\"")
+        .append(escapeHtml(csrfToken == null ? "" : csrfToken)).append("\">\n");
+    sb.append("      <label for=\"address\">Username</label>\n");
+    sb.append("      <div class=\"input-group\">\n");
+    sb.append("        <input type=\"text\" name=\"address\" id=\"address\" autocomplete=\"username\" placeholder=\"your.name\">\n");
+    sb.append("        <span class=\"domain-suffix\">@").append(escapeHtml(domain)).append("</span>\n");
+    sb.append("      </div>\n");
+    sb.append("      <input type=\"submit\" class=\"btn-primary\" value=\"Create account\" style=\"width:100%;\">\n");
+    sb.append("    </form>\n");
+    sb.append("    <div class=\"footer-link\"><a href=\"/auth/signin\">Back to sign in</a></div>\n");
+    sb.append("  </div>\n");
+    sb.append("</div>\n");
+    sb.append("<script>\n");
+    sb.append("var RESPONSE_STATUS_NONE = \"NONE\";\n");
+    sb.append("var RESPONSE_STATUS_FAILED = \"FAILED\";\n");
+    sb.append("var message = ").append(escapeJsonString(message == null ? "" : message)).append(";\n");
+    sb.append("var responseType = ").append(escapeJsonString(responseType == null ? "NONE" : responseType)).append(";\n");
+    sb.append("function init(){ var el=document.getElementById('address'); if(el) el.focus(); var lbl=document.getElementById('messageLbl'); if(responseType==RESPONSE_STATUS_FAILED && lbl){ lbl.style.display='block'; lbl.className='msg error'; lbl.textContent=message; }}\n");
+    sb.append("</script>\n");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  public static String renderSocialFailurePage(String domain, String message,
+      String analyticsAccount) {
+    return renderSocialFailurePage(domain, message, analyticsAccount, false, true, false);
+  }
+
+  public static String renderSocialFailurePage(String domain, String message,
+      String analyticsAccount, boolean disableLoginPage, boolean passwordResetEnabled,
+      boolean magicLinkEnabled) {
+    return renderAuthenticationPage(domain, message,
+        AuthenticationServlet.RESPONSE_STATUS_FAILED, disableLoginPage, analyticsAccount,
+        passwordResetEnabled, magicLinkEnabled);
   }
 
   // =========================================================================

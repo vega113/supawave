@@ -98,6 +98,34 @@ public final class FeatureFlagSeederTest {
   }
 
   @Test
+  public void seedsSocialAuthEnabledWhenConfigEnablesIt() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+
+    FeatureFlagSeeder.seedSocialAuthFeatureFlag(
+        store, ConfigFactory.parseString("core.social_auth.enabled = true"));
+
+    assertTrue(store.get("social-auth") != null);
+
+    FeatureFlagService service = new FeatureFlagService(store);
+
+    assertTrue(service.isGloballyEnabled("social-auth"));
+  }
+
+  @Test
+  public void preservesExistingSocialAuthFlagWhenConfigChanges() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(new FeatureFlag("social-auth", "Social sign-in", false, allowedUsers(true)));
+
+    FeatureFlagSeeder.seedSocialAuthFeatureFlag(
+        store, ConfigFactory.parseString("core.social_auth.enabled = true"));
+
+    FeatureFlagService service = new FeatureFlagService(store);
+
+    assertFalse(service.isGloballyEnabled("social-auth"));
+    assertTrue(service.isEnabled("social-auth", "vega@supawave.ai"));
+  }
+
+  @Test
   public void searchWaveletUpdaterIsEnabledWhenFlagHasAllowlist() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     store.save(

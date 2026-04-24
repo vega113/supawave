@@ -102,6 +102,21 @@ public interface HumanAccountData extends AccountData {
    */
   void setSearches(List<SearchesItem> searches);
 
+  /**
+   * Returns provider identities linked to this user.
+   */
+  List<SocialIdentity> getSocialIdentities();
+
+  /**
+   * Replaces provider identities linked to this user.
+   */
+  void setSocialIdentities(List<SocialIdentity> socialIdentities);
+
+  /**
+   * Adds or replaces a provider identity by provider and subject.
+   */
+  void addOrReplaceSocialIdentity(SocialIdentity socialIdentity);
+
   // =========================================================================
   // Admin / role / status fields
   // =========================================================================

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-24-social-auth",
+  "version": "PR #1000",
+  "date": "2026-04-24",
+  "title": "Social Sign-In",
+  "summary": "Google and GitHub sign-in can now be enabled behind the social-auth feature flag.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added feature-flagged Google and GitHub social sign-in and sign-up",
+        "First-time social users still choose a SupaWave username before the account is created"
+      ]
+    }
+  ]
+}

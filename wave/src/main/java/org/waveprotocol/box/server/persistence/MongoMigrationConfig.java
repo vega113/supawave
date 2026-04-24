@@ -111,6 +111,10 @@ public final class MongoMigrationConfig {
     return isMongoStoreType(deltaStoreType);
   }
 
+  public boolean usesMongoAccountStore() {
+    return isMongoStoreType(accountStoreType) && isMongoV4Driver();
+  }
+
   public boolean usesMongoContactStore() {
     return isMongoStoreType(contactStoreType);
   }

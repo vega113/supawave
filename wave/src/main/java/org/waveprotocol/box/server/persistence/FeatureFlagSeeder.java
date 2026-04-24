@@ -34,6 +34,10 @@ public final class FeatureFlagSeeder {
   private static final String J2CL_ROOT_BOOTSTRAP_DESCRIPTION =
       "Bootstrap the J2CL root shell on / while keeping /webclient rollback ready";
   private static final String J2CL_ROOT_BOOTSTRAP_CONFIG_KEY = "ui.j2cl_root_bootstrap_enabled";
+  private static final String SOCIAL_AUTH_FLAG_NAME = "social-auth";
+  private static final String SOCIAL_AUTH_DESCRIPTION =
+      "Enable Google and GitHub social sign-in and sign-up";
+  private static final String SOCIAL_AUTH_CONFIG_KEY = "core.social_auth.enabled";
 
   private FeatureFlagSeeder() {
   }
@@ -76,6 +80,25 @@ public final class FeatureFlagSeeder {
     } else {
       LOG.info(
           "j2cl-root-bootstrap feature flag already present in store — preserving existing value");
+    }
+  }
+
+  public static void seedSocialAuthFeatureFlag(FeatureFlagStore store, Config config)
+      throws PersistenceException {
+    if (store == null || config == null || !config.hasPath(SOCIAL_AUTH_CONFIG_KEY)) {
+      return;
+    }
+    if (store.get(SOCIAL_AUTH_FLAG_NAME) == null) {
+      boolean enabled = config.getBoolean(SOCIAL_AUTH_CONFIG_KEY);
+      store.save(
+          new FeatureFlag(
+              SOCIAL_AUTH_FLAG_NAME,
+              SOCIAL_AUTH_DESCRIPTION,
+              enabled,
+              Collections.emptyMap()));
+      LOG.info("Seeded social-auth feature flag: enabled=" + enabled);
+    } else {
+      LOG.info("social-auth feature flag already present in store — preserving existing value");
     }
   }
 

@@ -58,6 +58,15 @@ message ProtoHumanAccountData {
 	optional int64 last_activity_time = 9;
 	// Saved searches
 	repeated ProtoSearchesItem saved_search = 10;
+	repeated ProtoSocialIdentity social_identity = 11;
+}
+
+message ProtoSocialIdentity {
+	required string provider = 1;
+	required string subject = 2;
+	optional string email = 3;
+	optional string display_name = 4;
+	optional int64 linked_at_millis = 5;
 }
 
 // A single saved search item (name + query + pinned)

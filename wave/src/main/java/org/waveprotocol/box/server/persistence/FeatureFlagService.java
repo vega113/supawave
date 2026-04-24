@@ -86,6 +86,14 @@ public final class FeatureFlagService {
   }
 
   /**
+   * Returns only the flag's global enabled state, ignoring per-user allowlist entries.
+   */
+  public boolean isGloballyEnabled(String flagName) {
+    FeatureFlag flag = cache.get(flagName);
+    return flag != null && flag.isEnabled();
+  }
+
+  /**
    * Returns the names of all flags that are enabled for the given participant.
    */
   public List<String> getEnabledFlagNames(String participantId) {

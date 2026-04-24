@@ -44,6 +44,7 @@ public final class KnownFeatureFlags {
     defaults.add(new FeatureFlag("compact-inline-blips", "Compact inline blip layout at nesting depth", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("ime-debug-tracer", "Enable IME diagnostic trace overlay and remote log upload", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("j2cl-root-bootstrap", "Bootstrap the J2CL root shell on / while keeping /webclient rollback ready", false, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("social-auth", "Enable Google and GitHub social sign-in and sign-up", false, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }
 

@@ -32,6 +32,7 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
+import org.waveprotocol.box.server.account.SocialIdentity;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoAccountData;
 import org.waveprotocol.box.server.robots.RobotCapabilities;
@@ -167,6 +168,28 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     assertEquals("in:inbox", human.getSearches().get(0).getQuery());
     assertEquals("Flagged", human.getSearches().get(1).getName());
     assertEquals("is:flagged", human.getSearches().get(1).getQuery());
+  }
+
+  public final void testHumanAccountWithSocialIdentity() {
+    HumanAccountDataImpl account = new HumanAccountDataImpl(HUMAN_ID);
+    account.addOrReplaceSocialIdentity(
+        new SocialIdentity("google", "google-sub-123", "human@example.com", "Human User", 1234L));
+
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(account);
+    AccountData deserialized = ProtoAccountDataSerializer.deserialize(data);
+
+    assertTrue(deserialized.isHuman());
+    assertEquals(1, deserialized.asHuman().getSocialIdentities().size());
+    assertEquals("google",
+        deserialized.asHuman().getSocialIdentities().get(0).getProvider());
+    assertEquals("google-sub-123",
+        deserialized.asHuman().getSocialIdentities().get(0).getSubject());
+    assertEquals("human@example.com",
+        deserialized.asHuman().getSocialIdentities().get(0).getEmail());
+    assertEquals("Human User",
+        deserialized.asHuman().getSocialIdentities().get(0).getDisplayName());
+    assertEquals(1234L,
+        deserialized.asHuman().getSocialIdentities().get(0).getLinkedAtMillis());
   }
 
   public final void testRobotAccountWithCapabilities() {

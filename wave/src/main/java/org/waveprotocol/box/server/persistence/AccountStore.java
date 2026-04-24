@@ -20,11 +20,15 @@
 package org.waveprotocol.box.server.persistence;
 
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
+import org.waveprotocol.box.server.account.SocialIdentity;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.logging.Logger;
 
 /**
  * Interface for the storage and retrieval of {@link AccountData}s.
@@ -32,6 +36,14 @@ import java.util.List;
  * @author ljvderijk@google.com (Lennard de Rijk)
  */
 public interface AccountStore {
+  Logger ACCOUNT_STORE_LOG = Logger.getLogger(AccountStore.class.getName());
+
+  enum AccountCreationResult {
+    CREATED,
+    ACCOUNT_EXISTS,
+    SOCIAL_IDENTITY_EXISTS
+  }
+
   /**
    * Initialize the account store.
    * Implementations are expected to validate any configuration values, validate the state of the
@@ -95,6 +107,23 @@ public interface AccountStore {
   }
 
   /**
+   * Updates human login/activity timestamps.
+   *
+   * <p>The default implementation performs a read-modify-write. Database-backed
+   * stores should override this with a field-targeted update.
+   */
+  default void updateHumanLoginTimestamps(ParticipantId id, long lastLoginTime,
+      long lastActivityTime) throws PersistenceException {
+    AccountData account = getAccount(id);
+    if (account == null || !account.isHuman()) {
+      return;
+    }
+    account.asHuman().setLastLoginTime(lastLoginTime);
+    account.asHuman().setLastActivityTime(lastActivityTime);
+    putAccount(account);
+  }
+
+  /**
    * Removes an account from storage.
    *
    * @param id the participant id of the account to remove.
@@ -105,13 +134,155 @@ public interface AccountStore {
    * Returns an {@link AccountData} for the given email address, or null if
    * no account has that email.
    *
-   * <p>Default implementation returns null (backward compatible for stores
-   * that have not indexed by email).
+   * <p>Default implementation scans human accounts case-insensitively. Stores
+   * with an email index should override this method.
    *
    * @param email the email address to look up.
    */
   default AccountData getAccountByEmail(String email) throws PersistenceException {
+    String normalized = normalizeEmail(email);
+    if (normalized.isEmpty()) {
+      return null;
+    }
+    ACCOUNT_STORE_LOG.fine(
+        "Scanning accounts for email lookup; backend should override this method");
+    for (AccountData account : getAllAccounts()) {
+      if (account == null || !account.isHuman()) {
+        continue;
+      }
+      String accountEmail = normalizeEmail(account.asHuman().getEmail());
+      if (!accountEmail.isEmpty() && accountEmail.equals(normalized)) {
+        return account;
+      }
+    }
     return null;
+  }
+
+  /**
+   * Returns a human account linked to the given provider subject, or null.
+   */
+  default AccountData getAccountBySocialIdentity(String provider, String subject)
+      throws PersistenceException {
+    if (provider == null || provider.trim().isEmpty()
+        || subject == null || subject.trim().isEmpty()) {
+      return null;
+    }
+    ACCOUNT_STORE_LOG.fine(
+        "Scanning accounts for social identity lookup; backend should override this method");
+    String normalizedProvider = provider.trim().toLowerCase(Locale.ROOT);
+    String normalizedSubject = subject.trim();
+    for (AccountData account : getAllAccounts()) {
+      if (account == null || !account.isHuman()) {
+        continue;
+      }
+      for (SocialIdentity identity : account.asHuman().getSocialIdentities()) {
+        if (identity.matches(normalizedProvider, normalizedSubject)) {
+          return account;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Links a provider identity to an existing human account.
+   */
+  default void linkSocialIdentity(ParticipantId id, SocialIdentity socialIdentity)
+      throws PersistenceException {
+    synchronized (this) {
+      AccountData existing = getAccountBySocialIdentity(
+          socialIdentity.getProvider(), socialIdentity.getSubject());
+      if (existing != null && !existing.getId().equals(id)) {
+        throw new PersistenceException("Social identity is already linked");
+      }
+      AccountData account = getAccount(id);
+      if (account == null || !account.isHuman()) {
+        throw new PersistenceException("No human account found for " + id);
+      }
+      account.asHuman().addOrReplaceSocialIdentity(socialIdentity);
+      putAccount(account);
+    }
+  }
+
+  /**
+   * Persists a new human account whose social identity must be unique.
+   *
+   * <p>The default implementation is atomic within one store instance. Stores
+   * backed by external databases should override this with backend-level
+   * uniqueness guarantees.
+   */
+  default void putAccountWithUniqueSocialIdentity(AccountData account,
+      SocialIdentity socialIdentity) throws PersistenceException {
+    synchronized (this) {
+      AccountData existing = getAccountBySocialIdentity(
+          socialIdentity.getProvider(), socialIdentity.getSubject());
+      if (existing != null && !existing.getId().equals(account.getId())) {
+        throw new PersistenceException("Social identity is already linked");
+      }
+      putAccount(account);
+    }
+  }
+
+  /**
+   * Persists a new account if the participant id is still unused.
+   *
+   * <p>If this creates the first human account in the store, the account is promoted to owner before
+   * it is written. The default implementation is atomic within one store instance so separate
+   * registration servlets in the same JVM cannot overwrite each other's accounts by racing through
+   * pre-checks. Implementations that run behind an external database should override this with a
+   * backend-level create-if-absent operation.
+   *
+   * <p>When owner promotion happens, the implementation mutates the supplied human account by
+   * setting its role before persisting it.
+   */
+  default boolean putNewAccountWithOwnerAssignment(AccountData account)
+      throws PersistenceException {
+    return putNewAccountWithOwnerAssignmentResult(account, null) == AccountCreationResult.CREATED;
+  }
+
+  /**
+   * Persists a new account while also reserving a social identity for that account.
+   *
+   * <p>Returns {@code false} when either the participant id or social identity is already in use.
+   */
+  default boolean putNewAccountWithOwnerAssignment(AccountData account,
+      SocialIdentity socialIdentity) throws PersistenceException {
+    return putNewAccountWithOwnerAssignmentResult(account, socialIdentity)
+        == AccountCreationResult.CREATED;
+  }
+
+  /**
+   * Persists a new account and reports the reason when creation is rejected.
+   *
+   * <p>The default implementation is atomic within one store instance so separate registration
+   * servlets in the same JVM cannot overwrite each other's accounts by racing through pre-checks.
+   * Implementations backed by external databases should override this with a backend-level
+   * create-if-absent operation and map duplicate-key failures to the matching result.
+   *
+   * <p>When owner promotion happens, the implementation mutates the supplied human account by
+   * setting its role before persisting it. Database implementations may do that before an insert
+   * attempt and then return a non-created result after a duplicate-key race, so callers should
+   * discard the supplied account object on non-{@code CREATED} results.
+   */
+  default AccountCreationResult putNewAccountWithOwnerAssignmentResult(AccountData account,
+      SocialIdentity socialIdentity) throws PersistenceException {
+    synchronized (this) {
+      if (getAccount(account.getId()) != null) {
+        return AccountCreationResult.ACCOUNT_EXISTS;
+      }
+      if (socialIdentity != null) {
+        AccountData existing = getAccountBySocialIdentity(
+            socialIdentity.getProvider(), socialIdentity.getSubject());
+        if (existing != null) {
+          return AccountCreationResult.SOCIAL_IDENTITY_EXISTS;
+        }
+      }
+      if (account.isHuman() && getAccountCount() == 0) {
+        account.asHuman().setRole(HumanAccountData.ROLE_OWNER);
+      }
+      putAccount(account);
+      return AccountCreationResult.CREATED;
+    }
   }
 
   /**
@@ -139,5 +310,9 @@ public interface AccountStore {
    */
   default long getAccountCount() throws PersistenceException {
     return 0;
+  }
+
+  private static String normalizeEmail(String email) {
+    return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
   }
 }

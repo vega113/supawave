@@ -225,6 +225,7 @@ public class ServerMain {
       FeatureFlagStore featureFlagStore = injector.getInstance(FeatureFlagStore.class);
       FeatureFlagSeeder.seedSearchFeatureFlags(featureFlagStore, config);
       FeatureFlagSeeder.seedJ2clRootBootstrapFeatureFlags(featureFlagStore, config);
+      FeatureFlagSeeder.seedSocialAuthFeatureFlag(featureFlagStore, config);
       FeatureFlagSeeder.reconcileJ2clRootBootstrapFeatureFlag(
           featureFlagStore, applicationOverrideConfig);
       injector.getInstance(FeatureFlagService.class).refreshCache();
@@ -368,6 +369,7 @@ public class ServerMain {
     server.addServlet("/auth/signin", AuthenticationServlet.class);
     server.addServlet("/auth/signout", SignOutServlet.class);
     server.addServlet("/auth/register", UserRegistrationServlet.class);
+    server.addServlet("/auth/social/*", SocialAuthServlet.class);
     server.addServlet("/auth/confirm-email", EmailConfirmServlet.class);
     server.addServlet("/auth/password-reset", PasswordResetServlet.class);
     server.addServlet("/auth/magic-link", MagicLinkServlet.class);

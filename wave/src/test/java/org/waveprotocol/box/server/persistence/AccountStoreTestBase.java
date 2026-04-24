@@ -31,6 +31,7 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
+import org.waveprotocol.box.server.account.SocialIdentity;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.box.server.robots.RobotCapabilities;
 import org.waveprotocol.wave.model.util.CollectionUtils;
@@ -47,6 +48,9 @@ import java.util.Map;
 public abstract class AccountStoreTestBase extends TestCase {
 
   private static final ParticipantId HUMAN_ID = ParticipantId.ofUnsafe("human@example.com");
+
+  private static final ParticipantId SECOND_HUMAN_ID =
+      ParticipantId.ofUnsafe("second@example.com");
 
   private static final ParticipantId ROBOT_ID = ParticipantId.ofUnsafe("robot@example.com");
 
@@ -106,6 +110,149 @@ public abstract class AccountStoreTestBase extends TestCase {
         new HumanAccountDataImpl(HUMAN_ID, new PasswordDigest("internet".toCharArray())));
     AccountData retrievedAccount = accountStore.getAccount(HUMAN_ID);
     assertTrue(retrievedAccount.asHuman().getPasswordDigest().verify("internet".toCharArray()));
+  }
+
+  public final void testRoundtripHumanAccountWithSocialIdentityLookup() throws Exception {
+    AccountStore accountStore = newAccountStore();
+    HumanAccountDataImpl account = new HumanAccountDataImpl(HUMAN_ID);
+    SocialIdentity identity =
+        new SocialIdentity("google", "google-sub-123", "human@example.com", "Human User", 1234L);
+    account.addOrReplaceSocialIdentity(identity);
+
+    accountStore.putAccountWithUniqueSocialIdentity(account, identity);
+
+    AccountData retrievedAccount =
+        accountStore.getAccountBySocialIdentity("google", "google-sub-123");
+    assertNotNull(retrievedAccount);
+    assertEquals(HUMAN_ID, retrievedAccount.getId());
+    assertEquals(1, retrievedAccount.asHuman().getSocialIdentities().size());
+  }
+
+  public final void testPutAccountWithUniqueSocialIdentityRejectsDuplicate() throws Exception {
+    AccountStore accountStore = newAccountStore();
+    SocialIdentity identity =
+        new SocialIdentity("google", "google-sub-123", "human@example.com", "Human User", 1234L);
+    HumanAccountDataImpl first = new HumanAccountDataImpl(HUMAN_ID);
+    first.addOrReplaceSocialIdentity(identity);
+    accountStore.putAccountWithUniqueSocialIdentity(first, identity);
+
+    HumanAccountDataImpl second = new HumanAccountDataImpl(SECOND_HUMAN_ID);
+    second.addOrReplaceSocialIdentity(identity);
+    try {
+      accountStore.putAccountWithUniqueSocialIdentity(second, identity);
+      fail("Expected duplicate social identity to be rejected");
+    } catch (PersistenceException expected) {
+      assertEquals(HUMAN_ID,
+          accountStore.getAccountBySocialIdentity("google", "google-sub-123").getId());
+    }
+  }
+
+  public final void testPutNewAccountWithOwnerAssignmentRejectsExistingAddress()
+      throws Exception {
+    AccountStore accountStore = newAccountStore();
+    HumanAccountDataImpl passwordAccount =
+        new HumanAccountDataImpl(HUMAN_ID, new PasswordDigest("internet".toCharArray()));
+
+    assertEquals(AccountStore.AccountCreationResult.CREATED,
+        accountStore.putNewAccountWithOwnerAssignmentResult(passwordAccount, null));
+
+    SocialIdentity identity =
+        new SocialIdentity("github", "github-sub-123", "human@example.com", "Human User", 1234L);
+    HumanAccountDataImpl socialAccount = new HumanAccountDataImpl(HUMAN_ID);
+    socialAccount.addOrReplaceSocialIdentity(identity);
+
+    assertEquals(AccountStore.AccountCreationResult.ACCOUNT_EXISTS,
+        accountStore.putNewAccountWithOwnerAssignmentResult(socialAccount, identity));
+    AccountData stored = accountStore.getAccount(HUMAN_ID);
+    assertNotNull(stored.asHuman().getPasswordDigest());
+    assertTrue(stored.asHuman().getPasswordDigest().verify("internet".toCharArray()));
+    assertTrue(stored.asHuman().getSocialIdentities().isEmpty());
+    assertEquals(HumanAccountData.ROLE_OWNER, stored.asHuman().getRole());
+  }
+
+  public final void testPutNewAccountWithOwnerAssignmentRejectsExistingSocialIdentity()
+      throws Exception {
+    AccountStore accountStore = newAccountStore();
+    SocialIdentity identity =
+        new SocialIdentity("github", "github-sub-123", "human@example.com", "Human User", 1234L);
+    HumanAccountDataImpl first = new HumanAccountDataImpl(HUMAN_ID);
+    first.addOrReplaceSocialIdentity(identity);
+
+    assertEquals(AccountStore.AccountCreationResult.CREATED,
+        accountStore.putNewAccountWithOwnerAssignmentResult(first, identity));
+
+    HumanAccountDataImpl second = new HumanAccountDataImpl(SECOND_HUMAN_ID);
+    second.addOrReplaceSocialIdentity(identity);
+
+    assertEquals(AccountStore.AccountCreationResult.SOCIAL_IDENTITY_EXISTS,
+        accountStore.putNewAccountWithOwnerAssignmentResult(second, identity));
+    assertNull(accountStore.getAccount(SECOND_HUMAN_ID));
+    assertEquals(HUMAN_ID,
+        accountStore.getAccountBySocialIdentity("github", "github-sub-123").getId());
+  }
+
+  public final void testPutNewAccountWithOwnerAssignmentPrefersAccountCollision()
+      throws Exception {
+    AccountStore accountStore = newAccountStore();
+    SocialIdentity identity =
+        new SocialIdentity("github", "github-sub-123", "human@example.com", "Human User", 1234L);
+    HumanAccountDataImpl first = new HumanAccountDataImpl(HUMAN_ID);
+    first.addOrReplaceSocialIdentity(identity);
+
+    assertEquals(AccountStore.AccountCreationResult.CREATED,
+        accountStore.putNewAccountWithOwnerAssignmentResult(first, identity));
+
+    HumanAccountDataImpl duplicate = new HumanAccountDataImpl(HUMAN_ID);
+    duplicate.addOrReplaceSocialIdentity(identity);
+
+    assertEquals(AccountStore.AccountCreationResult.ACCOUNT_EXISTS,
+        accountStore.putNewAccountWithOwnerAssignmentResult(duplicate, identity));
+  }
+
+  public final void testPutNewAccountWithOwnerAssignmentPromotesOnlyFirstHuman()
+      throws Exception {
+    AccountStore accountStore = newAccountStore();
+    HumanAccountDataImpl first = new HumanAccountDataImpl(HUMAN_ID);
+    HumanAccountDataImpl second = new HumanAccountDataImpl(SECOND_HUMAN_ID);
+
+    assertEquals(AccountStore.AccountCreationResult.CREATED,
+        accountStore.putNewAccountWithOwnerAssignmentResult(first, null));
+    assertEquals(AccountStore.AccountCreationResult.CREATED,
+        accountStore.putNewAccountWithOwnerAssignmentResult(second, null));
+
+    assertEquals(HumanAccountData.ROLE_OWNER,
+        accountStore.getAccount(HUMAN_ID).asHuman().getRole());
+    assertEquals(HumanAccountData.ROLE_USER,
+        accountStore.getAccount(SECOND_HUMAN_ID).asHuman().getRole());
+  }
+
+  public final void testEmailLookupMatchesLegacyMixedCaseEmail() throws Exception {
+    AccountStore accountStore = newAccountStore();
+    HumanAccountDataImpl account = new HumanAccountDataImpl(HUMAN_ID);
+    account.setEmail("Human@Example.COM");
+    accountStore.putAccount(account);
+
+    AccountData retrievedAccount = accountStore.getAccountByEmail("human@example.com");
+
+    assertNotNull(retrievedAccount);
+    assertEquals(HUMAN_ID, retrievedAccount.getId());
+  }
+
+  public final void testSocialIdentityLookupRemovesStaleMappingOnReplace() throws Exception {
+    AccountStore accountStore = newAccountStore();
+    HumanAccountDataImpl account = new HumanAccountDataImpl(HUMAN_ID);
+    account.addOrReplaceSocialIdentity(
+        new SocialIdentity("github", "old-subject", "human@example.com", "Human User", 1234L));
+    accountStore.putAccount(account);
+
+    HumanAccountDataImpl replacement = new HumanAccountDataImpl(HUMAN_ID);
+    replacement.addOrReplaceSocialIdentity(
+        new SocialIdentity("github", "new-subject", "human@example.com", "Human User", 2345L));
+    accountStore.putAccount(replacement);
+
+    assertNull(accountStore.getAccountBySocialIdentity("github", "old-subject"));
+    assertEquals(HUMAN_ID,
+        accountStore.getAccountBySocialIdentity("github", "new-subject").getId());
   }
 
   public final void testRoundtripRobotAccount() throws Exception {

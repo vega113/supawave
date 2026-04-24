@@ -26,6 +26,8 @@ import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * Human Account. Expected to be expanded when authentication is implemented.
@@ -40,6 +42,7 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   private String locale;
   private boolean emailConfirmed = true;
   private List<SearchesItem> searches;
+  private List<SocialIdentity> socialIdentities = Collections.emptyList();
 
   // Admin / role / status fields
   private String role = ROLE_USER;
@@ -131,6 +134,33 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   @Override
   public void setSearches(List<SearchesItem> searches) {
     this.searches = searches;
+  }
+
+  @Override
+  public List<SocialIdentity> getSocialIdentities() {
+    return Collections.unmodifiableList(socialIdentities);
+  }
+
+  @Override
+  public void setSocialIdentities(List<SocialIdentity> socialIdentities) {
+    if (socialIdentities == null || socialIdentities.isEmpty()) {
+      this.socialIdentities = Collections.emptyList();
+      return;
+    }
+    this.socialIdentities = Collections.unmodifiableList(new ArrayList<>(socialIdentities));
+  }
+
+  @Override
+  public void addOrReplaceSocialIdentity(SocialIdentity socialIdentity) {
+    Preconditions.checkNotNull(socialIdentity, "Social identity can not be null");
+    List<SocialIdentity> updated = new ArrayList<>();
+    for (SocialIdentity existing : socialIdentities) {
+      if (!existing.matches(socialIdentity.getProvider(), socialIdentity.getSubject())) {
+        updated.add(existing);
+      }
+    }
+    updated.add(socialIdentity);
+    this.socialIdentities = Collections.unmodifiableList(updated);
   }
 
   @Override
@@ -280,6 +310,7 @@ public final class HumanAccountDataImpl implements HumanAccountData {
     result = prime * result + ((email == null) ? 0 : email.hashCode());
     result = prime * result + ((locale == null) ? 0 : locale.hashCode());
     result = prime * result + ((searches == null) ? 0 : searches.hashCode());
+    result = prime * result + ((socialIdentities == null) ? 0 : socialIdentities.hashCode());
     return result;
   }
 
@@ -304,6 +335,9 @@ public final class HumanAccountDataImpl implements HumanAccountData {
     if (searches == null) {
       if (other.searches != null) return false;
     } else if (!searches.equals(other.searches)) return false;
+    if (socialIdentities == null) {
+      if (other.socialIdentities != null) return false;
+    } else if (!socialIdentities.equals(other.socialIdentities)) return false;
     return true;
   }
 }

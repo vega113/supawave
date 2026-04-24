@@ -58,7 +58,6 @@ public final class UserRegistrationServlet extends HttpServlet {
       java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
   private final AccountStore accountStore;
-  private final Object accountCreationLock = new Object();
   private final String domain;
   private final boolean registrationDisabled;
   private final String analyticsAccount;
@@ -183,9 +182,9 @@ public final class UserRegistrationServlet extends HttpServlet {
         account.setEmail(normalizedEmail);
       }
       account.setRegistrationTime(System.currentTimeMillis());
-      boolean accountCreated = persistAccountWithOwnerAssignment(account);
-      if (!accountCreated) {
-        return "An unexpected error occurred while trying to create the account";
+      String creationError = persistAccountWithOwnerAssignment(account);
+      if (creationError != null) {
+        return creationError;
       }
       recordUsersRegisteredAnalytics();
 
@@ -200,9 +199,9 @@ public final class UserRegistrationServlet extends HttpServlet {
         account.setEmail(normalizedEmail);
       }
       account.setRegistrationTime(System.currentTimeMillis());
-      boolean accountCreated = persistAccountWithOwnerAssignment(account);
-      if (!accountCreated) {
-        return "An unexpected error occurred while trying to create the account";
+      String creationError = persistAccountWithOwnerAssignment(account);
+      if (creationError != null) {
+        return creationError;
       }
       recordUsersRegisteredAnalytics();
 
@@ -219,23 +218,25 @@ public final class UserRegistrationServlet extends HttpServlet {
   /**
    * If no other accounts exist yet, promote this account to "owner".
    */
-  private boolean persistAccountWithOwnerAssignment(HumanAccountDataImpl account) {
+  private String persistAccountWithOwnerAssignment(HumanAccountDataImpl account) {
     try {
-      synchronized (accountCreationLock) {
-        assignOwnerIfFirst(account);
-        accountStore.putAccount(account);
+      AccountStore.AccountCreationResult accountCreated =
+          accountStore.putNewAccountWithOwnerAssignmentResult(account, null);
+      if (accountCreated != AccountStore.AccountCreationResult.CREATED) {
+        // Password registration never supplies a social identity, so ACCOUNT_EXISTS is the only
+        // expected non-created result.
+        return "Account already exists";
       }
-      return true;
+      logOwnerAssignment(account);
+      return null;
     } catch (PersistenceException e) {
       LOG.severe("Failed to create account for " + account.getId(), e);
-      return false;
+      return "An unexpected error occurred while trying to create the account";
     }
   }
 
-  private void assignOwnerIfFirst(HumanAccountDataImpl account) throws PersistenceException {
-    long count = accountStore.getAccountCount();
-    if (count == 0) {
-      account.setRole(HumanAccountData.ROLE_OWNER);
+  private void logOwnerAssignment(HumanAccountDataImpl account) {
+    if (HumanAccountData.ROLE_OWNER.equals(account.getRole())) {
       LOG.info("First registration — assigning owner role to " + account.getId());
     }
   }

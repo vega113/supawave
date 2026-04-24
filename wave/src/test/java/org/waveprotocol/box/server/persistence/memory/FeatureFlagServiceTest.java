@@ -89,6 +89,36 @@ public final class FeatureFlagServiceTest {
   }
 
   @Test
+  public void socialAuthFlagIsKnownButDisabledByDefault() throws Exception {
+    assertTrue(KnownFeatureFlags.isKnownFlag("social-auth"));
+
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    service = new FeatureFlagService(store);
+
+    assertFalse(service.getEnabledFlagNames(null).contains("social-auth"));
+    assertFalse(service.isGloballyEnabled("social-auth"));
+  }
+
+  @Test
+  public void socialAuthGlobalHelperIgnoresAllowedUsers() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(new FeatureFlag("social-auth", "Social sign-in", false, allowedUsers(true)));
+    service = new FeatureFlagService(store);
+
+    assertTrue(service.isEnabled("social-auth", "vega@supawave.ai"));
+    assertFalse(service.isGloballyEnabled("social-auth"));
+  }
+
+  @Test
+  public void socialAuthGlobalHelperUsesOnlyGlobalFlag() throws Exception {
+    MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
+    store.save(new FeatureFlag("social-auth", "Social sign-in", true, allowedUsers(false)));
+    service = new FeatureFlagService(store);
+
+    assertTrue(service.isGloballyEnabled("social-auth"));
+  }
+
+  @Test
   public void storedOtSearchFlagEnablesKnownFlag() throws Exception {
     MemoryFeatureFlagStore store = new MemoryFeatureFlagStore();
     store.save(

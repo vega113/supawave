@@ -39,6 +39,8 @@ import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.SessionManagerImpl;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRingPersistence;
 import org.waveprotocol.box.server.authentication.jwt.JwtKeyRing;
+import org.waveprotocol.box.server.authentication.oauth.DefaultSocialAuthHttpClient;
+import org.waveprotocol.box.server.authentication.oauth.SocialAuthHttpClient;
 import org.waveprotocol.box.server.jakarta.ServerRpcProviderJakartaProvider;
 import org.waveprotocol.box.server.rpc.ChangelogProvider;
 import org.waveprotocol.box.server.rpc.ChangelogServlet;
@@ -82,6 +84,7 @@ public class ServerModule extends AbstractModule {
     bind(ChangelogServlet.class).in(Singleton.class);
     bind(Configuration.class).toInstance(Configuration.getConfiguration());
     bind(SessionManager.class).to(SessionManagerImpl.class).in(Singleton.class);
+    bind(SocialAuthHttpClient.class).to(DefaultSocialAuthHttpClient.class).in(Singleton.class);
     // Bind via Provider to avoid Guice eagerly reflecting over ServerRpcProvider's methods
     // (which reference EE10 types) during injector creation.
     bind(ServerRpcProvider.class).toProvider(ServerRpcProviderJakartaProvider.class).in(Singleton.class);

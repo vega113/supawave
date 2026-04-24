@@ -44,6 +44,7 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
+import org.waveprotocol.box.server.account.SocialIdentity;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.AttachmentStore;
@@ -62,6 +63,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Level;
@@ -89,9 +91,15 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
 
   private static final String HUMAN_PASSWORD_FIELD = "passwordDigest";
   private static final String HUMAN_SEARCHES_FIELD = "searches";
+  private static final String HUMAN_SOCIAL_IDENTITIES_FIELD = "socialIdentities";
   private static final String SEARCH_NAME_FIELD = "name";
   private static final String SEARCH_QUERY_FIELD = "query";
   private static final String SEARCH_PINNED_FIELD = "pinned";
+  private static final String SOCIAL_PROVIDER_FIELD = "provider";
+  private static final String SOCIAL_SUBJECT_FIELD = "subject";
+  private static final String SOCIAL_EMAIL_FIELD = "email";
+  private static final String SOCIAL_DISPLAY_NAME_FIELD = "displayName";
+  private static final String SOCIAL_LINKED_AT_FIELD = "linkedAtMillis";
 
   private static final String PASSWORD_DIGEST_FIELD = "digest";
   private static final String PASSWORD_SALT_FIELD = "salt";
@@ -310,18 +318,37 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   }
 
   @Override
-  public void putAccount(AccountData account) {
-    DBObject object = getDBObjectForParticipant(account.getId());
-
-    if (account.isHuman()) {
-      object.put(ACCOUNT_HUMAN_DATA_FIELD, humanToObject(account.asHuman()));
-    } else if (account.isRobot()) {
-      object.put(ACCOUNT_ROBOT_DATA_FIELD, robotToObject(account.asRobot()));
-    } else {
-      throw new IllegalStateException("Account is neither a human nor a robot");
+  public AccountData getAccountBySocialIdentity(String provider, String subject)
+      throws PersistenceException {
+    if (provider == null || provider.trim().isEmpty()
+        || subject == null || subject.trim().isEmpty()) {
+      return null;
     }
+    try {
+      DBObject match = new BasicDBObject(SOCIAL_PROVIDER_FIELD,
+          provider.trim().toLowerCase(Locale.ROOT))
+          .append(SOCIAL_SUBJECT_FIELD, subject.trim());
+      DBObject query = new BasicDBObject(
+          ACCOUNT_HUMAN_DATA_FIELD + "." + HUMAN_SOCIAL_IDENTITIES_FIELD,
+          new BasicDBObject("$elemMatch", match));
+      DBObject result = getAccountCollection().findOne(query);
+      if (result == null) {
+        return null;
+      }
+      String idAddress = (String) result.get("_id");
+      DBObject human = (DBObject) result.get(ACCOUNT_HUMAN_DATA_FIELD);
+      if (human == null) {
+        return null;
+      }
+      return objectToHuman(ParticipantId.ofUnsafe(idAddress), human);
+    } catch (RuntimeException e) {
+      throw new PersistenceException("Failed to look up social identity", e);
+    }
+  }
 
-    getAccountCollection().save(object);
+  @Override
+  public void putAccount(AccountData account) {
+    getAccountCollection().save(accountToDBObject(account));
   }
 
   @Override
@@ -365,10 +392,95 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     return ownedRobots;
   }
 
+  @Override
+  public List<AccountData> getAllAccounts() throws PersistenceException {
+    try {
+      List<AccountData> result = new ArrayList<AccountData>();
+      for (DBObject object : getAccountCollection().find()) {
+        String idAddress = (String) object.get("_id");
+        DBObject human = (DBObject) object.get(ACCOUNT_HUMAN_DATA_FIELD);
+        if (human != null) {
+          result.add(objectToHuman(ParticipantId.ofUnsafe(idAddress), human));
+        }
+      }
+      return result;
+    } catch (RuntimeException e) {
+      throw new PersistenceException("Failed to list human accounts", e);
+    }
+  }
+
+  @Override
+  public long getAccountCount() throws PersistenceException {
+    try {
+      return getAccountCollection().count(
+          new BasicDBObject(ACCOUNT_HUMAN_DATA_FIELD, new BasicDBObject("$exists", true)));
+    } catch (MongoException e) {
+      throw new PersistenceException("Failed to count human accounts", e);
+    }
+  }
+
+  @Override
+  public synchronized AccountCreationResult putNewAccountWithOwnerAssignmentResult(
+      AccountData account, SocialIdentity socialIdentity) throws PersistenceException {
+    if (getAccount(account.getId()) != null) {
+      return AccountCreationResult.ACCOUNT_EXISTS;
+    }
+    if (socialIdentity != null
+        && getAccountBySocialIdentity(socialIdentity.getProvider(), socialIdentity.getSubject())
+            != null) {
+      return AccountCreationResult.SOCIAL_IDENTITY_EXISTS;
+    }
+    if (account.isHuman() && getAccountCount() == 0) {
+      account.asHuman().setRole(HumanAccountData.ROLE_OWNER);
+    }
+    try {
+      getAccountCollection().insert(accountToDBObject(account));
+      return AccountCreationResult.CREATED;
+    } catch (MongoException e) {
+      if (isDuplicateKey(e)) {
+        return duplicateAccountCreationResult(account, socialIdentity);
+      }
+      throw new PersistenceException("Failed to create account", e);
+    }
+  }
+
+  private AccountCreationResult duplicateAccountCreationResult(AccountData account,
+      SocialIdentity socialIdentity) throws PersistenceException {
+    if (getAccount(account.getId()) != null) {
+      return AccountCreationResult.ACCOUNT_EXISTS;
+    }
+    if (socialIdentity != null
+        && getAccountBySocialIdentity(socialIdentity.getProvider(), socialIdentity.getSubject())
+            != null) {
+      return AccountCreationResult.SOCIAL_IDENTITY_EXISTS;
+    }
+    return AccountCreationResult.ACCOUNT_EXISTS;
+  }
+
+  private static boolean isDuplicateKey(MongoException e) {
+    // 11000 is the modern unique-index violation code; keep legacy duplicate-key codes for older
+    // Mongo servers still reachable through this driver.
+    int code = e.getCode();
+    return code == 11000 || code == 11001 || code == 12582;
+  }
+
   private DBObject getDBObjectForParticipant(ParticipantId id) {
     DBObject query = new BasicDBObject();
     query.put("_id", id.getAddress());
     return query;
+  }
+
+  private DBObject accountToDBObject(AccountData account) {
+    DBObject object = getDBObjectForParticipant(account.getId());
+
+    if (account.isHuman()) {
+      object.put(ACCOUNT_HUMAN_DATA_FIELD, humanToObject(account.asHuman()));
+    } else if (account.isRobot()) {
+      object.put(ACCOUNT_ROBOT_DATA_FIELD, robotToObject(account.asRobot()));
+    } else {
+      throw new IllegalStateException("Account is neither a human nor a robot");
+    }
+    return object;
   }
 
   private DBCollection getAccountCollection() {
@@ -404,6 +516,31 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
       object.put(HUMAN_SEARCHES_FIELD, searchList);
     }
 
+    List<SocialIdentity> identities = account.getSocialIdentities();
+    if (identities != null && !identities.isEmpty()) {
+      BasicBSONList identityList = new BasicBSONList();
+      for (SocialIdentity identity : identities) {
+        identityList.add(socialIdentityToObject(identity));
+      }
+      object.put(HUMAN_SOCIAL_IDENTITIES_FIELD, identityList);
+    }
+
+    return object;
+  }
+
+  private DBObject socialIdentityToObject(SocialIdentity identity) {
+    DBObject object = new BasicDBObject()
+        .append(SOCIAL_PROVIDER_FIELD, identity.getProvider())
+        .append(SOCIAL_SUBJECT_FIELD, identity.getSubject());
+    if (identity.getEmail() != null) {
+      object.put(SOCIAL_EMAIL_FIELD, identity.getEmail());
+    }
+    if (identity.getDisplayName() != null) {
+      object.put(SOCIAL_DISPLAY_NAME_FIELD, identity.getDisplayName());
+    }
+    if (identity.getLinkedAtMillis() != 0L) {
+      object.put(SOCIAL_LINKED_AT_FIELD, identity.getLinkedAtMillis());
+    }
     return object;
   }
 
@@ -435,7 +572,30 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
       account.setSearches(searches);
     }
 
+    @SuppressWarnings("unchecked")
+    List<DBObject> socialList = (List<DBObject>) object.get(HUMAN_SOCIAL_IDENTITIES_FIELD);
+    if (socialList != null && !socialList.isEmpty()) {
+      List<SocialIdentity> identities = new ArrayList<SocialIdentity>();
+      for (DBObject socialObject : socialList) {
+        String provider = (String) socialObject.get(SOCIAL_PROVIDER_FIELD);
+        String subject = (String) socialObject.get(SOCIAL_SUBJECT_FIELD);
+        if (provider != null && subject != null) {
+          identities.add(new SocialIdentity(
+              provider,
+              subject,
+              (String) socialObject.get(SOCIAL_EMAIL_FIELD),
+              (String) socialObject.get(SOCIAL_DISPLAY_NAME_FIELD),
+              longValue(socialObject.get(SOCIAL_LINKED_AT_FIELD))));
+        }
+      }
+      account.setSocialIdentities(identities);
+    }
+
     return account;
+  }
+
+  private static long longValue(Object value) {
+    return value instanceof Number ? ((Number) value).longValue() : 0L;
   }
 
   // ****** RobotAccountData serialization

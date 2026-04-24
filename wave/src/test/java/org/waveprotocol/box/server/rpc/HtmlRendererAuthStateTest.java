@@ -4,6 +4,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 
 import org.junit.Test;
+import java.util.List;
 
 public final class HtmlRendererAuthStateTest {
   @Test
@@ -23,6 +24,107 @@ public final class HtmlRendererAuthStateTest {
     assertTrue(html.contains("aria-live=\"polite\""));
     assertTrue(html.contains("Forgot password?"));
     assertTrue(html.contains("Login with email link"));
+  }
+
+  @Test
+  public void signInPageOmitsSocialButtonsByDefault() {
+    String html = HtmlRenderer.renderAuthenticationPage(
+        "example.com",
+        "",
+        AuthenticationServlet.RESPONSE_STATUS_NONE,
+        false,
+        "",
+        true,
+        false);
+
+    assertFalse(html.contains("/auth/social/google"));
+    assertFalse(html.contains("/auth/social/github"));
+  }
+
+  @Test
+  public void signInPageShowsConfiguredSocialButtons() {
+    String html = HtmlRenderer.renderAuthenticationPage(
+        "example.com",
+        "",
+        AuthenticationServlet.RESPONSE_STATUS_NONE,
+        false,
+        "",
+        true,
+        false,
+        List.of(
+            new HtmlRenderer.SocialProviderLink("Google", "/auth/social/google"),
+            new HtmlRenderer.SocialProviderLink("GitHub", "/auth/social/github")));
+
+    assertTrue(html.contains("Continue with Google"));
+    assertTrue(html.contains("href=\"/auth/social/google\""));
+    assertTrue(html.contains("Continue with GitHub"));
+    assertTrue(html.contains("href=\"/auth/social/github\""));
+  }
+
+  @Test
+  public void signInPageFiltersBlankSocialButtons() {
+    String html = HtmlRenderer.renderAuthenticationPage(
+        "example.com",
+        "",
+        AuthenticationServlet.RESPONSE_STATUS_NONE,
+        false,
+        "",
+        true,
+        false,
+        List.of(
+            new HtmlRenderer.SocialProviderLink("", "/auth/social/google"),
+            new HtmlRenderer.SocialProviderLink("GitHub", "")));
+
+    assertFalse(html.contains("<div class=\"social-auth-options\""));
+    assertFalse(html.contains("Continue with"));
+  }
+
+  @Test
+  public void socialUsernamePageRequiresSupaWaveUsername() {
+    String html = HtmlRenderer.renderSocialUsernamePage(
+        "example.com",
+        "Google",
+        "social@example.com",
+        "",
+        AuthenticationServlet.RESPONSE_STATUS_NONE,
+        "csrf-123",
+        "");
+
+    assertTrue(html.contains("Choose your SupaWave username"));
+    assertTrue(html.contains("social@example.com"));
+    assertTrue(html.contains("name=\"address\""));
+    assertTrue(html.contains("name=\"csrf\" value=\"csrf-123\""));
+  }
+
+  @Test
+  public void socialFailurePageHonorsEmailAuthFlags() {
+    String html = HtmlRenderer.renderSocialFailurePage(
+        "example.com",
+        "Social sign-in could not be completed.",
+        "",
+        false,
+        false,
+        true);
+
+    assertTrue(html.contains("Social sign-in could not be completed."));
+    assertFalse(html.contains("Forgot password?"));
+    assertTrue(html.contains("Login with email link"));
+  }
+
+  @Test
+  public void socialFailurePageHonorsDisabledLoginPage() {
+    String html = HtmlRenderer.renderSocialFailurePage(
+        "example.com",
+        "Social sign-in could not be completed.",
+        "",
+        true,
+        true,
+        true);
+
+    assertTrue(html.contains("HTTP authentication disabled by administrator."));
+    assertFalse(html.contains("id=\"wiab_loginform\""));
+    assertFalse(html.contains("Forgot password?"));
+    assertFalse(html.contains("Login with email link"));
   }
 
   @Test

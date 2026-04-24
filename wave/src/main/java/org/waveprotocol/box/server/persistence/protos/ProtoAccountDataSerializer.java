@@ -34,6 +34,7 @@ import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.account.RobotAccountData;
 import org.waveprotocol.box.server.account.RobotAccountDataImpl;
+import org.waveprotocol.box.server.account.SocialIdentity;
 import org.waveprotocol.box.server.authentication.PasswordDigest;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoAccountData;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoAccountData.AccountDataType;
@@ -43,6 +44,7 @@ import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.Prot
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoRobotCapabilities;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoRobotCapability;
 import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoSearchesItem;
+import org.waveprotocol.box.server.persistence.protos.ProtoAccountStoreData.ProtoSocialIdentity;
 import org.waveprotocol.box.server.robots.RobotCapabilities;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 
@@ -107,6 +109,21 @@ public class ProtoAccountDataSerializer {
             .setPinned(item.isPinned())
             .build());
       }
+    }
+    for (SocialIdentity identity : account.getSocialIdentities()) {
+      ProtoSocialIdentity.Builder socialBuilder = ProtoSocialIdentity.newBuilder()
+          .setProvider(identity.getProvider())
+          .setSubject(identity.getSubject());
+      if (identity.getEmail() != null) {
+        socialBuilder.setEmail(identity.getEmail());
+      }
+      if (identity.getDisplayName() != null) {
+        socialBuilder.setDisplayName(identity.getDisplayName());
+      }
+      if (identity.getLinkedAtMillis() != 0L) {
+        socialBuilder.setLinkedAtMillis(identity.getLinkedAtMillis());
+      }
+      builder.addSocialIdentity(socialBuilder.build());
     }
     return builder.build();
   }
@@ -232,6 +249,18 @@ public class ProtoAccountDataSerializer {
         searches.add(new SearchesItem(item.getName(), item.getQuery(), item.getPinned()));
       }
       account.setSearches(searches);
+    }
+    if (data.getSocialIdentityCount() > 0) {
+      java.util.List<SocialIdentity> socialIdentities = new java.util.ArrayList<>();
+      for (ProtoSocialIdentity identity : data.getSocialIdentityList()) {
+        socialIdentities.add(new SocialIdentity(
+            identity.getProvider(),
+            identity.getSubject(),
+            identity.hasEmail() ? identity.getEmail() : null,
+            identity.hasDisplayName() ? identity.getDisplayName() : null,
+            identity.hasLinkedAtMillis() ? identity.getLinkedAtMillis() : 0L));
+      }
+      account.setSocialIdentities(socialIdentities);
     }
     return account;
   }

@@ -31,6 +31,7 @@ import org.waveprotocol.box.server.persistence.MongoMigrationRunner;
 import org.waveprotocol.box.server.persistence.mongodb4.Mongo4DbProvider;
 import org.waveprotocol.box.server.persistence.migrations.changesets.BaselineMongoSchema_001;
 import org.waveprotocol.box.server.persistence.migrations.changesets.DeltaAppliedVersionUniqueIndex_002;
+import org.waveprotocol.box.server.persistence.migrations.changesets.SocialIdentityUniqueIndex_003;
 
 /**
  * Runs the Mongock startup migration pass for MongoDB v4-backed deployments.
@@ -70,6 +71,7 @@ final class MongockMongoMigrationRunner implements MongoMigrationRunner {
           .setExecutionId(EXECUTION_ID)
           .addMigrationClass(BaselineMongoSchema_001.class)
           .addMigrationClass(DeltaAppliedVersionUniqueIndex_002.class)
+          .addMigrationClass(SocialIdentityUniqueIndex_003.class)
           .addDependency(MongoMigrationConfig.class, config)
           .addDependency(MongoDatabase.class, database)
           .buildRunner();

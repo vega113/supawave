@@ -60,10 +60,11 @@ describe("<task-metadata-popover>", () => {
       ></task-metadata-popover>
     `);
     el.renderRoot.querySelector("select[name='assignee']").value = "bob@example.com";
-    el.renderRoot.querySelector("input[name='dueDate']").value = "2026-05-01";
+    const dueDateInput = el.renderRoot.querySelector("input[name='dueDate']");
+    dueDateInput.value = "2026-05-01";
     const eventPromise = oneEvent(el, "task-metadata-submit");
 
-    el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    dueDateInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     expect((await eventPromise).detail).to.deep.equal({
       taskId: "task-1",

@@ -70,6 +70,34 @@ describe("<toolbar-overflow-menu>", () => {
     );
   });
 
+  it("skips disabled slotted toolbar-button elements during keyboard navigation", async () => {
+    const el = await fixture(html`
+      <toolbar-overflow-menu label="More toolbar actions">
+        <button data-action="history">History</button>
+        <toolbar-button action="archive" label="Archive" disabled></toolbar-button>
+        <toolbar-button action="clear-formatting" label="Clear formatting"></toolbar-button>
+      </toolbar-overflow-menu>
+    `);
+    const trigger = el.renderRoot.querySelector("button[aria-haspopup='true']");
+    const historyButton = el.querySelector("[data-action='history']");
+    const clearButton = el.querySelector("toolbar-button[action='clear-formatting']");
+
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await el.updateComplete;
+
+    expect(historyButton).to.equal(document.activeElement);
+
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+    expect(clearButton.renderRoot.querySelector("button")).to.equal(
+      clearButton.shadowRoot.activeElement
+    );
+
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+
+    expect(historyButton).to.equal(document.activeElement);
+  });
+
   it("closes and forwards actions from slotted toolbar-button elements", async () => {
     const el = await fixture(html`
       <toolbar-overflow-menu label="More toolbar actions">

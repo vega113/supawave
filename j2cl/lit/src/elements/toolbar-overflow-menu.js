@@ -166,6 +166,8 @@ export class ToolbarOverflowMenu extends LitElement {
   }
 
   items() {
+    // toolbar-button keeps its native button in shadow DOM, so selecting the host
+    // adds it to the focus order without duplicating the internal control.
     return Array.from(this.querySelectorAll("toolbar-button,button,[href],[tabindex]")).filter(
       item => !this.isItemDisabled(item)
     );

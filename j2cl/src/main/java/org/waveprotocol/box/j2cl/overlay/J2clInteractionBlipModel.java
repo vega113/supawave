@@ -62,7 +62,7 @@ public final class J2clInteractionBlipModel {
             ? Collections.<SidecarReactionEntry>emptyList()
             : Collections.unmodifiableList(new ArrayList<SidecarReactionEntry>(reactionEntries));
     this.mentionRanges = refineMentionRanges(this.text, this.annotationRanges);
-    this.taskItems = refineTaskItems(this.blipId, this.annotationRanges);
+    this.taskItems = refineTaskItems(this.blipId, this.annotationRanges, this.editable);
     this.reactionSummaries = refineReactionSummaries(this.reactionEntries);
   }
 
@@ -131,7 +131,7 @@ public final class J2clInteractionBlipModel {
   }
 
   private static List<J2clTaskItemModel> refineTaskItems(
-      String blipId, List<SidecarAnnotationRange> annotationRanges) {
+      String blipId, List<SidecarAnnotationRange> annotationRanges, boolean editable) {
     if (annotationRanges == null || annotationRanges.isEmpty()) {
       return Collections.emptyList();
     }
@@ -152,7 +152,7 @@ public final class J2clInteractionBlipModel {
               findTaskValue(annotationRanges, "task/assignee", taskIdRange),
               parseLong(findTaskValue(annotationRanges, "task/dueTs", taskIdRange)),
               false,
-              true));
+              editable));
     }
     return Collections.unmodifiableList(tasks);
   }

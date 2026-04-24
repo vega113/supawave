@@ -133,6 +133,23 @@ public class J2clOverlayModelTest {
   }
 
   @Test
+  public void interactionBlipTaskItemsFollowBlipEditability() {
+    J2clInteractionBlipModel blip =
+        new J2clInteractionBlipModel(
+            "b+root",
+            "b+root",
+            "author@example.com",
+            "Review spec",
+            Arrays.asList("author@example.com"),
+            false,
+            Arrays.asList(new SidecarAnnotationRange("task/id", "task-123", 0, 11)),
+            Collections.<SidecarReactionEntry>emptyList());
+
+    Assert.assertEquals(1, blip.getTaskItems().size());
+    Assert.assertFalse(blip.getTaskItems().get(0).isEditable());
+  }
+
+  @Test
   public void interactionBlipRefinedListsAreImmutable() {
     ArrayList<String> participantContext =
         new ArrayList<String>(Arrays.asList("alice@example.com"));

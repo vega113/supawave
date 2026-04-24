@@ -79,12 +79,18 @@ public final class J2clSelectedWaveProjector {
         && !previous.getReadBlips().isEmpty()) {
       readBlips = previous.getReadBlips();
     }
+    J2clSidecarWriteSession writeSession = buildWriteSession(selectedWaveId, update, previous);
+    boolean interactionEditable = writeSession != null;
     List<J2clInteractionBlipModel> interactionBlips =
-        extractInteractionBlips(update.getDocuments(), participantIds);
+        extractInteractionBlips(update.getDocuments(), participantIds, interactionEditable);
     if (previousMatchesWave && previous != null && !previous.getInteractionBlips().isEmpty()) {
       interactionBlips =
           mergePreviousInteractionBlips(
-              interactionBlips, update.getDocuments(), previous.getInteractionBlips());
+              interactionBlips,
+              update.getDocuments(),
+              previous.getInteractionBlips(),
+              participantIds,
+              interactionEditable);
     }
 
     String detailText = buildDetailText(update);
@@ -134,7 +140,7 @@ public final class J2clSelectedWaveProjector {
         readBlips,
         viewportState,
         interactionBlips,
-        buildWriteSession(selectedWaveId, update, previous),
+        writeSession,
         unreadCount,
         read,
         readStateKnown,
@@ -356,7 +362,9 @@ public final class J2clSelectedWaveProjector {
   }
 
   private static List<J2clInteractionBlipModel> extractInteractionBlips(
-      List<SidecarSelectedWaveDocument> documents, List<String> participantIds) {
+      List<SidecarSelectedWaveDocument> documents,
+      List<String> participantIds,
+      boolean editable) {
     if (documents == null || documents.isEmpty()) {
       return Collections.emptyList();
     }
@@ -379,7 +387,7 @@ public final class J2clSelectedWaveProjector {
               document.getAuthor(),
               document.getTextContent(),
               participantIds,
-              true,
+              editable,
               document.getAnnotationRanges(),
               reactions == null ? Collections.<SidecarReactionEntry>emptyList() : reactions));
     }
@@ -389,7 +397,9 @@ public final class J2clSelectedWaveProjector {
   private static List<J2clInteractionBlipModel> mergePreviousInteractionBlips(
       List<J2clInteractionBlipModel> projectedBlips,
       List<SidecarSelectedWaveDocument> documents,
-      List<J2clInteractionBlipModel> previousBlips) {
+      List<J2clInteractionBlipModel> previousBlips,
+      List<String> participantIds,
+      boolean editable) {
     Map<String, List<SidecarReactionEntry>> reactionsByBlip = extractReactionsByBlip(documents);
     Map<String, J2clInteractionBlipModel> previousByBlip = indexInteractionBlips(previousBlips);
     List<J2clInteractionBlipModel> merged = new ArrayList<J2clInteractionBlipModel>();
@@ -408,8 +418,8 @@ public final class J2clSelectedWaveProjector {
               projected.getDocumentId(),
               projected.getAuthor(),
               projected.getText(),
-              projected.getParticipantContext(),
-              projected.isEditable(),
+              participantIds,
+              editable,
               projected.getAnnotationRanges(),
               reactions));
       seenBlipIds.add(projected.getBlipId());
@@ -428,8 +438,8 @@ public final class J2clSelectedWaveProjector {
               previous.getDocumentId(),
               previous.getAuthor(),
               previous.getText(),
-              previous.getParticipantContext(),
-              previous.isEditable(),
+              participantIds,
+              editable,
               previous.getAnnotationRanges(),
               reactions));
     }

@@ -339,6 +339,41 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void projectMarksInteractionBlipsReadOnlyWithoutWriteSession() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                "",
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root",
+                        "user@example.com",
+                        7L,
+                        8L,
+                        "Review spec",
+                        Arrays.asList(
+                            new SidecarAnnotationRange("task/id", "task-123", 0, 11)),
+                        Collections.<SidecarReactionEntry>emptyList())),
+                null),
+            null,
+            0);
+
+    Assert.assertNull(projected.getWriteSession());
+    J2clInteractionBlipModel blip = projected.getInteractionBlips().get(0);
+    Assert.assertFalse(blip.isEditable());
+    Assert.assertEquals(1, blip.getTaskItems().size());
+    Assert.assertFalse(blip.getTaskItems().get(0).isEditable());
+  }
+
+  @Test
   public void projectSkipsTaskItemsWithoutTaskId() {
     J2clSelectedWaveModel projected =
         J2clSelectedWaveProjector.project(
@@ -1727,6 +1762,67 @@ public class J2clSelectedWaveProjectorTest {
     SidecarSelectedWaveUpdate noHash = updateWithVersionAndHash(5L, null);
     Assert.assertNull(
         J2clSelectedWaveProjector.project(WAVE_ID, null, noHash, null, 0).getWriteSession());
+  }
+
+  @Test
+  public void projectRefreshesParticipantContextWhenCarryingForwardPreviousInteractionBlips() {
+    J2clSelectedWaveModel first =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("alice@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root",
+                        "author@example.com",
+                        7L,
+                        8L,
+                        "Root text")),
+                null),
+            null,
+            0);
+
+    J2clSelectedWaveModel second =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                2,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                10L,
+                "HASH-2",
+                Arrays.asList("alice@example.com", "bob@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "react+b+root",
+                        "author@example.com",
+                        7L,
+                        8L,
+                        "",
+                        Collections.<SidecarAnnotationRange>emptyList(),
+                        Arrays.asList(
+                            new SidecarReactionEntry(
+                                "tada", Arrays.asList("alice@example.com"))))),
+                null),
+            first,
+            0);
+
+    Assert.assertEquals(1, second.getInteractionBlips().size());
+    J2clInteractionBlipModel blip = second.getInteractionBlips().get(0);
+    Assert.assertEquals(
+        Arrays.asList("alice@example.com", "bob@example.com"),
+        blip.getParticipantContext());
+    Assert.assertEquals(1, blip.getReactionEntries().size());
+    Assert.assertEquals("tada", blip.getReactionEntries().get(0).getEmoji());
   }
 
   @Test

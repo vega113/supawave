@@ -9,7 +9,7 @@ describe("<toolbar-overflow-menu>", () => {
         <button data-action="clear-formatting">Clear formatting</button>
       </toolbar-overflow-menu>
     `);
-    const trigger = el.renderRoot.querySelector("button[aria-haspopup='menu']");
+    const trigger = el.renderRoot.querySelector("button[aria-haspopup='true']");
 
     trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await el.updateComplete;

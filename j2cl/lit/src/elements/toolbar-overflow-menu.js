@@ -93,9 +93,9 @@ export class ToolbarOverflowMenu extends LitElement {
   };
 
   onLightDomClick = (event) => {
-    const action = event.target && event.target.getAttribute
-      ? event.target.getAttribute("data-action")
-      : "";
+    const actionEl =
+      event.target instanceof Element ? event.target.closest("[data-action]") : null;
+    const action = actionEl ? actionEl.getAttribute("data-action") : "";
     if (!action) {
       return;
     }

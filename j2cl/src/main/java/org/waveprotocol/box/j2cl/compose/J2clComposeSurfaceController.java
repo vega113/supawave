@@ -148,6 +148,9 @@ public final class J2clComposeSurfaceController {
   }
 
   public void onWriteSessionChanged(J2clSidecarWriteSession nextWriteSession) {
+    if (signedOut) {
+      return;
+    }
     if (sessionChanged(nextWriteSession)) {
       replyGeneration++;
       if (replySubmitting) {

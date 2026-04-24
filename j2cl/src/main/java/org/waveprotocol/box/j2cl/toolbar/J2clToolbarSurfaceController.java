@@ -72,7 +72,7 @@ public final class J2clToolbarSurfaceController {
   private final View view;
   private final ActionDispatcher dispatcher;
   private SelectedWaveState selectedWaveState =
-      new SelectedWaveState(false, false, false, false, false);
+      new SelectedWaveState(false, false, false, false, false, false);
   private EditState editState = new EditState(false);
   private J2clSidecarWriteSession writeSession;
   private J2clDailyToolbarAction errorAction;
@@ -94,7 +94,8 @@ public final class J2clToolbarSurfaceController {
   }
 
   public void onSelectedWaveStateChanged(SelectedWaveState state) {
-    selectedWaveState = state == null ? new SelectedWaveState(false, false, false, false, false) : state;
+    selectedWaveState =
+        state == null ? new SelectedWaveState(false, false, false, false, false, false) : state;
     render();
   }
 

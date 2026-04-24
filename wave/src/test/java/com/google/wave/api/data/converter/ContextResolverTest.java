@@ -44,6 +44,7 @@ import org.waveprotocol.wave.model.wave.Wavelet;
 import org.waveprotocol.wave.model.wave.opbased.ObservableWaveView;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -93,6 +94,71 @@ public class ContextResolverTest extends TestCase {
     assertEquals(2, blips.size());
     assertTrue(blips.contains(conversation.getRootThread().getFirstBlip().getId()));
     assertTrue(blips.contains(newBlip.getId()));
+  }
+
+  public void testResolveAllContextAddsRootAndReplyThreadBlips() throws Exception {
+    ConversationBlip rootBlip = conversation.getRootThread().getFirstBlip();
+    ConversationBlip secondRootBlip = getSecondRootBlip();
+    ConversationBlip replyBlip = rootBlip.addReplyThread().appendBlip();
+    ConversationBlip secondReplyBlip = replyBlip.getThread().appendBlip();
+    eventMessages.requireBlip(rootBlip.getId(), Lists.newArrayList(Context.ALL));
+
+    ContextResolver.resolveContext(
+        eventMessages, wavelet, conversation, new EventDataConverterV21());
+
+    assertBlipDataContainsExactly(rootBlip, secondRootBlip, replyBlip, secondReplyBlip);
+  }
+
+  public void testResolveContextSkipsDeletedRequiredBlip() throws Exception {
+    ConversationBlip deletedBlip = conversation.getRootThread().appendBlip();
+    String deletedBlipId = deletedBlip.getId();
+    deletedBlip.delete();
+    eventMessages.requireBlip(
+        deletedBlipId, Lists.newArrayList(Context.PARENT, Context.CHILDREN, Context.SIBLINGS));
+
+    ContextResolver.resolveContext(
+        eventMessages, wavelet, conversation, new EventDataConverterV21());
+
+    assertTrue(eventMessages.getBlipData().isEmpty());
+  }
+
+  public void testResolveParentContextAddsRequiredBlipAndParent() throws Exception {
+    ConversationBlip rootBlip = conversation.getRootThread().getFirstBlip();
+    ConversationBlip secondRootBlip = getSecondRootBlip();
+    eventMessages.requireBlip(secondRootBlip.getId(), Lists.newArrayList(Context.PARENT));
+
+    ContextResolver.resolveContext(
+        eventMessages, wavelet, conversation, new EventDataConverterV21());
+
+    assertBlipDataContainsExactly(rootBlip, secondRootBlip);
+  }
+
+  public void testResolveSiblingsContextAddsRequiredBlipAndSiblings() throws Exception {
+    ConversationBlip rootBlip = conversation.getRootThread().getFirstBlip();
+    ConversationBlip secondRootBlip = getSecondRootBlip();
+    ConversationBlip thirdRootBlip = conversation.getRootThread().appendBlip();
+    eventMessages.requireBlip(secondRootBlip.getId(), Lists.newArrayList(Context.SIBLINGS));
+
+    ContextResolver.resolveContext(
+        eventMessages, wavelet, conversation, new EventDataConverterV21());
+
+    assertBlipDataContainsExactly(rootBlip, secondRootBlip, thirdRootBlip);
+  }
+
+  private void assertBlipDataContainsExactly(ConversationBlip... expectedBlips) {
+    Set<String> blips = eventMessages.getBlipData().keySet();
+    assertEquals(expectedBlips.length, blips.size());
+    for (ConversationBlip blip : expectedBlips) {
+      assertTrue(blips.contains(blip.getId()));
+    }
+  }
+
+  private ConversationBlip getSecondRootBlip() {
+    Iterator<? extends ConversationBlip> blips = conversation.getRootThread().getBlips().iterator();
+    assertTrue("Expected at least one root blip", blips.hasNext());
+    blips.next();
+    assertTrue("Expected at least two root blips", blips.hasNext());
+    return blips.next();
   }
 
   private Wavelet createMockWavelet(Conversation forConversation) {

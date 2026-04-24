@@ -49,8 +49,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void routeUrlChangedSyncsReturnTargetAndPublishesModel() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
 
     controller.onRouteUrlChanged("?view=j2cl-root&q=in%3Ainbox");
 
@@ -66,8 +65,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void routeStateHandlerPublishesSelectedWaveAndDelegates() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     FakeRouteStateHandler delegate = new FakeRouteStateHandler();
     J2clSearchPanelController.RouteStateHandler handler =
         controller.routeStateHandler(delegate);
@@ -89,8 +87,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void routeStateHandlerClearsSelectedWaveBackToQueryStatus() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     J2clSearchPanelController.RouteStateHandler handler =
         controller.routeStateHandler(null);
 
@@ -108,8 +105,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void routeStateHandlerIgnoresNullRouteState() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     J2clSearchPanelController.RouteStateHandler handler =
         controller.routeStateHandler(null);
 
@@ -121,8 +117,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void selectedWaveAdapterClearsToLastKnownQueryStatus() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     J2clSearchPanelController.RouteStateHandler handler =
         controller.routeStateHandler(null);
     J2clSidecarRouteController.SelectedWaveController selectedWaveController =
@@ -142,8 +137,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void repeatedEquivalentStatusStillPublishesModelTransitions() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     J2clSearchPanelController.RouteStateHandler handler =
         controller.routeStateHandler(null);
 
@@ -194,8 +188,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void interleavedRouteSelectionAndClearTransitionsRemainMonotonic() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     J2clSearchPanelController.RouteStateHandler handler =
         controller.routeStateHandler(null);
 
@@ -213,8 +206,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void selectedWaveAdapterPublishesContinuityAndPreservesDelegateCall() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     FakeSelectedWaveController delegate = new FakeSelectedWaveController();
     J2clSidecarRouteController.SelectedWaveController selectedWaveController =
         controller.selectedWaveController(delegate);
@@ -233,8 +225,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void selectedWaveAdapterAllowsNullDelegateForObservationOnly() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     J2clSidecarRouteController.SelectedWaveController selectedWaveController =
         controller.selectedWaveController(null);
 
@@ -247,8 +238,7 @@ public class J2clRootLiveSurfaceControllerTest {
   @Test
   public void routeStateHandlerAllowsNullDelegateForObservationOnly() {
     FakeShellSurface shell = new FakeShellSurface();
-    J2clRootLiveSurfaceController controller =
-        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clRootLiveSurfaceController controller = startedController(shell);
     J2clSearchPanelController.RouteStateHandler handler =
         controller.routeStateHandler(null);
 
@@ -256,6 +246,49 @@ public class J2clRootLiveSurfaceControllerTest {
 
     Assert.assertEquals("in:inbox", shell.lastModel().getQuery());
     Assert.assertEquals("Showing search results for in:inbox.", shell.lastModel().getStatusText());
+  }
+
+  @Test
+  public void callbacksBeforeStartDoNotPublishOrSyncReturnTarget() {
+    FakeShellSurface shell = new FakeShellSurface();
+    J2clRootLiveSurfaceController controller =
+        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clSearchPanelController.RouteStateHandler routeStateHandler =
+        controller.routeStateHandler(null);
+    J2clSidecarRouteController.SelectedWaveController selectedWaveController =
+        controller.selectedWaveController(null);
+
+    controller.onRouteUrlChanged("?view=j2cl-root&q=in%3Ainbox");
+    routeStateHandler.onRouteStateChanged(
+        new J2clSidecarRouteState("in:inbox", "example.com/w+123"), null, false);
+    selectedWaveController.onWaveSelected("example.com/w+456", null);
+
+    Assert.assertEquals(0, shell.returnTargets.size());
+    Assert.assertEquals(0, shell.models.size());
+  }
+
+  @Test
+  public void routeAndSelectionCallbacksAfterStopDoNotLeakIntoRestart() {
+    FakeShellSurface shell = new FakeShellSurface();
+    J2clRootLiveSurfaceController controller = startedController(shell);
+    J2clSearchPanelController.RouteStateHandler routeStateHandler =
+        controller.routeStateHandler(null);
+    J2clSidecarRouteController.SelectedWaveController selectedWaveController =
+        controller.selectedWaveController(null);
+
+    routeStateHandler.onRouteStateChanged(
+        new J2clSidecarRouteState("in:inbox", "example.com/w+123"), null, false);
+    controller.stop();
+    routeStateHandler.onRouteStateChanged(
+        new J2clSidecarRouteState("after-stop", "example.com/w+456"), null, false);
+    selectedWaveController.onWaveSelected("example.com/w+789", null);
+    shell.clear();
+
+    controller.start();
+
+    Assert.assertEquals("Loading workspace.", shell.lastModel().getStatusText());
+    Assert.assertEquals("", shell.lastModel().getQuery());
+    Assert.assertNull(shell.lastModel().getSelectedWaveId());
   }
 
   @Test
@@ -290,6 +323,14 @@ public class J2clRootLiveSurfaceControllerTest {
         false);
   }
 
+  private static J2clRootLiveSurfaceController startedController(FakeShellSurface shell) {
+    J2clRootLiveSurfaceController controller =
+        new J2clRootLiveSurfaceController(shell, () -> {});
+    controller.start();
+    shell.clear();
+    return controller;
+  }
+
   private static final class FakeShellSurface
       implements J2clRootLiveSurfaceController.ShellSurface {
     private final List<String> returnTargets = new ArrayList<String>();
@@ -308,6 +349,11 @@ public class J2clRootLiveSurfaceControllerTest {
 
     private J2clRootLiveSurfaceModel lastModel() {
       return models.get(models.size() - 1);
+    }
+
+    private void clear() {
+      returnTargets.clear();
+      models.clear();
     }
   }
 

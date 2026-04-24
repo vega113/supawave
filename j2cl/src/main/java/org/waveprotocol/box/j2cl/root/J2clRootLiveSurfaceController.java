@@ -19,7 +19,7 @@ public final class J2clRootLiveSurfaceController {
   private final ShellSurface shellSurface;
   private final RouteStarter routeStarter;
   private J2clRootLiveSurfaceModel model;
-  private boolean active = true;
+  private boolean active;
   private boolean publishedDuringStart;
 
   public J2clRootLiveSurfaceController(ShellSurface shellSurface, RouteStarter routeStarter) {
@@ -78,7 +78,7 @@ public final class J2clRootLiveSurfaceController {
   }
 
   private void onRouteStateChanged(J2clSidecarRouteState state) {
-    if (state == null) {
+    if (!active || state == null) {
       return;
     }
     model = model.withRouteState(state);
@@ -86,6 +86,9 @@ public final class J2clRootLiveSurfaceController {
   }
 
   private void onSelectedWaveChanged(String waveId) {
+    if (!active) {
+      return;
+    }
     model = model.withSelectedWaveId(waveId);
     publish();
   }

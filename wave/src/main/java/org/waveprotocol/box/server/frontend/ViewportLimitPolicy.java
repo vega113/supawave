@@ -1,7 +1,12 @@
 package org.waveprotocol.box.server.frontend;
 
+import java.util.Locale;
+
 /** Shared limit policy for viewport-scoped fragment windows. */
 public final class ViewportLimitPolicy {
+  public static final String DIRECTION_FORWARD = "forward";
+  public static final String DIRECTION_BACKWARD = "backward";
+
   private static volatile int defaultLimit = 5;
   private static volatile int maxLimit = 50;
 
@@ -40,5 +45,13 @@ public final class ViewportLimitPolicy {
       return defaultLimit;
     }
     return Math.min(requestedLimit, maxLimit);
+  }
+
+  public static String normalizeDirection(String rawDirection) {
+    if (rawDirection == null) {
+      return DIRECTION_FORWARD;
+    }
+    String normalized = rawDirection.trim().toLowerCase(Locale.ROOT);
+    return DIRECTION_BACKWARD.equals(normalized) ? DIRECTION_BACKWARD : DIRECTION_FORWARD;
   }
 }

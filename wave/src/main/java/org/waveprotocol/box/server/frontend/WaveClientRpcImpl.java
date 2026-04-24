@@ -20,6 +20,7 @@
 package org.waveprotocol.box.server.frontend;
 
 import com.google.common.base.Preconditions;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
@@ -53,7 +54,10 @@ import org.slf4j.MDC;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -100,6 +104,11 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
 
   public static void setFragmentsHandler(FragmentsViewChannelHandler handler) {
     fragmentsHandler = handler;
+  }
+
+  @VisibleForTesting
+  public static FragmentsViewChannelHandler getFragmentsHandlerForTesting() {
+    return fragmentsHandler;
   }
 
   public static void setForceClientFragments(boolean force) {
@@ -223,10 +232,12 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                 long startV = computeStartVersion(snapshot, committedVersion);
                 long endV = startV;
 
-                List<SegmentId> segs = selectVisibleSegments(fh, waveletName, snapshot, request);
+                ViewportSegments selectedSegments =
+                    selectVisibleSegments(fh, waveletName, snapshot, request);
+                List<SegmentId> segs = selectedSegments.getRangeSegments();
 
                 try {
-                  java.util.Map<SegmentId, VersionRange> ranges =
+                  Map<SegmentId, VersionRange> ranges =
                       fh.fetchFragments(waveletName, segs, startV, endV);
                   org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragments.Builder fb =
                       org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragments.newBuilder()
@@ -234,7 +245,7 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                           .setStartVersion(startV)
                           .setEndVersion(endV);
                   int emitted = 0;
-                  for (java.util.Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
+                  for (Map.Entry<SegmentId, VersionRange> e : ranges.entrySet()) {
                     long from = e.getValue().from();
                     long to = e.getValue().to();
                     if (from > to) {
@@ -271,7 +282,7 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
                   if (fragmentsAttached) {
                     ReadableWaveletData fragmentData = (snapshot != null) ? snapshot.snapshot : null;
                     List<FragmentsPayload.Fragment> rawFragments =
-                        RawFragmentsBuilder.build(fragmentData, ranges);
+                        RawFragmentsBuilder.build(fragmentData, selectedSegments.rawRanges(ranges));
                     for (FragmentsPayload.Fragment fragment : rawFragments) {
                       org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragment.Builder fragmentBuilder =
                           org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolFragment.newBuilder()
@@ -468,23 +479,29 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
    * Selects the set of segments to attach as a fragments window.
    *
    * Rules:
-   * - Use viewport-aware selection only when a snapshot is available.
-   * - Otherwise, prefer blips from the snapshot; if none, fall back to INDEX/MANIFEST.
-   * - If still empty and snapshot exists, use heuristic manifest/time-based selection.
+   * - Viewport-hinted opens get deterministic natural blip ordering plus one
+   *   placeholder range for scroll growth when another blip exists.
+   * - Legacy no-hint opens preserve snapshot document iteration order and never
+   *   receive placeholder-only growth ranges.
+   * - If no snapshot blips exist, only INDEX/MANIFEST ranges are attached.
    */
-  private List<SegmentId> selectVisibleSegments(FragmentsViewChannelHandler fh,
+  private ViewportSegments selectVisibleSegments(FragmentsViewChannelHandler fh,
                                                 WaveletName waveletName,
                                                 @Nullable CommittedWaveletSnapshot snapshot,
                                                 ProtocolOpenRequest request) {
     List<SegmentId> segs = new ArrayList<>();
+    Set<SegmentId> rawSegments = new HashSet<SegmentId>();
     segs.add(SegmentId.INDEX_ID);
+    rawSegments.add(SegmentId.INDEX_ID);
     segs.add(SegmentId.MANIFEST_ID);
+    rawSegments.add(SegmentId.MANIFEST_ID);
 
     final String vpStart = request.hasViewportStartBlipId() ? request.getViewportStartBlipId() : null;
     final String vpDir = request.hasViewportDirection() ? request.getViewportDirection() : null;
     final int vpLimit = resolveViewportLimit(request);
+    boolean viewportHints = hasViewportHints(request);
 
-    if (hasViewportHints(request)) {
+    if (viewportHints) {
       if ((vpStart == null || vpStart.isEmpty()) && (vpDir != null && !vpDir.isEmpty()) && !request.hasViewportLimit()) {
         if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
           org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.viewportAmbiguity.incrementAndGet();
@@ -495,17 +512,172 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
     }
 
     if (segs.size() <= 2 && snapshot != null) {
-      int added = 0;
-      for (String docId : snapshot.snapshot.getDocumentIds()) {
-        if (docId != null && docId.startsWith("b+")) {
-          segs.add(SegmentId.ofBlipId(docId));
-          if (++added >= vpLimit) break;
+      BlipWindow window =
+          selectBlipWindow(
+              snapshotBlipOrder(snapshot, viewportHints), vpStart, vpDir, vpLimit, viewportHints);
+      for (String blipId : window.getRangeBlipIds()) {
+        SegmentId segment = SegmentId.ofBlipId(blipId);
+        segs.add(segment);
+        if (window.isLoaded(blipId)) {
+          rawSegments.add(segment);
         }
       }
     }
 
     // Avoid computeVisibleSegments fallback to prevent snapshot reads from commit thread.
-    return segs;
+    return new ViewportSegments(segs, rawSegments);
+  }
+
+  private static List<String> snapshotBlipOrder(
+      @Nullable CommittedWaveletSnapshot snapshot, boolean naturalOrder) {
+    if (snapshot == null || snapshot.snapshot == null) {
+      return Collections.emptyList();
+    }
+    List<String> blips = new ArrayList<String>();
+    for (String docId : snapshot.snapshot.getDocumentIds()) {
+      if (docId != null && docId.startsWith("b+")) {
+        blips.add(docId);
+      }
+    }
+    if (naturalOrder) {
+      blips.sort(WaveClientRpcImpl::compareBlipIdsNaturally);
+    }
+    return blips;
+  }
+
+  private static int compareBlipIdsNaturally(String left, String right) {
+    String leftPrefix = trailingNumberPrefix(left);
+    String rightPrefix = trailingNumberPrefix(right);
+    if (leftPrefix.equals(rightPrefix)) {
+      long leftNumber = trailingNumber(left, -1L);
+      long rightNumber = trailingNumber(right, -1L);
+      if (leftNumber >= 0 && rightNumber >= 0 && leftNumber != rightNumber) {
+        return leftNumber < rightNumber ? -1 : 1;
+      }
+    }
+    return left.compareTo(right);
+  }
+
+  private static String trailingNumberPrefix(String value) {
+    int start = trailingNumberStart(value);
+    return start >= 0 ? value.substring(0, start) : value;
+  }
+
+  private static long trailingNumber(String value, long fallback) {
+    int start = trailingNumberStart(value);
+    if (start < 0) {
+      return fallback;
+    }
+    try {
+      return Long.parseLong(value.substring(start));
+    } catch (NumberFormatException e) {
+      return fallback;
+    }
+  }
+
+  private static int trailingNumberStart(String value) {
+    if (value == null || value.isEmpty()) {
+      return -1;
+    }
+    int index = value.length() - 1;
+    while (index >= 0 && value.charAt(index) >= '0' && value.charAt(index) <= '9') {
+      index--;
+    }
+    return index == value.length() - 1 ? -1 : index + 1;
+  }
+
+  private static BlipWindow selectBlipWindow(
+      List<String> blipOrder,
+      @Nullable String startBlipId,
+      @Nullable String direction,
+      int limit,
+      boolean includeEdgePlaceholder) {
+    if (blipOrder == null || blipOrder.isEmpty() || limit <= 0) {
+      return BlipWindow.empty();
+    }
+    String normalizedDirection = ViewportLimitPolicy.normalizeDirection(direction);
+    int startIndex = 0;
+    if (startBlipId != null && !startBlipId.isEmpty()) {
+      int found = blipOrder.indexOf(startBlipId);
+      if (found >= 0) {
+        startIndex = found;
+      }
+    }
+    int rangeLimit = limit + (includeEdgePlaceholder ? 1 : 0);
+    int fromIndex;
+    int toIndexExclusive;
+    if (ViewportLimitPolicy.DIRECTION_BACKWARD.equals(normalizedDirection)) {
+      toIndexExclusive = Math.min(blipOrder.size(), startIndex + 1);
+      fromIndex = Math.max(0, toIndexExclusive - rangeLimit);
+    } else {
+      fromIndex = Math.max(0, startIndex);
+      toIndexExclusive = Math.min(blipOrder.size(), fromIndex + rangeLimit);
+    }
+    List<String> rangeBlipIds =
+        new ArrayList<String>(blipOrder.subList(fromIndex, toIndexExclusive));
+    if (rangeBlipIds.isEmpty()) {
+      return BlipWindow.empty();
+    }
+    List<String> loadedBlipIds = new ArrayList<String>(rangeBlipIds);
+    if (includeEdgePlaceholder && rangeBlipIds.size() > limit) {
+      if (ViewportLimitPolicy.DIRECTION_BACKWARD.equals(normalizedDirection)) {
+        loadedBlipIds = new ArrayList<String>(rangeBlipIds.subList(1, rangeBlipIds.size()));
+      } else {
+        loadedBlipIds = new ArrayList<String>(rangeBlipIds.subList(0, limit));
+      }
+    }
+    return new BlipWindow(rangeBlipIds, loadedBlipIds);
+  }
+
+  private static final class BlipWindow {
+    private static final BlipWindow EMPTY =
+        new BlipWindow(Collections.<String>emptyList(), Collections.<String>emptyList());
+
+    private final List<String> rangeBlipIds;
+    private final Set<String> loadedBlipIds;
+
+    private BlipWindow(List<String> rangeBlipIds, List<String> loadedBlipIds) {
+      this.rangeBlipIds =
+          Collections.unmodifiableList(new ArrayList<String>(rangeBlipIds));
+      this.loadedBlipIds = new HashSet<String>(loadedBlipIds);
+    }
+
+    static BlipWindow empty() {
+      return EMPTY;
+    }
+
+    List<String> getRangeBlipIds() {
+      return rangeBlipIds;
+    }
+
+    boolean isLoaded(String blipId) {
+      return loadedBlipIds.contains(blipId);
+    }
+  }
+
+  private static final class ViewportSegments {
+    private final List<SegmentId> rangeSegments;
+    private final Set<SegmentId> rawSegments;
+
+    private ViewportSegments(List<SegmentId> rangeSegments, Set<SegmentId> rawSegments) {
+      this.rangeSegments =
+          Collections.unmodifiableList(new ArrayList<SegmentId>(rangeSegments));
+      this.rawSegments = new HashSet<SegmentId>(rawSegments);
+    }
+
+    List<SegmentId> getRangeSegments() {
+      return rangeSegments;
+    }
+
+    Map<SegmentId, VersionRange> rawRanges(Map<SegmentId, VersionRange> ranges) {
+      Map<SegmentId, VersionRange> filtered = new LinkedHashMap<SegmentId, VersionRange>();
+      for (Map.Entry<SegmentId, VersionRange> entry : ranges.entrySet()) {
+        if (rawSegments.contains(entry.getKey())) {
+          filtered.put(entry.getKey(), entry.getValue());
+        }
+      }
+      return filtered;
+    }
   }
 
   @Override

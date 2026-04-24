@@ -613,15 +613,15 @@ Task 6 result:
 - Update issue comment(s)
 - Add journal verification note if the lane policy requires one
 
-- [ ] Boot the rebased `#965/#966/#967` stack on a local port
-- [ ] Verify the scripts in this section exist after rebase; if any are absent, substitute the repo's current worktree boot/smoke equivalent and record the substitution in the issue
-- [ ] Open a large-wave path in the J2CL root shell
-- [ ] Confirm:
+- [x] Boot the rebased `#965/#966/#967` stack on a local port
+- [x] Verify the scripts in this section exist after rebase; if any are absent, substitute the repo's current worktree boot/smoke equivalent and record the substitution in the issue
+- [x] Open a large-wave path in the J2CL root shell
+- [x] Confirm:
   - initial render shows only the visible fragment window
   - scrolling grows the window
   - focus and scroll anchor stay stable
   - network / logs show fragment-window fetches instead of a whole-wave bootstrap
-- [ ] Capture issue evidence:
+- [x] Capture issue evidence:
   - exact local route and selected wave id
   - requested/effective initial window size
   - browser network entry or log line for at least one `/fragments` extension fetch
@@ -644,6 +644,20 @@ http://localhost:9967/?view=j2cl-root
 
 Expected:
 - the issue log can cite the exact large-wave route used, the observed initial window size, and at least one successful extension fetch
+
+Task 7 result:
+
+- Fresh staged server booted on `127.0.0.1:9967`; boot log line at `2026-04-24T05:06:56.313561+03:00` confirmed `Configured WaveClientRpc fragments handler: enabled=true`.
+- Smoke verification passed with `ROOT_STATUS=200`, `J2CL_ROOT_STATUS=200`, `SIDECAR_STATUS=200`, and `WEBCLIENT_STATUS=200`.
+- Browser verification used the reproducible large-wave fixture created with `WAVE_PERF_BASE_URL=http://localhost:9967 sbt --batch 'GatlingTest / runMain org.waveprotocol.wave.perf.WaveDataSeeder 1 80'`: user `perfuser@local.net`, wave `local.net/w+perf0001`, 80 seeded blips.
+- Exact route verified: `http://127.0.0.1:9967/?view=j2cl-root&q=in%3Ainbox&wave=local.net%2Fw%2Bperf0001`.
+- Initial J2CL selected-wave render loaded only `b+perf0001b1` through `b+perf0001b5`, rendered one viewport placeholder, and used `.sidecar-selected-content` as the scroll surface with `overflow-y: auto`.
+- Selected-wave websocket open included explicit viewport mode: `{"1":"perfuser@local.net","2":"local.net/w+perf0001","3":["conv+root"],"7":0}`.
+- Selected-wave websocket update for `local.net/w+perf0001/~/conv+root` had `hasSnapshot=false`, `hasFragments=true`, `fragmentRangeCount=8`, and `fragmentEntryCount=6`, so the initial open did not send a full-wave bootstrap snapshot.
+- Scroll growth requested `GET /fragments?waveId=local.net%2Fw%2Bperf0001&waveletId=local.net%2Fconv%2Broot&client=j2cl&direction=forward&limit=5&startVersion=81&endVersion=81&startBlipId=b%2Bperf0001b6`, returned HTTP 200, and expanded the rendered blips to `b+perf0001b1` through `b+perf0001b10` while keeping focus on `b+perf0001b1`.
+- Server logs after the fresh restart emitted fragments for `local.net/w+perf0001/local.net/conv+root` with `ranges=8 snapshotVersion=81 endVersion=81` and had zero `J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK` entries.
+- Final verification after review follow-ups passed: `sbt -batch "testOnly org.waveprotocol.box.server.frontend.WaveClientRpcViewportHintsTest org.waveprotocol.box.server.rpc.FragmentsServletViewportLimitTest org.waveprotocol.box.server.ServerMainStructuredLoggingTest org.waveprotocol.box.server.frontend.WaveClientRpcFragmentsTest org.waveprotocol.box.server.frontend.ViewportLimitPolicyTest" j2clSearchBuild j2clSearchTest` (`35` targeted server tests plus J2CL build/tests), `sbt -batch Universal/stage`, `git diff --check`, and `python3 scripts/validate-changelog.py`.
+- Claude Opus 4.7 implementation review cleared in round 7 with no remaining blockers, important concerns, minor nits, coverage gaps, UX/a11y concerns, or performance pitfalls. Final output: `/tmp/claude-review-967-task7-r7.out`.
 
 ## 8. Review Plan
 

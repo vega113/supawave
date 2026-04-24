@@ -18,14 +18,53 @@
  */
 package org.waveprotocol.box.server;
 
+import com.typesafe.config.ConfigFactory;
+import org.junit.After;
 import org.junit.Test;
+import org.waveprotocol.box.server.frontend.FragmentsViewChannelHandler;
+import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
+import org.waveprotocol.box.server.waveserver.WaveletProvider;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public final class ServerMainStructuredLoggingTest {
+
+  @After
+  public void clearFragmentsHandler() {
+    WaveClientRpcImpl.setFragmentsHandler(null);
+  }
 
   @Test
   public void structuredLoggingStatusMentionsWaveJsonLogPath() {
     assertTrue(ServerMain.structuredLoggingStatusMessage().contains("logs/wave-json.log"));
+  }
+
+  @Test
+  public void installFragmentsHandlerWiresWaveClientRpcOpenPath() {
+    WaveClientRpcImpl.setFragmentsHandler(null);
+
+    FragmentsViewChannelHandler handler =
+        ServerMain.installFragmentsHandlerForFrontend(
+            mock(WaveletProvider.class),
+            ConfigFactory.parseString("server.fragments.transport = stream"));
+
+    assertTrue(handler.isEnabled());
+    assertSame(handler, WaveClientRpcImpl.getFragmentsHandlerForTesting());
+  }
+
+  @Test
+  public void installFragmentsHandlerStillWiresDisabledHandler() {
+    WaveClientRpcImpl.setFragmentsHandler(null);
+
+    FragmentsViewChannelHandler handler =
+        ServerMain.installFragmentsHandlerForFrontend(
+            mock(WaveletProvider.class),
+            ConfigFactory.parseString("server.fragments.transport = off"));
+
+    assertFalse(handler.isEnabled());
+    assertSame(handler, WaveClientRpcImpl.getFragmentsHandlerForTesting());
   }
 }

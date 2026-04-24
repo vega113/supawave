@@ -3,12 +3,16 @@
   "version": "Issue #967",
   "date": "2026-04-24",
   "title": "Avoid whole-wave bootstrap for J2CL viewport opens",
-  "summary": "Viewport-hinted selected-wave opens now keep the J2CL read surface windowed on the wire when fragment windows are available, while legacy no-hint opens still receive the full snapshot bootstrap.",
+  "summary": "Viewport-hinted selected-wave opens now install the server fragment handler, keep the J2CL read surface windowed on the wire, and expose scroll-edge placeholders for fragment growth while legacy no-hint opens still receive the full snapshot bootstrap.",
   "sections": [
     {
       "type": "feature",
       "items": [
+        "Installed the configured server fragment handler for the selected-wave RPC path so live J2CL viewport opens can attach fragment windows",
         "Suppressed the full selected-wave snapshot payload for viewport-hinted opens that successfully attach a fragment window",
+        "Sorted snapshot blip ids naturally for deterministic viewport windows on large waves",
+        "Added placeholder-only edge ranges to J2CL viewport fragment windows so the read surface can grow through /fragments instead of stopping at the initial window",
+        "Made the J2CL selected-wave content region the scroll surface that owns viewport-growth callbacks",
         "Preserved snapshot bootstrap compatibility for no-hint GWT and legacy opens",
         "Added J2CL viewport initial-window and snapshot-fallback metrics, plus a fallback warning marker, so operators can distinguish windowed opens from full-snapshot fallback"
       ]

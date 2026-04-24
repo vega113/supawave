@@ -3,6 +3,8 @@ package org.waveprotocol.box.j2cl.search;
 import com.google.j2cl.junit.apt.J2clTestInput;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
@@ -139,5 +141,16 @@ public class J2clSelectedWaveViewServerFirstLogicTest {
     Assert.assertNull(hints.getStartBlipId());
     Assert.assertNull(hints.getDirection());
     Assert.assertEquals(Integer.valueOf(0), hints.getLimit());
+  }
+
+  @Test
+  public void configureContentListAddsScrollableRegionA11yAttributes() {
+    Map<String, String> attributes = new LinkedHashMap<String, String>();
+
+    J2clSelectedWaveView.configureContentListAttributes(attributes::put);
+
+    Assert.assertEquals("region", attributes.get("role"));
+    Assert.assertEquals("Selected wave content", attributes.get("aria-label"));
+    Assert.assertEquals("0", attributes.get("tabindex"));
   }
 }

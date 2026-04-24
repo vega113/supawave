@@ -19,6 +19,7 @@ import org.waveprotocol.box.server.authentication.AccountStoreHolder;
 import org.waveprotocol.box.server.executor.ExecutorsModule;
 import org.waveprotocol.box.server.frontend.ClientFrontend;
 import org.waveprotocol.box.server.frontend.ClientFrontendImpl;
+import org.waveprotocol.box.server.frontend.FragmentsViewChannelHandler;
 import org.waveprotocol.box.server.frontend.SearchWaveletDispatcher;
 import org.waveprotocol.box.server.frontend.WaveClientRpcImpl;
 import org.waveprotocol.box.server.frontend.WaveletInfo;
@@ -513,10 +514,19 @@ public class ServerMain {
             waveletInfo,
             injector.getInstance(SearchProvider.class),
             injector.getInstance(SearchWaveletSnapshotPublisher.class));
+    installFragmentsHandlerForFrontend(provider, injector.getInstance(Config.class));
     org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.Interface rpcImpl =
         WaveClientRpcImpl.create(frontend, false, injector.getInstance(SearchWaveletManager.class));
     server.registerService(org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc.newReflectiveService(rpcImpl));
     new StaleAnnotationSweeper(provider).start();
+  }
+
+  static FragmentsViewChannelHandler installFragmentsHandlerForFrontend(
+      WaveletProvider provider, Config config) {
+    FragmentsViewChannelHandler handler = new FragmentsViewChannelHandler(provider, config);
+    WaveClientRpcImpl.setFragmentsHandler(handler);
+    LOG.info("Configured WaveClientRpc fragments handler: enabled=" + handler.isEnabled());
+    return handler;
   }
 
   /**

@@ -30,6 +30,7 @@ import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolOpenRequest;
 import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveletUpdate;
 import org.waveprotocol.box.server.waveserver.WaveletProvider;
 import org.waveprotocol.wave.model.id.ModernIdSerialiser;
+import org.waveprotocol.wave.model.id.SegmentId;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -37,6 +38,9 @@ import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics;
+
+import java.util.Arrays;
+import java.util.List;
 
 /** Tests viewport limit clamping and direction normalization. */
 public final class WaveClientRpcViewportHintsTest {
@@ -77,7 +81,7 @@ public final class WaveClientRpcViewportHintsTest {
     WaveClientRpcImpl.setViewportLimits(4, 10);
     ProtocolWaveletUpdate update = openWithHints("b+1", "forward", -123);
     assertTrue(update.hasFragments());
-    int blipCount = countBlipRanges(update.getFragments());
+    int blipCount = countBlipFragments(update.getFragments());
     assertEquals(4, blipCount);
   }
 
@@ -86,8 +90,122 @@ public final class WaveClientRpcViewportHintsTest {
     WaveClientRpcImpl.setViewportLimits(3, 6);
     ProtocolWaveletUpdate update = openWithHints("b+1", "forward", 100);
     assertTrue(update.hasFragments());
-    int blipCount = countBlipRanges(update.getFragments());
+    int blipCount = countBlipFragments(update.getFragments());
     assertEquals(6, blipCount);
+  }
+
+  @Test
+  public void viewportHintsAttachEdgePlaceholderRangeForGrowth() {
+    ProtocolWaveletUpdate update = openWithHints("b+1", "forward", 5);
+
+    assertTrue(update.hasFragments());
+    assertEquals("Expected five loaded blips plus one growth placeholder range",
+        6, countBlipRanges(update.getFragments()));
+    assertEquals("Expected only the visible five blips to carry raw fragments",
+        5, countBlipFragments(update.getFragments()));
+    assertTrue(hasSegmentRange(update.getFragments(), SegmentId.INDEX_ID.asString()));
+    assertTrue(hasSegmentRange(update.getFragments(), SegmentId.MANIFEST_ID.asString()));
+    assertEquals(Arrays.asList("b+1", "b+2", "b+3", "b+4", "b+5", "b+6"),
+        blipRangeIds(update.getFragments()));
+    assertTrue(hasBlipRange(update.getFragments(), "b+6"));
+    assertFalse(hasBlipFragment(update.getFragments(), "b+6"));
+  }
+
+  @Test
+  public void viewportHintsAttachBackwardEdgePlaceholderForGrowth() {
+    ProtocolWaveletUpdate update = openWithHints("b+10", "backward", 5);
+
+    assertTrue(update.hasFragments());
+    assertEquals("Expected five loaded blips plus one backward growth placeholder range",
+        6, countBlipRanges(update.getFragments()));
+    assertEquals("Expected only the visible five blips to carry raw fragments",
+        5, countBlipFragments(update.getFragments()));
+    assertEquals(Arrays.asList("b+5", "b+6", "b+7", "b+8", "b+9", "b+10"),
+        blipRangeIds(update.getFragments()));
+    assertTrue(hasBlipRange(update.getFragments(), "b+5"));
+    assertFalse(hasBlipFragment(update.getFragments(), "b+5"));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+10"));
+  }
+
+  @Test
+  public void viewportHintsBackwardAtStartDoesNotAddPlaceholderRange() {
+    ProtocolWaveletUpdate update = openWithHints("b+1", "backward", 5);
+
+    assertTrue(update.hasFragments());
+    assertEquals(1, countBlipRanges(update.getFragments()));
+    assertEquals(1, countBlipFragments(update.getFragments()));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+1"));
+  }
+
+  @Test
+  public void viewportHintsUseNaturalBlipOrderForSnapshotWindow() {
+    ProtocolWaveletUpdate update =
+        openWithRpc(
+            makeWaveClientRpcWithBlipIds("b+10", "b+2", "b+1", "b+3"),
+            viewportHintRequest(null, "forward", 2));
+
+    assertTrue(update.hasFragments());
+    assertTrue(hasBlipFragment(update.getFragments(), "b+1"));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+2"));
+    assertTrue(hasBlipRange(update.getFragments(), "b+3"));
+    assertFalse(hasBlipFragment(update.getFragments(), "b+3"));
+    assertFalse(hasBlipRange(update.getFragments(), "b+10"));
+  }
+
+  @Test
+  public void viewportHintsMissingStartFallsBackToFirstWindow() {
+    ProtocolWaveletUpdate update =
+        openWithRpc(
+            makeWaveClientRpcWithBlipIds("b+1", "b+2", "b+3"),
+            viewportHintRequest("b+missing", "forward", 2));
+
+    assertTrue(update.hasFragments());
+    assertTrue(hasBlipFragment(update.getFragments(), "b+1"));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+2"));
+    assertTrue(hasBlipRange(update.getFragments(), "b+3"));
+    assertFalse(hasBlipFragment(update.getFragments(), "b+3"));
+  }
+
+  @Test
+  public void viewportHintsMissingStartWithBackwardDirectionFallsBackToFirstBlip() {
+    ProtocolWaveletUpdate update =
+        openWithRpc(
+            makeWaveClientRpcWithBlipIds("b+1", "b+2", "b+3"),
+            viewportHintRequest("b+missing", "backward", 2));
+
+    assertTrue(update.hasFragments());
+    assertEquals(Arrays.asList("b+1"), blipRangeIds(update.getFragments()));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+1"));
+  }
+
+  @Test
+  public void viewportHintsUseLexicalOrderWhenBlipsHaveNoTrailingNumbers() {
+    ProtocolWaveletUpdate update =
+        openWithRpc(
+            makeWaveClientRpcWithBlipIds("b+foo", "b+bar", "b+zed"),
+            viewportHintRequest(null, "forward", 2));
+
+    assertTrue(update.hasFragments());
+    assertTrue(hasBlipFragment(update.getFragments(), "b+bar"));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+foo"));
+    assertTrue(hasBlipRange(update.getFragments(), "b+zed"));
+    assertFalse(hasBlipFragment(update.getFragments(), "b+zed"));
+  }
+
+  @Test
+  public void noHintOpenKeepsSnapshotDocumentIterationOrder() {
+    ProtocolWaveletUpdate update =
+        openWithRpc(
+            makeWaveClientRpcWithBlipIds("b+10", "b+2", "b+1"),
+            ProtocolOpenRequest.newBuilder()
+                .setParticipantId("user@example.com")
+                .setWaveId("example.com/w+vh")
+                .addWaveletIdPrefix("conv+root")
+                .build());
+
+    assertTrue(update.hasFragments());
+    assertTrue(update.hasSnapshot());
+    assertEquals(Arrays.asList("b+10", "b+2", "b+1"), blipRangeIds(update.getFragments()));
   }
 
   @Test
@@ -117,6 +235,8 @@ public final class WaveClientRpcViewportHintsTest {
 
     assertTrue("Legacy no-hint open keeps snapshot bootstrap", update.hasSnapshot());
     assertTrue("Fragments can still be attached for legacy clients", update.hasFragments());
+    assertEquals("Legacy no-hint open should not attach viewport growth placeholders",
+        countBlipFragments(update.getFragments()), countBlipRanges(update.getFragments()));
     assertEquals(0L, FragmentsMetrics.j2clViewportInitialWindows.get());
     assertEquals(0L, FragmentsMetrics.j2clViewportSnapshotFallbacks.get());
   }
@@ -208,6 +328,43 @@ public final class WaveClientRpcViewportHintsTest {
       if (r.getSegment().startsWith("blip:")) c++;
     }
     return c;
+  }
+
+  private static int countBlipFragments(WaveClientRpc.ProtocolFragments f) {
+    int c = 0;
+    for (WaveClientRpc.ProtocolFragment fragment : f.getFragmentList()) {
+      if (fragment.getSegment().startsWith("blip:")) c++;
+    }
+    return c;
+  }
+
+  private static boolean hasBlipRange(WaveClientRpc.ProtocolFragments f, String blipId) {
+    return hasSegmentRange(f, "blip:" + blipId);
+  }
+
+  private static boolean hasSegmentRange(WaveClientRpc.ProtocolFragments f, String segment) {
+    for (WaveClientRpc.ProtocolFragmentRange range : f.getRangeList()) {
+      if (segment.equals(range.getSegment())) return true;
+    }
+    return false;
+  }
+
+  private static boolean hasBlipFragment(WaveClientRpc.ProtocolFragments f, String blipId) {
+    String segment = "blip:" + blipId;
+    for (WaveClientRpc.ProtocolFragment fragment : f.getFragmentList()) {
+      if (segment.equals(fragment.getSegment())) return true;
+    }
+    return false;
+  }
+
+  private static List<String> blipRangeIds(WaveClientRpc.ProtocolFragments f) {
+    java.util.ArrayList<String> ids = new java.util.ArrayList<String>();
+    for (WaveClientRpc.ProtocolFragmentRange range : f.getRangeList()) {
+      if (range.getSegment().startsWith("blip:")) {
+        ids.add(range.getSegment().substring("blip:".length()));
+      }
+    }
+    return ids;
   }
 
   private static ProtocolWaveletUpdate openWithHints(String startId, String dir, int limit) {
@@ -325,11 +482,36 @@ public final class WaveClientRpcViewportHintsTest {
     return WaveClientRpcImpl.create(frontend, false);
   }
 
+  private static WaveClientRpcImpl makeWaveClientRpcWithBlipIds(String... blipIds) {
+    ClientFrontend frontend = new ClientFrontend() {
+      @Override public void submitRequest(ParticipantId u, WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, String c, WaveletProvider.SubmitRequestListener l) {}
+      @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, String searchQuery, OpenListener listener) {
+        WaveletId wid = WaveletId.of(waveId.getDomain(), "conv+root");
+        WaveletName wn = WaveletName.of(waveId, wid);
+        ReadableWaveletData data = providerDataWithBlipIds(waveId, wid, blipIds);
+        CommittedWaveletSnapshot snap = new CommittedWaveletSnapshot(data, HashedVersion.unsigned(100));
+        listener.onUpdate(wn, snap, java.util.Collections.emptyList(), HashedVersion.unsigned(100), null, "ch-vh");
+      }
+    };
+    return WaveClientRpcImpl.create(frontend, false);
+  }
+
   private static ReadableWaveletData providerDataWithBlips(WaveId waveId, WaveletId wid, int count) {
     ReadableWaveletDataStub stub = new ReadableWaveletDataStub(waveId, wid, HashedVersion.unsigned(1));
     for (int i = 1; i <= count; i++) {
       String id = "b+" + i;
       stub.addDoc(id, new ReadableBlipDataStub(ParticipantId.ofUnsafe("user@example.com"), i * 100L));
+    }
+    return stub;
+  }
+
+  private static ReadableWaveletData providerDataWithBlipIds(
+      WaveId waveId, WaveletId wid, String... blipIds) {
+    ReadableWaveletDataStub stub = new ReadableWaveletDataStub(waveId, wid, HashedVersion.unsigned(1));
+    for (int i = 0; i < blipIds.length; i++) {
+      stub.addDoc(
+          blipIds[i],
+          new ReadableBlipDataStub(ParticipantId.ofUnsafe("user@example.com"), (i + 1) * 100L));
     }
     return stub;
   }

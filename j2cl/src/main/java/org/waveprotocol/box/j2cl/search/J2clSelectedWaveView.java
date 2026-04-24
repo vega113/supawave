@@ -41,6 +41,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       snippet = queryRequired(existingCard, ".sidecar-selected-snippet");
       composeHost = queryRequired(existingCard, ".sidecar-selected-compose");
       contentList = queryRequired(existingCard, ".sidecar-selected-content");
+      configureContentList(contentList);
       readSurface = new J2clReadSurfaceDomRenderer(contentList);
       readSurface.enhanceExistingSurface();
       emptyState = queryOrCreate(existingCard, ".sidecar-empty-state", "div", "sidecar-empty-state");
@@ -92,6 +93,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
 
     contentList = (HTMLDivElement) DomGlobal.document.createElement("div");
     contentList.className = "sidecar-selected-content";
+    configureContentList(contentList);
     card.appendChild(contentList);
     readSurface = new J2clReadSurfaceDomRenderer(contentList);
 
@@ -104,6 +106,21 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     serverFirstWaveId = "";
     serverFirstMode = "";
     serverFirstMountedAtMs = 0;
+  }
+
+  static void configureContentList(HTMLElement contentList) {
+    configureContentListAttributes(
+        (name, value) -> contentList.setAttribute(name, value));
+  }
+
+  static void configureContentListAttributes(AttributeWriter attributes) {
+    attributes.setAttribute("role", "region");
+    attributes.setAttribute("aria-label", "Selected wave content");
+    attributes.setAttribute("tabindex", "0");
+  }
+
+  interface AttributeWriter {
+    void setAttribute(String name, String value);
   }
 
   @Override

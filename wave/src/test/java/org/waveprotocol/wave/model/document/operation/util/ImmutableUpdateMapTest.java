@@ -21,14 +21,34 @@ package org.waveprotocol.wave.model.document.operation.util;
 
 import junit.framework.TestCase;
 
+import org.waveprotocol.wave.model.document.operation.AttributesUpdate;
+import org.waveprotocol.wave.model.document.operation.impl.AttributesUpdateImpl;
 import org.waveprotocol.wave.model.document.operation.util.ImmutableUpdateMap.AttributeUpdate;
 
 import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * @author ohler@google.com (Christian Ohler)
  */
 public class ImmutableUpdateMapTest extends TestCase {
+
+  public void testComposeWithNonImmutableUpdateMap() {
+    AttributesUpdateImpl base = new AttributesUpdateImpl(
+        "b", "oldB", "midB",
+        "d", "oldD", "midD");
+
+    AttributesUpdate result = base.composeWith(new NonImmutableAttributesUpdate(
+        "c", null, "newC",
+        "a", null, "newA",
+        "b", "midB", "newB"));
+
+    assertUpdate(result,
+        "a", null, "newA",
+        "b", "oldB", "newB",
+        "c", null, "newC",
+        "d", "oldD", "midD");
+  }
 
   public void testCheckUpdatesSorted() {
     // see also the corresponding tests in ImmutableStateMapTest.
@@ -127,6 +147,53 @@ public class ImmutableUpdateMapTest extends TestCase {
       fail();
     } catch (IllegalArgumentException e) {
       // ok
+    }
+  }
+
+  private static void assertUpdate(UpdateMap update, String ... triples) {
+    assertEquals(triples.length / 3, update.changeSize());
+    for (int i = 0; i < update.changeSize(); i++) {
+      assertEquals(triples[3 * i], update.getChangeKey(i));
+      assertEquals(triples[3 * i + 1], update.getOldValue(i));
+      assertEquals(triples[3 * i + 2], update.getNewValue(i));
+    }
+  }
+
+  private static final class NonImmutableAttributesUpdate implements AttributesUpdate {
+    private final String[] triples;
+
+    NonImmutableAttributesUpdate(String ... triples) {
+      this.triples = triples;
+    }
+
+    @Override
+    public int changeSize() {
+      return triples.length / 3;
+    }
+
+    @Override
+    public String getChangeKey(int changeIndex) {
+      return triples[3 * changeIndex];
+    }
+
+    @Override
+    public String getOldValue(int changeIndex) {
+      return triples[3 * changeIndex + 1];
+    }
+
+    @Override
+    public String getNewValue(int changeIndex) {
+      return triples[3 * changeIndex + 2];
+    }
+
+    @Override
+    public AttributesUpdate composeWith(AttributesUpdate mutation) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public AttributesUpdate exclude(Collection<String> keys) {
+      throw new UnsupportedOperationException();
     }
   }
 

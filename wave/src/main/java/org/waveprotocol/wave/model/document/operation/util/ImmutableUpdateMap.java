@@ -140,8 +140,7 @@ public abstract class ImmutableUpdateMap<T extends ImmutableUpdateMap<T, U>, U e
     List<AttributeUpdate> newAttributes = new ArrayList<AttributeUpdate>();
     Iterator<AttributeUpdate> iterator = updates.iterator();
     AttributeUpdate nextAttribute = iterator.hasNext() ? iterator.next() : null;
-    // TODO: Have a slow path when the cast would fail.
-    List<AttributeUpdate> mutationAttributes = ((ImmutableUpdateMap<?,?>) mutation).updates;
+    List<AttributeUpdate> mutationAttributes = attributeUpdatesFrom(mutation);
     loop: for (AttributeUpdate attribute : mutationAttributes) {
       while (nextAttribute != null) {
         int comparison = comparator.compare(attribute, nextAttribute);
@@ -172,9 +171,25 @@ public abstract class ImmutableUpdateMap<T extends ImmutableUpdateMap<T, U>, U e
     return createFromList(newAttributes);
   }
 
+  private static List<AttributeUpdate> attributeUpdatesFrom(UpdateMap mutation) {
+    if (mutation instanceof ImmutableUpdateMap<?,?>) {
+      return ((ImmutableUpdateMap<?,?>) mutation).updates;
+    }
+    List<AttributeUpdate> mutationAttributes =
+        new ArrayList<AttributeUpdate>(mutation.changeSize());
+    for (int i = 0; i < mutation.changeSize(); i++) {
+      mutationAttributes.add(new AttributeUpdate(mutation.getChangeKey(i),
+          mutation.getOldValue(i), mutation.getNewValue(i)));
+    }
+    Collections.sort(mutationAttributes, comparator);
+    checkUpdatesSorted(mutationAttributes);
+    return mutationAttributes;
+  }
+
   protected abstract T createFromList(List<AttributeUpdate> attributes);
 
-  // TODO: Is there a utility method for this somewhere?
+  // Keep this local: model document-operation code is GWT-compiled and nearby code avoids
+  // java.util.Objects for null-safe equality.
   private boolean areEqual(Object a, Object b) {
     return (a == null) ? b == null : a.equals(b);
   }

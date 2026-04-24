@@ -91,6 +91,8 @@ export class TaskMetadataPopover extends LitElement {
     }
     const titleId = `${this.instanceId}-title`;
     const errorId = `${this.instanceId}-due-date-error`;
+    const assigneeOptions = this.assigneeOptions();
+    const currentAssigneeKey = this.currentAssigneeKey();
     return html`
       <form
         class="dialog"
@@ -104,12 +106,11 @@ export class TaskMetadataPopover extends LitElement {
           Assignee
           <select name="assignee">
             <option value="">Unassigned</option>
-            ${this.assigneeFallbackOption()}
-            ${this.safeParticipants().map(
+            ${assigneeOptions.map(
               participant => html`
                 <option
                   value=${participant.address || ""}
-                  ?selected=${(participant.address || "") === this.assigneeAddress}
+                  ?selected=${this.normalizedAddress(participant.address) === currentAssigneeKey}
                 >
                   ${participant.displayName || participant.address}
                 </option>
@@ -242,17 +243,6 @@ export class TaskMetadataPopover extends LitElement {
     );
   }
 
-  assigneeFallbackOption() {
-    if (!this.assigneeAddress) {
-      return "";
-    }
-    const inList = this.safeParticipants().some(p => p.address === this.assigneeAddress);
-    if (inList) {
-      return "";
-    }
-    return html`<option value=${this.assigneeAddress} selected>${this.assigneeAddress}</option>`;
-  }
-
   safeParticipants() {
     if (!Array.isArray(this.participants)) {
       return [];
@@ -265,6 +255,36 @@ export class TaskMetadataPopover extends LitElement {
         typeof participant.address === "string" &&
         participant.address.trim() !== ""
     );
+  }
+
+  assigneeOptions() {
+    const participants = this.safeParticipants();
+    const assigneeAddress =
+      typeof this.assigneeAddress === "string" ? this.assigneeAddress.trim() : "";
+    const assigneeKey = this.normalizedAddress(assigneeAddress);
+    if (
+      assigneeAddress === "" ||
+      participants.some(
+        participant => this.normalizedAddress(participant.address) === assigneeKey
+      )
+    ) {
+      return participants;
+    }
+    return [
+      {
+        address: assigneeAddress,
+        displayName: assigneeAddress
+      },
+      ...participants
+    ];
+  }
+
+  currentAssigneeKey() {
+    return this.normalizedAddress(this.assigneeAddress);
+  }
+
+  normalizedAddress(address) {
+    return typeof address === "string" ? address.trim().toLowerCase() : "";
   }
 }
 

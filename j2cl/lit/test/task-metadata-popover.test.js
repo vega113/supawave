@@ -51,6 +51,60 @@ describe("<task-metadata-popover>", () => {
     expect(options[1].value).to.equal("valid@example.com");
   });
 
+  it("preserves a current assignee that is no longer in the participant list", async () => {
+    const el = await fixture(html`
+      <task-metadata-popover
+        open
+        task-id="task-1"
+        assignee-address=" carol@example.com "
+        .participants=${participants}
+      ></task-metadata-popover>
+    `);
+    const options = Array.from(
+      el.renderRoot.querySelectorAll("select[name='assignee'] option")
+    );
+    const eventPromise = oneEvent(el, "task-metadata-submit");
+
+    expect(options.map(option => option.value)).to.include("carol@example.com");
+    expect(el.renderRoot.querySelector("select[name='assignee']").value).to.equal(
+      "carol@example.com"
+    );
+
+    el.renderRoot.querySelector("input[name='dueDate']").value = "2026-05-02";
+    el.renderRoot.querySelector("button[type='submit']").click();
+
+    expect((await eventPromise).detail).to.deep.equal({
+      taskId: "task-1",
+      assigneeAddress: "carol@example.com",
+      dueDate: "2026-05-02"
+    });
+  });
+
+  it("does not duplicate a current assignee that only differs by whitespace or case", async () => {
+    const el = await fixture(html`
+      <task-metadata-popover
+        open
+        task-id="task-1"
+        assignee-address=" ALICE@example.com "
+        .participants=${participants}
+      ></task-metadata-popover>
+    `);
+    const options = Array.from(
+      el.renderRoot.querySelectorAll("select[name='assignee'] option")
+    );
+
+    expect(options.length).to.equal(3);
+    expect(options.filter(option => option.value === "alice@example.com").length).to.equal(1);
+    expect(el.renderRoot.querySelector("select[name='assignee']").value).to.equal(
+      "alice@example.com"
+    );
+
+    const eventPromise = oneEvent(el, "task-metadata-submit");
+    el.renderRoot.querySelector("button[type='submit']").click();
+
+    expect((await eventPromise).detail.assigneeAddress).to.equal("alice@example.com");
+  });
+
   it("submits semantic task metadata on Enter", async () => {
     const el = await fixture(html`
       <task-metadata-popover

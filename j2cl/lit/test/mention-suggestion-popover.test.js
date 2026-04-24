@@ -112,6 +112,36 @@ describe("<mention-suggestion-popover>", () => {
     expect(event.defaultPrevented).to.equal(false);
   });
 
+  it("does not trap Enter when no candidates are selectable", async () => {
+    const el = await fixture(html`
+      <mention-suggestion-popover .candidates=${[]} open></mention-suggestion-popover>
+    `);
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true
+    });
+
+    el.dispatchEvent(event);
+
+    expect(event.defaultPrevented).to.equal(false);
+  });
+
+  it("traps Enter when a candidate is selectable", async () => {
+    const el = await fixture(html`
+      <mention-suggestion-popover .candidates=${candidates} open></mention-suggestion-popover>
+    `);
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true
+    });
+
+    el.dispatchEvent(event);
+
+    expect(event.defaultPrevented).to.equal(true);
+  });
+
   it("keeps option ids unique across popover instances", async () => {
     const first = await fixture(html`
       <mention-suggestion-popover .candidates=${candidates} open></mention-suggestion-popover>

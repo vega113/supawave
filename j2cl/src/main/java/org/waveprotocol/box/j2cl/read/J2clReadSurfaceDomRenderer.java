@@ -42,6 +42,9 @@ public final class J2clReadSurfaceDomRenderer {
    */
   public void setViewportEdgeListener(ViewportEdgeListener viewportEdgeListener) {
     this.viewportEdgeListener = viewportEdgeListener;
+    if (viewportEdgeListener == null) {
+      lastScrollDirection = null;
+    }
     if (!scrollListenerBound) {
       host.addEventListener("scroll", this::onHostScroll);
       scrollListenerBound = true;
@@ -161,11 +164,7 @@ public final class J2clReadSurfaceDomRenderer {
     restoreCollapsedThreads(previouslyCollapsedThreadIds);
     restoreFocusedBlipById(focusedBlipId);
     restoreScrollAnchor(scrollAnchorBlipId, scrollAnchorTop);
-    if (lastScrollDirection != null && isNearEdge(lastScrollDirection)) {
-      String pendingDirection = lastScrollDirection;
-      lastScrollDirection = null;
-      requestEdgeIfPlaceholder(pendingDirection);
-    }
+    requestReachablePlaceholderAfterRender();
     return true;
   }
 
@@ -433,7 +432,31 @@ public final class J2clReadSurfaceDomRenderer {
     return distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX;
   }
 
+  private void requestReachablePlaceholderAfterRender() {
+    if (viewportEdgeListener == null || renderedWindowEntries.isEmpty()) {
+      return;
+    }
+    if (lastScrollDirection != null && isNearEdge(lastScrollDirection)) {
+      String pendingDirection = lastScrollDirection;
+      lastScrollDirection = null;
+      requestEdgeIfPlaceholder(pendingDirection);
+      return;
+    }
+    if (edgePlaceholder(J2clViewportGrowthDirection.FORWARD) != null
+        && isNearEdge(J2clViewportGrowthDirection.FORWARD)) {
+      requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD);
+      return;
+    }
+    if (edgePlaceholder(J2clViewportGrowthDirection.BACKWARD) != null
+        && isNearEdge(J2clViewportGrowthDirection.BACKWARD)) {
+      requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD);
+    }
+  }
+
   private void requestEdgeIfPlaceholder(String direction) {
+    if (viewportEdgeListener == null) {
+      return;
+    }
     J2clReadWindowEntry placeholder = edgePlaceholder(direction);
     if (placeholder != null) {
       viewportEdgeListener.onViewportEdge(placeholder.getBlipId(), direction);

@@ -604,7 +604,9 @@ public class J2clReadSurfaceDomRendererTest {
   @Test
   public void renderWindowRequestsForwardGrowthWhenScrolledToTrailingPlaceholder() {
     assumeBrowserDom();
+    installFixedBlipLayout();
     HTMLDivElement host = createHost();
+    host.setAttribute("style", "height: 40px; overflow-y: auto;");
     J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
     final String[] requested = new String[2];
     renderer.setViewportEdgeListener(
@@ -631,7 +633,9 @@ public class J2clReadSurfaceDomRendererTest {
   @Test
   public void renderWindowRequestsBackwardGrowthWhenScrolledToLeadingPlaceholder() {
     assumeBrowserDom();
+    installFixedBlipLayout();
     HTMLDivElement host = createHost();
+    host.setAttribute("style", "height: 40px; overflow-y: auto;");
     J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
     final String[] requested = new String[2];
     renderer.setViewportEdgeListener(
@@ -653,6 +657,79 @@ public class J2clReadSurfaceDomRendererTest {
 
     Assert.assertEquals("b+before", requested[0]);
     Assert.assertEquals("backward", requested[1]);
+  }
+
+  @Test
+  public void renderWindowAutoRequestsForwardGrowthWhenTrailingPlaceholderAlreadyVisible() {
+    assumeBrowserDom();
+    installFixedBlipLayout();
+    HTMLDivElement host = createHost();
+    host.setAttribute("style", "height: 400px; overflow-y: auto;");
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    final String[] requested = new String[2];
+    renderer.setViewportEdgeListener(
+        (anchorBlipId, direction) -> {
+          requested[0] = anchorBlipId;
+          requested[1] = direction;
+        });
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root", 30L, 36L, "b+root", "Root text"),
+                J2clReadWindowEntry.placeholder(
+                    "blip:b+missing", 36L, 40L, "b+missing"))));
+
+    Assert.assertEquals("b+missing", requested[0]);
+    Assert.assertEquals(J2clViewportGrowthDirection.FORWARD, requested[1]);
+  }
+
+  @Test
+  public void renderWindowAutoRequestsBackwardGrowthWhenLeadingPlaceholderAlreadyVisible() {
+    assumeBrowserDom();
+    installFixedBlipLayout();
+    HTMLDivElement host = createHost();
+    host.setAttribute("style", "height: 400px; overflow-y: auto;");
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    final String[] requested = new String[2];
+    renderer.setViewportEdgeListener(
+        (anchorBlipId, direction) -> {
+          requested[0] = anchorBlipId;
+          requested[1] = direction;
+        });
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.placeholder(
+                    "blip:b+before", 24L, 30L, "b+before"),
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root", 30L, 36L, "b+root", "Root text"))));
+
+    Assert.assertEquals("b+before", requested[0]);
+    Assert.assertEquals(J2clViewportGrowthDirection.BACKWARD, requested[1]);
+  }
+
+  @Test
+  public void renderWindowSkipsPendingGrowthReplayWhenListenerIsCleared() throws Exception {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    final int[] requestCount = new int[1];
+    renderer.setViewportEdgeListener((anchorBlipId, direction) -> requestCount[0]++);
+    setLastScrollDirection(renderer, J2clViewportGrowthDirection.FORWARD);
+    renderer.setViewportEdgeListener(null);
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root", 30L, 36L, "b+root", "Root text"),
+                J2clReadWindowEntry.placeholder(
+                    "blip:b+missing", 36L, 40L, "b+missing"))));
+
+    Assert.assertEquals(0, requestCount[0]);
   }
 
   @Test
@@ -741,7 +818,7 @@ public class J2clReadSurfaceDomRendererTest {
                 J2clReadWindowEntry.placeholder(
                     "blip:b+missing", 36L, 40L, "b+missing"))));
 
-    Assert.assertEquals(2, requestCount[0]);
+    Assert.assertEquals(3, requestCount[0]);
   }
 
   @Test

@@ -47,6 +47,94 @@ public class J2clRootLiveSurfaceControllerTest {
   }
 
   @Test
+  public void startRollsBackActiveStateWhenRouteStarterFails() {
+    FakeShellSurface shell = new FakeShellSurface();
+    J2clRootLiveSurfaceController controller =
+        new J2clRootLiveSurfaceController(
+            shell,
+            () -> {
+              throw new RuntimeException("startup failed");
+            });
+
+    assertStartFailsAndSuppressesCallbacks(controller, shell, "startup failed");
+  }
+
+  @Test
+  public void startRollsBackActiveStateWhenRouteStarterFailsWithError() {
+    FakeShellSurface shell = new FakeShellSurface();
+    J2clRootLiveSurfaceController controller =
+        new J2clRootLiveSurfaceController(
+            shell,
+            () -> {
+              throw new AssertionError("startup error");
+            });
+
+    assertStartFailsAndSuppressesCallbacks(controller, shell, "startup error");
+  }
+
+  @Test
+  public void startCanRecoverAfterRouteStarterFailure() {
+    FakeShellSurface shell = new FakeShellSurface();
+    final int[] attempts = new int[1];
+    J2clRootLiveSurfaceController controller =
+        new J2clRootLiveSurfaceController(
+            shell,
+            () -> {
+              attempts[0]++;
+              if (attempts[0] == 1) {
+                throw new RuntimeException("startup failed");
+              }
+            });
+
+    assertStartFailsAndSuppressesCallbacks(controller, shell, "startup failed");
+    shell.clear();
+
+    controller.start();
+
+    Assert.assertEquals(2, attempts[0]);
+    Assert.assertEquals(1, shell.models.size());
+    Assert.assertEquals("Loading workspace.", shell.lastModel().getStatusText());
+  }
+
+  @Test
+  public void startCanRecoverAfterSynchronousPublishThenFailure() {
+    FakeShellSurface shell = new FakeShellSurface();
+    final int[] attempts = new int[1];
+    final J2clRootLiveSurfaceController[] controllerRef =
+        new J2clRootLiveSurfaceController[1];
+    controllerRef[0] =
+        new J2clRootLiveSurfaceController(
+            shell,
+            () -> {
+              attempts[0]++;
+              controllerRef[0].onRouteUrlChanged("?view=j2cl-root&q=partial");
+              if (attempts[0] == 1) {
+                throw new RuntimeException("startup failed");
+              }
+            });
+
+    try {
+      controllerRef[0].start();
+      Assert.fail("Expected route starter failure.");
+    } catch (RuntimeException expected) {
+      Assert.assertEquals("startup failed", expected.getMessage());
+    }
+    Assert.assertEquals(1, shell.returnTargets.size());
+    Assert.assertEquals(1, shell.models.size());
+    controllerRef[0].onRouteUrlChanged("?view=j2cl-root&q=late");
+    Assert.assertEquals(1, shell.returnTargets.size());
+    Assert.assertEquals(1, shell.models.size());
+    shell.clear();
+
+    controllerRef[0].start();
+
+    Assert.assertEquals(2, attempts[0]);
+    Assert.assertEquals(1, shell.returnTargets.size());
+    Assert.assertEquals(1, shell.models.size());
+    Assert.assertEquals("partial", shell.lastModel().getQuery());
+  }
+
+  @Test
   public void routeUrlChangedSyncsReturnTargetAndPublishesModel() {
     FakeShellSurface shell = new FakeShellSurface();
     J2clRootLiveSurfaceController controller = startedController(shell);
@@ -322,6 +410,27 @@ public class J2clRootLiveSurfaceControllerTest {
         2,
         7L,
         false);
+  }
+
+  private static void assertStartFailsAndSuppressesCallbacks(
+      J2clRootLiveSurfaceController controller, FakeShellSurface shell, String expectedMessage) {
+    try {
+      controller.start();
+      Assert.fail("Expected route starter failure.");
+    } catch (RuntimeException | Error expected) {
+      Assert.assertEquals(expectedMessage, expected.getMessage());
+    }
+    controller.onRouteUrlChanged("?view=j2cl-root&q=in%3Ainbox");
+    controller
+        .routeStateHandler(null)
+        .onRouteStateChanged(
+            new J2clSidecarRouteState("in:inbox", "example.com/w+123"), null, false);
+    controller
+        .selectedWaveController(null)
+        .onWaveSelected("example.com/w+456", null);
+
+    Assert.assertEquals(0, shell.returnTargets.size());
+    Assert.assertEquals(0, shell.models.size());
   }
 
   private static J2clRootLiveSurfaceController startedController(FakeShellSurface shell) {

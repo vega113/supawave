@@ -40,7 +40,7 @@ public final class J2clRootLiveSurfaceController {
     publishedDuringStart = false;
     try {
       routeStarter.start();
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | Error e) {
       active = false;
       throw e;
     }

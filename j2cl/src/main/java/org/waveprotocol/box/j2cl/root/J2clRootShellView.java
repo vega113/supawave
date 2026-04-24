@@ -56,11 +56,11 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
 
   @Override
   public void syncReturnTarget(String routeUrl) {
-    String returnTarget = normalizeLocalReturnTarget(routeUrl);
     Element shell = findRootShell();
     if (shell == null) {
       return;
     }
+    String returnTarget = resolveReturnTarget(routeUrl, shell);
     shell.setAttribute("data-j2cl-root-return-target", returnTarget);
     updateHref(shell, "j2cl-root-brand-link", returnTarget);
     updateAuthHrefs(shell, "[data-j2cl-root-signin='true']", "/auth/signin", returnTarget);
@@ -104,8 +104,12 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
       liveStatus = nextLiveStatus;
     }
     if (!isCurrentStatusNode(liveStatusSeparator, statusStrip, rootShell)) {
-      liveStatusSeparator =
+      HTMLElement nextLiveStatusSeparator =
           firstElementOwnedByRootShell(statusStrip, "#" + LIVE_STATUS_SEPARATOR_ID, rootShell);
+      if (nextLiveStatusSeparator != liveStatusSeparator) {
+        lastPublishedLiveStatusText = null;
+      }
+      liveStatusSeparator = nextLiveStatusSeparator;
     }
     if (liveStatusSeparator == null) {
       liveStatusSeparator = (HTMLElement) DomGlobal.document.createElement("span");
@@ -117,6 +121,7 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
       } else {
         statusStrip.appendChild(liveStatusSeparator);
       }
+      lastPublishedLiveStatusText = null;
     }
     if (liveStatus == null) {
       liveStatus = (HTMLElement) DomGlobal.document.createElement("span");
@@ -197,6 +202,17 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
     return element != null
         && statusStrip.contains(element)
         && isOwnedByRootShell(element, rootShell);
+  }
+
+  private static String resolveReturnTarget(String routeUrl, Element shell) {
+    if (routeUrl != null && !routeUrl.isEmpty() && routeUrl.charAt(0) == '?') {
+      String basePath = shell.getAttribute("data-j2cl-root-base-path");
+      if (basePath != null && !basePath.isEmpty()
+          && basePath.startsWith("/") && !basePath.startsWith("//")) {
+        return basePath + routeUrl;
+      }
+    }
+    return normalizeLocalReturnTarget(routeUrl);
   }
 
   private static String normalizeLocalReturnTarget(String routeUrl) {

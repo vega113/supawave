@@ -3278,6 +3278,8 @@ public final class HtmlRenderer {
     if (signedIn) {
       sb.append("<shell-root data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
           .append(safeResolvedReturnTarget)
+          .append("\" data-j2cl-root-base-path=\"")
+          .append(safeResolvedBasePath)
           .append("\">\n");
       sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")
           .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
@@ -3315,6 +3317,8 @@ public final class HtmlRenderer {
     } else {
       sb.append("<shell-root-signed-out data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
           .append(safeResolvedReturnTarget)
+          .append("\" data-j2cl-root-base-path=\"")
+          .append(safeResolvedBasePath)
           .append("\">\n");
       sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")
           .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")

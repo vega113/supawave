@@ -120,6 +120,25 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void signedOutMidFlightCreateAbandonsPendingCallback() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    List<String> created = new ArrayList<String>();
+    J2clComposeSurfaceController controller =
+        newController(gateway, view, new FakeFactory(), created, new ArrayList<String>());
+
+    controller.start();
+    controller.onCreateSubmitted("Hello");
+    controller.onSignedOut();
+    gateway.resolveBootstrap();
+
+    Assert.assertEquals(0, gateway.submitCalls);
+    Assert.assertTrue(created.isEmpty());
+    Assert.assertFalse(view.model.isCreateEnabled());
+  }
+
+  @Test
   public void signedOutStateDisablesComposeWithoutFetchingBootstrap() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();

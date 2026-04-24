@@ -114,6 +114,8 @@ public final class J2clComposeSurfaceController {
 
   public void onSignedOut() {
     signedOut = true;
+    createGeneration++;
+    replyGeneration++;
     createSubmitting = false;
     replySubmitting = false;
     writeSession = null;

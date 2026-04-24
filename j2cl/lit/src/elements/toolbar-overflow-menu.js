@@ -50,14 +50,14 @@ export class ToolbarOverflowMenu extends LitElement {
     return html`
       <button
         type="button"
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded=${this.open ? "true" : "false"}
         @click=${this.toggle}
         @keydown=${this.onTriggerKeyDown}
       >
         ${this.label}
       </button>
-      <div class="menu" role="menu"><slot></slot></div>
+      <div class="menu"><slot></slot></div>
     `;
   }
 

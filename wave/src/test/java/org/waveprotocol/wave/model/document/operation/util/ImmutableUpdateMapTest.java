@@ -50,6 +50,31 @@ public class ImmutableUpdateMapTest extends TestCase {
         "d", "oldD", "midD");
   }
 
+  public void testComposeWithNonImmutableUpdateMapRejectsDuplicateKeys() {
+    AttributesUpdateImpl base = new AttributesUpdateImpl("a", "oldA", "midA");
+
+    try {
+      base.composeWith(new NonImmutableAttributesUpdate(
+          "b", null, "v1",
+          "b", "v1", "v2"));
+      fail();
+    } catch (IllegalArgumentException e) {
+      // ok
+    }
+  }
+
+  public void testComposeWithNonImmutableUpdateMapRejectsMismatchedOldValue() {
+    AttributesUpdateImpl base = new AttributesUpdateImpl("a", "oldA", "midA");
+
+    try {
+      base.composeWith(new NonImmutableAttributesUpdate(
+          "a", "wrongMid", "newA"));
+      fail();
+    } catch (IllegalArgumentException e) {
+      // ok
+    }
+  }
+
   public void testCheckUpdatesSorted() {
     // see also the corresponding tests in ImmutableStateMapTest.
     ImmutableUpdateMap.checkUpdatesSorted(Arrays.asList(new AttributeUpdate[] {}));

@@ -58,7 +58,7 @@ public final class UserRegistrationServlet extends HttpServlet {
       java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
   private final AccountStore accountStore;
-  private final Object accountCreationLock = new Object();
+  private final Object accountCreationLock;
   private final String domain;
   private final boolean registrationDisabled;
   private final String analyticsAccount;
@@ -74,8 +74,10 @@ public final class UserRegistrationServlet extends HttpServlet {
                                  Config config,
                                  AuthEmailService authEmailService,
                                  WelcomeWaveCreator welcomeWaveCreator,
-                                 AnalyticsRecorder analyticsRecorder) {
+                                 AnalyticsRecorder analyticsRecorder,
+                                 @Named("accountCreationLock") Object accountCreationLock) {
     this.accountStore = accountStore;
+    this.accountCreationLock = accountCreationLock;
     this.domain = domain;
     this.registrationDisabled = config.getBoolean("administration.disable_registration");
     this.analyticsAccount = config.hasPath("administration.analytics_account")
@@ -222,6 +224,9 @@ public final class UserRegistrationServlet extends HttpServlet {
   private boolean persistAccountWithOwnerAssignment(HumanAccountDataImpl account) {
     try {
       synchronized (accountCreationLock) {
+        if (RegistrationSupport.doesAccountExist(accountStore, account.getId())) {
+          return false;
+        }
         assignOwnerIfFirst(account);
         accountStore.putAccount(account);
       }

@@ -106,6 +106,9 @@ public class ServerModule extends AbstractModule {
   @Provides @Singleton
   public SecureRandom provideSecureRandom() { return new SecureRandom(); }
 
+  @Provides @Singleton @com.google.inject.name.Named("accountCreationLock")
+  public Object provideAccountCreationLock() { return new Object(); }
+
   @Provides @Singleton
   public Clock provideClock() { return Clock.systemUTC(); }
 

@@ -74,7 +74,7 @@ public final class SocialAuthServlet extends HttpServlet {
   private final boolean passwordResetEnabled;
   private final boolean magicLinkEnabled;
   private final String analyticsAccount;
-  private final Object accountCreationLock = new Object();
+  private final Object accountCreationLock;
   private final Object startRateLimitLock = new Object();
   // Per-instance in-memory rate-limit store. Effective only in single-instance deployments;
   // clustered deployments should replace this with a centralized store (e.g. Redis) so the
@@ -92,8 +92,10 @@ public final class SocialAuthServlet extends HttpServlet {
       AnalyticsRecorder analyticsRecorder,
       SecureRandom secureRandom,
       @Named(CoreSettingsNames.WAVE_SERVER_DOMAIN) String domain,
-      Config config) {
+      Config config,
+      @Named("accountCreationLock") Object accountCreationLock) {
     this.accountStore = accountStore;
+    this.accountCreationLock = accountCreationLock;
     this.featureFlagService = featureFlagService;
     this.sessionManager = sessionManager;
     this.browserSessionJwtIssuer = browserSessionJwtIssuer;

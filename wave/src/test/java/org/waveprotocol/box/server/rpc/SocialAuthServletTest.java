@@ -437,7 +437,8 @@ public final class SocialAuthServletTest {
         new AnalyticsRecorder(),
         new SecureRandom(new byte[] {1, 2, 3, 4}),
         DOMAIN,
-        config);
+        config,
+        new Object());
     return new Fixture(servlet, accountStore, sessionManager, featureFlagStore);
   }
 

@@ -157,4 +157,15 @@ describe("<mention-suggestion-popover>", () => {
     expect(options.length).to.equal(1);
     expect(options[0].dataset.address).to.equal("valid@example.com");
   });
+
+  it("does not consume Enter when there are no candidates", async () => {
+    const el = await fixture(html`
+      <mention-suggestion-popover .candidates=${[]} open></mention-suggestion-popover>
+    `);
+
+    const enterEvent = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    el.dispatchEvent(enterEvent);
+
+    expect(enterEvent.defaultPrevented).to.equal(false);
+  });
 });

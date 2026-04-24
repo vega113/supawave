@@ -123,7 +123,7 @@ export class MentionSuggestionPopover extends LitElement {
       this.activeIndex = this.clampedIndex(this.activeIndex + offset);
       return;
     }
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && this.safeCandidates().length > 0) {
       event.preventDefault();
       this.selectCandidate(this.clampedIndex(this.activeIndex));
       return;

@@ -168,7 +168,9 @@ export class MentionSuggestionPopover extends LitElement {
     if (count === 0) {
       return 0;
     }
-    return ((index % count) + count) % count;
+    const numericIndex = Number(index);
+    const finiteIndex = Number.isFinite(numericIndex) ? numericIndex : 0;
+    return ((finiteIndex % count) + count) % count;
   }
 
   optionId(index) {

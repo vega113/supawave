@@ -149,6 +149,27 @@ describe("<task-metadata-popover>", () => {
     });
   });
 
+  it("trims due date input before validation and submit", async () => {
+    const el = await fixture(html`
+      <task-metadata-popover open task-id="task-1"></task-metadata-popover>
+    `);
+    let detail;
+    el.addEventListener("task-metadata-submit", event => {
+      detail = event.detail;
+    });
+
+    el.renderRoot.querySelector("input[name='dueDate']").value = " 2026-05-01 ";
+    el.renderRoot.querySelector("button[type='submit']").click();
+    await el.updateComplete;
+
+    expect(el.renderRoot.querySelector("[role='alert']")).to.equal(null);
+    expect(detail).to.deep.equal({
+      taskId: "task-1",
+      assigneeAddress: "",
+      dueDate: "2026-05-01"
+    });
+  });
+
   it("does not submit when Enter belongs to the assignee select", async () => {
     const el = await fixture(html`
       <task-metadata-popover

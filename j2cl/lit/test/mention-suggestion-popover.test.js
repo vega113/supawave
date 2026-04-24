@@ -190,6 +190,21 @@ describe("<mention-suggestion-popover>", () => {
     );
   });
 
+  it("falls back to the first option for non-finite active indexes", async () => {
+    const el = await fixture(html`
+      <mention-suggestion-popover
+        .candidates=${candidates}
+        .activeIndex=${Number.NaN}
+        open
+      ></mention-suggestion-popover>
+    `);
+    const options = el.renderRoot.querySelectorAll("[role='option']");
+
+    expect(el.renderRoot.querySelector("[role='listbox']").getAttribute("aria-activedescendant")).to.equal(
+      options[0].id
+    );
+  });
+
   it("filters malformed candidate entries before rendering", async () => {
     const el = await fixture(html`
       <mention-suggestion-popover

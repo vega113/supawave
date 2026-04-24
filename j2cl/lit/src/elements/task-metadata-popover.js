@@ -186,7 +186,7 @@ export class TaskMetadataPopover extends LitElement {
 
   submit = (event) => {
     event?.preventDefault();
-    const dueDate = this.renderRoot.querySelector("input[name='dueDate']")?.value || "";
+    const dueDate = (this.renderRoot.querySelector("input[name='dueDate']")?.value || "").trim();
     if (dueDate && !this.isValidDueDate(dueDate)) {
       this.error = "Use YYYY-MM-DD for the due date.";
       return;
